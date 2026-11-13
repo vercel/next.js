@@ -5,7 +5,8 @@
 //! produce. Living here means neither algorithm has to import from the other.
 
 use bincode::{Decode, Encode};
-use turbo_tasks::{FxIndexMap, OperationValue, ResolvedVc, Vc};
+use rustc_hash::FxHashMap;
+use turbo_tasks::{OperationValue, ResolvedVc, Vc};
 
 use crate::chunk::{ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo};
 
@@ -89,14 +90,13 @@ pub struct StyleGroups {
     /// else is implicitly emitted as a singleton chunk preserving input order). The graph
     /// algorithm inserts every input item — including singletons — so its result fully determines
     /// the final per-chunk-group ordering through `StyleItemInfo::order`.
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub shared_chunk_items: FxIndexMap<ChunkItemWithAsyncModuleInfo, StyleItemInfo>,
+    pub shared_chunk_items: FxHashMap<ChunkItemWithAsyncModuleInfo, StyleItemInfo>,
 }
 
 /// Constructor for [`StyleGroups`] that's accessible from both algorithm modules without
 /// forcing the cell visibility wider.
 pub(super) fn make_style_groups(
-    shared_chunk_items: FxIndexMap<ChunkItemWithAsyncModuleInfo, StyleItemInfo>,
+    shared_chunk_items: FxHashMap<ChunkItemWithAsyncModuleInfo, StyleItemInfo>,
 ) -> Vc<StyleGroups> {
     StyleGroups { shared_chunk_items }.cell()
 }

@@ -118,6 +118,18 @@ export type PreparedNavigationRecord = {
   // over the request instead of issuing its own, and clears these fields.
   inFlightRequest: Promise<FetchServerResponseResult> | null
   inFlightRequestTree: FlightRouterState | null
+  // For a route that wasn't known when the prepare phase started, the
+  // processed response, once it comes back: the same arguments a regular
+  // navigation passes to navigateToKnownRoute after fetching an unknown route.
+  // A commit uses these instead of fetching the route again, because the route
+  // cache entry the prepare phase wrote may already be expired (see
+  // InliningHintsStale). Cleared by the commit.
+  completedNavigation: {
+    navigationSeed: NavigationSeed
+    canonicalUrl: string
+    debugInfo: Array<unknown> | null
+    requestTree: FlightRouterState
+  } | null
 }
 
 /**

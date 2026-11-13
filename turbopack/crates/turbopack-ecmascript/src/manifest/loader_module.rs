@@ -26,9 +26,7 @@ use crate::{
     utils::{StringifyJs, StringifyModuleId},
 };
 
-fn modifier() -> RcStr {
-    rcstr!("loader")
-}
+static MODIFIER: RcStr = rcstr!("loader");
 
 /// The manifest loader module is shipped in the same chunk that uses the dynamic
 /// `import()` expression.
@@ -73,7 +71,7 @@ impl ManifestLoaderModule {
             .ident()
             .owned()
             .await?
-            .with_modifier(modifier())
+            .with_modifier(MODIFIER.clone())
             .into_vc())
     }
 }
@@ -87,7 +85,7 @@ impl Module for ManifestLoaderModule {
             .module_ident()
             .owned()
             .await?
-            .with_modifier(modifier())
+            .with_modifier(MODIFIER.clone())
             .into_vc())
     }
 
@@ -243,7 +241,7 @@ impl ManifestLoaderModule {
             .content_ident()
             .owned()
             .await?
-            .with_modifier(modifier())
+            .with_modifier(MODIFIER.clone())
             .into_vc())
     }
 }

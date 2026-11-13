@@ -21,21 +21,14 @@ workspace = true
 [dev-dependencies]
 criterion = { workspace = true }
 
-[target.'cfg(all(not(target_family = "wasm"), not(miri)))'.dependencies]
-libmimalloc-sys = { version = "0.1.44", features = [
-  "extended",
-], optional = true }
-
+# mimalloc's official Rust bindings live in `contrib/rust` of microsoft/mimalloc and are not
+# published to crates.io (the crate names are taken), so depend on a release tag via git. Bumping
+# the tag also bumps the bundled C library.
 [target.'cfg(not(any(target_os = "linux", target_family = "wasm", miri)))'.dependencies]
-mimalloc = { version = "0.1.48", features = [
-  "v3",
-  "extended",
-], optional = true }
+mimalloc = { git = "https://github.com/microsoft/mimalloc", tag = "v3.6.1", optional = true }
 
 [target.'cfg(all(target_os = "linux", not(target_family = "wasm"), not(miri)))'.dependencies]
-mimalloc = { version = "0.1.48", features = [
-  "v3",
-  "extended",
+mimalloc = { git = "https://github.com/microsoft/mimalloc", tag = "v3.6.1", features = [
   "local_dynamic_tls",
 ], optional = true }
 libc = "0.2"
@@ -51,5 +44,5 @@ windows-sys = { version = "0.60", features = [
 ] }
 
 [features]
-custom_allocator = ["dep:mimalloc", "dep:libmimalloc-sys"]
+custom_allocator = ["dep:mimalloc"]
 default = ["custom_allocator"]

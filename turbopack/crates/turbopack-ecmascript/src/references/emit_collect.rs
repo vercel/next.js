@@ -271,7 +271,7 @@ impl CollectReferenceCodeGen {
                 ReferencedAsset::Some(module) => {
                     generated_export_key(module, chunking_context, &COLLECT_LIST_EXPORT).await?
                 }
-                _ => COLLECT_LIST_EXPORT,
+                _ => COLLECT_LIST_EXPORT.clone(),
             };
 
         visitors.push(create_visitor!(

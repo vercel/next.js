@@ -32,7 +32,7 @@ use next_api::{
     project::{
         AdditionalRootConfig, AdditionalRootName, DebugBuildPaths, DefineEnv, DraftModeOptions,
         PartialProjectOptions, Project, ProjectContainer, ProjectOptions, WatchOptions,
-        activate_lazy_chunk_operation,
+        activate_lazy_chunk_operation, compute_whole_app_client_style_groups_early,
     },
     project_asset_hashes_manifest::immutable_hashes_manifest_asset_if_enabled,
     route::{Endpoint, EndpointGroupKey, Route},
@@ -60,6 +60,7 @@ use turbo_tasks::{
     Effects, FxIndexSet, GcRoot, OperationValue, OperationVc, PrettyPrintError, ReadRef,
     ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi, UpdateInfo,
     Vc, mark_top_level_task,
+    memory::release_freed_memory,
     message_queue::{CompilationEvent, Severity, TraceEvent},
     read_strongly_consistent_and_apply_effects, take_effects, turbo_tasks,
     unmark_top_level_task_may_leak_eventually_consistent_state,
@@ -232,6 +233,8 @@ pub struct NapiProjectOptions {
 
     /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     pub server_hmr: Option<bool>,
+    /// Retains shallow source maps for `analyze` without changing the emitted source map variant.
+    pub ensure_shallow_source_maps: Option<bool>,
 }
 
 /// The subset of [`NapiProjectOptions`] that may change without restarting the process. Used by
@@ -323,6 +326,7 @@ impl NapiProjectOptions {
             is_persistent_caching_enabled,
             next_version,
             server_hmr,
+            ensure_shallow_source_maps,
         } = val;
         ProjectOptions {
             root_path,
@@ -355,6 +359,7 @@ impl NapiProjectOptions {
             is_persistent_caching_enabled,
             next_version,
             server_hmr: server_hmr.unwrap_or(false),
+            ensure_shallow_source_maps: ensure_shallow_source_maps.unwrap_or(false),
         }
     }
 }
@@ -896,6 +901,10 @@ async fn run_shutdown_hooks(project: &ProjectInstance) {
 
 /// Runs resource cleanup, stops Turbo Tasks, and then flushes the project's exit handlers.
 ///
+/// Stopping drops the turbo-tasks storage, which is most of the process's heap. Before resolving,
+/// this also returns that memory to the OS (see [`release_freed_memory`]), so it isn't held while
+/// the caller goes on to other memory-hungry work (e.g. static generation workers).
+///
 /// This is used in builds where it's important that we completely persist turbo-tasks to disk, but
 /// it's skipped in the development server (`project_on_exit` is used instead with a short timeout),
 /// where we prioritize fast exit and user responsiveness over all else.
@@ -908,6 +917,9 @@ pub async fn project_shutdown(
     run_shutdown_hooks(project).await;
     tt.stop_and_wait().await;
     run_exit_handlers(&project.exit_receiver).await;
+    release_freed_memory()
+        .instrument(tracing::info_span!("release freed memory"))
+        .await;
     Ok(())
 }
 
@@ -2030,8 +2042,13 @@ async fn output_assets_operation(
     let endpoint_assets = endpoints
         .iter()
         .map(async |endpoint| endpoint.output().await?.output_assets.await)
-        .try_join()
-        .await?;
+        .try_join();
+    // Start the whole-app style groups while the endpoints are being chunked, rather than when
+    // the first endpoint's CSS chunking asks for them.
+    let (endpoint_assets, ()) = futures_util::try_join!(
+        endpoint_assets,
+        compute_whole_app_client_style_groups_early(project)
+    )?;
 
     let output_assets: FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>> = endpoint_assets
         .iter()

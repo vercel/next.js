@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
+use turbo_tasks::{FixintU64, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
@@ -29,7 +29,7 @@ pub struct ChunksData(Vec<ResolvedVc<ChunkData>>);
 #[turbo_tasks::value_impl]
 impl ChunksData {
     #[turbo_tasks::function]
-    pub async fn hash(&self) -> Result<Vc<u64>> {
+    pub async fn hash(&self) -> Result<Vc<FixintU64>> {
         let mut hasher = Xxh3Hash64Hasher::new();
         for chunk in self.0.iter() {
             hasher.write_value(chunk.await?.path.as_str());
@@ -41,7 +41,7 @@ impl ChunksData {
 #[turbo_tasks::value_impl]
 impl ChunkData {
     #[turbo_tasks::function]
-    pub async fn hash(&self) -> Result<Vc<u64>> {
+    pub async fn hash(&self) -> Result<Vc<FixintU64>> {
         let mut hasher = Xxh3Hash64Hasher::new();
         hasher.write_value(self.path.as_str());
         for module in &self.included {

@@ -110,12 +110,7 @@ pub struct AppProject {
 #[turbo_tasks::value(transparent)]
 pub struct OptionAppProject(Option<ResolvedVc<AppProject>>);
 
-impl AppProject {}
-impl AppProject {
-    pub fn client_transition_name() -> RcStr {
-        rcstr!("next-ecmascript-client-reference")
-    }
-}
+pub static CLIENT_TRANSITION_NAME: RcStr = rcstr!("next-ecmascript-client-reference");
 
 #[turbo_tasks::value_impl]
 impl AppProject {
@@ -150,7 +145,7 @@ impl AppProject {
             client_transition: Some(ResolvedVc::upcast(
                 self.client_transition().to_resolved().await?,
             )),
-            ecmascript_client_reference_transition_name: Some(Self::client_transition_name()),
+            ecmascript_client_reference_transition_name: Some(CLIENT_TRANSITION_NAME.clone()),
         }
         .cell())
     }
@@ -160,7 +155,7 @@ impl AppProject {
         let this = self.await?;
         Ok(ServerContextType::AppRoute {
             app_dir: this.app_dir.clone(),
-            ecmascript_client_reference_transition_name: Some(Self::client_transition_name()),
+            ecmascript_client_reference_transition_name: Some(CLIENT_TRANSITION_NAME.clone()),
         }
         .cell())
     }
@@ -208,14 +203,16 @@ impl AppProject {
 
     #[turbo_tasks::function]
     async fn client_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        let project = self.project();
         Ok(get_client_module_options_context(
-            self.project().project_path().owned().await?,
-            self.project().execution_context(),
-            self.project().client_compile_time_info().environment(),
+            project.project_path().owned().await?,
+            project.execution_context(),
+            project.client_compile_time_info().environment(),
             self.client_ty().owned().await?,
-            self.project().next_mode(),
-            self.project().next_config(),
-            self.project().encryption_key(),
+            project.next_mode(),
+            project.next_config(),
+            project.encryption_key(),
+            project.client_source_map_generation_options(),
         ))
     }
 
@@ -238,67 +235,75 @@ impl AppProject {
 
     #[turbo_tasks::function]
     async fn rsc_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        let project = self.project();
         Ok(get_server_module_options_context(
-            self.project().project_path().owned().await?,
-            self.project().execution_context(),
+            project.project_path().owned().await?,
+            project.execution_context(),
             self.rsc_ty().owned().await?,
-            self.project().next_mode(),
-            self.project().next_config(),
+            project.next_mode(),
+            project.next_config(),
             NextRuntime::NodeJs,
-            self.project().encryption_key(),
-            self.project().server_compile_time_info().environment(),
-            self.project().client_compile_time_info().environment(),
-            *self.project().should_write_nft_manifests().await?,
+            project.encryption_key(),
+            project.server_compile_time_info().environment(),
+            project.client_compile_time_info().environment(),
+            *project.should_write_nft_manifests().await?,
+            project.server_source_map_generation_options(),
         ))
     }
 
     #[turbo_tasks::function]
     async fn edge_rsc_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        let project = self.project();
         Ok(get_server_module_options_context(
-            self.project().project_path().owned().await?,
-            self.project().execution_context(),
+            project.project_path().owned().await?,
+            project.execution_context(),
             self.rsc_ty().owned().await?,
-            self.project().next_mode(),
-            self.project().next_config(),
+            project.next_mode(),
+            project.next_config(),
             NextRuntime::Edge,
-            self.project().encryption_key(),
-            self.project().edge_compile_time_info().environment(),
-            self.project().client_compile_time_info().environment(),
+            project.encryption_key(),
+            project.edge_compile_time_info().environment(),
+            project.client_compile_time_info().environment(),
             // There is no NFT on edge
             false,
+            project.server_source_map_generation_options(),
         ))
     }
 
     #[turbo_tasks::function]
     async fn route_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        let project = self.project();
         Ok(get_server_module_options_context(
-            self.project().project_path().owned().await?,
-            self.project().execution_context(),
+            project.project_path().owned().await?,
+            project.execution_context(),
             self.route_ty().owned().await?,
-            self.project().next_mode(),
-            self.project().next_config(),
+            project.next_mode(),
+            project.next_config(),
             NextRuntime::NodeJs,
-            self.project().encryption_key(),
-            self.project().server_compile_time_info().environment(),
-            self.project().client_compile_time_info().environment(),
-            *self.project().should_write_nft_manifests().await?,
+            project.encryption_key(),
+            project.server_compile_time_info().environment(),
+            project.client_compile_time_info().environment(),
+            *project.should_write_nft_manifests().await?,
+            project.server_source_map_generation_options(),
         ))
     }
 
     #[turbo_tasks::function]
     async fn edge_route_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+        let project = self.project();
         Ok(get_server_module_options_context(
-            self.project().project_path().owned().await?,
-            self.project().execution_context(),
+            project.project_path().owned().await?,
+            project.execution_context(),
             self.route_ty().owned().await?,
-            self.project().next_mode(),
-            self.project().next_config(),
+            project.next_mode(),
+            project.next_config(),
             NextRuntime::Edge,
-            self.project().encryption_key(),
-            self.project().edge_compile_time_info().environment(),
-            self.project().client_compile_time_info().environment(),
+            project.encryption_key(),
+            project.edge_compile_time_info().environment(),
+            project.client_compile_time_info().environment(),
             // There is no NFT on edge
             false,
+            project.server_source_map_generation_options(),
         ))
     }
 
@@ -385,7 +390,7 @@ impl AppProject {
         Ok(TransitionOptions {
             named_transitions: [
                 (
-                    AppProject::client_transition_name(),
+                    CLIENT_TRANSITION_NAME.clone(),
                     ecmascript_client_reference_transition.to_resolved().await?,
                 ),
                 (
@@ -487,7 +492,7 @@ impl AppProject {
     pub(crate) async fn route_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
-                AppProject::client_transition_name(),
+                CLIENT_TRANSITION_NAME.clone(),
                 self.ecmascript_client_reference_transition()
                     .to_resolved()
                     .await?,
@@ -538,7 +543,7 @@ impl AppProject {
     async fn edge_route_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
-                AppProject::client_transition_name(),
+                CLIENT_TRANSITION_NAME.clone(),
                 self.edge_ecmascript_client_reference_transition()
                     .to_resolved()
                     .await?,
@@ -627,6 +632,7 @@ impl AppProject {
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
             *self.project().should_write_nft_manifests().await?,
+            self.project().server_source_map_generation_options(),
         ))
     }
 
@@ -644,6 +650,7 @@ impl AppProject {
             self.project().client_compile_time_info().environment(),
             // There is no NFT on edge
             false,
+            self.project().server_source_map_generation_options(),
         ))
     }
 
@@ -2155,7 +2162,7 @@ impl AppEndpoint {
                             .as_ref()
                             .map(|region| Regions::Multiple(region.to_vec())),
                         matchers: vec![matchers],
-                        env: project.edge_env().owned().await?,
+                        env: project.edge_env().owned().await?.into_iter().collect(),
                     };
                     let middleware_manifest_v2 = MiddlewaresManifestV2 {
                         sorted_middleware: vec![app_entry.original_name.clone()],
@@ -2368,7 +2375,7 @@ impl AppEndpoint {
                                 let merged = chunk_group_info
                                     .get_shared_merged_chunk_group(
                                         entry_index,
-                                        NEXT_SERVER_UTILITY_MERGE_TAG,
+                                        NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
                                     )
                                     .await?;
                                 merged.as_ref().map(|group| group.chunk_group.key())
