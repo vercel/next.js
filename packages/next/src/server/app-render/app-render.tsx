@@ -10510,7 +10510,7 @@ async function prerenderToStream(
         reactServerPrerenderResultIsDynamic
       const originalResumeDataCache = reactServerResumeDataCache
       const originalPrerenderStore =
-        reactServerPrerenderStore as PrerenderStore | null
+        reactServerPrerenderStore as PrerenderStoreModernServer | null
 
       if (originalFlightPrerenderResult === null) {
         throw new InvariantError(
@@ -10535,6 +10535,9 @@ async function prerenderToStream(
       const originalCollectedStale = selectStaleTime(
         originalPrerenderStore.stale
       )
+      const requiresCompleteServerOutput =
+        originalPrerenderStore.ensureStaticLevel ===
+        EnsureStaticLevel.Navigation
 
       // The final recovery still belongs to Cache Components. Render the error
       // payload with the same prerender APIs as the normal path so not-found
@@ -10692,13 +10695,25 @@ async function prerenderToStream(
                       errorInfo as any
                     ).componentStack
                     if (typeof componentStack === 'string') {
-                      trackAllowedDynamicAccess(
-                        clientError,
-                        workStore,
-                        componentStack,
-                        errorDynamicValidation,
-                        errorClientDynamicTracking
-                      )
+                      if (requiresCompleteServerOutput) {
+                        trackDynamicAccessInStaticRoute(
+                          clientError,
+                          workStore,
+                          componentStack,
+                          errorDynamicValidation,
+                          errorClientDynamicTracking,
+                          originalFlightPrerenderResultIsDynamic,
+                          DynamicHoleKind.RuntimeOrDynamic
+                        )
+                      } else {
+                        trackAllowedDynamicAccess(
+                          clientError,
+                          workStore,
+                          componentStack,
+                          errorDynamicValidation,
+                          errorClientDynamicTracking
+                        )
+                      }
                     }
                     return
                   }
@@ -10734,6 +10749,22 @@ async function prerenderToStream(
         const { prelude, preludeIsEmpty } = await processPreludeOp(
           unprocessedErrorHtmlStream
         )
+
+        if (requiresCompleteServerOutput) {
+          // Recovery bootstraps the original Flight payload, even when its
+          // own HTML shell is complete. That payload must not need a resume.
+          throwIfDisallowedDynamicInStaticRoute(
+            workStore,
+            preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
+            errorDynamicValidation,
+            errorServerDynamicTracking,
+            renderOpts.allowEmptyStaticShell === true &&
+              fallbackRouteParams !== null &&
+              fallbackRouteParams.size > 0,
+            false,
+            originalFlightPrerenderResultIsDynamic
+          )
+        }
 
         if (preludeIsEmpty) {
           console.error(
