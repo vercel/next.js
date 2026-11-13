@@ -2217,12 +2217,15 @@ export function createAppPageEntrypoint({
         }
 
         // RSC payloads encode redirects. The non-minimal server sends them with
-        // a 200 status.
+        // a 200 status. Only the redirect status applied above is replaced, so
+        // a status set earlier in the request, such as a proxy rewrite's,
+        // reaches the client.
         if (
           !isMinimalMode &&
           cachedData.status &&
           RedirectStatusCode[cachedData.status] &&
-          isRSCRequest
+          isRSCRequest &&
+          res.statusCode === cachedData.status
         ) {
           res.statusCode = 200
         }

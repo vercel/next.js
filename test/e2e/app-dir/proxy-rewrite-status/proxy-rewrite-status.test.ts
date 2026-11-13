@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 describe('proxy-rewrite-status', () => {
   const { next } = nextTestSetup({
@@ -42,5 +43,46 @@ describe('proxy-rewrite-status', () => {
 
     expect(res.status).toBe(200)
     expect(await res.text()).toContain('gone')
+  })
+
+  it('passes the proxy rewrite status to a client navigation that reaches a stored redirect', async () => {
+    const browser = await next.browser('/navigate')
+    const navigationStatuses: number[] = []
+    browser.on('response', (res) => {
+      if (
+        new URL(res.url()).pathname === '/relocated' &&
+        res.request().headers()['rsc'] === '1'
+      ) {
+        navigationStatuses.push(res.status())
+      }
+    })
+
+    await browser.elementById('to-relocated').click()
+
+    // The router loads the document instead, which still redirects.
+    await retry(async () => {
+      expect(await browser.elementById('gone').text()).toBe('gone')
+    })
+    expect(navigationStatuses).toEqual([410])
+  })
+
+  it('keeps the 200 for a client navigation that reaches a stored redirect without a rewrite status', async () => {
+    const browser = await next.browser('/navigate')
+    const navigationStatuses: number[] = []
+    browser.on('response', (res) => {
+      if (
+        new URL(res.url()).pathname === '/moved' &&
+        res.request().headers()['rsc'] === '1'
+      ) {
+        navigationStatuses.push(res.status())
+      }
+    })
+
+    await browser.elementById('to-moved').click()
+
+    await retry(async () => {
+      expect(await browser.elementById('gone').text()).toBe('gone')
+    })
+    expect(navigationStatuses).toEqual([200])
   })
 })
