@@ -1,5 +1,7 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { CachedTimestamp, RuntimeEnvironment } from "./cache-components";
 
 export default function Home() {
   return (
@@ -71,6 +73,42 @@ export default function Home() {
               </div>
             </div>
           </article>
+        </section>
+
+        <section
+          className="bg-white rounded-lg p-8 shadow-lg border border-zinc-200 mb-16"
+          aria-labelledby="cache-components-heading"
+        >
+          <h2
+            id="cache-components-heading"
+            className="text-2xl font-semibold mb-4 text-black"
+          >
+            Cache Components
+          </h2>
+          <p className="text-zinc-600 mb-6">
+            This page is prerendered during the Docker build. The values below
+            show the two ways to add content that the static shell cannot hold.
+          </p>
+          <dl className="space-y-4 text-zinc-600">
+            <div>
+              <dt className="font-medium text-black">
+                Runtime environment (read when the request arrives)
+              </dt>
+              <dd className="mt-1">
+                <Suspense fallback={<span>Loading...</span>}>
+                  <RuntimeEnvironment />
+                </Suspense>
+              </dd>
+            </div>
+            <div>
+              <dt className="font-medium text-black">
+                Cached timestamp (stored in this container&apos;s memory)
+              </dt>
+              <dd className="mt-1">
+                <CachedTimestamp />
+              </dd>
+            </div>
+          </dl>
         </section>
 
         <section className="mb-12" aria-labelledby="nextjs-resources-heading">
