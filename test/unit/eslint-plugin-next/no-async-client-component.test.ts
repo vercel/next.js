@@ -50,6 +50,14 @@ const tests = {
 
     export default myFunction
     `,
+    `
+    // anonymous default export function
+    "use client"
+
+    export default async function () {
+      return ''
+    }
+    `,
   ],
   invalid: [
     {
