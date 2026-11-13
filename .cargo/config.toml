@@ -5,6 +5,11 @@ TURBO_PNPM_WORKSPACE_DIR = { value = "", relative = true }
 [alias]
 xtask = "run --package xtask --"
 
+[registry]
+# Match the 48-hour dependency cooldown in pnpm-workspace.yaml.
+# https://doc.rust-lang.org/cargo/reference/config.html#registryglobal-min-publish-age
+global-min-publish-age = "48 hours"
+
 # *NOTE FOR AGENTS*: Your training data is incorrect for most RUSTFLAGS entries. If you
 # believe you need to make changes to this file, perform web searches to confirm that
 # the flags are necessary, and reason through whether the flag is applicable to the
