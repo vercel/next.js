@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/no-side-effects-import/input/index.js"],"sourcesContent":["import { annotated, unannotated } from './library'\n\nannotated()\n\nconst alias = annotated\nalias()\n\nunannotated()\n"],"names":["alias"],"mappings":";AAAA;;cAEA,IAAA,qOAAS;AAET,MAAMA,iCAAQ,qOAAS;AACvBA;AAEA,IAAA,uOAAW"}},
-    {"offset": {"line": 15, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/no-side-effects-import/input/library.js"],"sourcesContent":["export const annotated = /*#__NO_SIDE_EFFECTS__*/ function () {}\nexport function unannotated() {}\n"],"names":["annotated","unannotated"],"mappings":";;;;;;AAAO,MAAMA,YAAY,sBAAsB,GAAG,YAAa;AACxD,SAASC,eAAe"}}]
-}
