@@ -3577,15 +3577,19 @@ impl TurboTasksBackend {
             }
         }
         if let Some(reader_id) = reader_id {
-            let _ = task.add_collectibles_dependents((collectible_type, reader_id));
             let target = CollectiblesRef {
                 task: task_id,
                 collectible_type,
             };
             // A task reading its own collectibles uses the same guard for both roles.
             let reader = reader.as_mut().unwrap_or(&mut task);
-            if !reader.remove_outdated_collectibles_dependencies(&target) {
-                let _ = reader.add_collectibles_dependencies(target);
+            // The reader's forward edge tells whether the reverse edge exists: an edge from the
+            // reader's previous execution (outdated) or an earlier read in this execution already
+            // has one, so only a new edge adds it. Both tasks are locked, so this is atomic.
+            let is_new_edge = !reader.remove_outdated_collectibles_dependencies(&target)
+                && reader.add_collectibles_dependencies(target);
+            if is_new_edge {
+                task.push_collectibles_dependents((collectible_type, reader_id));
             }
         }
         collectibles
