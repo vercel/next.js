@@ -198,6 +198,36 @@ describe.each([
       )
     })
 
+    if (process.env.IS_TURBOPACK_TEST) {
+      it('should append dpl query to WASM fetch URLs without double-encoding', async () => {
+        const wasmRequests = []
+
+        const browser = await next.browser('/wasm-page', {
+          beforePageLoad(page) {
+            page.on('request', async (req) => {
+              if (req.url().includes('.wasm')) {
+                wasmRequests.push(req.url())
+              }
+            })
+          },
+        })
+
+        await browser.elementByCss('#load-wasm').click()
+        await retry(() => expect(wasmRequests).not.toBeEmpty())
+
+        try {
+          // WASM fetch URLs must contain dpl= exactly once and not be double-encoded
+          for (const url of wasmRequests) {
+            validateTokenForRequest(url)
+            expect(url.split('dpl=').length - 1).toBeLessThanOrEqual(1)
+            expect(url).not.toMatch(/%3f/i)
+          }
+        } finally {
+          require('console').error('wasmRequests', wasmRequests)
+        }
+      })
+    }
+
     if (usesImmutableAssets) {
       it('should emit hashes to adapter', async () => {
         const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
