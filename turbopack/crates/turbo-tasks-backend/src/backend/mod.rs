@@ -1240,7 +1240,7 @@ impl TurboTasksBackend {
         cell: CellId,
         reader: TaskId,
         id: u32,
-        key_hashes: &mut dyn Iterator<Item = u64>,
+        key_hashes: impl IntoIterator<Item = u64, IntoIter: Clone>,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) {
         if !self.should_track_dependencies() || reader == task_id {
@@ -1265,9 +1265,19 @@ impl TurboTasksBackend {
         if immutable {
             return;
         }
+        // Many readers refining at once all need the owner `task`, so the owner side is done first
+        // and the owner is released before the reader side is done. The reader stays locked until
+        // its side is complete: an `update_cell` that collects the new owner-side edges in the
+        // meantime blocks on the reader, and then finds the edges on the reader side as well (see
+        // the same ordering in `add_cell_dependency` of `try_read_task_cell`). The keys are
+        // iterated once per side, so they don't need to be buffered.
+        let key_hashes = key_hashes.into_iter();
+        for k in key_hashes.clone() {
+            let _ = task.add_cell_dependents_keyed((reverse, CellKey::hash(k)));
+        }
+        drop(task);
         for k in key_hashes {
             let key = CellKey::hash(k);
-            let _ = task.add_cell_dependents_keyed((reverse, key));
             if !reader_task.remove_outdated_cell_dependencies_keyed(&(target, key)) {
                 let _ = reader_task.add_cell_dependencies_keyed((target, key));
             }
@@ -4165,7 +4175,7 @@ impl Backend for TurboTasksBackend {
         cell: CellId,
         reader: TaskId,
         id: u32,
-        key_hashes: &mut dyn Iterator<Item = u64>,
+        key_hashes: impl IntoIterator<Item = u64, IntoIter: Clone>,
         turbo_tasks: &TurboTasks<Self>,
     ) {
         self.refine_provisional_cell_dependency(task_id, cell, reader, id, key_hashes, turbo_tasks)

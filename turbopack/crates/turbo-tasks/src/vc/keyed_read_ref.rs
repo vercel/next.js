@@ -124,7 +124,7 @@ where
                 index,
                 dependency.reader,
                 dependency.id,
-                &mut key_hashes.into_iter(),
+                &key_hashes,
             )
         });
     }

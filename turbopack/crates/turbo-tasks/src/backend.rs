@@ -683,6 +683,9 @@ pub trait Backend: Sized + Sync + Send {
     /// [`CellKeyKind::Hash`][crate::CellKeyKind::Hash] dependencies on each of the `key_hashes`, in
     /// a single operation. With no `key_hashes`, the dependency is removed.
     ///
+    /// `key_hashes` can be iterated multiple times (by cloning the iterator), so an implementation
+    /// can process them in several passes without buffering them.
+    ///
     /// Must only be called from within the same execution of `reader` that created the
     /// dependency.
     fn refine_provisional_cell_dependency(
@@ -691,7 +694,7 @@ pub trait Backend: Sized + Sync + Send {
         index: CellId,
         reader: TaskId,
         id: u32,
-        key_hashes: &mut dyn Iterator<Item = u64>,
+        key_hashes: impl IntoIterator<Item = u64, IntoIter: Clone>,
         turbo_tasks: &TurboTasks<Self>,
     );
 
