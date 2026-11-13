@@ -5,7 +5,14 @@ const path = require('path')
 const OUTPUT_ROOT = path.join(__dirname, 'pr-status')
 const RESULTS_DIR = path.join(OUTPUT_ROOT, 'results')
 const INTERMEDIATE_DIR = path.join(OUTPUT_ROOT, 'intermediate')
-const ANSI_RE = new RegExp(String.raw`\u001B\[[0-9;]*[A-Za-z]`, 'g')
+// Terminal escape sequences: CSI (`ESC [ ... final byte`, which covers colors
+// and cursor movement), OSC (`ESC ] ... BEL` or `ESC ] ... ESC \`, such as
+// hyperlinks), and other escapes such as `ESC ( B`. An ESC that starts none of
+// these is matched alone, so stripping leaves no ESC byte behind.
+const ANSI_RE = new RegExp(
+  String.raw`\u001B(?:\[[0-?]*[ -/]*[@-~]|\][^\u0007\u001B\n]*(?:\u0007|\u001B\\)|[ -/]*[0-~])?`,
+  'g'
+)
 const JOBS_PAGE_SIZE = 30
 
 // ============================================================================
@@ -216,10 +223,16 @@ function getBranchInfo(prNumberArg) {
   // If PR number provided as argument, fetch branch from that PR
   if (prNumberArg) {
     try {
-      const output = exec(`gh pr view ${prNumberArg} --json number,headRefName`)
+      const output = exec(
+        `gh pr view ${prNumberArg} --json number,headRefName,headRefOid`
+      )
       const data = JSON.parse(output)
       if (data.number && data.headRefName) {
-        return { prNumber: String(data.number), branchName: data.headRefName }
+        return {
+          prNumber: String(data.number),
+          branchName: data.headRefName,
+          headSha: data.headRefOid || null,
+        }
       }
     } catch {
       console.error(`Failed to fetch PR #${prNumberArg}`)
@@ -229,24 +242,33 @@ function getBranchInfo(prNumberArg) {
 
   // Auto-detect from current branch/PR context
   try {
-    const output = exec(`gh pr view --json number,headRefName`)
+    const output = exec(`gh pr view --json number,headRefName,headRefOid`)
     const data = JSON.parse(output)
     if (data.number && data.headRefName) {
-      return { prNumber: String(data.number), branchName: data.headRefName }
+      return {
+        prNumber: String(data.number),
+        branchName: data.headRefName,
+        headSha: data.headRefOid || null,
+      }
     }
   } catch {
     // Fallback to git if not in PR context
   }
   const branchName = exec('git rev-parse --abbrev-ref HEAD')
-  return { prNumber: null, branchName }
+  return { prNumber: null, branchName, headSha: null }
 }
 
-function getWorkflowRuns(branch) {
-  const encodedBranch = encodeURIComponent(branch)
+function getWorkflowRuns({ branchName, headSha }) {
+  // A PR's runs are looked up by its head commit, not its branch name: fork PRs
+  // often share a branch name (two forks pushing `fix/foo`), and runs for fork
+  // PRs list no pull_requests, so a branch query can return another PR's run.
+  const runFilter = headSha
+    ? `head_sha=${headSha}`
+    : `branch=${encodeURIComponent(branchName)}`
   const jqQuery =
     '.workflow_runs[] | select(.name == "build-and-test") | {id, run_attempt, status, conclusion}'
   const output = exec(
-    `gh api "repos/vercel/next.js/actions/runs?branch=${encodedBranch}&per_page=10" --jq '${jqQuery}'`
+    `gh api "repos/vercel/next.js/actions/runs?${runFilter}&per_page=10" --jq '${jqQuery}'`
   )
 
   if (!output.trim()) return []
@@ -352,14 +374,53 @@ function getJobMetadata(jobId) {
   )
 }
 
+let ghApiRawOutputFlags
+
+/**
+ * Since gh 2.97, `gh api` refuses to print a raw response that contains an ESC
+ * byte unless `--allow-escape-sequences` is passed, and every Actions job log
+ * has them (step commands are colored). Older gh rejects the flag as unknown,
+ * so pass it only when `gh api --help` lists it.
+ */
+function getGhApiRawOutputFlags() {
+  if (ghApiRawOutputFlags === undefined) {
+    let help = ''
+    try {
+      help = execFileSync('gh', ['api', '--help'], { encoding: 'utf8' })
+    } catch {
+      // Leave the flag out; the request itself reports what went wrong.
+    }
+    ghApiRawOutputFlags = help.includes('--allow-escape-sequences')
+      ? ['--allow-escape-sequences']
+      : []
+  }
+  return ghApiRawOutputFlags
+}
+
+function describeCommandError(error) {
+  const firstStderrLine = stripAnsi(error.stderr)
+    .split('\n')
+    .map((line) => line.trim())
+    .find(Boolean)
+  return firstStderrLine || error.message
+}
+
+/**
+ * Returns `{ logs, error }`: the job's log with terminal escape sequences
+ * stripped, or an empty log and gh's error message when it can't be fetched.
+ * The flag turns off gh's own escape-sequence guard, so everything parsed or
+ * written to the output files goes through `stripAnsi` here.
+ */
 async function getJobLogs(jobId) {
   try {
-    return await execAsync('gh', [
+    const logs = await execAsync('gh', [
       'api',
+      ...getGhApiRawOutputFlags(),
       `repos/vercel/next.js/actions/jobs/${jobId}/logs`,
     ])
-  } catch {
-    return 'Logs not available'
+    return { logs: stripAnsi(logs), error: null }
+  } catch (error) {
+    return { logs: '', error: describeCommandError(error) }
   }
 }
 
@@ -740,7 +801,7 @@ function generateIndexMd(
   jobTestCounts,
   reviewData,
   jobEnvMap,
-  flakyTests
+  flakyCheck
 ) {
   const { failed, inProgress, queued, succeeded, cancelled, skipped } =
     categorizedJobs
@@ -812,9 +873,11 @@ function generateIndexMd(
     for (const job of failed) {
       const duration = formatDuration(job.started_at, job.completed_at)
       const testCount = jobTestCounts[job.id]
-      const testsStr = testCount
-        ? `${testCount.failed}/${testCount.total}`
-        : 'N/A'
+      const testsStr = job.logError
+        ? 'Logs unavailable'
+        : testCount
+          ? `${testCount.failed}/${testCount.total}`
+          : 'N/A'
       const nameStr = escapeMarkdownTableCell(job.name)
       const conclusionTag =
         job.conclusion && job.conclusion !== 'failure'
@@ -825,6 +888,20 @@ function generateIndexMd(
       )
     }
     lines.push('')
+
+    const jobsWithoutLogs = failed.filter((job) => job.logError)
+    if (jobsWithoutLogs.length > 0) {
+      lines.push(
+        `### Log Fetch Failures (${jobsWithoutLogs.length})`,
+        '',
+        "These jobs' logs could not be downloaded, so this report has no test results or log sections for them. Read the logs on GitHub, or re-run this script.",
+        ''
+      )
+      for (const job of jobsWithoutLogs) {
+        lines.push(`- ${job.id} (${job.name}): ${job.logError}`)
+      }
+      lines.push('')
+    }
 
     // Show env vars for failed jobs if they differ from defaults
     if (jobEnvMap && Object.keys(jobEnvMap).length > 0) {
@@ -849,16 +926,22 @@ function generateIndexMd(
     }
 
     // Known flaky tests section
-    if (flakyTests && flakyTests.size > 0) {
+    const flakyTests = flakyCheck?.tests ?? new Set()
+    if (flakyTests.size > 0 || flakyCheck?.warning) {
       lines.push('### Known Flaky Tests (failing on 2+ branches)', '')
-      lines.push(
-        'These tests also failed in recent CI runs across multiple different branches and are likely pre-existing flakes, not caused by this PR:',
-        ''
-      )
-      for (const testPath of [...flakyTests].sort()) {
-        lines.push(`- \`${testPath}\``)
+      if (flakyCheck.warning) {
+        lines.push(`> **Warning:** ${flakyCheck.warning}`, '')
       }
-      lines.push('')
+      if (flakyTests.size > 0) {
+        lines.push(
+          'These tests also failed in recent CI runs across multiple different branches and are likely pre-existing flakes, not caused by this PR:',
+          ''
+        )
+        for (const testPath of [...flakyTests].sort()) {
+          lines.push(`- \`${testPath}\``)
+        }
+        lines.push('')
+      }
     }
   }
 
@@ -1051,7 +1134,13 @@ async function writeReviewFiles(reviewData) {
   }
 }
 
-function generateJobMd(jobMetadata, testResults, testFiles, sections) {
+function generateJobMd(
+  jobMetadata,
+  testResults,
+  testFiles,
+  sections,
+  logError
+) {
   const duration = formatDuration(
     jobMetadata.started_at,
     jobMetadata.completed_at
@@ -1068,6 +1157,17 @@ function generateJobMd(jobMetadata, testResults, testFiles, sections) {
     `URL: ${jobMetadata.html_url}`,
     '',
   ]
+
+  if (logError) {
+    lines.push(
+      '## Logs Unavailable',
+      '',
+      `Could not fetch this job's logs: ${logError}`,
+      '',
+      'Read them at the URL above, or re-run this script.',
+      ''
+    )
+  }
 
   // Add sections list with line counts and links to section files
   if (sections.length > 0) {
@@ -1322,7 +1422,9 @@ function generateThreadMd(thread, index) {
  * Fetches recent failed CI runs across all branches and identifies tests that
  * fail on multiple different branches (indicating flakiness, not branch-specific bugs).
  * Excludes the current PR's branch to avoid self-matching.
- * Returns a Set of test file paths that are likely flaky.
+ * Returns `{ tests, warning }`: a Set of test file paths that are likely flaky,
+ * and a message when runs or logs couldn't be fetched, so the Set may be
+ * incomplete (null otherwise).
  */
 async function getFlakyTests(currentBranch, runsToCheck = 5) {
   console.log(
@@ -1336,14 +1438,17 @@ async function getFlakyTests(currentBranch, runsToCheck = 5) {
     output = exec(
       `gh api "repos/vercel/next.js/actions/workflows/57419851/runs?status=completed&per_page=30" --jq '${jqQuery}'`
     )
-  } catch {
+  } catch (error) {
     console.log('  Could not fetch CI runs, skipping flaky check')
-    return new Set()
+    return {
+      tests: new Set(),
+      warning: `Could not list recent failed CI runs, so the flaky check was skipped. Error: ${describeCommandError(error)}`,
+    }
   }
 
   if (!output.trim()) {
     console.log('  No failed runs found')
-    return new Set()
+    return { tests: new Set(), warning: null }
   }
 
   // Filter out the current branch and take up to runsToCheck
@@ -1356,7 +1461,7 @@ async function getFlakyTests(currentBranch, runsToCheck = 5) {
 
   if (allRuns.length === 0) {
     console.log('  No failed runs from other branches found')
-    return new Set()
+    return { tests: new Set(), warning: null }
   }
 
   const branchCount = new Set(allRuns.map((r) => r.head_branch)).size
@@ -1390,27 +1495,24 @@ async function getFlakyTests(currentBranch, runsToCheck = 5) {
 
   // Map: testPath → Set of branches where it failed
   const testFailBranches = new Map()
+  const logErrors = []
 
   // Process in batches of 5 to avoid overwhelming the API
   const BATCH_SIZE = 5
   for (let i = 0; i < jobBranchPairs.length; i += BATCH_SIZE) {
     const batch = jobBranchPairs.slice(i, i + BATCH_SIZE)
     const results = await Promise.all(
-      batch.map(async ({ job, branch }) => {
-        try {
-          const logs = await execAsync('gh', [
-            'api',
-            `repos/vercel/next.js/actions/jobs/${job.id}/logs`,
-          ])
-          return { logs, branch }
-        } catch {
-          return { logs: null, branch }
-        }
-      })
+      batch.map(async ({ job, branch }) => ({
+        ...(await getJobLogs(job.id)),
+        branch,
+      }))
     )
 
-    for (const { logs, branch } of results) {
-      if (!logs) continue
+    for (const { logs, error, branch } of results) {
+      if (error) {
+        logErrors.push(error)
+        continue
+      }
       const testResults = extractTestOutputJson(logs)
       for (const result of testResults) {
         if (result.testResults) {
@@ -1444,7 +1546,13 @@ async function getFlakyTests(currentBranch, runsToCheck = 5) {
   console.log(
     `  Found ${flakyTestFiles.size} flaky tests (failing on 2+ different branches)`
   )
-  return flakyTestFiles
+  if (logErrors.length === 0) {
+    return { tests: flakyTestFiles, warning: null }
+  }
+
+  const warning = `Could not fetch logs for ${logErrors.length} of ${jobBranchPairs.length} failed jobs on other branches, so this list may be incomplete. First error: ${logErrors[0]}`
+  console.log(`  ${warning}`)
+  return { tests: flakyTestFiles, warning }
 }
 
 // ============================================================================
@@ -1467,11 +1575,14 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
   )
 
   // Step 3: Get workflow runs
-  console.log('Fetching workflow runs...')
-  const runs = getWorkflowRuns(branchInfo.branchName)
+  const runTarget = branchInfo.headSha
+    ? `head commit ${branchInfo.headSha}`
+    : `branch ${branchInfo.branchName}`
+  console.log(`Fetching workflow runs for ${runTarget}...`)
+  const runs = getWorkflowRuns(branchInfo)
 
   if (runs.length === 0) {
-    console.log('No workflow runs found for this branch.')
+    console.log(`No build-and-test runs found for ${runTarget}.`)
     return { runId: null, isRunInProgress: false }
   }
 
@@ -1573,10 +1684,13 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
 
     // Get full job metadata (getAllJobs already has basic metadata, but getFailedJobs doesn't)
     const jobMetadata = job.started_at ? job : getJobMetadata(id)
-    processedFailedJobs.push(jobMetadata)
 
     // Get job logs
-    const logs = await getJobLogs(id)
+    const { logs, error: logError } = await getJobLogs(id)
+    if (logError) {
+      console.error(`  Could not fetch logs for job ${id}: ${logError}`)
+    }
+    processedFailedJobs.push({ ...jobMetadata, logError })
 
     // Extract test output JSON
     const testResults = extractTestOutputJson(logs)
@@ -1593,7 +1707,7 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
     }
 
     // Extract sections from the log
-    const sections = extractSections(logs)
+    const sections = logError ? [] : extractSections(logs)
 
     // Write individual section files
     for (let i = 0; i < sections.length; i++) {
@@ -1622,7 +1736,13 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
     }
 
     // Generate job markdown
-    const jobMd = generateJobMd(jobMetadata, testResults, testFiles, sections)
+    const jobMd = generateJobMd(
+      jobMetadata,
+      testResults,
+      testFiles,
+      sections,
+      logError
+    )
     await fs.writeFile(resultPath(`job-${id}.md`), jobMd)
   }
 
@@ -1633,13 +1753,13 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
   }
 
   // Step 8: Check for known flaky tests across branches (skip with --skip-flaky-check)
-  let flakyTests = new Set()
+  let flakyCheck = null
   if (!skipFlakyCheck) {
-    flakyTests = await getFlakyTests(branchInfo.branchName, 5)
-    if (flakyTests.size > 0) {
+    flakyCheck = await getFlakyTests(branchInfo.branchName, 5)
+    if (flakyCheck.tests.size > 0) {
       await fs.writeFile(
         resultPath('flaky-tests.json'),
-        JSON.stringify([...flakyTests].sort(), null, 2)
+        JSON.stringify([...flakyCheck.tests].sort(), null, 2)
       )
     }
   }
@@ -1659,7 +1779,7 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
     jobTestCounts,
     reviewData,
     jobEnvMap,
-    flakyTests
+    flakyCheck
   )
   await fs.writeFile(resultPath('index.md'), indexMd)
 
