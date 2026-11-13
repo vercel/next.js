@@ -127,6 +127,9 @@ describe('Trace', () => {
           endTime
         )
       }
+      new Span({ name: 'wall-clock', wallStartTimeMs: start }).recorder.end(
+        new Date(end)
+      )
       const span = new Span({
         name: 'monotonic',
         startTime: BigInt(123_456_789),
@@ -134,7 +137,7 @@ describe('Trace', () => {
       })
       span.stop(BigInt(123_462_788))
       expect(getTraceEvents().map((event) => event.duration)).toEqual([
-        5000, 5000, 5000, 5000, 5,
+        5000, 5000, 5000, 5000, 5000, 5,
       ])
     })
 
