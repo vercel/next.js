@@ -1,6 +1,6 @@
 use std::{env::current_dir, path::PathBuf};
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use rustc_hash::FxHashSet;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TransientInstance, TryJoinIterExt, Vc, turbofmt};
@@ -167,8 +167,12 @@ async fn to_list(
 
     while let Some(module) = queue.pop() {
         let references = referenced_modules_and_affecting_sources(*module, false).await?;
-        let Some(path) = output_base.get_relative_path_to(&module.ident().await?.path) else {
-            continue;
+        let module_path = &module.ident().await?.path;
+        let Some(path) = output_base.get_relative_path_to(module_path) else {
+            bail!(
+                "Cannot trace file {module_path} relative to output base {output_base}: different \
+                 filesystems are not supported"
+            );
         };
         let path = path
             .strip_prefix("./")
@@ -205,8 +209,12 @@ async fn to_graph(
         for _ in 0..depth {
             indent.push_str("  ");
         }
-        let Some(path) = &output_base.get_relative_path_to(&asset.ident().await?.path) else {
-            continue;
+        let asset_path = &asset.ident().await?.path;
+        let Some(path) = &output_base.get_relative_path_to(asset_path) else {
+            bail!(
+                "Cannot trace file {asset_path} relative to output base {output_base}: different \
+                 filesystems are not supported"
+            );
         };
         let path = path.strip_prefix("./").unwrap_or(path);
         if visited.insert(asset) {
