@@ -12,23 +12,78 @@ on:
 env:
   SLACK_WEBHOOK_URL: ${{ secrets.BROKEN_CANARY_SLACK_WEBHOOK_URL }}
 
-permissions:
-  actions: write
+permissions: {}
 
 jobs:
   retry-on-failure:
     name: retry failed jobs
-    # Retry the build-and-test workflow up to 2 times
+    # Retry the build-and-test workflow up to 2 times. Cancelled runs are only
+    # retried when a job hit its timeout (e.g. a hanging test), never when the
+    # run was cancelled manually or by concurrency.
     if: >-
       ${{ 
-        github.event.workflow_run.conclusion == 'failure' &&
+        (github.event.workflow_run.conclusion == 'failure' ||
+          github.event.workflow_run.conclusion == 'cancelled') &&
         github.repository == 'vercel/next.js' &&
         github.event.workflow_run.run_attempt < 3
       }}
+    permissions:
+      actions: write
+      # Read check-run annotations to tell timed-out runs from manually cancelled ones
+      checks: read
     runs-on: ubuntu-latest
     steps:
+      - name: Check whether a job timed out
+        id: timed_out
+        if: ${{ github.event.workflow_run.conclusion == 'cancelled' }}
+        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          script: |
+            // Keep in sync with the same step in report-failure below
+            const run = context.payload.workflow_run
+            const jobs = await github.paginate(
+              'GET /repos/{owner}/{repo}/actions/runs/{run_id}/attempts/{attempt_number}/jobs',
+              {
+                attempt_number: run.run_attempt,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: run.id,
+              }
+            )
+
+            for (const job of jobs) {
+              if (job.conclusion !== 'cancelled' && job.conclusion !== 'failure') {
+                continue
+              }
+              const checkRunId = job.check_run_url?.split('/').pop()
+              if (!checkRunId) {
+                continue
+              }
+              const annotations = await github.paginate(
+                'GET /repos/{owner}/{repo}/check-runs/{check_run_id}/annotations',
+                {
+                  check_run_id: checkRunId,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                }
+              )
+              if (
+                annotations.some((annotation) =>
+                  annotation.message?.includes('exceeded the maximum execution time')
+                )
+              ) {
+                console.log('Job %s timed out: %s', job.name, job.html_url)
+                return true
+              }
+            }
+
+            console.log('No timed-out job found, not retrying the cancelled run')
+            return false
       - name: Check conclusion of required job
         id: required_job_conclusion
+        if: ${{ github.event.workflow_run.conclusion == 'failure' || steps.timed_out.outputs.result == 'true' }}
         uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
         continue-on-error: true
         env:
@@ -71,7 +126,12 @@ jobs:
 
             return await rerunIfRequiredNotSuccessful()
       - name: send retry request to GitHub API
-        if: ${{ steps.required_job_conclusion.outputs.result != '"success"' }}
+        if: >-
+          ${{
+            (github.event.workflow_run.conclusion == 'failure' ||
+              steps.timed_out.outputs.result == 'true') &&
+            steps.required_job_conclusion.outputs.result != '"success"'
+          }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -84,17 +144,71 @@ jobs:
   report-failure:
     name: report failure to slack
     # Report the failure to Slack if the build-and-test workflow has failed 3 times
+    # (or was cancelled 3 times because a job timed out)
     # build-and-deploy is not retried so we always report it
     if: >-
       ${{ 
-        github.event.workflow_run.conclusion == 'failure' &&
+        (github.event.workflow_run.conclusion == 'failure' ||
+          github.event.workflow_run.conclusion == 'cancelled') &&
         github.event.workflow_run.run_attempt >= 3 &&
         !github.event.workflow_run.head_repository.fork
       }}
+    permissions:
+      actions: read
+      checks: read
     runs-on: ubuntu-latest
     steps:
+      - name: Check whether a job timed out
+        id: timed_out
+        if: ${{ github.event.workflow_run.conclusion == 'cancelled' }}
+        uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          script: |
+            // Keep in sync with the same step in retry-on-failure above
+            const run = context.payload.workflow_run
+            const jobs = await github.paginate(
+              'GET /repos/{owner}/{repo}/actions/runs/{run_id}/attempts/{attempt_number}/jobs',
+              {
+                attempt_number: run.run_attempt,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: run.id,
+              }
+            )
+
+            for (const job of jobs) {
+              if (job.conclusion !== 'cancelled' && job.conclusion !== 'failure') {
+                continue
+              }
+              const checkRunId = job.check_run_url?.split('/').pop()
+              if (!checkRunId) {
+                continue
+              }
+              const annotations = await github.paginate(
+                'GET /repos/{owner}/{repo}/check-runs/{check_run_id}/annotations',
+                {
+                  check_run_id: checkRunId,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                }
+              )
+              if (
+                annotations.some((annotation) =>
+                  annotation.message?.includes('exceeded the maximum execution time')
+                )
+              ) {
+                console.log('Job %s timed out: %s', job.name, job.html_url)
+                return true
+              }
+            }
+
+            console.log('No timed-out job found, not reporting the cancelled run')
+            return false
       - name: Check conclusion of required job
         id: required_job_conclusion
+        if: ${{ github.event.workflow_run.conclusion == 'failure' || steps.timed_out.outputs.result == 'true' }}
         uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
         continue-on-error: true
         env:
@@ -137,7 +251,12 @@ jobs:
 
             return await rerunIfRequiredNotSuccessful()
       - name: send webhook
-        if: ${{ steps.required_job_conclusion.outputs.result != '"success"' }}
+        if: >-
+          ${{
+            (github.event.workflow_run.conclusion == 'failure' ||
+              steps.timed_out.outputs.result == 'true') &&
+            steps.required_job_conclusion.outputs.result != '"success"'
+          }}
         uses: slackapi/slack-github-action@6c661ce58804a1a20f6dc5fbee7f0381b469e001 # v1.25.0
         with:
           # These urls are intentionally missing the protocol,
