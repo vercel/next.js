@@ -16,9 +16,33 @@ export type FetchHandler = (
 function buildRequest(req: ProxyFetchRequest): Request {
   const { request: proxyRequest } = req
   const { url, headers, body, ...options } = proxyRequest
-  return new Request(url, {
+
+  // Extract credentials from URL and convert to Authorization header
+  let cleanUrl = url
+  const requestHeaders = new Headers(headers)
+
+  try {
+    const u = new URL(url)
+    const hasCreds = u.username !== '' || u.password !== ''
+    if (hasCreds) {
+      if (!requestHeaders.has('Authorization')) {
+        const token = Buffer.from(
+          `${u.username}:${u.password}`,
+          'utf-8'
+        ).toString('base64')
+        requestHeaders.set('Authorization', `Basic ${token}`)
+      }
+      u.username = ''
+      u.password = ''
+      cleanUrl = u.toString()
+    }
+  } catch {
+    // Use original URL if parsing fails
+  }
+
+  return new Request(cleanUrl, {
     ...options,
-    headers: new Headers(headers),
+    headers: requestHeaders,
     body: body ? Buffer.from(body, 'base64') : null,
   })
 }
