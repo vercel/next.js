@@ -11,6 +11,9 @@ const noop = () => {}
 
 // The middleware response pipeline expects decoded bytes and removes the
 // encoded body's Content-Encoding and Content-Length headers.
+// TODO: Remove this decoder once terminal middleware responses can pass through
+// their original encoded body with Content-Encoding and Content-Length intact,
+// avoiding decompression here and potential recompression downstream.
 function decodeMiddlewareBody(response: IncomingMessage): Readable {
   const contentEncoding = response.headers['content-encoding']
   if (!contentEncoding) return response
