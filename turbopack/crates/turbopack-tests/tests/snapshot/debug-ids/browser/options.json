@@ -1,7 +1,6 @@
 {
   "runtime": "Browser",
   "runtimeType": "Development",
-  "minifyType": "NoMinify",
   "environment": "Browser",
   "enableDebugIds": true
 }

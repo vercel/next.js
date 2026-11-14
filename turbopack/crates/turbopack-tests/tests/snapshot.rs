@@ -9,6 +9,7 @@ use anyhow::{Context, Result};
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
+use smallvec::{SmallVec, smallvec};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Effects, OperationVc, ResolvedVc, TurboTasks, Vc, read_strongly_consistent_and_apply_effects,
@@ -31,8 +32,8 @@ use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        ChunkingConfig, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssetExt,
-        MinifyType, SourceMapSourceType, availability_info::AvailabilityInfo,
+        ChunkingConfig, ChunkingContext, ChunkingContextExt, EmitOption, EvaluatableAsset,
+        EvaluatableAssetExt, SourceMapSourceType, availability_info::AvailabilityInfo,
     },
     compile_time_defines,
     compile_time_info::{
@@ -54,9 +55,11 @@ use turbopack_core::{
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType, ReferenceTypeCondition},
 };
+use turbopack_css::emit_options::CssEmitOptions;
 use turbopack_ecmascript::{
     AnalyzeMode, CustomTransformer, EcmascriptInputTransform, TransformPlugin,
     chunk::EcmascriptChunkType,
+    emit_options::EcmascriptEmitOptions,
     transform::{ReactCompilerCompilationMode, ReactCompilerTransformOptions},
 };
 use turbopack_ecmascript_plugins::transform::{
@@ -78,11 +81,15 @@ struct SnapshotOptions {
     browserslist: String,
     #[serde(default = "default_entry")]
     entry: String,
-    #[serde(default = "default_minify_type")]
-    minify_type: MinifyType,
+    #[serde(default)]
+    minify_mode: MinifyMode,
     /// EXPERIMENTAL: minify each chunk item before assembling the chunk.
     #[serde(default)]
     minify_before_chunking: bool,
+    /// EXPERIMENTAL: minify each chunk item before assembling the chunk, and the assembled chunk
+    /// again afterwards.
+    #[serde(default)]
+    minify_chunks_after_items: bool,
     #[serde(default)]
     runtime: Runtime,
     #[serde(default = "default_runtime_type")]
@@ -130,6 +137,62 @@ enum Runtime {
     NodeJs,
 }
 
+/// Minification mode for snapshot tests.
+#[derive(Debug, Deserialize, Default)]
+enum MinifyMode {
+    /// No minification (default).
+    #[default]
+    #[serde(rename = "NoMinify")]
+    None,
+    /// Minify with optimal-size mangling (char-freq enabled).
+    OptimalSize,
+    /// Minify with deterministic mangling.
+    Deterministic,
+    /// Minify without mangling (compress only).
+    NoMangle,
+}
+
+impl MinifyMode {
+    /// Returns JS and CSS minification emit options for this mode, given which of chunk items and
+    /// chunks are minified. Returns an empty vec for `MinifyMode::None`.
+    fn emit_options(
+        &self,
+        minify_before_chunking: bool,
+        minify_chunks_after_items: bool,
+    ) -> SmallVec<[ResolvedVc<Box<dyn EmitOption>>; 2]> {
+        match self {
+            MinifyMode::None => SmallVec::new(),
+            mode => {
+                let ecma_opts = match mode {
+                    MinifyMode::OptimalSize => {
+                        EcmascriptEmitOptions::builder().preset_minify_optimal_size()
+                    }
+                    MinifyMode::Deterministic => {
+                        EcmascriptEmitOptions::builder().preset_minify_deterministic()
+                    }
+                    MinifyMode::NoMangle => {
+                        EcmascriptEmitOptions::builder().preset_minify_no_mangle()
+                    }
+                    MinifyMode::None => unreachable!(),
+                };
+                let ecma_opts = if minify_chunks_after_items {
+                    ecma_opts.minify_chunk_items_and_chunks()
+                } else if minify_before_chunking {
+                    ecma_opts.minify_per_chunk_item()
+                } else {
+                    ecma_opts
+                }
+                .build();
+                let css_opts = CssEmitOptions::builder().preset_minify().build();
+                smallvec![
+                    ResolvedVc::upcast(ecma_opts.resolved_cell()),
+                    ResolvedVc::upcast(css_opts.resolved_cell()),
+                ]
+            }
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Default)]
 enum SnapshotEnvironment {
     #[default]
@@ -142,8 +205,9 @@ impl Default for SnapshotOptions {
         SnapshotOptions {
             browserslist: default_browserslist(),
             entry: default_entry(),
-            minify_type: default_minify_type(),
+            minify_mode: MinifyMode::default(),
             minify_before_chunking: false,
+            minify_chunks_after_items: false,
             runtime: Default::default(),
             runtime_type: default_runtime_type(),
             environment: Default::default(),
@@ -183,10 +247,6 @@ fn default_runtime_type() -> RuntimeType {
     // the runtime. Instead, we only include the runtime in snapshots that
     // specifically request it via "runtime": "Default".
     RuntimeType::Dummy
-}
-
-fn default_minify_type() -> MinifyType {
-    MinifyType::NoMinify
 }
 
 fn default_chunk_loading_global() -> String {
@@ -555,8 +615,6 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 env,
                 options.runtime_type,
             )
-            .minify_type(options.minify_type)
-            .minify_before_chunking(options.minify_before_chunking)
             .module_merging(options.scope_hoisting)
             .shared_runtime(options.shared_runtime)
             .export_usage(if options.remove_unused_exports {
@@ -566,7 +624,11 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             })
             .debug_ids(options.enable_debug_ids)
             .source_map_source_type(options.source_map_source_type)
-            .chunk_loading_global(options.chunk_loading_global.into());
+            .chunk_loading_global(options.chunk_loading_global.into())
+            .emit_options(options.minify_mode.emit_options(
+                options.minify_before_chunking,
+                options.minify_chunks_after_items,
+            ));
 
             if options.single_chunk {
                 builder = builder.single_chunk().await?;
@@ -609,8 +671,6 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 env,
                 options.runtime_type,
             )
-            .minify_type(options.minify_type)
-            .minify_before_chunking(options.minify_before_chunking)
             .module_merging(options.scope_hoisting)
             .export_usage(if options.remove_unused_exports {
                 Some(binding_usage.unwrap().connect().to_resolved().await?)
@@ -618,7 +678,11 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 None
             })
             .debug_ids(options.enable_debug_ids)
-            .source_map_source_type(options.source_map_source_type);
+            .source_map_source_type(options.source_map_source_type)
+            .emit_options(options.minify_mode.emit_options(
+                options.minify_before_chunking,
+                options.minify_chunks_after_items,
+            ));
 
             if options.remove_unused_imports {
                 builder = builder.unused_references(

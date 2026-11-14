@@ -1,0 +1,3 @@
+(()=>{"use strict";(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/1jsg_tests_snapshot_minify_standalone-with-item-minify_input_1637_5hvatang._.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/minify/standalone-with-item-minify/input/helper.js [test] (ecmascript)",a=>{function b(a){return 2*a}a.s(["double",()=>b])},"[project]/turbopack/crates/turbopack-tests/tests/snapshot/minify/standalone-with-item-minify/input/index.js [test] (ecmascript)",a=>{a.s([]),console.log((0,a.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/minify/standalone-with-item-minify/input/helper.js [test] (ecmascript)").double)(21))}]);})()
+
+//# sourceMappingURL=1jsg_tests_snapshot_minify_standalone-with-item-minify_input_1637_5hvatang._.js.map
