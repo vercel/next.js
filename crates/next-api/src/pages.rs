@@ -796,7 +796,6 @@ impl PageEndpoint {
         let this = self.await?;
 
         let client_module = self.client_module();
-        let client_main_module = this.pages_project.client_main_module();
 
         let Some(client_module) = ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(
             client_module.to_resolved().await?,
@@ -804,6 +803,19 @@ impl PageEndpoint {
             bail!("expected an evaluateable asset");
         };
 
+        // `/_app` is part of every document, so of the page endpoints only `/_app` lists the
+        // runtime entries and the client entry. It ships and evaluates them. The project lists
+        // the client entry in a chunk group of its own as well (`Project::client_main_modules`),
+        // so that module stays an entry of two chunk groups. A page lists just its page loader,
+        // which only registers the page on `window.__NEXT_P`, so the scripts of a page and of
+        // `/_app` can run in either order. A page's bootstrap then never names an entry that it
+        // does not ship, and a module of the client entry is a member of a page's chunk group
+        // only if that page imports it.
+        if this.pathname != "/_app" {
+            return Ok(EvaluatableAssets::one(*client_module));
+        }
+
+        let client_main_module = this.pages_project.client_main_module();
         let Some(client_main_module) = ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(
             client_main_module.to_resolved().await?,
         ) else {

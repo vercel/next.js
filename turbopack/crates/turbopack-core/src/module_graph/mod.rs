@@ -4349,6 +4349,127 @@ pub mod tests {
         .unwrap();
     }
 
+    /// Builds a graph with two entry chunk groups that both list `runtime.js` as their first
+    /// entry. Describes the chunk groups of every module, and whether the module is available
+    /// when the chunk group of `page1.js` is.
+    ///
+    /// ```text
+    /// Entry [runtime, page1]      Entry [runtime, page2]
+    ///
+    /// runtime -> lib
+    /// page1 -> shared             page2 -> shared
+    /// ```
+    #[turbo_tasks::function(operation, root)]
+    async fn chunk_groups_of_shared_entry_module() -> Result<Vc<ChunkGroupDescriptions>> {
+        let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
+        let root = fs.root().await?;
+        let repo = TestRepo::new(
+            &root,
+            [
+                ("runtime.js", vec!["lib.js"]),
+                ("page1.js", vec!["shared.js"]),
+                ("page2.js", vec!["shared.js"]),
+            ],
+        );
+        let module = |name: &str| {
+            Vc::upcast::<Box<dyn Module>>(MockModule::new(root.join(name).unwrap(), repo))
+                .to_resolved()
+        };
+        let runtime = module("runtime.js").await?;
+        let page1 = module("page1.js").await?;
+        let page2 = module("page2.js").await?;
+        let entry = |page| ChunkGroupEntry::Entry {
+            modules: vec![runtime, page],
+            heuristics: EntryHeuristics::default(),
+        };
+        let graph = SingleModuleGraph::new_with_entries(
+            GraphEntries::resolved_cell(GraphEntries::new(
+                vec![entry(page1), entry(page2)],
+                vec![],
+            )),
+            ModuleGraphOptions::default(),
+        );
+        let module_graph = ModuleGraph::from_graphs(vec![graph], None)
+            .connect()
+            .to_resolved()
+            .await?;
+        let chunk_group_info = module_graph.chunk_group_info();
+        let module_chunk_groups = chunk_group_info.await?.module_chunk_groups.await?;
+
+        // What chunking the chunk group of `page2.js` sees after the one of `page1.js` was loaded.
+        let availability = AvailabilityInfo::root()
+            .with_chunk_group(module_graph, ChunkGroupKey::Entry(vec![runtime, page1]))
+            .await?;
+        let available = availability
+            .available_chunk_groups()
+            .context("a chunk group is available")?
+            .await?;
+        let available = available.chunk_groups(module_graph)?;
+
+        let mut descriptions = Vec::new();
+        for name in ["runtime.js", "lib.js", "page1.js", "page2.js", "shared.js"] {
+            let module = module(name).await?;
+            let mut groups = chunk_group_info
+                .get_chunk_groups_for_module(*module)
+                .await?
+                .iter()
+                .map(async |group| {
+                    Ok(group
+                        .chunk_group
+                        .entries()
+                        .map(async |entry| Ok(entry.ident().await?.path.path.clone()))
+                        .try_join()
+                        .await?
+                        .join(","))
+                })
+                .try_join()
+                .await?;
+            // The order of the chunk groups depends on the traversal order.
+            groups.sort();
+            let is_available = module_chunk_groups
+                .get(&module)
+                .is_some_and(|groups| !groups.is_disjoint(available));
+            descriptions.push(
+                format!(
+                    "{name}: {}{}",
+                    groups.join(" | "),
+                    if is_available { " (available)" } else { "" }
+                )
+                .into(),
+            );
+        }
+        Ok(Vc::cell(descriptions))
+    }
+
+    /// A module that several entry chunk groups list as an entry is part of all of them, and so is
+    /// everything only it imports. Availability is derived from this: a chunk group that has
+    /// another one of them available must not emit these modules again.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_chunk_group_info_shared_entry_module() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let descriptions = chunk_groups_of_shared_entry_module()
+                .read_strongly_consistent()
+                .await?;
+            assert_eq!(
+                *descriptions,
+                vec![
+                    rcstr!("runtime.js: runtime.js,page1.js | runtime.js,page2.js (available)"),
+                    rcstr!("lib.js: runtime.js,page1.js | runtime.js,page2.js (available)"),
+                    rcstr!("page1.js: runtime.js,page1.js (available)"),
+                    rcstr!("page2.js: runtime.js,page2.js"),
+                    rcstr!("shared.js: runtime.js,page1.js | runtime.js,page2.js (available)"),
+                ]
+            );
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
     #[turbo_tasks::value(serialization = "skip", eq = "manual", cell = "new")]
     struct ChunkGroupInfoTestGraph {
         chunk_group_info: ReadRef<ChunkGroupInfo>,
