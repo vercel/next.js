@@ -27,7 +27,11 @@ Hydration errors can occur from:
 
 ## Possible Ways to Fix It
 
-The following strategies can help address this error:
+Keep the server output and the initial client render identical. You might render a placeholder and update it in `useEffect` after hydration. This works, but causes an extra render.
+
+> **Good to know**: `eslint-config-next` reports synchronous state updates such as `setIsClient(true)` in a mount effect as a [`react-hooks/set-state-in-effect`](https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect) error.
+
+The alternatives below avoid that mount-effect update. For subscriptions to values outside React, use [`useSyncExternalStore`](https://react.dev/reference/react/useSyncExternalStore#adding-support-for-server-rendering) with a matching server snapshot.
 
 <span id="solution-1-using-useeffect-to-run-on-the-client-only" />
 
@@ -57,8 +61,6 @@ export default function Page() {
 ```
 
 The server renders the Suspense fallback. After JavaScript loads, the browser renders the saved theme without a hydration mismatch. The browser-only content is not included in the server-rendered HTML.
-
-> **Good to know**: You can also use `useEffect` to update content after hydration. Calling a state setter synchronously in the effect, such as `setIsClient(true)`, triggers [`react-hooks/set-state-in-effect`](https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect), enabled as an error by `eslint-config-next`, because it causes an extra render.
 
 ### Solution 2: Disabling SSR on specific components
 
