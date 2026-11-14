@@ -1270,7 +1270,11 @@ export default class Router implements BaseRouter {
     const isQueryUpdating = (options as any)._h === 1
 
     if (!isQueryUpdating && !options.shallow) {
-      await this._bfl(as, undefined, options.locale)
+      await this._bfl(
+        hasBasePath(as) ? removeBasePath(as) : as,
+        undefined,
+        options.locale
+      )
     }
 
     let shouldResolveHref =
@@ -1714,7 +1718,7 @@ export default class Router implements BaseRouter {
 
       if (!isQueryUpdating && !options.shallow) {
         await this._bfl(
-          as,
+          cleanedAs,
           'resolvedAs' in routeInfo ? routeInfo.resolvedAs : undefined,
           nextState.locale
         )

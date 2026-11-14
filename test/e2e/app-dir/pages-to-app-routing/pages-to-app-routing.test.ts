@@ -209,6 +209,48 @@ describe('pages-to-app-routing with cross-router shadowing under basePath', () =
       'App About: en'
     )
   })
+
+  it('should not duplicate basePath when navigating between pages routes that share a dynamic parent with an app route', async () => {
+    await warmUpRoute(next, '/base/parent/12/child/34')
+    await warmUpRoute(next, '/base/parent/12/child/34/grand-child/99')
+    await warmUpRoute(next, '/base/parent/12')
+
+    const browser = await next.browser('/base/parent/12/child/34')
+    expect(await browser.elementByCss('#page-title').text()).toBe(
+      'Pages Child: 12/34'
+    )
+
+    await browser.elementByCss('#to-grandchild-btn').click()
+
+    await retry(async () => {
+      expect(new URL(await browser.url()).pathname).toBe(
+        '/base/parent/12/child/34/grand-child/99'
+      )
+      expect(await browser.elementByCss('#page-title').text()).toBe(
+        'Pages GrandChild: 12/34/99'
+      )
+    }, 15000)
+
+    await browser.elementByCss('#to-child-btn').click()
+
+    await retry(async () => {
+      expect(new URL(await browser.url()).pathname).toBe(
+        '/base/parent/12/child/34'
+      )
+      expect(await browser.elementByCss('#page-title').text()).toBe(
+        'Pages Child: 12/34'
+      )
+    }, 15000)
+
+    await browser.elementByCss('#to-app-parent-btn').click()
+
+    await retry(async () => {
+      expect(new URL(await browser.url()).pathname).toBe('/base/parent/12')
+      expect(await browser.elementByCss('#page-title').text()).toBe(
+        'App Parent: 12'
+      )
+    }, 15000)
+  })
 })
 
 // A pages optional catch-all (`[[...slug]]`) owns `/` by absorbing zero
