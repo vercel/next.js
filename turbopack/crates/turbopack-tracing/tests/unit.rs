@@ -192,6 +192,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::require_dynamic_fallback("require-dynamic-fallback")]
 #[case::require_empty("require-empty")]
 // #[case::require_resolve("require-resolve")]
+#[case::require_resolve_dynamic_package("require-resolve-dynamic-package")]
 // #[case::require_symlink("require-symlink")]
 // #[case::require_symlink_subdir("require-symlink-subdir")]
 // #[case::require_var_branch("require-var-branch")]
