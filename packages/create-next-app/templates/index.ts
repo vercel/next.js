@@ -251,6 +251,17 @@ export const installTemplate = async ({
       }),
     );
 
+    if (biome && tailwind) {
+      const biomeConfigFile = path.join(root, "biome.json");
+      await fs.writeFile(
+        biomeConfigFile,
+        (await fs.readFile(biomeConfigFile, "utf8")).replace(
+          '"stylesheet": "',
+          '"stylesheet": "src/',
+        ),
+      );
+    }
+
     if (!isApi) {
       const isAppTemplate = template.startsWith("app");
 
@@ -366,7 +377,7 @@ export const installTemplate = async ({
   if (biome) {
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      "@biomejs/biome": "2.4.2",
+      "@biomejs/biome": "2.6.6",
     };
   }
 
