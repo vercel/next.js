@@ -8,6 +8,7 @@ import {
   PrefetchHint,
   StaticPrefetchDisabled,
 } from '../../shared/lib/app-router-types'
+import { signalForReact } from './react-abort-signal'
 import type { VaryParamsIterable } from '../../shared/lib/segment-cache/vary-params-decoding'
 import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
 
@@ -288,7 +289,7 @@ export async function collectSegmentData(
       clientModules,
       {
         filterStackFrame,
-        signal: abortController.signal,
+        signal: signalForReact(abortController.signal),
         onError: onSegmentPrerenderError,
       }
     )
@@ -1337,7 +1338,7 @@ async function renderSegmentPrefetch(
     clientModules,
     {
       filterStackFrame,
-      signal: abortController.signal,
+      signal: signalForReact(abortController.signal),
       onError(error: unknown) {
         if (abortController.signal.aborted) {
           // Expected: aborting the render "errors" every reference that is

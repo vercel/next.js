@@ -68,6 +68,7 @@ import {
 import type { CacheEntry } from '../lib/cache-handlers/types'
 import type { CacheSignal } from '../app-render/cache-signal'
 import { decryptActionBoundArgs } from '../app-render/encryption'
+import { signalForReact } from '../app-render/react-abort-signal'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
   createReactServerErrorHandler,
@@ -1543,7 +1544,7 @@ async function generateCacheEntryImpl(
         {
           environmentName: 'Cache',
           filterStackFrame,
-          signal: abortSignal,
+          signal: signalForReact(abortSignal),
           temporaryReferences,
           onError(error) {
             if (abortSignal.aborted && abortSignal.reason === error) {
