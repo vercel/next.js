@@ -22,12 +22,10 @@ function matchesCondition(
     return { matched: true, capturedValue: actualValue }
   }
 
-  // Try to match as regex first
+  // Try to match as regex first. The pattern has to cover the whole value, the
+  // same way `matchHas` anchors it in the core router.
   try {
-    const exactRegex = new RegExp(`^(?:${conditionValue})$`)
-    const fallbackRegex = new RegExp(conditionValue)
-    const match =
-      actualValue.match(exactRegex) ?? actualValue.match(fallbackRegex)
+    const match = actualValue.match(new RegExp(`^(?:${conditionValue})$`))
     if (match) {
       const namedCaptures: Record<string, string> = {}
       if (match.groups) {
