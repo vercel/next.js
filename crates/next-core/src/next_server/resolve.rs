@@ -83,6 +83,12 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         reference_type: ReferenceType,
         request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
+        // `new URL("pkg/file", import.meta.url)` asks for the file as an asset, not as a
+        // module, so it is never external.
+        if matches!(reference_type, ReferenceType::Url(_)) {
+            return Ok(ResolveResultOption::none());
+        }
+
         let request_value = &*request.await?;
         let Request::Module {
             module: package,
