@@ -1,21 +1,137 @@
----
-title: Getting Started
-description: Learn how to create full-stack web applications with the Next.js App Router.
----
+import { PrismaClient } from '@prisma/client';
 
-Welcome to the Next.js documentation!
+const prisma = new PrismaClient();
 
-This **Getting Started** section will help you create your first Next.js app and learn the core features you'll use in every project.
+async function main() {
+  console.log('Bắt đầu dọn dẹp dữ liệu cũ...');
+  await prisma.historicalScore.deleteMany();
+  await prisma.majorMethod.deleteMany();
+  await prisma.major.deleteMany();
+  await prisma.university.deleteMany();
 
-## Pre-requisite knowledge
+  console.log('Đang tạo dữ liệu Trường Đại học...');
+  const ueh = await prisma.university.create({
+    data: {
+      code: 'KSA',
+      name: 'Đại học Kinh tế TP.HCM (UEH)',
+      logo: 'https://cdn.haitrieu.com/wp-content/uploads/2021/11/Logo-UEH.png',
+    },
+  });
 
-Our documentation assumes some familiarity with web development. Before getting started, it'll help if you're comfortable with:
+  const hcmute = await prisma.university.create({
+    data: {
+      code: 'SPK',
+      name: 'Đại học Sư phạm Kỹ thuật TP.HCM (HCMUTE)',
+      logo: 'https://cdn.haitrieu.com/wp-content/uploads/2021/09/Logo-DH-Su-Pham-Ky-Thuat-TP-Ho-Chi-Minh.png',
+    },
+  });
 
-- HTML
-- CSS
-- JavaScript
-- React
+  const bku = await prisma.university.create({
+    data: {
+      code: 'QSB',
+      name: 'Đại học Bách Khoa - ĐHQG TP.HCM',
+      logo: 'https://cdn.haitrieu.com/wp-content/uploads/2021/11/Logo-DH-Bach-Khoa-HCMUT.png',
+    },
+  });
 
-If you're new to React or need a refresher, we recommend starting with our [React Foundations course](/learn/react-foundations), and the [Next.js Foundations course](/learn/dashboard-app) that has you building an application as you learn.
+  console.log('Đang tạo Ngành, Phương thức và Công thức tính điểm...');
 
-## Next Steps
+  // 1. UEH - Marketing (Nhân hệ số 2 môn Toán, quy đổi IELTS)
+  const uehMarketing = await prisma.major.create({
+    data: {
+      universityId: ueh.id,
+      code: '7310105',
+      name: 'Marketing',
+      methods: {
+        create: [
+          {
+            methodType: 'THPT',
+            block: 'A00, A01, D01',
+            formulaConfig: {
+              type: 'THPT',
+              multiplier: { Toan: 2, VatLy: 1, TiengAnh: 1 },
+              divisor: 4,
+              englishConversion: { IELTS: { '5.5': 8, '6.0': 9, '6.5': 10 } },
+              priorityRule: 'STANDARD_30',
+            },
+            historicalScores: {
+              create: [
+                { year: 2025, score: 27.2 },
+                { year: 2024, score: 27.0 },
+                { year: 2023, score: 26.8 },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  });
+
+  // 2. HCMUTE - Công nghệ thông tin (Tính tổng 3 môn bình thường)
+  const hcmuteIT = await prisma.major.create({
+    data: {
+      universityId: hcmute.id,
+      code: '7480201',
+      name: 'Công nghệ thông tin',
+      methods: {
+        create: [
+          {
+            methodType: 'THPT',
+            block: 'A00, A01, D01',
+            formulaConfig: {
+              type: 'THPT',
+              multiplier: { Toan: 1, VatLy: 1, TiengAnh: 1 },
+              priorityRule: 'STANDARD_30',
+            },
+            historicalScores: {
+              create: [
+                { year: 2025, score: 26.5 },
+                { year: 2024, score: 26.1 },
+                { year: 2023, score: 25.8 },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  });
+
+  // 3. Bách Khoa (QSB) - Khoa học máy tính (Đánh giá năng lực)
+  const bkuCS = await prisma.major.create({
+    data: {
+      universityId: bku.id,
+      code: '7480101',
+      name: 'Khoa học Máy tính',
+      methods: {
+        create: [
+          {
+            methodType: 'DGNL',
+            block: 'DGNL',
+            formulaConfig: {
+              type: 'DGNL',
+              priorityRule: 'DGNL_1200',
+            },
+            historicalScores: {
+              create: [
+                { year: 2025, score: 1050 },
+                { year: 2024, score: 1035 },
+                { year: 2023, score: 1020 },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  });
+
+  console.log('Seed dữ liệu thành công! Đã thêm dữ liệu mẫu cho KSA, SPK và QSB.');
+}
+
+main()
+  .catch((e) => {
+    console.error('Lỗi khi seed dữ liệu:', e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
