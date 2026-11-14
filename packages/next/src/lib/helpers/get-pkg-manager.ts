@@ -2,7 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import { execSync } from 'child_process'
 
-export type PackageManager = 'npm' | 'pnpm' | 'yarn'
+export type PackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun'
 
 export function getPkgManager(baseDir: string): PackageManager {
   try {
@@ -20,6 +20,8 @@ export function getPkgManager(baseDir: string): PackageManager {
       { lockFile: 'yarn.lock', packageManager: 'yarn' },
       { lockFile: 'pnpm-lock.yaml', packageManager: 'pnpm' },
       { lockFile: 'package-lock.json', packageManager: 'npm' },
+      { lockFile: 'bun.lockb', packageManager: 'bun' },
+      { lockFile: 'bun.lock', packageManager: 'bun' },
     ]) {
       if (fs.existsSync(path.join(baseDir, lockFile))) {
         return packageManager as PackageManager
