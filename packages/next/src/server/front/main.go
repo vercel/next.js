@@ -165,6 +165,8 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) 
 	mapIPv4 := public.IP.To4() == nil
 
 	proxy := &httputil.ReverseProxy{
+		// Rewrite builds the request to Node (pr.Out) from the one the client
+		// sent (pr.In). It runs once per request, before anything goes to Node.
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.Out.URL.Scheme = "http"
 			pr.Out.URL.Host = upstream
@@ -200,8 +202,11 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) 
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// A nil Content-Type stops Go from sniffing one when Node sent none;
-		// the proxy appends Node's value when it has one.
+		// Mark Content-Type as present but empty. Go's server guesses a type
+		// from the body ("sniffs") when a response has no Content-Type, and
+		// Node never does, so this keeps a response without one unchanged. When
+		// Node sends one, the proxy's copyHeader adds Node's value to this
+		// entry before the headers are written.
 		w.Header()["Content-Type"] = nil
 		proxy.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), responseWriterKey{}, w)))
 	})
