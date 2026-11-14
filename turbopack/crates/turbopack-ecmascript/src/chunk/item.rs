@@ -22,7 +22,7 @@ use turbopack_core::{
     output::OutputAssetsReference,
     source_map::{
         SourceMapGenerationOptions, SourceMaps,
-        structured::StructuredSourceMap,
+        structured::SplitSourceMap,
         utils::{absolute_fileify_source_map, relative_fileify_source_map},
     },
 };
@@ -53,7 +53,9 @@ pub enum RewriteSourcePath {
 #[derive(Default, Clone)]
 pub struct EcmascriptChunkItemContent {
     pub inner_code: Rope,
-    pub source_maps: SourceMaps<StructuredSourceMap>,
+    /// The module's source maps (every generated variant). The factory rewrites each one's
+    /// `sources` and references the rest of it, see [`SplitSourceMap`].
+    pub source_maps: SourceMaps<SplitSourceMap>,
     pub additional_ids: SmallVec<[ModuleId; 1]>,
     pub options: EcmascriptChunkItemOptions,
     pub rewrite_source_path: RewriteSourcePath,
@@ -181,15 +183,19 @@ impl EcmascriptChunkItemContent {
             .source_maps
             .clone()
             .try_map_async(|map| async move {
-                match &self.rewrite_source_path {
+                // Only the head holds `sources`; the rest of the map is shared with every other
+                // factory of the module.
+                let head = match &self.rewrite_source_path {
                     RewriteSourcePath::AbsoluteFilePath(path) => {
-                        absolute_fileify_source_map(&map, path.clone()).await
+                        absolute_fileify_source_map(map.head(), path.clone()).await?
                     }
                     RewriteSourcePath::RelativeFilePath(path, relative_path) => {
-                        relative_fileify_source_map(&map, path.clone(), relative_path.clone()).await
+                        relative_fileify_source_map(map.head(), path.clone(), relative_path.clone())
+                            .await?
                     }
-                    RewriteSourcePath::None => Ok(map),
-                }
+                    RewriteSourcePath::None => map.head().clone(),
+                };
+                map.to_section_map(head).await
             })
             .await?;
         code.push_source(&self.inner_code, source_maps)?;

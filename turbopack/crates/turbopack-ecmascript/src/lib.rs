@@ -105,7 +105,7 @@ use turbopack_core::{
     source::Source,
     source_map::{
         GenerateSourceMap, SourceMapGenerationOptions, SourceMapType, SourceMaps,
-        structured::StructuredSourceMap,
+        structured::SplitSourceMap,
     },
 };
 
@@ -1050,7 +1050,10 @@ impl ResolveOrigin for EcmascriptModuleAsset {
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptModuleContent {
     pub inner_code: Rope,
-    pub source_maps: SourceMaps<StructuredSourceMap>,
+    /// Each variant is split so that the module factories built from this content, which only
+    /// rewrite its `sources`, reference the rest of the map instead of each persisting a copy of
+    /// it. A map shared by both variants stays one split map.
+    pub source_maps: SourceMaps<SplitSourceMap>,
     pub is_esm: bool,
     pub strict: bool,
     pub additional_ids: SmallVec<[ModuleId; 1]>,
@@ -2508,7 +2511,7 @@ async fn emit_content(
 
     Ok(EcmascriptModuleContent {
         inner_code: bytes.into(),
-        source_maps,
+        source_maps: source_maps.map(SplitSourceMap::new),
         is_esm,
         strict,
         additional_ids,
