@@ -127,4 +127,29 @@ describe('use-cache-dedupe-prerender', () => {
       }
     })
   })
+
+  describe('a short-lived cache entry stored by an earlier prerender', () => {
+    const fixture = setupFixture('stored')
+
+    it('does not report a cache miss when the cache handler returns the entry', async () => {
+      const { next, dataService } = fixture
+      // `/warmup` stores the short-lived entry. `/reader` waits for that
+      // write, so its cache-warming render gets the entry from the cache
+      // handler instead of generating it.
+      const result = await next.build()
+      expect(result.exitCode).toBe(0)
+      // The handler reports a lookup only when it has the entry.
+      expect(dataService.requestedKeys).toContain('lookup:short-lived:shared')
+      expect(next.cliOutput).not.toContain(
+        'Unexpected cache miss after cache warming phase during prerendering'
+      )
+      await next.start({ skipBuild: true })
+      // The entry is too short-lived for the static shell either way.
+      const html = await next.render('/reader')
+      const [shell] = html.split('<!-- PPR_BOUNDARY_SENTINEL -->')
+      const $ = load(shell)
+      expect($('#short-lived').length).toBe(0)
+      expect($('#short-pending').length).toBe(1)
+    })
+  })
 })
