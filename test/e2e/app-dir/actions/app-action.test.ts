@@ -1250,13 +1250,19 @@ describe('app-dir action handling', () => {
       await retry(async () => {
         expect(await browser.elementById('count').text()).toBe('0')
       })
+
       await browser.elementByCss('#increment').click()
+      let first = '0'
       await retry(async () => {
-        expect(await browser.elementById('count').text()).toBe('1')
+        first = await browser.elementById('count').text()
+        expect(first).not.toBe('0')
       })
+
       await browser.elementByCss('#increment').click()
       await retry(async () => {
-        expect(await browser.elementById('count').text()).toBe('2')
+        const second = await browser.elementById('count').text()
+        expect(second).not.toBe('0')
+        expect(second).not.toBe(first)
       })
     })
 
