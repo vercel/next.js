@@ -9,6 +9,7 @@ const { createClient } = require('@vercel/kv')
 const { promisify } = require('util')
 const { Sema } = require('async-sema')
 const { spawn, exec: execOrig } = require('child_process')
+const treeKill = require('tree-kill')
 const { createNextInstall } = require('./test/lib/create-next-install')
 const { getBrowserLaunch } = require('./test/lib/browsers/launch')
 const glob = promisify(_glob)
@@ -361,6 +362,125 @@ let sharedBrowserServer
  */
 let testRunsDirectory
 
+/**
+ * Jest children that are still running, with the output buffered so far.
+ * Used to print that output when the run is cancelled.
+ * @type {Map<import('child_process').ChildProcess, { label: string, start: number, outputChunks: { type: string, chunk: Buffer | string }[], closed: Promise<unknown> }>}
+ */
+const runningTestRuns = new Map()
+
+/**
+ * The signal that cancelled the run, if any.
+ * @type {NodeJS.Signals | null}
+ */
+let cancelSignal = null
+
+/**
+ * Upper bound for killing processes and flushing output after a cancellation
+ * signal. It stays below the 7.5s the GitHub Actions runner waits after
+ * SIGINT before it sends SIGTERM.
+ */
+const CANCEL_CLEANUP_TIMEOUT_MS = 5_000
+
+/**
+ * How long to wait for killed jest children to close their stdio, so that
+ * output still in their pipes is printed too. Part of the cleanup timeout.
+ */
+const CANCEL_CHILD_CLOSE_TIMEOUT_MS = 2_000
+
+/** @param {number} ms */
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+/**
+ * Writes to stdout and waits for it to drain when its buffer is full.
+ * @param {Buffer | string} chunk
+ */
+const writeStdout = async (chunk) => {
+  if (!process.stdout.write(chunk)) {
+    await new Promise((resolve) => process.stdout.once('drain', resolve))
+  }
+}
+
+/**
+ * When CI cancels a job or a step times out, the runner sends SIGINT to the
+ * step process and SIGTERM 7.5s later. Without this handler the buffered
+ * output of the test files that are still running would be lost, which hides
+ * what a hung test was doing. Kill the jest process trees and the shared
+ * browser, print the output of the cancelled test files, and exit.
+ *
+ * This deliberately skips `cleanUpAndExit`: its summary and directory cleanup
+ * can take longer than the runner's grace period.
+ *
+ * The step only receives these signals if `node run-tests.js` is the step
+ * process itself, so the workflows `exec` it.
+ *
+ * @param {NodeJS.Signals} signal
+ */
+const handleCancelSignal = async (signal) => {
+  const code = 128 + os.constants.signals[signal]
+  if (cancelSignal) {
+    // A second signal while cleaning up: exit right away.
+    process.exit(code)
+  }
+  cancelSignal = signal
+  // Don't let a normal exit that is already in progress race this one.
+  exiting = true
+  // Start the deadline first so slow cleanup or a stalled log reader can't
+  // keep the process alive.
+  setTimeout(() => process.exit(code), CANCEL_CLEANUP_TIMEOUT_MS)
+  // The log reader may already be gone. Don't crash before killing children.
+  process.stdout.on('error', () => {})
+
+  // Kill before writing anything: writes can stall on a slow log reader.
+  const cancelledRuns = [...runningTestRuns.entries()]
+  const cancelledAt = Date.now()
+  const killed = Promise.all([
+    ...cancelledRuns.map(
+      ([child]) =>
+        new Promise((resolve) => {
+          if (child.pid === undefined) return resolve(undefined)
+          // Don't kill the jest process on its own first: its descendants
+          // (next servers, browsers) would be reparented and missed.
+          treeKill(child.pid, 'SIGKILL', () => resolve(undefined))
+        })
+    ),
+    sharedBrowserServer?.kill().catch(() => {}),
+  ])
+
+  process.stdout.write(
+    `\nReceived ${signal}, cancelling ${cancelledRuns.length} running test file(s)\n`
+  )
+
+  // A killed child can still have output in its stdout/stderr pipes. Wait for
+  // them to close so that output is in `outputChunks` before printing it.
+  await Promise.race([
+    Promise.all(cancelledRuns.map(([, { closed }]) => closed)),
+    delay(CANCEL_CHILD_CLOSE_TIMEOUT_MS),
+  ])
+
+  for (const [, { label, start, outputChunks }] of cancelledRuns) {
+    const elapsed = `${((cancelledAt - start) / 1000).toFixed(1)}s`
+    await writeStdout(
+      `❌ ${label} output (cancelled by ${signal} after ${elapsed}):\n`
+    )
+    if (outputChunks.length === 0) {
+      await writeStdout('(no buffered output)\n')
+    }
+    for (const { chunk } of outputChunks) {
+      await writeStdout(chunk)
+    }
+    await writeStdout(`\nend of ${label} output\n`)
+  }
+
+  // Writes complete in order, so this callback fires once all of the output
+  // above has been handed off.
+  await new Promise((resolve) => {
+    process.stdout.write(`exiting with code ${code}\n`, resolve)
+  })
+  await killed
+  process.exit(code)
+}
+
 const cleanUpAndExit = async (code) => {
   if (exiting) {
     return
@@ -385,6 +505,9 @@ const cleanUpAndExit = async (code) => {
   if (process.env.CI) {
     await maybeLogSummary()
   }
+  // A cancellation signal can arrive while this cleanup is in progress. Its
+  // handler owns the exit code and waits for the buffered output to flush.
+  if (cancelSignal) return
   process.exit(code)
 }
 
@@ -446,6 +569,18 @@ async function main() {
     )
   }
   const hideOutput = !options.debug && !options.dry
+
+  if (!options.dry) {
+    /** @param {NodeJS.Signals} signal */
+    const onSignal = (signal) => {
+      handleCancelSignal(signal).catch((err) => {
+        console.error('Failed to cancel test run:', err)
+        process.exit(128 + os.constants.signals[signal])
+      })
+    }
+    process.on('SIGINT', onSignal)
+    process.on('SIGTERM', onSignal)
+  }
 
   let filterTestsBy
 
@@ -727,7 +862,20 @@ ${ENDGROUP}`)
       process.env.BROWSER_NAME || 'chrome',
       { headless: true } // matches per-test env below
     )
-    sharedBrowserServer = await browserType.launchServer(launchOptions)
+    const browserServer = await browserType.launchServer({
+      ...launchOptions,
+      // Playwright's own handlers would exit on SIGINT, or close the browser
+      // and keep running on SIGTERM, before the buffered test output is
+      // printed. `handleCancelSignal` kills the server instead.
+      handleSIGINT: false,
+      handleSIGTERM: false,
+    })
+    if (cancelSignal) {
+      // Cancelled while the browser was starting: the handler couldn't see it.
+      await browserServer.kill()
+      return false
+    }
+    sharedBrowserServer = browserServer
     process.env.NEXT_TEST_BROWSER_WS_ENDPOINT = sharedBrowserServer.wsEndpoint()
   }
 
@@ -747,7 +895,6 @@ ${ENDGROUP}`)
 
   const sema = new Sema(options.concurrency, { capacity: testRuns.length })
   const outputSema = new Sema(1, { capacity: testRuns.length })
-  const children = new Set()
   const jestPath = path.join(
     __dirname,
     'node_modules',
@@ -794,7 +941,7 @@ ${ENDGROUP}`)
   ) =>
     new Promise((resolve, reject) => {
       const start = new Date().getTime()
-      let outputChunks = []
+      const outputChunks = []
 
       const args = [
         ...(process.env.CI ? ['--ci'] : []),
@@ -901,6 +1048,10 @@ ${ENDGROUP}`)
         return resolve(new Date().getTime() - start)
       }
 
+      // Don't start new jest processes once the run has been cancelled. The
+      // cancellation handler exits the process.
+      if (cancelSignal) return
+
       const child = spawn(jestPath, args, {
         stdio: ['ignore', 'pipe', 'pipe'],
         env: {
@@ -913,10 +1064,17 @@ ${ENDGROUP}`)
       child.stdout.on('data', stdout)
       child.stderr.on('data', handleOutput('stderr'))
 
-      children.add(child)
+      runningTestRuns.set(child, {
+        label: getTestRunLabel(testRun),
+        start,
+        outputChunks,
+        closed: new Promise((resolve) => child.once('close', resolve)),
+      })
 
       child.on('exit', async (code, signal) => {
-        children.delete(child)
+        runningTestRuns.delete(child)
+        // The cancellation handler already printed the output and is exiting.
+        if (cancelSignal) return
         const isChildExitWithNonZero = code !== 0 || signal !== null
         if (isChildExitWithNonZero) {
           if (hideOutput) {
@@ -1051,6 +1209,7 @@ ${ENDGROUP}`)
     let passed = false
 
     for (let i = 0; i < numRetries + 1; i++) {
+      if (cancelSignal) return
       try {
         console.log(
           `Starting ${getTestRunLabel(testRun)} retry ${i}/${numRetries}`
