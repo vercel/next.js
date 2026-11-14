@@ -208,8 +208,8 @@ fn setup_prefilled_db(config: &DbConfig, id: &str) -> Result<(TempDir, Vec<Box<[
 }
 
 fn prepare_db_for_benchmarking(db: &TurboPersistence<SerialScheduler, 1>) {
+    // SST files stay open: they were opened eagerly in the background when the database opened.
     db.clear_block_caches();
-    db.prepare_all_sst_caches();
 }
 
 fn iter_batched_with_init<'a, T, O>(

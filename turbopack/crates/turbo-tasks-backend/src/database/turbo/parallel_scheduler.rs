@@ -10,6 +10,21 @@ impl ParallelScheduler for TurboTasksParallelScheduler {
         parallel::available_parallelism().map_or(4, |count| count.get())
     }
 
+    fn spawn_blocking(&self, f: impl FnOnce() + Send + 'static) {
+        // Use tokio's blocking pool when a runtime is available. Outside a runtime (e.g. a
+        // database opened by a standalone tool), fall back to a plain thread.
+        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+            drop(handle.spawn_blocking(f));
+        } else if let Err(error) = std::thread::Builder::new()
+            .name("turbo-persistence background".into())
+            .spawn(f)
+        {
+            // `spawn` dropped `f` without running it. The spawned work is best-effort (e.g. an
+            // eagerly opened SST is opened lazily instead), so skipping it is fine.
+            eprintln!("turbo-persistence: failed to spawn a background thread: {error}");
+        }
+    }
+
     fn parallel_for_each<T>(&self, items: &[T], f: impl Fn(&T) + Send + Sync)
     where
         T: Sync,

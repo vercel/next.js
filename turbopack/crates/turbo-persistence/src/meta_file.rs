@@ -3,7 +3,7 @@ use std::{
     mem::take,
     ops::Deref,
     path::{Path, PathBuf},
-    sync::{Arc, OnceLock},
+    sync::{Arc, OnceLock, Weak},
 };
 
 use anyhow::{Context, Result, bail, ensure};
@@ -137,8 +137,12 @@ pub struct MetaEntry {
     amqf: qfilter::FilterRef<'static>,
     /// Compression recorded in this entry's meta file.
     compression: Compression,
-    /// The static sorted file that is lazily loaded
-    sst: OnceLock<StaticSortedFile>,
+    /// The static sorted file, opened eagerly in the background (see [`EagerSstOpen`]) or lazily
+    /// by the first lookup that needs it, whichever comes first.
+    ///
+    /// Shared so that a background open can hold a [`Weak`] reference: it never keeps the entry's
+    /// slot alive, and skips the open once the entry is gone.
+    sst: Arc<OnceLock<StaticSortedFile>>,
 }
 
 // Safety: FilterRef is a read-only view into stable backing bytes which are Send+Sync.
@@ -206,6 +210,38 @@ impl MetaEntry {
     /// Used during compaction to avoid caching mmaps on the MetaEntry.
     pub fn sst_metadata(&self) -> StaticSortedFileMetaData {
         self.sst_data
+    }
+}
+
+/// A pending background open of the SST file of a [`MetaEntry`], collected by
+/// [`MetaFile::collect_eager_sst_opens`] and run on a blocking thread with [`EagerSstOpen::run`].
+///
+/// It only holds a [`Weak`] reference to the entry's SST slot, so it never keeps a dropped entry
+/// (e.g. one retired by compaction) or its SST file alive beyond a single in-flight open.
+pub(crate) struct EagerSstOpen {
+    slot: Weak<OnceLock<StaticSortedFile>>,
+    sst_data: StaticSortedFileMetaData,
+    compression: Compression,
+    access_mode: AccessMode,
+}
+
+impl EagerSstOpen {
+    /// Opens the SST file into its entry's slot, unless the entry is gone or the file is open
+    /// already.
+    ///
+    /// Opening is best-effort: on failure the slot stays empty, so the next lookup that needs the
+    /// file opens it lazily and reports the error itself. A lookup that needs the file while it is
+    /// being opened here waits for this open instead of starting a second one.
+    pub(crate) fn run(self, db_path: &Path) {
+        let Some(slot) = self.slot.upgrade() else {
+            return;
+        };
+        if slot.get().is_some() {
+            return;
+        }
+        let _ = slot.get_or_try_init(|| {
+            StaticSortedFile::open(db_path, self.sst_data, self.compression, self.access_mode)
+        });
     }
 }
 
@@ -442,7 +478,7 @@ impl MetaFile {
                 amqf_data_offset: start_of_amqf_data_offset..end_of_amqf_data_offset,
                 amqf,
                 compression,
-                sst: OnceLock::new(),
+                sst: Default::default(),
             });
             start_of_amqf_data_offset = end_of_amqf_data_offset;
         }
@@ -470,14 +506,26 @@ impl MetaFile {
 
     pub fn clear_cache(&mut self) {
         for entry in self.entries.iter_mut() {
-            entry.sst.take();
+            // Replace the slot instead of taking its value: a background open that is still
+            // pending holds a `Weak` to the old slot, which now dangles, so it skips the open
+            // instead of re-populating the cleared cache.
+            entry.sst = Default::default();
         }
     }
 
-    pub fn prepare_sst_cache(&self) {
-        for entry in self.entries.iter() {
-            let _ = entry.sst(self);
-        }
+    /// Appends an [`EagerSstOpen`] for every entry whose SST file isn't open yet.
+    pub(crate) fn collect_eager_sst_opens(&self, opens: &mut Vec<EagerSstOpen>) {
+        opens.extend(
+            self.entries
+                .iter()
+                .filter(|entry| entry.sst.get().is_none())
+                .map(|entry| EagerSstOpen {
+                    slot: Arc::downgrade(&entry.sst),
+                    sst_data: entry.sst_data,
+                    compression: entry.compression,
+                    access_mode: self.access_mode,
+                }),
+        );
     }
 
     pub fn sequence_number(&self) -> u32 {
