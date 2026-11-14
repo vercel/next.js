@@ -374,6 +374,12 @@ export function getJestSWCOptions({
     } as any
   }
 
+  // The output runs on the current Node.js, which accepts `with` for import
+  // attributes from 20.10 and no longer accepts `assert` from 22.
+  const [nodeMajor, nodeMinor] = process.versions.node.split('.').map(Number)
+  baseOptions.jsc.experimental.emitAssertForImportAttributes =
+    nodeMajor < 20 || (nodeMajor === 20 && nodeMinor < 10)
+
   const useCjsModules = shouldOutputCommonJs(filename)
   return {
     ...baseOptions,
