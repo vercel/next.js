@@ -452,10 +452,18 @@ export function createPatchedFetcher(
         // override the base Request. Merge them into a single effective Request
         // so cacheability, the cache key, and the upstream request all describe
         // the same thing.
+        let overrideSignal: AbortSignal | undefined
         if (isRequestInput && init) {
           // `next` (revalidate/tags) is Next-specific and dropped by
           // `new Request`, so keep it on `init` and move the rest onto input.
           const { next, ...overrides } = init
+          // The signal of a Request only follows the signal it was created
+          // from through a `WeakRef`, so keep a direct reference to the
+          // effective signal to forward it to the final Request.
+          overrideSignal =
+            overrides.signal !== undefined
+              ? (overrides.signal ?? undefined)
+              : (input as Request).signal
           input = new Request(input as Request, overrides)
           init = next ? { next } : undefined
         }
@@ -942,6 +950,9 @@ export function createPatchedFetcher(
             for (const field of requestInputFields) {
               // @ts-expect-error custom fields
               reqOptions[field] = reqInput[field]
+            }
+            if (!isStale && overrideSignal) {
+              reqOptions.signal = overrideSignal
             }
             input = new Request(reqInput.url, reqOptions)
           } else if (init) {
