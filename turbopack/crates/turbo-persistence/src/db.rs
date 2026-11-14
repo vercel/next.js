@@ -1627,7 +1627,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let log_mutex = Mutex::new(());
 
         struct PartialResultPerFamily {
-            new_meta_file: Option<NewFile>,
+            new_meta_files: Vec<NewFile>,
             new_sst_files: Vec<NewFile>,
             sst_files_to_delete: Vec<DeletedFile>,
             blob_seq_numbers_to_delete: Vec<u32>,
@@ -1667,7 +1667,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
                     if merge_jobs.is_empty() {
                         return Ok(PartialResultPerFamily {
-                            new_meta_file: None,
+                            new_meta_files: Vec::new(),
                             new_sst_files: Vec::new(),
                             sst_files_to_delete: Vec::new(),
                             blob_seq_numbers_to_delete: Vec::new(),
@@ -1681,7 +1681,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     };
 
                     // The keys read recently: the used keys of the meta files written by commits
-                    // that are still alive, i.e. whose SST files were not all merged yet. We only
+                    // that are still alive, i.e. whose SST files were not all merged yet, and the
+                    // ones carried forward by intermediate merges (see below). We only
                     // capture this for bottom compactions.
                     let used_key_hashes = if merge_jobs.iter().any(|job| {
                         job.bottom
@@ -1690,6 +1691,25 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         union_used_key_hashes(meta_files)?
                     } else {
                         None
+                    };
+
+                    // An intermediate merge can merge the last SST file of a commit that recorded
+                    // used keys, which retires its meta file, while the merged entries are not
+                    // bottom merged yet, e.g. when the rewrite quota or `max_merge_jobs` leaves
+                    // the bottom merge of their shard for later. The outputs of the intermediate
+                    // merges are then written into a separate meta file that carries the used keys
+                    // of those commits forward, so that a later bottom merge still knows them. It
+                    // holds only those outputs, so the used keys expire once they are merged.
+                    let carried_used_key_hashes = {
+                        let mut meta_indices = merge_jobs
+                            .iter()
+                            .filter(|job| !job.bottom)
+                            .flat_map(|job| job.members.iter())
+                            .map(|&index| ssts_with_ranges[index].meta_index)
+                            .collect::<Vec<_>>();
+                        meta_indices.sort_unstable();
+                        meta_indices.dedup();
+                        union_used_key_hashes(meta_indices.into_iter().map(|i| &meta_files[i]))?
                     };
 
                     // Later we will remove the merged files. Capture each one's size now (we know
@@ -1715,6 +1735,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             blob_seq_numbers_to_delete: Vec<u32>,
                             keys_written: u64,
                             indices: Vec<usize>,
+                            bottom: bool,
                         },
                         Move {
                             seq: u32,
@@ -2081,6 +2102,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     blob_seq_numbers_to_delete,
                                     keys_written,
                                     indices,
+                                    bottom,
                                 })
                             })();
                             if result.is_err() {
@@ -2103,6 +2125,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 blob_seq_numbers_to_delete,
                                 indices: _,
                                 keys_written: _,
+                                bottom: _,
                             } = r
                             {
                                 (new_sst_files.len(), blob_seq_numbers_to_delete.len())
@@ -2124,6 +2147,19 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         self.config.family_configs[family as usize].compression,
                         shard_bits,
                     );
+                    // The meta file for the outputs of intermediate merges that carries the used
+                    // keys forward (see above). It is newer than `meta_seq`, which doesn't matter
+                    // as the jobs don't overlap.
+                    let mut carry_meta_file_builder =
+                        carried_used_key_hashes.map(|used_key_hashes| {
+                            let mut builder = MetaFileBuilder::new(
+                                family,
+                                self.config.family_configs[family as usize].compression,
+                                shard_bits,
+                            );
+                            builder.set_used_key_hashes_amqf(used_key_hashes);
+                            (sequence_number.fetch_add(1, Ordering::SeqCst) + 1, builder)
+                        });
 
                     let mut keys_written = 0;
                     {
@@ -2138,6 +2174,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     blob_seq_numbers_to_delete: merged_blob_seq_numbers_to_delete,
                                     keys_written: merged_keys_written,
                                     indices,
+                                    bottom,
                                 } => {
                                     writeln!(
                                         log,
@@ -2165,7 +2202,13 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         )?;
 
                                         let size = meta.size;
-                                        meta_file_builder.add(seq, meta);
+                                        if !bottom
+                                            && let Some((_, builder)) = &mut carry_meta_file_builder
+                                        {
+                                            builder.add(seq, meta);
+                                        } else {
+                                            meta_file_builder.add(seq, meta);
+                                        }
                                         new_sst_files.push(NewFile { seq, file, size });
                                     }
                                     blob_seq_numbers_to_delete
@@ -2185,6 +2228,13 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 }
                             }
                         }
+                        if let Some((carry_meta_seq, _)) = &carry_meta_file_builder {
+                            writeln!(
+                                log,
+                                "{family:3} | {meta_seq:08} | intermediate merge outputs carry \
+                                 the used keys in {carry_meta_seq:08}.meta"
+                            )?;
+                        }
                         drop(log);
                         drop(guard);
                     }
@@ -2193,18 +2243,26 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         meta_file_builder.add_obsolete_sst_file(f.seq);
                     }
 
-                    let new_meta_file = {
+                    let mut new_meta_files = Vec::with_capacity(2);
+                    {
                         let _span = tracing::trace_span!("write meta file").entered();
                         let (file, size) = meta_file_builder.write(&self.path, meta_seq)?;
-                        NewFile {
+                        new_meta_files.push(NewFile {
                             seq: meta_seq,
                             file,
                             size,
+                        });
+                        // Without outputs there is nothing to carry the used keys forward for.
+                        if let Some((seq, builder)) = carry_meta_file_builder
+                            && !builder.is_empty()
+                        {
+                            let (file, size) = builder.write(&self.path, seq)?;
+                            new_meta_files.push(NewFile { seq, file, size });
                         }
-                    };
+                    }
 
                     Ok(PartialResultPerFamily {
-                        new_meta_file: Some(new_meta_file),
+                        new_meta_files,
                         new_sst_files,
                         sst_files_to_delete,
                         blob_seq_numbers_to_delete,
@@ -2214,14 +2272,14 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             )?;
 
         for PartialResultPerFamily {
-            new_meta_file: inner_new_meta_file,
+            new_meta_files: mut inner_new_meta_files,
             new_sst_files: mut inner_new_sst_files,
             sst_files_to_delete: mut inner_sst_files_to_delete,
             blob_seq_numbers_to_delete: mut inner_blob_seq_numbers_to_delete,
             keys_written: inner_keys_written,
         } in result
         {
-            new_meta_files.extend(inner_new_meta_file);
+            new_meta_files.append(&mut inner_new_meta_files);
             new_sst_files.append(&mut inner_new_sst_files);
             sst_files_to_delete.append(&mut inner_sst_files_to_delete);
             blob_seq_numbers_to_delete.append(&mut inner_blob_seq_numbers_to_delete);
@@ -2806,9 +2864,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 const USED_KEYS_FINGERPRINT_BITS: u8 = 32;
 
 /// The union of the used keys recorded in the meta files, or `None` if there are none.
-fn union_used_key_hashes(meta_files: &[MetaFile]) -> Result<Option<qfilter::Filter>> {
+fn union_used_key_hashes<'l>(
+    meta_files: impl IntoIterator<Item = &'l MetaFile>,
+) -> Result<Option<qfilter::Filter>> {
     let filters = meta_files
-        .iter()
+        .into_iter()
         .filter_map(|meta_file| meta_file.deserialize_used_key_hashes_amqf().transpose())
         .collect::<Result<Vec<_>>>()?
         .into_iter()
