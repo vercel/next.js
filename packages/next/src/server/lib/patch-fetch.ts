@@ -588,7 +588,7 @@ export function createPatchedFetcher(
         const noFetchConfigAndForceDynamic =
           !pageFetchCacheMode &&
           !currentFetchCacheConfig &&
-          !currentFetchRevalidate &&
+          typeof currentFetchRevalidate === 'undefined' &&
           workStore.forceDynamic
 
         if (
