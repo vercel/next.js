@@ -47,10 +47,20 @@ function getStorageDirectory(distDir: string): string | undefined {
   return undefined
 }
 
+function createConf(cwd?: string): Conf<any> | null {
+  try {
+    // Conf can throw permission errors during initialization.
+    return new Conf({ projectName: 'nextjs', cwd })
+  } catch {
+    return null
+  }
+}
+
 export class Telemetry {
   readonly sessionId: string
 
   private conf: Conf<any> | null
+  private preferencesConf: Conf<any> | null
   private distDir: string
   private loadProjectId: undefined | string | Promise<string>
   private NEXT_TELEMETRY_DISABLED: any
@@ -72,14 +82,18 @@ export class Telemetry {
     this.distDir = distDir
     const storageDirectory = getStorageDirectory(distDir)
 
-    try {
-      // `conf` incorrectly throws a permission error during initialization
-      // instead of waiting for first use. We need to handle it, otherwise the
-      // process may crash.
-      this.conf = new Conf({ projectName: 'nextjs', cwd: storageDirectory })
-    } catch (_) {
-      this.conf = null
-    }
+    this.conf = createConf(storageDirectory)
+    // The CLI, dev server, and build can use different cache directories.
+    // Read the preference from the CLI's working-directory cache while keeping
+    // ephemeral identifiers in their existing caches.
+    const preferencesDirectory =
+      storageDirectory === undefined
+        ? undefined
+        : path.join(process.cwd(), 'cache')
+    this.preferencesConf =
+      storageDirectory === preferencesDirectory
+        ? this.conf
+        : createConf(preferencesDirectory)
     this.sessionId = randomBytes(32).toString('hex')
     this.queue = new Set()
 
@@ -140,24 +154,27 @@ export class Telemetry {
   }
 
   private get isDisabled(): boolean {
-    if (!!this.NEXT_TELEMETRY_DISABLED || !this.conf) {
+    if (!!this.NEXT_TELEMETRY_DISABLED || !this.conf || !this.preferencesConf) {
       return true
     }
-    return this.conf.get(TELEMETRY_KEY_ENABLED, true) === false
+    return (
+      this.preferencesConf.get(TELEMETRY_KEY_ENABLED, true) === false ||
+      (this.preferencesConf !== this.conf &&
+        this.conf.get(TELEMETRY_KEY_ENABLED, true) === false)
+    )
   }
 
   setEnabled = (_enabled: boolean) => {
     const enabled = !!_enabled
-    this.conf && this.conf.set(TELEMETRY_KEY_ENABLED, enabled)
-    return this.conf && this.conf.path
+    this.preferencesConf?.set(TELEMETRY_KEY_ENABLED, enabled)
+    if (this.conf !== this.preferencesConf) {
+      this.conf?.set(TELEMETRY_KEY_ENABLED, enabled)
+    }
+    return this.preferencesConf?.path ?? this.conf?.path ?? null
   }
 
   get isEnabled(): boolean {
-    return (
-      !this.NEXT_TELEMETRY_DISABLED &&
-      !!this.conf &&
-      this.conf.get(TELEMETRY_KEY_ENABLED, true) !== false
-    )
+    return !this.isDisabled
   }
 
   oneWayHash = (payload: BinaryLike): string => {
