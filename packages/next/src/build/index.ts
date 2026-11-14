@@ -1474,8 +1474,13 @@ export default async function build(
         `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
       )
 
+      // proxy.go is only a convention file when Go routes are enabled, so an
+      // unrelated Go file in the project root does not affect other apps.
       const proxyDetectionRegExp = new RegExp(
-        `^${PROXY_FILENAME}\\.(?:${[...config.pageExtensions, 'go'].join('|')})$`
+        `^${PROXY_FILENAME}\\.(?:${[
+          ...config.pageExtensions,
+          ...(config.experimental.goRoutes ? ['go'] : []),
+        ].join('|')})$`
       )
 
       const instrumentationHookDetectionRegExp = new RegExp(
@@ -1512,7 +1517,12 @@ export default async function build(
           middlewareFilePath = rootPath
         }
         if (isAtConventionLevel && fileBaseName === PROXY_FILENAME) {
-          if (proxyFilePath)
+          // A Go proxy cannot be combined with a JavaScript one. Multiple
+          // JavaScript Proxy files keep resolving to the last one.
+          if (
+            proxyFilePath &&
+            (proxyFilePath.endsWith('.go') || rootPath.endsWith('.go'))
+          )
             throw new Error(
               `Multiple Proxy files detected: ".${normalizePathSep(proxyFilePath)}" and ".${normalizePathSep(rootPath)}". Remove one of these files; Next.js supports a single Proxy file.`
             )

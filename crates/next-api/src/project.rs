@@ -2493,7 +2493,10 @@ impl Project {
     pub(crate) async fn find_middleware(self: Vc<Self>) -> Result<Vc<FindContextFileResult>> {
         Ok(find_context_file(
             self.project_path().owned().await?,
-            middleware_files(self.next_config().page_extensions()),
+            middleware_files(
+                self.next_config().page_extensions(),
+                self.next_config().go_routes(),
+            ),
             // our callers do not care about affecting sources
             false,
         ))

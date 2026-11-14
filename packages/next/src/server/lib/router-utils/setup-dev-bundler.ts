@@ -432,7 +432,8 @@ async function startWatcher(
     const files = [
       ...getPossibleMiddlewareFilenames(
         path.join(rootDir!, '..'),
-        nextConfig.pageExtensions
+        nextConfig.pageExtensions,
+        !!nextConfig.experimental.goRoutes
       ),
       ...getPossibleInstrumentationHookFilenames(
         path.join(rootDir!, '..'),
@@ -561,7 +562,12 @@ async function startWatcher(
           middlewareFilePath = fileName
         }
         if (isAtConventionLevel && fileBaseName === PROXY_FILENAME) {
-          if (proxyFilePath)
+          // A Go proxy cannot be combined with a JavaScript one. Multiple
+          // JavaScript Proxy files keep resolving to the last one.
+          if (
+            proxyFilePath &&
+            (proxyFilePath.endsWith('.go') || fileName.endsWith('.go'))
+          )
             throw new Error(
               `Multiple Proxy files detected: "./${normalizePathSep(path.relative(dir, proxyFilePath))}" and "./${normalizePathSep(path.relative(dir, fileName))}". Remove one of these files; Next.js supports a single Proxy file.`
             )

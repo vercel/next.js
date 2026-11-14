@@ -608,6 +608,37 @@ describe('native-proxy-go', () => {
       await next.deleteFile('proxy.ts')
     }
   })
+
+  it('ignores proxy.go unless experimental.goRoutes is enabled', async () => {
+    // An unrelated Go file at the root must not affect JavaScript proxies.
+    await next.stop()
+    const config = await next.readFile('next.config.ts')
+    await next.patchFile(
+      'next.config.ts',
+      config.replace('goRoutes: true', 'goRoutes: false')
+    )
+    await next.patchFile(
+      'proxy.ts',
+      `import { NextResponse } from 'next/server'
+       export function proxy() {
+         const response = NextResponse.next()
+         response.headers.set('x-js-proxy', 'yes')
+         return response
+       }`
+    )
+    try {
+      await next.start()
+      const response = await next.fetch('/native-proxy/inspect')
+      expect(response.status).toBe(200)
+      expect(response.headers.get('x-js-proxy')).toBe('yes')
+      expect(response.headers.get('x-go-proxy')).toBeNull()
+      expect(next.cliOutput).not.toContain('Multiple Proxy files detected')
+    } finally {
+      await next.stop()
+      await next.deleteFile('proxy.ts')
+      await next.patchFile('next.config.ts', config)
+    }
+  })
 })
 
 // Hosted tests require the Go proxy adapter and builder releases.

@@ -1787,14 +1787,16 @@ export function getPossibleInstrumentationHookFilenames(
 
 export function getPossibleMiddlewareFilenames(
   folder: string,
-  extensions: string[]
+  extensions: string[],
+  goRoutes = false
 ) {
   return [
     ...extensions.flatMap((extension) => [
       path.join(folder, `${MIDDLEWARE_FILENAME}.${extension}`),
       path.join(folder, `${PROXY_FILENAME}.${extension}`),
     ]),
-    path.join(folder, `${PROXY_FILENAME}.go`),
+    // proxy.go is only a convention file when Go routes are enabled.
+    ...(goRoutes ? [path.join(folder, `${PROXY_FILENAME}.go`)] : []),
   ]
 }
 
