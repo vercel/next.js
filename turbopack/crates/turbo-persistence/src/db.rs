@@ -2935,7 +2935,8 @@ const MAX_PROMOTED_BYTES_PER_KEY: usize = 4 * 1024 * 1024;
 /// - A key with a blob value is not copied, so that no blob is referenced twice: compaction deletes
 ///   the blob of an entry that is superseded.
 /// - A key with more than [`MAX_PROMOTED_VALUES_PER_KEY`] values or [`MAX_PROMOTED_BYTES_PER_KEY`]
-///   bytes is not copied.
+///   bytes is not copied. Value tombstones count toward both limits like live values, as they are
+///   held in memory too.
 fn promote_used_entries(
     path: &Path,
     indices: &[usize],
@@ -2960,12 +2961,26 @@ fn promote_used_entries(
     #[derive(Default)]
     struct Group {
         entries: Vec<LookupEntry>,
+        /// The size of the live values and the value tombstones.
         bytes: usize,
         /// All older entries of the key are deleted or shadowed.
         done: bool,
         /// The key can't be copied.
         skip: bool,
         deleted_values: AutoSet<RcBytes, BuildHasherDefault<FxHasher>, 1>,
+    }
+    impl Group {
+        /// Skips the key when it holds too much in memory, counting value tombstones like live
+        /// values.
+        fn check_limits(&mut self) {
+            if self.entries.len() + self.deleted_values.len() > MAX_PROMOTED_VALUES_PER_KEY
+                || self.bytes > MAX_PROMOTED_BYTES_PER_KEY
+            {
+                self.skip = true;
+                self.entries = Vec::new();
+                self.deleted_values = Default::default();
+            }
+        }
     }
     let mut flush = |group: &mut Group| -> Result<()> {
         let mut entries = take(&mut group.entries);
@@ -3006,7 +3021,10 @@ fn promote_used_entries(
                 continue;
             }
             IterValue::KeyValueDeleted { value } => {
-                group.deleted_values.insert(value.clone());
+                if group.deleted_values.insert(value.clone()) {
+                    group.bytes += value.len();
+                    group.check_limits();
+                }
                 continue;
             }
             IterValue::Blob { .. } => {
@@ -3025,12 +3043,7 @@ fn promote_used_entries(
         };
         group.bytes += size;
         group.entries.push(entry);
-        if group.entries.len() > MAX_PROMOTED_VALUES_PER_KEY
-            || group.bytes > MAX_PROMOTED_BYTES_PER_KEY
-        {
-            group.skip = true;
-            group.entries.clear();
-        }
+        group.check_limits();
         if kind == FamilyKind::SingleValue {
             group.done = true;
         }

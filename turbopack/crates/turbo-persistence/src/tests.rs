@@ -4342,6 +4342,42 @@ fn promotion_skips_blobs_and_large_value_groups(#[case] mmap: bool) -> Result<()
 #[rstest]
 #[case(true)]
 #[case(false)]
+fn promotion_skips_keys_with_many_value_tombstones(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let db = open_multi_value_db(path, mmap)?;
+    let batch = db.write_batch()?;
+    batch.put(0, vec![1], 0u32.to_be_bytes().to_vec().into())?;
+    batch.put(0, vec![2], vec![2].into())?;
+    db.commit_write_batch(batch)?;
+    db.get_multiple(0, &[1u8].as_slice())?;
+    db.get_multiple(0, &[2u8].as_slice())?;
+    // Key 1 gets more distinct value tombstones than a promotion holds for a key, spread over
+    // several SST files. They count toward the cap like live values, so the key isn't copied.
+    const TOMBSTONES: u32 = crate::db::MAX_PROMOTED_VALUES_PER_KEY as u32 + 1;
+    let batch = db.write_batch()?;
+    for value in 1..=TOMBSTONES {
+        batch.delete_value(0, vec![1], value.to_be_bytes().to_vec().into())?;
+        if value % 256 == 0 {
+            // Safety: no concurrent puts.
+            unsafe { batch.flush(0)? };
+        }
+    }
+    db.commit_write_batch(batch)?;
+    db.compact(&CompactConfig::default())?.unwrap();
+    // Only key 2 and its key tombstone.
+    assert_eq!(compacted_entry_count(&db)?, 2);
+    let values = db.get_multiple(0, &[1u8].as_slice())?;
+    assert_eq!(values.len(), 1);
+    assert_eq!(&*values[0], &0u32.to_be_bytes());
+    assert_eq!(db.get_multiple(0, &[2u8].as_slice())?.len(), 1);
+    Ok(())
+}
+
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
 fn bottom_merge_after_promotion_drops_the_copies(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
