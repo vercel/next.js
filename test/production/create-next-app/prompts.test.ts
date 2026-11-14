@@ -98,6 +98,13 @@ describe('create-next-app prompts', () => {
         stderr += data
       })
 
+      await retry(async () => {
+        expect(stdout).toMatch(/What is your project named/)
+      })
+
+      // End stdin so the prompt receives EOF rather than selecting the default 'my-app'
+      childProcess.stdin.end()
+
       await new Promise<void>((resolve) => {
         childProcess.on('exit', async (exitCode) => {
           expect(exitCode).toBe(1)
@@ -109,9 +116,6 @@ describe('create-next-app prompts', () => {
           expect(stderr).not.toContain('TypeError: opts.name is not a function')
           resolve()
         })
-
-        // enter empty string
-        childProcess.stdin.write('\n')
       })
     })
   })
