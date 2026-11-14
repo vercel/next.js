@@ -197,6 +197,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
     async move {
         let async_module_info = module_graph.async_module_info();
         let chunk_group_info = module_graph.chunk_group_info().await?;
+        let all_chunk_groups = chunk_group_info.chunk_groups.await?;
         let module_graph = module_graph.await?;
 
         let graphs = &module_graph.graphs;
@@ -444,7 +445,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
             let result = turbo_tasks::parallel::map_collect_chunked_owned::<_, _, Result<Vec<_>>>(
                 // TODO without collect
-                chunk_group_info.chunk_groups.iter().enumerate().collect(),
+                all_chunk_groups.values().enumerate().collect(),
                 |chunk| {
                     let mut list_lists = vec![];
                     let mut lists_reverse_indices: FxIndexMap<
@@ -469,7 +470,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                         // Keyed by bitmap id.
                         let mut chunk_lists: FxHashMap<u32, usize> =
                             FxHashMap::with_capacity_and_hasher(
-                                module_merged_groups.len() / chunk_group_info.chunk_groups.len(),
+                                module_merged_groups.len() / all_chunk_groups.len(),
                                 Default::default(),
                             );
 
@@ -563,7 +564,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             drop(span);
             let _span = tracing::info_span!("merging chunk group lists").entered();
 
-            lists = vec![Default::default(); chunk_group_info.chunk_groups.len() + 1];
+            lists = vec![Default::default(); all_chunk_groups.len() + 1];
             LISTS_COMMON_IDX = result.len();
             let mut reverse_index_parts = Vec::with_capacity(result.len());
             let mut intra_group_references_rev_parts = Vec::with_capacity(result.len());
