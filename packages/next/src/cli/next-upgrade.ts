@@ -38,6 +38,7 @@ type NextUpgradeOptions = {
   revision: string
   verbose: boolean
   agent: boolean | string | undefined
+  ci?: boolean
 }
 
 const UUID_PATTERN =
@@ -155,6 +156,20 @@ export async function spawnNextUpgrade(
   options: NextUpgradeOptions,
   nudgeSource: { id: string; recipient: 'human' | 'agent' } | null
 ) {
+  if (options.ci) {
+    const { setupUpgradeCI } =
+      require('../lib/upgrade/setup-ci') as typeof import('../lib/upgrade/setup-ci')
+    try {
+      await setupUpgradeCI({ directory })
+    } catch (error) {
+      Log.error(
+        error instanceof Error ? error.message : 'Could not set up upgrade CI.'
+      )
+      process.exitCode = 1
+    }
+    return
+  }
+
   let baseDir = resolvePath(directory || '.')
 
   if (options.agent) {
@@ -245,13 +260,16 @@ export async function spawnNextUpgrade(
       if (!inheritedRunId || invalidRunId) {
         const agentProduct = await getAgentName()
         const nudge = invalidRunId || invalidNudgeId ? null : nudgeSource
-        const origin = nudge
-          ? nudge.recipient === 'agent'
-            ? 'agent_nudge'
-            : 'human_nudge'
-          : agentProduct
-            ? 'agent_manual'
-            : 'human_manual'
+        const origin =
+          process.env.__NEXT_AGENT_UPGRADE_SOURCE === 'github_action'
+            ? 'github_action'
+            : nudge
+              ? nudge.recipient === 'agent'
+                ? 'agent_nudge'
+                : 'human_nudge'
+              : agentProduct
+                ? 'agent_manual'
+                : 'human_manual'
         telemetry.record(
           eventAgentUpgradeRunStarted({
             runId,
