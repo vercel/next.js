@@ -28,6 +28,7 @@ use crate::{
     module_graph::ModuleGraph,
 };
 
+mod deterministic_grouping;
 mod dev;
 mod production;
 mod style_production;

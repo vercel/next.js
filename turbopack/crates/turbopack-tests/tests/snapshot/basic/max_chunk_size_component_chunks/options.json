@@ -1,0 +1,7 @@
+{
+  "minifyType": "NoMinify",
+  "productionChunking": true,
+  "generateComponentChunks": true,
+  "minComponentChunkSize": 0,
+  "maxChunkSize": 1000
+}
