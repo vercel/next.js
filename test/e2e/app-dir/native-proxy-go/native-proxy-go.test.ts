@@ -134,6 +134,15 @@ describe('native-proxy-go', () => {
     expect(await response.text()).toBe('blocked by Go\n')
   })
 
+  it.each(['/native-proxy/secure', '/native-proxy/secure.rsc'])(
+    'protects the secure page through %s',
+    async (path) => {
+      const response = await next.fetch(path)
+      expect(response.status).toBe(403)
+      expect(await response.text()).toBe('protected\n')
+    }
+  )
+
   it('serves compressed terminal responses', async () => {
     // Middleware response processing strips encoded-body headers, so the body
     // must be decoded before reaching the client.
@@ -527,6 +536,14 @@ describe('native-proxy-go', () => {
       expect(output.config.matchers).toEqual([
         expect.objectContaining({ source: '/:path*' }),
       ])
+      const appPages = JSON.parse(
+        await next.readFile('go-app-pages-output.json')
+      )
+      expect(appPages).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ pathname: '/native-proxy/secure.rsc' }),
+        ])
+      )
       const directory = await fs.mkdtemp(join(tmpdir(), 'go-proxy-function-'))
       const binary = join(
         directory,
@@ -558,6 +575,14 @@ describe('native-proxy-go', () => {
           body: 'hosted body',
         })
         expect(body.headers.get('x-go-body')).toBe('hosted body')
+        for (const path of [
+          '/native-proxy/secure',
+          '/native-proxy/secure.rsc',
+        ]) {
+          const response = await fetch(`http://127.0.0.1:${port}${path}`)
+          expect(response.status).toBe(403)
+          expect(response.headers.get('x-middleware-next')).toBeNull()
+        }
         for (const path of ['cookie-state', 'cookie-rewrite']) {
           const response = await fetch(
             `http://127.0.0.1:${port}/native-proxy/${path}`
