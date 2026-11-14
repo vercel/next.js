@@ -70,6 +70,9 @@ describe('eslint-config-next', () => {
          "@next/next/no-before-interactive-script-outside-document": [
            1,
          ],
+         "@next/next/no-cookies-in-mcp-tools": [
+           2,
+         ],
          "@next/next/no-css-tags": [
            1,
          ],

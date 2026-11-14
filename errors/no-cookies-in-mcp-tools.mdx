@@ -1,0 +1,38 @@
+---
+title: No `cookies()` in MCP tools
+---
+
+> Prevent reading `cookies()` inside `@next/mcp` tool files.
+
+## Why This Error Occurred
+
+A file that defines an MCP tool with `defineTool` from `@next/mcp/tools` called `cookies()` from `next/headers`.
+
+An MCP server authenticates each request with the `auth` list passed to `mcpRoute`, for example with a bearer token. `cookies()` instead reads whatever browser session happens to accompany the same request. The two can belong to different identities: a client can present a bearer token for one user while a cookie for another user rides along. A tool that trusts the cookie mixes those identities.
+
+## Possible Ways to Fix It
+
+Identify the caller with `ctx.session.auth.current`, which holds the identity the route's `auth` list verified:
+
+```ts filename="app/mcp/tools/list_events.ts"
+import { defineTool } from '@next/mcp/tools'
+import { z } from 'zod'
+import { db } from '@/lib/db'
+
+export default defineTool({
+  description: 'List the signed-in user’s events.',
+  inputSchema: z.object({}),
+  async execute(_input, ctx) {
+    const owner = ctx.session.auth.current!.principalId
+    return { events: await db.event.findMany({ where: { owner } }) }
+  },
+})
+```
+
+To accept the app's cookie session as a way to call the MCP server, read it in an `AuthFn` and add that function to the route's `auth` list. The `Origin` check that runs before any `AuthFn` blocks cross-site requests, so cookie-based authentication there is safe from CSRF.
+
+This rule cannot see through helpers that call `cookies()` internally, such as a session helper from an auth library. Avoid those in tool files too.
+
+## Useful Links
+
+- [`cookies`](/docs/app/api-reference/functions/cookies)

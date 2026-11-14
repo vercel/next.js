@@ -7,6 +7,7 @@ import nextScriptForGa from './rules/next-script-for-ga'
 import noAssignModuleVariable from './rules/no-assign-module-variable'
 import noAsyncClientComponent from './rules/no-async-client-component'
 import noBeforeInteractiveScriptOutsideDocument from './rules/no-before-interactive-script-outside-document'
+import noCookiesInMcpTools from './rules/no-cookies-in-mcp-tools'
 import noCssTags from './rules/no-css-tags'
 import noDocumentImportInPage from './rules/no-document-import-in-page'
 import noDuplicateHead from './rules/no-duplicate-head'
@@ -44,6 +45,7 @@ const recommendedRules = {
   // errors
   '@next/next/inline-script-id': 'error',
   '@next/next/no-assign-module-variable': 'error',
+  '@next/next/no-cookies-in-mcp-tools': 'error',
   '@next/next/no-document-import-in-page': 'error',
   '@next/next/no-duplicate-head': 'error',
   '@next/next/no-head-import-in-document': 'error',
@@ -68,6 +70,7 @@ const plugin = {
     'no-async-client-component': noAsyncClientComponent,
     'no-before-interactive-script-outside-document':
       noBeforeInteractiveScriptOutsideDocument,
+    'no-cookies-in-mcp-tools': noCookiesInMcpTools,
     'no-css-tags': noCssTags,
     'no-document-import-in-page': noDocumentImportInPage,
     'no-duplicate-head': noDuplicateHead,
