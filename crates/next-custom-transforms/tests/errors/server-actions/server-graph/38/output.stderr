@@ -1,0 +1,38 @@
+  x The "use client" directive must be placed at the top of the file, before any other statements. It cannot be used inside a function.
+  | 
+  | Read more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+   ,-[input.js:3:1]
+ 2 |   constructor() {
+ 3 |     'use client'
+   :     ^^^^^^^^^^^^
+ 4 |   }
+   `----
+  x The "use client" directive must be placed at the top of the file, before any other statements. It cannot be used inside a function.
+  | 
+  | Read more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+    ,-[input.js:9:1]
+  8 |   get value() {
+  9 |     'use client'
+    :     ^^^^^^^^^^^^
+ 10 |   },
+    `----
+  x The "use client" directive must be placed at the top of the file, before any other statements. It cannot be used inside a function.
+  | 
+  | Read more: https://nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+    ,-[input.js:12:1]
+ 11 |   set value(v) {
+ 12 |     'use client'
+    :     ^^^^^^^^^^^^
+ 13 |   },
+    `----
+  x The "use client" directive must be at the top of the file.
+  | 
+    ,-[input.js:18:1]
+ 17 |   static {
+ 18 |     'use client'
+    :     ^^^^^^^^^^^^
+ 19 |   }
+    `----
