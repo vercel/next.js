@@ -119,6 +119,26 @@ describe('typescript-plugin - client-boundary', () => {
     `)
   })
 
+  it('should respect TypeScript suppression directives', () => {
+    const tsFile = resolve(__dirname, 'app/suppressed-props.tsx')
+
+    const diagnostics = languageService
+      .getSemanticDiagnostics(tsFile)
+      .map(({ code, messageText }) => ({ code, messageText }))
+
+    expect(diagnostics).toEqual([
+      {
+        code: 2578,
+        messageText: "Unused '@ts-expect-error' directive.",
+      },
+      {
+        code: NEXT_TS_ERRORS.INVALID_CLIENT_ENTRY_PROP,
+        messageText:
+          'Props must be serializable for components in the "use client" entry file. "_unsuppressedFunction" is a function that\'s not a Server Action. Rename "_unsuppressedFunction" either to "action" or have its name end with "Action" e.g. "_unsuppressedFunctionAction" to indicate it is a Server Action.',
+      },
+    ])
+  })
+
   it('should not flag framework-injected function props in error files', () => {
     const tsFile = resolve(__dirname, 'app/error.tsx')
 
