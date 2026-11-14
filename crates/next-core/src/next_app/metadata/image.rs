@@ -28,6 +28,7 @@ async fn dynamic_image_metadata_with_generator_source(
     path: FileSystemPath,
     ty: RcStr,
     page: AppPage,
+    base_path: Option<RcStr>,
     exported_fields_excluding_default: String,
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
@@ -86,7 +87,7 @@ async fn dynamic_image_metadata_with_generator_source(
         "#,
         exported_fields_excluding_default = exported_fields_excluding_default,
         resource_path = StringifyJs(&format!("./{}", path.file_name())),
-        pathname_prefix = StringifyJs(&page.to_string()),
+        pathname_prefix = StringifyJs(&metadata_pathname_prefix(&base_path, &page)),
         page_segment = StringifyJs(stem),
         sizes = sizes,
         hash = StringifyJs(&hash),
@@ -105,6 +106,7 @@ async fn dynamic_image_metadata_without_generator_source(
     path: FileSystemPath,
     ty: RcStr,
     page: AppPage,
+    base_path: Option<RcStr>,
     exported_fields_excluding_default: String,
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
@@ -157,7 +159,7 @@ async fn dynamic_image_metadata_without_generator_source(
         "#,
         exported_fields_excluding_default = exported_fields_excluding_default,
         resource_path = StringifyJs(&format!("./{}", path.file_name())),
-        pathname_prefix = StringifyJs(&page.to_string()),
+        pathname_prefix = StringifyJs(&metadata_pathname_prefix(&base_path, &page)),
         page_segment = StringifyJs(stem),
         sizes = sizes,
         hash = StringifyJs(&hash),
@@ -172,12 +174,20 @@ async fn dynamic_image_metadata_without_generator_source(
     Ok(Vc::upcast(source))
 }
 
+fn metadata_pathname_prefix(base_path: &Option<RcStr>, page: &AppPage) -> String {
+    match base_path {
+        Some(base_path) if !base_path.is_empty() => format!("{base_path}{page}"),
+        _ => page.to_string(),
+    }
+}
+
 #[turbo_tasks::function]
 pub async fn dynamic_image_metadata_source(
     asset_context: Vc<Box<dyn AssetContext>>,
     path: FileSystemPath,
     ty: RcStr,
     page: AppPage,
+    base_path: Option<RcStr>,
 ) -> Result<Vc<Box<dyn Source>>> {
     let source = Vc::upcast(FileSource::new(path.clone()));
     let module = asset_context
@@ -201,6 +211,7 @@ pub async fn dynamic_image_metadata_source(
             path,
             ty,
             page,
+            base_path,
             exported_fields_excluding_default,
         )
         .await
@@ -209,6 +220,7 @@ pub async fn dynamic_image_metadata_source(
             path,
             ty,
             page,
+            base_path,
             exported_fields_excluding_default,
         )
         .await

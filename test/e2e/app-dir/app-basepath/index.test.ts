@@ -45,6 +45,12 @@ describe('app dir - basepath', () => {
     expect(manifestHref).toContain('/base/manifest.webmanifest')
   })
 
+  it('should prefix a code-generated icon with basePath', async () => {
+    const $ = await next.render$('/base/metadata')
+    const iconHref = $('link[rel="icon"]').attr('href')
+    expect(iconHref).toContain('/base/metadata/icon')
+  })
+
   it('should prefix redirect() with basePath', async () => {
     const browser = await next.browser('/base/redirect')
     await retry(async () => {
