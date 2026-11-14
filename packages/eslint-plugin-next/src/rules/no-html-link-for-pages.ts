@@ -129,6 +129,13 @@ export default defineRule({
           },
         ],
       },
+      {
+        type: 'array',
+        uniqueItems: true,
+        items: {
+          type: 'string',
+        },
+      },
     ],
   },
 
@@ -137,7 +144,13 @@ export default defineRule({
    */
   create(context) {
     const ruleOptions: (string | string[])[] = context.options
-    const [customPagesDirectory] = ruleOptions
+    const [customPagesDirectory, pageExtensionsOption] = ruleOptions
+    const pageExtensions: string[] = pageExtensionsOption ?? [
+      'js',
+      'jsx',
+      'ts',
+      'tsx',
+    ]
 
     const rootDirs = getRootDirs(context)
 
@@ -174,8 +187,16 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories(
+      '/',
+      foundPagesDirs,
+      pageExtensions
+    )
+    const appDirUrls = cachedGetUrlFromAppDirectory(
+      '/',
+      foundAppDirs,
+      pageExtensions
+    )
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
