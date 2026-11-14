@@ -87,7 +87,7 @@ use turbo_tasks::{
     SerializationInvalidator, TryJoinIterExt, Upcast, ValueToString, Vc,
     get_serialization_invalidator, parking_lot_mutex_bincode, turbofmt,
 };
-use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
+use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkableModule, ChunkingContext, EvaluatableAsset,
@@ -105,7 +105,7 @@ use turbopack_core::{
     source::Source,
     source_map::{
         GenerateSourceMap, SourceMapGenerationOptions, SourceMapType, SourceMaps,
-        structured::SplitSourceMap,
+        structured::{SplitSourceMap, StructuredSourceMap},
     },
 };
 
@@ -123,7 +123,7 @@ use crate::{
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt, CodeGens, ModifiableAst},
     directive::parse_module_turbopack_directives,
     merged_module::MergedEcmascriptModule,
-    parse::{IdentCollector, ParseResult, generate_js_source_map, parse},
+    parse::{IdentCollector, ParseResult, generate_js_source_map_with_sources, parse},
     path_visitor::{ApplyVisitors, Visitors},
     references::{
         analyze_ecmascript_module,
@@ -1367,6 +1367,10 @@ impl EcmascriptModuleContent {
                 },
             );
 
+            let source_texts = contents
+                .iter()
+                .flat_map(|(_, result)| result.source_texts.iter().cloned())
+                .collect();
             let (merged_ast, comments, source_maps, original_source_maps, lookup_table) =
                 merge_modules(contents, &entry_points, &globals_merged).await?;
 
@@ -1394,6 +1398,7 @@ impl EcmascriptModuleContent {
                     original_source_maps,
                 ),
                 minify: *options.chunking_context.minify_type().await?,
+                source_texts,
                 scope_hoisting_syntax_contexts: None,
             };
 
@@ -1968,6 +1973,10 @@ struct CodeGenResult {
     strict: bool,
     original_source_map: CodeGenResultOriginalSourceMap,
     minify: MinifyType,
+    /// The texts of the parsed sources, each with the file content cell it is the current
+    /// content of, so that the source map can reference them instead of embedding escaped
+    /// copies (see [`generate_js_source_map_with_sources`]).
+    source_texts: SmallVec<[(Rope, ResolvedVc<FileContent>); 1]>,
     #[allow(clippy::type_complexity)]
     /// (Map<Module, corresponding context for imports>, `eval_context.imports.exports_ids`)
     scope_hoisting_syntax_contexts: Option<(
@@ -1993,7 +2002,13 @@ async fn process_parse_result(
 ) -> Result<CodeGenResult> {
     with_consumed_parse_result(
         parsed,
-        async |mut program, source_map, globals, eval_context, comments| -> Result<CodeGenResult> {
+        async |mut program,
+               source_map,
+               globals,
+               eval_context,
+               comments,
+               source_text|
+               -> Result<CodeGenResult> {
             let (top_level_mark, is_esm, strict) = eval_context
                 .as_ref()
                 .map_either(
@@ -2215,6 +2230,7 @@ async fn process_parse_result(
                 strict,
                 original_source_map: CodeGenResultOriginalSourceMap::Single(original_source_map),
                 minify,
+                source_texts: source_text.into_iter().collect(),
                 scope_hoisting_syntax_contexts: retain_syntax_context
                     // TODO ideally don't clone here
                     .map(|(_, ctxts, _, export_contexts)| (ctxts, export_contexts.into_owned())),
@@ -2255,6 +2271,7 @@ async fn process_parse_result(
                         strict: false,
                         original_source_map: CodeGenResultOriginalSourceMap::Single(None),
                         minify: MinifyType::NoMinify,
+                        source_texts: Default::default(),
                         scope_hoisting_syntax_contexts: None,
                     }
                 }
@@ -2285,6 +2302,7 @@ async fn process_parse_result(
                         strict: false,
                         original_source_map: CodeGenResultOriginalSourceMap::Single(None),
                         minify: MinifyType::NoMinify,
+                        source_texts: Default::default(),
                         scope_hoisting_syntax_contexts: None,
                     }
                 }
@@ -2299,6 +2317,9 @@ async fn process_parse_result(
 }
 
 /// Try to avoid cloning the AST and Globals by unwrapping the ReadRef (and cloning otherwise).
+///
+/// `success` also receives the parsed source's text and the file content cell it is the current
+/// content of, if any (see [`ParseResult::Ok::source_content`]).
 async fn with_consumed_parse_result<T>(
     parsed: Option<ResolvedVc<ParseResult>>,
     success: impl AsyncFnOnce(
@@ -2307,6 +2328,7 @@ async fn with_consumed_parse_result<T>(
         &Arc<Globals>,
         Either<EvalContext, &'_ EvalContext>,
         Either<ImmutableComments, Arc<ImmutableComments>>,
+        Option<(Rope, ResolvedVc<FileContent>)>,
     ) -> Result<T>,
     error: impl AsyncFnOnce(&ParseResult) -> Result<T>,
 ) -> Result<T> {
@@ -2324,11 +2346,20 @@ async fn with_consumed_parse_result<T>(
             &Default::default(),
             Either::Left(eval_context),
             Either::Left(Default::default()),
+            None,
         )
         .await;
     };
 
     let parsed = parsed.final_read_hint().await?;
+    let source_text = match &*parsed {
+        ParseResult::Ok {
+            program_source,
+            source_content,
+            ..
+        } => source_content.map(|cell| (program_source.clone(), cell)),
+        _ => None,
+    };
     match &*parsed {
         ParseResult::Ok { .. } => {
             let mut parsed = ReadRef::try_unwrap(parsed);
@@ -2381,7 +2412,15 @@ async fn with_consumed_parse_result<T>(
                 _ => unreachable!(),
             };
 
-            success(program, source_map, globals, eval_context, comments).await
+            success(
+                program,
+                source_map,
+                globals,
+                eval_context,
+                comments,
+                source_text,
+            )
+            .await
         }
         _ => error(&parsed).await,
     }
@@ -2400,6 +2439,7 @@ async fn emit_content(
         strict,
         original_source_map,
         minify,
+        source_texts,
         scope_hoisting_syntax_contexts: _,
     } = content;
 
@@ -2467,31 +2507,37 @@ async fn emit_content(
     let shallow_source_map = if generate_source_map && source_map_generation_options.shallow {
         let include_content = source_map_generation_options.shallow_sources_content
             || (source_map_generation_options.full && original_source_maps.is_empty());
-        Some(generate_js_source_map(
+        Some(generate_js_source_map_with_sources(
             &*source_map,
             &mappings,
             std::iter::empty(),
             false,
             include_content,
             &source_map_names,
+            &source_texts,
         )?)
     } else {
         None
     };
 
+    // The sources' texts are referenced instead of copied where they are exactly the sources'
+    // current file contents.
+    let split = |(map, source_refs): (StructuredSourceMap, Vec<_>)| {
+        SplitSourceMap::new_with_source_contents(map, &source_refs)
+    };
     let source_maps = if generate_source_map && source_map_generation_options.full {
-        if let (true, Some(map)) = (original_source_maps.is_empty(), shallow_source_map.as_ref()) {
-            if source_map_generation_options.shallow_sources_content {
-                SourceMaps::Shared(map.clone())
-            } else {
-                SourceMaps::new(
-                    Some(map.clone()),
-                    Some(map.clone().without_sources_content()),
-                )
+        match (original_source_maps.is_empty(), shallow_source_map) {
+            (true, Some(map)) => {
+                if source_map_generation_options.shallow_sources_content {
+                    SourceMaps::Shared(split(map))
+                } else {
+                    let without_contents =
+                        SplitSourceMap::new(map.0.clone().without_sources_content());
+                    SourceMaps::new(Some(split(map)), Some(without_contents))
+                }
             }
-        } else {
-            SourceMaps::new(
-                Some(generate_js_source_map(
+            (_, shallow_source_map) => SourceMaps::new(
+                Some(split(generate_js_source_map_with_sources(
                     &*source_map,
                     &mappings,
                     original_source_maps,
@@ -2501,17 +2547,18 @@ async fn emit_content(
                     ),
                     true,
                     &source_map_names,
-                )?),
-                shallow_source_map,
-            )
+                    &source_texts,
+                )?)),
+                shallow_source_map.map(split),
+            ),
         }
     } else {
-        SourceMaps::new(None, shallow_source_map)
+        SourceMaps::new(None, shallow_source_map.map(split))
     };
 
     Ok(EcmascriptModuleContent {
         inner_code: bytes.into(),
-        source_maps: source_maps.map(SplitSourceMap::new),
+        source_maps,
         is_esm,
         strict,
         additional_ids,
@@ -3474,6 +3521,7 @@ fn merge_option_vec<T>(a: Option<Vec<T>>, b: Option<Vec<T>>) -> Option<Vec<T>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::parse::generate_js_source_map;
 
     #[test]
     fn source_maps_without_inputs_ignore_completeness() {

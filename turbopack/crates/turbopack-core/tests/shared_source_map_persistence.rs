@@ -6,6 +6,10 @@
 //! persisted sessions: an edit to the tail only updates the composed map, without changing the
 //! factories' map cells or the composition, before and after a restore. The module has a full and
 //! a shallow map (distinct, with their own tails); both variants are checked.
+//!
+//! The module maps' `sourcesContent` references the module's source file instead of holding an
+//! escaped copy of its text. The file's content (and its escaped form) is only hashed in the
+//! persistent cache, so after a restore the escaped text is recomputed from the file.
 
 use std::{
     fs::read_to_string,
@@ -92,20 +96,43 @@ fn disk_fs_operation(root: RcStr) -> Vc<DiskFileSystem> {
     DiskFileSystem::new(rcstr!("out"), Vc::cell(root))
 }
 
-/// Like a module's content: the module's maps, split, with their tails in this task's cells.
+/// Like a module's content: the module's maps, split, with their tails in this task's cells and
+/// their `sourcesContent` referencing the source file.
 #[turbo_tasks::value(shared)]
 struct ModuleMap {
     maps: SourceMaps<SplitSourceMap>,
 }
 
+/// The module's source file.
+#[turbo_tasks::function]
+async fn source_file(input: ResolvedVc<Input>) -> Result<Vc<FileContent>> {
+    let content = input.await?.content.get().clone();
+    Ok(FileContent::Content(File::from(content.to_string())).cell())
+}
+
 #[turbo_tasks::function]
 async fn module_map(input: ResolvedVc<Input>) -> Result<Vc<ModuleMap>> {
     let content = input.await?.content.get().clone();
-    let map = |source: &str| {
-        StructuredSourceMap::from_json(&Rope::from(format!(
-            r#"{{"version":3,"sources":["{source}"],"sourcesContent":["{content}"],"names":[],"mappings":"AAAA"}}"#
-        )))
-        .map(SplitSourceMap::new)
+    let file = source_file(*input).to_resolved().await?;
+    let map = |source: &str| -> Result<SplitSourceMap> {
+        let map = swc_sourcemap::SourceMap::from_slice(
+            serde_json::to_string(&serde_json::json!({
+                "version": 3,
+                "sources": [source],
+                "sourcesContent": [content],
+                "names": [],
+                "mappings": "AAAA",
+            }))?
+            .as_bytes(),
+        )?;
+        let (map, refs) = StructuredSourceMap::from_swc_map_with_sources(
+            map,
+            &[(Rope::from(content.to_string()), file)],
+        )?;
+        if refs != [Some(file)] {
+            bail!("the content isn't matched to the source file");
+        }
+        Ok(SplitSourceMap::new_with_source_contents(map, &refs))
     };
     Ok(ModuleMap {
         maps: SourceMaps::Both {
@@ -230,7 +257,20 @@ async fn piece_maps_operation(input: ResolvedVc<Input>) -> Result<Vc<PieceMaps>>
     let SourceMaps::Both { full, shallow } = &module.maps else {
         bail!("the module has both maps");
     };
-    let tails = [full.tail(), shallow.tail()];
+    let file = source_file(*input).to_resolved().await?;
+    let references_file = |rope: &CellRope| {
+        rope.parts()
+            .any(|part| matches!(part, CellRopePart::EscapedFileContent(f) if f == file))
+    };
+    let mut tails = Vec::new();
+    for map in [full, shallow] {
+        let contents = map.contents().expect("the contents are a part");
+        if !references_file(&*contents.await?) {
+            bail!("the module's contents don't reference the source file");
+        }
+        // The factories copy the contents' segments (the file reference) and reference the rest.
+        tails.push(map.rest());
+    }
     let mut maps = Vec::new();
     for prefix in [rcstr!("a"), rcstr!("b")] {
         let cells = piece(*input, prefix).await?;
@@ -238,16 +278,16 @@ async fn piece_maps_operation(input: ResolvedVc<Input>) -> Result<Vc<PieceMaps>>
         if section_maps.len() != tails.len() {
             bail!("a factory has one section map per variant");
         }
-        for (map, tail) in section_maps.into_iter().zip(tails) {
+        for (map, tail) in section_maps.into_iter().zip(&tails) {
             let map = map.await?;
             let referenced = map
                 .parts()
                 .filter_map(|part| match part {
-                    CellRopePart::Cell { cell, skip: None } => Some(cell),
+                    CellRopePart::Nested(rope) => Some(rope),
                     _ => None,
                 })
                 .collect::<Vec<_>>();
-            if referenced != [tail] {
+            if referenced != [*tail] || !references_file(&map) {
                 bail!("the factory's map doesn't reference the module's tail of its variant");
             }
             maps.push(map);

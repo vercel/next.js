@@ -319,7 +319,7 @@ pub(crate) async fn chunk_item_factory_content(
     })
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(shared)]
 pub struct EcmascriptChunkItemCode {
     pub code: ResolvedVc<CodeCells>,
     pub strict: bool,
@@ -351,6 +351,25 @@ async fn module_factory_with_code_generation_issue(
     chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
     async_module_info: Option<Vc<AsyncModuleInfo>>,
 ) -> Result<Vc<EcmascriptChunkItemCode>> {
+    let (code, strict) = module_factory_code(chunk_item, async_module_info).await?;
+    Ok(EcmascriptChunkItemCode {
+        code: code.resolved_code_cells(),
+        strict,
+    }
+    .cell())
+}
+
+/// Generates the module factory for `chunk_item` (in the current task, without storing it in
+/// cells) and whether it must run in strict mode. If generating the factory fails, emits a
+/// [`CodeGenerationIssue`] and returns a factory throwing the error.
+///
+/// [`EcmascriptChunkItemExt::code`] stores the result as cells of its own task. Minified
+/// factories are built from the content cell instead, see
+/// [`crate::chunk::minified_module_factory`].
+async fn module_factory_code(
+    chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
+    async_module_info: Option<Vc<AsyncModuleInfo>>,
+) -> Result<(Code, bool)> {
     async fn get_content(
         chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
@@ -364,13 +383,7 @@ async fn module_factory_with_code_generation_issue(
     }
 
     let (code, strict) = match get_content(chunk_item, async_module_info).await {
-        Ok(content) => (
-            content
-                .module_factory()
-                .await
-                .map(|factory| factory.resolved_code_cells()),
-            content.options.strict,
-        ),
+        Ok(content) => (content.module_factory().await, content.options.strict),
         Err(error) => (Err(error), false),
     };
     let code = match code {
@@ -399,10 +412,10 @@ async fn module_factory_with_code_generation_issue(
             code += "(() => {{\n\n";
             writeln!(code, "throw new Error({error});", error = js_error_message)?;
             code += "\n}})";
-            code.build().resolved_code_cells()
+            code.build()
         }
     };
-    Ok(EcmascriptChunkItemCode { code, strict }.cell())
+    Ok((code, strict))
 }
 
 /// Generic chunk item that wraps any EcmascriptChunkPlaceable module.

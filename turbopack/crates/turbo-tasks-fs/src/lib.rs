@@ -27,6 +27,7 @@ mod globset;
 pub mod invalidation;
 mod invalidator_map;
 pub mod json;
+mod json_escape;
 mod mutex_map;
 mod null_fs;
 mod path;
@@ -50,7 +51,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, turbobail, turbofmt};
 
 pub use crate::{
-    cell_rope::{CellRope, CellRopeBuilder, CellRopePart, OptionByteRange},
+    cell_rope::{CellRope, CellRopeBuilder, CellRopePart, OptionByteRange, escape_json_string},
     content::{
         File, FileContent, FileJsonContent, FileLine, FileLinesContent, FileMeta, LinkContent,
         LinkTarget, Permissions, PersistedFileContent, WriteLinkContent, WriteLinkTargetType,

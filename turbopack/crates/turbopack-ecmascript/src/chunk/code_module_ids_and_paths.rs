@@ -1,4 +1,5 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use rustc_hash::FxHashMap;
 use smallvec::{SmallVec, smallvec};
 use turbo_rcstr::RcStr;
@@ -83,8 +84,9 @@ async fn code_module_id_and_path(
 
 /// A chunk item's module factory, as referenced by a chunk. Holds only references to the
 /// factory's cells, not its bytes, so it stays equal when only the factory's bytes change (and a
-/// chunk's composition, which depends on it, isn't recomputed).
-#[derive(Clone, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
+/// chunk's composition, which depends on it, isn't recomputed). Being references, ids and paths
+/// only, it is cheap to persist.
+#[derive(Clone, PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub struct CodeModuleIdAndPath {
     pub id: ModuleId,
     /// The factory's persisted cells.
@@ -98,10 +100,14 @@ pub struct CodeModuleIdAndPath {
     pub strict: bool,
 }
 
-#[turbo_tasks::value(transparent, serialization = "skip")]
-pub struct CodeModuleIdsAndPaths(SmallVec<[CodeModuleIdAndPath; 1]>);
+/// Persisted: it only holds references, ids and paths (see [`CodeModuleIdAndPath`]).
+#[turbo_tasks::value(transparent)]
+pub struct CodeModuleIdsAndPaths(
+    #[bincode(with = "turbo_bincode::smallvec")] SmallVec<[CodeModuleIdAndPath; 1]>,
+);
 
-#[turbo_tasks::value(transparent, serialization = "skip")]
+/// Persisted: the values only hold references, ids and paths (see [`CodeModuleIdAndPath`]).
+#[turbo_tasks::value(transparent)]
 pub struct BatchGroupCodeModuleIdsAndPaths(
     FxHashMap<EcmascriptChunkItemOrBatchWithAsyncInfo, ReadRef<CodeModuleIdsAndPaths>>,
 );
