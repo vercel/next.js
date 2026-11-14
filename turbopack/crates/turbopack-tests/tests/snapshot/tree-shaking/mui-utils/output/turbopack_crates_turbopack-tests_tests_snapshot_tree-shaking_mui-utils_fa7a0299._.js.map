@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 5, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/tree-shaking/mui-utils/input/index.js"],"sourcesContent":["import * as NS2 from 'mui-utils'\nconsole.log(Object(NS2).default)\n"],"names":[],"mappings":";AAAA;;AACA,QAAQ,GAAG,CAAC,OAAO,sOAAK,OAAO"}},
+    {"offset": {"line": 13, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
+    {"offset": {"line": 26, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/tree-shaking/mui-utils/node_modules/mui-utils/generateUtilityClass/generateUtilityClass.js"],"sourcesContent":["export default function generateUtilityClass() {\n  return 'ok'\n}\n"],"names":[],"mappings":";;;AAAe,SAAS;IACtB,OAAO;AACT","ignoreList":[0]}}]
+}
