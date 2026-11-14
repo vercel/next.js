@@ -3,7 +3,10 @@ use std::{fmt::Display, future::Future};
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use itertools::Itertools;
-use next_core::app_structure::FileSystemPathVec;
+use next_core::{
+    app_structure::FileSystemPathVec, next_app::ClientReferencesChunks,
+    next_client_reference::ClientReferenceGraphResult,
+};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     Completion, FxIndexMap, FxIndexSet, JoinIterExt, NonLocalValue, OperationVc, ResolvedVc,
@@ -330,6 +333,23 @@ pub struct EndpointOutput {
     pub output_assets: ResolvedVc<OutputAssets>,
     pub output_paths: ResolvedVc<EndpointOutputPaths>,
     pub project: ResolvedVc<Project>,
+    /// What the endpoint's page loads on first load, for the route bundle stats of production
+    /// builds. `None` for endpoints that don't render a page, and outside of production builds.
+    pub first_load_js: Option<FirstLoadJs>,
+}
+
+/// The already computed values the first load JS of a page is derived from. See
+/// [`crate::route_bundle_stats`].
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
+pub enum FirstLoadJs {
+    /// An App Router page.
+    AppPage {
+        client_references: ResolvedVc<ClientReferenceGraphResult>,
+        client_references_chunks: ResolvedVc<ClientReferencesChunks>,
+        client_shared_chunks: ResolvedVc<OutputAssets>,
+    },
+    /// A Pages Router page: the chunks listed in its build manifest.
+    PagesPage(ResolvedVc<OutputAssets>),
 }
 
 #[turbo_tasks::value(shared)]

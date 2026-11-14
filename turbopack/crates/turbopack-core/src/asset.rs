@@ -46,6 +46,12 @@ pub trait Asset {
     ) -> Vc<Option<RcStr>> {
         self.content().content_hash(salt, algorithm)
     }
+
+    /// The size of the content of the `Asset` in bytes, or `None` for redirects or missing files.
+    #[turbo_tasks::function]
+    fn size(self: Vc<Self>) -> Vc<Option<u64>> {
+        self.content().len()
+    }
 }
 
 #[turbo_tasks::value(shared)]

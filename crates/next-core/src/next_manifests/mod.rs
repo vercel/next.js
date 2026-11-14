@@ -3,6 +3,7 @@
 mod chunk_tables;
 pub mod client_reference_manifest;
 mod encode_uri_component;
+pub mod route_bundle_stats;
 
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
