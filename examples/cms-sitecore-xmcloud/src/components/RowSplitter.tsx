@@ -38,13 +38,9 @@ export const Default = (props: ComponentProps): JSX.Element => {
 
         return (
           <div key={index} className={`container-fluid ${phStyles}`.trimEnd()}>
-            <div key={index}>
-              <div key={index} className="row">
-                <Placeholder
-                  key={index}
-                  name={phKey}
-                  rendering={props.rendering}
-                />
+            <div>
+              <div className="row">
+                <Placeholder name={phKey} rendering={props.rendering} />
               </div>
             </div>
           </div>
