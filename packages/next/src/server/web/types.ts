@@ -32,7 +32,11 @@ export interface RequestData {
   }
   url: string
   body?: ReadableStream<Uint8Array>
-  signal: AbortSignal
+  /**
+   * Aborts the request. Without it, the request has a signal of its own that
+   * never aborts.
+   */
+  signal?: AbortSignal
   requestMeta?: RequestMeta
   /** passed in when running in edge runtime sandbox */
   waitUntil?: (promise: Promise<any>) => void
