@@ -47,8 +47,7 @@ pub enum Route {
     Conflict,
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct ModuleGraphs(Vec<ResolvedVc<ModuleGraph>>);
+pub use turbopack_core::module_graph::ModuleGraphs;
 
 /// Client-side modules associated with an endpoint.
 #[turbo_tasks::value(shared)]
@@ -272,7 +271,10 @@ pub async fn endpoint_write_to_disk(
     } = *output_op.connect().await?;
 
     project
-        .emit_all_output_assets(endpoint_output_assets_operation(output_op))
+        .emit_all_output_assets(
+            endpoint_output_assets_operation(output_op),
+            Some(*endpoint.module_graphs().to_resolved().await?),
+        )
         .as_side_effect()
         .await?;
 

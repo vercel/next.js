@@ -267,7 +267,7 @@ async fn run(resource: PathBuf) -> Result<()> {
 
             let plain_issues = out_op
                 .peek_issues()
-                .get_plain_issues(&IssueFilter::everything())
+                .get_plain_issues(&IssueFilter::everything(), None)
                 .await?;
 
             snapshot_issues(plain_issues, out_vc.join("issues")?, &REPO_ROOT)

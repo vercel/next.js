@@ -48,8 +48,16 @@ pub async fn write_analyze_data_with_issues_operation(
     let analyze_data_op = write_analyze_data_with_issues_operation_inner(project, app_dir_only);
     let filter = project.project().issue_filter().await?;
 
-    let (_analyze_data, issues, effects) =
-        strongly_consistent_catch_collectables(analyze_data_op, &filter).await?;
+    let (_analyze_data, issues, effects) = strongly_consistent_catch_collectables(
+        analyze_data_op,
+        &filter,
+        Some(
+            project
+                .project()
+                .whole_app_module_graphs_for_import_traces(),
+        ),
+    )
+    .await?;
 
     Ok(WriteAnalyzeResult { issues, effects }.cell())
 }
@@ -63,7 +71,7 @@ async fn write_analyze_data_with_issues_operation_inner(
 
     project
         .project()
-        .emit_all_output_assets(analyze_data_op)
+        .emit_all_output_assets(analyze_data_op, None)
         .as_side_effect()
         .await?;
 
