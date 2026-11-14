@@ -243,6 +243,34 @@ describe('instant-navigation-testing-api', () => {
     })
   })
 
+  it('renders full prefetch content instantly when the target also allows runtime prefetching', async () => {
+    // Same scenario as the previous test, but the target page additionally
+    // opts into runtime prefetching (`export const prefetch = 'allow-runtime'`,
+    // the only difference between the two fixture pages). The opt-in must not
+    // reduce what a full link prefetch delivers.
+    //
+    // Regressed by the appShells unification (#95415): the locked navigation
+    // stops committing anything at all. The previous page stays on screen, the
+    // prefetched content and even loading.tsx never appear, and the router
+    // re-issues the prefetch requests it already made before waiting on the
+    // dynamic request that the lock withholds.
+    const page = await openPage(next, '/')
+
+    await instant(page, async () => {
+      await page.click('#link-to-full-prefetch-runtime')
+
+      // With prefetch={true}, the dynamic content is included in the prefetch
+      // response, so it appears immediately without a loading state
+      const content = page.locator(
+        '[data-testid="full-prefetch-runtime-content"]'
+      )
+      await content.waitFor({ state: 'visible' })
+      expect(await content.textContent()).toContain(
+        'Full prefetch runtime content loaded'
+      )
+    })
+  })
+
   it('throws when attempting to nest instant scopes', async () => {
     const page = await openPage(next, '/')
 
