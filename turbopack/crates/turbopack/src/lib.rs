@@ -34,7 +34,7 @@ use turbopack_core::{
     raw_module::RawModule,
     reference_type::{
         CssReferenceSubType, EcmaScriptModulesReferenceSubType, EntryReferenceSubType, InnerAssets,
-        ReferenceType,
+        ReferenceType, UrlReferenceSubType,
     },
     resolve::{
         ExternalTraced, ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
@@ -278,6 +278,24 @@ async fn apply_module_type(
                 .to_resolved()
                 .await?,
         ),
+        ModuleType::StaticUrl { tag } => {
+            if matches!(
+                reference_type,
+                ReferenceType::Url(UrlReferenceSubType::CssUrl)
+            ) {
+                ResolvedVc::upcast(
+                    StaticUrlCssModule::new(*source, tag.clone())
+                        .to_resolved()
+                        .await?,
+                )
+            } else {
+                ResolvedVc::upcast(
+                    StaticUrlJsModule::new(*source, tag.clone())
+                        .to_resolved()
+                        .await?,
+                )
+            }
+        }
         ModuleType::StaticUrlCss { tag } => ResolvedVc::upcast(
             StaticUrlCssModule::new(*source, tag.clone())
                 .to_resolved()
