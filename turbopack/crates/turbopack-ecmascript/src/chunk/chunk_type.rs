@@ -119,7 +119,10 @@ pub(crate) async fn estimated_chunk_item_size(
             // factories, so size them as such. This minifies every item before chunking, but the
             // result is shared with code generation (see `minified_module_factory`), so the work
             // isn't repeated.
-            ChunkItemFactoryContent::Minified { factory, .. } => factory.await?.source_code().len(),
+            // `to_code` is the same task code generation reads the factory through.
+            ChunkItemFactoryContent::Minified { factory, .. } => {
+                factory.to_code().await?.source_code().len()
+            }
             ChunkItemFactoryContent::Unminified(content) => content.await?.inner_code.len(),
         },
     )

@@ -14,7 +14,7 @@ use turbopack_core::{
         AsyncModuleInfo, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
         ChunkingContextExt, MinifyType, ModuleId, SourceMapSourceType,
     },
-    code_builder::{Code, CodeBuilder, PersistedCode},
+    code_builder::{Code, CodeBuilder, CodeCells},
     ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue},
     module::Module,
@@ -275,8 +275,12 @@ pub(crate) enum ChunkItemFactoryContent {
     /// Not minified per item: the content as the module produced it. Its factory is built (and
     /// cached) by [`EcmascriptChunkItemExt::code`], or the whole chunk is minified later.
     Unminified(Vc<EcmascriptChunkItemContent>),
-    /// Minified per item: the minified module factory and whether it must run in strict mode.
-    Minified { factory: Vc<Code>, strict: bool },
+    /// Minified per item: the minified module factory's persisted cells, and whether it must run
+    /// in strict mode.
+    Minified {
+        factory: Vc<CodeCells>,
+        strict: bool,
+    },
 }
 
 /// The content of a chunk item as it goes into a chunk, so that chunk size estimation and code
@@ -311,7 +315,7 @@ pub(crate) async fn chunk_item_factory_content(
 
 #[turbo_tasks::value]
 pub struct EcmascriptChunkItemCode {
-    pub code: ResolvedVc<PersistedCode>,
+    pub code: ResolvedVc<CodeCells>,
     pub strict: bool,
 }
 
@@ -358,7 +362,7 @@ async fn module_factory_with_code_generation_issue(
             content
                 .module_factory()
                 .await
-                .map(|factory| factory.cell_persisted()),
+                .map(|factory| factory.resolved_code_cells()),
             content.options.strict,
         ),
         Err(error) => (Err(error), false),
@@ -389,7 +393,7 @@ async fn module_factory_with_code_generation_issue(
             code += "(() => {{\n\n";
             writeln!(code, "throw new Error({error});", error = js_error_message)?;
             code += "\n}})";
-            code.build().cell_persisted()
+            code.build().resolved_code_cells()
         }
     };
     Ok(EcmascriptChunkItemCode { code, strict }.cell())
