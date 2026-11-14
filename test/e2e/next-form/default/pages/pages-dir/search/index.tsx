@@ -12,8 +12,14 @@ export async function getServerSideProps({ req }) {
 }
 
 export default function SearchPage({ searchParams }) {
-  const query = searchParams.query as string
-  return <div id="search-results">query: {JSON.stringify(query)}</div>
+  const { query, text } = searchParams
+  return (
+    <div id="search-results">
+      query: {JSON.stringify(query)}
+      <br />
+      text: {JSON.stringify(text)}
+    </div>
+  )
 }
 
 function sleep(ms: number) {

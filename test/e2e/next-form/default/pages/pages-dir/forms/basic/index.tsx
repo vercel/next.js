@@ -5,6 +5,7 @@ export default function Home() {
   return (
     <Form action="/pages-dir/search" id="search-form">
       <input name="query" />
+      <textarea name="text" defaultValue={'line1\nline2'} />
       <button type="submit">Submit</button>
     </Form>
   )

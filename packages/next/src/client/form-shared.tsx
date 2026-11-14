@@ -95,9 +95,16 @@ export function createFormSubmitDestinationUrl(
       value = value.name
     }
 
-    targetUrl.searchParams.append(name, value)
+    targetUrl.searchParams.append(
+      normalizeLineEndings(name),
+      normalizeLineEndings(value)
+    )
   }
   return targetUrl
+}
+
+function normalizeLineEndings(value: string) {
+  return value.replace(/\r\n|\r|\n/g, '\r\n')
 }
 
 export function checkFormActionUrl(
