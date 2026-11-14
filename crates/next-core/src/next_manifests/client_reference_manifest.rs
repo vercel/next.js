@@ -161,8 +161,7 @@ impl ManifestNode {
 
 #[derive(Debug)]
 pub struct ManifestNodeEntry {
-    /// Turbopack module ID. The export name is always `*` (the whole module), so it isn't
-    /// stored; the `e` factory in [`MANIFEST_NODE_FACTORIES`] writes it.
+    /// Turbopack module ID.
     pub id: ModuleId,
     /// Chunks for the module. JS and CSS.
     pub chunks: ChunkList,
@@ -171,7 +170,8 @@ pub struct ManifestNodeEntry {
 }
 
 impl ManifestNodeEntry {
-    /// `(id,chunks)` or `(id,chunks,true)`, for the factories in [`MANIFEST_NODE_FACTORIES`].
+    /// `<factory>(id,chunks)` or `(id,chunks,true)`, for the factories in
+    /// `MANIFEST_NODE_FACTORIES`.
     fn write_factory_call(
         &self,
         out: &mut String,
