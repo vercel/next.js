@@ -517,4 +517,20 @@ describe('create-next-app', () => {
       expect(res.stdout).toContain('We suggest that you begin by typing:')
     })
   })
+
+  it('should print help message when project directory is not specified and stdin is empty', async () => {
+    await useTempDir(async (cwd) => {
+      const res = await run([], nextTgzFilename, {
+        cwd,
+        reject: false,
+        input: '\n',
+      })
+
+      expect(res.exitCode).toBe(1)
+      expect(res.stdout).toContain('Please specify the project directory:')
+      expect(res.stdout).toContain('create-next-app <project-directory>')
+      expect(res.stdout).toContain('create-next-app --help')
+      expect(res.stderr).not.toContain('TypeError: opts.name is not a function')
+    })
+  })
 })
