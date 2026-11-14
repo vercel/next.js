@@ -8,8 +8,8 @@ User preferences, browser settings, and client-side storage aren't available dur
 
 Some common approaches to this problem:
 
-- A Client Component that re-renders with client values causes a hydration error.
-- Updating client-only values after hydration avoids the error but introduces a visible flash.
+- Reading browser-only values during a Client Component's initial render can cause a hydration mismatch.
+- Updating state in a mount `useEffect` avoids the mismatch, but adds a render and can introduce a visible flash. The common mounted-flag pattern also triggers [`react-hooks/set-state-in-effect`](#why-not-useeffect).
 - Rendering only on the server means giving up on client-specific formatting entirely.
 
 Using an **inline script** that runs synchronously as the browser parses the HTML, you can update the DOM **before the first paint**. This guide covers dates, themes, and persisted UI state.
