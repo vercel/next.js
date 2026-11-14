@@ -1233,6 +1233,12 @@ jobs:
         export __NEXT_EXPERIMENTAL_FRONT_SERVER_BINARY="$RUNNER_TEMP/next-front"
         export __NEXT_EXPERIMENTAL_FRONT_SERVER=1
 
+        # The front's own unit tests (request targets and headers byte for
+        # byte, timeouts, shutdown): about 2 s, so first, in one group.
+        if [ "${{ matrix.group }}" = "1/2" ]; then
+          go -C packages/next/src/server/front test ./...
+        fi
+
         node scripts/test-routing.mjs --mode=start -g ${{ matrix.group }}
 
         if [ "${{ matrix.group }}" = "1/2" ]; then
