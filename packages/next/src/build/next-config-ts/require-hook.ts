@@ -47,9 +47,13 @@ export function deregisterHook() {
   extensions.forEach((ext) => delete require.extensions[ext])
 }
 
-export function requireFromString(code: string, filename: string) {
+export function requireFromString(
+  code: string,
+  filename: string,
+  parent: NodeModule
+) {
   const paths = (Module as any)._nodeModulePaths(dirname(filename))
-  const m = new Module(filename, module.parent!) as any
+  const m = new Module(filename, parent) as any
   m.paths = paths
   // Without a filename, Node.js resolves relative requires against
   // process.cwd() instead of dirname(filename).

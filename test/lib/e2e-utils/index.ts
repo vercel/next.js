@@ -78,22 +78,8 @@ const wrapJestTestFn = <T extends Function>(fn: T): T => {
 
 const testsFolder = path.join(__dirname, '..', '..')
 
-let testFile
+const testFile = process.env.TEST_FILE_PATH ?? ''
 const testFileRegex = /\.test\.(js|tsx?)/
-
-const visitedModules = new Set()
-const checkParent = (mod) => {
-  if (!mod?.parent || visitedModules.has(mod)) return
-  testFile = mod.parent.filename || ''
-  visitedModules.add(mod)
-
-  if (!testFileRegex.test(testFile)) {
-    checkParent(mod.parent)
-  }
-}
-checkParent(module)
-
-process.env.TEST_FILE_PATH = testFile
 
 let testMode = process.env.NEXT_TEST_MODE
 

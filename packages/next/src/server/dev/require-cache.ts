@@ -46,6 +46,8 @@ function deleteFromRequireCache(filePaths: string[]): void {
   }
 
   // Phase 3: Clear parent references from children and delete cache entries
+  // TODO: Replace module.parent when Node.js supports detaching its internal
+  // parent references, including those retained on newer Node.js versions.
   for (const mod of modsToDelete) {
     const children = mod.children
     for (let i = 0; i < children.length; i++) {
