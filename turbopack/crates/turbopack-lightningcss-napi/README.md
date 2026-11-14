@@ -5,7 +5,7 @@ A vendored, lightly-modified port of the upstream `lightningcss-napi` crate
 `node/`, published to crates.io as [`lightningcss-napi`]).
 
 [lightningcss]: https://github.com/parcel-bundler/lightningcss
-[`lightningcss-napi`]: https://crates.io/crates/lightningcss-napi
+[`lightningcss-napi`]: https://docs.rs/lightningcss-napi
 
 ## Provenance
 
