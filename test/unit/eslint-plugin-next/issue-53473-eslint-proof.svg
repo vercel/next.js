@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="340" viewBox="0 0 900 340">
+  <title>Issue 53473: no-html-link-for-pages with pageExtensions</title>
+  <rect width="100%" height="100%" fill="#0d1117"/>
+  <text x="20" y="32" fill="#c9d1d9" font-family="ui-monospace, Menlo, monospace" font-size="14" font-weight="600">#53473  @next/next/no-html-link-for-pages + custom pageExtensions</text>
+  <rect x="12" y="48" width="420" height="270" rx="8" fill="#161b22" stroke="#484f58"/>
+  <text x="28" y="80" fill="#79c0ff" font-family="ui-monospace, Menlo, monospace" font-size="12" font-weight="600">Before</text>
+  <text x="28" y="108" fill="#8b949e" font-family="ui-monospace, Menlo, monospace" font-size="11">pages/story.mdx not treated as a page (only .js/.ts/.tsx scanned).</text>
+  <text x="28" y="140" fill="#ff7b72" font-family="ui-monospace, Menlo, monospace" font-size="11">&lt;a href=&quot;/story/&quot;&gt; does not match any internal route.</text>
+  <text x="28" y="170" fill="#8b949e" font-family="ui-monospace, Menlo, monospace" font-size="11">ESLint: no warning (missed navigation fix).</text>
+  <rect x="452" y="48" width="420" height="270" rx="8" fill="#161b22" stroke="#3fb950"/>
+  <text x="468" y="80" fill="#56d364" font-family="ui-monospace, Menlo, monospace" font-size="12" font-weight="600">After this PR</text>
+  <text x="468" y="108" fill="#8b949e" font-family="ui-monospace, Menlo, monospace" font-size="11">pageExtensions from next.config includes &quot;mdx&quot;; story.mdx is a page route.</text>
+  <text x="468" y="140" fill="#56d364" font-family="ui-monospace, Menlo, monospace" font-size="11">&lt;a href=&quot;/story/&quot;&gt; matches internal URL list.</text>
+  <text x="468" y="170" fill="#8b949e" font-family="ui-monospace, Menlo, monospace" font-size="11">ESLint: use next/link (rule reports as intended).</text>
+  <text x="20" y="318" fill="#6e7681" font-family="ui-monospace, Menlo, monospace" font-size="10">Unit test: invalid link to Pages route defined with a custom page extension from next.config</text>
+</svg>

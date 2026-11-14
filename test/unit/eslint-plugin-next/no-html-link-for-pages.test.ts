@@ -2,6 +2,8 @@
 import { Linter } from 'eslint'
 import { rules } from '@next/eslint-plugin-next'
 import assert from 'assert'
+import fs from 'fs'
+import os from 'os'
 import path from 'path'
 
 const NextESLintRule = rules['no-html-link-for-pages']
@@ -249,6 +251,21 @@ export class Blah extends Head {
     return (
       <div>
         <a href='/photo/1/'>Photo</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+
+/** Page at pages/story.mdx when pageExtensions includes mdx (see with-page-extensions). */
+const invalidMdxPagesRouteCode = `
+import Link from 'next/link';
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/story/'>Story</a>
         <h1>Hello title</h1>
       </div>
     );
@@ -622,5 +639,33 @@ describe('no-html-link-for-pages', function () {
       report.message,
       'Do not use an `<a>` element to navigate to `/photo/1/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
+  })
+  it('invalid link to Pages route defined with a custom page extension from next.config', function () {
+    const dir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'eslint-no-html-link-pe-')
+    )
+    try {
+      fs.mkdirSync(path.join(dir, 'pages'))
+      fs.writeFileSync(
+        path.join(dir, 'next.config.js'),
+        "module.exports = { pageExtensions: ['mdx', 'tsx', 'ts', 'jsx', 'js'] }\n"
+      )
+      fs.writeFileSync(path.join(dir, 'pages', 'story.mdx'), '# Story\n')
+
+      const linter = new Linter({ cwd: dir, configType: 'eslintrc' })
+      linter.defineRules({
+        'no-html-link-for-pages': NextESLintRule,
+      })
+      const [report] = linter.verify(invalidMdxPagesRouteCode, linterConfig, {
+        filename: 'foo.js',
+      })
+      assert.notEqual(report, undefined, 'No lint errors found.')
+      assert.equal(
+        report.message,
+        'Do not use an `<a>` element to navigate to `/story/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+      )
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
   })
 })
