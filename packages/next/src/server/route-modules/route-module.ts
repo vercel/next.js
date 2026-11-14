@@ -132,6 +132,25 @@ const dynamicImportEsmDefault = (id: string) =>
     (mod) => mod.default || mod
   )
 
+/** The manifests a route module loads to prepare a request. */
+type RouteModuleManifests = {
+  buildId: string
+  buildManifest: BuildManifest
+  fallbackBuildManifest: BuildManifest
+  routesManifest: DeepReadonly<DevRoutesManifest>
+  nextFontManifest: DeepReadonly<NextFontManifest>
+  prerenderManifest: DeepReadonly<PrerenderManifest>
+  serverFilesManifest: DeepReadonly<RequiredServerFilesManifest> | undefined
+  reactLoadableManifest: DeepReadonly<ReactLoadableManifest>
+  subresourceIntegrityManifest: any
+  clientReferenceManifest: any
+  serverActionsManifest: any
+  dynamicCssManifest: any
+  prefetchHintsManifest: Record<string, any> | undefined
+  interceptionRoutePatterns: RegExp[]
+  previewProps: __ApiPreviewProps
+}
+
 /**
  * RouteModule is the base class for all route modules. This class should be
  * extended by all route modules.
@@ -250,26 +269,60 @@ export abstract class RouteModule<
     }
   }
 
+  /**
+   * The manifests of the previous request, for as long as they were loaded
+   * for the same page from the same directories. Not used in development,
+   * where manifests change between requests.
+   */
+  private loadedManifests:
+    | {
+        srcPage: string
+        projectDir: string
+        distDir: string
+        manifests: RouteModuleManifests
+      }
+    | undefined = undefined
+
   private loadManifests(
     srcPage: string,
     projectDir?: string
-  ): {
-    buildId: string
-    buildManifest: BuildManifest
-    fallbackBuildManifest: BuildManifest
-    routesManifest: DeepReadonly<DevRoutesManifest>
-    nextFontManifest: DeepReadonly<NextFontManifest>
-    prerenderManifest: DeepReadonly<PrerenderManifest>
-    serverFilesManifest: DeepReadonly<RequiredServerFilesManifest> | undefined
-    reactLoadableManifest: DeepReadonly<ReactLoadableManifest>
-    subresourceIntegrityManifest: any
-    clientReferenceManifest: any
-    serverActionsManifest: any
-    dynamicCssManifest: any
-    prefetchHintsManifest: Record<string, any> | undefined
-    interceptionRoutePatterns: RegExp[]
-    previewProps: __ApiPreviewProps
-  } {
+  ): RouteModuleManifests {
+    // Outside of development every manifest is read once and then served from
+    // the manifest cache, so the result only depends on the page and the
+    // directories. Reuse it instead of resolving each manifest path and
+    // looking each manifest up again for every request.
+    if (
+      process.env.NEXT_RUNTIME !== 'edge' &&
+      !this.isDev &&
+      projectDir !== undefined
+    ) {
+      const loaded = this.loadedManifests
+      if (
+        loaded !== undefined &&
+        loaded.srcPage === srcPage &&
+        loaded.projectDir === projectDir &&
+        loaded.distDir === this.distDir
+      ) {
+        return loaded.manifests
+      }
+
+      const manifests = this.readManifests(srcPage, projectDir)
+      this.loadedManifests = {
+        srcPage,
+        projectDir,
+        distDir: this.distDir,
+        manifests,
+      }
+      return manifests
+    }
+
+    return this.readManifests(srcPage, projectDir)
+  }
+
+  private readManifests(
+    srcPage: string,
+    projectDir?: string
+  ): RouteModuleManifests {
     let result
     if (process.env.NEXT_RUNTIME === 'edge') {
       const { getEdgePreviewProps } =
