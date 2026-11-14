@@ -8,6 +8,7 @@ import type { ParsedUrlQuery } from 'node:querystring'
 import type { UrlWithParsedQuery } from 'node:url'
 import type {
   PrerenderManifest,
+  PrerenderManifestRuntime,
   PreviewPropsManifest,
   RequiredServerFilesManifest,
 } from '../../build'
@@ -64,6 +65,7 @@ import { interopDefault } from '../app-render/interop-default'
 import { RouteKind } from '../route-kind'
 import {
   getResponseCacheOwner,
+  getRoutePrerenderManifestPath,
   type ResponseCacheOwner,
 } from '../lib/route-cache-key'
 import type { BaseNextRequest } from '../base-http'
@@ -157,6 +159,9 @@ export abstract class RouteModule<
 
   /** The canonical source identity shared by cache reads, writes, and metadata. */
   public readonly cacheOwner: ResponseCacheOwner
+
+  /** The prerender manifest that this route serves with in production. */
+  private prerenderManifest?: DeepReadonly<PrerenderManifestRuntime>
 
   /**
    * The shared modules that are exposed and required for the route module.
@@ -259,7 +264,7 @@ export abstract class RouteModule<
     fallbackBuildManifest: BuildManifest
     routesManifest: DeepReadonly<DevRoutesManifest>
     nextFontManifest: DeepReadonly<NextFontManifest>
-    prerenderManifest: DeepReadonly<PrerenderManifest>
+    prerenderManifest: DeepReadonly<PrerenderManifestRuntime>
     serverFilesManifest: DeepReadonly<RequiredServerFilesManifest> | undefined
     reactLoadableManifest: DeepReadonly<ReactLoadableManifest>
     subresourceIntegrityManifest: any
@@ -289,7 +294,6 @@ export abstract class RouteModule<
           dynamicRoutes: {},
           notFoundRoutes: [],
           version: 4,
-          preview: getEdgePreviewProps(),
         } as const,
         previewProps: getEdgePreviewProps(),
         routesManifest: {
@@ -360,12 +364,39 @@ export abstract class RouteModule<
           manifest: ROUTES_MANIFEST,
           shouldCache: !this.isDev,
         }),
-        loadManifestFromRelativePath<PrerenderManifest>({
-          projectDir,
-          distDir: this.distDir,
-          manifest: PRERENDER_MANIFEST,
-          shouldCache: !this.isDev,
-        }),
+        this.isDev
+          ? loadManifestFromRelativePath<PrerenderManifest>({
+              projectDir,
+              distDir: this.distDir,
+              manifest: PRERENDER_MANIFEST,
+              shouldCache: false,
+            })
+          : // A production build writes a manifest for every route with only
+            // that route's entries, and the route's file trace lists it. An
+            // output without it has the complete manifest instead. A route
+            // does not serve without its prerender data: with neither file
+            // the load throws, and so does a manifest that cannot be parsed.
+            (this.prerenderManifest ??=
+              loadManifestFromRelativePath<PrerenderManifestRuntime>({
+                projectDir,
+                distDir: this.distDir,
+                manifest: getRoutePrerenderManifestPath(
+                  this.definition.kind,
+                  // A Pages module name can end in `/index` with Turbopack.
+                  // The pathname names the entry file with both bundlers.
+                  router === 'pages'
+                    ? this.definition.pathname
+                    : this.definition.page
+                ),
+                shouldCache: true,
+                handleMissing: true,
+              }) ??
+              loadManifestFromRelativePath<PrerenderManifest>({
+                projectDir,
+                distDir: this.distDir,
+                manifest: PRERENDER_MANIFEST,
+                shouldCache: true,
+              })),
         loadManifestFromRelativePath<PreviewPropsManifest>({
           projectDir,
           distDir: this.distDir,
@@ -532,7 +563,7 @@ export abstract class RouteModule<
     req: IncomingMessage | BaseNextRequest,
     nextConfig: NextConfigRuntime,
     previewProps: DeepReadonly<__ApiPreviewProps>,
-    prerenderManifest: DeepReadonly<PrerenderManifest>,
+    prerenderManifest: DeepReadonly<PrerenderManifestRuntime>,
     isMinimalMode: boolean
   ): Promise<IncrementalCache> {
     if (process.env.NEXT_RUNTIME === 'edge') {
@@ -849,7 +880,7 @@ export abstract class RouteModule<
           | undefined
         reactLoadableManifest: DeepReadonly<ReactLoadableManifest>
         routesManifest: DeepReadonly<DevRoutesManifest>
-        prerenderManifest: DeepReadonly<PrerenderManifest>
+        prerenderManifest: DeepReadonly<PrerenderManifestRuntime>
         // we can't pull in the client reference type or it causes issues with
         // our pre-compiled types
         clientReferenceManifest?: any
@@ -1329,7 +1360,7 @@ export abstract class RouteModule<
     routeKind: RouteKind
     isFallback?: boolean
     previewProps: DeepReadonly<__ApiPreviewProps>
-    prerenderManifest: DeepReadonly<PrerenderManifest>
+    prerenderManifest: DeepReadonly<PrerenderManifestRuntime>
     isRoutePPREnabled?: boolean
     isOnDemandRevalidate?: boolean
     revalidateOnlyGenerated?: boolean

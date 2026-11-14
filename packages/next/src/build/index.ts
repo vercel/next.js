@@ -1,5 +1,6 @@
 import {
   getRouteCacheKey,
+  getRoutePrerenderManifestPath,
   ROUTE_CACHE_DIRECTORY,
 } from '../server/lib/route-cache-key'
 import { RouteKind } from '../server/route-kind'
@@ -21,6 +22,7 @@ import { loadEnvConfig, type LoadedEnvFiles } from '@next/env'
 import { bold, yellow } from '../lib/picocolors'
 import { makeRe } from 'next/dist/compiled/picomatch'
 import { existsSync, promises as fs } from 'fs'
+import { Sema } from 'next/dist/compiled/async-sema'
 import os from 'os'
 import { getNextBuildDebuggerPortOffset, Worker } from '../lib/worker'
 import { defaultConfig, getNextConfigRuntime } from '../server/config-shared'
@@ -472,6 +474,46 @@ export type PrerenderManifest = {
   preview: __ApiPreviewProps
 }
 
+/**
+ * The fields of a prerendered route that Next.js reads while it serves a
+ * request. The other fields of `PrerenderManifestRoute` are for the builder.
+ */
+const RUNTIME_PRERENDER_ROUTE_FIELDS = [
+  'dataRoute',
+  'srcRoute',
+  'renderingMode',
+  'initialRevalidateSeconds',
+  'initialExpireSeconds',
+  // Only checked for existence.
+  'prefetchDataRoute',
+] as const satisfies readonly (keyof PrerenderManifestRoute)[]
+
+export type PrerenderManifestRouteRuntime = Pick<
+  PrerenderManifestRoute,
+  (typeof RUNTIME_PRERENDER_ROUTE_FIELDS)[number]
+>
+
+/**
+ * The prerender data that Next.js reads at runtime. A route's own manifest
+ * (`getRoutePrerenderManifestPath`) has exactly this shape and only that
+ * route's entries. The complete `PrerenderManifest`, which stays the source for
+ * builders, is also assignable to it.
+ *
+ * Only `routes` is reduced to the fields that are read: it has an entry per
+ * prerendered path. A route has few `dynamicRoutes` entries, and they are
+ * handed to helpers that read optional fields.
+ */
+export type PrerenderManifestRuntime = {
+  version: 4
+  routes: { [route: string]: PrerenderManifestRouteRuntime }
+  dynamicRoutes: { [route: string]: DynamicPrerenderManifestRoute }
+  notFoundRoutes: string[]
+}
+
+type RoutePrerenderData = Pick<PrerenderManifest, 'routes' | 'dynamicRoutes'>
+
+const ROUTE_PRERENDER_MANIFEST_WRITE_CONCURRENCY = 32
+
 function getPprAppPageClassification(
   route: string,
   result:
@@ -725,6 +767,73 @@ async function writePrerenderManifest(
   manifest.dynamicRoutes = sortPagesObject(manifest.dynamicRoutes)
   await writeManifest(path.join(distDir, PRERENDER_MANIFEST), manifest)
 }
+
+function pickFields<T extends object, K extends keyof T>(
+  value: T,
+  fields: readonly K[]
+): Pick<T, K> {
+  const picked = {} as Pick<T, K>
+  for (const field of fields) {
+    picked[field] = value[field]
+  }
+  return picked
+}
+
+/**
+ * Writes one prerender manifest per route with only the entries and fields that
+ * the route reads at runtime, so that a server process does not have to parse
+ * the prerender data of every other route. Every route gets one, also when it
+ * has no prerender data: a route that finds no manifest of its own reads the
+ * complete one.
+ */
+async function writeRoutePrerenderManifests(
+  distDir: string,
+  routes: Iterable<
+    [manifestPath: string, data: RoutePrerenderData | undefined]
+  >,
+  notFoundRoutes: readonly string[]
+): Promise<void> {
+  // An application can have more routes than the process may open files.
+  const sema = new Sema(ROUTE_PRERENDER_MANIFEST_WRITE_CONCURRENCY)
+  const writes: Promise<void>[] = []
+  for (const [manifestPath, data] of routes) {
+    const manifest: PrerenderManifestRuntime = {
+      version: 4,
+      routes: {},
+      dynamicRoutes: {},
+      notFoundRoutes: [],
+    }
+    if (data) {
+      const sortedRoutes = sortPagesObject(data.routes)
+      for (const route in sortedRoutes) {
+        manifest.routes[route] = pickFields(
+          sortedRoutes[route],
+          RUNTIME_PRERENDER_ROUTE_FIELDS
+        )
+      }
+      manifest.dynamicRoutes = sortPagesObject(data.dynamicRoutes)
+      // A prerendered path that returned `notFound` still has an entry in
+      // `routes`, so this is the part of the list that the route can ask for.
+      manifest.notFoundRoutes = notFoundRoutes.filter(
+        (route) => route in data.routes
+      )
+    }
+
+    const filePath = path.join(distDir, manifestPath)
+    writes.push(
+      sema.acquire().then(async () => {
+        try {
+          await fs.mkdir(path.dirname(filePath), { recursive: true })
+          await writeFileUtf8(filePath, JSON.stringify(manifest))
+        } finally {
+          sema.release()
+        }
+      })
+    )
+  }
+  await Promise.all(writes)
+}
+
 async function writeClientSsgManifest(
   prerenderManifest: DeepReadonly<PrerenderManifest>,
   {
@@ -2298,6 +2407,8 @@ export default async function build(
       const appDefaultConfigs = new Map<string, AppSegmentConfig>()
       const pageInfos: PageInfos = new Map<string, PageInfo>()
       let pagesManifest = await readManifest<PagesManifest>(pagesManifestPath)
+      // Static pages are replaced by their HTML file in the manifest below.
+      const emittedPages = Object.keys(pagesManifest)
       const buildManifest = await readManifest<BuildManifest>(buildManifestPath)
 
       const appPathRoutes: Record<string, string> = {}
@@ -3182,6 +3293,39 @@ export default async function build(
         preview: previewProps,
       }
 
+      // The same entries again, grouped by the route that owns them, for the
+      // manifest that each route reads at runtime. An entry is added here
+      // right after it is added to the complete manifest.
+      const routePrerenderData = new Map<string, RoutePrerenderData>()
+      const getRoutePrerenderData = (
+        kind: RouteKind.APP_PAGE | RouteKind.PAGES,
+        page: string
+      ) => {
+        const key = getRoutePrerenderManifestPath(kind, page)
+        let data = routePrerenderData.get(key)
+        if (!data) {
+          data = { routes: {}, dynamicRoutes: {} }
+          routePrerenderData.set(key, data)
+        }
+        return data
+      }
+      const addRoutePrerender = (
+        kind: RouteKind.APP_PAGE | RouteKind.PAGES,
+        page: string,
+        pathname: string
+      ) => {
+        getRoutePrerenderData(kind, page).routes[pathname] =
+          prerenderManifest.routes[pathname]
+      }
+      const addRouteDynamicPrerender = (
+        kind: RouteKind.APP_PAGE | RouteKind.PAGES,
+        page: string,
+        pathname: string
+      ) => {
+        getRoutePrerenderData(kind, page).dynamicRoutes[pathname] =
+          prerenderManifest.dynamicRoutes[pathname]
+      }
+
       // Accumulate per-route segment inlining decisions for
       // prefetch-hints.json. First-writer-wins: if multiple param
       // combinations exist for the same route pattern, use the first one.
@@ -3786,6 +3930,11 @@ export default async function build(
                   prefetchDataRoute,
                   allowHeader: ALLOWED_HEADERS,
                 }
+                addRoutePrerender(
+                  RouteKind.APP_PAGE,
+                  originalAppPath,
+                  route.pathname
+                )
               } else {
                 hasRevalidateZero = true
 
@@ -4158,6 +4307,11 @@ export default async function build(
                       ),
                   allowHeader: ALLOWED_HEADERS,
                 }
+                addRouteDynamicPrerender(
+                  RouteKind.APP_PAGE,
+                  originalAppPath,
+                  prerenderOutputPathname
+                )
               }
             }
           })
@@ -4411,6 +4565,7 @@ export default async function build(
                       prefetchDataRoute: undefined,
                       allowHeader: ALLOWED_HEADERS,
                     }
+                    addRoutePrerender(RouteKind.PAGES, page, localePage)
                   }
                 } else {
                   const isNotFoundTrue =
@@ -4441,6 +4596,7 @@ export default async function build(
                     prefetchDataRoute: undefined,
                     allowHeader: ALLOWED_HEADERS,
                   }
+                  addRoutePrerender(RouteKind.PAGES, page, page)
                 }
                 if (pageInfo) {
                   pageInfo.initialCacheControl = getCacheControl(page)
@@ -4478,6 +4634,7 @@ export default async function build(
                     prefetchDataRoute: undefined,
                     allowHeader: ALLOWED_HEADERS,
                   }
+                  addRoutePrerender(RouteKind.PAGES, page, route.pathname)
 
                   if (pageInfo) {
                     pageInfo.initialCacheControl = cacheControl
@@ -4622,6 +4779,7 @@ export default async function build(
             prefetchDataRouteRegex: undefined,
             allowHeader: ALLOWED_HEADERS,
           }
+          addRouteDynamicPrerender(RouteKind.PAGES, tbdRoute, tbdRoute)
         })
 
         NextBuildContext.previewModeId = previewProps.previewModeId
@@ -4638,9 +4796,14 @@ export default async function build(
         // adapter would later look for a parent app output that doesn't
         // exist and throw an invariant error. Strip those entries before the
         // manifest is written.
-        for (const route of Object.keys(prerenderManifest.dynamicRoutes)) {
-          if (isStaticMetadataFile(route)) {
-            delete prerenderManifest.dynamicRoutes[route]
+        for (const prerenderData of [
+          prerenderManifest,
+          ...routePrerenderData.values(),
+        ]) {
+          for (const route of Object.keys(prerenderData.dynamicRoutes)) {
+            if (isStaticMetadataFile(route)) {
+              delete prerenderData.dynamicRoutes[route]
+            }
           }
         }
 
@@ -4663,6 +4826,51 @@ export default async function build(
           preview: previewProps,
         })
       }
+
+      // The complete manifest above is for builders. At runtime every route
+      // reads its own, which its file trace lists next to its entry.
+      const routePrerenderManifests = new Map<
+        string,
+        RoutePrerenderData | undefined
+      >()
+      for (const page of emittedPages) {
+        // `/_app` and `/_document` are not routes.
+        if (page === '/_app' || page === '/_document') continue
+        routePrerenderManifests.set(
+          getRoutePrerenderManifestPath(RouteKind.PAGES, page),
+          undefined
+        )
+      }
+      // The prerender data of a pathname is recorded for the app path that
+      // `selectAppPageEntry` picked. Parallel routes can emit more entries for
+      // the same pathname, which get the same data.
+      const appPrerenderDataByPathname = new Map<string, RoutePrerenderData>()
+      for (const appPath in appPathRoutes) {
+        const data = routePrerenderData.get(
+          getRoutePrerenderManifestPath(RouteKind.APP_PAGE, appPath)
+        )
+        if (data) {
+          appPrerenderDataByPathname.set(appPathRoutes[appPath], data)
+        }
+      }
+      for (const appPath in appPathRoutes) {
+        routePrerenderManifests.set(
+          getRoutePrerenderManifestPath(RouteKind.APP_PAGE, appPath),
+          appPrerenderDataByPathname.get(appPathRoutes[appPath])
+        )
+      }
+      for (const [manifestPath, data] of routePrerenderData) {
+        routePrerenderManifests.set(manifestPath, data)
+      }
+      await nextBuildSpan
+        .traceChild('write-route-prerender-manifests')
+        .traceAsyncFn(() =>
+          writeRoutePrerenderManifests(
+            distDir,
+            routePrerenderManifests,
+            prerenderManifest.notFoundRoutes
+          )
+        )
 
       await writeManifest(
         path.join(distDir, 'server', PREVIEW_PROPS_MANIFEST),

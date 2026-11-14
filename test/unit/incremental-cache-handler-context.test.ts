@@ -30,7 +30,6 @@ function createCache() {
       routes: {},
       dynamicRoutes: {},
       notFoundRoutes: [],
-      preview,
     },
     CurCacheHandler: class extends CacheHandler {
       get = get

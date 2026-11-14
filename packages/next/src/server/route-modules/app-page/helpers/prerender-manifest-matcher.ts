@@ -1,6 +1,6 @@
 import type {
   DynamicPrerenderManifestRoute,
-  PrerenderManifest,
+  PrerenderManifestRuntime,
 } from '../../../../build'
 import type { DeepReadonly } from '../../../../shared/lib/deep-readonly'
 import { getRouteRegex } from '../../../../shared/lib/router/utils/route-regex'
@@ -40,7 +40,7 @@ export class PrerenderManifestMatcher {
   private readonly matchers: Array<Matcher>
   constructor(
     pathname: string,
-    prerenderManifest: DeepReadonly<PrerenderManifest>
+    prerenderManifest: DeepReadonly<PrerenderManifestRuntime>
   ) {
     this.matchers = Object.entries(prerenderManifest.dynamicRoutes)
       .filter(([source, route]) => {

@@ -190,6 +190,34 @@ impl Asset for NftJsonAsset {
                 let content = content.await?;
                 nft_json.add(file_path.clone(), hash, &content)?;
             }
+
+            // Every route reads its own prerender manifest at runtime. Next.js writes it after
+            // Turbopack ran, so it is not part of the module graph and there is no content to hash
+            // yet. It sits in the directory named after the entry file. Next.js computes the same
+            // path from the page with `getRoutePrerenderManifestPath` in
+            // `packages/next/src/server/lib/route-cache-key.ts`, which follows the rule that names
+            // the entry file here (`get_asset_path_from_pathname` for a Pages Router page): keep
+            // the two in step. Derive it from the chunk path, because the page name of a Pages
+            // Router `index` file in a subdirectory is not its output path.
+            //
+            // Middleware and instrumentation have no page name, and `/_app` and `/_document` are
+            // not routes.
+            if let Some(page_name) = this.page_name.as_deref()
+                && (page_name.starts_with("app/") || page_name.starts_with("pages/"))
+                && !matches!(page_name, "pages/_app" | "pages/_document")
+            {
+                let chunk_path = chunk.path().await?;
+                if let Some(entry) = chunk_path.path.strip_suffix(".js") {
+                    nft_json.add_unhashed(
+                        chunk_path
+                            .fs
+                            .root()
+                            .await?
+                            .join(&format!("{entry}/route-prerender-manifest.json"))?,
+                    )?;
+                }
+            }
+
             // We can't just add this into "files" because Next.js sometimes decides to delete
             // output files such as `.next/server/pages/index.js` if that page was prerendered and
             // is fully static. An alternative would be to postprocess the nft file so that
