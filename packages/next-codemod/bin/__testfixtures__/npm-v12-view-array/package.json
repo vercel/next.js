@@ -1,0 +1,15 @@
+{
+  "name": "npm-v12-view-array",
+  "scripts": {
+    "dev": "next dev"
+  },
+  "dependencies": {
+    "next": "16.4.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "eslint": "9.0.0",
+    "eslint-config-next": "16.4.0"
+  }
+}
