@@ -693,6 +693,37 @@ async function createComponentTreeInternal(
             )
           : null
 
+        let slotErrorComponent: ComponentType<any> | undefined = undefined
+        let slotErrorStyles: React.ReactNode | undefined = undefined
+        let slotErrorScripts: React.ReactNode | undefined = undefined
+
+        const parsedParallelRoute = parseLoaderTree(parallelRoute)
+        if (!isChildrenRouteKey && parsedParallelRoute.modules.error) {
+          const [SlotError, slotStyles, slotScripts] =
+            await createComponentStylesAndScripts({
+              ctx,
+              filePath: parsedParallelRoute.modules.error[1],
+              getComponent: parsedParallelRoute.modules.error[0],
+              injectedCSS: injectedCSSWithCurrentLayout,
+              injectedJS: injectedJSWithCurrentLayout,
+            })
+          if (SlotError) {
+            slotErrorComponent = SlotError
+            slotErrorStyles =
+              isSegmentViewEnabled && parsedParallelRoute.conventionPath
+                ? createElement(
+                    SegmentViewNode,
+                    {
+                      type: 'error',
+                      pagePath: parsedParallelRoute.modules.error[1],
+                    },
+                    slotStyles
+                  )
+                : slotStyles
+            slotErrorScripts = slotScripts
+          }
+        }
+
         return [
           parallelRouteKey,
           createElement(LayoutRouter, {
@@ -700,6 +731,9 @@ async function createComponentTreeInternal(
             error: ErrorComponent,
             errorStyles: wrappedErrorStyles,
             errorScripts: errorScripts,
+            slotError: slotErrorComponent,
+            slotErrorStyles: slotErrorStyles,
+            slotErrorScripts: slotErrorScripts,
             template:
               isSegmentViewEnabled && templateFilePath
                 ? createElement(
