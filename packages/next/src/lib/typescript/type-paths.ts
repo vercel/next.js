@@ -15,7 +15,8 @@ export function getTypeDefinitionGlobPatterns(distDir: string): string[] {
   const typeGlobPatterns: string[] = [`${distDirPosix}/types/**/*.ts`]
 
   // Include both .next/types and .next/dev/types to avoid tsconfig churn when switching
-  // between dev/build modes
+  // between dev/build modes. `next build` and `next typegen` remove the dev types
+  // once the dev server has stopped, so they don't go stale (see `removeStaleDevTypes`).
   typeGlobPatterns.push(
     process.env.NODE_ENV === 'development'
       ? // In dev, distDir is "{distDir}/dev", so also include "{distDir}/types"

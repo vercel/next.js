@@ -36,9 +36,7 @@ describe('TypeScript CLI backend', () => {
       await next.patchFile('next.config.js', defaultConfig)
       await next.patchFile('tsconfig.build.json', originalTsConfig)
       await next.deleteFile('src/type-error.ts').catch(() => {})
-      await next
-        .deleteFile('.next/dev/types/stale-type-error.test.ts')
-        .catch(() => {})
+      await next.deleteFile('src/type-error.test.ts').catch(() => {})
       await next.deleteFile('.next/cache/.tsbuildinfo').catch(() => {})
     })
 
@@ -101,10 +99,9 @@ describe('TypeScript CLI backend', () => {
     })
 
     it('checks the complete project with --debug-build-paths', async () => {
-      await next.patchFile(
-        '.next/dev/types/stale-type-error.test.ts',
-        typeError
-      )
+      // Test files are not in --debug-build-paths and are skipped by the
+      // TypeScript API checker, but the CLI checks them.
+      await next.patchFile('src/type-error.test.ts', typeError)
 
       const result = await next.build({
         args: ['--debug-build-paths', 'app/page.tsx'],
@@ -114,9 +111,7 @@ describe('TypeScript CLI backend', () => {
       expect(result.cliOutput).toContain(
         '`experimental.useTypeScriptCli` checks the complete TypeScript project; `--debug-build-paths` does not limit type checking.'
       )
-      expect(result.cliOutput).toContain(
-        '.next/dev/types/stale-type-error.test.ts'
-      )
+      expect(result.cliOutput).toContain('src/type-error.test.ts')
       expect(result.cliOutput).toContain('error TS2322')
     })
   })
