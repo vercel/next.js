@@ -62,6 +62,8 @@ export default function App() {
 
 The third argument, `getServerSnapshot`, returns `true` both on the server and during hydration, so the initial HTML matches. React then reads the browser snapshot and subscribes to changes. The initial value can be visible before it updates; see [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) if that flash is a problem.
 
+> **Good to know**: You can also use `useEffect` to update content after hydration. Calling a state setter synchronously in the effect, such as `setIsClient(true)`, triggers [`react-hooks/set-state-in-effect`](https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect), enabled as an error by `eslint-config-next`, because it causes an extra render.
+
 ### Solution 2: Disabling SSR on specific components
 
 Next.js allows you to [disable prerendering](/docs/app/guides/lazy-loading#skipping-ssr) on specific components, which can prevent hydration mismatches.
