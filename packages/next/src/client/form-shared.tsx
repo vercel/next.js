@@ -80,6 +80,7 @@ export function createFormSubmitDestinationUrl(
   const formData = new FormData(formElement)
 
   for (let [name, value] of formData) {
+    name = name.replace(/\r?\n|\r/g, '\r\n')
     if (typeof value !== 'string') {
       // For file inputs, the native browser behavior is to use the filename as the value instead:
       //
@@ -93,6 +94,8 @@ export function createFormSubmitDestinationUrl(
         )
       }
       value = value.name
+    } else {
+      value = value.replace(/\r?\n|\r/g, '\r\n')
     }
 
     targetUrl.searchParams.append(name, value)
