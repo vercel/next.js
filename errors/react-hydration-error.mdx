@@ -27,36 +27,39 @@ Hydration errors can occur from:
 
 ## Possible Ways to Fix It
 
-The server output and initial client render must match. You can render a placeholder, then replace it using a state update in `useEffect` after hydration. This works, but adds a render and triggers `eslint-config-next`'s [`react-hooks/set-state-in-effect`](https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect) rule. The options below avoid that mount-effect state update.
+Ensure that the component renders the same content on the server and during the initial client render. The following approaches help when a value differs between them.
 
-<span id="solution-1-using-useeffect-to-run-on-the-client-only" />
+### Solution 1: Rendering changing values in the browser
 
-### Solution 1: Rendering browser-only content
-
-With React 19.3, call `use(browser())` before reading browser-only data and wrap the component in `<Suspense>`. See [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
+Calling `Date.now()` during rendering can produce different timestamps on the server and client. With React 19.3, call `use(browser())` before reading the time and wrap the component in `<Suspense>`. See [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
 
 ```jsx filename="app/page.js"
 'use client'
 
-import { Suspense, use } from 'react'
+import { Suspense, use, useState } from 'react'
 import { browser } from 'react-dom'
 
-function BrowserOnly() {
+function Timestamp() {
   use(browser())
+  const [timestamp] = useState(() => Date.now())
 
-  return <p>Saved theme: {localStorage.getItem('theme') ?? 'light'}</p>
+  return (
+    <time dateTime={new Date(timestamp).toISOString()}>
+      {new Date(timestamp).toLocaleString()}
+    </time>
+  )
 }
 
 export default function Page() {
   return (
-    <Suspense fallback={<p>Loading theme…</p>}>
-      <BrowserOnly />
+    <Suspense fallback={<p>Loading timestamp…</p>}>
+      <Timestamp />
     </Suspense>
   )
 }
 ```
 
-The server renders the Suspense fallback. After JavaScript loads, the browser renders the saved theme without a hydration mismatch. The browser-only content is not included in the server-rendered HTML.
+The server renders the Suspense fallback. After JavaScript loads, `Timestamp` captures the current time in the browser. The state initializer keeps that value stable across re-renders, and the timestamp is not included in the server-rendered HTML.
 
 ### Solution 2: Disabling SSR on specific components
 
@@ -87,6 +90,30 @@ Sometimes content will inevitably differ between the server and client, such as 
 ```
 
 Suppression only applies one level deep, and React will not patch mismatched text content on that element. Use this escape hatch sparingly.
+
+<span id="solution-1-using-useeffect-to-run-on-the-client-only" />
+
+### Why not `useEffect`?
+
+You can also render the same placeholder on the server and client, then update state in `useEffect` after hydration:
+
+```jsx filename="app/effect-example.js"
+'use client'
+
+import { useEffect, useState } from 'react'
+
+export default function App() {
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  return <h1>{isClient ? 'This is never prerendered' : 'Prerendered'}</h1>
+}
+```
+
+This avoids a hydration mismatch, but the synchronous `setIsClient(true)` update adds an extra render and is reported as an error by `eslint-config-next`'s [`react-hooks/set-state-in-effect`](https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect) rule.
 
 ## Common iOS issues
 
