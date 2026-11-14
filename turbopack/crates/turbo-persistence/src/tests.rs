@@ -1,6 +1,11 @@
 #[cfg(not(miri))]
 use std::time::Instant;
-use std::{fs, path::Path, sync::OnceLock};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs,
+    path::Path,
+    sync::OnceLock,
+};
 
 use anyhow::Result;
 #[cfg(not(miri))]
@@ -3615,8 +3620,8 @@ fn batch_get_callback_error_propagates(#[case] mmap: bool) -> Result<()> {
 
 /// Snapshot of every entry in a persistence directory: file name to file content. Used to check
 /// that read-only opens leave the directory exactly as they found it.
-fn dir_snapshot(path: &Path) -> Result<std::collections::BTreeMap<String, Vec<u8>>> {
-    let mut snapshot = std::collections::BTreeMap::new();
+fn dir_snapshot(path: &Path) -> Result<BTreeMap<String, Vec<u8>>> {
+    let mut snapshot = BTreeMap::new();
     for entry in fs::read_dir(path)? {
         let entry = entry?;
         let name = entry.file_name().into_string().expect("utf-8 file name");
@@ -3626,8 +3631,8 @@ fn dir_snapshot(path: &Path) -> Result<std::collections::BTreeMap<String, Vec<u8
 }
 
 /// Names of the `.sst` / `.meta` / `.blob` files currently in `path`, keyed by sequence number.
-fn data_file_seqs(path: &Path) -> Result<std::collections::BTreeSet<u32>> {
-    let mut seqs = std::collections::BTreeSet::new();
+fn data_file_seqs(path: &Path) -> Result<BTreeSet<u32>> {
+    let mut seqs = BTreeSet::new();
     for entry in fs::read_dir(path)? {
         let path = entry?.path();
         if matches!(
