@@ -3,5 +3,6 @@
   "productionChunking": true,
   "generateComponentChunks": true,
   "minComponentChunkSize": 0,
-  "maxChunkSize": 1000
+  "minChunkSize": 600,
+  "maxChunkSize": 1800
 }
