@@ -1229,14 +1229,31 @@ jobs:
       needsGo: 'yes'
       afterBuild: |
         # `next` ships no next-front binary yet; build one and pass it in.
-        go build -C packages/next/src/server/front -trimpath -o "$RUNNER_TEMP/next-front" .
+        # -race compiles in Go's race detector, which reports two goroutines
+        # that touch the same memory without a lock. It only sees code that
+        # runs, so the binary under the suites below is built with it.
+        go build -C packages/next/src/server/front -race -trimpath -o "$RUNNER_TEMP/next-front" .
+        # The detector logs a race and carries on unless told otherwise. This
+        # makes the front exit (status 66) on the first one, so the test that
+        # was running fails.
+        export GORACE="halt_on_error=1"
         export __NEXT_EXPERIMENTAL_FRONT_SERVER_BINARY="$RUNNER_TEMP/next-front"
         export __NEXT_EXPERIMENTAL_FRONT_SERVER=1
 
-        # The front's own unit tests (request targets and headers byte for
-        # byte, timeouts, shutdown): about 2 s, so first, in one group.
+        # The front's own checks, first and in one group. Both take seconds
+        # once built; building the linter takes about a minute.
         if [ "${{ matrix.group }}" = "1/2" ]; then
-          go -C packages/next/src/server/front test ./...
+          # Unit tests (request targets and headers byte for byte, timeouts,
+          # shutdown), under the race detector.
+          go -C packages/next/src/server/front test -race ./...
+
+          # Lint rules from packages/next/src/server/front/.golangci.yml.
+          # This golangci-lint needs a newer Go than the one this job
+          # installs, and setup-go sets GOTOOLCHAIN=local, which stops Go
+          # from fetching one. Naming the toolchain lets Go fetch it for
+          # this command only.
+          GOTOOLCHAIN=go1.26.11 go -C packages/next/src/server/front run \
+            github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0 run
         fi
 
         node scripts/test-routing.mjs --mode=start -g ${{ matrix.group }}

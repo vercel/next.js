@@ -104,7 +104,11 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	addr := ln.Addr().(*net.TCPAddr)
+	addr, ok := ln.Addr().(*net.TCPAddr)
+	if !ok {
+		fmt.Fprintln(os.Stderr, "next-front: the listener has no TCP address")
+		os.Exit(1)
+	}
 
 	srv := newServer(newProxy(cfg.upstream, addr, cfg.upstreamIdle), cfg.idleTimeout, cfg.headerTimeout, cfg.requestTimeout)
 
@@ -308,11 +312,15 @@ func writeCustomStatusLine(res *http.Response) error {
 	if res.ContentLength >= 0 {
 		header.Set("Content-Length", strconv.FormatInt(res.ContentLength, 10))
 	}
-	fmt.Fprintf(buf, "HTTP/1.1 %s\r\n", res.Status)
-	header.Write(buf)
-	buf.WriteString("\r\n")
+	// buf remembers the first write that fails and Flush returns that error,
+	// so only Flush is checked.
+	_, _ = fmt.Fprintf(buf, "HTTP/1.1 %s\r\n", res.Status)
+	_ = header.Write(buf)
+	_, _ = buf.WriteString("\r\n")
 	if err := buf.Flush(); err == nil && res.Request.Method != http.MethodHead {
-		io.Copy(conn, res.Body)
+		// A failed copy means the client or Node went away. The connection
+		// closes when this function returns either way.
+		_, _ = io.Copy(conn, res.Body)
 	}
 	return errResponseWritten
 }
