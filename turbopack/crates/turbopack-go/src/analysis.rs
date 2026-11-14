@@ -2,11 +2,13 @@
 use std::{io::Read, sync::atomic::Ordering};
 
 use anyhow::{Context, Result, ensure};
+use bincode::{Decode, Encode};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, ResolvedVc, Vc, resolve_strongly_consistent_and_take_and_apply_effects,
+    Completion, NonLocalValue, ResolvedVc, Vc,
+    resolve_strongly_consistent_and_take_and_apply_effects,
 };
 use turbo_tasks_fs::{
     DiskFileSystem, File, FileContent, FileSystem, FileSystemPath, Permissions, to_sys_path,
@@ -23,12 +25,42 @@ pub struct GoDeclarations {
     /// Parsing errors are retained without preventing the compiler from emitting its normal
     /// diagnostics. Callers can still generate an entrypoint from valid declarations.
     pub syntax_errors: Vec<RcStr>,
+    pub browser_entries: Vec<GoBrowserEntry>,
+    pub asset_errors: Vec<RcStr>,
+}
+
+/// A syntactically declared browser entry. The consumer resolves and compiles it.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, NonLocalValue, Encode, Decode)]
+pub struct GoBrowserEntry {
+    pub path: RcStr,
+    pub file: RcStr,
+    pub line: u32,
+    pub column: u32,
 }
 
 #[turbo_tasks::function]
 pub async fn go_declarations(
     sources: ResolvedVc<GoSourceSet>,
     host_session: ResolvedVc<GoBuildSession>,
+) -> Result<Vc<GoDeclarations>> {
+    Ok(go_declarations_with_assets(
+        *sources,
+        *host_session,
+        vec![],
+        rcstr!(""),
+        rcstr!(""),
+    ))
+}
+
+/// Discover declarations only in the selected source files and for the supplied SDK import.
+/// This query shares the cached parser and function analysis; it never loads dependencies.
+#[turbo_tasks::function]
+pub async fn go_declarations_with_assets(
+    sources: ResolvedVc<GoSourceSet>,
+    host_session: ResolvedVc<GoBuildSession>,
+    asset_files: Vec<RcStr>,
+    asset_package: RcStr,
+    asset_package_name: RcStr,
 ) -> Result<Vc<GoDeclarations>> {
     let session_failure = Completion::session_dependent().to_resolved().await?;
     let executable = create_parser_operation(host_session)
@@ -38,7 +70,12 @@ pub async fn go_declarations(
         .await?
         .context("Go parser requires a disk filesystem")?;
     let go_context = &host_session.await?.go_context;
-    let input = serde_json::to_vec(&sources.await?.files)?;
+    let input = serde_json::to_vec(&serde_json::json!({
+        "sources": sources.await?.files,
+        "asset_files": asset_files,
+        "asset_package": asset_package,
+        "asset_package_name": asset_package_name,
+    }))?;
     let report = match go_context
         .run_executable_with_input(&path, &[], Some(&input))
         .await

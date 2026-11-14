@@ -88,6 +88,7 @@ describe('native route runtime', () => {
   it('strips private Go transport metadata at the public request boundary', () => {
     const headers = {
       'x-next-internal-go-token': 'untrusted-token',
+      'x-next-internal-go-assets': 'untrusted-manifest',
       host: 'example.test',
       cookie: 'session=value',
     }

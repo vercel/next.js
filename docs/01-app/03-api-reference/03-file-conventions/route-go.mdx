@@ -469,7 +469,7 @@ Adapter deployments require an adapter that supports `runtime: 'go'`. See [Go ad
 - Go handlers read the process environment. `next.config` environment inlining does not apply.
 - Go builds target the build host operating system and architecture with CGO disabled. The build environment must match the deployment runtime.
 - Dependencies must build with CGO disabled and already be downloaded into the selected toolchain's module cache. Builds do not download dependencies or modify `go.mod` or `go.sum`.
-- Go workspaces, module replacements, vendoring, source symlinks, and cross-compilation are unsupported.
+- Go workspaces, local-directory module replacements, vendoring, source symlinks, and cross-compilation are unsupported.
 - The experiment does not add `proxy.go`, Go Pages API routes, `page.go`, or `layout.go`.
 
 Go routes support Turbopack's filesystem cache and Go's build cache. Unchanged executables can be reused across server or build processes. Source files, dependencies, embedded assets, generated wrappers, toolchain settings, and compilation targets participate in invalidation.

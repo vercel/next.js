@@ -11,7 +11,7 @@ mod session;
 mod sources;
 
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     future::Future,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
@@ -39,7 +39,7 @@ use turbo_tasks_fs::{
 };
 
 pub use crate::{
-    analysis::{GoDeclarations, go_declarations},
+    analysis::{GoBrowserEntry, GoDeclarations, go_declarations, go_declarations_with_assets},
     paths::{paths_refer_to_same_file, validate_source_path},
     session::{GoSessionPool, GoTarget, GoToolchainOptions},
     sources::{GoSourceSelection, GoSourceSet, go_bundle_from_sources, go_source_set},
@@ -494,14 +494,16 @@ struct Module {
     main: bool,
     #[serde(default)]
     go_mod: String,
-    replace: Option<serde_json::Value>,
+    #[serde(default)]
+    version: String,
+    replace: Option<Box<Module>>,
 }
 
 #[derive(Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 struct ModuleConfig {
     module: Option<Module>,
-    replace: Option<Vec<serde_json::Value>>,
+    replace: Option<Vec<ModuleReplacement>>,
     #[serde(default)]
     // Go 1.24 emits null for an empty requirement slice.
     require: Option<Vec<Requirement>>,
@@ -511,7 +513,15 @@ struct ModuleConfig {
 #[serde(rename_all = "PascalCase")]
 struct Requirement {
     path: String,
+    #[serde(default)]
     version: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct ModuleReplacement {
+    old: Requirement,
+    new: Requirement,
 }
 
 // Go's module cache escapes uppercase ASCII as ! followed by its lowercase form.
@@ -824,10 +834,15 @@ async fn observe_packages(
         let dir = Path::new(&pkg.dir);
         tracker.dir(dir).await?;
         if let Some(module) = &pkg.module {
-            ensure!(
-                module.replace.is_none(),
-                "Go module replacements are not supported in this release"
-            );
+            if let Some(replacement) = &module.replace {
+                ensure!(
+                    !replacement.version.is_empty(),
+                    "local Go module replacements are not supported in this release"
+                );
+                if !replacement.go_mod.is_empty() {
+                    tracker.file(Path::new(&replacement.go_mod)).await?;
+                }
+            }
             if !module.go_mod.is_empty() {
                 tracker.file(Path::new(&module.go_mod)).await?;
             }
@@ -946,23 +961,49 @@ async fn discover(
         )
         .await?;
         let config: ModuleConfig = serde_json::from_str(&config)?;
+        let replacements = config.replace.as_deref().unwrap_or_default();
         ensure!(
-            config.replace.as_ref().is_none_or(Vec::is_empty),
-            "Go module replacements are not supported in this release"
+            replacements
+                .iter()
+                .all(|replacement| !replacement.new.version.is_empty()),
+            "local Go module replacements are not supported in this release"
         );
-        // Even an unresolved dependency needs cache dependencies. Downloading a module can
-        // repair it without changing go.mod/go.sum, so retain reads for its future cache entries.
-        let cache = Path::new(go_context.module_cache.as_str());
+        // Go resolves versioned replacements from the same module cache. Observe the
+        // effective targets, including replacements of transitive requirements, so
+        // installing a missing target can repair discovery without editing go.mod.
+        let mut modules = BTreeSet::new();
         for requirement in config.require.iter().flatten() {
+            let replacement = replacements
+                .iter()
+                .find(|replacement| {
+                    replacement.old.path == requirement.path
+                        && replacement.old.version == requirement.version
+                })
+                .or_else(|| {
+                    replacements.iter().find(|replacement| {
+                        replacement.old.path == requirement.path
+                            && replacement.old.version.is_empty()
+                    })
+                });
+            let requirement = replacement.map_or(requirement, |replacement| &replacement.new);
+            modules.insert((&requirement.path, &requirement.version));
+        }
+        modules.extend(
+            replacements
+                .iter()
+                .map(|replacement| (&replacement.new.path, &replacement.new.version)),
+        );
+        let cache = Path::new(go_context.module_cache.as_str());
+        for (path, version) in modules {
             ensure!(
-                Path::new(&requirement.path)
+                Path::new(path)
                     .components()
                     .all(|part| matches!(part, std::path::Component::Normal(_)))
-                    && !requirement.version.contains(['/', '\\']),
+                    && !version.contains(['/', '\\']),
                 "invalid Go module requirement path"
             );
-            let path = module_escape(&requirement.path);
-            let version = module_escape(&requirement.version);
+            let path = module_escape(path);
+            let version = module_escape(version);
             tracker
                 .parents(&cache.join(format!("{path}@{version}")))
                 .await?;

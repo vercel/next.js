@@ -36,6 +36,11 @@ through the same output writer, and owns watching and shutdown.
    stop the project watcher, call `stop_module_cache_watching()`, and await task shutdown. `cancelled()` supports waiting for
    cancellation; a cancelled context cannot be reused for another session.
 
+Versioned `replace` targets in the application's `go.mod` are resolved by Go from
+its module cache. Replacement source files, module metadata, and missing cache
+entries participate in tracking just like ordinary dependencies. Targets must be
+versioned modules; local-directory replacements remain unsupported.
+
 The module cache is a second input filesystem root. The tracker maps dependency
 paths reported by Go into `filesystem(context.module_cache)`, while project paths
 use the filesystem passed to `go_bundle`. The context watcher methods lease that same module-cache filesystem, so independent
@@ -101,6 +106,13 @@ semantics: platform suffixes and build tags do not filter the selected entry fil
 `go_declarations(sources, host_session)` reports top-level function names and syntax
 errors using Go's parser. The parser tool is cached independently of application
 modules, and queries are keyed by their resolved source generation. It never loads application code.
+`go_declarations_with_assets` also discovers direct package-level `Browser("literal")`
+initializers for a configured SDK import, restricted to an explicit list of selected
+source files. It honors named import aliases, reports source positions, and diagnoses
+unsupported calls within that boundary. Consumers choose file conventions, resolve
+browser paths and compile browser entrypoints; analysis does not inspect transitive
+Go packages or execute declarations.
+
 Consumers interpret names and generate their own entrypoints. Syntax errors are
 available while allowing the compiler to emit its usual diagnostics.
 
