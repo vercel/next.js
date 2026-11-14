@@ -3208,7 +3208,7 @@ enum PartialCompaction {
 
 /// An intermediate merge can retire the meta file that recorded the used keys before every shard
 /// had its bottom merge, e.g. when the rewrite quota or `max_merge_jobs` leaves a shard's bottom
-/// merge for later. The used keys then have to live on in a meta file written by the compaction,
+/// merge for later. The used keys then have to live on in the meta file written by the compaction,
 /// until the merged entries are bottom merged.
 #[cfg(not(miri))]
 #[rstest]
@@ -3301,13 +3301,24 @@ fn used_keys_survive_intermediate_merges(
 
     // Every file with entries of the read keys was bottom merged now, so the used keys expire. (No
     // key was read since, which the next commit would record again.)
-    put_all(&db, 3)?;
+    let mut generation = 3;
+    if matches!(partial, PartialCompaction::SamePass) {
+        // Except that the meta file carrying the used keys also describes the bottom run written
+        // by the same pass for the first shard, which the full compaction above didn't merge, as
+        // nothing was written into that shard since. So the next bottom merge still uses them,
+        // which merges that bottom run and retires the meta file.
+        put_all(&db, generation)?;
+        db.full_compact()?;
+        assert_eq!(bottom_entry_counts(&db)?, (KEYS as usize, 0));
+        generation += 1;
+    }
+    put_all(&db, generation)?;
     db.full_compact()?;
     assert_eq!(bottom_entry_counts(&db)?, (0, KEYS as usize));
     for key in 0..KEYS {
         assert_eq!(
             &*db.get(0, &key.to_be_bytes())?.unwrap(),
-            &3u32.to_be_bytes()
+            &generation.to_be_bytes()
         );
     }
     Ok(())
