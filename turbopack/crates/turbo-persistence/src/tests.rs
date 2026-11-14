@@ -3192,6 +3192,138 @@ fn used_keys_live_as_long_as_the_meta_file_that_recorded_them(#[case] mmap: bool
     Ok(())
 }
 
+/// How [`used_keys_survive_intermediate_merges`] leaves the bottom merge of a shard for later.
+#[cfg(not(miri))]
+#[derive(Clone, Copy, Debug)]
+enum PartialCompaction {
+    /// One pass bottom merges one shard and intermediate merges the other.
+    SamePass,
+    /// One pass bottom merges one shard, a later one intermediate merges the other.
+    BottomFirst,
+    /// One pass intermediate merges one shard, while the meta file that recorded the used keys is
+    /// kept alive by the other shard's files. A later pass bottom merges that other shard, which
+    /// retires it.
+    IntermediateFirst,
+}
+
+/// An intermediate merge can retire the meta file that recorded the used keys before every shard
+/// had its bottom merge, e.g. when the rewrite quota or `max_merge_jobs` leaves a shard's bottom
+/// merge for later. The used keys then have to live on in the meta file written by the compaction,
+/// until the merged entries are bottom merged.
+#[cfg(not(miri))]
+#[rstest]
+fn used_keys_survive_intermediate_merges(
+    #[values(true, false)] mmap: bool,
+    #[values(
+        PartialCompaction::SamePass,
+        PartialCompaction::BottomFirst,
+        PartialCompaction::IntermediateFirst
+    )]
+    partial: PartialCompaction,
+) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let config = two_shard_config(mmap)?;
+    let db = open_db_with_config::<1>(path, config.clone())?;
+    const KEYS: u32 = TWO_SHARD_KEYS;
+    let put_all =
+        |db: &TurboPersistence<RayonParallelScheduler, 1>, generation: u32| -> Result<()> {
+            let batch = db.write_batch()?;
+            for key in 0..KEYS {
+                batch.put(
+                    0,
+                    key.to_be_bytes().to_vec(),
+                    generation.to_be_bytes().to_vec().into(),
+                )?;
+            }
+            db.commit_write_batch(batch)?;
+            Ok(())
+        };
+    put_all(&db, 0)?;
+    db.full_compact()?;
+    for key in 0..KEYS {
+        db.get(0, &key.to_be_bytes())?.unwrap();
+    }
+    // The first commit records the reads, the second one none. Each shard has two files above its
+    // bottom run then.
+    put_all(&db, 1)?;
+    put_all(&db, 2)?;
+    let intermediate_only = CompactConfig {
+        max_space_amplification_percent: u16::MAX,
+        max_files_above_bottom: 1,
+        ..CompactConfig::full()
+    };
+    match partial {
+        PartialCompaction::BottomFirst => {
+            // Bottom merge only one shard. The other shard keeps the files of the commit that
+            // recorded the used keys.
+            db.compact(&CompactConfig {
+                max_merge_jobs: 1,
+                ..CompactConfig::full()
+            })?;
+            // Then the other shard gets an intermediate merge instead of a bottom merge, which
+            // merges the last file of that commit.
+            db.compact(&intermediate_only)?;
+        }
+        PartialCompaction::SamePass => {
+            // The rewrite quota of 0 bottom merges only one shard, and the other one gets an
+            // intermediate merge in the same pass, which merges the last file of that commit.
+            db.compact(&CompactConfig {
+                max_files_above_bottom: 1,
+                rewrite_per_fresh_byte: 0.0,
+                ..CompactConfig::full()
+            })?;
+        }
+        PartialCompaction::IntermediateFirst => {
+            // Intermediate merge only one shard. The commit that recorded the used keys still has
+            // a file in the other shard.
+            db.compact(&CompactConfig {
+                max_merge_jobs: 1,
+                ..intermediate_only
+            })?;
+            // Bottom merge only the other shard, which merges the last file of that commit. It
+            // has two rewrites of all its keys above its bottom run, the merged shard only one.
+            db.compact(&CompactConfig {
+                max_space_amplification_percent: 150,
+                max_files_above_bottom: 6,
+                ..CompactConfig::full()
+            })?;
+        }
+    }
+    let (hot, _) = bottom_entry_counts(&db)?;
+    assert!(hot > 0 && hot < KEYS as usize);
+    // The carried used keys are persisted.
+    db.shutdown();
+    let db = open_db_with_config::<1>(path, config)?;
+    // The bottom merge of the other shard still knows the read keys.
+    db.full_compact()?;
+    assert_eq!(bottom_entry_counts(&db)?, (KEYS as usize, 0));
+
+    // Every file with entries of the read keys was bottom merged now, so the used keys expire. (No
+    // key was read since, which the next commit would record again.)
+    let mut generation = 3;
+    if matches!(partial, PartialCompaction::SamePass) {
+        // Except that the meta file carrying the used keys also describes the bottom run written
+        // by the same pass for the first shard, which the full compaction above didn't merge, as
+        // nothing was written into that shard since. So the next bottom merge still uses them,
+        // which merges that bottom run and retires the meta file.
+        put_all(&db, generation)?;
+        db.full_compact()?;
+        assert_eq!(bottom_entry_counts(&db)?, (KEYS as usize, 0));
+        generation += 1;
+    }
+    put_all(&db, generation)?;
+    db.full_compact()?;
+    assert_eq!(bottom_entry_counts(&db)?, (0, KEYS as usize));
+    for key in 0..KEYS {
+        assert_eq!(
+            &*db.get(0, &key.to_be_bytes())?.unwrap(),
+            &generation.to_be_bytes()
+        );
+    }
+    Ok(())
+}
+
 #[cfg(not(miri))]
 #[rstest]
 #[case(true)]
