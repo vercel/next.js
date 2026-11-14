@@ -245,15 +245,15 @@ function checkExports(
         exportsSet.has(node.declaration.identifier?.value)
       ) {
         const id = node.declaration.identifier.value
-        getServerSideProps = id === 'getServerSideProps'
-        getStaticProps = id === 'getStaticProps'
-        generateImageMetadata = id === 'generateImageMetadata'
-        generateSitemaps = id === 'generateSitemaps'
+        getServerSideProps ||= id === 'getServerSideProps'
+        getStaticProps ||= id === 'getStaticProps'
+        generateImageMetadata ||= id === 'generateImageMetadata'
+        generateSitemaps ||= id === 'generateSitemaps'
         if (id === 'unstable_paramMatching') paramMatching = true
         if (id === 'unstable_generateParamMatching') {
           generateParamMatching = true
         }
-        generateStaticParams = id === 'generateStaticParams'
+        generateStaticParams ||= id === 'generateStaticParams'
       }
 
       if (
@@ -262,15 +262,15 @@ function checkExports(
       ) {
         const id = node.declaration?.declarations[0]?.id.value
         if (exportsSet.has(id)) {
-          getServerSideProps = id === 'getServerSideProps'
-          getStaticProps = id === 'getStaticProps'
-          generateImageMetadata = id === 'generateImageMetadata'
-          generateSitemaps = id === 'generateSitemaps'
+          getServerSideProps ||= id === 'getServerSideProps'
+          getStaticProps ||= id === 'getStaticProps'
+          generateImageMetadata ||= id === 'generateImageMetadata'
+          generateSitemaps ||= id === 'generateSitemaps'
           if (id === 'unstable_paramMatching') paramMatching = true
           if (id === 'unstable_generateParamMatching') {
             generateParamMatching = true
           }
-          generateStaticParams = id === 'generateStaticParams'
+          generateStaticParams ||= id === 'generateStaticParams'
         }
       }
 

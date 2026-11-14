@@ -19,6 +19,10 @@ The `generateSitemaps` returns an array of objects with an `id` property.
 
 Your generated sitemaps will be available at `/.../sitemap/[id].xml`. For example, `/product/sitemap/1.xml`.
 
+## Prerendering sitemaps for dynamic routes
+
+For a sitemap inside a [dynamic route](/docs/app/api-reference/file-conventions/dynamic-routes), export [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) from the same sitemap file to choose which parameter values to prerender. Next.js generates every sitemap ID under each generated parent path. `generateSitemaps` does not receive route parameters, so the same IDs are used for every parent.
+
 ## Example
 
 For example, to split a sitemap using `generateSitemaps`, return an array of objects with the sitemap `id`. Then, use the `id` to generate the unique sitemaps.
