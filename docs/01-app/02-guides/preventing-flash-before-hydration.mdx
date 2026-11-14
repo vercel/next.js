@@ -9,7 +9,7 @@ User preferences, browser settings, and client-side storage aren't available dur
 Some common approaches to this problem:
 
 - A Client Component that re-renders with client values causes a hydration error.
-- Deferring to `useEffect` avoids the error but introduces a visible flash.
+- Deferring to `useEffect` avoids the error but introduces a visible flash. Synchronously setting state in the effect also triggers React's `set-state-in-effect` lint rule, enabled by `eslint-config-next`.
 - Rendering only on the server means giving up on client-specific formatting entirely.
 
 Using an **inline script** that runs synchronously as the browser parses the HTML, you can update the DOM **before the first paint**. This guide covers dates, themes, and persisted UI state.
@@ -50,7 +50,7 @@ export function EventDate({ date }) {
 
 During SSR, `toLocaleDateString()` runs in Node.js and formats using the server's locale (e.g. `6/15/2026`). On hydration, React re-executes the component in the browser and produces the user's locale (e.g. `2026/6/15`). React detects the mismatch, throws a hydration error, and the user sees a flash.
 
-You could work around this with `useEffect` to update the date after hydration, but the user still sees the server-formatted date first. A Server Component avoids the error entirely, but the date is permanently in the server's locale.
+You could work around this with `useEffect` to update the date after hydration, but the user still sees the server-formatted date first, and a synchronous state update triggers [`set-state-in-effect`](#why-not-useeffect). A Server Component avoids the error entirely, but the date is permanently in the server's locale.
 
 > **Good to know:** This issue is easy to miss in local development if your machine's locale matches your browser's. Run your dev server with `TZ` and `LANG` set differently from your browser to catch mismatches early (e.g. `TZ=UTC LANG=ja_JP.UTF-8 next dev`). `TZ=UTC` is a good default since most servers run in UTC.
 
@@ -524,6 +524,10 @@ export function ThemeToggle() {
 ### Why not `useEffect`?
 
 `useEffect` runs after hydration and paint. The user sees the server value first, then the correction. Setting state in an effect also triggers a re-render, which can reactivate parent Suspense boundaries.
+
+`eslint-config-next` enables React's [`set-state-in-effect`](https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect) rule, which reports synchronous state updates such as `setTheme(localStorage.getItem('theme'))` in a mount effect. See the [hydration error guide](/docs/messages/react-hydration-error#solution-1-using-useeffect-to-run-on-the-client-only) for an example with an intentional extra render and a scoped lint suppression.
+
+For values stored outside React, such as `localStorage`, use [`useSyncExternalStore`](https://react.dev/reference/react/useSyncExternalStore#adding-support-for-server-rendering) to read a snapshot and subscribe to changes instead of copying the value into state in a mount effect. Return the same initial value from `getServerSnapshot` on the server and during hydration. React then reads the client snapshot without a synchronous `setState` call in your effect. This avoids the lint error, but it does not prevent the initial value from being painted before hydration. For `localStorage`, notify subscribers when writing in the same document as well as listening for `storage` events from other documents.
 
 `useLayoutEffect` runs before paint but after hydration. It prevents the flash between hydration and paint, but not the flash between the HTML arriving and React hydrating. On slow connections, the browser paints the server HTML before React has loaded. The inline script runs during HTML **parsing**, before React is involved.
 
