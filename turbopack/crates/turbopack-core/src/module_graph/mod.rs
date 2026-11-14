@@ -4349,6 +4349,129 @@ pub mod tests {
         .unwrap();
     }
 
+    /// The chunk groups of a graph in index order, and the chunk groups of every module, all
+    /// described by name.
+    #[turbo_tasks::value(transparent)]
+    struct ChunkGroupNumbering(Vec<RcStr>);
+
+    /// Builds a graph with two entries in the order given by `order`, each with an async child and
+    /// an isolated child with a merge tag (a merged chunk group refers to its parent by index), and
+    /// a module shared by both entries:
+    ///
+    /// ```text
+    /// page1 -async-> lazy1, -isolated(merge_tag "m")-> iso1, -> shared
+    /// page2 -async-> lazy2, -isolated(merge_tag "m")-> iso2, -> shared
+    /// ```
+    #[turbo_tasks::function(operation, root)]
+    async fn chunk_group_numbering_by_entry_order(
+        order: ResolvedVc<EntryOrder>,
+    ) -> Result<Vc<ChunkGroupNumbering>> {
+        let swapped = *order.await?.swapped.get();
+        let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
+        let root = fs.root().await?;
+        let isolated = || ChunkingType::Isolated {
+            _ty: crate::chunk::ChunkGroupType::Entry,
+            merge_tag: Some(rcstr!("m")),
+        };
+        let repo = TestRepo::new_with_chunking_types(
+            &root,
+            [
+                ("page1.js", vec!["lazy1.js", "iso1.js", "shared.js"]),
+                ("page2.js", vec!["lazy2.js", "iso2.js", "shared.js"]),
+            ],
+            [
+                ("page1.js", "lazy1.js", ChunkingType::Async),
+                ("page2.js", "lazy2.js", ChunkingType::Async),
+                ("page1.js", "iso1.js", isolated()),
+                ("page2.js", "iso2.js", isolated()),
+            ],
+        );
+        let module = |name: &str| {
+            Vc::upcast::<Box<dyn Module>>(MockModule::new(root.join(name).unwrap(), repo))
+                .to_resolved()
+        };
+        let entry = |module| ChunkGroupEntry::Entry {
+            modules: vec![module],
+            heuristics: EntryHeuristics::default(),
+        };
+        let mut entries = vec![
+            entry(module("page1.js").await?),
+            entry(module("page2.js").await?),
+        ];
+        if swapped {
+            entries.reverse();
+        }
+        let graph = SingleModuleGraph::new_with_entries(
+            GraphEntries::resolved_cell(GraphEntries::new(entries, vec![])),
+            ModuleGraphOptions::default(),
+        );
+        let info = ModuleGraph::from_graphs(vec![graph], None)
+            .connect()
+            .chunk_group_info()
+            .await?;
+
+        let mut numbering = Vec::new();
+        for key in &info.chunk_group_keys {
+            numbering.push(key.ident_str(&info.chunk_group_keys).await?.into());
+        }
+        let mut modules = info
+            .module_chunk_groups
+            .await?
+            .iter()
+            .map(async |(module, groups)| {
+                Ok(format!(
+                    "{}: {:?}",
+                    module.ident().await?.path.path,
+                    groups.iter().collect::<Vec<_>>()
+                ))
+            })
+            .try_join()
+            .await?;
+        modules.sort();
+        numbering.extend(modules.into_iter().map(RcStr::from));
+        Ok(Vc::cell(numbering))
+    }
+
+    /// The chunk group indices only depend on the set of chunk groups, not on the order in which
+    /// the traversal reaches them. Reordering the entries must keep every index (and so every
+    /// chunk group bitset) unchanged, which keeps everything derived from them cached.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_chunk_group_numbering_is_independent_of_traversal_order() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let order = EntryOrder {
+                swapped: turbo_tasks::State::new(false),
+            }
+            .resolved_cell();
+            let numbering = chunk_group_numbering_by_entry_order(order)
+                .read_strongly_consistent()
+                .await?;
+
+            // Merged chunk groups come after the chunk groups they are merged into.
+            let position = |prefix: &str| {
+                numbering
+                    .iter()
+                    .position(|ident| ident.starts_with(prefix))
+                    .unwrap_or_else(|| panic!("no chunk group {prefix}"))
+            };
+            let first_merged = position("IsolatedMerged");
+            assert!(position("Entry") < first_merged);
+            assert!(position("Async") < first_merged);
+
+            order.await?.swapped.set(true);
+            let swapped_numbering = chunk_group_numbering_by_entry_order(order)
+                .read_strongly_consistent()
+                .await?;
+            assert_eq!(*swapped_numbering, *numbering);
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
     #[turbo_tasks::value(serialization = "skip", eq = "manual", cell = "new")]
     struct ChunkGroupInfoTestGraph {
         chunk_group_info: ReadRef<ChunkGroupInfo>,
