@@ -97,6 +97,28 @@ func main() {
 	}
 	addr := ln.Addr().(*net.TCPAddr)
 
+	if reactorRequested() {
+		f, err := newFrontend(cfg, addr)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "next-front:", err)
+			os.Exit(1)
+		}
+		fmt.Printf("NEXT_FRONT_READY %d\n", addr.Port)
+		go func() {
+			<-stopRequested()
+			f.beginDrain()
+		}()
+		if err := f.serve(ln.(*net.TCPListener)); err != nil {
+			fmt.Fprintln(os.Stderr, "next-front:", err)
+			os.Exit(1)
+		}
+		// The reactor returns once its own connections are done; wait for the
+		// ones it handed to net/http and their hijacked responses.
+		f.wg.Wait()
+		hijackedResponses.Wait()
+		return
+	}
+
 	srv := newServer(newProxy(cfg.upstream, addr, cfg.upstreamIdle), cfg.idleTimeout, cfg.headerTimeout)
 
 	fmt.Printf("NEXT_FRONT_READY %d\n", addr.Port)
@@ -159,6 +181,33 @@ func stopRequested() <-chan struct{} {
 // listens on; upstreamIdle is how long an idle connection to Node stays
 // pooled.
 func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) http.Handler {
+	return newProxyWithTransport(upstream, public, newUpstreamTransport(upstreamIdle))
+}
+
+// reactorEnv selects the epoll reactor (Linux only). Any other value, or
+// another OS, keeps the net/http front.
+const reactorEnv = "__NEXT_EXPERIMENTAL_FRONT_SERVER_REACTOR"
+
+func reactorRequested() bool { return os.Getenv(reactorEnv) == "1" && reactorSupported }
+
+func newUpstreamTransport(upstreamIdle time.Duration) *http.Transport {
+	return &http.Transport{
+		Proxy:       nil,
+		DialContext: (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
+		// The default of 2 idle connections per host churns connections
+		// under load.
+		MaxIdleConns:        0,
+		MaxIdleConnsPerHost: 512,
+		IdleConnTimeout:     upstreamIdle,
+		// Otherwise Go asks Node for gzip and decompresses the response.
+		DisableCompression:    true,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+}
+
+// newProxyWithTransport is newProxy with the transport supplied, so the
+// reactor's compatibility path can resume a response already in flight.
+func newProxyWithTransport(upstream string, public *net.TCPAddr, transport http.RoundTripper) http.Handler {
 	publicPort := strconv.Itoa(public.Port)
 	// Node, listening on all interfaces, sees IPv4 clients as IPv4-mapped IPv6
 	// addresses. Go reports them as plain IPv4.
@@ -177,19 +226,8 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) 
 			setIfMissing(pr.Out.Header, "X-Forwarded-Port", publicPort)
 		},
 		// Write each chunk to the client as soon as Node sends it.
-		FlushInterval: -1,
-		Transport: &http.Transport{
-			Proxy:       nil,
-			DialContext: (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
-			// The default of 2 idle connections per host churns connections
-			// under load.
-			MaxIdleConns:        0,
-			MaxIdleConnsPerHost: 512,
-			IdleConnTimeout:     upstreamIdle,
-			// Otherwise Go asks Node for gzip and decompresses the response.
-			DisableCompression:    true,
-			ExpectContinueTimeout: 1 * time.Second,
-		},
+		FlushInterval:  -1,
+		Transport:      transport,
 		ModifyResponse: writeCustomStatusLine,
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			if errors.Is(err, errResponseWritten) {
