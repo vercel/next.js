@@ -101,7 +101,7 @@ In Next.js:
 - **Folders** are used to define the route segments that map to URL segments.
 - **Files** (like `page` and `layout`) are used to create UI that is shown for a segment.
 
-To create nested routes, you can nest folders inside each other. For example, to add a route for `/blog`, create a folder called `blog` in the `app` directory. Then, to make `/blog` publicly accessible, add a `page.tsx` file:
+To create nested routes, you can nest folders inside each other. For example, to add a route for `/blog`, create a folder called `blog` in the `app` directory. Then, to make `/blog` publicly accessible, add a `page` file:
 
 <Image
   alt="File hierarchy showing blog folder and a page.js file"
@@ -211,7 +211,7 @@ If you were to combine the two layouts above, the root layout (`app/layout.js`) 
 
 [Dynamic segments](/docs/app/api-reference/file-conventions/dynamic-routes) allow you to create routes that are generated from data. For example, instead of manually creating a route for each individual blog post, you can create a dynamic segment to generate the routes based on blog post data.
 
-To create a dynamic segment, wrap the segment (folder) name in square brackets: `[segmentName]`. For example, in the `app/blog/[slug]/page.tsx` route, the `[slug]` is the dynamic segment.
+To create a dynamic segment, wrap the segment (folder) name in square brackets: `[segmentName]`. For example, in the `app/blog/[slug]/page.js` route, the `[slug]` is the dynamic segment.
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
 export default async function BlogPostPage({
