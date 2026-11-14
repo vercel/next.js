@@ -295,8 +295,14 @@ importers:
         specifier: workspace:*
         version: link:packages/third-parties
       '@opentelemetry/api':
-        specifier: 1.4.1
-        version: 1.4.1
+        specifier: 1.9.0
+        version: 1.9.0
+      '@opentelemetry/sdk-metrics':
+        specifier: 2.12.0
+        version: 2.12.0(@opentelemetry/api@1.9.0)
+      '@opentelemetry/sdk-trace':
+        specifier: 2.12.0
+        version: 2.12.0(@opentelemetry/api@1.9.0)
       '@picocss/pico':
         specifier: 1.5.10
         version: 1.5.10
@@ -827,7 +833,7 @@ importers:
         version: 0.554.0(react@19.3.0-canary-df6aa4ec-20261112)
       next:
         specifier: 16.4.0-canary.31
-        version: 16.4.0-canary.31(@babel/core@7.26.10(supports-color@9.4.0))(@opentelemetry/api@1.4.1)(@playwright/test@1.61.0)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@0.0.0-experimental-1371fcb-20260227)(react-dom@19.3.0-canary-df6aa4ec-20261112(react@19.3.0-canary-df6aa4ec-20261112))(react@19.3.0-canary-df6aa4ec-20261112)(sass@1.54.0)
+        version: 16.4.0-canary.31(@babel/core@7.26.10(supports-color@9.4.0))(@opentelemetry/api@1.9.0)(@playwright/test@1.61.0)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@0.0.0-experimental-1371fcb-20260227)(react-dom@19.3.0-canary-df6aa4ec-20261112(react@19.3.0-canary-df6aa4ec-20261112))(react@19.3.0-canary-df6aa4ec-20261112)(sass@1.54.0)
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.3.0-canary-df6aa4ec-20261112(react@19.3.0-canary-df6aa4ec-20261112))(react@19.3.0-canary-df6aa4ec-20261112)
@@ -5666,10 +5672,6 @@ packages:
   '@open-draft/until@3.0.1':
     resolution: {integrity: sha512-s7/9ELP4aP9YZtW7RJaa0Xf3RISaRH9+EFN18FtykJYRHGNrl8f9ymvoNXzjhrjmftFvkQudtuDU9RYhk0xs3A==}
 
-  '@opentelemetry/api@1.4.1':
-    resolution: {integrity: sha512-O2yRJce1GOc6PAy3QxFM4NzFiWzvScDC1/5ihYBL6BUEVdq0XMWN01sppE+H6bBXbaFYipjwFLEWLg5PaSOThA==}
-    engines: {node: '>=8.0.0'}
-
   '@opentelemetry/api@1.6.0':
     resolution: {integrity: sha512-OWlrQAnWn9577PhVgqjUvMr1pg57Bc4jv0iL4w0PRuOSRvq67rvHW9Ie/dZVMvCzhSCB+UxhcY/PmCmFj33Q+g==}
     engines: {node: '>=8.0.0'}
@@ -5684,8 +5686,36 @@ packages:
     peerDependencies:
       '@opentelemetry/api': '>=1.0.0 <1.5.0'
 
+  '@opentelemetry/core@2.12.0':
+    resolution: {integrity: sha512-1HsSAuvT4/my0QrXWsyXFdWjKaPeCHsismKZgEEIb8NK13LP6DrMRlsUbvD/0F9mDWK3xDom9AMv3IscxgOnOQ==}
+    engines: {node: ^18.19.0 || >=20.6.0}
+    peerDependencies:
+      '@opentelemetry/api': '>=1.0.0 <1.10.0'
+
+  '@opentelemetry/resources@2.12.0':
+    resolution: {integrity: sha512-+rSRoOdln6NhXTVcBdHSlZxJDNzwxadeweK2ltZO3tVtfp6aklABc06xclDk6ovRR+EiGgIcSbh/6NgjFhnb3A==}
+    engines: {node: ^18.19.0 || >=20.6.0}
+    peerDependencies:
+      '@opentelemetry/api': '>=1.3.0 <1.10.0'
+
+  '@opentelemetry/sdk-metrics@2.12.0':
+    resolution: {integrity: sha512-mVMaEHwCUJuY3S4Esn+nT0yQA3qCEGh+SOPJsXygU0Gl453WcsDNjtEa8EfdewMwoLyr1tlofB4fXytVpiXuow==}
+    engines: {node: ^18.19.0 || >=20.6.0}
+    peerDependencies:
+      '@opentelemetry/api': '>=1.9.0 <1.10.0'
+
+  '@opentelemetry/sdk-trace@2.12.0':
+    resolution: {integrity: sha512-ImVuRQ6faOsTi1Wna88s2avgrrf/iDgXPigIeynkUhjstMuoQUDOJXgkez2j1mlU4btjXcXBGa+q7qKFYR3GsA==}
+    engines: {node: ^18.19.0 || >=20.6.0}
+    peerDependencies:
+      '@opentelemetry/api': '>=1.3.0 <1.10.0'
+
   '@opentelemetry/semantic-conventions@1.15.2':
     resolution: {integrity: sha512-CjbOKwk2s+3xPIMcd5UNYQzsf+v94RczbdNix9/kQh38WiQkM90sUOi3if8eyHFgiBjBjhwXrA7W3ydiSQP9mw==}
+    engines: {node: '>=14'}
+
+  '@opentelemetry/semantic-conventions@1.45.0':
+    resolution: {integrity: sha512-aOP45mbcOKbQVvFWfQmgoOPT8R2iwbbbgl83k4CujGV9BrJhFr3qG55MFpwFs4YLabpuW3HhzUY9eQxPlDqaZw==}
     engines: {node: '>=14'}
 
   '@picocss/pico@1.5.10':
@@ -22717,18 +22747,42 @@ snapshots:
 
   '@open-draft/until@3.0.1': {}
 
-  '@opentelemetry/api@1.4.1': {}
-
   '@opentelemetry/api@1.6.0': {}
 
   '@opentelemetry/api@1.9.0': {}
 
-  '@opentelemetry/core@1.15.2(@opentelemetry/api@1.6.0)':
+  '@opentelemetry/core@1.15.2(@opentelemetry/api@1.9.0)':
     dependencies:
-      '@opentelemetry/api': 1.6.0
+      '@opentelemetry/api': 1.9.0
       '@opentelemetry/semantic-conventions': 1.15.2
 
+  '@opentelemetry/core@2.12.0(@opentelemetry/api@1.9.0)':
+    dependencies:
+      '@opentelemetry/api': 1.9.0
+      '@opentelemetry/semantic-conventions': 1.45.0
+
+  '@opentelemetry/resources@2.12.0(@opentelemetry/api@1.9.0)':
+    dependencies:
+      '@opentelemetry/api': 1.9.0
+      '@opentelemetry/core': 2.12.0(@opentelemetry/api@1.9.0)
+      '@opentelemetry/semantic-conventions': 1.45.0
+
+  '@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.9.0)':
+    dependencies:
+      '@opentelemetry/api': 1.9.0
+      '@opentelemetry/core': 2.12.0(@opentelemetry/api@1.9.0)
+      '@opentelemetry/resources': 2.12.0(@opentelemetry/api@1.9.0)
+
+  '@opentelemetry/sdk-trace@2.12.0(@opentelemetry/api@1.9.0)':
+    dependencies:
+      '@opentelemetry/api': 1.9.0
+      '@opentelemetry/core': 2.12.0(@opentelemetry/api@1.9.0)
+      '@opentelemetry/resources': 2.12.0(@opentelemetry/api@1.9.0)
+      '@opentelemetry/semantic-conventions': 1.45.0
+
   '@opentelemetry/semantic-conventions@1.15.2': {}
+
+  '@opentelemetry/semantic-conventions@1.45.0': {}
 
   '@picocss/pico@1.5.10': {}
 
@@ -27631,8 +27685,8 @@ snapshots:
       '@datadog/native-metrics': 2.0.0
       '@datadog/pprof': 3.1.0
       '@datadog/sketches-js': 2.1.0
-      '@opentelemetry/api': 1.6.0
-      '@opentelemetry/core': 1.15.2(@opentelemetry/api@1.6.0)
+      '@opentelemetry/api': 1.9.0
+      '@opentelemetry/core': 1.15.2(@opentelemetry/api@1.9.0)
       crypto-randomuuid: 1.0.0
       diagnostics_channel: 1.1.0
       ignore: 5.2.4
@@ -33646,7 +33700,7 @@ snapshots:
 
   next-tick@1.0.0: {}
 
-  next@16.4.0-canary.31(@babel/core@7.26.10(supports-color@9.4.0))(@opentelemetry/api@1.4.1)(@playwright/test@1.61.0)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@0.0.0-experimental-1371fcb-20260227)(react-dom@19.3.0-canary-df6aa4ec-20261112(react@19.3.0-canary-df6aa4ec-20261112))(react@19.3.0-canary-df6aa4ec-20261112)(sass@1.54.0):
+  next@16.4.0-canary.31(@babel/core@7.26.10(supports-color@9.4.0))(@opentelemetry/api@1.9.0)(@playwright/test@1.61.0)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@0.0.0-experimental-1371fcb-20260227)(react-dom@19.3.0-canary-df6aa4ec-20261112(react@19.3.0-canary-df6aa4ec-20261112))(react@19.3.0-canary-df6aa4ec-20261112)(sass@1.54.0):
     dependencies:
       '@next/env': 16.4.0-canary.31
       '@swc/helpers': 0.5.23
@@ -33665,7 +33719,7 @@ snapshots:
       '@next/swc-linux-x64-musl': 16.4.0-canary.31
       '@next/swc-win32-arm64-msvc': 16.4.0-canary.31
       '@next/swc-win32-x64-msvc': 16.4.0-canary.31
-      '@opentelemetry/api': 1.4.1
+      '@opentelemetry/api': 1.9.0
       '@playwright/test': 1.61.0
       babel-plugin-react-compiler: 0.0.0-experimental-1371fcb-20260227
       sass: 1.54.0

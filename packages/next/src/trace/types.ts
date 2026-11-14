@@ -1,9 +1,19 @@
 export type SpanId = number
 
+export type ReportingSpanSelection = {
+  id: SpanId
+  // External topology only; TraceEvent.parentId keeps the full local hierarchy.
+  parentId?: SpanId
+}
+
 export interface TraceState {
   lastId: number
   defaultParentSpanId?: SpanId
   shouldSaveTraceEvents?: boolean
+  /** Shared monotonic-to-epoch mapping for app-tracer worker replay. */
+  otelClockOffset?: string
+  /** Internal worker sidecar, never written to legacy trace files. */
+  reportingSpanSelections?: readonly ReportingSpanSelection[]
 }
 
 export type TraceEvent = {

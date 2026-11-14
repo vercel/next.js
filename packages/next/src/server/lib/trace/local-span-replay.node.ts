@@ -1,0 +1,362 @@
+import type {
+  Attributes,
+  Link,
+  Span,
+  SpanContext,
+  SpanStatus,
+} from '@opentelemetry/api'
+import type { TraceEvent, ReportingSpanSelection } from '../../../trace/types'
+import { getTraceClock } from './local-span-clock.node'
+import { reportToolingMeasurements } from './local-span-metrics.node'
+import { normalizeTraceAttributes } from './span-attributes'
+import type { SpanStoreEvent } from './span-store'
+import { toHrTime } from './utils'
+
+const clock = getTraceClock()
+let epochOffset = BigInt(clock.wallTimeMs) * BigInt(1_000_000) - clock.monotonic
+
+export const epochTime = (time: bigint) => time + epochOffset
+export const getClockOffset = () => epochOffset.toString()
+export const REPLAY_EVENT_LIMIT = 1_000
+
+export type ReportingSpanContext = {
+  id: number
+  sessionId: symbol
+  context?: SpanContext
+}
+
+export type ReportingStart = {
+  id: number
+  parentId?: number
+  parent?: ReportingSpanContext
+  name: string
+  start: bigint
+  attributes?: Attributes
+  links?: Link[]
+}
+
+export type ReportingCompletion = {
+  end: bigint
+  name?: string
+  attributes?: Attributes
+  events?: SpanStoreEvent[]
+  status?: SpanStatus
+}
+
+type ReplaySession = {
+  id: symbol
+  ready: boolean
+  closed: boolean
+  flushing: boolean
+  warned: boolean
+  nonRootCount: number
+  root?: ReportingSpan
+  records: Map<number, ReportingSpan>
+  contexts: Map<number, ReportingSpanContext>
+  queue: Array<() => void>
+}
+
+export type ReportingSpan = ReportingStart & {
+  session: ReplaySession
+  reference: ReportingSpanContext
+  completion?: ReportingCompletion
+  span?: Span
+  done?: boolean
+  failed?: boolean
+}
+
+let session = createSession()
+let suppressed = false
+
+function createSession(): ReplaySession {
+  return {
+    id: Symbol(),
+    ready: false,
+    closed: false,
+    flushing: false,
+    warned: false,
+    nonRootCount: 0,
+    records: new Map(),
+    contexts: new Map(),
+    queue: [],
+  }
+}
+
+function warnLoss(target = session) {
+  if (target.warned) return
+  target.warned = true
+  console.warn(
+    'Next.js OpenTelemetry reporting limit reached or reporting failed; some external signals or attributes may be missing. Local trace files are unaffected.'
+  )
+}
+
+export function startSpan(
+  start: ReportingStart,
+  root = false
+): ReportingSpan | undefined {
+  if (suppressed) return
+  if (root && (session.root || session.closed)) {
+    closeReporting()
+    session = createSession()
+  }
+  if (session.closed) return
+  if (
+    !root &&
+    !session.ready &&
+    session.nonRootCount >= REPLAY_EVENT_LIMIT - 1
+  ) {
+    warnLoss()
+    return
+  }
+
+  // shortcut: queued attribute values stay caller-owned; copy if mutation corrupts telemetry.
+  const record: ReportingSpan = {
+    ...start,
+    session,
+    reference: { id: start.id, sessionId: session.id },
+    parent:
+      start.parent ??
+      session.contexts.get(start.parentId!) ??
+      session.records.get(start.parentId!)?.reference,
+  }
+  if (root) session.root = record
+  else session.nonRootCount++
+  session.records.set(record.id, record)
+  session.queue.push(() => startOpenTelemetrySpan(record))
+  return record
+}
+
+export function retainSpanContext(reference: ReportingSpanContext): void {
+  if (!session.closed && reference.sessionId === session.id) {
+    session.contexts.set(reference.id, reference)
+  }
+}
+
+export function completeSpan(
+  record: ReportingSpan,
+  completion: ReportingCompletion
+): void {
+  if (record.done || record.session.closed) return
+  record.done = true
+  record.completion = completion
+  record.session.queue.push(() => completeOpenTelemetrySpan(record, completion))
+  flush(record.session)
+}
+
+export function flushReporting(): void {
+  flush(session)
+}
+
+function flush(target: ReplaySession): void {
+  if (!target.ready || target.closed || target.flushing) return
+  target.flushing = true
+  try {
+    while (target.queue.length && !target.closed) {
+      target.queue.shift()!()
+    }
+  } finally {
+    target.flushing = false
+  }
+}
+
+function getParentContext(record: ReportingSpan): SpanContext | undefined {
+  return (
+    (record.parent?.sessionId === record.session.id
+      ? record.parent.context
+      : undefined) ??
+    record.session.contexts.get(record.parentId!)?.context ??
+    (record === record.session.root || record.parentId === undefined
+      ? undefined
+      : record.session.root?.reference.context)
+  )
+}
+
+function startOpenTelemetrySpan(record: ReportingSpan): void {
+  if (record.failed || record.span) return
+  const metricsOnly =
+    record.name === 'memory-usage' ||
+    record.name === 'server-restart-close-to-memory-threshold'
+  if (metricsOnly) return
+  try {
+    const { api, getTracerInstance } =
+      require('./otel-api') as typeof import('./otel-api')
+    const parent = getParentContext(record)
+    const context = parent
+      ? api.trace.setSpanContext(api.ROOT_CONTEXT, parent)
+      : api.ROOT_CONTEXT
+    const completion = record.completion
+    record.span = getTracerInstance().startSpan(
+      completion?.name ?? record.name,
+      {
+        startTime: toHrTime(record.start),
+        links: record.links,
+        attributes: {
+          ...record.attributes,
+          ...(completion
+            ? completionAttributes(completion.attributes)
+            : undefined),
+        },
+      },
+      context
+    )
+    record.reference.context = record.span.spanContext()
+  } catch {
+    record.failed = true
+    warnLoss(record.session)
+  }
+}
+
+function completionAttributes(attributes?: Attributes): Attributes {
+  return Object.fromEntries(
+    Object.entries(attributes ?? {}).map(([key, value]) => [
+      key,
+      Array.isArray(value) ? JSON.stringify(value) : value,
+    ])
+  )
+}
+
+function completeOpenTelemetrySpan(
+  record: ReportingSpan,
+  completion: ReportingCompletion
+): void {
+  try {
+    const attributes = completionAttributes(completion.attributes)
+    try {
+      const { api } = require('./otel-api') as typeof import('./otel-api')
+      const parent = getParentContext(record)
+      const metricParent =
+        record.reference.context ??
+        parent ??
+        record.session.root?.reference.context
+      reportToolingMeasurements(
+        record.name,
+        attributes,
+        metricParent
+          ? api.trace.setSpanContext(api.ROOT_CONTEXT, metricParent)
+          : api.ROOT_CONTEXT
+      )
+    } catch {
+      warnLoss(record.session)
+    }
+
+    if (record.failed) return
+    const span = record.span
+    if (!span) return
+    if (completion.name) span.updateName(completion.name)
+    span.setAttributes(attributes)
+    for (const event of completion.events ?? []) {
+      span.addEvent(event.name, event.attributes, event.timestamp)
+    }
+    if (completion.status) span.setStatus(completion.status)
+    else if (attributes.failed === true) span.setStatus({ code: 2 })
+    span.end(toHrTime(completion.end))
+  } catch {
+    record.failed = true
+    warnLoss(record.session)
+  } finally {
+    record.span = undefined
+    if (
+      record !== record.session.root &&
+      record.session.records.get(record.id) === record
+    ) {
+      record.session.records.delete(record.id)
+    }
+  }
+}
+
+export function configureState(
+  _parentId: number | undefined,
+  worker: boolean,
+  offset?: string
+): void {
+  if (offset) epochOffset = BigInt(offset)
+  suppressed = worker
+  if (worker) {
+    closeReporting()
+  }
+}
+
+export function enableReporting(): void {
+  if (session.closed || suppressed) return
+  session.ready = true
+  flush(session)
+  session.nonRootCount = 0
+}
+
+export function closeReporting(): void {
+  session.closed = true
+  session.queue.length = 0
+  session.records.clear()
+  session.contexts.clear()
+}
+
+export function replayWorkerEvents(
+  events: TraceEvent[],
+  selections: readonly ReportingSpanSelection[] = []
+): void {
+  if (session.closed || suppressed || selections.length === 0) return
+  const target = session
+  const selected = new Map(selections.map(({ id, parentId }) => [id, parentId]))
+  const remaining = target.ready
+    ? events.length
+    : Math.max(0, REPLAY_EVENT_LIMIT - 1 - target.nonRootCount)
+  const batch = events
+    .filter((event) => selected.has(event.id))
+    .slice(0, remaining)
+  target.nonRootCount += batch.length
+  if (batch.length < selections.length) warnLoss(target)
+  if (batch.length === 0) return
+  const parents = new Map(batch.map(({ id }) => [id, selected.get(id)]))
+  target.queue.push(() => replayWorkerBatch(target, batch, parents))
+  flush(target)
+}
+
+function replayWorkerBatch(
+  target: ReplaySession,
+  events: TraceEvent[],
+  parents: ReadonlyMap<number, number | undefined>
+): void {
+  const batch = new Map(events.map((event) => [event.id, event]))
+
+  const records = new Map<number, ReportingSpan>()
+  const visiting = new Set<number>()
+  const emit = (id: number): ReportingSpan | undefined => {
+    const existing = records.get(id)
+    if (existing) return existing
+    const event = batch.get(id)
+    if (!event) return target.records.get(id)
+    const parentId = parents.get(id) ?? event.parentId
+    if (visiting.has(id)) return target.root
+    visiting.add(id)
+    const parent = parentId === undefined ? undefined : emit(parentId)
+    visiting.delete(id)
+    const completion: ReportingCompletion = {
+      end: epochTime(
+        (BigInt(event.timestamp) + BigInt(event.duration)) * BigInt(1_000)
+      ),
+      attributes: normalizeTraceAttributes(event.tags),
+    }
+    const record: ReportingSpan = {
+      id,
+      parentId,
+      parent: parent?.reference,
+      reference: { id, sessionId: target.id },
+      name: event.name,
+      start: epochTime(BigInt(event.timestamp) * BigInt(1_000)),
+      attributes: {
+        'next.tooling.id': id,
+        ...(event.parentId === undefined
+          ? {}
+          : { 'next.tooling.parent_id': event.parentId }),
+      },
+      session: target,
+      completion,
+    }
+    records.set(id, record)
+    startOpenTelemetrySpan(record)
+    completeOpenTelemetrySpan(record, completion)
+    return record
+  }
+
+  for (const id of batch.keys()) emit(id)
+}

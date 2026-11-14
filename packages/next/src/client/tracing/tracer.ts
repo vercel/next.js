@@ -2,6 +2,7 @@ import mitt from '../../shared/lib/mitt'
 import type { MittEmitter } from '../../shared/lib/mitt'
 
 export type SpanOptions = {
+  reportToOtel?: boolean
   startTime?: number
   attributes?: Record<string, unknown>
 }
@@ -17,6 +18,7 @@ export type SpanState =
 
 interface ISpan {
   name: string
+  reportToOtel: boolean
   startTime: number
   attributes: Record<string, unknown>
   state: SpanState
@@ -25,6 +27,7 @@ interface ISpan {
 
 class Span implements ISpan {
   name: string
+  reportToOtel: boolean
   startTime: number
   onSpanEnd: (span: Span) => void
   state: SpanState
@@ -36,6 +39,7 @@ class Span implements ISpan {
     onSpanEnd: (span: Span) => void
   ) {
     this.name = name
+    this.reportToOtel = options.reportToOtel === true
     this.attributes = options.attributes ?? {}
     this.startTime = options.startTime ?? Date.now()
     this.onSpanEnd = onSpanEnd

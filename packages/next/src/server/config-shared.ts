@@ -511,6 +511,10 @@ export interface DeprecatedConfig {
 }
 
 export interface ExperimentalConfig {
+  /**
+   * Load instrumentation.ts and await register() in the build coordinator after compilation.
+   */
+  otelInBuild?: boolean
   /** Native Go App Router handlers. Turbopack and self-hosted next start only. */
   goRoutes?: boolean
   /**
@@ -2514,6 +2518,7 @@ export const defaultConfig = Object.freeze({
     swcTraceProfiling: false,
     forceSwcTransforms: false,
     requestInsights: false,
+    otelInBuild: false,
     swcPlugins: undefined,
     largePageDataBytes: 128 * 1000, // 128KB by default
     disablePostcssPresetEnv: undefined,

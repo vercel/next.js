@@ -41,10 +41,10 @@ import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import { Telemetry } from '../../telemetry/storage'
 import {
-  type Span,
   hrtimeToEpochNanoseconds,
   setGlobal,
   trace,
+  type Span,
 } from '../../trace'
 import { traceGlobals } from '../../trace/shared'
 import { findPageFile } from '../lib/find-page-file'
@@ -543,7 +543,8 @@ export default class DevServer extends Server {
                 'render-path',
                 hrtimeToEpochNanoseconds(devRequestTimingInternalsEnd),
                 hrtimeToEpochNanoseconds(requestEnd),
-                { path: req.url || '' }
+                { path: req.url || '' },
+                { reportToOtel: true }
               )
             }
           })
@@ -567,12 +568,16 @@ export default class DevServer extends Server {
     })
     const memoryUsage = process.memoryUsage()
     span
-      .traceChild('memory-usage', {
-        url: req.url,
-        'memory.rss': String(memoryUsage.rss),
-        'memory.heapUsed': String(memoryUsage.heapUsed),
-        'memory.heapTotal': String(memoryUsage.heapTotal),
-      })
+      .traceChild(
+        'memory-usage',
+        {
+          url: req.url,
+          'memory.rss': String(memoryUsage.rss),
+          'memory.heapUsed': String(memoryUsage.heapUsed),
+          'memory.heapTotal': String(memoryUsage.heapTotal),
+        },
+        { reportToOtel: true }
+      )
       .stop()
     return result
   }

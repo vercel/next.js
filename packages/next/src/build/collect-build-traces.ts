@@ -2,6 +2,13 @@
 import '../server/lib/cpu-profile'
 import { Span } from '../trace'
 import type { NextConfigComplete } from '../server/config-shared'
+import {
+  clearTraceEvents,
+  exportTraceState,
+  getTraceEvents,
+  initializeTraceState,
+} from '../trace/trace'
+import type { TraceState } from '../trace/types'
 
 import {
   TRACE_IGNORES,
@@ -120,9 +127,11 @@ export async function collectBuildTraces({
   const includeGlobKeys = Object.keys(outputFileTracingIncludes)
 
   await nextBuildSpan
-    .traceChild('node-file-trace-build', {
-      isTurbotrace: 'false', // TODO(arlyon): remove this
-    })
+    .traceChild(
+      'node-file-trace-build',
+      { isTurbotrace: 'false' }, // TODO(arlyon): remove this
+      { reportToOtel: true }
+    )
     .traceAsyncFn(async () => {
       const nextServerTraceOutput = path.join(
         distDir,
@@ -692,4 +701,17 @@ export async function collectBuildTraces({
   })
 
   debug(`finished build tracing ${Date.now() - startTime}ms`)
+}
+
+export async function workerCollectBuildTraces(
+  options: Parameters<typeof collectBuildTraces>[0] & { traceState: TraceState }
+) {
+  initializeTraceState({ ...options.traceState, shouldSaveTraceEvents: true })
+  clearTraceEvents()
+  try {
+    await collectBuildTraces(options)
+    return { events: getTraceEvents(), traceState: exportTraceState() }
+  } finally {
+    clearTraceEvents()
+  }
 }
