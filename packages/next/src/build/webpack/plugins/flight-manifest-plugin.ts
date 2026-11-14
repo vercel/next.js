@@ -534,6 +534,11 @@ export class ClientReferenceManifestPlugin {
 
         // Walk through all children chunk groups too.
         for (const child of chunkGroup.childrenIterable) {
+          // App Router page entries `dependOn` main-app, which makes them
+          // children of it. They record their own manifests, so only follow
+          // async chunk groups here; otherwise main-app collects every page's
+          // client references and every page inherits them.
+          if (child.isInitial()) continue
           recordChunkGroup(child)
         }
       }
