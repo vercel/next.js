@@ -1,6 +1,6 @@
 {
   "name": "nextjs",
-  "description": "Official Claude Code plugin marketplace for Next.js, serving the skills that ship in the vercel/next.js repository.",
+  "description": "Official Next.js agent skills",
   "owner": {
     "name": "Vercel",
     "url": "https://vercel.com"
@@ -8,8 +8,29 @@
   "plugins": [
     {
       "name": "nextjs",
+      "displayName": "Next.js",
       "source": "./skills",
-      "description": "Official Next.js skills: adopt and optimize Cache Components, adopt Partial Prefetching, and verify runtime behavior against a running dev server."
+      "strict": false,
+      "description": "Official Next.js agent skills for adopting and optimizing Cache Components and Partial Prefetching, auditing browser bundles with next analyze, and verifying runtime behavior against a running next dev server with /_next/mcp and agent-browser.",
+      "version": "0.1.1",
+      "author": {
+        "name": "Next.js Team",
+        "url": "https://nextjs.org"
+      },
+      "homepage": "https://nextjs.org",
+      "repository": "https://github.com/vercel/next.js",
+      "license": "MIT",
+      "category": "development",
+      "keywords": [
+        "nextjs",
+        "react",
+        "cache-components",
+        "partial-prerendering",
+        "partial-prefetching",
+        "bundle-optimizer",
+        "skills",
+        "coding-agents"
+      ]
     }
   ]
 }
