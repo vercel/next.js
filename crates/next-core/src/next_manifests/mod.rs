@@ -8,7 +8,9 @@ use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
+use turbo_tasks::{
+    FxIndexMap, OrderedAutoMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -35,18 +37,15 @@ pub struct BuildManifest {
     /// `experimental.externalBrowserRuntime` is enabled. `None` otherwise.
     pub external_browser_runtime_file: Option<ResolvedVc<Box<dyn OutputAsset>>>,
     pub root_main_files: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub pages: FxIndexMap<RcStr, ResolvedVc<OutputAssets>>,
+    pub pages: OrderedAutoMap<RcStr, ResolvedVc<OutputAssets>>,
     /// Per-page extra files that supplement `root_main_files` for App Router
     /// pages. Serialized as `rootMainFilesTree[page] = [...root_main_files,
     /// ...per_page_files]` so that `required-scripts.tsx` can load the correct
     /// page-specific scripts without polluting the shared `rootMainFiles`.
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub root_main_files_per_page: FxIndexMap<RcStr, Vec<ResolvedVc<Box<dyn OutputAsset>>>>,
+    pub root_main_files_per_page: OrderedAutoMap<RcStr, Vec<ResolvedVc<Box<dyn OutputAsset>>>>,
     /// Per-page inline chunk group bootstrap params, as JSON. Empty when the
     /// bootstrap is emitted as a per-route chunk instead (e.g. dev).
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub pages_chunk_group_bootstrap_params: FxIndexMap<RcStr, RcJsonRawValue>,
+    pub pages_chunk_group_bootstrap_params: OrderedAutoMap<RcStr, RcJsonRawValue>,
     /// The `globalThis[...]` chunk-loading global the runtime drains.
     pub chunk_loading_global: RcStr,
 }
@@ -248,8 +247,7 @@ pub struct ClientBuildManifest {
     pub output_path: FileSystemPath,
     pub client_relative_path: FileSystemPath,
 
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub pages: FxIndexMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>>,
+    pub pages: OrderedAutoMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>>,
 }
 
 #[turbo_tasks::value_impl]

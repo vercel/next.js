@@ -6,7 +6,9 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::rcstr;
-use turbo_tasks::{FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
+use turbo_tasks::{
+    NonLocalValue, OrderedAutoSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType},
     reference::{ModuleReference, ModuleReferences},
@@ -78,9 +80,7 @@ impl OptionAsyncModule {
 /// The identifiers (and their corresponding syntax context) of all async modules referenced by the
 /// current module.
 #[turbo_tasks::value(transparent)]
-struct AsyncModuleIdents(
-    #[bincode(with = "turbo_bincode::indexset")] FxIndexSet<(String, AstSyntaxContext)>,
-);
+struct AsyncModuleIdents(OrderedAutoSet<(String, AstSyntaxContext)>);
 
 async fn get_inherit_async_referenced_asset(
     r: ResolvedVc<Box<dyn ModuleReference>>,
@@ -157,7 +157,7 @@ impl AsyncModule {
             .try_flat_join()
             .await?;
 
-        Ok(Vc::cell(FxIndexSet::from_iter(reference_idents)))
+        Ok(Vc::cell(OrderedAutoSet::from_iter(reference_idents)))
     }
 
     #[turbo_tasks::function]

@@ -10,7 +10,7 @@ use serde_json::Value as JsonValue;
 use turbo_esregex::{EsRegex, EsRegexSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, OperationValue, OrderedAutoMap, ResolvedVc, TryJoinIterExt, Vc,
+    NonLocalValue, OperationValue, OrderedAutoMap, ResolvedVc, TryJoinIterExt, Vc,
     debug::ValueDebugFormat,
 };
 use turbo_tasks_env::EnvMap;
@@ -175,9 +175,9 @@ pub struct NextConfig {
     on_demand_entries: OnDemandEntriesConfig,
     powered_by_header: bool,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
-    public_runtime_config: FxIndexMap<String, serde_json::Value>,
+    public_runtime_config: OrderedAutoMap<String, serde_json::Value>,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
-    server_runtime_config: FxIndexMap<String, serde_json::Value>,
+    server_runtime_config: OrderedAutoMap<String, serde_json::Value>,
     static_page_generation_timeout: f64,
     target: Option<String>,
     typescript: TypeScriptConfig,
@@ -491,7 +491,7 @@ pub struct TurbopackConfig {
     #[serde(default)]
     pub rules: OrderedAutoMap<RcStr, RuleConfigCollection>,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
-    pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
+    pub resolve_alias: Option<OrderedAutoMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
     pub debug_ids: Option<bool>,
     pub chunk_loading_global: Option<RcStr>,

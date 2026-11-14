@@ -66,5 +66,5 @@ pub static SOURCE_URL_PROTOCOL: RcStr = rcstr!(SOURCE_URL_PROTOCOL_STR);
 
 #[doc(hidden)]
 pub mod __private {
-    pub use turbo_tasks::FxIndexMap;
+    pub use turbo_tasks::OrderedAutoMap;
 }

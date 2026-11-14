@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use turbo_rcstr::rcstr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, turbobail};
+use turbo_tasks::{OrderedAutoMap, ResolvedVc, Vc, turbobail};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -14,13 +14,13 @@ use turbopack_core::{
 use turbopack_ecmascript::utils::StringifyJs;
 
 #[turbo_tasks::value(transparent)]
-pub struct BootstrapConfig(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<String, String>);
+pub struct BootstrapConfig(OrderedAutoMap<String, String>);
 
 #[turbo_tasks::value_impl]
 impl BootstrapConfig {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
-        Vc::cell(FxIndexMap::default())
+        Vc::cell(OrderedAutoMap::default())
     }
 }
 

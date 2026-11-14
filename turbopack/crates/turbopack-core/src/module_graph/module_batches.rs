@@ -15,8 +15,8 @@ use tracing::Instrument;
 use turbo_bitset::Bitset;
 use turbo_prehash::BuildHasherExt;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, JoinIterExt, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString,
-    Vc, turbobail,
+    FxIndexMap, FxIndexSet, JoinIterExt, NonLocalValue, OrderedAutoSet, ResolvedVc, TryJoinIterExt,
+    ValueToString, Vc, turbobail,
 };
 
 use crate::{
@@ -54,9 +54,7 @@ pub struct ModuleBatchesGraphEdge {
 }
 
 #[derive(Debug, Clone, NonLocalValue, Encode, Decode)]
-struct EntriesList(
-    #[bincode(with = "turbo_bincode::indexset")] pub FxIndexSet<ResolvedVc<Box<dyn Module>>>,
-);
+struct EntriesList(pub OrderedAutoSet<ResolvedVc<Box<dyn Module>>>);
 
 #[turbo_tasks::value(cell = "new", eq = "manual")]
 pub struct ModuleBatchesGraph {
@@ -570,7 +568,7 @@ pub async fn compute_module_batches(
                         .chunk_group_keys
                         .get_index_of(&chunk_group_key)
                         .context("could not find chunk group key for merged chunk group")?;
-                    ordered_entries[idx] = Some(EntriesList(merged_modules));
+                    ordered_entries[idx] = Some(EntriesList(merged_modules.into()));
                 }
             }
         }

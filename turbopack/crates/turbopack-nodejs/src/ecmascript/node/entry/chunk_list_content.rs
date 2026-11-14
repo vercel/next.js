@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TransientInstance, TryJoinIterExt, Vc};
+use turbo_tasks::{OrderedAutoMap, ReadRef, ResolvedVc, TransientInstance, TryJoinIterExt, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -21,7 +21,7 @@ use crate::NodeJsChunkingContext;
 async fn collect_chunks_contents(
     output_root: &FileSystemPath,
     chunks: impl Iterator<Item = ResolvedVc<Box<dyn OutputAsset>>>,
-) -> Result<FxIndexMap<String, ResolvedVc<Box<dyn VersionedContent>>>> {
+) -> Result<OrderedAutoMap<String, ResolvedVc<Box<dyn VersionedContent>>>> {
     chunks
         .map(async |chunk| {
             let chunk_path = chunk.path().await?;
@@ -35,7 +35,7 @@ async fn collect_chunks_contents(
         })
         .try_join()
         .await
-        .map(FxIndexMap::from_iter)
+        .map(OrderedAutoMap::from_iter)
 }
 
 /// Never emitted as an asset — the entry chunk already inlines the `R.c(...)`
@@ -48,8 +48,7 @@ async fn collect_chunks_contents(
 /// still rides the merged `ChunkListUpdate` instead of being missed.
 #[turbo_tasks::value]
 pub struct EcmascriptBuildNodeChunkListContent {
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub(super) chunks_contents: FxIndexMap<String, ResolvedVc<Box<dyn VersionedContent>>>,
+    pub(super) chunks_contents: OrderedAutoMap<String, ResolvedVc<Box<dyn VersionedContent>>>,
 }
 
 #[turbo_tasks::value_impl]

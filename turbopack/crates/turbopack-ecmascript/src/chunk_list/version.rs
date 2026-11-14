@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, TraitRef, TryJoinIterExt, Vc};
+use turbo_tasks::{FxIndexMap, OrderedAutoMap, ResolvedVc, TraitRef, TryJoinIterExt, Vc};
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
 use turbopack_core::version::{
     MergeableVersionedContent, Version, VersionedContent, VersionedContentMerger,
@@ -96,7 +96,7 @@ async fn chunk_list_version_id(
 /// [`VersionedContent`]: turbopack_core::version::VersionedContent
 /// [`MergeableVersionedContent`]: turbopack_core::version::MergeableVersionedContent
 pub async fn compute_chunk_list_version(
-    chunks_contents: &FxIndexMap<String, ResolvedVc<Box<dyn VersionedContent>>>,
+    chunks_contents: &OrderedAutoMap<String, ResolvedVc<Box<dyn VersionedContent>>>,
 ) -> Result<Vc<ChunkListVersion>> {
     let mut by_merger = FxIndexMap::<_, Vec<_>>::default();
     let mut by_path = FxIndexMap::<_, _>::default();
