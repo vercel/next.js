@@ -5,7 +5,8 @@
 // Contract with Node (packages/next/src/server/lib/front-server.ts):
 //
 //		next-front --listen :3000 --upstream 127.0.0.1:51234 \
-//		  --idle-timeout-ms 5000 --header-timeout-ms 60000 --upstream-idle-ms 4000
+//		  --idle-timeout-ms 5000 --header-timeout-ms 60000 \
+//		  --request-timeout-ms 300000 --upstream-idle-ms 4000
 //
 //	  - Every flag is required. Node passes every behavior value, read off its
 //	    own server, so the front has no defaults of its own.
@@ -41,11 +42,17 @@ type config struct {
 	upstream string
 	// Client keep-alive: Node's keepAliveTimeout, or --keepAliveTimeout.
 	idleTimeout time.Duration
-	// Node's headersTimeout. Without it, clients that never finish their
-	// headers would hold the front's connections forever, and Node, which
-	// only sees complete requests, couldn't time them out. Bodies need no
-	// limit here: Node's own requestTimeout applies as the front streams them.
+	// Node's headersTimeout: how long a client may take to send its request
+	// headers. Without it, clients that never finish their headers would hold
+	// the front's connections forever, and Node, which only sees complete
+	// requests, couldn't time them out.
 	headerTimeout time.Duration
+	// Node's requestTimeout: how long a client may take to send the whole
+	// request, headers and body. Node's own limit doesn't cover the front's
+	// side of the connection: a request Go's server answers itself never
+	// reaches Node, and Go keeps reading a body Node has stopped waiting for.
+	// 0 means no limit, as in Node.
+	requestTimeout time.Duration
 	// How long the front keeps an idle connection to Node: below Node's
 	// keep-alive, so a request never goes out on a connection Node is
 	// closing.
@@ -58,6 +65,7 @@ func parseConfig(args []string) (config, error) {
 	upstream := flags.String("upstream", "", "Node's private address, like 127.0.0.1:51234")
 	idleMs := flags.Int("idle-timeout-ms", 0, "how long an idle client connection stays open")
 	headerMs := flags.Int("header-timeout-ms", 0, "how long a client may take to send request headers")
+	requestMs := flags.Int("request-timeout-ms", 0, "how long a client may take to send a whole request; 0 means no limit")
 	upstreamIdleMs := flags.Int("upstream-idle-ms", 0, "how long an idle connection to Node stays pooled")
 	if err := flags.Parse(args); err != nil {
 		return config{}, err
@@ -75,11 +83,12 @@ func parseConfig(args []string) (config, error) {
 	}
 	ms := func(n int) time.Duration { return time.Duration(n) * time.Millisecond }
 	return config{
-		listen:        *listen,
-		upstream:      *upstream,
-		idleTimeout:   ms(*idleMs),
-		headerTimeout: ms(*headerMs),
-		upstreamIdle:  ms(*upstreamIdleMs),
+		listen:         *listen,
+		upstream:       *upstream,
+		idleTimeout:    ms(*idleMs),
+		headerTimeout:  ms(*headerMs),
+		requestTimeout: ms(*requestMs),
+		upstreamIdle:   ms(*upstreamIdleMs),
 	}, nil
 }
 
@@ -97,7 +106,7 @@ func main() {
 	}
 	addr := ln.Addr().(*net.TCPAddr)
 
-	srv := newServer(newProxy(cfg.upstream, addr, cfg.upstreamIdle), cfg.idleTimeout, cfg.headerTimeout)
+	srv := newServer(newProxy(cfg.upstream, addr, cfg.upstreamIdle), cfg.idleTimeout, cfg.headerTimeout, cfg.requestTimeout)
 
 	fmt.Printf("NEXT_FRONT_READY %d\n", addr.Port)
 
@@ -122,15 +131,24 @@ func main() {
 	<-stopped
 }
 
-// newServer is the public server. Keep-alive and request headers are the only
-// things it times out, so long responses and uploads stream unbounded, as in
-// Node.
-func newServer(handler http.Handler, idleTimeout, headerTimeout time.Duration) *http.Server {
+// newServer is the public server. It times out what Node times out: idle
+// keep-alive connections, request headers, and whole requests. Responses
+// aren't limited, so long streams aren't cut off, as in Node.
+func newServer(handler http.Handler, idleTimeout, headerTimeout, requestTimeout time.Duration) *http.Server {
 	return &http.Server{
 		Handler:           handler,
 		IdleTimeout:       idleTimeout,
 		ReadHeaderTimeout: headerTimeout,
-		ErrorLog:          log.New(os.Stderr, "next-front: ", 0),
+		// Reading a request, body included, must finish within Node's
+		// requestTimeout. Go clears the deadline when a connection is taken
+		// over (WebSocket upgrades, writeCustomStatusLine), so those aren't
+		// cut off.
+		ReadTimeout: requestTimeout,
+		// Go's server answers "OPTIONS *" itself by default, reading the body
+		// with no deadline and never calling the handler. Forward it to Node
+		// instead, as without the front.
+		DisableGeneralOptionsHandler: true,
+		ErrorLog:                     log.New(os.Stderr, "next-front: ", 0),
 	}
 }
 

@@ -281,7 +281,7 @@ func TestClosesAConnectionWhoseHeadersNeverFinish(t *testing.T) {
 	}
 	upstreamHit := make(chan struct{}, 1)
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { upstreamHit <- struct{}{} })
-	front := newServer(handler, 5*time.Second, 200*time.Millisecond)
+	front := newServer(handler, 5*time.Second, 200*time.Millisecond, 0)
 	go front.Serve(ln)
 	t.Cleanup(func() { front.Close() })
 
@@ -310,12 +310,12 @@ func TestClosesAConnectionWhoseHeadersNeverFinish(t *testing.T) {
 }
 
 func TestRequiresEveryFlag(t *testing.T) {
-	full := []string{"--listen", ":0", "--upstream", "127.0.0.1:1", "--idle-timeout-ms", "65000", "--header-timeout-ms", "60000", "--upstream-idle-ms", "4000"}
+	full := []string{"--listen", ":0", "--upstream", "127.0.0.1:1", "--idle-timeout-ms", "65000", "--header-timeout-ms", "60000", "--request-timeout-ms", "300000", "--upstream-idle-ms", "4000"}
 	cfg, err := parseConfig(full)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.idleTimeout != 65*time.Second || cfg.headerTimeout != 60*time.Second || cfg.upstreamIdle != 4*time.Second {
+	if cfg.idleTimeout != 65*time.Second || cfg.headerTimeout != 60*time.Second || cfg.requestTimeout != 300*time.Second || cfg.upstreamIdle != 4*time.Second {
 		t.Errorf("parsed %+v", cfg)
 	}
 	for i := 0; i < len(full); i += 2 {
@@ -324,5 +324,70 @@ func TestRequiresEveryFlag(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), full[i]) {
 			t.Errorf("without %s: err = %v, want it named", full[i], err)
 		}
+	}
+}
+
+// startServedProxy runs newServer and newProxy as main does, in front of an
+// upstream that records the request target and method it receives.
+func startServedProxy(t *testing.T, requestTimeout time.Duration) (string, <-chan string) {
+	t.Helper()
+	seen := make(chan string, 16)
+	upstream := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Method + " " + r.RequestURI
+		io.Copy(io.Discard, r.Body)
+	}))
+	// The stand-in for Node is a Go server too: let it pass "OPTIONS *" to
+	// the handler, as Node does.
+	upstream.Config.DisableGeneralOptionsHandler = true
+	upstream.Start()
+	t.Cleanup(upstream.Close)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second)
+	front := newServer(handler, 5*time.Second, 5*time.Second, requestTimeout)
+	go front.Serve(ln)
+	t.Cleanup(func() { front.Close() })
+	return ln.Addr().String(), seen
+}
+
+func TestForwardsOptionsStarToNode(t *testing.T) {
+	addr, seen := startServedProxy(t, 0)
+	rawRoundTrip(t, addr, "OPTIONS * HTTP/1.1\r\nHost: shop.example.com\r\nConnection: close\r\n\r\n")
+	select {
+	case got := <-seen:
+		if got != "OPTIONS *" {
+			t.Errorf("upstream got %q, want %q", got, "OPTIONS *")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("OPTIONS * never reached the upstream")
+	}
+}
+
+func TestClosesARequestWhoseBodyNeverFinishes(t *testing.T) {
+	for _, head := range []string{
+		"OPTIONS * HTTP/1.1",
+		"POST /upload HTTP/1.1",
+	} {
+		t.Run(head, func(t *testing.T) {
+			addr, _ := startServedProxy(t, 300*time.Millisecond)
+			conn, err := net.Dial("tcp", addr)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer conn.Close()
+			// Headers announce a 10-byte body; only 1 byte ever comes.
+			io.WriteString(conn, head+"\r\nHost: shop.example.com\r\nContent-Length: 10\r\n\r\nx")
+
+			conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+			start := time.Now()
+			if _, err := io.ReadAll(conn); err != nil {
+				t.Fatalf("connection not closed by the server: %v", err)
+			}
+			if elapsed := time.Since(start); elapsed > 3*time.Second {
+				t.Errorf("closed after %v, want about the 300ms request timeout", elapsed)
+			}
+		})
 	}
 }

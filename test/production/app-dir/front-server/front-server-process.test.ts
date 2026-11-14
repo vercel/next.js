@@ -327,11 +327,11 @@ describe('front-server process', () => {
         '-p',
         `${await frontOf(child.pid!)}`,
       ])
-      // --keepAliveTimeout for clients; Node's own headersTimeout (60 s) and
-      // keepAliveTimeout (5 s, minus a second for the pool), which Next.js
-      // leaves at Node's defaults.
+      // --keepAliveTimeout for clients; Node's own headersTimeout (60 s),
+      // requestTimeout (300 s) and keepAliveTimeout (5 s, minus a second for
+      // the pool), which Next.js leaves at Node's defaults.
       expect(stdout).toContain(
-        '--idle-timeout-ms 65000 --header-timeout-ms 60000 --upstream-idle-ms 4000'
+        '--idle-timeout-ms 65000 --header-timeout-ms 60000 --request-timeout-ms 300000 --upstream-idle-ms 4000'
       )
     })
 

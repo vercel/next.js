@@ -62,12 +62,13 @@ export async function startFrontServer(
         privatePort: privateServer.port,
         // Every value the front uses comes from Node, so it has no defaults
         // of its own: client keep-alive as without the front (--keepAliveTimeout
-        // or Node's), Node's header timeout, and a pool idle time a second
-        // below Node's keep-alive, so the front never sends a request on a
-        // connection Node is closing.
+        // or Node's), Node's header and request timeouts, and a pool idle time
+        // a second below Node's keep-alive, so the front never sends a request
+        // on a connection Node is closing.
         idleTimeoutMs:
           options.keepAliveTimeout ?? privateServer.keepAliveTimeout,
         headerTimeoutMs: privateServer.headersTimeout,
+        requestTimeoutMs: privateServer.requestTimeout,
         upstreamIdleMs: privateServer.keepAliveTimeout - 1000,
       }),
   })
@@ -81,6 +82,7 @@ function spawnFront(
     privatePort: number
     idleTimeoutMs: number
     headerTimeoutMs: number
+    requestTimeoutMs: number
     upstreamIdleMs: number
   }
 ): Promise<PublicServer> {
@@ -96,6 +98,8 @@ function spawnFront(
       String(options.idleTimeoutMs),
       '--header-timeout-ms',
       String(options.headerTimeoutMs),
+      '--request-timeout-ms',
+      String(options.requestTimeoutMs),
       '--upstream-idle-ms',
       String(options.upstreamIdleMs),
     ],
