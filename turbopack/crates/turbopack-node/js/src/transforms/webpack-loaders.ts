@@ -162,7 +162,8 @@ const transform = (
   loaders: LoaderConfig[],
   target: string,
   mode: 'development' | 'production',
-  sourceMap: boolean
+  sourceMap: boolean,
+  inputSourceMap: Record<string, unknown> | null
 ) => {
   return new Promise((resolve, reject) => {
     const resource = pathResolve(contextDir, name)
@@ -571,13 +572,20 @@ const transform = (
           }),
           options: loader.options,
         })),
-        readResource: (_filename, callback) => {
+        readResource: (
+          _filename,
+          callback: (
+            error: NodeJS.ErrnoException | null,
+            data: Buffer,
+            sourceMap?: Record<string, unknown> | null
+          ) => void
+        ) => {
           // TODO assuming that filename === resource, but loaders might change that
           let data =
             typeof content === 'string'
               ? Buffer.from(content, 'utf-8')
               : Buffer.from(content.binary, 'base64')
-          callback(null, data)
+          callback(null, data, inputSourceMap ?? undefined)
         },
       },
       (err, result) => {
