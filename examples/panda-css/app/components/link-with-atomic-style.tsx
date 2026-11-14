@@ -11,13 +11,13 @@ const styles = css({
 
 /**
  * Link with atomic styles
- * @see https://panda-css.com/docs/concepts/writing-styles#atomic-styles
+ * @see https://panda-css.com/docs/styling/writing-styles#atomic-styles
  */
 export default function LinkWithAtomicStyle() {
   return (
     <a
       className={styles}
-      href="https://panda-css.com/docs/concepts/writing-styles#atomic-styles"
+      href="https://panda-css.com/docs/styling/writing-styles#atomic-styles"
       target="_blank"
       rel="noreferrer"
     >
