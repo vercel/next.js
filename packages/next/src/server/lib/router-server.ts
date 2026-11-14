@@ -1087,6 +1087,9 @@ export async function initialize(opts: {
         if (err instanceof DecodeError) {
           invokePath = '/400'
           invokeStatus = '400'
+        } else if (err instanceof NoFallbackError) {
+          invokePath = '/404'
+          invokeStatus = '404'
         } else if (isModuleBuildError(err)) {
           // Webpack compilation failures may bubble out of invokeRender. Log
           // the readable diagnostic without printing the wrapper stack again.
