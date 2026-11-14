@@ -97,4 +97,21 @@ describe('Image rendering', () => {
     expect($2('noscript').length).toBe(0)
     expect($3('noscript').length).toBe(0)
   })
+
+  it('should handle priority images correctly', async () => {
+    const element = React.createElement(Image, {
+      alt: 'priority image',
+      src: '/test.png',
+      width: 100,
+      height: 100,
+      priority: true,
+    })
+    const html = ReactDOMServer.renderToString(element)
+    const $ = cheerio.load(html)
+    const img = $('img')
+    expect(img.length).toBe(1)
+    expect(img.attr('src')).toBe('/_next/image?url=%2Ftest.png&w=256&q=75')
+    // Priority images should not have loading="lazy"
+    expect(img.attr('loading')).toBeUndefined()
+  })
 })
