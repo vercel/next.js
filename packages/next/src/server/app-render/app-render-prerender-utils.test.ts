@@ -1,5 +1,8 @@
 import { PassThrough } from 'node:stream'
-import { ReplayableNodeStream } from './app-render-prerender-utils'
+import {
+  ReactServerPrerenderResult,
+  ReplayableNodeStream,
+} from './app-render-prerender-utils'
 
 function collectBytes(
   stream: import('node:stream').Readable
@@ -387,6 +390,90 @@ describe('ReplayableNodeStream', () => {
         [1, 2],
         [3, 4],
       ])
+    })
+  })
+})
+
+describe('ReactServerPrerenderResult', () => {
+  describe('asUnclosingStream', () => {
+    const chunks = () => [new Uint8Array([1, 2]), new Uint8Array([3])]
+
+    it('stays open after the last chunk until the signal is aborted', async () => {
+      const controller = new AbortController()
+      const result = new ReactServerPrerenderResult(chunks())
+      const reader = result.asUnclosingStream(controller.signal).getReader()
+
+      expect(await reader.read()).toEqual({
+        done: false,
+        value: new Uint8Array([1, 2]),
+      })
+      expect(await reader.read()).toEqual({
+        done: false,
+        value: new Uint8Array([3]),
+      })
+
+      let settled = false
+      const read = reader.read().finally(() => {
+        settled = true
+      })
+      await tick()
+      expect(settled).toBe(false)
+
+      // No read may be left pending once the signal is aborted.
+      controller.abort()
+      expect(await read).toEqual({ done: true, value: undefined })
+    })
+
+    it('delivers every chunk when the signal is aborted before they are read', async () => {
+      const controller = new AbortController()
+      const result = new ReactServerPrerenderResult(chunks())
+      const reader = result.asUnclosingStream(controller.signal).getReader()
+      controller.abort()
+
+      expect(await reader.read()).toEqual({
+        done: false,
+        value: new Uint8Array([1, 2]),
+      })
+      expect(await reader.read()).toEqual({
+        done: false,
+        value: new Uint8Array([3]),
+      })
+      expect(await reader.read()).toEqual({ done: true, value: undefined })
+    })
+
+    it('delivers the last chunk when the signal is aborted while it is queued', async () => {
+      const controller = new AbortController()
+      const result = new ReactServerPrerenderResult(chunks())
+      const reader = result.asUnclosingStream(controller.signal).getReader()
+
+      expect(await reader.read()).toEqual({
+        done: false,
+        value: new Uint8Array([1, 2]),
+      })
+      // Let the stream pull the last chunk into its queue.
+      await tick()
+      controller.abort()
+
+      expect(await reader.read()).toEqual({
+        done: false,
+        value: new Uint8Array([3]),
+      })
+      expect(await reader.read()).toEqual({ done: true, value: undefined })
+    })
+
+    it('closes after the last chunk when the signal is already aborted', async () => {
+      const result = new ReactServerPrerenderResult(chunks())
+      const reader = result.asUnclosingStream(AbortSignal.abort()).getReader()
+
+      expect(await reader.read()).toEqual({
+        done: false,
+        value: new Uint8Array([1, 2]),
+      })
+      expect(await reader.read()).toEqual({
+        done: false,
+        value: new Uint8Array([3]),
+      })
+      expect(await reader.read()).toEqual({ done: true, value: undefined })
     })
   })
 })
