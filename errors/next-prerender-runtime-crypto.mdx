@@ -21,7 +21,7 @@ Before:
 ```jsx filename="app/page.js"
 export const prefetch = 'partial'
 
-async function getCachedData(token: string, userId: string) {
+async function getCachedData(token, userId) {
   "use cache"
   return db.query(token, userId, ...)
 }
@@ -39,7 +39,7 @@ After:
 ```jsx filename="app/page.js"
 export const prefetch = 'partial'
 
-async function getCachedData(userId: string) {
+async function getCachedData(userId) {
   "use cache"
   const token = crypto.randomUUID()
   return db.query(token, userId, ...)

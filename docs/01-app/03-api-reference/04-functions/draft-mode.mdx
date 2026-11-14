@@ -10,7 +10,7 @@ related:
 
 `draftMode` is an **async** function allows you to enable and disable [Draft Mode](/docs/app/guides/draft-mode), as well as check if Draft Mode is enabled in a [Server Component](/docs/app/getting-started/server-and-client-components).
 
-```tsx filename="app/page.ts" switcher
+```tsx filename="app/page.tsx" switcher
 import { draftMode } from 'next/headers'
 
 export default async function Page() {
@@ -104,7 +104,7 @@ Then, send a request to invoke the Route Handler. If calling the route using the
 
 You can check if Draft Mode is enabled in a Server Component with the `isEnabled` property:
 
-```tsx filename="app/page.ts" switcher
+```tsx filename="app/page.tsx" switcher
 import { draftMode } from 'next/headers'
 
 export default async function Page() {
