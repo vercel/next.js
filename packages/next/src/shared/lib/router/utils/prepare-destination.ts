@@ -124,11 +124,13 @@ export function matchHas(
   return false
 }
 
-export function compileNonPath(value: string, params: Params): string {
-  if (!value.includes(':')) {
-    return value
-  }
-
+/**
+ * Escapes the path-to-regexp pattern characters in a non-path value (query
+ * value or hash) so that only the `:param` references (and their modifiers)
+ * are interpreted as patterns, e.g. `?` in `#/login?return=:slug` stays a
+ * literal `?` while `:slug` is still compiled.
+ */
+function escapeNonPathPattern(value: string, params: Params): string {
   for (const key of Object.keys(params)) {
     if (value.includes(`:${key}`)) {
       value = value
@@ -147,16 +149,24 @@ export function compileNonPath(value: string, params: Params): string {
         )
     }
   }
-  value = value
+  return value
     .replace(/(:|\*|\?|\+|\(|\)|\{|\})/g, '\\$1')
     .replace(/--ESCAPED_PARAM_PLUS/g, '+')
     .replace(/--ESCAPED_PARAM_COLON/g, ':')
     .replace(/--ESCAPED_PARAM_QUESTION/g, '?')
     .replace(/--ESCAPED_PARAM_ASTERISKS/g, '*')
+}
+
+export function compileNonPath(value: string, params: Params): string {
+  if (!value.includes(':')) {
+    return value
+  }
 
   // the value needs to start with a forward-slash to be compiled
   // correctly
-  return safeCompile(`/${value}`, { validate: false })(params).slice(1)
+  return safeCompile(`/${escapeNonPathPattern(value, params)}`, {
+    validate: false,
+  })(params).slice(1)
 }
 
 export function parseDestination(args: {
@@ -228,17 +238,22 @@ export function prepareDestination(args: {
     search: destSearch,
   } = parsedDestination
 
-  // The following code assumes that the pathname here includes the hash if it's
-  // present.
-  let destPath = parsedDestination.pathname
-  if (parsedDestination.hash) {
-    destPath = `${destPath}${parsedDestination.hash}`
-  }
+  const destPath = parsedDestination.pathname
+  const destHash = parsedDestination.hash
 
   const destParams: (string | number)[] = []
 
   const destPathParamKeys: Key[] = []
   safePathToRegexp(destPath, destPathParamKeys)
+  if (destHash && destHash.includes(':')) {
+    // The hash may reference params (`#:section`) but is not a path: `?`,
+    // `(`, `)` etc. in it must stay literal instead of being parsed as
+    // path-to-regexp modifiers, so it's handled like a query value.
+    safePathToRegexp(
+      `/${escapeNonPathPattern(destHash, args.params)}`,
+      destPathParamKeys
+    )
+  }
   for (const key of destPathParamKeys) {
     destParams.push(key.name)
   }
@@ -322,14 +337,15 @@ export function prepareDestination(args: {
   }
 
   try {
-    newUrl = destPathCompiler(args.params)
+    const pathname = destPathCompiler(args.params)
+    const hash = destHash ? compileNonPath(destHash, args.params) : ''
+    newUrl = `${pathname}${hash}`
 
-    const [pathname, hash] = newUrl.split('#', 2)
     if (destHostnameCompiler) {
       parsedDestination.hostname = destHostnameCompiler(args.params)
     }
     parsedDestination.pathname = pathname
-    parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`
+    parsedDestination.hash = hash
     parsedDestination.search = destSearch
       ? compileNonPath(destSearch, args.params)
       : ''

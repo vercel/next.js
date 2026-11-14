@@ -124,7 +124,7 @@ export async function unstable_getResponseFromNextConfig({
     if (!params) {
       return
     }
-    const { newUrl, parsedDestination } = prepareDestination({
+    const { parsedDestination } = prepareDestination({
       appendParamsToQuery: false,
       destination: route.destination,
       params,
@@ -133,8 +133,9 @@ export async function unstable_getResponseFromNextConfig({
     const searchParams = new URLSearchParams(
       parsedUrlQueryToParams(parsedDestination.query) as Record<string, string>
     )
+    const search = searchParams.size > 0 ? `?${searchParams.toString()}` : ''
     return new URL(
-      searchParams.size > 0 ? `${newUrl}?${searchParams.toString()}` : newUrl,
+      `${parsedDestination.pathname}${search}${parsedDestination.hash}`,
       parsedDestination.hostname
         ? `${parsedDestination.protocol}//${parsedDestination.hostname}`
         : parsed.origin

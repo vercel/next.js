@@ -70,6 +70,48 @@ describe('config-testing-utils', () => {
       )
     })
 
+    it('handles redirect with a hash containing query-like characters', async () => {
+      const response = await unstable_getResponseFromNextConfig({
+        url: 'https://nextjs.org/test/foo',
+        nextConfig: {
+          async redirects() {
+            return [
+              {
+                source: '/test/:slug',
+                destination: 'https://example.com/#/login?return=:slug',
+                permanent: false,
+              },
+            ]
+          },
+        },
+      })
+      expect(response.status).toEqual(307)
+      expect(response.headers.get('location')).toEqual(
+        'https://example.com/#/login?return=foo'
+      )
+    })
+
+    it('handles redirect with query params and a hash', async () => {
+      const response = await unstable_getResponseFromNextConfig({
+        url: 'https://nextjs.org/test/foo',
+        nextConfig: {
+          async redirects() {
+            return [
+              {
+                source: '/test/:slug',
+                destination: '/test2?slug=:slug#details',
+                permanent: false,
+              },
+            ]
+          },
+        },
+      })
+      expect(response.status).toEqual(307)
+      expect(response.headers.get('location')).toEqual(
+        'https://nextjs.org/test2?slug=foo#details'
+      )
+    })
+
     it("ignores redirect that doesn't match has", async () => {
       const response = await unstable_getResponseFromNextConfig({
         url: 'https://nextjs.org/test/foo',
