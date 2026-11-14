@@ -1,8 +1,9 @@
 // This script must be run with tsx
 
 import { spawn } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { once } from 'node:events'
-import { existsSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { access, copyFile, mkdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
@@ -60,6 +61,21 @@ type RequestSample = {
   ttfbMs: number
 }
 
+// How to request a route when a plain GET is not enough. Read from
+// `<app-dir>/bench-requests.json`, keyed by route. Route handlers need
+// this: a POST body, or the header and cookie a handler reads.
+type RequestShape = {
+  query?: string
+  method?: string
+  headers?: Record<string, string>
+  body?: unknown
+}
+
+type RequestTarget = {
+  url: string
+  init: { method?: string; headers?: Record<string, string>; body?: string }
+}
+
 type FullRoutePhaseResult = {
   mode: StreamMode
   route: string
@@ -68,14 +84,21 @@ type FullRoutePhaseResult = {
   errors: number
   concurrency: number
   throughputRps: number
+  // CPU time the server process spent in this phase (all threads, read
+  // from /proc; absent off Linux). Per request it measures server cost
+  // even when the load generator, not the server, limits throughput.
+  serverCpuMs?: number
   // Null when every request in the phase failed.
   latency: BenchStats | null
   ttfb: BenchStats | null
 }
 
-// Byte composition of one route's HTML document. Bytes are uncompressed
+// Byte composition of one route's response. Bytes are uncompressed
 // (undici decompresses before we see the body). Flight bytes are the
-// contents of inline `self.__next_f.push(...)` scripts.
+// contents of inline `self.__next_f.push(...)` scripts. Responses that
+// are not HTML (route handlers) carry no Flight data; they report their
+// content type and a body hash instead, so two builds can be checked
+// for identical output.
 type RouteDocumentInfo = {
   route: string
   bytes: number
@@ -83,6 +106,8 @@ type RouteDocumentInfo = {
   inlineFlightBytes: number
   inlineFlightShare: number
   inlineFlightScripts: number
+  contentType?: string
+  bodySha256?: string
 }
 
 type FullRunResult = {
@@ -293,8 +318,49 @@ async function ensureNextBuilt() {
   }
 }
 
+const requestShapesByAppDir = new Map<string, Record<string, RequestShape>>()
+
+function requestTarget(options: CliOptions, route: string): RequestTarget {
+  let shapes = requestShapesByAppDir.get(options.appDir)
+  if (!shapes) {
+    const shapesPath = resolve(options.appDir, 'bench-requests.json')
+    shapes = existsSync(shapesPath)
+      ? (JSON.parse(readFileSync(shapesPath, 'utf8')) as Record<
+          string,
+          RequestShape
+        >)
+      : {}
+    requestShapesByAppDir.set(options.appDir, shapes)
+  }
+  const shape = shapes[route] ?? {}
+  return {
+    url: `http://127.0.0.1:${options.port}${route}${shape.query ? `?${shape.query}` : ''}`,
+    init: {
+      method: shape.method,
+      headers: shape.headers,
+      body: shape.body === undefined ? undefined : JSON.stringify(shape.body),
+    },
+  }
+}
+
+// Total CPU time of a process across its threads, in milliseconds.
+function readProcessCpuMs(pid: number | undefined): number | undefined {
+  if (pid === undefined) return undefined
+  try {
+    let ns = 0
+    for (const tid of readdirSync(`/proc/${pid}/task`)) {
+      ns += Number(
+        readFileSync(`/proc/${pid}/task/${tid}/schedstat`, 'utf8').split(' ')[0]
+      )
+    }
+    return Number.isFinite(ns) ? ns / 1e6 : undefined
+  } catch {
+    return undefined
+  }
+}
+
 async function waitForServerReady(
-  url: string,
+  target: RequestTarget,
   timeoutMs: number,
   serverDied?: () => boolean
 ): Promise<void> {
@@ -310,7 +376,10 @@ async function waitForServerReady(
       )
     }
     try {
-      const response = await fetch(url, { cache: 'no-store' })
+      const response = await fetch(target.url, {
+        ...target.init,
+        cache: 'no-store',
+      })
       await response.arrayBuffer()
       if (response.ok) return
     } catch {
@@ -350,7 +419,7 @@ async function assertPortFree(port: number): Promise<void> {
 // Reads the body as a stream so TTFB (first body chunk) can be observed
 // separately from total latency. Byte counts are of the decompressed body.
 async function measureRequest(
-  url: string,
+  target: RequestTarget,
   timeoutMs: number
 ): Promise<RequestSample> {
   const controller = new AbortController()
@@ -358,13 +427,14 @@ async function measureRequest(
 
   try {
     const start = performance.now()
-    const response = await fetch(url, {
+    const response = await fetch(target.url, {
+      ...target.init,
       cache: 'no-store',
       signal: controller.signal,
     })
     if (!response.ok) {
       await response.arrayBuffer().catch(() => undefined)
-      throw new Error(`Request failed (${response.status}) for ${url}`)
+      throw new Error(`Request failed (${response.status}) for ${target.url}`)
     }
     let ttfbMs = -1
     if (response.body) {
@@ -386,7 +456,7 @@ async function measureRequest(
 // Tolerates individual request failures (like the load phase) so one
 // transient error costs one sample, not the whole run's results.
 async function runSerialRequests(
-  url: string,
+  target: RequestTarget,
   count: number,
   timeoutMs: number
 ): Promise<{ samples: RequestSample[]; errors: number }> {
@@ -394,7 +464,7 @@ async function runSerialRequests(
   let errors = 0
   for (let i = 0; i < count; i++) {
     try {
-      samples.push(await measureRequest(url, timeoutMs))
+      samples.push(await measureRequest(target, timeoutMs))
     } catch {
       errors++
     }
@@ -403,23 +473,37 @@ async function runSerialRequests(
 }
 
 async function inspectRouteDocument(
-  url: string,
+  target: RequestTarget,
   route: string,
   timeoutMs: number
 ): Promise<RouteDocumentInfo> {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), timeoutMs)
   try {
-    const response = await fetch(url, {
+    const response = await fetch(target.url, {
+      ...target.init,
       cache: 'no-store',
       signal: controller.signal,
     })
     const text = await response.text()
     if (!response.ok) {
-      throw new Error(`Request failed (${response.status}) for ${url}`)
+      throw new Error(`Request failed (${response.status}) for ${target.url}`)
     }
     const bytes = Buffer.byteLength(text)
     const gzipBytes = zlib.gzipSync(text).byteLength
+    const contentType = response.headers.get('content-type') ?? ''
+    if (!contentType.startsWith('text/html')) {
+      return {
+        route,
+        bytes,
+        gzipBytes,
+        inlineFlightBytes: 0,
+        inlineFlightShare: 0,
+        inlineFlightScripts: 0,
+        contentType,
+        bodySha256: createHash('sha256').update(text).digest('hex'),
+      }
+    }
     let inlineFlightBytes = 0
     let inlineFlightScripts = 0
     // Inline Flight scripts can carry attributes (e.g. a CSP nonce), so
@@ -460,7 +544,7 @@ async function inspectRouteDocument(
 // because slow requests reduce back-pressure instead of queuing. Do not compare
 // absolute latency values from this benchmark to open-loop tools (k6, wrk2).
 async function runConcurrentRequests(
-  url: string,
+  target: RequestTarget,
   totalRequests: number,
   concurrency: number,
   timeoutMs: number
@@ -475,7 +559,7 @@ async function runConcurrentRequests(
       index++
       if (current >= totalRequests) return
       try {
-        samples.push(await measureRequest(url, timeoutMs))
+        samples.push(await measureRequest(target, timeoutMs))
       } catch {
         errors++
       }
@@ -512,7 +596,11 @@ function printFullResults(label: string, results: FullRunResult[]) {
       const document = result.routeDocuments.find(
         (entry) => entry.route === route
       )
-      if (document) {
+      if (document?.bodySha256) {
+        console.log(
+          `    body ${formatKb(document.bytes)} gzip=${formatKb(document.gzipBytes)} ${document.contentType} sha256=${document.bodySha256.slice(0, 16)}`
+        )
+      } else if (document) {
         console.log(
           `    document ${formatKb(document.bytes)} gzip=${formatKb(document.gzipBytes)} flight=${formatKb(document.inlineFlightBytes)} (${(document.inlineFlightShare * 100).toFixed(1)}%, ${document.inlineFlightScripts} inline scripts)`
         )
@@ -535,6 +623,11 @@ function printFullResults(label: string, results: FullRunResult[]) {
         console.log(
           `      ttfb median=${entry.ttfb.median.toFixed(2)}ms p95=${entry.ttfb.p95.toFixed(2)}ms`
         )
+        if (entry.serverCpuMs !== undefined) {
+          console.log(
+            `      server cpu=${((entry.serverCpuMs * 1000) / entry.requests).toFixed(1)}us/request`
+          )
+        }
       }
     }
   }
@@ -593,7 +686,7 @@ async function gracefulKill(server: ReturnType<typeof spawn>) {
 }
 
 async function runWarmup(
-  url: string,
+  target: RequestTarget,
   batchSize: number,
   untilStable: boolean,
   timeoutMs: number,
@@ -606,7 +699,7 @@ async function runWarmup(
 
   for (let batch = 0; batch < (untilStable ? maxBatches : 1); batch++) {
     const { samples, errors } = await runSerialRequests(
-      url,
+      target,
       batchSize,
       timeoutMs
     )
@@ -645,7 +738,8 @@ async function runWarmup(
 async function runRoutePhases(
   options: CliOptions,
   mode: StreamMode,
-  label: string
+  label: string,
+  serverPid: number | undefined
 ): Promise<{
   routeResults: FullRoutePhaseResult[]
   routeDocuments: RouteDocumentInfo[]
@@ -653,15 +747,22 @@ async function runRoutePhases(
   const routeResults: FullRoutePhaseResult[] = []
   const routeDocuments: RouteDocumentInfo[] = []
 
+  const cpuMsSince = (before: number | undefined) => {
+    const after = readProcessCpuMs(serverPid)
+    return before === undefined || after === undefined
+      ? undefined
+      : after - before
+  }
+
   for (const route of options.routes) {
-    const url = `http://127.0.0.1:${options.port}${route}`
+    const target = requestTarget(options, route)
 
     const warmupLabel = `${label}/${mode} route ${route}`
     console.log(
       `[${label}/${mode}] route ${route}: warmup (batch=${options.warmupRequests}, untilStable=${options.warmupUntilStable})`
     )
     await runWarmup(
-      url,
+      target,
       options.warmupRequests,
       options.warmupUntilStable,
       options.timeoutMs,
@@ -672,17 +773,19 @@ async function runRoutePhases(
     // deterministic per build, so a single sample suffices and the text
     // scan never contaminates latency measurements.
     routeDocuments.push(
-      await inspectRouteDocument(url, route, options.timeoutMs)
+      await inspectRouteDocument(target, route, options.timeoutMs)
     )
 
     console.log(`[${label}/${mode}] route ${route}: single-client phase`)
+    const serialCpuStart = readProcessCpuMs(serverPid)
     const serialStart = performance.now()
     const serialResult = await runSerialRequests(
-      url,
+      target,
       options.serialRequests,
       options.timeoutMs
     )
     const serialDurationMs = performance.now() - serialStart
+    const serialCpuMs = cpuMsSince(serialCpuStart)
     if (serialResult.errors > 0) {
       console.warn(
         `[${label}/${mode}] route ${route}: ${serialResult.errors}/${options.serialRequests} serial requests failed`
@@ -696,19 +799,22 @@ async function runRoutePhases(
       errors: serialResult.errors,
       concurrency: 1,
       throughputRps: options.serialRequests / (serialDurationMs / 1000),
+      serverCpuMs: serialCpuMs,
       latency: computeStats(serialResult.samples.map((s) => s.totalMs)),
       ttfb: computeStats(serialResult.samples.map((s) => s.ttfbMs)),
     })
 
     console.log(`[${label}/${mode}] route ${route}: under-load phase`)
+    const loadCpuStart = readProcessCpuMs(serverPid)
     const loadStart = performance.now()
     const loadResult = await runConcurrentRequests(
-      url,
+      target,
       options.loadRequests,
       options.loadConcurrency,
       options.timeoutMs
     )
     const loadDurationMs = performance.now() - loadStart
+    const loadCpuMs = cpuMsSince(loadCpuStart)
     if (loadResult.errors > 0) {
       console.warn(
         `[${label}/${mode}] route ${route}: ${loadResult.errors}/${options.loadRequests} requests failed`
@@ -722,6 +828,7 @@ async function runRoutePhases(
       errors: loadResult.errors,
       concurrency: options.loadConcurrency,
       throughputRps: options.loadRequests / (loadDurationMs / 1000),
+      serverCpuMs: loadCpuMs,
       latency: computeStats(loadResult.samples.map((s) => s.totalMs)),
       ttfb: computeStats(loadResult.samples.map((s) => s.ttfbMs)),
     })
@@ -763,12 +870,12 @@ async function runMinimalServerSession(
     })
 
     await waitForServerReady(
-      `http://127.0.0.1:${options.port}${routeSubset.routes[0]}`,
+      requestTarget(options, routeSubset.routes[0]),
       options.timeoutMs,
       spawnedServerDied(server)
     )
 
-    return await runRoutePhases(routeSubset, mode, 'minimal-server')
+    return await runRoutePhases(routeSubset, mode, 'minimal-server', server.pid)
   } finally {
     if (server) {
       await gracefulKill(server)
@@ -890,12 +997,12 @@ async function runE2EServerSession(
     })
 
     await waitForServerReady(
-      `http://127.0.0.1:${options.port}${routeSubset.routes[0]}`,
+      requestTarget(options, routeSubset.routes[0]),
       options.timeoutMs,
       spawnedServerDied(server)
     )
 
-    return await runRoutePhases(routeSubset, mode, 'e2e')
+    return await runRoutePhases(routeSubset, mode, 'e2e', server.pid)
   } finally {
     if (server) {
       await gracefulKill(server)
