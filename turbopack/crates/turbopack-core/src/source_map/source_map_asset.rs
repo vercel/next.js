@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
+    NonLocalValue, OrderedAutoSet, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
 };
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 
@@ -138,7 +138,7 @@ impl Introspectable for SourceMapAsset {
 
     #[turbo_tasks::function]
     fn children(&self) -> Result<Vc<IntrospectableChildren>> {
-        let mut children = FxIndexSet::default();
+        let mut children = OrderedAutoSet::default();
         if let Some(asset) =
             ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.generate_source_map)
         {

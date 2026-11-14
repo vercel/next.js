@@ -1,6 +1,6 @@
 use anyhow::Result;
 use either::Either;
-use turbo_tasks::{FixintU128, FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
+use turbo_tasks::{FixintU128, OrderedAutoMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItemExt, ModuleId},
     code_builder::Code,
@@ -39,9 +39,7 @@ impl EcmascriptChunkContentEntry {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct EcmascriptChunkContentEntries(
-    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<ModuleId, EcmascriptChunkContentEntry>,
-);
+pub struct EcmascriptChunkContentEntries(OrderedAutoMap<ModuleId, EcmascriptChunkContentEntry>);
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkContentEntries {
@@ -51,7 +49,7 @@ impl EcmascriptChunkContentEntries {
     ) -> Result<Vc<EcmascriptChunkContentEntries>> {
         let chunk_content = chunk_content.await?;
 
-        let entries: FxIndexMap<_, _> = chunk_content
+        let entries: OrderedAutoMap<_, _> = chunk_content
             .chunk_items
             .iter()
             .map(async |item| {

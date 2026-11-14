@@ -6,7 +6,7 @@ use itertools::Itertools;
 use next_core::app_structure::FileSystemPathVec;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    Completion, FxIndexMap, FxIndexSet, JoinIterExt, NonLocalValue, OperationVc, ResolvedVc,
+    Completion, FxIndexSet, JoinIterExt, NonLocalValue, OperationVc, OrderedAutoMap, ResolvedVc,
     TryJoinIterExt, Vc, debug::ValueDebugFormat,
 };
 use turbopack_core::{
@@ -361,7 +361,7 @@ pub enum EndpointOutputPaths {
 /// The routes as map from pathname to route. (pathname includes the leading
 /// slash)
 #[turbo_tasks::value(transparent)]
-pub struct Routes(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, Route>);
+pub struct Routes(OrderedAutoMap<RcStr, Route>);
 
 /// Accept endpoint output using the native compiler's live-input validation contract.
 /// JavaScript and edge output require no additional validation.

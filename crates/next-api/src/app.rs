@@ -41,7 +41,7 @@ use smallvec::smallvec;
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    Completion, NonLocalValue, OrderedAutoMap, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
     fxindexset,
 };
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, to_sys_path};
@@ -1832,9 +1832,9 @@ impl AppEndpoint {
 
         if emit_manifests != EmitManifests::None {
             let root_main_files_per_page = if page_hmr_chunks.is_empty() {
-                FxIndexMap::default()
+                OrderedAutoMap::default()
             } else {
-                let mut m = FxIndexMap::default();
+                let mut m = OrderedAutoMap::default();
                 m.insert(app_entry.original_name.clone(), page_hmr_chunks);
                 m
             };
@@ -1856,7 +1856,7 @@ impl AppEndpoint {
                 root_main_files_per_page,
                 pages_chunk_group_bootstrap_params: client_chunk_group_bootstrap_params
                     .map(|params| {
-                        let mut m = FxIndexMap::default();
+                        let mut m = OrderedAutoMap::default();
                         m.insert(app_entry.original_name.clone(), params);
                         m
                     })

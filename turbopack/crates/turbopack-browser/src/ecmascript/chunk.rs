@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{OrderedAutoSet, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -220,7 +220,7 @@ impl Introspectable for EcmascriptBrowserChunk {
 
     #[turbo_tasks::function]
     fn children(&self) -> Result<Vc<IntrospectableChildren>> {
-        let mut children = FxIndexSet::default();
+        let mut children = OrderedAutoSet::default();
         let chunk = ResolvedVc::upcast::<Box<dyn Introspectable>>(self.chunk);
         children.insert((rcstr!("chunk"), chunk));
         Ok(Vc::cell(children))

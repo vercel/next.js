@@ -3,8 +3,8 @@ use smallvec::SmallVec;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString,
-    ValueToStringRef, Vc,
+    FxIndexMap, FxIndexSet, OrderedAutoMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
+    ValueToString, ValueToStringRef, Vc,
 };
 use turbopack_core::{
     chunk::{ChunkGroupResult, ChunkingContext, availability_info::AvailabilityInfo},
@@ -172,15 +172,14 @@ fn client_references_by_server_component(
 
 #[turbo_tasks::value]
 pub struct ClientReferencesChunks {
-    #[bincode(with = "turbo_bincode::indexmap")]
     pub client_component_client_chunks:
-        FxIndexMap<ClientReferenceType, ResolvedVc<ChunkGroupResult>>,
-    #[bincode(with = "turbo_bincode::indexmap")]
+        OrderedAutoMap<ClientReferenceType, ResolvedVc<ChunkGroupResult>>,
     pub client_component_ssr_chunks:
-        FxIndexMap<ClientReferenceType, ResolvedVc<OutputAssetsWithReferenced>>,
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub layout_segment_client_chunks:
-        FxIndexMap<ResolvedVc<NextServerComponentModule>, ResolvedVc<OutputAssetsWithReferenced>>,
+        OrderedAutoMap<ClientReferenceType, ResolvedVc<OutputAssetsWithReferenced>>,
+    pub layout_segment_client_chunks: OrderedAutoMap<
+        ResolvedVc<NextServerComponentModule>,
+        ResolvedVc<OutputAssetsWithReferenced>,
+    >,
 }
 
 /// Computes all client references chunks.
@@ -282,7 +281,7 @@ pub async fn get_app_client_references_chunks(
             //             ssr_chunks.map(|ssr_chunks| (client_reference_ty, ssr_chunks))
             //         })
             //         .collect(),
-            //     layout_segment_client_chunks: FxIndexMap::default(),
+            //     layout_segment_client_chunks: OrderedAutoMap::default(),
             // }
             // .cell())
         } else {
@@ -301,9 +300,9 @@ pub async fn get_app_client_references_chunks(
             .resolved_cell();
             let mut current_ssr_chunk_group = ChunkGroupResult::empty_resolved();
 
-            let mut layout_segment_client_chunks = FxIndexMap::default();
-            let mut client_component_ssr_chunks = FxIndexMap::default();
-            let mut client_component_client_chunks = FxIndexMap::default();
+            let mut layout_segment_client_chunks = OrderedAutoMap::default();
+            let mut client_component_ssr_chunks = OrderedAutoMap::default();
+            let mut client_component_client_chunks = OrderedAutoMap::default();
 
             for (server_component, client_references) in
                 client_references_by_server_component.into_iter()

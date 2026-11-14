@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::Serialize;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TraitRef, Vc};
+use turbo_tasks::{FxIndexMap, NonLocalValue, OrderedAutoMap, ResolvedVc, TraitRef, Vc};
 use turbopack_core::{
     update_instruction::UpdateInstruction,
     version::{
@@ -58,7 +58,7 @@ pub enum ChunkUpdate {
 /// and node chunking contexts can share one implementation instead of each
 /// duplicating the merge-by-[`VersionedContentMerger`] logic.
 pub async fn update_chunk_list(
-    chunks_contents: &FxIndexMap<String, ResolvedVc<Box<dyn VersionedContent>>>,
+    chunks_contents: &OrderedAutoMap<String, ResolvedVc<Box<dyn VersionedContent>>>,
     to_version: Vc<ChunkListVersion>,
     from_version: ResolvedVc<Box<dyn Version>>,
 ) -> Result<Vc<Update>> {

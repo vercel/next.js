@@ -16,7 +16,7 @@ use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, Upcast, ValueToString, Vc,
+    NonLocalValue, OrderedAutoSet, ReadRef, ResolvedVc, Upcast, ValueToString, Vc,
     debug::ValueDebugFormat,
 };
 use turbo_tasks_hash::DeterministicHash;
@@ -522,11 +522,9 @@ pub struct ChunkGroupContentInner {
     /// As an optimization, we also keep track of the batch groups that were discovered.
     pub batch_groups: Vec<ResolvedVc<ModuleBatchGroup>>,
     /// The modules that were imported with ChunkingType::Async
-    #[bincode(with = "turbo_bincode::indexset")]
-    pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
+    pub async_modules: OrderedAutoSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     /// All modules that implement CollectingModule
-    #[bincode(with = "turbo_bincode::indexset")]
-    pub collecting_modules: FxIndexSet<ResolvedVc<Box<dyn CollectingModule>>>,
+    pub collecting_modules: OrderedAutoSet<ResolvedVc<Box<dyn CollectingModule>>>,
 }
 
 pub struct ChunkGroupContent {

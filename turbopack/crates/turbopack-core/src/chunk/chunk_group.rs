@@ -6,7 +6,9 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{FxIndexSet, JoinIterExt, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
+use turbo_tasks::{
+    FxIndexSet, JoinIterExt, OrderedAutoSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+};
 
 use super::{
     ChunkItemWithAsyncModuleInfo, ChunkingContext, availability_info::AvailabilityInfo,
@@ -305,15 +307,15 @@ async fn chunk_group_content_operation(
     struct TraverseState {
         unsorted_items: ModuleToChunkableMap,
         chunkable_items: FxIndexSet<ChunkableModuleOrBatch>,
-        async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
-        collecting_modules: FxIndexSet<ResolvedVc<Box<dyn CollectingModule>>>,
+        async_modules: OrderedAutoSet<ResolvedVc<Box<dyn ChunkableModule>>>,
+        collecting_modules: OrderedAutoSet<ResolvedVc<Box<dyn CollectingModule>>>,
     }
 
     let mut state = TraverseState {
         unsorted_items: FxHashMap::default(),
         chunkable_items: FxIndexSet::default(),
-        async_modules: FxIndexSet::default(),
-        collecting_modules: FxIndexSet::default(),
+        async_modules: OrderedAutoSet::default(),
+        collecting_modules: OrderedAutoSet::default(),
     };
 
     let chunk_group_info = module_graph.chunk_group_info();
