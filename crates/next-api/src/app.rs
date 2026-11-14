@@ -1788,8 +1788,6 @@ impl AppEndpoint {
         // Like the polyfill, this is a pre-compiled asset distributed as part of next and served
         // as-is rather than bundled with the framework. Keeping it small and independent lets it
         // reveal streamed Suspense boundaries before the framework loads or hydration begins.
-        // React only publishes it on the experimental channel, which
-        // `experimental.externalBrowserRuntime` opts into.
         let external_browser_runtime_output_asset =
             if matches!(this.ty, AppEndpointType::Page { .. })
                 && *project
@@ -1798,8 +1796,13 @@ impl AppEndpoint {
                     .await?
             {
                 let next_package = get_next_package(project.project_path().owned().await?).await?;
+                let react_channel = if *project.next_config().use_react_experimental().await? {
+                    "-experimental"
+                } else {
+                    ""
+                };
                 let external_browser_runtime_source = FileSource::new(next_package.join(
-                    "dist/compiled/react-dom-experimental/unstable_server-external-runtime.js",
+                    &format!("dist/compiled/next-external-runtime{react_channel}.js"),
                 )?);
 
                 let external_browser_runtime_output_asset = ResolvedVc::upcast(

@@ -207,11 +207,9 @@ describe('external-browser-runtime', () => {
       })
     )
 
-    // `installFizzInstrObserver` is the runtime's entry point: it attaches the
-    // MutationObserver that picks up React's `<template data-r*i>` elements.
-    const runtimes = responses.filter((r) =>
-      r.body.includes('installFizzInstrObserver')
-    )
+    // The combined runtime consumes Next's inert icon instructions as well
+    // as React's Fizz instructions.
+    const runtimes = responses.filter((r) => r.body.includes('data-next-icon'))
     expect(runtimes).toHaveLength(1)
     expect(runtimes[0].status).toBe(200)
     expect($(`script[src="${runtimes[0].src}"]`).attr('crossorigin')).toBe(
