@@ -213,7 +213,7 @@ Both `layout.tsx` and `page.tsx` will be rendered when the user visits the root 
 
 > **Good to know**:
 >
-> - If you forget to create the root layout, Next.js will automatically create this file when running the development server with `next dev`.
+> - When using webpack, Next.js will automatically create the root layout if you forget it when running `next dev`. [Turbopack does not support automatic root layout creation](/docs/app/api-reference/turbopack#framework-and-react-features), so you must create the file manually.
 > - You can optionally use a [`src` folder](/docs/app/api-reference/file-conventions/src-folder) in the root of your project to separate your application's code from configuration files.
 
 </AppOnly>
