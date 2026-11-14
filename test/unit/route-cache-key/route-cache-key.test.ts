@@ -1,6 +1,7 @@
 import { createHash } from 'crypto'
 import {
   getResponseCacheOwner,
+  getRouteCacheBuildDirectory,
   getRouteCacheKey,
   isRouteCacheOwner,
 } from 'next/dist/server/lib/route-cache-key'
@@ -317,5 +318,16 @@ describe('prerender ownership without a cache-key manifest', () => {
         ['en', 'fr']
       )
     ).toBe(false)
+  })
+
+  it('gives each build and deployment its own runtime directory', () => {
+    const directory = getRouteCacheBuildDirectory('build-a', '')
+    expect(directory).toMatch(/^[a-f0-9]{64}$/)
+    expect(getRouteCacheBuildDirectory('build-a', '')).toBe(directory)
+    expect(getRouteCacheBuildDirectory('build-b', '')).not.toBe(directory)
+    // A configured deployment ID makes the build ID a constant.
+    expect(getRouteCacheBuildDirectory('build-a', 'dpl-1')).not.toBe(
+      getRouteCacheBuildDirectory('build-a', 'dpl-2')
+    )
   })
 })
