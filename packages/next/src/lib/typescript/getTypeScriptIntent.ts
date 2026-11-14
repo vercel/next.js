@@ -26,12 +26,12 @@ export async function getTypeScriptIntent(
   // project for the user when we detect TypeScript files. So, we need to check
   // the `pages/` directory for a TypeScript file.
   // Checking all directories is too slow, so this is a happy medium.
-  const tsFilesRegex = /.*\.(ts|tsx)$/
-  const excludedRegex = /(node_modules|.*\.d\.ts$)/
+  // String checks instead of regular expressions: these run for every file.
   for (const dir of intentDirs) {
     const typescriptFiles = await recursiveReadDir(dir, {
-      pathnameFilter: (name) => tsFilesRegex.test(name),
-      ignoreFilter: (name) => excludedRegex.test(name),
+      pathnameFilter: (name) => name.endsWith('.ts') || name.endsWith('.tsx'),
+      ignoreFilter: (name) =>
+        name.includes('node_modules') || name.endsWith('.d.ts'),
     })
     if (typescriptFiles.length) {
       return { firstTimeSetup: true }
