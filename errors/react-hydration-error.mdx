@@ -31,35 +31,9 @@ Ensure that the component renders the same content on the server and during the 
 
 ### Solution 1: Rendering changing values in the browser
 
-Calling `Date.now()` during rendering can produce different timestamps on the server and client. With React 19.3, call `use(browser())` before reading the time and wrap the component in `<Suspense>`. See [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
+Values such as `Date.now()` can differ on the server and client. With React 19.3, call `use(browser())` in a Client Component inside `<Suspense>` to render a fallback on the server and defer the changing value to the browser.
 
-```jsx filename="app/page.js"
-'use client'
-
-import { Suspense, use, useState } from 'react'
-import { browser } from 'react-dom'
-
-function Timestamp() {
-  use(browser())
-  const [timestamp] = useState(() => Date.now())
-
-  return (
-    <time dateTime={new Date(timestamp).toISOString()}>
-      {new Date(timestamp).toLocaleString()}
-    </time>
-  )
-}
-
-export default function Page() {
-  return (
-    <Suspense fallback={<p>Loading timestamp…</p>}>
-      <Timestamp />
-    </Suspense>
-  )
-}
-```
-
-The server renders the Suspense fallback. After JavaScript loads, `Timestamp` captures the current time in the browser. The state initializer keeps that value stable across re-renders, and the timestamp is not included in the server-rendered HTML.
+See the [timestamp example and tradeoffs](/docs/app/guides/preventing-flash-before-hydration#rendering-client-specific-content).
 
 ### Solution 2: Disabling SSR on specific components
 
@@ -95,25 +69,7 @@ Suppression only applies one level deep, and React will not patch mismatched tex
 
 ### Why not `useEffect`?
 
-You can also render the same placeholder on the server and client, then update state in `useEffect` after hydration:
-
-```jsx filename="app/effect-example.js"
-'use client'
-
-import { useEffect, useState } from 'react'
-
-export default function App() {
-  const [isClient, setIsClient] = useState(false)
-
-  useEffect(() => {
-    setIsClient(true)
-  }, [])
-
-  return <h1>{isClient ? 'This is never prerendered' : 'Prerendered'}</h1>
-}
-```
-
-This avoids a hydration mismatch, but the synchronous `setIsClient(true)` update adds an extra render and is reported as an error by `eslint-config-next`'s [`react-hooks/set-state-in-effect`](https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect) rule.
+A mount effect can avoid a mismatch, but a synchronous state update adds a render and triggers `react-hooks/set-state-in-effect` in `eslint-config-next`. See [Why not `useEffect`?](/docs/app/guides/preventing-flash-before-hydration#why-not-useeffect) for the original pattern and its tradeoffs.
 
 ## Common iOS issues
 

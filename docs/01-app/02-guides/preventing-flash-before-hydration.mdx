@@ -4,15 +4,19 @@ nav_title: Preventing Flash
 description: Learn how to prevent a flash of unstyled content (FOUC) by correcting server-rendered HTML, such as a dark mode theme, before the browser paints.
 ---
 
-User preferences, browser settings, and client-side storage aren't available during server rendering. The server emits a reasonable default, but any UI that depends on client-only state (locale, time zone, theme, persisted interactions) needs to be updated before the user sees it. Correcting it after the browser has painted produces a flash of unstyled content (FOUC).
+Values read from browser settings or `localStorage` aren't available during server rendering. Rendering different initial content on the server and client causes a hydration mismatch. Rendering a shared default avoids the mismatch, but replacing it after the browser paints can cause a visible flash.
 
-Some common approaches to this problem:
+To show the client-specific value on the first paint, use an **inline script** that corrects the server-rendered DOM while the browser parses the HTML. If a placeholder is acceptable, you can wait until React loads instead.
 
-- Reading browser-only values during a Client Component's initial render can cause a hydration mismatch.
-- Updating state in a mount `useEffect` avoids the mismatch, but adds a render and can introduce a visible flash. The common mounted-flag pattern also triggers [`react-hooks/set-state-in-effect`](#why-not-useeffect).
-- Rendering only on the server means giving up on client-specific formatting entirely.
+## Choose an approach
 
-Using an **inline script** that runs synchronously as the browser parses the HTML, you can update the DOM **before the first paint**. This guide covers dates, themes, and persisted UI state.
+Avoiding a hydration mismatch and preventing a visible flash are different goals:
+
+| Goal                                              | Approach                                                                 | Before React loads                            |
+| ------------------------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------- |
+| Show the client-specific value on the first paint | [Inline script](#dates-and-formatting)                                   | The script corrects the server-rendered value |
+| Defer content until it can render in the browser  | [`use(browser())` with `<Suspense>`](#rendering-client-specific-content) | The Suspense fallback is visible              |
+| Keep UI in sync with browser or external state    | [`useSyncExternalStore`](#subscribing-to-browser-values)                 | The shared initial value is visible           |
 
 ## Example
 
@@ -521,11 +525,73 @@ export function ThemeToggle() {
 | Page is already fully dynamic                   | Format the date on the server using the `Accept-Language` header                                                                                                     |
 | Translating content between languages           | Use [internationalization](/docs/app/guides/internationalization) with per-locale static builds or dynamic rendering                                                 |
 
+### Rendering client-specific content
+
+If a value doesn't need to appear in server-rendered HTML, you can defer rendering it until the browser. For example, calling `Date.now()` during rendering can produce different timestamps on the server and client.
+
+With React 19.3, call `use(browser())` before reading the time and wrap the component in `<Suspense>`:
+
+```jsx filename="app/page.js"
+'use client'
+
+import { Suspense, use, useState } from 'react'
+import { browser } from 'react-dom'
+
+function Timestamp() {
+  use(browser())
+  const [timestamp] = useState(() => Date.now())
+
+  return (
+    <time dateTime={new Date(timestamp).toISOString()}>
+      {new Date(timestamp).toLocaleString()}
+    </time>
+  )
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<p>Loading timestamp…</p>}>
+      <Timestamp />
+    </Suspense>
+  )
+}
+```
+
+The server renders `Loading timestamp…`. After JavaScript loads, the browser initializes the timestamp state, which stays stable across re-renders. This avoids a hydration mismatch and a mount-effect state update, but the user sees the fallback first. Use the inline-script patterns above when the value must be correct before React loads.
+
+See [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) for another example that initializes state from `localStorage`.
+
+### Subscribing to browser values
+
+Use [`useSyncExternalStore`](https://react.dev/reference/react/useSyncExternalStore#adding-support-for-server-rendering) when a value can change outside React, such as network status or a shared `localStorage` store. `getSnapshot` reads the current value, and `subscribe` registers a callback that runs when it changes. Return the same snapshot while the underlying value is unchanged.
+
+For server rendering, provide a `getServerSnapshot` that returns the same value on the server and during hydration. React then reads the client snapshot. This avoids copying the value into state in a mount effect, but the initial server snapshot can still be visible before it updates.
+
+For `localStorage`, notify subscribers when your page writes to storage as well as listening for `storage` events from other documents. If the value is owned by one component, keep it in React state instead; a browser-only component can initialize that state directly, as in the linked editor example above.
+
 ### Why not `useEffect`?
 
-`useEffect` runs after hydration and paint. The user sees the server value first, then the correction. Setting state in an effect also triggers a re-render, which can reactivate parent Suspense boundaries.
+You can render the same placeholder on the server and client, then update state in `useEffect` after hydration:
 
-For browser-only content, use [`use(browser())`](/docs/messages/react-hydration-error#solution-1-rendering-changing-values-in-the-browser) inside `<Suspense>` instead of a mount-effect flag. The server renders the fallback, which avoids the synchronous state update reported by `eslint-config-next`'s [`set-state-in-effect`](https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect) rule, but can still show a loading state. For an external store that must stay in sync, use [`useSyncExternalStore`](https://react.dev/reference/react/useSyncExternalStore#adding-support-for-server-rendering) with a matching server snapshot.
+```jsx filename="app/effect-example.js"
+'use client'
+
+import { useEffect, useState } from 'react'
+
+export default function App() {
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  return <h1>{isClient ? 'This is never prerendered' : 'Prerendered'}</h1>
+}
+```
+
+This avoids a hydration mismatch, but the user can see the placeholder before the effect runs. The synchronous `setIsClient(true)` update also adds an extra render and is reported as an error by `eslint-config-next`'s [`react-hooks/set-state-in-effect`](https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect) rule. If the update suspends, it can reactivate a parent Suspense fallback.
+
+Use [`use(browser())`](#rendering-client-specific-content) when a fallback is acceptable, or an inline script when the client-specific value needs to be visible on the first paint. Use [`useSyncExternalStore`](#subscribing-to-browser-values) for external-store subscriptions.
 
 `useLayoutEffect` runs before paint but after hydration. It prevents the flash between hydration and paint, but not the flash between the HTML arriving and React hydrating. On slow connections, the browser paints the server HTML before React has loaded. The inline script runs during HTML **parsing**, before React is involved.
 
