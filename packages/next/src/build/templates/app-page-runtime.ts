@@ -840,7 +840,8 @@ export function createAppPageEntrypoint({
     try {
       const varyHeader = routeModule.getVaryHeader(
         resolvedPathname,
-        interceptionRoutePatterns
+        interceptionRoutePatterns,
+        res.getHeader('Vary')
       )
       res.setHeader('Vary', varyHeader)
       const invokeRouteModule = async (
