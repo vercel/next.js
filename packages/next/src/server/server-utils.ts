@@ -29,6 +29,48 @@ import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { parseReqUrl } from '../lib/url'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 
+/**
+ * Compiled matchers for rewrite sources. Rewrites come from the routes
+ * manifest, so every request checks the same sources: each one is compiled
+ * once per copy of this module instead of on every request. A process can
+ * hold several copies: each pre-compiled runtime that handles a request has
+ * its own.
+ *
+ * A matcher is keyed by its source, so rewrites that share a source share a
+ * matcher. There is one map for each combination of the two options a source
+ * is compiled with, so that a lookup does not have to build a key for every
+ * rewrite of every request.
+ */
+const rewriteMatchers = [0, 1, 2, 3].map(
+  () => new Map<string, ReturnType<typeof getPathMatch>>()
+)
+
+/**
+ * Returns the function that gives the matcher of a rewrite source for one
+ * combination of the two options. The options are the same for every rewrite
+ * of a `getServerUtils` call, so the map is chosen once here.
+ */
+function getRewriteMatcherLookup(
+  trailingSlash: boolean,
+  caseSensitive: boolean
+) {
+  const matchers =
+    rewriteMatchers[(trailingSlash ? 2 : 0) + (caseSensitive ? 1 : 0)]
+
+  return (source: string) => {
+    let matcher = matchers.get(source)
+    if (matcher === undefined) {
+      matcher = getPathMatch(trailingSlash ? `${source}(/)?` : source, {
+        removeUnnamedParams: true,
+        strict: true,
+        sensitive: caseSensitive,
+      })
+      matchers.set(source, matcher)
+    }
+    return matcher
+  }
+}
+
 function filterInternalQuery(
   query: Record<string, undefined | string | string[]>,
   paramKeys: string[]
@@ -247,6 +289,11 @@ export function getServerUtils({
     defaultRouteMatches = dynamicRouteMatcher(page) as ParsedUrlQuery
   }
 
+  const getRewriteMatcher = getRewriteMatcherLookup(
+    !!trailingSlash,
+    !!caseSensitive
+  )
+
   function handleRewrites(
     req: BaseNextRequest | IncomingMessage,
     parsedUrl: DeepReadonly<NextUrlWithParsedQuery>
@@ -268,18 +315,11 @@ export function getServerUtils({
     }
 
     const checkRewrite = (rewrite: DeepReadonly<Rewrite>): boolean => {
-      const matcher = getPathMatch(
-        rewrite.source + (trailingSlash ? '(/)?' : ''),
-        {
-          removeUnnamedParams: true,
-          strict: true,
-          sensitive: !!caseSensitive,
-        }
-      )
-
       if (!rewrittenParsedUrl.pathname) return false
 
-      let params = matcher(rewrittenParsedUrl.pathname)
+      let params = getRewriteMatcher(rewrite.source)(
+        rewrittenParsedUrl.pathname
+      )
 
       if ((rewrite.has || rewrite.missing) && params) {
         const hasParams = matchHas(
