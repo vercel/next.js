@@ -1226,6 +1226,52 @@ describe.each(
             )
           })
 
+          it('should handle cached route handlers in app router', async () => {
+            const param = env.span.rootParentId ? 'incoming' : 'root'
+            const pathname = `/api/app/${param}/cached`
+            const initial = await next.fetch(pathname, env.fetchInit)
+            expect(initial.headers.get('x-nextjs-cache')).toBe('MISS')
+            await expectTrace(getCollector(), [
+              {
+                attributes: { 'http.target': pathname },
+              },
+            ])
+            getCollector().reset()
+
+            const cached = await next.fetch(pathname, env.fetchInit)
+            expect(cached.headers.get('x-nextjs-cache')).toBe('HIT')
+
+            await expectTrace(getCollector(), [
+              {
+                name: 'GET /api/app/[param]/cached',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/api/app/[param]/cached',
+                  'http.status_code': 201,
+                  'http.target': pathname,
+                  'next.route': '/api/app/[param]/cached',
+                  'next.span_name': 'GET /api/app/[param]/cached',
+                  'next.span_type': 'BaseServer.handleRequest',
+                },
+                kind: 1,
+                status: { code: 0 },
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                spans: [
+                  {
+                    name: 'start response',
+                    attributes: {
+                      'next.span_name': 'start response',
+                      'next.span_type': 'NextNodeServer.startResponse',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                ],
+              },
+            ])
+          })
+
           it('should handle error in RSC', async () => {
             await next.fetch(
               '/app/param/rsc-fetch/error?status=error',
@@ -1479,6 +1525,43 @@ describe.each(
                         },
                       ]),
                 ],
+              },
+            ])
+          })
+
+          it('should handle cached responses', async () => {
+            const param = env.span.rootParentId ? 'incoming' : 'root'
+            const pathname = `/app/${param}/cached`
+            const initial = await next.fetch(pathname, env.fetchInit)
+            expect(initial.headers.get('x-nextjs-cache')).toBe('MISS')
+            await expectTrace(getCollector(), [
+              {
+                attributes: { 'http.target': pathname },
+              },
+            ])
+            getCollector().reset()
+
+            const cached = await next.fetch(pathname, env.fetchInit)
+            expect(cached.headers.get('x-nextjs-cache')).toBe('HIT')
+
+            await expectTrace(getCollector(), [
+              {
+                name: 'GET /app/[param]/cached',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/app/[param]/cached',
+                  'http.status_code': 200,
+                  'http.target': pathname,
+                  'next.route': '/app/[param]/cached',
+                  'next.rsc': false,
+                  'next.span_name': 'GET /app/[param]/cached',
+                  'next.span_type': 'BaseServer.handleRequest',
+                },
+                kind: 1,
+                status: { code: 0 },
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                spans: [{}],
               },
             ])
           })
