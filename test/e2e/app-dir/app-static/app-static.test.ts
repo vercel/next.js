@@ -116,7 +116,7 @@ describe('app-dir static/dynamic handling', () => {
     expect(initialRouteData).not.toEqual(newRouteData)
   })
 
-  it('should still cache even though the W3C trace context headers `traceparent` and `tracestate` were different', async () => {
+  it('should still cache when tracing and invocation headers differ', async () => {
     const res = await next.fetch('/strip-w3c-trace-context-headers')
     expect(res.status).toBe(200)
 
@@ -135,6 +135,16 @@ describe('app-dir static/dynamic handling', () => {
     const echoedHeaders = JSON.parse($('#echoedHeaders').text())
     expect(echoedHeaders.headers.traceparent).toEqual('A')
     expect(echoedHeaders.headers.tracestate).toEqual('A')
+
+    const invocationResults = JSON.parse($('#invocationResults').text())
+    expect(invocationResults).toHaveLength(4)
+    for (const result of invocationResults) {
+      expect(result.baseline).toBeTruthy()
+      expect(result.first).toBe(result.baseline)
+      expect(result.second).toBe(result.baseline)
+      expect(result.variant).toBeTruthy()
+      expect(result.variant).not.toBe(result.baseline)
+    }
   })
 
   // Runtime logs aren't queryable in deploy mode
