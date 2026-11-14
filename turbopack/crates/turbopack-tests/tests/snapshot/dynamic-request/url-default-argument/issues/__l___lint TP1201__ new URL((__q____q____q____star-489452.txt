@@ -1,0 +1,19 @@
+[92;4msuggestion - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/dynamic-request/url-default-argument/input/index.js:3:22  lint TP1201 new URL((???*0* | undefined | ???*2*), import.meta*3*["url"]) is very dynamic
+  
+       1 | globalThis.createWorker = ({ classWorkerURL, ...options } = {}) => {
+       2 |   if (classWorkerURL) {
+         +                       v--------------------------------------v
+       3 +     return new Worker(new URL(classWorkerURL, import.meta.url), options)
+         +                       ^--------------------------------------^
+       4 |   }
+       5 | }
+       6 | 
+       7 | globalThis.fallbackURL = (override) =>
+  
+  - *0* ???*1*["classWorkerURL"]
+    ⚠️  unknown object
+  - *1* arguments[0]
+    ⚠️  function calls are not analyzed yet
+  - *2* unknown mutation
+    ⚠️  This value might have side effects
+  - *3* import.meta: The import.meta object
