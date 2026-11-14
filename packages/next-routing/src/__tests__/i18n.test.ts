@@ -120,6 +120,17 @@ describe('i18n utilities', () => {
       expect(getAcceptLanguageLocale('', locales)).toBeUndefined()
     })
 
+    it('should ignore whitespace around the language tag', () => {
+      expect(getAcceptLanguageLocale('de;q=0.2, fr ;q=0.9', locales)).toBe('fr')
+      expect(getAcceptLanguageLocale(' ja ', locales)).toBe('ja')
+    })
+
+    it('should read the quality value from any parameter', () => {
+      expect(
+        getAcceptLanguageLocale('fr;charset=utf-8;q=0.1,en;q=0.9', locales)
+      ).toBe('en')
+    })
+
     it('should handle malformed headers gracefully', () => {
       expect(getAcceptLanguageLocale('invalid;;;', locales)).toBeUndefined()
     })
