@@ -38,20 +38,22 @@ describe('typescript-plugin - metadata - warn-no-type', () => {
         }))
     }
 
-    expect(totalDiagnostics).toMatchInlineSnapshot(
-      `
+    expect(totalDiagnostics).toMatchInlineSnapshot(`
      {
        "app/warn-no-type/metadata/has-type/export-inline-from-next/layout.tsx": [],
        "app/warn-no-type/metadata/has-type/export-inline-from-next/page.tsx": [],
        "app/warn-no-type/metadata/has-type/export-inline-from-other/layout.tsx": [],
        "app/warn-no-type/metadata/has-type/export-inline-from-other/page.tsx": [],
+       "app/warn-no-type/metadata/has-type/export-inline-satisfies-from-next/layout.tsx": [],
+       "app/warn-no-type/metadata/has-type/export-inline-satisfies-from-next/page.tsx": [],
        "app/warn-no-type/metadata/has-type/export-separate-from-next/layout.tsx": [],
        "app/warn-no-type/metadata/has-type/export-separate-from-next/page.tsx": [],
        "app/warn-no-type/metadata/has-type/export-separate-from-other/layout.tsx": [],
        "app/warn-no-type/metadata/has-type/export-separate-from-other/page.tsx": [],
+       "app/warn-no-type/metadata/has-type/export-separate-satisfies-from-next/layout.tsx": [],
+       "app/warn-no-type/metadata/has-type/export-separate-satisfies-from-next/page.tsx": [],
      }
-    `
-    )
+    `)
   })
 
   it('should not have diagnostics for generateMetadata with type', () => {
