@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { retry, waitFor } from 'next-test-utils'
 
 describe('script-loader', () => {
   const { next, isNextDev, isTurbopack } = nextTestSetup({
@@ -251,5 +251,106 @@ describe('script-loader', () => {
       expect(await browser.eval(`window.remoteScriptsOnReadyCalls`)).toBe(1)
       expect(await browser.eval(`window.inlineScriptsOnReadyCalls`)).toBe(1)
     })
+  })
+
+  // https://github.com/vercel/next.js/issues/63300
+  it('onLoad and onReady fire once for every component sharing the same src (issue #63300)', async () => {
+    const browser = await next.browser('/page11')
+
+    await retry(async () => {
+      expect(await browser.eval(`window.sharedScriptOnLoadCalls`)).toEqual([
+        'a',
+        'b',
+        'c',
+      ])
+      // onReady must not run before the shared script has been evaluated
+      expect(await browser.eval(`window.sharedScriptOnReadyCalls`)).toEqual([
+        { id: 'a', evaluations: 1 },
+        { id: 'b', evaluations: 1 },
+        { id: 'c', evaluations: 1 },
+      ])
+    })
+
+    // let any extra call settle before asserting that there was none
+    await waitFor(500)
+    expect(await browser.eval(`window.sharedScriptOnLoadCalls.length`)).toBe(3)
+    expect(await browser.eval(`window.sharedScriptOnReadyCalls.length`)).toBe(3)
+
+    // the shared script is still only requested once
+    expect(
+      await browser.eval(
+        `document.querySelectorAll('script[src="/shared-script.js"]').length`
+      )
+    ).toBe(1)
+
+    // on re-mount every component runs onReady again, and none of them reloads
+    await browser.waitForElementByCss('[href="/page9"]').click()
+    await browser.waitForElementByCss('[href="/page11"]').click()
+    await browser.waitForElementByCss('.container')
+
+    await retry(async () => {
+      expect(await browser.eval(`window.sharedScriptOnReadyCalls.length`)).toBe(
+        6
+      )
+    })
+    expect(await browser.eval(`window.sharedScriptOnLoadCalls.length`)).toBe(3)
+  })
+
+  it('onError fires for every component sharing the same failing src', async () => {
+    const browser = await next.browser('/page12')
+
+    await retry(async () => {
+      expect(await browser.eval(`window.missingScriptOnErrorCalls`)).toEqual([
+        'a',
+        'b',
+      ])
+    })
+
+    await waitFor(500)
+    expect(await browser.eval(`window.missingScriptOnErrorCalls.length`)).toBe(
+      2
+    )
+    expect(await browser.eval(`window.missingScriptOnLoadCalls ?? []`)).toEqual(
+      []
+    )
+    expect(
+      await browser.eval(`window.missingScriptOnReadyCalls ?? []`)
+    ).toEqual([])
+  })
+
+  it('onReady fires for every lazyOnload component sharing the same src', async () => {
+    const browser = await next.browser('/page15')
+
+    await retry(async () => {
+      expect(await browser.eval(`window.lazyScriptOnReadyCalls`)).toEqual([
+        'a',
+        'b',
+        'c',
+      ])
+    })
+
+    await waitFor(500)
+    expect(await browser.eval(`window.lazyScriptOnReadyCalls.length`)).toBe(3)
+    expect(await browser.eval(`window.lazyScriptEvaluations`)).toBe(1)
+  })
+
+  it('onLoad and onReady fire once for a beforeInteractive script loaded on navigation', async () => {
+    const browser = await next.browser('/page13')
+
+    await browser.waitForElementByCss('[href="/page14"]').click()
+    await browser.waitForElementByCss('#page14')
+
+    await retry(async () => {
+      expect(await browser.eval(`window.navigatedScriptOnReadyCalls`)).toBe(1)
+    })
+
+    await waitFor(500)
+    expect(await browser.eval(`window.navigatedScriptOnLoadCalls`)).toBe(1)
+    expect(await browser.eval(`window.navigatedScriptOnReadyCalls`)).toBe(1)
+    expect(
+      await browser.eval(
+        `document.querySelectorAll('script[src="/shared-script.js"]').length`
+      )
+    ).toBe(1)
   })
 })
