@@ -1,5 +1,4 @@
-/* eslint-disable import/no-extraneous-dependencies */
-import spawn from 'cross-spawn'
+import { spawn } from './spawn'
 import type { PackageManager } from './get-pkg-manager'
 
 /**
