@@ -184,11 +184,9 @@ type CacheContext = PrivateCacheContext | PublicCacheContext
 
 const nextVersion = process.env.__NEXT_VERSION as string
 
-export type CacheKeyParts = [
-  id: string,
-  args: unknown[],
-  implementationHash: unknown,
-]
+// Try to keep the cache key JSON-parseable and the first two entries (id and args) consistent for
+// any downstream consumers that try to parse cache keys for introspection.
+export type CacheKeyParts = [id: string, args: unknown[], ...rest: unknown[]]
 
 interface UseCachePageInnerProps {
   params: Promise<Params>
@@ -1864,6 +1862,26 @@ async function getNthCacheResult(
   return (await split)[i]
 }
 
+/**
+ * Appends an element to a JSON-encoded `CacheKeyParts` tuple, producing a
+ * `CacheHandlerKeyParts` tuple, without decoding and re-encoding the key.
+ *
+ * When `encodeReply` returns a string (i.e. there are no outlined parts that
+ * require multipart encoding), it is the JSON of the root model, which is the
+ * cache key tuple. So the string must end with the tuple's closing bracket.
+ */
+function appendToCacheKeyTuple(
+  serializedCacheKey: string,
+  part: string
+): string {
+  if (!serializedCacheKey.endsWith(']')) {
+    throw new InvariantError(
+      'Expected the serialized "use cache" key to be a JSON array.'
+    )
+  }
+  return serializedCacheKey.slice(0, -1) + ',' + JSON.stringify(part) + ']'
+}
+
 async function encodeFormData(formData: FormData): Promise<string> {
   let result = ''
   for (let [key, value] of formData) {
@@ -2511,6 +2529,14 @@ export async function cache(
         // Convert it to an ArrayBuffer if it wants to.
         encodedCacheKeyParts
       : await encodeFormData(encodedCacheKeyParts)
+  // Scope the cache handler key, but not the RDC key, by the runtime env var
+  // state. Multipart keys are not JSON, so the hash is appended as is.
+  const serializedCacheHandlerKey =
+    runtimeEnvVarStateHash === undefined
+      ? serializedCacheKey
+      : typeof encodedCacheKeyParts === 'string'
+        ? appendToCacheKeyTuple(serializedCacheKey, runtimeEnvVarStateHash)
+        : serializedCacheKey + runtimeEnvVarStateHash
 
   const rootParams = workUnitStore.rootParams
   const knownRootParamNames = knownRootParamsByFunctionId.get(id)
@@ -2522,8 +2548,7 @@ export async function cache(
   // (persisted in the built-in in-memory handler), the request's cookies and
   // headers. Keys derived from it inherit that scoping.
   const cacheHandlerKeyBase =
-    serializedCacheKey +
-    (runtimeEnvVarStateHash ?? '') +
+    serializedCacheHandlerKey +
     (process.env.__NEXT_DEV_SERVER && cacheContext.kind === 'private'
       ? computePrivateCacheKeyRequestSuffix(
           cacheContext.outerWorkUnitStore.cookies,
