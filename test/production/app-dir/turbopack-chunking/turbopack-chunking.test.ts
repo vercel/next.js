@@ -21,22 +21,21 @@ import { join, relative } from 'path'
       )
       const { exitCode, cliOutput } = await next.build()
       expect(exitCode).toBe(0)
+      return cliOutput
     }
 
     async function buildWith(turbopackChunking: object | undefined) {
-      await build(turbopackChunking)
+      const cliOutput = await build(turbopackChunking)
       const distDir = join(next.testDir, '.next')
       const clientChunks = (await listClientChunks(distDir)).filter(
         (name) => name.includes('chunks') && name.endsWith('.js')
       )
-      const serverChunks = (
-        await recursiveReadDir(join(distDir, 'server', 'chunks'))
-      ).filter((name) => name.endsWith('.js'))
+      const serverChunks = await listServerChunks()
       return { clientChunks, serverChunks, cliOutput }
     }
 
-    // Lists the Node.js server JS chunks of the last build. The server size
-    // thresholds don't apply to edge chunks.
+    // Lists the Node.js server JS chunks of the last build. The configurable
+    // server minimum and merge thresholds don't apply to edge chunks.
     async function listServerChunks() {
       const serverDir = join(next.testDir, '.next', 'server')
       return (await recursiveReadDir(serverDir, { relativePathnames: false }))
@@ -64,10 +63,12 @@ import { join, relative } from 'path'
       maxChunkSize: 0,
     }
 
-    // Server-side equivalent of `mergeAll`.
+    // Server-side equivalent of `mergeAll`, with the maximum disabled so the
+    // large minimum doesn't raise it or produce a normalization warning.
     const serverMergeAll = {
       minServerChunkSize: 100_000_000,
       maxMergeServerChunkSize: 100_000_000,
+      maxServerChunkSize: 0,
     }
 
     type BuildOutput = Awaited<ReturnType<typeof buildWith>>
@@ -86,8 +87,8 @@ import { join, relative } from 'path'
       maxChunkSize: 20_000,
     }
 
-    // Merge everything, but split server chunks bigger than a small maximum size. Node.js server
-    // chunks have a fixed `maxMergeChunkSize` of 100 KB, so a smaller maximum size would be adjusted.
+    // Merge everything on the client, but split server chunks bigger than a small maximum size.
+    // The default Node.js server merge threshold is 100 KB, so use a matching maximum.
     const mergeAllWithMaxServerChunkSize = {
       ...mergeAll,
       maxServerChunkSize: 100_000,
@@ -222,6 +223,33 @@ import { join, relative } from 'path'
       expect(clientChunks.length).toBeGreaterThan(0)
     })
 
+    it.each([100_000, 0])(
+      'normalizes configured server size thresholds with maxMergeServerChunkSize=%s',
+      async (maxMergeServerChunkSize) => {
+        const { cliOutput, serverChunks } = await buildWith({
+          minServerChunkSize: 10_000,
+          maxMergeServerChunkSize,
+          maxServerChunkSize: 20_000,
+        })
+        expect(cliOutput).toContain(
+          'Inconsistent chunk size limits for server chunks were adjusted'
+        )
+        expect(cliOutput).toContain(
+          '`experimental.turbopackChunking.maxServerChunkSize` (20000) was increased to 30000'
+        )
+        expect(cliOutput).toContain(
+          '3 times `experimental.turbopackChunking.minServerChunkSize` of 10000'
+        )
+        expect(cliOutput).toContain(
+          `\`experimental.turbopackChunking.maxMergeServerChunkSize\` (${maxMergeServerChunkSize || 'unlimited'}) was decreased to 30000`
+        )
+        expect(cliOutput).not.toContain(
+          'Inconsistent chunk size limits for client chunks'
+        )
+        expect(serverChunks.length).toBeGreaterThan(0)
+      }
+    )
+
     it('warns when an enabled maxChunkSize limits an unlimited maxMergeChunkSize', async () => {
       const { cliOutput } = await buildWith({
         minChunkSize: 0,
@@ -235,7 +263,7 @@ import { join, relative } from 'path'
     })
 
     it.each([
-      ['custom chunking', mergeAll],
+      ['custom chunking', { ...mergeAll, ...serverMergeAll }],
       ['maxChunkSize', mergeAllWithMaxChunkSize],
       [
         'maxChunkSize and component chunks',
@@ -243,7 +271,7 @@ import { join, relative } from 'path'
       ],
       ['maxServerChunkSize', mergeAllWithMaxServerChunkSize],
     ])('renders and navigates correctly with %s', async (_, chunking) => {
-      await build({ ...chunking, ...serverMergeAll })
+      await build(chunking)
       await next.start()
       try {
         const browser = await next.browser('/')
