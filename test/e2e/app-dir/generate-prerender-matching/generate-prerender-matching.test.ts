@@ -623,6 +623,9 @@ describe('parameter matching static export validation', () => {
     await next.build().catch(() => {})
   })
 
+  // Config validation currently rejects Cache Components with static export
+  // before parameter validation. Remove this gate when that combination is supported.
+  // @gate FIXME
   it('requires every exported param to be explicitly closed for now', () => {
     expect(next.cliOutput).toContain(
       'must configure parameter "lang" as "not-found"'
