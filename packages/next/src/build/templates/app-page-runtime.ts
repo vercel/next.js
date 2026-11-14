@@ -2354,6 +2354,8 @@ export function createAppPageEntrypoint({
 
         if (cachedData.headers) {
           const headers = { ...cachedData.headers }
+          // The response wrapper deduplicates identical header values.
+          const nextRes = new NodeNextResponse(res)
 
           if (!isMinimalMode || !isSSG) {
             delete headers[NEXT_CACHE_TAGS_HEADER]
@@ -2364,13 +2366,13 @@ export function createAppPageEntrypoint({
 
             if (Array.isArray(value)) {
               for (const v of value) {
-                res.appendHeader(key, v)
+                nextRes.appendHeader(key, v)
               }
             } else if (typeof value === 'number') {
               value = value.toString()
-              res.appendHeader(key, value)
+              nextRes.appendHeader(key, value)
             } else {
-              res.appendHeader(key, value)
+              nextRes.appendHeader(key, value)
             }
           }
         }
