@@ -138,6 +138,96 @@ export function parseUseCacheCacheStore(
  * @param entries - The store entries to stringify
  * @returns A promise that resolves to an array of key-value pairs with serialized values
  */
+/**
+ * A `use cache` entry of a persisted resume data cache, with its value decoded
+ * from base64. Decoded entries are kept between requests, so they are never
+ * handed out as they are: `createUseCacheCacheStore` copies what a render
+ * could change.
+ */
+export interface DecodedUseCacheEntry {
+  readonly key: string
+  readonly value: Uint8Array
+  readonly tags: readonly string[]
+  readonly stale: number
+  readonly timestamp: number
+  readonly expire: number
+  readonly revalidate: number
+  readonly hasExplicitRevalidate: boolean | undefined
+  readonly hasExplicitExpire: boolean | undefined
+  readonly readRootParamNames: readonly string[] | undefined
+}
+
+export function decodeUseCacheCacheStore(
+  entries: Iterable<[string, UseCacheCacheStoreSerialized]>
+): DecodedUseCacheEntry[] {
+  const decoded: DecodedUseCacheEntry[] = []
+
+  for (const [
+    key,
+    { entry, hasExplicitRevalidate, hasExplicitExpire, readRootParamNames },
+  ] of entries) {
+    decoded.push({
+      key,
+      value: stringToUint8Array(atob(entry.value)),
+      tags: entry.tags,
+      stale: entry.stale,
+      timestamp: entry.timestamp,
+      expire: entry.expire,
+      revalidate: entry.revalidate,
+      hasExplicitRevalidate,
+      hasExplicitExpire,
+      readRootParamNames,
+    })
+  }
+
+  return decoded
+}
+
+/**
+ * Creates the same store as `parseUseCacheCacheStore`, from entries that were
+ * decoded before. The store gets its own copy of everything a render could
+ * change: the bytes of each value (React's Flight client hands out typed
+ * arrays that are views of the chunks it reads) and the tags.
+ */
+export function createUseCacheCacheStore(
+  entries: readonly DecodedUseCacheEntry[]
+): UseCacheCacheStore {
+  const store = new Map<string, Promise<CollectedCacheResult>>()
+
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i]
+    const value = entry.value.slice()
+
+    store.set(
+      entry.key,
+      Promise.resolve({
+        entry: {
+          value: new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(value)
+
+              controller.close()
+            },
+          }),
+          tags: entry.tags.slice(),
+          stale: entry.stale,
+          timestamp: entry.timestamp,
+          expire: entry.expire,
+          revalidate: entry.revalidate,
+        },
+        hasExplicitRevalidate: entry.hasExplicitRevalidate,
+        hasExplicitExpire: entry.hasExplicitExpire,
+        readRootParamNames: entry.readRootParamNames
+          ? new Set(entry.readRootParamNames)
+          : undefined,
+        dynamicNestedCacheError: undefined,
+      })
+    )
+  }
+
+  return store
+}
+
 export async function serializeUseCacheCacheStore(
   entries: IterableIterator<[string, UseCacheCacheStoreValue]>,
   isCacheComponentsEnabled: boolean

@@ -2,11 +2,15 @@ import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 import {
   createPrerenderResumeDataCache,
   createRenderResumeDataCache,
+  createRenderResumeDataCacheFromDecoded,
+  decodePersistedResumeDataCache,
   deflateResumeDataCache,
   stringifyResumeDataCache,
+  type DecodedResumeDataCache,
   type PrerenderResumeDataCache,
   type RenderResumeDataCache,
 } from '../resume-data-cache/resume-data-cache'
+import { LRUCache } from '../lib/lru-cache'
 
 export enum DynamicState {
   /**
@@ -190,6 +194,35 @@ export async function getDynamicDataPostponedState(
   )
 }
 
+type DecodedPostponedState = {
+  readonly postponedString: string
+  readonly resumeDataCache: DecodedResumeDataCache
+  readonly maxPostponedStateSizeBytes: number | undefined
+  readonly disableResumeDataCacheCompression: boolean
+}
+
+/**
+ * A page is resumed from the same postponed state on every request until it is
+ * revalidated, and taking the state apart is expensive when it carries a
+ * resume data cache: the cache is inflated, parsed as JSON, and the value of
+ * every `use cache` entry is decoded from base64. None of that depends on the
+ * request, so the decoded form of the most recently used states is kept, keyed
+ * by the state itself. Every render still gets a resume data cache of its own
+ * (see `createRenderResumeDataCacheFromDecoded`).
+ *
+ * The size is that of the states and their decoded cache entries in bytes.
+ */
+const DECODED_POSTPONED_STATES_MAX_SIZE = 32 * 1024 * 1024
+
+let decodedPostponedStates: LRUCache<DecodedPostponedState> | undefined
+
+function getDecodedPostponedStateSize(
+  parts: DecodedPostponedState,
+  state: string
+): number {
+  return state.length + parts.resumeDataCache.size
+}
+
 function parsePostponedStateParts(
   state: string,
   maxPostponedStateSizeBytes: number | undefined,
@@ -198,26 +231,58 @@ function parsePostponedStateParts(
   postponedString: string
   renderResumeDataCache: RenderResumeDataCache
 } {
-  const postponedStringLengthMatch = state.match(/^([0-9]*):/)?.[1]
-  if (!postponedStringLengthMatch) {
-    // Do not include the raw state in the message: it can be large and may
-    // contain sensitive serialized data.
-    throw new Error('Invariant: invalid postponed state: missing length prefix')
+  let parts = decodedPostponedStates?.get(state)
+  if (
+    parts === undefined ||
+    parts.maxPostponedStateSizeBytes !== maxPostponedStateSizeBytes ||
+    parts.disableResumeDataCacheCompression !==
+      disableResumeDataCacheCompression
+  ) {
+    const postponedStringLengthMatch = state.match(/^([0-9]*):/)?.[1]
+    if (!postponedStringLengthMatch) {
+      // Do not include the raw state in the message: it can be large and may
+      // contain sensitive serialized data.
+      throw new Error(
+        'Invariant: invalid postponed state: missing length prefix'
+      )
+    }
+
+    const postponedStringLength = parseInt(postponedStringLengthMatch)
+    const tailStart =
+      postponedStringLengthMatch.length + postponedStringLength + 1
+
+    parts = {
+      postponedString: state.slice(
+        postponedStringLengthMatch.length + 1,
+        tailStart
+      ),
+      resumeDataCache: decodePersistedResumeDataCache(
+        state.slice(tailStart),
+        maxPostponedStateSizeBytes,
+        disableResumeDataCacheCompression
+      ),
+      maxPostponedStateSizeBytes,
+      disableResumeDataCacheCompression,
+    }
+
+    // A state without cache entries is cheap to take apart again.
+    if (
+      parts.resumeDataCache.size > 0 &&
+      getDecodedPostponedStateSize(parts, state) <=
+        DECODED_POSTPONED_STATES_MAX_SIZE
+    ) {
+      decodedPostponedStates ??= new LRUCache(
+        DECODED_POSTPONED_STATES_MAX_SIZE,
+        getDecodedPostponedStateSize
+      )
+      decodedPostponedStates.set(state, parts)
+    }
   }
 
-  const postponedStringLength = parseInt(postponedStringLengthMatch)
-  const tailStart =
-    postponedStringLengthMatch.length + postponedStringLength + 1
-
   return {
-    postponedString: state.slice(
-      postponedStringLengthMatch.length + 1,
-      tailStart
-    ),
-    renderResumeDataCache: createRenderResumeDataCache(
-      state.slice(tailStart),
-      maxPostponedStateSizeBytes,
-      disableResumeDataCacheCompression
+    postponedString: parts.postponedString,
+    renderResumeDataCache: createRenderResumeDataCacheFromDecoded(
+      parts.resumeDataCache
     ),
   }
 }
