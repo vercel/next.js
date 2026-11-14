@@ -38,8 +38,21 @@ pub(super) async fn get_font_fallbacks(
     options_vc: Vc<NextFontLocalOptions>,
 ) -> Result<Vc<FontFallbackResult>> {
     let options = &*options_vc.await?;
-    let scoped_font_family =
-        get_scoped_font_family(FontFamilyType::Fallback, options_vc.font_family().await?);
+
+    // Check if `font-family` is explicitly defined in `declarations`
+    // If so, use that value instead of the variable name for the fallback
+    let font_family_name = options
+        .declarations
+        .as_ref()
+        .and_then(|declarations| {
+            declarations
+                .iter()
+                .find(|decl| decl.prop == "font-family")
+                .map(|decl| decl.value.clone())
+        })
+        .unwrap_or_else(|| options.variable_name.clone());
+
+    let scoped_font_family = get_scoped_font_family(FontFamilyType::Fallback, font_family_name);
 
     let mut font_fallbacks = vec![];
     match options.adjust_font_fallback {

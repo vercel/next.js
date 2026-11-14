@@ -23,6 +23,18 @@ const myFont1Override = localFont({
   ],
 })
 
+// Test custom font-family with space - verifies fix for font-family mismatch bug
+const customFamilyWithSpace = localFont({
+  src: '../fonts/my-font.woff2',
+  declarations: [
+    {
+      prop: 'font-family',
+      value: 'My Custom Font',
+    },
+  ],
+  preload: false,
+})
+
 const roboto = localFont({
   preload: false,
   src: [
@@ -145,6 +157,12 @@ export default function WithFonts() {
       </div>
       <div id="first-local-font-override" className={myFont1Override.className}>
         {JSON.stringify(myFont1Override)}
+      </div>
+      <div
+        id="custom-family-with-space"
+        className={customFamilyWithSpace.className}
+      >
+        {JSON.stringify(customFamilyWithSpace)}
       </div>
       <div id="roboto-local-font" className={roboto.className}>
         {JSON.stringify(roboto)}
