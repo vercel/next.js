@@ -1693,15 +1693,33 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         shard_bits.shard_of(range.min_hash) == shard_bits.shard_of(range.max_hash)
                     };
 
+                    // Whether an unsplit file is left after this pass, i.e. one that is in no
+                    // promotion or bottom merge. Then the new meta file carries the used keys
+                    // forward (see below).
+                    let unsplit_left = {
+                        let mut handled = vec![false; ssts_with_ranges.len()];
+                        for job in merge_jobs.iter().filter(|job| job.promote || job.bottom) {
+                            for &index in &job.members {
+                                handled[index] = true;
+                            }
+                        }
+                        ssts_with_ranges
+                            .iter()
+                            .zip(handled)
+                            .any(|(sst, handled)| sst.flags.unsplit() && !handled)
+                    };
+
                     // The keys read recently: the used keys of the meta files written by commits
                     // that are still alive, i.e. whose SST files were not all merged yet. We only
-                    // capture this for bottom compactions and promotions.
-                    let used_key_hashes = if merge_jobs.iter().any(|job| {
-                        job.promote
-                            || (job.bottom
-                                && (job.members.len() > 1
-                                    || !sst_strictly_in_shard(job.members[0])))
-                    }) {
+                    // capture this for bottom compactions and promotions, and when it has to be
+                    // carried forward.
+                    let used_key_hashes = if unsplit_left
+                        || merge_jobs.iter().any(|job| {
+                            job.promote
+                                || (job.bottom
+                                    && (job.members.len() > 1
+                                        || !sst_strictly_in_shard(job.members[0])))
+                        }) {
                         union_used_key_hashes(meta_files)?.map(Arc::new)
                     } else {
                         None
@@ -2310,6 +2328,16 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
                     for f in sst_files_to_delete.iter() {
                         meta_file_builder.add_obsolete_sst_file(f.seq);
+                    }
+
+                    // This pass can retire the meta files that recorded the used keys, e.g. when
+                    // a promotion re-lists all of their files. While an unsplit file is left, its
+                    // promotion still needs them, so the new meta file records them again. Once
+                    // no unsplit file is left, they live only as long as the meta files that
+                    // recorded them.
+                    if unsplit_left && let Some(used_key_hashes) = used_key_hashes {
+                        meta_file_builder
+                            .set_used_key_hashes_amqf(Arc::unwrap_or_clone(used_key_hashes));
                     }
 
                     let new_meta_file = {
