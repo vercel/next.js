@@ -1,6 +1,5 @@
 import { defineRule } from '../utils/define-rule'
 import NodeAttributes from '../utils/node-attributes'
-import { sep, posix } from 'path'
 import type { AST } from 'eslint'
 
 const url = 'https://nextjs.org/docs/messages/no-page-custom-font'
@@ -21,17 +20,17 @@ export default defineRule({
   },
   create(context) {
     const { sourceCode } = context
-    const paths = context.filename.split('pages')
-    const page = paths[paths.length - 1]
+    const normalizedFilename = context.filename.replace(/\\/g, '/')
+    const pathSegments = normalizedFilename.split('/')
+    const pagesDirIndex = pathSegments.lastIndexOf('pages')
 
     // outside of a file within `pages`, bail
-    if (!page) {
+    if (pagesDirIndex === -1 || pagesDirIndex === pathSegments.length - 1) {
       return {}
     }
 
-    const is_Document =
-      page.startsWith(`${sep}_document`) ||
-      page.startsWith(`${posix.sep}_document`)
+    const page = `/${pathSegments.slice(pagesDirIndex + 1).join('/')}`
+    const is_Document = page.startsWith('/_document')
 
     let documentImportName
     let localDefaultExportId
