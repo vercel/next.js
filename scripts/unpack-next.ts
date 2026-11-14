@@ -26,5 +26,5 @@ const packages = {
 
 for (const [key, path] of Object.entries(packages)) {
   if (!path) continue
-  exec(`Unpack ${key}`, `tar -xf '${TARBALLS}/${key}.tar' -C '${path}'`)
+  exec(`Unpack ${key}`, `tar -xf "${TARBALLS}/${key}.tar" -C "${path}"`)
 }
