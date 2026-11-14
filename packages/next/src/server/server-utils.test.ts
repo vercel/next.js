@@ -202,3 +202,102 @@ describe('normalizeDynamicRouteParams', () => {
     })
   })
 })
+
+describe('interpolateDynamicPath', () => {
+  it('should interpolate catch-all string params preserving slash delimiters', () => {
+    const { interpolateDynamicPath } = getServerUtils({
+      page: '/[...slug]',
+      basePath: '',
+      rewrites: {},
+      i18n: undefined,
+      pageIsDynamic: true,
+      caseSensitive: false,
+    })
+
+    const result = interpolateDynamicPath('/[...slug]', {
+      slug: 'a/b/c',
+    })
+    expect(result).toEqual('/a/b/c')
+  })
+
+  it('should interpolate catch-all array params', () => {
+    const { interpolateDynamicPath } = getServerUtils({
+      page: '/[...slug]',
+      basePath: '',
+      rewrites: {},
+      i18n: undefined,
+      pageIsDynamic: true,
+      caseSensitive: false,
+    })
+
+    const result = interpolateDynamicPath('/[...slug]', {
+      slug: ['a', 'b', 'c'],
+    })
+    expect(result).toEqual('/a/b/c')
+  })
+
+  it('should split unsplit elements in catch-all array params', () => {
+    const { interpolateDynamicPath } = getServerUtils({
+      page: '/[...slug]',
+      basePath: '',
+      rewrites: {},
+      i18n: undefined,
+      pageIsDynamic: true,
+      caseSensitive: false,
+    })
+
+    const result = interpolateDynamicPath('/[...slug]', {
+      slug: ['a/b', 'c'],
+    })
+    expect(result).toEqual('/a/b/c')
+  })
+
+  it('should encode special characters per segment in catch-all routes', () => {
+    const { interpolateDynamicPath } = getServerUtils({
+      page: '/[...slug]',
+      basePath: '',
+      rewrites: {},
+      i18n: undefined,
+      pageIsDynamic: true,
+      caseSensitive: false,
+    })
+
+    const result = interpolateDynamicPath('/[...slug]', {
+      slug: 'a b/c',
+    })
+    expect(result).toEqual('/a%20b/c')
+  })
+
+  it('should interpolate optional catch-all params with string values', () => {
+    const { interpolateDynamicPath } = getServerUtils({
+      page: '/docs/[[...slug]]',
+      basePath: '',
+      rewrites: {},
+      i18n: undefined,
+      pageIsDynamic: true,
+      caseSensitive: false,
+    })
+
+    const result = interpolateDynamicPath('/docs/[[...slug]]', {
+      slug: 'getting-started/installation',
+    })
+    expect(result).toEqual('/docs/getting-started/installation')
+  })
+
+  it('should encode slash in single dynamic param route', () => {
+    const { interpolateDynamicPath } = getServerUtils({
+      page: '/posts/[id]',
+      basePath: '',
+      rewrites: {},
+      i18n: undefined,
+      pageIsDynamic: true,
+      caseSensitive: false,
+    })
+
+    const result = interpolateDynamicPath('/posts/[id]', {
+      id: 'hello/world',
+    })
+    expect(result).toEqual('/posts/hello%2Fworld')
+  })
+})
+

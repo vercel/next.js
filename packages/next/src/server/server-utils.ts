@@ -91,12 +91,28 @@ export function interpolateDynamicPath(
     let paramValue: string
     const value = params[param]
 
-    if (Array.isArray(value)) {
-      paramValue = value.map((v) => v && encodeURIComponent(v)).join('/')
-    } else if (value) {
-      paramValue = encodeURIComponent(value)
+    if (repeat) {
+      if (Array.isArray(value)) {
+        paramValue = value
+          .flatMap((v) => (v ? v.split('/') : []))
+          .map((v) => encodeURIComponent(v))
+          .join('/')
+      } else if (value) {
+        paramValue = value
+          .split('/')
+          .map((v) => encodeURIComponent(v))
+          .join('/')
+      } else {
+        paramValue = ''
+      }
     } else {
-      paramValue = ''
+      if (Array.isArray(value)) {
+        paramValue = value.map((v) => v && encodeURIComponent(v)).join('/')
+      } else if (value) {
+        paramValue = encodeURIComponent(value)
+      } else {
+        paramValue = ''
+      }
     }
 
     if (paramValue || optional) {
@@ -195,12 +211,12 @@ export function normalizeDynamicRouteParams(
 
     // query values from the proxy aren't already split into arrays
     // so make sure to normalize catch-all values
-    if (
-      value &&
-      typeof value === 'string' &&
-      defaultRouteRegex!.groups[key].repeat
-    ) {
-      value = value.split('/')
+    if (value && defaultRouteRegex!.groups[key].repeat) {
+      if (typeof value === 'string') {
+        value = value.split('/')
+      } else if (Array.isArray(value)) {
+        value = value.flatMap((v) => (typeof v === 'string' ? v.split('/') : v))
+      }
     }
 
     if (value) {

@@ -103,8 +103,23 @@ export function resolveParamValue(
           // If the segment matches a param, use the param value
           // We don't encode values here as that's handled during retrieval.
           const paramValue = params[pathSegment.param.paramName]
+          const isCatchAll =
+            pathSegment.param.paramType === 'catchall' ||
+            pathSegment.param.paramType === 'optional-catchall' ||
+            pathSegment.param.paramType.startsWith('catchall-intercepted')
+
           if (Array.isArray(paramValue)) {
-            processedSegments.push(...paramValue)
+            if (isCatchAll) {
+              processedSegments.push(
+                ...paramValue.flatMap((v) =>
+                  typeof v === 'string' ? v.split('/') : v
+                )
+              )
+            } else {
+              processedSegments.push(...paramValue)
+            }
+          } else if (typeof paramValue === 'string' && isCatchAll) {
+            processedSegments.push(...paramValue.split('/'))
           } else {
             processedSegments.push(paramValue as string)
           }
