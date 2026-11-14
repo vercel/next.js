@@ -5,7 +5,7 @@ const PATCHED_SET_HEADER = Symbol('next.patchSetHeaderWithCookieSupport')
 type PatchableResponse = {
   setHeader(key: string, value: string | string[]): PatchableResponse
   headersSent?: boolean
-  [PATCHED_SET_HEADER]?: true
+  [PATCHED_SET_HEADER]?: PatchableResponse['setHeader']
 }
 
 /**
@@ -25,11 +25,10 @@ export function patchSetHeaderWithCookieSupport(
 
   const setHeader = res.setHeader.bind(res)
 
-  Object.defineProperty(res, PATCHED_SET_HEADER, {
-    value: true,
-  })
-
-  res.setHeader = (
+  // Used twice, because the minifier inlines a single use: V8 allocates a
+  // function expression that is assigned to a property in the old generation
+  // until it optimizes this function, where it keeps `req` and `res` alive.
+  const setHeaderWithCookieSupport = (
     name: string,
     value: string | string[]
   ): PatchableResponse => {
@@ -63,4 +62,10 @@ export function patchSetHeaderWithCookieSupport(
 
     return setHeader(name, value)
   }
+
+  Object.defineProperty(res, PATCHED_SET_HEADER, {
+    value: setHeaderWithCookieSupport,
+  })
+
+  res.setHeader = setHeaderWithCookieSupport
 }

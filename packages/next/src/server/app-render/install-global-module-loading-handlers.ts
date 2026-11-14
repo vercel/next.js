@@ -48,25 +48,39 @@ export function installGlobalModuleLoadingHandlers(
     }
   }
 
-  // @ts-expect-error
-  globalThis.__next_require__ = (
-    ...args: Parameters<typeof instrumented.require>
-  ) => {
+  setGlobalHandler(true, (...args: Parameters<typeof instrumented.require>) => {
     const exportsOrPromise = instrumented.require(...args)
     if (shouldTrackModuleLoading()) {
       trackPendingImport(exportsOrPromise)
     }
     return exportsOrPromise
-  }
+  })
 
-  // @ts-expect-error
-  globalThis.__next_chunk_load__ = (
-    ...args: Parameters<typeof instrumented.loadChunk>
-  ) => {
-    const loadingChunk = instrumented.loadChunk(...args)
-    if (shouldTrackModuleLoading()) {
-      trackPendingChunkLoad(loadingChunk)
+  setGlobalHandler(
+    false,
+    (...args: Parameters<typeof instrumented.loadChunk>) => {
+      const loadingChunk = instrumented.loadChunk(...args)
+      if (shouldTrackModuleLoading()) {
+        trackPendingChunkLoad(loadingChunk)
+      }
+      return loadingChunk
     }
-    return loadingChunk
+  )
+}
+
+// Gets the handler as an argument, because the minifier puts a variable with
+// one use back into the assignment: V8 allocates a function expression that is
+// assigned to a property in the old generation until it optimizes the function
+// around the assignment, and there a replaced handler keeps its loader alive.
+function setGlobalHandler(
+  isRequire: boolean,
+  handler: (...args: any[]) => unknown
+) {
+  if (isRequire) {
+    // @ts-expect-error
+    globalThis.__next_require__ = handler
+  } else {
+    // @ts-expect-error
+    globalThis.__next_chunk_load__ = handler
   }
 }
