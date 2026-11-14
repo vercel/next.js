@@ -924,8 +924,8 @@ const DEFAULT_WEIGHT_DISTRIBUTION: f32 = 0.1;
 
 /// `experimental.turbopackChunking`: hints for Turbopack's production chunker.
 ///
-/// The default sizes and request cost are scaled down when chunk items are minified, see
-/// `ChunkSizeDefaults`.
+/// The default sizes and request cost are measured in minified chunk items: chunk items are
+/// minified one by one before chunking.
 #[derive(
     Clone, Debug, Default, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
