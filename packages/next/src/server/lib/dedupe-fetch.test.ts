@@ -2,11 +2,18 @@
  * @jest-environment node
  */
 
+// When false, React.cache behaves like it does outside of a render (e.g. in a
+// Route Handler) and calls the function every time.
+let mockHasCacheScope = true
+
 // Mock the React module first
 jest.mock('react', () => ({
   cache: <T extends (...args: any[]) => any>(fn: T): T => {
     const cache = new Map<string, ReturnType<T>>()
     return ((...args: Parameters<T>) => {
+      if (!mockHasCacheScope) {
+        return fn(...args)
+      }
       const key = JSON.stringify(args)
       if (!cache.has(key)) {
         cache.set(key, fn(...args))
@@ -33,6 +40,8 @@ describe('dedupe-fetch', () => {
   let dedupeFetch: ReturnType<typeof createDedupeFetch>
 
   beforeEach(() => {
+    mockHasCacheScope = true
+
     // Create a fresh mock for each test
     originalFetch = jest.fn()
     dedupeFetch = createDedupeFetch(originalFetch)
@@ -249,6 +258,47 @@ describe('dedupe-fetch', () => {
       expect(await response1.text()).toBe('test response')
       expect(await response2.text()).toBe('test response')
       expect(await response3.text()).toBe('test response')
+    })
+  })
+
+  describe('without a cache scope', () => {
+    beforeEach(() => {
+      mockHasCacheScope = false
+    })
+
+    it('should return the original response without cloning it', async () => {
+      const mockResponse = new Response('test response', { status: 200 })
+      originalFetch.mockResolvedValue(mockResponse)
+
+      const response = await dedupeFetch('https://example.com/api')
+
+      expect(response).toBe(mockResponse)
+    })
+
+    it('should not wait for the upstream to end when the body is cancelled', async () => {
+      let upstreamCancelled = false
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          // Never closes, like a long-running stream.
+          controller.enqueue(new TextEncoder().encode('first'))
+        },
+        cancel() {
+          upstreamCancelled = true
+        },
+      })
+      originalFetch.mockResolvedValue(new Response(body))
+
+      const response = await dedupeFetch('https://example.com/api')
+      const reader = response.body!.getReader()
+      await reader.read()
+
+      const result = await Promise.race([
+        reader.cancel().then(() => 'resolved'),
+        new Promise((resolve) => setTimeout(() => resolve('pending'), 100)),
+      ])
+
+      expect(result).toBe('resolved')
+      expect(upstreamCancelled).toBe(true)
     })
   })
 
