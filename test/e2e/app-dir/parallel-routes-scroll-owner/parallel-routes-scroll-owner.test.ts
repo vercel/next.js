@@ -84,4 +84,24 @@ describe('parallel-routes-empty-fragment-scroll', () => {
       expect(Math.abs(targetTop)).toBeLessThan(1)
     })
   })
+
+  it('resets scroll when a parallel slot only renders a fixed element', async () => {
+    const browser = await next.browser('/fixed-header')
+
+    await browser.eval('window.scrollTo(0, 2000)')
+    await retry(async () => {
+      expect(await browser.eval('window.scrollY')).toBeGreaterThan(1500)
+    })
+
+    await browser.elementByCss('#to-fixed-header-about').click()
+    await retry(async () => {
+      expect(await browser.elementByCss('#fixed-header-about').text()).toBe(
+        'About'
+      )
+    })
+
+    await retry(async () => {
+      expect(await browser.eval('window.scrollY')).toBe(0)
+    })
+  })
 })
