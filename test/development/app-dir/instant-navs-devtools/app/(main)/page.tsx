@@ -65,6 +65,11 @@ export default function Page() {
         </div>
 
         <div>
+          <LinkAccordion href="/deferred-target/my-post?search=foo">
+            Target page in a deferred render
+          </LinkAccordion>
+        </div>
+        <div>
           <LinkAccordion href="/await-connection" id="link-to-await-connection">
             Page with await connection
           </LinkAccordion>
