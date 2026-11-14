@@ -8,6 +8,13 @@ async function handler(request: Request) {
     cookie: request.headers.get('cookie'),
     date: request.headers.get('date'),
     host: request.headers.get('host'),
+    flight: {
+      rsc: request.headers.get('rsc'),
+      routerStateTree: request.headers.get('next-router-state-tree'),
+      prefetch: request.headers.get('next-router-prefetch'),
+      hmrRefresh: request.headers.get('next-hmr-refresh'),
+      segmentPrefetch: request.headers.get('next-router-segment-prefetch'),
+    },
   })
 }
 

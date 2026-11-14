@@ -7,6 +7,7 @@ import { spawn } from 'child_process'
 import { once } from 'events'
 import { createServer, request } from 'http'
 import cheerio from 'cheerio'
+import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 
 // Hosted tests require the Go proxy adapter and builder releases.
 // @force-gate turbopack && !deploy
@@ -231,6 +232,45 @@ describe('native-proxy-go', () => {
         fromGo:
           mode === 'nil' ? 'client' : mode === 'replace' ? 'options' : null,
         removed: mode === 'nil' ? 'original' : null,
+      })
+    }
+  )
+
+  it.each(['Next', 'Rewrite'])(
+    '%s preserves Flight headers when replacing request headers with an empty set',
+    async (helper) => {
+      const routerStateTree = encodeURIComponent(JSON.stringify(['', {}]))
+      const query = new URLSearchParams({
+        headers: 'empty',
+        rewrite: helper === 'Rewrite' ? '1' : '0',
+        _rsc: await computeCacheBustingSearchParam(
+          '1',
+          '/_tree',
+          routerStateTree,
+          undefined
+        ),
+      })
+      const response = await next.fetch(`/native-proxy/options?${query}`, {
+        redirect: 'manual',
+        headers: {
+          rsc: '1',
+          'next-router-state-tree': routerStateTree,
+          'next-router-prefetch': '1',
+          'next-hmr-refresh': '1',
+          'next-router-segment-prefetch': '/_tree',
+          'x-client-remove': 'remove me',
+        },
+      })
+      expect(response.status).toBe(200)
+      expect(await response.json()).toMatchObject({
+        removed: null,
+        flight: {
+          rsc: '1',
+          routerStateTree,
+          prefetch: '1',
+          hmrRefresh: '1',
+          segmentPrefetch: '/_tree',
+        },
       })
     }
   )

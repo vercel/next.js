@@ -34,9 +34,11 @@ describe('Middleware Request Headers Overrides', () => {
       },
     },
   ])('$title Backend', ({ path, toJson }) => {
-    it.each(['next', 'rewrite'])(
-      '%s replaces headers with an empty set',
-      async (helper) => {
+    for (const helper of ['next', 'rewrite']) {
+      // Vercel currently returns 500 for an empty override list before the
+      // destination runs. Keep checking so the gate goes stale once supported.
+      // @gate !vercel
+      it(`${helper} replaces headers with an empty set`, async () => {
         const res = await fetchViaHTTP(
           next.url,
           path,
@@ -53,8 +55,8 @@ describe('Middleware Request Headers Overrides', () => {
         expect(headers).not.toHaveProperty('x-from-client')
         expect(headers).not.toHaveProperty('x-from-middleware')
         expect(res.headers.get('x-middleware-override-headers')).toBeNull()
-      }
-    )
+      })
+    }
 
     it(`Adds new headers`, async () => {
       const res = await fetchViaHTTP(next.url, path, null, {

@@ -651,7 +651,7 @@ export async function adapter(
     'x-middleware-override-headers'
   )
   const overwrittenHeaders: string[] = []
-  if (middlewareOverrideHeaders) {
+  if (middlewareOverrideHeaders !== null) {
     for (const [key, value] of flightHeaders) {
       finalResponse.headers.set(`x-middleware-request-${key}`, value)
       overwrittenHeaders.push(key)
@@ -660,7 +660,8 @@ export async function adapter(
     if (overwrittenHeaders.length > 0) {
       finalResponse.headers.set(
         'x-middleware-override-headers',
-        middlewareOverrideHeaders + ',' + overwrittenHeaders.join(',')
+        (middlewareOverrideHeaders ? middlewareOverrideHeaders + ',' : '') +
+          overwrittenHeaders.join(',')
       )
     }
   }
