@@ -25,6 +25,8 @@ interface HTTPAccessFallbackBoundaryProps {
   notFound?: React.ReactNode
   forbidden?: React.ReactNode
   unauthorized?: React.ReactNode
+  /** Changes when the boundary should retry rendering its children. */
+  resetKey?: unknown
   // TODO: Make this required once `React.createElement` understands that positional args go into children
   children?: React.ReactNode
   missingSlots?: Set<string>
@@ -39,6 +41,7 @@ interface HTTPAccessFallbackErrorBoundaryProps
 interface HTTPAccessBoundaryState {
   triggeredStatus: number | undefined
   previousPathname: string | null
+  previousResetKey: unknown
 }
 
 class HTTPAccessFallbackErrorBoundary extends React.Component<
@@ -50,6 +53,7 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
     this.state = {
       triggeredStatus: undefined,
       previousPathname: props.pathname,
+      previousResetKey: props.resetKey,
     }
   }
 
@@ -94,20 +98,28 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
     state: HTTPAccessBoundaryState
   ): HTTPAccessBoundaryState | null {
     /**
-     * Handles reset of the error boundary when a navigation happens.
-     * Ensures the error boundary does not stay enabled when navigating to a new page.
-     * Approach of setState in render is safe as it checks the previous pathname and then overrides
-     * it as outlined in https://react.dev/reference/react/useState#storing-information-from-previous-renders
+     * Handles reset of the error boundary when a navigation happens or when
+     * data for the current segment is replaced. The latter is needed for
+     * same-path refreshes, which preserve the pathname and React state.
+     * Approach of setState in render is safe as it checks the previous values
+     * and then overrides them as outlined in
+     * https://react.dev/reference/react/useState#storing-information-from-previous-renders
      */
-    if (props.pathname !== state.previousPathname && state.triggeredStatus) {
+    if (
+      (props.pathname !== state.previousPathname ||
+        props.resetKey !== state.previousResetKey) &&
+      state.triggeredStatus
+    ) {
       return {
         triggeredStatus: undefined,
         previousPathname: props.pathname,
+        previousResetKey: props.resetKey,
       }
     }
     return {
       triggeredStatus: state.triggeredStatus,
       previousPathname: props.pathname,
+      previousResetKey: props.resetKey,
     }
   }
 
@@ -155,6 +167,7 @@ export function HTTPAccessFallbackBoundary({
   notFound,
   forbidden,
   unauthorized,
+  resetKey,
   children,
 }: HTTPAccessFallbackBoundaryProps) {
   // When we're rendering the missing params shell, this will return null. This
@@ -169,6 +182,7 @@ export function HTTPAccessFallbackBoundary({
     return (
       <HTTPAccessFallbackErrorBoundary
         pathname={pathname}
+        resetKey={resetKey}
         notFound={notFound}
         forbidden={forbidden}
         unauthorized={unauthorized}
