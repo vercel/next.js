@@ -443,7 +443,7 @@ module.exports = {
 
 #### Customizing the Built-in Image Path
 
-If you want to change or prefix the default path for the built-in Next.js image optimization, you can do so with the `path` property. The default value for `path` is `/_next/image`.
+With the default loader, `path` sets the URL that `next/legacy/image` uses for optimized images. The default value for `path` is `/_next/image`.
 
 ```js filename="next.config.js"
 module.exports = {
@@ -452,6 +452,12 @@ module.exports = {
   },
 }
 ```
+
+With the example above, `next/legacy/image` renders `src` values such as `/my-prefix/_next/image?url=...&w=...&q=...`.
+
+`path` does not change where Next.js serves the built-in image optimization. The server always serves it at `/_next/image`, prefixed with [`basePath`](/docs/pages/api-reference/config/next-config-js/basePath) if you set one. Next.js doesn't add `basePath` to a custom `path`. When you change `path`, something in front of Next.js, such as a reverse proxy or CDN, has to route requests for that path to `/_next/image` with the same query string. Otherwise those requests return `404`.
+
+With a [built-in loader](#built-in-loaders) such as `imgix`, `cloudinary`, or `akamai`, `path` is the base URL of the provider instead, and it is required.
 
 ### Built-in Loaders
 
