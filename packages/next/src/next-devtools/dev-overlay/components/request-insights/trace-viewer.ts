@@ -283,14 +283,22 @@ function getSpanTraceItem(
     (type === REACT_AWAIT_SPAN_TYPE && typeof owner === 'string' && owner
       ? ` · ${owner}`
       : '')
-  const reactTiming =
-    type === REACT_COMPONENT_SPAN_TYPE
-      ? 'React render interval'
-      : type === REACT_AWAIT_SPAN_TYPE
-        ? 'React await interval'
-        : type === REACT_INCOMPLETE_SPAN_TYPE
-          ? 'Incomplete React timing recording'
-          : undefined
+  let reactTiming: string | undefined
+  let reactTimingKind: NonNullable<TraceItem['reactTiming']>['kind'] | undefined
+  switch (type) {
+    case REACT_COMPONENT_SPAN_TYPE:
+      reactTiming = 'React render interval'
+      reactTimingKind = 'component'
+      break
+    case REACT_AWAIT_SPAN_TYPE:
+      reactTiming = 'React await interval'
+      reactTimingKind = 'await'
+      break
+    case REACT_INCOMPLETE_SPAN_TYPE:
+      reactTiming = 'Incomplete React timing recording'
+      reactTimingKind = 'incomplete'
+      break
+  }
   const environment = span.attributes?.['next.rsc.environment']
   const renderId = span.attributes?.['next.rsc.render_id']
   const componentPath = span.attributes?.['next.rsc.component_path']
@@ -300,7 +308,8 @@ function getSpanTraceItem(
   const line1 = span.attributes?.['next.rsc.source.line']
   const column1 = span.attributes?.['next.rsc.source.column']
   const methodName = span.attributes?.['next.rsc.source.name']
-  const source =
+  let source: StackFrame | undefined
+  if (
     typeof file === 'string' &&
     file.length > 0 &&
     file.length <= 2048 &&
@@ -310,42 +319,52 @@ function getSpanTraceItem(
     typeof column1 === 'number' &&
     Number.isSafeInteger(column1) &&
     column1 > 0
-      ? {
-          file,
-          line1,
-          column1,
-          methodName: typeof methodName === 'string' ? methodName : '',
-          arguments: [],
-        }
-      : undefined
+  ) {
+    source = {
+      file,
+      line1,
+      column1,
+      methodName: typeof methodName === 'string' ? methodName : '',
+      arguments: [],
+    }
+  }
+
+  let reactTimingDetails: TraceItem['reactTiming']
+  let fullLabel: string | undefined
+  if (reactTiming && reactTimingKind) {
+    reactTimingDetails = {
+      source,
+      componentPath:
+        typeof componentPath === 'string' ? componentPath : undefined,
+      kind: reactTimingKind,
+      incompleteReason:
+        typeof incompleteReason === 'string' ? incompleteReason : undefined,
+      renderId: typeof renderId === 'string' ? renderId : undefined,
+      environment: typeof environment === 'string' ? environment : '',
+    }
+    fullLabel = `${label} · ${reactTiming}`
+    if (typeof environment === 'string' && environment) {
+      fullLabel += ` · ${environment}`
+    }
+    if (outcome === 'errored') {
+      fullLabel += ' · Errored'
+    } else if (outcome === 'aborted') {
+      fullLabel += ' · Aborted'
+    }
+    if (environment === 'Cache') {
+      fullLabel += ' · May include replayed timings from cached output'
+    }
+  }
 
   return {
     id: `span:${span.spanId ?? index}:${span.startTime}`,
     spanId: span.spanId,
     parentSpanId: span.parentSpanId,
     spanType: typeof type === 'string' ? type : undefined,
-    reactTiming: reactTiming
-      ? {
-          source,
-          componentPath:
-            typeof componentPath === 'string' ? componentPath : undefined,
-          kind:
-            type === REACT_COMPONENT_SPAN_TYPE
-              ? 'component'
-              : type === REACT_AWAIT_SPAN_TYPE
-                ? 'await'
-                : 'incomplete',
-          incompleteReason:
-            typeof incompleteReason === 'string' ? incompleteReason : undefined,
-          renderId: typeof renderId === 'string' ? renderId : undefined,
-          environment: typeof environment === 'string' ? environment : '',
-        }
-      : undefined,
+    reactTiming: reactTimingDetails,
     category: getSpanCategory(span),
     label,
-    fullLabel: reactTiming
-      ? `${label} · ${reactTiming}${typeof environment === 'string' && environment ? ` · ${environment}` : ''}${outcome === 'errored' ? ' · Errored' : outcome === 'aborted' ? ' · Aborted' : ''}${environment === 'Cache' ? ' · May include replayed timings from cached output' : ''}`
-      : undefined,
+    fullLabel,
     startTime: span.startTime,
     durationMs: span.durationMs,
     status: span.status ?? 'pending',

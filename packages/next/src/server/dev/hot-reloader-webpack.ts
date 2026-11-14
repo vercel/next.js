@@ -1,3 +1,5 @@
+import { getActiveLocalSpan } from '../lib/trace/local-span-recorder'
+import { type Span, trace } from '../../trace'
 import type { NextConfigComplete } from '../config-shared'
 import type { CustomRoutes } from '../../lib/load-custom-routes'
 import type { Duplex } from 'stream'
@@ -62,7 +64,6 @@ import {
   isMiddlewareFilename,
 } from '../../build/utils'
 import { DecodeError } from '../../shared/lib/utils'
-import { type Span, trace } from '../../trace'
 import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
 import { existsSync, promises as fs } from 'fs'
@@ -336,9 +337,12 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.config = config
     this.previewProps = previewProps
     this.rewrites = rewrites
-    this.hotReloaderSpan = trace('hot-reloader', undefined, {
-      version: process.env.__NEXT_VERSION as string,
-    })
+    this.hotReloaderSpan = trace(
+      'hot-reloader',
+      undefined,
+      { version: process.env.__NEXT_VERSION as string },
+      { parent: getActiveLocalSpan(), recordToInsights: true }
+    )
     // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
     // of the current `next dev` invocation.
     this.hotReloaderSpan.stop()
@@ -504,6 +508,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           let traceChild:
             | {
                 name: string
+                recordToInsights?: boolean
                 startTime?: bigint
                 endTime?: bigint
                 attrs?: Record<string, number | string | undefined | string[]>
@@ -530,6 +535,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             }
             case 'client-hmr-latency': {
               traceChild = {
+                recordToInsights: true,
                 name: payload.event,
                 startTime:
                   BigInt(payload.startTime) * MILLISECONDS_IN_NANOSECOND,
@@ -661,7 +667,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               traceChild.name,
               traceChild.startTime,
               traceChild.endTime,
-              { ...traceChild.attrs, clientId: payload.id }
+              { ...traceChild.attrs, clientId: payload.id },
+              {
+                recordToInsights: traceChild.recordToInsights,
+              }
             )
           }
         } catch (_) {

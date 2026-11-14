@@ -76,6 +76,7 @@ import {
   isRequestInsightsEnabled,
   readRequestInsightsHistory,
   recordRequestInsightSource,
+  registerRequestInsightsExporter,
 } from './trace/request-insights'
 import {
   NEXT_HTML_REQUEST_ID_HEADER,
@@ -83,7 +84,10 @@ import {
 } from '../../client/components/app-router-headers'
 import { nanoid } from 'next/dist/compiled/nanoid'
 import { filterInvalidDevRequestIdHeaders } from './dev-request-id'
-import { resolveRequestInsightsIdentity } from './trace/request-insights-identity'
+import {
+  resolveRequestInsightsIdentity,
+  runWithRequestInsightsIdentity,
+} from './trace/request-insights-identity'
 import { waitForResponseToFinish } from '../app-render/wait-for-response'
 import {
   REQUEST_INSIGHT_FILTERS,
@@ -189,6 +193,10 @@ export async function initialize(opts: {
   if (bundlerBeforeConfig !== undefined) {
     finalizeBundlerFromConfig(bundlerBeforeConfig)
   }
+  if (opts.dev && config.experimental.requestInsights) {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    registerRequestInsightsExporter()
+  }
 
   let compress: ReturnType<typeof setupCompression> | undefined
 
@@ -236,8 +244,14 @@ export async function initialize(opts: {
     }
 
     const setupDevBundlerSpan = opts.startServerSpan
-      ? opts.startServerSpan.traceChild('setup-dev-bundler')
-      : trace('setup-dev-bundler')
+      ? opts.startServerSpan.traceChild('setup-dev-bundler', undefined, {
+          recordToInsights: true,
+          scope: true,
+        })
+      : trace('setup-dev-bundler', undefined, undefined, {
+          recordToInsights: true,
+          scope: true,
+        })
 
     // In development, it's always the complete config.
     let developmentConfig = config as NextConfigComplete
@@ -382,25 +396,7 @@ export async function initialize(opts: {
     addRequestMeta(req, 'relativeProjectDir', relativeProjectDir)
     const assetPrefix = getAssetPrefix()
 
-    // internal headers should not be honored by the request handler
-    if (!process.env.NEXT_PRIVATE_TEST_HEADERS) {
-      filterInternalHeaders(req.headers)
-    }
-
     if (opts.dev && req.url) {
-      if (config.experimental.requestInsights) {
-        process.env.__NEXT_REQUEST_INSIGHTS = 'true'
-        filterInvalidDevRequestIdHeaders(req.headers)
-        const identity = resolveRequestInsightsIdentity({
-          previousIdentity: getRequestMeta(req, 'requestInsightsIdentity'),
-          requestIdHeader: req.headers[NEXT_REQUEST_ID_HEADER],
-          htmlRequestIdHeader: req.headers[NEXT_HTML_REQUEST_ID_HEADER],
-          url: req.url,
-          createRequestId: nanoid,
-        })
-        addRequestMeta(req, 'requestInsightsIdentity', identity)
-      }
-
       const urlParts = req.url.split('?', 1)
       const pathname = removePathPrefix(urlParts[0] || '', config.basePath)
 
@@ -502,14 +498,14 @@ export async function initialize(opts: {
             if (
               kindValue !== null &&
               kindValue !== 'request' &&
-              kindValue !== 'instant-insights'
+              kindValue !== 'instant-insights' &&
+              kindValue !== 'tooling'
             ) {
               res.statusCode = 400
               res.end(JSON.stringify({ error: 'Invalid request kind' }))
               return
             }
-            const kind =
-              kindValue === 'instant-insights' ? 'instant-insights' : 'request'
+            const kind = kindValue ?? 'request'
             if (!requestId || requestId.length > 256) {
               res.statusCode = 400
               res.end(
@@ -1107,7 +1103,28 @@ export async function initialize(opts: {
   }
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
+    // Filter before resolving the server-owned request identity.
+    if (!process.env.NEXT_PRIVATE_TEST_HEADERS) {
+      filterInternalHeaders(req.headers)
+    }
+    if (opts.dev && req.url && config.experimental.requestInsights) {
+      filterInvalidDevRequestIdHeaders(req.headers)
+      const identity = resolveRequestInsightsIdentity({
+        previousIdentity: getRequestMeta(req, 'requestInsightsIdentity'),
+        requestIdHeader: req.headers[NEXT_REQUEST_ID_HEADER],
+        htmlRequestIdHeader: req.headers[NEXT_HTML_REQUEST_ID_HEADER],
+        url: req.url,
+        createRequestId: nanoid,
+      })
+      addRequestMeta(req, 'requestInsightsIdentity', identity)
+    }
     try {
+      const identity = getRequestMeta(req, 'requestInsightsIdentity')
+      if (opts.dev && config.experimental.requestInsights && identity) {
+        return await runWithRequestInsightsIdentity(identity, () =>
+          requestHandlerInner(req, res)
+        )
+      }
       return await requestHandlerInner(req, res)
     } finally {
       if (opts.dev && config.experimental.requestInsights) {

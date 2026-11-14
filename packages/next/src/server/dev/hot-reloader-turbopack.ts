@@ -1,3 +1,5 @@
+import { getActiveLocalSpan } from '../lib/trace/local-span-recorder'
+import { trace } from '../../trace'
 import type { Socket } from 'net'
 import { mkdir, writeFile } from 'fs/promises'
 import { realpathSync } from 'fs'
@@ -61,7 +63,6 @@ import {
   clearModuleContext,
 } from '../lib/render-server'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
-import { trace } from '../../trace'
 import {
   AssetMapper,
   type ChangeSubscriptions,
@@ -471,9 +472,12 @@ export async function createHotReloaderTurbopack(
     opts.fsChecker.rewrites.beforeFiles.length > 0 ||
     opts.fsChecker.rewrites.fallback.length > 0
 
-  const hotReloaderSpan = trace('hot-reloader', undefined, {
-    version: process.env.__NEXT_VERSION as string,
-  })
+  const hotReloaderSpan = trace(
+    'hot-reloader',
+    undefined,
+    { version: process.env.__NEXT_VERSION as string },
+    { parent: getActiveLocalSpan(), recordToInsights: true }
+  )
   // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
   // of the current `next dev` invocation.
   hotReloaderSpan.stop()
@@ -1747,7 +1751,8 @@ export async function createHotReloaderTurbopack(
                   updatedModules: parsedData.updatedModules,
                   page: parsedData.page,
                   isPageHidden: parsedData.isPageHidden,
-                }
+                },
+                { recordToInsights: true }
               )
               break
 

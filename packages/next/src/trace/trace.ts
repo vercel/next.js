@@ -38,9 +38,16 @@ export enum SpanStatus {
   Stopped = 'stopped',
 }
 
+type ReportingOptions = {
+  recordToInsights?: boolean
+  scope?: boolean
+  parent?: LocalSpanOptions['parent'] | Span
+}
+
 export class Span {
   readonly recorder: LocalRecordingSpan
 
+  private readonly scope: boolean
   constructor({
     name,
     parentId,
@@ -48,21 +55,30 @@ export class Span {
     attrs,
     startTime,
     wallStartTimeMs,
+    scope = false,
+    ...reporting
   }: {
     name: string
     parentId?: SpanId
-    parent?: Span
     attrs?: Attributes
     startTime?: bigint
     wallStartTimeMs?: number
-  }) {
+  } & ReportingOptions) {
     this.recorder = createTraceSpan({
+      ...reporting,
+      scope,
       name,
-      parent: parent?.recorder ?? parentId,
+      parent:
+        parent instanceof Span
+          ? parent.recorder
+          : parent === undefined
+            ? parentId
+            : parent,
       attributes: attrs,
       monotonicStartTime: startTime,
       wallStartTimeMs,
     })
+    this.scope = scope
   }
 
   get name(): string {
@@ -82,29 +98,25 @@ export class Span {
     )
   }
 
-  traceChild(name: string, attrs?: Attributes): Span {
-    return new Span({ name, parent: this, attrs })
+  traceChild(
+    name: string,
+    attrs?: Attributes,
+    options?: ReportingOptions
+  ): Span {
+    return new Span({ ...options, name, parent: this, attrs })
   }
 
   manualTraceChild(
     name: string,
     startTime?: bigint,
     stopTime?: bigint,
-    attrs?: Attributes
+    attrs?: Attributes,
+    options?: ReportingOptions
   ): void {
-    const correction =
-      process.hrtime.bigint() - BigInt(Date.now()) * NUM_OF_MILLISEC_IN_NANOSEC
-    const span = new Span({
-      name,
-      parent: this,
-      attrs,
-      startTime: startTime === undefined ? undefined : startTime + correction,
-      wallStartTimeMs:
-        startTime === undefined
-          ? undefined
-          : Number(startTime / NUM_OF_MILLISEC_IN_NANOSEC),
-    })
-    span.stop(stopTime === undefined ? undefined : stopTime + correction)
+    recordSpan(
+      { ...options, name, startTime, endTime: stopTime, attributes: attrs },
+      this.recorder
+    )
   }
 
   getId(): SpanId {
@@ -119,18 +131,52 @@ export class Span {
   }
 
   traceFn<T>(fn: (span: Span) => T): T {
-    return recordSpanCallback({ span: this.recorder, synchronous: true }, () =>
-      fn(this)
+    return recordSpanCallback(
+      { span: this.recorder, scope: this.scope, synchronous: true },
+      () => fn(this)
     )
   }
 
   traceAsyncFn<T>(fn: (span: Span) => T | Promise<T>): Promise<T> {
-    return recordSpanCallback({ span: this.recorder }, () => fn(this))
+    return recordSpanCallback({ span: this.recorder, scope: this.scope }, () =>
+      fn(this)
+    )
   }
 }
 
-export const trace = (name: string, parentId?: SpanId, attrs?: Attributes) =>
-  new Span({ name, parentId, attrs })
+export const trace = (
+  name: string,
+  parentId?: SpanId,
+  attrs?: Attributes,
+  options?: ReportingOptions
+) => new Span({ ...options, name, parentId, attrs })
+
+/** Completed observations use nanoseconds since Unix epoch. */
+export function recordSpan(
+  observation: {
+    name: string
+    startTime?: bigint
+    endTime?: bigint
+    attributes?: Record<string, unknown>
+    recordToInsights?: boolean
+  },
+  parent?: OpenTelemetrySpan
+): void {
+  const correction =
+    process.hrtime.bigint() - BigInt(Date.now()) * NUM_OF_MILLISEC_IN_NANOSEC
+  const { startTime, endTime, attributes, ...options } = observation
+  const span = new Span({
+    ...options,
+    parent,
+    attrs: attributes,
+    startTime: startTime === undefined ? undefined : startTime + correction,
+    wallStartTimeMs:
+      startTime === undefined
+        ? undefined
+        : Number(startTime / NUM_OF_MILLISEC_IN_NANOSEC),
+  })
+  span.stop(endTime === undefined ? undefined : endTime + correction)
+}
 
 export type LocalSpanTiming = {
   startTime?: import('@opentelemetry/api').SpanOptions['startTime']
@@ -159,6 +205,8 @@ export function createTraceSpan(
   options: Omit<LocalSpanOptions, 'parent'> &
     LocalSpanTiming & {
       parent?: OpenTelemetrySpan | SpanId | null
+      recordToInsights?: boolean
+      scope?: boolean
     }
 ): LocalRecordingSpan {
   const parent = typeof options.parent === 'object' ? options.parent : undefined
@@ -188,8 +236,14 @@ export function createTraceSpan(
       },
       onError: (recording, error) => {
         recording.setAttribute('failed', true)
-        recording.recordException(error as Error)
-        recording.setStatus({ code: 2 })
+        if (options.scope) {
+          const { recordSpanError } =
+            require('../server/lib/trace/tracer') as typeof import('../server/lib/trace/tracer')
+          recordSpanError(recording, error as Error)
+        } else {
+          recording.recordException(error as Error)
+          recording.setStatus({ code: 2 })
+        }
       },
     },
     (recording, end) => {
@@ -202,6 +256,23 @@ export function createTraceSpan(
     }
   )
   traceSources.set(span, source)
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    // Tooling destinations are only available in Node.
+  } else {
+    if (options.recordToInsights && process.env.__NEXT_DEV_SERVER) {
+      const { captureInsightSpanRecorder } =
+        require('../server/lib/trace/request-insights-span-recorder') as typeof import('../server/lib/trace/request-insights-span-recorder')
+      const type = options.attributes?.['next.span_type']
+      span.addDelivery(
+        captureInsightSpanRecorder(
+          span,
+          parent ?? undefined,
+          options.name,
+          typeof type === 'string' ? type : options.name
+        )
+      )
+    }
+  }
   return span
 }
 

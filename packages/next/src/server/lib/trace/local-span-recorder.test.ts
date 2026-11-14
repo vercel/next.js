@@ -3,15 +3,18 @@
  */
 
 import { runInNewContext } from 'node:vm'
+import { createTraceSpan } from '../../../trace/trace'
 import { setFlagsFromString } from 'node:v8'
 import { SpanStatusCode, trace } from 'next/dist/compiled/@opentelemetry/api'
 import {
   createLocalSpan,
   getLocalParentSpan,
   getOpenTelemetrySpan,
+  recordSpan,
   traceLocalSpan,
   withLocalSpan,
 } from './local-span-recorder'
+import { BubbledError } from './tracer'
 import {
   resolveRequestInsightsIdentity,
   runWithRequestInsightsIdentity,
@@ -33,6 +36,10 @@ const spanRecords: SpanStoreRecord[] = []
 
 setFlagsFromString('--expose-gc')
 const forceGarbageCollection = runInNewContext('gc') as () => void
+
+function expectRecorded(expected: Partial<SpanStoreRecord>) {
+  expect(spanRecords).toEqual([expect.objectContaining(expected)])
+}
 
 describe('local recording span', () => {
   beforeEach(() => {
@@ -70,19 +77,17 @@ describe('local recording span', () => {
     span.end()
 
     expect(span.isRecording()).toBe(false)
-    expect(spanRecords).toEqual([
-      expect.objectContaining({
-        name: 'test.local-span',
-        traceId: '0123456789abcdef0123456789abcdef',
-        spanId: '0123456789abcdef',
-        route: '/dashboard',
-        status: 'ok',
-        attributes: {
-          'next.phase': 'render',
-          'next.route': '/dashboard',
-        },
-      }),
-    ])
+    expectRecorded({
+      name: 'test.local-span',
+      traceId: '0123456789abcdef0123456789abcdef',
+      spanId: '0123456789abcdef',
+      route: '/dashboard',
+      status: 'ok',
+      attributes: {
+        'next.phase': 'render',
+        'next.route': '/dashboard',
+      },
+    })
   })
 
   it('keeps browser debug IDs separate from server-owned storage IDs', () => {
@@ -125,13 +130,11 @@ describe('local recording span', () => {
       }
     )
 
-    expect(spanRecords).toEqual([
-      expect.objectContaining({
-        requestId: 'asset-request',
-        requestInsightSource: 'asset',
-        url: '/asset.svg',
-      }),
-    ])
+    expectRecorded({
+      requestId: 'asset-request',
+      requestInsightSource: 'asset',
+      url: '/asset.svg',
+    })
   })
 
   it('rejects malformed browser IDs instead of using them as storage keys', () => {
@@ -189,14 +192,12 @@ describe('local recording span', () => {
     })
     span.end()
 
-    expect(spanRecords).toEqual([
-      expect.objectContaining({
-        attributes: {
-          'next.phase': 'render',
-          'next.route': '/dashboard',
-        },
-      }),
-    ])
+    expectRecorded({
+      attributes: {
+        'next.phase': 'render',
+        'next.route': '/dashboard',
+      },
+    })
   })
 
   it('captures status, exception, and event mutations before ending', () => {
@@ -207,29 +208,27 @@ describe('local recording span', () => {
     span.setStatus({ code: SpanStatusCode.ERROR, message: 'failed' })
     span.end()
 
-    expect(spanRecords).toEqual([
-      expect.objectContaining({
-        name: 'test.local-span.error',
-        status: 'error',
-        error: {
-          type: 'TypeError',
-          message: 'boom',
-        },
-        events: [
-          expect.objectContaining({
-            name: 'test.event',
-            attributes: { 'next.phase': 'render' },
-          }),
-          expect.objectContaining({
-            name: 'exception',
-            attributes: {
-              'exception.type': 'TypeError',
-              'exception.message': 'boom',
-            },
-          }),
-        ],
-      }),
-    ])
+    expectRecorded({
+      name: 'test.local-span.error',
+      status: 'error',
+      error: {
+        type: 'TypeError',
+        message: 'boom',
+      },
+      events: [
+        expect.objectContaining({
+          name: 'test.event',
+          attributes: { 'next.phase': 'render' },
+        }),
+        expect.objectContaining({
+          name: 'exception',
+          attributes: {
+            'exception.type': 'TypeError',
+            'exception.message': 'boom',
+          },
+        }),
+      ],
+    })
   })
 
   it('ends traced local spans and records thrown errors', async () => {
@@ -241,16 +240,85 @@ describe('local recording span', () => {
       })
     ).rejects.toBe(error)
 
-    expect(spanRecords).toEqual([
-      expect.objectContaining({
-        name: 'test.local-span.trace-error',
-        status: 'error',
-        error: {
-          type: 'TypeError',
-          message: 'boom',
+    expectRecorded({
+      name: 'test.local-span.trace-error',
+      status: 'error',
+      error: {
+        type: 'TypeError',
+        message: 'boom',
+      },
+    })
+  })
+
+  it('preserves scoped tooling error metadata before rejecting', async () => {
+    const error = new TypeError('compiler failed')
+    const statuses: unknown[] = []
+
+    await expect(
+      recordSpan(
+        {
+          span: createTraceSpan({
+            name: 'compiler',
+            scope: true,
+            recordToInsights: true,
+          }),
+          scope: true,
         },
-      }),
+        async (span) => {
+          const setStatus = span.setStatus.bind(span)
+          jest.spyOn(span, 'setStatus').mockImplementation((status) => {
+            statuses.push(status)
+            return setStatus(status)
+          })
+          throw error
+        }
+      )
+    ).rejects.toBe(error)
+
+    expect(statuses).toEqual([
+      { code: SpanStatusCode.ERROR, message: 'compiler failed' },
     ])
+    expectRecorded({
+      name: 'compiler',
+      status: 'error',
+      error: { type: 'TypeError', message: 'compiler failed' },
+      attributes: expect.objectContaining({
+        failed: true,
+        'error.type': 'TypeError',
+      }),
+    })
+  })
+
+  it('preserves scoped tooling bubbled errors before rethrowing', () => {
+    const error = new BubbledError(true)
+
+    expect(() =>
+      recordSpan(
+        {
+          span: createTraceSpan({
+            name: 'bubbled compiler',
+            scope: true,
+            recordToInsights: true,
+          }),
+          scope: true,
+          synchronous: true,
+        },
+        () => {
+          throw error
+        }
+      )
+    ).toThrow(error)
+
+    expectRecorded({
+      name: 'bubbled compiler',
+      status: 'ok',
+      error: undefined,
+      events: undefined,
+      attributes: expect.objectContaining({
+        failed: true,
+        'next.bubble': true,
+      }),
+    })
   })
 
   it('can start a detached trace inside an active local span', async () => {
@@ -271,18 +339,14 @@ describe('local recording span', () => {
       (span) => span.name === 'detached child'
     )!
 
-    expect(detachedRoot).toEqual(
-      expect.objectContaining({
-        parentSpanId: undefined,
-      })
-    )
+    expect(detachedRoot).toMatchObject({
+      parentSpanId: undefined,
+    })
     expect(detachedRoot.traceId).not.toBe(foreground.traceId)
-    expect(detachedChild).toEqual(
-      expect.objectContaining({
-        traceId: detachedRoot.traceId,
-        parentSpanId: detachedRoot.spanId,
-      })
-    )
+    expect(detachedChild).toMatchObject({
+      traceId: detachedRoot.traceId,
+      parentSpanId: detachedRoot.spanId,
+    })
   })
 
   it('compares the public context supplied by the tracer', () => {
@@ -320,14 +384,12 @@ describe('local recording span', () => {
       }
     )
 
-    expect(spanRecords).toEqual([
-      expect.objectContaining({
-        name: 'test.request-root',
-        requestId: 'request-1',
-        htmlRequestId: 'html-1',
-        url: '/dashboard?tab=overview',
-      }),
-    ])
+    expectRecorded({
+      name: 'test.request-root',
+      requestId: 'request-1',
+      htmlRequestId: 'html-1',
+      url: '/dashboard?tab=overview',
+    })
   })
 
   it('uses a nested Instant Insights identity instead of the work store identity', () => {
@@ -352,14 +414,12 @@ describe('local recording span', () => {
       )
     })
 
-    expect(spanRecords).toEqual([
-      expect.objectContaining({
-        requestId: 'originating-request',
-        requestInsightKind: 'instant-insights',
-        htmlRequestId: 'originating-html',
-        route: '/dashboard',
-      }),
-    ])
+    expectRecorded({
+      requestId: 'originating-request',
+      requestInsightKind: 'instant-insights',
+      htmlRequestId: 'originating-html',
+      route: '/dashboard',
+    })
   })
 
   it('records explicit performance timestamps', () => {
@@ -371,53 +431,47 @@ describe('local recording span', () => {
 
     span.end(startTime + 0.2)
 
-    expect(spanRecords).toEqual([
-      expect.objectContaining({
-        name: 'test.local-span.explicit-time',
-        startTime: performance.timeOrigin + startTime,
-        durationMs: expect.closeTo(0.2, 3),
-      }),
-    ])
+    expectRecorded({
+      name: 'test.local-span.explicit-time',
+      startTime: performance.timeOrigin + startTime,
+      durationMs: expect.closeTo(0.2, 3),
+    })
   })
 
   it('preserves explicit event and exception timestamps', () => {
     const epochTimestamp = performance.timeOrigin + 10
     const preProcessEpochTimestamp = performance.timeOrigin - 1
     const span = createLocalSpan({ name: 'test.local-span.explicit-events' })
-    span.addEvent('numeric performance time', 1)
-    span.addEvent('attributes and performance time', { phase: 'render' }, 2)
-    span.addEvent('Date time', new Date(4))
-    span.addEvent('HrTime', [0, 5_000_000])
-    span.addEvent('numeric epoch time', epochTimestamp)
-    span.addEvent(
-      'numeric epoch before process start',
-      preProcessEpochTimestamp
-    )
-    span.addEvent('third argument takes precedence', 6, 7)
+    const events: [
+      Parameters<typeof span.addEvent>,
+      number,
+      Record<string, string>?,
+    ][] = [
+      [['numeric performance time', 1], performance.timeOrigin + 1],
+      [
+        ['attributes and performance time', { phase: 'render' }, 2],
+        performance.timeOrigin + 2,
+        { phase: 'render' },
+      ],
+      [['Date time', new Date(4)], 4],
+      [['HrTime', [0, 5_000_000]], 5],
+      [['numeric epoch time', epochTimestamp], epochTimestamp],
+      [
+        ['numeric epoch before process start', preProcessEpochTimestamp],
+        preProcessEpochTimestamp,
+      ],
+      [['third argument takes precedence', 6, 7], performance.timeOrigin + 7],
+    ]
+    for (const [args] of events) span.addEvent(...args)
     span.recordException(new TypeError('boom'), 3)
     span.end()
 
     expect(spanRecords[0].events).toEqual([
-      {
-        name: 'numeric performance time',
-        timestamp: performance.timeOrigin + 1,
-      },
-      {
-        name: 'attributes and performance time',
-        timestamp: performance.timeOrigin + 2,
-        attributes: { phase: 'render' },
-      },
-      { name: 'Date time', timestamp: 4 },
-      { name: 'HrTime', timestamp: 5 },
-      { name: 'numeric epoch time', timestamp: epochTimestamp },
-      {
-        name: 'numeric epoch before process start',
-        timestamp: preProcessEpochTimestamp,
-      },
-      {
-        name: 'third argument takes precedence',
-        timestamp: performance.timeOrigin + 7,
-      },
+      ...events.map(([[name], timestamp, attributes]) => ({
+        name,
+        timestamp,
+        attributes,
+      })),
       {
         name: 'exception',
         timestamp: performance.timeOrigin + 3,
@@ -429,37 +483,32 @@ describe('local recording span', () => {
     ])
   })
 
-  it('keeps the original collector when a span ends in another context', () => {
-    const original = jest.fn()
-    const unrelated = jest.fn()
-    const exporter = jest.fn()
-    setLocalSpanExporter({ isEnabled: () => true, export: exporter })
-    const span = runWithLocalSpanSink(original, () =>
-      createLocalSpan({ name: 'original collector' })
-    )
-    runWithLocalSpanSink(unrelated, () => span.end())
-    span.end()
-
-    expect(original).toHaveBeenCalledTimes(1)
-    expect(original).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'original collector' })
-    )
-    expect(unrelated).not.toHaveBeenCalled()
-    expect(exporter).not.toHaveBeenCalled()
-  })
-
-  it('does not adopt a collector that was entered after the span started', () => {
-    const unrelated = jest.fn()
-    const exporter = jest.fn()
-    setLocalSpanExporter({ isEnabled: () => true, export: exporter })
-    const span = createLocalSpan({ name: 'exported span' })
-    runWithLocalSpanSink(unrelated, () => span.end())
-
-    expect(unrelated).not.toHaveBeenCalled()
-    expect(exporter).toHaveBeenCalledWith([
-      expect.objectContaining({ name: 'exported span' }),
-    ])
-  })
+  it.each([true, false])(
+    'retains creation-time sink ownership, initially scoped: %s',
+    (scoped) => {
+      const original = jest.fn()
+      const unrelated = jest.fn()
+      const exporter = jest.fn()
+      setLocalSpanExporter({ isEnabled: () => true, export: exporter })
+      const create = () => createLocalSpan({ name: 'original collector' })
+      const span = scoped ? runWithLocalSpanSink(original, create) : create()
+      runWithLocalSpanSink(unrelated, () => span.end())
+      span.end()
+      expect(unrelated).not.toHaveBeenCalled()
+      if (scoped) {
+        expect(original).toHaveBeenCalledTimes(1)
+        expect(original).toHaveBeenCalledWith(
+          expect.objectContaining({ name: 'original collector' })
+        )
+        expect(exporter).not.toHaveBeenCalled()
+      } else {
+        expect(exporter).toHaveBeenCalledTimes(1)
+        expect(exporter).toHaveBeenCalledWith([
+          expect.objectContaining({ name: 'original collector' }),
+        ])
+      }
+    }
+  )
 
   it.each([true, false])(
     'releases references after ending with a delegate: %s',

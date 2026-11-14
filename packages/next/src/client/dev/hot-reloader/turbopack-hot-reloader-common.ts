@@ -113,6 +113,7 @@ export class TurbopackHmr {
       endMsSinceEpoch: this.#lastUpdateMsSinceEpoch ?? Date.now(),
     }
     this.#updatedModules = new Set()
+    this.#lastUpdateMsSinceEpoch = undefined
     this.#reportedHmrStart = false
     return result
   }

@@ -1,4 +1,7 @@
-import type { RequestInsight } from '../../../shared/request-insights'
+import {
+  getRequestInsightKind,
+  type RequestInsight,
+} from '../../../shared/request-insights'
 import { removePathPrefix } from '../../../../shared/lib/router/utils/remove-path-prefix'
 
 type RequestIdentity = Pick<RequestInsight, 'requestId' | 'route' | 'url'>
@@ -13,8 +16,11 @@ export function getRequestDisplayUrl(request: RequestIdentity): string {
 }
 
 export function getRequestInsightAgentPrompt(
-  request: Pick<RequestInsight, 'requestId'>
+  request: Pick<RequestInsight, 'requestId' | 'kind'>
 ): string {
+  if (getRequestInsightKind(request) === 'tooling') {
+    return `Inspect development tooling activity ${request.requestId} with the get_request_insights MCP tool. Explain where startup, compilation, or HMR time was spent using its span timeline.`
+  }
   return `Inspect Request Insights request ${request.requestId} with the get_request_insights MCP tool. Focus only on its server fetches. Trace slow, failed, or uncached fetches back to the application code, fix the underlying issue, and verify the request again in Request Insights.`
 }
 

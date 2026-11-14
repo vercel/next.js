@@ -1,3 +1,4 @@
+import { getActiveLocalSpan } from '../server/lib/trace/local-span-recorder'
 import {
   getRouteCacheKey,
   ROUTE_CACHE_DIRECTORY,
@@ -130,7 +131,7 @@ import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner, { finishSpinner } from './spinner'
-import { trace, flushAllTraces, setGlobal, type Span } from '../trace'
+import { type Span, flushAllTraces, setGlobal, trace } from '../trace'
 import { readAnalyzeRoutes, writeAnalyzeSnapshot } from './analyze/snapshot'
 import { writeRouteBundleStats } from './route-bundle-stats'
 import {
@@ -1157,11 +1158,20 @@ export default async function build(
   process.once('exit', () => flushTurbopackWarnings())
 
   try {
-    const nextBuildSpan = trace('next-build', undefined, {
-      buildMode: experimentalBuildMode,
-      version: process.env.__NEXT_VERSION as string,
-      ...enabledFeatures,
-    })
+    const nextBuildSpan = trace(
+      'next-build',
+      undefined,
+      {
+        buildMode: experimentalBuildMode,
+        version: process.env.__NEXT_VERSION as string,
+        ...enabledFeatures,
+      },
+      {
+        parent: getActiveLocalSpan(),
+        recordToInsights: true,
+        scope: true,
+      }
+    )
 
     NextBuildContext.nextBuildSpan = nextBuildSpan
     NextBuildContext.dir = dir
@@ -1967,7 +1977,10 @@ export default async function build(
                 ) as Worker & typeof import('./collect-build-traces')
 
                 buildTracesPromise = nextBuildSpan
-                  .traceChild('collect-build-traces')
+                  .traceChild('collect-build-traces', undefined, {
+                    recordToInsights: true,
+                    scope: true,
+                  })
                   .traceAsyncFn(() => {
                     return buildTraceWorker
                       .collectBuildTraces({
@@ -2370,7 +2383,11 @@ export default async function build(
       })
 
       const analysisBegin = process.hrtime()
-      const staticCheckSpan = nextBuildSpan.traceChild('static-check')
+      const staticCheckSpan = nextBuildSpan.traceChild(
+        'static-check',
+        undefined,
+        { recordToInsights: true, scope: true }
+      )
 
       const functionsConfigManifest: FunctionsConfigManifest = {
         version: 1,
@@ -3043,7 +3060,10 @@ export default async function build(
         !buildTracesPromise
       ) {
         buildTracesPromise = nextBuildSpan
-          .traceChild('collect-build-traces')
+          .traceChild('collect-build-traces', undefined, {
+            recordToInsights: true,
+            scope: true,
+          })
           .traceAsyncFn(() => {
             const { collectBuildTraces } =
               require('./collect-build-traces') as typeof import('./collect-build-traces')
@@ -3233,8 +3253,12 @@ export default async function build(
           useDefaultStatic500 ||
           appDir)
       ) {
-        const staticGenerationSpan =
-          nextBuildSpan.traceChild('static-generation')
+        const staticGenerationSpan = nextBuildSpan.traceChild(
+          'static-generation',
+          undefined,
+          { recordToInsights: true, scope: true }
+        )
+
         await staticGenerationSpan.traceAsyncFn(async () => {
           detectConflictingPaths(
             [
@@ -4949,6 +4973,7 @@ export default async function build(
 
     // Ensure all buffered spans are on disk before `uploadTrace` reads the file.
     flushAllTraces()
+
     teardownTraceSubscriber()
 
     if (traceUploadUrl && loadedConfig) {
