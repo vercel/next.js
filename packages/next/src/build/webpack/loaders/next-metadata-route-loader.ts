@@ -1,7 +1,10 @@
 import type webpack from 'webpack'
 import fs from 'fs'
 import path from 'path'
-import { imageExtMimeTypeMap } from '../../../lib/mime-type'
+import {
+  imageExtMimeTypeMap,
+  videoExtMimeTypeMap,
+} from '../../../lib/mime-type'
 import { getLoaderModuleNamedExports } from './utils'
 import { installBindings } from '../../swc/install-bindings'
 
@@ -68,6 +71,9 @@ function getContentType(resourcePath: string) {
 
   if (ext === 'png' || ext === 'jpeg' || ext === 'ico' || ext === 'svg') {
     return imageExtMimeTypeMap[ext]
+  }
+  if (ext === 'mp4' || ext === 'webm') {
+    return videoExtMimeTypeMap[ext]
   }
   return 'text/plain'
 }

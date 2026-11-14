@@ -24,7 +24,11 @@ import type { SearchParams } from '../../server/request/search-params'
 // eslint-disable-next-line import/no-extraneous-dependencies
 import 'server-only'
 
-import { resolveOpenGraph, resolveTwitter } from './resolvers/resolve-opengraph'
+import {
+  resolveOpenGraph,
+  resolveStaticVideos,
+  resolveTwitter,
+} from './resolvers/resolve-opengraph'
 import { resolveTitle } from './resolvers/resolve-title'
 import { resolveAsArrayOrUndefined } from './generate/utils'
 import {
@@ -169,7 +173,8 @@ async function mergeStaticMetadata(
   pathname: Promise<string>
 ): Promise<ResolvedMetadata> {
   if (!staticFilesMetadata) return target
-  const { icon, apple, openGraph, twitter, manifest } = staticFilesMetadata
+  const { icon, apple, openGraph, twitter, openGraphVideo, manifest } =
+    staticFilesMetadata
 
   // Keep updating the static icons in the most leaf node
 
@@ -191,15 +196,33 @@ async function mergeStaticMetadata(
     target.twitter = convertUrlsToStrings(resolvedTwitter)
   }
 
-  // file based metadata is specified and current level metadata openGraph.images is not specified
-  if (openGraph && !source?.openGraph?.hasOwnProperty('images')) {
+  // file based metadata is specified and current level metadata
+  // openGraph.images / openGraph.videos is not specified
+  const shouldMergeOgImages =
+    openGraph && !source?.openGraph?.hasOwnProperty('images')
+  const shouldMergeOgVideos =
+    openGraphVideo && !source?.openGraph?.hasOwnProperty('videos')
+  if (shouldMergeOgImages || shouldMergeOgVideos) {
+    const mergedOpenGraph = { ...target.openGraph } as OpenGraph
+    if (shouldMergeOgImages) {
+      mergedOpenGraph.images = openGraph
+    }
+    if (shouldMergeOgVideos) {
+      mergedOpenGraph.videos = openGraphVideo
+    }
     const resolvedOpenGraph = await resolveOpenGraph(
-      { ...target.openGraph, images: openGraph } as OpenGraph,
+      mergedOpenGraph,
       metadataBase,
       pathname,
       { ...metadataContext, isStaticMetadataRouteFile: true },
       titleTemplates.openGraph
     )
+    if (resolvedOpenGraph && shouldMergeOgVideos) {
+      resolvedOpenGraph.videos = resolveStaticVideos(
+        openGraphVideo,
+        metadataBase
+      )
+    }
     target.openGraph = convertUrlsToStrings(resolvedOpenGraph)
   }
   if (manifest) {
@@ -596,11 +619,12 @@ export async function resolveStaticMetadata(
   const { metadata } = modules
   if (!metadata) return null
 
-  const [icon, apple, openGraph, twitter] = await Promise.all([
+  const [icon, apple, openGraph, twitter, openGraphVideo] = await Promise.all([
     collectStaticImagesFiles(metadata, props, 'icon'),
     collectStaticImagesFiles(metadata, props, 'apple'),
     collectStaticImagesFiles(metadata, props, 'openGraph'),
     collectStaticImagesFiles(metadata, props, 'twitter'),
+    collectStaticImagesFiles(metadata, props, 'openGraphVideo'),
   ])
 
   const staticMetadata = {
@@ -608,6 +632,7 @@ export async function resolveStaticMetadata(
     apple,
     openGraph,
     twitter,
+    openGraphVideo,
     manifest: metadata.manifest,
   }
 

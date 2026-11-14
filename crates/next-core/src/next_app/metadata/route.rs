@@ -144,6 +144,46 @@ async fn static_route_source(mode: NextMode, path: FileSystemPath) -> Result<Vc<
     let is_open_graph = stem == "opengraph-image";
 
     let content_type = get_content_type(path.clone()).await?;
+    // Use full filename (stem + extension) to avoid conflicts when multiple icon
+    // formats exist (e.g., icon.png and icon.svg)
+    let filename = path.file_name();
+
+    // Videos can be large, so instead of inlining the file content into the bundle,
+    // reference it as an emitted asset and read it from disk when the route is
+    // prerendered.
+    if stem == "opengraph-video" {
+        let code = formatdoc! {
+            r#"
+                import {{ NextResponse }} from 'next/server'
+                import {{ readFile }} from 'fs/promises'
+                import {{ fileURLToPath }} from 'url'
+
+                const contentType = {content_type}
+                const cacheControl = {cache_control}
+                const fileUrl = new URL({file_request}, import.meta.url)
+
+                export async function GET() {{
+                    const buffer = await readFile(fileURLToPath(fileUrl))
+                    return new NextResponse(buffer, {{
+                        headers: {{
+                            'Content-Type': contentType,
+                            'Cache-Control': cacheControl,
+                        }},
+                    }})
+                }}
+
+                export const dynamic = 'force-static'
+            "#,
+            content_type = StringifyJs(&content_type),
+            cache_control = StringifyJs(cache_control),
+            file_request = StringifyJs(&format!("./{filename}")),
+        };
+        let source = VirtualSource::new(
+            path.parent().join(&format!("{filename}--route-entry.js"))?,
+            AssetContent::file(FileContent::Content(File::from(code)).cell()),
+        );
+        return Ok(Vc::upcast(source));
+    }
     let original_file_content_b64;
 
     // Twitter image file size limit is 5MB.
@@ -198,10 +238,6 @@ async fn static_route_source(mode: NextMode, path: FileSystemPath) -> Result<Vc<
         cache_control = StringifyJs(cache_control),
         original_file_content_b64 = StringifyJs(&original_file_content_b64),
     };
-
-    // Use full filename (stem + extension) to avoid conflicts when multiple icon
-    // formats exist (e.g., icon.png and icon.svg)
-    let filename = path.file_name();
 
     let file = File::from(code);
     let source = VirtualSource::new(

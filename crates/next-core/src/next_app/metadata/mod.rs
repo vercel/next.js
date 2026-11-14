@@ -16,6 +16,8 @@ pub static STATIC_LOCAL_METADATA: phf::Map<&'static str, &'static [&'static str]
     "apple-icon" => &["jpg", "jpeg", "png"],
     "opengraph-image" => &["jpg", "jpeg", "png", "gif"],
     "twitter-image" => &["jpg", "jpeg", "png", "gif"],
+    // Static only, a single `opengraph-video.<ext>` file per segment.
+    "opengraph-video" => &["mp4", "webm"],
     "sitemap" => &["xml"],
 };
 
@@ -61,8 +63,8 @@ fn match_metadata_file<'a>(
 
     let exts = metadata.get(stem)?;
 
-    // favicon can't be dynamic
-    if stem != "favicon" && page_extensions.iter().any(|e| e == ext) {
+    // favicon and opengraph-video can't be dynamic
+    if stem != "favicon" && stem != "opengraph-video" && page_extensions.iter().any(|e| e == ext) {
         return Some(MetadataFileMatch {
             metadata_type: stem,
             number,
@@ -100,7 +102,7 @@ pub(crate) async fn get_content_type(path: FileSystemPath) -> Result<String> {
     }
 
     if let Some(ext) = ext
-        && matches!(ext, "png" | "jpeg" | "ico" | "svg")
+        && matches!(ext, "png" | "jpeg" | "ico" | "svg" | "mp4" | "webm")
     {
         return Ok(mime_guess::from_ext(ext)
             .first_or_octet_stream()
@@ -421,8 +423,34 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
 
 #[cfg(test)]
 mod test {
-    use super::{djb2_hash, fill_static_metadata_segment, format_radix, normalize_metadata_route};
+    use turbo_rcstr::{RcStr, rcstr};
+
+    use super::{
+        djb2_hash, fill_static_metadata_segment, format_radix, match_local_metadata_file,
+        normalize_metadata_route,
+    };
     use crate::next_app::AppPage;
+
+    #[test]
+    fn test_match_opengraph_video() {
+        let page_extensions: Vec<RcStr> = vec![rcstr!("tsx"), rcstr!("ts")];
+
+        for basename in ["opengraph-video.mp4", "opengraph-video.webm"] {
+            let matched = match_local_metadata_file(basename, &page_extensions).unwrap();
+            assert_eq!(matched.metadata_type, "opengraph-video");
+            assert_eq!(matched.number, None);
+            assert!(!matched.dynamic);
+        }
+
+        // Static only, without numeric variants or other extensions.
+        for basename in [
+            "opengraph-video.tsx",
+            "opengraph-video1.mp4",
+            "opengraph-video.mov",
+        ] {
+            assert!(match_local_metadata_file(basename, &page_extensions).is_none());
+        }
+    }
 
     #[test]
     fn test_normalize_metadata_route() {
