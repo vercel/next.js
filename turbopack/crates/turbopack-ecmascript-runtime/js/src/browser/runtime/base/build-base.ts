@@ -60,7 +60,7 @@ function instantiateModule(
   try {
     moduleFactory(context, module, exports)
   } catch (error) {
-    module.error = error as any
+    cacheModuleError(moduleCache, module, error)
     throw error
   }
 

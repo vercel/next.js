@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="def46318-113b-4f82-5b10-6d3d2287859d")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="c6c6f332-969d-89a7-21c1-db62b9deb36c")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -90,6 +90,30 @@ function defineProp(obj, name, options) {
         throw module.error;
     }
     return module;
+}
+/**
+ * Whether `error` is the engine running out of stack. The error is recognized by name and message rather than with
+ * `instanceof`, so one thrown in another realm (a `vm` context) is recognized too.
+ */ function isStackOverflowError(error) {
+    const { name, message } = error ?? {};
+    if (typeof message !== 'string') return false;
+    return name === 'RangeError' && message.includes('Maximum call stack size exceeded') || name === 'InternalError' && message.includes('too much recursion');
+}
+/**
+ * Remembers the error a module factory threw, so that later loads of the module rethrow it instead of evaluating it
+ * again. A stack overflow is the exception: it says how deep the stack was when the module first ran, not
+ * anything about the module, so the module is dropped from the cache and runs again on the next load. Whatever
+ * imported the dropped module before it failed holds the exports object of the failed run, and the next load
+ * creates a new one.
+ */ function cacheModuleError(moduleCache, module, error) {
+    if (isStackOverflowError(error)) {
+        // HMR may already have replaced the entry while the factory ran.
+        if (moduleCache.get(module.id) === module) {
+            moduleCache.delete(module.id);
+        }
+        return;
+    }
+    module.error = error;
 }
 function getOverwrittenModule(moduleCache, id) {
     let module = moduleCache.get(id);
@@ -1663,7 +1687,7 @@ function formatDependencyChain(dependencyChain) {
         // this frame smaller.
         moduleFactory(createDevModuleContext(module, exports, finishExecution !== undefined), module, exports);
     } catch (error) {
-        module.error = error;
+        cacheModuleError(moduleCache, module, error);
         throw error;
     } finally{
         finishExecution?.();
@@ -2708,5 +2732,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=def46318-113b-4f82-5b10-6d3d2287859d
+//# debugId=c6c6f332-969d-89a7-21c1-db62b9deb36c
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map
