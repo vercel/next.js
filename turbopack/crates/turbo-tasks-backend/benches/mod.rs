@@ -9,6 +9,7 @@ pub(crate) mod cell_fan_out;
 pub(crate) mod collectibles;
 pub(crate) mod existing_outputs;
 pub(crate) mod gc;
+pub(crate) mod hot_read;
 pub(crate) mod keyed_deps;
 pub(crate) mod overhead;
 pub(crate) mod scope_stress;
@@ -21,6 +22,6 @@ criterion_group!(
     targets = stress::fibonacci, scope_stress::scope_stress, overhead::overhead, gc::gc,
         cell_fan_out::cell_fan_out, state_fan_out::state_fan_out, collectibles::collectibles,
         aggregation_churn::aggregation_churn, aggregation_queue::aggregation_queue,
-        existing_outputs::existing_outputs, keyed_deps::keyed_deps
+        existing_outputs::existing_outputs, keyed_deps::keyed_deps, hot_read::hot_read
 );
 criterion_main!(turbo_tasks_backend_stress);
