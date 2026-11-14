@@ -8,6 +8,22 @@ import { fileExists, FileType } from './file-exists'
 import * as Log from '../build/output/log'
 import { getPkgManager } from './helpers/get-pkg-manager'
 
+const PARTYTOWN_PACKAGE = '@qwik.dev/partytown'
+const LEGACY_PARTYTOWN_PACKAGE = '@builder.io/partytown'
+
+function getPartytownDependencies(
+  dir: string,
+  partytownPackage: string
+): NecessaryDependencies {
+  return hasNecessaryDependencies(dir, [
+    {
+      file: partytownPackage,
+      pkg: partytownPackage,
+      exportsRestrict: false,
+    },
+  ])
+}
+
 async function missingDependencyError(dir: string) {
   const packageManager = getPkgManager(dir)
 
@@ -26,7 +42,7 @@ async function missingDependencyError(dir: string) {
             ? 'yarn add --dev'
             : packageManager === 'pnpm'
               ? 'pnpm install --save-dev'
-              : 'npm install --save-dev') + ' @builder.io/partytown'
+              : 'npm install --save-dev') + ` ${PARTYTOWN_PACKAGE}`
         )
       )}` +
       '\n\n' +
@@ -41,6 +57,7 @@ async function missingDependencyError(dir: string) {
 
 async function copyPartytownStaticFiles(
   deps: NecessaryDependencies,
+  partytownPackage: string,
   staticDir: string
 ) {
   const partytownLibDir = path.join(staticDir, '~partytown')
@@ -54,7 +71,7 @@ async function copyPartytownStaticFiles(
   }
 
   const { copyLibFiles } = await Promise.resolve(
-    require(path.join(deps.resolved.get('@builder.io/partytown')!, '../utils'))
+    require(path.join(deps.resolved.get(partytownPackage)!, '../utils'))
   )
 
   await copyLibFiles(partytownLibDir)
@@ -64,25 +81,30 @@ export async function verifyPartytownSetup(
   dir: string,
   targetDir: string
 ): Promise<void> {
-  const partytownDeps: NecessaryDependencies = hasNecessaryDependencies(dir, [
-    {
-      file: '@builder.io/partytown',
-      pkg: '@builder.io/partytown',
-      exportsRestrict: false,
-    },
-  ])
+  let partytownPackage = PARTYTOWN_PACKAGE
+  let partytownDeps = getPartytownDependencies(dir, partytownPackage)
 
   if (partytownDeps.missing?.length > 0) {
-    await missingDependencyError(dir)
-  } else {
-    try {
-      await copyPartytownStaticFiles(partytownDeps, targetDir)
-    } catch (err) {
-      Log.warn(
-        `Partytown library files could not be copied to the static directory. Please ensure that ${bold(
-          cyan('@builder.io/partytown')
-        )} is installed as a dependency.`
-      )
+    const legacyPartytownDeps = getPartytownDependencies(
+      dir,
+      LEGACY_PARTYTOWN_PACKAGE
+    )
+
+    if (legacyPartytownDeps.missing?.length > 0) {
+      await missingDependencyError(dir)
     }
+
+    partytownPackage = LEGACY_PARTYTOWN_PACKAGE
+    partytownDeps = legacyPartytownDeps
+  }
+
+  try {
+    await copyPartytownStaticFiles(partytownDeps, partytownPackage, targetDir)
+  } catch (err) {
+    Log.warn(
+      `Partytown library files could not be copied to the static directory. Please ensure that ${bold(
+        cyan(partytownPackage)
+      )} is installed as a dependency.`
+    )
   }
 }
