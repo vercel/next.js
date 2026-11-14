@@ -3,13 +3,24 @@ import os from 'node:os'
 import path from 'node:path'
 
 const mockTraced: Array<{ type: string; spanName: string; error: boolean }> = []
+const mockSpanStartTimes = new Map<string, number>()
+// When each load of the OpenTelemetry API started, on the clock of the spans.
+const mockApiPreloads: number[] = []
+
+const mockNow = () => performance.timeOrigin + performance.now()
 
 jest.mock('../trace/tracer', () => ({
   SpanStatusCode: { ERROR: 2 },
+  preloadOpenTelemetryApi: () => {
+    const start = mockNow()
+    // Take time, like a real load: return after the clock has advanced.
+    while (mockNow() === start) {}
+    mockApiPreloads.push(start)
+  },
   getTracer: () => ({
     trace: (
       type: string,
-      options: { spanName: string },
+      options: { spanName: string; startTime: number },
       fn: (span: unknown) => void
     ) => {
       let error = false
@@ -21,6 +32,7 @@ jest.mock('../trace/tracer', () => ({
         },
       })
       mockTraced.push({ type, spanName: options.spanName, error })
+      mockSpanStartTimes.set(type, options.startTime)
     },
   }),
 }))
@@ -55,6 +67,8 @@ function loadGlobals(): InstrumentationGlobals {
 describe('instrumentation lifecycle spans', () => {
   beforeEach(() => {
     mockTraced.length = 0
+    mockSpanStartTimes.clear()
+    mockApiPreloads.length = 0
     projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'next-instrumentation-'))
   })
 
@@ -197,5 +211,29 @@ describe('instrumentation lifecycle spans', () => {
         error: true,
       },
     ])
+  })
+
+  // `register()` and the extensions after it load the OpenTelemetry API. The
+  // register span must not include that load.
+  it('loads the OpenTelemetry API before the register span starts', async () => {
+    writeInstrumentation('exports.register = () => {}')
+    const globals = loadGlobals()
+
+    await globals.ensureInstrumentationRegistered(projectDir, '.next')
+
+    expect(mockApiPreloads).toHaveLength(1)
+    expect(mockSpanStartTimes.get(REGISTER)).toBeGreaterThan(mockApiPreloads[0])
+  })
+
+  it.each([
+    ['a register export', 'exports.onRequestError = () => {}'],
+    ['an instrumentation file', undefined],
+  ])('does not load the OpenTelemetry API without %s', async (_, source) => {
+    if (source) writeInstrumentation(source)
+    const globals = loadGlobals()
+
+    await globals.ensureInstrumentationRegistered(projectDir, '.next')
+
+    expect(mockApiPreloads).toEqual([])
   })
 })
