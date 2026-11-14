@@ -1,8 +1,11 @@
 mod activity;
 mod cell_data;
+#[cfg(test)]
+mod cell_read_tests;
 mod counter_map;
 mod eviction;
 mod gc;
+mod known_immutable;
 mod operation;
 mod snapshot_coordinator;
 mod storage;
@@ -54,11 +57,11 @@ use turbo_tasks::{
 use turbo_tasks::{FunctionId, TaskDirtyCause};
 use turbo_tasks_malloc::TurboMalloc;
 
-use self::eviction::EvictionControl;
 #[cfg(not(target_family = "wasm"))]
 pub use self::operation::aggregation_queue;
 #[cfg(test)]
 pub(crate) use self::storage::TrackOutcome;
+use self::{eviction::EvictionControl, known_immutable::KnownImmutable};
 pub use self::{
     eviction::EvictionMode,
     storage::{EvictionCounts, SpecificTaskDataCategory, TaskDataCategory},
@@ -67,10 +70,11 @@ use crate::{
     backend::{
         activity::{ActivityMonitor, BackendActivity, IdleDeadlineStrategy},
         operation::{
-            AggregationUpdateJob, AggregationUpdateQueue, ExecuteContext, LeafDistanceUpdateQueue,
-            OutdatedEdge, TaskGuard, TaskType, TaskTypeRef, capture_all_edges, cleanup_old_edges,
-            compute_leaf_distance_update, connect_child, connect_children, get_aggregation_number,
-            get_uppers, invalidate, make_task_dirty_internal, prepare_new_children, update_cell,
+            AggregationUpdateJob, AggregationUpdateQueue, CellDependencyMark, ExecuteContext,
+            LeafDistanceUpdateQueue, OutdatedEdge, TaskGuard, TaskType, TaskTypeRef,
+            capture_all_edges, cleanup_old_edges, compute_leaf_distance_update, connect_child,
+            connect_children, get_aggregation_number, get_uppers, invalidate,
+            make_task_dirty_internal, prepare_new_children, update_cell,
         },
         snapshot_coordinator::{OperationGuard, SlowSettle, SnapshotCoordinator},
         storage::{Storage, StorageOptions, encode_snapshot_item},
@@ -250,6 +254,10 @@ pub struct TurboTasksBackend {
 
     storage: Storage,
 
+    /// Tasks known to be immutable, so that cell reads of them don't need to lock the reader. See
+    /// [`KnownImmutable`].
+    known_immutable: KnownImmutable,
+
     /// Coordinates the operation/snapshot/GC interleaving protocol. See
     /// [`SnapshotCoordinator`] for details.
     snapshot_coord: SnapshotCoordinator,
@@ -364,6 +372,7 @@ impl TurboTasksBackend {
                 shard_amount,
                 small_preallocation,
             }),
+            known_immutable: KnownImmutable::new(),
             snapshot_coord: SnapshotCoordinator::new(),
             snapshot_in_progress: Mutex::new(LastPersistenceStatus::Ok),
             stopping: RwLock::new(false),
@@ -537,6 +546,31 @@ impl TurboTasksBackend {
     #[doc(hidden)]
     pub fn persisted_gc_roots_for_testing(&self) -> Vec<(TaskId, TtlCounter)> {
         self.backing_storage.roots().unwrap_or_default()
+    }
+
+    /// Whether `task` is known to be immutable, i.e. cell reads of it skip the reader task.
+    #[doc(hidden)]
+    pub fn known_immutable_for_testing(&self, task: TaskId) -> bool {
+        self.known_immutable.contains(task)
+    }
+
+    /// Whether `task` is in memory. Doesn't restore it.
+    #[doc(hidden)]
+    pub fn is_resident_for_testing(&self, task: TaskId) -> bool {
+        self.storage.with_task(task, |_| ()).is_some()
+    }
+
+    /// The number of cell dependencies (keyed or not) of `task`, restoring it if needed (`None` if
+    /// it doesn't exist).
+    #[doc(hidden)]
+    pub fn cell_dependency_count_for_testing(
+        &self,
+        task: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> Option<usize> {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let task = ctx.try_task(task, TaskDataCategory::All)?;
+        Some(task.iter_cell_dependencies().count() + task.iter_cell_dependencies_keyed().count())
     }
     /// Opens `task` with the must-exist [`ExecuteContext::task`] and drops the guard. Test-only
     /// hook to exercise the non-fabricating existence guarantee: this panics if `task` exists in
@@ -1076,137 +1110,172 @@ impl TurboTasksBackend {
     ) -> Result<ReadOutcome<TypedCellContent>> {
         self.assert_not_persistent_calling_transient(reader, task_id);
 
-        fn add_cell_dependency(
-            task_id: TaskId,
-            mut task: TaskGuard<'_>,
-            reader: Option<TaskId>,
-            reader_task: Option<TaskGuard<'_>>,
-            cell: CellId,
-            key: Option<CellKey>,
-        ) {
-            if let Some(mut reader_task) = reader_task {
-                let reader = reader.unwrap();
-                let reverse = CellRef { task: reader, cell };
-
-                // Note: We use `task_pair` earlier to lock the task and its reader at the same
-                // time. If we didn't and just locked the reader here, an invalidation could occur
-                // between grabbing the locks. If that happened, and if the task is "outdated" or
-                // doesn't have the dependency edge yet, the invalidation would be lost.
-                //
-                // The reader's forward edge tells whether the reverse edge exists: an edge from the
-                // reader's previous execution (outdated) or an earlier read in this execution
-                // already has one, so only a new edge adds it.
-                let target = CellRef {
-                    task: task_id,
-                    cell,
-                };
-                match key {
-                    None => {
-                        if !reader_task.remove_outdated_cell_dependencies(&target)
-                            && reader_task.add_cell_dependencies(target)
-                        {
-                            task.push_cell_dependents(reverse);
-                        }
-                    }
-                    Some(key) => {
-                        if !reader_task.remove_outdated_cell_dependencies_keyed(&(target, key))
-                            && reader_task.add_cell_dependencies_keyed((target, key))
-                        {
-                            task.add_keyed_cell_dependent((reverse, key));
-                        }
-                    }
-                }
-                drop(task);
-                drop(reader_task);
-            }
-        }
-
         let ReadCellOptions {
             tracking,
             final_read_hint,
         } = options;
 
         let mut ctx = self.execute_context(turbo_tasks);
-        let need_reader_task = reader.and_then(|reader_id| {
-            (self.should_track_dependencies()
+        // The reader whose dependency on the cell may need to be registered.
+        let tracking_reader = reader.filter(|&reader_id| {
+            self.should_track_dependencies()
                 && !matches!(tracking, ReadCellTracking::Untracked)
-                && reader_id != task_id)
-                .then_some(reader_id)
+                && reader_id != task_id
         });
-        let Some((mut task, reader_task)) =
-            lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task)
-        else {
-            return Err(collected_task_read_error(task_id, "read_task_cell"));
+        let key = tracking.key();
+        let target = CellRef {
+            task: task_id,
+            cell,
         };
 
-        let content = if final_read_hint {
-            task.remove_cell_data(&cell, &get_value_type(cell.type_id()).persistence)
-        } else {
-            task.get_cell_data(&cell).cloned()
-        };
-        if let Some(content) = content {
-            if tracking.should_track(false) {
-                add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
+        // Registering the dependency takes two lock sections that never overlap, the reader's
+        // first:
+        //
+        // 1. The reader marks its dependency edge as current (`mark_cell_dependency`).
+        // 2. The task being read adds the reverse edge unless it's already there
+        //    (`ensure_cell_dependent`), and the cell is read in that same section.
+        //
+        // An `update_cell` that changes the cell after step 2 finds the reverse edge and
+        // invalidates the reader. One that changed it before step 2 is seen by the read itself.
+        // Between the two steps, an invalidation finds no reverse edge yet, but the read then sees
+        // the new content. A removed edge would have to go the other way round (reverse edge
+        // first), so that the reader never loses an invalidation it still depends on.
+        //
+        // An immutable task can never be invalidated, so reading it needs no edges. Tasks that
+        // are known to be immutable skip step 1, and a step 1 that turns out to be unnecessary is
+        // undone.
+        //
+        // A `TrackOnlyError` read only needs the dependency when it fails, which it only finds
+        // out in step 2. It then registers the dependency and reads again (`mark` is set).
+        let mut mark = None;
+        let mut track_now = matches!(tracking, ReadCellTracking::Tracked { .. });
+        let (mut task, listener, new_listener, unmark_later) = loop {
+            if let Some(reader_id) = tracking_reader
+                && track_now
+                && mark.is_none()
+                && !self.known_immutable.contains(task_id)
+            {
+                let mut reader_task = ctx.task(reader_id, TaskDataCategory::All);
+                mark = Some(reader_task.mark_cell_dependency(target, key));
+                drop(reader_task);
+                #[cfg(test)]
+                cell_read_tests::run_between_read_steps_hook(&mut ctx);
             }
-            return Ok(ReadOutcome::Value(TypedCellContent(
-                cell.type_id(),
-                CellContent(Some(content)),
-            )));
-        }
 
-        let in_progress = task.get_in_progress();
-        if matches!(
-            in_progress,
-            Some(InProgressState::InProgress(..) | InProgressState::Scheduled { .. })
-        ) {
-            // Tell the reader whether the task is merely queued (it may take it over and execute it
-            // itself) or already being executed by a worker (it can only wait).
-            let started = matches!(in_progress, Some(InProgressState::InProgress(..)));
-            let listener = self
-                .listen_to_cell(&mut task, task_id, need_reader_task, &reader_task, cell)
-                .0;
-            return Ok(if started {
-                ReadOutcome::InProgress(listener)
+            let Some(mut task) = ctx.try_task(task_id, TaskDataCategory::All) else {
+                if let Some(mark) = mark {
+                    // The task is gone, so the edge isn't needed.
+                    let mut reader_task = ctx.task(tracking_reader.unwrap(), TaskDataCategory::All);
+                    reader_task.unmark_cell_dependency(target, key, mark);
+                }
+                return Err(collected_task_read_error(task_id, "read_task_cell"));
+            };
+            let immutable = task.immutable() && !cfg!(feature = "verify_immutable");
+            if immutable {
+                self.known_immutable.insert(task_id);
+            } else if mark.is_some() {
+                task.ensure_cell_dependent(
+                    CellRef {
+                        task: tracking_reader.unwrap(),
+                        cell,
+                    },
+                    key,
+                );
+            }
+            // Undoes step 1 for an immutable task, once its lock is released.
+            let unmark = |ctx: &mut ExecuteContext<'_>| {
+                if immutable && let Some(mark) = mark {
+                    let mut reader_task = ctx.task(tracking_reader.unwrap(), TaskDataCategory::All);
+                    reader_task.unmark_cell_dependency(target, key, mark);
+                }
+            };
+            // A failed read that must be tracked, but wasn't yet: register and read again.
+            let retry_tracked = tracking_reader.is_some()
+                && mark.is_none()
+                && !immutable
+                && tracking.should_track(true);
+
+            let content = if final_read_hint {
+                task.remove_cell_data(&cell, &get_value_type(cell.type_id()).persistence)
             } else {
-                ReadOutcome::Scheduled(listener)
-            });
-        }
-        let is_cancelled = matches!(in_progress, Some(InProgressState::Canceled));
-
-        // Check cell index range (cell might not exist at all)
-        let max_id = task.get_cell_type_max_index(&cell.type_id()).copied();
-        let Some(max_id) = max_id else {
-            let task_desc = task.get_task_description();
-            if tracking.should_track(true) {
-                add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
+                task.get_cell_data(&cell).cloned()
+            };
+            if let Some(content) = content {
+                drop(task);
+                unmark(&mut ctx);
+                return Ok(ReadOutcome::Value(TypedCellContent(
+                    cell.type_id(),
+                    CellContent(Some(content)),
+                )));
             }
-            bail!(
-                "Cell {cell:?} no longer exists in task {task_desc} (no cell of this type exists)",
-            );
+
+            let in_progress = task.get_in_progress();
+            if matches!(
+                in_progress,
+                Some(InProgressState::InProgress(..) | InProgressState::Scheduled { .. })
+            ) {
+                // Tell the reader whether the task is merely queued (it may take it over and
+                // execute it itself) or already being executed by a worker (it can only wait).
+                let started = matches!(in_progress, Some(InProgressState::InProgress(..)));
+                let listener = self.listen_to_cell(&mut task, task_id, reader, cell).0;
+                drop(task);
+                unmark(&mut ctx);
+                return Ok(if started {
+                    ReadOutcome::InProgress(listener)
+                } else {
+                    ReadOutcome::Scheduled(listener)
+                });
+            }
+            let is_cancelled = matches!(in_progress, Some(InProgressState::Canceled));
+
+            // Check cell index range (cell might not exist at all)
+            let max_id = task.get_cell_type_max_index(&cell.type_id()).copied();
+            let missing = match max_id {
+                None => Some("no cell of this type exists"),
+                Some(max_id) if cell.index() >= max_id => Some("index out of bounds"),
+                Some(_) => None,
+            };
+            if let Some(reason) = missing {
+                if retry_tracked {
+                    drop(task);
+                    track_now = true;
+                    continue;
+                }
+                let task_desc = task.get_task_description();
+                drop(task);
+                unmark(&mut ctx);
+                bail!("Cell {cell:?} no longer exists in task {task_desc} ({reason})");
+            }
+
+            // Cell should exist, but data was dropped or is not serializable. We need to recompute
+            // the task to get the cell content.
+
+            // Bail early if the task was cancelled — no point in registering a listener
+            // on a task that won't execute again.
+            if is_cancelled {
+                let task_desc = task.get_task_description();
+                drop(task);
+                unmark(&mut ctx);
+                bail!("{task_desc} was canceled");
+            }
+
+            // Listen to the cell and potentially schedule the task
+            let (listener, new_listener) = self.listen_to_cell(&mut task, task_id, reader, cell);
+            // Not expected (an immutable task keeps its cells), but don't leave the edge behind.
+            let unmark_later = if immutable { mark } else { None };
+            break (task, listener, new_listener, unmark_later);
         };
-        if cell.index() >= max_id {
-            let task_desc = task.get_task_description();
-            if tracking.should_track(true) {
-                add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
+        // Undoes step 1 for an immutable task, see above.
+        let unmark_later = |ctx: &mut ExecuteContext<'_>| {
+            if let Some(mark) = unmark_later {
+                let mut reader_task = ctx.task(tracking_reader.unwrap(), TaskDataCategory::All);
+                reader_task.unmark_cell_dependency(target, key, mark);
             }
-            bail!("Cell {cell:?} no longer exists in task {task_desc} (index out of bounds)");
-        }
-
-        // Cell should exist, but data was dropped or is not serializable. We need to recompute the
-        // task to get the cell content.
-
-        // Bail early if the task was cancelled — no point in registering a listener
-        // on a task that won't execute again.
-        if is_cancelled {
-            bail!("{} was canceled", task.get_task_description());
-        }
-
-        // Listen to the cell and potentially schedule the task
-        let (listener, new_listener) =
-            self.listen_to_cell(&mut task, task_id, need_reader_task, &reader_task, cell);
-        drop(reader_task);
+        };
         if !new_listener {
             // Somebody else is already waiting for this cell, so the task is being taken care of.
+            drop(task);
+            unmark_later(&mut ctx);
             return Ok(ReadOutcome::InProgress(listener));
         }
 
@@ -1222,6 +1291,8 @@ impl TurboTasksBackend {
             EventDescription::new(|| task.get_task_desc_fn()),
         );
         ctx.schedule_task(&task, TaskPriority::Recomputation);
+        drop(task);
+        unmark_later(&mut ctx);
 
         Ok(ReadOutcome::Scheduled(listener))
     }
@@ -1246,7 +1317,19 @@ impl TurboTasksBackend {
     ///
     /// When the cell content is currently missing (e.g. while `update_cell` invalidates its
     /// dependents), the [`CellKeyKind::Provisional`] dependency is kept, conservatively depending
-    /// on the whole cell.
+    /// on the whole cell (the [`CellKeyKind::Hash`] dependencies are added anyway).
+    ///
+    /// Like `try_read_task_cell`, this never locks the reader and the task at the same time. New
+    /// edges are added reader side first, removed edges are removed task side first:
+    ///
+    /// 1. The reader marks the [`CellKeyKind::Hash`] dependencies as current.
+    /// 2. The task adds their reverse edges and then removes the reverse edge of the
+    ///    [`CellKeyKind::Provisional`] dependency, if the cell content is present.
+    /// 3. The reader removes the [`CellKeyKind::Provisional`] dependency.
+    ///
+    /// For an immutable task, no edges are needed at all: the task removes the reverse edge of the
+    /// [`CellKeyKind::Provisional`] dependency, then the reader removes the dependency and any
+    /// marks from step 1.
     ///
     /// [`CellKeyKind::Provisional`]: turbo_tasks::CellKeyKind::Provisional
     /// [`CellKeyKind::Hash`]: turbo_tasks::CellKeyKind::Hash
@@ -1263,52 +1346,50 @@ impl TurboTasksBackend {
             return;
         }
         let mut ctx = self.execute_context(turbo_tasks);
-        let (mut task, mut reader_task) = ctx.task_pair(task_id, reader, TaskDataCategory::All);
-        let immutable = task.immutable() && !cfg!(feature = "verify_immutable");
-        if !immutable && !task.cell_data_contains(&cell) {
-            return;
-        }
         let reverse = CellRef { task: reader, cell };
         let target = CellRef {
             task: task_id,
             cell,
         };
         let provisional = CellKey::provisional(id);
-        task.remove_keyed_cell_dependent(&(reverse, provisional));
-        reader_task.remove_cell_dependencies_keyed(&(target, provisional));
-        reader_task.remove_outdated_cell_dependencies_keyed(&(target, provisional));
-        // Immutable tasks never need dependency edges and can never be invalidated.
-        if immutable {
-            return;
-        }
-        // Many readers can refine their dependencies on the same cell at once, all serialized on
-        // the owner task's lock. So the owner side is updated first, and the owner is released
-        // before the reader side is updated. The reader stays locked until its side is complete:
-        // an `update_cell` that collects the new owner-side edges in the meantime blocks on the
-        // reader, and then finds the edges on the reader side as well (see the same ordering in
-        // `add_cell_dependency` of `try_read_task_cell`). The keys are iterated once per side, so
-        // they don't need to be buffered.
-        //
-        // Only a new forward edge needs its reverse edge, see `try_read_task_cell`. While the
-        // reader is locked, its edges can't change, so the owner side can decide that from the
-        // reader side without changing it yet. This relies on `key_hashes` being distinct: the
-        // forward edges are only added after the owner pass, so a duplicate key would push its
-        // reverse edge twice.
-        reader_task.cell_dependencies_keyed_inflate();
-        let key_hashes = key_hashes.into_iter();
-        for k in key_hashes.clone() {
-            let key = CellKey::hash(k);
-            if !reader_task.outdated_cell_dependencies_keyed_contains(&(target, key))
-                && !reader_task.cell_dependencies_keyed_contains(&(target, key))
-            {
-                task.add_keyed_cell_dependent((reverse, key));
+
+        // Step 1
+        let mut marks: SmallVec<[(CellKey, CellDependencyMark); 8]> = SmallVec::new();
+        if !self.known_immutable.contains(task_id) {
+            let mut key_hashes = key_hashes.into_iter().peekable();
+            if key_hashes.peek().is_some() {
+                let mut reader_task = ctx.task(reader, TaskDataCategory::All);
+                marks.extend(key_hashes.map(|k| {
+                    let key = CellKey::hash(k);
+                    (key, reader_task.mark_cell_dependency(target, Some(key)))
+                }));
             }
         }
+
+        // Step 2
+        let mut task = ctx.task(task_id, TaskDataCategory::All);
+        let immutable = task.immutable() && !cfg!(feature = "verify_immutable");
+        if immutable {
+            self.known_immutable.insert(task_id);
+        } else {
+            for &(key, _) in &marks {
+                task.ensure_cell_dependent(reverse, Some(key));
+            }
+            if !task.cell_data_contains(&cell) {
+                // Refused: the provisional dependency stays, see above.
+                return;
+            }
+        }
+        task.remove_keyed_cell_dependent(&(reverse, provisional));
         drop(task);
-        for k in key_hashes {
-            let key = CellKey::hash(k);
-            if !reader_task.remove_outdated_cell_dependencies_keyed(&(target, key)) {
-                let _ = reader_task.add_cell_dependencies_keyed((target, key));
+
+        // Step 3
+        let mut reader_task = ctx.task(reader, TaskDataCategory::All);
+        reader_task.remove_cell_dependencies_keyed(&(target, provisional));
+        reader_task.remove_outdated_cell_dependencies_keyed(&(target, provisional));
+        if immutable {
+            for (key, mark) in marks {
+                reader_task.unmark_cell_dependency(target, Some(key), mark);
             }
         }
     }
@@ -1364,7 +1445,8 @@ impl TurboTasksBackend {
             if task.immutable() && !cfg!(feature = "verify_immutable") {
                 continue;
             }
-            // Only a new forward edge needs its reverse edge, see `try_read_task_cell`.
+            // Only a new forward edge needs its reverse edge: both tasks are locked here, so the
+            // forward edge tells whether the reverse edge exists.
             if !reader_task.remove_outdated_cell_dependencies(&target)
                 && reader_task.add_cell_dependencies(target)
             {
@@ -1378,15 +1460,11 @@ impl TurboTasksBackend {
         task: &mut TaskGuard<'_>,
         task_id: TaskId,
         reader: Option<TaskId>,
-        reader_task: &Option<TaskGuard<'_>>,
         cell: CellId,
     ) -> (EventListener, bool) {
         let note = || {
-            let reader_desc = reader_task.as_ref().map(|r| r.get_task_desc_fn());
             move || {
-                if let Some(reader_desc) = reader_desc.as_ref() {
-                    format!("try_read_task_cell (in progress) from {}", (reader_desc)())
-                } else if let Some(reader_id) = reader {
+                if let Some(reader_id) = reader {
                     format!("try_read_task_cell (in progress) from {reader_id:?}")
                 } else {
                     "try_read_task_cell (in progress, untracked)".to_string()
@@ -3127,6 +3205,7 @@ impl TurboTasksBackend {
         // to be invalidated and we can mark it as immutable.
         if is_now_immutable {
             task.set_immutable(true);
+            self.known_immutable.insert(task_id);
         }
 
         // Notify in progress cells and remove all of them
