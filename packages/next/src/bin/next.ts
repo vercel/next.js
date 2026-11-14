@@ -492,6 +492,11 @@ program
       }
       setupProfilesDir(directory || process.cwd())
       const portSource = _optionValueSources.port
+      // Enable the Node.js compile cache before loading the dev CLI. The
+      // forked dev server process enables it on its own.
+      ;(
+        require('../server/lib/enable-compile-cache') as typeof import('../server/lib/enable-compile-cache')
+      ).enableCompileCache()
       import('../cli/next-dev.js').then((mod) =>
         mod.nextDev(options, portSource, directory)
       )
