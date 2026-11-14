@@ -8,7 +8,7 @@ use turbo_tasks::{ReadRef, ResolvedVc, ValueToString, ValueToStringRef, Vc, turb
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_base38, hash_xxh3_hash64};
 
-use crate::resolve::ModulePart;
+use crate::resolve::{MemberUsage, ModulePart};
 
 /// A layer identifies a distinct part of the module graph.
 #[turbo_tasks::task_input]
@@ -249,10 +249,10 @@ impl AssetIdent {
                     2_u8.deterministic_hash(&mut hasher);
                     export.deterministic_hash(&mut hasher);
                 }
-                ModulePart::PartialExport { export, member } => {
+                ModulePart::PartialExport { export, members } => {
                     3_u8.deterministic_hash(&mut hasher);
                     export.deterministic_hash(&mut hasher);
-                    member.deterministic_hash(&mut hasher);
+                    hash_member_map(members, &mut hasher);
                 }
                 ModulePart::RenamedExport {
                     original_export,
@@ -266,10 +266,10 @@ impl AssetIdent {
                     5_u8.deterministic_hash(&mut hasher);
                     export.deterministic_hash(&mut hasher);
                 }
-                ModulePart::RenamedPartialNamespace { export, member } => {
+                ModulePart::RenamedPartialNamespace { export, members } => {
                     6_u8.deterministic_hash(&mut hasher);
                     export.deterministic_hash(&mut hasher);
-                    member.deterministic_hash(&mut hasher);
+                    hash_member_map(members, &mut hasher);
                 }
                 ModulePart::Internal(id) => {
                     7_u8.deterministic_hash(&mut hasher);
@@ -417,6 +417,22 @@ impl ValueToStringRef for AssetIdent {
         }
 
         Ok(s.into())
+    }
+}
+
+/// Hashes a member tree so that a single member read as a whole (`{ member: All }`) hashes exactly
+/// like the plain `member` name did before member trees existed, keeping existing idents stable.
+fn hash_member_map(
+    members: &std::collections::BTreeMap<RcStr, MemberUsage>,
+    hasher: &mut Xxh3Hash64Hasher,
+) {
+    for (name, usage) in members {
+        name.deterministic_hash(hasher);
+        if let MemberUsage::Members(nested) = usage {
+            0xfe_u8.deterministic_hash(hasher);
+            hash_member_map(nested, hasher);
+            0xff_u8.deterministic_hash(hasher);
+        }
     }
 }
 
