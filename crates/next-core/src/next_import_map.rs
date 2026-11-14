@@ -323,12 +323,15 @@ pub async fn get_next_server_import_map(
             import_map.insert_exact_alias(rcstr!("react-dom/client"), external);
             import_map.insert_wildcard_alias(rcstr!("react-dom/"), external);
             import_map.insert_exact_alias(rcstr!("styled-jsx"), external);
+            // The Next.js server output file tracer already traces this module from
+            // the Next.js package. Tracing this external again from the app root
+            // fails with pnpm, where styled-jsx is nested under Next.js.
             import_map.insert_exact_alias(
                 rcstr!("styled-jsx/style"),
                 ImportMapping::External(
                     Some(rcstr!("styled-jsx/style.js")),
                     ExternalType::CommonJs,
-                    ExternalTraced::Traced,
+                    ExternalTraced::Untraced,
                 )
                 .resolved_cell(),
             );
