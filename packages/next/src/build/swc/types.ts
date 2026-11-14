@@ -12,6 +12,10 @@ import type {
   TraceServerHandle,
   TraceQueryOptions,
   TraceQueryResult,
+  TraceFlatProfileOptions,
+  TraceFlatProfileResult,
+  TraceMemoryTimelineOptions,
+  TraceMemoryTimeline,
   MemoryEvictionMode,
   NapiTurbopackGcOptions,
   ServerHmrVersion as NativeServerHmrVersion,
@@ -25,7 +29,15 @@ import type {
   projectUpdateInfoSubscribe,
 } from './generated-native'
 
-export type { TraceServerHandle, TraceQueryOptions, TraceQueryResult }
+export type {
+  TraceServerHandle,
+  TraceQueryOptions,
+  TraceQueryResult,
+  TraceFlatProfileOptions,
+  TraceFlatProfileResult,
+  TraceMemoryTimelineOptions,
+  TraceMemoryTimeline,
+}
 export type { LockfileError }
 
 export type { NapiTurboEngineOptions as TurboEngineOptions }
@@ -56,6 +68,14 @@ export interface Binding {
       handle: TraceServerHandle,
       options: TraceQueryOptions
     ): TraceQueryResult
+    queryTraceFlatProfile(
+      handle: TraceServerHandle,
+      options: TraceFlatProfileOptions
+    ): TraceFlatProfileResult
+    queryTraceMemoryTimeline(
+      handle: TraceServerHandle,
+      options: TraceMemoryTimelineOptions
+    ): TraceMemoryTimeline
     databaseCompact(path: string, nextVersion: string): Promise<void>
 
     nextBuild?: any
