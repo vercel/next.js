@@ -22,6 +22,7 @@ import { DecodeError } from '../../shared/lib/utils'
 import { deobfuscateText } from '../../shared/lib/magic-identifier'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
+import { getImmutableStaticAssetRegex } from '../../lib/immutable-static-assets'
 import { proxyRequest } from './router-utils/proxy-request'
 import { isAbortError, pipeToNodeResponse } from '../pipe-readable'
 import { getResolveRoutes } from './router-utils/resolve-routes'
@@ -202,6 +203,10 @@ export async function initialize(opts: {
     config,
     minimalMode: opts.minimalMode,
   })
+  // `buildId` is fixed outside dev, and dev doesn't use this.
+  const immutableStaticAssetRegex = getImmutableStaticAssetRegex(
+    fsChecker.buildId
+  )
 
   const renderServer: LazyRenderServerInstance = {}
 
@@ -848,6 +853,15 @@ export async function initialize(opts: {
         }
 
         if (
+          matchedOutput.type === 'nextStaticFolder' &&
+          !opts.dev &&
+          immutableStaticAssetRegex.test(matchedOutput.itemPath)
+        ) {
+          // Hashed build output never changes. The docs say its Cache-Control
+          // can't be overridden, so this replaces any value that headers() or
+          // Proxy set, like the adapter's `onMatch` route does on deployments.
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+        } else if (
           !res.getHeader('cache-control') &&
           matchedOutput.type === 'nextStaticFolder'
         ) {
