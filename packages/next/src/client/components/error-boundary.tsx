@@ -27,6 +27,11 @@ export interface ErrorBoundaryProps {
   errorComponent: ErrorComponent | undefined
   errorStyles?: React.ReactNode | undefined
   errorScripts?: React.ReactNode | undefined
+  /**
+   * Whether the route this boundary belongs to is the one currently shown.
+   * False inside a hidden `<Activity>`. Defaults to true.
+   */
+  isActive?: boolean | undefined
 }
 
 interface ErrorBoundaryHandlerProps extends ErrorBoundaryProps {
@@ -37,6 +42,7 @@ interface ErrorBoundaryHandlerProps extends ErrorBoundaryProps {
 interface ErrorBoundaryHandlerState {
   error: null | { thrownValue: unknown }
   previousPathname: string | null
+  previousIsActive: boolean
 }
 
 export class ErrorBoundaryHandler extends React.Component<
@@ -51,6 +57,7 @@ export class ErrorBoundaryHandler extends React.Component<
     this.state = {
       error: null,
       previousPathname: this.props.pathname,
+      previousIsActive: this.props.isActive !== false,
     }
   }
 
@@ -71,6 +78,7 @@ export class ErrorBoundaryHandler extends React.Component<
     state: ErrorBoundaryHandlerState
   ): ErrorBoundaryHandlerState | null {
     const { error } = state
+    const isActive = props.isActive !== false
 
     // if we encounter an error while
     // a navigation is pending we shouldn't render
@@ -82,25 +90,34 @@ export class ErrorBoundaryHandler extends React.Component<
         return {
           error: null,
           previousPathname: props.pathname,
+          previousIsActive: isActive,
         }
       }
     }
 
     /**
      * Handles reset of the error boundary when a navigation happens.
-     * Ensures the error boundary does not stay enabled when navigating to a new page.
-     * Approach of setState in render is safe as it checks the previous pathname and then overrides
-     * it as outlined in https://react.dev/reference/react/useState#storing-information-from-previous-renders
+     * Ensures the error boundary does not stay enabled when navigating to a new page,
+     * or when navigating back to a route that was hidden. A hidden route keeps its pathname,
+     * so the pathname alone doesn't tell that the route is shown again.
+     * Approach of setState in render is safe as it checks the previous values and then overrides
+     * them as outlined in https://react.dev/reference/react/useState#storing-information-from-previous-renders
      */
-    if (props.pathname !== state.previousPathname && state.error) {
+    if (
+      state.error &&
+      (props.pathname !== state.previousPathname ||
+        (isActive && !state.previousIsActive))
+    ) {
       return {
         error: null,
         previousPathname: props.pathname,
+        previousIsActive: isActive,
       }
     }
     return {
       error: state.error,
       previousPathname: props.pathname,
+      previousIsActive: isActive,
     }
   }
 
@@ -154,6 +171,7 @@ export function ErrorBoundary({
   errorComponent,
   errorStyles,
   errorScripts,
+  isActive,
   children,
 }: ErrorBoundaryProps & {
   children: React.ReactNode
@@ -171,6 +189,7 @@ export function ErrorBoundary({
         errorComponent={errorComponent}
         errorStyles={errorStyles}
         errorScripts={errorScripts}
+        isActive={isActive}
       >
         {children}
       </ErrorBoundaryHandler>

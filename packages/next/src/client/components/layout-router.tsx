@@ -42,10 +42,14 @@ import { createSegmentKey } from './router-reducer/create-segment-key'
 import {
   useRouterBFCache,
   type RouterBFCacheEntry,
+  type RouterNavigationState,
 } from './bfcache-state-manager'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import {
   NavigationPromisesContext,
+  PathnameContext,
+  PathParamsContext,
+  SearchParamsContext,
   type NavigationPromises,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { getParamValueFromCacheKey } from '../route-params'
@@ -583,6 +587,26 @@ export default function OuterLayoutRouter({
   const activeSegment = activeTree[0]
   const activeStateKey = createSegmentKey(activeSegment)
 
+  // The values useParams(), usePathname() and useSearchParams() currently
+  // read at this level. Each entry stores them while active, so inactive
+  // entries can keep providing the values they were hidden with. See
+  // RouterNavigationState.
+  //
+  // This is only needed in the browser. A server render has a single, active
+  // entry, which reads the values the root providers in AppRouter supply.
+  let activeNavigationState: RouterNavigationState | null = null
+  if (process.env.__NEXT_CACHE_COMPONENTS && typeof window !== 'undefined') {
+    activeNavigationState = {
+      params: use(PathParamsContext),
+      pathname: use(PathnameContext),
+      searchParams: use(SearchParamsContext),
+      navigationPromises:
+        process.env.NODE_ENV !== 'production'
+          ? use(NavigationPromisesContext)
+          : null,
+    }
+  }
+
   // At each level of the route tree, not only do we render the currently
   // active segment — we also render the last N segments that were active at
   // this level inside a hidden <Activity> boundary, to preserve their state
@@ -592,7 +616,8 @@ export default function OuterLayoutRouter({
   let bfcacheEntry: RouterBFCacheEntry | null = useRouterBFCache(
     activeTree,
     activeRenderTree!,
-    activeStateKey
+    activeStateKey,
+    activeNavigationState
   )
   let children: Array<React.ReactNode> = []
   do {
@@ -663,12 +688,17 @@ export default function OuterLayoutRouter({
     const isVirtual = debugName === undefined
     const debugNameToDisplay = isVirtual ? undefined : debugNameContext
 
+    // Whether this entry is the one currently shown, at this level and at
+    // every level above it.
+    const isEntryActive = isActive && stateKey === activeStateKey
+
     let templateValue = (
       <ScrollHandler renderTree={renderTree}>
         <ErrorBoundary
           errorComponent={error}
           errorStyles={errorStyles}
           errorScripts={errorScripts}
+          isActive={isEntryActive}
         >
           <LoadingBoundary
             name={debugNameToDisplay}
@@ -688,6 +718,7 @@ export default function OuterLayoutRouter({
               notFound={notFound}
               forbidden={forbidden}
               unauthorized={unauthorized}
+              isActive={isEntryActive}
             >
               <RedirectBoundary>
                 <InnerLayoutRouter
@@ -697,7 +728,7 @@ export default function OuterLayoutRouter({
                   renderTree={renderTree}
                   segmentPath={segmentPath}
                   debugNameContext={childDebugNameContext}
-                  isActive={isActive && stateKey === activeStateKey}
+                  isActive={isEntryActive}
                 />
                 {segmentBoundaryTriggerNode}
               </RedirectBoundary>
@@ -741,6 +772,32 @@ export default function OuterLayoutRouter({
     }
 
     if (process.env.__NEXT_CACHE_COMPONENTS) {
+      // Provide the entry's navigation state to its subtree. There is none on
+      // the server, where the root providers in AppRouter already supply the
+      // values of the single, active entry.
+      const navigationState = bfcacheEntry.navigationState
+      if (navigationState !== null) {
+        if (process.env.NODE_ENV !== 'production') {
+          child = (
+            <NavigationPromisesContext.Provider
+              value={navigationState.navigationPromises}
+            >
+              {child}
+            </NavigationPromisesContext.Provider>
+          )
+        }
+        child = (
+          <PathParamsContext.Provider value={navigationState.params}>
+            <PathnameContext.Provider value={navigationState.pathname}>
+              <SearchParamsContext.Provider
+                value={navigationState.searchParams}
+              >
+                {child}
+              </SearchParamsContext.Provider>
+            </PathnameContext.Provider>
+          </PathParamsContext.Provider>
+        )
+      }
       child = (
         <Activity
           name={debugNameToDisplay}
