@@ -19,6 +19,7 @@ import {
   RequestCookiesAdapter,
   responseCookiesToRequestCookies,
   createCookiesWithMutableAccessCheck,
+  getModifiedCookieValues,
   type ReadonlyRequestCookies,
 } from '../web/spec-extension/adapters/request-cookies'
 import { ResponseCookies, RequestCookies } from '../web/spec-extension/cookies'
@@ -244,111 +245,150 @@ export function createRequestStoreForAPI(
 }
 
 /**
- * Build a `RequestStore` from a serializable, request-shaped input. Used
- * directly by the existing `createRequestStoreForRender` /
- * `createRequestStoreForAPI` wrappers, and by side-process consumers like the
+ * The `RequestStore` for a serializable, request-shaped input, created with
+ * `createRequestStore` by the `createRequestStoreForRender` /
+ * `createRequestStoreForAPI` wrappers and by side-process consumers like the
  * `'use cache'` deadlock probe worker that don't have a real `req`/`res` pair
- * but do have a forwarded snapshot of the outer request's headers etc.
+ * but do have a forwarded snapshot of the outer request's headers etc. It is a
+ * class with its lazy values behind getters on the prototype, so no getters
+ * are allocated per request.
  */
-export function createRequestStore(inputs: RequestStoreInputs): RequestStore {
-  const {
-    phase,
-    headers,
-    onUpdateCookies,
-    url,
-    rootParams,
-    implicitTags,
-    resumeDataCache,
-    previewProps,
-    isHmrRefresh,
-    serverComponentsHmrCache,
-    hmrRefreshHash,
-    stagedFallbackParams,
-  } = inputs
+class RequestStoreImpl implements RequestStore {
+  public readonly type: 'request'
+  public phase: RequestStore['phase']
+  public readonly implicitTags: ImplicitTags
+  public readonly url: RequestStore['url']
+  public readonly rootParams: Params
+  public resumeDataCache: ResumeDataCache | null
+  public readonly isHmrRefresh: boolean | undefined
+  public readonly serverComponentsHmrCache: ServerComponentsHmrCache | undefined
+  public readonly hmrRefreshHash: string | undefined
+  public readonly stagedFallbackParams: ReadonlySet<string> | null | undefined
+  public usedDynamic: boolean
 
-  const cache: {
-    headers?: ReadonlyHeaders
-    cookies?: ReadonlyRequestCookies
-    mutableCookies?: ResponseCookies
-    userspaceMutableCookies?: ResponseCookies
-    draftMode?: DraftModeProvider
-  } = {}
+  // The inputs of the lazy values, and the lazy values once created.
+  private readonly _requestHeaders: Headers | IncomingHttpHeaders
+  private readonly _onUpdateCookies: RequestStoreInputs['onUpdateCookies']
+  private readonly _previewProps: RequestStoreInputs['previewProps']
+  private _headers: ReadonlyHeaders | undefined
+  private _cookies: ReadonlyRequestCookies | undefined
+  private _mutableCookies: ResponseCookies | undefined
+  private _userspaceMutableCookies: ResponseCookies | undefined
+  private _draftMode: DraftModeProvider | undefined
 
-  return {
-    type: 'request',
-    phase,
-    implicitTags,
+  constructor(inputs: RequestStoreInputs) {
+    const { url } = inputs
+
+    this.type = 'request'
+    this.phase = inputs.phase
+    this.implicitTags = inputs.implicitTags
     // Rather than just using the whole `url` here, we pull the parts we want
     // to ensure we don't use parts of the URL that we shouldn't. This also
     // lets us avoid requiring an empty string for `search` in the type.
-    url: { pathname: url.pathname, search: url.search ?? '' },
-    rootParams,
-    get headers() {
-      if (!cache.headers) {
-        // Seal the headers object that'll freeze out any methods that could
-        // mutate the underlying data.
-        cache.headers = getHeaders(headers)
-      }
-
-      return cache.headers
-    },
-    get cookies() {
-      if (!cache.cookies) {
-        // if middleware is setting cookie(s), then include those in
-        // the initial cached cookies so they can be read in render
-        const requestCookies = new RequestCookies(HeadersAdapter.from(headers))
-
-        mergeMiddlewareCookies(headers, requestCookies)
-
-        // Seal the cookies object that'll freeze out any methods that could
-        // mutate the underlying data.
-        cache.cookies = RequestCookiesAdapter.seal(requestCookies)
-      }
-
-      return cache.cookies
-    },
-    set cookies(value: ReadonlyRequestCookies) {
-      cache.cookies = value
-    },
-    get mutableCookies() {
-      if (!cache.mutableCookies) {
-        const mutableCookies = getMutableCookies(headers, onUpdateCookies)
-
-        mergeMiddlewareCookies(headers, mutableCookies)
-
-        cache.mutableCookies = mutableCookies
-      }
-      return cache.mutableCookies
-    },
-    get userspaceMutableCookies() {
-      if (!cache.userspaceMutableCookies) {
-        const userspaceMutableCookies =
-          createCookiesWithMutableAccessCheck(this)
-        cache.userspaceMutableCookies = userspaceMutableCookies
-      }
-      return cache.userspaceMutableCookies
-    },
-    get draftMode() {
-      if (!cache.draftMode) {
-        cache.draftMode = new DraftModeProvider(
-          previewProps,
-          headers,
-          this.cookies,
-          this.mutableCookies
-        )
-      }
-
-      return cache.draftMode
-    },
-    resumeDataCache: resumeDataCache ?? null,
-    isHmrRefresh,
-    serverComponentsHmrCache:
-      serverComponentsHmrCache ||
-      (globalThis as any).__serverComponentsHmrCache,
-    hmrRefreshHash,
-    stagedFallbackParams,
-    usedDynamic: false,
+    this.url = { pathname: url.pathname, search: url.search ?? '' }
+    this.rootParams = inputs.rootParams
+    this._requestHeaders = inputs.headers
+    this._onUpdateCookies = inputs.onUpdateCookies
+    this._previewProps = inputs.previewProps
+    this._headers = undefined
+    this._cookies = undefined
+    this._mutableCookies = undefined
+    this._userspaceMutableCookies = undefined
+    this._draftMode = undefined
+    this.resumeDataCache = inputs.resumeDataCache ?? null
+    this.isHmrRefresh = inputs.isHmrRefresh
+    this.serverComponentsHmrCache =
+      inputs.serverComponentsHmrCache ||
+      (globalThis as any).__serverComponentsHmrCache
+    this.hmrRefreshHash = inputs.hmrRefreshHash
+    this.stagedFallbackParams = inputs.stagedFallbackParams
+    this.usedDynamic = false
   }
+
+  get headers(): ReadonlyHeaders {
+    if (!this._headers) {
+      // Seal the headers object that'll freeze out any methods that could
+      // mutate the underlying data.
+      this._headers = getHeaders(this._requestHeaders)
+    }
+
+    return this._headers
+  }
+
+  get cookies(): ReadonlyRequestCookies {
+    if (!this._cookies) {
+      // if middleware is setting cookie(s), then include those in
+      // the initial cached cookies so they can be read in render
+      const requestCookies = new RequestCookies(
+        HeadersAdapter.from(this._requestHeaders)
+      )
+
+      mergeMiddlewareCookies(this._requestHeaders, requestCookies)
+
+      // Seal the cookies object that'll freeze out any methods that could
+      // mutate the underlying data.
+      this._cookies = RequestCookiesAdapter.seal(requestCookies)
+    }
+
+    return this._cookies
+  }
+
+  set cookies(value: ReadonlyRequestCookies) {
+    this._cookies = value
+  }
+
+  get mutableCookies(): ResponseCookies {
+    if (!this._mutableCookies) {
+      const mutableCookies = getMutableCookies(
+        this._requestHeaders,
+        this._onUpdateCookies
+      )
+
+      mergeMiddlewareCookies(this._requestHeaders, mutableCookies)
+
+      this._mutableCookies = mutableCookies
+    }
+    return this._mutableCookies
+  }
+
+  hasNoModifiedCookies(): boolean {
+    if (this._mutableCookies) {
+      return getModifiedCookieValues(this._mutableCookies).length === 0
+    }
+
+    // Nothing has read `mutableCookies` yet, so nothing was set through it.
+    // Creating it now would only add the cookies of a middleware, under the
+    // condition `mergeMiddlewareCookies` checks.
+    const headers = this._requestHeaders
+    return !(
+      'x-middleware-set-cookie' in headers &&
+      typeof headers['x-middleware-set-cookie'] === 'string'
+    )
+  }
+
+  get userspaceMutableCookies(): ResponseCookies {
+    if (!this._userspaceMutableCookies) {
+      this._userspaceMutableCookies = createCookiesWithMutableAccessCheck(this)
+    }
+    return this._userspaceMutableCookies
+  }
+
+  get draftMode(): DraftModeProvider {
+    if (!this._draftMode) {
+      this._draftMode = new DraftModeProvider(
+        this._previewProps,
+        this._requestHeaders,
+        this.cookies,
+        this.mutableCookies
+      )
+    }
+
+    return this._draftMode
+  }
+}
+
+export function createRequestStore(inputs: RequestStoreInputs): RequestStore {
+  return new RequestStoreImpl(inputs)
 }
 
 export function synchronizeMutableCookies(store: RequestStore) {
