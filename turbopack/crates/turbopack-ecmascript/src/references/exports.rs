@@ -116,7 +116,9 @@ pub async fn compute_ecmascript_module_exports(
                             Some(ModulePart::evaluation())
                         }
                         ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
-                        ImportedSymbol::PartEvaluation(part_id) | ImportedSymbol::Part(part_id) => {
+                        ImportedSymbol::PartEvaluation(part_id)
+                        | ImportedSymbol::Part(part_id)
+                        | ImportedSymbol::PartBinding(part_id, _) => {
                             if !options.module_fragments_enabled {
                                 bail!(
                                     "Internal imports only exist in reexports only mode when \
@@ -130,7 +132,7 @@ pub async fn compute_ecmascript_module_exports(
                             }
                             Some(ModulePart::internal(*part_id))
                         }
-                        ImportedSymbol::Exports => {
+                        ImportedSymbol::Exports | ImportedSymbol::ExportsBinding(_) => {
                             options.module_fragments_enabled.then(ModulePart::exports)
                         }
                     },
@@ -143,6 +145,12 @@ pub async fn compute_ecmascript_module_exports(
                     import_externals,
                     module_fragments_enabled: options.module_fragments_enabled,
                     export_usage_passthrough: namespace_reexports.contains(&i).then_some(false),
+                    evaluation_only: matches!(r.imported_symbol, ImportedSymbol::PartEvaluation(_)),
+                    internal_binding: match &r.imported_symbol {
+                        ImportedSymbol::PartBinding(_, name)
+                        | ImportedSymbol::ExportsBinding(name) => Some(name.as_str().into()),
+                        _ => None,
+                    },
                     resolve_override,
                 },
             )
