@@ -3037,7 +3037,6 @@ impl CurrentCellRef {
     where
         T: PartialEq + VcValueType,
         VcReadTarget<T>: KeyedEq,
-        <VcReadTarget<T> as KeyedEq>::Key: std::hash::Hash,
     {
         self.conditional_update(|old_value| {
             let Some(old_value) = old_value else {
@@ -3065,7 +3064,6 @@ impl CurrentCellRef {
     ) where
         T: VcValueType + PartialEq,
         VcReadTarget<T>: KeyedEq,
-        <VcReadTarget<T> as KeyedEq>::Key: std::hash::Hash,
     {
         let mut new_shared_reference = Some(new_shared_reference);
         self.conditional_update_with_shared_reference(&mut |old_sr| {
