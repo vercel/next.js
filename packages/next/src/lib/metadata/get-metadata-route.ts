@@ -1,8 +1,10 @@
 import { isMetadataPage } from './is-metadata-route'
 import path from '../../shared/lib/isomorphic/path'
 import { interpolateDynamicPath } from '../../server/server-utils'
-import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
-import { PARAMETER_PATTERN } from '../../shared/lib/router/utils/get-dynamic-param'
+import {
+  getNamedRouteRegex,
+  PARAMETER_PATTERN,
+} from '../../shared/lib/router/utils/route-regex'
 import { djb2Hash } from '../../shared/lib/hash'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { isDynamicRoute } from '../../shared/lib/router/utils'

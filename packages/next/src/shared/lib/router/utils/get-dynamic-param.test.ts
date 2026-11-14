@@ -1,7 +1,5 @@
 import {
   getDynamicParam,
-  parseParameter,
-  parseMatchedParameter,
   interpolateParallelRouteParams,
 } from './get-dynamic-param'
 import type { Params } from '../../../../server/request/params'
@@ -285,106 +283,6 @@ describe('getDynamicParam', () => {
       expect(() => {
         getDynamicParam(params, 'slug', 'd', null, null)
       }).toThrow(InvariantError)
-    })
-  })
-})
-
-describe('parseParameter', () => {
-  it('should parse simple dynamic parameter', () => {
-    expect(parseParameter('[slug]')).toEqual({
-      key: 'slug',
-      repeat: false,
-      optional: false,
-    })
-  })
-
-  it('should parse optional parameter', () => {
-    expect(parseParameter('[[slug]]')).toEqual({
-      key: 'slug',
-      repeat: false,
-      optional: true,
-    })
-  })
-
-  it('should parse catchall parameter', () => {
-    expect(parseParameter('[...slug]')).toEqual({
-      key: 'slug',
-      repeat: true,
-      optional: false,
-    })
-  })
-
-  it('should parse optional catchall parameter', () => {
-    expect(parseParameter('[[...slug]]')).toEqual({
-      key: 'slug',
-      repeat: true,
-      optional: true,
-    })
-  })
-
-  it('should parse static segment as non-optional, non-repeat', () => {
-    expect(parseParameter('static-page')).toEqual({
-      key: 'static-page',
-      repeat: false,
-      optional: false,
-    })
-  })
-
-  it('should handle complex parameter names', () => {
-    expect(parseParameter('[product-id]')).toEqual({
-      key: 'product-id',
-      repeat: false,
-      optional: false,
-    })
-  })
-
-  it('should parse parameter with prefix/suffix', () => {
-    expect(parseParameter('prefix[slug]suffix')).toEqual({
-      key: 'slug',
-      repeat: false,
-      optional: false,
-    })
-  })
-})
-
-describe('parseMatchedParameter', () => {
-  it('should parse matched simple parameter', () => {
-    expect(parseMatchedParameter('slug')).toEqual({
-      key: 'slug',
-      repeat: false,
-      optional: false,
-    })
-  })
-
-  it('should parse matched optional parameter', () => {
-    expect(parseMatchedParameter('[slug]')).toEqual({
-      key: 'slug',
-      repeat: false,
-      optional: true,
-    })
-  })
-
-  it('should parse matched catchall parameter', () => {
-    expect(parseMatchedParameter('...slug')).toEqual({
-      key: 'slug',
-      repeat: true,
-      optional: false,
-    })
-  })
-
-  it('should parse matched optional catchall parameter', () => {
-    expect(parseMatchedParameter('[...slug]')).toEqual({
-      key: 'slug',
-      repeat: true,
-      optional: true,
-    })
-  })
-
-  it('should handle parameter names with special characters', () => {
-    expect(parseMatchedParameter('[product_id-123]')).toEqual({
-      key: 'product_id-123',
-      repeat: false,
-      optional: true,
     })
   })
 })
