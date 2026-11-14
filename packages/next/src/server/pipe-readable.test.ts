@@ -11,7 +11,10 @@ import { PassThrough, Readable } from 'node:stream'
 import { promisify } from 'node:util'
 import setupCompression from 'next/dist/compiled/compression'
 
-import { pipeNodeReadableToNodeResponse } from './pipe-readable'
+import {
+  pipeNodeReadableToNodeResponse,
+  streamToNodeResponse,
+} from './pipe-readable'
 import { ClientComponentLoadTracker } from './client-component-renderer-logger'
 
 const gunzip = promisify(zlib.gunzip)
@@ -68,7 +71,9 @@ function trackGzipDrainRegistrations(): {
   return state
 }
 
-function createServer() {
+function createServer(
+  pipe: (readable: Readable, res: http.ServerResponse) => Promise<void>
+) {
   const compress = setupCompression()
 
   return http.createServer((req, res) => {
@@ -85,7 +90,7 @@ function createServer() {
       })()
     )
 
-    void pipeNodeReadableToNodeResponse(readable, res)
+    void pipe(readable, res)
   })
 }
 
@@ -124,7 +129,20 @@ async function readSlowly(url: string) {
   })
 }
 
-describe('pipeNodeReadableToNodeResponse', () => {
+describe.each([
+  {
+    name: 'pipeNodeReadableToNodeResponse',
+    pipe: pipeNodeReadableToNodeResponse,
+  },
+  {
+    name: 'streamToNodeResponse',
+    pipe: (readable: Readable, res: http.ServerResponse) =>
+      streamToNodeResponse(
+        Readable.toWeb(readable) as ReadableStream<Uint8Array>,
+        res
+      ),
+  },
+])('$name', ({ pipe }) => {
   let tracker: ReturnType<typeof trackGzipDrainRegistrations>
   let server: http.Server | undefined
   let warnings: string[]
@@ -151,7 +169,7 @@ describe('pipeNodeReadableToNodeResponse', () => {
   })
 
   it('reuses one gzip drain listener across many backpressured writes', async () => {
-    server = createServer()
+    server = createServer(pipe)
     const url = await listen(server)
 
     const { encoding, body } = await readSlowly(url)
@@ -172,6 +190,208 @@ describe('pipeNodeReadableToNodeResponse', () => {
     const decompressed = await gunzip(body)
     expect(decompressed).toHaveLength(CHUNK_SIZE * CHUNK_COUNT)
     expect(decompressed.every((byte) => byte === FILL)).toBe(true)
+  })
+})
+
+it('cancels the producer and releases listeners when a response write fails', async () => {
+  const failure = new Error('write failed')
+  const cancel = jest.fn()
+  const readable = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode('first'))
+    },
+    cancel,
+  })
+  const response = Object.assign(new EventEmitter(), {
+    req: { method: 'GET' },
+    statusCode: 200,
+    write() {
+      throw failure
+    },
+    destroy: jest.fn(),
+  }) as unknown as http.ServerResponse
+
+  await expect(streamToNodeResponse(readable, response)).rejects.toThrow(
+    'failed to pipe response'
+  )
+  expect(response.destroy).toHaveBeenCalledWith(failure)
+  expect(cancel).toHaveBeenCalledWith(failure)
+  expect(readable.locked).toBe(false)
+  expect(response.listenerCount('drain')).toBe(0)
+  expect(response.listenerCount('close')).toBe(0)
+})
+
+describe('streamToNodeResponse lifecycle', () => {
+  let server: http.Server
+
+  function serve(readable: ReadableStream<Uint8Array>, statusCode = 200) {
+    return new Promise<unknown>((resolve) => {
+      server = http.createServer((_req, res) => {
+        res.statusCode = statusCode
+        void streamToNodeResponse(readable, res).then(
+          () => resolve(undefined),
+          resolve
+        )
+      })
+    })
+  }
+
+  afterEach(async () => {
+    if (server) {
+      server.closeAllConnections()
+      await new Promise<void>((resolve) => server.close(() => resolve()))
+    }
+  })
+
+  it('ends empty responses and releases the reader', async () => {
+    const readable = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.close()
+      },
+    })
+    const completed = serve(readable)
+    const response = await fetch(await listen(server))
+
+    expect(await response.text()).toBe('')
+    expect(await completed).toBeUndefined()
+    expect(readable.locked).toBe(false)
+  })
+
+  it.each([
+    { method: 'HEAD', statusCode: 200 },
+    { method: 'GET', statusCode: 204 },
+    { method: 'GET', statusCode: 304 },
+  ])(
+    'sends $method $statusCode headers before the producer closes',
+    async ({ method, statusCode }) => {
+      let closeProducer: () => void
+      const readable = new ReadableStream<Uint8Array>({
+        start(controller) {
+          closeProducer = () => controller.close()
+          controller.enqueue(new TextEncoder().encode('first'))
+        },
+      })
+      const completed = serve(readable, statusCode)
+      const url = await listen(server)
+      const receivedStatus = await new Promise<number | undefined>(
+        (resolve, reject) => {
+          const request = http.request(
+            url,
+            { method, signal: AbortSignal.timeout(5000) },
+            (response) => {
+              // Completing the producer requires receiving headers first.
+              closeProducer()
+              response.resume()
+              response.on('end', () => resolve(response.statusCode))
+              response.on('error', reject)
+            }
+          )
+          request.on('error', reject)
+          request.end()
+        }
+      )
+
+      expect(receivedStatus).toBe(statusCode)
+      expect(await completed).toBeUndefined()
+      expect(readable.locked).toBe(false)
+    }
+  )
+
+  it('delivers chunks before the producer finishes', async () => {
+    let controller: ReadableStreamDefaultController<Uint8Array>
+    const readable = new ReadableStream<Uint8Array>({
+      start(value) {
+        controller = value
+        controller.enqueue(new TextEncoder().encode('first'))
+      },
+    })
+    const completed = serve(readable)
+    const url = await listen(server)
+    const body = await new Promise<string>((resolve, reject) => {
+      http
+        .get(url, (res) => {
+          let text = ''
+          res.on('data', (chunk) => {
+            text += chunk.toString()
+            if (text === 'first') {
+              controller.enqueue(new TextEncoder().encode('second'))
+              controller.close()
+            }
+          })
+          res.on('end', () => resolve(text))
+          res.on('error', reject)
+        })
+        .on('error', reject)
+    })
+
+    expect(body).toBe('firstsecond')
+    expect(await completed).toBeUndefined()
+    expect(readable.locked).toBe(false)
+  })
+
+  it('cancels the producer when the client disconnects', async () => {
+    let onCancel: (reason: unknown) => void
+    const cancelled = new Promise<unknown>((resolve) => {
+      onCancel = resolve
+    })
+    const readable = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('first'))
+      },
+      cancel(reason) {
+        onCancel(reason)
+      },
+    })
+    const completed = serve(readable)
+    const url = await listen(server)
+    await new Promise<void>((resolve, reject) => {
+      http
+        .get(url, (res) => {
+          res.once('data', () => {
+            res.destroy()
+            resolve()
+          })
+          res.on('error', () => {})
+        })
+        .on('error', reject)
+    })
+
+    expect(await cancelled).toMatchObject({ name: 'ResponseAborted' })
+    expect(await completed).toBeUndefined()
+    expect(readable.locked).toBe(false)
+  })
+
+  it('terminates a streamed response when the producer errors', async () => {
+    const failure = new Error('producer failed')
+    let fail!: () => void
+    const readable = new ReadableStream<Uint8Array>({
+      start(controller) {
+        fail = () => controller.error(failure)
+        controller.enqueue(new TextEncoder().encode('first'))
+      },
+    })
+    const completed = serve(readable)
+    const url = await listen(server)
+    const body = await new Promise<string>((resolve, reject) => {
+      http
+        .get(url, (res) => {
+          let text = ''
+          res.on('data', (chunk) => {
+            text += chunk.toString()
+            if (text === 'first') fail()
+          })
+          res.on('aborted', () => resolve(text))
+          res.on('error', () => {})
+        })
+        .on('error', reject)
+    })
+
+    expect(body).toBe('first')
+    expect(await completed).toMatchObject({
+      message: 'failed to pipe response',
+      cause: failure,
+    })
+    expect(readable.locked).toBe(false)
   })
 })
 
