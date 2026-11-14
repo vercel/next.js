@@ -1,0 +1,4 @@
+{
+  "compilerOptions": { "moduleResolution": "bundler" },
+  "exclude": ["node_modules", "**/*.test.ts"]
+}
