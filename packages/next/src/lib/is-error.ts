@@ -64,5 +64,9 @@ export function getProperError(err: unknown): Error {
     }
   }
 
+  if (typeof err === 'symbol') {
+    return new Error(String(err))
+  }
+
   return new Error(isPlainObject(err) ? safeStringifyLite(err) : err + '')
 }
