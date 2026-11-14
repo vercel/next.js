@@ -3016,6 +3016,8 @@ export default async function build(
                   nativeEntry: 'middleware.native.json',
                 }
               : { runtime: 'nodejs' as const }),
+            maxDuration: staticInfo.maxDuration,
+            regions: staticInfo.preferredRegion,
             matchers: staticInfo.middleware?.matchers ?? [
               {
                 regexp: '^.*$',

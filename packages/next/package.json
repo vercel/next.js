@@ -62,6 +62,7 @@
     "navigation-types/navigation.d.ts",
     "navigation-types/compat/navigation.d.ts",
     "font",
+    "go",
     "navigation.js",
     "navigation.d.ts",
     "headers.js",
