@@ -237,6 +237,7 @@ export interface PageInfo {
   hasPostponed?: boolean
   isDynamicAppRoute?: boolean
   isStaticMetadataFile?: boolean
+  isStaticExport?: boolean
 }
 
 export type PageInfos = Map<string, PageInfo>
@@ -254,6 +255,12 @@ function getTreeViewSymbol(
   }
 
   if (pageInfo?.isRoutePPREnabled) {
+    if (pageInfo.isStaticExport) {
+      // Even an empty browser-only shell is a complete deployment artifact.
+      // An exported route never needs a server to render or resume it.
+      return '○'
+    }
+
     if (
       // If the page has an empty static shell, then it's equivalent to a
       // dynamic page

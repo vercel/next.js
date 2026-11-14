@@ -6816,6 +6816,7 @@ function buildDevValidationWorkStore(
     page: message.page,
     route: message.route,
     forceStatic: message.forceStatic,
+    isStaticExport: message.isStaticExport,
     isDraftMode: message.request.isDraftMode,
     useCacheTimeout: message.nextConfigSerializable.useCacheTimeout,
     durableUseCacheEntries:
@@ -7422,6 +7423,12 @@ async function validateStaticShellAtStage(
 
   const { implicitTags, nonce, workStore } = ctx
 
+  // Export qualifies complete server output at both existing validation stages
+  // while preserving the route's authored shell and prefetch policies.
+  const requiresCompleteServerOutput =
+    ensureStaticLevel === EnsureStaticLevel.Navigation ||
+    workStore.isStaticExport === true
+
   const dynamicHoleKind =
     stage === RenderStage.NavigationStatic
       ? DynamicHoleKind.Runtime
@@ -7512,7 +7519,7 @@ async function validateStaticShellAtStage(
               ) {
                 const componentStack = errorInfo.componentStack
                 if (typeof componentStack === 'string') {
-                  if (ensureStaticLevel === EnsureStaticLevel.Navigation) {
+                  if (requiresCompleteServerOutput) {
                     trackDynamicAccessInStaticRoute(
                       err,
                       workStore,
@@ -7572,7 +7579,7 @@ async function validateStaticShellAtStage(
 
     const { preludeIsEmpty } = await processPreludeOp(unprocessedPrelude)
     const preludeState = preludeIsEmpty ? PreludeState.Empty : PreludeState.Full
-    if (ensureStaticLevel === EnsureStaticLevel.Navigation) {
+    if (requiresCompleteServerOutput) {
       return getDisallowedReasonsInStaticRoute(
         workStore,
         preludeState,
@@ -7595,7 +7602,7 @@ async function validateStaticShellAtStage(
     // that were discovered before the root errored.
     const preludeState = PreludeState.Errored
     let errors: Array<unknown>
-    if (ensureStaticLevel === EnsureStaticLevel.Navigation) {
+    if (requiresCompleteServerOutput) {
       errors = getDisallowedReasonsInStaticRoute(
         workStore,
         preludeState,
@@ -8647,6 +8654,7 @@ async function validateInstantConfigInBuildWithSample(
     durableUseCacheEntries: outerWorkStore.durableUseCacheEntries,
     staticPageGenerationTimeout: outerWorkStore.staticPageGenerationTimeout,
     isBuildTimePrerendering: false,
+    isStaticExport: outerWorkStore.isStaticExport,
     fetchCache: outerWorkStore.fetchCache,
     isOnDemandRevalidate: false,
     requestId: outerWorkStore.requestId,
@@ -9260,6 +9268,9 @@ async function prerenderToStream(
         tree,
         partialPrefetching
       )
+      const requiresCompleteServerOutput =
+        workStore.isStaticExport === true ||
+        ensureStaticLevel === EnsureStaticLevel.Navigation
       if (process.env.NEXT_PRIVATE_DEBUG_RUNTIME_DATA) {
         console.log(
           `${workStore.route} :: ensureStatic level = ${EnsureStaticLevel[ensureStaticLevel]}`
@@ -10040,7 +10051,7 @@ async function prerenderToStream(
                       errorInfo as any
                     ).componentStack
                     if (typeof componentStack === 'string') {
-                      if (ensureStaticLevel === EnsureStaticLevel.Navigation) {
+                      if (requiresCompleteServerOutput) {
                         trackDynamicAccessInStaticRoute(
                           err,
                           workStore,
@@ -10099,7 +10110,7 @@ async function prerenderToStream(
       const { prelude, preludeIsEmpty } =
         await processPreludeOp(unprocessedPrelude)
 
-      if (ensureStaticLevel === EnsureStaticLevel.Navigation) {
+      if (requiresCompleteServerOutput) {
         throwIfDisallowedDynamicInStaticRoute(
           workStore,
           preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
@@ -10129,8 +10140,8 @@ async function prerenderToStream(
 
       let htmlStream: AnyStream = prelude
       if (resultIsPartial) {
-        if (ensureStaticLevel === EnsureStaticLevel.Navigation) {
-          if (isFallbackShell) {
+        if (requiresCompleteServerOutput) {
+          if (isFallbackShell && !workStore.isStaticExport) {
             // TODO(ensure-static): This is a hack, and should be solved in a less rube-goldberg-y way.
             // If a fallback shell came out partial, we can't serve it without a resume,
             // which we can't do with `ensureStatic = "navigation"`, so force the HTML to be empty.
@@ -10171,7 +10182,7 @@ async function prerenderToStream(
             // If the result is partial, we should've errored when validating the prerender.
             console.error(
               new InvariantError(
-                `Route "${workStore.route}": Server result cannot be partial when \`ensureStatic = "navigation"\` is set on the route.`
+                `Route "${workStore.route}": Server result cannot be partial when complete server output is required.`
               )
             )
             throw new StaticGenBailoutError()
@@ -10510,7 +10521,7 @@ async function prerenderToStream(
         reactServerPrerenderResultIsDynamic
       const originalResumeDataCache = reactServerResumeDataCache
       const originalPrerenderStore =
-        reactServerPrerenderStore as PrerenderStore | null
+        reactServerPrerenderStore as PrerenderStoreModernServer | null
 
       if (originalFlightPrerenderResult === null) {
         throw new InvariantError(
@@ -10535,6 +10546,10 @@ async function prerenderToStream(
       const originalCollectedStale = selectStaleTime(
         originalPrerenderStore.stale
       )
+      const requiresCompleteServerOutput =
+        workStore.isStaticExport === true ||
+        originalPrerenderStore.ensureStaticLevel ===
+          EnsureStaticLevel.Navigation
 
       // The final recovery still belongs to Cache Components. Render the error
       // payload with the same prerender APIs as the normal path so not-found
@@ -10692,13 +10707,25 @@ async function prerenderToStream(
                       errorInfo as any
                     ).componentStack
                     if (typeof componentStack === 'string') {
-                      trackAllowedDynamicAccess(
-                        clientError,
-                        workStore,
-                        componentStack,
-                        errorDynamicValidation,
-                        errorClientDynamicTracking
-                      )
+                      if (requiresCompleteServerOutput) {
+                        trackDynamicAccessInStaticRoute(
+                          clientError,
+                          workStore,
+                          componentStack,
+                          errorDynamicValidation,
+                          errorClientDynamicTracking,
+                          originalFlightPrerenderResultIsDynamic,
+                          DynamicHoleKind.RuntimeOrDynamic
+                        )
+                      } else {
+                        trackAllowedDynamicAccess(
+                          clientError,
+                          workStore,
+                          componentStack,
+                          errorDynamicValidation,
+                          errorClientDynamicTracking
+                        )
+                      }
                     }
                     return
                   }
@@ -10734,6 +10761,22 @@ async function prerenderToStream(
         const { prelude, preludeIsEmpty } = await processPreludeOp(
           unprocessedErrorHtmlStream
         )
+
+        if (requiresCompleteServerOutput) {
+          // Recovery bootstraps the original Flight payload, even when its
+          // own HTML shell is complete. That payload must not need a resume.
+          throwIfDisallowedDynamicInStaticRoute(
+            workStore,
+            preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
+            errorDynamicValidation,
+            errorServerDynamicTracking,
+            renderOpts.allowEmptyStaticShell === true &&
+              fallbackRouteParams !== null &&
+              fallbackRouteParams.size > 0,
+            false,
+            originalFlightPrerenderResultIsDynamic
+          )
+        }
 
         if (preludeIsEmpty) {
           console.error(
