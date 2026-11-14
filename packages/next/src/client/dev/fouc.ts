@@ -6,7 +6,11 @@
 //
 // See: https://www.vector-logic.com/blog/posts/on-request-animation-frame-and-embedded-iframes
 const safeCallbackQueue = (callback: () => void) => {
-  if (window.requestAnimationFrame && window.self === window.top) {
+  if (
+    window.requestAnimationFrame &&
+    window.self === window.top &&
+    document.visibilityState === 'visible'
+  ) {
     window.requestAnimationFrame(callback)
   } else {
     window.setTimeout(callback)
