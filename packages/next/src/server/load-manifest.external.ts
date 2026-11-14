@@ -2,7 +2,7 @@ import type { DeepReadonly } from '../shared/lib/deep-readonly'
 
 import { join } from 'path'
 import { readFileSync } from 'fs'
-import { runInNewContext } from 'vm'
+import { compileFunction } from 'vm'
 import { deepFreeze } from '../shared/lib/deep-freeze'
 
 const sharedCache = new Map<string, unknown>()
@@ -118,21 +118,27 @@ export function evalManifest<T extends object>(
     throw new Error('Manifest file is empty')
   }
 
-  let contextObject = {
-    process: { env: { NEXT_DEPLOYMENT_ID: process.env.NEXT_DEPLOYMENT_ID } },
-  }
-  runInNewContext(content, contextObject)
+  // Manifest scripts register themselves on `globalThis` (e.g.
+  // `globalThis.__RSC_MANIFEST[page] = ...`). Run the script as the body of a
+  // function whose `globalThis` and `process` parameters shadow the real ones,
+  // so it writes to `manifestGlobal` instead of the process global.
+  //
+  // A new V8 context per manifest (`runInNewContext`) would be slower to create
+  // and, since the manifest's objects belong to that context's realm, a cached
+  // manifest would keep the whole context alive (~145 KB each).
+  let manifestGlobal = {}
+  compileFunction(content, ['globalThis', 'process'], { filename: path })(
+    manifestGlobal,
+    { env: { NEXT_DEPLOYMENT_ID: process.env.NEXT_DEPLOYMENT_ID } }
+  )
 
-  // Freeze the context object so it cannot be modified if we're caching it.
+  // Freeze the manifest so it cannot be modified if we're caching it.
   if (shouldCache) {
-    contextObject = deepFreeze(contextObject)
+    manifestGlobal = deepFreeze(manifestGlobal)
+    cache.set(path, manifestGlobal)
   }
 
-  if (shouldCache) {
-    cache.set(path, contextObject)
-  }
-
-  return contextObject as T
+  return manifestGlobal as T
 }
 
 export function evalManifestFromRelativePath<T extends object>({
