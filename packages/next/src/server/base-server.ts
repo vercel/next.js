@@ -139,7 +139,10 @@ import {
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { matchNextDataPathname } from './lib/match-next-data-pathname'
 import getRouteFromAssetPath from '../shared/lib/router/utils/get-route-from-asset-path'
-import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
+import {
+  getRouteMatcher,
+  type RouteMatchFn,
+} from '../shared/lib/router/utils/route-matcher'
 import { RSCPathnameNormalizer } from './normalizers/request/rsc'
 import { stripFlightHeaders } from './app-render/strip-flight-headers'
 import {
@@ -1896,8 +1899,68 @@ export default abstract class Server<
     }
   }
 
-  private getRouteDefinitions(): RouteDefinition[] {
-    // Route definitions are rebuilt from the manifests instead of being held
+  /**
+   * The route definitions, the lists that `getRouteMatch` derives from them,
+   * and the objects they were built from.
+   */
+  private routeDefinitions?: {
+    pagesManifest: PagesManifest | undefined
+    appPathsManifest: PagesManifest | undefined
+    appPathRoutes: Record<string, string[]> | undefined
+    /** Every definition, in manifest order. */
+    all: RouteDefinition[]
+    /** The definitions without a dynamic segment, in manifest order. */
+    static: RouteDefinition[]
+    /** The definitions with a dynamic segment, in manifest order. */
+    dynamic: RouteDefinition[]
+    /**
+     * `dynamic` sorted by specificity. The order, and the params matcher of a
+     * definition, are computed when a request first needs them.
+     */
+    sortedDynamic?: { definition: RouteDefinition; match?: RouteMatchFn }[]
+  }
+
+  private getRouteDefinitions() {
+    const { pagesManifest, appPathsManifest, appPathRoutes } = this
+    const cached = this.routeDefinitions
+
+    // Building the definitions costs time for every route of the app, so they
+    // are reused until one of the objects they are built from is replaced.
+    // `next dev` assigns a new `appPathRoutes` when app files are added or
+    // removed.
+    if (
+      cached &&
+      cached.pagesManifest === pagesManifest &&
+      cached.appPathsManifest === appPathsManifest &&
+      cached.appPathRoutes === appPathRoutes
+    ) {
+      return cached
+    }
+
+    const all = this.buildRouteDefinitions()
+    const staticDefinitions: RouteDefinition[] = []
+    const dynamicDefinitions: RouteDefinition[] = []
+
+    for (const definition of all) {
+      if (isDynamicRoute(definition.pathname)) {
+        dynamicDefinitions.push(definition)
+      } else {
+        staticDefinitions.push(definition)
+      }
+    }
+
+    return (this.routeDefinitions = {
+      pagesManifest,
+      appPathsManifest,
+      appPathRoutes,
+      all,
+      static: staticDefinitions,
+      dynamic: dynamicDefinitions,
+    })
+  }
+
+  private buildRouteDefinitions(): RouteDefinition[] {
+    // Route definitions are built from the manifests instead of being held
     // by route matcher providers. This keeps direct BaseServer entrypoints
     // working when requests do not pass through router-server's fsChecker.
     const definitions: RouteDefinition[] = []
@@ -1994,47 +2057,11 @@ export default abstract class Server<
     return pathname
   }
 
-  private testRouteDefinition(
-    pathname: string,
-    definition: RouteDefinition,
-    localeAnalysisResult?: LocaleAnalysisResult
-  ): RouteMatch | null {
-    const matchPathname = this.getRouteMatchPathname(
-      pathname,
-      definition,
-      localeAnalysisResult
-    )
-
-    if (!matchPathname) return null
-
-    if (isDynamicRoute(definition.pathname)) {
-      const params = getRouteMatcher(getRouteRegex(definition.pathname))(
-        matchPathname
-      )
-
-      if (!params) return null
-
-      return {
-        definition,
-        params,
-      }
-    }
-
-    if (matchPathname === definition.pathname) {
-      return {
-        definition,
-        params: undefined,
-      }
-    }
-
-    return null
-  }
-
   private getRoutePatternDefinition(
     pathname: string,
     localeAnalysisResult?: LocaleAnalysisResult
   ): RouteDefinition | undefined {
-    for (const definition of this.getRouteDefinitions()) {
+    for (const definition of this.getRouteDefinitions().all) {
       const matchPathname = this.getRouteMatchPathname(
         pathname,
         definition,
@@ -2052,43 +2079,43 @@ export default abstract class Server<
     localeAnalysisResult?: LocaleAnalysisResult
   ): RouteMatch | null {
     const definitions = this.getRouteDefinitions()
-    const dynamicDefinitions: RouteDefinition[] = []
 
-    // Check exact routes first, then sort dynamic routes by specificity. The
+    // Check exact routes first, then dynamic routes sorted by specificity. The
     // old matcher manager provided the same precedence before it was removed.
     if (!isDynamicRoute(pathname)) {
-      for (const definition of definitions) {
-        if (isDynamicRoute(definition.pathname)) {
-          dynamicDefinitions.push(definition)
-          continue
-        }
-
-        const match = this.testRouteDefinition(
+      for (const definition of definitions.static) {
+        const matchPathname = this.getRouteMatchPathname(
           pathname,
           definition,
           localeAnalysisResult
         )
 
-        if (match) return match
-      }
-    } else {
-      for (const definition of definitions) {
-        if (isDynamicRoute(definition.pathname)) {
-          dynamicDefinitions.push(definition)
+        if (matchPathname === definition.pathname) {
+          return { definition, params: undefined }
         }
       }
     }
 
-    for (const definition of this.getSortedRouteDefinitions(
-      dynamicDefinitions
-    )) {
-      const match = this.testRouteDefinition(
+    definitions.sortedDynamic ??= this.getSortedRouteDefinitions(
+      definitions.dynamic
+    ).map((definition) => ({ definition }))
+
+    for (const route of definitions.sortedDynamic) {
+      const { definition } = route
+      const matchPathname = this.getRouteMatchPathname(
         pathname,
         definition,
         localeAnalysisResult
       )
 
-      if (match) return match
+      if (!matchPathname) continue
+
+      route.match ??= getRouteMatcher(getRouteRegex(definition.pathname))
+      const params = route.match(matchPathname)
+
+      if (params) {
+        return { definition, params }
+      }
     }
 
     return null
