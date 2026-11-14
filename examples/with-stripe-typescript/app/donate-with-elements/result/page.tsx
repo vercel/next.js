@@ -6,13 +6,14 @@ import { stripe } from "@/lib/stripe";
 export default async function ResultPage({
   searchParams,
 }: {
-  searchParams: { payment_intent: string };
+  searchParams: Promise<{ payment_intent?: string }>;
 }): Promise<JSX.Element> {
-  if (!searchParams.payment_intent)
+  const { payment_intent } = await searchParams;
+  if (!payment_intent)
     throw new Error("Please provide a valid payment_intent (`pi_...`)");
 
   const paymentIntent: Stripe.PaymentIntent =
-    await stripe.paymentIntents.retrieve(searchParams.payment_intent);
+    await stripe.paymentIntents.retrieve(payment_intent);
 
   return (
     <>
