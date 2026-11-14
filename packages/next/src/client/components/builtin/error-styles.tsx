@@ -16,6 +16,10 @@ export const errorStyles = {
     textAlign: 'left' as const,
   },
   icon: {
+    display: 'block',
+    width: '32px',
+    height: '32px',
+    flexShrink: 0,
     marginBottom: '24px',
   },
   title: {
