@@ -19,6 +19,14 @@ if (!isNextStart) {
         expect(crossOrigin).toBe('use-credentials')
       })
 
+      const dynamicScriptPreloads = $(
+        'link[rel="preload"][as="script"][href*="https://example.vercel.sh"]'
+      )
+      expect(dynamicScriptPreloads.length).toBeGreaterThan(0)
+      dynamicScriptPreloads.each((_, el) => {
+        expect($(el).attr('crossorigin')).toBe('use-credentials')
+      })
+
       // Inline <script /> (including RSC payload) and <link /> should not have crossorigin attribute
       $('script:not([src]), link:not([href])').each((_, el) => {
         const crossOrigin = $(el).attr('crossorigin')

@@ -66,6 +66,10 @@ export function PreloadChunks({
             as: 'script',
             fetchPriority: 'low',
             nonce: workStore.nonce,
+            crossOrigin: process.env.__NEXT_CROSS_ORIGIN as
+              | 'anonymous'
+              | 'use-credentials'
+              | undefined,
           })
           return null
         }
