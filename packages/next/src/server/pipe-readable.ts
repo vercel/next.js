@@ -22,12 +22,56 @@ const HAS_CLIENT_COMPONENT_METRICS_ENABLED =
 // below it is not compressed.
 const SMALL_BODY_BYTES = 1024
 
+/**
+ * Returns a chunk of a web stream as a `Buffer` over the same memory: same
+ * bytes, same offset, no copy.
+ *
+ * The `compression` middleware copies every chunk it is given that is not a
+ * `Buffer` before it passes it to zlib. A copy of the body per response, in
+ * an `ArrayBuffer` that V8 only stops counting as external memory when a GC
+ * sweeps it, is enough to make V8 run major GCs where scavenges would do
+ * while compressed responses are sent. `pipeNodeReadableToNodeResponse` below
+ * hands over a `Buffer` for the same reason.
+ *
+ * Without the middleware nothing changes: a Node.js stream wraps a
+ * `Uint8Array` it is given in the same view. With it, the response now
+ * refers to the chunk's memory until zlib has read it, where it used to copy
+ * it at once. That is what the response already does whenever it is not
+ * compressed (the socket is corked until the next tick), so a stream must not
+ * change a chunk after it has enqueued it either way.
+ *
+ * An empty chunk is passed on as it is: there is nothing to copy, and a view
+ * cannot be created on a detached buffer, which has no bytes.
+ *
+ * So is a chunk that is not a `Uint8Array` of this realm. A stream can enqueue
+ * any value, and the response decides what it accepts: a string is written,
+ * anything else is reported as an invalid chunk.
+ */
+function toBufferView(chunk: Uint8Array): Uint8Array {
+  if (
+    !(chunk instanceof Uint8Array) ||
+    chunk.byteLength === 0 ||
+    Buffer.isBuffer(chunk)
+  ) {
+    return chunk
+  }
+
+  return Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength)
+}
+
+/** What `pipeToNodeResponse` writes a body to: the underlying sink of a `WritableStream`. */
+type ResponseSink = {
+  write(chunk: Uint8Array): Promise<void>
+  abort(err: any): void
+  close(): Promise<void>
+}
+
 function createWriterFromResponse(
   res: ServerResponse,
   waitUntilForEnd?: Promise<unknown>,
   clientComponentLoadTracker?: ClientComponentLoadTracker,
   sendSmallBodyWithLength: boolean = false
-): WritableStream<Uint8Array> {
+): ResponseSink {
   let started = false
 
   // A streamed body has no known length, so the compression middleware
@@ -94,9 +138,11 @@ function createWriterFromResponse(
     finished.resolve()
   })
 
-  // Create a writable stream that will write to the response.
-  return new WritableStream<Uint8Array>({
+  // Create the sink that writes to the response.
+  return {
     write: async (chunk) => {
+      chunk = toBufferView(chunk)
+
       // You'd think we'd want to use `start` instead of placing this in `write`
       // but this ensures that we don't actually flush the headers until we've
       // started writing chunks.
@@ -201,7 +247,115 @@ function createWriterFromResponse(
       }
       return finished.promise
     },
-  })
+  }
+}
+
+/**
+ * Pipes `readable` to `sink`, and stops when `signal` is aborted. It does what
+ * `readable.pipeTo(new WritableStream(sink), { signal })` does, for a sink that
+ * writes one chunk at a time:
+ *
+ * - a chunk is only read once the previous one has been written;
+ * - when the readable is done, the sink is closed;
+ * - when the readable errors, the sink is aborted with the error, which is
+ *   then thrown;
+ * - when the sink fails to write, the readable is cancelled with the error,
+ *   which is then thrown;
+ * - when the signal is aborted, the sink is aborted and the readable is
+ *   cancelled with the reason, after a write in progress has finished, and
+ *   the reason is thrown. If that write fails, its error is thrown and nothing
+ *   else is done. Once the sink is closing the signal is ignored;
+ * - an error from aborting the sink or from cancelling the readable replaces
+ *   the error that would have been thrown.
+ *
+ * It reads the stream directly because a `WritableStream` and `pipeTo` cost
+ * more than everything else that is done to send a small response, and what
+ * they allocate keeps the response, and everything it references, alive
+ * until the next major GC.
+ */
+async function pipeToSink(
+  readable: ReadableStream<Uint8Array>,
+  sink: ResponseSink,
+  signal: AbortSignal
+): Promise<void> {
+  const reader = readable.getReader()
+
+  let aborted = false
+  let abortReason: unknown
+  // What aborting the sink and cancelling the readable resulted in.
+  let abortActions: Promise<unknown> | undefined
+  let writing = false
+  let closing = false
+
+  function abort() {
+    try {
+      sink.abort(abortReason)
+      abortActions = reader.cancel(abortReason)
+    } catch (err) {
+      abortActions = Promise.reject(err)
+    }
+    // It is awaited by the loop below, which may not have got there yet.
+    abortActions.then(undefined, () => {})
+  }
+
+  function onAbort() {
+    if (closing || aborted) return
+    aborted = true
+    abortReason = signal.reason
+    // A write in progress is finished first.
+    if (!writing) abort()
+  }
+
+  try {
+    if (signal.aborted) {
+      onAbort()
+    } else {
+      signal.addEventListener('abort', onAbort)
+    }
+
+    for (;;) {
+      if (aborted) {
+        await abortActions
+        throw abortReason
+      }
+
+      let result: ReadableStreamReadResult<Uint8Array>
+      try {
+        result = await reader.read()
+      } catch (err) {
+        if (aborted) {
+          await abortActions
+          throw abortReason
+        }
+        sink.abort(err)
+        throw err
+      }
+
+      // Cancelling the readable finishes a read that was in progress.
+      if (aborted) continue
+      if (result.done) break
+
+      writing = true
+      try {
+        await sink.write(result.value)
+      } catch (err) {
+        writing = false
+        if (!aborted) {
+          await reader.cancel(err)
+        }
+        throw err
+      }
+      writing = false
+
+      if (aborted) abort()
+    }
+
+    closing = true
+    await sink.close()
+  } finally {
+    signal.removeEventListener('abort', onAbort)
+    reader.releaseLock()
+  }
 }
 
 export async function pipeToNodeResponse(
@@ -227,7 +381,18 @@ export async function pipeToNodeResponse(
       sendSmallBodyWithLength
     )
 
-    await readable.pipeTo(writer, { signal: controller.signal })
+    if (getTracer().isTracing()) {
+      // `pipeTo` hands a chunk to the sink in the async context of whoever
+      // enqueued it, `pipeToSink` in the async context of this call. A span
+      // that is started while writing (`start response`) is a child of the
+      // span that is active there, so with tracing on the response is piped
+      // as before.
+      await readable.pipeTo(new WritableStream(writer), {
+        signal: controller.signal,
+      })
+    } else {
+      await pipeToSink(readable, writer, controller.signal)
+    }
   } catch (err: any) {
     // If this isn't related to an abort error, re-throw it.
     if (isAbortError(err)) return
