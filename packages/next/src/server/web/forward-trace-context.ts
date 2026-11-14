@@ -24,12 +24,8 @@ function getTraceparentIds(traceparent: string | null | undefined) {
  */
 export function getSharedParentTraceContext(
   requestHeaders: Headers,
-  activeTraceContext: TraceContextHeaders | undefined
-): TraceContextHeaders | undefined {
-  if (!activeTraceContext) {
-    return undefined
-  }
-
+  activeTraceContext: TraceContextHeaders
+): TraceContextHeaders {
   const receivedTraceparent = requestHeaders.get('traceparent')
   const receivedIds = getTraceparentIds(receivedTraceparent)
   if (
