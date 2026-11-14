@@ -1,15 +1,68 @@
 use anyhow::Result;
-use next_core::next_manifests::NextFontManifest;
+use next_core::{
+    next_client_reference::{ClientReferenceGraphResult, ClientReferenceType},
+    next_manifests::NextFontManifest,
+};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc, turbofmt};
+use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Vc, turbofmt};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
+    chunk::ChunkingContext,
+    module_graph::{GraphTraversalAction, ModuleGraph},
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference::all_assets_from_entries,
 };
+use turbopack_css::embed::CssEmbed;
 
 use crate::paths::get_font_paths_from_root;
+
+/// Selects font assets by client reference ownership before shared CSS chunks are assembled.
+pub async fn app_font_assets(
+    references: &ClientReferenceGraphResult,
+    graph: &ModuleGraph,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    global_not_found: &FileSystemPath,
+    is_global_not_found_entry: bool,
+) -> Result<ResolvedVc<OutputAssets>> {
+    let mut roots = FxIndexSet::default();
+    for reference in &references.client_references {
+        let is_global_not_found = if let Some(component) = reference.server_component {
+            *component.source_path().await? == *global_not_found
+        } else {
+            false
+        };
+        if is_global_not_found == is_global_not_found_entry {
+            let root = match reference.ty {
+                ClientReferenceType::EcmascriptClientReference(reference) => {
+                    ResolvedVc::upcast(reference.await?.client_module)
+                }
+                ClientReferenceType::CssClientReference(reference) => ResolvedVc::upcast(reference),
+            };
+            roots.insert(root);
+        }
+    }
+
+    let mut embeddable = FxIndexSet::default();
+    graph.traverse_nodes_dfs(
+        roots,
+        &mut embeddable,
+        |_, _| Ok(GraphTraversalAction::Continue),
+        |module, embeddable| {
+            if let Some(asset) = ResolvedVc::try_downcast::<Box<dyn CssEmbed>>(module) {
+                embeddable.insert(asset);
+            }
+            Ok(())
+        },
+    )?;
+
+    let assets = embeddable
+        .into_iter()
+        .map(|asset| asset.embedded_asset(chunking_context).to_resolved())
+        .try_join()
+        .await?;
+    Ok(ResolvedVc::cell(assets))
+}
 
 #[turbo_tasks::value(shared)]
 pub struct FontManifest {
@@ -17,6 +70,7 @@ pub struct FontManifest {
     pub node_root: FileSystemPath,
     pub dir: FileSystemPath,
     pub original_name: RcStr,
+    pub app_entry_path: Option<RcStr>,
     pub manifest_path_prefix: RcStr,
     pub pathname: RcStr,
     pub client_assets: ResolvedVc<OutputAssets>,
@@ -49,6 +103,7 @@ impl Asset for FontManifest {
             client_root,
             dir,
             original_name,
+            app_entry_path,
             pathname,
             client_assets,
             app_dir,
@@ -77,7 +132,11 @@ impl Asset for FontManifest {
         let next_font_manifest = if !has_fonts {
             Default::default()
         } else if *app_dir {
-            let page_path = turbofmt!("{dir}{original_name}").await?;
+            let page_path = if let Some(path) = app_entry_path {
+                path.clone()
+            } else {
+                turbofmt!("{dir}{original_name}").await?
+            };
 
             NextFontManifest {
                 app: [(page_path, font_paths)].into_iter().collect(),
