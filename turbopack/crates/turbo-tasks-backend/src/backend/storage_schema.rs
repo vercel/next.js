@@ -373,11 +373,11 @@ struct TaskStorageSchema {
     )]
     cell_dependents_provisional: AutoSet<(CellRef, CellKey), 1>,
 
-    /// Tasks that depend on collectibles of a specific type from this task.
-    /// Maps TraitTypeId -> Set<TaskId>
-
+    /// Tasks that depend on collectibles of a specific type from this task: the reverse of
+    /// `collectibles_dependencies`. Only added when the reader's forward edge is new, so entries
+    /// are pushed (`push_collectibles_dependents`) without a lookup.
     #[field(storage = "auto_set", category = "meta", filter_transient)]
-    collectibles_dependents: AutoSet<(TraitTypeId, TaskId), 3>,
+    collectibles_dependents: EdgeSet<(TraitTypeId, TaskId), 3>,
 
     #[field(
         storage = "auto_map",
