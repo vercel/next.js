@@ -2483,8 +2483,12 @@ export async function next_compile(task, opts) {
 // NEXT_BUILD_FRONT_SERVER=1 (named in src/server/lib/front-server-env.ts), so
 // `next` doesn't grow and its build doesn't need Go. The launcher finds them
 // there, or wherever __NEXT_EXPERIMENTAL_FRONT_SERVER_BINARY points
-// (src/server/lib/front-binary.ts). What to build, and the file names, come
-// from src/server/front/targets.json; the minimum Go version from its go.mod.
+// (src/server/lib/front-binary.ts). Only this machine's binary is built: the
+// opt-in is for trying the front locally, and nothing ships these files yet.
+// Shipping them would mean a release build that makes every target in
+// src/server/front/targets.json (for example one npm package per platform,
+// as @next/swc-* does). The file names come from targets.json; the minimum
+// Go version from its go.mod.
 export async function front_server(task, opts) {
   // front-binary.ts reads this at runtime, with or without the binaries.
   await task.source('src/server/front/targets.json').target('dist/server/front')
@@ -2513,41 +2517,34 @@ export async function front_server(task, opts) {
     )
   }
 
-  const hostTarget = {
-    os: nodeProcess.platform,
-    arch: targets.goArch[nodeProcess.arch],
-  }
-  const isTarget = (target) =>
-    targets.targets.some((t) => t.os === target.os && t.arch === target.arch)
-  if (opts.dev && !isTarget(hostTarget)) {
-    console.warn(
-      `warning: next-front has no build for ${nodeProcess.platform}/${nodeProcess.arch}.`
-    )
-    return
-  }
-  for (const { os, arch } of opts.dev ? [hostTarget] : targets.targets) {
-    await execa(
-      go,
-      [
-        'build',
-        '-trimpath',
-        '-buildvcs=false',
-        '-ldflags=-s -w',
-        '-o',
-        join(
-          __dirname,
-          'dist/server/front',
-          targets.binaryName.replace('{os}', os).replace('{arch}', arch)
-        ),
-        '.',
-      ],
-      {
-        cwd: frontDir,
-        env: { CGO_ENABLED: '0', GOOS: os, GOARCH: arch, GOTOOLCHAIN: 'local' },
-        stdio: 'inherit',
-      }
+  const os = nodeProcess.platform
+  const arch = targets.goArch[nodeProcess.arch]
+  if (!targets.targets.some((t) => t.os === os && t.arch === arch)) {
+    throw new Error(
+      `NEXT_BUILD_FRONT_SERVER=1: next-front has no build for ${nodeProcess.platform}/${nodeProcess.arch} (packages/next/src/server/front/targets.json).`
     )
   }
+  await execa(
+    go,
+    [
+      'build',
+      '-trimpath',
+      '-buildvcs=false',
+      '-ldflags=-s -w',
+      '-o',
+      join(
+        __dirname,
+        'dist/server/front',
+        targets.binaryName.replace('{os}', os).replace('{arch}', arch)
+      ),
+      '.',
+    ],
+    {
+      cwd: frontDir,
+      env: { CGO_ENABLED: '0', GOOS: os, GOARCH: arch, GOTOOLCHAIN: 'local' },
+      stdio: 'inherit',
+    }
+  )
 }
 
 export async function compile(task, opts) {
