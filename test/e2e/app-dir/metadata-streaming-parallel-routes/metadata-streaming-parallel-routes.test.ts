@@ -201,9 +201,11 @@ function runMetadataStreamingTests(parallelRouteMetadata: boolean) {
         'test-page @bar - 2'
       )
     })
-    expect(await browser.elementByCss('title').text()).toBe(
-      'second page - @bar'
-    )
+    await retry(async () => {
+      expect(await browser.elementByCss('title').text()).toBe(
+        'second page - @bar'
+      )
+    })
   })
 }
 

@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  COREPACK_VERSION: 0.34.7
+  COREPACK_VERSION: 0.36.0
   CI: 1
   RUST_LOG: 'off'
   TURBO_TEAM: ${{ vars.TURBO_TEAM }}

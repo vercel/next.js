@@ -39,7 +39,7 @@ name: Trigger Release
 env:
   NAPI_CLI_VERSION: 3.7.2
   TURBO_VERSION: 2.11.10
-  NODE_LTS_VERSION: 20
+  NODE_LTS_VERSION: 22
 
 permissions: {}
 
@@ -124,7 +124,7 @@ jobs:
       - name: Setup corepack
         if: steps.new-commits.outputs.has_new_commits == 'true'
         run: |
-          npm i -g corepack@0.34.7
+          npm i -g corepack@0.36.0
           corepack enable
           pnpm --version
 
