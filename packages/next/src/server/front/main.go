@@ -27,6 +27,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"strconv"
@@ -106,6 +107,11 @@ func main() {
 	}
 	addr := ln.Addr().(*net.TCPAddr)
 
+	if addr := tune["pprof"]; addr != "" {
+		// net/http/pprof registers on http.DefaultServeMux.
+		go func() { fmt.Fprintln(os.Stderr, http.ListenAndServe(addr, nil)) }()
+	}
+
 	srv := newServer(newProxy(cfg.upstream, addr, cfg.upstreamIdle), cfg.idleTimeout, cfg.headerTimeout, cfg.requestTimeout)
 
 	fmt.Printf("NEXT_FRONT_READY %d\n", addr.Port)
@@ -130,6 +136,36 @@ func main() {
 	}
 	<-stopped
 }
+
+// tune holds benchmarking knobs from NEXT_FRONT_TUNE, a comma-separated list
+// of name or name=value entries. Prototype only: each knob turns on one
+// candidate change so it can be measured on its own.
+var tune = func() map[string]string {
+	t := map[string]string{}
+	for _, kv := range strings.Split(os.Getenv("NEXT_FRONT_TUNE"), ",") {
+		if kv == "" {
+			continue
+		}
+		k, v, _ := strings.Cut(kv, "=")
+		t[k] = v
+	}
+	return t
+}()
+
+func tuned(name string) bool { _, ok := tune[name]; return ok }
+
+// bufferPool reuses ReverseProxy's copy buffers instead of allocating 32 KB
+// per response.
+type bufferPool struct{ pool sync.Pool }
+
+func (b *bufferPool) Get() []byte {
+	if buf, ok := b.pool.Get().(*[]byte); ok {
+		return *buf
+	}
+	return make([]byte, 32*1024)
+}
+
+func (b *bufferPool) Put(buf []byte) { b.pool.Put(&buf) }
 
 // newServer is the public server. It times out what Node times out: idle
 // keep-alive connections, request headers, and whole requests. Responses
@@ -188,13 +224,44 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) 
 	// X-Forwarded-For value as without the front.
 	mapIPv4 := public.IP.To4() == nil
 
+	// upstream is host:port, or unix:<path> for a Unix socket. With a
+	// socket, the URL host only keys the transport's connection pool; Node
+	// still gets the client's Host header.
+	dialer := &net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}
+	dial := dialer.DialContext
+	upstreamHost := upstream
+	if path, ok := strings.CutPrefix(upstream, "unix:"); ok {
+		upstreamHost = "node"
+		dial = func(ctx context.Context, _, _ string) (net.Conn, error) {
+			return dialer.DialContext(ctx, "unix", path)
+		}
+	}
+
+	transport := &http.Transport{
+		// Connect to Node directly, never through an HTTP_PROXY. A new
+		// Transport already does that (only http.DefaultTransport reads
+		// HTTP_PROXY); this says so.
+		Proxy:       nil,
+		DialContext: dial,
+		// Go keeps only 2 idle connections per host by default, which
+		// opens and closes connections to Node under load.
+		MaxIdleConns:        0,
+		MaxIdleConnsPerHost: 512,
+		IdleConnTimeout:     upstreamIdle,
+		// When the client sent no Accept-Encoding, Go adds "Accept-Encoding:
+		// gzip" to the request to Node and unzips the response itself. This
+		// turns that off, so compression stays between the client and Node.
+		DisableCompression:    true,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+
 	proxy := &httputil.ReverseProxy{
 		// Rewrite builds the request to Node (pr.Out) from the one the client
 		// sent (pr.In). It runs once per request, before anything goes to Node.
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			// Connect to Node.
 			pr.Out.URL.Scheme = "http"
-			pr.Out.URL.Host = upstream
+			pr.Out.URL.Host = upstreamHost
 			// Keep the client's Host header. pr.Out starts as a copy of
 			// pr.In, so it already has it; this guards against ProxyRequest's
 			// SetURL helper, which would clear it and make Go send Node's
@@ -218,23 +285,7 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) 
 		// responses of unknown length). -1 writes each chunk to the client as
 		// soon as Node sends it, as without the front.
 		FlushInterval: -1,
-		Transport: &http.Transport{
-			// Connect to Node directly, never through an HTTP_PROXY. A new
-			// Transport already does that (only http.DefaultTransport reads
-			// HTTP_PROXY); this says so.
-			Proxy:       nil,
-			DialContext: (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
-			// Go keeps only 2 idle connections per host by default, which
-			// opens and closes connections to Node under load.
-			MaxIdleConns:        0,
-			MaxIdleConnsPerHost: 512,
-			IdleConnTimeout:     upstreamIdle,
-			// When the client sent no Accept-Encoding, Go adds "Accept-Encoding:
-			// gzip" to the request to Node and unzips the response itself. This
-			// turns that off, so compression stays between the client and Node.
-			DisableCompression:    true,
-			ExpectContinueTimeout: 1 * time.Second,
-		},
+		Transport:     transport,
 		// Go writes its own text after the status code; writeCustomStatusLine
 		// sends Node's instead when they differ.
 		ModifyResponse: writeCustomStatusLine,
@@ -247,6 +298,20 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) 
 		},
 		ErrorLog: proxyErrorLog,
 	}
+	if tuned("synctr") {
+		proxy.Transport = newSyncTransport(dial, upstream, upstreamIdle, transport)
+	}
+
+	if tuned("bufpool") {
+		proxy.BufferPool = &bufferPool{}
+	}
+	if tuned("flush0") {
+		// ReverseProxy still flushes every write for event streams and
+		// responses of unknown length; only responses with a Content-Length
+		// are buffered until they end or Go's buffer fills.
+		proxy.FlushInterval = 0
+	}
+	noctx := tuned("noctx")
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Go's server guesses a type from the body ("sniffs") when a response
@@ -255,6 +320,10 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) 
 		// without one. When Node sends one, the proxy's copyHeader adds
 		// Node's value to this entry before the headers are written.
 		w.Header()["Content-Type"] = nil
+		if noctx {
+			proxy.ServeHTTP(w, r)
+			return
+		}
 		proxy.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), responseWriterKey{}, w)))
 	})
 }
@@ -281,7 +350,12 @@ var hijackedResponses sync.WaitGroup
 // the client connection over, writes the response byte for byte, and closes
 // the connection afterwards.
 func writeCustomStatusLine(res *http.Response) error {
-	if res.Status == fmt.Sprintf("%d %s", res.StatusCode, http.StatusText(res.StatusCode)) {
+	if tuned("statuscmp") {
+		// res.Status is "NNN text"; compare the text without building a string.
+		if len(res.Status) > 4 && res.Status[4:] == http.StatusText(res.StatusCode) && res.Status[:3] == strconv.Itoa(res.StatusCode) {
+			return nil
+		}
+	} else if res.Status == fmt.Sprintf("%d %s", res.StatusCode, http.StatusText(res.StatusCode)) {
 		return nil
 	}
 	w, ok := res.Request.Context().Value(responseWriterKey{}).(http.ResponseWriter)
