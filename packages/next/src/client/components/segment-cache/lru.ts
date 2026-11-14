@@ -115,6 +115,7 @@ export function cleanup() {
   // infinite loop because even if `maxLruSize` were 0, eventually
   // `deleteFromLru` sets `head` to `null` when we run out entries.
   const ninetyPercentMax = maxLruSize * 0.9
+  const prevSize = lruSize
   while (lruSize > ninetyPercentMax && head !== null) {
     const tail = head.prev
     // In practice, this is never null, but that isn't encoded in the type
@@ -122,6 +123,12 @@ export function cleanup() {
       // Delete the entry from the map. In turn, this will remove it from
       // the LRU.
       deleteMapEntry(tail)
+
+      // If the size is not being reduced by deleting the entry,
+      // break to avoid infinite loop
+      if (lruSize === prevSize) {
+        break
+      }
     }
   }
 }
