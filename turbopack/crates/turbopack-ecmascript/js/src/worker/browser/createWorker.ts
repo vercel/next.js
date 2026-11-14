@@ -1,5 +1,6 @@
 // Embedded worker-runtime helper. This file is bundled as a regular module and
-// `__turbopack_require__`d by the generated web-worker loader code.
+// `__turbopack_require__`d by the module containing the worker call. That module
+// passes this helper's default export to its generated web-worker loader.
 //
 // The chunk-URL builder, the chunk base path and the asset suffix are read from
 // the shared `__turbopack_chunk_relative_url__` / `__turbopack_chunk_base_path__`
@@ -15,6 +16,9 @@ declare const __turbopack_chunk_relative_url__: (
 
 declare const __turbopack_chunk_base_path__: string
 declare const __turbopack_chunk_asset_suffix__: string
+
+// Paths of all chunks loaded in this runtime, including stylesheets in a page.
+declare const __turbopack_get_loaded_chunk_paths__: () => string[]
 
 declare const _TURBOPACK_WORKER_FORWARDED_GLOBALS_: string[]
 declare const _TURBOPACK_WORKER_BASE_PATH_: string | null
@@ -32,7 +36,9 @@ type WorkerChunkData = string | { path: string }
  * which module chunks to load and which module to run as the entry point.
  *
  * The params are a JSON array of the following structure:
- * `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, WORKER_CHUNK_BASE_PATH, ...workerForwardedGlobals values]`
+ * `[PRELOAD_CHUNK_URLS, TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, WORKER_CHUNK_BASE_PATH, ...workerForwardedGlobals values]`
+ *
+ * `PRELOAD_CHUNK_URLS` comes first because it is loaded first.
  *
  * @param WorkerConstructor The Worker or SharedWorker constructor
  * @param entrypoint path to the worker entrypoint chunk
@@ -54,15 +60,45 @@ function createWorker(
   const workerBasePath =
     _TURBOPACK_WORKER_BASE_PATH_ ?? __turbopack_chunk_base_path__
 
-  const chunkUrls = moduleChunks
-    .map((chunk) =>
-      __turbopack_chunk_relative_url__(
-        typeof chunk === 'string' ? chunk : chunk.path,
-        workerBasePath
-      )
+  // The worker's own chunks. Kept in their original order (and reversed the
+  // same way as before) so the shared runtime chunk — emitted last by
+  // `evaluated_chunk_group` — ends up first and the bootstrap can `shift()` it
+  // off to load it after everything else.
+  const workerChunkPaths = moduleChunks.map((chunk) =>
+    typeof chunk === 'string' ? chunk : chunk.path
+  )
+  const workerChunkSet = new Set(workerChunkPaths)
+
+  // Only a worker created by another worker inherits availability. A worker
+  // created by a page has a self-contained chunk group and must not import all
+  // the page's JS chunks. Workers have no `document`, including shared workers.
+  // Nested workers re-import their parent's chunks because module factories
+  // cannot be transferred across realms.
+  //
+  // These must be registered *before* the worker's own chunks, for two reasons:
+  //  1. The worker's evaluate chunk instantiates the entry module, whose
+  //     factory may live in one of these chunks.
+  //  2. A worker loader has the same module id in every chunk group (its ident
+  //     deliberately excludes availability info), but carries a different chunk
+  //     list per group. Loading the worker's own chunks last means its version
+  //     wins, so a nested worker gets the correctly-pruned chunk list.
+  // They travel in their own params slot — first, since they load first.
+  const preloadChunkPaths = (
+    typeof importScripts !== 'undefined'
+      ? __turbopack_get_loaded_chunk_paths__()
+      : []
+  ).filter((chunkPath) => !workerChunkSet.has(chunkPath))
+
+  const chunkUrls = workerChunkPaths
+    .map((chunkPath) =>
+      __turbopack_chunk_relative_url__(chunkPath, workerBasePath)
     )
     .reverse()
+  const preloadUrls = preloadChunkPaths.map((chunkPath) =>
+    __turbopack_chunk_relative_url__(chunkPath, workerBasePath)
+  )
   const params: unknown[] = [
+    preloadUrls,
     chunkUrls,
     __turbopack_chunk_asset_suffix__,
     workerBasePath,
@@ -91,9 +127,9 @@ function createWorker(
 }
 
 /**
- * Returns a function, that when called with the constructor + any options calls `createWorker()`.
- * The worker configuration (`entrypoint`, `moduleChunks`) is passed by `turbopack-ecmascript`
- * at build time, leaving the runtime caller to only supply the constructor and options.
+ * Returns a function that calls `createWorker()` with the constructor and options.
+ * The generated loader supplies `entrypoint` and `moduleChunks` when the originating
+ * module calls it with this helper's default export, constructor, and options.
  */
 export default function generateCreateWorker(
   entrypoint: string,

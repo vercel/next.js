@@ -15,7 +15,7 @@ use turbopack_ecmascript::chunk_list::{
     version::{ChunkListVersion, compute_chunk_list_version},
 };
 
-use crate::NodeJsChunkingContext;
+use crate::{NodeJsChunkingContext, ecmascript::node::entry::chunk::EcmascriptBuildNodeEntryChunk};
 
 /// Maps each chunk to its `output_root`-relative path and versioned content.
 async fn collect_chunks_contents(
@@ -103,6 +103,14 @@ impl EcmascriptBuildNodeChunkListContent {
         )
         .await?;
 
+        // A worker entry runs in a separate runtime, so this entry's HMR chunk list cannot
+        // update it. Its versioned content is another chunk list; including that entry here
+        // would recursively request this same version when a worker spawns itself. Only
+        // module chunks belong in the parent's HMR version; the worker entry is still
+        // referenced and emitted normally, independently of this version map.
+        let async_chunks = async_chunks.into_iter().filter(|chunk| {
+            ResolvedVc::try_downcast_type::<EcmascriptBuildNodeEntryChunk>(*chunk).is_none()
+        });
         let chunks_contents = collect_chunks_contents(
             &output_root,
             chunks.await?.iter().copied().chain(async_chunks),
