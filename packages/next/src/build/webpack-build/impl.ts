@@ -45,6 +45,7 @@ import { Telemetry } from '../../telemetry/storage'
 import { durationToString, hrtimeToSeconds } from '../duration-to-string'
 import { installBindings } from '../swc/install-bindings'
 import { Bundler } from '../../lib/bundler'
+import { assertWorkerResultSerializable } from './assert-worker-result-serializable'
 
 const debug = origDebug('next:build:webpack-build')
 
@@ -462,5 +463,7 @@ export async function workerMain(workerData: {
   // Save CPU profile before worker exits
   await saveCpuProfile()
 
-  return { ...result, debugTraceEvents: getTraceEvents() }
+  const workerResult = { ...result, debugTraceEvents: getTraceEvents() }
+  assertWorkerResultSerializable(workerResult, workerData.compilerName)
+  return workerResult
 }
