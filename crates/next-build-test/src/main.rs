@@ -80,6 +80,17 @@ fn main() {
             thread_local! {
                 static LAST_SWC_ATOM_GC_TIME: RefCell<Option<Instant>> = const { RefCell::new(None) };
             }
+            /// Frees unused memory owned by the current thread. Called when a thread runs out of
+            /// work.
+            fn thread_park() {
+                LAST_SWC_ATOM_GC_TIME.with_borrow_mut(|cell| {
+                    if cell.is_none_or(|t| t.elapsed() > Duration::from_secs(2)) {
+                        swc_core::ecma::atoms::hstr::global_atom_store_gc();
+                        *cell = Some(Instant::now());
+                    }
+                });
+                TurboMalloc::thread_park();
+            }
             tokio_workers::set_worker_threads(tokio_workers::default_worker_threads());
             tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
@@ -89,15 +100,13 @@ fn main() {
                 })
                 .on_thread_park(|| {
                     tokio_workers::park();
-                    LAST_SWC_ATOM_GC_TIME.with_borrow_mut(|cell| {
-                        if cell.is_none_or(|t| t.elapsed() > Duration::from_secs(2)) {
-                            swc_core::ecma::atoms::hstr::global_atom_store_gc();
-                            *cell = Some(Instant::now());
-                        }
-                    });
-                    TurboMalloc::thread_park();
+                    thread_park();
                 })
                 .on_thread_unpark(tokio_workers::unpark)
+                // Blocking threads don't run the hooks above, do the same cleanup when they run
+                // out of work. They aren't scheduler workers, so they are not counted in
+                // `tokio_workers`.
+                .on_blocking_thread_park(thread_park)
                 .build()
                 .unwrap()
                 .block_on(async {
