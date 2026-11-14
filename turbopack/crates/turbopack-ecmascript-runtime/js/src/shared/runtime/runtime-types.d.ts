@@ -93,7 +93,10 @@ type DynamicExport = (
 ) => void
 
 type LoadChunk = (chunkPath: ChunkPath) => Promise<any> | undefined
-type LoadChunkByUrl = (chunkUrl: ChunkUrl) => Promise<any> | undefined
+type LoadChunkByUrl = (
+  chunkUrl: ChunkUrl,
+  resolveOnLoad?: boolean
+) => Promise<any> | undefined
 
 /**
  * The runtime's module cache.  Stores the memoized 'Module' object for each instantiated module.
@@ -152,6 +155,12 @@ interface ModuleWithDirection extends Module {
   parents: ModuleId[]
 }
 
+interface ModuleFederationRuntimeState {
+  shareScopes: Record<string, Record<string, any>>
+  initScopes: Record<string, any[]>
+  remoteInitializations: Record<string, Promise<any>>
+}
+
 interface TurbopackBaseContext<M> {
   a: AsyncModule
   e: Exports
@@ -169,6 +178,8 @@ interface TurbopackBaseContext<M> {
   m: Module
   c: ModuleCache<M>
   M: ModuleFactories
+  R: ModuleFederationRuntimeState
+  p: ResolvePathFromModule
   l: LoadChunk
   L: LoadChunkByUrl
   h: GetChunkRelativeURL
