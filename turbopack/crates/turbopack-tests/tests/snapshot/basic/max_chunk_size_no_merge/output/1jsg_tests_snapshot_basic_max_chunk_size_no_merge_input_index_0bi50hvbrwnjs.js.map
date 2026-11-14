@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/max_chunk_size_no_merge/input/index.js"],"sourcesContent":["import { a } from './a/a.js'\nimport { b } from './b/b.js'\nimport { c } from './c/c.js'\n\nconsole.log(a, b, c)\n"],"names":["console","log"],"mappings":";AAAA;AACA;AACA;;;;AAEAA,QAAQC,GAAG,CAAC,oNAAC,EAAE,oNAAC,EAAE,oNAAC"}}]
-}

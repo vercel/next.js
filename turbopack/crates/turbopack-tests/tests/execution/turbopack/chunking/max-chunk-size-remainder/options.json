@@ -1,0 +1,10 @@
+{
+  "productionChunking": true,
+  "scopeHoisting": false,
+  "crossModuleConstants": false,
+  "generateComponentChunks": true,
+  "minComponentChunkSize": 0,
+  "requestCost": 1,
+  "minChunkSize": 600,
+  "maxChunkSize": 1800
+}

@@ -4,7 +4,7 @@
 //! This is based on webpack's `deterministicGrouping` (used for `splitChunks.maxSize`), simplified
 //! to a single scalar size:
 //!
-//! 1. Items bigger than the maximum size become their own group.
+//! 1. When splitting is needed, items at least as big as the maximum size become their own group.
 //! 2. The remaining items are sorted by their key (the module identifier) in UTF-8 byte order.
 //! 3. The sorted items are recursively bisected. A cut is placed where the key space is separated
 //!    the most (the shortest shared prefix of two adjacent keys), while keeping both sides at least
@@ -22,6 +22,8 @@
 
 use std::{cmp::Ordering, ops::Range};
 
+use smallvec::{SmallVec, smallvec};
+
 /// Splits `items` into groups whose total size is not bigger than `max_size`, unless a single item
 /// is already bigger than `max_size`. Groups are kept at least `min_size` big where possible.
 ///
@@ -35,19 +37,22 @@ pub fn deterministic_grouping<T, K: AsRef<str>>(
     items: Vec<(T, K, usize)>,
     min_size: usize,
     max_size: usize,
-) -> Vec<Vec<T>> {
+) -> SmallVec<[Vec<T>; 1]> {
     let total_size: usize = items.iter().map(|(_, _, size)| *size).sum();
     if max_size == 0 || total_size <= max_size {
         if items.is_empty() {
-            return Vec::new();
+            return SmallVec::new();
         }
-        return vec![items.into_iter().map(|(item, _, _)| item).collect()];
+        return smallvec![items.into_iter().map(|(item, _, _)| item).collect()];
     }
 
-    // Items bigger than `max_size` are emitted as their own group. Only the remaining items need to
-    // be sorted and bisected.
-    let (oversized, mut nodes): (Vec<_>, Vec<_>) =
-        items.into_iter().partition(|(_, _, size)| *size > max_size);
+    // Items at least as big as `max_size` are emitted as their own group. Only the remaining items
+    // need to be sorted and bisected. Wrap payloads now so they can be taken from these buffers
+    // without collecting them again after sorting.
+    let (mut oversized, mut nodes): (Vec<_>, Vec<_>) = items
+        .into_iter()
+        .map(|(item, key, size)| (Some(item), key, size))
+        .partition(|(_, _, size)| *size >= max_size);
     // Stable sort, so equal keys keep their input order.
     nodes.sort_by(|(_, a, _), (_, b, _)| a.as_ref().cmp(b.as_ref()));
 
@@ -96,16 +101,11 @@ pub fn deterministic_grouping<T, K: AsRef<str>>(
     };
     groups.sort_by(|a, b| first_key(a).cmp(first_key(b)));
 
-    let mut nodes: Vec<Option<T>> = nodes.into_iter().map(|(item, _, _)| Some(item)).collect();
-    let mut oversized: Vec<Option<T>> = oversized
-        .into_iter()
-        .map(|(item, _, _)| Some(item))
-        .collect();
     groups
         .into_iter()
         .map(|group| match group {
-            Group::Nodes(range) => range.map(|i| nodes[i].take().unwrap()).collect(),
-            Group::Oversized(index) => vec![oversized[index].take().unwrap()],
+            Group::Nodes(range) => range.map(|i| nodes[i].0.take().unwrap()).collect(),
+            Group::Oversized(index) => vec![oversized[index].0.take().unwrap()],
         })
         .collect()
 }
@@ -191,6 +191,7 @@ mod tests {
             min_size,
             max_size,
         )
+        .into_vec()
     }
 
     fn sizes(groups: &[Vec<String>], items: &[(&str, usize)]) -> Vec<usize> {
@@ -203,6 +204,20 @@ mod tests {
                     .sum()
             })
             .collect()
+    }
+
+    #[test]
+    fn empty_and_single_group_results_use_inline_storage() {
+        for (items, max_size) in [
+            (vec![], 100),
+            (vec![("b", "b", 30), ("a", "a", 40)], 100),
+            (vec![("b", "b", 30), ("a", "a", 40)], 0),
+            (vec![("a", "a", 101)], 100),
+        ] {
+            let groups: SmallVec<[Vec<&str>; 1]> = deterministic_grouping(items, 0, max_size);
+            assert!(groups.len() <= 1);
+            assert!(!groups.spilled());
+        }
     }
 
     #[test]
@@ -221,6 +236,23 @@ mod tests {
         assert_eq!(group(&items, 0, 100), vec![vec!["b", "a", "c"]]);
         assert_eq!(group(&items, 0, 0), vec![vec!["b", "a", "c"]]);
         assert!(group(&[], 0, 100).is_empty());
+    }
+
+    #[test]
+    fn keeps_items_at_max_size_separate_when_splitting() {
+        let items = [("a", 1), ("b", 100), ("c", 0), ("d", 101)];
+        let expected = vec![vec!["a", "c"], vec!["b"], vec!["d"]];
+        assert_eq!(group(&items, 0, 100), expected);
+        let mut reversed = items;
+        reversed.reverse();
+        assert_eq!(group(&reversed, 0, 100), expected);
+    }
+
+    #[test]
+    fn keeps_exact_limit_items_in_input_order_when_no_split_is_needed() {
+        let items = [("b", 100), ("a", 0)];
+        assert_eq!(group(&items, 0, 100), vec![vec!["b", "a"]]);
+        assert_eq!(group(&items, 0, 0), vec![vec!["b", "a"]]);
     }
 
     #[test]

@@ -1,7 +1,0 @@
-{
-  "minifyType": "NoMinify",
-  "runtime": "NodeJs",
-  "productionChunking": true,
-  "minChunkSize": 800,
-  "maxChunkSize": 2500
-}

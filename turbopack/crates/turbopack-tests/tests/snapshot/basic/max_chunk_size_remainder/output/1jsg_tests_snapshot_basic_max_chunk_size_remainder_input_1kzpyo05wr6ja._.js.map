@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/max_chunk_size_remainder/input/b/b2.js"],"sourcesContent":["export const b2 =\n  'b2: Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor ' +\n  'incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud ' +\n  'exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure ' +\n  'dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.'\n"],"names":["b2"],"mappings":";;;;AAAO,MAAMA,KACX,wFACA,wFACA,2FACA"}},
-    {"offset": {"line": 13, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/max_chunk_size_remainder/input/other/b2.js"],"sourcesContent":["import { b2 } from '../b/b2.js'\n\nexport const other = b2\n"],"names":["other"],"mappings":";;;;AAAA;;AAEO,MAAMA,QAAQ,uNAAE"}}]
-}
