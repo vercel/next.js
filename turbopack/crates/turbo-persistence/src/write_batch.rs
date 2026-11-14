@@ -511,7 +511,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
 
         let mut buffer = Vec::with_capacity(8 + compressed.len());
         buffer.write_u32::<BE>(value.len() as u32)?;
-        buffer.write_u32::<BE>(checksum_block(&compressed))?;
+        buffer.write_u32::<BE>(checksum_block(value.len() as u32, &compressed))?;
         buffer.extend_from_slice(&compressed);
 
         let size = buffer.len() as u64;
