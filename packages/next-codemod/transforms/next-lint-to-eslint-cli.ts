@@ -907,6 +907,16 @@ function updatePackageJsonScripts(packageJsonContent: string): {
 
               if (token === '--strict') {
                 eslintArgs.push('--max-warnings', '0')
+              } else if (
+                token === '--fix' ||
+                token === '--fix-dry-run' ||
+                token === '--quiet' ||
+                token === '--cache' ||
+                token === '--no-cache' ||
+                token === '--debug'
+              ) {
+                // Boolean flag: must not consume the following path argument.
+                eslintArgs.push(token)
               } else if (token === '--dir' && i + 1 < argTokens.length) {
                 paths.push(argTokens[++i])
               } else if (token === '--file' && i + 1 < argTokens.length) {
