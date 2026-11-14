@@ -673,6 +673,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/server/node-environment-extensions/io-utils.js",
            "/node_modules/next/dist/server/node-environment-extensions/node-crypto.js",
            "/node_modules/next/dist/server/node-environment-extensions/random.js",
+           "/node_modules/next/dist/server/node-environment-extensions/sync-io-reporting.js",
            "/node_modules/next/dist/server/node-environment-extensions/unhandled-rejection.external.js",
            "/node_modules/next/dist/server/node-environment-extensions/web-crypto.js",
            "/node_modules/next/dist/server/node-environment.js",

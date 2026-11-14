@@ -1,15 +1,16 @@
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
-import { abortOnSynchronousPlatformIOAccess } from '../app-render/dynamic-rendering'
-import { RenderStage } from '../app-render/staged-rendering'
-import { applyOwnerStack } from '../dynamic-rendering-utils'
-import {
-  createSyncIOClientError,
-  createSyncIOError,
-  createSyncIORuntimeError,
-  type SyncIOApiType,
-} from '../app-render/sync-io-messages'
+import type { SyncIOApiType } from '../app-render/sync-io-messages'
 import { InvariantError } from '../../shared/lib/invariant-error'
+
+// Everything that reporting a synchronous IO access needs is behind
+// `./sync-io-reporting`. It is loaded the first time a prerender or a staged
+// render observes one, so that servers which never do don't load it at startup.
+let syncIOReporting: typeof import('./sync-io-reporting') | undefined
+function loadSyncIOReporting() {
+  return (syncIOReporting ??=
+    require('./sync-io-reporting') as typeof import('./sync-io-reporting'))
+}
 
 export function io(expression: string, type: SyncIOApiType) {
   const workUnitStore = workUnitAsyncStorage.getStore()
@@ -28,6 +29,11 @@ export function io(expression: string, type: SyncIOApiType) {
         // If the prerender signal is already aborted we don't need to construct
         // any stacks because something else actually terminated the prerender.
         // TODO: synchronize this with `stageController`
+        const {
+          abortOnSynchronousPlatformIOAccess,
+          applyOwnerStack,
+          createSyncIOError,
+        } = loadSyncIOReporting()
         abortOnSynchronousPlatformIOAccess(
           workStore.route,
           expression,
@@ -43,6 +49,11 @@ export function io(expression: string, type: SyncIOApiType) {
       if (prerenderSignal.aborted === false) {
         // If the prerender signal is already aborted we don't need to construct
         // any stacks because something else actually terminated the prerender.
+        const {
+          abortOnSynchronousPlatformIOAccess,
+          applyOwnerStack,
+          createSyncIOClientError,
+        } = loadSyncIOReporting()
         abortOnSynchronousPlatformIOAccess(
           workStore.route,
           expression,
@@ -57,6 +68,12 @@ export function io(expression: string, type: SyncIOApiType) {
     case 'request': {
       const stageController = workUnitStore.stagedRendering
       if (stageController && stageController.shouldTrackSyncInterrupt()) {
+        const {
+          RenderStage,
+          applyOwnerStack,
+          createSyncIOError,
+          createSyncIORuntimeError,
+        } = loadSyncIOReporting()
         let syncIOError: Error
         // NOTE: keep stages where we can interrupt in sync with
         // `shouldTrackSyncInterrupt`/`syncInterruptCurrentStageWithReason`
