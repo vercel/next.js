@@ -8,6 +8,7 @@ import {
   type NormalizedAppRoute,
   type NormalizedAppRouteSegment,
 } from '../shared/lib/router/routes/app'
+import { getSortedRoutes } from '../shared/lib/router/utils'
 
 /**
  * Validates segment parameters for common syntax errors.
@@ -276,6 +277,8 @@ export function validateAppPaths(
         `Please ensure that dynamic segments have unique patterns or use different static segments.`
     )
   }
+
+  getSortedRoutes(appPaths)
 
   return Array.from(paramsByPath.values())
 }
