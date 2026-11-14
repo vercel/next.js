@@ -1,9 +1,18 @@
 ---
 title: usePathname
 description: API Reference for the usePathname hook.
+related:
+  title: Next Steps
+  description: Learn more about the features mentioned in this page by reading the API Reference.
+  links:
+    - app/api-reference/components/nav-link
+    - app/api-reference/functions/use-selected-layout-segment
+    - app/api-reference/components/link
 ---
 
 `usePathname` is a **Client Component** hook that lets you read the current URL's **pathname**.
+
+> **Good to know:** To style a link based on the active route, use [`NavLink`](/docs/app/api-reference/components/nav-link) instead of comparing `usePathname` by hand.
 
 ```tsx filename="app/example-client-component.tsx" switcher
 'use client'
