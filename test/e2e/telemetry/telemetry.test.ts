@@ -17,6 +17,11 @@ describe('Telemetry CLI', () => {
   const { next, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    env: {
+      // Keep preferences in this fixture's cache instead of sharing the user's
+      // global store with concurrent copies of this suite in the flake checks.
+      CI: '1',
+    },
   })
 
   it('can print telemetry status', async () => {
