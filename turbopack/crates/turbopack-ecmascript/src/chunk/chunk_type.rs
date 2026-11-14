@@ -5,7 +5,7 @@ use turbopack_core::chunk::{
     ChunkType, ChunkingContext, MinifyType, round_chunk_item_size,
 };
 
-use super::{ChunkMinification, EcmascriptChunk, EcmascriptChunkContent, EcmascriptChunkItem};
+use super::{EcmascriptChunk, EcmascriptChunkContent, EcmascriptChunkItem};
 use crate::chunk::{
     batch::{EcmascriptChunkItemBatchGroup, EcmascriptChunkItemOrBatchWithAsyncInfo},
     item::{ChunkItemFactoryContent, chunk_item_factory_content},
@@ -66,9 +66,7 @@ impl ChunkType for EcmascriptChunkType {
         else {
             bail!("Chunk item is not an ecmascript chunk item but reporting chunk type ecmascript");
         };
-        let minify = ChunkMinification::for_chunking_context(chunking_context)
-            .await?
-            .per_item();
+        let minify = *chunking_context.minify_type().await?;
         // Asked the same way as code generation does (see the chunk content implementations),
         // so both share one minification.
         let source_maps = match minify {

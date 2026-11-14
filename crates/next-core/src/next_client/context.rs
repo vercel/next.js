@@ -42,7 +42,6 @@ use turbopack_node::{
 use turbopack_resolve::resolve_options_context::{ResolveOptionsContext, TsConfigHandling};
 
 use crate::{
-    chunk_size_defaults::ChunkSizeDefaults,
     mode::NextMode,
     next_build::get_postcss_package_mapping,
     next_client::{
@@ -498,7 +497,6 @@ pub struct ClientChunkingContextOptions {
     pub source_map_generation_options: Vc<SourceMapGenerationOptions>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
-    pub minify_before_chunking: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
     pub shared_runtime: Vc<bool>,
     pub per_page_module_graph: Vc<bool>,
@@ -550,7 +548,6 @@ pub async fn get_client_chunking_context(
         source_map_generation_options,
         no_mangling,
         scope_hoisting,
-        minify_before_chunking,
         nested_async_chunking,
         shared_runtime,
         per_page_module_graph,
@@ -637,24 +634,22 @@ pub async fn get_client_chunking_context(
             // A manifest chunk keeps a lazily compiled import's URL stable across activation.
             .manifest_chunks(*lazy_dynamic_imports.await?);
     } else {
-        let defaults = ChunkSizeDefaults::new(*minify.await?, *minify_before_chunking.await?);
+        // The sizes are of chunk items minified one by one before chunking, which are a few times
+        // smaller than their unminified code: about 40% of what the defaults were tuned for.
         builder = builder
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
-                    min_chunk_size: chunking_min_chunk_size
-                        .unwrap_or_else(|| defaults.size(50_000)),
+                    min_chunk_size: chunking_min_chunk_size.unwrap_or(20_000),
                     max_chunk_count_per_group: chunking_max_chunk_count_per_group.unwrap_or(40),
-                    max_merge_chunk_size: chunking_max_merge_chunk_size
-                        .unwrap_or_else(|| defaults.size(200_000)),
+                    max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(80_000),
                     first_page_load_priority: chunking_first_page_load_priority,
                     priority_boost_percent: chunking_priority_boost_percent,
-                    request_cost: chunking_request_cost.or_else(|| defaults.default_request_cost()),
+                    request_cost: Some(chunking_request_cost.unwrap_or(80_000)),
                     // Generate component chunks alongside the merged chunk so that the browser
                     // runtime can fetch an already-cached one instead of the whole merged chunk.
                     generate_component_chunks: *generate_component_chunks.await?,
-                    min_component_chunk_size: chunking_min_component_chunk_size
-                        .unwrap_or_else(|| defaults.size(20_000)),
+                    min_component_chunk_size: chunking_min_component_chunk_size.unwrap_or(8_000),
                     ..Default::default()
                 },
             )
@@ -668,7 +663,6 @@ pub async fn get_client_chunking_context(
             )
             .chunk_content_hashing(ContentHashing::Direct { length: 13 })
             .module_merging(*scope_hoisting.await?)
-            .minify_before_chunking(*minify_before_chunking.await?)
             .shared_runtime(*shared_runtime.await?);
     }
 

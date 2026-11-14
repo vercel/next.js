@@ -33,10 +33,10 @@ import type { NextConfig } from 'next'
 const nextConfig = {
   experimental: {
     turbopackChunking: {
-      minChunkSize: 50000,
+      minChunkSize: 20000,
       maxChunkCountPerGroup: 40,
-      maxMergeChunkSize: 200000,
-      minComponentChunkSize: 20000,
+      maxMergeChunkSize: 80000,
+      minComponentChunkSize: 8000,
       generateComponentChunks: false,
     },
   },
@@ -50,10 +50,10 @@ export default nextConfig
 const nextConfig = {
   experimental: {
     turbopackChunking: {
-      minChunkSize: 50000,
+      minChunkSize: 20000,
       maxChunkCountPerGroup: 40,
-      maxMergeChunkSize: 200000,
-      minComponentChunkSize: 20000,
+      maxMergeChunkSize: 80000,
+      minComponentChunkSize: 8000,
       generateComponentChunks: false,
     },
   },
@@ -72,9 +72,9 @@ import type { NextConfig } from 'next'
 const nextConfig = {
   experimental: {
     turbopackChunking: {
-      minChunkSize: 50000,
+      minChunkSize: 20000,
       maxChunkCountPerGroup: 40,
-      maxMergeChunkSize: 200000,
+      maxMergeChunkSize: 80000,
     },
   },
 } satisfies NextConfig
@@ -87,9 +87,9 @@ export default nextConfig
 const nextConfig = {
   experimental: {
     turbopackChunking: {
-      minChunkSize: 50000,
+      minChunkSize: 20000,
       maxChunkCountPerGroup: 40,
-      maxMergeChunkSize: 200000,
+      maxMergeChunkSize: 80000,
     },
   },
 }
@@ -102,10 +102,11 @@ module.exports = nextConfig
 ## Size Thresholds
 
 The following options control how aggressively Turbopack merges client-side chunks and how large
-a chunk is allowed to grow. Sizes are in bytes of uncompressed, unminified code (roughly 5x
-the size of the compressed, minified output).
+a chunk is allowed to grow. Sizes are in bytes of uncompressed code. When minification is enabled
+(the default), Turbopack minifies each module before chunking, so sizes are measured on minified
+code; otherwise they are measured on unminified code.
 
-- **`minChunkSize`** (default `50000`): Turbopack will avoid creating more
+- **`minChunkSize`** (default `20000`): Turbopack will avoid creating more
   than one chunk smaller than this size by merging small chunks into larger ones.
   Raising this number will produce fewer, larger chunks. Meanwhile, lowering it
   will produce more chunks that are smaller.
@@ -114,7 +115,7 @@ the size of the compressed, minified output).
   this number will lead to more aggressive merging and less network requests
   per-page. Raising it will produce smaller chunks and increase the likelihood
   of cache hits when navigating.
-- **`maxMergeChunkSize`** (default `200000`): Turbopack never merges a chunk
+- **`maxMergeChunkSize`** (default `80000`): Turbopack never merges a chunk
   larger than this size with other chunks. This keeps the code in large chunks
   from being duplicated across multiple large output chunks.
 
@@ -122,22 +123,19 @@ When merging chunks, the trade-off being made is an improvement to performance o
 loads at the cost of navigation performance. This is because each additional network request
 being made is costly, however, smaller chunks are more likely to be re-usable across pages.
 
-> **Good to know**: The size thresholds depend on the experimental
-> `experimental.turbopackMinifyBeforeChunking` option, which is enabled by default on canary
-> releases. When it is enabled (and minification is on),
-> Turbopack minifies each module before chunking and measures sizes in bytes of minified code
-> instead. The default thresholds and `requestCost`, including the server chunk thresholds below,
-> are then scaled down to 40% of the values listed here. Values you set explicitly are used as-is,
-> so you may need to lower them when enabling the option.
+> **Good to know**: The default thresholds and `requestCost`, including the server chunk
+> thresholds below, are tuned for minified code. If you disable minification, the same defaults
+> are measured against unminified code, which produces more, smaller chunks. Values you set
+> explicitly are used as-is, so values tuned for unminified code may need to be lowered.
 
 ## Server Chunks
 
 The size thresholds above only apply to client-side JavaScript. Server-side JavaScript for the
 Node.js runtime uses separate thresholds:
 
-- **`minServerChunkSize`** (default `4000`): Turbopack will avoid creating more than one server
+- **`minServerChunkSize`** (default `1600`): Turbopack will avoid creating more than one server
   chunk smaller than this size by merging small chunks into larger ones.
-- **`maxMergeServerChunkSize`** (default `100000`): Turbopack never merges a server chunk larger
+- **`maxMergeServerChunkSize`** (default `40000`): Turbopack never merges a server chunk larger
   than this size with other chunks.
 
 These options don't apply to the Edge runtime, whose chunking is not configurable.
@@ -171,7 +169,7 @@ This avoids re-downloading JavaScript the browser already has when navigating.
 - **`generateComponentChunks`** (default `false`): when enabled, each merged
   production chunk also emits its constituent component chunks alongside it, so
   the browser runtime can fetch individual component chunks.
-- **`minComponentChunkSize`** (default `20000`): component chunks smaller than
+- **`minComponentChunkSize`** (default `8000`): component chunks smaller than
   this size are folded into a single component instead of being emitted on their own,
   to avoid producing many tiny chunks.
 
@@ -198,6 +196,6 @@ chunks is worth it.
 - **`priorityBoost`** (default `1.5`): a multiplier on the single-request
   probability of `priorityRoutes` routes. Higher values merge those routes'
   bundles more aggressively.
-- **`requestCost`** (default `200000`): the estimated cost of an
-  additional request, in bytes of uncompressed, unminified code. Larger values
+- **`requestCost`** (default `80000`): the estimated cost of an
+  additional request, in bytes of uncompressed code. Larger values
   bias toward fewer, larger chunks and fewer requests overall.

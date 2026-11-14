@@ -25,7 +25,6 @@ use turbopack_resolve::resolve_options_context::{ResolveOptionsContext, TsConfig
 
 use crate::{
     app_structure::CollectedRootParams,
-    chunk_size_defaults::ChunkSizeDefaults,
     mode::NextMode,
     next_config::NextConfig,
     next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_edge_import_map},
@@ -187,7 +186,6 @@ pub struct EdgeChunkingContextOptions {
     pub source_map_generation_options: Vc<SourceMapGenerationOptions>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
-    pub minify_before_chunking: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
     pub client_root: FileSystemPath,
     pub client_static_folder_name: RcStr,
@@ -217,7 +215,6 @@ pub async fn get_edge_chunking_context_with_client_assets(
         source_map_generation_options,
         no_mangling,
         scope_hoisting,
-        minify_before_chunking,
         nested_async_chunking,
         client_root,
         client_static_folder_name,
@@ -275,13 +272,14 @@ pub async fn get_edge_chunking_context_with_client_assets(
     .worker_forwarded_globals(worker_forwarded_globals());
 
     if !next_mode.is_development() {
-        let defaults = ChunkSizeDefaults::new(*turbo_minify.await?, *minify_before_chunking.await?);
+        // The sizes are of chunk items minified one by one before chunking, which are a few times
+        // smaller than their unminified code: about 40% of what the defaults were tuned for.
         builder = builder
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
-                    min_chunk_size: defaults.size(20_000),
-                    request_cost: defaults.default_request_cost(),
+                    min_chunk_size: 8_000,
+                    request_cost: Some(80_000),
                     ..Default::default()
                 },
             )
@@ -293,8 +291,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?)
-            .minify_before_chunking(*minify_before_chunking.await?);
+            .module_merging(*scope_hoisting.await?);
     }
 
     Ok(Vc::upcast(builder.build()))
@@ -319,7 +316,6 @@ pub async fn get_edge_chunking_context(
         source_map_generation_options,
         no_mangling,
         scope_hoisting,
-        minify_before_chunking,
         nested_async_chunking,
         client_root,
         client_static_folder_name,
@@ -394,13 +390,14 @@ pub async fn get_edge_chunking_context(
     .worker_forwarded_globals(worker_forwarded_globals());
 
     if !next_mode.is_development() {
-        let defaults = ChunkSizeDefaults::new(*turbo_minify.await?, *minify_before_chunking.await?);
+        // The sizes are of chunk items minified one by one before chunking, which are a few times
+        // smaller than their unminified code: about 40% of what the defaults were tuned for.
         builder = builder
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
                 ChunkingConfig {
-                    min_chunk_size: defaults.size(20_000),
-                    request_cost: defaults.default_request_cost(),
+                    min_chunk_size: 8_000,
+                    request_cost: Some(80_000),
                     ..Default::default()
                 },
             )
@@ -412,8 +409,7 @@ pub async fn get_edge_chunking_context(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?)
-            .minify_before_chunking(*minify_before_chunking.await?);
+            .module_merging(*scope_hoisting.await?);
     }
 
     Ok(Vc::upcast(builder.build()))
