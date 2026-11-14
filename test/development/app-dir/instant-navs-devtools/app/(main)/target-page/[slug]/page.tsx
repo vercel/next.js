@@ -263,6 +263,13 @@ export default async function TargetPage({
         >
           &larr; Back to home
         </Link>
+        <Link
+          href="/prefetch"
+          id="link-to-prefetch-home"
+          style={{ marginLeft: '0.75rem' }}
+        >
+          Prefetch home
+        </Link>
       </nav>
     </div>
   )
