@@ -500,6 +500,7 @@ async function startWatcher(
     const fileWatchTimes = new Map()
     let enabledTypeScript = await verifyTypeScript(opts)
     let previousClientRouterFilters: any
+    let previousPagesRouterFilters: any
     let previousConflictingPagePaths: Set<string> = new Set()
     let previousRouteMatchingErrors: string | null = null
     let hadInitialScan = false
@@ -939,6 +940,7 @@ async function startWatcher(
       previousDuplicatePagePaths = duplicatePagePaths
 
       let clientRouterFilters: any
+      let pagesRouterFilters: any
       if (nextConfig.experimental.clientRouterFilter) {
         clientRouterFilters = createClientRouterFilter(
           Object.keys(appPaths),
@@ -957,6 +959,26 @@ async function startWatcher(
         ) {
           clientRouterFiltersChange = true
           previousClientRouterFilters = clientRouterFilters
+        }
+
+        // The mirror-image filter: Pages Router routes, consumed by the App
+        // Router's optimistic route matcher so that a URL that may belong to
+        // the Pages Router is never predicted from an App Router pattern.
+        const userPagesPaths = routedPages.filter((p) => !p.startsWith('/_'))
+        if (userPagesPaths.length > 0) {
+          pagesRouterFilters = createClientRouterFilter(
+            userPagesPaths,
+            [],
+            nextConfig.experimental.clientRouterFilterAllowedRate
+          )
+        }
+
+        if (
+          JSON.stringify(previousPagesRouterFilters) !==
+          JSON.stringify(pagesRouterFilters)
+        ) {
+          envChange = true
+          previousPagesRouterFilters = pagesRouterFilters
         }
       }
 
@@ -983,6 +1005,7 @@ async function startWatcher(
             defineEnv: createDefineEnv({
               isTurbopack: true,
               clientRouterFilters,
+              pagesRouterFilters,
               config: nextConfig,
               dev: true,
               distDir,
@@ -1076,6 +1099,7 @@ async function startWatcher(
                   const newDefine = getDefineEnv({
                     isTurbopack: false,
                     clientRouterFilters,
+                    pagesRouterFilters,
                     config: nextConfig,
                     dev: true,
                     distDir,
