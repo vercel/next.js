@@ -1,10 +1,31 @@
+import type { OutgoingHttpHeaders } from 'http'
 import type { I18NConfig } from '../../config-shared'
 import { NextURL } from '../next-url'
-import { toNodeOutgoingHttpHeaders, validateURL } from '../utils'
+import {
+  appendNodeOutgoingHttpHeaders,
+  toNodeOutgoingHttpHeaders,
+  validateURL,
+} from '../utils'
 import { RemovedUAError, RemovedPageError } from '../error'
 import { RequestCookies } from './cookies'
 
 export const INTERNALS = Symbol('internal request')
+
+/**
+ * A member of the init of a `NextRequest` that holds the headers object of a
+ * Node.js request. The constructor appends them to the header list of the
+ * request, once. Passed as `headers` they have to be converted to a `Headers`
+ * object first, which `Request` then copies into its own list: every header
+ * is validated and stored twice.
+ *
+ * @internal
+ */
+export const NODE_REQUEST_HEADERS = Symbol('node request headers')
+
+/** @internal */
+export type NodeRequestInit = RequestInit & {
+  [NODE_REQUEST_HEADERS]?: OutgoingHttpHeaders
+}
 
 /**
  * This class extends the [Web `Request` API](https://developer.mozilla.org/docs/Web/API/Request) with additional convenience methods.
@@ -37,6 +58,14 @@ export class NextRequest extends Request {
 
     if (input instanceof Request) super(input, init)
     else super(url, init)
+
+    // The request was constructed without headers, so its header list is
+    // empty, and appending to it gives the list that `headers` in the init
+    // would have given.
+    const nodeHeaders = (init as NodeRequestInit)[NODE_REQUEST_HEADERS]
+    if (nodeHeaders !== undefined) {
+      appendNodeOutgoingHttpHeaders(this.headers, nodeHeaders)
+    }
 
     const nextUrl = new NextURL(url, {
       headers: toNodeOutgoingHttpHeaders(this.headers),
