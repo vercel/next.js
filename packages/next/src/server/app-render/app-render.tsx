@@ -296,7 +296,10 @@ import type { MetadataErrorType } from '../../lib/metadata/resolve-metadata'
 import isError, { getProperError } from '../../lib/is-error'
 import { createServerInsertedMetadata } from './metadata-insertion/create-server-inserted-metadata'
 import type { ParsedRequestHeaders } from '../route-modules/app-page/parse-request-headers'
-import { trackPendingModules } from './module-loading/track-module-loading.external'
+import {
+  hasPendingModules,
+  trackPendingModules,
+} from './module-loading/track-module-loading.external'
 import { isReactLargeShellError } from './react-large-shell-error'
 import type { GlobalErrorComponent } from '../../client/components/builtin/global-error'
 import { normalizeConventionFilePath } from './segment-explorer-path'
@@ -8995,6 +8998,31 @@ function withTurbopackBootstrapScript(
   )
 }
 
+// A prerender aborts about ten controllers per page, at the end of each of
+// its renders. Without an argument, every `abort()` call constructs a new
+// DOMException with a stack trace as the reason. These are expected aborts
+// that happen from our own tasks, never from user code, so the stack trace
+// of the reason only ever has frames of Next.js and Node.js timers in it.
+// They share one reason instead, of the kind `abort()` would have created.
+//
+// Most of these signals only tell our own request APIs that the render is
+// over. The reason of the ones that we pass to React is observable: React
+// passes it to `onError` for every task it aborts, and exposes it to user
+// code as `cacheSignal().reason`. That code sees the same type, name and
+// message as before. What differs is the `stack` (it is the one of the first
+// prerender abort in this process) and the identity (it is the same object
+// for every prerender). Don't use this for an abort that reports a problem.
+let prerenderAbortReason: DOMException | undefined
+function getPrerenderAbortReason(): DOMException {
+  if (prerenderAbortReason === undefined) {
+    prerenderAbortReason = new DOMException(
+      'This operation was aborted',
+      'AbortError'
+    )
+  }
+  return prerenderAbortReason
+}
+
 async function prerenderToStream(
   ctx: AppRenderContext,
   metadata: AppPageRenderResultMetadata,
@@ -9496,8 +9524,8 @@ async function prerenderToStream(
       initialServerReactController.signal.addEventListener(
         'abort',
         () => {
-          initialServerRenderController.abort()
-          initialServerPrerenderController.abort()
+          initialServerRenderController.abort(getPrerenderAbortReason())
+          initialServerPrerenderController.abort(getPrerenderAbortReason())
         },
         { once: true }
       )
@@ -9506,7 +9534,7 @@ async function prerenderToStream(
       trackPendingModules(cacheSignal)
       await cacheSignal.cacheReady()
 
-      initialServerReactController.abort()
+      initialServerReactController.abort(getPrerenderAbortReason())
 
       // We don't need to continue the prerender process if we already
       // detected invalid dynamic usage in the initial prerender phase.
@@ -9515,11 +9543,8 @@ async function prerenderToStream(
         throw new StaticGenBailoutError()
       }
 
-      let initialServerResult
       try {
-        initialServerResult = await createReactServerPrerenderResult(
-          pendingInitialServerResult
-        )
+        await createReactServerPrerenderResult(pendingInitialServerResult)
       } catch (err) {
         if (
           initialServerReactController.signal.aborted ||
@@ -9540,123 +9565,9 @@ async function prerenderToStream(
         }
       }
 
-      if (initialServerResult) {
-        const initialClientPrerenderController = new AbortController()
-        const initialClientReactController = new AbortController()
-        const initialClientRenderController = new AbortController()
-
-        const initialClientPrerenderStore: PrerenderStore = {
-          type: 'prerender-client',
-          phase: 'render',
-          rootParams,
-          fallbackRouteParams,
-          implicitTags,
-          renderSignal: initialClientRenderController.signal,
-          controller: initialClientPrerenderController,
-          // For HTML Generation the only cache tracked activity
-          // is module loading, which has it's own cache signal
-          cacheSignal: null,
-          dynamicTracking: null,
-          revalidate: INFINITE_CACHE,
-          expire: INFINITE_CACHE,
-          stale: INFINITE_CACHE,
-          tags: [...implicitTags.tags],
-          resumeDataCache,
-          hmrRefreshHash: undefined,
-          // Client prerenders don't track server param access
-          varyParamsAccumulator: null,
-        }
-
-        const pendingInitialClientResult = workUnitAsyncStorage.run(
-          initialClientPrerenderStore,
-          getClientPrerender,
-          // eslint-disable-next-line @next/internal/no-ambiguous-jsx
-          <App
-            reactServerStream={initialServerResult.asUnclosingStream()}
-            reactDebugStream={undefined}
-            debugEndTime={undefined}
-            preinitScripts={preinitScripts}
-            ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-            nonce={nonce}
-            images={ctx.renderOpts.images}
-          />,
-          {
-            signal: initialClientReactController.signal,
-            onError: (err: unknown) => {
-              const digest = getDigestForWellKnownError(err)
-
-              if (digest) {
-                return digest
-              }
-
-              if (isReactLargeShellError(err)) {
-                // TODO: Aggregate
-                console.error(err)
-                return undefined
-              }
-
-              if (initialClientReactController.signal.aborted) {
-                // These are expected errors that might error the prerender. we ignore them.
-              } else if (
-                process.env.NEXT_DEBUG_BUILD ||
-                process.env.__NEXT_VERBOSE_LOGGING
-              ) {
-                // We don't normally log these errors because we are going to retry anyway but
-                // it can be useful for debugging Next.js itself to get visibility here when needed
-                printDebugThrownValueForProspectiveRender(
-                  err,
-                  workStore.route,
-                  Phase.ProspectiveRender
-                )
-              }
-            },
-            bootstrapScriptContent,
-            bootstrapScripts: [bootstrapScript],
-            unstable_externalRuntimeSrc: externalRuntimeSrc,
-          }
-        )
-
-        // The listener to abort our own render controller must be added after
-        // React has added its listener, to ensure that pending I/O is not
-        // aborted/rejected too early.
-        initialClientReactController.signal.addEventListener(
-          'abort',
-          () => {
-            initialClientRenderController.abort()
-          },
-          { once: true }
-        )
-
-        pendingInitialClientResult.catch((err: unknown) => {
-          if (
-            initialClientReactController.signal.aborted ||
-            isPrerenderInterruptedError(err)
-          ) {
-            // These are expected errors that might error the prerender. we ignore them.
-          } else if (
-            process.env.NEXT_DEBUG_BUILD ||
-            process.env.__NEXT_VERBOSE_LOGGING
-          ) {
-            // We don't normally log these errors because we are going to retry anyway but
-            // it can be useful for debugging Next.js itself to get visibility here when needed
-            printDebugThrownValueForProspectiveRender(
-              err,
-              workStore.route,
-              Phase.ProspectiveRender
-            )
-          }
-        })
-
-        // This is mostly needed for dynamic `import()`s in client components.
-        // Promises passed to client were already awaited above (assuming that they came from cached functions)
-        const clientCacheSignal = new CacheSignal(null)
-        trackPendingModules(clientCacheSignal)
-        await clientCacheSignal.cacheReady()
-        workUnitAsyncStorage.run(
-          initialClientPrerenderStore,
-          initialClientReactController.abort.bind(initialClientReactController)
-        )
-      }
+      // The prospective HTML prerender used to be here. It now only runs when
+      // the final HTML prerender finds that it needs one (see
+      // prerenderFinalClient).
 
       const finalServerReactController = new AbortController()
       const finalServerRenderController = new AbortController()
@@ -9834,7 +9745,7 @@ async function prerenderToStream(
           finalServerReactController.signal.addEventListener(
             'abort',
             () => {
-              finalServerRenderController.abort()
+              finalServerRenderController.abort(getPrerenderAbortReason())
             },
             { once: true }
           )
@@ -9917,7 +9828,10 @@ async function prerenderToStream(
 
           workUnitAsyncStorage.run(
             finalServerPrerenderStore,
-            finalServerReactController.abort.bind(finalServerReactController)
+            finalServerReactController.abort.bind(
+              finalServerReactController,
+              getPrerenderAbortReason()
+            )
           )
         }
       )
@@ -9970,56 +9884,217 @@ async function prerenderToStream(
         metadata
       )
 
-      const clientDynamicTracking = createDynamicTrackingState(
-        isDebugDynamicAccesses
-      )
+      // The prospective HTML prerender: renders the page only to have its
+      // client modules loaded and evaluated, and is thrown away. Synchronous
+      // IO does not stop it (its store's controller is not the one React
+      // listens to), so it gets through every module of the page.
+      const prerenderProspectiveClient = async () => {
+        // What this render registers with useServerInsertedHTML is thrown
+        // away with it.
+        const prospectiveInsertedHTML = createServerInsertedHTML()
 
-      const finalClientReactController = new AbortController()
-      const finalClientRenderController = new AbortController()
+        const initialClientPrerenderController = new AbortController()
+        const initialClientReactController = new AbortController()
+        const initialClientRenderController = new AbortController()
 
-      const finalClientPrerenderStore: PrerenderStore = {
-        type: 'prerender-client',
-        phase: 'render',
-        rootParams,
-        fallbackRouteParams,
-        implicitTags,
-        renderSignal: finalClientRenderController.signal,
-        controller: finalClientReactController,
-        // No APIs require a cacheSignal through the workUnitStore during the HTML prerender
-        cacheSignal: null,
-        dynamicTracking: clientDynamicTracking,
-        revalidate: INFINITE_CACHE,
-        expire: INFINITE_CACHE,
-        stale: INFINITE_CACHE,
-        tags: [...implicitTags.tags],
-        resumeDataCache,
-        hmrRefreshHash: undefined,
-        // Client prerenders don't track server param access
-        varyParamsAccumulator: null,
+        const initialClientPrerenderStore: PrerenderStore = {
+          type: 'prerender-client',
+          phase: 'render',
+          rootParams,
+          fallbackRouteParams,
+          implicitTags,
+          renderSignal: initialClientRenderController.signal,
+          controller: initialClientPrerenderController,
+          // For HTML Generation the only cache tracked activity
+          // is module loading, which has it's own cache signal
+          cacheSignal: null,
+          dynamicTracking: null,
+          revalidate: INFINITE_CACHE,
+          expire: INFINITE_CACHE,
+          stale: INFINITE_CACHE,
+          tags: [...implicitTags.tags],
+          resumeDataCache,
+          hmrRefreshHash: undefined,
+          // Client prerenders don't track server param access
+          varyParamsAccumulator: null,
+        }
+
+        const pendingInitialClientResult = workUnitAsyncStorage.run(
+          initialClientPrerenderStore,
+          getClientPrerender,
+          // eslint-disable-next-line @next/internal/no-ambiguous-jsx
+          <App
+            reactServerStream={reactServerResult.asUnclosingStream()}
+            reactDebugStream={undefined}
+            debugEndTime={undefined}
+            preinitScripts={preinitScripts}
+            ServerInsertedHTMLProvider={
+              prospectiveInsertedHTML.ServerInsertedHTMLProvider
+            }
+            nonce={nonce}
+            images={ctx.renderOpts.images}
+          />,
+          {
+            signal: initialClientReactController.signal,
+            onError: (err: unknown) => {
+              const digest = getDigestForWellKnownError(err)
+
+              if (digest) {
+                return digest
+              }
+
+              if (isReactLargeShellError(err)) {
+                // TODO: Aggregate
+                console.error(err)
+                return undefined
+              }
+
+              if (initialClientReactController.signal.aborted) {
+                // These are expected errors that might error the prerender. we ignore them.
+              } else if (
+                process.env.NEXT_DEBUG_BUILD ||
+                process.env.__NEXT_VERBOSE_LOGGING
+              ) {
+                // We don't normally log these errors because we are going to retry anyway but
+                // it can be useful for debugging Next.js itself to get visibility here when needed
+                printDebugThrownValueForProspectiveRender(
+                  err,
+                  workStore.route,
+                  Phase.ProspectiveRender
+                )
+              }
+            },
+            bootstrapScriptContent,
+            bootstrapScripts: [bootstrapScript],
+            unstable_externalRuntimeSrc: externalRuntimeSrc,
+          }
+        )
+
+        // The listener to abort our own render controller must be added after
+        // React has added its listener, to ensure that pending I/O is not
+        // aborted/rejected too early.
+        initialClientReactController.signal.addEventListener(
+          'abort',
+          () => {
+            initialClientRenderController.abort(getPrerenderAbortReason())
+          },
+          { once: true }
+        )
+
+        pendingInitialClientResult.catch((err: unknown) => {
+          if (
+            initialClientReactController.signal.aborted ||
+            isPrerenderInterruptedError(err)
+          ) {
+            // These are expected errors that might error the prerender. we ignore them.
+          } else if (
+            process.env.NEXT_DEBUG_BUILD ||
+            process.env.__NEXT_VERBOSE_LOGGING
+          ) {
+            // We don't normally log these errors because we are going to retry anyway but
+            // it can be useful for debugging Next.js itself to get visibility here when needed
+            printDebugThrownValueForProspectiveRender(
+              err,
+              workStore.route,
+              Phase.ProspectiveRender
+            )
+          }
+        })
+
+        // This is mostly needed for dynamic `import()`s in client components.
+        // Promises passed to client were already awaited above (assuming that they came from cached functions)
+        const clientCacheSignal = new CacheSignal(null)
+        trackPendingModules(clientCacheSignal)
+        await clientCacheSignal.cacheReady()
+        workUnitAsyncStorage.run(
+          initialClientPrerenderStore,
+          initialClientReactController.abort.bind(
+            initialClientReactController,
+            getPrerenderAbortReason()
+          )
+        )
       }
 
-      // In a static prerender, we don't know which kind of data caused a dynamic hole.
-      const dynamicHoleKind = DynamicHoleKind.RuntimeOrDynamic
+      // The final HTML prerender needs every client module of the page to be
+      // loaded and evaluated. A module that is still loading when the render
+      // is aborted would leave a hole where static HTML belongs, and
+      // synchronous IO in the scope of a module that the render is the first
+      // to evaluate would count as IO of the render. That's what a prospective
+      // render before it is for.
+      //
+      // Almost no page needs one: its client modules load within the task,
+      // or an earlier page of the build has loaded them. So the final render
+      // is started right away, and checks at its abort task whether it got
+      // away with it: no module load is in flight (an async import or a
+      // chunk load of any render in this process), and the render was not
+      // aborted from inside. Then every load it started has settled within
+      // the task, what was waiting for it has rendered, and this is the final
+      // render. Otherwise it's given up: the prospective render runs after
+      // all, and then the final render a second time.
+      const prerenderFinalClient = async (isSpeculative: boolean) => {
+        // Each render has its own registry for useServerInsertedHTML, so
+        // that the page only gets what the final render registered.
+        const insertedHTML = createServerInsertedHTML()
 
-      let dynamicValidation = createDynamicValidationState()
+        const clientDynamicTracking = createDynamicTrackingState(
+          isDebugDynamicAccesses
+        )
 
-      // When we abort the final HTML prerender below, React reports every
-      // task that's still pending, i.e. every dynamic hole. To validate a
-      // hole we need its component stack, which React creates on demand by
-      // calling every component on the stack again. That's expensive, and for
-      // most pages the validation result is known after looking at a single
-      // stack, or even without one. So in a production build we only collect
-      // the reported accesses here, and track them once we know whether the
-      // prelude is empty. This is only set when the accesses are reported
-      // outside of React's work loop (see the abort task below), where a
-      // component stack that is read later is the same as one that's read
-      // right away.
-      let deferredDynamicAccesses = null as null | Array<DeferredDynamicAccess>
+        const finalClientReactController = new AbortController()
+        const finalClientRenderController = new AbortController()
 
-      const finalClientOnHeaders = createOnHeadersCallback(appendHeader)
+        const finalClientPrerenderStore: PrerenderStore = {
+          type: 'prerender-client',
+          phase: 'render',
+          rootParams,
+          fallbackRouteParams,
+          implicitTags,
+          renderSignal: finalClientRenderController.signal,
+          controller: finalClientReactController,
+          // No APIs require a cacheSignal through the workUnitStore during the HTML prerender
+          cacheSignal: null,
+          dynamicTracking: clientDynamicTracking,
+          revalidate: INFINITE_CACHE,
+          expire: INFINITE_CACHE,
+          stale: INFINITE_CACHE,
+          tags: [...implicitTags.tags],
+          resumeDataCache,
+          hmrRefreshHash: undefined,
+          // Client prerenders don't track server param access
+          varyParamsAccumulator: null,
+        }
 
-      let { prelude: unprocessedPrelude, postponed } =
-        await runInSequentialTasks(
+        // In a static prerender, we don't know which kind of data caused a dynamic hole.
+        const dynamicHoleKind = DynamicHoleKind.RuntimeOrDynamic
+
+        let dynamicValidation = createDynamicValidationState()
+
+        // When we abort the final HTML prerender below, React reports every
+        // task that's still pending, i.e. every dynamic hole. To validate a
+        // hole we need its component stack, which React creates on demand by
+        // calling every component on the stack again. That's expensive, and for
+        // most pages the validation result is known after looking at a single
+        // stack, or even without one. So in a production build we only collect
+        // the reported accesses here, and track them once we know whether the
+        // prelude is empty. This is only set when the accesses are reported
+        // outside of React's work loop (see the abort task below), where a
+        // component stack that is read later is the same as one that's read
+        // right away.
+        let deferredDynamicAccesses =
+          null as null | Array<DeferredDynamicAccess>
+
+        // Headers are only sent if this render turns out to be the final one.
+        const headers: Array<[string, string]> = []
+        const finalClientOnHeaders = createOnHeadersCallback((key, value) => {
+          headers.push([key, value])
+        })
+
+        // Set when this render is given up on: whatever it reports from then on
+        // is ignored, like the reports of a prospective render.
+        let isDiscarded = false
+        let needsSecondRender = false
+
+        const { pendingFinalClientResult } = await runInSequentialTasks(
           () => {
             const stream =
               process.env.NODE_ENV === 'development' &&
@@ -10031,7 +10106,7 @@ async function prerenderToStream(
                   )
                 : reactServerResult.asUnclosingStream()
 
-            const pendingFinalClientResult = workUnitAsyncStorage.run(
+            const pendingResult = workUnitAsyncStorage.run(
               finalClientPrerenderStore,
               getClientPrerender,
               // eslint-disable-next-line @next/internal/no-ambiguous-jsx
@@ -10040,13 +10115,18 @@ async function prerenderToStream(
                 reactDebugStream={undefined}
                 debugEndTime={debugEndTime}
                 preinitScripts={preinitScripts}
-                ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+                ServerInsertedHTMLProvider={
+                  insertedHTML.ServerInsertedHTMLProvider
+                }
                 nonce={nonce}
                 images={ctx.renderOpts.images}
               />,
               {
                 signal: finalClientReactController.signal,
                 onError: (err: unknown, errorInfo: ErrorInfo) => {
+                  if (isDiscarded) {
+                    return
+                  }
                   if (
                     isPrerenderInterruptedError(err) ||
                     finalClientReactController.signal.aborted
@@ -10102,14 +10182,40 @@ async function prerenderToStream(
             finalClientReactController.signal.addEventListener(
               'abort',
               () => {
-                finalClientRenderController.abort()
+                finalClientRenderController.abort(getPrerenderAbortReason())
               },
               { once: true }
             )
 
-            return pendingFinalClientResult
+            // A later task (the abort) can make this promise reject before
+            // it's awaited below.
+            pendingResult.catch(() => {})
+
+            // Wrapped, so that the tasks don't wait for the render to end:
+            // it only ends once it's aborted.
+            return { pendingFinalClientResult: pendingResult }
           },
           () => {
+            if (
+              isSpeculative &&
+              (hasPendingModules() || finalClientReactController.signal.aborted)
+            ) {
+              // A client module is still loading. The tasks of this sequence
+              // run back to back, so a load that is in flight now takes
+              // longer than a task, and whatever waits for it would become a
+              // hole in the prerender.
+              //
+              // Or the render was aborted from inside, by synchronous IO
+              // (the current time, a random value). This render is the first
+              // to evaluate the client modules of the page, so that can be
+              // IO in the scope of a module, which is evaluated once and is
+              // not part of the page's render. After a prospective render
+              // the final render tells: IO in a module's scope doesn't
+              // happen again, IO in a component does.
+              needsSecondRender = true
+              return
+            }
+
             if (
               process.env.NODE_ENV === 'production' &&
               ensureStaticLevel !== EnsureStaticLevel.Navigation &&
@@ -10129,10 +10235,64 @@ async function prerenderToStream(
 
             workUnitAsyncStorage.run(
               finalClientPrerenderStore,
-              finalClientReactController.abort.bind(finalClientReactController)
+              finalClientReactController.abort.bind(
+                finalClientReactController,
+                getPrerenderAbortReason()
+              )
             )
           }
         )
+
+        if (needsSecondRender) {
+          // This render is not the final one after all. Stop it, and ignore
+          // what it reports from here on.
+          isDiscarded = true
+          workUnitAsyncStorage.run(
+            finalClientPrerenderStore,
+            finalClientReactController.abort.bind(
+              finalClientReactController,
+              getPrerenderAbortReason()
+            )
+          )
+          return null
+        }
+
+        const { prelude: unprocessedPrelude, postponed } =
+          await pendingFinalClientResult
+        for (const [key, value] of headers) {
+          appendHeader(key, value)
+        }
+
+        return {
+          clientDynamicTracking,
+          finalClientPrerenderStore,
+          dynamicValidation,
+          deferredDynamicAccesses,
+          unprocessedPrelude,
+          postponed,
+          renderFinalServerInsertedHTML: insertedHTML.renderServerInsertedHTML,
+        }
+      }
+
+      let finalClientResult = await prerenderFinalClient(true)
+      if (finalClientResult === null) {
+        await prerenderProspectiveClient()
+        finalClientResult = await prerenderFinalClient(false)
+      }
+      if (finalClientResult === null) {
+        throw new InvariantError(
+          'Expected the final HTML prerender to finish once its modules have loaded.'
+        )
+      }
+      const {
+        clientDynamicTracking,
+        finalClientPrerenderStore,
+        dynamicValidation,
+        deferredDynamicAccesses,
+        unprocessedPrelude,
+        postponed,
+        renderFinalServerInsertedHTML,
+      } = finalClientResult
 
       metadata.hasPendingUi = postponed != null
 
@@ -10177,7 +10337,7 @@ async function prerenderToStream(
 
       const getServerInsertedHTML = makeGetServerInsertedHTML({
         polyfills,
-        renderServerInsertedHTML,
+        renderServerInsertedHTML: renderFinalServerInsertedHTML,
         serverCapturedErrors: allCapturedErrors,
         basePath,
         tracingMetadata: tracingMetadata,

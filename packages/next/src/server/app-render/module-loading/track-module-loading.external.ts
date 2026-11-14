@@ -3,9 +3,15 @@
 // and helpers used in transformed page code (which register pending imports)
 
 import {
+  hasPendingModules,
   trackPendingChunkLoad,
   trackPendingImport,
   trackPendingModules,
 } from './track-module-loading.instance' with { 'turbopack-transition': 'next-shared' }
 
-export { trackPendingChunkLoad, trackPendingImport, trackPendingModules }
+export {
+  hasPendingModules,
+  trackPendingChunkLoad,
+  trackPendingImport,
+  trackPendingModules,
+}
