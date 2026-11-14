@@ -260,9 +260,21 @@ The checksum is verified on the compressed data **before** decompression when th
 Opened meta files are stored in per-family shards. A lookup scans only the requested family's meta
 files, from newest to oldest; there is no ordering dependency between families.
 
-SST files are opened lazily. Opening the database only loads the meta files (see
-[Opening](#opening)). An SST file is opened the first time a lookup gets past its meta file
-checks (hash range and AMQF), and stays open, cached on its meta file entry. How it is opened
+SST files are opened eagerly in the background. Opening the database only loads the meta files
+(see [Opening](#opening)) and then starts opening their SST files without waiting for them. A
+commit or compaction does the same for the SST files of the meta files it adds. The opens are
+spread over several tasks run with `ParallelScheduler::spawn_blocking`, so many files are opened in
+parallel on blocking threads, newest meta files first, since lookups consult those first. On WASI
+eager opening is disabled and SST files are only opened lazily, because WASI runtimes that run each
+thread as its own instance give every thread its own file descriptor table.
+
+A lookup that gets past an entry's meta file checks (hash range and AMQF) uses the SST file if it
+is open already, waits for it if a background open is in progress, and otherwise opens it itself.
+An open file stays cached on its meta file entry. A failed background open is ignored: the next
+lookup that needs the file opens it lazily and reports the error. Every background open runs to
+completion: if its entry was dropped in the meantime (e.g. retired by compaction, or because the
+database was closed), the opened file is closed again right away. Compaction clears all cached SST
+files before it merges, and then only opens the files it wrote eagerly. How an SST file is opened
 depends on the access mode:
 
 - `AccessMode::Mmap`: the SST file is memory mapped, and key and value blocks are read from the
@@ -272,8 +284,8 @@ depends on the access mode:
 
 In both modes, opening an SST file reads only its block offset table and index block, and keeps
 them in memory (see [Opening](#opening)). Key and value blocks are read when a lookup needs them.
-So per-open memory cost scales with the meta files (their AMQFs), while SST files cost memory only
-once they are actually touched.
+So per-open memory cost scales with the meta files (their AMQFs) plus the block offset tables and
+index blocks of the SST files.
 
 - for each meta file of the queried key family, newest first
   - Check the hash range of the SST file -> if the key hash is outside, continue
@@ -432,8 +444,9 @@ Bottom merges are paced by the fresh (not yet compacted) files of the family: th
 - Read all `*.del` files and delete the files that are listed in there.
 - Open all remaining `*.meta` files (memory mapped with `AccessMode::Mmap`, read onto the heap with
   `AccessMode::File`), parse their AMQFs and drop entries for SST files that are obsolete.
-- SST and blob files are not opened here. An SST file is opened lazily, the first time a lookup
-  needs it (see [Reading](#reading)): memory mapped in mmap access mode, or read with positional
+- SST and blob files are not opened while the database opens. Once the meta files are loaded, the SST
+  files start opening eagerly in the background (see [Reading](#reading)); a lookup that needs one
+  first opens it itself. An SST file is memory mapped in mmap access mode, or read with positional
   reads in file access mode. Either way, its block-offset table (4 bytes per block) is read with one
   positional read (`pread`) and decoded in place. It is validated once (every block holds at least
   its header and ends before the table) and kept in memory, so locating a block neither reads the
