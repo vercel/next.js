@@ -14,7 +14,7 @@ import {
   withExecuteRevalidates,
   type RevalidationState,
 } from '../revalidation-utils'
-import { bindSnapshot } from '../app-render/async-local-storage'
+import { bindSnapshot, createSnapshot } from '../app-render/async-local-storage'
 import type { WorkUnitStore } from '../app-render/work-unit-async-storage.external'
 import { afterTaskAsyncStorage } from '../app-render/after-task-async-storage.external'
 import { scheduleImmediate } from '../../lib/scheduler'
@@ -81,7 +81,7 @@ export class AfterContext {
     // its waitUntil promises at that point.
     this.waitUntil(
       new Promise<void>((resolve, reject) => {
-        this.revalidateOnClose = bindSnapshot(() => {
+        const revalidate = () => {
           try {
             // Capture synchronously at close, before after() callbacks start.
             // Their existing completion flush handles callback revalidations.
@@ -97,7 +97,16 @@ export class AfterContext {
           } catch (error) {
             reject(error)
           }
-        })
+        }
+        // Runs `revalidate` in the async context of this call, like
+        // `bindSnapshot(revalidate)` does, without what makes that costly for
+        // every request (see `createSnapshot`). The function is bound instead
+        // of being wrapped in a closure: V8 allocates a function literal that
+        // is assigned to a property in the old generation, where it would keep
+        // the request's objects alive until the next major GC.
+        this.revalidateOnClose = createSnapshot().bind(null, revalidate) as (
+          this: void
+        ) => void
       })
     )
   }
