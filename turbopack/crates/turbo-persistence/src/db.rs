@@ -3019,6 +3019,12 @@ fn promote_used_entries(
                 }
                 value.len()
             }
+            // An `uncompressed_size` of 0 means the block is stored uncompressed.
+            IterValue::Medium {
+                uncompressed_size: 0,
+                block,
+                ..
+            } => block.len(),
             IterValue::Medium {
                 uncompressed_size, ..
             } => *uncompressed_size as usize,

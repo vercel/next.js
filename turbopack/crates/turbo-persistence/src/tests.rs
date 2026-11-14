@@ -4338,6 +4338,54 @@ fn promotion_skips_blobs_and_large_value_groups(#[case] mmap: bool) -> Result<()
     Ok(())
 }
 
+/// Incompressible medium values are stored in uncompressed blocks, which still count toward the
+/// byte limit of a promoted key.
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn promotion_skips_large_groups_of_uncompressed_medium_values(#[case] mmap: bool) -> Result<()> {
+    use rand::{RngExt, SeedableRng, rngs::SmallRng};
+
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let db = open_multi_value_db(path, mmap)?;
+    // 5 MiB in total, more than the byte limit of a promoted key.
+    let mut rng = SmallRng::seed_from_u64(42);
+    let values = (0..5)
+        .map(|_| {
+            let mut value = vec![0u8; 1024 * 1024];
+            rng.fill(&mut value[..]);
+            value
+        })
+        .collect::<Vec<_>>();
+    let batch = db.write_batch()?;
+    for value in &values {
+        batch.put(0, vec![1], value.clone().into())?;
+    }
+    batch.put(0, vec![2], vec![2].into())?;
+    db.commit_write_batch(batch)?;
+    assert_eq!(db.get_multiple(0, &[1u8].as_slice())?.len(), values.len());
+    db.get_multiple(0, &[2u8].as_slice())?;
+    let batch = db.write_batch()?;
+    batch.put(0, vec![3], vec![3].into())?;
+    db.commit_write_batch(batch)?;
+    db.compact(&CompactConfig::default())?.unwrap();
+    // Only key 2 and its key tombstone.
+    assert_eq!(compacted_entry_count(&db)?, 2);
+    let mut read = db
+        .get_multiple(0, &[1u8].as_slice())?
+        .iter()
+        .map(|value| value.to_vec())
+        .collect::<Vec<_>>();
+    read.sort_unstable();
+    let mut expected = values;
+    expected.sort_unstable();
+    assert_eq!(read, expected);
+    assert_eq!(db.get_multiple(0, &[2u8].as_slice())?.len(), 1);
+    Ok(())
+}
+
 #[cfg(not(miri))]
 #[rstest]
 #[case(true)]
