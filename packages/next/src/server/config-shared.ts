@@ -17,6 +17,7 @@ import { deepFreeze } from '../shared/lib/deep-freeze'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
 import type { CacheLife } from './use-cache/cache-life'
+import { DEFAULT_IMG_OPT_TIMEOUT_IN_SECONDS } from '../shared/lib/image-optimizer-constants'
 
 /**
  * The `cacheLife` profiles after config normalization. `config.ts` always
@@ -37,6 +38,16 @@ export interface ResolvedCacheLifeProfiles {
 export type PrefetchInliningConfig =
   | false
   | { maxSize: number; maxBundleSize: number }
+
+/**
+ * Resolved form of the `imgOptSafeMode` config after
+ * normalization in config.ts. Booleans and partial objects are converted to
+ * this shape.
+ */
+export interface ImgOptSafeModeConfig {
+  nextImage: boolean
+  imageResponse: boolean
+}
 
 export type NextConfigComplete = Required<
   Omit<
@@ -85,6 +96,9 @@ export type NextConfigComplete = Required<
       // Normalized by config.ts: `false` becomes `undefined` (GC off),
       // `true`/unset becomes `{}` (GC on with default timings)
       turbopackGcOptions: TurbopackGcOptions | undefined
+      // Normalized by config.ts: booleans and partial objects become resolved
+      // objects
+      imgOptSafeMode: ImgOptSafeModeConfig
     }
     // The root directory of the distDir. In development mode, this is the parent directory of `distDir`
     // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
@@ -659,12 +673,59 @@ export interface ExperimentalConfig {
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
+  /**
+   * The maximum number of images to optimize in parallel. With `sharp`, this
+   * is the size of libvips's thread pool. With
+   * `imgOptSafeMode`, this is the size of the worker process
+   * pool.
+   *
+   * `null` selects a default. With `sharp`, this is a fraction of the
+   * available CPUs, depending on `NODE_ENV`. With
+   * `imgOptSafeMode`, this is the number of available CPUs.
+   */
   imgOptConcurrency?: number | null
   imgOptOperationCache?: boolean | null
   imgOptTimeoutInSeconds?: number
   imgOptMaxInputPixels?: number
   imgOptSequentialRead?: boolean | null
   imgOptMozjpeg?: boolean
+  /**
+   * Uses `@next/safe-image-optimization` instead of `sharp`. This utilizes
+   * memory-safe image decoders written Rust combined with OS-level sandboxing
+   * on Linux. It does not support some uncommon image formats, and it may
+   * sacrifice some performance.
+   *
+   * This will have no effect in production if your hosting platform (e.g.
+   * Vercel) provides image optimization as a service by overriding the
+   * `_next/image` route.
+   *
+   * This also has no effect if a custom loader is configured with
+   * `images.loader: 'custom'` and [`images.loaderFile`], as the built-in image
+   * optimizer is not used.
+   *
+   * `true` enables it everywhere. An object enables it individually for
+   * `next/image` (`nextImage`, default `true`) and `ImageResponse`
+   * (`imageResponse`, default `false`).
+   *
+   * Currently, only `nextImage` is implemented. `imageResponse` has no effect
+   * yet.
+   *
+   * Compared to `sharp`, for `next/image`:
+   * - Output formats: Only WebP, PNG, JPEG, and GIF output are supported.
+   *   Unsupported values in `images.formats` (i.e. AVIF) generate a warning and
+   *   are ignored.
+   * - `imgOptSequentialRead` and `imgOptOperationCache` are ignored.
+   *
+   * [`images.loaderFile`]: https://nextjs.org/docs/app/api-reference/components/image#loaderfile
+   *
+   * @default false
+   */
+  imgOptSafeMode?:
+    | boolean
+    | {
+        nextImage?: boolean
+        imageResponse?: boolean
+      }
   optimisticClientCache?: boolean
   /**
    * @deprecated use config.expireTime instead
@@ -2494,10 +2555,11 @@ export const defaultConfig = Object.freeze({
     memoryBasedWorkersCount: false,
     imgOptConcurrency: null,
     imgOptOperationCache: null,
-    imgOptTimeoutInSeconds: 7,
+    imgOptTimeoutInSeconds: DEFAULT_IMG_OPT_TIMEOUT_IN_SECONDS,
     imgOptMaxInputPixels: 268_402_689, // https://sharp.pixelplumbing.com/api-constructor#:~:text=%5Boptions.limitInputPixels%5D
     imgOptSequentialRead: null,
     imgOptMozjpeg: true,
+    imgOptSafeMode: false,
     isrFlushToDisk: true,
     workerThreads: false,
     proxyTimeout: undefined,
@@ -2688,6 +2750,7 @@ export interface NextConfigRuntime {
     | 'imgOptSequentialRead'
     | 'imgOptTimeoutInSeconds'
     | 'imgOptMozjpeg'
+    | 'imgOptSafeMode'
     | 'proxyClientMaxBodySize'
     | 'proxyTimeout'
     | 'testProxy'
@@ -2762,6 +2825,7 @@ export function getNextConfigRuntime(
     imgOptSequentialRead: ex.imgOptSequentialRead,
     imgOptTimeoutInSeconds: ex.imgOptTimeoutInSeconds,
     imgOptMozjpeg: ex.imgOptMozjpeg,
+    imgOptSafeMode: ex.imgOptSafeMode,
     proxyClientMaxBodySize: ex.proxyClientMaxBodySize,
     proxyTimeout: ex.proxyTimeout,
     testProxy: ex.testProxy,
