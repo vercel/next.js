@@ -1,6 +1,6 @@
 {
   "name": "@turbopack/nft",
-  "version": "0.1.0",
+  "version": "16.5.0-canary.50",
   "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
