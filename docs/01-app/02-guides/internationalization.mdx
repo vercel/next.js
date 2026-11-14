@@ -130,7 +130,7 @@ const dictionaries = {
 export type Locale = keyof typeof dictionaries
 
 export const hasLocale = (locale: string): locale is Locale =>
-  locale in dictionaries
+  Object.hasOwn(dictionaries, locale)
 
 export const getDictionary = async (locale: Locale) => dictionaries[locale]()
 ```
@@ -143,7 +143,7 @@ const dictionaries = {
   nl: () => import('./dictionaries/nl.json').then((module) => module.default),
 }
 
-export const hasLocale = (locale) => locale in dictionaries
+export const hasLocale = (locale) => Object.hasOwn(dictionaries, locale)
 
 export const getDictionary = async (locale) => dictionaries[locale]()
 ```
@@ -200,7 +200,7 @@ const dictionaries = {
 export type Locale = keyof typeof dictionaries
 
 export const hasLocale = (locale: string): locale is Locale =>
-  locale in dictionaries
+  Object.hasOwn(dictionaries, locale)
 
 export const getDictionary = async () => {
   const locale = await lang()
@@ -218,7 +218,7 @@ const dictionaries = {
   nl: () => import('./dictionaries/nl.json').then((module) => module.default),
 }
 
-export const hasLocale = (locale) => locale in dictionaries
+export const hasLocale = (locale) => Object.hasOwn(dictionaries, locale)
 
 export const getDictionary = async () => {
   const locale = await lang()
