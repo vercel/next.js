@@ -17,7 +17,7 @@ use turbo_tasks_malloc::TurboMalloc;
 /// share of the heap. Left alone, they only collect when they exit after tokio's idle keep-alive
 /// (10s by default).
 ///
-/// This tries to visit each scheduler worker (see [`visit_workers`]) and each currently idle
+/// This tries to visit each scheduler worker (without blocking any of them) and each currently idle
 /// blocking-pool thread once to collect its heap, then purges the freed pages to the OS, including
 /// small free ranges between memory that's still in use (see
 /// [`TurboMalloc::collect_and_purge_all`]), since the heap is fragmented after freeing most of it.
