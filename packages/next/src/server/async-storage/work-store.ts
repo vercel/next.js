@@ -14,7 +14,7 @@ import { AfterContext } from '../after/after-context'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { createLazyResult, type LazyResult } from '../lib/lazy-result'
 import { getCacheHandlerEntries } from '../use-cache/handlers'
-import { createSnapshot } from '../app-render/async-local-storage'
+import { createSnapshot } from '../app-render/async-context-snapshot'
 
 export type WorkStoreContext = {
   /**
