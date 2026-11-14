@@ -338,7 +338,23 @@ function InnerLayoutRouter({
   // We use `useDeferredValue` to handle switching between the prefetched and
   // final values. The second argument is returned on initial render, then it
   // re-renders with the first argument.
-  const rsc: any = useDeferredValue(renderTree.data.rsc, resolvedPrefetchRsc)
+  let deferredRsc = renderTree.data.rsc
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    const { isNavigationLocked } =
+      require('./segment-cache/navigation-testing-lock') as typeof import('./segment-cache/navigation-testing-lock')
+    if (
+      isDeferredRsc(deferredRsc) &&
+      deferredRsc.status === 'pending' &&
+      isNavigationLocked()
+    ) {
+      // A search-param navigation reuses this component, so useDeferredValue's
+      // initial value is not used. Render the prefetch while the testing lock
+      // withholds dynamic data; otherwise the navigation cannot commit until
+      // the instant() scope that is waiting for it has finished.
+      deferredRsc = resolvedPrefetchRsc
+    }
+  }
+  const rsc: any = useDeferredValue(deferredRsc, resolvedPrefetchRsc)
 
   // `rsc` is either a React node or a promise for a React node, except we
   // special case `null` to represent that this segment's data is missing. If

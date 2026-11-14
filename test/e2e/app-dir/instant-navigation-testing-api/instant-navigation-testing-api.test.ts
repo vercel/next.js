@@ -1251,6 +1251,43 @@ describe('instant-navigation-testing-api - partial prefetching (App Shells)', ()
     disableAutoSkewProtection: true,
   })
 
+  it('commits search-param navigations with dynamic holes inside instant()', async () => {
+    const page = await openPage(next, '/query-navigation?category=all')
+    await page.locator('#stock').waitFor({ state: 'visible' })
+    const note = page.getByRole('textbox', { name: 'Shopping note' })
+    await note.fill('Keep this note')
+
+    await instant(page, async () => {
+      const destinations = [
+        ['Home', 'home'],
+        ['All', 'all'],
+        ['Home', 'home'],
+      ]
+      for (const [index, [link, category]] of destinations.entries()) {
+        await page.getByRole('link', { name: link, exact: true }).click()
+        await page.waitForURL(`**/query-navigation?category=${category}`, {
+          timeout: 5000,
+        })
+        expect(await page.locator('#category').textContent()).toBe(category)
+        if (index === 0) {
+          await page.locator('#stock-pending').waitFor({ state: 'visible' })
+          expect(await page.locator('#stock').isVisible()).toBe(false)
+        } else if (index === 1) {
+          // Returning to already loaded content should retain its dynamic data.
+          expect(await page.locator('#stock').textContent()).toBe(
+            'all: 10 in stock'
+          )
+        }
+        expect(await note.inputValue()).toBe('Keep this note')
+      }
+    })
+
+    await page.locator('#stock').waitFor({ state: 'visible' })
+    expect(await page.locator('#stock').textContent()).toBe('home: 10 in stock')
+    expect(await note.inputValue()).toBe('Keep this note')
+    expect(navigationRequests).toEqual(['/query-navigation'])
+  })
+
   // Under Partial Prefetching with App Shells, an auto (partial) prefetch only
   // warms the shell — the concrete-param entry is not speculatively
   // prefetched. The testing lock simulates that warm cache: a navigation may
