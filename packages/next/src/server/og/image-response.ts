@@ -1,3 +1,22 @@
+import type { ImageResponseOptions as OgImageResponseOptions } from 'next/dist/compiled/@vercel/og/types'
+import type { ImageResponseFormat } from './image-format'
+
+export type { ImageResponseFormat }
+
+export type ImageResponseOptions = OgImageResponseOptions & {
+  /**
+   * Output format of the generated image.
+   *
+   * @default 'png'
+   */
+  format?: ImageResponseFormat
+  /**
+   * Compression quality of the generated image (1-100).
+   * Applies to lossy formats like `webp`, `avif`, and `jpeg`.
+   */
+  quality?: number
+}
+
 type OgModule = typeof import('next/dist/compiled/@vercel/og')
 
 function importModule(): Promise<
@@ -34,6 +53,23 @@ if (
   ).getCachedImageResponseBody
 }
 
+let transformImageFormat:
+  | typeof import('./image-format').transformImageFormat
+  | undefined
+let getImageFormatContentType:
+  | typeof import('./image-format').getImageFormatContentType
+  | undefined
+
+if (process.env.NEXT_RUNTIME !== 'edge') {
+  const imageFormat =
+    require('./image-format') as typeof import('./image-format')
+  transformImageFormat = imageFormat.transformImageFormat
+  getImageFormatContentType = imageFormat.getImageFormatContentType
+} else {
+  transformImageFormat = undefined
+  getImageFormatContentType = undefined
+}
+
 /**
  * The ImageResponse class allows you to generate dynamic images using JSX and CSS.
  * This is useful for generating social media images such as Open Graph images, Twitter cards, and more.
@@ -42,7 +78,17 @@ if (
  */
 export class ImageResponse extends Response {
   public static displayName = 'ImageResponse'
-  constructor(...args: ConstructorParameters<OgModule['ImageResponse']>) {
+  constructor(
+    element: ConstructorParameters<OgModule['ImageResponse']>[0],
+    options?: ImageResponseOptions
+  ) {
+    const opts = options || {}
+    const format = opts.format || 'png'
+    const args = [element, opts] as [
+      ConstructorParameters<OgModule['ImageResponse']>[0],
+      ImageResponseOptions,
+    ]
+
     // Under Cache Components, route the render through the cache so metadata
     // image routes can be statically prerendered. Otherwise stream the rendered
     // image directly from the underlying `@vercel/og` response.
@@ -54,9 +100,25 @@ export class ImageResponse extends Response {
               // So far we have to manually determine which build to use, as the
               // auto resolving is not working
               (await importModule()).ImageResponse
-            const imageResponse = new OGImageResponse(...args) as Response
+            const imageResponse = new OGImageResponse(element, opts) as Response
 
             if (!imageResponse.body) {
+              return controller.close()
+            }
+
+            if (format && format !== 'png') {
+              if (!transformImageFormat) {
+                throw new Error(
+                  `ImageResponse format "${format}" is not supported in the Edge runtime. Please use Node.js runtime or default to "png".`
+                )
+              }
+              const arrayBuffer = await imageResponse.arrayBuffer()
+              const convertedBuffer = await transformImageFormat(
+                arrayBuffer,
+                format,
+                opts.quality
+              )
+              controller.enqueue(new Uint8Array(convertedBuffer))
               return controller.close()
             }
 
@@ -71,23 +133,31 @@ export class ImageResponse extends Response {
           },
         })
 
-    const options = args[1] || {}
+    const defaultContentType = getImageFormatContentType
+      ? getImageFormatContentType(opts.format)
+      : opts.format === 'webp'
+        ? 'image/webp'
+        : opts.format === 'avif'
+          ? 'image/avif'
+          : opts.format === 'jpeg' || opts.format === 'jpg'
+            ? 'image/jpeg'
+            : 'image/png'
 
     const headers = new Headers({
-      'content-type': 'image/png',
+      'content-type': defaultContentType,
       'cache-control':
         process.env.NODE_ENV === 'development'
           ? 'no-cache, no-store'
           : 'public, max-age=0, must-revalidate',
     })
-    if (options.headers) {
-      const newHeaders = new Headers(options.headers)
+    if (opts.headers) {
+      const newHeaders = new Headers(opts.headers)
       newHeaders.forEach((value, key) => headers.set(key, value))
     }
     super(readable, {
       headers,
-      status: options.status,
-      statusText: options.statusText,
+      status: opts.status,
+      statusText: opts.statusText,
     })
   }
 }
