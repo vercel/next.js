@@ -3197,7 +3197,15 @@ export default async function build(
           mappedPages[page].startsWith('private-next-pages')
       )
       usedStaticStatusPages.forEach((page) => {
-        if (!ssgPages.has(page) && !customAppGetInitialProps) {
+        // In compile mode static generation is skipped, so /500 is not
+        // prerendered to HTML and is rendered on demand instead. Adding it
+        // to `staticPages` here would make `copyTracedFiles` skip its
+        // traced files, leaving its chunks out of `.next/standalone`.
+        if (
+          !isCompileMode &&
+          !ssgPages.has(page) &&
+          !customAppGetInitialProps
+        ) {
           staticPages.add(page)
         }
       })
