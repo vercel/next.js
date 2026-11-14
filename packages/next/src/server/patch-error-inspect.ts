@@ -648,6 +648,10 @@ function getInspectDepth(error: Error, depth: number | null): number | null {
 export function patchErrorInspectNodeJS(
   errorConstructor: ErrorConstructor
 ): void {
+  if (process.env.NEXT_DISABLE_ERROR_PATCHING === '1') {
+    return
+  }
+
   const inspectSymbol = Symbol.for('nodejs.util.inspect.custom')
 
   errorConstructor.prepareStackTrace = prepareUnsourcemappedStackTrace
@@ -685,6 +689,10 @@ export function patchErrorInspectNodeJS(
 export function patchErrorInspectEdgeLite(
   errorConstructor: ErrorConstructor
 ): void {
+  if (process.env.NEXT_DISABLE_ERROR_PATCHING === '1') {
+    return
+  }
+
   const inspectSymbol = Symbol.for('edge-runtime.inspect.custom')
 
   errorConstructor.prepareStackTrace = prepareUnsourcemappedStackTrace
