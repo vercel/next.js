@@ -52,6 +52,14 @@ function createUrlAndImportVisitor(
       return u
     }
 
+    // Leave fragment-only references (e.g. `url(#gradient)`), empty URLs and
+    // other non-requestable URLs untouched - mirroring upstream css-loader's
+    // shouldHandleURL guard. Turning them into module requests would fail to
+    // resolve (empty pathname) and break the build.
+    if (url.length === 0 || !isUrlRequestable(url)) {
+      return u
+    }
+
     urlIndex++
 
     replacedUrls.set(urlIndex, url)
