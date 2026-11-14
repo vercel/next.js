@@ -30,7 +30,6 @@ import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import setupCompression from 'next/dist/compiled/compression'
 import { releaseCompressionStream } from './release-compression-stream'
-import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import { isNonHtmlSecFetchDest } from './is-non-html-sec-fetch-dest'
 import { parseUrl as parseUrlUtil } from '../../shared/lib/router/utils/parse-url'
 
@@ -752,7 +751,6 @@ export async function initialize(opts: {
         req,
         res,
         isUpgradeReq: false,
-        signal: signalFromNodeResponse(res),
         invokedOutputs,
       })
 
@@ -1300,7 +1298,6 @@ export async function initialize(opts: {
           req,
           res,
           isUpgradeReq: true,
-          signal: signalFromNodeResponse(socket),
         })
 
       // TODO: allow upgrade requests to pages/app paths?
