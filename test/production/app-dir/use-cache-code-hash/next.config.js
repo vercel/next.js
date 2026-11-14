@@ -7,6 +7,10 @@ const nextConfig = {
   experimental: {
     useCacheStaticRootParamTracking: true,
     durableUseCacheEntries: true,
+    durableUseCacheEntriesConfig: {
+      unstableEnvVars: ['MY_DEPLOYMENT_ID'],
+      ignoredEnvVars: ['MY_OIDC_TOKEN'],
+    },
     runtimeServerDeploymentId: true,
   },
 }
