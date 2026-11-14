@@ -978,7 +978,9 @@ export function createMetadataElements(
           break
 
         case 'video.movie':
-          tags.push(<meta key={i++} property="og:type" content="video.movie" />)
+        case 'video.tv_show':
+        case 'video.other':
+          tags.push(<meta key={i++} property="og:type" content={ogType} />)
           if (og.actors) {
             for (const actor of og.actors) {
               if (typeof actor === 'string') {
@@ -1140,16 +1142,6 @@ export function createMetadataElements(
               />
             )
           }
-          break
-
-        case 'video.tv_show':
-          tags.push(
-            <meta key={i++} property="og:type" content="video.tv_show" />
-          )
-          break
-
-        case 'video.other':
-          tags.push(<meta key={i++} property="og:type" content="video.other" />)
           break
 
         default:
