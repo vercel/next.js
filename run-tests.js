@@ -205,6 +205,9 @@ const DEFAULT_NUM_RETRIES = 2
 const DEFAULT_CONCURRENCY = 2
 const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
+// Legacy flat `{ [file]: seconds }` map shared by every CI variant. Still read
+// as a fallback, but no longer written: CI runs on older versions of this
+// script keep reading and writing it.
 const KV_TIMINGS_KEY = 'test-timings'
 
 const kvClient =
@@ -246,6 +249,354 @@ async function retryKVOperation(operation, operationName, maxRetries = 3) {
   throw new Error(
     `Failed to ${operationName} after ${maxRetries} retries: ${lastError?.message}`
   )
+}
+
+// --- Per-variant test timings ---
+// The same test file can take seconds in one CI variant and minutes in
+// another (e.g. dev vs. turbopack production), so timings are recorded per
+// variant. Each variant is its own Redis hash (`test-timings-v2:<variant>`,
+// field = test file, value = `<seconds>@<last write, epoch ms>`), so
+// parallel shards update individual fields atomically instead of overwriting
+// each other's read-modify-write. Values without an `@<epoch ms>` suffix
+// (plain seconds) are still read; they just have no last-write time yet.
+// `test-timings-v2:variants` lists the variants that have been recorded.
+//
+// Entries are kept for TIMINGS_TTL_SECONDS after their last write, because
+// branches whose checkout differs from the writer's (older or newer) may
+// still rely on them:
+// - A file missing from the writer's checkout is only deleted once its last
+//   write is longer ago than the TTL.
+// - Each variant hash gets the TTL as a Redis expiry, refreshed on every
+//   write, so a variant no CI job writes any more expires on its own; the
+//   fetch prunes it from the index afterwards.
+const KV_TIMINGS_V2_PREFIX = 'test-timings-v2:'
+const KV_TIMINGS_V2_VARIANTS_KEY = `${KV_TIMINGS_V2_PREFIX}variants`
+const TIMINGS_TTL_SECONDS = 30 * 24 * 60 * 60
+
+// Atomically handles stale-timing candidates (files missing from the
+// writer's checkout), re-reading each value on the server so that an entry
+// refreshed by a concurrent writer is never deleted:
+// - field gone in the meantime: nothing to do
+// - no (valid) last-write time: append `@now` to start the TTL clock
+// - last written before the cutoff: delete the field
+// Also gives the hash the TTL if it has none yet.
+// KEYS: timings hash. ARGV: now (ms), cutoff (ms), TTL (s), files...
+// Returns the deleted files.
+const CLEANUP_STALE_TIMINGS_SCRIPT = `
+local deleted = {}
+local cutoff = tonumber(ARGV[2])
+for i = 4, #ARGV do
+  local file = ARGV[i]
+  local value = redis.call('HGET', KEYS[1], file)
+  if value then
+    local seconds, updated = string.match(value, '^([^@]*)@(.*)$')
+    updated = tonumber(updated)
+    if not updated then
+      redis.call('HSET', KEYS[1], file, (seconds or value) .. '@' .. ARGV[1])
+    elseif updated < cutoff then
+      redis.call('HDEL', KEYS[1], file)
+      deleted[#deleted + 1] = file
+    end
+  end
+end
+if redis.call('TTL', KEYS[1]) == -1 then
+  redis.call('EXPIRE', KEYS[1], ARGV[3])
+end
+return deleted
+`
+
+// Maintains the whole variant index in one round trip. For each indexed
+// variant, atomically: if its timings hash no longer exists (expired), the
+// variant is removed from the index (a variant created concurrently can't be
+// removed, since the writer's MULTI and this script are each atomic);
+// otherwise the hash gets the TTL if it has none yet (keys written before
+// TTLs existed), without extending an existing one, so reading never keeps a
+// variant alive. The per-variant keys are derived from ARGV[1] at runtime,
+// because the variant list is read inside the script; this requires a KV
+// scripting backend that permits those derived-key accesses.
+// KEYS: index set. ARGV: timings key prefix, TTL (s).
+// Returns the number of variants removed.
+const MAINTAIN_VARIANTS_SCRIPT = `
+local removed = 0
+for _, variant in ipairs(redis.call('SMEMBERS', KEYS[1])) do
+  local key = ARGV[1] .. variant
+  if redis.call('EXISTS', key) == 0 then
+    removed = removed + redis.call('SREM', KEYS[1], variant)
+  elseif redis.call('TTL', key) == -1 then
+    redis.call('EXPIRE', key, ARGV[2])
+  end
+end
+return removed
+`
+
+/**
+ * Identifies the CI variant a run's timings belong to, from the env vars that
+ * distinguish the CI jobs using `--timings` (see `build_and_test.yml` and
+ * `test_e2e_deploy_release.yml`): mode, bundler, cache components, React
+ * version and adapter. Flags set identically on every timing job (e.g. strict
+ * route types) are deliberately not part of the key.
+ *
+ * @param {Record<string, string | undefined>} env
+ * @returns {string} e.g. `start|turbopack|cache-components`
+ */
+function getTimingsVariant(env) {
+  const mode = env.NEXT_TEST_MODE || 'none'
+  const bundler =
+    env.NEXT_TEST_USE_RSPACK === '1' || env.NEXT_RSPACK === '1'
+      ? 'rspack'
+      : env.IS_TURBOPACK_TEST
+        ? 'turbopack'
+        : 'webpack'
+  const parts = [mode, bundler]
+  if (env.__NEXT_CACHE_COMPONENTS === 'true') parts.push('cache-components')
+  const reactVersion = env.NEXT_TEST_REACT_VERSION?.trim()
+  if (reactVersion) parts.push(`react-${reactVersion}`)
+  if (env.NEXT_ENABLE_ADAPTER === '1') parts.push('adapter')
+  return parts.join('|')
+}
+
+/** @param {unknown} value */
+function isValidTiming(value) {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+}
+
+/**
+ * The longest recorded duration of each test file across all variants. Used
+ * as a conservative fallback for variants that haven't recorded a file yet.
+ *
+ * @param {Record<string, Record<string, unknown>>} variants
+ * @returns {Record<string, number>}
+ */
+function computeMaxTimings(variants) {
+  /** @type {Record<string, number>} */
+  const max = {}
+  for (const variantTimings of Object.values(variants)) {
+    for (const [file, seconds] of Object.entries(variantTimings)) {
+      if (isValidTiming(seconds)) {
+        max[file] = Math.max(max[file] ?? 0, /** @type {number} */ (seconds))
+      }
+    }
+  }
+  return max
+}
+
+/**
+ * @typedef {{
+ *   variants: Record<string, Record<string, unknown>>,
+ *   max: Record<string, unknown>,
+ *   legacy: Record<string, unknown>,
+ * }} TestTimings
+ */
+
+/**
+ * Normalizes loaded timings data. Accepts the versioned format written by
+ * `fetchTestTimings`, as well as a legacy flat `{ [file]: seconds }` map (or
+ * the `{}` the workflow writes when no timings could be fetched). The
+ * cross-variant `max` is always derived from `variants`, never stored.
+ *
+ * @param {unknown} data
+ * @returns {TestTimings | null}
+ */
+function normalizeTimings(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return null
+  }
+  const record = /** @type {Record<string, any>} */ (data)
+  if (record.version !== 2) {
+    return { variants: {}, max: {}, legacy: record }
+  }
+  /** @type {TestTimings['variants']} */
+  const variants = {}
+  for (const [variant, variantTimings] of Object.entries(
+    record.variants || {}
+  )) {
+    if (variantTimings && typeof variantTimings === 'object') {
+      variants[variant] = variantTimings
+    }
+  }
+  return {
+    variants,
+    max: computeMaxTimings(variants),
+    legacy:
+      record.legacy && typeof record.legacy === 'object' ? record.legacy : {},
+  }
+}
+
+/**
+ * Resolves the recorded duration of a test file for the given variant: the
+ * variant's own timing, else the maximum across all variants, else the legacy
+ * shared timing (only relevant until any variant has recorded the file).
+ *
+ * @param {TestTimings | null} testTimings
+ * @param {string} variant
+ * @param {string} file
+ * @returns {{ seconds: number, source: 'variant' | 'max' | 'legacy' } | undefined}
+ */
+function resolveTiming(testTimings, variant, file) {
+  if (!testTimings) return undefined
+  const fromVariant = testTimings.variants[variant]?.[file]
+  if (isValidTiming(fromVariant)) {
+    return { seconds: /** @type {number} */ (fromVariant), source: 'variant' }
+  }
+  const fromMax = testTimings.max[file]
+  if (isValidTiming(fromMax)) {
+    return { seconds: /** @type {number} */ (fromMax), source: 'max' }
+  }
+  const fromLegacy = testTimings.legacy[file]
+  if (isValidTiming(fromLegacy)) {
+    return { seconds: /** @type {number} */ (fromLegacy), source: 'legacy' }
+  }
+  return undefined
+}
+
+/**
+ * @param {Record<string, unknown> | null | undefined} hash
+ * @returns {Record<string, number>}
+ */
+function toTimingsMap(hash) {
+  /** @type {Record<string, number>} */
+  const result = {}
+  for (const [file, value] of Object.entries(hash || {})) {
+    // Redis returns hash values as numbers or strings; strings may carry an
+    // `@<epoch ms>` last-write suffix, which is not part of the timing.
+    const seconds =
+      typeof value === 'string' ? Number(value.split('@')[0]) : value
+    if (isValidTiming(seconds)) result[file] = /** @type {number} */ (seconds)
+  }
+  return result
+}
+
+/**
+ * Fetches the timings of every variant, plus the legacy shared map as a
+ * fallback, in the versioned format consumed by `normalizeTimings`.
+ * Returns `null` when no timings are available at all. Also prunes expired
+ * variants from the index (see MAINTAIN_VARIANTS_SCRIPT).
+ *
+ * @param {any} client KV client
+ * @param {typeof retryKVOperation} retry
+ */
+async function fetchTestTimings(client, retry) {
+  if (!client) {
+    console.warn('KV client not configured, skipping timing fetch')
+    return null
+  }
+
+  /** @type {Record<string, Record<string, number>>} */
+  let variants = {}
+  try {
+    variants = await retry(async () => {
+      /** @type {string[]} */
+      const names = (await client.smembers(KV_TIMINGS_V2_VARIANTS_KEY)) || []
+      /** @type {Record<string, Record<string, number>>} */
+      const result = {}
+      for (const name of names) {
+        const variantTimings = toTimingsMap(
+          await client.hgetall(`${KV_TIMINGS_V2_PREFIX}${name}`)
+        )
+        if (Object.keys(variantTimings).length > 0) {
+          result[name] = variantTimings
+        }
+      }
+      return result
+    }, 'fetch variant timings')
+  } catch (err) {
+    console.log('Failed to fetch variant timings:', err.message)
+  }
+
+  try {
+    const removed = await client.eval(
+      MAINTAIN_VARIANTS_SCRIPT,
+      [KV_TIMINGS_V2_VARIANTS_KEY],
+      [KV_TIMINGS_V2_PREFIX, String(TIMINGS_TTL_SECONDS)]
+    )
+    if (removed > 0) {
+      console.log(`Removed ${removed} expired variant(s) from the index`)
+    }
+  } catch (err) {
+    console.log('Failed to maintain variant timings:', err.message)
+  }
+
+  /** @type {Record<string, number>} */
+  let legacy = {}
+  try {
+    legacy = toTimingsMap(
+      await retry(() => client.get(KV_TIMINGS_KEY), 'fetch legacy timings')
+    )
+  } catch (err) {
+    console.log('Failed to fetch legacy timings:', err.message)
+  }
+
+  if (Object.keys(variants).length === 0 && Object.keys(legacy).length === 0) {
+    console.log('No timing data found in KV store')
+    return null
+  }
+  return { version: 2, variants, legacy }
+}
+
+/**
+ * Records this run's timings for its variant. Only touches the variant's own
+ * keys and the variant index; other variants and the legacy key are left as
+ * they are.
+ *
+ * @param {any} client KV client
+ * @param {typeof retryKVOperation} retry
+ * @param {string} variant
+ * @param {Record<string, number>} curTimings seconds per test file
+ * @param {(file: string) => boolean} fileExists
+ * @param {number} [now] epoch ms
+ */
+async function writeTestTimings(
+  client,
+  retry,
+  variant,
+  curTimings,
+  fileExists,
+  now = Date.now()
+) {
+  const key = `${KV_TIMINGS_V2_PREFIX}${variant}`
+  const files = Object.keys(curTimings)
+  if (files.length > 0) {
+    const values = Object.fromEntries(
+      files.map((file) => [file, `${curTimings[file]}@${now}`])
+    )
+    await retry(
+      () =>
+        client
+          .multi()
+          .hset(key, values)
+          .sadd(KV_TIMINGS_V2_VARIANTS_KEY, variant)
+          .expire(key, TIMINGS_TTL_SECONDS)
+          .exec(),
+      'update timings'
+    )
+    console.log(`Successfully updated test timings for variant ${variant}`)
+  }
+
+  // Timings of files missing from this checkout are only deleted once no
+  // branch has written them for TIMINGS_TTL_SECONDS (within this variant)
+  const recorded =
+    (await retry(() => client.hgetall(key), 'read timings')) || {}
+  const candidates = Object.keys(recorded).filter((file) => !fileExists(file))
+  if (candidates.length > 0) {
+    /** @type {string[] | null} */
+    const deleted = await retry(
+      () =>
+        client.eval(
+          CLEANUP_STALE_TIMINGS_SCRIPT,
+          [key],
+          [
+            String(now),
+            String(now - TIMINGS_TTL_SECONDS * 1000),
+            String(TIMINGS_TTL_SECONDS),
+            ...candidates,
+          ]
+        ),
+      'clean up stale timings'
+    )
+    for (const file of deleted || []) {
+      console.log('removing stale timing', file)
+    }
+  }
 }
 
 const testFilters = {
@@ -315,7 +666,7 @@ async function maybeLogSummary() {
         testPath: file,
         mode: process.env.NEXT_TEST_MODE,
         isTurbopack: !!process.env.IS_TURBOPACK_TEST,
-        isRspack: !!process.env.NEXT_RSPACK,
+        isRspack: process.env.NEXT_RSPACK === '1',
         isExperimental: process.env.__NEXT_CACHE_COMPONENTS === 'true',
         isPPR: process.env.__NEXT_EXPERIMENTAL_PPR === 'true',
         failedCases,
@@ -394,22 +745,6 @@ const isMatchingPattern = (pattern, file) => {
   } else {
     return file.startsWith(pattern)
   }
-}
-
-async function getTestTimings() {
-  if (!kvClient) {
-    console.warn('KV client not configured, skipping timing fetch')
-    return null
-  }
-
-  const timings = await retryKVOperation(async () => {
-    const data = await kvClient.get(KV_TIMINGS_KEY)
-    if (!data) {
-      console.log('No timing data found in KV store')
-    }
-    return data
-  }, 'fetch timings')
-  return timings || null
 }
 
 async function main() {
@@ -560,7 +895,7 @@ async function main() {
 
     if (!prevTimings && !options.requireTimings) {
       try {
-        prevTimings = await getTestTimings()
+        prevTimings = await fetchTestTimings(kvClient, retryKVOperation)
         if (prevTimings) {
           console.log('Fetched previous timings data successfully from KV')
         } else {
@@ -591,6 +926,9 @@ async function main() {
     tests = externalTestsFilter(tests)
   }
 
+  const timingsVariant = getTimingsVariant(process.env)
+  const testTimings = normalizeTimings(prevTimings)
+
   let testSet = new Set()
   tests = tests
     .map((test) => {
@@ -608,10 +946,12 @@ async function main() {
     const groupPos = parseInt(groupParts[0], 10)
     const groupTotal = parseInt(groupParts[1], 10)
 
-    if (prevTimings) {
+    if (testTimings) {
       /** @type {TestFile[][]} */
       const groups = [[]]
       const groupTimes = [0]
+      /** @type {Record<'variant' | 'max' | 'legacy' | 'none', number>} */
+      const timingSources = { variant: 0, max: 0, legacy: 0, none: 0 }
 
       for (const test of tests) {
         let smallestGroup = groupTimes[0]
@@ -631,8 +971,14 @@ async function main() {
           }
         }
         groups[smallestGroupIdx].push(test)
-        groupTimes[smallestGroupIdx] += prevTimings[test.file] || 1
+        const timing = resolveTiming(testTimings, timingsVariant, test.file)
+        timingSources[timing?.source ?? 'none']++
+        groupTimes[smallestGroupIdx] += timing?.seconds || 1
       }
+
+      console.log(
+        `Test timings for variant ${timingsVariant}: ${timingSources.variant} from variant, ${timingSources.max} from max across variants, ${timingSources.legacy} from legacy, ${timingSources.none} without timing`
+      )
 
       const curGroupIdx = groupPos - 1
       tests = groups[curGroupIdx]
@@ -1195,6 +1541,7 @@ ${ENDGROUP}`)
   }
 
   if (options.timings) {
+    /** @type {Record<string, number>} */
     const curTimings = {}
     // let junitData = `<testsuites name="jest tests">`
     /*
@@ -1224,26 +1571,13 @@ ${ENDGROUP}`)
     if (shouldUseSharedTimings) {
       if (kvClient) {
         try {
-          // Fetch existing timings and merge with new ones
-          const existingTimings = (await getTestTimings()) || {}
-          const newTimings = {
-            ...existingTimings,
-            ...curTimings,
-          }
-
-          // Clean up stale timings for deleted tests
-          for (const test of Object.keys(newTimings)) {
-            if (!fs.existsSync(path.join(__dirname, test))) {
-              console.log('removing stale timing', test)
-              delete newTimings[test]
-            }
-          }
-
-          // Update KV store with retries
-          await retryKVOperation(async () => {
-            await kvClient.set(KV_TIMINGS_KEY, newTimings)
-            console.log('Successfully updated test timings in KV store')
-          }, 'update timings')
+          await writeTestTimings(
+            kvClient,
+            retryKVOperation,
+            timingsVariant,
+            curTimings,
+            (file) => fs.existsSync(path.join(__dirname, file))
+          )
         } catch (err) {
           console.log('Failed to update timings data', err)
         }
