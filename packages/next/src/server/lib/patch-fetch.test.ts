@@ -119,6 +119,67 @@ describe('createPatchedFetcher', () => {
     // timeout when we regress and buffer the response.
   }, 1000)
 
+  it('should not wait for the rest of a cached response when its body is cancelled', async () => {
+    const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn()
+    let upstreamCancelled = false
+
+    const readableStream = new ReadableStream({
+      start(controller) {
+        // Never closes, like a long-running stream.
+        controller.enqueue(new TextEncoder().encode('stream start'))
+      },
+      cancel() {
+        upstreamCancelled = true
+      },
+    })
+
+    mockFetch.mockResolvedValue(new Response(readableStream))
+
+    const workAsyncStorage = new AsyncLocalStorage<WorkStore>()
+    const workUnitAsyncStorage = new AsyncLocalStorage<WorkUnitStore>()
+
+    const patchedFetch = createPatchedFetcher(mockFetch, {
+      workAsyncStorage,
+      workUnitAsyncStorage,
+    })
+
+    const incrementalCache = {
+      get: jest.fn(),
+      set: jest.fn(),
+      generateCacheKey: jest.fn(() => 'test-cache-key'),
+      lock: jest.fn(() => () => {}),
+    } as unknown as IncrementalCache
+
+    const workStore: Partial<WorkStore> = {
+      page: '/',
+      route: '/',
+      incrementalCache,
+    }
+
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+
+    try {
+      await workAsyncStorage.run(workStore as WorkStore, async () => {
+        const response = await patchedFetch('https://example.com', {
+          cache: 'force-cache',
+        })
+
+        const reader = response.body!.getReader()
+        const result = await reader.read()
+        expect(new TextDecoder().decode(result.value)).toBe('stream start')
+
+        await reader.cancel()
+
+        expect(upstreamCancelled).toBe(true)
+        await workStore.pendingRevalidates?.['cache-set-test-cache-key']
+        expect(incrementalCache.set).not.toHaveBeenCalled()
+        expect(warn).not.toHaveBeenCalled()
+      })
+    } finally {
+      warn.mockRestore()
+    }
+  }, 1000)
+
   it('records fetch outcome attributes on local AppRender.fetch spans', async () => {
     setSpanRecorderForTest((span) => spanRecords.push(span))
 
