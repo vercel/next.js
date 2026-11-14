@@ -733,7 +733,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         commit_current(&self.path, 0)
     }
 
-    /// Loads an existing database directory and performs cleanup if necessary.
+    /// Loads an existing database directory and performs cleanup if necessary (and non
+    /// `read_only`).
     fn load_directory(&mut self, entries: ReadDir, read_only: bool) -> Result<bool> {
         let mut meta_files = Vec::new();
         let current = match read_current_version(&self.path)? {

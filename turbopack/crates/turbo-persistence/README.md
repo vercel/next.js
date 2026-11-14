@@ -271,11 +271,11 @@ thread as its own instance give every thread its own file descriptor table.
 A lookup that gets past an entry's meta file checks (hash range and AMQF) uses the SST file if it
 is open already, waits for it if a background open is in progress, and otherwise opens it itself.
 An open file stays cached on its meta file entry. A failed background open is ignored: the next
-lookup that needs the file opens it lazily and reports the error. A background open holds only a
-weak reference to its entry, so it skips entries that were dropped in the meantime (e.g. retired by
-compaction, or because the database was closed). Compaction clears all cached SST files before it
-merges, and then only opens the files it wrote eagerly. How an SST file is opened depends on the
-access mode:
+lookup that needs the file opens it lazily and reports the error. Every background open runs to
+completion: if its entry was dropped in the meantime (e.g. retired by compaction, or because the
+database was closed), the opened file is closed again right away. Compaction clears all cached SST
+files before it merges, and then only opens the files it wrote eagerly. How an SST file is opened
+depends on the access mode:
 
 - `AccessMode::Mmap`: the SST file is memory mapped, and key and value blocks are read from the
   mapping.
