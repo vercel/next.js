@@ -329,7 +329,7 @@ async fn chunk_group_content_operation(
             .iter()
             .map(|&index| {
                 all_chunk_groups
-                    .get(&(index as u32))
+                    .get(&index)
                     .cloned()
                     .with_context(|| format!("chunk group index {index} is out of range"))
             })

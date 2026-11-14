@@ -132,12 +132,10 @@ pub struct AsyncLoaderRelevantChunkGroupsMap(
 /// invalidate it. Keyed by index, so renumbering the chunk groups changes the affected keys.
 ///
 /// Indexed like every other chunk-group index ([`ChunkGroupInfo::module_chunk_groups`],
-/// [`ChunkGroupInfo::chunk_group_indices`], ...). Keys are `0..len`, inserted in order, so
-/// iterating it yields the chunk groups in index order.
+/// [`ChunkGroupInfo::chunk_group_indices`], ...). A keyed `Vec`: read one chunk group with
+/// `get(&index)`, where `index` is a `usize`.
 #[turbo_tasks::value(transparent, cell = "keyed")]
-pub struct ChunkGroupsByIndex(
-    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<u32, ChunkGroup>,
-);
+pub struct ChunkGroupsByIndex(Vec<ChunkGroup>);
 
 /// Returns the chunk group at `index` of the [`ChunkGroupsByIndex`] `chunk_groups`, for an index
 /// read from another cell of the same [`ChunkGroupInfo`].
@@ -146,11 +144,8 @@ pub struct ChunkGroupsByIndex(
 /// consistent reader can pair this cell with another one from a newer execution while it
 /// recomputes, so the index can be out of range. The reader depends on both and is recomputed once
 /// both are updated, so an error here is transient, but indexing would panic.
-pub fn chunk_group_at(
-    chunk_groups: &FxIndexMap<u32, ChunkGroup>,
-    index: usize,
-) -> Result<&ChunkGroup> {
-    chunk_groups.get(&(index as u32)).with_context(|| {
+pub fn chunk_group_at(chunk_groups: &[ChunkGroup], index: usize) -> Result<&ChunkGroup> {
+    chunk_groups.get(index).with_context(|| {
         format!(
             "chunk group index {index} is out of range ({} chunk groups)",
             chunk_groups.len()
@@ -220,7 +215,7 @@ impl ChunkGroupInfo {
         *self.async_loader_chunk_groups
     }
 
-    /// The keyed index -> chunk group map, see [`ChunkGroupsByIndex`].
+    /// The chunk groups as a keyed `Vec` (keyed by index), see [`ChunkGroupsByIndex`].
     #[turbo_tasks::function]
     pub fn chunk_groups(&self) -> Vc<ChunkGroupsByIndex> {
         *self.chunk_groups
@@ -283,7 +278,7 @@ impl ChunkGroupInfo {
             .map(|index| {
                 Ok(ChunkGroupWithIndex {
                     index,
-                    chunk_group: keyed_chunk_group_at(&chunk_groups, index)?.clone(),
+                    chunk_group: keyed_chunk_group_at(&chunk_groups, index as usize)?.clone(),
                 })
             })
             .collect::<Result<_>>()?;
@@ -315,7 +310,7 @@ impl ChunkGroupInfo {
                     if groups.contains_key(&index) {
                         continue;
                     }
-                    let chunk_group = keyed_chunk_group_at(&chunk_groups, index)?;
+                    let chunk_group = keyed_chunk_group_at(&chunk_groups, index as usize)?;
                     if let ChunkGroup::Async(parent_module) = chunk_group {
                         pending.push(*parent_module);
                     }
@@ -361,7 +356,7 @@ impl ChunkGroupInfo {
         };
         let chunk_group = self
             .chunk_groups()
-            .get(&index)
+            .get(&(index as usize))
             .await?
             .with_context(|| format!("chunk group index {index} is out of range"))?;
         Ok(Vc::cell(Some(ChunkGroupWithIndex {
@@ -374,7 +369,7 @@ impl ChunkGroupInfo {
 /// Like [`chunk_group_at`], for a keyed reader (which only depends on the entries it reads).
 fn keyed_chunk_group_at(
     chunk_groups: &turbo_tasks::KeyedReadRef<ChunkGroupsByIndex>,
-    index: u32,
+    index: usize,
 ) -> Result<&ChunkGroup> {
     chunk_groups
         .get(&index)
@@ -403,7 +398,7 @@ impl ChunkGroupInfo {
                 "Couldn't find chunk group index for {} in {}",
                 key.debug_str(&this.chunk_group_keys).await?,
                 chunk_groups
-                    .values()
+                    .iter()
                     .map(|c| c.debug_str(&chunk_groups))
                     .try_join()
                     .await?
@@ -425,7 +420,7 @@ impl ChunkGroupInfo {
         let index = self.get_index_of(key).await?;
         Ok((*self
             .chunk_groups()
-            .get(&(index as u32))
+            .get(&index)
             .await?
             .with_context(|| format!("chunk group index {index} is out of range"))?)
         .clone())
@@ -594,7 +589,7 @@ impl ChunkGroup {
         }
     }
 
-    pub async fn debug_str(&self, chunk_groups: &FxIndexMap<u32, ChunkGroup>) -> Result<String> {
+    pub async fn debug_str(&self, chunk_groups: &[ChunkGroup]) -> Result<String> {
         Ok(match self {
             ChunkGroup::Entry(entries) => format!(
                 "ChunkGroup::Entry({:?})",
@@ -1255,35 +1250,29 @@ pub async fn compute_chunk_group_info(
             chunk_groups: ResolvedVc::cell(
                 chunk_groups_map
                     .into_iter()
-                    .enumerate()
-                    .map(|(index, (k, merged_entries))| {
-                        (
-                            index as u32,
-                            match k {
-                                ChunkGroupKey::Entry(entries) => ChunkGroup::Entry(entries),
-                                ChunkGroupKey::Async(module) => ChunkGroup::Async(module),
-                                ChunkGroupKey::Collected(module) => ChunkGroup::Collected(module),
-                                ChunkGroupKey::Isolated(module) => ChunkGroup::Isolated(module),
-                                ChunkGroupKey::IsolatedMerged { parent, merge_tag } => {
-                                    ChunkGroup::IsolatedMerged {
-                                        parent: parent.0 as usize,
-                                        merge_tag,
-                                        entries: merged_entries.into_iter().collect(),
-                                    }
-                                }
-                                ChunkGroupKey::Shared(module) => ChunkGroup::Shared(module),
-                                ChunkGroupKey::SharedMultiple(entries) => {
-                                    ChunkGroup::SharedMultiple(entries)
-                                }
-                                ChunkGroupKey::SharedMerged { parent, merge_tag } => {
-                                    ChunkGroup::SharedMerged {
-                                        parent: parent.0 as usize,
-                                        merge_tag,
-                                        entries: merged_entries.into_iter().collect(),
-                                    }
-                                }
-                            },
-                        )
+                    .map(|(k, merged_entries)| match k {
+                        ChunkGroupKey::Entry(entries) => ChunkGroup::Entry(entries),
+                        ChunkGroupKey::Async(module) => ChunkGroup::Async(module),
+                        ChunkGroupKey::Collected(module) => ChunkGroup::Collected(module),
+                        ChunkGroupKey::Isolated(module) => ChunkGroup::Isolated(module),
+                        ChunkGroupKey::IsolatedMerged { parent, merge_tag } => {
+                            ChunkGroup::IsolatedMerged {
+                                parent: parent.0 as usize,
+                                merge_tag,
+                                entries: merged_entries.into_iter().collect(),
+                            }
+                        }
+                        ChunkGroupKey::Shared(module) => ChunkGroup::Shared(module),
+                        ChunkGroupKey::SharedMultiple(entries) => {
+                            ChunkGroup::SharedMultiple(entries)
+                        }
+                        ChunkGroupKey::SharedMerged { parent, merge_tag } => {
+                            ChunkGroup::SharedMerged {
+                                parent: parent.0 as usize,
+                                merge_tag,
+                                entries: merged_entries.into_iter().collect(),
+                            }
+                        }
                     })
                     .collect(),
             ),

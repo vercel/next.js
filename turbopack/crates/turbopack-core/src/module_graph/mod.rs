@@ -2575,8 +2575,7 @@ pub mod tests {
     use turbo_bitset::Bitset;
     use turbo_rcstr::{RcStr, rcstr};
     use turbo_tasks::{
-        FxIndexMap, ReadRef, ResolvedVc, State, TryFlatJoinIterExt, TryJoinIterExt, ValueToString,
-        Vc,
+        ReadRef, ResolvedVc, State, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
     };
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
     use turbo_tasks_fs::{FileSystem, FileSystemPath, VirtualFileSystem};
@@ -4454,7 +4453,7 @@ pub mod tests {
 
             // Describe chunk groups by name, independent of their index.
             fn describe(
-                info: &FxIndexMap<u32, ChunkGroup>,
+                info: &[ChunkGroup],
                 index: usize,
                 names: &FxHashMap<ResolvedVc<Box<dyn Module>>, RcStr>,
             ) -> String {
@@ -4841,7 +4840,7 @@ pub mod tests {
     }
 
     fn describe_chunk_group(
-        info: &FxIndexMap<u32, ChunkGroup>,
+        info: &[ChunkGroup],
         index: usize,
         names: &FxHashMap<ResolvedVc<Box<dyn Module>>, RcStr>,
     ) -> String {

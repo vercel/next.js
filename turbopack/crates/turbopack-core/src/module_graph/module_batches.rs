@@ -437,7 +437,7 @@ pub async fn compute_module_batches(
         })?;
 
         // All entries are boundary modules too
-        for chunk_group in chunk_groups.values() {
+        for chunk_group in chunk_groups.iter() {
             pre_batches.boundary_modules.extend(chunk_group.entries());
         }
 
@@ -472,7 +472,7 @@ pub async fn compute_module_batches(
         let mut chunk_group_indices_with_merged_children = FxHashSet::default();
 
         // Start with the entries...
-        for chunk_group in chunk_groups.values() {
+        for chunk_group in chunk_groups.iter() {
             for entry in chunk_group.entries() {
                 pre_batches.ensure_pre_batch_for_module(entry, &module_chunk_groups, &mut queue)?;
             }
@@ -509,7 +509,7 @@ pub async fn compute_module_batches(
 
         // Figure out the order of all merged groups
         let mut ordered_entries: Vec<Option<EntriesList>> = vec![None; chunk_groups.len()];
-        for (i, chunk_group) in chunk_groups.values().enumerate() {
+        for (i, chunk_group) in chunk_groups.iter().enumerate() {
             if !chunk_group_indices_with_merged_children.contains(&i) {
                 continue;
             }
@@ -1051,7 +1051,7 @@ pub async fn compute_module_batches(
 
         // Find the NodeIndices for our entries of the graph
         let mut entries = FxHashMap::default();
-        for chunk_group in chunk_groups.values() {
+        for chunk_group in chunk_groups.iter() {
             for module in chunk_group.entries() {
                 if let Some(batch) = pre_batches.entries.get(&module).copied() {
                     entries.insert(module, batch_indices[batch]);

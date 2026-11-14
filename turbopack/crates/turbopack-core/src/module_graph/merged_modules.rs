@@ -445,7 +445,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
             let result = turbo_tasks::parallel::map_collect_chunked_owned::<_, _, Result<Vec<_>>>(
                 // TODO without collect
-                all_chunk_groups.values().enumerate().collect(),
+                all_chunk_groups.iter().enumerate().collect(),
                 |chunk| {
                     let mut list_lists = vec![];
                     let mut lists_reverse_indices: FxIndexMap<
