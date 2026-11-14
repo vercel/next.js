@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process'
 import {
+  appendFileSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -111,6 +112,20 @@ if (
   )
   if (result.error) throw result.error
   process.exit(result.status ?? 1)
+}
+
+// Record the outcome telemetry the handoff asks for, then run it unchanged.
+// Duplicate-check cases require that a stop reports neither success nor failure.
+if (
+  invocation &&
+  /^next(@|$)/.test(invocation.requestedPackage) &&
+  invocation.args[0] === 'internal' &&
+  invocation.args[1] === 'report-agent-upgrade'
+) {
+  appendFileSync(
+    join(tools, 'reports.jsonl'),
+    JSON.stringify({ args: invocation.args }) + '\n'
+  )
 }
 
 const result = spawnSync(command, args, {

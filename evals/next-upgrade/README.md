@@ -1,24 +1,35 @@
 # Next.js upgrade evals
 
-Six agent tasks run on Vercel Sandbox through the existing `@vercel/agent-eval`
+Eight agent tasks run on Vercel Sandbox through the existing `@vercel/agent-eval`
 runner. Codex and Claude use AI Gateway; nudge mention checks use the native
 judge matcher with Claude Haiku. Results stay in repository evaluation artifacts.
 
 ## Cases
 
-| Case                 | Starting Next.js                   | Frozen target   | Task               |
-| -------------------- | ---------------------------------- | --------------- | ------------------ |
-| security-same-major  | 15.5.23                            | 15.5.24         | Security upgrade   |
-| security-cross-major | 13.5.11                            | 15.5.24         | Security migration |
-| latest-same-major    | 16.3.8                             | 16.4.0          | Latest upgrade     |
-| latest-cross-major   | 13.5.11                            | 16.4.0          | Latest migration   |
-| security-nudge       | Candidate stable test build 16.5.0 | Metadata 16.5.1 | Build/dev work     |
-| latest-nudge         | Candidate stable test build 16.5.0 | Metadata 16.6.0 | Build/dev work     |
+| Case                     | Starting Next.js                   | Frozen target   | Task                            |
+| ------------------------ | ---------------------------------- | --------------- | ------------------------------- |
+| security-same-major      | 15.5.23                            | 15.5.24         | Security upgrade                |
+| security-cross-major     | 13.5.11                            | 15.5.24         | Security migration              |
+| latest-same-major        | 16.3.8                             | 16.4.0          | Latest upgrade                  |
+| latest-cross-major       | 13.5.11                            | 16.4.0          | Latest migration                |
+| security-nudge           | Candidate stable test build 16.5.0 | Metadata 16.5.1 | Build/dev work                  |
+| latest-nudge             | Candidate stable test build 16.5.0 | Metadata 16.6.0 | Build/dev work                  |
+| latest-stale-duplicate   | 16.3.8                             | 16.4.0          | Upgrade despite stale duplicate |
+| latest-open-pr-duplicate | 16.3.8                             | 16.4.0          | Stop for open duplicate PR      |
 
 Direct prompts are simply `run npx next@canary upgrade --agent=security and follow
 its instructions`, or the latest equivalent. Nudge prompts ask for ordinary app
 work. Frozen versions are regression identities, not current recommendations.
 Nudge targets are synthetic metadata and are never installed.
+
+The duplicate cases give the app a GitHub `origin` whose remote branch already
+performs the exact upgrade with its `next-upgrade` marker, and a read-only `gh`
+that lists that branch's pull request. In `latest-stale-duplicate` the branch is
+two years old and its pull request is closed, so the agent must still deliver
+the upgrade under the normal contract. In `latest-open-pr-duplicate` the pull
+request is open, so the agent must run the candidate, query open pull requests,
+leave every worktree on the starting version, and report neither success nor
+failure telemetry.
 
 ## Local execution
 
@@ -35,7 +46,7 @@ pnpm eval:upgrade security-same-major --dry
 pnpm eval:upgrade security-same-major
 ```
 
-Run all six cases in parallel with `pnpm eval:upgrade --all` for twelve trials,
+Run all eight cases in parallel with `pnpm eval:upgrade --all` for sixteen trials,
 or select one harness for individual cases with
 `NEXT_UPGRADE_EVAL_EXPERIMENT=codex` or `claude`. List/dry modes do no remote work.
 The runner loads root `.env.local` without overwriting inherited values. Only
