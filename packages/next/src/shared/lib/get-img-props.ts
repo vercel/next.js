@@ -447,6 +447,12 @@ export function getImgProps(
 
   const qualityInt = getInt(quality)
 
+  if (typeof window === 'undefined' && isDefaultLoader && !unoptimized) {
+    // Lets `output: 'export'` builds report the export-image-api error for
+    // App Router pages, which only load `next/image` while prerendering.
+    ;(globalThis as any).__NEXT_IMAGE_DEFAULT_LOADER_USED = true
+  }
+
   if (process.env.NODE_ENV !== 'production') {
     const { warnOnce } =
       require('./utils/warn-once') as typeof import('./utils/warn-once')
