@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::{collections::BTreeMap, ops::Deref};
 
 use bincode::{Decode, Encode};
 use serde::Serialize;
@@ -9,7 +9,10 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, TaskInput};
-use turbopack_core::{chunk::ModuleId, resolve::pattern::Pattern};
+use turbopack_core::{
+    chunk::ModuleId,
+    resolve::{MemberUsage, merge_member_maps, pattern::Pattern},
+};
 
 use crate::{
     analyzer::{
@@ -63,6 +66,55 @@ pub(crate) fn extract_names_from_object_pat(pat: &Pat) -> Option<SmallVec<[RcStr
         }
     }
     Some(names)
+}
+
+/// Extracts the (possibly nested) members read by an object destructuring pattern:
+/// `{ a, b: { c }, d = 1 }` reads `{ a: All, b: { c: All }, d: All }`.
+///
+/// Returns `None` if the pattern isn't an object pattern, or reads members that can't be
+/// determined statically (a rest element or a computed key). Nested patterns that can't be
+/// narrowed read their member as a whole.
+pub(crate) fn extract_member_usage_from_object_pat(
+    pat: &Pat,
+) -> Option<BTreeMap<RcStr, MemberUsage>> {
+    let Pat::Object(obj_pat) = pat else {
+        return None;
+    };
+    let mut members = BTreeMap::new();
+    for prop in &obj_pat.props {
+        let (name, usage): (RcStr, _) = match prop {
+            ObjectPatProp::KeyValue(kv) => {
+                let name = match &kv.key {
+                    PropName::Ident(ident) => ident.sym.as_str().into(),
+                    PropName::Str(s) => s.value.as_str()?.into(),
+                    PropName::Computed(ComputedPropName { expr, .. }) => match &**expr {
+                        Expr::Lit(Lit::Str(s)) => s.value.as_str()?.into(),
+                        _ => return None, // computed key, can't determine statically
+                    },
+                    _ => return None, // numeric or bigint key, not an export name
+                };
+                (name, member_usage_of_pat(&kv.value))
+            }
+            // `{ a = 1 }` still reads `a`.
+            ObjectPatProp::Assign(assign) => (assign.key.sym.as_str().into(), MemberUsage::All),
+            ObjectPatProp::Rest(_) => return None, // rest pattern means all members are read
+        };
+        merge_member_maps(&mut members, &BTreeMap::from([(name, usage)]));
+    }
+    Some(members)
+}
+
+/// How a destructuring pattern reads the value it is matched against.
+fn member_usage_of_pat(pat: &Pat) -> MemberUsage {
+    match pat {
+        Pat::Object(_) => {
+            extract_member_usage_from_object_pat(pat).map_or(MemberUsage::All, MemberUsage::Members)
+        }
+        // `{ a: { b } = {} }`: the default only applies to `undefined`, the members read are the
+        // same.
+        Pat::Assign(assign) => member_usage_of_pat(&assign.left),
+        _ => MemberUsage::All,
+    }
 }
 
 /// Converts a js-value into a Pattern for matching resources.
