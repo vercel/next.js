@@ -61,6 +61,10 @@ import { MultiFileWriter } from '../lib/multi-file-writer'
 import { createRenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
 import { getExportPathPageKey } from './utils'
 import { installGlobalBehaviors } from '../server/node-environment-extensions/global-behaviors'
+import {
+  getStaticGenerationProfiler,
+  getStaticWorkerId,
+} from './static-generation-profile'
 ;(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,
 }
@@ -416,7 +420,11 @@ export async function exportPages(
     nextConfig,
     options,
     renderResumeDataCachesByPage = {},
+    phase = 'initial',
   } = input
+
+  const profiler = getStaticGenerationProfiler()
+  const profiledCall = profiler?.beginCall(distDir)
 
   installGlobalBehaviors(nextConfig)
 
@@ -444,6 +452,7 @@ export async function exportPages(
   })
 
   renderOpts.incrementalCache = incrementalCache
+  profiler?.instrumentIncrementalCache(incrementalCache)
 
   const maxConcurrency =
     nextConfig.experimental.staticGenerationMaxConcurrency ?? 8
@@ -461,6 +470,8 @@ export async function exportPages(
     const hasDebuggerAttached =
       // Also tests for `inspect-brk`
       process.env.NODE_OPTIONS?.includes('--inspect')
+
+    const profiledPage = profiler?.beginPage()
 
     const renderResumeDataCache = renderResumeDataCachesByPage[pageKey]
       ? createRenderResumeDataCache(
@@ -494,6 +505,7 @@ export async function exportPages(
             deploymentId: input.deploymentId,
             clientAssetToken: input.clientAssetToken,
             renderResumeDataCache,
+            phase,
             useScopedBuildArtifacts:
               Boolean(nextConfig.adapterPath) &&
               nextConfig.output !== 'export' &&
@@ -572,22 +584,30 @@ export async function exportPages(
       attempt++
     }
 
+    if (profiler && profiledPage) {
+      profiler.endPage(profiledPage, { phase, page, path, result })
+    }
+
     return { result, path, page, pageKey }
   }
 
-  for (let i = 0; i < exportPaths.length; i += maxConcurrency) {
-    const subset = exportPaths.slice(i, i + maxConcurrency)
+  try {
+    for (let i = 0; i < exportPaths.length; i += maxConcurrency) {
+      const subset = exportPaths.slice(i, i + maxConcurrency)
 
-    const subsetResults = await Promise.all(
-      subset.map((exportPath) =>
-        exportPageWithRetry(
-          exportPath,
-          nextConfig.experimental.staticGenerationRetryCount ?? 1
+      const subsetResults = await Promise.all(
+        subset.map((exportPath) =>
+          exportPageWithRetry(
+            exportPath,
+            nextConfig.experimental.staticGenerationRetryCount ?? 1
+          )
         )
       )
-    )
 
-    results.push(...subsetResults)
+      results.push(...subsetResults)
+    }
+  } finally {
+    profiledCall?.end(phase, exportPaths.length)
   }
 
   return results
@@ -611,7 +631,12 @@ async function exportPage(
     mkdir: (dir) => fs.mkdir(dir, { recursive: true }),
   })
 
-  const exportPageSpan = trace('export-page-worker', input.parentSpanId)
+  const exportPageSpan = trace('export-page-worker', input.parentSpanId, {
+    page: input.exportPath.page,
+    path: input.exportPath.path,
+    workerId: getStaticWorkerId(),
+    phase: input.phase ?? 'initial',
+  })
 
   const start = Date.now()
 
