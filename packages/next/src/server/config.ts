@@ -65,6 +65,7 @@ import { hrtimeBigIntDurationToString } from '../build/duration-to-string'
 
 export { normalizeConfig } from './config-shared'
 import { verifyDistDir } from '../lib/dist-dir'
+import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 export type { DomainLocale, NextConfig } from './config-shared'
 
 const REACT_18_DEPRECATION_WARNING =
@@ -549,6 +550,11 @@ function assignDefaultsAndValidate(
   }
   ;(result as NextConfigComplete).experimental.turbopackGcOptions =
     turbopackGcOptions
+
+  // Enable per-module minification by default on canary releases.
+  if (result.experimental.turbopackMinifyBeforeChunking === undefined) {
+    result.experimental.turbopackMinifyBeforeChunking = !isStableBuild()
+  }
 
   // Normalize experimental.browserDebugInfoInTerminal to logging.browserToTerminal
   if (
