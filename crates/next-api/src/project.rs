@@ -131,7 +131,7 @@ use crate::{
     path_utils::convention_file_base_name,
     route::{
         Endpoint, EndpointGroup, EndpointGroupEntry, EndpointGroupKey, EndpointGroups, Endpoints,
-        Route,
+        ModuleGraphs, Route,
     },
     versioned_content_map::VersionedContentMap,
 };
@@ -2799,9 +2799,12 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    /// `module_graphs` are the graphs the assets were compiled with. In development they're kept
+    /// for the import traces of the issues of HMR updates.
     pub async fn emit_all_output_assets(
         self: Vc<Self>,
         output_assets: OperationVc<OutputAssets>,
+        module_graphs: Option<ResolvedVc<ModuleGraphs>>,
     ) -> Result<()> {
         let span = tracing::info_span!("emitting");
         async move {
@@ -2813,6 +2816,7 @@ impl Project {
             if let Some(map) = self.await?.versioned_content_map {
                 map.insert_output_assets(
                     all_output_assets,
+                    module_graphs.map(|g| *g),
                     node_root.clone(),
                     client_relative_path.clone(),
                     node_root.clone(),
@@ -2946,6 +2950,50 @@ impl Project {
         } else {
             bail!("must be in dev mode to hmr")
         }
+    }
+
+    /// The graphs that the client HMR chunk `chunk_name` was compiled with, for the import traces
+    /// of the issues of its updates.
+    #[turbo_tasks::function]
+    pub async fn hmr_module_graphs(self: Vc<Self>, chunk_name: RcStr) -> Result<Vc<ModuleGraphs>> {
+        let Some(map) = self.await?.versioned_content_map else {
+            return Ok(Vc::cell(vec![]));
+        };
+        Ok(map.module_graphs(vec![self.client_relative_path().await?.join(&chunk_name)?]))
+    }
+
+    /// The graphs that the server HMR chunks of `entry_paths` were compiled with, for the import
+    /// traces of the issues of their snapshots.
+    #[turbo_tasks::function]
+    pub async fn server_hmr_module_graphs(
+        self: Vc<Self>,
+        entry_paths: Vec<RcStr>,
+    ) -> Result<Vc<ModuleGraphs>> {
+        let Some(map) = self.await?.versioned_content_map else {
+            return Ok(Vc::cell(vec![]));
+        };
+        let root = self.server_hmr_root_path().owned().await?;
+        let paths = self
+            .server_hmr_chunks_for_entries(entry_paths)
+            .await?
+            .as_slice()
+            .iter()
+            .map(|chunk_list| root.join(&chunk_list.relative_path))
+            .collect::<Result<_>>()?;
+        Ok(map.module_graphs(paths))
+    }
+
+    /// The whole-app graphs, for the import traces of the issues of the whole app (e.g. of a
+    /// build). Doesn't drop issues: it's only used for the graphs.
+    #[turbo_tasks::function]
+    pub async fn whole_app_module_graphs_for_import_traces(
+        self: Vc<Self>,
+    ) -> Result<Vc<ModuleGraphs>> {
+        Ok(Vc::cell(vec![
+            self.whole_app_module_graphs_without_dropping_issues()
+                .await?
+                .full,
+        ]))
     }
 
     /// Completion when server side changes are detected in output assets

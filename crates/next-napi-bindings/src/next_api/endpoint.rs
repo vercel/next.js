@@ -11,7 +11,7 @@ use next_api::{
     operation::OptionEndpoint,
     paths::AssetPath,
     route::{
-        Endpoint, EndpointOutputPaths, endpoint_client_changed_operation,
+        Endpoint, EndpointOutputPaths, ModuleGraphs, endpoint_client_changed_operation,
         endpoint_server_changed_operation, endpoint_write_to_disk_operation,
         read_with_validated_endpoint,
     },
@@ -143,6 +143,17 @@ async fn issue_filter_from_endpoint(
     }
 }
 
+/// The graphs that the endpoint was compiled with, for the import traces of its issues.
+#[turbo_tasks::function]
+async fn module_graphs_of_endpoint(
+    endpoint_op: OperationVc<OptionEndpoint>,
+) -> Result<Vc<ModuleGraphs>> {
+    Ok(match *endpoint_op.connect().await? {
+        Some(endpoint) => endpoint.module_graphs(),
+        None => Vc::cell(vec![]),
+    })
+}
+
 #[turbo_tasks::value(serialization = "skip")]
 struct WrittenEndpointWithIssues {
     written: Option<ReadRef<EndpointOutputPaths>>,
@@ -156,8 +167,12 @@ async fn get_written_endpoint_with_issues_operation(
 ) -> Result<Vc<WrittenEndpointWithIssues>> {
     let write_to_disk_op = endpoint_write_to_disk_operation(endpoint_op);
     let filter = issue_filter_from_endpoint(endpoint_op).await;
-    let (written, issues, effects) =
-        strongly_consistent_catch_collectables(write_to_disk_op, &filter).await?;
+    let (written, issues, effects) = strongly_consistent_catch_collectables(
+        write_to_disk_op,
+        &filter,
+        Some(module_graphs_of_endpoint(endpoint_op)),
+    )
+    .await?;
     Ok(WrittenEndpointWithIssues {
         written,
         issues,
@@ -273,8 +288,12 @@ async fn subscribe_issues_and_diags_operation(
     // When `should_include_issues` is false the caller doesn't need the Issue
     // payload, but we still need the catch path to avoid the FATAL.
     let filter = issue_filter_from_endpoint(endpoint_op).await;
-    let (changed_value, issues, effects) =
-        strongly_consistent_catch_collectables(changed_op, &filter).await?;
+    let (changed_value, issues, effects) = strongly_consistent_catch_collectables(
+        changed_op,
+        &filter,
+        Some(module_graphs_of_endpoint(endpoint_op)),
+    )
+    .await?;
     Ok(EndpointIssuesAndDiags {
         changed: changed_value,
         issues: if should_include_issues {
@@ -304,7 +323,12 @@ async fn endpoint_client_changed_with_issues_operation(
         return Ok(changed_op.connect());
     };
     let filter = issue_filter_from_endpoint(endpoint_op).await;
-    let issues = get_issues(changed_op, &filter).await?;
+    let issues = get_issues(
+        changed_op,
+        &filter,
+        Some(module_graphs_of_endpoint(endpoint_op)),
+    )
+    .await?;
     if issues.iter().any(|i| i.severity <= IssueSeverity::Error) {
         Ok(Completion::new())
     } else {
