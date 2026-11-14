@@ -1,0 +1,77 @@
+:root {
+  --fg: #16181d;
+  --muted: #5c6370;
+  --line: #e3e5e8;
+  --accent: #0b5fff;
+}
+
+body {
+  margin: 0;
+  color: var(--fg);
+  font:
+    16px/1.5 system-ui,
+    sans-serif;
+}
+
+main {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 4rem;
+}
+
+a {
+  color: var(--accent);
+}
+
+.site-header,
+.site-footer {
+  border-block: 1px solid var(--line);
+  padding: 1rem;
+}
+
+.menus,
+.menu-links,
+.gallery-thumbs,
+.breadcrumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 1rem;
+}
+
+.product-card,
+.article-teaser {
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+}
+
+.price .compare-at,
+.brand,
+small {
+  color: var(--muted);
+}
+
+.star.on {
+  color: #e8a400;
+}
+
+.docs {
+  display: grid;
+  grid-template-columns: 16rem 1fr;
+  gap: 2rem;
+}
+
+pre {
+  overflow-x: auto;
+  padding: 0.75rem;
+  background: #f5f6f8;
+}
