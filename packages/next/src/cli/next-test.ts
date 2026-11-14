@@ -3,7 +3,10 @@ import { getProjectDir } from '../lib/get-project-dir'
 import { warnMissingReactDependencies } from '../lib/warn-missing-react-dependencies'
 import { printAndExit } from '../server/lib/utils'
 import loadConfig from '../server/config'
-import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
+import {
+  PHASE_PRODUCTION_BUILD,
+  type SUPPORTED_TEST_RUNNERS_LIST,
+} from '../shared/lib/constants'
 import {
   hasNecessaryDependencies,
   type MissingDependency,
@@ -20,7 +23,6 @@ export interface NextTestOptions {
   testRunner?: string
 }
 
-export const SUPPORTED_TEST_RUNNERS_LIST = ['playwright'] as const
 export type SupportedTestRunners = (typeof SUPPORTED_TEST_RUNNERS_LIST)[number]
 
 const requiredPackagesByTestRunner: {
