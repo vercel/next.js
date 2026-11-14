@@ -175,7 +175,13 @@ export function createDefaultCacheHandler(maxSize: number): CacheHandler {
           return
         }
 
-        const value = await streamToBuffer(entry.value)
+        const pooled = await streamToBuffer(entry.value)
+        // Store an unpooled copy. Small buffers returned by `Buffer.concat` are
+        // slices of a shared pool slab, so retaining them in the LRU would pin
+        // the entire slab while only `byteLength` is counted towards
+        // `cacheMaxMemorySize`.
+        const value = Buffer.allocUnsafeSlow(pooled.byteLength)
+        pooled.copy(value)
         const { value: _, ...entryMetadata } = entry
 
         memoryCache.set(cacheKey, {
