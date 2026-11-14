@@ -113,15 +113,62 @@ type ResponseCookie = NonNullable<
   ReturnType<InstanceType<typeof ResponseCookies>['get']>
 >
 
+/**
+ * Sets the cookies of a request on a new `ResponseCookies`, with the result
+ * of calling `set` for each of them in order.
+ *
+ * `ResponseCookies.set` stores the cookie and then writes every cookie it
+ * holds to its headers again, so setting n cookies one after the other
+ * serializes n * (n + 1) / 2 of them, and only the last of those writes is
+ * left to see. Here all cookies but the last are stored the way `set` stores
+ * them, and the last one is set, which writes them all once.
+ */
+function setRequestCookies(
+  responseCookies: ResponseCookies,
+  requestCookies: ReturnType<RequestCookies['getAll']>
+): void {
+  const last = requestCookies.length - 1
+  // Where `ResponseCookies` keeps its cookies. If that is not the empty map
+  // of a new instance, every cookie is set the long way.
+  const stored: unknown = (responseCookies as { _parsed?: unknown })._parsed
+
+  if (last < 1 || !(stored instanceof Map) || stored.size !== 0) {
+    for (const cookie of requestCookies) {
+      responseCookies.set(cookie)
+    }
+    return
+  }
+
+  for (let i = 0; i < last; i++) {
+    const requestCookie = requestCookies[i]
+    // What `set` stores for a single argument:
+    // `normalizeCookie({ name, value, ...cookie })`.
+    const cookie: ResponseCookie = Object.assign(
+      { name: requestCookie.name, value: requestCookie.value },
+      requestCookie
+    )
+    if (typeof cookie.expires === 'number') {
+      cookie.expires = new Date(cookie.expires)
+    }
+    if (cookie.maxAge) {
+      cookie.expires = new Date(Date.now() + cookie.maxAge * 1000)
+    }
+    if (cookie.path === null || cookie.path === undefined) {
+      cookie.path = '/'
+    }
+    stored.set(requestCookie.name, cookie)
+  }
+
+  responseCookies.set(requestCookies[last])
+}
+
 export class MutableRequestCookiesAdapter {
   public static wrap(
     cookies: RequestCookies,
     onUpdateCookies?: (cookies: string[]) => void
   ): ResponseCookies {
     const responseCookies = new ResponseCookies(new Headers())
-    for (const cookie of cookies.getAll()) {
-      responseCookies.set(cookie)
-    }
+    setRequestCookies(responseCookies, cookies.getAll())
 
     let modifiedValues: ResponseCookie[] = []
     const modifiedCookies = new Set<string>()

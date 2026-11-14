@@ -160,3 +160,56 @@ describe('wrapWithMutableAccessCheck', () => {
     })
   })
 })
+
+describe('MutableRequestCookiesAdapter.wrap with the cookies of a request', () => {
+  // What `wrap` did before: `set` for every request cookie.
+  function setEach(cookies: RequestCookies): ResponseCookies {
+    const responseCookies = new ResponseCookies(new Headers())
+    for (const cookie of cookies.getAll()) {
+      responseCookies.set(cookie)
+    }
+    return responseCookies
+  }
+
+  it.each([
+    '',
+    'a=1',
+    'a=1; b=2',
+    'a=1; b=2; c=3; d=; e=x=y; f=%E2%9C%93; g; h="quoted"; a=4; i=%',
+  ])('leaves what setting each cookie leaves: %p', (cookie) => {
+    const expected = setEach(new RequestCookies(new Headers({ cookie })))
+    const wrapped = MutableRequestCookiesAdapter.wrap(
+      new RequestCookies(new Headers({ cookie }))
+    )
+
+    expect(wrapped.getAll()).toEqual(expected.getAll())
+    expect(wrapped.toString()).toEqual(expected.toString())
+    // The headers that `ResponseCookies` writes its cookies to.
+    expect((wrapped as any)._headers.getSetCookie()).toEqual(
+      (expected as any)._headers.getSetCookie()
+    )
+  })
+
+  // `wrap` puts all request cookies but the last into the map that
+  // `ResponseCookies` keeps its cookies in, an internal field, and falls back
+  // to `set` for every cookie when that field is not what it expects. These
+  // two tests fail when an update of `@edge-runtime/cookies` moves the field,
+  // so that the fallback cannot become the only path unnoticed.
+  it('sets only the last request cookie', () => {
+    const set = jest.spyOn(ResponseCookies.prototype, 'set')
+    try {
+      MutableRequestCookiesAdapter.wrap(
+        new RequestCookies(new Headers({ cookie: 'a=1; b=2; c=3; d=4' }))
+      )
+      expect(set).toHaveBeenCalledTimes(1)
+    } finally {
+      set.mockRestore()
+    }
+  })
+
+  it('finds the cookies of a new ResponseCookies in an empty map', () => {
+    expect((new ResponseCookies(new Headers()) as any)._parsed).toEqual(
+      new Map()
+    )
+  })
+})
