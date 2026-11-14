@@ -16,6 +16,7 @@ workspace = true
 anyhow = { workspace = true }
 crossbeam-utils = { version = "0.8.20" }
 crossbeam-channel = { workspace = true }
+flate2 = { workspace = true }
 parking_lot = { workspace = true }
 postcard = { workspace = true, features = ["alloc", "use-std"] }
 rustc-hash = { workspace = true }
@@ -25,3 +26,4 @@ thread_local = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
+zstd = { workspace = true }
