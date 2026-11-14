@@ -245,6 +245,43 @@ export function runSharedTests(type: 'app' | 'pages') {
       )
     })
 
+    it('normalizes newlines in submitted values like a native form does', async () => {
+      // The HTML form submission algorithm normalizes lone CR and lone LF to
+      // CRLF before url-encoding, so `<Form>` has to do the same.
+      // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#converting-an-entry-list-to-a-list-of-name-value-pairs
+      const expectedSearchParams = [
+        ['query', 'line1\r\nline2'],
+        ['cr', 'before\r\nafter'],
+      ]
+
+      const submitAndGetResult = async (submitButtonId: string) => {
+        const session = await next.browser(pathPrefix + '/forms/with-newlines')
+        // the values are only mis-encoded after hydration
+        await session.waitForElementByCss('#hydrated')
+
+        await (await session.elementById(submitButtonId)).click()
+
+        const result = await session
+          .waitForElementByCss('#search-results')
+          .text()
+        const url = new URL(await session.url())
+        return { result, url }
+      }
+
+      const native = await submitAndGetResult('submit-native-form')
+      expect([...native.url.searchParams]).toEqual(expectedSearchParams)
+      expect(native.url.search).toContain('%0D%0A')
+      expect(native.result).toBe('query: "line1\\r\\nline2"')
+
+      const nextForm = await submitAndGetResult('submit-next-form')
+      expect([...nextForm.url.searchParams]).toEqual(expectedSearchParams)
+      expect(nextForm.url.search).toContain('%0D%0A')
+      expect(nextForm.result).toBe('query: "line1\\r\\nline2"')
+
+      // `<Form>` should submit the exact same query as the native form
+      expect(nextForm.url.search).toBe(native.url.search)
+    })
+
     it('url-encodes file inputs, but warns about them', async () => {
       const session = await next.browser(pathPrefix + `/forms/with-file-input`)
 
