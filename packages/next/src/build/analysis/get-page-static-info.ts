@@ -820,6 +820,7 @@ export async function getPagesPageStaticInfo({
     if (!nextConfig.experimental?.goRoutes)
       throw new Error('proxy.go requires experimental.goRoutes: true')
     return {
+      // Root proxies use the non-App static-info shape, just like proxy.ts.
       type: PAGE_TYPES.PAGES,
       config: undefined,
       runtime: undefined,

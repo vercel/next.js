@@ -1152,8 +1152,8 @@ export async function handleBuildComplete({
               'Native proxy executable is outside server output'
             )
           }
-          for (const [destination, source] of Object.entries(assets)) {
-            if (source === filePath) delete assets[destination]
+          for (const destination in assets) {
+            if (assets[destination] === filePath) delete assets[destination]
           }
           sourcePage = '/' + descriptor.source.slice(0, -3)
         }
