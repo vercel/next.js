@@ -77,15 +77,18 @@ function handleError(error: unknown) {
   }
 }
 
-let origConsoleError = console.error
-function nextJsHandleConsoleError(...args: any[]) {
-  // See https://github.com/facebook/react/blob/d50323eb845c5fde0d720cae888bf35dedd05506/packages/react-reconciler/src/ReactFiberErrorLogger.js#L78
-  const maybeError = process.env.NODE_ENV !== 'production' ? args[1] : args[0]
-  storeHydrationErrorStateFromConsoleArgs(...args)
-  // TODO: Surfaces non-errors logged via `console.error`.
-  handleError(maybeError)
-  forwardErrorLog(args)
-  origConsoleError.apply(window.console, args)
+function getNextJsHandleConsoleErrorFunc() {
+  const origConsoleError = console.error
+
+  return function nextJsHandleConsoleError(...args: any[]) {
+    // See https://github.com/facebook/react/blob/d50323eb845c5fde0d720cae888bf35dedd05506/packages/react-reconciler/src/ReactFiberErrorLogger.js#L78
+    const maybeError = process.env.NODE_ENV !== 'production' ? args[1] : args[0]
+    storeHydrationErrorStateFromConsoleArgs(...args)
+    // TODO: Surfaces non-errors logged via `console.error`.
+    handleError(maybeError)
+    forwardErrorLog(args)
+    origConsoleError.apply(window.console, args)
+  }
 }
 
 function onUnhandledError(event: ErrorEvent) {
@@ -125,5 +128,5 @@ export function register() {
   initializeDebugLogForwarding('pages')
   window.addEventListener('error', onUnhandledError)
   window.addEventListener('unhandledrejection', onUnhandledRejection)
-  window.console.error = nextJsHandleConsoleError
+  window.console.error = getNextJsHandleConsoleErrorFunc()
 }
