@@ -359,6 +359,18 @@ describe('front-server process', () => {
       await expect(fs.stat(dir)).rejects.toThrow()
     })
 
+    // Review fixture for vercel/next.js#101747: fails today. Node keeps its TCP
+    // listener on 127.0.0.1 for its requests to itself and as the socket's
+    // fallback, so any local process can skip the front. Expected once Node
+    // checks a token from the front: refused.
+    it("refuses requests to Node's private port that skip the front", async () => {
+      const { child } = await startNext({ flag: '1' })
+      const [nodeAddress] = await listenAddressesOf(child.pid!)
+      const privatePort = Number(nodeAddress.split(':').pop())
+      const res = await fetch(`http://127.0.0.1:${privatePort}/`)
+      expect(res.status).toBe(403)
+    })
+
     it('exits 1 when next-front dies', async () => {
       const { child, exit } = await startNext({ flag: '1' })
       process.kill(await frontOf(child.pid!), 'SIGKILL')

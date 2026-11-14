@@ -1210,14 +1210,31 @@ jobs:
         export __NEXT_EXPERIMENTAL_FRONT_SERVER_BINARY="$RUNNER_TEMP/next-front"
         export __NEXT_EXPERIMENTAL_FRONT_SERVER=1
 
-        node scripts/test-routing.mjs --mode=start -g ${{ matrix.group }}
+        # Review fixtures (vercel/next.js#101743, #101747) are expected to
+        # fail, so every run below goes ahead and the job fails at the end.
+        failed=0
+
+        # The front's Go tests, the reactor's included (the runners are Linux).
+        if [ "${{ matrix.group }}" = "1/2" ]; then
+          go -C packages/next/src/server/front test ./... || failed=1
+        fi
+
+        node scripts/test-routing.mjs --mode=start -g ${{ matrix.group }} || failed=1
 
         if [ "${{ matrix.group }}" = "1/2" ]; then
           NEXT_TEST_MODE=start IS_TURBOPACK_TEST=1 TURBOPACK_BUILD=1 \
             node run-tests.js \
               test/production/app-dir/front-server/front-server.test.ts \
-              test/production/app-dir/front-server/front-server-process.test.ts
+              test/production/app-dir/front-server/front-server-process.test.ts || failed=1
+          # The same suites with the reactor on.
+          __NEXT_EXPERIMENTAL_FRONT_SERVER_REACTOR=1 \
+            NEXT_TEST_MODE=start IS_TURBOPACK_TEST=1 TURBOPACK_BUILD=1 \
+            node run-tests.js \
+              test/production/app-dir/front-server/front-server.test.ts \
+              test/production/app-dir/front-server/front-server-process.test.ts || failed=1
         fi
+
+        exit $failed
       stepName: 'test-front-server-prod-${{ matrix.group }}'
     secrets: inherit
 
