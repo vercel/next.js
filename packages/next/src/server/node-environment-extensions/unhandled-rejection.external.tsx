@@ -20,6 +20,10 @@
  */
 
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import {
+  isClientHookDynamicError,
+  isHangingPromiseRejectionError,
+} from '../dynamic-rendering-utils'
 
 const MODE:
   | 'enabled'
@@ -620,6 +624,16 @@ function filteringUnhandledRejectionHandler(
       default:
         workUnitStore satisfies never
     }
+  } else if (
+    isHangingPromiseRejectionError(reason) ||
+    isClientHookDynamicError(reason)
+  ) {
+    // Some runtimes (e.g. Bun) don't restore the AsyncLocalStorage context
+    // inside `unhandledRejection` listeners, so we can't tell whether this
+    // came from an aborted prerender. These errors are only used to reject
+    // hanging promises when their render signal aborts, so it is safe to
+    // suppress them without a store.
+    return
   }
 
   // Not from an aborted prerender, delegate to original handlers
