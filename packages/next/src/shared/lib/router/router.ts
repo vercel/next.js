@@ -43,10 +43,7 @@ import { omit } from './utils/omit'
 import { interpolateAs } from './utils/interpolate-as'
 import { disableSmoothScrollDuringRouteTransition } from './utils/disable-smooth-scroll'
 import type { Params } from '../../../server/request/params'
-import {
-  MATCHED_PATH_HEADER,
-  NEXT_NAV_DEPLOYMENT_ID_HEADER,
-} from '../../../lib/constants'
+import { MATCHED_PATH_HEADER, NEXT_NAV_DEPLOYMENT_ID_HEADER } from './constants'
 import { getDeploymentId } from '../deployment-id'
 import { isJavaScriptURLString } from '../../../client/lib/javascript-url'
 

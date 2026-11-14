@@ -25,6 +25,7 @@ describe('browser-chunks', () => {
   })
 
   let sources: string[] = []
+  let jsFiles: string[] = []
   let jsContents: string[] = []
   beforeAll(async () => {
     const chunksDir = join(next.testDir, '.next')
@@ -38,10 +39,9 @@ describe('browser-chunks', () => {
     )
     sources = sourcemaps.flatMap((sourcemap) => JSON.parse(sourcemap).sources)
 
+    jsFiles = chunks.filter((filename) => filename.endsWith('.js'))
     jsContents = await Promise.all(
-      chunks
-        .filter((filename) => filename.endsWith('.js'))
-        .map((f) => readFile(join(chunksDir, f), 'utf8'))
+      jsFiles.map((f) => readFile(join(chunksDir, f), 'utf8'))
     )
   })
 
@@ -62,6 +62,29 @@ describe('browser-chunks', () => {
     ).sort()
 
     expect(serverSources).toEqual([])
+  })
+
+  it('must not bundle the server and build constants into browser chunks', () => {
+    const constantsSources = Array.from(
+      new Set(
+        sources
+          .map(normalizeSource)
+          .filter((source) =>
+            /^(?:src|dist|dist\/esm)\/lib\/constants\.[jt]s$/.test(source)
+          )
+      )
+    ).sort()
+
+    expect(constantsSources).toMatchInlineSnapshot(`[]`)
+
+    // The list above is also empty when the source maps are missing or name
+    // their sources in another way. This header name is one of the constants
+    // that only the server uses, so no chunk may contain it either.
+    expect(
+      jsFiles.filter((_, i) =>
+        jsContents[i].includes('x-prerender-revalidate-if-generated')
+      )
+    ).toEqual([])
   })
 
   it('must not bundle any dev overlay into browser chunks', () => {
