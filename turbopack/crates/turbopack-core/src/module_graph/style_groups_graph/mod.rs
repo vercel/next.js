@@ -351,7 +351,7 @@ async fn collect_chunk_groups(
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<(Vec<Vec<usize>>, Vec<StyleModuleRef>)> {
-    let chunk_group_info = module_graph.chunk_group_info().await?;
+    let all_chunk_groups = module_graph.chunk_group_info().chunk_groups().await?;
     let batches_graph = module_graph
         .module_batches(chunking_context.batching_config())
         .await?;
@@ -364,8 +364,8 @@ async fn collect_chunk_groups(
     let mut next_css_id: usize = 0;
     let mut chunk_groups: Vec<Vec<usize>> = Vec::new();
 
-    for (i, chunk_group) in chunk_group_info.chunk_groups.iter().enumerate() {
-        let ordered_entries = batches_graph.get_ordered_entries(&chunk_group_info, i);
+    for (i, chunk_group) in all_chunk_groups.values().enumerate() {
+        let ordered_entries = batches_graph.get_ordered_entries(chunk_group, i)?;
         let mut entries = Vec::with_capacity(chunk_group.entries_count());
         for entry in ordered_entries {
             entries.push(batches_graph.get_entry_index(entry).await?);

@@ -2576,7 +2576,8 @@ pub mod tests {
     use turbo_bitset::Bitset;
     use turbo_rcstr::{RcStr, rcstr};
     use turbo_tasks::{
-        ReadRef, ResolvedVc, State, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+        FxIndexMap, ReadRef, ResolvedVc, State, TryFlatJoinIterExt, TryJoinIterExt, ValueToString,
+        Vc,
     };
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
     use turbo_tasks_fs::{FileSystem, FileSystemPath, VirtualFileSystem};
@@ -2591,7 +2592,7 @@ pub mod tests {
         module::{ActivatableModule, Module, ModuleSideEffects, Modules},
         module_graph::chunk_group_info::{
             AsyncLoaderRelevantChunkGroups, AsyncLoaderRelevantChunkGroupsMap, ChunkGroup,
-            ChunkGroupKey, EntryHeuristics,
+            ChunkGroupKey, EntryHeuristics, chunk_group_at,
         },
         reference::{ModuleReference, ModuleReferences},
         resolve::ModuleResolveResult,
@@ -4449,10 +4450,12 @@ pub mod tests {
             let names = &setup.module_to_name;
             let name = |m: &ResolvedVc<Box<dyn Module>>| names[m].to_string();
             let info = setup.chunk_group_info.clone();
+            let chunk_groups = info.chunk_groups.await?;
+            let chunking_heuristics = info.chunking_heuristics.await?;
 
             // Describe chunk groups by name, independent of their index.
             fn describe(
-                info: &ChunkGroupInfo,
+                info: &FxIndexMap<u32, ChunkGroup>,
                 index: usize,
                 names: &FxHashMap<ResolvedVc<Box<dyn Module>>, RcStr>,
             ) -> String {
@@ -4463,7 +4466,7 @@ pub mod tests {
                         .collect::<Vec<_>>()
                         .join(",")
                 };
-                match info.chunk_groups.get(index).unwrap() {
+                match chunk_group_at(info, index).unwrap() {
                     ChunkGroup::Entry(modules) => format!("entry {}", list(modules)),
                     ChunkGroup::Async(module) => format!("async {}", names[module]),
                     ChunkGroup::IsolatedMerged {
@@ -4486,7 +4489,7 @@ pub mod tests {
                 .map(|(module, groups)| {
                     let mut groups = groups
                         .iter()
-                        .map(|i| describe(&info, i as usize, names))
+                        .map(|i| describe(&chunk_groups, i as usize, names))
                         .collect::<Vec<_>>();
                     groups.sort();
                     (name(module), groups)
@@ -4519,12 +4522,12 @@ pub mod tests {
 
             // Heuristics: async groups inherit from the groups of the referencing module, merged
             // groups from their parent group.
-            let mut heuristics = (0..info.chunk_groups.len())
+            let mut heuristics = (0..chunk_groups.len())
                 .map(|i| {
                     (
-                        describe(&info, i, names),
-                        info.chunking_heuristics.clusters[i].clone(),
-                        info.chunking_heuristics.priority_routes.contains(i as u32),
+                        describe(&chunk_groups, i, names),
+                        chunking_heuristics.clusters[i].clone(),
+                        chunking_heuristics.priority_routes.contains(i as u32),
                     )
                 })
                 .collect::<Vec<_>>();
@@ -4585,6 +4588,16 @@ pub mod tests {
     /// `ChunkGroupEntry::Async` per name in `async_entries`.
     #[turbo_tasks::function(operation, root)]
     async fn async_availability_test_graph(
+        dependencies: Vec<(RcStr, Vec<RcStr>)>,
+        chunking_types: Vec<(RcStr, RcStr, RcStr)>,
+        entries: Vec<RcStr>,
+        async_entries: Vec<RcStr>,
+    ) -> Result<Vc<AsyncAvailabilityTestGraph>> {
+        build_async_availability_test_graph(dependencies, chunking_types, entries, async_entries)
+            .await
+    }
+
+    async fn build_async_availability_test_graph(
         dependencies: Vec<(RcStr, Vec<RcStr>)>,
         chunking_types: Vec<(RcStr, RcStr, RcStr)>,
         entries: Vec<RcStr>,
@@ -4736,10 +4749,11 @@ pub mod tests {
             .map(|(name, module)| (*module, name.clone()))
             .collect::<FxHashMap<_, _>>();
         let info = module_graph.chunk_group_info().await?;
+        let chunk_groups = info.chunk_groups.await?;
         let describe = |groups: &Bitset| {
             let mut groups = groups
                 .iter()
-                .map(|index| describe_chunk_group(&info, index as usize, &names))
+                .map(|index| describe_chunk_group(&chunk_groups, index as usize, &names))
                 .collect::<Vec<_>>();
             groups.sort();
             groups
@@ -4828,12 +4842,12 @@ pub mod tests {
     }
 
     fn describe_chunk_group(
-        info: &ChunkGroupInfo,
+        info: &FxIndexMap<u32, ChunkGroup>,
         index: usize,
         names: &FxHashMap<ResolvedVc<Box<dyn Module>>, RcStr>,
     ) -> String {
         let name = |module: &ResolvedVc<Box<dyn Module>>| names[module].to_string();
-        match &info.chunk_groups[index] {
+        match chunk_group_at(info, index).unwrap() {
             ChunkGroup::Entry(modules) => format!(
                 "entry {}",
                 modules.iter().map(name).collect::<Vec<_>>().join(",")
@@ -5485,6 +5499,142 @@ pub mod tests {
             assert!(b3.keeps_entry_group);
             assert_ne!(a2.execution, a3.execution);
             assert_eq!(b2.execution, b3.execution, "`b` must not be invalidated");
+            Ok(())
+        })
+        .await
+    }
+
+    /// `p1.js` loads `a.js` and `b.js` asynchronously. From step 2 on, `b.js` also loads
+    /// `extra.js` asynchronously, which adds a chunk group (and a module) to the graph without
+    /// changing anything about `a.js`.
+    #[turbo_tasks::function(operation, root)]
+    async fn changing_chunk_group_test_graph(
+        step: ResolvedVc<TestStep>,
+    ) -> Result<Vc<AsyncAvailabilityTestGraph>> {
+        let step = *step.await?.get();
+        let mut dependencies = vec![(rcstr!("p1.js"), vec![rcstr!("a.js"), rcstr!("b.js")])];
+        let mut chunking_types = vec![
+            (rcstr!("p1.js"), rcstr!("a.js"), rcstr!("async")),
+            (rcstr!("p1.js"), rcstr!("b.js"), rcstr!("async")),
+        ];
+        if step >= 2 {
+            dependencies.push((rcstr!("b.js"), vec![rcstr!("extra.js")]));
+            chunking_types.push((rcstr!("b.js"), rcstr!("extra.js"), rcstr!("async")));
+        }
+        build_async_availability_test_graph(
+            dependencies,
+            chunking_types,
+            vec![rcstr!("p1.js")],
+            vec![],
+        )
+        .await
+    }
+
+    #[turbo_tasks::value]
+    struct ChunkGroupReadsTestResult {
+        /// The chunk groups of `a.js`, by index.
+        groups_of_a: Vec<u32>,
+        /// The chunk groups that contain a loader of `a.js`, by index.
+        loader_groups_of_a: Vec<u32>,
+        /// The index of `a.js`'s async chunk group.
+        index_of_a: u32,
+    }
+
+    #[turbo_tasks::function(operation, root)]
+    async fn chunk_group_reads_test_operation(
+        module_graph: ResolvedVc<ModuleGraph>,
+        a: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<Vc<ChunkGroupReadsTestResult>> {
+        let chunk_group_info = module_graph.chunk_group_info();
+        let groups_of_a = chunk_group_info
+            .get_chunk_groups_for_module(*a)
+            .await?
+            .iter()
+            .map(|g| g.index)
+            .collect();
+        let loader_groups_of_a = chunk_group_info
+            .get_async_loader_ancestor_chunk_groups(*a)
+            .await?
+            .iter()
+            .map(|g| g.index)
+            .collect();
+        let index_of_a = chunk_group_info
+            .get_index_of(ChunkGroupKey::Async(a))
+            .await? as u32;
+        let chunk_group = chunk_group_info
+            .get_chunk_group(ChunkGroupKey::Async(a))
+            .await?;
+        assert!(matches!(chunk_group, ChunkGroup::Async(m) if m == a));
+        Ok(ChunkGroupReadsTestResult {
+            groups_of_a,
+            loader_groups_of_a,
+            index_of_a,
+        }
+        .cell())
+    }
+
+    fn task_executions(name: &str) -> u64 {
+        let stats =
+            serde_json::to_value(turbo_tasks::turbo_tasks().task_statistics().get()).unwrap();
+        stats
+            .as_object()
+            .unwrap()
+            .iter()
+            .filter(|(key, _)| key.ends_with(name))
+            .map(|(_, value)| value["executions"].as_u64().unwrap_or(0))
+            .sum()
+    }
+
+    /// Reading one chunk group's data doesn't depend on the whole `ChunkGroupInfo`: adding an
+    /// unrelated chunk group doesn't re-execute the per-module chunk group lookups of `a.js`.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_chunk_group_info_reads_are_narrow() {
+        run_turbo_test(async {
+            turbo_tasks::turbo_tasks().task_statistics().enable();
+            let step_op = test_step_operation();
+            let step_vc = step_op.resolve().strongly_consistent().await?;
+            let step = step_op.read_strongly_consistent().await?;
+            step.set(1);
+
+            let graph_op = changing_chunk_group_test_graph(step_vc);
+            let graph1 = graph_op.read_strongly_consistent().await?;
+            let module = |graph: &AsyncAvailabilityTestGraph, name: &str| {
+                *graph
+                    .modules
+                    .get(&RcStr::from(name))
+                    .unwrap_or_else(|| panic!("no module {name}"))
+            };
+            let a = module(&graph1, "a.js");
+            let reads = chunk_group_reads_test_operation(graph1.module_graph, a);
+            let read1 = reads.read_strongly_consistent().await?;
+            assert!(!read1.groups_of_a.is_empty());
+            assert!(!read1.loader_groups_of_a.is_empty());
+            let lookups1 = task_executions("ChunkGroupInfo::get_chunk_groups_for_module");
+            let loaders1 =
+                task_executions("ChunkGroupInfo::get_async_loader_ancestor_chunk_groups");
+            assert!(lookups1 >= 1 && loaders1 >= 1, "{lookups1} {loaders1}");
+
+            // Add a chunk group that has nothing to do with `a.js`.
+            step.set(2);
+            let graph2 = graph_op.read_strongly_consistent().await?;
+            assert!(graph2.modules.contains_key(&RcStr::from("extra.js")));
+            assert_eq!(graph2.module_graph, graph1.module_graph);
+            assert_eq!(module(&graph2, "a.js"), a);
+            let read2 = reads.read_strongly_consistent().await?;
+            // The premise: nothing about `a.js` changed.
+            assert_eq!(read2.groups_of_a, read1.groups_of_a);
+            assert_eq!(read2.loader_groups_of_a, read1.loader_groups_of_a);
+            assert_eq!(read2.index_of_a, read1.index_of_a);
+            assert_eq!(
+                task_executions("ChunkGroupInfo::get_chunk_groups_for_module"),
+                lookups1,
+                "the chunk groups of `a.js` must not be recomputed"
+            );
+            assert_eq!(
+                task_executions("ChunkGroupInfo::get_async_loader_ancestor_chunk_groups"),
+                loaders1,
+                "the loader chunk groups of `a.js` must not be recomputed"
+            );
             Ok(())
         })
         .await

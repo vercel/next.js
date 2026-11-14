@@ -515,7 +515,12 @@ impl ChunkingType {
 }
 
 /// The modules (soon to be chunk items) that were discovered after traversing a given chunk group.
-#[turbo_tasks::value(cell = "new")]
+///
+/// Compared on update, so a recomputation that finds the same content (e.g. after an unrelated
+/// module graph change) doesn't invalidate the chunking of the chunk group. The comparison is
+/// order-sensitive (see the manual [`PartialEq`]): the order of all collections is the order of
+/// the chunk items.
+#[turbo_tasks::value(eq = "manual")]
 pub struct ChunkGroupContentInner {
     /// Regular chunkable modules/module batches
     pub chunkable_items: Vec<ChunkableModuleOrBatch>,
@@ -528,6 +533,27 @@ pub struct ChunkGroupContentInner {
     #[bincode(with = "turbo_bincode::indexset")]
     pub collecting_modules: FxIndexSet<ResolvedVc<Box<dyn CollectingModule>>>,
 }
+
+/// Order-sensitive: `FxIndexSet`'s own `PartialEq` ignores the order, which would keep an old
+/// value with a different chunk item order.
+impl PartialEq for ChunkGroupContentInner {
+    fn eq(&self, other: &Self) -> bool {
+        let Self {
+            chunkable_items,
+            batch_groups,
+            async_modules,
+            collecting_modules,
+        } = self;
+        *chunkable_items == other.chunkable_items
+            && *batch_groups == other.batch_groups
+            && async_modules.iter().eq(other.async_modules.iter())
+            && collecting_modules
+                .iter()
+                .eq(other.collecting_modules.iter())
+    }
+}
+
+impl Eq for ChunkGroupContentInner {}
 
 pub struct ChunkGroupContent {
     pub inner: ReadRef<ChunkGroupContentInner>,
