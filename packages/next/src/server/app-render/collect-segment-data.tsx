@@ -137,6 +137,22 @@ const findSourceMapURL =
         .findSourceMapURLDEV
     : undefined
 
+// Every render in this module is stopped with `abort` once its output has been
+// collected, several times per page. Without an argument, each `abort()` call
+// constructs a new DOMException, with a stack trace, as the reason. Nothing
+// reads the reason of these aborts, so they all share one, of the same kind
+// that `abort()` would have created.
+let sharedAbortReason: DOMException | undefined
+function getAbortReason(): DOMException {
+  if (sharedAbortReason === undefined) {
+    sharedAbortReason = new DOMException(
+      'This operation was aborted',
+      'AbortError'
+    )
+  }
+  return sharedAbortReason
+}
+
 function onSegmentPrerenderError(error: unknown) {
   const digest = getDigestForWellKnownError(error)
   if (digest) {
@@ -254,7 +270,7 @@ export async function collectSegmentData(
     // serializing the stream takes longer than a microtask, it must because of
     // hanging promises caused by dynamic data.
     await waitAtLeastOneReactRenderTask()
-    abortController.abort()
+    abortController.abort(getAbortReason())
   }
 
   // Generate a stream for the route tree prefetch. While we're walking the
@@ -1428,7 +1444,7 @@ async function renderSegmentPrefetch(
   await waitAtLeastOneReactRenderTask()
 
   // We're done writing, so we can abort the stream.
-  abortController.abort()
+  abortController.abort(getAbortReason())
   return [responseKey, Buffer.concat(await chunksPromise)]
 }
 
