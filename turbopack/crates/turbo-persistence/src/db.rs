@@ -1699,7 +1699,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     // the bottom merge of their shard for later. The outputs of the intermediate
                     // merges are then written into a separate meta file that carries the used keys
                     // of those commits forward, so that a later bottom merge still knows them. It
-                    // holds only those outputs, so the used keys expire once they are merged.
+                    // holds only those outputs, so the used keys expire once they are merged. The
+                    // used keys are carried even if the meta file that recorded them stays alive,
+                    // as it can be retired later by a merge of other files, e.g. by the bottom
+                    // merge of another shard, while these outputs still need them.
                     let carried_used_key_hashes = {
                         let mut meta_indices = merge_jobs
                             .iter()
@@ -2228,7 +2231,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 }
                             }
                         }
-                        if let Some((carry_meta_seq, _)) = &carry_meta_file_builder {
+                        if let Some((carry_meta_seq, builder)) = &carry_meta_file_builder
+                            && !builder.is_empty()
+                        {
                             writeln!(
                                 log,
                                 "{family:3} | {meta_seq:08} | intermediate merge outputs carry \
