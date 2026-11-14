@@ -1,0 +1,73 @@
+@use '@carbon/react/scss/spacing' as *;
+@use '@carbon/react/scss/type' as *;
+@use '@carbon/react/scss/breakpoint' as *;
+@use '@carbon/react/scss/theme' as *;
+
+@use './mixins.scss' as *;
+@use './overrides.scss';
+
+.landing-page__illo {
+  max-width: 100%;
+}
+
+.landing-page__banner {
+  padding-top: $spacing-05;
+  padding-bottom: $spacing-07 * 4;
+  padding-left: $spacing-06;
+  @include landing-page-background;
+}
+
+.landing-page__heading {
+  @include type-style('productive-heading-05');
+}
+
+.landing-page__r2 {
+  margin-top: rem(-40px);
+}
+
+.tabs-group-content {
+  padding: $spacing-10 $spacing-06;
+}
+
+.landing-page__subheading {
+  @include type-style('productive-heading-03');
+
+  font-weight: 600;
+}
+
+.landing-page__p {
+  @include type-style('productive-heading-03');
+  margin-top: $spacing-06;
+  margin-bottom: $spacing-08;
+
+  @include breakpoint-between((320px + 1), md) {
+    max-width: 75%;
+  }
+}
+
+.landing-page__r3 {
+  padding-top: $spacing-09;
+  padding-bottom: $spacing-09;
+  padding-left: $spacing-06;
+  @include landing-page-background;
+}
+
+.landing-page__label {
+  @include type-style('heading-01');
+}
+
+.tabs-group {
+  background-color: $layer-01;
+}
+
+.landing-page__banner,
+.landing-page__r2,
+.landing-page__r3 {
+  margin-left: -20px;
+  margin-right: -20px;
+
+  @include breakpoint-down(md) {
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
