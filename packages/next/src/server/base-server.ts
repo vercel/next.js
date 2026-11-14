@@ -2516,7 +2516,11 @@ export default abstract class Server<
       // a redirect loop.
       !is404Page
     ) {
-      const headers = req.headers
+      // A middleware may have overridden the request headers. The client
+      // computed the search param from the values it sent, so verify the hash
+      // against those.
+      const headers =
+        getRequestMeta(req, 'cacheBustingSearchParamHeaders') ?? req.headers
 
       const prefetchHeaderValue = headers[NEXT_ROUTER_PREFETCH_HEADER]
       const routerPrefetch =
