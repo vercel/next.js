@@ -16,6 +16,19 @@ describe('app dir - dynamic css', () => {
     expect(preloadJsChunks.attr('fetchpriority')).toContain(`low`)
   })
 
+  it('should preload CSS of nested dynamic components during SSR', async () => {
+    const $ = await next.render$('/ssr/nested')
+    const cssLinks = $('link[rel="stylesheet"][data-precedence="dynamic"]')
+    const hrefs = cssLinks.toArray().map((el) => $(el).attr('href'))
+    // Both the outer dynamic component and the dynamic component nested
+    // inside of it must have their stylesheets linked in the server HTML,
+    // otherwise the nested component flashes unstyled (FOUC).
+    expect(hrefs).toHaveLength(2)
+    for (const href of hrefs) {
+      expect(href).toContain('.css')
+    }
+  })
+
   it('should only apply corresponding css for page loaded that /ssr', async () => {
     const browser = await next.browser('/ssr')
     await retry(async () => {
