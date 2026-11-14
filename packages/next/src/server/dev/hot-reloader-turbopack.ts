@@ -1,5 +1,5 @@
 import type { Socket } from 'net'
-import { mkdir, writeFile } from 'fs/promises'
+import { mkdir } from 'fs/promises'
 import { realpathSync } from 'fs'
 import * as inspector from 'inspector'
 import { join, extname, relative, isAbsolute, sep } from 'path'
@@ -1328,16 +1328,8 @@ export async function createHotReloaderTurbopack(
 
   await mkdir(join(distDir, 'server'), { recursive: true })
   await mkdir(join(distDir, 'static', buildId), { recursive: true })
-  await writeFile(
-    join(distDir, 'package.json'),
-    JSON.stringify(
-      {
-        type: 'commonjs',
-      },
-      null,
-      2
-    )
-  )
+  // The `package.json` of the distDir (ensuring commonjs handling) is written
+  // by Turbopack when creating the project.
 
   const middlewares = [
     getOverlayMiddleware({

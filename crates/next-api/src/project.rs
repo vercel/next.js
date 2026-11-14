@@ -1336,6 +1336,26 @@ impl Project {
             .cell())
     }
 
+    /// Writes the files in the node root (dist dir) that don't belong to any entrypoint:
+    /// - `turbopack`: an empty marker file signaling that the output was produced by Turbopack.
+    /// - `package.json`: ensures CommonJS handling of the files in the dist dir, even when the
+    ///   project's `package.json` has `"type": "module"`.
+    ///
+    /// The writes are emitted as effects, which need to be applied by the caller.
+    #[turbo_tasks::function]
+    pub async fn write_dist_dir_files(self: Vc<Self>) -> Result<Vc<()>> {
+        let node_root = self.node_root().await?;
+        let marker = node_root
+            .join("turbopack")?
+            .write(FileContent::Content(File::from(rcstr!(""))).cell());
+        let package_json = node_root
+            .join("package.json")?
+            .write(FileContent::Content(File::from(rcstr!(r#"{"type": "commonjs"}"#))).cell());
+        marker.await?;
+        package_json.await?;
+        Ok(Vc::cell(()))
+    }
+
     #[turbo_tasks::function]
     pub fn client_root(self: Vc<Self>) -> Vc<FileSystemPath> {
         self.client_fs().root()
