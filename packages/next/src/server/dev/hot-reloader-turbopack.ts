@@ -258,15 +258,74 @@ function setupServerHmr(
   // Each pull snapshots only the requested endpoint's entries. Keep independent
   // baselines so building one route does not discard another route's version.
   const versions = new Map<string, ServerHmrVersion>()
+  // The entries pulled since the last full re-evaluation, by version key. Their
+  // modules may be in the shared server runtime's module cache.
+  const pulledEntryPaths = new Map<string, string[]>()
   let needsReEvaluation = false
 
   async function recover() {
     try {
       await reEvaluateAllModulesExpensive()
       versions.clear()
+      pulledEntryPaths.clear()
       needsReEvaluation = false
     } catch (error) {
       console.error('[Server HMR] Re-evaluating modules failed:', error)
+    }
+  }
+
+  /**
+   * Pulls the update for one entry since its baseline and applies it to the
+   * server runtime. Returns `false` when the update could not be applied and
+   * all modules need to be re-evaluated.
+   */
+  async function pull(versionKey: string, entryPaths: string[]) {
+    // `issues` is intentionally dropped: this pull scans project-wide chunk
+    // lists, so its issues may belong to an unrelated or removed route, and
+    // endpoint writes already report route-scoped issues.
+    const { value: update } = await project.getServerHmrUpdate(
+      versions.get(versionKey),
+      entryPaths
+    )
+    if (update.version) {
+      versions.set(versionKey, update.version)
+    }
+    switch (update.kind) {
+      case 'none':
+        return true
+      case 'partial': {
+        const handlers = globalThis.__turbopack_server_hmr_handlers__
+        if (!handlers || handlers.size === 0) return true
+
+        const payload: NodeJsPartialHmrUpdate = {
+          type: 'partial',
+          instruction: update.instruction,
+        }
+        if (typeof __turbopack_server_hmr_apply__ === 'function') {
+          try {
+            __turbopack_server_hmr_apply__(payload)
+            mirrorModuleStateToDevValidationWorker({
+              type: 'apply',
+              update: payload,
+            })
+
+            const updatedChunkPaths = collectUpdatedChunkPaths(
+              update.instruction
+            )
+            if (updatedChunkPaths.length > 0) {
+              await onApplied(updatedChunkPaths)
+            }
+            return true
+          } catch {}
+        }
+        return false
+      }
+      case 'restart':
+        return false
+      default:
+        throw new Error(
+          `Unknown server HMR update kind: ${(update as { kind: string }).kind}`
+        )
     }
   }
 
@@ -279,52 +338,23 @@ function setupServerHmr(
 
       try {
         const versionKey = [...entryPaths].sort().join('\0')
-        // `issues` is intentionally dropped: this pull scans project-wide chunk
-        // lists, so its issues may belong to an unrelated or removed route, and
-        // endpoint writes already report route-scoped issues.
-        const { value: update } = await project.getServerHmrUpdate(
-          versions.get(versionKey),
-          entryPaths
-        )
-        if (update.version) {
-          versions.set(versionKey, update.version)
-        }
-        switch (update.kind) {
-          case 'none':
-            return
-          case 'partial': {
-            const handlers = globalThis.__turbopack_server_hmr_handlers__
-            if (!handlers || handlers.size === 0) return
-
-            const payload: NodeJsPartialHmrUpdate = {
-              type: 'partial',
-              instruction: update.instruction,
-            }
-            if (typeof __turbopack_server_hmr_apply__ === 'function') {
-              try {
-                __turbopack_server_hmr_apply__(payload)
-                mirrorModuleStateToDevValidationWorker({
-                  type: 'apply',
-                  update: payload,
-                })
-
-                const updatedChunkPaths = collectUpdatedChunkPaths(
-                  update.instruction
-                )
-                if (updatedChunkPaths.length > 0) {
-                  await onApplied(updatedChunkPaths)
-                }
-                return
-              } catch {}
-            }
-            break
+        let applied = true
+        if (!pulledEntryPaths.has(versionKey)) {
+          // The first pull of an entry only records its baseline, and its
+          // chunks install module factories only for modules the runtime does
+          // not know yet. Modules it shares with entries pulled before are
+          // reused from the module cache, so bring those entries up to date
+          // first. Otherwise, the new entry runs a module's pre-edit code,
+          // e.g. without an export that was added since. This evaluates their
+          // changed modules now instead of on their next request.
+          for (const [otherKey, otherEntryPaths] of pulledEntryPaths) {
+            applied = await pull(otherKey, otherEntryPaths)
+            if (!applied) break
           }
-          case 'restart':
-            break
-          default:
-            throw new Error(
-              `Unknown server HMR update kind: ${(update as { kind: string }).kind}`
-            )
+          pulledEntryPaths.set(versionKey, entryPaths)
+        }
+        if (applied && (await pull(versionKey, entryPaths))) {
+          return
         }
       } catch (error) {
         console.error(
@@ -343,6 +373,7 @@ function setupServerHmr(
   function reset(): Promise<void> {
     const resetState = () => {
       versions.clear()
+      pulledEntryPaths.clear()
       needsReEvaluation = false
     }
     const resetPromise = pending.then(resetState, resetState)
@@ -2284,8 +2315,10 @@ export async function createHotReloaderTurbopack(
               },
             })
 
-            // The only server HMR pull, driven by the request being built — which
-            // is what makes evaluating a changed module lazy.
+            // Server HMR pulls are driven by the request being built — which is
+            // what makes evaluating a changed module lazy. The first request of
+            // an entry also pulls the entries requested before it, see
+            // `setupServerHmr`.
             if (shouldPullServerHmr && serverHmrEntryPaths.length > 0) {
               await serverHmr?.apply(serverHmrEntryPaths)
             }
