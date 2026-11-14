@@ -86,6 +86,8 @@ pub struct WriteBatch<'db, K: StoreKey + Send, S: ParallelScheduler, const FAMIL
     family_configs: [FamilyConfig; FAMILIES],
     /// The shards of each family. SST files are split at shard boundaries.
     shard_bits: [ShardBits; FAMILIES],
+    /// The flags of the SST files written by this batch, see [`WriteBatch::new`].
+    sst_flags: MetaEntryFlags,
     /// The current sequence number counter. Increased for every new SST file or blob file.
     current_sequence_number: AtomicU32,
     /// The thread local state.
@@ -102,6 +104,14 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
     WriteBatch<'db, K, S, FAMILIES>
 {
     /// Creates a new write batch for a database with per-family configuration.
+    ///
+    /// `into_empty_db` is set when the database has no SST files. Then the SST files of this batch
+    /// are the first ones of their shards, so they become the bottom run right away instead of
+    /// fresh files for compaction to merge into one. They come from one batch and don't shadow
+    /// each other (except when a key is written twice, where the newer sequence number wins as
+    /// for any other files), so merging them would rewrite all data of the database without
+    /// dropping anything. They are flagged `unsplit`, so that compaction still copies the entries
+    /// read later into hot files, which a bottom merge would have done.
     pub(crate) fn new(
         write_guard: WriteOperationGuard<'db>,
         path: PathBuf,
@@ -109,6 +119,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         parallel_scheduler: S,
         family_configs: [FamilyConfig; FAMILIES],
         shard_bits: [ShardBits; FAMILIES],
+        into_empty_db: bool,
     ) -> Self {
         const {
             assert!(FAMILIES <= usize_from_u32(u32::MAX));
@@ -119,6 +130,12 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
             db_path: path,
             family_configs,
             shard_bits,
+            // Nothing was read yet: the hot entries are found by a later promotion.
+            sst_flags: if into_empty_db {
+                MetaEntryFlags::UNSPLIT_COLD_BOTTOM
+            } else {
+                MetaEntryFlags::FRESH
+            },
             current_sequence_number: AtomicU32::new(current),
             thread_locals: ThreadLocal::new(),
             collectors: [(); FAMILIES]
@@ -557,7 +574,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         let (meta, file) = write_static_stored_file(
             entries,
             &path,
-            MetaEntryFlags::FRESH,
+            self.sst_flags,
             self.family_configs[usize_from_u32(family)].compression,
         )
         .with_context(|| format!("Unable to write SST file {seq:08}.sst"))?;

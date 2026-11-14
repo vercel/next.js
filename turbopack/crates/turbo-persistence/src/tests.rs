@@ -3265,9 +3265,11 @@ fn shard_count_changes_with_hysteresis(#[case] mmap: bool) -> Result<()> {
 #[case(false)]
 fn initial_shard_bits_are_a_starting_value(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
-    let mut config = config_with_mmap::<1>(mmap);
+    let mut config = config_with_mmap::<2>(mmap);
     config.family_configs[0].initial_shard_bits = crate::shard::ShardBits::new(2);
-    let db = open_db_with_config::<1>(tempdir.path(), config)?;
+    let db = open_db_with_config::<2>(tempdir.path(), config)?;
+    // Family 0 gets no bottom run from the first commit into the empty database.
+    commit_to_other_family(&db)?;
     let commit = || -> Result<()> {
         let batch = db.write_batch()?;
         for key in 0..1000u32 {
@@ -3276,8 +3278,7 @@ fn initial_shard_bits_are_a_starting_value(#[case] mmap: bool) -> Result<()> {
         db.commit_write_batch(batch)?;
         Ok(())
     };
-    // `meta_info` lists the newest meta file first.
-    let newest_shard_bits = || -> Result<u8> { Ok(db.meta_info()?.first().unwrap().shard_bits) };
+    let newest_shard_bits = || -> Result<u8> { newest_family_0_shard_bits(&db) };
     // The first commit has nothing to size the shards by, so it uses the initial count.
     commit()?;
     assert_eq!(newest_shard_bits()?, 2);
@@ -3287,10 +3288,8 @@ fn initial_shard_bits_are_a_starting_value(#[case] mmap: bool) -> Result<()> {
     assert_eq!(newest_shard_bits()?, 2);
     // The first bottom merges are split at the initial count.
     db.full_compact()?;
-    let bottom_files = db
-        .meta_info()?
+    let bottom_files = family_0_entries(&db)?
         .iter()
-        .flat_map(|meta| &meta.entries)
         .filter(|entry| entry.flags.bottom())
         .count();
     assert_eq!(bottom_files, 4);
@@ -3310,10 +3309,12 @@ fn initial_shard_bits_are_a_starting_value(#[case] mmap: bool) -> Result<()> {
 #[case(false)]
 fn first_bottom_merges_split_at_the_size_of_all_files(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
-    let mut config = config_with_mmap::<1>(mmap);
+    let mut config = config_with_mmap::<2>(mmap);
     // Far less than the data, so the family needs several shards.
     config.target_shard_size = 64 * 1024;
-    let db = open_db_with_config::<1>(tempdir.path(), config)?;
+    let db = open_db_with_config::<2>(tempdir.path(), config)?;
+    // Family 0 gets no bottom run from the first commit into the empty database.
+    commit_to_other_family(&db)?;
     const KEYS: u32 = 20_000;
     let batch = db.write_batch()?;
     for key in 0..KEYS {
@@ -3323,13 +3324,10 @@ fn first_bottom_merges_split_at_the_size_of_all_files(#[case] mmap: bool) -> Res
     // The commit used the initial single shard. There is no bottom run yet, so the compaction
     // sizes the shards by all files and its bottom merges already split at the grown count.
     db.full_compact()?;
-    let metas = db.meta_info()?;
-    // `meta_info` lists the newest meta file first.
-    let shard_bits = crate::shard::ShardBits::new(metas.first().unwrap().shard_bits);
+    let shard_bits = crate::shard::ShardBits::new(newest_family_0_shard_bits(&db)?);
     assert!(shard_bits.count() > 1, "{} shards", shard_bits.count());
-    let bottom = metas
-        .iter()
-        .flat_map(|meta| &meta.entries)
+    let bottom = family_0_entries(&db)?
+        .into_iter()
         .filter(|entry| entry.flags.bottom())
         .collect::<Vec<_>>();
     assert_eq!(bottom.len(), shard_bits.count() as usize);
@@ -3344,6 +3342,41 @@ fn first_bottom_merges_split_at_the_size_of_all_files(#[case] mmap: bool) -> Res
         assert!(db.get(0, &key.to_be_bytes())?.is_some());
     }
     Ok(())
+}
+
+/// Commits a key to family 1, so that the database isn't empty anymore and the next commit to
+/// family 0 writes fresh files instead of its bottom run.
+#[cfg(not(miri))]
+fn commit_to_other_family(db: &TurboPersistence<RayonParallelScheduler, 2>) -> Result<()> {
+    let batch = db.write_batch()?;
+    batch.put(1, vec![0], vec![0].into())?;
+    db.commit_write_batch(batch)?;
+    Ok(())
+}
+
+/// The shard bits of the newest meta file of family 0.
+#[cfg(not(miri))]
+fn newest_family_0_shard_bits(db: &TurboPersistence<RayonParallelScheduler, 2>) -> Result<u8> {
+    // `meta_info` lists the newest meta file of each family first.
+    Ok(db
+        .meta_info()?
+        .into_iter()
+        .find(|meta| meta.family == 0)
+        .unwrap()
+        .shard_bits)
+}
+
+/// The SST files of family 0.
+#[cfg(not(miri))]
+fn family_0_entries(
+    db: &TurboPersistence<RayonParallelScheduler, 2>,
+) -> Result<Vec<crate::MetaFileEntryInfo>> {
+    Ok(db
+        .meta_info()?
+        .into_iter()
+        .filter(|meta| meta.family == 0)
+        .flat_map(|meta| meta.entries)
+        .collect())
 }
 
 // Writes 2M keys to fill the collectors several times, which is too slow under Miri.
@@ -3610,5 +3643,818 @@ fn batch_get_callback_error_propagates(#[case] mmap: bool) -> Result<()> {
         }
     }
     db.shutdown();
+    Ok(())
+}
+
+/// Writes `keys` keys in `chunks` collector flushes into one write batch, so that every shard
+/// gets one SST file per chunk and the files of a shard overlap.
+#[cfg(not(miri))]
+fn put_overlapping_chunks(
+    db: &TurboPersistence<RayonParallelScheduler, 1>,
+    keys: u32,
+    chunks: u32,
+    generation: u8,
+) -> Result<()> {
+    let batch = db.write_batch()?;
+    for chunk in 0..chunks {
+        for key in (chunk..keys).step_by(chunks as usize) {
+            batch.put(0, key.to_be_bytes().to_vec(), vec![generation; 16].into())?;
+        }
+        // Safety: no concurrent puts.
+        unsafe { batch.flush(0)? };
+    }
+    db.commit_write_batch(batch)?;
+    Ok(())
+}
+
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn first_commit_into_empty_db_is_the_bottom_run(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let mut config = config_with_mmap::<1>(mmap);
+    config.family_configs[0].initial_shard_bits = crate::shard::ShardBits::new(1);
+    const KEYS: u32 = 4_000;
+    let db = open_db_with_config::<1>(path, config.clone())?;
+    put_overlapping_chunks(&db, KEYS, 3, 1)?;
+    let entries = |db: &TurboPersistence<RayonParallelScheduler, 1>| -> Result<Vec<_>> {
+        Ok(db
+            .meta_info()?
+            .into_iter()
+            .flat_map(|meta| meta.entries)
+            .map(|entry| {
+                (
+                    entry.sequence_number,
+                    entry.flags.bottom(),
+                    entry.flags.fresh(),
+                )
+            })
+            .collect())
+    };
+    let written = entries(&db)?;
+    // 3 overlapping files in each of the 2 shards.
+    assert_eq!(written.len(), 6);
+    assert!(
+        written.iter().all(|&(_, bottom, fresh)| bottom && !fresh),
+        "{written:?}"
+    );
+    assert_eq!(unsplit_count(&db)?, 6);
+    // Nothing to merge. The first compaction is a promotion, which only clears the `unsplit` flags
+    // since nothing was read, and keeps the files.
+    let stats = db.compact(&CompactConfig::default())?.unwrap();
+    // Only the retired meta file of the commit is deleted.
+    assert!(stats.bytes_deleted < 64 * 1024, "{stats}");
+    assert_eq!(unsplit_count(&db)?, 0);
+    assert!(db.compact(&CompactConfig::default())?.is_none());
+    assert!(db.compact(&CompactConfig::full())?.is_none());
+    assert_eq!(entries(&db)?, written);
+    for key in 0..KEYS {
+        assert_eq!(&*db.get(0, &key.to_be_bytes())?.unwrap(), &[1; 16]);
+    }
+    db.shutdown();
+    drop(db);
+    // The flags are persisted.
+    let db = open_db_with_config::<1>(path, config)?;
+    assert_eq!(entries(&db)?, written);
+    let keys = (0..KEYS).map(|key| key.to_be_bytes()).collect::<Vec<_>>();
+    for value in batch_get_vec(&db, 0, &keys)? {
+        assert_eq!(&*value.unwrap(), &[1; 16]);
+    }
+    Ok(())
+}
+
+/// The `(bottom, fresh)` flags of every SST file of the newest meta file.
+#[cfg(not(miri))]
+fn newest_commit_flags<const F: usize>(
+    db: &TurboPersistence<RayonParallelScheduler, F>,
+) -> Result<Vec<(bool, bool)>> {
+    let metas = db.meta_info()?;
+    let newest = metas.iter().map(|meta| meta.sequence_number).max().unwrap();
+    Ok(metas
+        .into_iter()
+        .filter(|meta| meta.sequence_number == newest)
+        .flat_map(|meta| meta.entries)
+        .map(|entry| (entry.flags.bottom(), entry.flags.fresh()))
+        .collect())
+}
+
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn first_commit_bottom_run_newest_duplicate_wins_and_tombstones(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let blob = vec![7u8; MAX_MEDIUM_VALUE_SIZE + 1];
+    let check = |db: &TurboPersistence<RayonParallelScheduler, 1>| -> Result<()> {
+        // Written in both overlapping files of the first commit: the newer one wins.
+        assert_eq!(&*db.get(0, &1u32.to_be_bytes())?.unwrap(), &[2]);
+        // Deleted by the first commit and never written.
+        assert!(db.get(0, &2u32.to_be_bytes())?.is_none());
+        // Deleted by the first commit and written by the second.
+        assert_eq!(&*db.get(0, &3u32.to_be_bytes())?.unwrap(), &[3]);
+        assert_eq!(&*db.get(0, &4u32.to_be_bytes())?.unwrap(), &blob[..]);
+        let keys = [1u32, 2, 3, 4].map(u32::to_be_bytes);
+        let values = batch_get_vec(db, 0, &keys)?;
+        assert_eq!(values[0].as_deref(), Some(&[2u8][..]));
+        assert!(values[1].is_none());
+        assert_eq!(values[2].as_deref(), Some(&[3u8][..]));
+        assert_eq!(values[3].as_deref(), Some(&blob[..]));
+        Ok(())
+    };
+    {
+        let db = open_db::<1>(path, mmap)?;
+        let batch = db.write_batch()?;
+        batch.put(0, 1u32.to_be_bytes().to_vec(), vec![1].into())?;
+        batch.put(0, 4u32.to_be_bytes().to_vec(), blob.clone().into())?;
+        // Safety: no concurrent puts.
+        unsafe { batch.flush(0)? };
+        batch.put(0, 1u32.to_be_bytes().to_vec(), vec![2].into())?;
+        batch.delete(0, 2u32.to_be_bytes().to_vec())?;
+        batch.delete(0, 3u32.to_be_bytes().to_vec())?;
+        db.commit_write_batch(batch)?;
+        assert_eq!(newest_commit_flags(&db)?, [(true, false); 2]);
+
+        let batch = db.write_batch()?;
+        batch.put(0, 3u32.to_be_bytes().to_vec(), vec![3].into())?;
+        db.commit_write_batch(batch)?;
+        assert_eq!(newest_commit_flags(&db)?, [(false, true)]);
+        check(&db)?;
+        db.shutdown();
+    }
+    let db = open_db::<1>(path, mmap)?;
+    check(&db)?;
+    db.full_compact()?;
+    check(&db)?;
+    // Only the newest version of each key is left, and no tombstones.
+    assert_eq!(count_tombstones(path, &db)?, 0);
+    Ok(())
+}
+
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn commits_after_the_first_are_fresh_and_compact_normally(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let mut config = config_with_mmap::<1>(mmap);
+    config.family_configs[0].initial_shard_bits = crate::shard::ShardBits::new(1);
+    const KEYS: u32 = 4_000;
+    let compact_config = CompactConfig {
+        min_bottom_merge_bytes: 0,
+        max_files_above_bottom: 2,
+        // Intermediate merges take all files above the bottom run.
+        size_ratio_percent: u16::MAX,
+        ..Default::default()
+    };
+    // The newest generation written for each key, `None` if deleted.
+    let mut expected = vec![Some(1u8); KEYS as usize];
+    let check =
+        |db: &TurboPersistence<RayonParallelScheduler, 1>, expected: &[Option<u8>]| -> Result<()> {
+            for (key, generation) in expected.iter().enumerate() {
+                let value = db.get(0, &(key as u32).to_be_bytes())?;
+                assert_eq!(
+                    value.as_deref(),
+                    generation.map(|g| [g; 16]).as_ref().map(|v| &v[..]),
+                    "key {key}"
+                );
+            }
+            Ok(())
+        };
+    let commit = |db: &TurboPersistence<RayonParallelScheduler, 1>,
+                  expected: &mut [Option<u8>],
+                  keys: std::ops::Range<u32>,
+                  generation: Option<u8>|
+     -> Result<()> {
+        let batch = db.write_batch()?;
+        for key in keys {
+            match generation {
+                Some(generation) => {
+                    batch.put(0, key.to_be_bytes().to_vec(), vec![generation; 16].into())?
+                }
+                None => batch.delete(0, key.to_be_bytes().to_vec())?,
+            }
+            expected[key as usize] = generation;
+        }
+        db.commit_write_batch(batch)?;
+        assert!(
+            newest_commit_flags(db)?
+                .iter()
+                .all(|&(bottom, fresh)| !bottom && fresh)
+        );
+        Ok(())
+    };
+    let flag_counts =
+        |db: &TurboPersistence<RayonParallelScheduler, 1>| -> Result<(usize, usize, usize)> {
+            let entries = db
+                .meta_info()?
+                .into_iter()
+                .flat_map(|meta| meta.entries)
+                .collect::<Vec<_>>();
+            Ok((
+                entries.iter().filter(|e| e.flags.bottom()).count(),
+                entries.iter().filter(|e| e.flags.fresh()).count(),
+                entries
+                    .iter()
+                    .filter(|e| !e.flags.bottom() && !e.flags.fresh())
+                    .count(),
+            ))
+        };
+
+    let db = open_db_with_config::<1>(path, config.clone())?;
+    put_overlapping_chunks(&db, KEYS, 3, 1)?;
+    // Small commits, below the space amplification limit.
+    commit(&db, &mut expected, 0..300, Some(2))?;
+    commit(&db, &mut expected, 300..400, None)?;
+    // A promotion, which keeps all files, and then nothing to do.
+    promote_keeping_files(&db, path, &compact_config)?;
+    assert_eq!(unsplit_count(&db)?, 0);
+    assert!(db.compact(&compact_config)?.is_none());
+    check(&db, &expected)?;
+    // A third file above the bottom run of each shard: an intermediate merge, which keeps the
+    // bottom run.
+    commit(&db, &mut expected, 400..500, Some(3))?;
+    let (bottom_before, _, _) = flag_counts(&db)?;
+    assert!(db.compact(&compact_config)?.is_some());
+    let (bottom, fresh, compacted) = flag_counts(&db)?;
+    assert_eq!(bottom, bottom_before);
+    assert_eq!(fresh, 0);
+    assert!(compacted > 0);
+    check(&db, &expected)?;
+    // Overwriting most keys exceeds the space amplification limit: a bottom merge.
+    commit(&db, &mut expected, 0..3_000, Some(4))?;
+    assert!(db.compact(&compact_config)?.is_some());
+    let (bottom, fresh, compacted) = flag_counts(&db)?;
+    assert!(bottom > 0);
+    assert_eq!((fresh, compacted), (0, 0));
+    check(&db, &expected)?;
+    db.shutdown();
+    drop(db);
+    let db = open_db_with_config::<1>(path, config)?;
+    check(&db, &expected)?;
+    Ok(())
+}
+
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn multi_value_first_commit_is_the_bottom_run(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let sorted_values =
+        |db: &TurboPersistence<RayonParallelScheduler, 1>, key: u8| -> Result<Vec<u8>> {
+            let mut values = db
+                .get_multiple(0, &[key].as_slice())?
+                .iter()
+                .map(|value| value[0])
+                .collect::<Vec<_>>();
+            values.sort_unstable();
+            Ok(values)
+        };
+    {
+        let db = open_multi_value_db(path, mmap)?;
+        // The values of each key are spread over three overlapping files.
+        let batch = db.write_batch()?;
+        for value in [1u8, 2, 3] {
+            for key in [10u8, 11] {
+                batch.put(0, vec![key], vec![value].into())?;
+            }
+            // Safety: no concurrent puts.
+            unsafe { batch.flush(0)? };
+        }
+        db.commit_write_batch(batch)?;
+        assert_eq!(newest_commit_flags(&db)?, [(true, false); 3]);
+        assert_eq!(sorted_values(&db, 10)?, [1, 2, 3]);
+
+        let batch = db.write_batch()?;
+        batch.delete_value(0, vec![10], vec![2].into())?;
+        batch.delete(0, vec![11])?;
+        db.commit_write_batch(batch)?;
+        assert_eq!(sorted_values(&db, 10)?, [1, 3]);
+        assert_eq!(sorted_values(&db, 11)?, [0u8; 0]);
+        db.shutdown();
+    }
+    let db = open_multi_value_db(path, mmap)?;
+    assert_eq!(sorted_values(&db, 10)?, [1, 3]);
+    db.full_compact()?;
+    assert_eq!(sorted_values(&db, 10)?, [1, 3]);
+    assert_eq!(sorted_values(&db, 11)?, [0u8; 0]);
+    Ok(())
+}
+
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn empty_or_failed_first_commit_keeps_the_db_empty(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let db = open_db::<1>(tempdir.path(), mmap)?;
+    // A commit without writes doesn't add files.
+    db.commit_write_batch(db.write_batch::<Vec<u8>>()?)?;
+    assert!(db.is_empty());
+    // A batch that is dropped instead of committed is rolled back, including the files it
+    // flushed.
+    {
+        let batch = db.write_batch()?;
+        batch.put(0, vec![1], vec![1].into())?;
+        // Safety: no concurrent puts.
+        unsafe { batch.flush(0)? };
+    }
+    assert!(db.is_empty());
+    assert!(db.get(0, &[1u8].as_slice())?.is_none());
+    // So the next commit is still the first one.
+    let batch = db.write_batch()?;
+    batch.put(0, vec![2], vec![2].into())?;
+    db.commit_write_batch(batch)?;
+    assert_eq!(newest_commit_flags(&db)?, [(true, false)]);
+    assert!(db.get(0, &[1u8].as_slice())?.is_none());
+    assert_eq!(&*db.get(0, &[2u8].as_slice())?.unwrap(), &[2]);
+    Ok(())
+}
+
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn first_commit_bottom_run_is_split_when_the_shard_count_grows(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let mut config = config_with_mmap::<1>(mmap);
+    // Far less than the data, so the family needs several shards.
+    config.target_shard_size = 64 * 1024;
+    let db = open_db_with_config::<1>(path, config)?;
+    const KEYS: u32 = 20_000;
+    let put = |keys: std::ops::Range<u32>, generation: u8| -> Result<()> {
+        let batch = db.write_batch()?;
+        for key in keys {
+            batch.put(0, key.to_be_bytes().to_vec(), vec![generation; 64].into())?;
+        }
+        db.commit_write_batch(batch)?;
+        Ok(())
+    };
+    let check = |overwritten: u32| -> Result<()> {
+        for key in 0..KEYS {
+            let generation = if key < overwritten { 2 } else { 1 };
+            assert_eq!(&*db.get(0, &key.to_be_bytes())?.unwrap(), &[generation; 64]);
+        }
+        Ok(())
+    };
+    // The first commit uses the initial single shard and becomes the bottom run as is. A
+    // promotion only clears its `unsplit` flag, as nothing was read.
+    put(0..KEYS, 1)?;
+    promote_keeping_files(&db, path, &CompactConfig::default())?;
+    assert!(db.compact(&CompactConfig::default())?.is_none());
+    // The next commit is split at the grown shard count, while the bottom run spans its shards.
+    put(0..1_000, 2)?;
+    let metas = db.meta_info()?;
+    // `meta_info` lists the newest meta file first.
+    let shard_bits = crate::shard::ShardBits::new(metas.first().unwrap().shard_bits);
+    assert!(shard_bits.count() > 1, "{} shards", shard_bits.count());
+    check(1_000)?;
+    // A bottom merge then splits the bottom run at the shard boundaries.
+    db.full_compact()?;
+    check(1_000)?;
+    for entry in db.meta_info()?.into_iter().flat_map(|meta| meta.entries) {
+        assert!(entry.flags.bottom());
+        assert_eq!(
+            shard_bits.shard_of(entry.min_hash),
+            shard_bits.shard_of(entry.max_hash),
+            "a bottom file spans shards"
+        );
+    }
+    Ok(())
+}
+
+/// Runs a compaction that is a promotion (or contains one): it writes new files, and deletes no SST
+/// file.
+#[cfg(not(miri))]
+fn promote_keeping_files<const F: usize>(
+    db: &TurboPersistence<RayonParallelScheduler, F>,
+    path: &Path,
+    config: &CompactConfig,
+) -> Result<()> {
+    let ssts = || -> Result<std::collections::BTreeSet<std::ffi::OsString>> {
+        Ok(fs::read_dir(path)?
+            .map(|entry| entry.map(|entry| entry.file_name()))
+            .collect::<std::io::Result<std::collections::BTreeSet<_>>>()?
+            .into_iter()
+            .filter(|name| name.to_string_lossy().ends_with(".sst"))
+            .collect())
+    };
+    let before = ssts()?;
+    assert!(db.compact(config)?.is_some(), "nothing was compacted");
+    let after = ssts()?;
+    assert!(before.is_subset(&after), "SST files were deleted");
+    assert_eq!(unsplit_count(db)?, 0);
+    Ok(())
+}
+
+/// The number of SST files whose recently read entries were not promoted yet.
+#[cfg(not(miri))]
+fn unsplit_count<const F: usize>(
+    db: &TurboPersistence<RayonParallelScheduler, F>,
+) -> Result<usize> {
+    Ok(db
+        .meta_info()?
+        .into_iter()
+        .flat_map(|meta| meta.entries)
+        .filter(|entry| entry.flags.unsplit())
+        .count())
+}
+
+/// The entries of the SST files that are neither bottom nor fresh, i.e. written by promotions and
+/// intermediate merges.
+#[cfg(not(miri))]
+fn compacted_entry_count<const F: usize>(
+    db: &TurboPersistence<RayonParallelScheduler, F>,
+) -> Result<u64> {
+    Ok(db
+        .meta_info()?
+        .into_iter()
+        .flat_map(|meta| meta.entries)
+        .filter(|entry| !entry.flags.bottom() && !entry.flags.fresh())
+        .map(|entry| u64::from(entry.entry_count))
+        .sum())
+}
+
+/// Commits a key that no test reads, so that the reads before it are recorded.
+#[cfg(not(miri))]
+fn record_reads(db: &TurboPersistence<RayonParallelScheduler, 1>) -> Result<()> {
+    let batch = db.write_batch()?;
+    batch.put(0, u32::MAX.to_be_bytes().to_vec(), vec![0; 16].into())?;
+    db.commit_write_batch(batch)?;
+    Ok(())
+}
+
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn promotion_copies_used_keys_and_clears_unsplit(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let mut config = config_with_mmap::<1>(mmap);
+    config.family_configs[0].initial_shard_bits = crate::shard::ShardBits::new(1);
+    const KEYS: u32 = 4_000;
+    let check = |db: &TurboPersistence<RayonParallelScheduler, 1>| -> Result<()> {
+        for key in 0..KEYS {
+            assert_eq!(&*db.get(0, &key.to_be_bytes())?.unwrap(), &[1; 16]);
+        }
+        let keys = (0..KEYS).map(u32::to_be_bytes).collect::<Vec<_>>();
+        for value in batch_get_vec(db, 0, &keys)? {
+            assert_eq!(&*value.unwrap(), &[1; 16]);
+        }
+        Ok(())
+    };
+    let first_commit_files =
+        |db: &TurboPersistence<RayonParallelScheduler, 1>| -> Result<Vec<u32>> {
+            let mut seqs = db
+                .meta_info()?
+                .into_iter()
+                .flat_map(|meta| meta.entries)
+                .filter(|entry| entry.flags.bottom())
+                .map(|entry| entry.sequence_number)
+                .collect::<Vec<_>>();
+            seqs.sort_unstable();
+            Ok(seqs)
+        };
+    {
+        let db = open_db_with_config::<1>(path, config.clone())?;
+        put_overlapping_chunks(&db, KEYS, 3, 1)?;
+        let bottom_files = first_commit_files(&db)?;
+        // Read 1000 keys, half of them in a batch.
+        for key in 0..500u32 {
+            db.get(0, &key.to_be_bytes())?.unwrap();
+        }
+        let keys = (500..1000u32).map(u32::to_be_bytes).collect::<Vec<_>>();
+        batch_get_vec(&db, 0, &keys)?;
+        record_reads(&db)?;
+        assert_eq!(unsplit_count(&db)?, 6);
+
+        let bottom_files_before = first_commit_files(&db)?;
+        promote_keeping_files(&db, path, &CompactConfig::default())?;
+        // Nothing was rewritten: the bottom run is the same files.
+        assert_eq!(bottom_files_before, bottom_files);
+        assert_eq!(first_commit_files(&db)?, bottom_files);
+        assert_eq!(unsplit_count(&db)?, 0);
+        // The read keys were copied, and a few more for false positives of the used keys filter.
+        let copied = compacted_entry_count(&db)?;
+        assert!((1000..1010).contains(&copied), "{copied} entries copied");
+        assert!(db.compact(&CompactConfig::default())?.is_none());
+        check(&db)?;
+        db.shutdown();
+    }
+    let db = open_db_with_config::<1>(path, config)?;
+    assert_eq!(unsplit_count(&db)?, 0);
+    check(&db)?;
+    Ok(())
+}
+
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn promotion_uses_the_newest_versions(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let check = |db: &TurboPersistence<RayonParallelScheduler, 1>| -> Result<()> {
+        let expected = |key: u32| match key {
+            0..10 => Some([2u8; 16]),
+            10..20 => None,
+            _ => Some([1u8; 16]),
+        };
+        let keys = (0..100u32).map(u32::to_be_bytes).collect::<Vec<_>>();
+        let batch = batch_get_vec(db, 0, &keys)?;
+        for key in 0..100u32 {
+            let value = db.get(0, &key.to_be_bytes())?;
+            assert_eq!(
+                value.as_deref(),
+                expected(key).as_ref().map(|v| &v[..]),
+                "{key}"
+            );
+            assert_eq!(
+                batch[key as usize].as_deref(),
+                expected(key).as_ref().map(|v| &v[..]),
+                "{key}"
+            );
+        }
+        Ok(())
+    };
+    {
+        let db = open_db::<1>(path, mmap)?;
+        put_overlapping_chunks(&db, 100, 2, 1)?;
+        for key in 0..30u32 {
+            db.get(0, &key.to_be_bytes())?.unwrap();
+        }
+        // Overwrites and deletes some of the read keys, and records the reads.
+        let batch = db.write_batch()?;
+        for key in 0..10u32 {
+            batch.put(0, key.to_be_bytes().to_vec(), vec![2; 16].into())?;
+        }
+        for key in 10..20u32 {
+            batch.delete(0, key.to_be_bytes().to_vec())?;
+        }
+        db.commit_write_batch(batch)?;
+        promote_keeping_files(&db, path, &CompactConfig::default())?;
+        // The overwritten and the untouched read keys were copied, not the deleted ones.
+        let copied = compacted_entry_count(&db)?;
+        assert!((20..25).contains(&copied), "{copied} entries copied");
+        check(&db)?;
+        db.shutdown();
+    }
+    let db = open_db::<1>(path, mmap)?;
+    check(&db)?;
+    db.full_compact()?;
+    check(&db)?;
+    assert_eq!(count_tombstones(path, &db)?, 0);
+    Ok(())
+}
+
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn multi_value_promotion_has_no_duplicates(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let sorted_values =
+        |db: &TurboPersistence<RayonParallelScheduler, 1>, key: u8| -> Result<Vec<u8>> {
+            let mut values = db
+                .get_multiple(0, &[key].as_slice())?
+                .iter()
+                .map(|value| value[0])
+                .collect::<Vec<_>>();
+            values.sort_unstable();
+            Ok(values)
+        };
+    let check = |db: &TurboPersistence<RayonParallelScheduler, 1>| -> Result<()> {
+        assert_eq!(sorted_values(db, 10)?, [1, 3]);
+        assert_eq!(sorted_values(db, 11)?, [1, 2, 3]);
+        assert_eq!(sorted_values(db, 12)?, [1, 2, 3, 4]);
+        assert_eq!(sorted_values(db, 13)?, [0u8; 0]);
+        assert_eq!(sorted_values(db, 14)?, [1, 2, 3]);
+        Ok(())
+    };
+    {
+        let db = open_multi_value_db(path, mmap)?;
+        // The values of each key are spread over three overlapping files.
+        let batch = db.write_batch()?;
+        for value in [1u8, 2, 3] {
+            for key in 10u8..15 {
+                batch.put(0, vec![key], vec![value].into())?;
+            }
+            // Safety: no concurrent puts.
+            unsafe { batch.flush(0)? };
+        }
+        db.commit_write_batch(batch)?;
+        // Key 14 is not read.
+        for key in 10u8..14 {
+            db.get_multiple(0, &[key].as_slice())?;
+        }
+        let batch = db.write_batch()?;
+        batch.delete_value(0, vec![10], vec![2].into())?;
+        batch.put(0, vec![12], vec![4].into())?;
+        batch.delete(0, vec![13])?;
+        db.commit_write_batch(batch)?;
+        promote_keeping_files(&db, path, &CompactConfig::default())?;
+        // Keys 10, 11 and 12 were copied with a key tombstone each, key 13 has no values left.
+        assert_eq!(compacted_entry_count(&db)?, 3 + 4 + 5);
+        check(&db)?;
+        db.shutdown();
+    }
+    let db = open_multi_value_db(path, mmap)?;
+    check(&db)?;
+    db.full_compact()?;
+    check(&db)?;
+    assert_eq!(count_tombstones(path, &db)?, 0);
+    Ok(())
+}
+
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn promotion_skips_blobs_and_large_value_groups(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let blob = vec![7u8; MAX_MEDIUM_VALUE_SIZE + 1];
+    let medium = vec![8u8; MAX_SMALL_VALUE_SIZE + 1];
+    {
+        let db = open_db::<1>(path, mmap)?;
+        let batch = db.write_batch()?;
+        batch.put(0, vec![1], blob.clone().into())?;
+        batch.put(0, vec![2], medium.clone().into())?;
+        batch.put(0, vec![3], vec![3].into())?;
+        db.commit_write_batch(batch)?;
+        for key in 1u8..=3 {
+            db.get(0, &[key].as_slice())?.unwrap();
+        }
+        record_reads(&db)?;
+        db.compact(&CompactConfig::default())?.unwrap();
+        // The medium and the small value were copied, not the blob.
+        assert_eq!(compacted_entry_count(&db)?, 2);
+        assert_eq!(count_blob_files(path), 1);
+        db.full_compact()?;
+        assert_eq!(count_blob_files(path), 1);
+        db.shutdown();
+    }
+    let db = open_db::<1>(path, mmap)?;
+    assert_eq!(&*db.get(0, &[1u8].as_slice())?.unwrap(), &blob[..]);
+    assert_eq!(&*db.get(0, &[2u8].as_slice())?.unwrap(), &medium[..]);
+    assert_eq!(&*db.get(0, &[3u8].as_slice())?.unwrap(), &[3]);
+    drop(db);
+
+    // A multi-value key with too many values isn't copied.
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let db = open_multi_value_db(path, mmap)?;
+    const VALUES: u32 = crate::db::MAX_PROMOTED_VALUES_PER_KEY as u32 + 1;
+    let batch = db.write_batch()?;
+    for value in 0..VALUES {
+        batch.put(0, vec![1], value.to_be_bytes().to_vec().into())?;
+    }
+    batch.put(0, vec![2], vec![2].into())?;
+    db.commit_write_batch(batch)?;
+    assert_eq!(
+        db.get_multiple(0, &[1u8].as_slice())?.len(),
+        VALUES as usize
+    );
+    db.get_multiple(0, &[2u8].as_slice())?;
+    let batch = db.write_batch()?;
+    batch.put(0, vec![3], vec![3].into())?;
+    db.commit_write_batch(batch)?;
+    db.compact(&CompactConfig::default())?.unwrap();
+    // Only key 2 and its key tombstone.
+    assert_eq!(compacted_entry_count(&db)?, 2);
+    assert_eq!(
+        db.get_multiple(0, &[1u8].as_slice())?.len(),
+        VALUES as usize
+    );
+    assert_eq!(db.get_multiple(0, &[2u8].as_slice())?.len(), 1);
+    Ok(())
+}
+
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn bottom_merge_after_promotion_drops_the_copies(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let mut config = config_with_mmap::<1>(mmap);
+    config.family_configs[0].initial_shard_bits = crate::shard::ShardBits::new(1);
+    const KEYS: u32 = 4_000;
+    let db = open_db_with_config::<1>(path, config)?;
+    put_overlapping_chunks(&db, KEYS, 3, 1)?;
+    for key in 0..1000u32 {
+        db.get(0, &key.to_be_bytes())?.unwrap();
+    }
+    record_reads(&db)?;
+    db.compact(&CompactConfig::default())?.unwrap();
+    assert!(compacted_entry_count(&db)? >= 1000);
+    // Read other keys, and overwrite most keys, which exceeds the space amplification limit.
+    for key in 3500..3600u32 {
+        db.get(0, &key.to_be_bytes())?.unwrap();
+    }
+    let batch = db.write_batch()?;
+    for key in 0..3000u32 {
+        batch.put(0, key.to_be_bytes().to_vec(), vec![2; 16].into())?;
+    }
+    db.commit_write_batch(batch)?;
+    let config = CompactConfig {
+        min_bottom_merge_bytes: 0,
+        ..Default::default()
+    };
+    db.compact(&config)?.unwrap();
+    // A bottom merge of both shards, with the newly read keys in hot files.
+    let entries = db
+        .meta_info()?
+        .into_iter()
+        .flat_map(|meta| meta.entries)
+        .collect::<Vec<_>>();
+    assert!(
+        entries
+            .iter()
+            .all(|e| e.flags.bottom() && !e.flags.unsplit())
+    );
+    assert_eq!(
+        entries
+            .iter()
+            .map(|e| u64::from(e.entry_count))
+            .sum::<u64>(),
+        u64::from(KEYS) + 1
+    );
+    let (hot, _) = bottom_entry_counts(&db)?;
+    assert!(hot >= 100, "{hot} hot entries");
+    for key in 0..KEYS {
+        let generation = if key < 3000 { 2 } else { 1 };
+        assert_eq!(&*db.get(0, &key.to_be_bytes())?.unwrap(), &[generation; 16]);
+    }
+    Ok(())
+}
+
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn promotions_can_be_spread_over_compactions(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let mut config = config_with_mmap::<1>(mmap);
+    config.family_configs[0].initial_shard_bits = crate::shard::ShardBits::new(1);
+    const KEYS: u32 = 4_000;
+    let one_job = CompactConfig {
+        max_merge_jobs: 1,
+        ..Default::default()
+    };
+    let check = |db: &TurboPersistence<RayonParallelScheduler, 1>| -> Result<()> {
+        for key in 0..KEYS {
+            assert_eq!(&*db.get(0, &key.to_be_bytes())?.unwrap(), &[1; 16]);
+        }
+        Ok(())
+    };
+    {
+        let db = open_db_with_config::<1>(path, config.clone())?;
+        put_overlapping_chunks(&db, KEYS, 3, 1)?;
+        // Keep two shards: this small family would otherwise shrink to one.
+        config.target_shard_size = db
+            .meta_info()?
+            .into_iter()
+            .flat_map(|meta| meta.entries)
+            .map(|entry| entry.sst_size)
+            .sum::<u64>()
+            / 2;
+        db.shutdown();
+    }
+    {
+        let db = open_db_with_config::<1>(path, config.clone())?;
+        for key in 0..KEYS {
+            db.get(0, &key.to_be_bytes())?.unwrap();
+        }
+        // Records the reads, with files in both shards, so that the used keys stay alive until
+        // both shards are promoted.
+        let batch = db.write_batch()?;
+        for key in KEYS..KEYS + 100 {
+            batch.put(0, key.to_be_bytes().to_vec(), vec![1; 16].into())?;
+        }
+        db.commit_write_batch(batch)?;
+        db.compact(&one_job)?.unwrap();
+        // One of the two shards was promoted.
+        assert_eq!(unsplit_count(&db)?, 3);
+        check(&db)?;
+        db.shutdown();
+    }
+    let db = open_db_with_config::<1>(path, config)?;
+    assert_eq!(unsplit_count(&db)?, 3);
+    check(&db)?;
+    // The used keys are still recorded for the other shard.
+    db.compact(&one_job)?.unwrap();
+    assert_eq!(unsplit_count(&db)?, 0);
+    assert!(compacted_entry_count(&db)? >= u64::from(KEYS));
+    check(&db)?;
     Ok(())
 }

@@ -1361,7 +1361,13 @@ pub struct StaticSortedFileIter {
     /// just the current one avoids redundant decompression.
     value_block_cache: Option<(u16, RcBytes)>,
     compression: Compression,
+    /// When set, only entries whose key hash passes the filter are yielded. The value blocks of
+    /// the others are not read.
+    hash_filter: Option<HashFilter>,
 }
+
+/// A predicate on key hashes, see [`StaticSortedFileIter::with_hash_filter`].
+pub type HashFilter = Arc<dyn Fn(u64) -> bool + Send + Sync>;
 
 enum CurrentKeyBlockKind {
     /// Variable-size entries with an offset table for random access.
@@ -1480,7 +1486,15 @@ impl StaticSortedFileIter {
             current_key_block,
             value_block_cache: None,
             compression,
+            hash_filter: None,
         })
+    }
+
+    /// Only yields the entries whose key hash passes `filter`, without reading the value blocks of
+    /// the others. Key blocks are still read.
+    pub fn with_hash_filter(mut self, filter: HashFilter) -> Self {
+        self.hash_filter = Some(filter);
+        self
     }
 
     /// Parses a key block at the given index, returning `RcBytes`-backed data.
@@ -1574,6 +1588,12 @@ impl StaticSortedFileIter {
                     Some(hash) => hash,
                     None => be::read_u64(hash),
                 };
+                if let Some(filter) = &self.hash_filter
+                    && !filter(full_hash)
+                {
+                    kb.index += 1;
+                    continue;
+                }
                 let value = if ty == KEY_BLOCK_ENTRY_TYPE_MEDIUM {
                     let block = be::read_u16(val);
                     let (uncompressed_size, checksum, block) =

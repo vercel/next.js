@@ -37,6 +37,10 @@ bitfield! {
     pub fresh, set_fresh: 1;
     /// The SST file is part of the bottom run of its shard.
     pub bottom, set_bottom: 2;
+    /// A bottom file written by the first commit into an empty database, whose recently read
+    /// entries were not copied into hot files yet. Compaction promotes them (see
+    /// `crate::compaction::selector`), which clears the flag.
+    pub unsplit, set_unsplit: 3;
 }
 
 impl MetaEntryFlags {
@@ -44,12 +48,15 @@ impl MetaEntryFlags {
     pub const COMPACTED: MetaEntryFlags = MetaEntryFlags(0b000);
     pub const COLD_BOTTOM: MetaEntryFlags = MetaEntryFlags(0b101);
     pub const HOT_BOTTOM: MetaEntryFlags = MetaEntryFlags(0b100);
+    pub const UNSPLIT_COLD_BOTTOM: MetaEntryFlags = MetaEntryFlags(0b1101);
 }
 
 impl Display for MetaEntryFlags {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.fresh() {
             f.pad_integral(true, "", "fresh")
+        } else if self.bottom() && self.unsplit() {
+            f.pad_integral(true, "", "unsplit bottom")
         } else if self.bottom() && self.cold() {
             f.pad_integral(true, "", "cold bottom")
         } else if self.bottom() {

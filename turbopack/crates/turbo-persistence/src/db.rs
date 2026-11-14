@@ -8,7 +8,7 @@ use std::{
     ops::RangeInclusive,
     path::{Path, PathBuf},
     sync::{
-        OnceLock,
+        Arc, OnceLock,
         atomic::{AtomicBool, AtomicU32, Ordering},
     },
 };
@@ -52,7 +52,9 @@ use crate::{
     rc_bytes::RcBytes,
     shard::{MetaEntryIndex, ShardBits, ShardIndex},
     sst_filter::SstFilter,
-    static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFileIter},
+    static_sorted_file::{
+        BlockCache, HashFilter, SstLookupResult, StaticSortedFileIter, StaticSortedFileMetaData,
+    },
     static_sorted_file_builder::{StaticSortedFileBuilderMeta, StreamingSstWriter},
     write_batch::{FinishResult, NewFile, WriteBatch},
 };
@@ -922,7 +924,15 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let guard = self.acquire_write_operation("write batch")?;
         // seq_before is already the current sequence number, no second read needed.
         let current = guard.seq_before;
-        let shard_bits = shard_bits(&self.config, &self.inner.read().meta_files_by_family);
+        // The write guard excludes other writes and compactions until the batch is committed or
+        // dropped, so the database stays empty until then.
+        let (shard_bits, into_empty_db) = {
+            let inner = self.inner.read();
+            (
+                shard_bits(&self.config, &inner.meta_files_by_family),
+                inner.is_empty(),
+            )
+        };
         Ok(WriteBatch::new(
             guard,
             self.path.clone(),
@@ -930,6 +940,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             self.parallel_scheduler.clone(),
             self.config.family_configs,
             shard_bits,
+            into_empty_db,
         ))
     }
 
@@ -1580,6 +1591,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 self.flags.fresh()
             }
 
+            fn is_unsplit(&self) -> bool {
+                self.flags.unsplit()
+            }
+
             fn entry_count(&self) -> u64 {
                 self.entry_count.into()
             }
@@ -1680,21 +1695,24 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
                     // The keys read recently: the used keys of the meta files written by commits
                     // that are still alive, i.e. whose SST files were not all merged yet. We only
-                    // capture this for bottom compactions.
+                    // capture this for bottom compactions and promotions.
                     let used_key_hashes = if merge_jobs.iter().any(|job| {
-                        job.bottom
-                            && (job.members.len() > 1 || !sst_strictly_in_shard(job.members[0]))
+                        job.promote
+                            || (job.bottom
+                                && (job.members.len() > 1
+                                    || !sst_strictly_in_shard(job.members[0])))
                     }) {
-                        union_used_key_hashes(meta_files)?
+                        union_used_key_hashes(meta_files)?.map(Arc::new)
                     } else {
                         None
                     };
 
                     // Later we will remove the merged files. Capture each one's size now (we know
                     // exactly which SST it is) so `commit` can report deleted bytes without a scan.
+                    // A promotion keeps its files.
                     let sst_files_to_delete = merge_jobs
                         .iter()
-                        .filter(|job| job.members.len() > 1)
+                        .filter(|job| !job.promote && job.members.len() > 1)
                         .flat_map(|job| job.members.iter().copied())
                         .map(|index| DeletedFile {
                             seq: ssts_with_ranges[index].seq,
@@ -1718,6 +1736,13 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             seq: u32,
                             meta: StaticSortedFileBuilderMeta<'l>,
                         },
+                        Promoted {
+                            /// Every file of the job, in their order, with `unsplit` cleared.
+                            moved: Vec<(u32, StaticSortedFileBuilderMeta<'l>)>,
+                            /// The hot files, to be placed after the moved files.
+                            new_sst_files: Vec<(u32, File, StaticSortedFileBuilderMeta<'static>)>,
+                            keys_written: u64,
+                        },
                     }
                     let merge_result = self
                         .parallel_scheduler
@@ -1726,12 +1751,88 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             let MergeJob {
                                 members: indices,
                                 bottom,
+                                promote,
                             } = job;
                             let output_flags = if bottom {
                                 MetaEntryFlags::COLD_BOTTOM
                             } else {
                                 MetaEntryFlags::COMPACTED
                             };
+                            // Lists a file of the job in the new meta file as is, except for the
+                            // flags.
+                            let moved_meta = |index: usize, flags: MetaEntryFlags| {
+                                let meta_index = ssts_with_ranges[index].meta_index;
+                                let index_in_meta = ssts_with_ranges[index].index_in_meta;
+                                let meta_file = &meta_files[meta_index];
+                                let entry = meta_file.entry(index_in_meta);
+                                let amqf = Cow::Borrowed(entry.raw_amqf(meta_file.amqf_data()));
+                                let hash_range = meta_file.hash_range(index_in_meta);
+                                (
+                                    entry.sequence_number(),
+                                    StaticSortedFileBuilderMeta {
+                                        min_hash: hash_range.min_hash,
+                                        max_hash: hash_range.max_hash,
+                                        amqf,
+                                        block_count: entry.block_count(),
+                                        size: entry.size(),
+                                        flags,
+                                        entries: entry.entry_count().into(),
+                                        tombstones: entry.tombstone_count().into(),
+                                    },
+                                )
+                            };
+
+                            if promote {
+                                let compression =
+                                    self.config.family_configs[family as usize].compression;
+                                let kind = self.config.family_configs[family as usize].kind;
+                                let mut hot_collector = Collector::new(
+                                    MetaEntryFlags::COMPACTED,
+                                    compression,
+                                    shard_bits,
+                                );
+                                let mut keys_written = 0;
+                                if let Some(used_key_hashes) = &used_key_hashes {
+                                    let result = promote_used_entries(
+                                        path,
+                                        &indices,
+                                        |index| {
+                                            let sst = &ssts_with_ranges[index];
+                                            let meta_file = &meta_files[sst.meta_index];
+                                            meta_file.entry(sst.index_in_meta).sst_metadata()
+                                        },
+                                        compression,
+                                        kind,
+                                        used_key_hashes.clone(),
+                                        |entry| {
+                                            hot_collector.add_entry(
+                                                entry,
+                                                path,
+                                                sequence_number,
+                                                &mut keys_written,
+                                            )
+                                        },
+                                    )
+                                    .and_then(|()| hot_collector.close_sst_file(&mut keys_written));
+                                    if let Err(err) = result {
+                                        hot_collector.cancel();
+                                        return Err(err);
+                                    }
+                                }
+                                let moved = indices
+                                    .iter()
+                                    .map(|&index| {
+                                        let mut flags = ssts_with_ranges[index].flags;
+                                        flags.set_unsplit(false);
+                                        moved_meta(index, flags)
+                                    })
+                                    .collect();
+                                return Ok(PartialMergeResult::Promoted {
+                                    moved,
+                                    new_sst_files: take(&mut hot_collector.new_sst_files),
+                                    keys_written,
+                                });
+                            }
 
                             // Only a shard's first bottom merge has a single file (an intermediate
                             // merge takes at least two). If the file doesn't span a shard boundary,
@@ -1739,27 +1840,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             // the shard count grew) is rewritten, which splits it.
                             if indices.len() == 1 && sst_strictly_in_shard(indices[0]) {
                                 debug_assert!(bottom, "a single file merge must be a bottom merge");
-                                let index = indices[0];
-                                let meta_index = ssts_with_ranges[index].meta_index;
-                                let index_in_meta = ssts_with_ranges[index].index_in_meta;
-                                let meta_file = &meta_files[meta_index];
-                                let entry = meta_file.entry(index_in_meta);
-                                let amqf = Cow::Borrowed(entry.raw_amqf(meta_file.amqf_data()));
-                                let hash_range = meta_file.hash_range(index_in_meta);
-                                let meta = StaticSortedFileBuilderMeta {
-                                    min_hash: hash_range.min_hash,
-                                    max_hash: hash_range.max_hash,
-                                    amqf,
-                                    block_count: entry.block_count(),
-                                    size: entry.size(),
-                                    flags: output_flags,
-                                    entries: entry.entry_count().into(),
-                                    tombstones: entry.tombstone_count().into(),
-                                };
-                                return Ok(PartialMergeResult::Move {
-                                    seq: entry.sequence_number(),
-                                    meta,
-                                });
+                                let (seq, meta) = moved_meta(indices[0], output_flags);
+                                return Ok(PartialMergeResult::Move { seq, meta });
                             }
 
                             // A tombstone is dead if no older SST contains a matching key.
@@ -2095,18 +2177,17 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
                     let Some((sst_files_len, blob_delete_len)) = merge_result
                         .iter()
-                        .map(|r| {
-                            if let PartialMergeResult::Merged {
+                        .map(|r| match r {
+                            PartialMergeResult::Merged {
                                 new_sst_files,
                                 blob_seq_numbers_to_delete,
                                 indices: _,
                                 keys_written: _,
-                            } = r
-                            {
-                                (new_sst_files.len(), blob_seq_numbers_to_delete.len())
-                            } else {
-                                (0, 0)
+                            } => (new_sst_files.len(), blob_seq_numbers_to_delete.len()),
+                            PartialMergeResult::Promoted { new_sst_files, .. } => {
+                                (new_sst_files.len(), 0)
                             }
+                            PartialMergeResult::Move { .. } => (0, 0),
                         })
                         .reduce(|(a1, a2), (b1, b2)| (a1 + b1, a2 + b2))
                     else {
@@ -2180,6 +2261,46 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     )?;
 
                                     meta_file_builder.add(seq, meta);
+                                }
+                                PartialMergeResult::Promoted {
+                                    moved,
+                                    new_sst_files: promoted_new_sst_files,
+                                    keys_written: promoted_keys_written,
+                                } => {
+                                    writeln!(
+                                        log,
+                                        "{family:3} | {meta_seq:08} | PROMOTE \
+                                         ({promoted_keys_written} keys):"
+                                    )?;
+                                    // The files keep their order, and the hot files, which hold
+                                    // the newest versions of their entries, come after them.
+                                    for (seq, meta) in moved {
+                                        let min = meta.min_hash;
+                                        let max = meta.max_hash;
+                                        writeln!(
+                                            log,
+                                            "{family:3} | {meta_seq:08} | {seq:08} MOVED  | {} \
+                                             ({})",
+                                            range_to_str(min, max),
+                                            meta.flags
+                                        )?;
+                                        meta_file_builder.add(seq, meta);
+                                    }
+                                    for (seq, file, meta) in promoted_new_sst_files {
+                                        let min = meta.min_hash;
+                                        let max = meta.max_hash;
+                                        writeln!(
+                                            log,
+                                            "{family:3} | {meta_seq:08} | {seq:08} OUTPUT | {} \
+                                             ({})",
+                                            range_to_str(min, max),
+                                            meta.flags
+                                        )?;
+                                        let size = meta.size;
+                                        meta_file_builder.add(seq, meta);
+                                        new_sst_files.push(NewFile { seq, file, size });
+                                    }
+                                    keys_written += promoted_keys_written;
                                 }
                             }
                         }
@@ -2797,6 +2918,126 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     }
 }
 
+/// A promotion doesn't copy a key with more values than this, so that the values of a key that it
+/// holds in memory stay bounded.
+pub(crate) const MAX_PROMOTED_VALUES_PER_KEY: usize = 1024;
+/// A promotion doesn't copy a key whose values are larger than this in total.
+const MAX_PROMOTED_BYTES_PER_KEY: usize = 4 * 1024 * 1024;
+
+/// Copies the newest version of every entry whose key hash is in `used_key_hashes` from the SST
+/// files `indices` (ascending, i.e. oldest first) to `add`, in key order. These files must be all
+/// files of their shards, so that the newest version of a key is among them. The copies are
+/// placed after all of them and shadow them, so:
+///
+/// - For a key deleted by its newest version, nothing is copied, the deletion still applies.
+/// - For a [`FamilyKind::MultiValue`] key, all live values are copied, followed by a key tombstone
+///   that hides the older values of the key, but not the copies in the same SST file.
+/// - A key with a blob value is not copied, so that no blob is referenced twice: compaction deletes
+///   the blob of an entry that is superseded.
+/// - A key with more than [`MAX_PROMOTED_VALUES_PER_KEY`] values or [`MAX_PROMOTED_BYTES_PER_KEY`]
+///   bytes is not copied.
+fn promote_used_entries(
+    path: &Path,
+    indices: &[usize],
+    sst_metadata: impl Fn(usize) -> StaticSortedFileMetaData,
+    compression: Compression,
+    kind: FamilyKind,
+    used_key_hashes: Arc<qfilter::Filter>,
+    mut add: impl FnMut(LookupEntry) -> Result<()>,
+) -> Result<()> {
+    let filter: HashFilter = Arc::new(move |hash| used_key_hashes.contains_fingerprint(hash));
+    let iters = indices
+        .iter()
+        .map(|&index| {
+            Ok(
+                StaticSortedFileIter::open(path, sst_metadata(index), compression)?
+                    .with_hash_filter(filter.clone()),
+            )
+        })
+        .collect::<Result<Vec<_>>>()?;
+
+    /// The live entries of the current key, newest first, and whether they can be copied.
+    #[derive(Default)]
+    struct Group {
+        entries: Vec<LookupEntry>,
+        bytes: usize,
+        /// All older entries of the key are deleted or shadowed.
+        done: bool,
+        /// The key can't be copied.
+        skip: bool,
+        deleted_values: AutoSet<RcBytes, BuildHasherDefault<FxHasher>, 1>,
+    }
+    let mut flush = |group: &mut Group| -> Result<()> {
+        let mut entries = take(&mut group.entries);
+        if group.skip || entries.is_empty() {
+            return Ok(());
+        }
+        let tombstone = (kind == FamilyKind::MultiValue).then(|| LookupEntry {
+            hash: entries[0].hash,
+            key: entries[0].key.clone(),
+            value: IterValue::KeyDeleted,
+        });
+        for entry in entries.drain(..) {
+            add(entry)?;
+        }
+        if let Some(tombstone) = tombstone {
+            add(tombstone)?;
+        }
+        Ok(())
+    };
+
+    let mut group = Group::default();
+    let mut current_key: Option<RcBytes> = None;
+    for entry in MergeIter::new(iters.into_iter())? {
+        // Newer SST files first, see the bottom merge.
+        let entry = entry?;
+        if current_key.as_ref() != Some(&entry.key) {
+            flush(&mut group)?;
+            group = Group::default();
+            current_key = Some(entry.key.clone());
+        }
+        if group.done || group.skip {
+            continue;
+        }
+        let size = match &entry.value {
+            IterValue::KeyDeleted => {
+                // Nothing older is visible.
+                group.done = true;
+                continue;
+            }
+            IterValue::KeyValueDeleted { value } => {
+                group.deleted_values.insert(value.clone());
+                continue;
+            }
+            IterValue::Blob { .. } => {
+                group.skip = true;
+                continue;
+            }
+            IterValue::Slice { value } => {
+                if group.deleted_values.contains(value) {
+                    continue;
+                }
+                value.len()
+            }
+            IterValue::Medium {
+                uncompressed_size, ..
+            } => *uncompressed_size as usize,
+        };
+        group.bytes += size;
+        group.entries.push(entry);
+        if group.entries.len() > MAX_PROMOTED_VALUES_PER_KEY
+            || group.bytes > MAX_PROMOTED_BYTES_PER_KEY
+        {
+            group.skip = true;
+            group.entries.clear();
+        }
+        if kind == FamilyKind::SingleValue {
+            group.done = true;
+        }
+    }
+    flush(&mut group)
+}
+
 /// The fingerprint size of the used keys AMQFs, in bits. The size sets the false positive rate:
 /// about `keys / 2^32`, i.e. 0.06% for 2.5M used keys, for which a few cold keys are written into
 /// hot files. This costs about 1.7 bytes per key, compared to about 6 bytes per key with full 64
@@ -2881,7 +3122,9 @@ fn shard_bits<const FAMILIES: usize>(
             }
         }
         // Before the first bottom merge there is no bottom run, so use the size of all files. They
-        // are only the first commits, so they hold little garbage.
+        // are only the first commits, so they hold little garbage. (The first commit into an empty
+        // database is the bottom run already, so this is a family that commit didn't write to, or
+        // a database written before that.)
         //
         // But don't shrink yet. The first bottom merges rewrite the whole family, and shrinking
         // would combine the files of multiple shards into one large job instead of several

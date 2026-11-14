@@ -25,6 +25,15 @@
 //!
 //! If a 'component' spans multiple shards it will always be split across shard boundaries when
 //! re-written.
+//!
+//! The SST files of the first commit into an empty database are its bottom run (see
+//! `WriteBatch::new`), so there is nothing to merge until later commits add files above it. But
+//! they are flagged `unsplit`: a bottom merge would also have written the recently read entries
+//! into separate hot files, so that reading them again touches fewer blocks. A promotion does that
+//! without rewriting the bottom run. It reads all files of the component and copies the newest
+//! version of the recently read entries into new hot files, which are placed after all files, and
+//! clears the flag. It deletes nothing, so it costs only the bytes of the hot files. A component
+//! with an unsplit bottom run gets a promotion unless it gets a bottom merge, which also splits.
 
 use std::ops::RangeInclusive;
 
@@ -44,6 +53,10 @@ pub trait Compactable {
 
     /// Whether the segment was written by a commit and not compacted yet.
     fn is_fresh(&self) -> bool;
+
+    /// Whether the segment is part of a bottom run whose recently read entries were not copied into
+    /// hot files yet, see the module docs.
+    fn is_unsplit(&self) -> bool;
 
     /// The number of entries in the segment.
     fn entry_count(&self) -> u64;
@@ -122,6 +135,9 @@ pub struct MergeJob {
     pub members: Vec<usize>,
     /// Whether the job merges all files of its shards, i.e. writes a new bottom run.
     pub bottom: bool,
+    /// Whether the job is a promotion (see the module docs) instead of a merge. Then `members`
+    /// are all files of its shards, and none of them is removed.
+    pub promote: bool,
 }
 
 /// A planned merge job and how urgent it is, before merge jobs are selected across families.
@@ -220,11 +236,27 @@ fn intermediate_candidate<T: Compactable>(
             // Merging all files of a shard without a bottom run rewrites as much as a bottom merge,
             // so make the result its bottom run.
             bottom: above_is_all_shard_files && first == 0,
+            promote: false,
         },
     }
 }
 
-/// Plans the merge jobs of one family, bottom merges first, each kind most urgent first.
+/// Produces a [`Candidate`] to promote the recently read entries of a component with an unsplit
+/// bottom run. It's cheap and ends the extra block reads of a component without a hot split, so
+/// it's ranked like the most urgent merge.
+fn promote_candidate(members: Vec<usize>) -> Candidate {
+    Candidate {
+        priority: f32::INFINITY,
+        job: MergeJob {
+            members,
+            bottom: false,
+            promote: true,
+        },
+    }
+}
+
+/// Plans the merge jobs of one family, bottom merges first, then promotions, each kind most urgent
+/// first.
 fn plan_family<T: Compactable>(
     compactables: &[T],
     shard_bits: ShardBits,
@@ -237,11 +269,16 @@ fn plan_family<T: Compactable>(
         .sum::<u64>();
 
     let mut bottom_candidates = Vec::new();
+    let mut promote_candidates = Vec::new();
     let mut intermediate_candidates = Vec::new();
     for members in components(compactables, shard_bits) {
         let (bottom, above): (Vec<usize>, Vec<usize>) =
             members.iter().partition(|&&i| compactables[i].is_bottom());
+        let unsplit = bottom.iter().any(|&i| compactables[i].is_unsplit());
         if above.is_empty() {
+            if unsplit {
+                promote_candidates.push(promote_candidate(members));
+            }
             continue;
         }
         // A bottom file is older than the files above it that overlap it. After the shard count
@@ -287,8 +324,9 @@ fn plan_family<T: Compactable>(
         if amplification > limit && reclaimable_bytes >= config.min_bottom_merge_bytes {
             let candidate = Candidate {
                 job: MergeJob {
-                    members,
+                    members: members.clone(),
                     bottom: true,
+                    promote: false,
                 },
                 priority: if limit > 0.0 {
                     (amplification / limit) as f32
@@ -306,7 +344,11 @@ fn plan_family<T: Compactable>(
                 above,
                 overdue,
                 bottom.is_empty(),
+                unsplit.then_some(members),
             ));
+        } else if unsplit {
+            // Instead of an intermediate merge: the promotion takes all files of the component.
+            promote_candidates.push(promote_candidate(members));
         } else if above.len() > config.max_files_above_bottom.max(1) {
             intermediate_candidates.push(intermediate_candidate(
                 compactables,
@@ -328,12 +370,17 @@ fn plan_family<T: Compactable>(
         u64::MAX
     };
     let mut result = Vec::new();
-    for (candidate, cost, above, overdue, above_is_all_shard_files) in bottom_candidates {
+    for (candidate, cost, above, overdue, above_is_all_shard_files, unsplit_members) in
+        bottom_candidates
+    {
         // The first job always runs, even when the quota is 0, and we keep scheduling jobs while
         // the quota isn't reached, so that we don't pathologically rewrite too little.
         if result.is_empty() || rewrite_target > 0 || overdue {
             rewrite_target = rewrite_target.saturating_sub(cost);
             result.push(candidate);
+        } else if let Some(members) = unsplit_members {
+            // Past the quota, the unsplit shard is promoted instead.
+            promote_candidates.push(promote_candidate(members));
         } else if above.len() > config.max_files_above_bottom.max(1) {
             // The quota is reached, but an intermediate merge of the same shard is cheap and
             // still bounds the number of files a lookup consults.
@@ -345,6 +392,7 @@ fn plan_family<T: Compactable>(
             ));
         }
     }
+    result.extend(promote_candidates);
     intermediate_candidates.sort_by(|a, b| b.priority.total_cmp(&a.priority));
     result.extend(intermediate_candidates);
     result
@@ -404,6 +452,7 @@ mod tests {
         size: u64,
         bottom: bool,
         fresh: bool,
+        unsplit: bool,
     }
 
     impl Compactable for File {
@@ -423,6 +472,10 @@ mod tests {
             self.fresh
         }
 
+        fn is_unsplit(&self) -> bool {
+            self.unsplit
+        }
+
         fn entry_count(&self) -> u64 {
             0
         }
@@ -438,6 +491,15 @@ mod tests {
             size,
             bottom,
             fresh,
+            unsplit: false,
+        }
+    }
+
+    /// A file of the bottom run written by the first commit into an empty database.
+    fn unsplit_file(shard: u32, shard_bits: u8, size: u64) -> File {
+        File {
+            unsplit: true,
+            ..file(shard, shard_bits, size, true, false)
         }
     }
 
@@ -457,6 +519,88 @@ mod tests {
             .into_iter()
             .map(|job| (job.members, job.bottom))
             .collect()
+    }
+
+    /// The members of the promotion jobs of the plan.
+    fn promotions(files: &[File], shard_bits: u8, config: &CompactConfig) -> Vec<Vec<usize>> {
+        plan_compaction(&[(files, ShardBits::new(shard_bits))], config)
+            .remove(0)
+            .into_iter()
+            .filter(|job| job.promote)
+            .map(|job| job.members)
+            .collect()
+    }
+
+    #[test]
+    fn test_unsplit_bottom_run_is_promoted() {
+        let config = test_config();
+        // Nothing above the bottom run.
+        let files = [
+            unsplit_file(0, 1, 100),
+            unsplit_file(0, 1, 100),
+            unsplit_file(1, 1, 100),
+        ];
+        assert_eq!(promotions(&files, 1, &config), vec![vec![0, 1], vec![2]]);
+        // Files above the bottom run below every limit: still a promotion, which takes them too.
+        let files = [unsplit_file(0, 0, 1000), file(0, 0, 10, false, true)];
+        assert_eq!(promotions(&files, 0, &config), vec![vec![0, 1]]);
+        // Too many files above: a promotion instead of an intermediate merge.
+        let mut files = vec![unsplit_file(0, 0, 1000)];
+        files.extend((0..5).map(|_| file(0, 0, 10, false, true)));
+        assert_eq!(
+            plan_compaction(&[(&files[..], ShardBits::new(0))], &config).remove(0),
+            vec![MergeJob {
+                members: (0..6).collect(),
+                bottom: false,
+                promote: true,
+            }]
+        );
+        // Without the flag, the bottom run is left alone.
+        let files = [file(0, 0, 100, true, false)];
+        assert!(promotions(&files, 0, &config).is_empty());
+    }
+
+    #[test]
+    fn test_bottom_merge_supersedes_promotion() {
+        // 60% above the bottom run: a bottom merge, which splits too.
+        let files = [unsplit_file(0, 0, 1000), file(0, 0, 600, false, true)];
+        assert_eq!(plan(&files, 0, &test_config()), vec![(vec![0, 1], true)]);
+        // Past the rewrite quota, the unsplit shard is promoted instead.
+        let config = CompactConfig {
+            rewrite_per_fresh_byte: 0.0,
+            ..test_config()
+        };
+        let files = [
+            file(0, 1, 1000, true, false),
+            file(0, 1, 900, false, true),
+            unsplit_file(1, 1, 1000),
+            file(1, 1, 600, false, true),
+        ];
+        assert_eq!(
+            plan_compaction(&[(&files[..], ShardBits::new(1))], &config).remove(0),
+            vec![
+                MergeJob {
+                    members: vec![0, 1],
+                    bottom: true,
+                    promote: false,
+                },
+                MergeJob {
+                    members: vec![2, 3],
+                    bottom: false,
+                    promote: true,
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn test_promotions_respect_max_merge_jobs() {
+        let config = CompactConfig {
+            max_merge_jobs: 1,
+            ..test_config()
+        };
+        let files = [unsplit_file(0, 1, 100), unsplit_file(1, 1, 100)];
+        assert_eq!(promotions(&files, 1, &config).len(), 1);
     }
 
     #[test]
@@ -705,6 +849,10 @@ mod tests {
 
         fn is_fresh(&self) -> bool {
             self.fresh
+        }
+
+        fn is_unsplit(&self) -> bool {
+            false
         }
 
         fn entry_count(&self) -> u64 {
