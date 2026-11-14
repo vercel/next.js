@@ -21,7 +21,7 @@ import type {
   RouteHas,
   Redirect,
 } from '../lib/load-custom-routes'
-import { SUPPORTED_TEST_RUNNERS_LIST } from '../cli/next-test'
+import { SUPPORTED_TEST_RUNNERS_LIST } from '../shared/lib/constants'
 
 // A custom zod schema for the SizeLimit type
 const zSizeLimit = z.custom<SizeLimit>((val) => {
