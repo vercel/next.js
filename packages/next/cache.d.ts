@@ -20,6 +20,12 @@ import { cacheTag } from 'next/dist/server/use-cache/cache-tag'
 
 export { cacheTag }
 
+/**
+ * Mark the enclosing "use server" or "use cache" function as durable.
+ * This compile-time marker is removed by the Next.js compiler.
+ */
+export function unstable_cacheDurable(): void
+
 export interface CacheLifeProfiles {}
 
 /**

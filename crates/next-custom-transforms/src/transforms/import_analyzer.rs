@@ -3,8 +3,8 @@ use swc_core::{
     atoms::{Atom, Wtf8Atom, atom},
     ecma::{
         ast::{
-            Expr, Id, ImportDecl, ImportNamedSpecifier, ImportSpecifier, MemberExpr, MemberProp,
-            Module,
+            Expr, Id, ImportDecl, ImportNamedSpecifier, ImportSpecifier, Lit, MemberExpr,
+            MemberProp, Module,
         },
         visit::{Visit, VisitWith, noop_visit_type},
     },
@@ -35,16 +35,21 @@ impl ImportMap {
 
             Expr::Member(MemberExpr {
                 obj: Expr::Ident(obj),
-                prop: MemberProp::Ident(prop),
+                prop,
                 ..
             }) => {
-                if let Some(obj_src) = self.namespace_imports.get(&obj.to_id()) {
-                    obj_src == module && prop.sym == *orig_name
-                } else {
-                    false
-                }
+                self.namespace_imports
+                    .get(&obj.to_id())
+                    .is_some_and(|src| src == module)
+                    && match prop {
+                        MemberProp::Ident(prop) => prop.sym == *orig_name,
+                        MemberProp::Computed(prop) => {
+                            matches!(&*prop.expr, Expr::Lit(Lit::Str(name)) if name.value == orig_name)
+                        }
+                        _ => false,
+                    }
             }
-
+            Expr::Paren(paren) => self.is_import(&paren.expr, module, orig_name),
             _ => false,
         }
     }
@@ -66,9 +71,15 @@ impl Visit for Analyzer<'_> {
     noop_visit_type!();
 
     fn visit_import_decl(&mut self, import: &ImportDecl) {
+        if import.type_only {
+            return;
+        }
         self.data.imported_modules.insert(import.src.value.clone());
 
         for s in &import.specifiers {
+            if matches!(s, ImportSpecifier::Named(named) if named.is_type_only) {
+                continue;
+            }
             let (local, orig_sym) = match s {
                 ImportSpecifier::Named(ImportNamedSpecifier {
                     local, imported, ..
