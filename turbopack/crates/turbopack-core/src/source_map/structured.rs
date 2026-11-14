@@ -22,7 +22,7 @@ use bincode::{Decode, Encode};
 use serde::Deserialize;
 use serde_json::value::RawValue;
 use turbo_tasks::NonLocalValue;
-use turbo_tasks_fs::rope::{Rope, RopeBuilder};
+use turbo_tasks_fs::rope::{Rope, RopeBuilder, write_exact};
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
 /// A single source map in structured form. See the module documentation.
@@ -106,9 +106,10 @@ fn into_rope(value: Option<Box<RawValue>>) -> Option<Rope> {
 /// JSON-escapes a source's content into the string-literal form stored in `sources_content`.
 fn escape_content(content: Option<&str>) -> Rope {
     match content {
-        Some(text) => {
-            Rope::from(serde_json::to_vec(text).expect("string serialization is infallible"))
-        }
+        Some(text) => Rope::from(
+            write_exact(|buf| serde_json::to_writer(buf, text))
+                .expect("string serialization is infallible"),
+        ),
         None => {
             static NULL: LazyLock<Rope> = LazyLock::new(|| Rope::from("null"));
             NULL.clone()
@@ -152,7 +153,8 @@ impl serde::ser::SerializeStruct for FieldSplitStruct {
         key: &'static str,
         value: &T,
     ) -> Result<(), FieldSplitError> {
-        let bytes = serde_json::to_vec(value).map_err(serde::ser::Error::custom)?;
+        let bytes = write_exact(|buf| serde_json::to_writer(buf, value))
+            .map_err(serde::ser::Error::custom)?;
         self.fields.push((key, bytes));
         Ok(())
     }

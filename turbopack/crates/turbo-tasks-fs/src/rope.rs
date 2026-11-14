@@ -188,6 +188,33 @@ impl Rope {
     }
 }
 
+/// Runs `write` to produce output whose size isn't known up front, and returns that output in an
+/// allocation of exactly its length.
+///
+/// Pushing into an empty `Vec` reallocates every time it doubles and leaves up to half of the
+/// final block as slack, which `shrink_to_fit` can't always release (mimalloc keeps a block in
+/// place when shrinking it by less than half). `write` instead fills a per-thread scratch buffer
+/// that is reused across calls, so its growth is paid once per thread, and the result is copied
+/// out at its exact size. Use this for long-lived outputs such as emitted code, source maps and
+/// manifests. A nested call gets a fresh buffer of its own.
+pub fn write_exact<E>(write: impl FnOnce(&mut Vec<u8>) -> Result<(), E>) -> Result<Vec<u8>, E> {
+    /// A scratch buffer grown past this is freed after use instead of kept for the next call, so
+    /// an occasional huge output doesn't pin its buffer to the thread.
+    const MAX_RETAINED_CAPACITY: usize = 1 << 20;
+    thread_local! {
+        static SCRATCH: std::cell::Cell<Vec<u8>> = const { std::cell::Cell::new(Vec::new()) };
+    }
+
+    let mut buf = SCRATCH.take();
+    buf.clear();
+    let result = write(&mut buf).map(|()| buf.to_vec());
+    if buf.capacity() <= MAX_RETAINED_CAPACITY {
+        buf.clear();
+        SCRATCH.set(buf);
+    }
+    result
+}
+
 impl From<Vec<u8>> for Rope {
     fn from(mut bytes: Vec<u8>) -> Self {
         bytes.shrink_to_fit();
@@ -1030,7 +1057,51 @@ mod test {
     use anyhow::Result;
     use turbo_tasks_hash::{DeterministicHasher, Xxh3Hash64Hasher, hash_xxh3_hash64};
 
-    use super::{InnerRope, Rope, RopeBuilder, RopeElem};
+    use super::{InnerRope, Rope, RopeBuilder, RopeElem, write_exact};
+
+    #[test]
+    fn write_exact_returns_exactly_sized_output() {
+        for len in [0, 1, 1000, 3000, 2 << 20] {
+            let out = write_exact(|buf| -> Result<(), ()> {
+                buf.extend((0..len).map(|i| i as u8));
+                Ok(())
+            })
+            .unwrap();
+            assert_eq!(out.len(), len);
+            assert_eq!(out.capacity(), len);
+            assert!(out.iter().enumerate().all(|(i, &b)| b == i as u8));
+        }
+        // Still works (with a fresh scratch buffer) after one too large to keep.
+        assert_eq!(
+            write_exact(|buf| -> Result<(), ()> {
+                buf.extend_from_slice(b"after");
+                Ok(())
+            }),
+            Ok(b"after".to_vec())
+        );
+    }
+
+    #[test]
+    fn write_exact_nests_and_propagates_errors() {
+        let outer = write_exact(|buf| -> Result<(), ()> {
+            buf.extend_from_slice(b"outer:");
+            let inner = write_exact(|inner| -> Result<(), ()> {
+                inner.extend_from_slice(b"inner");
+                Ok(())
+            })?;
+            buf.extend_from_slice(&inner);
+            Ok(())
+        });
+        assert_eq!(outer, Ok(b"outer:inner".to_vec()));
+
+        let failed = write_exact(|buf| {
+            buf.extend_from_slice(b"partial");
+            Err("failed")
+        });
+        assert_eq!(failed, Err("failed"));
+        // A failed write leaves nothing behind for the next call.
+        assert_eq!(write_exact(|_| Ok::<_, ()>(())), Ok(Vec::new()));
+    }
 
     // These are intentionally not exposed, because they do inefficient conversions
     // in order to fully test cases.

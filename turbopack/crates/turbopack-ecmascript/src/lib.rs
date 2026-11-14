@@ -87,7 +87,11 @@ use turbo_tasks::{
     SerializationInvalidator, TryJoinIterExt, Upcast, ValueToString, Vc,
     get_serialization_invalidator, parking_lot_mutex_bincode, turbofmt,
 };
-use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
+use turbo_tasks_fs::{
+    FileJsonContent, FileSystemPath,
+    glob::Glob,
+    rope::{Rope, write_exact},
+};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkableModule, ChunkingContext, EvaluatableAsset,
@@ -2412,7 +2416,6 @@ async fn emit_content(
         Default::default()
     };
 
-    let mut bytes: Vec<u8> = vec![];
     // TODO: Insert this as a sourceless segment so that sourcemaps aren't affected.
     // = format!("/* {} */\n", self.module.path().to_string().await?).into_bytes();
 
@@ -2420,12 +2423,12 @@ async fn emit_content(
 
     let source_map = Arc::new(source_map);
 
-    {
+    let bytes = write_exact(|bytes| -> Result<()> {
         let mut wr = JsWriter::new(
             // unused anyway?
             Default::default(),
             "\n",
-            &mut bytes,
+            bytes,
             generate_source_map.then_some(&mut mappings),
         );
         if matches!(minify, MinifyType::Minify { .. }) {
@@ -2442,9 +2445,10 @@ async fn emit_content(
         };
 
         emitter.emit_program(&program)?;
-        // Drop the AST eagerly so we don't keep it in memory while generating source maps
-        drop(program);
-    }
+        Ok(())
+    })?;
+    // Drop the AST eagerly so we don't keep it in memory while generating source maps
+    drop(program);
 
     let original_source_maps = if generate_source_map && source_map_generation_options.full {
         original_source_map
