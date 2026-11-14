@@ -984,19 +984,51 @@ const INLINE_FLIGHT_DATA_SCRIPT_END = Buffer.from('"])</script>')
 const INLINE_FLIGHT_DATA_TEMPLATE_END = Buffer.from('&quot;]"></template>')
 
 // Reads every chunk currently buffered so one script covers all of them.
-// Returns escaped JSON fragments for a batch of text, the raw bytes when any
-// byte run is not valid UTF-8, or null when nothing is buffered.
-function readInlineFlightData(stream: Readable): string[] | Buffer | null {
+// Returns null when nothing is buffered. A byte-mode stream yields its whole
+// buffer as one chunk.
+function readBufferedFlightChunks(
+  stream: Readable
+): Array<string | Uint8Array> | null {
   const first: string | Uint8Array | null = stream.read()
-  if (first === null || !stream.readableObjectMode) {
-    return first as Buffer | null
+  if (first === null) {
+    return null
   }
 
   const chunks = [first]
-  while (stream.readableLength > 0) {
-    chunks.push(stream.read())
+  if (stream.readableObjectMode) {
+    while (stream.readableLength > 0) {
+      chunks.push(stream.read())
+    }
   }
+  return chunks
+}
 
+// The raw bytes of a batch, for the binary payload.
+function concatInlineFlightChunks(chunks: Array<string | Uint8Array>): Buffer {
+  return Buffer.concat(
+    chunks.map((part) => (typeof part === 'string' ? Buffer.from(part) : part))
+  )
+}
+
+// Adjacent byte chunks as one buffer. A multibyte character may span them, so
+// they are validated and escaped as a whole.
+function byteRun(
+  chunks: Array<string | Uint8Array>,
+  start: number,
+  end: number
+): Buffer {
+  if (start === end) {
+    const chunk = chunks[start] as Uint8Array
+    return Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength)
+  }
+  return Buffer.concat(chunks.slice(start, end + 1) as Uint8Array[])
+}
+
+// Escaped JSON string fragments for a batch of text, or null when any byte
+// run is not valid UTF-8.
+function toInlineFlightFragments(
+  chunks: Array<string | Uint8Array>
+): string[] | null {
   // JSON and HTML escaping act per code unit, so escaping each well-formed
   // fragment on its own equals escaping their concatenation.
   const fragments: string[] = []
@@ -1010,24 +1042,229 @@ function readInlineFlightData(stream: Readable): string[] | Buffer | null {
       while (i + 1 < chunks.length && typeof chunks[i + 1] !== 'string') {
         i++
       }
-      const bytes =
-        start === i
-          ? Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength)
-          : Buffer.concat(chunks.slice(start, i + 1) as Uint8Array[])
-      // A multibyte character may span adjacent byte chunks, so validate the
-      // run as a whole.
+      const bytes = byteRun(chunks, start, i)
       if (!isUtf8(bytes)) {
-        return Buffer.concat(
-          chunks.map((part) =>
-            typeof part === 'string' ? Buffer.from(part) : part
-          )
-        )
+        return null
       }
       text = bytes.toString('utf8')
     }
     fragments.push(htmlEscapeJsonString(JSON.stringify(text).slice(1, -1)))
   }
   return fragments
+}
+
+// ---------------------------------------------------------------------------
+// Inline script escaping, on UTF-8 bytes.
+//
+// The Flight data becomes the body of a JavaScript string literal inside a
+// <script>. That takes the escapes JSON.stringify applies to a string (quote,
+// backslash and control characters) and the ones htmlEscapeJsonString adds on
+// top (<, >, & and the line separators U+2028 and U+2029). All of them are
+// ASCII bytes except the two separators, and no byte of a multibyte UTF-8
+// sequence is an ASCII byte, so one table-driven pass over the encoded bytes
+// produces exactly the bytes that stringifying, escaping and encoding the text
+// would. Lone surrogates, the one other thing JSON.stringify escapes, cannot
+// occur in UTF-8.
+// ---------------------------------------------------------------------------
+
+const INLINE_ESCAPE_NONE = 0
+// A backslash and one character: the quote, the backslash and the control
+// characters that have a short form.
+const INLINE_ESCAPE_SHORT = 1
+// A six character Unicode escape.
+const INLINE_ESCAPE_UNICODE = 2
+// 0xE2 starts the UTF-8 encoding of U+2028 and U+2029, among others.
+const INLINE_ESCAPE_SEPARATOR_LEAD = 3
+
+const BACKSLASH = 0x5c
+const LOWER_U = 0x75
+const DIGIT_0 = 0x30
+const DIGIT_2 = 0x32
+
+const inlineEscapeKind = new Uint8Array(256)
+const inlineEscapeShort = new Uint8Array(256)
+const inlineEscapeHex = new Uint8Array(16)
+for (let i = 0; i < 16; i++) {
+  inlineEscapeHex[i] = i < 10 ? DIGIT_0 + i : 0x61 + i - 10
+}
+for (let c = 0; c < 0x20; c++) {
+  inlineEscapeKind[c] = INLINE_ESCAPE_UNICODE
+}
+for (const [c, short] of [
+  [0x08, 0x62], // b
+  [0x09, 0x74], // t
+  [0x0a, 0x6e], // n
+  [0x0c, 0x66], // f
+  [0x0d, 0x72], // r
+  [0x22, 0x22], // quote
+  [BACKSLASH, BACKSLASH],
+]) {
+  inlineEscapeKind[c] = INLINE_ESCAPE_SHORT
+  inlineEscapeShort[c] = short
+}
+// & < >
+inlineEscapeKind[0x26] = INLINE_ESCAPE_UNICODE
+inlineEscapeKind[0x3c] = INLINE_ESCAPE_UNICODE
+inlineEscapeKind[0x3e] = INLINE_ESCAPE_UNICODE
+inlineEscapeKind[0xe2] = INLINE_ESCAPE_SEPARATOR_LEAD
+
+// One input byte becomes at most six output bytes.
+const INLINE_ESCAPE_MAX_GROWTH = 6
+// Input is escaped in blocks so the output only has to have room for one
+// block at its worst-case growth, not for the whole input.
+const INLINE_ESCAPE_BLOCK_SIZE = 8 * 1024
+const INLINE_ESCAPE_INITIAL_OUTPUT_SIZE = 64 * 1024
+// A larger output buffer than this is not kept between batches.
+const INLINE_ESCAPE_MAX_RETAINED_OUTPUT_SIZE = 4 * 1024 * 1024
+const INLINE_ENCODE_SCRATCH_SIZE = 64 * 1024
+
+// Reused between batches. A batch is escaped synchronously and copied out
+// before anything else can run, so the buffers are never shared.
+let inlineEscapeOutput: Buffer | null = null
+let inlineEncodeScratch: Buffer | null = null
+const inlineTextEncoder = new TextEncoder()
+
+function growInlineEscapeOutput(
+  output: Buffer,
+  used: number,
+  needed: number
+): Buffer {
+  let size = output.length
+  while (size < needed) {
+    size *= 2
+  }
+  const grown = Buffer.allocUnsafeSlow(size)
+  output.copy(grown, 0, 0, used)
+  inlineEscapeOutput = grown
+  return grown
+}
+
+// Escapes `length` bytes of `src` into the shared output buffer at `offset`
+// and returns the offset after the last byte written.
+function escapeInlineFlightBytes(
+  src: Buffer,
+  length: number,
+  offset: number
+): number {
+  let dst = inlineEscapeOutput!
+  let o = offset
+  let i = 0
+  while (i < length) {
+    const blockEnd =
+      length - i > INLINE_ESCAPE_BLOCK_SIZE
+        ? i + INLINE_ESCAPE_BLOCK_SIZE
+        : length
+    const needed = o + (blockEnd - i) * INLINE_ESCAPE_MAX_GROWTH
+    if (needed > dst.length) {
+      dst = growInlineEscapeOutput(dst, o, needed)
+    }
+
+    while (i < blockEnd) {
+      let c = src[i]
+      // Most bytes need no escape: copy runs of them in a tight loop.
+      while (inlineEscapeKind[c] === INLINE_ESCAPE_NONE) {
+        dst[o++] = c
+        if (++i === blockEnd) {
+          break
+        }
+        c = src[i]
+      }
+      if (i >= blockEnd) {
+        break
+      }
+
+      const kind = inlineEscapeKind[c]
+      if (kind === INLINE_ESCAPE_SHORT) {
+        dst[o++] = BACKSLASH
+        dst[o++] = inlineEscapeShort[c]
+      } else if (kind === INLINE_ESCAPE_UNICODE) {
+        dst[o++] = BACKSLASH
+        dst[o++] = LOWER_U
+        dst[o++] = DIGIT_0
+        dst[o++] = DIGIT_0
+        dst[o++] = inlineEscapeHex[c >> 4]
+        dst[o++] = inlineEscapeHex[c & 15]
+      } else if (
+        i + 2 < length &&
+        src[i + 1] === 0x80 &&
+        (src[i + 2] === 0xa8 || src[i + 2] === 0xa9)
+      ) {
+        // U+2028 is E2 80 A8 and U+2029 is E2 80 A9. The three bytes become
+        // six, which is within the growth allowed for the first of them.
+        dst[o++] = BACKSLASH
+        dst[o++] = LOWER_U
+        dst[o++] = DIGIT_2
+        dst[o++] = DIGIT_0
+        dst[o++] = DIGIT_2
+        dst[o++] = src[i + 2] === 0xa8 ? 0x38 : 0x39
+        i += 2
+      } else {
+        dst[o++] = c
+      }
+      i++
+    }
+  }
+  return o
+}
+
+function escapeInlineFlightString(text: string, offset: number): number {
+  const scratch = (inlineEncodeScratch ??= Buffer.allocUnsafeSlow(
+    INLINE_ENCODE_SCRATCH_SIZE
+  ))
+  let rest = text
+  let o = offset
+  while (true) {
+    // Encodes as many whole characters as fit, so a character is never split
+    // between two rounds.
+    const { read, written } = inlineTextEncoder.encodeInto(rest, scratch)
+    o = escapeInlineFlightBytes(scratch, written, o)
+    if (read === rest.length) {
+      return o
+    }
+    rest = rest.slice(read)
+  }
+}
+
+// Builds the complete inline script for a batch of chunks: `start`, the
+// escaped Flight data and `end`. Returns null when any byte run is not valid
+// UTF-8, in which case the batch has to be sent as a binary payload.
+function encodeInlineFlightScript(
+  chunks: Array<string | Uint8Array>,
+  start: Buffer,
+  end: Buffer
+): Buffer | null {
+  inlineEscapeOutput ??= Buffer.allocUnsafeSlow(
+    INLINE_ESCAPE_INITIAL_OUTPUT_SIZE
+  )
+
+  let o = 0
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i]
+    if (typeof chunk === 'string') {
+      o = escapeInlineFlightString(chunk, o)
+    } else {
+      const runStart = i
+      while (i + 1 < chunks.length && typeof chunks[i + 1] !== 'string') {
+        i++
+      }
+      const bytes = byteRun(chunks, runStart, i)
+      if (!isUtf8(bytes)) {
+        return null
+      }
+      o = escapeInlineFlightBytes(bytes, bytes.length, o)
+    }
+  }
+
+  const escaped = inlineEscapeOutput
+  const script = Buffer.allocUnsafe(start.length + o + end.length)
+  start.copy(script)
+  escaped.copy(script, start.length, 0, o)
+  end.copy(script, start.length + o)
+
+  if (escaped.length > INLINE_ESCAPE_MAX_RETAINED_OUTPUT_SIZE) {
+    inlineEscapeOutput = null
+  }
+  return script
 }
 
 function encodeInlineFlightData(
@@ -1092,37 +1329,38 @@ async function pullFlightData(
 
   try {
     while (true) {
-      const chunk = readInlineFlightData(dataStream)
-      if (chunk !== null) {
-        let fragments: string[]
-        if (Array.isArray(chunk)) {
-          fragments = chunk
-        } else if (isUtf8(chunk)) {
-          fragments = [
-            htmlEscapeJsonString(
-              JSON.stringify(chunk.toString('utf8')).slice(1, -1)
-            ),
-          ]
-        } else {
-          const base64 = Buffer.from(
-            chunk.buffer,
-            chunk.byteOffset,
-            chunk.byteLength
-          ).toString('base64')
-          binaryStart ??= Buffer.from(
-            `${start}${INLINE_FLIGHT_PAYLOAD_BINARY},${quote}`
-          )
-          // Base64 contains no JSON or HTML special characters.
-          output.push(encodeInlineFlightData([base64], binaryStart, end))
-          continue
-        }
+      const chunks = readBufferedFlightChunks(dataStream)
+      if (chunks !== null) {
         dataStart ??= Buffer.from(
           `${start}${INLINE_FLIGHT_PAYLOAD_DATA},${quote}`
         )
+        let script: Buffer | null
         if (externalBrowserRuntime) {
-          fragments = fragments.map(htmlEscapeAttributeString)
+          // The attribute needs a second round of escaping, so this mode
+          // goes through strings.
+          const fragments = toInlineFlightFragments(chunks)
+          script =
+            fragments === null
+              ? null
+              : encodeInlineFlightData(
+                  fragments.map(htmlEscapeAttributeString),
+                  dataStart,
+                  end
+                )
+        } else {
+          script = encodeInlineFlightScript(chunks, dataStart, end)
         }
-        output.push(encodeInlineFlightData(fragments, dataStart, end))
+
+        if (script === null) {
+          // Not text: inline the raw bytes as base64, which contains no JSON
+          // or HTML special characters.
+          const base64 = concatInlineFlightChunks(chunks).toString('base64')
+          binaryStart ??= Buffer.from(
+            `${start}${INLINE_FLIGHT_PAYLOAD_BINARY},${quote}`
+          )
+          script = encodeInlineFlightData([base64], binaryStart, end)
+        }
+        output.push(script)
         continue
       }
 
