@@ -108,6 +108,22 @@ Options:
 
     Explicitly tell the CLI to skip initializing a git repository.
 
+  --agents-md
+
+    Include AGENTS.md to guide coding agents to write up-to-date Next.js code. (default)
+
+  --no-agents-md
+
+    Do not include AGENTS.md to guide coding agents.
+
+  --agent-feedback
+
+    Prepare anonymized Next.js feedback for your review.
+
+  --no-agent-feedback
+
+    Do not prepare anonymized Next.js feedback for your review.
+
   --yes
 
     Use previous preferences or defaults for all options that were not

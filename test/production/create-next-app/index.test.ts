@@ -79,6 +79,18 @@ describe('create-next-app', () => {
     }
   )
 
+  it('should list both agents-md flags in help', async () => {
+    await useTempDir(async (cwd) => {
+      const res = await run(['--help'], nextTgzFilename, {
+        cwd,
+        stdio: 'pipe',
+      })
+
+      expect(res.stdout).toContain('--agents-md')
+      expect(res.stdout).toContain('--no-agents-md')
+    })
+  })
+
   it('should list both agent feedback flags in help', async () => {
     await useTempDir(async (cwd) => {
       const res = await run(['--help'], nextTgzFilename, {

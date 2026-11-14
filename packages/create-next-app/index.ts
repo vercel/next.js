@@ -112,6 +112,10 @@ const program = new Command(packageJson.name)
     'Include AGENTS.md to guide coding agents to write up-to-date Next.js code. (default)'
   )
   .option(
+    '--no-agents-md',
+    'Do not include AGENTS.md to guide coding agents.'
+  )
+  .option(
     '--agent-feedback',
     'Prepare anonymized Next.js feedback for your review.'
   )
@@ -663,7 +667,7 @@ async function run(): Promise<void> {
       }
     }
 
-    if (args.includes('--no-agents-md')) {
+    if (opts.agentsMd === false || args.includes('--no-agents-md')) {
       opts.agentsMd = false
     } else if (!opts.agentsMd) {
       if (skipPrompt) {
