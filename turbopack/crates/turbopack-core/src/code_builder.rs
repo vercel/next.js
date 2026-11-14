@@ -25,7 +25,8 @@ use crate::{
     output::OutputAsset,
     source_map::{
         GenerateSourceMap, SourceMap, SourceMapAsset, SourceMapGenerationOptions, SourceMapType,
-        SourceMaps, structured::StructuredSourceMap,
+        SourceMaps,
+        structured::{StructuredSourceMap, null_contents},
     },
     source_pos::SourcePos,
 };
@@ -38,16 +39,97 @@ pub enum SectionMap {
     Structured(Box<StructuredSourceMap>),
     /// A map split by [`StructuredSourceMap::split`] (see
     /// [`SplitSourceMap`](crate::source_map::structured::SplitSourceMap)): `head`, possibly
-    /// with rewritten `sources`, followed by the tail held by the `tail` cell, whose bytes are
-    /// `tail_bytes`.
+    /// with rewritten `sources`, followed by the tail: the `sourcesContent` part (if stored on
+    /// its own) and the rest.
     ///
-    /// Stored as [`CodeCells`], the section map references `tail` instead of copying it, see
-    /// [`Code::resolved_code_cells`].
+    /// Stored as [`CodeCells`], the section map references the tail's parts instead of copying
+    /// their bytes, see [`Code::resolved_code_cells`] and [`SharedMapPart`].
     Split {
         head: Box<StructuredSourceMap>,
-        tail: ResolvedVc<Rope>,
-        tail_bytes: Rope,
+        contents: Option<SharedMapPart>,
+        rest: SharedMapPart,
     },
+    /// A map whose `sourcesContent` is another map's (see
+    /// [`StructuredSourceMap::with_shared_contents`]): `prefix` (the opening `{` and the head
+    /// fields), the shared contents, then `suffix` (the remaining fields and the closing `}`).
+    ///
+    /// E.g. a minified factory's map: the minifier keeps the sources but recomputes everything
+    /// else, so it can run without the contents and reference the unminified map's instead.
+    SharedContents {
+        prefix: Rope,
+        contents: SharedMapPart,
+        suffix: Rope,
+    },
+}
+
+/// Part of a serialized source map that is held by a [`CellRope`] cell, along with the bytes it
+/// currently reads as. The bytes are what synchronous code uses, the cell is what is persisted
+/// (see [`Code::resolved_code_cells`]).
+///
+/// A `sourcesContent` part whose entries are all references to the sources' files (or `null`)
+/// holds no text of its own, only small JSON scaffolding. Maps sharing such a part copy its
+/// segments instead of referencing its cell: reading them then only needs the files' escaped
+/// content, not the task owning the part (which would load everything else that task stores).
+/// A part holding inline text is referenced, so the text isn't copied.
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, NonLocalValue)]
+pub struct SharedMapPart {
+    cell: ResolvedVc<CellRope>,
+    /// The part's segments, if it holds no text of its own (see above).
+    reference_only: Option<CellRope>,
+    bytes: Rope,
+    /// For a `sourcesContent` part, its number of entries (one per source); 0 otherwise.
+    entries: u32,
+}
+
+impl SharedMapPart {
+    /// Reads a part that isn't a `sourcesContent` part.
+    pub async fn read(cell: ResolvedVc<CellRope>) -> Result<Self> {
+        Ok(SharedMapPart {
+            cell,
+            reference_only: None,
+            bytes: cell.await?.read().await?,
+            entries: 0,
+        })
+    }
+
+    /// Reads a `sourcesContent` part (`,"sourcesContent":[...]`) with `entries` entries.
+    /// `reference_only` says whether every entry is a file reference or `null` (see above). The
+    /// part's creator knows both, so they don't have to be recovered from its bytes.
+    pub async fn read_contents(
+        cell: ResolvedVc<CellRope>,
+        entries: u32,
+        reference_only: bool,
+    ) -> Result<Self> {
+        let rope = cell.await?;
+        Ok(SharedMapPart {
+            cell,
+            bytes: rope.read().await?,
+            reference_only: reference_only.then(|| (*rope).clone()),
+            entries,
+        })
+    }
+
+    /// For a `sourcesContent` part, the number of entries (one per source).
+    pub fn entries(&self) -> u32 {
+        self.entries
+    }
+
+    /// Appends the part to `builder`: its segments if it holds no text of its own, otherwise a
+    /// reference to its cell.
+    fn append_to(&self, builder: &mut CellRopeBuilder) {
+        match &self.reference_only {
+            Some(segments) => builder.append(segments),
+            None => builder.push_rope(self.cell),
+        }
+    }
+
+    pub fn cell(&self) -> ResolvedVc<CellRope> {
+        self.cell
+    }
+
+    pub fn bytes(&self) -> &Rope {
+        &self.bytes
+    }
 }
 
 impl From<Rope> for SectionMap {
@@ -73,9 +155,9 @@ impl DeterministicHash for SectionMap {
                 state.write_u8(1);
                 map.deterministic_hash(state);
             }
-            SectionMap::Split { .. } => {
-                // Hashed like the `Raw` map with the same bytes: the cell is only where the tail
-                // is stored.
+            SectionMap::Split { .. } | SectionMap::SharedContents { .. } => {
+                // Hashed like the `Raw` map with the same bytes: the cells are only where parts of
+                // the map are stored.
                 state.write_u8(0);
                 self.to_rope().deterministic_hash(state);
             }
@@ -89,24 +171,100 @@ impl SectionMap {
             SectionMap::Raw(map) => map.clone(),
             SectionMap::Structured(map) => map.to_rope(),
             SectionMap::Split {
-                head, tail_bytes, ..
+                head,
+                contents,
+                rest,
             } => {
                 let mut builder = RopeBuilder::default();
                 builder.concat(&head.head_to_rope());
-                builder.concat(tail_bytes);
+                if let Some(contents) = contents {
+                    builder.concat(&contents.bytes);
+                }
+                builder.concat(&rest.bytes);
+                builder.build()
+            }
+            SectionMap::SharedContents {
+                prefix,
+                contents,
+                suffix,
+            } => {
+                let mut builder = RopeBuilder::default();
+                builder.concat(prefix);
+                builder.concat(&contents.bytes);
+                builder.concat(suffix);
                 builder.build()
             }
         }
     }
 
-    /// The map as a [`CellRope`]: a [`SectionMap::Split`] map references its tail cell, other
-    /// maps are inline.
+    /// The map with its shared `sourcesContent` part replaced by a placeholder (see
+    /// [`StructuredSourceMap::contents_placeholder`]), the opening `{` and head fields that
+    /// precede the part (see [`StructuredSourceMap::with_shared_contents`]), and the part. `None`
+    /// if the map doesn't store its contents as a part of its own.
+    fn without_shared_contents(&self) -> Option<(Rope, Rope, &SharedMapPart)> {
+        if !self.has_shared_contents() {
+            return None;
+        }
+        let (prefix, contents, rest) = match self {
+            SectionMap::Split {
+                head,
+                contents: Some(contents),
+                rest,
+            } => (head.head_to_rope(), contents, rest.bytes.clone()),
+            SectionMap::SharedContents {
+                prefix,
+                contents,
+                suffix,
+            } => (prefix.clone(), contents, suffix.clone()),
+            SectionMap::Raw(_) | SectionMap::Structured(_) | SectionMap::Split { .. } => {
+                return None;
+            }
+        };
+        let mut builder = RopeBuilder::default();
+        builder.concat(&prefix);
+        builder += ",\"sourcesContent\":";
+        builder.concat(&null_contents(contents.entries as usize));
+        builder.concat(&rest);
+        Some((builder.build(), prefix, contents))
+    }
+
+    /// Whether the map stores its `sourcesContent` as a part of its own (see
+    /// [`SectionMap::without_shared_contents`]).
+    fn has_shared_contents(&self) -> bool {
+        matches!(
+            self,
+            SectionMap::Split {
+                contents: Some(_),
+                ..
+            } | SectionMap::SharedContents { .. }
+        )
+    }
+
+    /// The map as a [`CellRope`]: [`SectionMap::Split`] and [`SectionMap::SharedContents`] maps
+    /// reference their parts instead of copying their bytes (see [`SharedMapPart`]), other maps
+    /// are inline.
     fn to_cell_rope(&self) -> CellRope {
         let mut builder = CellRopeBuilder::default();
         match self {
-            SectionMap::Split { head, tail, .. } => {
+            SectionMap::Split {
+                head,
+                contents,
+                rest,
+            } => {
                 builder.concat(&head.head_to_rope());
-                builder.push_cell(*tail);
+                if let Some(contents) = contents {
+                    contents.append_to(&mut builder);
+                }
+                builder.push_rope(rest.cell);
+            }
+            SectionMap::SharedContents {
+                prefix,
+                contents,
+                suffix,
+            } => {
+                builder.concat(prefix);
+                contents.append_to(&mut builder);
+                builder.concat(suffix);
             }
             SectionMap::Raw(_) | SectionMap::Structured(_) => builder.concat(&self.to_rope()),
         }
@@ -252,20 +410,22 @@ impl Code {
     }
 
     pub fn source_maps(&self) -> Result<SourceMaps<Rope>> {
+        self.source_map_types()
+            .try_map(|ty| self.generate_source_map_ref(None, ty))
+    }
+
+    /// The shape of [`Code::source_maps`] without generating any map: the type to generate each
+    /// variant as (a shared map as [`SourceMapType::Full`]).
+    pub fn source_map_types(&self) -> SourceMaps<SourceMapType> {
         let full = self.has_source_map_for(SourceMapType::Full);
         let shallow = self.has_source_map_for(SourceMapType::Shallow);
         if full && shallow && self.mappings.is_shared() {
-            return Ok(SourceMaps::Shared(
-                self.generate_source_map_ref(None, SourceMapType::Full)?,
-            ));
+            return SourceMaps::Shared(SourceMapType::Full);
         }
-        Ok(SourceMaps::new(
-            full.then(|| self.generate_source_map_ref(None, SourceMapType::Full))
-                .transpose()?,
-            shallow
-                .then(|| self.generate_source_map_ref(None, SourceMapType::Shallow))
-                .transpose()?,
-        ))
+        SourceMaps::new(
+            full.then_some(SourceMapType::Full),
+            shallow.then_some(SourceMapType::Shallow),
+        )
     }
 
     // Whether this code should have a debug id generated for it
@@ -286,8 +446,9 @@ impl Code {
     }
 
     /// Stores this `Code` as [`CodeCells`] in the current task: the code and each generated
-    /// section map become their own persisted cells. A [`SectionMap::Split`] map's cell
-    /// references its tail cell instead of copying it.
+    /// section map become their own persisted cells. [`SectionMap::Split`] and
+    /// [`SectionMap::SharedContents`] maps' cells reference their parts instead of copying their
+    /// bytes.
     pub fn resolved_code_cells(self) -> ResolvedVc<CodeCells> {
         let source_map_generation_options = self.mappings.available();
         let mappings = self
@@ -763,6 +924,56 @@ impl Code {
         }
     }
 
+    /// Like [`Code::generate_source_map_ref`] for `ty` (without a debug id), but with the
+    /// `sourcesContent` left out of the code's only `ty` section map that stores it as a part of
+    /// its own (see [`SectionMap::Split`]). Returns the map, the opening `{` and head fields of
+    /// that section map, and its contents part, or `None` if no or several `ty` section maps store
+    /// their contents like this (or `ty` wasn't generated).
+    ///
+    /// Lets the code be transformed (e.g. minified) without its contents, which a transform that
+    /// keeps the sources doesn't need, and the result reference them instead of copying them (see
+    /// [`StructuredSourceMap::with_shared_contents`]).
+    pub fn generate_source_map_ref_without_shared_contents(
+        &self,
+        ty: SourceMapType,
+    ) -> Option<(Rope, Rope, SharedMapPart)> {
+        self.validate_source_map_type(ty).ok()?;
+        let mappings = &self.mappings.mappings;
+        let mut shared = mappings
+            .iter()
+            .enumerate()
+            .filter(|(_, (_, maps))| maps.get(ty).is_some_and(SectionMap::has_shared_contents));
+        let (shared_index, (_, shared_maps)) = shared.next()?;
+        if shared.next().is_some() {
+            return None;
+        }
+        let (map_without_contents, prefix, contents) =
+            shared_maps.get(ty)?.without_shared_contents()?;
+        let contents = contents.clone();
+        let sections = self
+            .source_map_sections(false, ty)
+            .into_iter()
+            .map(|(pos, section)| {
+                let map = match section {
+                    Some(index) if index == shared_index => map_without_contents.clone(),
+                    Some(index) => mappings[index]
+                        .1
+                        .get(ty)
+                        .expect("sections only refer to maps")
+                        .to_rope(),
+                    None => SourceMap::empty_rope(),
+                };
+                (pos, map)
+            })
+            .collect::<Vec<_>>();
+        let map = if sections.len() == 1 && sections[0].0.line == 0 && sections[0].0.column == 0 {
+            sections.into_iter().next().unwrap().1
+        } else {
+            SourceMap::sections_to_rope(sections, None)
+        };
+        Some((map, prefix, contents))
+    }
+
     /// The sections of this code's `ty` source map: where each starts, and the index of its
     /// mapping (`None` for an empty map that ends the previous section).
     fn source_map_sections(
@@ -870,7 +1081,9 @@ impl CodeComposition {
                         }
                     }
                 }
-                CellRopePart::Nested(_) => bail!("a composition body doesn't nest ropes"),
+                CellRopePart::Nested(_) | CellRopePart::EscapedFileContent(_) => {
+                    bail!("a composition body only holds inline bytes and code cells")
+                }
             }
         }
         Ok(code.build())
@@ -971,7 +1184,9 @@ impl CodeComposition {
                     }
                     offset += len - directive.map_or(0, |directive| directive.len());
                 }
-                CellRopePart::Nested(_) => bail!("a composition body doesn't nest ropes"),
+                CellRopePart::Nested(_) | CellRopePart::EscapedFileContent(_) => {
+                    bail!("a composition body only holds inline bytes and code cells")
+                }
             }
         }
         Ok(map_cells)
@@ -1702,18 +1917,21 @@ mod composition_tests {
                 anyhow::bail!("a factory has one section map");
             };
             let map_cell = map_cell.await?;
-            // The section map references the module's tail instead of copying it.
+            // The section map references the module's tail parts instead of copying them.
             let referenced = map_cell
                 .parts()
                 .filter_map(|part| match part {
-                    CellRopePart::Cell { cell, skip: None } => Some(cell),
+                    CellRopePart::Nested(rope) => Some(rope),
                     _ => None,
                 })
                 .collect::<Vec<_>>();
-            ensure!(
-                referenced == [module.map.tail()],
-                "the tail isn't referenced"
-            );
+            let expected = module
+                .map
+                .contents()
+                .into_iter()
+                .chain([module.map.rest()])
+                .collect::<Vec<_>>();
+            ensure!(referenced == expected, "the tail isn't referenced");
             ensure!(
                 map_cell.read().await? == rewrite(&full_map, prefix)?.to_rope(),
                 "the section map differs from the rewritten module map"
@@ -1826,6 +2044,227 @@ mod composition_tests {
         .await
         .unwrap();
     }
+
+    /// The module's source file, holding the text.
+    #[turbo_tasks::function]
+    async fn text_file(text: ResolvedVc<Text>) -> Result<Vc<FileContent>> {
+        Ok(FileContent::Content(File::from(text.await?.text.get().to_string())).cell())
+    }
+
+    /// A module's map generated from its source (escaped `sourcesContent`), with `text` as the
+    /// source's content.
+    fn generated_module_map(
+        text: &str,
+        sources: &[(Rope, ResolvedVc<FileContent>)],
+    ) -> Result<(StructuredSourceMap, Vec<Option<ResolvedVc<FileContent>>>)> {
+        let map = swc_sourcemap::SourceMap::from_slice(
+            serde_json::to_string(&serde_json::json!({
+                "version": 3,
+                "sources": ["module.js"],
+                "sourcesContent": [text],
+                "names": [],
+                "mappings": "AAAA",
+            }))?
+            .as_bytes(),
+        )?;
+        StructuredSourceMap::from_swc_map_with_sources(map, sources)
+    }
+
+    /// Like a module's content: the module's map, split, with the source's content referenced
+    /// instead of copied.
+    #[turbo_tasks::function]
+    async fn referencing_module_map(text: ResolvedVc<Text>) -> Result<Vc<ModuleMap>> {
+        let file = text_file(*text).to_resolved().await?;
+        let content = text.await?.text.get().to_string();
+        let (map, refs) = generated_module_map(&content, &[(Rope::from(content.clone()), file)])?;
+        ensure!(
+            refs == [Some(file)],
+            "the content isn't matched to the file"
+        );
+        Ok(ModuleMap {
+            map: SplitSourceMap::new_with_source_contents(map, &refs),
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    async fn referencing_piece(text: ResolvedVc<Text>, prefix: RcStr) -> Result<Vc<CodeCells>> {
+        let module = referencing_module_map(*text).await?;
+        let head = rewrite(module.map.head(), &prefix)?;
+        let mut code = CodeBuilder::new(false, SourceMapGenerationOptions::default());
+        code += "(()=>{";
+        code.push_source(
+            &Rope::from("x()"),
+            SourceMaps::Full(module.map.to_section_map(head).await?),
+        )?;
+        code += "})";
+        Ok(*code.build().resolved_code_cells())
+    }
+
+    #[turbo_tasks::value(shared, serialization = "skip")]
+    struct ReferencingOutput {
+        map: RcStr,
+        piece_map: ReadRef<CellRope>,
+    }
+
+    /// Checks that the module's contents part references the file instead of copying the text,
+    /// and that every way of reading the factory's map (its cell, `to_code`) gives the bytes of
+    /// the same map with inline contents.
+    #[turbo_tasks::function(operation, root)]
+    async fn referencing_output_operation(text: ResolvedVc<Text>) -> Result<Vc<ReferencingOutput>> {
+        let content = text.await?.text.get().to_string();
+        let module = referencing_module_map(*text).await?;
+        let contents = module.map.contents().context("the contents are a part")?;
+        let file = text_file(*text).to_resolved().await?;
+        let parts = contents.await?;
+        ensure!(
+            parts
+                .parts()
+                .any(|part| matches!(part, CellRopePart::EscapedFileContent(f) if f == file)),
+            "the contents don't reference the file"
+        );
+        ensure!(
+            parts.parts().all(|part| match part {
+                CellRopePart::Inline(bytes) => !bytes.to_str().unwrap().contains(&content),
+                _ => true,
+            }),
+            "the contents hold a copy of the text"
+        );
+
+        let flat = rewrite(&generated_module_map(&content, &[])?.0, "a")?.to_rope();
+        let cells = referencing_piece(*text, "a".into()).await?;
+        let [map_cell] = section_map_cells(&cells)[..] else {
+            anyhow::bail!("a factory has one section map");
+        };
+        let map_cell = map_cell.await?;
+        ensure!(
+            map_cell.read().await? == flat,
+            "the section map differs from the inline map"
+        );
+        let code = referencing_piece(*text, "a".into()).to_code().await?;
+        let mut expected = CodeBuilder::new(false, SourceMapGenerationOptions::default());
+        expected += "(()=>{";
+        expected.push_source(
+            &Rope::from("x()"),
+            SourceMaps::Full(Rope::from(flat.to_bytes().to_vec())),
+        )?;
+        expected += "})";
+        ensure!(
+            code.generate_source_map_ref(None, SourceMapType::Full)?
+                == expected
+                    .build()
+                    .generate_source_map_ref(None, SourceMapType::Full)?,
+            "the code's map differs from the inline map"
+        );
+        Ok(ReferencingOutput {
+            map: map_cell.read().await?.to_str()?.into(),
+            piece_map: map_cell,
+        }
+        .cell())
+    }
+
+    /// A map whose contents reference the source file reads like a map with inline contents,
+    /// and follows edits to the file without changing the factory's map cell.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn referenced_contents_read_like_inline_contents() {
+        turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ))
+        .run_once(async {
+            let text_op = text_operation();
+            let text = text_op.resolve().strongly_consistent().await?;
+            let output = referencing_output_operation(text);
+            let before = output.read_strongly_consistent().await?;
+            assert!(before.map.contains(r#""sourcesContent":["one"]"#));
+
+            text_op
+                .read_strongly_consistent()
+                .await?
+                .text
+                .set("two \"quoted\"\n😀".into());
+
+            let after = output.read_strongly_consistent().await?;
+            assert!(
+                after
+                    .map
+                    .contains(r#""sourcesContent":["two \"quoted\"\n😀"]"#)
+            );
+            assert_eq!(before.piece_map, after.piece_map);
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    /// Like a module's content whose source text couldn't be matched to a file: the contents
+    /// stay inline, in their own part.
+    #[turbo_tasks::function]
+    async fn inline_contents_module_map(text: ResolvedVc<Text>) -> Result<Vc<ModuleMap>> {
+        let content = text.await?.text.get().to_string();
+        let (map, refs) = generated_module_map(&content, &[])?;
+        ensure!(refs.iter().all(Option::is_none), "nothing is referenced");
+        Ok(ModuleMap {
+            map: SplitSourceMap::new_with_source_contents(map, &refs),
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::function(operation, root)]
+    async fn inline_contents_piece_operation(text: ResolvedVc<Text>) -> Result<Vc<RcStr>> {
+        let content = text.await?.text.get().to_string();
+        let module = inline_contents_module_map(*text).await?;
+        let contents = module.map.contents().context("the contents are a part")?;
+        let head = rewrite(module.map.head(), "a")?;
+        let mut code = CodeBuilder::new(false, SourceMapGenerationOptions::default());
+        code.push_source(
+            &Rope::from("x()"),
+            SourceMaps::Full(module.map.to_section_map(head).await?),
+        )?;
+        let map = code.build().resolved_code_cells().await?;
+        let [map_cell] = section_map_cells(&map)[..] else {
+            anyhow::bail!("the code has one section map");
+        };
+        let map_cell = map_cell.await?;
+        let referenced = map_cell
+            .parts()
+            .filter_map(|part| match part {
+                CellRopePart::Nested(rope) => Some(rope),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        ensure!(
+            referenced == [contents, module.map.rest()],
+            "inline contents must be referenced, not copied"
+        );
+        ensure!(
+            map_cell.parts().all(|part| match part {
+                CellRopePart::Inline(bytes) => !bytes.to_str().unwrap().contains(&content),
+                _ => true,
+            }),
+            "the section map holds a copy of the inline contents"
+        );
+        Ok(Vc::cell(map_cell.read().await?.to_str()?.into()))
+    }
+
+    /// Contents that hold text of their own aren't copied into the maps sharing them.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn inline_contents_are_referenced_not_copied() {
+        turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ))
+        .run_once(async {
+            let text = text_operation().resolve().strongly_consistent().await?;
+            let map = inline_contents_piece_operation(text)
+                .read_strongly_consistent()
+                .await?;
+            assert!(map.contains(r#""sourcesContent":["one"]"#), "{map}");
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
 }
 
 #[cfg(test)]
@@ -1834,6 +2273,7 @@ mod variant_tests {
     use turbo_rcstr::RcStr;
     use turbo_tasks::{ResolvedVc, Vc};
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+    use turbo_tasks_fs::{FileSystem, VirtualFileSystem};
 
     use super::*;
 
@@ -2013,6 +2453,59 @@ mod variant_tests {
                     && flat.generate_source_map_ref(debug_id.clone(), ty).is_err(),
                 "a missing {ty:?} variant must fail in both"
             );
+        }
+
+        // The emitted code files (magic comments and debug id included) match too, for every
+        // emitted map type, and emitting a missing variant fails in both.
+        let flat = flat.cell();
+        let flat_resolved = flat.to_resolved().await?;
+        let composed = ComposedCode::new(code, Some(composition.resolved_cell()));
+        let map_path = VirtualFileSystem::new()
+            .root()
+            .await?
+            .join("chunk.js.map")?;
+        let map_asset = |ty| {
+            SourceMapAsset::new_fixed(
+                map_path.clone(),
+                ty,
+                *ResolvedVc::upcast::<Box<dyn GenerateSourceMap>>(flat_resolved),
+            )
+        };
+        for emitted in [
+            None,
+            Some(SourceMapType::Full),
+            Some(SourceMapType::Shallow),
+        ] {
+            let path_ty = emitted.unwrap_or(SourceMapType::Full);
+            let composed_file = composed
+                .to_file_with_magic_comments(emitted, || map_asset(path_ty))
+                .await;
+            let flat_file = flat
+                .to_rope_with_magic_comments(emitted, || map_asset(path_ty))
+                .await;
+            match (composed_file, flat_file) {
+                (Ok(composed_file), Ok(flat_file)) => {
+                    ensure!(
+                        emitted.is_none_or(|ty| variants.types().contains(&ty)),
+                        "emitting a missing {emitted:?} variant must fail"
+                    );
+                    ensure!(
+                        *composed_file.content() == flat_file,
+                        "{emitted:?} composed file differs"
+                    );
+                    let text = flat_file.to_str()?;
+                    ensure!(
+                        text.contains("sourceMappingURL=") == emitted.is_some(),
+                        "{emitted:?} sourceMappingURL"
+                    );
+                    ensure!(text.contains("debugId=") == debug_id.is_some(), "debugId");
+                }
+                (Err(_), Err(_)) => ensure!(
+                    emitted.is_some_and(|ty| !variants.types().contains(&ty)),
+                    "only a missing {emitted:?} variant may fail"
+                ),
+                _ => anyhow::bail!("{emitted:?}: composed and inline disagree on failing"),
+            }
         }
         Ok(Checked { cells_per_piece }.cell())
     }

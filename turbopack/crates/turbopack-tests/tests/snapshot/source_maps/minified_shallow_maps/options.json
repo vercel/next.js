@@ -1,0 +1,10 @@
+{
+  "runtime": "NodeJs",
+  "entry": "../minified/input/index.js",
+  "minifyType": {
+    "Minify": {
+      "mangle": "optimal-size"
+    }
+  },
+  "generateShallowSourceMaps": true
+}

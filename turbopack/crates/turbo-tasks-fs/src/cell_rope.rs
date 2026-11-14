@@ -10,9 +10,12 @@ use bincode::{
     error::{DecodeError, EncodeError},
     impl_borrow_decode,
 };
-use turbo_tasks::{NonLocalValue, ResolvedVc, TryJoinIterExt};
+use turbo_tasks::{NonLocalValue, ResolvedVc, TryJoinIterExt, Vc};
 
-use crate::rope::{InnerRope, Rope, RopeBuilder};
+use crate::{
+    FileContent,
+    rope::{InnerRope, Rope, RopeBuilder},
+};
 
 /// A rope made of inline bytes and references to [`Rope`] cells owned by other tasks.
 ///
@@ -30,6 +33,10 @@ use crate::rope::{InnerRope, Rope, RopeBuilder};
 /// A referenced cell's bytes can be patched when the rope is read: see
 /// [`CellRopeBuilder::push_cell_skipping`]. The patch is itself a reference to a cell, so it stays
 /// as independent of the cells' contents as the rest of the rope.
+///
+/// A rope can also reference a file's content as a JSON string literal, escaped when the rope is
+/// read: see [`CellRopeBuilder::push_escaped_file_content`]. Source maps use this to embed a
+/// source's text (`sourcesContent`) without storing an escaped copy of it.
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug, Default)]
 pub struct CellRope {
@@ -51,6 +58,38 @@ enum CellRopeSegment {
     /// All of another `CellRope`'s bytes. Lets a rope extend another one (e.g. append a footer)
     /// without copying its segments.
     Nested(ResolvedVc<CellRope>),
+    /// A file's content as a JSON string literal, see
+    /// [`CellRopeBuilder::push_escaped_file_content`].
+    EscapedFileContent(ResolvedVc<FileContent>),
+}
+
+/// JSON-escapes `text` into a string literal (including the quotes), as `serde_json` serializes
+/// a string. This is the form of a source's text in a source map's `sourcesContent`.
+pub fn escape_json_string(text: &str) -> Rope {
+    Rope::from(crate::json_escape::escape_json(text))
+}
+
+/// `content` as a JSON string literal, see [`CellRopeBuilder::push_escaped_file_content`].
+fn escape_file_content(content: &FileContent) -> Result<Rope> {
+    let FileContent::Content(file) = content else {
+        anyhow::bail!("an escaped file content reference points to a missing file");
+    };
+    Ok(escape_json_string(&file.content().to_str()?))
+}
+
+/// A file's content as a JSON string literal, see [`escaped_file_content`].
+///
+/// Only hashed in the persistent cache, like the file's content: referencing the file instead of
+/// persisting an escaped copy of its text is the point. After a restore, it is recomputed from
+/// the file when a rope referencing it is read.
+#[turbo_tasks::value(transparent, serialization = "hash")]
+struct EscapedFileContent(Rope);
+
+/// Escapes `content` once, so that every rope referencing the same file shares the escaped
+/// bytes (in memory) instead of escaping them again on every read.
+#[turbo_tasks::function]
+async fn escaped_file_content(content: Vc<FileContent>) -> Result<Vc<EscapedFileContent>> {
+    Ok(Vc::cell(escape_file_content(&*content.await?)?))
 }
 
 /// An optional range of bytes, as `(start, end)` offsets. Left out of a cell's bytes by
@@ -127,9 +166,10 @@ impl CellRope {
     /// Reads every referenced cell (and nested rope) and concatenates the segments into a flat
     /// [`Rope`].
     ///
-    /// This doesn't copy any bytes: the result shares the cells' buffers, and skipped ranges are
-    /// left out with [`Rope::skip`]. If any cell fails to read (or a skipped range doesn't fit its
-    /// cell), this fails too; a partial rope is never returned.
+    /// This doesn't copy the cells' bytes: the result shares their buffers, and skipped ranges
+    /// are left out with [`Rope::skip`]. (Escaped file contents are escaped once per file, see
+    /// [`CellRopeBuilder::push_escaped_file_content`].) If any cell fails to read (or a skipped
+    /// range doesn't fit its cell), this fails too; a partial rope is never returned.
     pub async fn read(&self) -> Result<Rope> {
         self.read_segments(true).await
     }
@@ -173,6 +213,14 @@ impl CellRope {
                             };
                             rope.read_segments(tracked).await?
                         }
+                        CellRopeSegment::EscapedFileContent(content) => {
+                            let escaped = escaped_file_content(**content);
+                            if tracked {
+                                (*escaped.await?).clone()
+                            } else {
+                                (*escaped.untracked().await?).clone()
+                            }
+                        }
                     })
                 })
                 .try_join()
@@ -185,7 +233,8 @@ impl CellRope {
         })
     }
 
-    /// The number of cells this rope references directly (not counting nested ropes' cells).
+    /// The number of cells this rope references directly (not counting nested ropes' cells, or
+    /// referenced files).
     pub fn cell_count(&self) -> usize {
         self.segments
             .iter()
@@ -213,6 +262,9 @@ impl CellRope {
                 skip: Some(*skip),
             },
             CellRopeSegment::Nested(rope) => CellRopePart::Nested(*rope),
+            CellRopeSegment::EscapedFileContent(content) => {
+                CellRopePart::EscapedFileContent(*content)
+            }
         })
     }
 }
@@ -229,6 +281,9 @@ pub enum CellRopePart {
     },
     /// A reference to all of another `CellRope`'s bytes.
     Nested(ResolvedVc<CellRope>),
+    /// A reference to a file's content, emitted as a JSON string literal (see
+    /// [`CellRopeBuilder::push_escaped_file_content`]).
+    EscapedFileContent(ResolvedVc<FileContent>),
 }
 
 /// Builds a [`CellRope`]. Inline bytes are buffered in a [`RopeBuilder`], so adjacent inline
@@ -279,6 +334,19 @@ impl CellRopeBuilder {
         self.segments.push(CellRopeSegment::Nested(rope));
     }
 
+    /// Appends a reference to a file's content, emitted as a JSON string literal (see
+    /// [`escape_json_string`]) when the rope is read.
+    ///
+    /// Nothing but the reference is stored, so a rope persisting this doesn't persist a copy of
+    /// the text. The escaped text is computed once per file and shared (in memory) by every rope
+    /// referencing it; it isn't persisted either, but recomputed from the file when needed (e.g.
+    /// after a restore). Reading fails if the file doesn't exist or isn't valid UTF-8.
+    pub fn push_escaped_file_content(&mut self, content: ResolvedVc<FileContent>) {
+        self.flush_inline();
+        self.segments
+            .push(CellRopeSegment::EscapedFileContent(content));
+    }
+
     /// Appends copies of all of `rope`'s segments.
     pub fn append(&mut self, rope: &CellRope) {
         for segment in &rope.segments {
@@ -291,6 +359,9 @@ impl CellRopeBuilder {
                     self.push_cell_skipping(*cell, *skip)
                 }
                 CellRopeSegment::Nested(nested) => self.push_rope(*nested),
+                CellRopeSegment::EscapedFileContent(content) => {
+                    self.push_escaped_file_content(*content)
+                }
             }
         }
     }
@@ -856,6 +927,67 @@ mod tests {
                 );
 
                 assert_eq!(read.read_strongly_consistent().await?.as_str(), "abcdef");
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+    }
+
+    #[turbo_tasks::function]
+    async fn text_file(text: ResolvedVc<Text>) -> Result<Vc<FileContent>> {
+        Ok(FileContent::Content(crate::File::from(text.await?.text.get().to_string())).cell())
+    }
+
+    /// `[<escaped file content>]`, referencing the file without reading it.
+    #[turbo_tasks::function]
+    async fn escaped_rope(text: ResolvedVc<Text>) -> Result<Vc<CellRope>> {
+        let mut builder = CellRopeBuilder::default();
+        builder += "[";
+        builder.push_escaped_file_content(text_file(*text).to_resolved().await?);
+        builder += "]";
+        Ok(builder.build().cell())
+    }
+
+    #[turbo_tasks::function(operation, root)]
+    async fn read_escaped_operation(text: ResolvedVc<Text>) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(
+            escaped_rope(*text).await?.read().await?.to_str()?.into(),
+        ))
+    }
+
+    /// An escaped file content segment reads exactly as `serde_json` escapes the text (and as
+    /// `escape_json_string`, which source maps use for inline contents, does), and follows
+    /// edits to the file.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn escaped_file_content_matches_serde_json_and_follows_edits() {
+        turbo_tasks!()
+            .run_once(async {
+                let controls: String = (0u8..=0x1f).chain([0x7f]).map(char::from).collect();
+                let texts = [
+                    "plain ascii",
+                    "quote \" backslash \\ slash /",
+                    &controls,
+                    "line\u{2028}para\u{2029}",
+                    "emoji 😀 and ü, astral 𝄞, BMP edge \u{d7ff}\u{e000}\u{ffff}",
+                    "crlf\r\nnext",
+                    "",
+                ];
+                let text_op = text_operation();
+                let text = text_op.resolve().strongly_consistent().await?;
+                let read = read_escaped_operation(text);
+                for sample in texts {
+                    text_op
+                        .read_strongly_consistent()
+                        .await?
+                        .text
+                        .set(sample.into());
+                    let expected = format!("[{}]", serde_json::to_string(sample)?);
+                    assert_eq!(read.read_strongly_consistent().await?.as_str(), expected);
+                    assert_eq!(
+                        escape_json_string(sample).to_str()?,
+                        serde_json::to_string(sample)?
+                    );
+                }
                 anyhow::Ok(())
             })
             .await

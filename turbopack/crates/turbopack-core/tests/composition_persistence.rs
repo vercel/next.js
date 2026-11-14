@@ -4,8 +4,9 @@
 
 //! A composed output (see `CodeComposition`) across persisted sessions with the GC enabled: the
 //! written files reference other tasks' cells, so those must stay alive, restore correctly, and
-//! keep producing the current bytes after edits and collections. The pieces carry both a full and
-//! a shallow source map; the code files emit neither, and both maps are written separately.
+//! keep producing the current bytes after edits and collections. It runs once for each way the
+//! pieces can carry source maps (only a full one, only a shallow one, both, or one shared by both);
+//! the code files emit no map, and every generated map is written separately.
 
 use std::{fs::read_to_string, path::Path, sync::Arc};
 
@@ -37,6 +38,74 @@ fn section_map(source: &str) -> Rope {
     ))
 }
 
+/// Which source maps the pieces carry.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Variants {
+    Full,
+    Shallow,
+    Both,
+    Shared,
+}
+
+const ALL: [Variants; 4] = [
+    Variants::Full,
+    Variants::Shallow,
+    Variants::Both,
+    Variants::Shared,
+];
+
+impl Variants {
+    fn options(self) -> SourceMapGenerationOptions {
+        match self {
+            Variants::Full => SourceMapGenerationOptions::default(),
+            Variants::Shallow => SourceMapGenerationOptions {
+                full: false,
+                shallow: true,
+                shallow_sources_content: true,
+            },
+            Variants::Both | Variants::Shared => BOTH,
+        }
+    }
+
+    fn maps(self, text: &str) -> SourceMaps<Rope> {
+        let full = section_map(&format!("{text}.full.js"));
+        let shallow = section_map(&format!("{text}.shallow.js"));
+        match self {
+            Variants::Full => SourceMaps::Full(full),
+            Variants::Shallow => SourceMaps::Shallow(shallow),
+            Variants::Both => SourceMaps::Both { full, shallow },
+            Variants::Shared => SourceMaps::Shared(section_map(&format!("{text}.shared.js"))),
+        }
+    }
+
+    /// The generated maps, as (file suffix, type).
+    fn types(self) -> &'static [(&'static str, SourceMapType)] {
+        const FULL: (&str, SourceMapType) = ("full", SourceMapType::Full);
+        const SHALLOW: (&str, SourceMapType) = ("shallow", SourceMapType::Shallow);
+        match self {
+            Variants::Full => &[FULL],
+            Variants::Shallow => &[SHALLOW],
+            Variants::Both | Variants::Shared => &[FULL, SHALLOW],
+        }
+    }
+
+    /// The source name the `suffix` map of a piece with `text` refers to.
+    fn source(self, text: &str, suffix: &str) -> String {
+        match self {
+            Variants::Shared => format!("{text}.shared.js"),
+            _ => format!("{text}.{suffix}.js"),
+        }
+    }
+
+    /// How many map cells a piece's one mapped section has: a shared map stays one.
+    fn cells_per_piece(self) -> usize {
+        match self {
+            Variants::Both => 2,
+            _ => 1,
+        }
+    }
+}
+
 fn open_tt(path: &Path) -> Arc<TurboTasks<TurboTasksBackend>> {
     TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
@@ -64,18 +133,21 @@ fn open_tt(path: &Path) -> Arc<TurboTasks<TurboTasksBackend>> {
     ))
 }
 
-/// The edited text, and which of two identical pieces fills the second slot.
+/// The edited text, which of two identical pieces fills the second slot, and which source maps
+/// the pieces carry (an index into [`ALL`]).
 #[turbo_tasks::value]
 struct Input {
     text: State<RcStr>,
     use_twin: State<bool>,
+    variants: usize,
 }
 
 #[turbo_tasks::function(operation, root)]
-fn input_operation() -> Vc<Input> {
+fn input_operation(variants: usize) -> Vc<Input> {
     Input {
         text: State::new(rcstr!("one")),
         use_twin: State::new(false),
+        variants,
     }
     .cell()
 }
@@ -89,19 +161,15 @@ fn disk_fs_operation(root: RcStr) -> Vc<DiskFileSystem> {
 /// bytes.
 #[turbo_tasks::function]
 async fn piece(input: ResolvedVc<Input>, slot: u32) -> Result<Vc<CodeCells>> {
+    let input = input.await?;
+    let variants = ALL[input.variants];
     let text = match slot {
-        0 => input.await?.text.get().clone(),
+        0 => input.text.get().clone(),
         _ => rcstr!("fixed"),
     };
-    let mut code = CodeBuilder::new(false, BOTH);
+    let mut code = CodeBuilder::new(false, variants.options());
     code += "(()=>{";
-    code.push_source(
-        &Rope::from(text.to_string()),
-        SourceMaps::Both {
-            full: section_map(&format!("{text}.full.js")),
-            shallow: section_map(&format!("{text}.shallow.js")),
-        },
-    )?;
+    code.push_source(&Rope::from(text.to_string()), variants.maps(&text))?;
     code += "})";
     Ok(*code.build().resolved_code_cells())
 }
@@ -127,7 +195,7 @@ async fn piece_ref(input: ResolvedVc<Input>, slot: u32) -> Result<Vc<PieceRef>> 
 #[turbo_tasks::function]
 async fn composition(input: ResolvedVc<Input>, debug_id: bool) -> Result<Vc<CodeComposition>> {
     let second = if *input.await?.use_twin.get() { 2 } else { 1 };
-    let mut builder = CodeCompositionBuilder::new(debug_id, BOTH);
+    let mut builder = CodeCompositionBuilder::new(debug_id, ALL[input.await?.variants].options());
     builder += "[";
     for slot in [0, second] {
         if slot != 0 {
@@ -176,14 +244,12 @@ async fn source_map(
 #[turbo_tasks::function(operation, root)]
 async fn write_operation(fs: ResolvedVc<DiskFileSystem>, input: ResolvedVc<Input>) -> Result<()> {
     let root = fs.root().owned().await?;
+    let variants = ALL[input.await?.variants];
     for (name, debug_id) in [("direct", false), ("nested", true)] {
         root.join(&format!("{name}.js"))?
             .write(content(*input, debug_id))
             .await?;
-        for (suffix, ty) in [
-            ("full", SourceMapType::Full),
-            ("shallow", SourceMapType::Shallow),
-        ] {
+        for &(suffix, ty) in variants.types() {
             root.join(&format!("{name}.{suffix}.map"))?
                 .write(source_map(*input, debug_id, ty))
                 .await?;
@@ -198,6 +264,14 @@ async fn extract_effects_operation(op: OperationVc<()>) -> Result<Vc<Effects>> {
     Ok(take_effects(op).await?.cell())
 }
 
+/// How many map cells the edited piece's persisted cells hold.
+#[turbo_tasks::function(operation, root)]
+async fn piece_map_cells_operation(input: ResolvedVc<Input>) -> Result<Vc<usize>> {
+    Ok(Vc::cell(
+        piece(*input, 0).await?.section_map_cells().count(),
+    ))
+}
+
 /// Writes both files, and returns the operation so a session can pin it as its GC root.
 async fn write(
     fs: ResolvedVc<DiskFileSystem>,
@@ -208,7 +282,7 @@ async fn write(
     Ok(op)
 }
 
-fn assert_files(out: &Path, text: &str) {
+fn assert_files(out: &Path, text: &str, variants: Variants) {
     let body = format!("[(()=>{{{text}}}),(()=>{{fixed}})]");
     assert_eq!(read_to_string(out.join("direct.js")).unwrap(), body);
     let nested = read_to_string(out.join("nested.js")).unwrap();
@@ -218,14 +292,22 @@ fn assert_files(out: &Path, text: &str) {
     );
     assert!(!nested.contains("sourceMappingURL"), "no map is emitted");
     for name in ["direct", "nested"] {
-        for (suffix, other) in [("full", "shallow"), ("shallow", "full")] {
-            let map = read_to_string(out.join(format!("{name}.{suffix}.map"))).unwrap();
+        for suffix in ["full", "shallow"] {
+            let path = out.join(format!("{name}.{suffix}.map"));
+            if !variants.types().iter().any(|&(s, _)| s == suffix) {
+                assert!(!path.exists(), "{variants:?} generates no {suffix} map");
+                continue;
+            }
+            let map = read_to_string(path).unwrap();
             for source in [text, "fixed"] {
-                assert!(
-                    map.contains(&format!("{source}.{suffix}.js"))
-                        && !map.contains(&format!("{source}.{other}.js")),
-                    "unexpected {name}.{suffix}.map: {map}"
-                );
+                for other in ["full", "shallow", "shared"] {
+                    let other = format!("{source}.{other}.js");
+                    assert_eq!(
+                        map.contains(&other),
+                        other == variants.source(source, suffix),
+                        "{variants:?}: unexpected {name}.{suffix}.map: {map}"
+                    );
+                }
             }
         }
     }
@@ -234,7 +316,8 @@ fn assert_files(out: &Path, text: &str) {
 /// Runs session `n` (see [`composed_files_survive_restores_edits_and_gc`]), then GC with the
 /// session's write operation pinned as its root, and persists the session. Returns the number of
 /// tasks the GC collected.
-async fn session(cache: &Path, out: &Path, n: u32) -> usize {
+async fn session(cache: &Path, out: &Path, n: u32, variants_index: usize) -> usize {
+    let variants = ALL[variants_index];
     let tt = open_tt(cache);
     let root: RcStr = out.to_str().unwrap().into();
     let check = out.to_path_buf();
@@ -243,29 +326,30 @@ async fn session(cache: &Path, out: &Path, n: u32) -> usize {
             .resolve()
             .strongly_consistent()
             .await?;
-        let input_op = input_operation();
+        let input_op = input_operation(variants_index);
         let input = input_op.resolve().strongly_consistent().await?;
         let input_value = input_op.read_strongly_consistent().await?;
+        let assert_files = |text| assert_files(&check, text, variants);
         let op = match n {
             // Cold.
             1 => {
                 let op = write(fs, input).await?;
-                assert_files(&check, "one");
+                assert_files("one");
                 op
             }
             // Restored, then a content edit, then a structural change with equal bytes (the
             // second slot moves to another task, the old one becomes collectible).
             2 => {
                 let _ = write(fs, input).await?;
-                assert_files(&check, "one");
+                assert_files("one");
 
                 input_value.text.set(rcstr!("a longer text"));
                 let _ = write(fs, input).await?;
-                assert_files(&check, "a longer text");
+                assert_files("a longer text");
 
                 input_value.use_twin.set(true);
                 let op = write(fs, input).await?;
-                assert_files(&check, "a longer text");
+                assert_files("a longer text");
                 op
             }
             // Restored after the collection, with the files deleted: writing them again reads
@@ -274,16 +358,24 @@ async fn session(cache: &Path, out: &Path, n: u32) -> usize {
                 input_value.text.set(rcstr!("a longer text"));
                 input_value.use_twin.set(true);
                 let op = write(fs, input).await?;
-                assert_files(&check, "a longer text");
+                assert_files("a longer text");
 
                 input_value.text.set(rcstr!("two"));
                 let op2 = write(fs, input).await?;
-                assert_files(&check, "two");
+                assert_files("two");
                 assert_eq!(op, op2);
                 op
             }
             _ => unreachable!(),
         };
+        // The restored (or cold) cells keep a shared map as one cell.
+        assert_eq!(
+            *piece_map_cells_operation(input)
+                .read_strongly_consistent()
+                .await?,
+            variants.cells_per_piece(),
+            "{variants:?}"
+        );
         anyhow::Ok(op)
     })
     .await
@@ -301,14 +393,16 @@ async fn session(cache: &Path, out: &Path, n: u32) -> usize {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn composed_files_survive_restores_edits_and_gc() {
-    let cache = tempfile::tempdir().unwrap();
-    let out = tempfile::tempdir().unwrap();
+    for variants in 0..ALL.len() {
+        let cache = tempfile::tempdir().unwrap();
+        let out = tempfile::tempdir().unwrap();
 
-    session(cache.path(), out.path(), 1).await;
-    // The second slot's previous piece and its entry (slot 1) are no longer used.
-    assert!(session(cache.path(), out.path(), 2).await >= 2);
-    for entry in std::fs::read_dir(out.path()).unwrap() {
-        std::fs::remove_file(entry.unwrap().path()).unwrap();
+        session(cache.path(), out.path(), 1, variants).await;
+        // The second slot's previous piece and its entry (slot 1) are no longer used.
+        assert!(session(cache.path(), out.path(), 2, variants).await >= 2);
+        for entry in std::fs::read_dir(out.path()).unwrap() {
+            std::fs::remove_file(entry.unwrap().path()).unwrap();
+        }
+        session(cache.path(), out.path(), 3, variants).await;
     }
-    session(cache.path(), out.path(), 3).await;
 }

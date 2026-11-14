@@ -31,7 +31,8 @@ use crate::{
     chunking_context::{CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR, CurrentChunkMethod},
 };
 
-#[turbo_tasks::value(serialization = "skip")]
+/// Persisted: it only holds references (like the Node.js chunk content).
+#[turbo_tasks::value]
 pub struct EcmascriptBrowserChunkContent {
     pub(super) chunking_context: ResolvedVc<BrowserChunkingContext>,
     pub(super) chunk: ResolvedVc<EcmascriptBrowserChunk>,

@@ -1,0 +1,11 @@
+{
+  "runtime": "NodeJs",
+  "runtimeType": "Development",
+  "entry": "../node/input/index.js",
+  "minifyType": "NoMinify",
+  "environment": "NodeJs",
+  "enableDebugIds": true,
+  "sourceMapSourceType": "RelativeUri",
+  "generateShallowSourceMaps": true,
+  "shallowSourcesContent": true
+}
