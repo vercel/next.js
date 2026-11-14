@@ -254,7 +254,8 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
         snapshot_mode: IssueSnapshotMode,
     ) -> Result<Vc<JsResultWithEffects>> {
         let op = run_inner_operation(resource, snapshot_mode);
-        let result = op.connect().await?.clone();
+        // Collectibles are only stable after a strongly consistent read of their source.
+        let result = op.read_strongly_consistent().await?.clone();
         let effects = take_effects(op).await?;
         Ok(JsResultWithEffects { result, effects }.cell())
     }

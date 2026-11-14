@@ -151,6 +151,112 @@ pub fn is_root_node(aggregation_number: u32) -> bool {
     aggregation_number == u32::MAX
 }
 
+/// Whether the task counts as dirty for strongly consistent reads, i.e. as a dirty container that
+/// is not clean in the current session in all of its uppers.
+fn is_effectively_dirty(task: &TaskGuard<'_>) -> bool {
+    task.is_dirty().is_some() || task.has_dirty_containers()
+}
+
+/// Delayed collectible propagation: decides which collectible changes of `update`, an update of
+/// the contribution of `task` to its uppers, are sent now. Must be called under the lock of `task`,
+/// after its dirty state has been updated, for every outgoing update of the task.
+///
+/// - While the task is dirty (itself or through its children), the collectible changes are moved
+///   into the task's `pending_collectibles`, where positive and negative changes of the same
+///   collectible cancel out. Only the dirty state part of `update` is sent.
+/// - Once the task is clean, the pending changes are added to `update`. The update that makes the
+///   task clean always passes here, so they are sent together with it.
+/// - Without uppers nobody has seen the contribution, so the pending changes are dropped.
+///
+/// A dirty subgraph often changes the same collectibles back and forth before it is clean again,
+/// e.g. a task that takes the collectibles of a recomputed child cancels the child's changes when
+/// it re-executes. Delaying the changes avoids propagating them through all uppers twice.
+///
+/// This keeps the invariant that a task with pending collectibles is a dirty container (not clean
+/// in the current session) in all its uppers, so these uppers aren't clean either. A strongly
+/// consistent read waits until the task it reads is clean, so it never misses pending changes.
+/// Collectibles are only stable after a strongly consistent read of their source: a read that
+/// isn't strongly consistent may miss changes that are still pending in the dirty subgraph.
+///
+/// [`AggregatedDataUpdate::from_task`] subtracts the pending changes, so that new and removed
+/// uppers see the same contribution as the existing uppers.
+fn stage_outgoing_collectibles(task: &mut TaskGuard<'_>, update: &mut AggregatedDataUpdate) {
+    let has_pending = !task.is_pending_collectibles_empty();
+    if update.collectibles_update.is_empty() && !has_pending {
+        return;
+    }
+    if task.is_upper_empty() {
+        if has_pending {
+            let pending: SmallVec<[CollectibleRef; 4]> =
+                task.iter_pending_collectibles().map(|(&k, _)| k).collect();
+            for collectible in pending {
+                task.remove_pending_collectibles(&collectible);
+            }
+        }
+        return;
+    }
+    if is_effectively_dirty(task) {
+        for (collectible, count) in take(&mut update.collectibles_update) {
+            let _ = task.update_pending_collectibles_count(collectible, count);
+        }
+    } else if has_pending {
+        let pending: CollectiblesUpdateVec = task
+            .iter_pending_collectibles()
+            .map(|(&k, &v)| (k, v))
+            .collect();
+        for (collectible, _) in pending.iter() {
+            task.remove_pending_collectibles(collectible);
+        }
+        update.collectibles_update.extend(pending);
+    }
+}
+
+/// Checks the invariant of delayed collectible propagation for `task_id` (see
+/// [`stage_outgoing_collectibles`]): a task with pending collectibles is effectively dirty and is
+/// listed as an effectively dirty container (dirty, not clean in the current session) in every
+/// upper. Used by `verify_aggregation_graph`, which runs while the graph is idle.
+#[cfg(any(test, feature = "verify_aggregation_graph"))]
+pub fn check_pending_collectibles_invariant(
+    ctx: &mut ExecuteContext<'_>,
+    task_id: TaskId,
+) -> Result<(), String> {
+    let (pending, is_dirty, upper_ids) = {
+        let task = ctx.task(task_id, TaskDataCategory::Meta);
+        if task.is_pending_collectibles_empty() {
+            return Ok(());
+        }
+        (
+            task.pending_collectibles_len(),
+            is_effectively_dirty(&task),
+            get_uppers(&task),
+        )
+    };
+    if !is_dirty {
+        return Err(format!(
+            "Task {task_id} has {pending} pending collectibles, but is not dirty"
+        ));
+    }
+    for upper_id in upper_ids {
+        let upper = ctx.task(upper_id, TaskDataCategory::Meta);
+        let dirty = upper
+            .get_aggregated_dirty_containers(&task_id)
+            .copied()
+            .unwrap_or_default();
+        let clean = upper
+            .get_aggregated_current_session_clean_containers(&task_id)
+            .copied()
+            .unwrap_or_default();
+        if dirty <= 0 || dirty <= clean {
+            return Err(format!(
+                "Task {task_id} has {pending} pending collectibles, but is not a dirty container \
+                 of its upper {upper_id} (dirty count {dirty}, current session clean count \
+                 {clean})"
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// Returns a list of tasks that are considered as "following" the task.
 fn get_followers_with_aggregation_number(
     task: &TaskGuard<'_>,
@@ -532,8 +638,12 @@ impl AggregationUpdateJob {
 
     pub fn data_update(
         task: &mut TaskGuard<'_>,
-        update: AggregatedDataUpdate,
+        mut update: AggregatedDataUpdate,
     ) -> Option<AggregationUpdateJob> {
+        stage_outgoing_collectibles(task, &mut update);
+        if update.is_empty() {
+            return None;
+        }
         let upper_ids: SmallVec<_> = get_uppers(task);
         if !upper_ids.is_empty() {
             Some(
@@ -619,6 +729,9 @@ impl AggregatedDataUpdate {
         } else {
             task.iter_collectibles().map(|(&k, &v)| (k, v)).collect()
         };
+        // The uppers haven't seen the pending changes yet (see `stage_outgoing_collectibles`).
+        let mut collectibles_update = collectibles_update;
+        collectibles_update.extend(task.iter_pending_collectibles().map(|(&k, &v)| (k, -v)));
         let (dirty, current_session_clean) = task.dirty_state();
         if dirty {
             dirty_count += 1;
@@ -941,6 +1054,7 @@ impl AggregatedDataUpdate {
                 result.collectibles_update.push((*collectible, -1));
             }
         }
+        stage_outgoing_collectibles(task, &mut result);
         result
     }
 
@@ -5785,6 +5899,169 @@ mod follower_debt_tests {
         end_completion(&tt, 2);
         assert_eq!(effects(&tt, 1), (0, 0, 0));
         tt.backend().verify_aggregation_edges();
+    }
+}
+
+/// Deterministic tests of delayed collectible propagation (see `stage_outgoing_collectibles`).
+#[cfg(test)]
+mod delayed_collectibles_tests {
+    use turbo_tasks::{TaskPriority, TurboTasks};
+
+    use super::{
+        AggregationUpdateQueue, check_pending_collectibles_invariant,
+        follower_debt_tests::{
+            INNER, UPPER, add, aggregated, collectible, id, remove, run, setup_with_data,
+        },
+    };
+    use crate::{
+        backend::{
+            TaskDataCategory, TurboTasksBackend,
+            operation::{ExecuteContext, UpdateCollectibleOperation},
+            storage_schema::TaskStorageAccessors,
+        },
+        data::Dirtyness,
+    };
+
+    fn set_dirty(tt: &TurboTasks<TurboTasksBackend>, task: u32, dirty: bool) {
+        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let job = {
+            let mut task = ctx.task(id(task), TaskDataCategory::All);
+            task.update_dirty_state(dirty.then_some(Dirtyness::Dirty {
+                parent_priority: TaskPriority::leaf(),
+                #[cfg(feature = "task_dirty_cause")]
+                cause: turbo_tasks::TaskDirtyCause::InitialDirty,
+            }))
+        };
+        if let Some(job) = job {
+            let mut queue = AggregationUpdateQueue::new_without_optimizations();
+            queue.push(job);
+            queue.execute(&mut ctx);
+        }
+    }
+
+    fn emit(tt: &TurboTasks<TurboTasksBackend>, task: u32, count: i32) {
+        UpdateCollectibleOperation::run(
+            id(task),
+            collectible(),
+            count,
+            ExecuteContext::new(tt.backend(), tt),
+        );
+    }
+
+    fn pending(tt: &TurboTasks<TurboTasksBackend>, task: u32) -> i32 {
+        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let task = ctx.task(id(task), TaskDataCategory::Meta);
+        task.get_pending_collectibles(&collectible())
+            .copied()
+            .unwrap_or_default()
+    }
+
+    fn has_dirty_containers(tt: &TurboTasks<TurboTasksBackend>, task: u32) -> bool {
+        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let task = ctx.task(id(task), TaskDataCategory::Meta);
+        task.has_dirty_containers()
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn changes_net_while_dirty_and_flush_with_clean() {
+        let tt = setup_with_data(&[(1, UPPER), (2, INNER)], false);
+        run(&tt, [add(1, 2)]);
+        set_dirty(&tt, 2, true);
+        assert!(has_dirty_containers(&tt, 1));
+
+        emit(&tt, 2, 1);
+        assert_eq!((aggregated(&tt, 1), pending(&tt, 2)), (0, 1));
+        emit(&tt, 2, -1);
+        assert_eq!((aggregated(&tt, 1), pending(&tt, 2)), (0, 0));
+        emit(&tt, 2, 1);
+        assert_eq!((aggregated(&tt, 1), pending(&tt, 2)), (0, 1));
+
+        set_dirty(&tt, 2, false);
+        assert!(!has_dirty_containers(&tt, 1));
+        assert_eq!((aggregated(&tt, 1), pending(&tt, 2)), (1, 0));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn edges_use_the_published_contribution() {
+        let tt = setup_with_data(&[(1, UPPER), (2, INNER), (3, UPPER)], false);
+        run(&tt, [add(1, 2)]);
+        set_dirty(&tt, 2, true);
+        emit(&tt, 2, 1);
+
+        run(&tt, [add(3, 2)]);
+        assert_eq!((aggregated(&tt, 1), aggregated(&tt, 3)), (0, 0));
+
+        set_dirty(&tt, 2, false);
+        assert_eq!((aggregated(&tt, 1), aggregated(&tt, 3)), (1, 1));
+
+        run(&tt, [remove(3, 2)]);
+        assert_eq!((aggregated(&tt, 1), aggregated(&tt, 3)), (1, 0));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn dirty_children_delay_changes_until_clean() {
+        // 3 is dirty, which makes 2 a task with a dirty container, while 2 itself is clean.
+        let tt = setup_with_data(&[(1, UPPER + 1), (2, UPPER), (3, INNER)], false);
+        run(&tt, [add(1, 2), add(2, 3)]);
+        set_dirty(&tt, 3, true);
+        assert!(has_dirty_containers(&tt, 2));
+
+        emit(&tt, 2, 1);
+        assert_eq!((aggregated(&tt, 1), pending(&tt, 2)), (0, 1));
+
+        // The child becoming clean makes 2 clean, which sends the pending changes.
+        set_dirty(&tt, 3, false);
+        assert!(!has_dirty_containers(&tt, 1));
+        assert_eq!((aggregated(&tt, 1), pending(&tt, 2)), (1, 0));
+    }
+
+    fn check(tt: &TurboTasks<TurboTasksBackend>, task: u32) -> Result<(), String> {
+        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        check_pending_collectibles_invariant(&mut ctx, id(task))
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn invariant_check_accepts_pending_changes_of_dirty_tasks() {
+        let tt = setup_with_data(&[(1, UPPER), (2, INNER)], false);
+        run(&tt, [add(1, 2)]);
+        set_dirty(&tt, 2, true);
+        emit(&tt, 2, 1);
+        assert_eq!(pending(&tt, 2), 1);
+        assert_eq!(check(&tt, 2), Ok(()));
+        set_dirty(&tt, 2, false);
+        assert_eq!(check(&tt, 2), Ok(()));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn invariant_check_reports_pending_changes_of_clean_tasks() {
+        let tt = setup_with_data(&[(1, UPPER), (2, INNER)], false);
+        run(&tt, [add(1, 2)]);
+        {
+            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut task = ctx.task(id(2), TaskDataCategory::Meta);
+            let _ = task.update_pending_collectibles_count(collectible(), 1);
+        }
+        let error = check(&tt, 2).unwrap_err();
+        assert!(error.contains("is not dirty"), "{error}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn invariant_check_reports_pending_changes_missing_in_upper() {
+        let tt = setup_with_data(&[(1, UPPER), (2, INNER)], false);
+        run(&tt, [add(1, 2)]);
+        {
+            // Dirty and pending, but the dirty state was never sent to the upper.
+            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut task = ctx.task(id(2), TaskDataCategory::All);
+            task.set_dirty(Dirtyness::Dirty {
+                parent_priority: TaskPriority::leaf(),
+                #[cfg(feature = "task_dirty_cause")]
+                cause: turbo_tasks::TaskDirtyCause::InitialDirty,
+            });
+            let _ = task.update_pending_collectibles_count(collectible(), 1);
+        }
+        let error = check(&tt, 2).unwrap_err();
+        assert!(error.contains("not a dirty container"), "{error}");
     }
 }
 

@@ -534,6 +534,31 @@ impl TurboTasksBackend {
         Some(get_aggregation_number(&task))
     }
 
+    /// The number of collectibles with changes that `task` hasn't sent to its uppers yet, because
+    /// the task is dirty (see delayed collectible propagation in `aggregation_update.rs`).
+    #[doc(hidden)]
+    pub fn pending_collectibles_count_for_testing(
+        &self,
+        task: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> Option<usize> {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let task = ctx.try_task(task, TaskDataCategory::Meta)?;
+        Some(task.pending_collectibles_len())
+    }
+
+    /// Whether `task` is dirty (in any session).
+    #[doc(hidden)]
+    pub fn is_dirty_for_testing(
+        &self,
+        task: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> Option<bool> {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let task = ctx.try_task(task, TaskDataCategory::Meta)?;
+        Some(task.is_dirty().is_some())
+    }
+
     /// The GC roots set as currently persisted on disk (task id -> [`TtlCounter`]).
     #[doc(hidden)]
     pub fn persisted_gc_roots_for_testing(&self) -> Vec<(TaskId, TtlCounter)> {
@@ -3942,12 +3967,24 @@ impl TurboTasksBackend {
                     if value > 0 {
                         if let Some((flag, _)) = collectibles.get_mut(&collectible) {
                             *flag = true
-                        } else {
+                        } else if task.get_pending_collectibles(&collectible).is_none() {
+                            // A pending collectible hasn't been sent to the uppers yet. That's only
+                            // allowed while the task is dirty, which
+                            // `check_pending_collectibles_invariant` checks.
                             panic!(
                                 "Task {} has a collectible {:?} that is not in any upper task",
                                 task_id, collectible
                             );
                         }
+                    }
+                }
+                // A negative pending change is a collectible the uppers still see, but that is no
+                // longer emitted (or aggregated) by this task.
+                for (&collectible, &count) in task.iter_pending_collectibles() {
+                    if count < 0
+                        && let Some((flag, _)) = collectibles.get_mut(&collectible)
+                    {
+                        *flag = true
                     }
                 }
 
@@ -3972,6 +4009,12 @@ impl TurboTasksBackend {
                     }
                 }
                 drop(task);
+
+                if let Err(message) =
+                    operation::check_pending_collectibles_invariant(&mut ctx, task_id)
+                {
+                    panic!("{message}");
+                }
 
                 if should_be_in_upper {
                     for upper_id in uppers {

@@ -100,7 +100,8 @@ async fn emitting_operation(count: u32) -> Result<Vc<()>> {
 async fn collecting_operation(count: u32, take: bool, iteration: u32) -> Result<Vc<u32>> {
     let _ = iteration;
     let source = emitting_operation(count);
-    source.connect().await?;
+    // Collectibles are only stable after a strongly consistent read of their source.
+    source.read_strongly_consistent().await?;
     let collectibles = if take {
         source.take_collectibles::<Box<dyn ValueToString>>()
     } else {
