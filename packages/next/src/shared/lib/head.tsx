@@ -116,6 +116,17 @@ function unique() {
  *
  * @param headChildrenElements List of children of <Head>
  */
+const VALID_HEAD_TAGS = new Set([
+  'title',
+  'base',
+  'link',
+  'meta',
+  'script',
+  'style',
+  'noscript',
+  'template',
+])
+
 function reduceComponents(
   headChildrenElements: Array<React.ReactElement<any>>
 ) {
@@ -141,6 +152,13 @@ function reduceComponents(
         } else if (c.type === 'link' && c.props['rel'] === 'stylesheet') {
           warnOnce(
             `Do not add stylesheets using next/head (see <link rel="stylesheet"> tag with href="${c.props['href']}"). Use Document instead. \nSee more info here: https://nextjs.org/docs/messages/no-stylesheets-in-head-component`
+          )
+        } else if (
+          typeof c.type === 'string' &&
+          !VALID_HEAD_TAGS.has(c.type)
+        ) {
+          warnOnce(
+            `\`<${c.type}>\` is not a valid element inside \`<Head>\` from \`next/head\`. Only elements valid inside \`<head>\` are allowed (title, base, link, meta, script, style, noscript, template). See: https://nextjs.org/docs/messages/no-invalid-html-tags-in-head`
           )
         }
       }
