@@ -2,6 +2,7 @@ import picomatch from 'next/dist/compiled/picomatch'
 import { z } from 'next/dist/compiled/zod'
 import { tryToParsePath } from '../../../lib/try-to-parse-path'
 import type { RouteHas } from '../../../lib/load-custom-routes'
+import type { ServerRuntime } from '../../../types'
 
 const RouteHasSchema = z.discriminatedUnion('type', [
   z
@@ -108,6 +109,17 @@ export const MiddlewareConfigInputSchema = z.object({
    * files. The globs are relative to your application root folder.
    */
   unstable_allowDynamic: z.union([GlobSchema, z.array(GlobSchema)]).optional(),
+
+  /**
+   * The runtime for the middleware.
+   */
+  runtime: z
+    .union([
+      z.literal('edge'),
+      z.literal('nodejs'),
+      z.literal('experimental-edge'),
+    ])
+    .optional(),
 })
 
 export type MiddlewareConfigInput = {
@@ -136,6 +148,11 @@ export type MiddlewareConfigInput = {
    * files. The globs are relative to your application root folder.
    */
   unstable_allowDynamic?: string | string[]
+
+  /**
+   * The runtime for the middleware.
+   */
+  runtime?: ServerRuntime
 }
 
 /**
