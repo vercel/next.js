@@ -552,9 +552,7 @@ function assignDefaultsAndValidate(
     turbopackGcOptions
 
   // Enable per-module minification by default on canary releases.
-  if (result.experimental.turbopackMinifyBeforeChunking === undefined) {
-    result.experimental.turbopackMinifyBeforeChunking = !isStableBuild()
-  }
+  result.experimental.turbopackMinifyBeforeChunking ??= !isStableBuild()
 
   // Normalize experimental.browserDebugInfoInTerminal to logging.browserToTerminal
   if (
