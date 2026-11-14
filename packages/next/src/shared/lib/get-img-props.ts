@@ -235,6 +235,9 @@ function generateImgAttrs({
       } else if (deploymentId) {
         // We unfortunately can't easily use `new URL()` here, because it normalizes the URL which causes
         // double-encoding with the `encodeURIComponent(src)` below
+        const hashIndex = src.indexOf('#')
+        const hash = hashIndex === -1 ? '' : src.slice(hashIndex)
+        src = hashIndex === -1 ? src : src.slice(0, hashIndex)
         const qIndex = src.indexOf('?')
         if (qIndex !== -1) {
           const params = new URLSearchParams(src.slice(qIndex + 1))
@@ -248,6 +251,7 @@ function generateImgAttrs({
           // src is missing the dpl parameter, but we have a deploymentId, so add it to the src URL
           src = src + `?dpl=${deploymentId}`
         }
+        src += hash
       }
     }
     return { src, srcSet: undefined, sizes: undefined }
@@ -438,7 +442,7 @@ export function getImgProps(
   if (
     isDefaultLoader &&
     !config.dangerouslyAllowSVG &&
-    src.split('?', 1)[0].endsWith('.svg')
+    src.split(/[?#]/, 1)[0].endsWith('.svg')
   ) {
     // Special case to make svg serve as-is to avoid proxying
     // through the built-in Image Optimization API.
