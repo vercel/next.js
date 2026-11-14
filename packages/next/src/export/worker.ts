@@ -299,6 +299,7 @@ async function exportPageImpl(
       commonRenderOpts.experimental,
       buildId,
       deploymentId,
+      commonRenderOpts.basePath,
       routeCache
     )
   }

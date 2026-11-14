@@ -54,6 +54,7 @@ export async function exportAppRoute(
   >,
   buildId: string,
   deploymentId: string,
+  basePath: string,
   routeCache?: RouteCacheMetadata
 ): Promise<ExportRouteResult> {
   // Ensure that the URL is absolute.
@@ -94,6 +95,7 @@ export async function exportAppRoute(
     sharedContext: {
       buildId,
       deploymentId,
+      basePath,
     },
   }
 
