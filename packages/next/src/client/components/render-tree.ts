@@ -397,7 +397,7 @@ function updateRenderTreeOnNavigation(
     ) {
       return null
     }
-    return createRenderTreeOnNavigation(
+    const task = createRenderTreeOnNavigation(
       navigatedAt,
       newRouteTree,
       freshness,
@@ -408,6 +408,10 @@ function updateRenderTreeOnNavigation(
       restrictToShell,
       preparedAt
     )
+    // Scroll from the newly entered subtree, including its layout. Child layout
+    // effects run first, so descendants must not consume the shared scroll ref.
+    accumulateScrollRef(freshness, task.node.data, accumulation)
+    return task
   }
 
   const newSlots = newRouteTree.slots
@@ -709,8 +713,8 @@ function updateRenderTreeOnNavigation(
 }
 
 /**
- * Assigns a ScrollRef to a new leaf CacheNode so the scroll handler
- * knows to scroll to it after navigation. All leaves in the same
+ * Assigns a ScrollRef to a new CacheNode so the scroll handler
+ * knows to scroll to it after navigation. All targets in the same
  * navigation share the same ScrollRef — the first segment to scroll
  * consumes it, preventing others from also scrolling.
  *
@@ -720,8 +724,7 @@ function updateRenderTreeOnNavigation(
  * Skipped during hydration (initial render should not scroll) and
  * history traversal (scroll restoration is handled separately).
  *
- * The head passes through here as a leaf too; its `scrollRef` is never read
- * (only LayoutRouter reads one), and the page leaf sets the same shared ref.
+ * The head can also receive this ref, but only LayoutRouter reads it.
  */
 function accumulateScrollRef(
   freshness: FreshnessPolicy,
@@ -793,11 +796,6 @@ function createRenderTreeOnNavigation(
   )
   const newRenderTree = result.node
   const needsDynamicRequest = result.needsDynamicRequest
-
-  const isLeafSegment = newSlots === null
-  if (isLeafSegment) {
-    accumulateScrollRef(freshness, newRenderTree.data, accumulation)
-  }
 
   let patchedRouterStateChildren: {
     [parallelRouteKey: string]: FlightRouterState
