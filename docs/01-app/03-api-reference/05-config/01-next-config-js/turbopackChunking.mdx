@@ -118,8 +118,9 @@ module.exports = nextConfig
 ## Size Thresholds
 
 The following options control how aggressively Turbopack merges client-side chunks and how large
-a chunk is allowed to grow. Sizes are in bytes of uncompressed, unminified code (roughly 5x
-the size of the compressed, minified output).
+a chunk is allowed to grow. By default, sizes are in bytes of uncompressed, unminified code
+(roughly 5x the size of the compressed, minified output). With minify-before-chunking enabled,
+sizes measure uncompressed minified code instead, as described below.
 
 - **`minChunkSize`** (default `50000`): Turbopack will avoid creating more
   than one chunk smaller than this size by merging small chunks into larger ones.
@@ -154,8 +155,9 @@ being made is costly, however, smaller chunks are more likely to be re-usable ac
 > `experimental.turbopackMinifyBeforeChunking` option. When it is enabled (and minification is on),
 > Turbopack minifies each module before chunking and measures sizes in bytes of minified code
 > instead. The default thresholds and `requestCost`, including the server chunk thresholds below,
-> are then scaled down to 40% of the values listed here. Values you set explicitly are used as-is,
-> so you may need to lower them when enabling the option.
+> are then scaled down to 40% of the values listed here. In particular, the default `maxChunkSize`
+> becomes `400000` and the default `maxServerChunkSize` becomes `4000000`. Values you set explicitly
+> (including `0`) are used as-is, so you may need to lower them when enabling the option.
 
 ## Server Chunks
 
@@ -174,8 +176,9 @@ separate thresholds:
   warning. Set it to `0` to disable the maximum size limit.
 
 `minServerChunkSize` and `maxMergeServerChunkSize` don't apply to the Edge runtime. Edge uses a
-fixed minimum of 20 KB and the effective `maxServerChunkSize` as its merge limit. If its maximum
-is enabled but below 60 KB (3 times the minimum), it is increased with a warning.
+minimum of 20 KB (8 KB when minifying before chunking) and the effective `maxServerChunkSize`
+as its merge limit. If its maximum is enabled but below 3 times that minimum (60 KB or 24 KB,
+respectively), it is increased with a warning.
 
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */

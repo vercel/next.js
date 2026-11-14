@@ -198,8 +198,9 @@ pub struct EdgeChunkingContextOptions {
     pub hash_salt: ResolvedVc<RcStr>,
     pub cross_origin: Vc<CrossOrigin>,
     pub style_groups_algorithm: StyleGroupsAlgorithm,
-    /// Best-effort maximum JS chunk size, `0` disables the limit.
-    pub chunking_max_chunk_size: usize,
+    /// Best-effort maximum JS chunk size override; `None` uses the scaled default, `0` disables
+    /// the limit.
+    pub chunking_max_chunk_size: Option<usize>,
 }
 
 /// Like `get_edge_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -285,7 +286,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
         let mut ecmascript_chunking_config = ChunkingConfig {
             min_chunk_size: defaults.size(20_000),
             request_cost: defaults.default_request_cost(),
-            max_chunk_size: chunking_max_chunk_size,
+            max_chunk_size: defaults.server_max_chunk_size(chunking_max_chunk_size),
             ..Default::default()
         };
         // Edge chunks have no explicit merge limit, so use the effective maximum chunk size.
@@ -417,7 +418,7 @@ pub async fn get_edge_chunking_context(
         let mut ecmascript_chunking_config = ChunkingConfig {
             min_chunk_size: defaults.size(20_000),
             request_cost: defaults.default_request_cost(),
-            max_chunk_size: chunking_max_chunk_size,
+            max_chunk_size: defaults.server_max_chunk_size(chunking_max_chunk_size),
             ..Default::default()
         };
         // Edge chunks have no explicit merge limit, so use the effective maximum chunk size.

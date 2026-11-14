@@ -1046,8 +1046,9 @@ pub struct ServerChunkingContextOptions {
     pub chunking_min_chunk_size: Option<usize>,
     /// Override for the production JS `max_merge_chunk_size` (default `100_000`).
     pub chunking_max_merge_chunk_size: Option<usize>,
-    /// Best-effort maximum JS chunk size, `0` disables the limit.
-    pub chunking_max_chunk_size: usize,
+    /// Best-effort maximum JS chunk size override; `None` uses the scaled default, `0` disables
+    /// the limit.
+    pub chunking_max_chunk_size: Option<usize>,
 }
 
 /// Like `get_server_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -1148,8 +1149,9 @@ pub async fn get_server_chunking_context_with_client_assets(
             // Server chunks are loaded with require(), not fetched over the network.
             min_chunk_size: chunking_min_chunk_size.unwrap_or_else(|| defaults.size(4_000)),
             max_chunk_count_per_group: 0,
-            max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or_else(|| defaults.size(100_000)),
-            max_chunk_size: chunking_max_chunk_size,
+            max_merge_chunk_size: chunking_max_merge_chunk_size
+                .unwrap_or_else(|| defaults.size(100_000)),
+            max_chunk_size: defaults.server_max_chunk_size(chunking_max_chunk_size),
             request_cost: Some(defaults.request_cost(10_000)),
             ..Default::default()
         };
@@ -1276,8 +1278,9 @@ pub async fn get_server_chunking_context(
             // Server chunks are loaded with require(), not fetched over the network.
             min_chunk_size: chunking_min_chunk_size.unwrap_or_else(|| defaults.size(4_000)),
             max_chunk_count_per_group: 0,
-            max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or_else(|| defaults.size(100_000)),
-            max_chunk_size: chunking_max_chunk_size,
+            max_merge_chunk_size: chunking_max_merge_chunk_size
+                .unwrap_or_else(|| defaults.size(100_000)),
+            max_chunk_size: defaults.server_max_chunk_size(chunking_max_chunk_size),
             request_cost: Some(defaults.request_cost(10_000)),
             ..Default::default()
         };

@@ -13,8 +13,11 @@ import { join, relative } from 'path'
       skipStart: true,
     })
 
-    async function build(turbopackChunking: object | undefined) {
-      const experimental = turbopackChunking ? { turbopackChunking } : {}
+    async function build(
+      turbopackChunking: object | undefined,
+      turbopackMinifyBeforeChunking = false
+    ) {
+      const experimental = { turbopackChunking, turbopackMinifyBeforeChunking }
       await next.patchFile(
         'next.config.js',
         `module.exports = ${JSON.stringify({ experimental }, null, 2)}`
@@ -249,6 +252,55 @@ import { join, relative } from 'path'
         expect(serverChunks.length).toBeGreaterThan(0)
       }
     )
+
+    it.each([
+      ['unset', undefined, undefined],
+      ['explicit original defaults', 1_000_000, 10_000_000],
+      ['disabled', 0, 0],
+    ])(
+      'scales only unset maxima when minifying before chunking (%s)',
+      async (_, maxChunkSize, maxServerChunkSize) => {
+        const cliOutput = await build(
+          {
+            minChunkSize: 0,
+            maxMergeChunkSize: 1_000_000,
+            maxMergeServerChunkSize: 10_000_000,
+            maxChunkSize,
+            maxServerChunkSize,
+          },
+          true
+        )
+        if (maxChunkSize === undefined) {
+          expect(cliOutput).toContain(
+            '`experimental.turbopackChunking.maxMergeChunkSize` (1000000) was decreased to 400000'
+          )
+          expect(cliOutput).toContain(
+            '`experimental.turbopackChunking.maxMergeServerChunkSize` (10000000) was decreased to 4000000'
+          )
+        } else {
+          expect(cliOutput).not.toContain('Inconsistent chunk size limits')
+        }
+      }
+    )
+
+    it('normalizes explicit maxima against minified default minimums', async () => {
+      const cliOutput = await build(
+        { maxChunkSize: 50_000, maxServerChunkSize: 4_000 },
+        true
+      )
+      expect(cliOutput).toContain(
+        '`experimental.turbopackChunking.maxChunkSize` (50000) was increased to 60000'
+      )
+      expect(cliOutput).toContain(
+        '3 times `experimental.turbopackChunking.minChunkSize` of 20000'
+      )
+      expect(cliOutput).toContain(
+        '`experimental.turbopackChunking.maxServerChunkSize` (4000) was increased to 4800'
+      )
+      expect(cliOutput).toContain(
+        '3 times `experimental.turbopackChunking.minServerChunkSize` of 1600'
+      )
+    })
 
     it('warns when an enabled maxChunkSize limits an unlimited maxMergeChunkSize', async () => {
       const { cliOutput } = await buildWith({

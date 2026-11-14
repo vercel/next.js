@@ -922,12 +922,6 @@ const DEFAULT_REQUEST_COST: f32 = 20_000.0;
 /// Default `weightDistribution` for the graph algorithm.
 const DEFAULT_WEIGHT_DISTRIBUTION: f32 = 0.1;
 
-/// Default `experimental.turbopackChunking.maxChunkSize` (client JS), in bytes.
-const DEFAULT_MAX_CHUNK_SIZE: usize = 1_000_000;
-/// Default `experimental.turbopackChunking.maxServerChunkSize` (Node.js server and edge JS), in
-/// bytes.
-const DEFAULT_MAX_SERVER_CHUNK_SIZE: usize = 10_000_000;
-
 /// `experimental.turbopackChunking`: hints for Turbopack's production chunker.
 ///
 /// The default sizes and request cost are scaled down when chunk items are minified before
@@ -963,15 +957,15 @@ pub struct TurbopackChunkingConfig {
     /// Don't merge chunks bigger than this size, in bytes (default `200000`), with other
     /// chunks. This keeps code in big chunks from being duplicated across multiple chunks.
     max_merge_chunk_size: Option<usize>,
-    /// Best-effort maximum estimated size of a client JavaScript chunk, in bytes of
-    /// uncompressed, unminified code (default `1000000`). Chunks are never merged into bigger
-    /// chunks, and chunks that are bigger on their own are split deterministically into smaller
-    /// chunks, which may be smaller than `min_chunk_size` or exceed `max_chunk_count_per_group`.
-    /// Inconsistent values (smaller than 3 times `min_chunk_size`, or than `max_merge_chunk_size`)
-    /// are adjusted with a warning. `0` disables the limit.
+    /// Best-effort maximum estimated size of a client JavaScript chunk, in uncompressed bytes
+    /// (default `1000000`, or `400000` when minifying before chunking). Chunks are never merged
+    /// into bigger chunks, and chunks that are bigger on their own are split deterministically
+    /// into smaller chunks, which may be smaller than `min_chunk_size` or exceed
+    /// `max_chunk_count_per_group`. Inconsistent values (smaller than 3 times `min_chunk_size`, or
+    /// than `max_merge_chunk_size`) are adjusted with a warning. `0` disables the limit.
     max_chunk_size: Option<usize>,
     /// Like `max_chunk_size`, but for Node.js server and edge JavaScript chunks (default
-    /// `10000000`). `0` disables the limit.
+    /// `10000000`, or `4000000` when minifying before chunking). `0` disables the limit.
     max_server_chunk_size: Option<usize>,
     /// Emit each merged production chunk's constituent component chunks alongside it, so the
     /// browser runtime can load only the chunks it doesn't already have (default `false`).
@@ -1006,10 +1000,11 @@ pub struct TurbopackChunking {
     pub max_chunk_count_per_group: Option<usize>,
     /// Override for the client JS `max_merge_chunk_size`, or `None` to use the default.
     pub max_merge_chunk_size: Option<usize>,
-    /// Best-effort maximum client JS chunk size (default applied).
-    pub max_chunk_size: usize,
-    /// Best-effort maximum Node.js server and edge JS chunk size (default applied).
-    pub max_server_chunk_size: usize,
+    /// Override for the maximum client JS chunk size, or `None` to use the scaled default.
+    pub max_chunk_size: Option<usize>,
+    /// Override for the maximum Node.js server and edge JS chunk size, or `None` for the scaled
+    /// default.
+    pub max_server_chunk_size: Option<usize>,
     /// Override for the client JS `min_component_chunk_size`, or `None` to use the default.
     pub min_component_chunk_size: Option<usize>,
     /// Override for the Node.js server JS `min_chunk_size`, or `None` to use the default.
@@ -2181,12 +2176,8 @@ impl NextConfig {
             min_chunk_size: config.and_then(|c| c.min_chunk_size),
             max_chunk_count_per_group: config.and_then(|c| c.max_chunk_count_per_group),
             max_merge_chunk_size: config.and_then(|c| c.max_merge_chunk_size),
-            max_chunk_size: config
-                .and_then(|c| c.max_chunk_size)
-                .unwrap_or(DEFAULT_MAX_CHUNK_SIZE),
-            max_server_chunk_size: config
-                .and_then(|c| c.max_server_chunk_size)
-                .unwrap_or(DEFAULT_MAX_SERVER_CHUNK_SIZE),
+            max_chunk_size: config.and_then(|c| c.max_chunk_size),
+            max_server_chunk_size: config.and_then(|c| c.max_server_chunk_size),
             min_component_chunk_size: config.and_then(|c| c.min_component_chunk_size),
             min_server_chunk_size: config.and_then(|c| c.min_server_chunk_size),
             max_merge_server_chunk_size: config.and_then(|c| c.max_merge_server_chunk_size),
