@@ -1,0 +1,12 @@
+import { randomUUID } from 'node:crypto'
+
+export const dynamic = 'force-dynamic'
+
+export default function PlainPage() {
+  return (
+    <main>
+      <h1 id="background-title">Plain PAGE</h1>
+      <p id="background-render">{randomUUID()}</p>
+    </main>
+  )
+}
