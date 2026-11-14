@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::Serialize;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TraitRef, Vc};
+use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TraitRef, TransientInstance, Vc};
 use turbopack_core::{
     update_instruction::UpdateInstruction,
     version::{
@@ -105,9 +105,11 @@ pub async fn update_chunk_list(
 
     for (chunk_path, from_chunk_version) in &from.by_path {
         if let Some(chunk_content) = by_path.swap_remove(chunk_path) {
-            let chunk_update = chunk_content
-                .update(TraitRef::cell(from_chunk_version.clone()))
-                .await?;
+            let chunk_update = update_from_version_snapshot(
+                *chunk_content,
+                TransientInstance::new(from_chunk_version.clone()),
+            )
+            .await?;
 
             match &*chunk_update {
                 Update::Total(_) => {
@@ -137,9 +139,13 @@ pub async fn update_chunk_list(
 
     for (merger, chunks_contents) in by_merger {
         if let Some(from_version) = from.by_merger.get(&merger) {
-            let content = merger.merge(Vc::cell(chunks_contents));
+            let content = merger.merge(Vc::cell(chunks_contents)).to_resolved().await?;
 
-            let chunk_update = content.update(TraitRef::cell(from_version.clone())).await?;
+            let chunk_update = update_from_version_snapshot(
+                content,
+                TransientInstance::new(from_version.clone()),
+            )
+            .await?;
 
             match &*chunk_update {
                 // Getting a total or not found update from a merger is unexpected. If it
@@ -173,6 +179,19 @@ pub async fn update_chunk_list(
     };
 
     Ok(update.cell())
+}
+
+/// Keep the previous version's cell in a task keyed by its immutable snapshot.
+/// Creating it in the chunk-list update task would let cached child updates
+/// reference a cell that a later execution's fast path or changed merger set
+/// no longer creates.
+#[turbo_tasks::function]
+fn update_from_version_snapshot(
+    content: ResolvedVc<Box<dyn VersionedContent>>,
+    from_version: TransientInstance<TraitRef<Box<dyn Version>>>,
+) -> Vc<Update> {
+    let from_version = TraitRef::cell((*from_version).clone());
+    content.update(from_version)
 }
 
 fn expect_merged_instruction_from_partial(partial: &PartialUpdate) -> &EcmascriptMergedUpdate {
