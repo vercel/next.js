@@ -1,8 +1,62 @@
+import http from 'http'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('options-request', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+  })
+
+  it('should handle OPTIONS * request with 200 and Allow header', async () => {
+    const res = await new Promise<{
+      statusCode?: number
+      headers: http.IncomingHttpHeaders
+    }>((resolve, reject) => {
+      const req = http.request(
+        {
+          hostname: 'localhost',
+          port: next.appPort,
+          method: 'OPTIONS',
+          path: '*',
+        },
+        (response) => {
+          resolve({
+            statusCode: response.statusCode,
+            headers: response.headers,
+          })
+        }
+      )
+      req.on('error', reject)
+      req.end()
+    })
+
+    expect(res.statusCode).toBe(200)
+    expect(res.headers.allow).toContain('OPTIONS')
+  })
+
+  it('should return 400 Bad Request for non-OPTIONS * request', async () => {
+    const res = await new Promise<{
+      statusCode?: number
+      headers: http.IncomingHttpHeaders
+    }>((resolve, reject) => {
+      const req = http.request(
+        {
+          hostname: 'localhost',
+          port: next.appPort,
+          method: 'GET',
+          path: '*',
+        },
+        (response) => {
+          resolve({
+            statusCode: response.statusCode,
+            headers: response.headers,
+          })
+        }
+      )
+      req.on('error', reject)
+      req.end()
+    })
+
+    expect(res.statusCode).toBe(400)
   })
 
   it.each(['/app-page/dynamic', '/pages-page/dynamic'])(
