@@ -856,11 +856,28 @@ function createUniformHintTree(
 // Above it, the deduplication benefit of a cacheable standalone response
 // wins out.
 async function getGzipSize(buffer: Buffer): Promise<number> {
-  const stream = new Blob([new Uint8Array(buffer)])
-    .stream()
-    .pipeThrough(new CompressionStream('gzip'))
-  const compressedBlob = await new Response(stream).blob()
-  return compressedBlob.size
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    const stream = new Blob([new Uint8Array(buffer)])
+      .stream()
+      .pipeThrough(new CompressionStream('gzip'))
+    const compressedBlob = await new Response(stream).blob()
+    return compressedBlob.size
+  } else {
+    // In Node.js, `CompressionStream('gzip')` is zlib's gzip with the default
+    // options behind a web stream. Compress the buffer with the same
+    // compressor directly: the size is the same, without a Blob, a Response
+    // and three streams per measurement.
+    const { gzip } = require('node:zlib') as typeof import('node:zlib')
+    return new Promise<number>((resolve, reject) => {
+      gzip(buffer, (error, compressed) => {
+        if (error) {
+          reject(error)
+        } else {
+          resolve(compressed.byteLength)
+        }
+      })
+    })
+  }
 }
 
 async function PrefetchTreeData({
