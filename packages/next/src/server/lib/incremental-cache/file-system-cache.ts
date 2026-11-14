@@ -41,6 +41,20 @@ type FileSystemCacheContext = Omit<
   serverDistDir: string
 }
 
+/**
+ * Returns the lastModified of a response cache entry read from disk.
+ * Reproducible builds (e.g. Bazel rules_js) set mtimes to the Unix epoch.
+ * IncrementalCache treats a lastModified of 0 as unknown and substitutes the
+ * current time, so such an entry would never become stale. Use the server
+ * start time instead. It is persisted when the seed is promoted, so if the
+ * seed can't be promoted (e.g. read-only cache directory) the revalidate
+ * period restarts with each server start.
+ */
+function getResponseLastModified(mtime: Date): number {
+  const lastModified = mtime.getTime()
+  return lastModified === 0 ? Math.floor(performance.timeOrigin) : lastModified
+}
+
 export default class FileSystemCache implements CacheHandler {
   private fs: FileSystemCacheContext['fs']
   private flushToDisk?: FileSystemCacheContext['flushToDisk']
@@ -231,7 +245,8 @@ export default class FileSystemCache implements CacheHandler {
           )
 
           data = {
-            lastModified: meta.routeCacheLastModified ?? mtime.getTime(),
+            lastModified:
+              meta.routeCacheLastModified ?? getResponseLastModified(mtime),
             value: {
               kind: CachedRouteKind.APP_ROUTE,
               body: fileData,
@@ -338,7 +353,8 @@ export default class FileSystemCache implements CacheHandler {
             }
 
             data = {
-              lastModified: meta.routeCacheLastModified ?? mtime.getTime(),
+              lastModified:
+                meta.routeCacheLastModified ?? getResponseLastModified(mtime),
               value: {
                 kind: CachedRouteKind.APP_PAGE,
                 html: fileData,
@@ -372,7 +388,8 @@ export default class FileSystemCache implements CacheHandler {
             }
 
             data = {
-              lastModified: meta.routeCacheLastModified ?? mtime.getTime(),
+              lastModified:
+                meta.routeCacheLastModified ?? getResponseLastModified(mtime),
               value: {
                 kind: CachedRouteKind.PAGES,
                 html: fileData,
