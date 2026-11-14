@@ -3,7 +3,7 @@ use std::{hash::BuildHasherDefault, mem::take};
 use rustc_hash::FxHasher;
 use turbo_tasks::FxIndexSet;
 
-use crate::analyzer::{Bump, BumpVec, JsValue, jsvalue::similar::SimilarJsValue};
+use crate::analyzer::{Bump, BumpVec, ConstantValue, JsValue, jsvalue::similar::SimilarJsValue};
 
 // Alternatives management
 impl<'a> JsValue<'a> {
@@ -177,6 +177,24 @@ impl<'a> JsValue<'a> {
                     }
                     self.update_total_nodes();
                 }
+            JsValue::TypeOf(_, operand) => {
+                let value = match &**operand {
+                    JsValue::Constant(ConstantValue::Undefined) => Some("undefined"),
+                    JsValue::Constant(ConstantValue::Str(_)) => Some("string"),
+                    JsValue::Constant(ConstantValue::Num(_)) => Some("number"),
+                    JsValue::Constant(ConstantValue::True | ConstantValue::False) => {
+                        Some("boolean")
+                    }
+                    JsValue::Constant(ConstantValue::Null | ConstantValue::Regex(_)) => {
+                        Some("object")
+                    }
+                    JsValue::Constant(ConstantValue::BigInt(_)) => Some("bigint"),
+                    _ => None,
+                };
+                if let Some(value) = value {
+                    *self = value.into();
+                }
+            }
             _ => {}
         }
     }
