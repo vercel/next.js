@@ -101,4 +101,60 @@ describe('navigating while a loading boundary prefetch is in flight', () => {
       expect(await browser.eval('document.title')).toBe('Detail title')
     })
   })
+
+  it('commits from the navigation response while the prefetch is still held', async () => {
+    // The prefetch's pending cache entries cover the segment that owns the
+    // loading boundary and the head, which render outside any Suspense
+    // boundary. The navigation must not wait for them: its own response
+    // delivers the same data.
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/shared', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    await act(async () => {
+      // Reveal the link, and hold its prefetch.
+      await act(
+        async () => {
+          await browser
+            .elementByCss('input[data-link-accordion="/shared/destination"]')
+            .click()
+        },
+        { includes: 'Loading destination...', block: true }
+      )
+
+      // Navigate while the prefetch is in flight. The navigation's own
+      // response is not held.
+      await act(
+        async () => {
+          await browser.elementByCss('a[href="/shared/destination"]').click()
+        },
+        { includes: 'Destination content' }
+      )
+
+      // The navigation response has arrived, but the prefetch hasn't. The
+      // navigation commits from its own response.
+      await retry(async () => {
+        expect(await browser.elementById('destination').text()).toBe(
+          'Destination content'
+        )
+      })
+      expect(await browser.eval('location.pathname')).toBe(
+        '/shared/destination'
+      )
+      await retry(async () => {
+        expect(await browser.eval('document.title')).toBe('Destination title')
+      })
+    })
+
+    // Releasing the prefetch changes nothing.
+    expect(await browser.elementById('destination').text()).toBe(
+      'Destination content'
+    )
+    await retry(async () => {
+      expect(await browser.eval('document.title')).toBe('Destination title')
+    })
+  })
 })

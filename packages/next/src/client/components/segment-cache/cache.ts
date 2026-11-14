@@ -347,6 +347,19 @@ type SegmentCacheEntryShared = {
    */
   isUpgradeableISRFallback: boolean
 
+  /**
+   * Set while the entry is pending, cleared when it settles. True if the
+   * request in flight is a prefetch up to the loading boundary (the legacy
+   * prefetch for a default link). It returns the segments above the boundary
+   * complete, but a navigation that starts while it's in flight doesn't wait
+   * for it: those segments and the head render outside any loading boundary,
+   * so waiting would hold the whole transition until the prefetch lands. The
+   * navigation requests them itself (see createRenderTreeForSegment). A
+   * legacy full prefetch (prefetch={true} or prefetch="navigation") is
+   * awaited instead, as before.
+   */
+  isLoadingBoundaryPrefetch: boolean
+
   // Map-related fields.
   ref: UnknownMapEntry | null
   size: number
@@ -1270,6 +1283,7 @@ export function createDetachedSegmentCacheEntry(
     completeness: Completeness.NeedsRuntime,
     rsc: null,
     isUpgradeableISRFallback: false,
+    isLoadingBoundaryPrefetch: false,
     promise: null,
 
     // Map-related fields
@@ -1629,6 +1643,7 @@ function fulfillSegmentCacheEntry(
   fulfilledEntry.staleAt = staleAt
   fulfilledEntry.varyParams = varyParams
   fulfilledEntry.isUpgradeableISRFallback = isUpgradeableISRFallback
+  fulfilledEntry.isLoadingBoundaryPrefetch = false
   fulfilledEntry.stage = stage
   fulfilledEntry.completeness = completeness
   if (
@@ -1669,6 +1684,7 @@ function rejectSegmentCacheEntry(
   const rejectedEntry: RejectedSegmentCacheEntry = entry as any
   rejectedEntry.status = EntryStatus.Rejected
   rejectedEntry.staleAt = staleAt
+  rejectedEntry.isLoadingBoundaryPrefetch = false
   if (entry.promise !== null) {
     // NOTE: We don't currently propagate the reason the prefetch was canceled
     // but we could by accepting a `reason` argument.
