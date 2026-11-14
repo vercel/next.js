@@ -11261,6 +11261,28 @@ async function collectSegmentData(
       // manifest. When prefetch inlining is disabled there are no sizes to
       // measure, but the static-prefetch hint still rides the manifest —
       // collectPrefetchHints then only builds the tree shape carrying it.
+      // When the build passes the hints of the route's deciding page
+      // (routePrefetchHints), the inlining decisions are taken from there
+      // and nothing is measured either.
+      //
+      // A fallback shell with an unknown root param is the exception and
+      // measures itself. The deciding page is a concrete page. In such a
+      // shell every segment below the root param is a hole, the root layout
+      // included, so its segments are a different size class, and it keeps
+      // the split it has always had.
+      let routePrefetchHints = renderOpts.routePrefetchHints ?? null
+      if (
+        routePrefetchHints !== null &&
+        prerenderStore.type === 'prerender' &&
+        prerenderStore.fallbackRouteParams
+      ) {
+        for (const paramName in prerenderStore.rootParams) {
+          if (prerenderStore.fallbackRouteParams.has(paramName)) {
+            routePrefetchHints = null
+            break
+          }
+        }
+      }
       hints = await ComponentMod.collectPrefetchHints(
         renderOpts.cacheComponents,
         fullPageDataBuffer,
@@ -11270,7 +11292,8 @@ async function collectSegmentData(
         prefetchInlining,
         shouldAttemptStaticShell,
         shouldAttemptStaticPrefetch,
-        shouldAttemptStaticNavigation
+        shouldAttemptStaticNavigation,
+        routePrefetchHints
       )
       metadata.prefetchHints = hints
     } else {
