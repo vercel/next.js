@@ -75,5 +75,13 @@ describe('normalizeRscPath', () => {
   })
   it('should normalize url with .rsc and searchparams', () => {
     expect(normalizeRscURL('/test.rsc?abc=def')).toBe('/test?abc=def')
+    expect(normalizeRscURL('/test.rsc?')).toBe('/test?')
+  })
+  it('should not strip .rsc from the searchparams', () => {
+    expect(normalizeRscURL('/test?file=foo.rsc')).toBe('/test?file=foo.rsc')
+    expect(normalizeRscURL('/test?next=/a/b.rsc')).toBe('/test?next=/a/b.rsc')
+    expect(normalizeRscURL('/test.rsc?next=/a/b.rsc')).toBe(
+      '/test?next=/a/b.rsc'
+    )
   })
 })
