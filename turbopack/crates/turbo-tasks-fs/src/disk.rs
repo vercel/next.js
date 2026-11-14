@@ -40,6 +40,7 @@ use crate::{
     PersistedFileContent, RawDirectoryContent, RawDirectoryEntry, WriteLinkContent,
     WriteLinkTargetType,
     canonicalized_path_cache::CanonicalizedPathWalkCache,
+    created_dirs::CreatedDirs,
     invalidation::Write,
     invalidator_map::InvalidatorMap,
     mutex_map::MutexMap,
@@ -306,6 +307,11 @@ pub(crate) struct DiskFileSystemInner {
     #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip)]
     effect_state_storage: EffectStateStorage,
+    /// Directories created by write effects of this filesystem in the current session. Writes into
+    /// them skip comparing with the existing file, see [`CreatedDirs`].
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
+    #[bincode(skip)]
+    created_dirs: CreatedDirs,
     map: OperationVc<DiskFileSystemMap>,
 }
 
@@ -382,6 +388,7 @@ impl DiskFileSystemInner {
 
     pub(crate) fn invalidate(&self) {
         let _span = tracing::info_span!("invalidate filesystem", name = &*self.root).entered();
+        self.created_dirs.clear();
         let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
             return;
         };
@@ -406,6 +413,7 @@ impl DiskFileSystemInner {
         reason: impl Fn(&Path) -> R,
     ) {
         let _span = tracing::info_span!("invalidate filesystem", name = &*self.root).entered();
+        self.created_dirs.clear();
         let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
             return;
         };
@@ -936,6 +944,7 @@ impl DiskFileSystem {
                 turbo_tasks: turbo_tasks_weak(),
                 tokio_handle: Handle::current(),
                 effect_state_storage: EffectStateStorage::default(),
+                created_dirs: CreatedDirs::default(),
                 map,
             }),
         };
@@ -1395,21 +1404,32 @@ impl FileSystem for DiskFileSystem {
 
                 let _lock = self.inner.lock_path(full_path.clone()).await;
 
+                // Files in a directory that this filesystem created in the current session are
+                // normally only written by this filesystem, and then their content differs from
+                // `content` (identical writes are deduplicated by the effect state). Skip the
+                // comparison there: reading a missing file contends with concurrent file creations
+                // in the same directory. See `CreatedDirs`.
+                let parent_created_in_session = full_path
+                    .parent()
+                    .is_some_and(|parent| self.inner.created_dirs.contains(parent));
+
                 // We perform an untracked comparison here, so that this write is not dependent
                 // on a read's Vc<FileContent> (and the memory it holds). Our untracked read can
                 // be freed immediately. Given this is an output file, it's unlikely any Turbo
                 // code will need to read the file from disk into a Vc<FileContent>, so we're
                 // not wasting cycles.
-                let compare = content
-                    .streaming_compare(full_path)
-                    .instrument(tracing::info_span!(
-                        "read file before write",
-                        name = ?full_path,
-                    ))
-                    .concurrency_limited(&self.inner.read_semaphore)
-                    .await?;
-                if compare == FileComparison::Equal {
-                    return Ok(());
+                if !parent_created_in_session {
+                    let compare = content
+                        .streaming_compare(full_path)
+                        .instrument(tracing::info_span!(
+                            "read file before write",
+                            name = ?full_path,
+                        ))
+                        .concurrency_limited(&self.inner.read_semaphore)
+                        .await?;
+                    if compare == FileComparison::Equal {
+                        return Ok(());
+                    }
                 }
 
                 match &**content {
@@ -1442,9 +1462,10 @@ impl FileSystem for DiskFileSystem {
                         }
 
                         let mut missing_parent_dir = false;
+                        let created_dirs = &self.inner.created_dirs;
                         let do_write = || {
                             if missing_parent_dir && let Some(parent) = full_path.parent() {
-                                std::fs::create_dir_all(parent)?;
+                                created_dirs.create_dir_all(parent)?;
                                 missing_parent_dir = false;
                             }
                             let PersistedFileContent::Content(file) = &*content else {
@@ -2019,6 +2040,256 @@ mod tests {
         );
 
         Ok(())
+    }
+
+    #[cfg(test)]
+    mod created_dirs_tests {
+        use std::{
+            fs::{FileTimes, create_dir_all, read_to_string},
+            path::Path,
+            time::{Duration, SystemTime},
+        };
+
+        use turbo_rcstr::{RcStr, rcstr};
+        use turbo_tasks::{
+            Effects, ResolvedVc, Vc, read_strongly_consistent_and_apply_effects, take_effects,
+        };
+        use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+
+        use crate::{DiskFileSystem, File, FileContent, FileSystem};
+
+        #[turbo_tasks::function(operation, root)]
+        fn disk_file_system_operation(root: RcStr) -> Vc<DiskFileSystem> {
+            DiskFileSystem::new(rcstr!("test"), Vc::cell(root))
+        }
+
+        #[turbo_tasks::function(operation, root)]
+        async fn write_operation(
+            fs: ResolvedVc<DiskFileSystem>,
+            path: RcStr,
+            contents: RcStr,
+        ) -> anyhow::Result<()> {
+            fs.root()
+                .await?
+                .join(&path)?
+                .write(
+                    FileContent::Content(File::from_bytes(contents.to_string().into_bytes()))
+                        .cell(),
+                )
+                .await?;
+            Ok(())
+        }
+
+        #[turbo_tasks::function(operation, root)]
+        async fn write_effects_operation(
+            fs: ResolvedVc<DiskFileSystem>,
+            path: RcStr,
+            contents: RcStr,
+        ) -> anyhow::Result<Vc<Effects>> {
+            let write_op = write_operation(fs, path, contents);
+            write_op.read_strongly_consistent().await?;
+            Ok(take_effects(write_op).await?.cell())
+        }
+
+        async fn write(
+            fs: ResolvedVc<DiskFileSystem>,
+            path: &str,
+            contents: &str,
+        ) -> anyhow::Result<()> {
+            read_strongly_consistent_and_apply_effects(
+                write_effects_operation(fs, RcStr::from(path), RcStr::from(contents)),
+                |e| e,
+            )
+            .await?;
+            Ok(())
+        }
+
+        fn set_old_mtime(path: &Path) -> SystemTime {
+            let old = SystemTime::UNIX_EPOCH + Duration::from_secs(1_000_000);
+            std::fs::File::options()
+                .write(true)
+                .open(path)
+                .unwrap()
+                .set_times(FileTimes::new().set_modified(old))
+                .unwrap();
+            old
+        }
+
+        fn mtime(path: &Path) -> SystemTime {
+            std::fs::metadata(path).unwrap().modified().unwrap()
+        }
+
+        /// Runs `test` with a [`DiskFileSystem`] for a new temporary directory.
+        macro_rules! run {
+            (async |$fs:ident, $root:ident| $body:block) => {{
+                let scratch = tempfile::tempdir().unwrap();
+                let root_buf = scratch.path().to_owned();
+                let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                    BackendOptions::default(),
+                    noop_backing_storage(),
+                ));
+                tt.run_once(async move {
+                    let $root: &Path = &root_buf;
+                    let $fs = disk_file_system_operation(RcStr::from($root.to_str().unwrap()))
+                        .resolve()
+                        .strongly_consistent()
+                        .await?;
+                    $body
+                })
+                .await
+                .unwrap();
+            }};
+        }
+
+        /// Directories created by writes are recorded, and later writes into them write the new
+        /// content.
+        #[cfg(unix)]
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn writes_into_created_directories() {
+            run!(async |fs, root| {
+                write(fs, "out/a/file.txt", "one").await?;
+                assert_eq!(read_to_string(root.join("out/a/file.txt"))?, "one");
+                let inner = fs.await?.inner.clone();
+                assert!(inner.created_dirs.contains(&root.join("out")));
+                assert!(inner.created_dirs.contains(&root.join("out/a")));
+                assert!(!inner.created_dirs.contains(root));
+
+                write(fs, "out/a/file.txt", "two").await?;
+                assert_eq!(read_to_string(root.join("out/a/file.txt"))?, "two");
+                write(fs, "out/a/other.txt", "three").await?;
+                assert_eq!(read_to_string(root.join("out/a/other.txt"))?, "three");
+                Ok(())
+            });
+        }
+
+        /// Writes into directories that existed before still compare with the existing file and
+        /// don't rewrite it when the content is the same.
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn skips_identical_writes_in_existing_directories() {
+            run!(async |fs, root| {
+                create_dir_all(root.join("existing"))?;
+                std::fs::write(root.join("existing/file.txt"), "same")?;
+                let old = set_old_mtime(&root.join("existing/file.txt"));
+
+                write(fs, "existing/file.txt", "same").await?;
+                assert_eq!(mtime(&root.join("existing/file.txt")), old);
+                assert!(
+                    !fs.await?
+                        .inner
+                        .created_dirs
+                        .contains(&root.join("existing"))
+                );
+
+                write(fs, "existing/file.txt", "changed").await?;
+                assert_eq!(read_to_string(root.join("existing/file.txt"))?, "changed");
+                Ok(())
+            });
+        }
+
+        /// A created directory that is removed during the session is created again by the next
+        /// write into it.
+        #[cfg(unix)]
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn recreates_removed_directories() {
+            run!(async |fs, root| {
+                write(fs, "out/a/file.txt", "one").await?;
+                std::fs::remove_dir_all(root.join("out"))?;
+
+                write(fs, "out/a/file.txt", "two").await?;
+                assert_eq!(read_to_string(root.join("out/a/file.txt"))?, "two");
+                write(fs, "out/a/other.txt", "three").await?;
+                assert_eq!(read_to_string(root.join("out/a/other.txt"))?, "three");
+                let inner = fs.await?.inner.clone();
+                // The directories were created by this filesystem again.
+                assert!(inner.created_dirs.contains(&root.join("out")));
+                assert!(inner.created_dirs.contains(&root.join("out/a")));
+                Ok(())
+            });
+        }
+
+        /// A created directory that is removed and created again by someone else is not
+        /// considered created by the filesystem anymore, so writes into it compare with existing
+        /// files again.
+        #[cfg(unix)]
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn directories_recreated_by_others_are_compared() {
+            run!(async |fs, root| {
+                write(fs, "out/file.txt", "one").await?;
+                std::fs::remove_dir_all(root.join("out"))?;
+                create_dir_all(root.join("out"))?;
+                std::fs::write(root.join("out/foreign.txt"), "foreign")?;
+                let old = set_old_mtime(&root.join("out/foreign.txt"));
+
+                write(fs, "out/foreign.txt", "foreign").await?;
+                assert_eq!(mtime(&root.join("out/foreign.txt")), old);
+                assert!(!fs.await?.inner.created_dirs.contains(&root.join("out")));
+                Ok(())
+            });
+        }
+
+        /// A created directory that is renamed away and replaced with another directory is not
+        /// considered created by the filesystem anymore.
+        #[cfg(unix)]
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn renamed_and_replaced_directories_are_compared() {
+            run!(async |fs, root| {
+                write(fs, "out/file.txt", "one").await?;
+                create_dir_all(root.join("staging"))?;
+                std::fs::write(root.join("staging/foreign.txt"), "foreign")?;
+                let old = set_old_mtime(&root.join("staging/foreign.txt"));
+                std::fs::rename(root.join("out"), root.join("old-out"))?;
+                std::fs::rename(root.join("staging"), root.join("out"))?;
+
+                write(fs, "out/foreign.txt", "foreign").await?;
+                assert_eq!(mtime(&root.join("out/foreign.txt")), old);
+                assert!(!fs.await?.inner.created_dirs.contains(&root.join("out")));
+
+                // Writes with new content still work.
+                write(fs, "out/foreign.txt", "changed").await?;
+                assert_eq!(read_to_string(root.join("out/foreign.txt"))?, "changed");
+                Ok(())
+            });
+        }
+
+        /// Directories created through a symlinked output directory stop being considered created
+        /// by the filesystem when the symlink is repointed to another directory.
+        #[cfg(unix)]
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn repointed_symlinked_output_directories_are_compared() {
+            run!(async |fs, root| {
+                create_dir_all(root.join("target-a"))?;
+                create_dir_all(root.join("target-b/sub"))?;
+                std::os::unix::fs::symlink(root.join("target-a"), root.join("out"))?;
+
+                write(fs, "out/sub/file.txt", "one").await?;
+                assert_eq!(read_to_string(root.join("target-a/sub/file.txt"))?, "one");
+                assert!(fs.await?.inner.created_dirs.contains(&root.join("out/sub")));
+
+                std::fs::write(root.join("target-b/sub/foreign.txt"), "foreign")?;
+                let old = set_old_mtime(&root.join("target-b/sub/foreign.txt"));
+                std::fs::remove_file(root.join("out"))?;
+                std::os::unix::fs::symlink(root.join("target-b"), root.join("out"))?;
+
+                write(fs, "out/sub/foreign.txt", "foreign").await?;
+                assert_eq!(mtime(&root.join("target-b/sub/foreign.txt")), old);
+                assert!(!fs.await?.inner.created_dirs.contains(&root.join("out/sub")));
+                Ok(())
+            });
+        }
+
+        /// Invalidating the filesystem forgets all created directories.
+        #[cfg(unix)]
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn invalidate_forgets_created_directories() {
+            run!(async |fs, root| {
+                write(fs, "out/file.txt", "one").await?;
+                let fs = fs.await?;
+                assert!(fs.inner.created_dirs.contains(&root.join("out")));
+                fs.invalidate();
+                assert!(!fs.inner.created_dirs.contains(&root.join("out")));
+                Ok(())
+            });
+        }
     }
 
     #[cfg(test)]
