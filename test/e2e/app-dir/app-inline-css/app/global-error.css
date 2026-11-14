@@ -1,0 +1,7 @@
+:root {
+  --inline-css-global-error-marker: 1;
+}
+
+#global-error {
+  color: red;
+}
