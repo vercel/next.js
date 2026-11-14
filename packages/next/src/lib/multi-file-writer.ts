@@ -80,7 +80,33 @@ export class MultiFileWriter {
     // Find or create a task for the directory that contains the file.
     const task = this.findOrCreateTask(path.dirname(filePath))
 
-    const promise = task[1].then(() => this.fs.writeFile(filePath, data))
+    const promise = task[1].then(async () => {
+      // Atomic write to prevent readers from seeing partial/mixed JSON
+      // when multiple server instances write the same cache file concurrently
+      // on a shared filesystem. Fixes #98009
+      const tempPath = `${filePath}.tmp.${Math.random().toString(36).slice(2)}`
+      try {
+        await this.fs.writeFile(tempPath, data)
+        if (this.fs.rename) {
+          await this.fs.rename(tempPath, filePath)
+        } else {
+          // Fallback for custom filesystems without rename support
+          await this.fs.writeFile(filePath, data)
+          // Clean up temp file (best effort)
+          try {
+            const { unlinkSync } = await import('fs')
+            unlinkSync(tempPath)
+          } catch {}
+        }
+      } catch (e) {
+        // Clean up temp file on error (best effort)
+        try {
+          const { unlinkSync } = await import('fs')
+          unlinkSync(tempPath)
+        } catch {}
+        throw e
+      }
+    })
 
     // Attach a catch handler so that it doesn't throw an unhandled promise
     // rejection warning.
