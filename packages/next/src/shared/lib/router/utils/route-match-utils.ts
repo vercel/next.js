@@ -13,10 +13,13 @@ import {
   pathToRegexp,
   compile,
   regexpToFunction,
+  parse,
+  tokensToRegexp,
 } from 'next/dist/compiled/path-to-regexp'
 import {
   hasAdjacentParameterIssues,
   normalizeAdjacentParameters,
+  normalizeTokensForRegexp,
   stripParameterSeparators,
   stripNormalizedSeparators,
 } from '../../../../lib/route-pattern-normalizer'
@@ -43,17 +46,25 @@ export function safePathToRegexp(
   try {
     return pathToRegexp(routeToUse, keys, options)
   } catch (error) {
-    // Only try normalization if we haven't already normalized
-    if (!needsNormalization) {
-      try {
-        const normalizedRoute = normalizeAdjacentParameters(route)
-        return pathToRegexp(normalizedRoute, keys, options)
-      } catch (retryError) {
-        // If that doesn't work, fall back to original error
-        throw error
+    try {
+      // After `_NEXTSEP_` normalization, interception marker + catchall
+      // (`/(.)_NEXTSEP_:param+`) has an empty path-to-regexp prefix/suffix.
+      // path-to-regexp 6.3+ rejects that; normalize tokens so key extraction
+      // (used by prepareDestination) can succeed for those destinations.
+      const tokens = normalizeTokensForRegexp(parse(routeToUse))
+      return tokensToRegexp(tokens, keys, options)
+    } catch {
+      // Only try adjacent-parameter normalization if we haven't already normalized
+      if (!needsNormalization) {
+        try {
+          const normalizedRoute = normalizeAdjacentParameters(route)
+          return pathToRegexp(normalizedRoute, keys, options)
+        } catch {
+          throw error
+        }
       }
+      throw error
     }
-    throw error
   }
 }
 
