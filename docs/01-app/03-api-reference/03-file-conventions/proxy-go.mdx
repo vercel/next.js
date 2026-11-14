@@ -54,6 +54,8 @@ Go stores Host in `r.Host`, separately from `r.Header`. When cloning request hea
 
 Returning without calling `Next` or `Rewrite` sends the response directly. Use standard Go APIs such as `http.Redirect`, `http.SetCookie`, and `http.Flusher` for redirects, response cookies, and streaming. Relative redirect and rewrite destinations resolve against the incoming URL.
 
+When continuing or internally rewriting a request, cookies set with `http.SetCookie` are available through [`cookies()`](/docs/app/api-reference/functions/cookies) in the downstream render of the same request.
+
 Go Proxy supports gzip, zlib-wrapped deflate, and Brotli response compression.
 
 ## Examples

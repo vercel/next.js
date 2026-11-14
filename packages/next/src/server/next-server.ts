@@ -1839,7 +1839,7 @@ export default class NextNodeServer extends BaseServer<
               ? requestData.body.cloneBodyStream()
               : undefined,
           },
-          page: 'middleware',
+          page: nativeEntry ? '/proxy' : 'middleware',
         })
       } finally {
         if (hasRequestBody) {

@@ -48,6 +48,11 @@ func (w *nextGoProxyWriter) WriteHeader(status int) {
 		// replace its Date with net/http's automatic response Date, but retain
 		// a Date explicitly set by the proxy.
 		if w.Header().Get("x-middleware-next") != "" || w.Header().Get("x-middleware-rewrite") != "" {
+			// Make proxy-set cookies available to cookies() in this request's
+			// downstream render, matching NextResponse.cookies.set().
+			if cookies := w.Header().Values("Set-Cookie"); len(cookies) > 0 {
+				w.Header().Set("x-middleware-set-cookie", strings.Join(cookies, ","))
+			}
 			if _, explicit := w.Header()["Date"]; !explicit {
 				w.Header()["Date"] = nil
 			}

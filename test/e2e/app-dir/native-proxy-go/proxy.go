@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func Proxy(w http.ResponseWriter, r *http.Request) {
@@ -79,6 +80,22 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 		http.SetCookie(w, &http.Cookie{Name: "first", Value: "one", Path: "/"})
 		http.SetCookie(w, &http.Cookie{Name: "second", Value: "two", Path: "/"})
 		Rewrite(w, "/native-proxy/inspect")
+	case "/native-proxy/cookie-state", "/native-proxy/cookie-rewrite":
+		options := ProxyOptions{}
+		if r.URL.Query().Get("override") == "1" {
+			headers := r.Header.Clone()
+			headers.Set("Host", r.Host)
+			options.Request.Headers = headers
+		}
+		if r.URL.Path == "/native-proxy/cookie-rewrite" {
+			Rewrite(w, "/native-proxy/cookie-state", options)
+		} else {
+			Next(w, options)
+		}
+		// Cookies may be set after selecting Next or Rewrite, until headers commit.
+		http.SetCookie(w, &http.Cookie{Name: "first", Value: "fresh", Path: "/", HttpOnly: true})
+		http.SetCookie(w, &http.Cookie{Name: "second", Value: "new", Path: "/"})
+		http.SetCookie(w, &http.Cookie{Name: "expiring", Value: "value", Path: "/", Expires: time.Date(2035, time.January, 2, 3, 4, 5, 0, time.UTC)})
 	case "/native-proxy/body":
 		body, _ := io.ReadAll(r.Body)
 		w.Header().Set("x-go-body", string(body))

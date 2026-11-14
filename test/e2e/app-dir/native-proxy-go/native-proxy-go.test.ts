@@ -6,6 +6,7 @@ import { tmpdir } from 'os'
 import { spawn } from 'child_process'
 import { once } from 'events'
 import { createServer, request } from 'http'
+import cheerio from 'cheerio'
 
 // Hosted tests require the Go proxy adapter and builder releases.
 // @force-gate turbopack && !deploy
@@ -347,6 +348,41 @@ describe('native-proxy-go', () => {
     expect(response.headers.get('set-cookie')).toContain('second=two')
   })
 
+  it.each([
+    { path: 'cookie-state', override: '0' },
+    { path: 'cookie-state', override: '1' },
+    { path: 'cookie-rewrite', override: '0' },
+    { path: 'cookie-rewrite', override: '1' },
+  ])(
+    'exposes proxy cookies in the same render for $path (header override: $override)',
+    async ({ path, override }) => {
+      const response = await next.fetch(
+        `/native-proxy/${path}?override=${override}`,
+        {
+          headers: { cookie: 'first=old; untouched=kept' },
+        }
+      )
+      expect(response.status).toBe(200)
+      const cookies = response.headers.getSetCookie()
+      expect(cookies).toEqual([
+        expect.stringContaining('first=fresh;'),
+        expect.stringContaining('second=new;'),
+        expect.stringContaining('expiring=value;'),
+      ])
+      expect(cookies[0]).toContain('HttpOnly')
+      expect(cookies[2]).toContain('Expires=Tue, 02 Jan 2035 03:04:05 GMT')
+      expect(response.headers.get('x-middleware-set-cookie')).toBeNull()
+
+      const $ = cheerio.load(await response.text())
+      expect(JSON.parse($('#cookie-state').text())).toEqual({
+        first: 'fresh',
+        second: 'new',
+        expiring: 'value',
+        untouched: 'kept',
+      })
+    }
+  )
+
   it.each(['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])(
     'replays a %s body consumed by Go and serves the following request',
     async (method) => {
@@ -482,6 +518,16 @@ describe('native-proxy-go', () => {
           body: 'hosted body',
         })
         expect(body.headers.get('x-go-body')).toBe('hosted body')
+        for (const path of ['cookie-state', 'cookie-rewrite']) {
+          const response = await fetch(
+            `http://127.0.0.1:${port}/native-proxy/${path}`
+          )
+          const cookies = response.headers.getSetCookie()
+          expect(cookies).toHaveLength(3)
+          expect(response.headers.get('x-middleware-set-cookie')).toBe(
+            cookies.join(',')
+          )
+        }
         for (const [parameter, header] of [
           ['relative-location', 'location'],
           ['relative-rewrite', 'x-middleware-rewrite'],
