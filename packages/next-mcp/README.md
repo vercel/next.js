@@ -162,6 +162,25 @@ The caller's raw credential is never in `ctx`: tools must not forward the caller
 
 Tools run inside the route's request context, so `after()`, `revalidatePath()`, and `revalidateTag()` work. **Do not call `cookies()` in a tool**: it reads whatever browser session accompanies the request, which can be a different identity than the authenticated caller. Use `ctx.session.auth.current`. The `@next/next/no-cookies-in-mcp-tools` ESLint rule enforces this.
 
+### Cold start
+
+The route loads every tool module when it starts, because `tools/list` needs each tool's description and schema. So whatever a tool file does at the top level runs on every cold start, for every tool. Keep only what `tools/list` needs at the top level, and load the rest inside `execute()`:
+
+```ts
+export default defineTool({
+  description: 'Create a calendar event.',
+  inputSchema: z.object({ title: z.string() }),
+  async execute({ title }, ctx) {
+    const { db } = await import('@/lib/db') // loaded when the tool is called
+    return db.event.create({
+      data: { title, owner: ctx.session.auth.current!.principalId },
+    })
+  },
+})
+```
+
+Construct clients in a shared module (`lib/s3.ts` exporting `new S3Client({})`) rather than at the top of a tool file, and avoid top-level `await`. The `@next/next/defer-mcp-tool-imports` and `@next/next/no-top-level-await-in-mcp` ESLint rules warn about both.
+
 ### Errors
 
 A tool that throws never leaks its message. Clients get a stable code and an `errorId` that matches the server log:

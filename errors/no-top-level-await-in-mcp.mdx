@@ -1,0 +1,52 @@
+---
+title: No top-level `await` in MCP modules
+---
+
+> Prevent top-level `await` in `@next/mcp` tool and route modules, which delays every cold start of the MCP route.
+
+## Why This Error Occurred
+
+A file that defines an MCP tool with `defineTool`, or an MCP route with `mcpRoute`, used `await` (or `for await`) at the top level.
+
+An MCP route loads its tool modules when it starts, so top-level `await` in any of them holds up the route's first response on every cold start. The same code also runs during `next build`, when Next.js loads route modules.
+
+```ts filename="app/mcp/tools/get_flags.ts"
+import { defineTool } from '@next/mcp/tools'
+import { z } from 'zod'
+
+// Blocks every cold start of the MCP route.
+const flags = await fetch('https://flags.example.com').then((res) => res.json())
+
+export default defineTool({
+  description: 'Read feature flags.',
+  inputSchema: z.object({}),
+  execute: () => flags,
+})
+```
+
+## Possible Ways to Fix It
+
+Do the work when it is needed. In a tool, move it into `execute()`. In a route module, move it into the auth function or tool that needs it. To share a result across calls, cache the promise on first use:
+
+```ts filename="app/mcp/tools/get_flags.ts"
+import { defineTool } from '@next/mcp/tools'
+import { z } from 'zod'
+
+let flags: Promise<unknown> | undefined
+
+export default defineTool({
+  description: 'Read feature flags.',
+  inputSchema: z.object({}),
+  execute: () =>
+    (flags ??= fetch('https://flags.example.com')
+      .then((res) => res.json())
+      .catch((error) => {
+        flags = undefined // retry on the next call instead of caching the failure
+        throw error
+      })),
+})
+```
+
+## Useful Links
+
+- [`defer-mcp-tool-imports`](/docs/messages/defer-mcp-tool-imports)
