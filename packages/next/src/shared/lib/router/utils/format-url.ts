@@ -24,7 +24,7 @@ import type { UrlObject } from 'url'
 import type { ParsedUrlQuery } from 'querystring'
 import * as querystring from './querystring'
 
-const slashedProtocols = /https?|ftp|gopher|file/
+const slashedProtocols = /^(?:https?|ftp|gopher|file|wss?):$/
 
 export function formatUrl(urlObj: UrlObject) {
   let { auth, hostname } = urlObj
