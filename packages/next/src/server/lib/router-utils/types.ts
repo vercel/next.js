@@ -3,5 +3,6 @@ export type PropagateToWorkersField =
   | 'actualInstrumentationHookFile'
   | 'loadEnvConfig'
   | 'appPathRoutes'
+  | 'devRouteDefinitions'
   | 'middleware'
   | 'renderOpts'
