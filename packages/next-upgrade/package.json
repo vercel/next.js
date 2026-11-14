@@ -1,0 +1,10 @@
+{
+  "name": "@next/upgrade",
+  "version": "16.5.0-canary.8",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vercel/next.js",
+    "directory": "packages/next-upgrade"
+  }
+}
