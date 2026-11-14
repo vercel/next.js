@@ -251,7 +251,7 @@ fn minify_source(
         generate_js_source_map(
             &*cm,
             &src_map_buf,
-            Some(&original_map),
+            Some((None, &original_map)),
             true,
             false,
             &source_map_names,
