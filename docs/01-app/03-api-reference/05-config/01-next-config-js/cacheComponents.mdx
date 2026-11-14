@@ -44,6 +44,10 @@ Read [Prerendering](/docs/app/getting-started/caching#prerendering) for how the 
 
 > **Good to know**: If you used experimental PPR in Next.js 15, refer to the [Partial Prerendering (PPR)](/docs/app/guides/upgrading/version-16#partial-prerendering-ppr) section of the Version 16 upgrade guide when migrating.
 
+## Content Security Policy
+
+The prerendered shell cannot receive a per-request CSP nonce. Request-time framework scripts can receive one, but scripts already in the shell remain unnonced. A nonce-based policy with `'strict-dynamic'` can therefore block shell scripts and prevent hydration. See [Cache Components and CSP](/docs/app/guides/content-security-policy#cache-components) before enabling this flag in an application that requires nonces.
+
 ## Navigation with Activity
 
 When `cacheComponents` is enabled, Next.js uses React's [`<Activity>`](https://react.dev/reference/react/Activity) component to preserve component state during client-side navigation.
