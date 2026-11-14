@@ -13,6 +13,7 @@
 #![feature(mpmc_channel)]
 
 pub mod backend;
+mod cached_task_type;
 mod capture_future;
 mod collectibles;
 mod completion;

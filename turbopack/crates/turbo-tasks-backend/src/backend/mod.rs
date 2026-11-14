@@ -1919,11 +1919,7 @@ impl TurboTasksBackend {
             && let Some(parent_task) = parent_task
             && !parent_task.is_transient()
         {
-            let task_type = CachedTaskType {
-                native_fn,
-                this,
-                arg: arg.take_box(),
-            };
+            let task_type = arg.take_task_type(native_fn, this);
             self.panic_persistent_calling_transient(
                 self.debug_get_task_description(parent_task),
                 Some(&task_type),
@@ -2003,11 +1999,7 @@ impl TurboTasksBackend {
                         // Only now do we force the allocation.
                         // NOTE: if our caller had to perform resolution, then this will have
                         // already been boxed and take_box just takes it.
-                        let task_type = CachedTaskTypeArc::new(CachedTaskType {
-                            native_fn,
-                            this,
-                            arg: arg.take_box(),
-                        });
+                        let task_type = arg.take_task_type(native_fn, this);
                         let task_id = if transient {
                             self.transient_task_id_factory.get()
                         } else {
@@ -2336,6 +2328,7 @@ impl TurboTasksBackend {
                     native_fn,
                     this,
                     arg,
+                    ..
                 } = &*task_type;
                 self.track_execution_by_fn(native_fn);
                 (
@@ -2346,7 +2339,7 @@ impl TurboTasksBackend {
                         #[cfg(feature = "task_dirty_cause")]
                         cause.as_ref(),
                     ),
-                    native_fn.execute(*this, &**arg),
+                    native_fn.execute(*this, arg),
                 )
             }
             TaskType::Transient(task_type) => {
