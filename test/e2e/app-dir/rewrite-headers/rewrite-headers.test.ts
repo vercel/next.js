@@ -438,7 +438,7 @@ const cases: {
     },
     expected: {
       'x-nextjs-rewritten-path': '/other',
-      'x-nextjs-rewritten-query': 'key=andrew',
+      'x-nextjs-rewritten-query': 'key=andrew&name=andrew',
     },
   },
   {
@@ -455,7 +455,41 @@ const cases: {
     },
     expected: {
       'x-nextjs-rewritten-path': '/other',
-      'x-nextjs-rewritten-query': 'key=andrew',
+      'x-nextjs-rewritten-query': 'key=andrew&name=andrew',
+    },
+  },
+  {
+    name: 'next.config.js rewrites with request query Prefetch RSC',
+    pathname: '/hello/sam?tab=archive',
+    headers: {
+      rsc: '1',
+      'next-router-prefetch': '1',
+      ...(process.env.__NEXT_CACHE_COMPONENTS === 'true'
+        ? {
+            'next-router-segment-prefetch': '/_tree',
+          }
+        : {}),
+    },
+    expected: {
+      'x-nextjs-rewritten-path': '/hello/samantha',
+      'x-nextjs-rewritten-query': null,
+    },
+  },
+  {
+    name: 'next.config.js rewrites with query and request query Prefetch RSC',
+    pathname: '/hello/fred?tab=archive',
+    headers: {
+      rsc: '1',
+      'next-router-prefetch': '1',
+      ...(process.env.__NEXT_CACHE_COMPONENTS === 'true'
+        ? {
+            'next-router-segment-prefetch': '/_tree',
+          }
+        : {}),
+    },
+    expected: {
+      'x-nextjs-rewritten-path': '/other',
+      'x-nextjs-rewritten-query': 'tab=archive&key=value',
     },
   },
 ]
@@ -507,9 +541,10 @@ describe('rewrite-headers', () => {
         const headers = Object.fromEntries(response.headers.entries())
 
         // This is so that the following check works. If we expect that the
-        // header is null, but it's not present, we need to set it to null.
+        // header is null, but it's not present, we need to set it to null. An
+        // empty header is not the same as a missing one, so keep it.
         Object.entries(expected).forEach(([key, value]) => {
-          if (value === null && !headers[key]) {
+          if (value === null && !(key in headers)) {
             headers[key] = null
           }
         })
