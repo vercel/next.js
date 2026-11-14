@@ -27,7 +27,9 @@ use crate::{
     app_structure::CollectedRootParams,
     chunk_size_defaults::ChunkSizeDefaults,
     mode::NextMode,
-    next_config::NextConfig,
+    next_config::{
+        EDGE_CHUNKING_CONFIG_OPTION_NAMES, NextConfig, warn_on_adjusted_chunking_config,
+    },
     next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_edge_import_map},
     next_server::context::ServerContextType,
     next_shared::resolve::NextSharedRuntimeResolvePlugin,
@@ -196,6 +198,9 @@ pub struct EdgeChunkingContextOptions {
     pub hash_salt: ResolvedVc<RcStr>,
     pub cross_origin: Vc<CrossOrigin>,
     pub style_groups_algorithm: StyleGroupsAlgorithm,
+    /// Best-effort maximum JS chunk size override; `None` uses the scaled default, `0` disables
+    /// the limit.
+    pub chunking_max_chunk_size: Option<usize>,
 }
 
 /// Like `get_edge_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -226,7 +231,9 @@ pub async fn get_edge_chunking_context_with_client_assets(
         hash_salt,
         cross_origin,
         style_groups_algorithm,
+        chunking_max_chunk_size,
     } = options;
+    let issue_file_path = root_path.clone();
     let cross_origin_loading = *cross_origin.await?;
     let output_root = node_root.join("server/edge")?;
     let next_mode = mode.await?;
@@ -276,14 +283,25 @@ pub async fn get_edge_chunking_context_with_client_assets(
 
     if !next_mode.is_development() {
         let defaults = ChunkSizeDefaults::new(*turbo_minify.await?, *minify_before_chunking.await?);
+        let mut ecmascript_chunking_config = ChunkingConfig {
+            min_chunk_size: defaults.size(20_000),
+            request_cost: defaults.default_request_cost(),
+            max_chunk_size: defaults.server_max_chunk_size(chunking_max_chunk_size),
+            ..Default::default()
+        };
+        // Edge chunks have no explicit merge limit, so use the effective maximum chunk size.
+        // Chunks bigger than that are never merged anyway.
+        ecmascript_chunking_config.max_merge_chunk_size =
+            ecmascript_chunking_config.normalized().max_merge_chunk_size;
+        warn_on_adjusted_chunking_config(
+            &ecmascript_chunking_config,
+            &EDGE_CHUNKING_CONFIG_OPTION_NAMES,
+            issue_file_path,
+        );
         builder = builder
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-                ChunkingConfig {
-                    min_chunk_size: defaults.size(20_000),
-                    request_cost: defaults.default_request_cost(),
-                    ..Default::default()
-                },
+                ecmascript_chunking_config,
             )
             .chunking_config(
                 Vc::<CssChunkType>::default().to_resolved().await?,
@@ -328,7 +346,9 @@ pub async fn get_edge_chunking_context(
         hash_salt,
         cross_origin,
         style_groups_algorithm,
+        chunking_max_chunk_size,
     } = options;
+    let issue_file_path = root_path.clone();
     let cross_origin = *cross_origin.await?;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
     let output_root = node_root.join("server/edge")?;
@@ -395,14 +415,25 @@ pub async fn get_edge_chunking_context(
 
     if !next_mode.is_development() {
         let defaults = ChunkSizeDefaults::new(*turbo_minify.await?, *minify_before_chunking.await?);
+        let mut ecmascript_chunking_config = ChunkingConfig {
+            min_chunk_size: defaults.size(20_000),
+            request_cost: defaults.default_request_cost(),
+            max_chunk_size: defaults.server_max_chunk_size(chunking_max_chunk_size),
+            ..Default::default()
+        };
+        // Edge chunks have no explicit merge limit, so use the effective maximum chunk size.
+        // Chunks bigger than that are never merged anyway.
+        ecmascript_chunking_config.max_merge_chunk_size =
+            ecmascript_chunking_config.normalized().max_merge_chunk_size;
+        warn_on_adjusted_chunking_config(
+            &ecmascript_chunking_config,
+            &EDGE_CHUNKING_CONFIG_OPTION_NAMES,
+            issue_file_path,
+        );
         builder = builder
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-                ChunkingConfig {
-                    min_chunk_size: defaults.size(20_000),
-                    request_cost: defaults.default_request_cost(),
-                    ..Default::default()
-                },
+                ecmascript_chunking_config,
             )
             .chunking_config(
                 Vc::<CssChunkType>::default().to_resolved().await?,

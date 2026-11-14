@@ -48,7 +48,9 @@ use crate::{
     chunk_size_defaults::ChunkSizeDefaults,
     mode::NextMode,
     next_build::get_postcss_package_mapping,
-    next_config::NextConfig,
+    next_config::{
+        NextConfig, SERVER_CHUNKING_CONFIG_OPTION_NAMES, warn_on_adjusted_chunking_config,
+    },
     next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_server_import_map},
     next_server::{
         resolve::{ExternalCjsModulesResolvePlugin, ExternalPredicate},
@@ -1044,6 +1046,9 @@ pub struct ServerChunkingContextOptions {
     pub chunking_min_chunk_size: Option<usize>,
     /// Override for the production JS `max_merge_chunk_size` (default `100_000`).
     pub chunking_max_merge_chunk_size: Option<usize>,
+    /// Best-effort maximum JS chunk size override; `None` uses the scaled default, `0` disables
+    /// the limit.
+    pub chunking_max_chunk_size: Option<usize>,
 }
 
 /// Like `get_server_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -1078,7 +1083,9 @@ pub async fn get_server_chunking_context_with_client_assets(
         lazy_dynamic_imports,
         chunking_min_chunk_size,
         chunking_max_merge_chunk_size,
+        chunking_max_chunk_size,
     } = options;
+    let issue_file_path = root_path.clone();
     let css_url_suffix = css_url_suffix.to_resolved().await?;
 
     let next_mode = mode.await?;
@@ -1138,18 +1145,25 @@ pub async fn get_server_chunking_context_with_client_assets(
     });
     if next_mode.is_production() {
         let defaults = ChunkSizeDefaults::new(*minify.await?, *minify_before_chunking.await?);
+        let ecmascript_chunking_config = ChunkingConfig {
+            // Server chunks are loaded with require(), not fetched over the network.
+            min_chunk_size: chunking_min_chunk_size.unwrap_or_else(|| defaults.size(4_000)),
+            max_chunk_count_per_group: 0,
+            max_merge_chunk_size: chunking_max_merge_chunk_size
+                .unwrap_or_else(|| defaults.size(100_000)),
+            max_chunk_size: defaults.server_max_chunk_size(chunking_max_chunk_size),
+            request_cost: Some(defaults.request_cost(10_000)),
+            ..Default::default()
+        };
+        warn_on_adjusted_chunking_config(
+            &ecmascript_chunking_config,
+            &SERVER_CHUNKING_CONFIG_OPTION_NAMES,
+            issue_file_path,
+        );
         builder = builder
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-                ChunkingConfig {
-                    // Server chunks are loaded with require(), not fetched over the network.
-                    min_chunk_size: chunking_min_chunk_size.unwrap_or_else(|| defaults.size(4_000)),
-                    max_chunk_count_per_group: 0,
-                    max_merge_chunk_size: chunking_max_merge_chunk_size
-                        .unwrap_or_else(|| defaults.size(100_000)),
-                    request_cost: Some(defaults.request_cost(10_000)),
-                    ..Default::default()
-                },
+                ecmascript_chunking_config,
             )
             .chunking_config(
                 Vc::<CssChunkType>::default().to_resolved().await?,
@@ -1198,7 +1212,9 @@ pub async fn get_server_chunking_context(
         lazy_dynamic_imports,
         chunking_min_chunk_size,
         chunking_max_merge_chunk_size,
+        chunking_max_chunk_size,
     } = options;
+    let issue_file_path = root_path.clone();
     let css_url_suffix = css_url_suffix.to_resolved().await?;
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -1257,18 +1273,27 @@ pub async fn get_server_chunking_context(
     if next_mode.is_development() {
         builder = builder.source_map_source_type(SourceMapSourceType::AbsoluteFileUri);
     } else {
+        let defaults = ChunkSizeDefaults::new(*minify.await?, *minify_before_chunking.await?);
+        let ecmascript_chunking_config = ChunkingConfig {
+            // Server chunks are loaded with require(), not fetched over the network.
+            min_chunk_size: chunking_min_chunk_size.unwrap_or_else(|| defaults.size(4_000)),
+            max_chunk_count_per_group: 0,
+            max_merge_chunk_size: chunking_max_merge_chunk_size
+                .unwrap_or_else(|| defaults.size(100_000)),
+            max_chunk_size: defaults.server_max_chunk_size(chunking_max_chunk_size),
+            request_cost: Some(defaults.request_cost(10_000)),
+            ..Default::default()
+        };
+        warn_on_adjusted_chunking_config(
+            &ecmascript_chunking_config,
+            &SERVER_CHUNKING_CONFIG_OPTION_NAMES,
+            issue_file_path,
+        );
         builder = builder
             .source_map_source_type(SourceMapSourceType::RelativeUri)
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-                ChunkingConfig {
-                    // Server chunks are loaded with require(), not fetched over the network.
-                    min_chunk_size: chunking_min_chunk_size.unwrap_or(4_000),
-                    max_chunk_count_per_group: 0,
-                    max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(100_000),
-                    request_cost: Some(10_000),
-                    ..Default::default()
-                },
+                ecmascript_chunking_config,
             )
             .chunking_config(
                 Vc::<CssChunkType>::default().to_resolved().await?,
