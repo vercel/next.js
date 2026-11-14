@@ -64,6 +64,9 @@ func startReactorWith(t *testing.T, handler http.HandlerFunc, unix bool, tweak .
 		upstream.Listener = unixListener
 		upstreamAddr = "unix:" + path
 	}
+	// Node passes "OPTIONS *" to its handler; Go's server answers it itself
+	// unless told not to.
+	upstream.Config.DisableGeneralOptionsHandler = true
 	upstream.Start()
 	t.Cleanup(upstream.Close)
 	if !unix {
