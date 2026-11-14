@@ -15,7 +15,7 @@ static UNITS: phf::Map<&'static str, f64> = phf_map! {
     "ex" => 8.0,
     "m" => 96.0 / INCH_CM * 100.0,
     "mm" => 96.0 / INCH_CM / 10.0,
-    "pc" => 96.0 / 72.0 / 12.0,
+    "pc" => 96.0 / 72.0 * 12.0,
     "pt" => 96.0 / 72.0,
     "px" => 1.0,
     "" => 1.0,
@@ -143,6 +143,27 @@ mod tests {
         let svg = r#"<svg width="2cm" height="50mm"></svg>"#;
         let result = calculate(svg)?;
         assert_eq!(result, (76, 189));
+        Ok(())
+    }
+
+    #[test]
+    fn test_calculate_with_picas() -> Result<()> {
+        for svg in [
+            r#"<svg width="6pc" height="3pc"></svg>"#,
+            r#"<svg width="1in" height="0.5in"></svg>"#,
+            r#"<svg width="72pt" height="36pt"></svg>"#,
+            r#"<svg width="96px" height="48px"></svg>"#,
+        ] {
+            assert_eq!(calculate(svg)?, (96, 48), "{svg}");
+        }
+        assert_eq!(
+            calculate(r#"<svg width="0.5pc" height="1.5pc"></svg>"#)?,
+            (8, 24)
+        );
+        assert_eq!(
+            calculate(r#"<svg height="3pc" viewBox="0 0 2 1"></svg>"#)?,
+            (96, 48)
+        );
         Ok(())
     }
 
