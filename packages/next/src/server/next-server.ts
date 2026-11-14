@@ -38,7 +38,6 @@ import type { ErrorModule } from './load-default-error-components'
 import fs from 'fs'
 import { join, relative } from 'path'
 import { format as formatUrl } from 'url'
-import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { addRequestMeta, getRequestMeta, setRequestMeta } from './request-meta'
 import {
   PAGES_MANIFEST,
@@ -104,7 +103,6 @@ import type { PagesAPIRouteMatch } from './route-matches/pages-api-route-match'
 import { BubbledError, getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
-import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { pipeToNodeResponse } from './pipe-readable'
 import { createRequestResponseMocks, MockedResponse } from './lib/mock-request'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
@@ -190,11 +188,6 @@ export default class NextNodeServer extends BaseServer<
   private imageResponseCache?: ResponseCache
   private imageCacheHandler?: ICacheHandler
   protected renderWorkersPromises?: Promise<void>
-  protected dynamicRoutes?: {
-    match: import('../shared/lib/router/utils/route-matcher').RouteMatchFn
-    page: string
-    re: RegExp
-  }[]
   private routerServerHandler?: (
     req: IncomingMessage,
     res: ServerResponse
@@ -258,18 +251,10 @@ export default class NextNodeServer extends BaseServer<
     }
 
     if (!options.dev) {
-      const { dynamicRoutes = [] } = this.getRoutesManifest() ?? {}
-      this.dynamicRoutes = dynamicRoutes.map((r) => {
-        // TODO: can we just re-use the regex from the manifest?
-        const regex = getRouteRegex(r.page)
-        const match = getRouteMatcher(regex)
-
-        return {
-          match,
-          page: r.page,
-          re: regex.re,
-        }
-      })
+      // Read the routes manifest while the server starts, so that a missing
+      // or invalid manifest fails here and the first request does not pay
+      // for the read.
+      this.getRoutesManifest()
     }
 
     // ensure options are set when loadConfig isn't called
