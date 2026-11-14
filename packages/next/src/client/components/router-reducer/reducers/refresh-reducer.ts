@@ -83,6 +83,9 @@ export function refreshDynamicData(
     true,
     null,
     currentRenderedSearch,
+    // A refresh re-renders the current route; inactive slots keep refreshing
+    // from the URLs that rendered them.
+    false,
     null,
     UnknownDynamicStaleTime
   )

@@ -55,6 +55,7 @@ import {
   type RouteTreeAccumulator,
   convertFlightRouterStateToRouteTree,
   convertRootFlightRouterStateToRouteTree,
+  getInheritedRefreshState,
   createMetadataRouteTree,
   createRootRouteTree,
   getHeadRequestKey,
@@ -127,6 +128,10 @@ export function createNavigationSeed(
   // Already normalized by the response reader (see getRenderedSearch); the
   // router state stores it as a plain string, so it is re-branded here.
   renderedSearch: string,
+  // Whether the base tree is the router state the request was made with, so
+  // that segments the response reuses from it are known to be part of the
+  // rendered route (see RouteTreeAccumulator.baseIsRequestTree).
+  baseIsRequestTree: boolean,
   // Where to key the head. Null derives it from the route's own first page
   // node (see createRouteTreeNode). Per-segment prefetch payloads pass the
   // route's own metadata vary path instead: a standalone head response's tree
@@ -138,6 +143,7 @@ export function createNavigationSeed(
   const acc: RouteTreeAccumulator = {
     metadataVaryPath: null,
     treeDivergedFromBase: false,
+    baseIsRequestTree,
   }
   let routeTree: RouteTree<RSCSegmentData | null>
   let headData: RSCSegmentData | null = null
@@ -480,13 +486,15 @@ function decodeTransportNode(
   // "context provider" for inactive parallel routes.)
   const baseCompressedRefreshState =
     inheritedBase !== undefined ? (inheritedBase[2] ?? null) : null
-  const refreshState: RefreshState | null =
+  const refreshState = getInheritedRefreshState(
     baseCompressedRefreshState !== null
       ? {
           canonicalUrl: baseCompressedRefreshState[0] as string,
           renderedSearch: parentRenderedSearch,
         }
-      : null
+      : null,
+    acc
+  )
   const renderedSearch =
     refreshState !== null ? refreshState.renderedSearch : parentRenderedSearch
 
