@@ -9,6 +9,7 @@ A production-ready example demonstrating how to Dockerize Next.js applications u
 - Security best practices (non-root user)
 - Slim Linux base image for optimal compatibility and smaller size
 - BuildKit cache mounts for faster builds
+- Optional shared Redis cache handler for running multiple containers
 - Production-ready configuration
 
 ## Prerequisites
@@ -20,7 +21,7 @@ A production-ready example demonstrating how to Dockerize Next.js applications u
 
 ### Using Docker Compose
 
-The `compose.yml` includes both Node.js and Bun configurations. Run one service at a time to avoid port conflicts.
+The `compose.yml` includes both Node.js and Bun configurations. Run one service at a time to avoid port conflicts. The Node.js service is built with the [shared Redis cache](#shared-cache-with-redis) and starts a Redis container alongside it.
 
 **Node.js:**
 
@@ -93,10 +94,11 @@ nextjs-docker/
 │   └── globals.css         # Global styles with Tailwind CSS v4
 ├── public/                 # Static assets
 │   └── next.svg            # Next.js logo
+├── cache-handler.js        # Optional Redis cache handler (shared cache)
 ├── Dockerfile              # Multi-stage Docker configuration (Node.js)
 ├── Dockerfile.bun          # Multi-stage Docker configuration (Bun)
-├── compose.yml             # Docker Compose configuration (Node.js & Bun services)
-├── next.config.ts          # Next.js configuration (standalone mode)
+├── compose.yml             # Docker Compose configuration (Node.js, Bun & Redis services)
+├── next.config.ts          # Next.js configuration (standalone mode, optional cache handler)
 ├── postcss.config.js       # PostCSS configuration for Tailwind CSS
 ├── tsconfig.json           # TypeScript configuration
 ├── package.json            # Dependencies and scripts
@@ -123,6 +125,42 @@ export default nextConfig;
 The standalone output mode creates a minimal, self-contained production build optimized for containerized deployments. When enabled, Next.js generates a `.next/standalone` directory containing only the essential files needed to run your application, excluding unnecessary dependencies and files. This results in significantly smaller Docker images and faster container startup times.
 
 Learn more about [Next.js standalone output](https://nextjs.org/docs/pages/api-reference/next-config-js/output#standalone) in the official documentation.
+
+### Shared cache with Redis
+
+By default, Next.js stores its server cache (ISR pages, route handler responses, and `fetch` data) in memory and on the local disk of each container. That's fine for a single container, but when you run several replicas (Kubernetes, ECS, Cloud Run with multiple instances), each one keeps its own copy and a `revalidateTag` or `revalidatePath` call only invalidates the container that handled it.
+
+Following [Configuring Caching](https://nextjs.org/docs/app/guides/self-hosting#configuring-caching) in the self-hosting guide, this example includes [`cache-handler.js`](./cache-handler.js), a [`cacheHandler`](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheHandler) backed by Redis, and turns it on when the image is built with `CACHE_HANDLER=redis`:
+
+```typescript
+const useRedisCache = process.env.CACHE_HANDLER === "redis";
+
+const nextConfig: NextConfig = {
+  output: "standalone",
+  ...(useRedisCache && {
+    cacheHandler: require.resolve("./cache-handler.js"),
+    cacheMaxMemorySize: 0, // disable default in-memory caching
+  }),
+};
+```
+
+The `cacheHandler` setting is fixed at build time, so the choice is made with a build argument. The Redis address is read at run time from `REDIS_URL`, so one image works in every environment and Redis isn't needed during `docker build`. Docker Compose does both for the Node.js service:
+
+```bash
+docker compose up nextjs-standalone --build
+```
+
+To do the same with plain Docker:
+
+```bash
+docker build --build-arg CACHE_HANDLER=redis -t nextjs-standalone-image .
+docker run -p 3000:3000 -e REDIS_URL=redis://your-redis-host:6379 nextjs-standalone-image
+```
+
+If Redis is unreachable, the handler serves requests without a cache instead of failing, and reconnects when Redis comes back. `revalidateTag` throws while Redis is down, so an invalidation is never silently lost. Set `NEXT_PRIVATE_DEBUG_CACHE=1` to log Redis errors.
+
+> [!NOTE]
+> `cacheHandler` doesn't cover the `'use cache'` directive. For that, configure [`cacheHandlers`](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheHandlers). The [`cache-handler-redis`](../cache-handler-redis) example wires up both against the same Redis instance and is the source of this handler. For production features such as timeouts and request coalescing, see the community handlers listed in that example's README.
 
 ### Dockerfile Highlights (Node.js)
 

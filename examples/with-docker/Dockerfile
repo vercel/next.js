@@ -46,6 +46,11 @@ COPY . .
 
 ENV NODE_ENV=production
 
+# Set to "redis" to build with the shared Redis cache handler in cache-handler.js
+# (see next.config.ts). Pass REDIS_URL when you run the container; Redis is not
+# needed during the build.
+ARG CACHE_HANDLER
+
 # Next.js collects completely anonymous telemetry data about general usage.
 # Learn more here: https://nextjs.org/telemetry
 # Uncomment the following line in case you want to disable telemetry during the build.

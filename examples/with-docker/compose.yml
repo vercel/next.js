@@ -1,16 +1,22 @@
 services:
   # Node.js service (use with: docker compose up nextjs-standalone --build)
+  # Built with the Redis cache handler, so every container shares one cache.
   nextjs-standalone:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        CACHE_HANDLER: redis
     image: nextjs-standalone-image
     container_name: nextjs-standalone-container
     environment:
       NODE_ENV: production
       PORT: "3000"
+      REDIS_URL: redis://redis:6379
     ports:
       - "3000:3000"
+    depends_on:
+      - redis
     restart: unless-stopped
 
   # Bun service (use with: docker compose up nextjs-standalone-with-bun --build)
@@ -25,4 +31,10 @@ services:
       PORT: "3000"
     ports:
       - "3000:3000"
+    restart: unless-stopped
+
+  # Shared cache store for cache-handler.js
+  redis:
+    image: redis:7-alpine
+    container_name: nextjs-redis
     restart: unless-stopped
