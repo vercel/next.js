@@ -22,6 +22,22 @@ export default function Layout({ children }) {
           /noop-layout/page-2
         </Link>
         <br />
+        <Link href="/shared-title/page-a" id="shared-title-page-a">
+          /shared-title/page-a
+        </Link>
+        <br />
+        <Link href="/shared-title/page-b" id="shared-title-page-b">
+          /shared-title/page-b
+        </Link>
+        <br />
+        <Link href="/shared-title/no-h1-1" id="shared-title-no-h1-1">
+          /shared-title/no-h1-1
+        </Link>
+        <br />
+        <Link href="/shared-title/no-h1-2" id="shared-title-no-h1-2">
+          /shared-title/no-h1-2
+        </Link>
+        <br />
       </body>
     </html>
   )
