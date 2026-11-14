@@ -272,6 +272,10 @@ export async function createApp({
       // Examples can override the policy; next dev will sync their block.
       agentUpgrade: !example,
     })
+    hasPackageJson = existsSync(packageJsonPath)
+  }
+
+  if (hasPackageJson) {
   }
 
   if (disableGit) {
