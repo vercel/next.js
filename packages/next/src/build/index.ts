@@ -186,7 +186,7 @@ import {
   type NEXT_REWRITTEN_QUERY_HEADER,
 } from '../client/components/app-router-headers'
 import { webpackBuild } from './webpack-build'
-import { NextBuildContext } from './build-context'
+import { NextBuildContext, RETAINED_DIST_DIR_ENTRIES } from './build-context'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { getStaticMetadataPrerenderPathname } from '../lib/metadata/get-metadata-route'
@@ -1375,15 +1375,32 @@ export default async function build(
         'next build'
       )
 
+      // With Turbopack, the distDir is not cleaned upfront, but the output of
+      // previous builds is removed while Turbopack writes its output (see
+      // `turbopackBuild`).
+      const removesStaleOutputAfterCompile =
+        config.cleanDistDir && !isGenerateMode && bundler === Bundler.Turbopack
       if (config.cleanDistDir && !isGenerateMode) {
-        await nextBuildSpan
-          .traceChild('clean')
-          .traceAsyncFn(() =>
-            recursiveDeleteSyncWithAsyncRetries(
-              distDir,
-              new Set(['cache', 'dev', 'diagnostics', 'lock', 'trace'])
+        if (removesStaleOutputAfterCompile) {
+          // Deleting the previous output upfront blocks the build for a long
+          // time for large apps, while most output files are unchanged. Only
+          // remove the BUILD_ID, so that a failed build isn't mistaken for a
+          // valid one.
+          await nextBuildSpan
+            .traceChild('clean')
+            .traceAsyncFn(() =>
+              fs.rm(path.join(distDir, BUILD_ID_FILE), { force: true })
             )
-          )
+        } else {
+          await nextBuildSpan
+            .traceChild('clean')
+            .traceAsyncFn(() =>
+              recursiveDeleteSyncWithAsyncRetries(
+                distDir,
+                new Set(RETAINED_DIST_DIR_ENTRIES)
+              )
+            )
+        }
       }
 
       const publicDir = path.join(dir, 'public')
@@ -1688,7 +1705,7 @@ export default async function build(
             validatorFilePath,
           })
 
-          await writeRouteTypesManifest(
+          const routeTypesFiles = await writeRouteTypesManifest(
             routeTypesManifest,
             routeTypesFilePath,
             config
@@ -1698,12 +1715,39 @@ export default async function build(
             validatorFilePath,
             Boolean(config.experimental.strictRouteTypes)
           )
-          writeCacheLifeTypes(config.cacheLife, cacheLifeFilePath)
+          const wroteCacheLifeTypes = writeCacheLifeTypes(
+            config.cacheLife,
+            cacheLifeFilePath
+          )
 
+          const rootParamsTypesFilePath = path.join(
+            distDir,
+            'types',
+            'root-params.d.ts'
+          )
           await writeRootParamsTypes(
             routeTypesManifest,
-            path.join(distDir, 'types', 'root-params.d.ts')
+            rootParamsTypesFilePath
           )
+
+          if (removesStaleOutputAfterCompile) {
+            const typesDir = path.dirname(routeTypesFilePath)
+            const typesFiles = [
+              ...routeTypesFiles,
+              validatorFilePath,
+              ...(wroteCacheLifeTypes ? [cacheLifeFilePath] : []),
+              rootParamsTypesFilePath,
+            ]
+            // The distDir wasn't cleaned. The types directory is managed here
+            // and kept by Turbopack's removal of stale output, as the types are
+            // type checked before compilation has finished (for the Pages
+            // Router). Remove stale types (e.g. of a config option that has
+            // been disabled since) right away.
+            await recursiveDeleteSyncWithAsyncRetries(
+              typesDir,
+              new Set(typesFiles.map((file) => path.relative(typesDir, file)))
+            )
+          }
         })
 
       // Turbopack already handles conflicting app and page routes.

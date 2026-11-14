@@ -462,6 +462,15 @@ export interface NapiProjectOptions {
   ensureShallowSourceMaps?: boolean
 }
 
+export interface NapiRemoveStaleOutputOptions {
+  /**
+   * Paths relative to the dist dir, using `/` as separator, of entries that are kept although
+   * they were not written by Turbopack (e.g. caches or files written by Next.js). Kept
+   * directories are left untouched as a whole: they are neither traversed nor removed.
+   */
+  keep: Array<RcStr>
+}
+
 /** Keep in sync with [`next_core::next_config::Rewrite`] */
 export interface NapiRewrite {
   source: string
@@ -567,6 +576,21 @@ export interface NapiWatchOptions {
    * docker).
    */
   pollIntervalMs?: number
+}
+
+export interface NapiWriteAllEntrypointsToDiskOptions {
+  /** Whether only the app directory entrypoints are written (there are no pages). */
+  appDirOnly: boolean
+  /**
+   * When set, removes the entries in the dist dir that were not written by Turbopack in this
+   * session (e.g. output of previous builds), except the kept ones.
+   * Unchanged output files that were not rewritten because they already had the right content
+   * count as written. Files are removed in parallel to writing the output, (then) empty
+   * directories after it has been written.
+   *
+   * Used by `next build` instead of cleaning the dist dir upfront.
+   */
+  removeStaleOutput?: NapiRemoveStaleOutputOptions
 }
 
 export interface NapiWrittenEndpoint {
@@ -742,7 +766,7 @@ export declare function projectUpdateInfoSubscribe(
 
 export declare function projectWriteAllEntrypointsToDisk(
   project: { __napiType: 'Project' },
-  appDirOnly: boolean
+  options: NapiWriteAllEntrypointsToDiskOptions
 ): Promise<TurbopackResult<Partial<NapiEntrypoints> | null>>
 
 export declare function projectWriteAnalyzeData(

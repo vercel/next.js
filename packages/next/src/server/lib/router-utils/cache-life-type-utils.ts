@@ -163,13 +163,15 @@ declare module 'next/cache' {
  * Writes cache-life type definitions to a file if cacheLifeConfig exists.
  * This is used by both the CLI (next type-gen) and dev server to generate
  * cache-life.d.ts in the types directory.
+ *
+ * @returns whether the file was written
  */
 export function writeCacheLifeTypes(
   cacheLifeConfig: undefined | { [profile: string]: CacheLife },
   filePath: string
-) {
+): boolean {
   if (!cacheLifeConfig || Object.keys(cacheLifeConfig).length === 0) {
-    return
+    return false
   }
 
   const dirname = path.dirname(filePath)
@@ -180,4 +182,5 @@ export function writeCacheLifeTypes(
 
   const content = generateCacheLifeTypes(cacheLifeConfig)
   fs.writeFileSync(filePath, content)
+  return true
 }

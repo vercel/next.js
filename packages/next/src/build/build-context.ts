@@ -44,6 +44,15 @@ export interface MappedPages {
   [page: string]: string
 }
 
+/** Entries of the distDir that are kept when it is cleaned for a build. */
+export const RETAINED_DIST_DIR_ENTRIES: readonly string[] = [
+  'cache',
+  'dev',
+  'diagnostics',
+  'lock',
+  'trace',
+]
+
 // a global object to store context for the current build
 // this is used to pass data between different steps of the build without having
 // to pass it through function arguments.
