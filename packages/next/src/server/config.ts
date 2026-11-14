@@ -2294,6 +2294,7 @@ async function loadConfigImpl(
     if (
       userConfig.experimental?.lightningCssFeatures &&
       !userConfig.experimental?.useLightningcss &&
+      bundler !== undefined &&
       bundler !== Bundler.Turbopack
     ) {
       curLog.warn(
