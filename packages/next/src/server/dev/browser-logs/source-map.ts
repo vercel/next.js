@@ -78,22 +78,29 @@ export async function mapFramesUsingBundler(
 
 // converts _next/static/chunks/... to file:///.next/static/chunks/... for parseStack
 // todo: where does next dev overlay handle this case and re-use that logic
-function preprocessStackTrace(stackTrace: string, distDir?: string): string {
-  return stackTrace
+export function preprocessStackTrace(
+  stackTrace: string,
+  distDir?: string
+): string {
+  const toForwardSlashes = (p: string) => p.replace(/\\/g, '/')
+
+  const trace = stackTrace
     .split('\n')
     .map((line) => {
       const match = line.match(/^(\s*at\s+.*?)\s+\(([^)]+)\)$/)
       if (match) {
-        const [, prefix, location] = match
+        const [, prefix, rawLocation] = match
+
+        const location = toForwardSlashes(rawLocation)
 
         if (location.startsWith('_next/static/') && distDir) {
-          const normalizedDistDir = distDir
-            .replace(/\\/g, '/')
-            .replace(/\/$/, '')
+          const normalizedDistDir = toForwardSlashes(distDir).replace(/\/$/, '')
 
           const absolutePath =
             normalizedDistDir + '/' + location.slice('_next/'.length)
-          const fileUrl = `file://${path.resolve(absolutePath)}`
+
+          const resolved = toForwardSlashes(path.resolve(absolutePath))
+          const fileUrl = `file://${resolved}`
 
           return `${prefix} (${fileUrl})`
         }
@@ -102,6 +109,9 @@ function preprocessStackTrace(stackTrace: string, distDir?: string): string {
       return line
     })
     .join('\n')
+
+  console.log('trace', trace)
+  return trace
 }
 
 const cache = new LRUCache<
@@ -123,8 +133,20 @@ async function getSourceMappedStackFramesInternal(
         stack: stackTrace,
       }
     }
+    console.log('frames', frames)
 
     const mappingResults = await mapFramesUsingBundler(frames, ctx)
+    console.log(
+      'results',
+      mappingResults.map((x) =>
+        x.status === 'rejected'
+          ? 'rej'
+          : {
+              originalCodeFrame: x.value.originalCodeFrame,
+              ...x.value.originalStackFrame,
+            }
+      )
+    )
 
     const processedFrames = mappingResults
       .map((result, index) => ({
