@@ -27,11 +27,7 @@ Hydration errors can occur from:
 
 ## Possible Ways to Fix It
 
-Keep the server output and the initial client render identical. You might render a placeholder and update it in `useEffect` after hydration. This works, but causes an extra render.
-
-> **Good to know**: `eslint-config-next` reports synchronous state updates such as `setIsClient(true)` in a mount effect as a [`react-hooks/set-state-in-effect`](https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect) error.
-
-The alternatives below avoid that mount-effect update. For subscriptions to values outside React, use [`useSyncExternalStore`](https://react.dev/reference/react/useSyncExternalStore#adding-support-for-server-rendering) with a matching server snapshot.
+The server output and initial client render must match. You can render a placeholder, then replace it using a state update in `useEffect` after hydration. This works, but adds a render and triggers `eslint-config-next`'s [`react-hooks/set-state-in-effect`](https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect) rule. The options below avoid that mount-effect state update.
 
 <span id="solution-1-using-useeffect-to-run-on-the-client-only" />
 
@@ -90,10 +86,7 @@ Sometimes content will inevitably differ between the server and client, such as 
 <time dateTime="2016-10-25" suppressHydrationWarning />
 ```
 
-> **Good to know:**
->
-> - This only works one level deep, and is intended to be an escape hatch. Don’t overuse it.
-> - React will **not** attempt to patch mismatched text content when `suppressHydrationWarning={true}` is set.
+Suppression only applies one level deep, and React will not patch mismatched text content on that element. Use this escape hatch sparingly.
 
 ## Common iOS issues
 
