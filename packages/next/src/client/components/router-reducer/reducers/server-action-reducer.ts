@@ -248,11 +248,19 @@ async function fetchServerAction(
   let couldBeIntercepted: boolean = false
 
   if (isRscResponse) {
+    const debugPerformanceId =
+      process.env.__NEXT_DEV_SERVER && process.env.__NEXT_REQUEST_INSIGHTS
+        ? (
+            require('../../../dev/react-render-timing') as typeof import('../../../dev/react-render-timing')
+          ).createReactDebugPerformanceId(headers[NEXT_REQUEST_ID_HEADER])
+        : undefined
+    const debugChannel = createDebugChannel && createDebugChannel(headers)
     const flightOptions = {
       callServer,
       findSourceMapURL,
       temporaryReferences,
-      debugChannel: createDebugChannel && createDebugChannel(headers),
+      debugChannel,
+      debugPerformanceId,
     }
     let response: ActionFlightResponse
     if (process.env.__NEXT_CACHE_COMPONENTS && redirectLocation) {

@@ -11,6 +11,7 @@ import {
   type RequestInsight,
 } from '../../../shared/lib/request-insights'
 import type { RequestInsightUpdate } from './request-insights'
+import type { RequestInsightDebugContext } from './request-insights-correlation'
 import {
   getRequestInsightTags,
   matchesRequestInsightFilters,
@@ -51,6 +52,7 @@ type HistoryFilter = {
 type IndexedSummary = {
   sequence: number
   request: RequestInsightSummary
+  debugContext?: RequestInsightDebugContext
 }
 
 type PendingAppend = {
@@ -58,6 +60,7 @@ type PendingAppend = {
   byteLength: number
   key: string
   summary: RequestInsightSummary
+  debugContext?: RequestInsightDebugContext
 }
 
 type AppendBatch = {
@@ -84,7 +87,10 @@ class RequestInsightsJournal {
 
   constructor(readonly file: string) {}
 
-  append(request: RequestInsight): void {
+  append(
+    request: RequestInsight,
+    debugContext?: RequestInsightDebugContext
+  ): void {
     let line: string
     try {
       line = `${JSON.stringify({ version: 1, request } satisfies JournalRecord)}\n`
@@ -96,6 +102,7 @@ class RequestInsightsJournal {
     const summary = summarizeRequestInsight(request)
     const key = getRequestInsightKey(request)
     this.pendingRequests.add(key)
+    debugContext?.retain()
     let batch = this.pendingAppends
     if (!batch || batch.byteLength + byteLength > JOURNAL_WRITE_BATCH_BYTES) {
       batch = { records: [], byteLength: 0 }
@@ -113,10 +120,11 @@ class RequestInsightsJournal {
         .finally(() => {
           for (const record of queuedBatch.records) {
             this.pendingRequests.delete(record.key)
+            record.debugContext?.release()
           }
         })
     }
-    batch.records.push({ line, byteLength, key, summary })
+    batch.records.push({ line, byteLength, key, summary, debugContext })
     batch.byteLength += byteLength
   }
 
@@ -145,12 +153,24 @@ class RequestInsightsJournal {
       this.size += byteLength
       for (let i = start; i < index; i++) {
         const record = records[i]
-        this.summaries.set(record.key, {
+        this.setSummary(record.key, {
           sequence: ++this.sequence,
           request: record.summary,
+          debugContext: record.debugContext,
         })
       }
     }
+  }
+
+  private setSummary(key: string, summary: IndexedSummary): void {
+    summary.debugContext?.retain()
+    this.summaries.get(key)?.debugContext?.release()
+    this.summaries.set(key, summary)
+  }
+
+  clearSummaries(): void {
+    for (const entry of this.summaries.values()) entry.debugContext?.release()
+    this.summaries.clear()
   }
 
   appendArchivedUpdate(
@@ -182,7 +202,8 @@ class RequestInsightsJournal {
     const fetchCount = request?.fetches.length
     this.writes = this.writes
       .then(async () => {
-        const previous = this.summaries.get(key)?.request
+        const previousEntry = this.summaries.get(key)
+        const previous = previousEntry?.request
         if (!previous && !snapshot) {
           return
         }
@@ -267,16 +288,24 @@ class RequestInsightsJournal {
           updatedSummary = summarizeRequestInsight(fullRequest)
         }
         const byteLength = Buffer.byteLength(line, 'utf8')
-        await this.ensureDirectory()
-        if (this.size > 0 && this.size + byteLength > JOURNAL_SIZE_LIMIT) {
-          await this.rotate()
+        const debugContext = previousEntry?.debugContext
+        // Rotation releases archived contexts before the replacement write completes.
+        debugContext?.retain()
+        try {
+          await this.ensureDirectory()
+          if (this.size > 0 && this.size + byteLength > JOURNAL_SIZE_LIMIT) {
+            await this.rotate()
+          }
+          await appendFile(this.file, line, 'utf8')
+          this.size += byteLength
+          this.setSummary(key, {
+            sequence: this.summaries.get(key)?.sequence ?? ++this.sequence,
+            request: updatedSummary,
+            debugContext,
+          })
+        } finally {
+          debugContext?.release()
         }
-        await appendFile(this.file, line, 'utf8')
-        this.size += byteLength
-        this.summaries.set(key, {
-          sequence: this.summaries.get(key)?.sequence ?? ++this.sequence,
-          request: updatedSummary,
-        })
       })
       .catch((error) => {
         console.warn('Failed to write Request Insights journal', error)
@@ -286,7 +315,7 @@ class RequestInsightsJournal {
   private async rotate(): Promise<void> {
     await writeFile(this.file, '')
     this.size = 0
-    this.summaries.clear()
+    this.clearSummaries()
     this.generation++
     this.truncated = true
   }
@@ -297,7 +326,7 @@ class RequestInsightsJournal {
     await writeFile(this.file, '')
     this.size = 0
     this.sequence = 0
-    this.summaries.clear()
+    this.clearSummaries()
     this.sessionId = createSessionId()
     this.generation = 0
     this.truncated = false
@@ -415,8 +444,11 @@ type JournalRegistry = {
   journals: Map<string, RequestInsightsJournal>
 }
 
-export function appendRequestInsightToJournal(request: RequestInsight): void {
-  getJournalRegistry().configured?.append(request)
+export function appendRequestInsightToJournal(
+  request: RequestInsight,
+  debugContext?: RequestInsightDebugContext
+): void {
+  getJournalRegistry().configured?.append(request, debugContext)
 }
 
 export function appendRequestInsightUpdateToJournal(
@@ -510,7 +542,10 @@ export async function resetRequestInsightsJournalForTest(): Promise<void> {
 export async function closeRequestInsightsJournal(): Promise<void> {
   const registry = getJournalRegistry()
   await Promise.all(
-    [...registry.journals.values()].map((journal) => journal.flush())
+    [...registry.journals.values()].map(async (journal) => {
+      await journal.flush()
+      journal.clearSummaries()
+    })
   )
   delete (globalThis as any)[REQUEST_INSIGHTS_JOURNAL_KEY]
 }

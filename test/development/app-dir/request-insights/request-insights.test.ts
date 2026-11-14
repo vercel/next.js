@@ -1,12 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 import { createServer } from 'http'
 import type { AddressInfo } from 'net'
+import { retry, waitForNoRedbox } from 'next-test-utils'
 import {
-  retry,
-  toggleDevToolsIndicatorPopover,
-  waitForNoRedbox,
-} from 'next-test-utils'
-import { MAX_LIVE_COMPLETED_REQUEST_INSIGHTS } from 'next/dist/shared/lib/request-insights'
+  MAX_LIVE_COMPLETED_REQUEST_INSIGHTS,
+  REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
+} from 'next/dist/shared/lib/request-insights'
 
 type RequestInsight = {
   requestId: string
@@ -32,6 +31,7 @@ type RequestInsight = {
     traceId?: string
     spanId?: string
     parentSpanId?: string
+    startTime?: number
     durationMs?: number
     status?: 'ok' | 'error'
     attributes?: Record<string, string | number | boolean>
@@ -48,6 +48,298 @@ type RequestInsight = {
 describe('request insights', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
+  })
+
+  async function readSnapshot(): Promise<{ requests: RequestInsight[] }> {
+    return next
+      .fetch('/_next/development/request-insights')
+      .then((response) => response.json())
+  }
+
+  async function readRequestIds() {
+    return new Set(
+      (await readSnapshot()).requests.map((request) => request.requestId)
+    )
+  }
+
+  it('expands React timings separately and preserves span inspection', async () => {
+    const browser = await next.browser('/')
+    await openRequestInsightsPanel(browser)
+    const group = browser
+      .locator('nextjs-portal .request-insights-react-toggle')
+      .first()
+    const intervals = browser.locator(
+      'nextjs-portal [data-react-kind="component"]'
+    )
+    await retry(async () => {
+      expect(await group.getAttribute('aria-expanded')).toBe('false')
+    })
+    expect(await intervals.count()).toBe(0)
+    const mainRows = await browser
+      .locator('nextjs-portal .request-insights-span-row')
+      .count()
+    await group.click()
+    await retry(async () => {
+      expect(await intervals.count()).toBeGreaterThan(0)
+    })
+    const greeting = browser.locator(
+      'nextjs-portal [data-react-kind="component"]:has-text("render Greeting")'
+    )
+    expect(await greeting.count()).toBeGreaterThan(0)
+    expect(await greeting.locator('[data-react-source-link]').count()).toBe(0)
+    const interval = intervals.first()
+    const spanId = await interval.getAttribute('data-trace-item-id')
+    await interval.hover()
+    await retry(async () => {
+      expect(
+        await browser
+          .locator('nextjs-portal .request-insights-trace-tooltip')
+          .isVisible()
+      ).toBe(true)
+    })
+    await interval.click({ button: 'right' })
+    const menu = browser.locator('nextjs-portal .request-insights-context-menu')
+    await retry(async () => {
+      expect(await menu.innerText()).toContain('Copy span ID')
+      expect(await menu.innerText()).toContain('Copy agent prompt')
+      expect(await menu.innerText()).toContain(spanId!.split(':')[1])
+    })
+    await browser
+      .locator('nextjs-portal .request-insights-context-backdrop')
+      .click({ position: { x: 10, y: 10 } })
+    await retry(async () => {
+      expect(await menu.count()).toBe(0)
+    })
+    await group.click()
+    await retry(async () => {
+      expect(await intervals.count()).toBe(0)
+      expect(
+        await browser
+          .locator('nextjs-portal .request-insights-span-row')
+          .count()
+      ).toBe(mainRows)
+    })
+  })
+
+  it('keeps cached React intervals without counting them as new executions', async () => {
+    const browser = await next.browser('/cached-timings')
+    const generation = await browser.elementByCss('#cached-generation').text()
+    expect(generation).not.toBe('')
+    let before: { requests: RequestInsight[] }
+    await retry(async () => {
+      before = await readSnapshot()
+      const coldRequest = before.requests.find(
+        (request: RequestInsight) =>
+          request.kind !== 'instant-insights' &&
+          request.route === '/cached-timings'
+      ) as RequestInsight | undefined
+      expect(coldRequest).toBeDefined()
+      expect(coldRequest!.spans).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            attributes: expect.objectContaining({
+              'next.span_type': 'ReactServerComponents.component',
+              'next.span_name': 'render CachedTree',
+              'next.rsc.environment': 'Server',
+            }),
+          }),
+        ])
+      )
+      expect(
+        coldRequest!.spans.filter(
+          (span) => span.name === 'ReactServerComponents.incomplete'
+        )
+      ).toEqual([])
+    })
+    const existing = new Set(
+      before!.requests.map((request: RequestInsight) => request.requestId)
+    )
+    await browser.refresh()
+    expect(await browser.elementByCss('#cached-generation').text()).toBe(
+      generation
+    )
+
+    await retry(async () => {
+      const snapshot = await readSnapshot()
+      const request = snapshot.requests.find(
+        (request: RequestInsight) =>
+          !existing.has(request.requestId) &&
+          request.kind !== 'instant-insights' &&
+          request.route === '/cached-timings'
+      ) as RequestInsight | undefined
+      expect(request).toBeDefined()
+      expect(request!.spans).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            attributes: expect.objectContaining({
+              'next.span_type': 'ReactServerComponents.component',
+              'next.span_name': 'render CachedLeaf',
+              'next.rsc.environment': 'Cache',
+            }),
+          }),
+        ])
+      )
+      expect(
+        request!.spans.some(
+          (span) => span.name === 'ReactServerComponents.incomplete'
+        )
+      ).toBe(false)
+    })
+  })
+
+  it('records browser-decoded React timings for initial loads, navigation and action responses', async () => {
+    type BrowserRequest = {
+      requestId: string
+      htmlRequestId: string
+      method: string
+    }
+    let navigation: BrowserRequest | undefined
+    let action: BrowserRequest | undefined
+    const browser = await next.browser('/decoder-observations', {
+      beforePageLoad(page) {
+        page.on('request', (request) => {
+          if (
+            new URL(request.url()).pathname !==
+            '/decoder-observations/destination'
+          ) {
+            return
+          }
+          const headers = request.headers()
+          const identity = {
+            requestId: headers['x-nextjs-request-id'],
+            htmlRequestId: headers['x-nextjs-html-request-id'],
+            method: request.method(),
+          }
+          if (request.method() === 'POST' && headers['next-action']) {
+            action = identity
+          } else if (
+            request.method() === 'GET' &&
+            headers.rsc === '1' &&
+            headers['next-router-prefetch'] !== '1'
+          ) {
+            navigation = identity
+          }
+        })
+      },
+    })
+
+    async function expectDecodedTimings(
+      identity: BrowserRequest,
+      existing: Set<string>
+    ) {
+      expect(identity.requestId).toBeTruthy()
+      expect(identity.htmlRequestId).toBeTruthy()
+      await retry(async () => {
+        const snapshot = await readSnapshot()
+        const matches = snapshot.requests.filter(
+          (entry) =>
+            !existing.has(entry.requestId) &&
+            entry.kind !== 'instant-insights' &&
+            entry.route === '/decoder-observations/destination' &&
+            entry.htmlRequestId === identity.htmlRequestId &&
+            entry.spans.some(
+              (span) =>
+                span.attributes?.['next.span_type'] ===
+                  REQUEST_INSIGHT_REQUEST_SPAN_TYPE &&
+                span.attributes?.['http.method'] === identity.method
+            ) &&
+            entry.spans.some(
+              (span) =>
+                span.attributes?.['next.span_name'] ===
+                'render DecoderObservedContent'
+            )
+        )
+        expect(matches).toHaveLength(1)
+        const request = matches[0]
+        expect(request.requestId).not.toBe(identity.requestId)
+        expect(request).toMatchObject({
+          htmlRequestId: identity.htmlRequestId,
+          route: '/decoder-observations/destination',
+          source: 'page',
+        })
+        const parent = request.spans.find(
+          (span) =>
+            span.attributes?.['next.span_type'] ===
+            REQUEST_INSIGHT_REQUEST_SPAN_TYPE
+        )
+        expect(parent?.traceId).toBeTruthy()
+        expect(parent?.spanId).toBeTruthy()
+        const intervals = request.spans.filter(
+          (span) => span.attributes?.['next.rsc.kind'] === 'component'
+        )
+        expect(intervals).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              attributes: expect.objectContaining({
+                'next.span_name': 'render DecoderObservedContent',
+                'next.rsc.observation': 'decoded',
+              }),
+            }),
+          ])
+        )
+        for (const interval of intervals) {
+          expect(interval.traceId).toBe(parent!.traceId)
+          expect(interval.parentSpanId).toBe(parent!.spanId)
+          expect(interval.spanId).toBeTruthy()
+        }
+        expect(new Set(intervals.map((span) => span.spanId)).size).toBe(
+          intervals.length
+        )
+        const observedContent = intervals.filter(
+          (span) =>
+            span.attributes?.['next.span_name'] ===
+            'render DecoderObservedContent'
+        )
+        const intervalKeys = observedContent.map((span) =>
+          JSON.stringify([
+            span.attributes?.['next.rsc.render_id'],
+            span.startTime,
+            span.durationMs,
+          ])
+        )
+        expect(new Set(intervalKeys).size).toBe(intervalKeys.length)
+      })
+    }
+
+    const initialRequestId = await browser.eval('self.__next_r')
+    await retry(async () => {
+      const snapshot = await readSnapshot()
+      expect(snapshot.requests).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            htmlRequestId: initialRequestId,
+            route: '/decoder-observations',
+            spans: expect.arrayContaining([
+              expect.objectContaining({
+                attributes: expect.objectContaining({
+                  'next.rsc.kind': 'component',
+                }),
+              }),
+            ]),
+          }),
+        ])
+      )
+    })
+
+    const beforeNavigation = await readRequestIds()
+    await browser.elementById('decoder-navigation').click()
+    const generation = await browser.elementById('decoder-generation').text()
+    expect(generation).not.toBe('')
+    expect(navigation).toBeDefined()
+    await expectDecodedTimings(navigation!, beforeNavigation)
+
+    const beforeAction = await readRequestIds()
+    await browser.elementById('decoder-rerender').click()
+    await retry(async () => {
+      expect(await browser.elementById('decoder-generation').text()).not.toBe(
+        generation
+      )
+    })
+    expect(action).toBeDefined()
+    expect(action!.requestId).not.toBe(navigation!.requestId)
+    expect(action!.htmlRequestId).toBe(navigation!.htmlRequestId)
+    await expectDecodedTimings(action!, beforeAction)
+    await waitForNoRedbox(browser)
   })
 
   function createRequest(index: number, fetchCount = 0): RequestInsight {
@@ -72,7 +364,7 @@ describe('request insights', () => {
   async function openRequestInsightsPanel(
     browser: Awaited<ReturnType<typeof next.browser>>
   ) {
-    await toggleDevToolsIndicatorPopover(browser)
+    await browser.locator('nextjs-portal #next-logo').click()
     await browser.elementByCss('[data-request-insights]').click()
     await browser.waitForElementByCss('.request-insights-list-toolbar')
     // The panel selector menu stays mounted for its exit animation and its
@@ -152,16 +444,16 @@ describe('request insights', () => {
   })
 
   it('keeps outer server and app render spans on the same request', async () => {
+    const existingRequestIds = await readRequestIds()
     await next.render('/')
 
     await retry(async () => {
-      const snapshot = (await next
-        .fetch('/_next/development/request-insights')
-        .then((response) => response.json())) as {
-        requests: RequestInsight[]
-      }
+      const snapshot = await readSnapshot()
       const pageRequests = snapshot.requests.filter(
-        (request) => request.route === '/'
+        (request) =>
+          !existingRequestIds.has(request.requestId) &&
+          request.kind !== 'instant-insights' &&
+          request.route === '/'
       )
       const requestsWithRelevantSpans = pageRequests.filter((request) =>
         request.spans.some((span) => {
@@ -259,26 +551,14 @@ describe('request insights', () => {
   })
 
   it('records route module loading and preparation spans', async () => {
-    const existingRequestIds = new Set(
-      (
-        (await next
-          .fetch('/_next/development/request-insights')
-          .then((response) => response.json())) as {
-          requests: RequestInsight[]
-        }
-      ).requests.map((request) => request.requestId)
-    )
+    const existingRequestIds = await readRequestIds()
 
     const response = await next.fetch('/api/source?route-module-spans=1')
     expect(response.status).toBe(200)
     await response.json()
 
     await retry(async () => {
-      const snapshot = (await next
-        .fetch('/_next/development/request-insights')
-        .then((insightsResponse) => insightsResponse.json())) as {
-        requests: RequestInsight[]
-      }
+      const snapshot = await readSnapshot()
       const matchingRequests = snapshot.requests.filter(
         (request) =>
           !existingRequestIds.has(request.requestId) &&
@@ -288,110 +568,67 @@ describe('request insights', () => {
 
       expect(matchingRequests).toHaveLength(1)
       const request = matchingRequests[0]
-      const loadSpans = request.spans.filter(
-        (span) =>
-          span.attributes?.['next.span_type'] ===
-          'LoadComponents.loadRouteModule'
+      const spansOfType = (type: string) =>
+        request.spans.filter(
+          (span) => span.attributes?.['next.span_type'] === type
+        )
+      const loadComponentsSpans = spansOfType('LoadComponents.loadComponents')
+      const prepareSpans = spansOfType('RouteModule.prepare')
+      const renderResponseComponentsSpans = spansOfType(
+        'BaseServer.renderToResponseWithComponents'
       )
-      const loadComponentsSpans = request.spans.filter(
-        (span) =>
-          span.attributes?.['next.span_type'] ===
-          'LoadComponents.loadComponents'
-      )
-      const prepareSpans = request.spans.filter(
-        (span) => span.attributes?.['next.span_type'] === 'RouteModule.prepare'
-      )
-      const renderResponseComponentsSpans = request.spans.filter(
-        (span) =>
-          span.attributes?.['next.span_type'] ===
-          'BaseServer.renderToResponseWithComponents'
-      )
-      const userlandSpans = request.spans.filter(
-        (span) =>
-          span.attributes?.['next.span_type'] ===
-          'AppRouteRouteModule.loadUserland'
-      )
-      const manifestSpans = request.spans.filter(
-        (span) =>
-          span.attributes?.['next.span_type'] === 'RouteModule.loadManifests'
-      )
-
       expect(loadComponentsSpans).toHaveLength(1)
       expect(prepareSpans).toHaveLength(1)
       expect(renderResponseComponentsSpans).toHaveLength(1)
-      const rootSpans = request.spans.filter(
-        (span) =>
-          span.attributes?.['next.span_type'] === 'BaseServer.handleRequest' &&
-          span.traceId === prepareSpans[0].traceId
+      const rootSpans = spansOfType('BaseServer.handleRequest').filter(
+        (span) => span.traceId === prepareSpans[0].traceId
       )
       expect(rootSpans).toHaveLength(1)
-      const rootSpan = rootSpans[0]
-      expect(loadSpans).toEqual([
-        expect.objectContaining({
-          name: 'load route module',
-          parentSpanId: loadComponentsSpans[0].spanId,
-          durationMs: expect.any(Number),
-          status: 'ok',
-          traceId: rootSpan.traceId,
-          attributes: {
-            'next.span_category': 'nextjs',
-            'next.span_name': 'load route module',
-            'next.span_type': 'LoadComponents.loadRouteModule',
-          },
-        }),
-      ])
-      expect(prepareSpans).toEqual([
-        expect.objectContaining({
-          name: 'prepare route module',
-          parentSpanId: renderResponseComponentsSpans[0].spanId,
-          durationMs: expect.any(Number),
-          status: 'ok',
-          traceId: rootSpan.traceId,
-          attributes: {
-            'next.span_category': 'nextjs',
-            'next.span_name': 'prepare route module',
-            'next.span_type': 'RouteModule.prepare',
-          },
-        }),
-      ])
-      expect(userlandSpans).toEqual([
-        expect.objectContaining({
-          name: 'load app route module',
-          parentSpanId: renderResponseComponentsSpans[0].spanId,
-          durationMs: expect.any(Number),
-          status: 'ok',
-          traceId: rootSpan.traceId,
-          attributes: {
-            'next.route': '/api/source',
-            'next.span_category': 'nextjs',
-            'next.span_name': 'load app route module',
-            'next.span_type': 'AppRouteRouteModule.loadUserland',
-          },
-        }),
-      ])
-      expect(manifestSpans).toEqual([
-        expect.objectContaining({
-          name: 'load route manifests',
-          parentSpanId: prepareSpans[0].spanId,
-          durationMs: expect.any(Number),
-          status: 'ok',
-          traceId: rootSpan.traceId,
-          attributes: {
-            'next.span_category': 'nextjs',
-            'next.span_name': 'load route manifests',
-            'next.span_type': 'RouteModule.loadManifests',
-          },
-        }),
-      ])
 
-      for (const span of [
-        ...loadSpans,
-        ...prepareSpans,
-        ...userlandSpans,
-        ...manifestSpans,
-      ]) {
-        expect(Number.isFinite(span.durationMs)).toBe(true)
-        expect(span.durationMs).toBeGreaterThanOrEqual(0)
+      for (const [type, name, parent, attributes] of [
+        [
+          'LoadComponents.loadRouteModule',
+          'load route module',
+          loadComponentsSpans[0],
+          {},
+        ],
+        [
+          'RouteModule.prepare',
+          'prepare route module',
+          renderResponseComponentsSpans[0],
+          {},
+        ],
+        [
+          'AppRouteRouteModule.loadUserland',
+          'load app route module',
+          renderResponseComponentsSpans[0],
+          { 'next.route': '/api/source' },
+        ],
+        [
+          'RouteModule.loadManifests',
+          'load route manifests',
+          prepareSpans[0],
+          {},
+        ],
+      ] as const) {
+        const spans = spansOfType(type)
+        expect(spans).toEqual([
+          expect.objectContaining({
+            name,
+            parentSpanId: parent.spanId,
+            durationMs: expect.any(Number),
+            status: 'ok',
+            traceId: rootSpans[0].traceId,
+            attributes: {
+              'next.span_category': 'nextjs',
+              'next.span_name': name,
+              'next.span_type': type,
+              ...attributes,
+            },
+          }),
+        ])
+        expect(Number.isFinite(spans[0].durationMs)).toBe(true)
+        expect(spans[0].durationMs).toBeGreaterThanOrEqual(0)
       }
     })
   })
@@ -402,11 +639,7 @@ describe('request insights', () => {
     await response.text()
 
     await retry(async () => {
-      const snapshot = (await next
-        .fetch('/_next/development/request-insights')
-        .then((insightsResponse) => insightsResponse.json())) as {
-        requests: RequestInsight[]
-      }
+      const snapshot = await readSnapshot()
       const request = snapshot.requests.find(
         (candidate) =>
           candidate.url === '/request-insights-asset.svg' &&
@@ -418,15 +651,7 @@ describe('request insights', () => {
   })
 
   it('does not classify an asset URL rewritten by proxy as an asset', async () => {
-    const existingRequestIds = new Set(
-      (
-        (await next
-          .fetch('/_next/development/request-insights')
-          .then((insightsResponse) => insightsResponse.json())) as {
-          requests: RequestInsight[]
-        }
-      ).requests.map((request) => request.requestId)
-    )
+    const existingRequestIds = await readRequestIds()
 
     const response = await next.fetch(
       '/request-insights-asset.svg?rewrite-to-page=1'
@@ -435,11 +660,7 @@ describe('request insights', () => {
     expect(await response.text()).toContain('behind proxy')
 
     await retry(async () => {
-      const snapshot = (await next
-        .fetch('/_next/development/request-insights')
-        .then((insightsResponse) => insightsResponse.json())) as {
-        requests: RequestInsight[]
-      }
+      const snapshot = await readSnapshot()
       const request = snapshot.requests.find(
         (candidate) =>
           candidate.route === '/behind-proxy' &&
@@ -477,15 +698,11 @@ describe('request insights', () => {
     })
   })
 
-  it('records Instant Insights separately from its originating request', async () => {
-    await next.render('/instant-insights')
+  it('records Instant Insights phases without replaying the request React timings', async () => {
+    await next.browser('/instant-insights')
 
     await retry(async () => {
-      const snapshot = (await next
-        .fetch('/_next/development/request-insights')
-        .then((response) => response.json())) as {
-        requests: RequestInsight[]
-      }
+      const snapshot = await readSnapshot()
       const routeInsights = snapshot.requests.filter(
         (request) => request.route === '/instant-insights'
       )
@@ -544,6 +761,43 @@ describe('request insights', () => {
           span.attributes?.['next.span_type'] ===
           'AppRender.instantInsights.runValidation'
       )
+      const spansById = new Map(
+        instantInsights?.spans.flatMap((span) =>
+          span.spanId ? [[span.spanId, span] as const] : []
+        )
+      )
+      const isDescendantOfRunValidation = (
+        span: RequestInsight['spans'][number] | undefined
+      ) => {
+        const visited = new Set<string>()
+        let ancestor = span
+        while (
+          ancestor?.parentSpanId &&
+          ancestor.parentSpanId !== runValidationSpan?.spanId
+        ) {
+          expect(visited.has(ancestor.parentSpanId)).toBe(false)
+          visited.add(ancestor.parentSpanId)
+          ancestor = spansById.get(ancestor.parentSpanId)
+        }
+        return ancestor?.parentSpanId === runValidationSpan?.spanId
+      }
+      expect(
+        instantInsights?.spans.filter(
+          (span) =>
+            isDescendantOfRunValidation(span) &&
+            String(span.attributes?.['next.span_type']).startsWith(
+              'ReactServerComponents.'
+            )
+        )
+      ).toEqual([])
+      expect(
+        request?.spans.some(
+          (span) =>
+            span.attributes?.['next.span_type'] ===
+              'ReactServerComponents.component' &&
+            span.attributes?.['next.rsc.observation'] === 'decoded'
+        )
+      ).toBe(true)
       const workerLoadSpan = instantInsights?.spans.find(
         (span) =>
           span.attributes?.['next.span_type'] ===
@@ -566,27 +820,6 @@ describe('request insights', () => {
         )
       }
       if (isTurbopack) {
-        const spansById = new Map(
-          instantInsights?.spans.flatMap((span) =>
-            span.spanId ? [[span.spanId, span] as const] : []
-          )
-        )
-        const expectDescendantOfRunValidation = (
-          span: RequestInsight['spans'][number] | undefined
-        ) => {
-          const visited = new Set<string>()
-          let ancestor = span
-          while (
-            ancestor?.parentSpanId &&
-            ancestor.parentSpanId !== runValidationSpan?.spanId
-          ) {
-            expect(visited.has(ancestor.parentSpanId)).toBe(false)
-            visited.add(ancestor.parentSpanId)
-            ancestor = spansById.get(ancestor.parentSpanId)
-          }
-          expect(ancestor?.parentSpanId).toBe(runValidationSpan?.spanId)
-        }
-
         expect(workerLoadSpan).toEqual(
           expect.objectContaining({
             name: 'load route module',
@@ -594,7 +827,7 @@ describe('request insights', () => {
             status: 'ok',
           })
         )
-        expectDescendantOfRunValidation(workerLoadSpan)
+        expect(isDescendantOfRunValidation(workerLoadSpan)).toBe(true)
       } else {
         // The dev validation worker only runs with Turbopack. Do not invent a
         // worker span for the in-process Webpack validation path.
@@ -1145,20 +1378,11 @@ describe('request insights', () => {
     })
     await openRequestInsightsPanel(browser)
 
-    await retry(async () => {
-      const selected = await browser.eval(() => {
-        const root = document.querySelector('nextjs-portal')?.shadowRoot
-        const row = Array.from(
-          root?.querySelectorAll<HTMLButtonElement>('.request-insights-row') ??
-            []
-        ).find((candidate) =>
-          candidate.textContent?.includes('/products/blue?query=redacted')
-        )
-        row?.click()
-        return row !== undefined
-      })
-      expect(selected).toBe(true)
-    })
+    await browser
+      .locator('nextjs-portal .request-insights-row')
+      .filter({ hasText: '/products/blue?query=redacted' })
+      .first()
+      .click()
 
     await retry(async () => {
       const details = await browser.eval(() => {
@@ -1509,20 +1733,11 @@ describe('request insights', () => {
     const browser = await next.browser('/products/blue?tab=details')
     await openRequestInsightsPanel(browser)
 
-    await retry(async () => {
-      const selected = await browser.eval(() => {
-        const root = document.querySelector('nextjs-portal')?.shadowRoot
-        const row = Array.from(
-          root?.querySelectorAll<HTMLButtonElement>('.request-insights-row') ??
-            []
-        ).find((candidate) =>
-          candidate.textContent?.includes('/products/blue?query=redacted')
-        )
-        row?.click()
-        return row !== undefined
-      })
-      expect(selected).toBe(true)
-    })
+    await browser
+      .locator('nextjs-portal .request-insights-row')
+      .filter({ hasText: '/products/blue?query=redacted' })
+      .first()
+      .click()
 
     await browser
       .locator('nextjs-portal .request-insights-span-row')
@@ -1694,15 +1909,7 @@ describe('request insights', () => {
   })
 
   it('classifies an App Route before its handler completes', async () => {
-    const existingRequestIds = new Set(
-      (
-        (await next
-          .fetch('/_next/development/request-insights')
-          .then((response) => response.json())) as {
-          requests: RequestInsight[]
-        }
-      ).requests.map((request) => request.requestId)
-    )
+    const existingRequestIds = await readRequestIds()
     const waitKey = `active-${Date.now()}`
     const requestPath = `/api/app-stream-lifecycle?wait=${waitKey}`
     const recordedRequestPath = '/api/app-stream-lifecycle?query=redacted'
@@ -1710,11 +1917,7 @@ describe('request insights', () => {
 
     try {
       await retry(async () => {
-        const snapshot = (await next
-          .fetch('/_next/development/request-insights')
-          .then((response) => response.json())) as {
-          requests: RequestInsight[]
-        }
+        const snapshot = await readSnapshot()
         const matchingRequests = snapshot.requests.filter(
           (request) =>
             !existingRequestIds.has(request.requestId) &&
@@ -1757,11 +1960,7 @@ describe('request insights', () => {
     expect(await response.text()).toContain('finished')
 
     await retry(async () => {
-      const snapshot = (await next
-        .fetch('/_next/development/request-insights')
-        .then((insightsResponse) => insightsResponse.json())) as {
-        requests: RequestInsight[]
-      }
+      const snapshot = await readSnapshot()
       const matchingRequests = snapshot.requests.filter(
         (request) =>
           !existingRequestIds.has(request.requestId) &&
@@ -1789,15 +1988,7 @@ describe('request insights', () => {
   })
 
   it('classifies a Page after proxy completes', async () => {
-    const existingRequestIds = new Set(
-      (
-        (await next
-          .fetch('/_next/development/request-insights')
-          .then((response) => response.json())) as {
-          requests: RequestInsight[]
-        }
-      ).requests.map((request) => request.requestId)
-    )
+    const existingRequestIds = await readRequestIds()
     const requestPath = `/api/proxied-page?run=${Date.now()}`
     const recordedRequestPath = '/api/proxied-page?query=redacted'
     const response = await next.fetch(requestPath)
@@ -1805,11 +1996,7 @@ describe('request insights', () => {
     expect(await response.text()).toContain('proxied page')
 
     await retry(async () => {
-      const snapshot = (await next
-        .fetch('/_next/development/request-insights')
-        .then((insightsResponse) => insightsResponse.json())) as {
-        requests: RequestInsight[]
-      }
+      const snapshot = await readSnapshot()
       const matchingRequests = snapshot.requests.filter(
         (request) =>
           !existingRequestIds.has(request.requestId) &&

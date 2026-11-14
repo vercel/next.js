@@ -4,6 +4,8 @@ import {
   completeRequestInsight,
   configureRequestInsightsHistoryProvider,
   getRequestInsightsSnapshot,
+  getRequestInsightForDebugRequest,
+  setRequestInsightRootParent,
   importRequestInsightSpans,
   recordRequestInsightFetch,
   registerRequestInsightsExporter,
@@ -24,6 +26,11 @@ import {
   StaleRequestInsightsHistoryCursorError,
 } from './request-insights-journal'
 import { recordSpan } from './span-store'
+import { createBrowserReactTimingReceiver } from './browser-react-timings'
+import { HMR_MESSAGE_SENT_TO_SERVER } from '../../dev/hot-reloader-types'
+import { registerLocalSpanRecorder } from './local-span-recorder'
+import { AppRenderSpan } from './constants'
+import { getTracer } from './tracer'
 import {
   resolveRequestInsightsIdentity,
   runWithRequestInsightsIdentity,
@@ -719,6 +726,10 @@ describe('request insights', () => {
           createRequestId: () => requestId,
         })
         recordSpan({ name: 'original', requestId })
+        setRequestInsightRootParent(identity, {
+          traceId: 'trace',
+          spanId: 'parent',
+        })
         completeRequestInsight(identity)
       }
 
@@ -735,6 +746,9 @@ describe('request insights', () => {
             requestId: 'discarded',
           })
         ).toHaveLength(1)
+        expect(
+          getRequestInsightForDebugRequest('discarded', 'discarded')
+        ).toBeDefined()
 
         const fs = require('fs/promises') as typeof import('fs/promises')
         const currentStat = await fs.stat(
@@ -753,6 +767,9 @@ describe('request insights', () => {
             requestId: 'discarded',
           })
         ).toHaveLength(0)
+        expect(
+          getRequestInsightForDebugRequest('discarded', 'discarded')
+        ).toBeUndefined()
 
         if (update === 'span') {
           recordSpan({ name: 'late work', requestId: 'discarded' })
@@ -856,6 +873,7 @@ describe('request insights', () => {
     const records = ['one', 'two', 'tri'].map((requestId) => ({
       ...request,
       requestId,
+      htmlRequestId: requestId,
     }))
     const firstLineBytes = Buffer.byteLength(
       JSON.stringify({ version: 1, request: records[0] }) + '\n'
@@ -875,10 +893,28 @@ describe('request insights', () => {
     try {
       await configureRequestInsightsJournal(distDir)
       stat.mockRestore()
-      for (const record of records) appendRequestInsightToJournal(record)
+      for (const record of records) {
+        startRequestInsight(record)
+        appendRequestInsightToJournal(
+          record,
+          getRequestInsightForDebugRequest(
+            record.requestId,
+            record.htmlRequestId
+          )
+        )
+      }
+      clearRequestInsightsForTest()
+      for (const { requestId } of records) {
+        expect(
+          getRequestInsightForDebugRequest(requestId, requestId)
+        ).toBeDefined()
+      }
 
       const history = await getRequestInsightsHistory(distDir)
       expect(history.truncated).toBe(true)
+      expect(getRequestInsightForDebugRequest('one', 'one')).toBeUndefined()
+      expect(getRequestInsightForDebugRequest('two', 'two')).toBeDefined()
+      expect(getRequestInsightForDebugRequest('tri', 'tri')).toBeDefined()
       expect(history.requests.map((entry) => entry.requestId)).toEqual([
         'tri',
         'two',
@@ -895,11 +931,229 @@ describe('request insights', () => {
     }
   })
 
+  it('journals captured React intervals after completion and live eviction', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    registerLocalSpanRecorder()
+    const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+    const identity = {
+      requestId: 'react-stream',
+      htmlRequestId: 'react-stream',
+      url: '/react-timings',
+    }
+    try {
+      await initializeRequestInsightsJournal(distDir)
+      configureJournalProvider(distDir)
+      startRequestInsight(identity)
+      let parentSpanId!: string
+      runWithRequestInsightsIdentity(identity, () =>
+        getTracer().trace(AppRenderSpan.renderToReadableStream, (span) => {
+          parentSpanId = span!.spanContext().spanId
+          setRequestInsightRootParent(identity, span!.spanContext())
+        })
+      )
+      completeRequestInsight(identity)
+      const completed = getRequestInsightsSnapshot().requests[0]
+      const responseTiming = {
+        startTime: completed.startTime,
+        durationMs: completed.durationMs,
+      }
+
+      const component = {
+        id: 'decoded:0',
+        kind: 'component' as const,
+        name: 'Page',
+        environment: 'Server',
+        componentPath: 'Layout › Page',
+        source: {
+          methodName: 'Layout',
+          file: 'file:///app/layout.tsx',
+          line: 12,
+          column: 7,
+        },
+        startTime: 2,
+        durationMs: 3,
+      }
+      const firstReceiver = createBrowserReactTimingReceiver(
+        'react-stream',
+        true
+      )
+      const firstMessage = {
+        event: HMR_MESSAGE_SENT_TO_SERVER.REACT_DEBUG_TIMINGS,
+        requestId: 'react-stream',
+        decoderId: '0',
+        records: [component],
+      }
+      firstReceiver.receive(firstMessage, JSON.stringify(firstMessage).length)
+      firstReceiver.dispose()
+      const context = () =>
+        getRequestInsightForDebugRequest(
+          identity.requestId,
+          identity.requestId
+        )!
+      const budget = context().browserTimings
+      expect(budget.recordCount).toBe(1)
+      expect(getRequestInsightsSnapshot().requests[0]).toMatchObject({
+        ...responseTiming,
+        spans: expect.arrayContaining([
+          expect.objectContaining({ name: 'ReactServerComponents.component' }),
+        ]),
+      })
+
+      for (let i = 0; i < MAX_LIVE_COMPLETED_REQUEST_INSIGHTS; i++) {
+        const other = { requestId: `other-${i}` }
+        startRequestInsight(other)
+        recordSpan({ name: 'GET /', ...other })
+        completeRequestInsight(other)
+      }
+      expect(context()).toMatchObject({ parent: { spanId: parentSpanId } })
+      expect(context().browserTimings).toBe(budget)
+      await readRequestInsightsJournal(distDir, identity)
+      expect(context()).toMatchObject({ parent: { spanId: parentSpanId } })
+      const receiver = createBrowserReactTimingReceiver('react-stream', true)
+      expect(context().browserTimings).toBe(budget)
+      receiver.receive(firstMessage, JSON.stringify(firstMessage).length)
+      const message = {
+        ...firstMessage,
+        records: [{ ...component, id: 'decoded:1', startTime: 6 }],
+      }
+      receiver.receive(message, JSON.stringify(message).length)
+      receiver.dispose()
+      expect(budget.recordCount).toBe(2)
+
+      const [stored] = await readRequestInsightsJournal(distDir, identity)
+      expect(stored).toMatchObject(responseTiming)
+      const intervals = stored.spans.filter(
+        (span) => span.name === 'ReactServerComponents.component'
+      )
+      expect(intervals).toHaveLength(2)
+      for (const interval of intervals) {
+        expect(interval).toMatchObject({
+          parentSpanId,
+          durationMs: 3,
+          attributes: {
+            'next.rsc.source.file': 'file:///app/layout.tsx',
+            'next.rsc.source.line': 12,
+            'next.rsc.source.column': 7,
+            'next.rsc.source.name': 'Layout',
+            'next.rsc.component_path': 'Layout › Page',
+          },
+        })
+      }
+      expect(intervals[0].spanId).not.toBe(intervals[1].spanId)
+      expect(
+        getRequestInsightsSnapshot().requests.some(
+          (request) => request.requestId === identity.requestId
+        )
+      ).toBe(false)
+    } finally {
+      await resetRequestInsightsJournalForTest()
+      await rm(distDir, { recursive: true, force: true })
+    }
+  })
+
+  it.each(['pending', 'archived'])(
+    'keeps reused browser IDs ambiguous while the %s request is retained',
+    async (stage) => {
+      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+      const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+      try {
+        await initializeRequestInsightsJournal(distDir)
+        configureJournalProvider(distDir)
+        const identity = {
+          requestId: 'first',
+          debugRequestId: 'abc',
+          htmlRequestId: 'document',
+        }
+        startRequestInsight(identity)
+        recordSpan({ name: 'render', ...identity })
+        completeRequestInsight(identity)
+        clearRequestInsightsForTest()
+        if (stage === 'archived') await getRequestInsightsHistory(distDir)
+        expect(
+          getRequestInsightForDebugRequest('abc', 'document')
+        ).toBeDefined()
+
+        startRequestInsight({ ...identity, requestId: 'second' })
+        expect(
+          getRequestInsightForDebugRequest('abc', 'document')
+        ).toBeUndefined()
+        clearRequestInsightsForTest()
+        await getRequestInsightsHistory(distDir)
+        expect(
+          getRequestInsightForDebugRequest('abc', 'document')
+        ).toBeUndefined()
+
+        await initializeRequestInsightsJournal(distDir)
+        expect(
+          getRequestInsightForDebugRequest('abc', 'document')
+        ).toBeUndefined()
+        startRequestInsight({ ...identity, requestId: 'third' })
+        expect(
+          getRequestInsightForDebugRequest('abc', 'document')?.identity
+            .requestId
+        ).toBe('third')
+      } finally {
+        await resetRequestInsightsJournalForTest()
+        await rm(distDir, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it.each(['append', 'rotating update'])(
+    'releases archived correlation after a failed %s',
+    async (operation) => {
+      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+      const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+      const fs = require('fs/promises') as typeof import('fs/promises')
+      const append = jest.spyOn(fs, 'appendFile')
+      const stat = jest.spyOn(fs, 'stat')
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+      try {
+        await initializeRequestInsightsJournal(distDir)
+        configureJournalProvider(distDir)
+        const identity = { requestId: 'failed', htmlRequestId: 'failed' }
+        startRequestInsight(identity)
+        startRequestInsight(identity)
+        recordSpan({ name: 'render', ...identity })
+        completeRequestInsight(identity)
+        clearRequestInsightsForTest()
+        if (operation === 'rotating update') {
+          await getRequestInsightsHistory(distDir)
+          const current = await fs.stat(
+            path.join(distDir, 'request-insights.ndjson')
+          )
+          stat.mockResolvedValueOnce({ ...current, size: 50 * 1024 * 1024 })
+          await configureRequestInsightsJournal(distDir)
+          recordSpan({ name: 'late', ...identity })
+        }
+        expect(
+          getRequestInsightForDebugRequest('failed', 'failed')
+        ).toBeDefined()
+        append.mockRejectedValueOnce(new Error('write failed'))
+        await getRequestInsightsHistory(distDir)
+        expect(warn).toHaveBeenCalledTimes(1)
+        expect(
+          getRequestInsightForDebugRequest('failed', 'failed')
+        ).toBeUndefined()
+      } finally {
+        append.mockRestore()
+        stat.mockRestore()
+        warn.mockRestore()
+        await resetRequestInsightsJournalForTest()
+        await rm(distDir, { recursive: true, force: true })
+      }
+    }
+  )
+
   it.each([false, true])(
     'keeps a complete request when a late update rotates the journal, archived: %s',
     async (archive) => {
       process.env.__NEXT_REQUEST_INSIGHTS = 'true'
-      startRequestInsight({ requestId: 'rotated' })
+      startRequestInsight({ requestId: 'rotated', htmlRequestId: 'rotated' })
+      const budget = getRequestInsightForDebugRequest(
+        'rotated',
+        'rotated'
+      )!.browserTimings
       const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
       await initializeRequestInsightsJournal(distDir)
       configureJournalProvider(distDir)
@@ -933,6 +1187,9 @@ describe('request insights', () => {
       expect(history.truncated).toBe(true)
       expect(history.requests).toHaveLength(1)
       expect(history.requests[0].spanCount).toBe(3)
+      expect(
+        getRequestInsightForDebugRequest('rotated', 'rotated')?.browserTimings
+      ).toBe(budget)
       await resetRequestInsightsJournalForTest()
       await rm(distDir, { recursive: true, force: true })
     }
@@ -940,7 +1197,11 @@ describe('request insights', () => {
 
   it('closes the journal idempotently and flushes pending appends', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
-    startRequestInsight({ requestId: 'flushed' })
+    startRequestInsight({
+      requestId: 'flushed',
+      debugRequestId: 'abc',
+      htmlRequestId: 'document',
+    })
     const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
     await initializeRequestInsightsJournal(distDir)
     configureJournalProvider(distDir)
@@ -970,6 +1231,9 @@ describe('request insights', () => {
       }),
     ])
 
+    expect(getRequestInsightForDebugRequest('abc', 'document')).toBeDefined()
+    clearRequestInsightsForTest()
+    expect(getRequestInsightForDebugRequest('abc', 'document')).toBeUndefined()
     await expect(closeRequestInsightsJournal()).resolves.toBeUndefined()
     await rm(distDir, { recursive: true, force: true })
   })
