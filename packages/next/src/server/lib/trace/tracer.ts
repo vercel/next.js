@@ -59,6 +59,16 @@ if (process.env.NEXT_RUNTIME === 'edge') {
 const { context, propagation, trace, SpanStatusCode, SpanKind, ROOT_CONTEXT } =
   api
 
+// The class of the API's noop tracer provider, which is what a proxy provider
+// without a delegate returns. `isOpenTelemetryEnabled` can't rely on the name
+// of that class alone: when a bundler minifies `@opentelemetry/api` into the
+// server bundle, the class is anonymous and its name is empty.
+let NoopTracerProviderConstructor: Function | undefined
+try {
+  NoopTracerProviderConstructor = new api.ProxyTracerProvider().getDelegate()
+    .constructor
+} catch {}
+
 export class BubbledError extends Error {
   constructor(
     public readonly bubble?: boolean,
@@ -283,8 +293,12 @@ class NextTracerImpl implements NextTracer {
       return true
     }
 
+    const delegateConstructor = tracerProvider.getDelegate?.()?.constructor
+
     return (
-      tracerProvider.getDelegate?.()?.constructor?.name !== 'NoopTracerProvider'
+      delegateConstructor?.name !== 'NoopTracerProvider' &&
+      (NoopTracerProviderConstructor === undefined ||
+        delegateConstructor !== NoopTracerProviderConstructor)
     )
   }
 
