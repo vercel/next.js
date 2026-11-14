@@ -42,7 +42,7 @@ use crate::{
     embed_js::next_js_file_path,
     mode::NextMode,
     next_font::{
-        font_fallback::FontFallback,
+        font_fallback::{FontFallback, FontFallbacks},
         google::{
             font_fallback::get_font_fallback,
             options::{FontDataEntry, FontWeights, NextFontGoogleOptions, options_from_request},
@@ -255,14 +255,14 @@ impl NextFontGoogleCssModuleReplacer {
             )
             .await?;
 
-        let font_fallback = get_font_fallback(self.project_path.clone(), options);
+        let font_fallbacks = get_font_fallback(self.project_path.clone(), options);
         let stylesheet = match stylesheet_str {
             Some(s) => Some(
                 update_google_stylesheet(
                     s,
                     options,
                     scoped_font_family,
-                    font_fallback.has_size_adjust(),
+                    font_fallbacks.has_size_adjust(),
                 )
                 .owned()
                 .await?,
@@ -287,8 +287,8 @@ impl NextFontGoogleCssModuleReplacer {
                 FileContent::Content(
                     build_stylesheet(
                         Vc::cell(stylesheet),
-                        get_font_css_properties(options, font_fallback),
-                        font_fallback,
+                        get_font_css_properties(options, font_fallbacks),
+                        font_fallbacks,
                     )
                     .await?
                     .into(),
@@ -617,22 +617,23 @@ async fn get_stylesheet_url_from_options(
 #[turbo_tasks::function]
 async fn get_font_css_properties(
     options_vc: Vc<NextFontGoogleOptions>,
-    font_fallback: Vc<FontFallback>,
+    font_fallbacks: Vc<FontFallbacks>,
 ) -> Result<Vc<FontCssProperties>> {
     let options = &*options_vc.await?;
     let scoped_font_family =
         get_scoped_font_family(FontFamilyType::WebFont, options_vc.font_family().await?);
 
     let mut font_families = vec![format!("'{}'", scoped_font_family.clone()).into()];
-    let font_fallback = &*font_fallback.await?;
-    match font_fallback {
-        FontFallback::Manual(fonts) => {
-            font_families.extend_from_slice(fonts);
+    for font_fallback in &*font_fallbacks.await? {
+        match &*font_fallback.await? {
+            FontFallback::Manual(fonts) => {
+                font_families.extend_from_slice(fonts);
+            }
+            FontFallback::Automatic(fallback) => {
+                font_families.push(format!("'{}'", fallback.scoped_font_family).into());
+            }
+            FontFallback::Error => {}
         }
-        FontFallback::Automatic(fallback) => {
-            font_families.push(format!("'{}'", fallback.scoped_font_family).into());
-        }
-        FontFallback::Error => {}
     }
 
     Ok(FontCssProperties::cell(FontCssProperties {
