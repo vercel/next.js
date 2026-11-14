@@ -85,9 +85,11 @@ describe('instant-nav-panel', () => {
         browser.eval((selector) => {
           document.querySelector<HTMLAnchorElement>(selector)!.click()
         }, selector)
+      // Match the static prefetch, not a later runtime/navigation response
+      // that can contain another copy of the same Suspense fallback.
       const expectedResponse =
         href === '/target-page/my-post?search=foo'
-          ? { includes: 'dynamic-skeleton' }
+          ? { includes: 'dynamic-skeleton', kind: 'static' as const }
           : undefined
 
       if ((await browser.locator(selector).count()) > 0) {
