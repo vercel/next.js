@@ -133,8 +133,16 @@ export const LayoutRouterContext = React.createContext<{
   parentLoadingData: LoadingModuleData | null
   debugNameContext: string
   url: string
-  isActive: boolean
 } | null>(null)
+
+/**
+ * Whether the route segment a component is rendered in is the one currently
+ * shown. False inside a hidden `<Activity>`.
+ *
+ * This is separate from LayoutRouterContext so that hiding or showing a route
+ * doesn't re-render the components that read the layout router context.
+ */
+export const IsRouteActiveContext = React.createContext<boolean>(true)
 
 export const GlobalLayoutRouterContext = React.createContext<{
   tree: FlightRouterState
@@ -148,6 +156,7 @@ export const TemplateContext = React.createContext<React.ReactNode>(null)
 if (process.env.NODE_ENV !== 'production') {
   AppRouterContext.displayName = 'AppRouterContext'
   LayoutRouterContext.displayName = 'LayoutRouterContext'
+  IsRouteActiveContext.displayName = 'IsRouteActiveContext'
   GlobalLayoutRouterContext.displayName = 'GlobalLayoutRouterContext'
   TemplateContext.displayName = 'TemplateContext'
 }

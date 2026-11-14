@@ -20,6 +20,22 @@ type ProbeState = {
   renders: number
 }
 
+// A probe of `useRouter()` or `useSelectedLayoutSegments()`. The label is the
+// hook followed by the label of the segment it is rendered in.
+type HookProbeState = {
+  label: string
+  hidden: boolean
+  segmentParams: Record<string, string>
+  value: string
+  calls: number
+  renders: number
+}
+
+type ProbeCounts = Pick<
+  ProbeState,
+  'label' | 'segmentParams' | 'calls' | 'renders'
+>
+
 // With Cache Components, every layout slot keeps up to 3 recently active
 // segments mounted, the inactive ones inside `<Activity mode="hidden">`.
 // Inside a hidden tree, `useParams()`, `usePathname()` and `useSearchParams()`
@@ -77,7 +93,7 @@ describe('router-hooks-hidden-routes', () => {
     }
   }
 
-  function probeName(p: ProbeState) {
+  function probeName(p: ProbeCounts) {
     return `${p.label} ${Object.values(p.segmentParams).join('/')}`.trim()
   }
 
@@ -88,7 +104,7 @@ describe('router-hooks-hidden-routes', () => {
   //   discarded the result and didn't render its children.
   // - 'render': re-rendered.
   // Probes that mounted during the navigation are left out.
-  function rerendered(before: ProbeState[], after: ProbeState[]) {
+  function rerendered(before: ProbeCounts[], after: ProbeCounts[]) {
     const result: Record<string, 'none' | 'bailout' | 'render'> = {}
     for (const p of after) {
       const prev = before.find((b) => probeName(b) === probeName(p))
@@ -352,6 +368,124 @@ describe('router-hooks-hidden-routes', () => {
         'team-layout acme': 'render',
         'account-page': 'bailout',
         'project-page acme/a': 'bailout',
+      })
+    })
+  })
+
+  async function readHookProbes(browser: Browser): Promise<HookProbeState[]> {
+    const probes: HookProbeState[] = await browser.eval(() =>
+      Array.from(
+        document.querySelectorAll<HTMLElement>('[data-hook-probe]')
+      ).map((el) => ({
+        label: `${el.dataset.hookProbe} ${el.dataset.label}`,
+        hidden: !el.checkVisibility(),
+        segmentParams: JSON.parse(el.dataset.segmentParams!),
+        value: el.dataset.value!,
+        ...(window.__probeCounts?.[
+          `${el.dataset.hookProbe}:${el.dataset.label}:${el.dataset.segmentParams}`
+        ] ?? { calls: 0, renders: 0 }),
+      }))
+    )
+    return probes
+  }
+
+  // The selected layout segments each probe reads, by probe name, with the
+  // hidden probes marked.
+  function selectedSegments(probes: HookProbeState[]) {
+    const result: Record<string, string> = {}
+    for (const p of probes) {
+      if (p.label.startsWith('useSelectedLayoutSegments ')) {
+        result[probeName(p) + (p.hidden ? ' (hidden)' : '')] = p.value
+      }
+    }
+    return result
+  }
+
+  // `useRouter()` and `useSelectedLayoutSegments()` read the segment they are
+  // called in. A hidden route keeps its segment, so components that call these
+  // hooks don't re-render in a hidden route either, like the ones that read
+  // the URL.
+  it('hidden routes do not re-render components that read their segment', async () => {
+    const browser = await next.browser('/acme/a')
+    await waitForIdle(browser)
+    const initial = await readHookProbes(browser)
+    expect(selectedSegments(initial)).toEqual({
+      'useSelectedLayoutSegments team-layout acme': 'a',
+      'useSelectedLayoutSegments project-page acme/a': '',
+    })
+
+    // /acme/a → /acme/b: project page `a` is hidden.
+    await browser.elementByCss('a[href="/acme/b"]').click()
+    await retry(async () => {
+      expect(selectedSegments(await readHookProbes(browser))).toEqual({
+        'useSelectedLayoutSegments team-layout acme': 'b',
+        'useSelectedLayoutSegments project-page acme/b': '',
+        'useSelectedLayoutSegments project-page acme/a (hidden)': '',
+      })
+    })
+    await waitForIdle(browser)
+    let onB: HookProbeState[] = []
+    await retry(async () => {
+      onB = await readHookProbes(browser)
+      expect(rerendered(initial, onB)).toEqual({
+        // Visible, and its selected segment changed.
+        'useRouter team-layout acme': 'render',
+        'useSelectedLayoutSegments team-layout acme': 'render',
+        'useRouter project-page acme/a': 'bailout',
+        'useSelectedLayoutSegments project-page acme/a': 'bailout',
+      })
+    })
+
+    // /acme/b → /account: the whole `[team]` subtree is hidden. The team
+    // layout keeps the segment it had selected.
+    await browser.elementByCss('a[href="/account"]').click()
+    await retry(async () => {
+      expect(selectedSegments(await readHookProbes(browser))).toEqual({
+        'useSelectedLayoutSegments account-page': '',
+        'useSelectedLayoutSegments team-layout acme (hidden)': 'b',
+        'useSelectedLayoutSegments project-page acme/a (hidden)': '',
+        'useSelectedLayoutSegments project-page acme/b (hidden)': '',
+      })
+    })
+    await waitForIdle(browser)
+    let onAccount: HookProbeState[] = []
+    await retry(async () => {
+      onAccount = await readHookProbes(browser)
+      expect(rerendered(onB, onAccount)).toEqual({
+        'useRouter team-layout acme': 'bailout',
+        'useSelectedLayoutSegments team-layout acme': 'bailout',
+        'useRouter project-page acme/a': 'bailout',
+        'useSelectedLayoutSegments project-page acme/a': 'bailout',
+        'useRouter project-page acme/b': 'bailout',
+        'useSelectedLayoutSegments project-page acme/b': 'bailout',
+      })
+    })
+
+    // Back to /acme/b: the team subtree is shown again with the segments it
+    // was hidden with.
+    await browser.back()
+    await retry(async () => {
+      expect(selectedSegments(await readHookProbes(browser))).toEqual({
+        'useSelectedLayoutSegments team-layout acme': 'b',
+        'useSelectedLayoutSegments project-page acme/b': '',
+        'useSelectedLayoutSegments account-page (hidden)': '',
+        'useSelectedLayoutSegments project-page acme/a (hidden)': '',
+      })
+    })
+    await waitForIdle(browser)
+    await retry(async () => {
+      expect(rerendered(onAccount, await readHookProbes(browser))).toEqual({
+        // Shown again. The router creates a new route tree for a navigation,
+        // also when its segments are the ones the route was hidden with, so
+        // the components that read the segment re-render once.
+        'useRouter team-layout acme': 'render',
+        'useSelectedLayoutSegments team-layout acme': 'render',
+        'useRouter project-page acme/b': 'render',
+        'useSelectedLayoutSegments project-page acme/b': 'render',
+        'useRouter account-page': 'bailout',
+        'useSelectedLayoutSegments account-page': 'bailout',
+        'useRouter project-page acme/a': 'bailout',
+        'useSelectedLayoutSegments project-page acme/a': 'bailout',
       })
     })
   })
