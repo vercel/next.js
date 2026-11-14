@@ -794,6 +794,7 @@ export async function handleEntrypoints({
         dev.serverFields.middleware = {
           match: null as any,
           page: '/',
+          runtime: 'edge',
           matchers: middlewareConfig.matchers,
         }
       }

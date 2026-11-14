@@ -34,6 +34,28 @@ describe('Middleware Request Headers Overrides', () => {
       },
     },
   ])('$title Backend', ({ path, toJson }) => {
+    it.each(['next', 'rewrite'])(
+      '%s replaces headers with an empty set',
+      async (helper) => {
+        const res = await fetchViaHTTP(
+          next.url,
+          path,
+          {
+            'empty-headers': '1',
+            helper,
+          },
+          {
+            headers: { 'x-from-client': 'remove-me' },
+          }
+        )
+        expect(res.status).toBe(200)
+        const headers = await toJson(res)
+        expect(headers).not.toHaveProperty('x-from-client')
+        expect(headers).not.toHaveProperty('x-from-middleware')
+        expect(res.headers.get('x-middleware-override-headers')).toBeNull()
+      }
+    )
+
     it(`Adds new headers`, async () => {
       const res = await fetchViaHTTP(next.url, path, null, {
         headers: {

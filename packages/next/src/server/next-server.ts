@@ -13,6 +13,7 @@ import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plu
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
 import type {
+  FunctionsConfigManifest,
   PrerenderManifest,
   PreviewPropsManifest,
   RoutesManifest,
@@ -1512,26 +1513,41 @@ export default class NextNodeServer extends BaseServer<
   protected async getMiddleware(): Promise<MiddlewareRoutingItem | undefined> {
     const manifest = this.getMiddlewareManifest()
     const middleware = manifest?.middleware?.['/']
-    if (!middleware) {
-      const middlewareModule = await this.loadNodeMiddleware()
-
-      if (middlewareModule) {
-        return {
-          match: getMiddlewareRouteMatcher(
-            middlewareModule.config?.matchers || [
-              { regexp: '.*', originalSource: '/:path*' },
-            ]
-          ),
-          page: '/',
-        }
+    if (middleware) {
+      return {
+        match: getMiddlewareMatcher(middleware),
+        matchers: middleware.matchers,
+        page: '/',
+        runtime: 'edge',
       }
-
-      return
     }
 
-    return {
-      match: getMiddlewareMatcher(middleware),
-      page: '/',
+    const config = this.getMiddlewareConfig()
+    if (!config) return
+    if (config.runtime === 'go') {
+      const matchers = config.matchers || [
+        { regexp: '.*', originalSource: '/:path*' },
+      ]
+      return {
+        match: getMiddlewareRouteMatcher(matchers),
+        matchers,
+        page: '/',
+        runtime: 'go',
+        nativeEntry: config.nativeEntry,
+      }
+    }
+
+    const middlewareModule = await this.loadNodeMiddleware()
+    if (middlewareModule) {
+      const matchers = middlewareModule.config?.matchers || [
+        { regexp: '.*', originalSource: '/:path*' },
+      ]
+      return {
+        match: getMiddlewareRouteMatcher(matchers),
+        matchers,
+        page: '/',
+        runtime: 'nodejs',
+      }
     }
   }
 
@@ -1611,29 +1627,38 @@ export default class NextNodeServer extends BaseServer<
     }
   }
 
+  private getMiddlewareConfig() {
+    if (process.env.NEXT_MINIMAL) return
+    try {
+      const manifest: FunctionsConfigManifest = require(
+        join(
+          /* turbopackIgnore: true */ this.distDir,
+          'server',
+          FUNCTIONS_CONFIG_MANIFEST
+        )
+      )
+      return manifest.functions['/_middleware']
+    } catch (err) {
+      if (
+        !isError(err) ||
+        (err.code !== 'ENOENT' && err.code !== 'MODULE_NOT_FOUND')
+      ) {
+        throw err
+      }
+    }
+  }
+
   private async loadNodeMiddleware() {
     if (!process.env.NEXT_MINIMAL) {
       try {
-        const functionsConfig = this.dev
-          ? {}
-          : require(
-              join(
-                /* turbopackIgnore: true */ this.distDir,
-                'server',
-                FUNCTIONS_CONFIG_MANIFEST
-              )
-            )
-
-        if (this.dev || functionsConfig?.functions?.['/_middleware']) {
-          // if used with top level await, this will be a promise
-          return require(
-            join(
-              /* turbopackIgnore: true */ this.distDir,
-              'server',
-              'middleware.js'
-            )
+        // if used with top level await, this will be a promise
+        return require(
+          join(
+            /* turbopackIgnore: true */ this.distDir,
+            'server',
+            'middleware.js'
           )
-        }
+        )
       } catch (err) {
         if (
           isError(err) &&
@@ -1652,12 +1677,10 @@ export default class NextNodeServer extends BaseServer<
    * middleware manifest.
    */
   protected async hasMiddleware(pathname: string): Promise<boolean> {
+    const middleware = await this.getMiddleware()
+    if (!middleware) return false
+    if (middleware.runtime !== 'edge') return true
     const info = this.getEdgeFunctionInfo({ page: pathname, middleware: true })
-    const nodeMiddleware = await this.loadNodeMiddleware()
-
-    if (!info && nodeMiddleware) {
-      return true
-    }
     return Boolean(info && info.paths.length > 0)
   }
 
@@ -1740,10 +1763,10 @@ export default class NextNodeServer extends BaseServer<
     }
 
     await this.ensureMiddleware(params.request.url)
-    const middlewareInfo = this.getEdgeFunctionInfo({
-      page: middleware.page,
-      middleware: true,
-    })
+    const middlewareInfo =
+      middleware.runtime === 'edge'
+        ? this.getEdgeFunctionInfo({ page: middleware.page, middleware: true })
+        : undefined
 
     const method = (params.request.method || 'GET').toUpperCase()
     const requestData = {
@@ -1769,20 +1792,26 @@ export default class NextNodeServer extends BaseServer<
       | UnwrapPromise<ReturnType<typeof import('./web/sandbox').run>>
       | undefined
 
-    // if no middleware info check for Node.js middleware
-    // this is not in the middleware-manifest as that historically
-    // has only included edge-functions, we need to do a breaking
-    // version bump for that manifest to write this info there if
-    // we decide we want to
-    if (!middlewareInfo) {
-      let middlewareModule
-      middlewareModule = await this.loadNodeMiddleware()
+    // Node.js and Go middleware are described outside the Edge manifest.
+    if (middleware.runtime !== 'edge') {
+      const nativeEntry =
+        middleware.runtime === 'go' ? middleware.nativeEntry : undefined
+      const middlewareModule = nativeEntry
+        ? undefined
+        : await this.loadNodeMiddleware()
 
-      if (!middlewareModule) {
+      if (!nativeEntry && !middlewareModule) {
         throw new MiddlewareNotFoundError()
       }
-      const adapterFn: typeof import('./web/adapter').adapter =
-        middlewareModule.default || middlewareModule
+      const adapterFn: typeof import('./web/adapter').adapter = nativeEntry
+        ? (require('./web/adapter') as typeof import('./web/adapter')).adapter
+        : middlewareModule.default || middlewareModule
+
+      if (nativeEntry && !this.nativeProxy) {
+        const { NativeRouteManager } =
+          require('./lib/native-route.external') as typeof import('./lib/native-route.external')
+        this.nativeProxy = new NativeRouteManager(this.distDir, this.dev)
+      }
 
       const hasRequestBody =
         !['HEAD', 'GET'].includes(params.request.method) &&
@@ -1793,7 +1822,14 @@ export default class NextNodeServer extends BaseServer<
         // `handleRequest` span, so the middleware span (and the trace context
         // it forwards to the render) stays in the request's trace.
         result = await adapterFn({
+          skipProxyUrlNormalize: nativeEntry
+            ? (this.nextConfig.skipProxyUrlNormalize ?? false)
+            : undefined,
           handler:
+            (nativeEntry
+              ? (request: Request) =>
+                  this.nativeProxy!.invokeMiddleware(nativeEntry, request)
+              : undefined) ||
             middlewareModule.proxy ||
             middlewareModule.middleware ||
             middlewareModule,
@@ -1803,7 +1839,7 @@ export default class NextNodeServer extends BaseServer<
               ? requestData.body.cloneBodyStream()
               : undefined,
           },
-          page: 'middleware',
+          page: nativeEntry ? '/proxy' : 'middleware',
         })
       } finally {
         if (hasRequestBody) {
@@ -1811,6 +1847,7 @@ export default class NextNodeServer extends BaseServer<
         }
       }
     } else {
+      if (!middlewareInfo) throw new MiddlewareNotFoundError()
       const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
 
       result = await run({
@@ -2258,9 +2295,11 @@ export default class NextNodeServer extends BaseServer<
   private nativeRoutePages: ReadonlySet<string> | undefined = undefined
 
   private nativeRoutes: NativeRouteManager | undefined = undefined
+  private nativeProxy: NativeRouteManager | undefined = undefined
 
   async close(): Promise<void> {
     await this.nativeRoutes?.close()
+    await this.nativeProxy?.close()
     await this.cleanupListeners.runAll()
   }
 

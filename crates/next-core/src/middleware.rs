@@ -25,6 +25,7 @@ pub async fn middleware_files(page_extensions: Vc<Vec<RcStr>>) -> Result<Vc<Vec<
                 .map(move |ext| String::from(f) + ext.as_str())
                 .map(RcStr::from)
         })
+        .chain([rcstr!("proxy.go"), rcstr!("src/proxy.go")])
         .collect();
     Ok(Vc::cell(files))
 }

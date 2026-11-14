@@ -697,7 +697,11 @@ export function getResolveRoutes(
 
             debug('middleware res', middlewareRes.status, middlewareHeaders)
 
-            if (middlewareHeaders['x-middleware-override-headers']) {
+            const originalContentLength = req.headers['content-length']
+            const originalTransferEncoding = req.headers['transfer-encoding']
+            if (
+              middlewareHeaders['x-middleware-override-headers'] !== undefined
+            ) {
               const overriddenHeaders: Set<string> = new Set()
               let overrideHeaders: string | string[] =
                 middlewareHeaders['x-middleware-override-headers']
@@ -707,7 +711,8 @@ export function getResolveRoutes(
               }
 
               for (const key of overrideHeaders) {
-                overriddenHeaders.add(key.trim())
+                const name = key.trim()
+                if (name) overriddenHeaders.add(name)
               }
               delete middlewareHeaders['x-middleware-override-headers']
 
@@ -767,16 +772,26 @@ export function getResolveRoutes(
               }
             }
 
-            // Proxy request-header overrides may restore the original length
-            // after the body was truncated. Forward the exact replay length so
-            // downstream HTTP servers can finish reading the request body.
+            // Header overrides can remove framing or restore the original
+            // length after the body was truncated. Regenerate framing from the
+            // exact replay body so external servers cannot parse its bytes as
+            // another request.
             const replayBodySize = getRequestMeta(req, 'replayBodySize')
-            if (
-              replayBodySize !== undefined &&
-              req.headers['content-length'] !== undefined
-            ) {
+            if (replayBodySize !== undefined) {
               req.headers['content-length'] = String(replayBodySize)
               delete req.headers['transfer-encoding']
+            } else if (
+              (req.method === 'GET' || req.method === 'HEAD') &&
+              req.headers['content-length'] === undefined &&
+              req.headers['transfer-encoding'] === undefined
+            ) {
+              // GET and HEAD do not use CloneableBody. Restore the framing of
+              // their unread body stream if header overrides removed it.
+              if (originalContentLength !== undefined) {
+                req.headers['content-length'] = originalContentLength
+              } else if (originalTransferEncoding !== undefined) {
+                req.headers['transfer-encoding'] = originalTransferEncoding
+              }
             }
 
             if (middlewareHeaders['x-middleware-rewrite']) {

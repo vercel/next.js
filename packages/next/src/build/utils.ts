@@ -1430,7 +1430,7 @@ export async function copyTracedFiles(
   tracingRoot: string,
   serverConfig: NextConfigRuntime,
   middlewareManifest: MiddlewareManifest,
-  hasNodeMiddleware: boolean,
+  middlewareConfig: FunctionsConfigManifest['functions'][string] | undefined,
   hasInstrumentationHook: boolean,
   staticPages: Set<string>
 ) {
@@ -1627,8 +1627,14 @@ export async function copyTracedFiles(
     })
   }
 
-  if (hasNodeMiddleware) {
-    const middlewareFile = path.join(distDir, 'server', 'middleware.js')
+  if (middlewareConfig) {
+    const middlewareFile = path.join(
+      distDir,
+      'server',
+      middlewareConfig.runtime === 'go'
+        ? middlewareConfig.nativeEntry
+        : 'middleware.js'
+    )
     const middlewareTrace = `${middlewareFile}.nft.json`
     await handleTraceFiles(middlewareTrace)
   }
@@ -1783,10 +1789,13 @@ export function getPossibleMiddlewareFilenames(
   folder: string,
   extensions: string[]
 ) {
-  return extensions.flatMap((extension) => [
-    path.join(folder, `${MIDDLEWARE_FILENAME}.${extension}`),
-    path.join(folder, `${PROXY_FILENAME}.${extension}`),
-  ])
+  return [
+    ...extensions.flatMap((extension) => [
+      path.join(folder, `${MIDDLEWARE_FILENAME}.${extension}`),
+      path.join(folder, `${PROXY_FILENAME}.${extension}`),
+    ]),
+    path.join(folder, `${PROXY_FILENAME}.go`),
+  ]
 }
 
 export class NestedMiddlewareError extends Error {

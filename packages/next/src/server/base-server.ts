@@ -196,11 +196,14 @@ export type FindComponentsResult<
   query: NextParsedUrlQuery
 }
 
-export interface MiddlewareRoutingItem {
+export type MiddlewareRoutingItem = {
   page: string
   match: MiddlewareRouteMatch
   matchers?: ProxyMatcher[]
-}
+} & (
+  | { runtime: 'nodejs' | 'edge'; nativeEntry?: never }
+  | { runtime: 'go'; nativeEntry: string }
+)
 
 export type RouteHandler<
   ServerRequest extends BaseNextRequest = BaseNextRequest,

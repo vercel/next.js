@@ -4,6 +4,12 @@ import { NextResponse } from 'next/server'
  * @param {import('next/server').NextRequest} request
  */
 export async function middleware(request) {
+  if (request.nextUrl.searchParams.has('empty-headers')) {
+    const options = { request: { headers: new Headers() } }
+    return request.nextUrl.searchParams.get('helper') === 'rewrite'
+      ? NextResponse.rewrite(request.nextUrl, options)
+      : NextResponse.next(options)
+  }
   const headers = new Headers(request.headers)
   headers.set('x-from-middleware', 'hello-from-middleware')
 

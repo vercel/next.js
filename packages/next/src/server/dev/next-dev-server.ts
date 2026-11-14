@@ -362,7 +362,8 @@ export default class DevServer extends Server {
         this.dir,
         normalizedPath,
         this.nextConfig.pageExtensions,
-        false
+        false,
+        { isRoot: true }
       ).then(Boolean)
     }
 

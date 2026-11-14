@@ -427,7 +427,8 @@ export async function findPagePathData(
       rootDir,
       normalizedPagePath,
       extensions,
-      false
+      false,
+      { isRoot: true }
     )
 
     if (!pagePath) {
@@ -436,7 +437,7 @@ export async function findPagePathData(
 
     const pageUrl = ensureLeadingSlash(
       removePagePathTail(normalizePathSep(pagePath), {
-        extensions,
+        extensions: pagePath.endsWith('.go') ? ['go'] : extensions,
       })
     )
 

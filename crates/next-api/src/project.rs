@@ -2520,7 +2520,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn find_middleware(self: Vc<Self>) -> Result<Vc<FindContextFileResult>> {
+    pub(crate) async fn find_middleware(self: Vc<Self>) -> Result<Vc<FindContextFileResult>> {
         Ok(find_context_file(
             self.project_path().owned().await?,
             middleware_files(self.next_config().page_extensions()),
@@ -2535,6 +2535,12 @@ impl Project {
         let FindContextFileResult::Found(fs_path, _) = &*middleware.await? else {
             return Ok(Vc::upcast(EmptyEndpoint::new(self)));
         };
+        if fs_path.file_name() == "proxy.go" {
+            return Ok(crate::app::go_proxy_endpoint(
+                self.to_resolved().await?,
+                fs_path.clone(),
+            ));
+        }
         let source = Vc::upcast(FileSource::new(fs_path.clone()));
         let app_dir = find_app_dir(self.project_path().owned().await?)
             .owned()

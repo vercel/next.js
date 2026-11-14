@@ -92,7 +92,7 @@ interface SharedRouteFields {
   pathname: string
 
   /**
-   * sourcePage is the original source in the app or pages folder
+   * sourcePage identifies the original app/page source, or a root proxy source.
    */
   sourcePage: string
 
@@ -674,7 +674,6 @@ export async function handleBuildComplete({
   previewProps,
   routesManifest,
   serverPropsPages,
-  hasNodeMiddleware,
   prerenderManifest,
   middlewareManifest,
   requiredServerFiles,
@@ -699,7 +698,6 @@ export async function handleBuildComplete({
   previewProps: __ApiPreviewProps
   bundler: Bundler
   staticPages: Set<string>
-  hasNodeMiddleware: boolean
   config: NextConfigComplete
   pageKeys: readonly string[]
   serverPropsPages: Set<string>
@@ -1154,27 +1152,62 @@ export async function handleBuildComplete({
         }
       }
 
-      if (hasNodeMiddleware) {
-        const middlewareFile = path.join(distDir, 'server', 'middleware.js')
+      const middlewareConfig = functionsConfigManifest.functions['/_middleware']
+      if (middlewareConfig) {
+        const isGoProxy = middlewareConfig.runtime === 'go'
+        const middlewareFile = path.join(
+          distDir,
+          'server',
+          isGoProxy ? middlewareConfig.nativeEntry : 'middleware.js'
+        )
         const { assets, assetsHashes } = await handleTraceFiles(
           middlewareFile,
           'neutral'
         )
-        const functionConfig =
-          functionsConfigManifest.functions['/_middleware'] || {}
+        let filePath = middlewareFile
+        let sourcePage = 'middleware'
+        if (isGoProxy) {
+          const descriptor = JSON.parse(
+            await fs.readFile(middlewareFile, 'utf8')
+          )
+          if (
+            typeof descriptor.executable !== 'string' ||
+            path.isAbsolute(descriptor.executable) ||
+            !['proxy.go', 'src/proxy.go'].includes(descriptor.source)
+          ) {
+            throw new InvariantError('Invalid native Go proxy descriptor')
+          }
+          const serverDir = path.join(distDir, 'server')
+          filePath = path.resolve(serverDir, descriptor.executable)
+          const relativePath = path.relative(serverDir, filePath)
+          if (
+            !relativePath ||
+            relativePath === '..' ||
+            relativePath.startsWith(`..${path.sep}`) ||
+            path.isAbsolute(relativePath)
+          ) {
+            throw new InvariantError(
+              'Native proxy executable is outside server output'
+            )
+          }
+          for (const [destination, source] of Object.entries(assets)) {
+            if (source === filePath) delete assets[destination]
+          }
+          sourcePage = '/' + descriptor.source.slice(0, -3)
+        }
 
         outputs.middleware = {
           pathname: '/_middleware',
           id: '/_middleware',
-          sourcePage: 'middleware',
+          sourcePage,
           assets,
           assetsHashes,
           type: AdapterOutputType.MIDDLEWARE,
-          runtime: 'nodejs',
-          filePath: middlewareFile,
+          runtime: isGoProxy ? 'go' : 'nodejs',
+          filePath,
           config: {
             matchers:
-              functionConfig.matchers?.map((item) => {
+              middlewareConfig.matchers?.map((item) => {
                 return {
                   source: item.originalSource,
                   sourceRegex: item.regexp,

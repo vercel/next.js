@@ -44,7 +44,7 @@ export function proxyNativeRequest(
   url: string,
   target: { port: number; agent: Agent; token: string }
 ): Promise<void> {
-  // Discard client-supplied internal Go headers.
+  // Discard client-supplied internal Next.js headers.
   // Authenticate forwarded requests with this Go worker's token.
   // Use normalized headers so proxy.ts request-header mutations are respected.
   const rawValues = distinctHeaders(req)
@@ -58,7 +58,7 @@ export function proxyNativeRequest(
       !Object.hasOwn(req.headers, name) ||
       HOP_BY_HOP_HEADERS.has(name) ||
       connectionHeaders?.has(name) ||
-      name.startsWith('x-next-internal-go-')
+      name.startsWith('x-next-internal-')
     ) {
       continue
     }
@@ -70,6 +70,16 @@ export function proxyNativeRequest(
       value === raw.join(name === 'cookie' ? '; ' : ', ')
         ? raw
         : value
+  }
+  // Header overrides can remove Content-Length. Transfer-Encoding is hop-by-hop,
+  // so regenerate framing for the admitted body instead of relying on Node's
+  // method-specific defaults (DELETE and OPTIONS do not default to chunking).
+  if (
+    headers['content-length'] === undefined &&
+    (rawValues['transfer-encoding'] ||
+      rawValues['content-length']?.some((value) => Number(value) > 0))
+  ) {
+    headers['transfer-encoding'] = 'chunked'
   }
   headers['x-next-internal-go-token'] = target.token
   return new Promise<void>((resolve, reject) => {
