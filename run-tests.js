@@ -255,12 +255,6 @@ const testFilters = {
   e2e: 'test/e2e/',
 }
 
-const mockTrace = () => ({
-  traceAsyncFn: (fn) => fn(mockTrace()),
-  traceFn: (fn) => fn(mockTrace()),
-  traceChild: () => mockTrace(),
-})
-
 // which types we have configured to run separate
 // `examples/` additionally excludes test files inside example apps, which run
 // with each example's own jest/vitest setup instead of this runner.
@@ -696,7 +690,6 @@ ${ENDGROUP}`)
     const reactVersion =
       process.env.NEXT_TEST_REACT_VERSION || nextjsReactPeerVersion
     const { installDir, pkgPaths } = await createNextInstall({
-      parentSpan: mockTrace(),
       dependencies: {
         react: reactVersion,
         'react-dom': reactVersion,

@@ -1,4 +1,3 @@
-import { getOrCreateGlobalAsyncLocalStorage } from '../../app-render/async-local-storage'
 import type {
   RequestInsightKind,
   RequestInsightProxyStatus,
@@ -78,6 +77,8 @@ export function setLocalSpanExporter(exporter: LocalSpanExporter | undefined) {
 }
 
 function getLocalSpanSinkStorage() {
+  const { getOrCreateGlobalAsyncLocalStorage } =
+    require('../../app-render/async-local-storage') as typeof import('../../app-render/async-local-storage')
   return getOrCreateGlobalAsyncLocalStorage<LocalSpanSink>('local-span-sink')
 }
 

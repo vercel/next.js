@@ -319,13 +319,13 @@ async function packPackages(parentSpan) {
 /**
  *
  * @param {object} param0
- * @param {import('@next/telemetry').Span} param0.parentSpan
+ * @param {import('next/dist/trace').Span} [param0.parentSpan]
  * @param {object} [param0.dependencies]
  * @param {object | null} [param0.resolutions]
  * @param { ((ctx: { dependencies: { [key: string]: string } }) => string) | string | null} [param0.installCommand]
  * @param {object} [param0.packageJson]
  * @param {string} [param0.subDir]
- * @param {(span: import('@next/telemetry').Span, installDir: string) => Promise<void>} [param0.beforeInstall]
+ * @param {(span: import('next/dist/trace').Span, installDir: string) => Promise<void>} [param0.beforeInstall]
  * @returns {Promise<{installDir: string, pkgPaths: Map<string, string>}>}
  */
 async function createNextInstall({
@@ -337,9 +337,14 @@ async function createNextInstall({
   subDir = '',
   beforeInstall,
 }) {
+  // Timing discovery imports this module before Next is built.
+  const { trace } = require('next/dist/trace')
   const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
 
-  return await parentSpan
+  const createNextInstallParent = parentSpan ?? {
+    traceChild: (name) => trace(name),
+  }
+  return await createNextInstallParent
     .traceChild('createNextInstall')
     .traceAsyncFn(async (rootSpan) => {
       const origRepoDir = path.join(__dirname, '../../')

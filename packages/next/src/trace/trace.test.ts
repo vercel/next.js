@@ -6,6 +6,7 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   PHASE_PRODUCTION_BUILD,
 } from '../shared/lib/constants'
+import { LocalRecordingSpan } from '../server/lib/trace/local-span-recorder'
 import { createJsonReporter } from './report/to-json'
 import type { Reporter } from './report/types'
 import type { TraceEvent } from './types'
@@ -13,11 +14,13 @@ import { setGlobal } from './shared'
 import {
   clearTraceEvents,
   closeAllTraces,
+  createTraceSpan,
   exportTraceState,
   flushAllTraces,
   getTraceEvents,
   initializeTraceState,
   recordTraceEvents,
+  Span,
   trace,
 } from './trace'
 
@@ -90,6 +93,81 @@ describe('Trace', () => {
   })
 
   describe('Tracer', () => {
+    it('keeps attribute serializers out of file-only capture', () => {
+      const toJSON = jest.fn(() => ({ serialized: true }))
+      const metadata = { toJSON }
+      const root = trace('file-only', undefined, { metadata })
+      const child = root.traceChild('file-only-child')
+      child.setAttribute('metadata', metadata)
+      child.stop()
+      root.stop()
+
+      expect(toJSON).not.toHaveBeenCalled()
+      expect(getTraceEvents()).toMatchObject([
+        { name: 'file-only-child', parentId: root.getId(), tags: { metadata } },
+        { name: 'file-only', tags: { metadata } },
+      ])
+    })
+
+    it('keeps epoch end times separate from monotonic stop times', () => {
+      const start = Date.now()
+      const end = start + 5
+      for (const endTime of [
+        new Date(end),
+        end,
+        end - performance.timeOrigin,
+        [Math.floor(end / 1000), (end % 1000) * 1_000_000] as [number, number],
+      ]) {
+        createTraceSpan({ name: 'epoch', startTime: new Date(start) }).end(
+          endTime
+        )
+      }
+      const span = new Span({
+        name: 'monotonic',
+        startTime: BigInt(123_456_789),
+        wallStartTimeMs: start,
+      })
+      span.stop(BigInt(123_462_788))
+      expect(getTraceEvents().map((event) => event.duration)).toEqual([
+        5000, 5000, 5000, 5000, 5,
+      ])
+    })
+
+    it('shares legacy and recorder completion when callbacks fail', async () => {
+      const root = trace('root')
+      const error = new Error('failed')
+      const sync = root.traceChild('sync')
+      expect(() =>
+        sync.traceFn(() => {
+          throw error
+        })
+      ).toThrow(error)
+      sync.recorder.end()
+      sync.setAttribute('late', true)
+      expect(sync.name).toBe('sync')
+      const async = root.traceChild('async')
+      await expect(
+        async.traceAsyncFn(async () => {
+          throw error
+        })
+      ).rejects.toBe(error)
+      async.stop()
+      root.recorder.end()
+      expect(getTraceEvents()).toEqual([
+        expect.objectContaining({
+          name: 'sync',
+          parentId: root.getId(),
+          tags: { failed: true, late: true },
+        }),
+        expect.objectContaining({
+          name: 'async',
+          parentId: root.getId(),
+          tags: { failed: true },
+        }),
+        expect.objectContaining({ name: 'root' }),
+      ])
+    })
+
     it('traces a block of code', async () => {
       const tmpDir = await makeTmpDir()
       setGlobal('distDir', tmpDir)
@@ -98,6 +176,8 @@ describe('Trace', () => {
       const root = trace('root-span', undefined, {
         'some-tag': 'some-value',
       })
+      expect(root).not.toBeInstanceOf(LocalRecordingSpan)
+      expect(root.recorder).toBeInstanceOf(LocalRecordingSpan)
       root.traceChild('child-span').traceFn(() => null)
       await root.traceChild('async-child-span').traceAsyncFn(async () => {
         const delayedPromise = new Promise((resolve) => {

@@ -1,7 +1,17 @@
+import { getTimestamp, toHrTime } from '../server/lib/trace/utils'
 import { reporter } from './report'
+import {
+  createRecordingSpan,
+  type LocalRecordingSpan,
+  type LocalSpanOptions,
+  recordSpan as recordSpanCallback,
+} from '../server/lib/trace/local-span-recorder'
 import type { SpanId, TraceEvent, TraceState } from './types'
+import type { Span as OpenTelemetrySpan } from '@opentelemetry/api'
+export { normalizeTraceAttributes } from '../server/lib/trace/span-attributes'
 
 const NUM_OF_MICROSEC_IN_NANOSEC = BigInt('1000')
+const NUM_OF_SEC_IN_NANOSEC = BigInt('1000000000')
 const NUM_OF_MILLISEC_IN_NANOSEC = BigInt('1000000')
 
 let count = 0
@@ -17,158 +27,257 @@ const RECORD_SPAN_THRESHOLD_MS = parseInt(
   process.env.NEXT_TRACE_SPAN_THRESHOLD_MS ?? '-1'
 )
 
-// eslint typescript has a bug with TS enums
+interface Attributes {
+  [key: string]: unknown
+}
+
+type RecordedTraceEvent = TraceEvent & { tags: Attributes }
+
 export enum SpanStatus {
   Started = 'started',
   Stopped = 'stopped',
 }
 
-interface Attributes {
-  [key: string]: unknown
-}
-
 export class Span {
-  private name: string
-  private id: SpanId
-  private parentId?: SpanId
-  private attrs: { [key: string]: unknown }
-  private status: SpanStatus
-  private now: number
-
-  // Number of nanoseconds since epoch.
-  private _start: bigint
+  readonly recorder: LocalRecordingSpan
 
   constructor({
     name,
     parentId,
+    parent,
     attrs,
     startTime,
     wallStartTimeMs,
   }: {
     name: string
     parentId?: SpanId
-    startTime?: bigint
-    // Wall-clock start time in milliseconds since epoch, matching `startTime`.
-    // Defaults to the construction time.
-    wallStartTimeMs?: number
+    parent?: Span
     attrs?: Attributes
+    startTime?: bigint
+    wallStartTimeMs?: number
   }) {
-    this.name = name
-    this.parentId = parentId ?? defaultParentSpanId
-    this.attrs = attrs ? { ...attrs } : {}
-
-    this.status = SpanStatus.Started
-    this.id = getId()
-    this._start = startTime || process.hrtime.bigint()
-    // hrtime cannot be used to reconstruct tracing span's actual start time
-    // since it does not have relation to clock time:
-    // `These times are relative to an arbitrary time in the past, and not related to the time of day and therefore not subject to clock drift`
-    // https://nodejs.org/api/process.html#processhrtimetime
-    // Capturing current datetime as additional metadata for external reconstruction.
-    this.now = wallStartTimeMs ?? Date.now()
+    this.recorder = createTraceSpan({
+      name,
+      parent: parent?.recorder ?? parentId,
+      attributes: attrs,
+      monotonicStartTime: startTime,
+      wallStartTimeMs,
+    })
   }
 
-  // Durations are reported as microseconds. This gives 1000x the precision
-  // of something like Date.now(), which reports in milliseconds.
-  // Additionally, ~285 years can be safely represented as microseconds as
-  // a float64 in both JSON and JavaScript.
-  stop(stopTime?: bigint) {
-    if (this.status === SpanStatus.Stopped) {
-      // Don't report the same span twice.
-      // TODO: In the future this should throw as `.stop()` shouldn't be called multiple times.
-      return
-    }
-    const end: bigint = stopTime || process.hrtime.bigint()
-    const duration = (end - this._start) / NUM_OF_MICROSEC_IN_NANOSEC
-    this.status = SpanStatus.Stopped
-    if (duration > Number.MAX_SAFE_INTEGER) {
-      throw new Error(`Duration is too long to express as float64: ${duration}`)
-    }
-    const timestamp = this._start / NUM_OF_MICROSEC_IN_NANOSEC
-    const traceEvent: TraceEvent = {
-      name: this.name,
-      duration: Number(duration),
-      timestamp: Number(timestamp),
-      id: this.id,
-      parentId: this.parentId,
-      tags: this.attrs,
-      startTime: this.now,
-    }
-    if (duration > RECORD_SPAN_THRESHOLD_MS * 1000) {
-      reporter.report(traceEvent)
-      if (shouldSaveTraceEvents) {
-        savedTraceEvents.push(traceEvent)
-      }
-    }
+  get name(): string {
+    return getTraceSpanSource(this.recorder)!.event?.name ?? this.recorder.name
   }
 
-  traceChild(name: string, attrs?: Attributes) {
-    return new Span({ name, parentId: this.id, attrs })
+  stop(stopTime?: bigint): void {
+    const source = getTraceSpanSource(this.recorder)!
+    this.recorder.end(
+      stopTime === undefined
+        ? undefined
+        : toHrTime(
+            stopTime -
+              source.startTime +
+              epochMillisecondsToNanoseconds(source.wallStartTimeMs)
+          )
+    )
+  }
+
+  traceChild(name: string, attrs?: Attributes): Span {
+    return new Span({ name, parent: this, attrs })
   }
 
   manualTraceChild(
     name: string,
-    // Start time in nanoseconds since epoch.
     startTime?: bigint,
-    // Stop time in nanoseconds since epoch.
     stopTime?: bigint,
     attrs?: Attributes
-  ) {
-    // We need to convert the time info to the same base as hrtime since that is used usually.
+  ): void {
     const correction =
       process.hrtime.bigint() - BigInt(Date.now()) * NUM_OF_MILLISEC_IN_NANOSEC
     const span = new Span({
       name,
-      parentId: this.id,
+      parent: this,
       attrs,
-      startTime: startTime ? startTime + correction : process.hrtime.bigint(),
-      // The span is constructed when the event is recorded, which may be long
-      // after the work started (e.g. compilation events forwarded from
-      // Turbopack), so derive the wall-clock start from the given epoch time.
-      wallStartTimeMs: startTime
-        ? Number(startTime / NUM_OF_MILLISEC_IN_NANOSEC)
-        : undefined,
+      startTime: startTime === undefined ? undefined : startTime + correction,
+      wallStartTimeMs:
+        startTime === undefined
+          ? undefined
+          : Number(startTime / NUM_OF_MILLISEC_IN_NANOSEC),
     })
-    span.stop(stopTime ? stopTime + correction : process.hrtime.bigint())
+    span.stop(stopTime === undefined ? undefined : stopTime + correction)
   }
 
-  getId() {
-    return this.id
+  getId(): SpanId {
+    return getTraceSpanSource(this.recorder)!.id
   }
 
-  setAttribute(key: string, value: unknown) {
-    this.attrs[key] = value
+  setAttribute(key: string, value: unknown): this {
+    const attributes =
+      getTraceSpanSource(this.recorder)!.event?.tags ?? this.recorder.attributes
+    attributes[key] = value
+    return this
   }
 
   traceFn<T>(fn: (span: Span) => T): T {
-    try {
-      return fn(this)
-    } catch (e) {
-      this.attrs['failed'] = true
-      throw e
-    } finally {
-      this.stop()
-    }
+    return recordSpanCallback({ span: this.recorder, synchronous: true }, () =>
+      fn(this)
+    )
   }
 
-  async traceAsyncFn<T>(fn: (span: Span) => T | Promise<T>): Promise<T> {
-    try {
-      return await fn(this)
-    } catch (e) {
-      this.attrs['failed'] = true
-      throw e
-    } finally {
-      this.stop()
-    }
+  traceAsyncFn<T>(fn: (span: Span) => T | Promise<T>): Promise<T> {
+    return recordSpanCallback({ span: this.recorder }, () => fn(this))
   }
 }
 
-export const trace = (
+export const trace = (name: string, parentId?: SpanId, attrs?: Attributes) =>
+  new Span({ name, parentId, attrs })
+
+export type LocalSpanTiming = {
+  startTime?: import('@opentelemetry/api').SpanOptions['startTime']
+  monotonicStartTime?: bigint
+  wallStartTimeMs?: number
+}
+
+// Numeric file identity and legacy access after completion.
+export type TraceSpanSource = {
+  id: SpanId
+  parentId?: SpanId
+  startTime: bigint
+  wallStartTimeMs: number
+  event?: RecordedTraceEvent
+}
+
+const traceSources = new WeakMap<OpenTelemetrySpan, TraceSpanSource>()
+
+export function getTraceSpanSource(
+  span: OpenTelemetrySpan
+): TraceSpanSource | undefined {
+  return traceSources.get(span)
+}
+
+export function createTraceSpan(
+  options: Omit<LocalSpanOptions, 'parent'> &
+    LocalSpanTiming & {
+      parent?: OpenTelemetrySpan | SpanId | null
+    }
+): LocalRecordingSpan {
+  const parent = typeof options.parent === 'object' ? options.parent : undefined
+  const ancestor = parent ? getTraceSpanSource(parent) : undefined
+  const source = captureTraceSpanSource(
+    {
+      ...options,
+      parent:
+        typeof options.parent === 'number' || options.parent === null
+          ? options.parent
+          : undefined,
+    },
+    ancestor
+  )
+  const offset =
+    epochMillisecondsToNanoseconds(source.wallStartTimeMs) - source.startTime
+
+  const span = createRecordingSpan(
+    {
+      ...options,
+      parent,
+      startTime: source.wallStartTimeMs,
+      attributes: options.attributes,
+      clock: {
+        start: source.startTime + offset,
+        end: (time) => getTraceSpanEndTime(time, offset),
+      },
+      onError: (recording, error) => {
+        recording.setAttribute('failed', true)
+        recording.recordException(error as Error)
+        recording.setStatus({ code: 2 })
+      },
+    },
+    (recording, end) => {
+      source.event = completeTraceSpan(
+        source,
+        recording.name,
+        recording.attributes,
+        end - offset
+      )
+    }
+  )
+  traceSources.set(span, source)
+  return span
+}
+
+export function captureTraceSpanSource(
+  options: LocalSpanTiming & { parent?: SpanId | null },
+  parent?: TraceSpanSource
+): TraceSpanSource {
+  const epochMs =
+    options.startTime === undefined
+      ? undefined
+      : getTimestamp(options.startTime)
+  const monotonicStartTime =
+    options.monotonicStartTime ??
+    (epochMs === undefined
+      ? process.hrtime.bigint()
+      : epochMillisecondsToNanoseconds(epochMs) +
+        process.hrtime.bigint() -
+        BigInt(Date.now()) * NUM_OF_MILLISEC_IN_NANOSEC)
+  return {
+    id: getId(),
+    parentId:
+      options.parent === null
+        ? undefined
+        : (options.parent ?? parent?.id ?? defaultParentSpanId),
+    startTime: monotonicStartTime,
+    wallStartTimeMs: options.wallStartTimeMs ?? epochMs ?? Date.now(),
+  }
+}
+
+// Multiply integer milliseconds as bigint so epoch magnitudes cannot lose the
+// low nanoseconds before the clock correction is applied.
+function epochMillisecondsToNanoseconds(time: number): bigint {
+  const whole = Math.trunc(time)
+  return (
+    BigInt(whole) * NUM_OF_MILLISEC_IN_NANOSEC +
+    BigInt(Math.trunc((time - whole) * 1_000_000))
+  )
+}
+
+function getTraceSpanEndTime(
+  endTime: Parameters<OpenTelemetrySpan['end']>[0],
+  offset: bigint
+): bigint {
+  if (Array.isArray(endTime)) {
+    return BigInt(endTime[0]) * NUM_OF_SEC_IN_NANOSEC + BigInt(endTime[1])
+  } else if (endTime === undefined) {
+    return process.hrtime.bigint() + offset
+  } else {
+    return epochMillisecondsToNanoseconds(getTimestamp(endTime))
+  }
+}
+
+export function completeTraceSpan(
+  source: TraceSpanSource,
   name: string,
-  parentId?: SpanId,
-  attrs?: { [key: string]: unknown }
-) => {
-  return new Span({ name, parentId, attrs })
+  attributes: Attributes,
+  end: bigint
+): RecordedTraceEvent {
+  const duration = (end - source.startTime) / NUM_OF_MICROSEC_IN_NANOSEC
+  if (duration > Number.MAX_SAFE_INTEGER) {
+    throw new Error(`Duration is too long to express as float64: ${duration}`)
+  }
+  const event: RecordedTraceEvent = {
+    name,
+    id: source.id,
+    parentId: source.parentId,
+    timestamp: Number(source.startTime / NUM_OF_MICROSEC_IN_NANOSEC),
+    duration: Number(duration),
+    startTime: source.wallStartTimeMs,
+    tags: attributes,
+  }
+  if (duration > RECORD_SPAN_THRESHOLD_MS * 1000) {
+    reporter.report(event)
+    if (shouldSaveTraceEvents) savedTraceEvents.push(event)
+  }
+  return event
 }
 
 export const flushAllTraces = () => reporter.flushAll()
@@ -209,7 +318,9 @@ export function recordTraceEvents(events: TraceEvent[]) {
   }
 }
 
-export const clearTraceEvents = () => (savedTraceEvents = [])
+export const clearTraceEvents = () => {
+  return (savedTraceEvents = [])
+}
 
 /**
  * Converts hrtime (process.hrtime.bigint()) to epoch-based nanoseconds.

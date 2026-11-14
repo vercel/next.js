@@ -21,7 +21,7 @@ import {
   getCommitFromPreviewBuildUrl,
   previewTarballUrl,
 } from '../../../scripts/wait-for-preview-tarball.mjs'
-import { Span } from 'next/dist/trace'
+import type { Span } from 'next/dist/trace'
 import { normalizePagePath } from 'next/dist/shared/lib/page-path/normalize-page-path'
 import {
   getRouteCacheKey,
