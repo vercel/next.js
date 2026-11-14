@@ -137,6 +137,26 @@ const findSourceMapURL =
         .findSourceMapURLDEV
     : undefined
 
+// A Blob is referenced in Flight data as the JSON string `"$B<id>"`. A string
+// that merely contains these characters is encoded differently (its quote is
+// escaped, and a leading `$` is doubled), so `"$B` only matches a reference.
+const BLOB_REFERENCE_AFTER_QUOTE = Buffer.from('$B')
+const QUOTE = 0x22
+
+function hasBlobReference(flightData: Buffer): boolean {
+  // Looks for `$B` and then for the quote in front of it: quotes are far more
+  // frequent in Flight data than `$`, and the search is faster for a rarer
+  // first byte.
+  let index = flightData.indexOf(BLOB_REFERENCE_AFTER_QUOTE)
+  while (index !== -1) {
+    if (index > 0 && flightData[index - 1] === QUOTE) {
+      return true
+    }
+    index = flightData.indexOf(BLOB_REFERENCE_AFTER_QUOTE, index + 1)
+  }
+  return false
+}
+
 function onSegmentPrerenderError(error: unknown) {
   const digest = getDigestForWellKnownError(error)
   if (digest) {
@@ -162,7 +182,11 @@ export async function collectSegmentData(
   serverConsumerManifest: any,
   prefetchInlining: boolean,
   hints: PrefetchHints | null,
-  isUpgradeableISRFallback: boolean
+  isUpgradeableISRFallback: boolean,
+  // Whether the render that produced the page data ran to its end, so that
+  // the page data has no reference that stays pending forever (no dynamic
+  // hole). False when that isn't known.
+  isPageDataComplete: boolean
 ): Promise<Map<SegmentRequestKey, Buffer>> {
   // Traverse the router tree and generate a prefetch response for each segment.
 
@@ -247,6 +271,16 @@ export async function collectSegmentData(
   const shellStageRelease =
     pageShellByteLength !== undefined ? release.promise : null
 
+  // A segment is partial when serializing its data leaves a reference
+  // pending. If the page data as a whole has no such reference, none of its
+  // segments has one either, and there's nothing to find out per segment (see
+  // createStagedSegmentData). Not when the page data holds a Blob: reading
+  // one back takes longer than the task a segment response waits for its
+  // content, so a segment with a Blob is reported as partial although nothing
+  // in it is pending, and that's left as it is.
+  const segmentsAreComplete =
+    isPageDataComplete && !hasBlobReference(fullPageDataBuffer)
+
   // Create an abort controller that we'll use to stop the stream.
   const abortController = new AbortController()
   const onCompletedProcessingRouteTree = async () => {
@@ -281,6 +315,7 @@ export async function collectSegmentData(
         prefetchInlining={prefetchInlining}
         hints={hints}
         isUpgradeableISRFallback={isUpgradeableISRFallback}
+        segmentsAreComplete={segmentsAreComplete}
         runtimeDataAccessed={runtimeDataAccessed}
         shellStageRelease={shellStageRelease}
         prefetchStageRelease={prefetchRelease.promise}
@@ -498,6 +533,8 @@ export async function collectPrefetchHints(
     clientModules,
     // Fallback-ness doesn't affect size, so pass false.
     false,
+    // Neither does skipping the probe: the response is the same with it.
+    false,
     needsRuntimeRequest,
     shellStageRelease,
     prefetchStageRelease
@@ -625,6 +662,7 @@ async function collectPrefetchHintsImpl(
       rootVaryParamsIterable,
       clientModules,
       // Size-measurement pass only; fallback-ness is irrelevant here.
+      false,
       false,
       needsRuntimeRequest,
       shellStageRelease,
@@ -874,6 +912,7 @@ async function PrefetchTreeData({
   prefetchInlining,
   hints,
   isUpgradeableISRFallback,
+  segmentsAreComplete,
   runtimeDataAccessed,
   shellStageRelease,
   prefetchStageRelease,
@@ -888,6 +927,7 @@ async function PrefetchTreeData({
   prefetchInlining: boolean
   hints: PrefetchHints | null
   isUpgradeableISRFallback: boolean
+  segmentsAreComplete: boolean
   runtimeDataAccessed: boolean
   shellStageRelease: Promise<boolean> | null
   prefetchStageRelease: Promise<boolean>
@@ -974,6 +1014,7 @@ async function PrefetchTreeData({
     headIsInlined ? headData : null,
     rootVaryParamsIterable,
     isUpgradeableISRFallback,
+    segmentsAreComplete,
     needsRuntimeRequest,
     shellStageRelease,
     prefetchStageRelease
@@ -995,6 +1036,7 @@ async function PrefetchTreeData({
           rootVaryParamsIterable,
           clientModules,
           isUpgradeableISRFallback,
+          segmentsAreComplete,
           needsRuntimeRequest,
           shellStageRelease,
           prefetchStageRelease
@@ -1031,6 +1073,7 @@ function collectSegmentDataImpl(
   headData: SegmentSource | null,
   rootVaryParamsIterable: VaryParamsIterable | null,
   isUpgradeableISRFallback: boolean,
+  segmentsAreComplete: boolean,
   needsRuntimeRequest: Promise<boolean>,
   shellStageRelease: Promise<boolean> | null,
   prefetchStageRelease: Promise<boolean>
@@ -1122,6 +1165,7 @@ function collectSegmentDataImpl(
             rootVaryParamsIterable,
             clientModules,
             isUpgradeableISRFallback,
+            segmentsAreComplete,
             needsRuntimeRequest,
             shellStageRelease,
             prefetchStageRelease
@@ -1171,6 +1215,7 @@ function collectSegmentDataImpl(
         headData,
         rootVaryParamsIterable,
         isUpgradeableISRFallback,
+        segmentsAreComplete,
         needsRuntimeRequest,
         shellStageRelease,
         prefetchStageRelease
@@ -1237,12 +1282,22 @@ async function renderSegmentPrefetch(
   rootVaryParams: VaryParamsIterable | null,
   clientModules: ManifestNode,
   isUpgradeableISRFallback: boolean,
+  // Whether every segment of the page is known to be complete (see
+  // collectSegmentData).
+  segmentsAreComplete: boolean,
   needsRuntimeRequest: Promise<boolean>,
   // Null when the page wasn't staged; the response then sends no `a`.
   shellStageRelease: Promise<boolean> | null,
   prefetchStageRelease: Promise<boolean>
 ): Promise<[SegmentRequestKey, Buffer]> {
   const streamInfoStage = createPromiseWithResolvers<void>()
+
+  // Content that is known to be complete doesn't have to be probed for it
+  // (see createStagedSegmentData). This collects, for each piece of data in
+  // this response, the function that settles its `p` instead.
+  const completeContent: Array<() => void> | null = segmentsAreComplete
+    ? []
+    : null
 
   // Build the response's root-anchored tree: start at the terminal segment,
   // which carries data (identity only for the standalone head response),
@@ -1263,7 +1318,8 @@ async function renderSegmentPrefetch(
       terminal,
       staleTime,
       clientModules,
-      streamInfoStage.promise
+      streamInfoStage.promise,
+      completeContent
     )
   }
   let edgeParallelRouteKey = spine.parallelRouteKey
@@ -1282,7 +1338,8 @@ async function renderSegmentPrefetch(
           bundleNode.data,
           staleTime,
           clientModules,
-          streamInfoStage.promise
+          streamInfoStage.promise,
+          completeContent
         )
       }
       bundleNode = bundleNode.next
@@ -1298,8 +1355,29 @@ async function renderSegmentPrefetch(
       head,
       staleTime,
       clientModules,
-      streamInfoStage.promise
+      streamInfoStage.promise,
+      completeContent
     )
+  }
+
+  if (completeContent !== null) {
+    // The `p` rows of a response are written in the order in which the
+    // content settles. With probes, that's the order they finish in, and a
+    // probe takes longer the more there is to serialize. The requested
+    // segment is normally the largest thing in its response (the segments
+    // bundled into it and the head are bundled because they're small), so
+    // its probe is normally the last one to finish. Without probes, keep
+    // that order: the bundled segments and the head first, the requested
+    // segment last.
+    if (terminal !== null && completeContent.length > 1) {
+      completeContent.push(completeContent.shift()!)
+    }
+    const settleCompleteContent = completeContent
+    void streamInfoStage.promise.then(() => {
+      for (const settle of settleCompleteContent) {
+        settle()
+      }
+    })
   }
 
   const responseKey =
@@ -1444,22 +1522,33 @@ function createStagedSegmentData(
   clientModules: ManifestNode,
   // The response's streamInfoStage gate; the completeness probe must not
   // start until it resolves, i.e. until the input stream is fully unblocked.
-  streamInfoStage: Promise<void>
+  streamInfoStage: Promise<void>,
+  // Not null when the data is already known to be fully static, which makes
+  // the probe unnecessary. The caller then settles `p` with the function
+  // added to this list.
+  completeContent: Array<() => void> | null
 ): TransportSegmentData {
-  const contentIsComplete = new Promise<void>(async (resolve) => {
-    // Wait for the input stream to be fully unblocked before checking if
-    // the data can be decoded synchronously.
-    await streamInfoStage
+  let contentIsComplete: Promise<void>
+  if (completeContent !== null) {
+    const { promise, resolve } = createPromiseWithResolvers<void>()
+    completeContent.push(resolve)
+    contentIsComplete = promise
+  } else {
+    contentIsComplete = new Promise<void>(async (resolve) => {
+      // Wait for the input stream to be fully unblocked before checking if
+      // the data can be decoded synchronously.
+      await streamInfoStage
 
-    // If the data is fully static, this will resolve synchronously.
-    // Otherwise, the promise stays unresolved forever, and so does
-    // whatever field it's encoded into in the outer response.
-    await prerender(data.rsc, clientModules, {
-      filterStackFrame,
-      onError() {},
+      // If the data is fully static, this will resolve synchronously.
+      // Otherwise, the promise stays unresolved forever, and so does
+      // whatever field it's encoded into in the outer response.
+      await prerender(data.rsc, clientModules, {
+        filterStackFrame,
+        onError() {},
+      })
+      resolve()
     })
-    resolve()
-  })
+  }
   return {
     r: data.rsc,
     p: contentIsComplete,
