@@ -1,14 +1,21 @@
+// Every server process loads this module, also when the app has no
+// instrumentation file. Only import what that case needs.
 import path from 'node:path'
 import isError from '../../../lib/is-error'
-import { INSTRUMENTATION_HOOK_FILENAME } from '../../../lib/constants'
 import type {
   InstrumentationModule,
   InstrumentationOnRequestError,
 } from '../../instrumentation/types'
-import { interopDefault } from '../../../lib/interop-default'
-import { afterRegistration as extendInstrumentationAfterRegistration } from './instrumentation-node-extensions'
 import { getTracer, SpanStatusCode } from '../trace/tracer'
 import { InstrumentationSpan } from '../trace/constants'
+
+// Same value as in `lib/constants`. It is repeated here because importing
+// `lib/constants` would load that file in every server process.
+const INSTRUMENTATION_HOOK_FILENAME = 'instrumentation'
+
+function interopDefault(mod: any) {
+  return mod.default || mod
+}
 
 let cachedInstrumentationModule: InstrumentationModule
 let instrumentationModuleLoadTiming: InstrumentationSpanTiming | undefined
@@ -90,6 +97,8 @@ export async function getInstrumentationModule(
   const startTime = getInstrumentationTimestamp()
   let error: unknown
   try {
+    // Tools that patch the compiled file match this statement by its shape:
+    // an assignment of a call that names `INSTRUMENTATION_HOOK_FILENAME`.
     cachedInstrumentationModule = interopDefault(
       await require(
         path.join(
@@ -154,12 +163,16 @@ async function registerInstrumentation(
     throw err
   }
   if (instrumentation?.register) {
+    // Loaded on demand, and before the timed region so that the span below
+    // doesn't include it.
+    const { afterRegistration } =
+      require('./instrumentation-node-extensions') as typeof import('./instrumentation-node-extensions')
     const startTime = getInstrumentationTimestamp()
     let error: unknown
     let registered = false
     try {
       await instrumentation.register()
-      extendInstrumentationAfterRegistration()
+      afterRegistration()
       registered = true
     } catch (err: any) {
       error = err
