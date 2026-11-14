@@ -40,6 +40,87 @@ macro_rules! transient_traits {
     };
 }
 
+/// An entry of a task's `children`: the child task, and whether it is connected outside the
+/// aggregation graph.
+///
+/// A child is connected outside the aggregation graph when it is already immutable, with no
+/// children and no collectibles, when the parent first connects it. Such a child never runs again,
+/// so it never contributes dirty state, collectibles or active counts: it gets no upper edges, and
+/// the aggregation updates that follow children skip it. Only its parent count is tracked. The mode
+/// is recorded per edge, so removing a child undoes exactly what connecting it did.
+///
+/// The mode is the top bit, which a [`TaskId`] never uses.
+#[derive(Copy, Clone, Hash, PartialEq, Eq)]
+pub struct ChildEdge(u32);
+
+impl ChildEdge {
+    const UNAGGREGATED: u32 = 1 << 31;
+    const _TASK_IDS_LEAVE_THE_BIT_FREE: () = assert!(turbo_tasks::TASK_ID_MAX < Self::UNAGGREGATED);
+
+    /// A child in the aggregation graph.
+    pub fn aggregated(task: TaskId) -> Self {
+        Self(*task)
+    }
+
+    /// A child outside the aggregation graph.
+    pub fn unaggregated(task: TaskId) -> Self {
+        Self(*task | Self::UNAGGREGATED)
+    }
+
+    pub fn task(self) -> TaskId {
+        // SAFETY: without the mode bit, this is the id of a `TaskId` (checked when decoding).
+        unsafe { TaskId::new_unchecked(self.0 & !Self::UNAGGREGATED) }
+    }
+
+    pub fn is_unaggregated(self) -> bool {
+        self.0 & Self::UNAGGREGATED != 0
+    }
+
+    pub fn is_transient(self) -> bool {
+        self.task().is_transient()
+    }
+}
+
+impl Debug for ChildEdge {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.is_unaggregated() {
+            write!(f, "Unaggregated({})", self.task())
+        } else {
+            write!(f, "{}", self.task())
+        }
+    }
+}
+
+impl Encode for ChildEdge {
+    fn encode<E: bincode::enc::Encoder>(
+        &self,
+        encoder: &mut E,
+    ) -> Result<(), bincode::error::EncodeError> {
+        debug_assert!(
+            !self.is_transient(),
+            "transient ChildEdge must not be encoded"
+        );
+        self.0.encode(&mut encoder.with_fixint())
+    }
+}
+
+impl<Context> Decode<Context> for ChildEdge {
+    fn decode<D: bincode::de::Decoder<Context = Context>>(
+        decoder: &mut D,
+    ) -> Result<Self, bincode::error::DecodeError> {
+        let raw = u32::decode(&mut decoder.with_fixint())?;
+        let id = raw & !Self::UNAGGREGATED;
+        if id == 0 || id > turbo_tasks::TASK_ID_MAX {
+            return Err(bincode::error::DecodeError::Other(
+                "invalid ChildEdge task id",
+            ));
+        }
+        Ok(Self(raw))
+    }
+}
+
+bincode::impl_borrow_decode!(ChildEdge);
+
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Encode, Decode)]
 pub struct CellRef {
     pub task: TaskId,
