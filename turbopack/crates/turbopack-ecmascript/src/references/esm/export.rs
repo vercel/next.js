@@ -1218,7 +1218,25 @@ impl EsmExports {
             return emit_compact_reexports(compact, chunking_context, scope_hoisting_context).await;
         }
 
-        for (exported, local) in &expanded.exports {
+        // The runtime defines the namespace properties in list order, and a module namespace object
+        // must list its keys in code unit order. The map is in UTF-8 byte order, which differs for
+        // characters outside the Basic Multilingual Plane, and mangling changes the emitted keys.
+        let mut exports: Vec<(&RcStr, &RcStr, &EsmExport)> = expanded
+            .exports
+            .iter()
+            .map(|(exported, local)| {
+                // The key this export is emitted under: the mangled one when this module's names
+                // are shortened, otherwise the original.
+                let key = mangled_names
+                    .as_ref()
+                    .and_then(|names| names.get(exported))
+                    .unwrap_or(exported);
+                (key, exported, local)
+            })
+            .collect();
+        exports.sort_by(|(a, ..), (b, ..)| cmp_code_units(a, b));
+
+        for (key, exported, local) in exports {
             if let EsmExport::ImportedBinding(reference, ..)
             | EsmExport::ImportedNamespace(reference) = local
                 && unused_references.contains(reference)
@@ -1366,14 +1384,7 @@ impl EsmExports {
                 getters.push(Some(
                     Expr::Lit(Lit::Str(Str {
                         span: DUMMY_SP,
-                        // The key this export is emitted under: the mangled one when this module's
-                        // names are shortened, otherwise the original.
-                        value: mangled_names
-                            .as_ref()
-                            .and_then(|names| names.get(exported))
-                            .unwrap_or(exported)
-                            .as_str()
-                            .into(),
+                        value: key.as_str().into(),
                         raw: None,
                     }))
                     .into(),
