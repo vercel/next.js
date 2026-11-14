@@ -1,5 +1,8 @@
 import type { ComponentType, ErrorInfo, JSX, ReactNode } from 'react'
-import type { PartialTransportData } from '../../shared/lib/rsc-transport'
+import type {
+  FullTransportNode,
+  PartialTransportData,
+} from '../../shared/lib/rsc-transport'
 import type { RenderOpts, PreloadCallbacks } from './types'
 import type {
   ActionResult,
@@ -2205,13 +2208,102 @@ function Preloads({ preloadCallbacks }: { preloadCallbacks: Function[] }) {
   return null
 }
 
+function nestedNotFoundLoaderTrees(
+  tree: LoaderTree,
+  insideLayout = false
+): LoaderTree[] {
+  const [segment, parallelRoutes, components, staticSiblings] = tree
+  const hasLayout = insideLayout || Boolean(components.layout)
+  const nested: LoaderTree[] = parallelRoutes.children
+    ? nestedNotFoundLoaderTrees(parallelRoutes.children, hasLayout).map(
+        (children) => [
+          segment,
+          { ...parallelRoutes, children },
+          components,
+          staticSiblings,
+        ]
+      )
+    : []
+  const notFound = components['not-found']
+  if (!notFound || !hasLayout) {
+    return nested
+  }
+  return [
+    ...nested,
+    [
+      segment,
+      { children: [PAGE_SEGMENT_KEY, {}, { page: notFound }, null] },
+      components,
+      staticSiblings,
+    ],
+  ]
+}
+
+function notFoundLoaderTrees(
+  tree: LoaderTree,
+  errorType: MetadataErrorType | 'redirect' | undefined
+): LoaderTree[] {
+  if (errorType !== 'not-found') {
+    return []
+  }
+  return tree[2]['global-not-found']
+    ? [createNotFoundLoaderTree(tree)]
+    : nestedNotFoundLoaderTrees(tree)
+}
+
+async function renderWithNotFoundBoundaries<T>(
+  tree: LoaderTree,
+  errorType: MetadataErrorType | 'redirect' | undefined,
+  render: (notFoundTree: LoaderTree | null) => Promise<T>
+): Promise<T> {
+  for (const notFoundTree of notFoundLoaderTrees(tree, errorType)) {
+    try {
+      return await render(notFoundTree)
+    } catch (renderError) {
+      if (!isHTTPAccessFallbackError(renderError)) {
+        throw renderError
+      }
+    }
+  }
+  return render(null)
+}
+
+async function notFoundTransportTree(
+  loaderTree: LoaderTree,
+  ctx: AppRenderContext,
+  hintTree: PrefetchHints | null,
+  MetadataOutlet: ComponentType<{ tree: LoaderTree }>
+): Promise<FullTransportNode | null> {
+  try {
+    return await createFullComponentTree({
+      ctx,
+      loaderTree,
+      parentParams: {},
+      parentOptionalCatchAllParamName: null,
+      parentRuntimePrefetchable: false,
+      rootLayoutIncluded: false,
+      injectedCSS: new Set(),
+      injectedJS: new Set(),
+      injectedFontPreloadTags: new Set(),
+      preloadCallbacks: [],
+      authInterrupts: ctx.renderOpts.experimental.authInterrupts,
+      MetadataOutlet,
+      isPrerendering: false,
+      hintTree,
+    })
+  } catch {
+    return null
+  }
+}
+
 // This is the data necessary to render <AppRouter /> when an error state is triggered
 async function getErrorRSCPayload(
   tree: LoaderTree,
   ctx: AppRenderContext,
   ssrError: unknown,
   errorType: MetadataErrorType | 'redirect' | undefined,
-  shouldRenderMetadataAndViewport: boolean
+  shouldRenderMetadataAndViewport: boolean,
+  notFoundTree: LoaderTree | null
 ) {
   const {
     getDynamicParamFromSegment,
@@ -2222,6 +2314,7 @@ async function getErrorRSCPayload(
 
   let Viewport: ComponentType | null = null
   let Metadata: ComponentType | null = null
+  let MetadataOutlet: ComponentType<{ tree: LoaderTree }> = () => null
   if (shouldRenderMetadataAndViewport) {
     const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
     const metadataComponents = createMetadataComponents({
@@ -2235,6 +2328,7 @@ async function getErrorRSCPayload(
     })
     Viewport = metadataComponents.Viewport
     Metadata = metadataComponents.Metadata
+    MetadataOutlet = metadataComponents.MetadataOutlet
   }
 
   const initialHead = createElement(
@@ -2288,22 +2382,33 @@ async function getErrorRSCPayload(
     )
   )
 
-  const partialPrefetching =
-    Boolean(ctx.renderOpts.partialPrefetching) ||
-    (await anySegmentHasPartialPrefetchingEnabled(tree))
+  let initialTree: FullTransportNode | null = null
+  if (notFoundTree !== null) {
+    initialTree = await notFoundTransportTree(
+      notFoundTree,
+      ctx,
+      errorHints,
+      MetadataOutlet
+    )
+  }
+  if (initialTree === null) {
+    const partialPrefetching =
+      Boolean(ctx.renderOpts.partialPrefetching) ||
+      (await anySegmentHasPartialPrefetchingEnabled(tree))
 
-  const initialTree = await createFullTransportTreeFromLoaderTree(
-    tree,
-    errorHints,
-    errorPrefetchInliningEnabled,
-    ctx.missingPrefetchHintPolicy,
-    partialPrefetching,
-    getDynamicParamFromSegment,
-    ctx.renderOpts.notFoundParams
-  )
-  // Attach the error shell as the root's render output. Vary params are not
-  // tracked for error pages.
-  initialTree.d = { r: errorShell, p: false, v: null }
+    initialTree = await createFullTransportTreeFromLoaderTree(
+      tree,
+      errorHints,
+      errorPrefetchInliningEnabled,
+      ctx.missingPrefetchHintPolicy,
+      partialPrefetching,
+      getDynamicParamFromSegment,
+      ctx.renderOpts.notFoundParams
+    )
+    // Attach the error shell as the root's render output. Vary params are not
+    // tracked for error pages.
+    initialTree.d = { r: errorShell, p: false, v: null }
+  }
 
   const { GlobalError, styles: globalErrorStyles } = await getGlobalErrorStyles(
     tree,
@@ -4495,197 +4600,212 @@ async function renderToStream(
         )
       }
 
-      if (process.env.__NEXT_USE_NODE_STREAMS) {
-        // MARK: nodeStreams errorRecovery RSC + HTML
-        let errorRSCPayload: InitialRSCPayload
-        let errorServerStream: import('./stream-ops').AnyStream
+      return await renderWithNotFoundBoundaries(
+        tree,
+        errorType,
+        async (notFoundTree) => {
+          if (process.env.__NEXT_USE_NODE_STREAMS) {
+            // MARK: nodeStreams errorRecovery RSC + HTML
+            let errorRSCPayload: InitialRSCPayload
+            let errorServerStream: import('./stream-ops').AnyStream
 
-        try {
-          errorRSCPayload = await workUnitAsyncStorage.run(
-            requestStore,
-            getErrorRSCPayload,
-            tree,
-            ctx,
-            reactServerErrorsByDigest.has((err as any).digest) ? null : err,
-            errorType,
-            // Normal error rendering should include the error payload head.
-            true
-          )
+            try {
+              errorRSCPayload = await workUnitAsyncStorage.run(
+                requestStore,
+                getErrorRSCPayload,
+                tree,
+                ctx,
+                reactServerErrorsByDigest.has((err as any).digest) ? null : err,
+                errorType,
+                // Normal error rendering should include the error payload head.
+                true,
+                notFoundTree
+              )
 
-          errorServerStream = workUnitAsyncStorage.run(
-            requestStore,
-            renderToNodeFlightStream,
-            ctx.componentMod,
-            errorRSCPayload,
-            clientModules,
-            {
-              filterStackFrame,
-              onError: serverComponentsErrorHandler,
-            }
-          )
+              errorServerStream = workUnitAsyncStorage.run(
+                requestStore,
+                renderToNodeFlightStream,
+                ctx.componentMod,
+                errorRSCPayload,
+                clientModules,
+                {
+                  filterStackFrame,
+                  onError: serverComponentsErrorHandler,
+                }
+              )
 
-          if (reactServerResult === null) {
-            endSpanWithError(err)
-            throw err
-          }
-        } catch (setupErr) {
-          endSpanWithError(setupErr)
-          throw setupErr
-        }
-
-        try {
-          const { stream: errorHtmlStream } = await workUnitAsyncStorage.run(
-            requestStore,
-            renderToNodeFizzStream,
-            <ErrorApp
-              reactServerStream={errorServerStream}
-              ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-              preinitScripts={errorPreinitScripts}
-              nonce={nonce}
-              images={ctx.renderOpts.images}
-            />,
-            {
-              nonce,
-              bootstrapScriptContent: errorBootstrapScriptContent,
-              bootstrapScripts: [errorBootstrapScript],
-              unstable_externalRuntimeSrc: externalRuntimeSrc,
-              formState,
-              onAllReady: finishHtmlRender,
-            },
-            { waitForAllReady }
-          )
-
-          return await continueFizzStream(errorHtmlStream, {
-            inlinedDataStream: createNodeInlinedDataStream(
-              // This is intentionally using the readable datastream from the
-              // main render rather than the flight data from the error page
-              // render
-              reactServerResult.consume(),
-              nonce,
-              formState,
-              externalBrowserRuntime
-            ),
-            waitForAllReady,
-            deploymentId: ctx.sharedContext.deploymentId,
-            getServerInsertedHTML: makeGetServerInsertedHTML({
-              polyfills,
-              renderServerInsertedHTML,
-              serverCapturedErrors: [],
-              basePath,
-              tracingMetadata: tracingMetadata,
-            }),
-            getServerInsertedMetadata,
-            validateRootLayout: !!process.env.__NEXT_DEV_SERVER,
-          })
-        } catch (finalErr: any) {
-          if (
-            process.env.__NEXT_DEV_SERVER &&
-            isHTTPAccessFallbackError(finalErr)
-          ) {
-            const { bailOnRootNotFound } =
-              require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
-            bailOnRootNotFound()
-          }
-          endSpanWithError(finalErr)
-          throw finalErr
-        }
-      } else {
-        // MARK: webStreams errorRecovery RSC + HTML
-        let errorRSCPayload: InitialRSCPayload
-        let errorServerStream: import('./stream-ops').AnyStream
-
-        try {
-          errorRSCPayload = await workUnitAsyncStorage.run(
-            requestStore,
-            getErrorRSCPayload,
-            tree,
-            ctx,
-            reactServerErrorsByDigest.has((err as any).digest) ? null : err,
-            errorType,
-            // Normal error rendering should include the error payload head.
-            true
-          )
-
-          errorServerStream = workUnitAsyncStorage.run(
-            requestStore,
-            renderToWebFlightStream,
-            ctx.componentMod,
-            errorRSCPayload,
-            clientModules,
-            {
-              filterStackFrame,
-              onError: serverComponentsErrorHandler,
-            }
-          )
-
-          if (reactServerResult === null) {
-            endSpanWithError(err)
-            throw err
-          }
-        } catch (setupErr) {
-          endSpanWithError(setupErr)
-          throw setupErr
-        }
-
-        try {
-          const { stream: errorHtmlStream, allReady: errorAllReady } =
-            await workUnitAsyncStorage.run(
-              requestStore,
-              renderToWebFizzStream,
-              <ErrorApp
-                reactServerStream={errorServerStream}
-                ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-                preinitScripts={errorPreinitScripts}
-                nonce={nonce}
-                images={ctx.renderOpts.images}
-              />,
-              {
-                nonce,
-                bootstrapScriptContent: errorBootstrapScriptContent,
-                bootstrapScripts: [errorBootstrapScript],
-                unstable_externalRuntimeSrc: externalRuntimeSrc,
-                formState,
+              if (reactServerResult === null) {
+                endSpanWithError(err)
+                throw err
               }
-            )
+            } catch (setupErr) {
+              endSpanWithError(setupErr)
+              throw setupErr
+            }
 
-          // Finish after React renders the error document.
-          void errorAllReady.then(finishHtmlRender, finishHtmlRender)
+            try {
+              const { stream: errorHtmlStream } =
+                await workUnitAsyncStorage.run(
+                  requestStore,
+                  renderToNodeFizzStream,
+                  <ErrorApp
+                    reactServerStream={errorServerStream}
+                    ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+                    preinitScripts={errorPreinitScripts}
+                    nonce={nonce}
+                    images={ctx.renderOpts.images}
+                  />,
+                  {
+                    nonce,
+                    bootstrapScriptContent: errorBootstrapScriptContent,
+                    bootstrapScripts: [errorBootstrapScript],
+                    unstable_externalRuntimeSrc: externalRuntimeSrc,
+                    formState,
+                    onAllReady: finishHtmlRender,
+                  },
+                  { waitForAllReady }
+                )
 
-          return await continueFizzStream(errorHtmlStream, {
-            inlinedDataStream: createWebInlinedDataStream(
-              // This is intentionally using the readable datastream from the
-              // main render rather than the flight data from the error page
-              // render
-              reactServerResult.consume(),
-              nonce,
-              formState,
-              externalBrowserRuntime
-            ),
-            waitForAllReady,
-            deploymentId: ctx.sharedContext.deploymentId,
-            getServerInsertedHTML: makeGetServerInsertedHTML({
-              polyfills,
-              renderServerInsertedHTML,
-              serverCapturedErrors: [],
-              basePath,
-              tracingMetadata: tracingMetadata,
-            }),
-            getServerInsertedMetadata,
-            validateRootLayout: !!process.env.__NEXT_DEV_SERVER,
-          })
-        } catch (finalErr: any) {
-          if (
-            process.env.__NEXT_DEV_SERVER &&
-            isHTTPAccessFallbackError(finalErr)
-          ) {
-            const { bailOnRootNotFound } =
-              require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
-            bailOnRootNotFound()
+              return await continueFizzStream(errorHtmlStream, {
+                inlinedDataStream: createNodeInlinedDataStream(
+                  // This is intentionally using the readable datastream from the
+                  // main render rather than the flight data from the error page
+                  // render
+                  reactServerResult.consume(),
+                  nonce,
+                  formState,
+                  externalBrowserRuntime
+                ),
+                waitForAllReady,
+                deploymentId: ctx.sharedContext.deploymentId,
+                getServerInsertedHTML: makeGetServerInsertedHTML({
+                  polyfills,
+                  renderServerInsertedHTML,
+                  serverCapturedErrors: [],
+                  basePath,
+                  tracingMetadata: tracingMetadata,
+                }),
+                getServerInsertedMetadata,
+                validateRootLayout: !!process.env.__NEXT_DEV_SERVER,
+              })
+            } catch (finalErr: any) {
+              if (
+                notFoundTree === null &&
+                process.env.__NEXT_DEV_SERVER &&
+                isHTTPAccessFallbackError(finalErr)
+              ) {
+                const { bailOnRootNotFound } =
+                  require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
+                bailOnRootNotFound()
+              }
+              if (notFoundTree === null) {
+                endSpanWithError(finalErr)
+              }
+              throw finalErr
+            }
+          } else {
+            // MARK: webStreams errorRecovery RSC + HTML
+            let errorRSCPayload: InitialRSCPayload
+            let errorServerStream: import('./stream-ops').AnyStream
+
+            try {
+              errorRSCPayload = await workUnitAsyncStorage.run(
+                requestStore,
+                getErrorRSCPayload,
+                tree,
+                ctx,
+                reactServerErrorsByDigest.has((err as any).digest) ? null : err,
+                errorType,
+                // Normal error rendering should include the error payload head.
+                true,
+                notFoundTree
+              )
+
+              errorServerStream = workUnitAsyncStorage.run(
+                requestStore,
+                renderToWebFlightStream,
+                ctx.componentMod,
+                errorRSCPayload,
+                clientModules,
+                {
+                  filterStackFrame,
+                  onError: serverComponentsErrorHandler,
+                }
+              )
+
+              if (reactServerResult === null) {
+                endSpanWithError(err)
+                throw err
+              }
+            } catch (setupErr) {
+              endSpanWithError(setupErr)
+              throw setupErr
+            }
+
+            try {
+              const { stream: errorHtmlStream, allReady: errorAllReady } =
+                await workUnitAsyncStorage.run(
+                  requestStore,
+                  renderToWebFizzStream,
+                  <ErrorApp
+                    reactServerStream={errorServerStream}
+                    ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+                    preinitScripts={errorPreinitScripts}
+                    nonce={nonce}
+                    images={ctx.renderOpts.images}
+                  />,
+                  {
+                    nonce,
+                    bootstrapScriptContent: errorBootstrapScriptContent,
+                    bootstrapScripts: [errorBootstrapScript],
+                    unstable_externalRuntimeSrc: externalRuntimeSrc,
+                    formState,
+                  }
+                )
+
+              // Finish after React renders the error document.
+              void errorAllReady.then(finishHtmlRender, finishHtmlRender)
+
+              return await continueFizzStream(errorHtmlStream, {
+                inlinedDataStream: createWebInlinedDataStream(
+                  // This is intentionally using the readable datastream from the
+                  // main render rather than the flight data from the error page
+                  // render
+                  reactServerResult.consume(),
+                  nonce,
+                  formState,
+                  externalBrowserRuntime
+                ),
+                waitForAllReady,
+                deploymentId: ctx.sharedContext.deploymentId,
+                getServerInsertedHTML: makeGetServerInsertedHTML({
+                  polyfills,
+                  renderServerInsertedHTML,
+                  serverCapturedErrors: [],
+                  basePath,
+                  tracingMetadata: tracingMetadata,
+                }),
+                getServerInsertedMetadata,
+                validateRootLayout: !!process.env.__NEXT_DEV_SERVER,
+              })
+            } catch (finalErr: any) {
+              if (
+                notFoundTree === null &&
+                process.env.__NEXT_DEV_SERVER &&
+                isHTTPAccessFallbackError(finalErr)
+              ) {
+                const { bailOnRootNotFound } =
+                  require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
+                bailOnRootNotFound()
+              }
+              if (notFoundTree === null) {
+                endSpanWithError(finalErr)
+              }
+              throw finalErr
+            }
           }
-          endSpanWithError(finalErr)
-          throw finalErr
         }
-      }
+      )
     }
   })
   /* eslint-enable @next/internal/no-ambiguous-jsx */
@@ -10540,337 +10660,350 @@ async function prerenderToStream(
       // payload with the same prerender APIs as the normal path so not-found
       // metadata can participate in static, dynamic-data, and dynamic-HTML
       // outcomes instead of being dropped from the recovery shell.
-      const errorServerReactController = new AbortController()
-      const errorServerRenderController = new AbortController()
-      const errorServerDynamicTracking = createDynamicTrackingState(
-        isDebugDynamicAccesses
-      )
-      const errorPrerenderStore: PrerenderStore = {
-        type: 'prerender',
-        phase: 'render',
-        rootParams,
-        fallbackRouteParams,
-        implicitTags,
-        renderSignal: errorServerRenderController.signal,
-        controller: errorServerReactController,
-        stagedRendering: null,
-        cacheSignal: null,
-        dynamicTracking: errorServerDynamicTracking,
-        revalidate:
-          typeof prerenderStore?.revalidate !== 'undefined'
-            ? prerenderStore.revalidate
-            : INFINITE_CACHE,
-        expire:
-          typeof prerenderStore?.expire !== 'undefined'
-            ? prerenderStore.expire
-            : INFINITE_CACHE,
-        stale:
-          typeof prerenderStore?.stale !== 'undefined'
-            ? prerenderStore.stale
-            : INFINITE_CACHE,
-        tags: [...(prerenderStore?.tags || implicitTags.tags)],
-        resumeDataCache: originalResumeDataCache,
-        hmrRefreshHash: undefined,
-        varyParamsAccumulator: null,
-        ensureStaticLevel: null,
-        prerenderDataTracking: null,
-        isFallbackUpgradeable: renderOpts.isFallbackUpgradeable === true,
-      }
-
-      const errorRSCPayload = await workUnitAsyncStorage.run(
-        errorPrerenderStore,
-        getErrorRSCPayload,
+      return await renderWithNotFoundBoundaries(
         tree,
-        ctx,
-        reactServerErrorsByDigest.has((err as any)?.digest) ? undefined : err,
         errorType,
-        // The recovery shell only bootstraps the original Flight data. Avoid
-        // blocking that shell on error-page metadata or viewport.
-        false
-      )
+        async (notFoundTree) => {
+          const errorServerReactController = new AbortController()
+          const errorServerRenderController = new AbortController()
+          const errorServerDynamicTracking = createDynamicTrackingState(
+            isDebugDynamicAccesses
+          )
+          const errorPrerenderStore: PrerenderStore = {
+            type: 'prerender',
+            phase: 'render',
+            rootParams,
+            fallbackRouteParams,
+            implicitTags,
+            renderSignal: errorServerRenderController.signal,
+            controller: errorServerReactController,
+            stagedRendering: null,
+            cacheSignal: null,
+            dynamicTracking: errorServerDynamicTracking,
+            revalidate:
+              typeof prerenderStore?.revalidate !== 'undefined'
+                ? prerenderStore.revalidate
+                : INFINITE_CACHE,
+            expire:
+              typeof prerenderStore?.expire !== 'undefined'
+                ? prerenderStore.expire
+                : INFINITE_CACHE,
+            stale:
+              typeof prerenderStore?.stale !== 'undefined'
+                ? prerenderStore.stale
+                : INFINITE_CACHE,
+            tags: [...(prerenderStore?.tags || implicitTags.tags)],
+            resumeDataCache: originalResumeDataCache,
+            hmrRefreshHash: undefined,
+            varyParamsAccumulator: null,
+            ensureStaticLevel: null,
+            prerenderDataTracking: null,
+            isFallbackUpgradeable: renderOpts.isFallbackUpgradeable === true,
+          }
 
-      const errorServerResult = await createReactServerPrerenderResult(
-        runInSequentialTasks(
-          async () => {
-            const pendingErrorServerResult = workUnitAsyncStorage.run(
-              errorPrerenderStore,
-              getServerPrerender(ComponentMod),
-              errorRSCPayload,
-              clientModules,
-              {
-                filterStackFrame,
-                signal: errorServerReactController.signal,
-                onError: (rscError: unknown) => {
-                  return serverComponentsErrorHandler(rscError)
-                },
+          const errorRSCPayload = await workUnitAsyncStorage.run(
+            errorPrerenderStore,
+            getErrorRSCPayload,
+            tree,
+            ctx,
+            reactServerErrorsByDigest.has((err as any)?.digest)
+              ? undefined
+              : err,
+            errorType,
+            // The recovery shell only bootstraps the original Flight data. Avoid
+            // blocking that shell on error-page metadata or viewport.
+            false,
+            notFoundTree
+          )
+
+          const errorServerResult = await createReactServerPrerenderResult(
+            runInSequentialTasks(
+              async () => {
+                const pendingErrorServerResult = workUnitAsyncStorage.run(
+                  errorPrerenderStore,
+                  getServerPrerender(ComponentMod),
+                  errorRSCPayload,
+                  clientModules,
+                  {
+                    filterStackFrame,
+                    signal: errorServerReactController.signal,
+                    onError: (rscError: unknown) => {
+                      return serverComponentsErrorHandler(rscError)
+                    },
+                  }
+                )
+
+                // The listener to abort our own render controller must be added
+                // after React has added its listener, to ensure that pending I/O
+                // is not aborted/rejected too early.
+                errorServerReactController.signal.addEventListener(
+                  'abort',
+                  () => {
+                    errorServerRenderController.abort()
+                  },
+                  { once: true }
+                )
+
+                const prerenderResult = await pendingErrorServerResult
+                return prerenderResult
+              },
+              () => {
+                if (!errorServerReactController.signal.aborted) {
+                  workUnitAsyncStorage.run(
+                    errorPrerenderStore,
+                    errorServerReactController.abort.bind(
+                      errorServerReactController
+                    )
+                  )
+                }
+              }
+            )
+          )
+
+          try {
+            const errorClientReactController = new AbortController()
+            const errorClientRenderController = new AbortController()
+            const errorClientDynamicTracking = createDynamicTrackingState(
+              isDebugDynamicAccesses
+            )
+            const errorDynamicValidation = createDynamicValidationState()
+            const errorClientPrerenderStore: PrerenderStore = {
+              type: 'prerender-client',
+              phase: 'render',
+              rootParams,
+              fallbackRouteParams,
+              implicitTags,
+              renderSignal: errorClientRenderController.signal,
+              controller: errorClientReactController,
+              cacheSignal: null,
+              dynamicTracking: errorClientDynamicTracking,
+              revalidate: errorPrerenderStore.revalidate,
+              expire: errorPrerenderStore.expire,
+              stale: errorPrerenderStore.stale,
+              tags: [...(errorPrerenderStore.tags || implicitTags.tags)],
+              resumeDataCache: originalResumeDataCache,
+              hmrRefreshHash: undefined,
+              varyParamsAccumulator: null,
+            }
+
+            const {
+              prelude: unprocessedErrorHtmlStream,
+              postponed: errorPostponed,
+            } = await runInSequentialTasks(
+              () => {
+                const pendingErrorHtmlResult = workUnitAsyncStorage.run(
+                  errorClientPrerenderStore,
+                  getClientPrerender,
+                  // eslint-disable-next-line @next/internal/no-ambiguous-jsx
+                  <ErrorApp
+                    reactServerStream={errorServerResult.asUnclosingStream()}
+                    ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+                    preinitScripts={errorPreinitScripts}
+                    nonce={nonce}
+                    images={ctx.renderOpts.images}
+                  />,
+                  {
+                    nonce,
+                    // Like the regular prerender, the Turbopack bootstrap is left
+                    // out of the shell; see `withTurbopackBootstrapScript`.
+                    bootstrapScripts: [errorBootstrapScript],
+                    unstable_externalRuntimeSrc: externalRuntimeSrc,
+                    formState,
+                    signal: errorClientReactController.signal,
+                    onError: (clientError: unknown, errorInfo: ErrorInfo) => {
+                      if (
+                        isPrerenderInterruptedError(clientError) ||
+                        errorClientReactController.signal.aborted
+                      ) {
+                        const componentStack: string | undefined = (
+                          errorInfo as any
+                        ).componentStack
+                        if (typeof componentStack === 'string') {
+                          trackAllowedDynamicAccess(
+                            clientError,
+                            workStore,
+                            componentStack,
+                            errorDynamicValidation,
+                            errorClientDynamicTracking
+                          )
+                        }
+                        return
+                      }
+
+                      return htmlRendererErrorHandler(clientError, errorInfo)
+                    },
+                  }
+                )
+
+                // The listener to abort our own render controller must be added
+                // after React has added its listener, to ensure that pending I/O
+                // is not aborted/rejected too early.
+                errorClientReactController.signal.addEventListener(
+                  'abort',
+                  () => {
+                    errorClientRenderController.abort()
+                  },
+                  { once: true }
+                )
+
+                return pendingErrorHtmlResult
+              },
+              () => {
+                workUnitAsyncStorage.run(
+                  errorClientPrerenderStore,
+                  errorClientReactController.abort.bind(
+                    errorClientReactController
+                  )
+                )
               }
             )
 
-            // The listener to abort our own render controller must be added
-            // after React has added its listener, to ensure that pending I/O
-            // is not aborted/rejected too early.
-            errorServerReactController.signal.addEventListener(
-              'abort',
-              () => {
-                errorServerRenderController.abort()
-              },
-              { once: true }
+            metadata.hasPendingUi = errorPostponed != null
+
+            const { prelude, preludeIsEmpty } = await processPreludeOp(
+              unprocessedErrorHtmlStream
             )
 
-            const prerenderResult = await pendingErrorServerResult
-            return prerenderResult
-          },
-          () => {
-            if (!errorServerReactController.signal.aborted) {
-              workUnitAsyncStorage.run(
+            if (preludeIsEmpty) {
+              console.error(
+                `Route "${workStore.route}" did not produce a static shell while rendering its error page.`
+              )
+              throwIfDisallowedDynamic(
+                workStore,
+                PreludeState.Empty,
+                errorDynamicValidation,
+                errorServerDynamicTracking,
+                false
+              )
+              throw new StaticGenBailoutError()
+            }
+
+            const getServerInsertedHTML = makeGetServerInsertedHTML({
+              polyfills,
+              renderServerInsertedHTML,
+              serverCapturedErrors: [],
+              basePath,
+              tracingMetadata: tracingMetadata,
+            })
+
+            let errorHtmlStream: AnyStream = prelude
+            if (originalFlightPrerenderResultIsDynamic) {
+              metadata.postponed = await getDynamicDataPostponedState(
+                originalResumeDataCache,
+                cacheComponents,
+                renderOpts.experimental.maxPostponedStateSizeBytes,
+                renderOpts.experimental.disableResumeDataCacheCompression,
+                fallbackRouteParams
+              )
+              originalFlightPrerenderResult.consume()
+              errorServerResult.consume()
+              return {
+                error:
+                  errorType !== undefined ? undefined : { thrownValue: err },
+                digestErrorsMap: renderErrorsByDigest,
+                ssrErrors: allCapturedErrors,
+                stream: await continueDynamicPrerender(errorHtmlStream, {
+                  getServerInsertedHTML,
+                  getServerInsertedMetadata,
+                  deploymentId: ctx.sharedContext.deploymentId,
+                }),
+                dynamicAccess: consumeDynamicAccess(
+                  errorServerDynamicTracking,
+                  errorClientDynamicTracking
+                ),
+                collectedRevalidate: originalPrerenderStore.revalidate,
+                collectedExpire: originalPrerenderStore.expire,
+                collectedStale: originalCollectedStale,
+                collectedTags: originalPrerenderStore.tags,
+                renderResumeDataCache: createRenderResumeDataCache(
+                  originalResumeDataCache
+                ),
+              }
+            } else if (errorPostponed != null) {
+              // We postponed but nothing dynamic was used. Resume the error shell
+              // and immediately abort it so postponed client boundaries are marked
+              // for browser rendering before the static response is stored.
+              const foreverStream = createPendingStream()
+              const resumePrelude = await workUnitAsyncStorage.run(
                 errorPrerenderStore,
-                errorServerReactController.abort.bind(
-                  errorServerReactController
-                )
+                resumeAndAbort,
+                // eslint-disable-next-line @next/internal/no-ambiguous-jsx
+                <ErrorApp
+                  reactServerStream={foreverStream}
+                  ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+                  preinitScripts={() => {}}
+                  nonce={nonce}
+                  images={ctx.renderOpts.images}
+                />,
+                JSON.parse(JSON.stringify(errorPostponed)),
+                {
+                  signal: createRenderInBrowserAbortSignal(
+                    ctx.renderOpts.experimental.reactBrowserBailout
+                  ),
+                  onError: htmlRendererErrorHandler,
+                  nonce,
+                }
+              )
+              errorHtmlStream = chainStreams(prelude, resumePrelude)
+            }
+
+            if (workStore.forceDynamic) {
+              throw new StaticGenBailoutError(
+                'Invariant: a Page with `dynamic = "force-dynamic"` did not trigger the dynamic pathway. This is a bug in Next.js'
               )
             }
-          }
-        )
-      )
 
-      try {
-        const errorClientReactController = new AbortController()
-        const errorClientRenderController = new AbortController()
-        const errorClientDynamicTracking = createDynamicTrackingState(
-          isDebugDynamicAccesses
-        )
-        const errorDynamicValidation = createDynamicValidationState()
-        const errorClientPrerenderStore: PrerenderStore = {
-          type: 'prerender-client',
-          phase: 'render',
-          rootParams,
-          fallbackRouteParams,
-          implicitTags,
-          renderSignal: errorClientRenderController.signal,
-          controller: errorClientReactController,
-          cacheSignal: null,
-          dynamicTracking: errorClientDynamicTracking,
-          revalidate: errorPrerenderStore.revalidate,
-          expire: errorPrerenderStore.expire,
-          stale: errorPrerenderStore.stale,
-          tags: [...(errorPrerenderStore.tags || implicitTags.tags)],
-          resumeDataCache: originalResumeDataCache,
-          hmrRefreshHash: undefined,
-          varyParamsAccumulator: null,
-        }
-
-        const {
-          prelude: unprocessedErrorHtmlStream,
-          postponed: errorPostponed,
-        } = await runInSequentialTasks(
-          () => {
-            const pendingErrorHtmlResult = workUnitAsyncStorage.run(
-              errorClientPrerenderStore,
-              getClientPrerender,
-              // eslint-disable-next-line @next/internal/no-ambiguous-jsx
-              <ErrorApp
-                reactServerStream={errorServerResult.asUnclosingStream()}
-                ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-                preinitScripts={errorPreinitScripts}
-                nonce={nonce}
-                images={ctx.renderOpts.images}
-              />,
-              {
-                nonce,
-                // Like the regular prerender, the Turbopack bootstrap is left
-                // out of the shell; see `withTurbopackBootstrapScript`.
-                bootstrapScripts: [errorBootstrapScript],
-                unstable_externalRuntimeSrc: externalRuntimeSrc,
-                formState,
-                signal: errorClientReactController.signal,
-                onError: (clientError: unknown, errorInfo: ErrorInfo) => {
-                  if (
-                    isPrerenderInterruptedError(clientError) ||
-                    errorClientReactController.signal.aborted
-                  ) {
-                    const componentStack: string | undefined = (
-                      errorInfo as any
-                    ).componentStack
-                    if (typeof componentStack === 'string') {
-                      trackAllowedDynamicAccess(
-                        clientError,
-                        workStore,
-                        componentStack,
-                        errorDynamicValidation,
-                        errorClientDynamicTracking
-                      )
-                    }
-                    return
-                  }
-
-                  return htmlRendererErrorHandler(clientError, errorInfo)
-                },
-              }
-            )
-
-            // The listener to abort our own render controller must be added
-            // after React has added its listener, to ensure that pending I/O
-            // is not aborted/rejected too early.
-            errorClientReactController.signal.addEventListener(
-              'abort',
-              () => {
-                errorClientRenderController.abort()
-              },
-              { once: true }
-            )
-
-            return pendingErrorHtmlResult
-          },
-          () => {
-            workUnitAsyncStorage.run(
-              errorClientPrerenderStore,
-              errorClientReactController.abort.bind(errorClientReactController)
-            )
-          }
-        )
-
-        metadata.hasPendingUi = errorPostponed != null
-
-        const { prelude, preludeIsEmpty } = await processPreludeOp(
-          unprocessedErrorHtmlStream
-        )
-
-        if (preludeIsEmpty) {
-          console.error(
-            `Route "${workStore.route}" did not produce a static shell while rendering its error page.`
-          )
-          throwIfDisallowedDynamic(
-            workStore,
-            PreludeState.Empty,
-            errorDynamicValidation,
-            errorServerDynamicTracking,
-            false
-          )
-          throw new StaticGenBailoutError()
-        }
-
-        const getServerInsertedHTML = makeGetServerInsertedHTML({
-          polyfills,
-          renderServerInsertedHTML,
-          serverCapturedErrors: [],
-          basePath,
-          tracingMetadata: tracingMetadata,
-        })
-
-        let errorHtmlStream: AnyStream = prelude
-        if (originalFlightPrerenderResultIsDynamic) {
-          metadata.postponed = await getDynamicDataPostponedState(
-            originalResumeDataCache,
-            cacheComponents,
-            renderOpts.experimental.maxPostponedStateSizeBytes,
-            renderOpts.experimental.disableResumeDataCacheCompression,
-            fallbackRouteParams
-          )
-          originalFlightPrerenderResult.consume()
-          errorServerResult.consume()
-          return {
-            error: errorType !== undefined ? undefined : { thrownValue: err },
-            digestErrorsMap: renderErrorsByDigest,
-            ssrErrors: allCapturedErrors,
-            stream: await continueDynamicPrerender(errorHtmlStream, {
+            const stream = await continueStaticPrerenderWithInlinedData(
+              errorHtmlStream,
+              originalFlightPrerenderResult,
+              fallbackRouteParams,
+              createInlinedDataStream,
+              externalBrowserRuntime,
+              formState,
+              nonce,
               getServerInsertedHTML,
               getServerInsertedMetadata,
-              deploymentId: ctx.sharedContext.deploymentId,
-            }),
-            dynamicAccess: consumeDynamicAccess(
-              errorServerDynamicTracking,
-              errorClientDynamicTracking
-            ),
-            collectedRevalidate: originalPrerenderStore.revalidate,
-            collectedExpire: originalPrerenderStore.expire,
-            collectedStale: originalCollectedStale,
-            collectedTags: originalPrerenderStore.tags,
-            renderResumeDataCache: createRenderResumeDataCache(
-              originalResumeDataCache
-            ),
-          }
-        } else if (errorPostponed != null) {
-          // We postponed but nothing dynamic was used. Resume the error shell
-          // and immediately abort it so postponed client boundaries are marked
-          // for browser rendering before the static response is stored.
-          const foreverStream = createPendingStream()
-          const resumePrelude = await workUnitAsyncStorage.run(
-            errorPrerenderStore,
-            resumeAndAbort,
-            // eslint-disable-next-line @next/internal/no-ambiguous-jsx
-            <ErrorApp
-              reactServerStream={foreverStream}
-              ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-              preinitScripts={() => {}}
-              nonce={nonce}
-              images={ctx.renderOpts.images}
-            />,
-            JSON.parse(JSON.stringify(errorPostponed)),
-            {
-              signal: createRenderInBrowserAbortSignal(
-                ctx.renderOpts.experimental.reactBrowserBailout
+              ctx.sharedContext.deploymentId,
+              ComponentMod,
+              renderFlightStream,
+              clientModules,
+              filterStackFrame,
+              serverComponentsErrorHandler,
+              errorBootstrapScriptContent
+            )
+
+            errorServerResult.consume()
+            return {
+              error: errorType !== undefined ? undefined : { thrownValue: err },
+              digestErrorsMap: renderErrorsByDigest,
+              ssrErrors: allCapturedErrors,
+              stream,
+              dynamicAccess: consumeDynamicAccess(
+                errorServerDynamicTracking,
+                errorClientDynamicTracking
               ),
-              onError: htmlRendererErrorHandler,
-              nonce,
+              collectedRevalidate: originalPrerenderStore.revalidate,
+              collectedExpire: originalPrerenderStore.expire,
+              collectedStale: originalCollectedStale,
+              collectedTags: originalPrerenderStore.tags,
+              renderResumeDataCache: createRenderResumeDataCache(
+                originalResumeDataCache
+              ),
             }
-          )
-          errorHtmlStream = chainStreams(prelude, resumePrelude)
+          } catch (finalErr: any) {
+            if (
+              notFoundTree === null &&
+              process.env.__NEXT_DEV_SERVER &&
+              isHTTPAccessFallbackError(finalErr)
+            ) {
+              const { bailOnRootNotFound } =
+                require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
+              bailOnRootNotFound()
+            }
+            throw finalErr
+          }
         }
-
-        if (workStore.forceDynamic) {
-          throw new StaticGenBailoutError(
-            'Invariant: a Page with `dynamic = "force-dynamic"` did not trigger the dynamic pathway. This is a bug in Next.js'
-          )
-        }
-
-        const stream = await continueStaticPrerenderWithInlinedData(
-          errorHtmlStream,
-          originalFlightPrerenderResult,
-          fallbackRouteParams,
-          createInlinedDataStream,
-          externalBrowserRuntime,
-          formState,
-          nonce,
-          getServerInsertedHTML,
-          getServerInsertedMetadata,
-          ctx.sharedContext.deploymentId,
-          ComponentMod,
-          renderFlightStream,
-          clientModules,
-          filterStackFrame,
-          serverComponentsErrorHandler,
-          errorBootstrapScriptContent
-        )
-
-        errorServerResult.consume()
-        return {
-          error: errorType !== undefined ? undefined : { thrownValue: err },
-          digestErrorsMap: renderErrorsByDigest,
-          ssrErrors: allCapturedErrors,
-          stream,
-          dynamicAccess: consumeDynamicAccess(
-            errorServerDynamicTracking,
-            errorClientDynamicTracking
-          ),
-          collectedRevalidate: originalPrerenderStore.revalidate,
-          collectedExpire: originalPrerenderStore.expire,
-          collectedStale: originalCollectedStale,
-          collectedTags: originalPrerenderStore.tags,
-          renderResumeDataCache: createRenderResumeDataCache(
-            originalResumeDataCache
-          ),
-        }
-      } catch (finalErr: any) {
-        if (
-          process.env.__NEXT_DEV_SERVER &&
-          isHTTPAccessFallbackError(finalErr)
-        ) {
-          const { bailOnRootNotFound } =
-            require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
-          bailOnRootNotFound()
-        }
-        throw finalErr
-      }
+      )
     }
 
     const prerenderLegacyStore: PrerenderStore = {
@@ -10893,104 +11026,113 @@ async function prerenderToStream(
       tags: [...(prerenderStore?.tags || implicitTags.tags)],
     }
 
-    const errorRSCPayload = await workUnitAsyncStorage.run(
-      prerenderLegacyStore,
-      getErrorRSCPayload,
+    const flightPrerenderResult = reactServerPrerenderResult
+    return await renderWithNotFoundBoundaries(
       tree,
-      ctx,
-      reactServerErrorsByDigest.has((err as any)?.digest) ? undefined : err,
       errorType,
-      // Legacy prerender recovery should include the error payload head.
-      true
-    )
+      async (notFoundTree) => {
+        const errorRSCPayload = await workUnitAsyncStorage.run(
+          prerenderLegacyStore,
+          getErrorRSCPayload,
+          tree,
+          ctx,
+          reactServerErrorsByDigest.has((err as any)?.digest) ? undefined : err,
+          errorType,
+          // Legacy prerender recovery should include the error payload head.
+          true,
+          notFoundTree
+        )
 
-    const errorServerStream = workUnitAsyncStorage.run(
-      prerenderLegacyStore,
-      renderFlightStream,
-      ComponentMod,
-      errorRSCPayload,
-      clientModules,
-      {
-        filterStackFrame,
-        onError: serverComponentsErrorHandler,
+        const errorServerStream = workUnitAsyncStorage.run(
+          prerenderLegacyStore,
+          renderFlightStream,
+          ComponentMod,
+          errorRSCPayload,
+          clientModules,
+          {
+            filterStackFrame,
+            onError: serverComponentsErrorHandler,
+          }
+        )
+
+        try {
+          const { stream: errorHtmlStream } = await workUnitAsyncStorage.run(
+            prerenderLegacyStore,
+            renderFizzStream,
+            // eslint-disable-next-line @next/internal/no-ambiguous-jsx
+            <ErrorApp
+              reactServerStream={errorServerStream}
+              ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+              preinitScripts={errorPreinitScripts}
+              nonce={nonce}
+              images={ctx.renderOpts.images}
+            />,
+            {
+              nonce,
+              bootstrapScriptContent: errorBootstrapScriptContent,
+              bootstrapScripts: [errorBootstrapScript],
+              unstable_externalRuntimeSrc: externalRuntimeSrc,
+              formState,
+            },
+            { waitForAllReady: true }
+          )
+
+          const flightData = await streamToBuffer(
+            flightPrerenderResult.asStream()
+          )
+          metadata.flightData = flightData
+          await collectSegmentData(
+            flightData,
+            prerenderLegacyStore,
+            ComponentMod,
+            renderOpts,
+            ctx.pagePath,
+            metadata
+          )
+
+          return {
+            error: undefined,
+            digestErrorsMap: renderErrorsByDigest,
+            ssrErrors: allCapturedErrors,
+            stream: await continueFizzStream(errorHtmlStream, {
+              inlinedDataStream: createInlinedDataStream(
+                flightPrerenderResult.consumeAsStream(),
+                nonce,
+                formState,
+                externalBrowserRuntime
+              ),
+              waitForAllReady: true,
+              getServerInsertedHTML: makeGetServerInsertedHTML({
+                polyfills,
+                renderServerInsertedHTML,
+                serverCapturedErrors: [],
+                basePath,
+                tracingMetadata: tracingMetadata,
+              }),
+              getServerInsertedMetadata,
+              validateRootLayout: !!process.env.__NEXT_DEV_SERVER,
+              deploymentId: ctx.sharedContext.deploymentId,
+            }),
+            dynamicAccess: null,
+            collectedRevalidate: prerenderLegacyStore.revalidate,
+            collectedExpire: prerenderLegacyStore.expire,
+            collectedStale: selectStaleTime(prerenderLegacyStore.stale),
+            collectedTags: prerenderLegacyStore.tags,
+          }
+        } catch (finalErr: any) {
+          if (
+            notFoundTree === null &&
+            process.env.__NEXT_DEV_SERVER &&
+            isHTTPAccessFallbackError(finalErr)
+          ) {
+            const { bailOnRootNotFound } =
+              require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
+            bailOnRootNotFound()
+          }
+          throw finalErr
+        }
       }
     )
-
-    try {
-      const { stream: errorHtmlStream } = await workUnitAsyncStorage.run(
-        prerenderLegacyStore,
-        renderFizzStream,
-        // eslint-disable-next-line @next/internal/no-ambiguous-jsx
-        <ErrorApp
-          reactServerStream={errorServerStream}
-          ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-          preinitScripts={errorPreinitScripts}
-          nonce={nonce}
-          images={ctx.renderOpts.images}
-        />,
-        {
-          nonce,
-          bootstrapScriptContent: errorBootstrapScriptContent,
-          bootstrapScripts: [errorBootstrapScript],
-          unstable_externalRuntimeSrc: externalRuntimeSrc,
-          formState,
-        },
-        { waitForAllReady: true }
-      )
-
-      const flightData = await streamToBuffer(
-        reactServerPrerenderResult.asStream()
-      )
-      metadata.flightData = flightData
-      await collectSegmentData(
-        flightData,
-        prerenderLegacyStore,
-        ComponentMod,
-        renderOpts,
-        ctx.pagePath,
-        metadata
-      )
-
-      return {
-        error: undefined,
-        digestErrorsMap: renderErrorsByDigest,
-        ssrErrors: allCapturedErrors,
-        stream: await continueFizzStream(errorHtmlStream, {
-          inlinedDataStream: createInlinedDataStream(
-            reactServerPrerenderResult.consumeAsStream(),
-            nonce,
-            formState,
-            externalBrowserRuntime
-          ),
-          waitForAllReady: true,
-          getServerInsertedHTML: makeGetServerInsertedHTML({
-            polyfills,
-            renderServerInsertedHTML,
-            serverCapturedErrors: [],
-            basePath,
-            tracingMetadata: tracingMetadata,
-          }),
-          getServerInsertedMetadata,
-          validateRootLayout: !!process.env.__NEXT_DEV_SERVER,
-          deploymentId: ctx.sharedContext.deploymentId,
-        }),
-        dynamicAccess: null,
-        collectedRevalidate: prerenderLegacyStore.revalidate,
-        collectedExpire: prerenderLegacyStore.expire,
-        collectedStale: selectStaleTime(prerenderLegacyStore.stale),
-        collectedTags: prerenderLegacyStore.tags,
-      }
-    } catch (finalErr: any) {
-      if (
-        process.env.__NEXT_DEV_SERVER &&
-        isHTTPAccessFallbackError(finalErr)
-      ) {
-        const { bailOnRootNotFound } =
-          require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
-        bailOnRootNotFound()
-      }
-      throw finalErr
-    }
   }
 }
 
