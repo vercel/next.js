@@ -748,6 +748,7 @@ export async function initialize(opts: {
         resHeaders,
         bodyStream,
         matchedOutput,
+        isNextDataRedirect,
       } = await resolveRoutes({
         req,
         res,
@@ -806,10 +807,18 @@ export async function initialize(opts: {
       if (!bodyStream && statusCode && statusCode > 300 && statusCode < 400) {
         const destination = url.format(parsedUrl)
         res.statusCode = statusCode
-        res.setHeader('location', destination)
 
-        if (statusCode === RedirectStatusCode.PermanentRedirect) {
-          res.setHeader('Refresh', `0;url=${destination}`)
+        if (isNextDataRedirect) {
+          // `fetch` would follow a `Location` silently. The Pages client
+          // router reads this header instead, like it does for Proxy's own
+          // redirects of data requests.
+          res.setHeader('x-nextjs-redirect', destination)
+        } else {
+          res.setHeader('location', destination)
+
+          if (statusCode === RedirectStatusCode.PermanentRedirect) {
+            res.setHeader('Refresh', `0;url=${destination}`)
+          }
         }
         return res.end(destination)
       }
