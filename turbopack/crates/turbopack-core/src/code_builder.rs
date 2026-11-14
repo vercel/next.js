@@ -2273,6 +2273,7 @@ mod variant_tests {
     use turbo_rcstr::RcStr;
     use turbo_tasks::{ResolvedVc, Vc};
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+    use turbo_tasks_fs::{FileSystem, VirtualFileSystem};
 
     use super::*;
 
@@ -2452,6 +2453,59 @@ mod variant_tests {
                     && flat.generate_source_map_ref(debug_id.clone(), ty).is_err(),
                 "a missing {ty:?} variant must fail in both"
             );
+        }
+
+        // The emitted code files (magic comments and debug id included) match too, for every
+        // emitted map type, and emitting a missing variant fails in both.
+        let flat = flat.cell();
+        let flat_resolved = flat.to_resolved().await?;
+        let composed = ComposedCode::new(code, Some(composition.resolved_cell()));
+        let map_path = VirtualFileSystem::new()
+            .root()
+            .await?
+            .join("chunk.js.map")?;
+        let map_asset = |ty| {
+            SourceMapAsset::new_fixed(
+                map_path.clone(),
+                ty,
+                *ResolvedVc::upcast::<Box<dyn GenerateSourceMap>>(flat_resolved),
+            )
+        };
+        for emitted in [
+            None,
+            Some(SourceMapType::Full),
+            Some(SourceMapType::Shallow),
+        ] {
+            let path_ty = emitted.unwrap_or(SourceMapType::Full);
+            let composed_file = composed
+                .to_file_with_magic_comments(emitted, || map_asset(path_ty))
+                .await;
+            let flat_file = flat
+                .to_rope_with_magic_comments(emitted, || map_asset(path_ty))
+                .await;
+            match (composed_file, flat_file) {
+                (Ok(composed_file), Ok(flat_file)) => {
+                    ensure!(
+                        emitted.is_none_or(|ty| variants.types().contains(&ty)),
+                        "emitting a missing {emitted:?} variant must fail"
+                    );
+                    ensure!(
+                        *composed_file.content() == flat_file,
+                        "{emitted:?} composed file differs"
+                    );
+                    let text = flat_file.to_str()?;
+                    ensure!(
+                        text.contains("sourceMappingURL=") == emitted.is_some(),
+                        "{emitted:?} sourceMappingURL"
+                    );
+                    ensure!(text.contains("debugId=") == debug_id.is_some(), "debugId");
+                }
+                (Err(_), Err(_)) => ensure!(
+                    emitted.is_some_and(|ty| !variants.types().contains(&ty)),
+                    "only a missing {emitted:?} variant may fail"
+                ),
+                _ => anyhow::bail!("{emitted:?}: composed and inline disagree on failing"),
+            }
         }
         Ok(Checked { cells_per_piece }.cell())
     }

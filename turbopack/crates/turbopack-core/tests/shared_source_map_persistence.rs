@@ -4,8 +4,9 @@
 
 //! Module factories' source maps reference their module's map tail (see `SplitSourceMap`) across
 //! persisted sessions: an edit to the tail only updates the composed map, without changing the
-//! factories' map cells or the composition, before and after a restore. The module has a full and
-//! a shallow map (distinct, with their own tails); both variants are checked.
+//! factories' map cells or the composition, before and after a restore. It runs once for each way
+//! the module can carry source maps: only a full one, only a shallow one, both (distinct, with
+//! their own tails), or one shared by both (one tail, referenced once per factory).
 //!
 //! The module maps' `sourcesContent` references the module's source file instead of holding an
 //! escaped copy of its text. The file's content (and its escaped form) is only hashed in the
@@ -46,11 +47,52 @@ const BOTH: SourceMapGenerationOptions = SourceMapGenerationOptions {
     shallow_sources_content: true,
 };
 
-/// The variants, with the name of the source their map points at.
-const VARIANTS: [(SourceMapType, &str); 2] = [
-    (SourceMapType::Full, "module.ts"),
-    (SourceMapType::Shallow, "module.js"),
+/// Which source maps the module carries.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Variants {
+    Full,
+    Shallow,
+    Both,
+    Shared,
+}
+
+const ALL: [Variants; 4] = [
+    Variants::Full,
+    Variants::Shallow,
+    Variants::Both,
+    Variants::Shared,
 ];
+
+impl Variants {
+    fn options(self) -> SourceMapGenerationOptions {
+        match self {
+            Variants::Full => SourceMapGenerationOptions::default(),
+            Variants::Shallow => SourceMapGenerationOptions {
+                full: false,
+                shallow: true,
+                shallow_sources_content: true,
+            },
+            Variants::Both | Variants::Shared => BOTH,
+        }
+    }
+
+    /// The generated maps: their type, the file they're written to, and the name of the source
+    /// they point at.
+    fn types(self) -> &'static [(SourceMapType, &'static str, &'static str)] {
+        const FULL: (SourceMapType, &str, &str) = (SourceMapType::Full, "full", "module.ts");
+        const SHALLOW: (SourceMapType, &str, &str) =
+            (SourceMapType::Shallow, "shallow", "module.js");
+        match self {
+            Variants::Full => &[FULL],
+            Variants::Shallow => &[SHALLOW],
+            Variants::Both => &[FULL, SHALLOW],
+            Variants::Shared => &[
+                (SourceMapType::Full, "full", "module.shared.js"),
+                (SourceMapType::Shallow, "shallow", "module.shared.js"),
+            ],
+        }
+    }
+}
 
 fn open_tt(path: &Path) -> Arc<TurboTasks<TurboTasksBackend>> {
     TurboTasks::new(TurboTasksBackend::new(
@@ -77,16 +119,19 @@ fn open_tt(path: &Path) -> Arc<TurboTasks<TurboTasksBackend>> {
     ))
 }
 
-/// The module source's content, which only ends up in the map's tail (`sourcesContent`).
+/// The module source's content, which only ends up in the map's tail (`sourcesContent`), and which
+/// source maps the module carries (an index into [`ALL`]).
 #[turbo_tasks::value]
 struct Input {
     content: State<RcStr>,
+    variants: usize,
 }
 
 #[turbo_tasks::function(operation, root)]
-fn input_operation() -> Vc<Input> {
+fn input_operation(variants: usize) -> Vc<Input> {
     Input {
         content: State::new(rcstr!("one")),
+        variants,
     }
     .cell()
 }
@@ -112,7 +157,9 @@ async fn source_file(input: ResolvedVc<Input>) -> Result<Vc<FileContent>> {
 
 #[turbo_tasks::function]
 async fn module_map(input: ResolvedVc<Input>) -> Result<Vc<ModuleMap>> {
-    let content = input.await?.content.get().clone();
+    let input_value = input.await?;
+    let content = input_value.content.get().clone();
+    let variants = ALL[input_value.variants];
     let file = source_file(*input).to_resolved().await?;
     let map = |source: &str| -> Result<SplitSourceMap> {
         let map = swc_sourcemap::SourceMap::from_slice(
@@ -134,10 +181,16 @@ async fn module_map(input: ResolvedVc<Input>) -> Result<Vc<ModuleMap>> {
         }
         Ok(SplitSourceMap::new_with_source_contents(map, &refs))
     };
+    let types = variants.types();
     Ok(ModuleMap {
-        maps: SourceMaps::Both {
-            full: map(VARIANTS[0].1)?,
-            shallow: map(VARIANTS[1].1)?,
+        maps: match variants {
+            Variants::Full => SourceMaps::Full(map(types[0].2)?),
+            Variants::Shallow => SourceMaps::Shallow(map(types[0].2)?),
+            Variants::Both => SourceMaps::Both {
+                full: map(types[0].2)?,
+                shallow: map(types[1].2)?,
+            },
+            Variants::Shared => SourceMaps::Shared(map(types[0].2)?),
         },
     }
     .cell())
@@ -160,7 +213,7 @@ async fn piece(input: ResolvedVc<Input>, prefix: RcStr) -> Result<Vc<CodeCells>>
             }
         })
         .await?;
-    let mut code = CodeBuilder::new(false, BOTH);
+    let mut code = CodeBuilder::new(false, ALL[input.await?.variants].options());
     code += "(()=>{";
     code.push_source(&Rope::from("x()"), maps)?;
     code += "})";
@@ -190,7 +243,7 @@ static COMPOSITION_EXECUTIONS: AtomicUsize = AtomicUsize::new(0);
 #[turbo_tasks::function]
 async fn composition(input: ResolvedVc<Input>) -> Result<Vc<CodeComposition>> {
     COMPOSITION_EXECUTIONS.fetch_add(1, Ordering::SeqCst);
-    let mut builder = CodeCompositionBuilder::new(false, BOTH);
+    let mut builder = CodeCompositionBuilder::new(false, ALL[input.await?.variants].options());
     builder += "[";
     for (i, prefix) in [rcstr!("a"), rcstr!("b")].into_iter().enumerate() {
         if i > 0 {
@@ -225,8 +278,8 @@ async fn map_content(input: ResolvedVc<Input>, ty: SourceMapType) -> Result<Vc<F
 async fn write_operation(fs: ResolvedVc<DiskFileSystem>, input: ResolvedVc<Input>) -> Result<()> {
     let root = fs.root().owned().await?;
     root.join("out.js")?.write(code_content(*input)).await?;
-    for (ty, source) in VARIANTS {
-        root.join(&format!("{source}.map"))?
+    for &(ty, file, _) in ALL[input.await?.variants].types() {
+        root.join(&format!("{file}.map"))?
             .write(map_content(*input, ty))
             .await?;
     }
@@ -250,12 +303,15 @@ struct PieceMaps {
     maps: Vec<ReadRef<CellRope>>,
 }
 
-/// The factories' section map cells, and checks that each references the module's tail.
+/// The factories' section map cells, and checks that each references the module's tail of its
+/// variant (a shared map's single tail once).
 #[turbo_tasks::function(operation, root)]
 async fn piece_maps_operation(input: ResolvedVc<Input>) -> Result<Vc<PieceMaps>> {
     let module = module_map(*input).await?;
-    let SourceMaps::Both { full, shallow } = &module.maps else {
-        bail!("the module has both maps");
+    let module_maps = match &module.maps {
+        SourceMaps::None => bail!("the module has a map"),
+        SourceMaps::Full(map) | SourceMaps::Shallow(map) | SourceMaps::Shared(map) => vec![map],
+        SourceMaps::Both { full, shallow } => vec![full, shallow],
     };
     let file = source_file(*input).to_resolved().await?;
     let references_file = |rope: &CellRope| {
@@ -263,7 +319,7 @@ async fn piece_maps_operation(input: ResolvedVc<Input>) -> Result<Vc<PieceMaps>>
             .any(|part| matches!(part, CellRopePart::EscapedFileContent(f) if f == file))
     };
     let mut tails = Vec::new();
-    for map in [full, shallow] {
+    for map in module_maps {
         let contents = map.contents().expect("the contents are a part");
         if !references_file(&*contents.await?) {
             bail!("the module's contents don't reference the source file");
@@ -276,7 +332,7 @@ async fn piece_maps_operation(input: ResolvedVc<Input>) -> Result<Vc<PieceMaps>>
         let cells = piece(*input, prefix).await?;
         let section_maps = cells.section_map_cells().collect::<Vec<_>>();
         if section_maps.len() != tails.len() {
-            bail!("a factory has one section map per variant");
+            bail!("a factory has one section map per distinct module map");
         }
         for (map, tail) in section_maps.into_iter().zip(&tails) {
             let map = map.await?;
@@ -304,19 +360,24 @@ async fn piece_maps(input: ResolvedVc<Input>) -> Result<Vec<ReadRef<CellRope>>> 
         .clone())
 }
 
-fn assert_files(out: &Path, content: &str) {
+fn assert_files(out: &Path, content: &str, variants: Variants) {
     assert_eq!(
         read_to_string(out.join("out.js")).unwrap(),
         "[(()=>{x()}),(()=>{x()})]"
     );
-    for (_, source) in VARIANTS {
-        let map = read_to_string(out.join(format!("{source}.map"))).unwrap();
+    for file in ["full", "shallow"] {
+        let path = out.join(format!("{file}.map"));
+        let Some(&(_, _, source)) = variants.types().iter().find(|(_, f, _)| *f == file) else {
+            assert!(!path.exists(), "{variants:?} generates no {file} map");
+            continue;
+        };
+        let map = read_to_string(path).unwrap();
         for prefix in ["a", "b"] {
             assert!(
                 map.contains(&format!(
                     r#""sources":["{prefix}/{source}"],"sourcesContent":["{content}"]"#
                 )),
-                "unexpected {source}.map: {map}"
+                "{variants:?}: unexpected {file}.map: {map}"
             );
         }
     }
@@ -324,7 +385,8 @@ fn assert_files(out: &Path, content: &str) {
 
 /// Runs session `n` (see [`factory_maps_follow_module_tail_edits_across_restores`]) and persists
 /// it.
-async fn session(cache: &Path, out: &Path, n: u32) {
+async fn session(cache: &Path, out: &Path, n: u32, variants_index: usize) {
+    let variants = ALL[variants_index];
     let tt = open_tt(cache);
     let root: RcStr = out.to_str().unwrap().into();
     let check = out.to_path_buf();
@@ -333,26 +395,27 @@ async fn session(cache: &Path, out: &Path, n: u32) {
             .resolve()
             .strongly_consistent()
             .await?;
-        let input_op = input_operation();
+        let input_op = input_operation(variants_index);
         let input = input_op.resolve().strongly_consistent().await?;
         let input_value = input_op.read_strongly_consistent().await?;
+        let assert_files = |content| assert_files(&check, content, variants);
         match n {
             // Cold.
             1 => {
                 write(fs, input).await?;
-                assert_files(&check, "one");
+                assert_files("one");
                 piece_maps(input).await?;
             }
             // Restored, then an edit to the map's tail only.
             2 => {
                 write(fs, input).await?;
-                assert_files(&check, "one");
+                assert_files("one");
                 let maps = piece_maps(input).await?;
                 let executions = COMPOSITION_EXECUTIONS.load(Ordering::SeqCst);
 
                 input_value.content.set(rcstr!("two"));
                 write(fs, input).await?;
-                assert_files(&check, "two");
+                assert_files("two");
                 assert_eq!(
                     COMPOSITION_EXECUTIONS.load(Ordering::SeqCst),
                     executions,
@@ -370,13 +433,13 @@ async fn session(cache: &Path, out: &Path, n: u32) {
             3 => {
                 input_value.content.set(rcstr!("two"));
                 write(fs, input).await?;
-                assert_files(&check, "two");
+                assert_files("two");
                 let maps = piece_maps(input).await?;
                 let executions = COMPOSITION_EXECUTIONS.load(Ordering::SeqCst);
 
                 input_value.content.set(rcstr!("three"));
                 write(fs, input).await?;
-                assert_files(&check, "three");
+                assert_files("three");
                 assert_eq!(
                     COMPOSITION_EXECUTIONS.load(Ordering::SeqCst),
                     executions,
@@ -399,13 +462,15 @@ async fn session(cache: &Path, out: &Path, n: u32) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn factory_maps_follow_module_tail_edits_across_restores() {
-    let cache = tempfile::tempdir().unwrap();
-    let out = tempfile::tempdir().unwrap();
+    for variants in 0..ALL.len() {
+        let cache = tempfile::tempdir().unwrap();
+        let out = tempfile::tempdir().unwrap();
 
-    session(cache.path(), out.path(), 1).await;
-    session(cache.path(), out.path(), 2).await;
-    for entry in std::fs::read_dir(out.path()).unwrap() {
-        std::fs::remove_file(entry.unwrap().path()).unwrap();
+        session(cache.path(), out.path(), 1, variants).await;
+        session(cache.path(), out.path(), 2, variants).await;
+        for entry in std::fs::read_dir(out.path()).unwrap() {
+            std::fs::remove_file(entry.unwrap().path()).unwrap();
+        }
+        session(cache.path(), out.path(), 3, variants).await;
     }
-    session(cache.path(), out.path(), 3).await;
 }
