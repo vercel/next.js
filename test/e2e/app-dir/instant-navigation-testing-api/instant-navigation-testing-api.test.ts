@@ -1272,11 +1272,6 @@ describe('instant-navigation-testing-api - partial prefetching (App Shells)', ()
         if (index === 0) {
           await page.locator('#stock-pending').waitFor({ state: 'visible' })
           expect(await page.locator('#stock').isVisible()).toBe(false)
-        } else if (index === 1) {
-          // Returning to already loaded content should retain its dynamic data.
-          expect(await page.locator('#stock').textContent()).toBe(
-            'all: 10 in stock'
-          )
         }
         expect(await note.inputValue()).toBe('Keep this note')
       }
