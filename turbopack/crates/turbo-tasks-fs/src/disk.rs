@@ -1425,9 +1425,13 @@ impl FileSystem for DiskFileSystem {
                             };
 
                             #[cfg(any(unix, windows))]
-                            if file.meta.permissions == crate::Permissions::Executable {
-                                // Replace the executable instead of truncating it, so a running
-                                // Unix binary can keep using the previous file.
+                            if file.meta.atomic_write
+                                || file.meta.permissions == crate::Permissions::Executable
+                            {
+                                // Replace the file instead of truncating it, so a concurrent
+                                // reader sees the previous or the new content but never a partial
+                                // file, and a running Unix binary can keep using the previous
+                                // file.
                                 let mut temporary = tempfile::NamedTempFile::new_in(
                                     path.parent().ok_or(ErrorKind::InvalidInput)?,
                                 )?;
@@ -3167,6 +3171,98 @@ mod tests {
                 )
                 .read_strongly_consistent()
                 .await?;
+
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+        }
+    }
+
+    #[cfg(unix)]
+    mod atomic_write_tests {
+        use std::{
+            fs::{metadata, read_to_string},
+            io::{Read, Seek},
+            os::unix::fs::MetadataExt,
+        };
+
+        use turbo_rcstr::{RcStr, rcstr};
+        use turbo_tasks::{Effects, Vc, read_strongly_consistent_and_apply_effects, take_effects};
+        use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+
+        use crate::{DiskFileSystem, File as TurboFile, FileContent, FileSystem, FileSystemPath};
+
+        #[turbo_tasks::function(operation, root)]
+        async fn write_file_operation(
+            path: FileSystemPath,
+            contents: RcStr,
+            atomic: bool,
+        ) -> anyhow::Result<()> {
+            let mut file = TurboFile::from_bytes(contents.to_string().into_bytes());
+            if atomic {
+                file = file.with_atomic_write();
+            }
+            path.write(FileContent::Content(file).cell()).await?;
+            Ok(())
+        }
+
+        #[turbo_tasks::function(operation, root)]
+        async fn write_effects_operation(
+            root: RcStr,
+            contents: RcStr,
+            atomic: bool,
+        ) -> anyhow::Result<Vc<Effects>> {
+            let fs = DiskFileSystem::new(rcstr!("test"), Vc::cell(root));
+            let path = fs.root().await?.join("file.txt")?;
+            let write_op = write_file_operation(path, contents, atomic);
+            write_op.read_strongly_consistent().await?;
+            Ok(take_effects(write_op).await?.cell())
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn test_atomic_write_replaces_file() {
+            let scratch = tempfile::tempdir().unwrap();
+            let root_path = std::fs::canonicalize(scratch.path()).unwrap();
+            let file_path = root_path.join("file.txt");
+            let root = RcStr::from(root_path.to_str().unwrap());
+
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+            tt.run_once(async move {
+                let write = async |contents: &str, atomic: bool| {
+                    read_strongly_consistent_and_apply_effects(
+                        write_effects_operation(root.clone(), RcStr::from(contents), atomic),
+                        |e| e,
+                    )
+                    .await
+                };
+
+                write("v1", false).await?;
+                let inode = metadata(&file_path)?.ino();
+
+                // A plain write truncates the file in place.
+                write("v2", false).await?;
+                assert_eq!(metadata(&file_path)?.ino(), inode);
+
+                // An atomic write replaces the file, so a reader that opened the previous file
+                // keeps reading the previous content.
+                let mut reader = std::fs::File::open(&file_path)?;
+                write("v3", true).await?;
+                let replaced_inode = metadata(&file_path)?.ino();
+                assert_ne!(replaced_inode, inode);
+                assert_eq!(read_to_string(&file_path)?, "v3");
+                let mut previous = String::new();
+                reader.rewind()?;
+                reader.read_to_string(&mut previous)?;
+                assert_eq!(previous, "v2");
+
+                // Unchanged content is not rewritten, even though the atomic write flag is not
+                // stored on disk.
+                write("v3", true).await?;
+                assert_eq!(metadata(&file_path)?.ino(), replaced_inode);
 
                 anyhow::Ok(())
             })
