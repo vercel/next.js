@@ -1,12 +1,16 @@
 // This wrapper function is used to safely select the best available function
 // to schedule removal of the no-FOUC styles workaround. requestAnimationFrame
-// is the ideal choice, but when used in iframes, there are no guarantees that
-// the callback will actually be called, which could stall the promise returned
-// from displayContent.
+// is the ideal choice, but when used in iframes or hidden documents (such as
+// background tabs), there are no guarantees that the callback will actually be
+// called, which could stall the promise returned from displayContent.
 //
 // See: https://www.vector-logic.com/blog/posts/on-request-animation-frame-and-embedded-iframes
 const safeCallbackQueue = (callback: () => void) => {
-  if (window.requestAnimationFrame && window.self === window.top) {
+  if (
+    window.requestAnimationFrame &&
+    window.self === window.top &&
+    document.visibilityState !== 'hidden'
+  ) {
     window.requestAnimationFrame(callback)
   } else {
     window.setTimeout(callback)

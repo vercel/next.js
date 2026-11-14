@@ -950,6 +950,15 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
     await window.__NEXT_PRELOADREADY(initialData.dynamicIds)
   }
 
+  // The router is reachable through `window.next.router` as soon as it is
+  // created, but the initial render only starts after the awaits below. A
+  // route change that rendered first would hydrate the server HTML with the
+  // next page's props, so route changes wait for the initial render to settle.
+  let settleInitialRender: () => void
+  const initialRenderSettled = new Promise<void>((resolve) => {
+    settleInitialRender = resolve
+  })
+
   router = createRouter(initialData.page, initialData.query, asPath, {
     initialProps: initialData.props,
     pageLoader,
@@ -959,15 +968,17 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
     err: initialErr,
     isFallback: Boolean(initialData.isFallback),
     subscription: (info, App, scroll) =>
-      render(
-        Object.assign<
-          {},
-          Omit<RenderRouteInfo, 'App' | 'scroll'>,
-          Pick<RenderRouteInfo, 'App' | 'scroll'>
-        >({}, info, {
-          App,
-          scroll,
-        }) as RenderRouteInfo
+      initialRenderSettled.then(() =>
+        render(
+          Object.assign<
+            {},
+            Omit<RenderRouteInfo, 'App' | 'scroll'>,
+            Pick<RenderRouteInfo, 'App' | 'scroll'>
+          >({}, info, {
+            App,
+            scroll,
+          }) as RenderRouteInfo
+        )
       ),
     locale: initialData.locale,
     locales: initialData.locales,
@@ -991,5 +1002,5 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
     await opts.beforeRender()
   }
 
-  render(renderCtx)
+  render(renderCtx).finally(() => settleInitialRender())
 }
