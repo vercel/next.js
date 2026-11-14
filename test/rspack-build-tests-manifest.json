@@ -9121,19 +9121,19 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/rsc-basic/rsc-basic-blocking-ssr.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "react@experimental - blockingSSR should opt into the react@experimental channel when blockingSSR is enabled"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/rsc-basic/rsc-basic-react-experimental.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "react@experimental should opt into the react@experimental when enabling $flag"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
