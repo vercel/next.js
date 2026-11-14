@@ -1,13 +1,16 @@
 use anyhow::{Result, bail};
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{OptionVcExt, ResolvedVc, TryJoinIterExt, ValueToStringRef, Vc};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath, FileSystemPathOption,
     RealPathErrorType,
 };
 
-use crate::next_import_map::get_next_package;
+use crate::{
+    next_import_map::get_next_package,
+    route_discovery::{AuthoredFile, DevelopmentDiscovery, OptionDevelopmentDiscovery},
+};
 
 /// A final route in the pages directory.
 #[turbo_tasks::value]
@@ -87,6 +90,8 @@ pub struct PagesDirectoryStructure {
     pub next_router_path: FileSystemPath,
     pub items: Vec<ResolvedVc<PagesStructureItem>>,
     pub children: Vec<ResolvedVc<PagesDirectoryStructure>>,
+    /// Every authored candidate, before extension precedence chooses a module.
+    pub authored_files: Vec<AuthoredFile>,
 }
 
 #[turbo_tasks::value_impl]
@@ -161,6 +166,7 @@ async fn get_pages_structure_for_root_directory(
     let pages_directory = if let Some(project_path) = &*project_path {
         let mut children = vec![];
         let mut items = vec![];
+        let mut authored_files = Vec::new();
 
         let dir_content = project_path.read_dir().await?;
         if let DirectoryContent::Entries(entries) = &*dir_content {
@@ -175,6 +181,17 @@ async fn get_pages_structure_for_root_directory(
                         let Some(basename) = page_basename(name, page_extensions_raw) else {
                             continue;
                         };
+                        authored_files.push(AuthoredFile {
+                            kind: rcstr!("pages"),
+                            original_name: format!(
+                                "/{}",
+                                next_router_path_for_basename(next_router_path.clone(), basename)?
+                                    .path
+                            )
+                            .into(),
+                            source: project_path.join(name)?,
+                            runtime_pathname: None,
+                        });
                         let base_path = project_path.join(basename)?;
                         match basename {
                             "_app" | "_document" | "_error" => {}
@@ -252,6 +269,7 @@ async fn get_pages_structure_for_root_directory(
             PagesDirectoryStructure {
                 project_path: project_path.clone(),
                 next_router_path: next_router_path.clone(),
+                authored_files,
                 items: items
                     .into_iter()
                     .map(|(_, v)| v.to_resolved())
@@ -347,11 +365,15 @@ async fn get_pages_structure_for_directory(
 
         let mut children = vec![];
         let mut items = vec![];
+        let mut authored_files = Vec::new();
         let dir_content = project_path.read_dir().await?;
         if let DirectoryContent::Entries(entries) = &*dir_content {
             for (name, entry) in entries.iter() {
                 match entry {
                     DirectoryEntry::File(_) => {
+                        if name.ends_with(".d.ts") {
+                            continue;
+                        }
                         let Some(basename) = page_basename(name, page_extensions_raw) else {
                             continue;
                         };
@@ -359,6 +381,18 @@ async fn get_pages_structure_for_directory(
                             "index" => next_router_path.clone(),
                             _ => next_router_path.join(basename)?,
                         };
+                        authored_files.push(AuthoredFile {
+                            kind: if next_router_path.path == "api"
+                                || next_router_path.path.starts_with("api/")
+                            {
+                                rcstr!("pages-api")
+                            } else {
+                                rcstr!("pages")
+                            },
+                            original_name: format!("/{}", item_next_router_path.path).into(),
+                            source: project_path.join(name)?,
+                            runtime_pathname: None,
+                        });
                         let base_path = project_path.join(name)?;
                         let item_original_name = next_router_path.join(basename)?;
                         items.push((
@@ -396,6 +430,7 @@ async fn get_pages_structure_for_directory(
         Ok(PagesDirectoryStructure {
             project_path: project_path.clone(),
             next_router_path: next_router_path.clone(),
+            authored_files,
             items: items
                 .into_iter()
                 .map(|(_, v)| v)
@@ -430,4 +465,42 @@ fn next_router_path_for_basename(
     } else {
         next_router_path.join(basename)?
     })
+}
+
+/// Retains authored files even when no executable Pages endpoint exists yet.
+#[turbo_tasks::function]
+pub async fn development_discovery(
+    structure: Vc<PagesStructure>,
+) -> Result<Vc<OptionDevelopmentDiscovery>> {
+    let structure = structure.await?;
+    let mut discovery = DevelopmentDiscovery::default();
+    let mut queue: Vec<_> = structure
+        .pages
+        .iter()
+        .chain(structure.api.iter())
+        .copied()
+        .collect();
+    while let Some(directory) = queue.pop() {
+        let directory = directory.await?;
+        for candidate in &directory.authored_files {
+            if matches!(
+                candidate.original_name.as_str(),
+                "/_app" | "/_document" | "/_error"
+            ) && !discovery
+                .authored_pages_special_routes
+                .contains(&candidate.original_name)
+            {
+                discovery
+                    .authored_pages_special_routes
+                    .push(candidate.original_name.clone());
+            }
+            discovery.files.push(candidate.clone());
+        }
+        queue.extend(directory.children.iter().copied());
+    }
+    discovery
+        .files
+        .sort_by(|a, b| a.source.path.cmp(&b.source.path));
+    discovery.authored_pages_special_routes.sort();
+    Ok(Vc::cell(Some(discovery)))
 }

@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
+import { retry } from 'next-test-utils'
 
 describe('proxy-runtime', () => {
   const { next, isNextDev, isTurbopack } = nextTestSetup({
@@ -47,6 +48,40 @@ describe('proxy-runtime', () => {
 
     if (isNextDev) await next.stop()
   }, 240_000)
+
+  // @force-gate dev
+  it('reports unsupported Proxy runtime configuration after a file edit', async () => {
+    await next.stop()
+    const original = await next.readFile('proxy.ts')
+    const valid = 'export default function proxy() {}\n'
+    try {
+      await next.patchFile('proxy.ts', valid)
+      await next.start()
+      expect((await next.fetch('/')).status).toBe(200)
+      const previousOutputLength = next.cliOutput.length
+
+      // Native compilation accepts Node.js, but Proxy forbids an explicit
+      // runtime config. The diagnostic must appear without a request/restart.
+      await next.patchFile(
+        'proxy.ts',
+        valid + "export const config = { runtime: 'nodejs' }\n"
+      )
+      await retry(() => {
+        expect(next.cliOutput.slice(previousOutputLength)).toContain(
+          'Route segment config is not allowed in Proxy file at "./proxy.ts". Proxy always runs on Node.js runtime.'
+        )
+      })
+      expect((await next.fetch('/')).status).toBe(200)
+
+      await next.patchFile('proxy.ts', valid)
+      await retry(async () => {
+        expect((await next.fetch('/')).status).toBe(200)
+      })
+    } finally {
+      await next.stop()
+      await next.patchFile('proxy.ts', original)
+    }
+  })
 })
 
 // Deployment logs prefix every line with a timestamp, drop code-frame

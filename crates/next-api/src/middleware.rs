@@ -4,6 +4,7 @@ use anyhow::{Context, Result};
 use next_core::{
     app_structure::FileSystemPathVec,
     middleware::get_middleware_module,
+    next_config::NextConfig,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{EdgeFunctionDefinition, MiddlewaresManifestV2, ProxyMatcher, Regions},
     segment_config::{NextSegmentConfig, NextSegmentRegion},
@@ -39,6 +40,31 @@ use crate::{
     project::Project,
     route::{Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs},
 };
+
+#[turbo_tasks::value(transparent)]
+pub struct MiddlewareMatchers(pub Vec<ProxyMatcher>);
+
+/// Matchers are needed by development routing for both Node.js and Edge middleware. Keep their
+/// configuration expansion shared with the Edge manifest, even when Node.js emits no such entry.
+#[turbo_tasks::function]
+pub async fn get_middleware_matchers(
+    next_config: Vc<NextConfig>,
+    config: Vc<NextSegmentConfig>,
+) -> Result<Vc<MiddlewareMatchers>> {
+    let i18n = next_config.i18n().await?;
+    let base_path = next_config.base_path().await?;
+    let matchers = config
+        .await?
+        .get_proxy_matchers(i18n.is_some(), i18n.is_some(), base_path.as_deref())
+        .unwrap_or_else(|| {
+            vec![ProxyMatcher {
+                regexp: Some(rcstr!("^/.*$")),
+                original_source: rcstr!("/:path*"),
+                ..Default::default()
+            }]
+        });
+    Ok(Vc::cell(matchers))
+}
 
 #[turbo_tasks::value]
 pub struct MiddlewareEndpoint {
@@ -158,21 +184,9 @@ impl MiddlewareEndpoint {
         let this = self.await?;
         let config = this.config.await?;
 
-        let next_config = this.project.next_config();
-        let i18n = next_config.i18n().await?;
-        let has_i18n = i18n.is_some();
-        let has_i18n_locales = i18n.is_some();
-        let base_path = next_config.base_path().await?;
-
-        let matchers = config
-            .get_proxy_matchers(has_i18n, has_i18n_locales, base_path.as_deref())
-            .unwrap_or_else(|| {
-                vec![ProxyMatcher {
-                    regexp: Some(rcstr!("^/.*$")),
-                    original_source: rcstr!("/:path*"),
-                    ..Default::default()
-                }]
-            });
+        let matchers = get_middleware_matchers(this.project.next_config(), *this.config)
+            .owned()
+            .await?;
 
         if matches!(this.runtime, NextRuntime::NodeJs) {
             let chunk = self.node_chunk().to_resolved().await?;

@@ -163,6 +163,7 @@ impl PagesProject {
                     ref children,
                     next_router_path: _,
                     project_path: _,
+                    authored_files: _,
                 } = *dir.await?;
                 for &item in items.iter() {
                     add_page_to_routes(routes, *item, &make_route).await?;
@@ -299,6 +300,23 @@ impl PagesProject {
     #[turbo_tasks::function]
     fn project(&self) -> Vc<Project> {
         *self.project
+    }
+
+    #[turbo_tasks::function]
+    pub async fn has_typescript_files(self: Vc<Self>) -> Result<Vc<bool>> {
+        if let Some(pages) = self.pages_structure().await?.pages {
+            return Ok(next_core::route_discovery::has_typescript_files(
+                pages.await?.project_path.clone(),
+            ));
+        }
+        Ok(Vc::cell(false))
+    }
+
+    #[turbo_tasks::function]
+    pub fn development_discovery(
+        self: Vc<Self>,
+    ) -> Vc<next_core::route_discovery::OptionDevelopmentDiscovery> {
+        next_core::pages_structure::development_discovery(self.pages_structure())
     }
 
     #[turbo_tasks::function]
