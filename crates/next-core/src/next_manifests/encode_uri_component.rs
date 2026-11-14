@@ -1,4 +1,4 @@
-use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
+use percent_encoding::{AsciiSet, CONTROLS, PercentEncode, utf8_percent_encode};
 
 /// An `AsciiSet` that matches the behavior of JavaScript's `encodeURIComponent`.
 /// - It leaves `A-Z a-z 0-9 - _ . ~` unescaped.
@@ -37,13 +37,62 @@ const ENCODE_URI_COMPONENT_SET: &AsciiSet = &CONTROLS
     // .add(b'~');
     .add(b'}');
 
-pub fn encode_uri_component(input: &str) -> String {
-    utf8_percent_encode(input, ENCODE_URI_COMPONENT_SET).to_string()
+/// Like [`ENCODE_URI_COMPONENT_SET`], but leaves `/` unescaped.
+const ENCODE_URI_PATH_SET: &AsciiSet = &ENCODE_URI_COMPONENT_SET.remove(b'/');
+
+/// Encodes each `/`-separated segment of `path` like JavaScript's `encodeURIComponent`, keeping the
+/// `/` separators. Equivalent to `path.split('/').map(encodeURIComponent).join('/')`.
+///
+/// This returns a lazy [`std::fmt::Display`] adapter rather than a `String`, so callers can write
+/// it straight into their output buffer. When nothing needs escaping (the common case) the input is
+/// written through as a single borrowed slice, so this never allocates.
+pub fn encode_uri_path(path: &str) -> PercentEncode<'_> {
+    utf8_percent_encode(path, ENCODE_URI_PATH_SET)
 }
 
 #[cfg(test)]
 mod tests {
+    use std::borrow::Cow;
+
+    use itertools::Itertools;
+
     use super::*;
+
+    fn encode_uri_component(input: &str) -> String {
+        utf8_percent_encode(input, ENCODE_URI_COMPONENT_SET).to_string()
+    }
+
+    #[test]
+    fn test_encode_uri_path_matches_per_segment_encoding() {
+        for input in [
+            "",
+            "/",
+            "//",
+            "static/chunks/app/page.js",
+            "/static/chunks/[root of the server]__abc123._.js",
+            "static/chunks/(group)/a b/c%d/é/page.js",
+            "a/b?c#d/e&f=g",
+        ] {
+            let expected = input.split('/').map(encode_uri_component).join("/");
+            assert_eq!(
+                encode_uri_path(input).to_string(),
+                expected,
+                "input='{input}'"
+            );
+        }
+    }
+
+    #[test]
+    fn test_encode_uri_path_noop_borrows() {
+        let input = "static/chunks/app/(group)/page-0123abcd.js";
+        let mut chunks = encode_uri_path(input);
+        assert_eq!(chunks.next(), Some(input));
+        assert_eq!(chunks.next(), None);
+        assert!(matches!(
+            Cow::from(encode_uri_path(input)),
+            Cow::Borrowed(_)
+        ));
+    }
 
     #[test]
     fn test_encode_uri_component() {
