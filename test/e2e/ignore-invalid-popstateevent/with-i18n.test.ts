@@ -82,4 +82,29 @@ describe('i18n: Event with stale state - static route previously was dynamic', (
     await emitPopsStateEvent(browser, state)
     await check(() => browser.elementByCss('#page-type').text(), 'dynamic')
   })
+
+  test('Ignore popstate back to initial entry for non-default locale', async () => {
+    const browser = await next.browser('/sv/static')
+
+    await browser.eval(`(() => {
+      window.__routeChanges = 0
+      window.next.router.events.on('routeChangeStart', () => {
+        window.__routeChanges++
+      })
+    })()`)
+
+    // Push an in-page state (e.g. modal / hash change)
+    await browser.eval(`(() => {
+      window.history.pushState(null, '', '/sv/static#modal')
+    })()`)
+
+    // Navigate back to the initial entry
+    await browser.eval(`(() => {
+      window.history.back()
+    })()`)
+
+    await waitFor(1000)
+    expect(await browser.eval('window.__routeChanges')).toBe(0)
+    expect(await browser.elementByCss('#page-type').text()).toBe('static')
+  })
 })

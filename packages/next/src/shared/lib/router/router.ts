@@ -1022,8 +1022,11 @@ export default class Router implements BaseRouter {
     // can be caused by navigating back from an external site
     if (
       this.isSsr &&
-      as === addBasePath(this.asPath) &&
-      pathname === addBasePath(this.pathname)
+      as ===
+        addBasePath(
+          addLocale(this.asPath, this.locale, this.defaultLocale)
+        ) &&
+      (pathname === addBasePath(this.pathname) || url === as)
     ) {
       return
     }
