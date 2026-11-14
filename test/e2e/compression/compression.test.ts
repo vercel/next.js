@@ -39,7 +39,7 @@ describe('Compression', () => {
     expect(body).toBe('x'.repeat(2048))
   })
 
-  it('should compress route handler responses below 1kb', async () => {
+  it('should not compress route handler responses below 1kb', async () => {
     const { response, body } = await fetchCompressed(next, '/route-small')
 
     if (await gate('cacheComponents && (deploy || adapter)')) {
@@ -47,11 +47,17 @@ describe('Compression', () => {
       // the deployment serves the buffered body with a Content-Length
       // below the 1kb compression threshold, so it is not compressed.
       expect(response.headers.get('content-encoding')).toBeNull()
-    } else {
+    } else if (await gate('deploy || adapter')) {
       expect(response.headers.get('content-encoding')).toBe('gzip')
-      // Route handler responses stream without a Content-Length, so the
-      // 1kb compression threshold never engages.
+      // The deployment streams the response without a Content-Length, so
+      // the 1kb compression threshold never engages.
       expect(response.headers.get('content-length')).toBeNull()
+    } else {
+      // The body is complete when the response starts, so the server sends
+      // it with a Content-Length, which is below the 1kb compression
+      // threshold.
+      expect(response.headers.get('content-encoding')).toBeNull()
+      expect(response.headers.get('content-length')).toBe('100')
     }
     expect(body).toBe('x'.repeat(100))
   })
@@ -67,16 +73,24 @@ describe('Compression', () => {
     expect(body).toBe('x'.repeat(2048))
   })
 
-  it('should compress dynamic route handler responses below 1kb', async () => {
+  it('should not compress dynamic route handler responses below 1kb', async () => {
     const { response, body } = await fetchCompressed(
       next,
       '/route-dynamic-small'
     )
 
-    expect(response.headers.get('content-encoding')).toBe('gzip')
-    // Dynamic route handlers stream without a Content-Length, so the
-    // 1kb compression threshold never engages.
-    expect(response.headers.get('content-length')).toBeNull()
+    if (await gate('deploy || adapter')) {
+      expect(response.headers.get('content-encoding')).toBe('gzip')
+      // The deployment streams the response without a Content-Length, so
+      // the 1kb compression threshold never engages.
+      expect(response.headers.get('content-length')).toBeNull()
+    } else {
+      // The body is complete when the response starts, so the server sends
+      // it with a Content-Length, which is below the 1kb compression
+      // threshold.
+      expect(response.headers.get('content-encoding')).toBeNull()
+      expect(response.headers.get('content-length')).toBe('100')
+    }
     expect(body).toBe('x'.repeat(100))
   })
 })
