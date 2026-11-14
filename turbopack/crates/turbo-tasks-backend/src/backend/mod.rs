@@ -505,6 +505,21 @@ impl TurboTasksBackend {
             .unwrap_or(0)
     }
 
+    /// The number of hashed keyed dependents (dependency edges of readers on keys of its cells,
+    /// `cell_dependents_keyed`) of a task, restoring it if needed. Test-only hook.
+    #[doc(hidden)]
+    pub fn keyed_cell_dependents_count_for_testing(
+        &self,
+        task: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> usize {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let Some(task) = ctx.try_task(task, TaskDataCategory::Data) else {
+            return 0;
+        };
+        task.iter_cell_dependents_keyed().count()
+    }
+
     /// The effective aggregation number of a task (`None` if it doesn't exist). `u32::MAX` means
     /// the task is an aggregation root. Test-only hook.
     #[doc(hidden)]
@@ -1241,7 +1256,7 @@ impl TurboTasksBackend {
         cell: CellId,
         reader: TaskId,
         id: u32,
-        key_hashes: &mut dyn Iterator<Item = u64>,
+        key_hashes: impl IntoIterator<Item = u64, IntoIter: Clone>,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) {
         if !self.should_track_dependencies() || reader == task_id {
@@ -1266,13 +1281,34 @@ impl TurboTasksBackend {
         if immutable {
             return;
         }
-        for k in key_hashes {
+        // Many readers can refine their dependencies on the same cell at once, all serialized on
+        // the owner task's lock. So the owner side is updated first, and the owner is released
+        // before the reader side is updated. The reader stays locked until its side is complete:
+        // an `update_cell` that collects the new owner-side edges in the meantime blocks on the
+        // reader, and then finds the edges on the reader side as well (see the same ordering in
+        // `add_cell_dependency` of `try_read_task_cell`). The keys are iterated once per side, so
+        // they don't need to be buffered.
+        //
+        // Only a new forward edge needs its reverse edge, see `try_read_task_cell`. While the
+        // reader is locked, its edges can't change, so the owner side can decide that from the
+        // reader side without changing it yet. This relies on `key_hashes` being distinct: the
+        // forward edges are only added after the owner pass, so a duplicate key would push its
+        // reverse edge twice.
+        reader_task.cell_dependencies_keyed_inflate();
+        let key_hashes = key_hashes.into_iter();
+        for k in key_hashes.clone() {
             let key = CellKey::hash(k);
-            // Only a new forward edge needs its reverse edge, see `try_read_task_cell`.
-            if !reader_task.remove_outdated_cell_dependencies_keyed(&(target, key))
-                && reader_task.add_cell_dependencies_keyed((target, key))
+            if !reader_task.outdated_cell_dependencies_keyed_contains(&(target, key))
+                && !reader_task.cell_dependencies_keyed_contains(&(target, key))
             {
                 task.add_keyed_cell_dependent((reverse, key));
+            }
+        }
+        drop(task);
+        for k in key_hashes {
+            let key = CellKey::hash(k);
+            if !reader_task.remove_outdated_cell_dependencies_keyed(&(target, key)) {
+                let _ = reader_task.add_cell_dependencies_keyed((target, key));
             }
         }
     }
@@ -4175,7 +4211,7 @@ impl Backend for TurboTasksBackend {
         cell: CellId,
         reader: TaskId,
         id: u32,
-        key_hashes: &mut dyn Iterator<Item = u64>,
+        key_hashes: impl IntoIterator<Item = u64, IntoIter: Clone>,
         turbo_tasks: &TurboTasks<Self>,
     ) {
         self.refine_provisional_cell_dependency(task_id, cell, reader, id, key_hashes, turbo_tasks)
