@@ -17,6 +17,13 @@ export interface I18nConfig {
 }
 
 /**
+ * Returns the hostname of a configured domain, without its port
+ */
+export function getDomainHostname(domain: I18nDomain): string {
+  return domain.domain.split(':', 1)[0].toLowerCase()
+}
+
+/**
  * Detects the domain locale based on hostname or detected locale
  */
 export function detectDomainLocale(
@@ -30,8 +37,7 @@ export function detectDomainLocale(
   const normalizedLocale = detectedLocale?.toLowerCase()
 
   for (const domain of domains) {
-    // Remove port if present
-    const domainHostname = domain.domain.split(':', 1)[0].toLowerCase()
+    const domainHostname = getDomainHostname(domain)
 
     if (
       normalizedHostname === domainHostname ||
