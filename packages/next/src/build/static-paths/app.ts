@@ -394,13 +394,19 @@ function validateParams(
       // parameter or not.
       if (repeat) {
         if (!Array.isArray(paramValue)) {
-          throw new Error(
-            `A required parameter (${key}) was not provided as an array received ${typeof paramValue} in generateStaticParams for ${page}`
+          throw new TypeError(
+            `A required parameter (${key}) was not provided as an array of strings received ${typeof paramValue} in generateStaticParams for ${page}`
+          )
+        }
+
+        if (paramValue.some((param) => typeof param !== 'string')) {
+          throw new TypeError(
+            `A required parameter (${key}) was not provided as an array of strings received an array of non-string values in generateStaticParams for ${page}`
           )
         }
       } else {
         if (typeof paramValue !== 'string') {
-          throw new Error(
+          throw new TypeError(
             `A required parameter (${key}) was not provided as a string received ${typeof paramValue} in generateStaticParams for ${page}`
           )
         }
