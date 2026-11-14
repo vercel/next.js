@@ -10,6 +10,7 @@ import { isDynamicRoute } from '../shared/lib/router/utils'
 import { interpolateAs } from '../shared/lib/router/utils/interpolate-as'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
+import { parsePath } from '../shared/lib/router/utils/parse-path'
 
 /**
  * Resolves a given hyperlink with a certain router state (basePath not included).
@@ -71,7 +72,11 @@ export function resolveHref(
         baseBase = router.pathname
 
         const routeRegex = getRouteRegex(router.pathname)
-        const match = getRouteMatcher(routeRegex)(router.asPath)
+        // The route regex is anchored, so match against the pathname only:
+        // with a query in asPath, "/[id]/detail" never matched "/a/detail?x=1".
+        const match = getRouteMatcher(routeRegex)(
+          parsePath(router.asPath).pathname
+        )
 
         // For dynamic routes, if asPath doesn't match the pathname regex, it is a rewritten path.
         // In this case, should use asPath to preserve the current URL.
