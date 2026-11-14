@@ -318,6 +318,17 @@ describe('next/font', () => {
         )
       ).toMatch(/^"Open Sans", .*system-ui.*, Arial$/)
     })
+
+    test('google font with adjustFontFallback: false', async () => {
+      const browser = await next.browser('/without-adjust-font-fallback')
+
+      // No automatic fallback font is added to the font stack
+      expect(
+        await browser.eval(
+          'getComputedStyle(document.querySelector("#without-adjust-font-fallback")).fontFamily'
+        )
+      ).toBe('"Open Sans"')
+    })
   })
 
   describe('preload', () => {
@@ -432,6 +443,25 @@ describe('next/font', () => {
       expect(attributes.rel).toBe('preload')
       expect(attributes.type).toBe('font/woff2')
       expect(attributes['data-next-font']).toBe('size-adjust')
+    })
+
+    test('google font with adjustFontFallback: false', async () => {
+      const html = await renderViaHTTP(
+        next.url,
+        '/without-adjust-font-fallback'
+      )
+      const $ = cheerio.load(html)
+      const links = Array.from($('link[as="font"]')).map((node) => node.attribs)
+
+      // From _app (size-adjusted) and from the page (not size-adjusted)
+      expect(links.length).toBe(2)
+      expect(links.map((link) => link['data-next-font']).sort()).toEqual([
+        '',
+        'size-adjust',
+      ])
+      const attributes = links.find((link) => link['data-next-font'] === '')
+      hrefMatchesFontWithoutSizeAdjust(attributes.href)
+      expect(attributes.href).not.toMatch(/-s\.p\./)
     })
 
     test('font without size adjust', async () => {
