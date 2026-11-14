@@ -135,6 +135,7 @@ import {
   JSON_CONTENT_TYPE_HEADER,
   MATCHED_PATH_HEADER,
   NEXT_RESUME_HEADER,
+  PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
 } from '../lib/constants'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { matchNextDataPathname } from './lib/match-next-data-pathname'
@@ -3615,6 +3616,12 @@ export default abstract class Server<
       }
       addRequestMeta(req, 'defaultLocale', this.nextConfig.i18n.defaultLocale)
     }
+
+    // On-demand revalidation with `unstable_onlyGenerated` asks for a 404 when
+    // the requested path has no cache entry. The not-found page renders with
+    // the same request and must not be asked the same about itself: without a
+    // cache entry of its own it would call `render404()` again, without end.
+    delete req.headers[PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER]
 
     res.statusCode = 404
     return this.renderError(null, req, res, pathname!, query, setHeaders)
