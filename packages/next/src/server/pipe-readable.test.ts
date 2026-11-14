@@ -4,6 +4,7 @@
  */
 import type { AddressInfo } from 'node:net'
 
+import { Socket } from 'node:net'
 import { EventEmitter } from 'node:events'
 import http from 'node:http'
 import zlib from 'node:zlib'
@@ -145,9 +146,140 @@ describe('pipeNodeReadableToNodeResponse', () => {
     process.off('warning', onWarning)
     tracker.restore()
     if (server) {
+      server.closeAllConnections()
       await new Promise<void>((resolve) => server!.close(() => resolve()))
       server = undefined
     }
+  })
+
+  it.each([
+    ['before attachment', 'error'],
+    ['before attachment', 'close'],
+    ['during streaming', 'error'],
+    ['during streaming', 'close'],
+  ] as const)(
+    'terminates the response on %s source %s',
+    async (when, event) => {
+      const readable = new PassThrough()
+      const failure = new Error('fatal HTML source failure')
+      // A pipeline retains its error after emitting it; the response consumer
+      // must still terminate when it attaches later.
+      readable.on('error', () => {})
+      if (when === 'before attachment') {
+        readable.destroy(event === 'error' ? failure : undefined)
+        await new Promise<void>((resolve) => setImmediate(resolve))
+      }
+
+      let response: http.ServerResponse
+      let settled = false
+      let piping: Promise<void>
+      let attached: () => void
+      const attachment = new Promise<void>((resolve) => {
+        attached = resolve
+      })
+      server = http.createServer((_req, res) => {
+        response = res
+        piping = pipeNodeReadableToNodeResponse(readable, res).then(() => {
+          settled = true
+        })
+        attached()
+      })
+      const url = await listen(server)
+      const request = http.get(url, (res) => {
+        res.on('error', () => {})
+        res.resume()
+      })
+      request.on('error', () => {})
+      try {
+        await attachment
+        if (when === 'during streaming') {
+          readable.write('partial HTML')
+          readable.destroy(event === 'error' ? failure : undefined)
+        }
+        for (let i = 0; i < 10; i++) {
+          await new Promise<void>((resolve) => setImmediate(resolve))
+        }
+
+        expect(settled).toBe(true)
+        expect(response!.destroyed).toBe(true)
+        await piping!
+      } finally {
+        request.destroy()
+        readable.destroy()
+      }
+    }
+  )
+
+  it('cancels the source when the response was already destroyed', async () => {
+    const readable = new PassThrough()
+    const req = new http.IncomingMessage(new Socket())
+    const res = new http.ServerResponse(req)
+    res.destroy()
+
+    await pipeNodeReadableToNodeResponse(readable, res)
+    expect(readable.destroyed).toBe(true)
+  })
+
+  it('waits for background work before ending a healthy response', async () => {
+    let complete: () => void
+    const waitUntil = new Promise<void>((resolve) => {
+      complete = resolve
+    })
+    let response: http.ServerResponse
+    let piping: Promise<void>
+    server = http.createServer((_req, res) => {
+      response = res
+      piping = pipeNodeReadableToNodeResponse(
+        Readable.from(['hello']),
+        res,
+        waitUntil
+      )
+    })
+    const url = await listen(server)
+    let firstChunk: () => void
+    const chunk = new Promise<void>((resolve) => {
+      firstChunk = resolve
+    })
+    const body = new Promise<string>((resolve, reject) => {
+      http
+        .get(url, (res) => {
+          let text = ''
+          res.on('data', (value) => {
+            text += value.toString()
+            firstChunk()
+          })
+          res.on('end', () => resolve(text))
+          res.on('error', reject)
+        })
+        .on('error', reject)
+    })
+    await chunk
+    expect(response!.writableEnded).toBe(false)
+    complete!()
+    expect(await body).toBe('hello')
+    await piping!
+  })
+
+  it('cancels the source when the client disconnects', async () => {
+    const readable = new PassThrough()
+    const closed = new Promise<void>((resolve) =>
+      readable.once('close', resolve)
+    )
+    let piping: Promise<void>
+    server = http.createServer((_req, res) => {
+      piping = pipeNodeReadableToNodeResponse(readable, res)
+      readable.write('shell')
+    })
+    const url = await listen(server)
+    const request = http.get(url, (res) => {
+      res.on('error', () => {})
+      res.once('data', () => request.destroy())
+      res.resume()
+    })
+    request.on('error', () => {})
+    await closed
+    await piping!
+    expect(readable.destroyed).toBe(true)
   })
 
   it('reuses one gzip drain listener across many backpressured writes', async () => {

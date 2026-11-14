@@ -159,8 +159,24 @@ export async function pipeNodeReadableToNodeResponse(
   clientComponentLoadTracker?: ClientComponentLoadTracker
 ) {
   try {
+    // This module is also imported by the Edge response path. Keep the Node
+    // dependency behind a compile-time guard so it is eliminated there.
+    let onStreamFinished: typeof import('node:stream').finished
+    if (process.env.NEXT_RUNTIME === 'edge') {
+      throw new Error(
+        'Invariant: cannot pipe a Node.js stream in the Edge runtime'
+      )
+    } else {
+      onStreamFinished = (
+        require('node:stream') as typeof import('node:stream')
+      ).finished
+    }
+
     const { errored, destroyed } = res
-    if (errored || destroyed) return
+    if (errored || destroyed) {
+      readable.destroy()
+      return
+    }
 
     let started = false
 
@@ -252,27 +268,33 @@ export async function pipeNodeReadableToNodeResponse(
       }
     })
 
-    readable.on('end', async () => {
-      if (waitUntilForEnd) {
-        await waitUntilForEnd
-      }
+    // finished() observes terminal state as well as future events. The render
+    // pipeline can fail before this consumer attaches, and a premature close
+    // does not emit 'end'. Waiting only for 'end'/'error' would hang in either
+    // case. Only the readable side matters for a final Transform.
+    onStreamFinished(
+      readable,
+      { readable: true, writable: false },
+      async (err) => {
+        if (err) {
+          if (!isAbortError(err)) {
+            res.destroy(err)
+          }
+          finished.resolve()
+          return
+        }
 
-      if (!res.writableFinished) {
-        res.end()
-      }
+        if (waitUntilForEnd) {
+          await waitUntilForEnd
+        }
 
-      finished.resolve()
-    })
+        if (!res.writableFinished) {
+          res.end()
+        }
 
-    readable.on('error', (err) => {
-      if (isAbortError(err)) {
         finished.resolve()
-        return
       }
-
-      res.destroy(err)
-      finished.resolve()
-    })
+    )
 
     await finished.promise
   } catch (err: any) {
