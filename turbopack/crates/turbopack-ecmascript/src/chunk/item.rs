@@ -280,9 +280,8 @@ pub(crate) enum ChunkItemFactoryContent {
 }
 
 /// The content of a chunk item as it goes into a chunk, so that chunk size estimation and code
-/// generation agree on what a chunk item is: minified per item when `minify` asks for it
-/// (see [`ChunkMinification::per_item`](crate::chunk::ChunkMinification)), the raw content
-/// otherwise.
+/// generation agree on what a chunk item is: minified on its own when `minify` asks for it, the raw
+/// content otherwise.
 ///
 /// Fails if the content failed to generate. Callers decide what that means: sizing counts the item
 /// as empty, code generation falls back to [`EcmascriptChunkItemExt::code`], which reports the

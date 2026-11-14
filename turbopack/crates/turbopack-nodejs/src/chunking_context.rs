@@ -81,12 +81,6 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
-    /// EXPERIMENTAL. See [`ChunkingContext::minify_before_chunking`].
-    pub fn minify_before_chunking(mut self, minify_before_chunking: bool) -> Self {
-        self.chunking_context.minify_before_chunking = minify_before_chunking;
-        self
-    }
-
     pub fn source_map_generation_options(mut self, options: SourceMapGenerationOptions) -> Self {
         self.chunking_context.source_map_generation_options = Some(options);
         self
@@ -240,9 +234,6 @@ pub struct NodeJsChunkingContext {
     enable_dynamic_chunk_content_loading: bool,
     /// Whether to minify resulting chunks
     minify_type: MinifyType,
-    /// EXPERIMENTAL: minify each chunk item before the chunk is assembled, rather than minifying
-    /// the finished chunk. See [`ChunkingContext::minify_before_chunking`].
-    minify_before_chunking: bool,
     /// Whether to generate source maps
     emitted_source_map_type: Option<SourceMapType>,
     source_map_generation_options: Option<SourceMapGenerationOptions>,
@@ -303,7 +294,6 @@ impl NodeJsChunkingContext {
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
-                minify_before_chunking: false,
                 emitted_source_map_type: Some(SourceMapType::Full),
                 source_map_generation_options: None,
                 manifest_chunks: false,
@@ -466,11 +456,6 @@ impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     pub fn minify_type(&self) -> Vc<MinifyType> {
         self.minify_type.cell()
-    }
-
-    #[turbo_tasks::function]
-    fn minify_before_chunking(&self) -> Vc<bool> {
-        Vc::cell(self.minify_before_chunking)
     }
 
     #[turbo_tasks::function]

@@ -187,7 +187,6 @@ pub struct EdgeChunkingContextOptions {
     pub source_map_generation_options: Vc<SourceMapGenerationOptions>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
-    pub minify_before_chunking: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
     pub client_root: FileSystemPath,
     pub client_static_folder_name: RcStr,
@@ -217,7 +216,6 @@ pub async fn get_edge_chunking_context_with_client_assets(
         source_map_generation_options,
         no_mangling,
         scope_hoisting,
-        minify_before_chunking,
         nested_async_chunking,
         client_root,
         client_static_folder_name,
@@ -275,7 +273,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
     .worker_forwarded_globals(worker_forwarded_globals());
 
     if !next_mode.is_development() {
-        let defaults = ChunkSizeDefaults::new(*turbo_minify.await?, *minify_before_chunking.await?);
+        let defaults = ChunkSizeDefaults::new(*turbo_minify.await?);
         builder = builder
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
@@ -293,8 +291,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?)
-            .minify_before_chunking(*minify_before_chunking.await?);
+            .module_merging(*scope_hoisting.await?);
     }
 
     Ok(Vc::upcast(builder.build()))
@@ -319,7 +316,6 @@ pub async fn get_edge_chunking_context(
         source_map_generation_options,
         no_mangling,
         scope_hoisting,
-        minify_before_chunking,
         nested_async_chunking,
         client_root,
         client_static_folder_name,
@@ -394,7 +390,7 @@ pub async fn get_edge_chunking_context(
     .worker_forwarded_globals(worker_forwarded_globals());
 
     if !next_mode.is_development() {
-        let defaults = ChunkSizeDefaults::new(*turbo_minify.await?, *minify_before_chunking.await?);
+        let defaults = ChunkSizeDefaults::new(*turbo_minify.await?);
         builder = builder
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
@@ -412,8 +408,7 @@ pub async fn get_edge_chunking_context(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?)
-            .minify_before_chunking(*minify_before_chunking.await?);
+            .module_merging(*scope_hoisting.await?);
     }
 
     Ok(Vc::upcast(builder.build()))
