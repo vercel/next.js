@@ -40,4 +40,66 @@ export default function Page() {
 }
 ```
 
+## Meta Third-Parties
+
+### Meta Pixel
+
+The `MetaPixel` component can be used to easily integrate [Meta (Facebook) Pixel](https://developers.facebook.com/docs/meta-pixel/) into your Next.js application. By default, it tracks a `PageView` event when the page loads, but you can specify other standard events as well.
+
+```js
+import { MetaPixel, sendMetaPixelEvent } from '@next/third-parties/meta'
+
+export default function Page() {
+  return <MetaPixel pixelId="YOUR_PIXEL_ID" />
+}
+```
+
+#### Tracking other events
+
+To track other standard events (like `AddToCart`), pass the `trackEvent` prop:
+
+```js
+<MetaPixel pixelId="YOUR_PIXEL_ID" trackEvent="AddToCart" />
+```
+
+You can also track events dynamically using the `sendMetaPixelEvent` helper:
+
+```js
+import { sendMetaPixelEvent } from '@next/third-parties/meta'
+
+// For standard events
+sendMetaPixelEvent('Purchase', {
+  value: 29.99,
+  currency: 'USD',
+})
+
+// For custom events
+sendMetaPixelEvent('MyCustomEvent', {
+  someParam: 'value',
+})
+```
+
+The following standard events are supported:
+
+- `PageView`
+- `ViewContent`
+- `Search`
+- `AddToCart`
+- `AddToWishlist`
+- `InitiateCheckout`
+- `AddPaymentInfo`
+- `Purchase`
+- `Lead`
+- `CompleteRegistration`
+- `Contact`
+- `CustomizeProduct`
+- `Donate`
+- `FindLocation`
+- `Schedule`
+- `StartTrial`
+- `SubmitApplication`
+- `Subscribe`
+
+For more details, see the [Meta Pixel docs](https://developers.facebook.com/docs/meta-pixel/reference#standard-events).
+
 To get a better idea of how these components work, take a look at this [demo](https://test-next-script-housseindjirdeh.vercel.app/). <!--- TODO: Replace with a better demo page -->
