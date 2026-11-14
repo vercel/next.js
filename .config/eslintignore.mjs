@@ -48,7 +48,7 @@ export default globalIgnores([
   'test/development/mcp-server/fixtures/default-template/app/build-error/page.tsx',
   'test/development/mcp-server/fixtures/compilation-errors-app/app/syntax-error/page.tsx',
   'test/production/debug-build-path/fixtures/with-compile-error/app/broken/page.tsx',
-  'packages/next-swc/native/index.d.ts',
+  'packages/next-swc/native/**/*',
   'packages/next-swc/docs/assets/**/*',
   'test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/sourcemapped.js',
   'test/e2e/app-dir/server-source-maps/fixtures/default/external-pkg/sourcemapped.js',
