@@ -137,6 +137,19 @@ const MANIFEST_NODE_FACTORIES: &str = "const e = (id, chunks, async = false) => 
                                        \"*\", chunks, async }), n = (id, chunks, async) => ({ \
                                        \"*\": e(id, chunks, async) });\n";
 
+/// Appends `?dpl=<deployment id>` to the client chunk URLs of the manifest `m`, for when the
+/// deployment id is only known at runtime. Only the URL of a merged chunk gets the suffix, not its
+/// component paths.
+///
+/// Client modules share chunk lists (see [`ChunkTables`]), so each distinct list is rewritten once
+/// and the rewritten list is shared the same way. Every entry is its own object, built by `e`, so
+/// it is updated in place; the shared lists themselves are not mutated.
+const ADD_DEPLOYMENT_ID_AT_RUNTIME: &str =
+    "const q = `?dpl=${process.env.NEXT_DEPLOYMENT_ID}`, d = new Map();\nfor (const v of \
+     Object.values(m.clientModules)) { let c = d.get(v.chunks); if (!c) d.set(v.chunks, c = \
+     v.chunks.map((x) => typeof x === 'string' ? x + q : [x[0] + q, x[1], x[2]])); v.chunks = c; \
+     }\n";
+
 impl ManifestNode {
     fn write_js(&self, out: &mut String, chunks: &EncodedChunkTables) -> Result<()> {
         if self.module_exports.len() == 1
@@ -417,8 +430,7 @@ async fn build_manifest(
                         Ok(if components.is_empty() {
                             ClientChunk::Path(url)
                         } else {
-                            let (component_paths, component_sizes) =
-                                components.into_iter().unzip();
+                            let (component_paths, component_sizes) = components.into_iter().unzip();
                             ClientChunk::Merged {
                                 url,
                                 component_paths,
@@ -630,28 +642,16 @@ async fn build_manifest(
                 FileContent::Content(File::from(formatdoc! {
                     r#"
                         (() => {{
-                        {declarations}{MANIFEST_NODE_FACTORIES}(globalThis.__RSC_MANIFEST ??= {{}})[{entry_name}] = {manifest};
+                        {declarations}{MANIFEST_NODE_FACTORIES}const m = {manifest};
+                        {add_deployment_id}(globalThis.__RSC_MANIFEST ??= {{}})[{entry_name}] = m;
                         }})();
-                        {suffix}
                     "#,
                     entry_name = StringifyJs(&normalized_manifest_entry),
-                    suffix = if add_deployment_id_at_runtime {
-                        formatdoc!{
-                            r#"
-                            for (const key in globalThis.__RSC_MANIFEST[{entry_name}].clientModules) {{
-                                const val = {{ ...globalThis.__RSC_MANIFEST[{entry_name}].clientModules[key] }}
-                                globalThis.__RSC_MANIFEST[{entry_name}].clientModules[key] = val
-                                val.chunks = val.chunks.map((c) =>
-                                    typeof c === 'string'
-                                        ? `${{c}}?dpl=${{process.env.NEXT_DEPLOYMENT_ID}}`
-                                        : [`${{c[0]}}?dpl=${{process.env.NEXT_DEPLOYMENT_ID}}`, c[1], c[2]])
-                            }}
-                            "#,
-                            entry_name = StringifyJs(&normalized_manifest_entry),
-                        }
+                    add_deployment_id = if add_deployment_id_at_runtime {
+                        ADD_DEPLOYMENT_ID_AT_RUNTIME
                     } else {
-                        "".to_string()
-                    }
+                        ""
+                    },
                 }))
                 .cell(),
             )
