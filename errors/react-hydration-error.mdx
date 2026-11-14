@@ -29,33 +29,38 @@ Hydration errors can occur from:
 
 The following strategies can help address this error:
 
-### Solution 1: Using `useEffect` to run on the client only
+<span id="solution-1-using-useeffect-to-run-on-the-client-only" />
 
-Ensure that the component renders the same content server-side as it does during the initial client-side render to prevent a hydration mismatch. You can intentionally render different content on the client with the `useEffect` hook.
+### Solution 1: Reading browser values with `useSyncExternalStore`
+
+Keep the server output and the initial client render identical. For values from browser APIs, use [`useSyncExternalStore`](https://react.dev/reference/react/useSyncExternalStore#adding-support-for-server-rendering) with a server snapshot. For example, this component reads the browser's network status:
 
 ```jsx filename="app/page.js"
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useSyncExternalStore } from 'react'
+
+function subscribe(callback) {
+  window.addEventListener('online', callback)
+  window.addEventListener('offline', callback)
+  return () => {
+    window.removeEventListener('online', callback)
+    window.removeEventListener('offline', callback)
+  }
+}
 
 export default function App() {
-  const [isClient, setIsClient] = useState(false)
+  const isOnline = useSyncExternalStore(
+    subscribe,
+    () => navigator.onLine,
+    () => true
+  )
 
-  useEffect(() => {
-    // The extra render is intentional: switch to client-only content after hydration.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsClient(true)
-  }, [])
-
-  return <h1>{isClient ? 'This is never prerendered' : 'Prerendered'}</h1>
+  return <h1>{isOnline ? 'Online' : 'Offline'}</h1>
 }
 ```
 
-Effects run only on the client, after hydration. This means browser APIs like `window` are available to use without hydration mismatches. The initial content may be visible before the effect updates it.
-
-`eslint-config-next` enables React's [`set-state-in-effect`](https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect) rule, which reports the synchronous state update above because it causes an extra render. The example disables the rule for that line because the extra render is intentional.
-
-For values from an external store or browser API, such as `localStorage`, consider [`useSyncExternalStore`](https://react.dev/reference/react/useSyncExternalStore#adding-support-for-server-rendering) instead of copying the value into state in an effect. Provide a `getServerSnapshot` that returns the same initial value on the server and during hydration, and subscribe to changes so React can update from the store. This avoids the synchronous `setState` call, but the initial value can still be visible before React reads the client snapshot. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) if that flash is a problem.
+The third argument, `getServerSnapshot`, returns `true` both on the server and during hydration, so the initial HTML matches. React then reads the browser snapshot and subscribes to changes. The initial value can be visible before it updates; see [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) if that flash is a problem.
 
 ### Solution 2: Disabling SSR on specific components
 
