@@ -57,8 +57,12 @@ const INTERNAL_HEADERS = [
 export const filterInternalHeaders = (
   headers: Record<string, undefined | string | string[]>
 ) => {
-  for (const header in headers) {
-    if (INTERNAL_HEADERS.includes(header)) {
+  // Asks for each internal header instead of comparing every request header
+  // against the list. `delete` only removes own properties, so an own one is
+  // all there is to check for.
+  for (let i = 0; i < INTERNAL_HEADERS.length; i++) {
+    const header = INTERNAL_HEADERS[i]
+    if (Object.hasOwn(headers, header)) {
       delete headers[header]
     }
   }

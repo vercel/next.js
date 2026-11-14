@@ -1628,7 +1628,7 @@ export default abstract class Server<
         !getRequestMeta(req, 'incrementalCache')
       ) {
         const incrementalCache = await this.getIncrementalCache({
-          requestHeaders: Object.assign({}, req.headers),
+          requestHeaders: req.headers,
         })
 
         incrementalCache.resetRequestCache()
@@ -2402,7 +2402,7 @@ export default abstract class Server<
   }: {
     pathname: string
     urlPathname: string
-    requestHeaders: import('./lib/incremental-cache').IncrementalCache['requestHeaders']
+    requestHeaders: import('./lib/incremental-cache').IncrementalCacheRequestHeaders
     page: string
     isAppPath: boolean
   }): Promise<Partial<StaticPathsResult> & { staticPaths?: string[] }> {
@@ -2819,7 +2819,7 @@ export default abstract class Server<
     // use existing incrementalCache instance if available
     const incrementalCache: import('./lib/incremental-cache').IncrementalCache =
       await this.getIncrementalCache({
-        requestHeaders: Object.assign({}, req.headers),
+        requestHeaders: req.headers,
       })
 
     // TODO: investigate, this is not safe across multiple concurrent requests
