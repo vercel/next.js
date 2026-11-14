@@ -2047,6 +2047,8 @@ mod tests {
         use super::extract_effects_operation;
         use crate::{
             CellRope, CellRopeBuilder, DiskFileSystem, File, FileContent, FileSystemPath,
+            PersistedFileContent,
+            disk::{capture_composed, composed_content_hash},
             rope::Rope,
         };
 
@@ -2285,6 +2287,53 @@ mod tests {
             path.write(FileContent::Content(File::from("other")).cell())
                 .await?;
             Ok(())
+        }
+
+        #[turbo_tasks::function(operation, root)]
+        fn stale_rope_operation() -> Vc<CellRope> {
+            stale_rope()
+        }
+
+        #[turbo_tasks::function(operation, root)]
+        fn file_content_operation(text: RcStr) -> Vc<FileContent> {
+            FileContent::Content(File::from(text.as_str())).cell()
+        }
+
+        /// Capturing a composed write whose rope no longer reads the declared bytes falls back to
+        /// the file's own bytes, and captures nothing when those don't match either.
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn stale_composition_capture_falls_back_to_the_file_bytes() {
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+            tt.run_once(async move {
+                let rope = stale_rope_operation()
+                    .resolve()
+                    .strongly_consistent()
+                    .await?;
+                let same = file_content_operation(rcstr!("same"))
+                    .resolve()
+                    .strongly_consistent()
+                    .await?;
+                let other = file_content_operation(rcstr!("other"))
+                    .resolve()
+                    .strongly_consistent()
+                    .await?;
+                let hash = composed_content_hash(&Rope::from("same"));
+
+                let Some(PersistedFileContent::Content(file)) =
+                    capture_composed(rope, same, hash).await
+                else {
+                    bail!("expected the file's own bytes to be captured");
+                };
+                assert_eq!(file.content().to_str()?, "same");
+
+                assert!(capture_composed(rope, other, hash).await.is_none());
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
         }
 
         /// Recomposing a file from different cells with the same bytes keeps the old `File` value
