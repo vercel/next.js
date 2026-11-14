@@ -1,0 +1,4 @@
+packages:
+  - workspace-wasm
+  - unused-dep
+  - unused-dev-dep
