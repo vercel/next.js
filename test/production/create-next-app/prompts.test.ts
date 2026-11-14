@@ -70,6 +70,52 @@ describe('create-next-app prompts', () => {
     })
   })
 
+  it('should exit with help message when project directory is not specified and prompt is empty', async () => {
+    await useTempDir(async (cwd) => {
+      const childProcess = createNextApp(
+        [
+          '--ts',
+          '--app',
+          '--eslint',
+          '--no-src-dir',
+          '--no-tailwind',
+          '--no-import-alias',
+          '--no-react-compiler',
+          '--no-agents-md',
+        ],
+        {
+          cwd,
+        },
+        nextTgzFilename
+      )
+
+      let stdout = ''
+      let stderr = ''
+      childProcess.stdout.on('data', (data) => {
+        stdout += data
+      })
+      childProcess.stderr.on('data', (data) => {
+        stderr += data
+      })
+
+      await new Promise<void>((resolve) => {
+        childProcess.on('exit', async (exitCode) => {
+          expect(exitCode).toBe(1)
+          expect(stdout).toContain('Please specify the project directory:')
+          expect(stdout).toContain('create-next-app <project-directory>')
+          expect(stdout).toContain(
+            'Run create-next-app --help to see all options.'
+          )
+          expect(stderr).not.toContain('TypeError: opts.name is not a function')
+          resolve()
+        })
+
+        // enter empty string
+        childProcess.stdin.write('\n')
+      })
+    })
+  })
+
   it('should use default for --ts when other flags are provided', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'ts-js'

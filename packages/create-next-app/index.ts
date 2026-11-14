@@ -195,10 +195,10 @@ async function run(): Promise<void> {
   if (!projectPath) {
     console.log(
       '\nPlease specify the project directory:\n' +
-        `  ${cyan(opts.name())} ${green('<project-directory>')}\n` +
+        `  ${cyan(program.name())} ${green('<project-directory>')}\n` +
         'For example:\n' +
-        `  ${cyan(opts.name())} ${green('my-next-app')}\n\n` +
-        `Run ${cyan(`${opts.name()} --help`)} to see all options.`
+        `  ${cyan(program.name())} ${green('my-next-app')}\n\n` +
+        `Run ${cyan(`${program.name()} --help`)} to see all options.`
     )
     process.exit(1)
   }
