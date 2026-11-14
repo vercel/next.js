@@ -16,10 +16,17 @@ const INLINE_FLIGHT_PAYLOAD_DATA = 1
 const INLINE_FLIGHT_PAYLOAD_FORM_STATE = 2
 const INLINE_FLIGHT_PAYLOAD_BINARY = 3
 
-const flightResponses = new WeakMap<
-  Readable | BinaryStreamOf<any>,
-  Promise<any>
->()
+// The response decoded from a Flight stream is remembered on the stream
+// itself, not in a module-level `WeakMap` keyed by the stream. A
+// young-generation GC treats the value of every entry of a long-lived
+// `WeakMap` as strongly held, whether or not its key is still alive, so the
+// map kept the decoded payload of every finished request alive for one more
+// scavenge: the whole decoded tree was copied once more per request.
+const flightResponse = Symbol('next.flightResponse')
+
+type FlightStream<T> = (Readable | BinaryStreamOf<T>) & {
+  [flightResponse]?: Promise<T>
+}
 const encoder = new TextEncoder()
 
 const findSourceMapURL =
@@ -33,12 +40,12 @@ const findSourceMapURL =
  * This is only used for renderToHTML, the Flight response does not need additional wrappers.
  */
 export function getFlightStream<T>(
-  flightStream: Readable | BinaryStreamOf<T>,
+  flightStream: FlightStream<T>,
   debugStream: Readable | ReadableStream<Uint8Array> | undefined,
   debugEndTime: number | undefined,
   nonce: string | undefined
 ): Promise<T> {
-  const response = flightResponses.get(flightStream)
+  const response = flightStream[flightResponse]
 
   if (response) {
     return response
@@ -131,7 +138,7 @@ export function getFlightStream<T>(
             resolve(newResponse)
           })
         })
-        flightResponses.set(flightStream, responseOnNextTick)
+        flightStream[flightResponse] = responseOnNextTick
         return responseOnNextTick
       case 'prerender':
       case 'prerender-runtime':
@@ -147,7 +154,7 @@ export function getFlightStream<T>(
     }
   }
 
-  flightResponses.set(flightStream, newResponse)
+  flightStream[flightResponse] = newResponse
 
   return newResponse
 }

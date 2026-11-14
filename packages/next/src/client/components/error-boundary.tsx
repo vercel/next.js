@@ -52,6 +52,13 @@ export class ErrorBoundaryHandler extends React.Component<
       error: null,
       previousPathname: this.props.pathname,
     }
+    // Bound methods, not arrow function class fields: a class field compiles
+    // to `this.reset = () => {}`, and V8 allocates a function literal that is
+    // assigned to a property in the old generation. During a server render
+    // that closure would keep this instance, with its props and children,
+    // alive across young-generation GCs until the next major GC.
+    this.reset = this.reset.bind(this)
+    this.retry = this.retry.bind(this)
   }
 
   static getDerivedStateFromError(
@@ -104,11 +111,11 @@ export class ErrorBoundaryHandler extends React.Component<
     }
   }
 
-  reset = () => {
+  reset(): void {
     this.setState({ error: null })
   }
 
-  retry = () => {
+  retry(): void {
     startTransition(() => {
       this.context?.refresh()
       this.reset()

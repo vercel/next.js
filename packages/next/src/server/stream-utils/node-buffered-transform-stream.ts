@@ -1,4 +1,5 @@
 import { Transform } from 'node:stream'
+import { releaseOnClose } from './release-node-stream'
 
 /**
  * Node.js `Transform` that coalesces chunks written in the same microtask into
@@ -36,25 +37,27 @@ export function createNodeBufferedTransformStream(
     stream.push(merged)
   }
 
-  return new Transform({
-    transform(chunk, _encoding, callback) {
-      bufferedChunks.push(chunk)
-      bufferByteLength += chunk.byteLength
+  return releaseOnClose(
+    new Transform({
+      transform(chunk, _encoding, callback) {
+        bufferedChunks.push(chunk)
+        bufferByteLength += chunk.byteLength
 
-      if (bufferByteLength >= maxBufferByteLength) {
-        flushBuffered(this)
-      } else if (!flushScheduled) {
-        flushScheduled = true
-        queueMicrotask(() => {
-          flushScheduled = false
+        if (bufferByteLength >= maxBufferByteLength) {
           flushBuffered(this)
-        })
-      }
-      callback()
-    },
-    flush(callback) {
-      flushBuffered(this)
-      callback()
-    },
-  })
+        } else if (!flushScheduled) {
+          flushScheduled = true
+          queueMicrotask(() => {
+            flushScheduled = false
+            flushBuffered(this)
+          })
+        }
+        callback()
+      },
+      flush(callback) {
+        flushBuffered(this)
+        callback()
+      },
+    })
+  )
 }
