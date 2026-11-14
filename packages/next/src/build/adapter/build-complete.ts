@@ -47,11 +47,11 @@ import {
   CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
-  NEXT_CACHE_IMPLICIT_TAG_ID,
   NEXT_CACHE_TAGS_HEADER,
   NEXT_QUERY_PARAM_PREFIX,
   NEXT_RESUME_HEADER,
-} from '../../lib/constants'
+} from '../../shared/lib/constants-browser'
+import { NEXT_CACHE_IMPLICIT_TAG_ID } from '../../lib/constants'
 
 import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
 import { getStaticMetadataPrerenderPathname } from '../../lib/metadata/get-metadata-route'
