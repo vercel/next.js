@@ -213,6 +213,7 @@
               isStaticChildren++
             )
               validateChildKeys(children[isStaticChildren]);
+            (globalThis[Symbol.for("next.static.children")] || (globalThis[Symbol.for("next.static.children")] = new WeakSet())).add(children);
             Object.freeze && Object.freeze(children);
           } else
             console.error(
