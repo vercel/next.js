@@ -16,6 +16,7 @@ import {
   APP_DIR_ALIAS,
   WEBPACK_LAYERS,
   INSTRUMENTATION_HOOK_FILENAME,
+  MIDDLEWARE_FILENAME,
 } from '../lib/constants'
 import { isAPIRoute } from '../lib/is-api-route'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
@@ -668,7 +669,9 @@ export async function createEntrypoints(
                 isDev: false,
               })
           } else if (isMiddlewareFile(page)) {
-            server[serverBundlePath.replace('src/', '')] = getEdgeServerEntry({
+            // A `proxy` file has the same output as a `middleware` file:
+            // `server/middleware.js`.
+            server[MIDDLEWARE_FILENAME] = getEdgeServerEntry({
               ...params,
               rootDir,
               absolutePagePath: absolutePagePath,
