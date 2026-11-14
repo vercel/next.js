@@ -3,7 +3,6 @@ use std::hash::Hash;
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
-use num_bigint::BigInt;
 use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
 use swc_core::common::{GLOBALS, source_map::SmallPos};
@@ -31,9 +30,7 @@ use crate::{
     references::{early_value_visitor, esm::EsmAssetReference},
 };
 
-const STRING_INLINE_THRESHOLD: usize = 6;
-const NUMBER_INLINE_THRESHOLD: f64 = 1_000_000.0;
-const BIGINT_INLINE_THRESHOLD: i64 = 1_000_000;
+const INLINE_THRESHOLD: usize = 6;
 
 /// Import names that are all-uppercase and contain at least one letter are eligible for automatic
 /// constant inlining, even without an import attribute.
@@ -126,18 +123,26 @@ impl ConstantsModule {
                         match value {
                             ConstantsModuleExport::Constant(value) => {
                                 if !has_opt_in {
-                                    // when not having opt in, only inline short literals
+                                    // Without opt-in, only inline short literals. Numeric lengths
+                                    // include the sign, decimal point, and (for bigints) the `n`
+                                    // suffix.
                                     match &value.0 {
                                         ConstantValue::Str(s)
-                                            if s.as_str().len() > STRING_INLINE_THRESHOLD =>
+                                            if s.as_str().len() > INLINE_THRESHOLD =>
                                         {
                                             JsValue::unknown_empty(
                                                 false,
                                                 rcstr!("constant too long"),
                                             )
                                         }
+                                        ConstantValue::Num(n) if !n.0.is_finite() => {
+                                            JsValue::unknown_empty(
+                                                false,
+                                                rcstr!("constant not supported"),
+                                            )
+                                        }
                                         ConstantValue::Num(n)
-                                            if n.0.abs() > NUMBER_INLINE_THRESHOLD =>
+                                            if n.0.to_string().len() > INLINE_THRESHOLD =>
                                         {
                                             JsValue::unknown_empty(
                                                 false,
@@ -145,8 +150,7 @@ impl ConstantsModule {
                                             )
                                         }
                                         ConstantValue::BigInt(n)
-                                            if **n > BigInt::from(BIGINT_INLINE_THRESHOLD)
-                                                || **n < BigInt::from(-BIGINT_INLINE_THRESHOLD) =>
+                                            if n.to_string().len() + 1 > INLINE_THRESHOLD =>
                                         {
                                             JsValue::unknown_empty(
                                                 false,
