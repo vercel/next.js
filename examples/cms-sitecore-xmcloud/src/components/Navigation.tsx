@@ -82,7 +82,6 @@ const NavigationList = (props: NavigationProps) => {
       className={props.fields.Styles.concat(
         "rel-level" + props.relativeLevel,
       ).join(" ")}
-      key={props.fields.Id}
       tabIndex={0}
     >
       <div className="navigation-title">
