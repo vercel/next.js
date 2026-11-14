@@ -69,6 +69,8 @@ The third argument, `getServerSnapshot`, returns `true` both on the server and d
 Next.js allows you to [disable prerendering](/docs/app/guides/lazy-loading#skipping-ssr) on specific components, which can prevent hydration mismatches.
 
 ```jsx
+'use client'
+
 import dynamic from 'next/dynamic'
 
 const NoSSR = dynamic(() => import('../components/no-ssr'), { ssr: false })
@@ -87,7 +89,7 @@ export default function Page() {
 Sometimes content will inevitably differ between the server and client, such as a timestamp. You can silence the hydration mismatch warning by adding `suppressHydrationWarning={true}` to the element.
 
 ```jsx
-<time datetime="2016-10-25" suppressHydrationWarning />
+<time dateTime="2016-10-25" suppressHydrationWarning />
 ```
 
 > **Good to know:**
