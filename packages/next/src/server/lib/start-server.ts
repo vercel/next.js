@@ -1,3 +1,6 @@
+// Enable the Node.js compile cache in the `next dev` server process. Must stay
+// the first import so it applies to every module loaded after it.
+import './enable-compile-cache'
 // Start CPU profile if it wasn't already started.
 import './cpu-profile'
 import { getNetworkHost } from '../../lib/get-network-host'
