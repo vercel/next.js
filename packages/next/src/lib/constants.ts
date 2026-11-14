@@ -3,6 +3,7 @@ import type { ServerRuntime } from '../types'
 export const TEXT_PLAIN_CONTENT_TYPE_HEADER = 'text/plain'
 export const HTML_CONTENT_TYPE_HEADER = 'text/html; charset=utf-8'
 export const JSON_CONTENT_TYPE_HEADER = 'application/json; charset=utf-8'
+export const JAVASCRIPT_CONTENT_TYPE_HEADER = 'text/javascript; charset=utf-8'
 export const NEXT_QUERY_PARAM_PREFIX = 'nxtP'
 export const NEXT_INTERCEPTION_MARKER_PREFIX = 'nxtI'
 
