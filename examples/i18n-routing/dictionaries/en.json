@@ -5,5 +5,14 @@
   "counter": {
     "increment": "Increment",
     "decrement": "Decrement"
+  },
+  "not-found": {
+    "title": "Page Not Found",
+    "description": "Could not find the requested resource.",
+    "back-home": "Return Home"
+  },
+  "error": {
+    "title": "Something went wrong!",
+    "try-again": "Try again"
   }
 }

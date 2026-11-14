@@ -1,12 +1,13 @@
 import { getDictionary } from "@/get-dictionary";
-import { Locale } from "@/i18n-config";
+import { assertValidLocale } from "@/i18n-config";
 import Counter from "./components/counter";
 import LocaleSwitcher from "./components/locale-switcher";
 
 export default async function IndexPage(props: {
-  params: Promise<{ lang: Locale }>;
+  params: Promise<{ lang: string }>;
 }) {
   const { lang } = await props.params;
+  assertValidLocale(lang);
 
   const dictionary = await getDictionary(lang);
 
