@@ -213,6 +213,12 @@ export async function collectBuildTraces({
 
       const serverEntries = [
         ...sharedEntriesSet,
+        // Next.js does not import this module anymore, but cache handlers
+        // outside of Next.js do, also ones that are added to the output after
+        // the build.
+        require.resolve(
+          'next/dist/server/lib/incremental-cache/shared-cache-controls.external'
+        ),
         ...(isStandalone
           ? [
               require.resolve('next/dist/server/lib/start-server'),
