@@ -5,14 +5,6 @@ import {
 } from '../../../shared/lib/router/utils/route-regex'
 import type { NextConfigComplete } from '../../config-shared'
 
-import fs from 'fs'
-import {
-  generateRouteTypesFile,
-  generateLinkTypesFile,
-  generateValidatorFile,
-  generateValidatorFileStrict,
-  generateRouteTypesFileStrict,
-} from './typegen'
 import { tryToParsePath } from '../../../lib/try-to-parse-path'
 import {
   extractInterceptionRouteInformation,
@@ -418,49 +410,4 @@ export async function createRouteTypesManifest({
   manifest.rootParams = collectRootParamsFromLayouts(manifest.layoutRoutes)
 
   return manifest
-}
-
-export async function writeRouteTypesManifest(
-  manifest: RouteTypesManifest,
-  filePath: string,
-  config: NextConfigComplete
-) {
-  const dirname = path.dirname(filePath)
-
-  if (!fs.existsSync(dirname)) {
-    await fs.promises.mkdir(dirname, { recursive: true })
-  }
-
-  // Write the main routes.d.ts file
-  await fs.promises.writeFile(
-    filePath,
-    config.experimental.strictRouteTypes
-      ? generateRouteTypesFileStrict(manifest)
-      : generateRouteTypesFile(manifest)
-  )
-
-  // Write the link.d.ts file if typedRoutes is enabled
-  if (config.typedRoutes === true) {
-    const linkTypesPath = path.join(dirname, 'link.d.ts')
-    await fs.promises.writeFile(linkTypesPath, generateLinkTypesFile(manifest))
-  }
-}
-
-export async function writeValidatorFile(
-  manifest: RouteTypesManifest,
-  filePath: string,
-  strict: boolean
-) {
-  const dirname = path.dirname(filePath)
-
-  if (!fs.existsSync(dirname)) {
-    await fs.promises.mkdir(dirname, { recursive: true })
-  }
-
-  await fs.promises.writeFile(
-    filePath,
-    strict
-      ? generateValidatorFileStrict(manifest)
-      : generateValidatorFile(manifest)
-  )
 }

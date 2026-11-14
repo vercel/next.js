@@ -196,7 +196,7 @@ The following options are available for the `next typegen` command:
 | `-h, --help`  | Show all available options.                                                                  |
 | `[directory]` | A directory on which to generate types. If not provided, the current directory will be used. |
 
-Output files are written to `<distDir>/types` (typically `.next/types`). `next dev` writes its own types to `.next/dev/types`. When no `next dev` server is running, `next typegen` removes `.next/dev/types` so that types for moved or deleted routes don't fail type checking. `next dev` regenerates them when it starts.
+Output files are written to `<distDir>/types` (typically `.next/types`). `next dev` and `next build` generate the same route types into the same directory, so `next-env.d.ts` and the generated types stay the same across commands. `next dev` also writes development-only types, such as typed environment variables, to `.next/dev/types`. When no `next dev` server is running, `next typegen` removes `.next/dev/types` so that stale types don't fail type checking. `next dev` regenerates them.
 
 ```bash filename="Terminal"
 next typegen
@@ -339,6 +339,8 @@ You can combine `--debug-build-paths` with `--debug-prerender` for more detailed
 In projects that keep routes under `src/`, paths resolve with or without the `src/` prefix, so both `app/page.tsx` and `src/app/page.tsx` match the same route.
 
 Only matching routes appear in the route table. When you select an App Router route, Next.js also includes the built-in `/_not-found` route.
+
+Only matching routes are compiled, but type checking still covers every route, because the generated route types include all routes. To build while another route has type errors, use [`typescript.ignoreBuildErrors`](/docs/app/api-reference/config/typescript#disabling-typescript-errors-in-production).
 
 ### Changing the default port
 

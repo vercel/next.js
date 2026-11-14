@@ -2,15 +2,22 @@ import path from 'path'
 
 /**
  * Gets the glob patterns for type definition directories in tsconfig.
- * Next.js uses different distDir paths in development vs production:
- * - Development: "{distDir}/dev"
- * - Production: "{distDir}"
+ * - "{typesDistDir}/types": route types shared by `next dev`, `next build`
+ *   and `next typegen` (see `getSharedTypesDir`). Usually the same as
+ *   "{distDir}/types", but not with `output: 'export'` and a custom `distDir`.
+ * - "{distDir}/types" and "{distDir}/dev/types": in dev, the latter holds the
+ *   types only `next dev` writes (`env.d.ts`, webpack type guards).
+ * In development, the `distDir` passed in is "{distDir}/dev".
  */
-export function getTypeDefinitionGlobPatterns(distDir: string): string[] {
-  const distDirPosix =
+export function getTypeDefinitionGlobPatterns(
+  distDir: string,
+  typesDistDir?: string
+): string[] {
+  const toPosix = (p: string) =>
     path.win32.sep === path.sep
-      ? distDir.replaceAll(path.win32.sep, path.posix.sep)
-      : distDir
+      ? p.replaceAll(path.win32.sep, path.posix.sep)
+      : p
+  const distDirPosix = toPosix(distDir)
 
   const typeGlobPatterns: string[] = [`${distDirPosix}/types/**/*.ts`]
 
@@ -24,6 +31,12 @@ export function getTypeDefinitionGlobPatterns(distDir: string): string[] {
       : // In build, distDir is "{distDir}", so also include "{distDir}/dev/types"
         `${distDirPosix}/dev/types/**/*.ts`
   )
+  if (typesDistDir !== undefined) {
+    const sharedTypes = `${toPosix(typesDistDir)}/types/**/*.ts`
+    if (!typeGlobPatterns.includes(sharedTypes)) {
+      typeGlobPatterns.push(sharedTypes)
+    }
+  }
   // Sort for consistent order
   typeGlobPatterns.sort((a, b) => a.length - b.length)
 
