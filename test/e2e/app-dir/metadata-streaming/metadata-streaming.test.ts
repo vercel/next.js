@@ -53,25 +53,44 @@ describe('app-dir - metadata-streaming', () => {
     })
   })
 
-  it('should send the blocking response for html limited bots', async () => {
-    const $ = await next.render$(
-      '/',
-      undefined, // no query
-      {
-        headers: {
-          'user-agent': 'Twitterbot',
-        },
-      }
-    )
-    expect(await $('title').text()).toBe('index page')
-  })
-
-  it('should send streaming response for headless browser bots', async () => {
-    const browser = await next.browser('/')
-    await retry(async () => {
-      expect(await browser.elementByCss('title').text()).toBe('index page')
+  for (const userAgent of ['Twitterbot', 'Mediapartners-Google']) {
+    it(`should send the blocking response for html limited bot ${userAgent}`, async () => {
+      const $ = await next.render$(
+        '/',
+        undefined, // no query
+        {
+          headers: {
+            'user-agent': userAgent,
+          },
+        }
+      )
+      expect($('head title').text()).toBe('index page')
+      expect($('body title').length).toBe(0)
     })
-  })
+  }
+
+  for (const userAgent of [
+    'Googlebot',
+    'Google-PageRenderer',
+    'Google-InspectionTool',
+    'AdsBot-Google',
+    'Storebot-Google',
+    'googleweblight',
+  ]) {
+    it(`should send a streaming response for bot ${userAgent} without known head limitations`, async () => {
+      const $ = await next.render$(
+        '/',
+        undefined, // no query
+        {
+          headers: {
+            'user-agent': userAgent,
+          },
+        }
+      )
+      expect($('head title').length).toBe(0)
+      expect($('body title').text()).toBe('index page')
+    })
+  }
 
   it('should only insert metadata once into head or body', async () => {
     // After hydration, React would hoist all metadata.
