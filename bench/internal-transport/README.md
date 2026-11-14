@@ -24,7 +24,9 @@ against the framing.
 `packages/next/src/server/lib`) in front of a worker built from the
 `crates/next-api/src/templates/go_route_*.go` templates: once with the
 templates at the base revision (TCP), once with the working tree's (Unix
-socket).
+socket). `private-socket.ts` only offers sockets on Linux, so on macOS the
+"unix" worker falls back to TCP unless `UNIX_SOCKET_PLATFORMS` there includes
+`darwin`; the macOS results in `results/` were taken before that setting.
 
 ## Running
 

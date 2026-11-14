@@ -2,6 +2,16 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 
+// Platforms where private links use Unix sockets; everywhere else they use
+// loopback TCP. macOS is off for now, open for discussion: its Unix sockets
+// get 8 KiB buffers (sysctl net.local.stream.sendspace/recvspace, about
+// 208 KiB on Linux), and in a benchmark a 64 KiB body written by Node cost
+// 2-3x more CPU over the socket than over TCP, while small bodies were
+// cheaper. Go can raise its own buffers; Node has no API to. Measure real
+// pages over the socket on macOS before adding it. Windows can't be added:
+// Node only speaks named pipes there, which Go's standard library can't serve.
+const UNIX_SOCKET_PLATFORMS: ReadonlySet<NodeJS.Platform> = new Set(['linux'])
+
 /**
  * Paths for Unix sockets between the processes Next.js runs together (the
  * front server, Node, `route.go` workers). They all live in one directory per
@@ -10,12 +20,12 @@ import path from 'path'
  * this process exits.
  *
  * Returns undefined when a socket can't be used, and the caller then uses
- * loopback TCP: on Windows, where Node's `net` module only speaks named pipes
- * and Go's standard library only AF_UNIX; when the directory can't be
- * created; or when the path doesn't fit in a socket address.
+ * loopback TCP: on platforms outside UNIX_SOCKET_PLATFORMS, when the
+ * directory can't be created, or when the path doesn't fit in a socket
+ * address.
  */
 export function privateSocketPath(name: string): string | undefined {
-  if (process.platform === 'win32') return undefined
+  if (!UNIX_SOCKET_PLATFORMS.has(process.platform)) return undefined
   const dir = privateDir()
   if (dir === undefined) return undefined
   const socketPath = path.join(dir, name)
