@@ -19,3 +19,8 @@ if (!global.crypto) {
     },
   })
 }
+
+// See `build/adapter/setup-node-env.external`.
+;(globalThis as Record<symbol, unknown>)[
+  Symbol.for('next.server.node-polyfill-crypto')
+] = true
