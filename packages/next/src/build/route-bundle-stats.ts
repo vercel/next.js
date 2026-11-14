@@ -1,14 +1,35 @@
 import path from 'path'
-import { promises as fs, statSync } from 'fs'
-import {
-  APP_PATHS_MANIFEST,
-  CLIENT_REFERENCE_MANIFEST,
-  SERVER_DIRECTORY,
-} from '../shared/lib/constants'
+import { promises as fs } from 'fs'
+import { APP_PATHS_MANIFEST, SERVER_DIRECTORY } from '../shared/lib/constants'
 import type { BuildManifest } from '../server/get-page-files'
 import { filterAndSortList } from './utils'
 
 const ROUTE_BUNDLE_STATS_FILE = 'route-bundle-stats.json'
+
+// Written by Turbopack next to each app page's client reference manifest in
+// production builds. It holds the same data as the manifest's `entryJSFiles`.
+const ENTRY_JS_FILES_MANIFEST_SUFFIX = '_entry-js-files.json'
+
+// Bounds the number of concurrent file system operations.
+const IO_CONCURRENCY = 64
+
+async function mapConcurrent<T, R>(
+  items: ReadonlyArray<T>,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results = new Array<R>(items.length)
+  let next = 0
+  const worker = async () => {
+    while (next < items.length) {
+      const index = next++
+      results[index] = await fn(items[index])
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(IO_CONCURRENCY, items.length) }, worker)
+  )
+  return results
+}
 
 type RouteBundleStat = {
   route: string
@@ -16,38 +37,53 @@ type RouteBundleStat = {
   firstLoadChunkPaths: string[]
 }
 
-function sumFileSizes(
+type ChunkInfo = {
+  // Undefined when the file is missing.
+  size: number | undefined
+  projectRelativePath: string
+}
+
+// Stats every distinct chunk once and computes its project relative path.
+async function getChunkInfos(
+  dir: string,
   distDir: string,
-  files: string[],
-  cache: Map<string, number>
-): number {
-  let total = 0
-  for (const relPath of files) {
-    const cached = cache.get(relPath)
-    if (cached !== undefined) {
-      total += cached
-      continue
-    }
+  chunkLists: ReadonlyArray<ReadonlyArray<string>>
+): Promise<Map<string, ChunkInfo>> {
+  const files = [...new Set(chunkLists.flat())]
+  const infos = new Map<string, ChunkInfo>()
+  await mapConcurrent(files, async (relPath) => {
+    const absolutePath = path.join(distDir, relPath)
+    let size: number | undefined
     try {
-      const size = statSync(path.join(distDir, relPath)).size
-      cache.set(relPath, size)
-      total += size
+      size = (await fs.stat(absolutePath)).size
     } catch {
       // ignore missing files
     }
+    infos.set(relPath, {
+      size,
+      // Always use forward slashes, so the stats are the same on all platforms.
+      projectRelativePath: path
+        .relative(dir, absolutePath)
+        .split(path.sep)
+        .join('/'),
+    })
+  })
+  return infos
+}
+
+function sumFileSizes(files: string[], infos: Map<string, ChunkInfo>): number {
+  let total = 0
+  for (const relPath of files) {
+    total += infos.get(relPath)!.size ?? 0
   }
   return total
 }
 
 function toProjectRelativePaths(
-  dir: string,
-  distDir: string,
-  relPaths: string[]
+  relPaths: string[],
+  infos: Map<string, ChunkInfo>
 ): string[] {
-  // Always use forward slashes, so the stats are the same on all platforms.
-  return relPaths.map((f) =>
-    path.relative(dir, path.join(distDir, f)).split(path.sep).join('/')
-  )
+  return relPaths.map((f) => infos.get(f)!.projectRelativePath)
 }
 
 function buildRouteToAppPathsMap(
@@ -70,46 +106,33 @@ function buildRouteToAppPathsMap(
   return routeToAppPaths
 }
 
-// Reads the manfiest file and gets the entry JS files. The manifest file is
-// a JavaScript file that sets a global variable (__RSC_MANIFEST). We require()
-// it with a save/restore of the global
-function readEntryJSFiles(
+// Reads the entry JS files (the client reference manifest's `entryJSFiles`)
+// of an app page from the small JSON file Turbopack writes for this purpose,
+// so the much larger client reference manifest doesn't need to be evaluated.
+async function readEntryJSFiles(
   distDir: string,
-  pagePath: string,
-  appRoute: string
-): Record<string, string[]> | undefined {
+  pagePath: string
+): Promise<Record<string, string[]> | undefined> {
   const manifestFile = path.join(
     distDir,
     SERVER_DIRECTORY,
     'app',
-    `${pagePath}_${CLIENT_REFERENCE_MANIFEST}.js`
+    `${pagePath}${ENTRY_JS_FILES_MANIFEST_SUFFIX}`
   )
   try {
-    const g = global as Record<string, unknown>
-    const prev = g.__RSC_MANIFEST
-    g.__RSC_MANIFEST = undefined
-    require(manifestFile)
-    const rscManifest = g.__RSC_MANIFEST as
-      | Record<string, { entryJSFiles?: Record<string, string[]> }>
-      | undefined
-    g.__RSC_MANIFEST = prev
-
-    // The key in __RSC_MANIFEST is the app path (e.g. /blog/[slug]/page)
-    const manifestEntry = rscManifest?.[pagePath] ?? rscManifest?.[appRoute]
-    return manifestEntry?.entryJSFiles
+    return JSON.parse(await fs.readFile(manifestFile, 'utf8'))
   } catch {
     return undefined
   }
 }
 
-function collectPagesRouterStats(
+type RouteChunks = { route: string; chunks: string[] }
+
+function collectPagesRouterChunks(
   pages: ReadonlyArray<string>,
-  buildManifest: BuildManifest,
-  distDir: string,
-  dir: string,
-  cache: Map<string, number>
-): RouteBundleStat[] {
-  const rows: RouteBundleStat[] = []
+  buildManifest: BuildManifest
+): RouteChunks[] {
+  const rows: RouteChunks[] = []
   const sharedFiles = buildManifest.pages['/_app'] ?? []
   for (const page of filterAndSortList(pages, 'pages', false)) {
     if (page === '/_app' || page === '/_document' || page === '/_error')
@@ -121,23 +144,16 @@ function collectPagesRouterStats(
     )
     const sharedJs = sharedFiles.filter((f) => f.endsWith('.js'))
     const chunks = [...new Set([...allFiles, ...sharedJs])]
-    const firstLoadUncompressedJsBytes = sumFileSizes(distDir, chunks, cache)
-    rows.push({
-      route: page,
-      firstLoadUncompressedJsBytes,
-      firstLoadChunkPaths: toProjectRelativePaths(dir, distDir, chunks),
-    })
+    rows.push({ route: page, chunks })
   }
   return rows
 }
 
-async function collectAppRouterStats(
+async function collectAppRouterChunks(
   appRoutes: ReadonlyArray<string>,
   buildManifest: BuildManifest,
-  distDir: string,
-  dir: string,
-  cache: Map<string, number>
-): Promise<RouteBundleStat[]> {
+  distDir: string
+): Promise<RouteChunks[]> {
   let appPathsManifest: Record<string, string> = {}
   try {
     const manifestPath = path.join(
@@ -153,15 +169,17 @@ async function collectAppRouterStats(
 
   const routeToAppPaths = buildRouteToAppPathsMap(appPathsManifest)
   const sharedFiles = buildManifest.rootMainFiles ?? []
-  const rows: RouteBundleStat[] = []
-
-  for (const appRoute of filterAndSortList(appRoutes, 'app', false)) {
+  const routes = filterAndSortList(appRoutes, 'app', false)
+  const entryJSFilesPerRoute = await mapConcurrent(routes, async (appRoute) => {
     const appPaths = routeToAppPaths.get(appRoute) ?? []
     // Find the /page entry (most specific, has the most chunks)
     const pagePath = appPaths.find((p) => p.endsWith('/page'))
-    if (!pagePath) continue
+    return pagePath ? readEntryJSFiles(distDir, pagePath) : undefined
+  })
+  const rows: RouteChunks[] = []
 
-    const entryJSFiles = readEntryJSFiles(distDir, pagePath, appRoute)
+  for (let i = 0; i < routes.length; i++) {
+    const entryJSFiles = entryJSFilesPerRoute[i]
     if (!entryJSFiles) continue
 
     // Union JS files across all segments (page, layout, etc.) so that
@@ -175,12 +193,7 @@ async function collectAppRouterStats(
     ]
     const sharedJs = sharedFiles.filter((f) => f.endsWith('.js'))
     const chunks = [...new Set([...allFiles, ...sharedJs])]
-    const firstLoadUncompressedJsBytes = sumFileSizes(distDir, chunks, cache)
-    rows.push({
-      route: appRoute,
-      firstLoadUncompressedJsBytes,
-      firstLoadChunkPaths: toProjectRelativePaths(dir, distDir, chunks),
-    })
+    rows.push({ route: routes[i], chunks })
   }
   return rows
 }
@@ -194,22 +207,25 @@ export async function writeRouteBundleStats(
   distDir: string,
   dir: string
 ): Promise<void> {
-  const cache = new Map<string, number>()
-
-  const rows = [
+  const routeChunks = [
     ...(lists.pages.length > 0
-      ? collectPagesRouterStats(lists.pages, buildManifest, distDir, dir, cache)
+      ? collectPagesRouterChunks(lists.pages, buildManifest)
       : []),
     ...(lists.app && lists.app.length > 0
-      ? await collectAppRouterStats(
-          lists.app,
-          buildManifest,
-          distDir,
-          dir,
-          cache
-        )
+      ? await collectAppRouterChunks(lists.app, buildManifest, distDir)
       : []),
   ]
+
+  const infos = await getChunkInfos(
+    dir,
+    distDir,
+    routeChunks.map((r) => r.chunks)
+  )
+  const rows: RouteBundleStat[] = routeChunks.map(({ route, chunks }) => ({
+    route,
+    firstLoadUncompressedJsBytes: sumFileSizes(chunks, infos),
+    firstLoadChunkPaths: toProjectRelativePaths(chunks, infos),
+  }))
 
   rows.sort(
     (a, b) => b.firstLoadUncompressedJsBytes - a.firstLoadUncompressedJsBytes
