@@ -55,10 +55,26 @@ function filterInternalQuery(
   }
 }
 
+/**
+ * A URL that parsing and formatting again leaves as it is: an absolute path of
+ * unreserved characters, without a query or a hash. The URL parser does not
+ * encode or decode those characters. It would resolve an authority (a leading
+ * `//`) and dot segments, which `DOT_SEGMENT` excludes.
+ */
+const PLAIN_PATH = /^\/(?:[A-Za-z0-9\-._~][A-Za-z0-9\-._~/]*)?$/
+const DOT_SEGMENT = /\/\.{1,2}(?:\/|$)/
+
 export function normalizeCdnUrl(
   req: BaseNextRequest | IncomingMessage,
   paramKeys: string[]
 ) {
+  // Without a query there are no params to strip, and for a plain path the
+  // normalization below ends with the URL it started with.
+  const url = req.url!
+  if (PLAIN_PATH.test(url) && !DOT_SEGMENT.test(url)) {
+    return
+  }
+
   // make sure to normalize req.url from CDNs to strip dynamic and rewrite
   // params from the query which are added during routing
   const _parsedUrl = parseReqUrl(req.url!)
