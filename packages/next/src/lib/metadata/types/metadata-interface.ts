@@ -201,11 +201,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * @deprecated Use the new viewport configuration (`export const viewport: Viewport = { ... }`) instead.
    */
   themeColor?:
-    | null
-    | string
-    | ThemeColorDescriptor
-    | ThemeColorDescriptor[]
-    | undefined
+    null | string | ThemeColorDescriptor | ThemeColorDescriptor[] | undefined
 
   /**
    * The color scheme for the document.
@@ -674,10 +670,67 @@ export type WithStringifiedURLs<T> = T extends URL
  */
 type ResolvedMetadata = WithStringifiedURLs<ResolvedMetadataWithURLs>
 
+/**
+ * Cloudflare Content Signals (`https://contentsignals.org/`).
+ *
+ * `true` serializes as `yes`, `false` as `no`. Omitted keys express no
+ * preference and are left out of the `Content-Signal` line.
+ *
+ * @see https://contentsignals.org/
+ * @see https://github.com/vercel/next.js/discussions/85382
+ */
+type RobotsContentSignal = {
+  /**
+   * Search indexing and results (hyperlinks and short excerpts).
+   * Does not include AI-generated search summaries.
+   */
+  search?: boolean | undefined
+  /**
+   * Inputting content into AI models (RAG, grounding, real-time generative
+   * search answers).
+   */
+  aiInput?: boolean | undefined
+  /**
+   * Training or fine-tuning AI models.
+   */
+  aiTrain?: boolean | undefined
+}
+
+/**
+ * A Content Signal directive, optionally scoped to one or more paths.
+ *
+ * Omit `path` to apply the signal to the whole user-agent group (or the
+ * whole file when set on {@link RobotsFile.contentSignal}). An array of
+ * paths emits one `Content-Signal` line per path.
+ *
+ * @example
+ * ```ts
+ * // Site-wide: Content-Signal: search=yes, ai-train=no
+ * { search: true, aiTrain: false }
+ *
+ * // Per path: Content-Signal: /blog search=yes, ai-input=yes
+ * { path: '/blog', search: true, aiInput: true }
+ * ```
+ */
+type RobotsContentSignalRule = RobotsContentSignal & {
+  path?: string | string[] | undefined
+}
+
+type ContentSignalInput =
+  RobotsContentSignalRule | Array<RobotsContentSignalRule>
+
 type RobotsRuleBase = {
   allow?: string | string[] | undefined
   disallow?: string | string[] | undefined
   crawlDelay?: number | undefined
+  /**
+   * Content Signals for this user-agent group. When set, replaces the
+   * file-level {@link RobotsFile.contentSignal} for this group. Path-less
+   * entries apply to the whole group; `path` scopes a line to a URL.
+   *
+   * @see https://contentsignals.org/
+   */
+  contentSignal?: ContentSignalInput | undefined
   /**
    * Non-standard per-user-agent directives passed through verbatim to the
    * generated `robots.txt`. Keys preserve their casing and array values emit
@@ -708,6 +761,33 @@ type RobotsFile = {
           userAgent: string | string[]
         }
       >
+  /**
+   * Default Content Signals for every user-agent group that does not set
+   * its own `contentSignal`. Path-less values apply to the whole file;
+   * `path` scopes a line to a URL.
+   *
+   * @see https://contentsignals.org/
+   * @see https://github.com/vercel/next.js/discussions/85382
+   *
+   * @example
+   * ```ts
+   * // Global
+   * contentSignal: { search: true, aiTrain: false }
+   *
+   * // Per link
+   * contentSignal: [
+   *   { path: '/blog', search: true, aiInput: true, aiTrain: false },
+   *   { path: '/docs', search: true, aiInput: true, aiTrain: true },
+   * ]
+   * ```
+   */
+  contentSignal?: ContentSignalInput | undefined
+  /**
+   * When `true`, prepend the CC0 Content Signals Policy comment block from
+   * `https://contentsignals.org/` so crawlers that read comments can interpret
+   * `yes` / `no` / omitted keys. Off by default.
+   */
+  contentSignalsPolicy?: boolean | undefined
   sitemap?: string | string[] | undefined
   host?: string | undefined
 }
@@ -740,6 +820,8 @@ declare namespace MetadataRoute {
   export type Robots = RobotsFile
   export type Sitemap = SitemapFile
   export type Manifest = ManifestFile
+  export type ContentSignal = RobotsContentSignal
+  export type ContentSignalRule = RobotsContentSignalRule
 }
 
 /**
@@ -783,11 +865,7 @@ interface Viewport extends ViewportLayout {
    * ```
    */
   themeColor?:
-    | null
-    | string
-    | ThemeColorDescriptor
-    | ThemeColorDescriptor[]
-    | undefined
+    null | string | ThemeColorDescriptor | ThemeColorDescriptor[] | undefined
 
   /**
    * The color scheme for the document.
