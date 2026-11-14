@@ -181,6 +181,24 @@ async function initializeImpl(opts: {
 
   await server.prepare(opts.serverFields)
 
+  if (!opts.dev) {
+    // `getMiddlewareManifest` is protected. It returns null in minimal mode.
+    const manifest = server['server']!['getMiddlewareManifest']()
+    if (
+      manifest &&
+      (Object.keys(manifest.middleware).length > 0 ||
+        Object.keys(manifest.functions).length > 0)
+    ) {
+      // The edge runtime sandbox applies the error inspect patch to every
+      // context that it creates. Nothing else loads the patch when source
+      // maps are disabled, so a server that has edge code loads it now and
+      // not with its first edge request. This is done here and not in
+      // `next-server`, which can be bundled without the sandbox.
+      // eslint-disable-next-line @next/internal/typechecked-require
+      require('../patch-error-inspect')
+    }
+  }
+
   return {
     requestHandler,
     upgradeHandler,
