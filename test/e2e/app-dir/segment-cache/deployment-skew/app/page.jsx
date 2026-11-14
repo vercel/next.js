@@ -23,6 +23,16 @@ export default function Page() {
           Static page, different deployment
         </LinkAccordion>
       </li>
+      <li>
+        <LinkAccordion href="/client-page">
+          Client page, same deployment
+        </LinkAccordion>
+      </li>
+      <li>
+        <LinkAccordion href="/client-page?deployment=2">
+          Client page, different deployment
+        </LinkAccordion>
+      </li>
     </ul>
   )
 }
