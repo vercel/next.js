@@ -89,6 +89,10 @@ After you set or delete a cookie in a Server Function, Next.js can return both t
 
 The UI is not unmounted, but effects that depend on data coming from the server will re-run.
 
+Next.js re-renders the current page and its layouts whenever a Server Action calls `.set` or `.delete`, including when the new value is the same as the current one. Cookies set by [Proxy](/docs/app/api-reference/file-conventions/proxy) on a Server Action request have the same effect, even if the action itself does not modify cookies. In both cases, the entire [Client Cache](/docs/app/glossary#client-cache) is also cleared.
+
+To set a cookie without re-rendering the current page, set it in a [Route Handler](/docs/app/api-reference/file-conventions/route) and call the handler with `fetch`. Server Components on the current page keep the previous cookie value until the route is refreshed, for example with [`router.refresh()`](/docs/app/api-reference/functions/use-router).
+
 To refresh cached data too, call [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) inside the function.
 
 ## Examples
