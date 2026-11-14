@@ -25,6 +25,7 @@ describe('browser-chunks', () => {
   })
 
   let sources: string[] = []
+  let jsFiles: string[] = []
   let jsContents: string[] = []
   beforeAll(async () => {
     const chunksDir = join(next.testDir, '.next')
@@ -38,10 +39,9 @@ describe('browser-chunks', () => {
     )
     sources = sourcemaps.flatMap((sourcemap) => JSON.parse(sourcemap).sources)
 
+    jsFiles = chunks.filter((filename) => filename.endsWith('.js'))
     jsContents = await Promise.all(
-      chunks
-        .filter((filename) => filename.endsWith('.js'))
-        .map((f) => readFile(join(chunksDir, f), 'utf8'))
+      jsFiles.map((f) => readFile(join(chunksDir, f), 'utf8'))
     )
   })
 
@@ -86,6 +86,33 @@ describe('browser-chunks', () => {
     ).sort()
 
     expect(hmrReducerSources).toMatchInlineSnapshot(`[]`)
+  })
+
+  it('must not bundle the Instant validation messages into browser chunks', () => {
+    const instantMessagesSources = Array.from(
+      new Set(
+        sources
+          .map(normalizeSource)
+          .filter((source) =>
+            /^(?:src|dist|dist\/esm)\/shared\/lib\/instant-messages\.[jt]s$/.test(
+              source
+            )
+          )
+      )
+    ).sort()
+
+    expect(instantMessagesSources).toMatchInlineSnapshot(`[]`)
+
+    // The list above is also empty when the source maps are missing or name
+    // their sources in another way. This text is one of the messages of that
+    // module, so no chunk may contain it either.
+    expect(
+      jsFiles.filter((_, i) =>
+        jsContents[i].includes(
+          'Next.js encountered dynamic data during prefetching'
+        )
+      )
+    ).toEqual([])
   })
 
   it('must not include heavy dependencies into browser chunks', () => {

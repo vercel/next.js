@@ -50,7 +50,6 @@ import {
   computeDynamicStaleAt,
   getBFCacheVersion,
 } from './segment-cache/bfcache'
-import { createLinkPrefetchPartialError } from '../../shared/lib/instant-messages'
 import {
   createNavigationSeed,
   type NavigationSeed,
@@ -308,6 +307,8 @@ export function navigateToKnownRoute(
           PrefetchHint.SubtreeHasInstantFalse)) ===
         0
     ) {
+      const { createLinkPrefetchPartialError } =
+        require('../../shared/lib/instant-messages') as typeof import('../../shared/lib/instant-messages')
       const error = createLinkPrefetchPartialError(url.pathname)
       const ownerStack = 'ownerStack' in link ? link.ownerStack : undefined
       if (ownerStack === undefined) {

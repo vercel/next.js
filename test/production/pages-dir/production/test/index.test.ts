@@ -356,6 +356,21 @@ describe('Production Usage', () => {
     }
   )
 
+  it('should not contain the names of the development manifests in client chunks', async () => {
+    const chunks = await listClientChunks(join(next.testDir, '.next'))
+    const chunksWithManifestNames: string[] = []
+    for (const chunk of chunks.filter((file) => file.endsWith('.js'))) {
+      const content = await next.readFile(join('.next', chunk))
+      if (
+        content.includes('_devPagesManifest.json') ||
+        content.includes('_devMiddlewareManifest.json')
+      ) {
+        chunksWithManifestNames.push(chunk)
+      }
+    }
+    expect(chunksWithManifestNames).toEqual([])
+  })
+
   describe('With basic usage', () => {
     it('should render the page', async () => {
       const html = await renderViaHTTP(next.appPort, '/')
