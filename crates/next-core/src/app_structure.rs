@@ -360,6 +360,7 @@ async fn get_directory_tree_internal(
 
     let mut subdirectories = BTreeMap::new();
     let mut modules = AppDirModules::default();
+    let mut module_extension_priorities = BTreeMap::new();
 
     let mut metadata_icon = Vec::new();
     let mut metadata_apple = Vec::new();
@@ -375,33 +376,45 @@ async fn get_directory_tree_internal(
                     continue;
                 }
                 if let Some((stem, ext)) = basename.split_once('.')
-                    && (page_extensions_value.iter().any(|e| e == ext) || basename == "route.go")
+                    && let Some(priority) = page_extensions_value
+                        .iter()
+                        .position(|e| e == ext)
+                        .or_else(|| (basename == "route.go").then_some(usize::MAX))
                 {
-                    match stem {
-                        "page" => modules.page = Some(file.clone()),
-                        "layout" => modules.layout = Some(file.clone()),
-                        "error" => modules.error = Some(file.clone()),
-                        "global-error" => modules.global_error = Some(file.clone()),
-                        "global-not-found" => modules.global_not_found = Some(file.clone()),
-                        "loading" => modules.loading = Some(file.clone()),
-                        "template" => modules.template = Some(file.clone()),
-                        "forbidden" => modules.forbidden = Some(file.clone()),
-                        "unauthorized" => modules.unauthorized = Some(file.clone()),
-                        "not-found" => modules.not_found = Some(file.clone()),
-                        "default" => modules.default = Some(file.clone()),
-                        "route" => {
-                            if let Some(existing) = &modules.route
-                                && (ext == "go" || existing.path.ends_with(".go"))
-                            {
-                                DirectoryTreeIssue {
-                                    app_dir: dir.clone(),
-                                    severity: IssueSeverity::Error,
-                                    message: StyledString::Text(format!("Conflicting App Router handlers: {} and {}", existing.path, file.path).into()).resolved_cell(),
-                                }.resolved_cell().emit();
-                            }
-                            modules.route = Some(file.clone());
-                        },
-                        _ => {}
+                    // Diagnose mixed native and JavaScript handlers even when extension priority
+                    // would otherwise discard one of them.
+                    if stem == "route"
+                        && let Some(existing) = &modules.route
+                        && (ext == "go" || existing.path.ends_with(".go"))
+                    {
+                        DirectoryTreeIssue {
+                            app_dir: dir.clone(),
+                            severity: IssueSeverity::Error,
+                            message: StyledString::Text(format!("Conflicting App Router handlers: {} and {}", existing.path, file.path).into()).resolved_cell(),
+                        }.resolved_cell().emit();
+                    }
+                    // Directory iteration order must not decide which extension wins.
+                    // Match webpack's first configured page extension for each special file.
+                    if module_extension_priorities
+                        .get(stem)
+                        .is_none_or(|previous| priority < *previous)
+                    {
+                        match stem {
+                            "page" => modules.page = Some(file.clone()),
+                            "layout" => modules.layout = Some(file.clone()),
+                            "error" => modules.error = Some(file.clone()),
+                            "global-error" => modules.global_error = Some(file.clone()),
+                            "global-not-found" => modules.global_not_found = Some(file.clone()),
+                            "loading" => modules.loading = Some(file.clone()),
+                            "template" => modules.template = Some(file.clone()),
+                            "forbidden" => modules.forbidden = Some(file.clone()),
+                            "unauthorized" => modules.unauthorized = Some(file.clone()),
+                            "not-found" => modules.not_found = Some(file.clone()),
+                            "default" => modules.default = Some(file.clone()),
+                            "route" => modules.route = Some(file.clone()),
+                            _ => {}
+                        }
+                        module_extension_priorities.insert(stem, priority);
                     }
                 }
 
