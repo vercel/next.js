@@ -49,7 +49,17 @@ describe('Cache Components Errors', () => {
           await next.browser('/')
 
           // trim off any logs after the HTTP request finished
-          const output = next.cliOutput.slice(from)
+          let output = next.cliOutput.slice(from)
+          // FIXME: Remove the DEP0144 allowance once require-cache stops using module.parent.
+          if (process.env.IS_WEBPACK_TEST) {
+            expect(output).toContain(
+              '[DEP0144] DeprecationWarning: module.parent'
+            )
+            output = output.replace(
+              /^\(node:\d+\) \[DEP0144\] DeprecationWarning: module\.parent[^\r\n]*(?:\r?\n[ \t]+at [^\r\n]*)*\r?\n?/gm,
+              ''
+            )
+          }
           expect(output).toContain('GET / 200')
           const snapshot = output.slice(0, output.indexOf('GET / 200')).trim()
 
