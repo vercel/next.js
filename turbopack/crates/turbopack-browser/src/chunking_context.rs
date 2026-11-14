@@ -565,6 +565,24 @@ impl BrowserChunkingContext {
     }
 }
 
+/// The chunks of a parent evaluated chunk group, given its [`ChunkGroupResult::assets`]: these
+/// are its directly-generated chunks, without the assets that bootstrap it (the evaluate chunk,
+/// the shared runtime chunk and the HMR chunk-list register chunk).
+async fn parent_chunks(
+    parent_assets: Vc<OutputAssets>,
+) -> Result<Vec<ResolvedVc<Box<dyn OutputAsset>>>> {
+    Ok(parent_assets
+        .await?
+        .iter()
+        .copied()
+        .filter(|asset| {
+            ResolvedVc::try_downcast_type::<EcmascriptBrowserEvaluateChunk>(*asset).is_none()
+                && ResolvedVc::try_downcast_type::<EcmascriptBrowserRuntimeChunk>(*asset).is_none()
+                && ResolvedVc::try_downcast_type::<EcmascriptDevChunkList>(*asset).is_none()
+        })
+        .collect())
+}
+
 #[turbo_tasks::value_impl]
 impl BrowserChunkingContext {
     #[turbo_tasks::function]
@@ -953,6 +971,9 @@ impl ChunkingContext for BrowserChunkingContext {
         // Extra chunks to include in the HMR chunk list beyond what is reachable from this chunk
         // group. Used to cover RSC client reference chunks that are built separately.
         extra_chunks: Vc<OutputAssets>,
+        // The assets of a parent evaluated chunk group that is loaded alongside this one. Its
+        // chunks are awaited before the entries are evaluated.
+        parent_assets: Vc<OutputAssets>,
         input_availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!(
@@ -987,10 +1008,18 @@ impl ChunkingContext for BrowserChunkingContext {
                 .await?;
 
             // The evaluate chunk loads `other_assets` as `SourceType.Runtime` (without script
-            // tags), so it must contain only the directly-generated chunks for this chunk group.
-            // `extra_chunks` are loaded separately (already in the HTML), so excluding them here
-            // prevents the runtime from blocking on a load that will never happen.
-            let other_assets = Vc::cell(assets.clone());
+            // tags), and waits for all of them before evaluating the entries. So it must contain
+            // only chunks that are loaded alongside the entries: the directly-generated chunks for
+            // this chunk group, and the chunks of the parent chunk group. The entries can depend
+            // on the parent's modules, since `input_availability_info` leaves them out of this
+            // chunk group, so they must not be evaluated before the parent's chunks have loaded,
+            // even if those happen to execute later. `extra_chunks` are loaded separately
+            // (already in the HTML), so excluding them here prevents the runtime from blocking on
+            // a load that will never happen.
+            let mut other_assets: FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>> =
+                parent_chunks(parent_assets).await?.into_iter().collect();
+            other_assets.extend(assets.iter().copied());
+            let other_assets = Vc::cell(other_assets.into_iter().collect());
 
             let entries = Vc::cell(
                 chunk_group

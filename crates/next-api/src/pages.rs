@@ -829,7 +829,7 @@ impl PageEndpoint {
 
         // With a per-page module graph every endpoint would otherwise get its own graph, and
         // chunk group indices are only meaningful within the `ChunkGroupInfo` of a single graph.
-        // `/_app` is always loaded before the page in the browser and seeds the page's
+        // `/_app` is always loaded together with the page in the browser and seeds the page's
         // availability, so both entry groups have to live in the same graph. Build a graph
         // "chain" for app, page -- the same layout segment optimization `ssr_module_graph` uses
         // for document, app, page.
@@ -944,33 +944,38 @@ impl PageEndpoint {
             let module_graph = self.client_module_graph();
 
             let evaluatable_assets = client_entry_modules(self.client_evaluatable_assets()).await?;
-            // Like App Router layouts, `/_app` is always loaded before the page. Treat it as
+            // Like App Router layouts, `/_app` is always loaded together with the page. Treat it as
             // already available so the page's chunks don't include modules that the browser
             // already downloaded with `/_app`. `client_module_graph` chains `/_app`'s entry group
             // into this page's graph, so the group resolves within the very graph this page is
             // chunked with.
-            let availability_info = if this.pathname == "/_app" {
-                AvailabilityInfo::root()
+            //
+            // The page's entries depend on those modules, so the page must also wait for
+            // `/_app`'s chunks before evaluating its entries. Script order alone doesn't
+            // guarantee that `/_app`'s chunks execute first (e.g. with `async` scripts).
+            let (availability_info, parent_assets) = if this.pathname == "/_app" {
+                (AvailabilityInfo::root(), OutputAssets::empty())
             } else {
-                AvailabilityInfo::root()
-                    .with_chunk_group(
-                        module_graph.to_resolved().await?,
-                        ChunkGroupKey::Entry(
-                            client_entry_modules(
-                                this.pages_project
-                                    .app_page_endpoint()
-                                    .client_evaluatable_assets(),
-                            )
-                            .await?,
-                        ),
-                    )
-                    .await?
+                let app_endpoint = this.pages_project.app_page_endpoint();
+                (
+                    AvailabilityInfo::root()
+                        .with_chunk_group(
+                            module_graph.to_resolved().await?,
+                            ChunkGroupKey::Entry(
+                                client_entry_modules(app_endpoint.client_evaluatable_assets())
+                                    .await?,
+                            ),
+                        )
+                        .await?,
+                    *app_endpoint.client_chunk_group().await?.assets,
+                )
             };
             let client_chunk_group = client_chunking_context.evaluated_chunk_group(
                 AssetIdent::from_path(this.page.await?.base_path.clone()).into_vc(),
                 ChunkGroupKey::Entry(evaluatable_assets),
                 module_graph,
                 OutputAssets::empty(),
+                parent_assets,
                 availability_info,
             );
 

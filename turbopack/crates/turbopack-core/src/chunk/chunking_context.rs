@@ -500,6 +500,13 @@ pub trait ChunkingContext {
     /// are loaded alongside the entries (and tracked in the chunk-list register
     /// chunk for HMR) — used to extend the entry's HMR-tracked chunks with
     /// chunks computed elsewhere (e.g. app-router client references).
+    ///
+    /// `parent_assets` are the [`ChunkGroupResult::assets`] of another evaluated chunk group
+    /// that is always loaded alongside this one, and whose modules `availability_info` treats as
+    /// already available. The modules of this chunk group's entries can depend on them, so the
+    /// entries are only evaluated once the parent's chunks have loaded too. Without this, the
+    /// entries would only wait for this chunk group's own chunks, and evaluating them would rely
+    /// on the parent's chunks executing first.
     #[turbo_tasks::function]
     fn evaluated_chunk_group(
         self: Vc<Self>,
@@ -507,6 +514,7 @@ pub trait ChunkingContext {
         chunk_group: ChunkGroupKey,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
+        parent_assets: Vc<OutputAssets>,
         availability_info: AvailabilityInfo,
     ) -> Vc<ChunkGroupResult>;
 
@@ -844,6 +852,7 @@ fn evaluated_chunk_group_assets(
             chunk_group,
             module_graph,
             extra_chunks,
+            OutputAssets::empty(),
             availability_info,
         )
         .output_assets_with_referenced()
