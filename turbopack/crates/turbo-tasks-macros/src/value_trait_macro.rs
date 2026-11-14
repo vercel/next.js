@@ -219,6 +219,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 filter_trait_call_args: turbo_fn.filter_trait_call_args(),
                 is_root: false,
                 is_session_dependent: false,
+                is_collectibles_boundary: false,
             };
 
             let native_function_ident = get_trait_default_impl_function_ident(trait_ident, ident);

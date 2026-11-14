@@ -183,6 +183,14 @@ struct TaskStorageSchema {
     #[field(storage = "flag", category = "meta")]
     optimization_pending: bool,
 
+    /// Set on a collectibles boundary (see `NativeFunction::is_collectibles_boundary`): the
+    /// collectibles it emits and aggregates aren't propagated to its uppers. Copied from its
+    /// function when the task is created, as aggregation updates only access `Meta` and the task
+    /// type is `Data`. A lazy field rather than a flag (the flags are full): only boundary tasks,
+    /// which are roots, have it.
+    #[field(storage = "direct", category = "meta")]
+    collectibles_boundary: (),
+
     /// Whether clean in current session (transient flag).
     #[field(storage = "flag", category = "transient")]
     current_session_clean: bool,

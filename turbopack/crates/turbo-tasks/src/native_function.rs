@@ -217,6 +217,12 @@ pub struct NativeFunction {
     /// re-executed when restored from persistent cache because they depend on external state
     /// (filesystem, environment, network) that may change between sessions.
     pub is_session_dependent: bool,
+
+    /// Whether this function's tasks are collectibles boundaries: the collectibles they emit and
+    /// aggregate are not propagated to their uppers in the aggregation graph. They can still be
+    /// read from the task itself (e.g. with `peek_collectibles`). Only set on root functions, as
+    /// only an aggregating task holds the collectibles of its subgraph.
+    pub is_collectibles_boundary: bool,
 }
 impl_ptr_identity!(NativeFunction);
 
@@ -245,6 +251,7 @@ impl NativeFunction {
         ty: RegistryType::new::<()>("", ""),
         is_root: false,
         is_session_dependent: false,
+        is_collectibles_boundary: false,
     };
 
     pub const fn new<T: TaskFn>(
@@ -261,7 +268,15 @@ impl NativeFunction {
             implementation,
             is_root,
             is_session_dependent,
+            is_collectibles_boundary: false,
         }
+    }
+
+    /// Makes this function's tasks collectibles boundaries, see
+    /// [`NativeFunction::is_collectibles_boundary`].
+    pub const fn with_collectibles_boundary(mut self) -> Self {
+        self.is_collectibles_boundary = true;
+        self
     }
 
     /// Executed the function

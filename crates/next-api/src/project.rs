@@ -77,10 +77,7 @@ use turbopack_core::{
     environment::NodeJsVersion,
     file_source::FileSource,
     ident::Layer,
-    issue::{
-        CollectibleIssuesExt, Issue, IssueExt, IssueFilter, IssueSeverity, IssueStage, PlainIssue,
-        StyledString,
-    },
+    issue::{Issue, IssueExt, IssueFilter, IssueSeverity, IssueStage, PlainIssue, StyledString},
     module::{Module, Modules, StyleModule},
     module_graph::{
         GraphEntries, ModuleGraph, ModuleGraphOptions, SingleModuleGraph, SingleModuleGraphNode,
@@ -1807,13 +1804,10 @@ impl Project {
     pub async fn whole_app_module_graphs(
         self: ResolvedVc<Self>,
     ) -> Result<Vc<BaseAndFullModuleGraph>> {
-        let module_graphs_op = whole_app_module_graph_operation(self);
         let module_graphs_vc = if self.next_mode().await?.is_production() {
-            module_graphs_op.connect()
+            whole_app_module_graph_operation(self).connect()
         } else {
-            let vc = module_graphs_op.resolve().strongly_consistent().await?;
-            module_graphs_op.drop_issues();
-            *vc
+            whole_app_module_graph_without_issues_operation(self).connect()
         };
         scale_down_node_pool(self).await?;
         Ok(module_graphs_vc)
@@ -3250,6 +3244,15 @@ pub async fn compute_whole_app_client_style_groups_early(project: Vc<Project>) -
 
 // This is a performance optimization. This function is a root aggregation function that
 // aggregates over the whole subgraph.
+/// [`whole_app_module_graph_operation`] as a collectibles boundary, for development: its issues
+/// stay with it, so that individual routes don't each report every issue from the shared graph.
+#[turbo_tasks::function(operation, root, collectibles_boundary)]
+async fn whole_app_module_graph_without_issues_operation(
+    project: ResolvedVc<Project>,
+) -> Result<Vc<BaseAndFullModuleGraph>> {
+    Ok(whole_app_module_graph_operation(project).connect())
+}
+
 #[turbo_tasks::function(operation, root)]
 async fn whole_app_module_graph_operation(
     project: ResolvedVc<Project>,

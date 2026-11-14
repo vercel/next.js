@@ -18,7 +18,9 @@ impl AsyncModulesInfo {
     }
 }
 
-#[turbo_tasks::function(operation, root)]
+/// A collectibles boundary: `module.is_self_async()` emits issues that are already reported where
+/// the modules are processed, so they must not be reported again for the module graph.
+#[turbo_tasks::function(operation, root, collectibles_boundary)]
 pub async fn compute_async_module_info(
     graphs: ResolvedVc<ModuleGraph>,
 ) -> Result<Vc<AsyncModulesInfo>> {

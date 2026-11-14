@@ -754,6 +754,10 @@ pub struct FunctionArguments {
     /// when restored from persistent cache because they depend on external state (filesystem,
     /// environment, network) that may change between sessions.
     pub session_dependent: Option<Span>,
+    /// Should the task be a collectibles boundary? The collectibles it emits and aggregates are
+    /// not propagated to its uppers in the aggregation graph, but can still be read from the task
+    /// itself. Requires `root`.
+    pub collectibles_boundary: Option<Span>,
 }
 
 impl Parse for FunctionArguments {
@@ -784,14 +788,27 @@ impl Parse for FunctionArguments {
                 ("session_dependent", Meta::Path(_)) => {
                     parsed_args.session_dependent = Some(meta.span());
                 }
+                ("collectibles_boundary", Meta::Path(_)) => {
+                    parsed_args.collectibles_boundary = Some(meta.span());
+                }
                 (_, meta) => {
                     return Err(syn::Error::new_spanned(
                         meta,
                         "unexpected token, expected one of: \"fs\", \"network\", \"operation\", \
-                         \"root\", or \"session_dependent\"",
+                         \"root\", \"session_dependent\", or \"collectibles_boundary\"",
                     ));
                 }
             }
+        }
+
+        if let Some(span) = parsed_args.collectibles_boundary
+            && parsed_args.root.is_none()
+        {
+            return Err(syn::Error::new(
+                span,
+                "\"collectibles_boundary\" requires \"root\": only an aggregation root holds the \
+                 collectibles of its subgraph",
+            ));
         }
 
         Ok(parsed_args)
@@ -1125,6 +1142,7 @@ pub struct NativeFn {
     pub filter_trait_call_args: Option<FilterTraitCallArgsTokens>,
     pub is_root: bool,
     pub is_session_dependent: bool,
+    pub is_collectibles_boundary: bool,
 }
 
 impl NativeFn {
@@ -1138,7 +1156,11 @@ impl NativeFn {
             filter_trait_call_args,
             is_root,
             is_session_dependent,
+            is_collectibles_boundary,
         } = self;
+
+        let collectibles_boundary =
+            (*is_collectibles_boundary).then(|| quote! { .with_collectibles_boundary() });
 
         let task_fn = if *is_method && *is_self_used {
             quote! { turbo_tasks::macro_helpers::into_task_fn_with_this(#function_path) }
@@ -1175,6 +1197,7 @@ impl NativeFn {
                     #is_root,
                     #is_session_dependent,
                 )
+                #collectibles_boundary
             }
         }
     }

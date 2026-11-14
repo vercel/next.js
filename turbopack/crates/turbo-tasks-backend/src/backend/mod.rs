@@ -2029,6 +2029,11 @@ impl TurboTasksBackend {
             created_new = created;
             if created {
                 self.track_cache_miss_by_fn(native_fn);
+                if native_fn.is_collectibles_boundary {
+                    // Before the task is connected: no collectibles may reach its uppers.
+                    ctx.task(task_id, TaskDataCategory::Meta)
+                        .set_collectibles_boundary(());
+                }
                 // Update the aggregation number before connecting the child. We don't need this on
                 // recovery paths because the aggregation number will already be set.
                 if is_root {

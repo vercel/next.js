@@ -238,6 +238,13 @@ fn add_inner_edge(
 
 /// Returns a list of tasks that are considered as "upper" tasks of the task. The upper tasks are
 /// aggregating over the task.
+/// Whether the task is a collectibles boundary (see `NativeFunction::is_collectibles_boundary`):
+/// the collectibles it emits and aggregates stay with it and aren't propagated to its uppers.
+fn is_collectibles_boundary(task: &TaskGuard<'_>) -> bool {
+    // Only roots can be boundaries, so most tasks skip the lookup in the lazy fields.
+    is_root_node(get_aggregation_number(task)) && task.has_collectibles_boundary()
+}
+
 pub fn get_uppers(task: &TaskGuard<'_>) -> TaskIdVec {
     task.iter_upper().map(|(&id, _count)| id).collect()
 }
@@ -455,6 +462,10 @@ impl AggregationUpdateJob {
         task: &mut TaskGuard<'_>,
         update: AggregatedDataUpdate,
     ) -> Option<AggregationUpdateJob> {
+        let update = update.for_uppers_of(task);
+        if update.is_empty() {
+            return None;
+        }
         let upper_ids: SmallVec<_> = get_uppers(task);
         if !upper_ids.is_empty() {
             Some(
@@ -510,6 +521,17 @@ pub struct AggregatedDataUpdate {
 }
 
 impl AggregatedDataUpdate {
+    /// The part of this update that `task` passes on to its uppers: all of it, except that a
+    /// collectibles boundary (see `NativeFunction::is_collectibles_boundary`) keeps the
+    /// collectibles it emits and aggregates. Dirty containers are always passed on, so strongly
+    /// consistent reads above a boundary still wait for the work below it.
+    fn for_uppers_of(mut self, task: &TaskGuard<'_>) -> Self {
+        if !self.collectibles_update.is_empty() && is_collectibles_boundary(task) {
+            self.collectibles_update.clear();
+        }
+        self
+    }
+
     /// Derives an `AggregatedDataUpdate` from a task. This is used when a task is connected to an
     /// upper task.
     fn from_task(task: &mut TaskGuard<'_>) -> Self {
@@ -548,7 +570,9 @@ impl AggregatedDataUpdate {
             current_session_clean_count += 1;
         }
 
-        let mut result = Self::new().collectibles_update(collectibles_update);
+        let mut result = Self::new()
+            .collectibles_update(collectibles_update)
+            .for_uppers_of(task);
         if dirty_count > 0 {
             result = result.dirty_container_update(
                 task.id(),
@@ -2182,7 +2206,9 @@ impl AggregationUpdateQueue {
             "aggregated data update",
             |mut upper, ctx| {
                 self.check_optimization_pending(&upper);
-                let diff = update.apply(&mut upper, ctx.should_track_activeness(), self);
+                let diff = update
+                    .apply(&mut upper, ctx.should_track_activeness(), self)
+                    .for_uppers_of(&upper);
                 if !diff.is_empty() {
                     let upper_ids = get_uppers(&upper);
                     if !upper_ids.is_empty() {
@@ -2626,6 +2652,7 @@ impl AggregationUpdateQueue {
             // race conditions
             is_upper_active = upper.is_active();
         }
+        let boundary = !diffs.is_empty() && is_collectibles_boundary(&upper);
         let upper_ids = if diffs.is_empty() {
             TaskIdVec::new()
         } else {
@@ -2636,7 +2663,11 @@ impl AggregationUpdateQueue {
             // Outside of the lock: merge the outgoing diffs into a single update for the uppers of
             // the upper, instead of cloning the list and enqueuing one job per diff. Each input
             // was already applied to the upper above, including intermediate effects.
-            let update = AggregatedDataUpdate::merge_all(diffs);
+            let mut update = AggregatedDataUpdate::merge_all(diffs);
+            if boundary {
+                // See `AggregatedDataUpdate::for_uppers_of`.
+                update.collectibles_update.clear();
+            }
             if !update.is_empty() {
                 self.push(AggregatedDataUpdateJob { upper_ids, update }.into());
             }

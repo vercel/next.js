@@ -17,8 +17,7 @@ use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CollectiblesSource, FxIndexMap, FxIndexSet, OperationVc, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, Vc,
+    FxIndexMap, FxIndexSet, OperationVc, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -76,15 +75,19 @@ impl NextDynamicGraphs {
     pub async fn new(graphs: ResolvedVc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
         // TODO get rid of this function once everything inside of
         // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
-        let result_op = Self::new_operation(graphs, is_single_page);
-        let result_vc = if !is_single_page {
-            let result_vc = result_op.resolve().strongly_consistent().await?;
-            result_op.drop_collectibles::<Box<dyn Issue>>();
-            *result_vc
+        Ok(if !is_single_page {
+            // Its issues aren't reported, see `new_isolated_operation`.
+            Self::new_isolated_operation(graphs).connect()
         } else {
-            result_op.connect()
-        };
-        Ok(result_vc)
+            Self::new_operation(graphs, is_single_page).connect()
+        })
+    }
+
+    /// [`Self::new_operation`] for a whole app, as a collectibles boundary: its issues stay with it
+    /// instead of reaching every endpoint that uses the whole-app graph.
+    #[turbo_tasks::function(operation, root, collectibles_boundary)]
+    async fn new_isolated_operation(graphs: ResolvedVc<ModuleGraph>) -> Result<Vc<Self>> {
+        Ok(Self::new_operation(graphs, false).connect())
     }
 
     /// Returns the next/dynamic-ally imported (client) modules (from RSC and SSR modules) for the
@@ -274,15 +277,19 @@ impl ServerActionsGraphs {
     pub async fn new(graphs: ResolvedVc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
         // TODO get rid of this function once everything inside of
         // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
-        let result_op = Self::new_operation(graphs, is_single_page);
-        let result_vc = if !is_single_page {
-            let result_vc = result_op.resolve().strongly_consistent().await?;
-            result_op.drop_collectibles::<Box<dyn Issue>>();
-            *result_vc
+        Ok(if !is_single_page {
+            // Its issues aren't reported, see `new_isolated_operation`.
+            Self::new_isolated_operation(graphs).connect()
         } else {
-            result_op.connect()
-        };
-        Ok(result_vc)
+            Self::new_operation(graphs, is_single_page).connect()
+        })
+    }
+
+    /// [`Self::new_operation`] for a whole app, as a collectibles boundary: its issues stay with it
+    /// instead of reaching every endpoint that uses the whole-app graph.
+    #[turbo_tasks::function(operation, root, collectibles_boundary)]
+    async fn new_isolated_operation(graphs: ResolvedVc<ModuleGraph>) -> Result<Vc<Self>> {
+        Ok(Self::new_operation(graphs, false).connect())
     }
 
     /// Returns the server actions for the given page.
@@ -451,15 +458,19 @@ impl ClientReferencesGraphs {
     pub async fn new(graphs: ResolvedVc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
         // TODO get rid of this function once everything inside of
         // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
-        let result_op = Self::new_operation(graphs, is_single_page);
-        let result_vc = if !is_single_page {
-            let result_vc = result_op.resolve().strongly_consistent().await?;
-            result_op.drop_collectibles::<Box<dyn Issue>>();
-            *result_vc
+        Ok(if !is_single_page {
+            // Its issues aren't reported, see `new_isolated_operation`.
+            Self::new_isolated_operation(graphs).connect()
         } else {
-            result_op.connect()
-        };
-        Ok(result_vc)
+            Self::new_operation(graphs, is_single_page).connect()
+        })
+    }
+
+    /// [`Self::new_operation`] for a whole app, as a collectibles boundary: its issues stay with it
+    /// instead of reaching every endpoint that uses the whole-app graph.
+    #[turbo_tasks::function(operation, root, collectibles_boundary)]
+    async fn new_isolated_operation(graphs: ResolvedVc<ModuleGraph>) -> Result<Vc<Self>> {
+        Ok(Self::new_operation(graphs, false).connect())
     }
 
     /// Returns the client references for the given page.
