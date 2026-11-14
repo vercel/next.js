@@ -31,36 +31,32 @@ The following strategies can help address this error:
 
 <span id="solution-1-using-useeffect-to-run-on-the-client-only" />
 
-### Solution 1: Reading browser values with `useSyncExternalStore`
+### Solution 1: Rendering browser-only content
 
-Keep the server output and the initial client render identical. For values from browser APIs, use [`useSyncExternalStore`](https://react.dev/reference/react/useSyncExternalStore#adding-support-for-server-rendering) with a server snapshot. For example, this component reads the browser's network status:
+With React 19.3, call `use(browser())` before reading browser-only data and wrap the component in `<Suspense>`. See [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
 
 ```jsx filename="app/page.js"
 'use client'
 
-import { useSyncExternalStore } from 'react'
+import { Suspense, use } from 'react'
+import { browser } from 'react-dom'
 
-function subscribe(callback) {
-  window.addEventListener('online', callback)
-  window.addEventListener('offline', callback)
-  return () => {
-    window.removeEventListener('online', callback)
-    window.removeEventListener('offline', callback)
-  }
+function BrowserOnly() {
+  use(browser())
+
+  return <p>Saved theme: {localStorage.getItem('theme') ?? 'light'}</p>
 }
 
-export default function App() {
-  const isOnline = useSyncExternalStore(
-    subscribe,
-    () => navigator.onLine,
-    () => true
+export default function Page() {
+  return (
+    <Suspense fallback={<p>Loading theme…</p>}>
+      <BrowserOnly />
+    </Suspense>
   )
-
-  return <h1>{isOnline ? 'Online' : 'Offline'}</h1>
 }
 ```
 
-The third argument, `getServerSnapshot`, returns `true` both on the server and during hydration, so the initial HTML matches. React then reads the browser snapshot and subscribes to changes. The initial value can be visible before it updates; see [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) if that flash is a problem.
+The server renders the Suspense fallback. After JavaScript loads, the browser renders the saved theme without a hydration mismatch. The browser-only content is not included in the server-rendered HTML.
 
 > **Good to know**: You can also use `useEffect` to update content after hydration. Calling a state setter synchronously in the effect, such as `setIsClient(true)`, triggers [`react-hooks/set-state-in-effect`](https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect), enabled as an error by `eslint-config-next`, because it causes an extra render.
 
