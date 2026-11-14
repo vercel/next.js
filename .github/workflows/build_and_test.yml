@@ -59,6 +59,17 @@ jobs:
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
+      - name: check for front server change
+        id: front-server-change
+        run: |
+          set -euo pipefail
+          FRONT_SERVER="$(node scripts/run-for-change.mjs --type front-server --exec echo 'true')"
+          {
+            echo "FRONT_SERVER<<EOF"
+            echo "$FRONT_SERVER"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: check for release
         id: is-release
         run: |
@@ -77,6 +88,16 @@ jobs:
         ${{
           github.event_name == 'pull_request' &&
           steps.turbopack-change.outputs.TURBOPACK_ONLY != 'false'
+        }}
+      # test-front-server-prod runs on every canary push, and on pull requests
+      # only when the front server's files change.
+      front-server: >-
+        ${{
+          (github.event_name == 'push' && github.ref == 'refs/heads/canary') ||
+          (
+            github.event_name == 'pull_request' &&
+            steps.front-server-change.outputs.FRONT_SERVER == 'true'
+          )
         }}
       rspack: >-
         ${{
@@ -1204,6 +1225,49 @@ jobs:
           --type production
       testTimingsArtifact: 'test-timings'
       stepName: 'test-cache-components-prod-${{ matrix.group }}'
+    secrets: inherit
+
+  # Reruns the routing gate and the front server's behavior suite with
+  # `next start` behind the experimental Go front server. Both must pass the
+  # same as they do without it (packages/next/src/server/front). Runs on every
+  # canary push, and on pull requests that change the front server's files
+  # (the `front-server` group in scripts/run-for-change.mjs).
+  test-front-server-prod:
+    name: test front server prod
+    needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.front-server == 'true' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/2, 2/2]
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      needsGo: 'yes'
+      afterBuild: |
+        # `next` ships no next-front binary yet; build one and pass it in.
+        go build -C packages/next/src/server/front -trimpath -o "$RUNNER_TEMP/next-front" .
+        export __NEXT_EXPERIMENTAL_FRONT_SERVER_BINARY="$RUNNER_TEMP/next-front"
+        export __NEXT_EXPERIMENTAL_FRONT_SERVER=1
+
+        # The front's own unit tests (request targets and headers byte for
+        # byte, timeouts, shutdown): about 2 s, so first, in one group.
+        if [ "${{ matrix.group }}" = "1/2" ]; then
+          go -C packages/next/src/server/front test ./...
+        fi
+
+        node scripts/test-routing.mjs --mode=start -g ${{ matrix.group }}
+
+        if [ "${{ matrix.group }}" = "1/2" ]; then
+          NEXT_TEST_MODE=start IS_TURBOPACK_TEST=1 TURBOPACK_BUILD=1 \
+            node run-tests.js \
+              test/production/app-dir/front-server/front-server.test.ts \
+              test/production/app-dir/front-server/front-server-process.test.ts
+        fi
+      stepName: 'test-front-server-prod-${{ matrix.group }}'
     secrets: inherit
 
   # We block merging unless this job passes. This is enforced by a "require

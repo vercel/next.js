@@ -90,7 +90,7 @@ There are two tiers:
   opposed to another host that deploys through `NEXT_TEST_DEPLOY_SCRIPT_PATH`
   to test its adapter), specialized CI variants
   (`adapter`, `nodeMiddleware`, `standaloneOutput`, `turbopackDev`,
-  `turbopackBuild`), plus `FIXME` / `TODO`, which are always false.
+  `turbopackBuild`, `frontServerBinary`), plus `FIXME` / `TODO`, which are always false.
 
   Gate on `vercel` rather than `deploy` when the reason is specific to Vercel
   (its payload limit, image CDN, `x-vercel-*` headers), so other platforms
