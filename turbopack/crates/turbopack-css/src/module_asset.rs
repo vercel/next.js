@@ -16,7 +16,10 @@ use turbopack_core::{
     reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{origin::ResolveOrigin, parse::Request},
     source::{OptionSource, Source},
-    source_map::{SourceMapGenerationOptions, SourceMaps, structured::StructuredSourceMap},
+    source_map::{
+        SourceMapGenerationOptions, SourceMaps,
+        structured::{SplitSourceMap, StructuredSourceMap},
+    },
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -347,13 +350,14 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
             inner_code: code.into(),
             source_maps: match (generation.full, generation.shallow, map) {
                 (true, true, Some(map)) if generation.shallow_sources_content => {
-                    SourceMaps::Shared(map)
+                    SourceMaps::Shared(SplitSourceMap::new(map))
                 }
-                (true, true, Some(map)) => {
-                    SourceMaps::new(Some(map.clone()), Some(map.without_sources_content()))
-                }
-                (true, false, Some(map)) => SourceMaps::Full(map),
-                (false, true, Some(map)) => SourceMaps::Shallow(map),
+                (true, true, Some(map)) => SourceMaps::new(
+                    Some(SplitSourceMap::new(map.clone())),
+                    Some(SplitSourceMap::new(map.without_sources_content())),
+                ),
+                (true, false, Some(map)) => SourceMaps::Full(SplitSourceMap::new(map)),
+                (false, true, Some(map)) => SourceMaps::Shallow(SplitSourceMap::new(map)),
                 _ => SourceMaps::None,
             },
             options: EcmascriptChunkItemOptions {
