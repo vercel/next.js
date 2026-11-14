@@ -288,6 +288,12 @@ export class AppRouteRouteModule extends RouteModule<
   private _methods!: Record<HTTP_METHOD, AppRouteHandlerFn>
   private _hasNonStaticMethods!: boolean
   private _dynamic!: AppRouteUserlandModule['dynamic']
+  // Whether `handle` intercepts the request. Not known before the route is
+  // loaded.
+  private _interceptsRequest: boolean | undefined
+  // The last result of `getRequestClass`, and the class that it extends.
+  private _requestClass: typeof NextRequest | undefined
+  private _requestClassBase: typeof NextRequest | undefined
 
   override get userland(): AppRouteUserlandModule {
     return this._lazyUserland.assertLoaded()
@@ -368,6 +374,9 @@ export class AppRouteRouteModule extends RouteModule<
         this._dynamic = 'error'
       }
     }
+
+    this._interceptsRequest =
+      this._dynamic !== 'force-dynamic' && this._dynamic !== 'error'
 
     // We only warn in development after here, so return if we're not in
     // development.
@@ -1058,14 +1067,18 @@ export class AppRouteRouteModule extends RouteModule<
                 break
               case 'force-static':
                 workStore.forceStatic = true
-                request = new Proxy(req, forceStaticRequestHandlers)
+                request = interceptRequest(req, forceStaticRequestHandlers)
                 break
               case 'error':
                 workStore.dynamicShouldError = true
                 break
               case undefined:
               case 'auto':
-                request = proxyNextRequest(req, workStore)
+                request = interceptRequest(
+                  req,
+                  trackingRequestHandlers,
+                  workStore
+                )
                 break
               default:
                 prepared.dynamic satisfies never
@@ -1139,15 +1152,19 @@ export class AppRouteRouteModule extends RouteModule<
               }
               case 'force-static':
                 workStore.forceStatic = true
-                request = new Proxy(req, forceStaticRequestHandlers)
+                request = interceptRequest(req, forceStaticRequestHandlers)
                 break
               case 'error':
                 workStore.dynamicShouldError = true
-                request = new Proxy(req, ensureStaticRequestHandlers)
+                request = interceptRequest(req, ensureStaticRequestHandlers)
                 break
               case undefined:
               case 'auto':
-                request = proxyNextRequest(req, workStore)
+                request = interceptRequest(
+                  req,
+                  trackingRequestHandlers,
+                  workStore
+                )
                 break
               default:
                 prepared.dynamic satisfies never
@@ -1181,6 +1198,26 @@ export class AppRouteRouteModule extends RouteModule<
     )
 
     return this.validateExecutionResponse(response)
+  }
+
+  /**
+   * Returns the class to construct the request for `handle` and `prerender`
+   * with. If `handle` intercepts the request, that is `Base` extended with the
+   * intercepted properties. Otherwise it is `Base`. The route module can
+   * intercept a request of any class, but it has to change the prototype of a
+   * request that it gets without these properties.
+   */
+  public getRequestClass(Base: typeof NextRequest): typeof NextRequest {
+    if (!this._interceptsRequest) {
+      return Base
+    }
+
+    if (this._requestClassBase !== Base) {
+      this._requestClassBase = Base
+      this._requestClass = getInterceptedRequestClass(Base)
+    }
+
+    return this._requestClass!
   }
 
   public async handle(
@@ -1239,23 +1276,13 @@ export function hasNonStaticMethods(handlers: AppRouteHandlers): boolean {
   return false
 }
 
-// These symbols will be used to stash cached values on Proxied requests without requiring
-// additional closures or storage such as WeakMaps.
-const nextURLSymbol = Symbol('nextUrl')
-const requestCloneSymbol = Symbol('clone')
+// These symbols will be used to stash cached values on proxied URLs and on requests
+// without requiring additional closures or storage such as WeakMaps.
 const urlCloneSymbol = Symbol('clone')
 const searchParamsSymbol = Symbol('searchParams')
 const hrefSymbol = Symbol('href')
 const toStringSymbol = Symbol('toString')
-const headersSymbol = Symbol('headers')
-const cookiesSymbol = Symbol('cookies')
-
-type RequestSymbolTarget = {
-  [headersSymbol]?: Headers
-  [cookiesSymbol]?: RequestCookies | ReadonlyRequestCookies
-  [nextURLSymbol]?: NextURL
-  [requestCloneSymbol]?: () => NextRequest
-}
+const requestStateSymbol = Symbol('requestState')
 
 type UrlSymbolTarget = {
   [searchParamsSymbol]?: URLSearchParams
@@ -1265,67 +1292,273 @@ type UrlSymbolTarget = {
 }
 
 /**
- * The general technique with these proxy handlers is to prioritize keeping them static
- * by stashing computed values on the Proxy itself. This is safe because the Proxy is
- * inaccessible to the consumer since all operations are forwarded
+ * The properties of a request that the route module intercepts: the handlers
+ * of the request decide what the route handler gets for them, see
+ * `RequestHandlers`. Apart from `nextUrl` and `clone`, which the handlers wrap,
+ * each of them reads request data.
  */
-const forceStaticRequestHandlers = {
+const interceptedProps = [
+  'nextUrl',
+  'clone',
+  'headers',
+  'cookies',
+  'url',
+  'body',
+  'blob',
+  'json',
+  'text',
+  'arrayBuffer',
+  'formData',
+] as const
+
+type InterceptedProp = (typeof interceptedProps)[number]
+
+type RequestHandlers = {
+  /**
+   * Returns what the route handler gets for an intercepted property.
+   * `original` is the value that the request has for it.
+   */
   get(
-    target: NextRequest & RequestSymbolTarget,
-    prop: string | symbol,
-    receiver: any
-  ): unknown {
+    request: NextRequest,
+    state: RequestState,
+    prop: InterceptedProp,
+    original: any
+  ): unknown
+}
+
+/**
+ * What the route module keeps for a request whose intercepted properties it
+ * handles: the handlers, and the values that they cache.
+ */
+class RequestState {
+  /** True while a method of the request runs, see `bindOriginal`. */
+  inOwnMethod = false
+  headers: Headers | undefined = undefined
+  cookies: RequestCookies | ReadonlyRequestCookies | undefined = undefined
+  nextUrl: NextURL | undefined = undefined
+  clone: (() => NextRequest) | undefined = undefined
+
+  constructor(
+    readonly handlers: RequestHandlers,
+    /** The work store of a request whose access to request data is tracked. */
+    readonly workStore: WorkStore | undefined
+  ) {}
+
+  /**
+   * Node.js 20.9 prints the own properties of a request for
+   * `console.log(request)`. This keeps the state out of that output.
+   */
+  [Symbol.for('nodejs.util.inspect.custom')]() {
+    return {}
+  }
+}
+
+function getPropertyDescriptor(
+  object: object | null,
+  prop: string
+): PropertyDescriptor | undefined {
+  for (; object; object = Object.getPrototypeOf(object)) {
+    const descriptor = Object.getOwnPropertyDescriptor(object, prop)
+    if (descriptor) {
+      return descriptor
+    }
+  }
+  return undefined
+}
+
+// The classes that `getInterceptedRequestClass` created, by the class that
+// they extend.
+const interceptedRequestClasses = new WeakMap<
+  typeof NextRequest,
+  typeof NextRequest
+>()
+
+/**
+ * Returns the class that extends `Base` with the intercepted properties.
+ *
+ * A route handler gets the request itself and not a Proxy of it. A `Request`
+ * keeps its state in private fields since Node.js 24 and a Proxy does not have
+ * them, so `new Request(request)` and `fetch(request)` throw for a Proxy.
+ *
+ * Instead, the request is an instance of this class. An instance without state
+ * has the properties of `Base`.
+ */
+function getInterceptedRequestClass(
+  Base: typeof NextRequest
+): typeof NextRequest {
+  let InterceptedRequest = interceptedRequestClasses.get(Base)
+
+  if (!InterceptedRequest) {
+    InterceptedRequest = class extends Base {
+      [requestStateSymbol]: RequestState | undefined = undefined
+    }
+    interceptedRequestClasses.set(Base, InterceptedRequest)
+
+    const base = Base.prototype
+    const prototype = InterceptedRequest.prototype
+
+    // An instance looks like an instance of `Base`.
+    prototype.constructor = Base
+
+    for (const prop of interceptedProps) {
+      const descriptor = getPropertyDescriptor(base, prop)
+      // The getter is looked up once. A lookup for every read, as with
+      // `Reflect.get()`, makes the read slower, also for a request without
+      // state.
+      const getter = descriptor?.get
+
+      Object.defineProperty(prototype, prop, {
+        configurable: true,
+        // The property stays as enumerable as it is in `Base`.
+        enumerable: descriptor?.enumerable,
+        get(this: NextRequest & { [requestStateSymbol]?: RequestState }) {
+          const state = this[requestStateSymbol]
+          const original = getter ? getter.call(this) : (base as any)[prop]
+          return state === undefined || state.inOwnMethod
+            ? original
+            : state.handlers.get(this, state, prop, original)
+        },
+        // An assignment does what it does for an instance of `Base`: it fails
+        // for a getter without a setter, and it adds the property to the
+        // request for a method.
+        set: getter
+          ? descriptor!.set
+          : function (this: object, value: unknown) {
+              Reflect.set(base, prop, value, this)
+            },
+      })
+    }
+  }
+
+  return InterceptedRequest
+}
+
+/**
+ * Makes a request handle its intercepted properties with the given handlers.
+ */
+function interceptRequest<T extends Request>(
+  request: T & { [requestStateSymbol]?: RequestState },
+  handlers: RequestHandlers,
+  workStore?: WorkStore
+): T {
+  const isIntercepted = requestStateSymbol in request
+
+  request[requestStateSymbol] = new RequestState(handlers, workStore)
+
+  if (!isIntercepted) {
+    // The request was not constructed with the intercepted properties: it is
+    // a request in the edge runtime, a clone, which is a `Request`, a request
+    // from before the route was loaded, or the request of a prerender with
+    // `dynamic = 'error'` (every route handler with `output: 'export'`),
+    // which the route only intercepts while it prerenders. It becomes an
+    // instance of the class for its own class. Its prototype changes after
+    // it has its state: in Node.js 20 and 22, a property that is added to an
+    // object after that makes every later access to it slow.
+    Object.setPrototypeOf(
+      request,
+      getInterceptedRequestClass(request.constructor as typeof NextRequest)
+        .prototype
+    )
+  }
+
+  return request
+}
+
+/**
+ * Returns the original value of a property for the route handler.
+ *
+ * A method is bound to the request. While it runs, the request has its
+ * original properties: `clone()` and `formData()` read `this.body` and
+ * `this.headers` in Node.js 20, which the route handler did not read.
+ */
+function bindOriginal(
+  request: Request,
+  state: RequestState,
+  original: unknown
+): any {
+  if (typeof original !== 'function') {
+    return original
+  }
+
+  return function (...args: unknown[]) {
+    const previous = state.inOwnMethod
+    state.inOwnMethod = true
+    try {
+      return Reflect.apply(original, request, args)
+    } finally {
+      state.inOwnMethod = previous
+    }
+  }
+}
+
+/**
+ * Returns `clone` for the route handler. The clone handles its intercepted
+ * properties like the request does.
+ */
+function getClone(
+  request: Request,
+  state: RequestState,
+  original: unknown
+): () => NextRequest {
+  return (
+    state.clone ||
+    (state.clone = () =>
+      interceptRequest(
+        // This is vaguely unsafe but it's required since NextRequest does not implement
+        // clone. The reason we might expect this to work in this context is the clone will
+        // respond with static-amenable values anyway somewhat restoring the interface.
+        // @TODO we need to rethink NextRequest and NextURL because they are not sufficientlly
+        // sophisticated to adequately represent themselves in all contexts. A better approach is
+        // to probably embed the static generation logic into the class itself
+        bindOriginal(request, state, original)() as NextRequest,
+        state.handlers,
+        state.workStore
+      ))
+  )
+}
+
+/**
+ * The general technique with these handlers is to prioritize keeping them static
+ * by stashing computed values in the state of the request.
+ */
+const forceStaticRequestHandlers: RequestHandlers = {
+  get(request, state, prop, original) {
     switch (prop) {
       case 'headers':
         return (
-          target[headersSymbol] ||
-          (target[headersSymbol] = HeadersAdapter.seal(new Headers({})))
+          state.headers ||
+          (state.headers = HeadersAdapter.seal(new Headers({})))
         )
       case 'cookies':
         return (
-          target[cookiesSymbol] ||
-          (target[cookiesSymbol] = RequestCookiesAdapter.seal(
+          state.cookies ||
+          (state.cookies = RequestCookiesAdapter.seal(
             new RequestCookies(new Headers({}))
           ))
         )
       case 'nextUrl':
         return (
-          target[nextURLSymbol] ||
-          (target[nextURLSymbol] = new Proxy(
-            target.nextUrl,
-            forceStaticNextUrlHandlers
-          ))
+          state.nextUrl ||
+          (state.nextUrl = new Proxy(original, forceStaticNextUrlHandlers))
         )
       case 'url':
         // we don't need to separately cache this we can just read the nextUrl
         // and return the href since we know it will have been stripped of any
-        // dynamic parts. We access via the receiver to trigger the get trap
-        return receiver.nextUrl.href
-      case 'geo':
-      case 'ip':
-        return undefined
+        // dynamic parts.
+        return request.nextUrl.href
       case 'clone':
-        return (
-          target[requestCloneSymbol] ||
-          (target[requestCloneSymbol] = () =>
-            new Proxy(
-              // This is vaguely unsafe but it's required since NextRequest does not implement
-              // clone. The reason we might expect this to work in this context is the Proxy will
-              // respond with static-amenable values anyway somewhat restoring the interface.
-              // @TODO we need to rethink NextRequest and NextURL because they are not sufficientlly
-              // sophisticated to adequately represent themselves in all contexts. A better approach is
-              // to probably embed the static generation logic into the class itself removing the need
-              // for any kind of proxying
-              target.clone() as NextRequest,
-              forceStaticRequestHandlers
-            ))
-        )
-      default:
-        return ReflectAdapter.get(target, prop, receiver)
+        return getClone(request, state, original)
+      case 'body':
+      case 'blob':
+      case 'json':
+      case 'text':
+      case 'arrayBuffer':
+      case 'formData':
+        // The methods that read the body run with the original properties of
+        // the request: `formData()` needs the content type from its headers.
+        return bindOriginal(request, state, original)
     }
   },
-  // We don't need to proxy set because all the properties we proxy are ready only
-  // and will be ignored
 }
 
 const forceStaticNextUrlHandlers = {
@@ -1373,7 +1606,7 @@ const forceStaticNextUrlHandlers = {
   },
 }
 
-function proxyNextRequest(request: NextRequest, workStore: WorkStore) {
+function createTrackingNextUrlHandlers(workStore: WorkStore) {
   const nextUrlHandlers = {
     get(
       target: NextURL & UrlSymbolTarget,
@@ -1404,78 +1637,51 @@ function proxyNextRequest(request: NextRequest, workStore: WorkStore) {
     },
   }
 
-  const nextRequestHandlers = {
-    get(
-      target: NextRequest & RequestSymbolTarget,
-      prop: string | symbol
-    ): unknown {
-      switch (prop) {
-        case 'nextUrl':
-          return (
-            target[nextURLSymbol] ||
-            (target[nextURLSymbol] = new Proxy(target.nextUrl, nextUrlHandlers))
-          )
-        case 'headers':
-        case 'cookies':
-        case 'url':
-        case 'body':
-        case 'blob':
-        case 'json':
-        case 'text':
-        case 'arrayBuffer':
-        case 'formData': {
-          const workUnitStore = workUnitAsyncStorage.getStore()
-          trackDynamic(workStore, workUnitStore, `request.${prop}`)
-          // The receiver arg is intentionally the same as the target to fix an issue with
-          // edge runtime, where attempting to access internal slots with the wrong `this` context
-          // results in an error.
-          return ReflectAdapter.get(target, prop, target)
-        }
-        case 'clone':
-          return (
-            target[requestCloneSymbol] ||
-            (target[requestCloneSymbol] = () =>
-              new Proxy(
-                // This is vaguely unsafe but it's required since NextRequest does not implement
-                // clone. The reason we might expect this to work in this context is the Proxy will
-                // respond with static-amenable values anyway somewhat restoring the interface.
-                // @TODO we need to rethink NextRequest and NextURL because they are not sufficientlly
-                // sophisticated to adequately represent themselves in all contexts. A better approach is
-                // to probably embed the static generation logic into the class itself removing the need
-                // for any kind of proxying
-                target.clone() as NextRequest,
-                nextRequestHandlers
-              ))
-          )
-        default:
-          // The receiver arg is intentionally the same as the target to fix an issue with
-          // edge runtime, where attempting to access internal slots with the wrong `this` context
-          // results in an error.
-          return ReflectAdapter.get(target, prop, target)
-      }
-    },
-    // We don't need to proxy set because all the properties we proxy are ready only
-    // and will be ignored
-  }
-
-  return new Proxy(request, nextRequestHandlers)
+  return nextUrlHandlers
 }
 
-const ensureStaticRequestHandlers = {
-  get(
-    target: NextRequest & RequestSymbolTarget,
-    prop: string | symbol,
-    receiver: any
-  ): unknown {
+const trackingRequestHandlers: RequestHandlers = {
+  get(request, state, prop, original) {
+    const workStore = state.workStore!
+
     switch (prop) {
       case 'nextUrl':
         return (
-          target[nextURLSymbol] ||
-          (target[nextURLSymbol] = new Proxy(
-            target.nextUrl,
-            ensureStaticNextUrlHandlers
+          state.nextUrl ||
+          (state.nextUrl = new Proxy(
+            original,
+            createTrackingNextUrlHandlers(workStore)
           ))
         )
+      case 'clone':
+        return getClone(request, state, original)
+      case 'headers':
+      case 'cookies':
+      case 'url':
+      case 'body':
+      case 'blob':
+      case 'json':
+      case 'text':
+      case 'arrayBuffer':
+      case 'formData': {
+        const workUnitStore = workUnitAsyncStorage.getStore()
+        trackDynamic(workStore, workUnitStore, `request.${prop}`)
+        return bindOriginal(request, state, original)
+      }
+    }
+  },
+}
+
+const ensureStaticRequestHandlers: RequestHandlers = {
+  get(request, state, prop, original) {
+    switch (prop) {
+      case 'nextUrl':
+        return (
+          state.nextUrl ||
+          (state.nextUrl = new Proxy(original, ensureStaticNextUrlHandlers))
+        )
+      case 'clone':
+        return getClone(request, state, original)
       case 'headers':
       case 'cookies':
       case 'url':
@@ -1486,30 +1692,10 @@ const ensureStaticRequestHandlers = {
       case 'arrayBuffer':
       case 'formData':
         throw new StaticGenBailoutError(
-          `Route ${target.nextUrl.pathname} with \`dynamic = "error"\` couldn't be rendered statically because it used \`request.${prop}\`.`
+          `Route ${request.nextUrl.pathname} with \`dynamic = "error"\` couldn't be rendered statically because it used \`request.${prop}\`.`
         )
-      case 'clone':
-        return (
-          target[requestCloneSymbol] ||
-          (target[requestCloneSymbol] = () =>
-            new Proxy(
-              // This is vaguely unsafe but it's required since NextRequest does not implement
-              // clone. The reason we might expect this to work in this context is the Proxy will
-              // respond with static-amenable values anyway somewhat restoring the interface.
-              // @TODO we need to rethink NextRequest and NextURL because they are not sufficientlly
-              // sophisticated to adequately represent themselves in all contexts. A better approach is
-              // to probably embed the static generation logic into the class itself removing the need
-              // for any kind of proxying
-              target.clone() as NextRequest,
-              ensureStaticRequestHandlers
-            ))
-        )
-      default:
-        return ReflectAdapter.get(target, prop, receiver)
     }
   },
-  // We don't need to proxy set because all the properties we proxy are ready only
-  // and will be ignored
 }
 
 const ensureStaticNextUrlHandlers = {

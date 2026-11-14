@@ -24,6 +24,7 @@ import {
   NextRequestAdapter,
   signalFromNodeResponse,
 } from '../../server/web/spec-extension/adapters/next-request'
+import { NextRequest } from '../../server/web/spec-extension/request'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { getRevalidateReason } from '../../server/instrumentation/utils'
 import { sendResponse } from '../../server/send-response'
@@ -317,7 +318,8 @@ async function handleRequest(
 
   const nextReq = NextRequestAdapter.fromNodeNextRequest(
     nodeNextReq,
-    signalFromNodeResponse(res)
+    signalFromNodeResponse(res),
+    routeModule.getRequestClass(NextRequest)
   )
 
   const responseGenerator: ResponseGenerator = async ({

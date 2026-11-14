@@ -15,6 +15,7 @@ import {
   NextRequestAdapter,
   signalFromNodeResponse,
 } from '../../server/web/spec-extension/adapters/next-request'
+import { NextRequest } from '../../server/web/spec-extension/request'
 import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
 import type {
   MockedRequest,
@@ -62,7 +63,8 @@ export async function exportAppRoute(
   // Adapt the request and response to the Next.js request and response.
   const request = NextRequestAdapter.fromNodeNextRequest(
     new NodeNextRequest(req),
-    signalFromNodeResponse(res)
+    signalFromNodeResponse(res),
+    module.getRequestClass(NextRequest)
   )
 
   const afterRunner = new AfterRunner()
