@@ -12,7 +12,7 @@ import isError from '../../../lib/is-error'
 import { isResSent } from '../../../shared/lib/utils'
 import { interopDefault } from '../../../lib/interop-default'
 import {
-  setLazyProp,
+  setLazyProps,
   sendStatusCode,
   redirect,
   clearPreviewData,
@@ -327,6 +327,50 @@ async function revalidate(
   }
 }
 
+type ApiResponseMethods = Pick<
+  NextApiResponse,
+  | 'write'
+  | 'end'
+  | 'status'
+  | 'send'
+  | 'json'
+  | 'redirect'
+  | 'setDraftMode'
+  | 'setPreviewData'
+  | 'clearPreviewData'
+  | 'revalidate'
+>
+
+/**
+ * Sets the functions that are created for each request on the response of an
+ * API route.
+ *
+ * V8 allocates a function expression that is assigned to a property
+ * (`res.json = (body) => {}`) in the old generation until it optimizes the
+ * function around the assignment, and there it keeps the request and the
+ * response alive until the next major garbage collection. So the caller
+ * creates the functions in an object literal and this function assigns them.
+ * The minifier inlines this function as `res.write = (methods = {...}).write`,
+ * which still creates the functions in the object literal.
+ * `test/production/pages-api-young-generation` fails if a later form
+ * allocates them in the old generation again.
+ */
+function setApiResponseMethods(
+  res: NextApiResponse,
+  methods: ApiResponseMethods
+): void {
+  res.write = methods.write
+  res.end = methods.end
+  res.status = methods.status
+  res.send = methods.send
+  res.json = methods.json
+  res.redirect = methods.redirect
+  res.setDraftMode = methods.setDraftMode
+  res.setPreviewData = methods.setPreviewData
+  res.clearPreviewData = methods.clearPreviewData
+  res.revalidate = methods.revalidate
+}
+
 export async function apiResolver(
   req: IncomingMessage,
   res: ServerResponse,
@@ -352,8 +396,6 @@ export async function apiResolver(
     const responseLimit = config.api?.responseLimit ?? true
     const externalResolver = config.api?.externalResolver || false
 
-    // Parsing of cookies
-    setLazyProp({ req: apiReq }, 'cookies', getCookieParser(req.headers))
     // Ensure req.query is a writable, enumerable property by using Object.defineProperty.
     // This addresses Express 5.x, which defines query as a getter only (read-only).
     Object.defineProperty(apiReq, 'query', {
@@ -362,16 +404,22 @@ export async function apiResolver(
       enumerable: true,
       configurable: true,
     })
-    // Parsing preview data
-    setLazyProp({ req: apiReq }, 'previewData', () =>
-      tryGetPreviewData(req, res, apiContext, !!apiContext.multiZoneDraftMode)
-    )
-    // Checking if preview mode is enabled
-    setLazyProp({ req: apiReq }, 'preview', () =>
-      apiReq.previewData !== false ? true : undefined
-    )
-    // Set draftMode to the same value as preview
-    setLazyProp({ req: apiReq }, 'draftMode', () => apiReq.preview)
+    setLazyProps(apiReq, {
+      // Parsing of cookies
+      cookies: getCookieParser(req.headers),
+      // Parsing preview data
+      previewData: () =>
+        tryGetPreviewData(
+          req,
+          res,
+          apiContext,
+          !!apiContext.multiZoneDraftMode
+        ),
+      // Checking if preview mode is enabled
+      preview: () => (apiReq.previewData !== false ? true : undefined),
+      // Set draftMode to the same value as preview
+      draftMode: () => apiReq.preview,
+    })
 
     // Parsing of body
     if (bodyParser && !apiReq.body) {
@@ -387,42 +435,43 @@ export async function apiResolver(
     const maxContentLength = getMaxContentLength(responseLimit)
     const writeData = apiRes.write
     const endResponse = apiRes.end
-    apiRes.write = (...args: any[2]) => {
-      contentLength += Buffer.byteLength(args[0] || '')
-      return writeData.apply(apiRes, args)
-    }
-    apiRes.end = (...args: any[2]) => {
-      if (args.length && typeof args[0] !== 'function') {
+    setApiResponseMethods(apiRes, {
+      write: (...args: any[2]) => {
         contentLength += Buffer.byteLength(args[0] || '')
-      }
+        return writeData.apply(apiRes, args)
+      },
+      end: (...args: any[2]) => {
+        if (args.length && typeof args[0] !== 'function') {
+          contentLength += Buffer.byteLength(args[0] || '')
+        }
 
-      if (responseLimit && contentLength >= maxContentLength) {
-        console.warn(
-          `API response for ${req.url} exceeds ${bytes.format(
-            maxContentLength
-          )}. API Routes are meant to respond quickly. https://nextjs.org/docs/messages/api-routes-response-size-limit`
-        )
-      }
+        if (responseLimit && contentLength >= maxContentLength) {
+          console.warn(
+            `API response for ${req.url} exceeds ${bytes.format(
+              maxContentLength
+            )}. API Routes are meant to respond quickly. https://nextjs.org/docs/messages/api-routes-response-size-limit`
+          )
+        }
 
-      return endResponse.apply(apiRes, args)
-    }
-    apiRes.status = (statusCode) => sendStatusCode(apiRes, statusCode)
-    apiRes.send = (data) => sendData(apiReq, apiRes, data)
-    apiRes.json = (data) => sendJson(apiRes, data)
-    apiRes.redirect = (statusOrUrl: number | string, url?: string) =>
-      redirect(apiRes, statusOrUrl, url)
-    apiRes.setDraftMode = (options = { enable: true }) =>
-      setDraftMode(apiRes, Object.assign({}, apiContext, options))
-    apiRes.setPreviewData = (data, options = {}) =>
-      setPreviewData(apiRes, data, Object.assign({}, apiContext, options))
-    apiRes.clearPreviewData = (options = {}) =>
-      clearPreviewData(apiRes, options)
-    apiRes.revalidate = (
-      urlPath: string,
-      opts?: {
-        unstable_onlyGenerated?: boolean
-      }
-    ) => revalidate(urlPath, opts || {}, req, apiContext)
+        return endResponse.apply(apiRes, args)
+      },
+      status: (statusCode) => sendStatusCode(apiRes, statusCode),
+      send: (data) => sendData(apiReq, apiRes, data),
+      json: (data) => sendJson(apiRes, data),
+      redirect: (statusOrUrl: number | string, url?: string) =>
+        redirect(apiRes, statusOrUrl, url),
+      setDraftMode: (options = { enable: true }) =>
+        setDraftMode(apiRes, Object.assign({}, apiContext, options)),
+      setPreviewData: (data, options = {}) =>
+        setPreviewData(apiRes, data, Object.assign({}, apiContext, options)),
+      clearPreviewData: (options = {}) => clearPreviewData(apiRes, options),
+      revalidate: (
+        urlPath: string,
+        opts?: {
+          unstable_onlyGenerated?: boolean
+        }
+      ) => revalidate(urlPath, opts || {}, req, apiContext),
+    })
 
     const resolver = interopDefault(resolverModule)
     let wasPiped = false

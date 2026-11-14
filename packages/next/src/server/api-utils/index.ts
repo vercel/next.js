@@ -202,6 +202,94 @@ interface LazyProps {
   req: IncomingMessage
 }
 
+const LAZY_PROPS = Symbol('next.lazyProps')
+
+type LazyPropsGetters = { [prop: string]: () => unknown }
+
+type LazyPropsRequest = IncomingMessage & {
+  [LAZY_PROPS]?: LazyPropsRecord
+  [prop: string]: unknown
+}
+
+// The getters of the lazy properties of one object. It is created with `new`
+// and its getters are copied: V8 moves the allocation of an object literal
+// to the old generation when most of the objects that it creates survive a
+// garbage collection, as the literals of a request do while anything else
+// keeps the request alive. From then on it would keep every request alive.
+class LazyPropsRecord {
+  req: LazyPropsRequest
+  getters: LazyPropsGetters
+
+  constructor(req: LazyPropsRequest, getters: LazyPropsGetters) {
+    this.req = req
+    this.getters = { ...getters }
+  }
+}
+
+// One pair of accessors per property name, for all requests. V8 allocates the
+// internal pair of an accessor property in the old generation, so accessors
+// that close over a request keep it alive until the next major garbage
+// collection. These read the request and its getter from the receiver.
+const lazyPropDescriptors = new Map<string, PropertyDescriptor>()
+
+function getLazyPropDescriptor(prop: string): PropertyDescriptor {
+  let descriptor = lazyPropDescriptors.get(prop)
+  if (!descriptor) {
+    const optsReset = { configurable: true, enumerable: true, writable: true }
+    descriptor = {
+      configurable: true,
+      enumerable: true,
+      get(this: LazyPropsRequest) {
+        const { req, getters } = this[LAZY_PROPS]!
+        const getter = getters[prop]
+        const value = getter()
+        // we set the property on the object to avoid recalculating it. The
+        // accessors are deleted first: while an object has fast properties,
+        // V8 takes far longer to turn an accessor into a data property than
+        // to delete the accessor and add the property.
+        delete req[prop]
+        Object.defineProperty(req, prop, { ...optsReset, value })
+        return value
+      },
+      set(this: LazyPropsRequest, value: unknown) {
+        const { req } = this[LAZY_PROPS]!
+        delete req[prop]
+        Object.defineProperty(req, prop, { ...optsReset, value })
+      },
+    }
+    lazyPropDescriptors.set(prop, descriptor)
+  }
+  return descriptor
+}
+
+/**
+ * Execute getter functions only if they are needed
+ * @param req request object
+ * @param getters functions to get data, by name of property
+ */
+export function setLazyProps(
+  req: IncomingMessage,
+  getters: LazyPropsGetters
+): void {
+  const lazyReq = req as LazyPropsRequest
+  const lazyProps = lazyReq[LAZY_PROPS]
+  // Each object has a record of its own, so that an object that inherits
+  // from a request with lazy properties keeps its getters apart from those
+  // of the request. A record names its object: the own-property check is
+  // only needed when the record that was found names another object.
+  if (
+    lazyProps === undefined ||
+    (lazyProps.req !== lazyReq && !Object.hasOwn(lazyReq, LAZY_PROPS))
+  ) {
+    lazyReq[LAZY_PROPS] = new LazyPropsRecord(lazyReq, getters)
+  } else {
+    Object.assign(lazyProps.getters, getters)
+  }
+  for (const prop in getters) {
+    Object.defineProperty(req, prop, getLazyPropDescriptor(prop))
+  }
+}
+
 /**
  * Execute getter function only if its needed
  * @param LazyProps `req` and `params` for lazyProp
@@ -213,19 +301,5 @@ export function setLazyProp<T>(
   prop: string,
   getter: () => T
 ): void {
-  const opts = { configurable: true, enumerable: true }
-  const optsReset = { ...opts, writable: true }
-
-  Object.defineProperty(req, prop, {
-    ...opts,
-    get: () => {
-      const value = getter()
-      // we set the property on the object to avoid recalculating it
-      Object.defineProperty(req, prop, { ...optsReset, value })
-      return value
-    },
-    set: (value) => {
-      Object.defineProperty(req, prop, { ...optsReset, value })
-    },
-  })
+  setLazyProps(req, { [prop]: getter })
 }
