@@ -3,7 +3,7 @@ import postgres from "postgres";
 import { AddForm } from "@/app/add-form";
 import { DeleteForm } from "@/app/delete-form";
 
-let sql = postgres(process.env.DATABASE_URL || process.env.POSTGRES_URL!, {
+let sql = postgres(process.env.DATABASE_URL!, {
   ssl: "allow",
 });
 
