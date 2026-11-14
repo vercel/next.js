@@ -18,6 +18,7 @@ import {
   IncrementalCacheKind,
   type CachedFetchData,
 } from '../../response-cache'
+import { canonicalCacheKey } from './canonical-cache-key'
 import type {
   UnstableCacheStore,
   WorkUnitStore,
@@ -132,10 +133,15 @@ export function unstable_cache<T extends Callback>(
           ? getFetchUrlPrefix(workStore, workUnitStore)
           : ''
 
-      // Construct the complete cache key for this function invocation
-      // @TODO stringify is likely not safe here. We will coerce undefined to null which will make
-      // the keyspace smaller than the execution space
-      const invocationKey = `${fixedKey}-${JSON.stringify(args)}`
+      // Construct the complete cache key for this function invocation. Arguments
+      // JSON can represent are stringified exactly as before, so existing keys do
+      // not change; values it cannot represent losslessly (buffers, typed arrays,
+      // maps, sets, dates, regexps, bigints, class instances) are type-tagged
+      // instead of collapsing onto one key. Two properties are deliberately still
+      // NOT guaranteed, because changing either would rewrite every existing key:
+      // object key order remains significant, and `undefined` still serialises to
+      // `null` (the collision is reported by a development warning, not fixed).
+      const invocationKey = await canonicalCacheKey(fixedKey, args)
       const cacheKey =
         await incrementalCache.generateSimpleCacheKey(invocationKey)
       // $urlWithPath,$sortedQueryStringKeys,$hashOfEveryThingElse
