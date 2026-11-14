@@ -767,1208 +767,2941 @@ export function runTests(ctx) {
         dynamicRoutes[key] = item
       }
 
-      expect(
-        JSON.stringify(staticRoutes, null, 2)
-          .replace(/\\\\/g, '\\')
-          .replace(new RegExp(escapeRegex(ctx.buildId), 'g'), 'BUILD_ID')
-      ).toMatchInlineSnapshot(`
-       "{
-         "/do": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/do.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/do-BE": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/do-BE.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/do-BE/404": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/do-BE/404.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/do-BE/frank": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/do-BE/frank.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/do-BE/gsp": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/do-BE/gsp.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/do-BE/gsp/fallback/always": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": "/gsp/fallback/[slug]",
-           "dataRoute": "/_next/data/BUILD_ID/do-BE/gsp/fallback/always.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/do-BE/not-found": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/do-BE/not-found.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/do/404": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/do/404.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/do/frank": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/do/frank.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/do/gsp": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/do/gsp.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/do/gsp/fallback/always": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": "/gsp/fallback/[slug]",
-           "dataRoute": "/_next/data/BUILD_ID/do/gsp/fallback/always.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/do/not-found": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/do/not-found.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/en": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/en.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/en-US": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/en-US.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/en-US/404": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/en-US/404.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/en-US/frank": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/en-US/frank.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/en-US/gsp": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/en-US/gsp.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/en-US/gsp/fallback/always": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": "/gsp/fallback/[slug]",
-           "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/fallback/always.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/en-US/gsp/fallback/first": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": "/gsp/fallback/[slug]",
-           "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/fallback/first.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/en-US/gsp/fallback/second": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": "/gsp/fallback/[slug]",
-           "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/fallback/second.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/en-US/gsp/no-fallback/first": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": "/gsp/no-fallback/[slug]",
-           "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/no-fallback/first.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/en-US/gsp/no-fallback/second": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": "/gsp/no-fallback/[slug]",
-           "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/no-fallback/second.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/en-US/not-found": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/en-US/not-found.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/en-US/not-found/blocking-fallback/first": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": "/not-found/blocking-fallback/[slug]",
-           "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/blocking-fallback/first.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/en-US/not-found/blocking-fallback/second": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": "/not-found/blocking-fallback/[slug]",
-           "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/blocking-fallback/second.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/en-US/not-found/fallback/first": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": "/not-found/fallback/[slug]",
-           "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/fallback/first.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/en-US/not-found/fallback/second": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": "/not-found/fallback/[slug]",
-           "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/fallback/second.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/en/404": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/en/404.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/en/frank": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/en/frank.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/en/gsp": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/en/gsp.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/en/gsp/fallback/always": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": "/gsp/fallback/[slug]",
-           "dataRoute": "/_next/data/BUILD_ID/en/gsp/fallback/always.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/en/not-found": {
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/en/not-found.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/fr": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/fr.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/fr-BE": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/fr-BE.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/fr-BE/404": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/fr-BE/404.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/fr-BE/frank": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/fr-BE/frank.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/fr-BE/gsp": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/fr-BE/gsp.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/fr-BE/gsp/fallback/always": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": "/gsp/fallback/[slug]",
-           "dataRoute": "/_next/data/BUILD_ID/fr-BE/gsp/fallback/always.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/fr-BE/not-found": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/fr-BE/not-found.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/fr/404": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/fr/404.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/fr/frank": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/fr/frank.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/fr/gsp": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/fr/gsp.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/fr/gsp/fallback/always": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": "/gsp/fallback/[slug]",
-           "dataRoute": "/_next/data/BUILD_ID/fr/gsp/fallback/always.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/fr/not-found": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/fr/not-found.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/go": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/go.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/go-BE": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/go-BE.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/go-BE/404": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/go-BE/404.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/go-BE/frank": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/go-BE/frank.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/go-BE/gsp": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/go-BE/gsp.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/go-BE/gsp/fallback/always": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": "/gsp/fallback/[slug]",
-           "dataRoute": "/_next/data/BUILD_ID/go-BE/gsp/fallback/always.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/go-BE/not-found": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/go-BE/not-found.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/go/404": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/go/404.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/go/frank": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/go/frank.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/go/gsp": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/go/gsp.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/go/gsp/fallback/always": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": "/gsp/fallback/[slug]",
-           "dataRoute": "/_next/data/BUILD_ID/go/gsp/fallback/always.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/go/not-found": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/go/not-found.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/nl": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/nl.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/nl-BE": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/nl-BE.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/nl-BE/404": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/nl-BE/404.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/nl-BE/frank": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/nl-BE/frank.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/nl-BE/gsp": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/nl-BE/gsp.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/nl-BE/gsp/fallback/always": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": "/gsp/fallback/[slug]",
-           "dataRoute": "/_next/data/BUILD_ID/nl-BE/gsp/fallback/always.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/nl-BE/not-found": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/nl-BE/not-found.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/nl-NL": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/nl-NL.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/nl-NL/404": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/nl-NL/404.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/nl-NL/frank": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/nl-NL/frank.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/nl-NL/gsp": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/nl-NL/gsp.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/nl-NL/gsp/fallback/always": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": "/gsp/fallback/[slug]",
-           "dataRoute": "/_next/data/BUILD_ID/nl-NL/gsp/fallback/always.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/nl-NL/gsp/no-fallback/second": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": "/gsp/no-fallback/[slug]",
-           "dataRoute": "/_next/data/BUILD_ID/nl-NL/gsp/no-fallback/second.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/nl-NL/not-found": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/nl-NL/not-found.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/nl/404": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/nl/404.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/nl/frank": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/nl/frank.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/nl/gsp": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/nl/gsp.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/nl/gsp/fallback/always": {
-           "routeType": "page",
-           "response": "complete",
-           "compute": "static",
-           "initialRevalidateSeconds": false,
-           "srcRoute": "/gsp/fallback/[slug]",
-           "dataRoute": "/_next/data/BUILD_ID/nl/gsp/fallback/always.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         },
-         "/nl/not-found": {
-           "initialRevalidateSeconds": false,
-           "srcRoute": null,
-           "dataRoute": "/_next/data/BUILD_ID/nl/not-found.json",
-           "allowHeader": [
-             "host",
-             "x-matched-path",
-             "x-prerender-revalidate",
-             "x-prerender-revalidate-if-generated",
-             "x-next-revalidated-tags",
-             "x-next-revalidate-tag-token"
-           ]
-         }
-       }"
-      `)
+      const serializedStaticRoutes = JSON.stringify(staticRoutes, null, 2)
+        .replace(/\\\\/g, '\\')
+        .replace(new RegExp(escapeRegex(ctx.buildId), 'g'), 'BUILD_ID')
+
+      // The nonJsBots bypass entry is only emitted when
+      // disableProgressiveLoadingForNonJsBots is on (the Cache Components
+      // shards), so each shard gets its own snapshot.
+      if (
+        process.env
+          .__NEXT_EXPERIMENTAL_DISABLE_PROGRESSIVE_LOADING_FOR_NON_JS_BOTS ===
+        'true'
+      ) {
+        expect(serializedStaticRoutes).toMatchInlineSnapshot(`
+         "{
+           "/do": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/do.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/do-BE": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/do-BE.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/do-BE/404": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/do-BE/404.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/do-BE/frank": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/do-BE/frank.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/do-BE/gsp": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/do-BE/gsp.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/do-BE/gsp/fallback/always": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": "/gsp/fallback/[slug]",
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/do-BE/gsp/fallback/always.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/do-BE/not-found": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/do-BE/not-found.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/do/404": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/do/404.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/do/frank": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/do/frank.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/do/gsp": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/do/gsp.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/do/gsp/fallback/always": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": "/gsp/fallback/[slug]",
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/do/gsp/fallback/always.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/do/not-found": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/do/not-found.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/en": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/en.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/en-US": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/en-US.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/en-US/404": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/en-US/404.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/en-US/frank": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/en-US/frank.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/en-US/gsp": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/en-US/gsp.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/en-US/gsp/fallback/always": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": "/gsp/fallback/[slug]",
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/fallback/always.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/en-US/gsp/fallback/first": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": "/gsp/fallback/[slug]",
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/fallback/first.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/en-US/gsp/fallback/second": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": "/gsp/fallback/[slug]",
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/fallback/second.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/en-US/gsp/no-fallback/first": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": "/gsp/no-fallback/[slug]",
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/no-fallback/first.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/en-US/gsp/no-fallback/second": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": "/gsp/no-fallback/[slug]",
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/no-fallback/second.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/en-US/not-found": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/en-US/not-found.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/en-US/not-found/blocking-fallback/first": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": "/not-found/blocking-fallback/[slug]",
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/blocking-fallback/first.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/en-US/not-found/blocking-fallback/second": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": "/not-found/blocking-fallback/[slug]",
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/blocking-fallback/second.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/en-US/not-found/fallback/first": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": "/not-found/fallback/[slug]",
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/fallback/first.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/en-US/not-found/fallback/second": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": "/not-found/fallback/[slug]",
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/fallback/second.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/en/404": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/en/404.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/en/frank": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/en/frank.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/en/gsp": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/en/gsp.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/en/gsp/fallback/always": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": "/gsp/fallback/[slug]",
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/en/gsp/fallback/always.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/en/not-found": {
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/en/not-found.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/fr": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/fr.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/fr-BE": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/fr-BE.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/fr-BE/404": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/fr-BE/404.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/fr-BE/frank": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/fr-BE/frank.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/fr-BE/gsp": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/fr-BE/gsp.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/fr-BE/gsp/fallback/always": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": "/gsp/fallback/[slug]",
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/fr-BE/gsp/fallback/always.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/fr-BE/not-found": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/fr-BE/not-found.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/fr/404": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/fr/404.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/fr/frank": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/fr/frank.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/fr/gsp": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/fr/gsp.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/fr/gsp/fallback/always": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": "/gsp/fallback/[slug]",
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/fr/gsp/fallback/always.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/fr/not-found": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/fr/not-found.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/go": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/go.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/go-BE": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/go-BE.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/go-BE/404": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/go-BE/404.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/go-BE/frank": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/go-BE/frank.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/go-BE/gsp": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/go-BE/gsp.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/go-BE/gsp/fallback/always": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": "/gsp/fallback/[slug]",
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/go-BE/gsp/fallback/always.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/go-BE/not-found": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/go-BE/not-found.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/go/404": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/go/404.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/go/frank": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/go/frank.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/go/gsp": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/go/gsp.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/go/gsp/fallback/always": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": "/gsp/fallback/[slug]",
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/go/gsp/fallback/always.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/go/not-found": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/go/not-found.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/nl": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/nl.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/nl-BE": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/nl-BE.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/nl-BE/404": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/nl-BE/404.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/nl-BE/frank": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/nl-BE/frank.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/nl-BE/gsp": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/nl-BE/gsp.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/nl-BE/gsp/fallback/always": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": "/gsp/fallback/[slug]",
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/nl-BE/gsp/fallback/always.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/nl-BE/not-found": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/nl-BE/not-found.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/nl-NL": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/nl-NL.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/nl-NL/404": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/nl-NL/404.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/nl-NL/frank": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/nl-NL/frank.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/nl-NL/gsp": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/nl-NL/gsp.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/nl-NL/gsp/fallback/always": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": "/gsp/fallback/[slug]",
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/nl-NL/gsp/fallback/always.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/nl-NL/gsp/no-fallback/second": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": "/gsp/no-fallback/[slug]",
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/nl-NL/gsp/no-fallback/second.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/nl-NL/not-found": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/nl-NL/not-found.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/nl/404": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/nl/404.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/nl/frank": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/nl/frank.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/nl/gsp": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/nl/gsp.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/nl/gsp/fallback/always": {
+             "routeType": "page",
+             "response": "complete",
+             "compute": "static",
+             "initialRevalidateSeconds": false,
+             "srcRoute": "/gsp/fallback/[slug]",
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/nl/gsp/fallback/always.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           },
+           "/nl/not-found": {
+             "initialRevalidateSeconds": false,
+             "srcRoute": null,
+             "experimentalBypassFor": [
+               {
+                 "type": "header",
+                 "key": "user-agent",
+                 "value": ".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|Claude-Web|anthropic-ai|PerplexityBot|Perplexity-User|CCBot|Bytespider|Amazonbot|Amzn-User|Meta-ExternalAgent|Meta-ExternalFetcher|FacebookBot|meta-webindexer|cohere-training-data-crawler|cohere-ai|MistralAI|DeepSeekBot|MoonshotBot|KimiBot|QwenBot|TongyiBot|ERNIEBot|Google-CloudVertexBot|Gemini-Deep-Research|GoogleAgent-URLContext|Google-NotebookLM|GrokBot|xAI-Grok|YouBot|DuckAssistBot|Ai2Bot|Diffbot).*"
+               }
+             ],
+             "dataRoute": "/_next/data/BUILD_ID/nl/not-found.json",
+             "allowHeader": [
+               "host",
+               "x-matched-path",
+               "x-prerender-revalidate",
+               "x-prerender-revalidate-if-generated",
+               "x-next-revalidated-tags",
+               "x-next-revalidate-tag-token"
+             ]
+           }
+         }"
+        `)
+      } else {
+        expect(serializedStaticRoutes).toMatchInlineSnapshot(`
+                "{
+                  "/do": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/do.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/do-BE": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/do-BE.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/do-BE/404": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/do-BE/404.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/do-BE/frank": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/do-BE/frank.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/do-BE/gsp": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/do-BE/gsp.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/do-BE/gsp/fallback/always": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": "/gsp/fallback/[slug]",
+                    "dataRoute": "/_next/data/BUILD_ID/do-BE/gsp/fallback/always.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/do-BE/not-found": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/do-BE/not-found.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/do/404": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/do/404.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/do/frank": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/do/frank.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/do/gsp": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/do/gsp.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/do/gsp/fallback/always": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": "/gsp/fallback/[slug]",
+                    "dataRoute": "/_next/data/BUILD_ID/do/gsp/fallback/always.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/do/not-found": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/do/not-found.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/en": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/en.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/en-US": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/en-US.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/en-US/404": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/en-US/404.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/en-US/frank": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/en-US/frank.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/en-US/gsp": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/en-US/gsp.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/en-US/gsp/fallback/always": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": "/gsp/fallback/[slug]",
+                    "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/fallback/always.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/en-US/gsp/fallback/first": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": "/gsp/fallback/[slug]",
+                    "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/fallback/first.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/en-US/gsp/fallback/second": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": "/gsp/fallback/[slug]",
+                    "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/fallback/second.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/en-US/gsp/no-fallback/first": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": "/gsp/no-fallback/[slug]",
+                    "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/no-fallback/first.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/en-US/gsp/no-fallback/second": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": "/gsp/no-fallback/[slug]",
+                    "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/no-fallback/second.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/en-US/not-found": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/en-US/not-found.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/en-US/not-found/blocking-fallback/first": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": "/not-found/blocking-fallback/[slug]",
+                    "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/blocking-fallback/first.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/en-US/not-found/blocking-fallback/second": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": "/not-found/blocking-fallback/[slug]",
+                    "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/blocking-fallback/second.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/en-US/not-found/fallback/first": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": "/not-found/fallback/[slug]",
+                    "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/fallback/first.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/en-US/not-found/fallback/second": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": "/not-found/fallback/[slug]",
+                    "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/fallback/second.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/en/404": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/en/404.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/en/frank": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/en/frank.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/en/gsp": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/en/gsp.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/en/gsp/fallback/always": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": "/gsp/fallback/[slug]",
+                    "dataRoute": "/_next/data/BUILD_ID/en/gsp/fallback/always.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/en/not-found": {
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/en/not-found.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/fr": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/fr.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/fr-BE": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/fr-BE.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/fr-BE/404": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/fr-BE/404.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/fr-BE/frank": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/fr-BE/frank.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/fr-BE/gsp": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/fr-BE/gsp.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/fr-BE/gsp/fallback/always": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": "/gsp/fallback/[slug]",
+                    "dataRoute": "/_next/data/BUILD_ID/fr-BE/gsp/fallback/always.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/fr-BE/not-found": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/fr-BE/not-found.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/fr/404": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/fr/404.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/fr/frank": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/fr/frank.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/fr/gsp": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/fr/gsp.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/fr/gsp/fallback/always": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": "/gsp/fallback/[slug]",
+                    "dataRoute": "/_next/data/BUILD_ID/fr/gsp/fallback/always.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/fr/not-found": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/fr/not-found.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/go": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/go.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/go-BE": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/go-BE.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/go-BE/404": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/go-BE/404.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/go-BE/frank": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/go-BE/frank.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/go-BE/gsp": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/go-BE/gsp.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/go-BE/gsp/fallback/always": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": "/gsp/fallback/[slug]",
+                    "dataRoute": "/_next/data/BUILD_ID/go-BE/gsp/fallback/always.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/go-BE/not-found": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/go-BE/not-found.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/go/404": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/go/404.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/go/frank": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/go/frank.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/go/gsp": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/go/gsp.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/go/gsp/fallback/always": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": "/gsp/fallback/[slug]",
+                    "dataRoute": "/_next/data/BUILD_ID/go/gsp/fallback/always.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/go/not-found": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/go/not-found.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/nl": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/nl.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/nl-BE": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/nl-BE.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/nl-BE/404": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/nl-BE/404.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/nl-BE/frank": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/nl-BE/frank.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/nl-BE/gsp": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/nl-BE/gsp.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/nl-BE/gsp/fallback/always": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": "/gsp/fallback/[slug]",
+                    "dataRoute": "/_next/data/BUILD_ID/nl-BE/gsp/fallback/always.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/nl-BE/not-found": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/nl-BE/not-found.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/nl-NL": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/nl-NL.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/nl-NL/404": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/nl-NL/404.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/nl-NL/frank": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/nl-NL/frank.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/nl-NL/gsp": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/nl-NL/gsp.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/nl-NL/gsp/fallback/always": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": "/gsp/fallback/[slug]",
+                    "dataRoute": "/_next/data/BUILD_ID/nl-NL/gsp/fallback/always.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/nl-NL/gsp/no-fallback/second": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": "/gsp/no-fallback/[slug]",
+                    "dataRoute": "/_next/data/BUILD_ID/nl-NL/gsp/no-fallback/second.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/nl-NL/not-found": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/nl-NL/not-found.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/nl/404": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/nl/404.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/nl/frank": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/nl/frank.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/nl/gsp": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/nl/gsp.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/nl/gsp/fallback/always": {
+                    "routeType": "page",
+                    "response": "complete",
+                    "compute": "static",
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": "/gsp/fallback/[slug]",
+                    "dataRoute": "/_next/data/BUILD_ID/nl/gsp/fallback/always.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  },
+                  "/nl/not-found": {
+                    "initialRevalidateSeconds": false,
+                    "srcRoute": null,
+                    "dataRoute": "/_next/data/BUILD_ID/nl/not-found.json",
+                    "allowHeader": [
+                      "host",
+                      "x-matched-path",
+                      "x-prerender-revalidate",
+                      "x-prerender-revalidate-if-generated",
+                      "x-next-revalidated-tags",
+                      "x-next-revalidate-tag-token"
+                    ]
+                  }
+                }"
+              `)
+      }
 
       expect(
         JSON.stringify(dynamicRoutes, null, 2)

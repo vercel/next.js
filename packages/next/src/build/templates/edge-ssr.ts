@@ -32,6 +32,7 @@ import {
   type Span,
 } from '../../server/lib/trace/tracer'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
+import { shouldDisableProgressiveLoading } from '../../server/lib/streaming-metadata'
 import { HTML_CONTENT_TYPE_HEADER } from '../../lib/constants'
 import type { RequestMeta } from '../../server/request-meta'
 import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
@@ -151,6 +152,10 @@ async function requestHandler(
       params,
       page: srcPage,
       supportsDynamicResponse: true,
+      disableProgressiveLoading: shouldDisableProgressiveLoading(
+        req.headers.get('user-agent'),
+        nextConfig.experimental
+      ),
       Component: pageMod.Component,
       ComponentMod: pageMod,
       pageConfig: pageMod.pageConfig,

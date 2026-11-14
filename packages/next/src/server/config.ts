@@ -50,6 +50,7 @@ import { cloneObject } from './lib/clone-object'
 import { deepFreeze, deepFreezePlainValues } from '../shared/lib/deep-freeze'
 import { normalizeZodErrors } from '../shared/lib/zod'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
+import { NON_JS_BOT_UA_RE_STRING } from '../shared/lib/router/utils/non-js-bots'
 import { findDir } from '../lib/find-pages-dir'
 import { INFINITE_CACHE } from '../lib/constants'
 import { validateAndNormalizeCacheLifeProfile } from './use-cache/cache-life-profile'
@@ -1721,6 +1722,11 @@ function assignDefaultsAndValidate(
     result.htmlLimitedBots = HTML_LIMITED_BOT_UA_RE_STRING
   }
 
+  if (!result.experimental.nonJsBots) {
+    // @ts-expect-error: override the nonJsBots with default string, type convert: RegExp -> string
+    result.experimental.nonJsBots = NON_JS_BOT_UA_RE_STRING
+  }
+
   if (
     typeof result.experimental.mcpServer === 'undefined' &&
     process.env.__NEXT_EXPERIMENTAL_MCP_SERVER === 'true'
@@ -2330,6 +2336,13 @@ async function loadConfigImpl(
       userConfig.htmlLimitedBots = userConfig.htmlLimitedBots.source
     }
 
+    // serialize the regex config into string
+    if (userConfig.experimental?.nonJsBots instanceof RegExp) {
+      // @ts-expect-error: override the nonJsBots with a string, type convert: RegExp -> string
+      userConfig.experimental.nonJsBots =
+        userConfig.experimental.nonJsBots.source
+    }
+
     enforceExperimentalFeatures(userConfig, {
       isDefaultConfig: false,
       configuredExperimentalFeatures,
@@ -2506,6 +2519,18 @@ function enforceExperimentalFeatures(
       (isDefaultConfig && !config.cacheComponents))
   ) {
     config.cacheComponents = true
+  }
+
+  // TODO: Remove this once we've made disableProgressiveLoadingForNonJsBots the
+  // default.
+  if (
+    process.env
+      .__NEXT_EXPERIMENTAL_DISABLE_PROGRESSIVE_LOADING_FOR_NON_JS_BOTS ===
+      'true' &&
+    // We do respect an explicit value in the user config.
+    config.experimental.disableProgressiveLoadingForNonJsBots === undefined
+  ) {
+    config.experimental.disableProgressiveLoadingForNonJsBots = true
   }
 
   if (process.env.__NEXT_PARTIAL_PREFETCHING === 'true') {
