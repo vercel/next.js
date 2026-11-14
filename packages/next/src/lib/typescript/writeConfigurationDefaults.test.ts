@@ -206,5 +206,86 @@ describe('writeConfigurationDefaults()', () => {
         })
       })
     })
+
+    it('preserves module: node18 on TypeScript 5.8+', async () => {
+      await writeFile(
+        tsConfigPath,
+        JSON.stringify({ compilerOptions: { module: 'node18' } }),
+        { encoding: 'utf8' }
+      )
+
+      await writeConfigurationDefaults(
+        '5.8.3',
+        tsConfigPath,
+        isFirstTimeSetup,
+        hasAppDir,
+        distDir,
+        hasPagesDir,
+        experimentalStrictRouteTypes
+      )
+
+      const tsConfig = JSON.parse(
+        await readFile(tsConfigPath, { encoding: 'utf8' })
+      )
+
+      expect(tsConfig.compilerOptions.module).toBe('node18')
+      expect(
+        stripAnsi(consoleLogSpy.mock.calls.flat().join('\n'))
+      ).not.toContain('- module was set to esnext')
+    })
+
+    it('preserves module: node20 on TypeScript 5.9+', async () => {
+      await writeFile(
+        tsConfigPath,
+        JSON.stringify({ compilerOptions: { module: 'node20' } }),
+        { encoding: 'utf8' }
+      )
+
+      await writeConfigurationDefaults(
+        '5.9.3',
+        tsConfigPath,
+        isFirstTimeSetup,
+        hasAppDir,
+        distDir,
+        hasPagesDir,
+        experimentalStrictRouteTypes
+      )
+
+      const tsConfig = JSON.parse(
+        await readFile(tsConfigPath, { encoding: 'utf8' })
+      )
+
+      expect(tsConfig.compilerOptions.module).toBe('node20')
+      expect(
+        stripAnsi(consoleLogSpy.mock.calls.flat().join('\n'))
+      ).not.toContain('- module was set to esnext')
+    })
+
+    it('overwrites module: node20 on TypeScript versions before 5.9', async () => {
+      await writeFile(
+        tsConfigPath,
+        JSON.stringify({ compilerOptions: { module: 'node20' } }),
+        { encoding: 'utf8' }
+      )
+
+      await writeConfigurationDefaults(
+        '5.8.3',
+        tsConfigPath,
+        isFirstTimeSetup,
+        hasAppDir,
+        distDir,
+        hasPagesDir,
+        experimentalStrictRouteTypes
+      )
+
+      const tsConfig = JSON.parse(
+        await readFile(tsConfigPath, { encoding: 'utf8' })
+      )
+
+      expect(tsConfig.compilerOptions.module).toBe('esnext')
+      expect(stripAnsi(consoleLogSpy.mock.calls.flat().join('\n'))).toContain(
+        '- module was set to esnext (for dynamic import() support)'
+      )
+    })
   })
 })
