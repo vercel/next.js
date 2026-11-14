@@ -442,34 +442,47 @@ export async function openFileInEditor(
   column1: number,
   nextRootDirectory: string
 ): Promise<{ found: boolean; error: unknown | null }> {
-  let filePath: string
+  // Validate line/column early
+  if (!(Number.isInteger(line1) && line1 > 0)) {
+    return { found: false, error: new Error('Invalid line number') }
+  }
+  if (!(Number.isInteger(column1) && column1 > 0)) {
+    column1 = 1
+  }
+
+  const base = path.resolve(nextRootDirectory)
+  let candidate: string
+
   if (file.startsWith('file://')) {
     try {
-      filePath = fileURLToPath(file)
+      candidate = fileURLToPath(file)
     } catch (error) {
       return { found: false, error }
     }
   } else if (path.isAbsolute(file)) {
-    filePath = file
+    candidate = path.resolve(file)
   } else {
-    filePath = path.join(nextRootDirectory, file)
+    candidate = path.resolve(base, file)
   }
 
-  const result = {
-    found: false,
-    error: null as unknown | null,
+  const normalized = path.normalize(candidate)
+  if (!(normalized.startsWith(base + path.sep) || normalized === base)) {
+    return { found: false, error: new Error('Path escapes project root') }
   }
-  const existed = await fsp.access(filePath, fs.constants.F_OK).then(
+
+  const existed = await fsp.access(normalized, fs.constants.F_OK).then(
     () => true,
     () => false
   )
-  if (existed) {
-    try {
-      launchEditor(filePath, line1, column1)
-      result.found = true
-    } catch (err) {
-      result.error = err
-    }
+  if (!existed) {
+    return { found: false, error: null }
   }
-  return result
+
+  try {
+    launchEditor(normalized, line1, column1)
+    return { found: true, error: null }
+  } catch (err) {
+    return { found: false, error: err }
+  }
 }
+
