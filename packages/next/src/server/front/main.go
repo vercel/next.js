@@ -158,38 +158,70 @@ func stopRequested() <-chan struct{} {
 // newProxy forwards to Node at upstream. public is the address the front
 // listens on; upstreamIdle is how long an idle connection to Node stays
 // pooled.
+//
+// The goal is that Node receives the same request, and the client the same
+// response, as without the front. Go's server and proxy change some things on
+// their own, so the comments label each line that deals with that:
+//
+//   - "Undo Go:" Go changes something by default; this puts it back.
+//   - "Match Node:" Go and Node format something differently; this uses
+//     Node's format.
+//   - "Extra hop:" Node would see the front instead of the client; this
+//     passes on what the client's connection said.
 func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) http.Handler {
 	publicPort := strconv.Itoa(public.Port)
-	// Node, listening on all interfaces, sees IPv4 clients as IPv4-mapped IPv6
-	// addresses. Go reports them as plain IPv4.
+	// Match Node: Node, listening on all interfaces, reports IPv4 clients as
+	// IPv4-mapped IPv6 addresses (::ffff:10.0.0.5); Go reports plain IPv4.
 	mapIPv4 := public.IP.To4() == nil
 
 	proxy := &httputil.ReverseProxy{
 		// Rewrite builds the request to Node (pr.Out) from the one the client
 		// sent (pr.In). It runs once per request, before anything goes to Node.
 		Rewrite: func(pr *httputil.ProxyRequest) {
+			// Connect to Node.
 			pr.Out.URL.Scheme = "http"
 			pr.Out.URL.Host = upstream
+			// Keep the client's Host header. pr.Out starts as a copy of
+			// pr.In, so it already has it; this guards against ProxyRequest's
+			// SetURL helper, which would clear it and make Go send Node's
+			// address instead.
 			pr.Out.Host = pr.In.Host
+			// Undo Go: Go re-escapes some request paths and drops query
+			// parameters it can't parse. Send the target as the client did.
 			keepRequestTarget(pr.Out, pr.In.RequestURI)
+			// Undo Go: with Rewrite, Go deletes the client's forwarded headers
+			// before this function runs. Put them back.
 			restoreForwardedHeaders(pr.Out.Header, pr.In.Header)
+			// Extra hop: Node sees the front's connection (127.0.0.1 and its
+			// private port), so pass on the client's address and the public
+			// port when no proxy in front of us already did.
 			setIfMissing(pr.Out.Header, "X-Forwarded-For", clientIP(pr.In.RemoteAddr, mapIPv4))
 			setIfMissing(pr.Out.Header, "X-Forwarded-Port", publicPort)
 		},
-		// Write each chunk to the client as soon as Node sends it.
+		// Undo Go: by default the proxy only sends response bytes on when Go's
+		// write buffer fills or the response ends, except for event streams
+		// and responses of unknown length. Write each chunk to the client as soon as Node sends
+		// it, as Node does.
 		FlushInterval: -1,
 		Transport: &http.Transport{
+			// Connect to Node directly, never through an HTTP_PROXY. A new
+			// Transport already does that (only http.DefaultTransport reads
+			// HTTP_PROXY); this says so.
 			Proxy:       nil,
 			DialContext: (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
-			// The default of 2 idle connections per host churns connections
-			// under load.
+			// Go keeps only 2 idle connections per host by default, which
+			// opens and closes connections to Node under load.
 			MaxIdleConns:        0,
 			MaxIdleConnsPerHost: 512,
 			IdleConnTimeout:     upstreamIdle,
-			// Otherwise Go asks Node for gzip and decompresses the response.
+			// Undo Go: when the client sent no Accept-Encoding, Go adds
+			// "Accept-Encoding: gzip" to the request to Node and unzips the
+			// response itself. Leave compression to the client and Node.
 			DisableCompression:    true,
 			ExpectContinueTimeout: 1 * time.Second,
 		},
+		// Undo Go: Go writes its own text after the status code (see
+		// writeCustomStatusLine).
 		ModifyResponse: writeCustomStatusLine,
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			if errors.Is(err, errResponseWritten) {
@@ -202,11 +234,11 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) 
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Mark Content-Type as present but empty. Go's server guesses a type
-		// from the body ("sniffs") when a response has no Content-Type, and
-		// Node never does, so this keeps a response without one unchanged. When
-		// Node sends one, the proxy's copyHeader adds Node's value to this
-		// entry before the headers are written.
+		// Undo Go: Go's server guesses a type from the body ("sniffs") when a
+		// response has no Content-Type, and Node never does. Mark
+		// Content-Type as present but empty, so a response without one stays
+		// without one. When Node sends one, the proxy's copyHeader adds
+		// Node's value to this entry before the headers are written.
 		w.Header()["Content-Type"] = nil
 		proxy.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), responseWriterKey{}, w)))
 	})
@@ -226,8 +258,8 @@ var errResponseWritten = errors.New("response written on the hijacked connection
 // returns.
 var hijackedResponses sync.WaitGroup
 
-// writeCustomStatusLine sends Node's response itself when its status line
-// isn't the one Go's server would write. Node lets apps set any reason phrase
+// Undo Go: writeCustomStatusLine sends Node's response itself when its status
+// line isn't the one Go's server would write. Node lets apps set any reason phrase
 // (`res.statusMessage`, like "400 Invalid JSON") and uses its own texts for
 // some codes ("413 Payload Too Large"); Go's ResponseWriter always writes
 // http.StatusText. Such responses are rare (mostly errors), so the front takes
@@ -270,22 +302,27 @@ func writeCustomStatusLine(res *http.Response) error {
 	return errResponseWritten
 }
 
-// keepRequestTarget makes the outgoing request line carry the path exactly as
-// the client sent it. Go re-escapes some paths it parsed, for example raw
-// non-ASCII bytes.
+// Undo Go: keepRequestTarget makes the outgoing request line carry the
+// target exactly as the client sent it. Go writes the request line from the
+// URL it parsed, which can differ: it re-escapes some paths (raw "/é" becomes
+// "/%C3%A9"), and with Rewrite it drops query parameters it can't parse.
 func keepRequestTarget(out *http.Request, requestURI string) {
 	path, query, hasQuery := strings.Cut(requestURI, "?")
+	// Undo Go: the query string as the client sent it, a bare "?" included.
 	out.URL.RawQuery = query
 	out.URL.ForceQuery = hasQuery && query == ""
-	// Only origin-form targets. An Opaque starting with "//" would be sent as
-	// an absolute URL, so those keep Go's escaping.
+	// Undo Go: when Go would write the path differently, send the client's
+	// path text instead (Opaque is sent as is). Only for paths starting with
+	// a single "/": Go sends an Opaque starting with "//" as a full URL
+	// ("//x" becomes "http://x"), and for those Go's own output already
+	// matches the client's.
 	if strings.HasPrefix(path, "/") && !strings.HasPrefix(path, "//") && out.URL.EscapedPath() != path {
 		out.URL.Opaque = path
 	}
 }
 
-// With Rewrite set, ReverseProxy removes these from the outgoing request
-// before Rewrite runs. Put back exactly what the client sent.
+// Undo Go: with Rewrite set, ReverseProxy removes these from the outgoing
+// request before Rewrite runs. Put back exactly what the client sent.
 var forwardedHeaders = []string{"Forwarded", "X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Proto"}
 
 func restoreForwardedHeaders(out, in http.Header) {
@@ -302,7 +339,7 @@ func setIfMissing(h http.Header, name, value string) {
 	}
 }
 
-// clientIP formats the client address the way Node reports
+// Match Node: clientIP formats the client address the way Node reports
 // socket.remoteAddress.
 func clientIP(remoteAddr string, mapIPv4 bool) string {
 	host, _, err := net.SplitHostPort(remoteAddr)
