@@ -36,7 +36,11 @@ import {
 } from '../../shared/lib/i18n/normalize-locale-path'
 import { isDynamicRoute } from '../../shared/lib/router/utils'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
-import { getServerUtils } from '../server-utils'
+import {
+  getDynamicRouteUtils,
+  getServerUtils,
+  type DynamicRouteUtils,
+} from '../server-utils'
 import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
 import { getHostname } from '../../shared/lib/get-hostname'
 import { checkIsOnDemandRevalidate, type __ApiPreviewProps } from '../api-utils'
@@ -168,6 +172,26 @@ export abstract class RouteModule<
   public relativeProjectDir: string
   public incrementCache?: IncrementalCache
   public responseCache?: ResponseCache
+
+  /**
+   * The directories `ensureInstrumentation` resolved for the previous call,
+   * with the values they were resolved from.
+   */
+  private resolvedDirs:
+    | {
+        cwd: string
+        relativeProjectDir: string
+        absoluteDistDir: string | undefined
+        absoluteProjectDir: string
+        distDir: string | undefined
+      }
+    | undefined = undefined
+
+  /**
+   * The compiled route regex and matcher of this route module's page, if it
+   * is dynamic. They only depend on the page.
+   */
+  private dynamicRouteUtils: DynamicRouteUtils | undefined = undefined
 
   constructor({
     userland,
@@ -776,16 +800,43 @@ export abstract class RouteModule<
       const { join, relative } =
         require('node:path') as typeof import('node:path')
 
-      absoluteProjectDir = join(
-        /* turbopackIgnore: true */
-        process.cwd(),
+      // This runs twice for every request. The directories are almost always
+      // those of the previous call, so only resolve them when they changed.
+      const cwd = process.cwd()
+      const relativeProjectDir =
         getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
-      )
-
       const absoluteDistDir = getRequestMeta(req, 'distDir')
+      const resolved = this.resolvedDirs
 
-      if (absoluteDistDir) {
-        this.distDir = relative(absoluteProjectDir, absoluteDistDir)
+      if (
+        resolved !== undefined &&
+        resolved.cwd === cwd &&
+        resolved.relativeProjectDir === relativeProjectDir &&
+        resolved.absoluteDistDir === absoluteDistDir
+      ) {
+        absoluteProjectDir = resolved.absoluteProjectDir
+        if (resolved.distDir !== undefined) {
+          this.distDir = resolved.distDir
+        }
+      } else {
+        absoluteProjectDir = join(
+          /* turbopackIgnore: true */
+          cwd,
+          relativeProjectDir
+        )
+
+        let distDir: string | undefined
+        if (absoluteDistDir) {
+          distDir = relative(absoluteProjectDir, absoluteDistDir)
+          this.distDir = distDir
+        }
+        this.resolvedDirs = {
+          cwd,
+          relativeProjectDir,
+          absoluteDistDir,
+          absoluteProjectDir,
+          distDir,
+        }
       }
       const {
         ensureInstrumentationRegistered,
@@ -948,6 +999,16 @@ export abstract class RouteModule<
     // the pathname format (e.g., /app/[slug]).
     const normalizedSrcPage = normalizeAppPath(srcPage)
 
+    // Compiling the route regex of a dynamic page is the expensive part of
+    // the server utils, and it only depends on the page. Keep it on the route
+    // module and pass it in, so everything else is still created from this
+    // request's routes manifest.
+    let dynamicRouteUtils = this.dynamicRouteUtils
+    if (pageIsDynamic && dynamicRouteUtils?.page !== normalizedSrcPage) {
+      dynamicRouteUtils = getDynamicRouteUtils(normalizedSrcPage)
+      this.dynamicRouteUtils = dynamicRouteUtils
+    }
+
     const serverUtils = getServerUtils({
       page: normalizedSrcPage,
       i18n: isPagesRoute ? i18n : undefined,
@@ -956,6 +1017,7 @@ export abstract class RouteModule<
       pageIsDynamic,
       trailingSlash: process.env.__NEXT_TRAILING_SLASH as any as boolean,
       caseSensitive: Boolean(routesManifest.caseSensitive),
+      dynamicRouteUtils,
     })
 
     const domainLocale = detectDomainLocale(

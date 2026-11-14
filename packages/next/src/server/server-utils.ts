@@ -55,6 +55,51 @@ function filterInternalQuery(
   }
 }
 
+function cloneArray(value: readonly unknown[]): unknown[] {
+  for (let i = 0; i < value.length; i++) {
+    const item = value[i]
+    if (typeof item === 'object' && item !== null) {
+      return structuredClone(value) as unknown[]
+    }
+  }
+  return value.slice()
+}
+
+/**
+ * Deep clones a parsed URL. Its values are strings or `null`, and the values
+ * of its query are strings or arrays of strings. Those are copied directly,
+ * which costs a fraction of what `structuredClone` does on every request.
+ * Any other value is still cloned with `structuredClone`.
+ */
+function cloneParsedUrl(
+  parsedUrl: DeepReadonly<NextUrlWithParsedQuery>
+): NextUrlWithParsedQuery {
+  const clone: Record<string, unknown> = { ...parsedUrl }
+
+  for (const key of Object.keys(clone)) {
+    const value = clone[key]
+    if (typeof value !== 'object' || value === null) continue
+
+    if (key !== 'query' || Array.isArray(value)) {
+      clone[key] = structuredClone(value)
+      continue
+    }
+
+    const query: Record<string, unknown> = { ...value }
+    for (const queryKey of Object.keys(query)) {
+      const queryValue = query[queryKey]
+      if (typeof queryValue !== 'object' || queryValue === null) continue
+
+      query[queryKey] = Array.isArray(queryValue)
+        ? cloneArray(queryValue)
+        : structuredClone(queryValue)
+    }
+    clone[key] = query
+  }
+
+  return clone as unknown as NextUrlWithParsedQuery
+}
+
 export function normalizeCdnUrl(
   req: BaseNextRequest | IncomingMessage,
   paramKeys: string[]
@@ -214,6 +259,27 @@ export function normalizeDynamicRouteParams(
   }
 }
 
+export type DynamicRouteUtils = {
+  page: string
+  defaultRouteRegex: ReturnType<typeof getNamedRouteRegex>
+  dynamicRouteMatcher: RouteMatchFn
+  defaultRouteMatches: ParsedUrlQuery
+}
+
+/**
+ * Compiles the route regex and matcher of a dynamic page. They only depend on
+ * the page, so a caller that serves the same page for many requests can create
+ * them once and pass them to `getServerUtils` with every call.
+ */
+export function getDynamicRouteUtils(page: string): DynamicRouteUtils {
+  const defaultRouteRegex = getNamedRouteRegex(page, {
+    prefixRouteKeys: false,
+  })
+  const dynamicRouteMatcher = getRouteMatcher(defaultRouteRegex)
+  const defaultRouteMatches = dynamicRouteMatcher(page) as ParsedUrlQuery
+  return { page, defaultRouteRegex, dynamicRouteMatcher, defaultRouteMatches }
+}
+
 export function getServerUtils({
   page,
   i18n,
@@ -222,6 +288,7 @@ export function getServerUtils({
   pageIsDynamic,
   trailingSlash,
   caseSensitive,
+  dynamicRouteUtils,
 }: {
   page: string
   i18n?: NextConfig['i18n']
@@ -234,17 +301,24 @@ export function getServerUtils({
   pageIsDynamic: boolean
   trailingSlash?: boolean
   caseSensitive: boolean
+  /**
+   * The result of `getDynamicRouteUtils` for this page, if the caller has
+   * one. It is used only when it was created for the same page.
+   */
+  dynamicRouteUtils?: DynamicRouteUtils
 }) {
   let defaultRouteRegex: ReturnType<typeof getNamedRouteRegex> | undefined
   let dynamicRouteMatcher: RouteMatchFn | undefined
   let defaultRouteMatches: ParsedUrlQuery | undefined
 
   if (pageIsDynamic) {
-    defaultRouteRegex = getNamedRouteRegex(page, {
-      prefixRouteKeys: false,
-    })
-    dynamicRouteMatcher = getRouteMatcher(defaultRouteRegex)
-    defaultRouteMatches = dynamicRouteMatcher(page) as ParsedUrlQuery
+    const routeUtils =
+      dynamicRouteUtils?.page === page
+        ? dynamicRouteUtils
+        : getDynamicRouteUtils(page)
+    defaultRouteRegex = routeUtils.defaultRouteRegex
+    dynamicRouteMatcher = routeUtils.dynamicRouteMatcher
+    defaultRouteMatches = routeUtils.defaultRouteMatches
   }
 
   function handleRewrites(
@@ -253,9 +327,7 @@ export function getServerUtils({
   ) {
     // Here we deep clone the parsedUrl to avoid mutating the original. We also
     // cast this to a mutable type so we can mutate it within this scope.
-    const rewrittenParsedUrl = structuredClone(
-      parsedUrl
-    ) as NextUrlWithParsedQuery
+    const rewrittenParsedUrl = cloneParsedUrl(parsedUrl)
     const rewriteParams: Record<string, string> = {}
     let fsPathname = rewrittenParsedUrl.pathname
 
