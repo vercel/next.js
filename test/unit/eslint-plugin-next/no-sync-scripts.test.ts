@@ -8,6 +8,11 @@ const message =
 
 const tests = {
   valid: [
+    `<script type="module" src="/script.js" />`,
+    `<script type="MODULE" src="/script.js" />`,
+    `<script type={'module'} src="/script.js" />`,
+    `<script {...props} type="module" src={src} />`,
+    `<script src="/script.js" defer />`,
     `import {Head} from 'next/document';
 
       export class Blah extends Head {
@@ -35,6 +40,16 @@ const tests = {
   ],
 
   invalid: [
+    ...[
+      `<script type="text/javascript" src="/script.js" />`,
+      `<script type={'text/javascript'} src="/script.js" />`,
+      `<script type={scriptType} src="/script.js" />`,
+      `<script type src="/script.js" />`,
+      `<script type={null} src="/script.js" />`,
+    ].map((code) => ({
+      code,
+      errors: [{ message, type: 'JSXOpeningElement' }],
+    })),
     {
       code: `
       import {Head} from 'next/document';
