@@ -356,6 +356,74 @@ describe('console-exit patches', () => {
         { method: 'log', input: '[BRIGHT]: with null signal' },
       ])
     })
+
+    it('should output console.trace with a clean stack trace without internal wrapper frames', async () => {
+      async function testForWorker() {
+        let capturedOutput = ''
+
+        // Replace console.error to capture the trace output (console.trace uses console.error internally after our patch)
+        console.error = function (...args) {
+          capturedOutput = args.join(' ')
+          reportResult({
+            type: 'console-call',
+            method: 'error',
+            input: capturedOutput,
+          })
+        }
+
+        // Install patches - this wraps console.trace
+        require('next/dist/server/node-environment-extensions/console-dim.external')
+
+        // Call console.trace - this should output a clean stack trace
+        console.trace('Test message')
+
+        // Report whether the stack trace contains internal wrapper frames
+        const hasInternalFrames = capturedOutput.includes(
+          '/node-environment-extensions/'
+        )
+        reportResult({
+          type: 'serialized',
+          key: 'hasInternalFrames',
+          data: JSON.stringify(hasInternalFrames),
+        })
+
+        // Report whether the stack trace contains the expected "Trace:" prefix
+        const hasTracePrefix = capturedOutput.startsWith('Trace:')
+        reportResult({
+          type: 'serialized',
+          key: 'hasTracePrefix',
+          data: JSON.stringify(hasTracePrefix),
+        })
+
+        // Report whether the stack trace contains the test message
+        const hasTestMessage = capturedOutput.includes('Test message')
+        reportResult({
+          type: 'serialized',
+          key: 'hasTestMessage',
+          data: JSON.stringify(hasTestMessage),
+        })
+
+        // Report whether the stack trace contains "at" lines (actual stack frames)
+        const hasStackFrames = capturedOutput.includes('    at ')
+        reportResult({
+          type: 'serialized',
+          key: 'hasStackFrames',
+          data: JSON.stringify(hasStackFrames),
+        })
+      }
+
+      const { data, exitCode } = await runWorkerCode(testForWorker)
+
+      expect(exitCode).toBe(0)
+      // The stack trace should NOT contain internal wrapper frames
+      expect(data.hasInternalFrames).toBe(false)
+      // The output should have the "Trace:" prefix
+      expect(data.hasTracePrefix).toBe(true)
+      // The output should contain the test message
+      expect(data.hasTestMessage).toBe(true)
+      // The output should contain actual stack frames
+      expect(data.hasStackFrames).toBe(true)
+    })
   })
 
   describe('inspector-aware dimming', () => {
