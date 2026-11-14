@@ -3,6 +3,8 @@ const glob = require('glob')
 const fs = require('fs/promises')
 const resolveFrom = require('resolve-from')
 const execa = require('execa')
+// Taskr evaluates this file without a `process` global.
+const nodeProcess = require('process')
 const recast = require('recast')
 
 export async function next__polyfill_nomodule(task, opts) {
@@ -2467,11 +2469,85 @@ export async function next_compile(task, opts) {
       'shared_re_exported',
       'shared_re_exported_esm',
       'server_wasm',
+      'front_server',
       'experimental_testing',
       'experimental_testmode',
     ],
     opts
   )
+}
+
+// The Go front server `next start` runs with __NEXT_EXPERIMENTAL_FRONT_SERVER=1
+// (src/server/front, launched by src/server/lib/front-server.ts). While it is
+// experimental, the binaries are built into dist/server/front only with
+// NEXT_BUILD_FRONT_SERVER=1 (named in src/server/lib/front-server-env.ts), so
+// `next` doesn't grow and its build doesn't need Go. The launcher finds them
+// there, or wherever __NEXT_EXPERIMENTAL_FRONT_SERVER_BINARY points
+// (src/server/lib/front-binary.ts). What to build, and the file names, come
+// from src/server/front/targets.json; the minimum Go version from its go.mod.
+export async function front_server(task, opts) {
+  // front-binary.ts reads this at runtime, with or without the binaries.
+  await task.source('src/server/front/targets.json').target('dist/server/front')
+  if (nodeProcess.env.NEXT_BUILD_FRONT_SERVER !== '1') {
+    return
+  }
+
+  const frontDir = join(__dirname, 'src/server/front')
+  const targets = require('./src/server/front/targets.json')
+  const goMod = await fs.readFile(join(frontDir, 'go.mod'), 'utf8')
+  const [minMajor, minMinor] = /^go (\d+)\.(\d+)/m
+    .exec(goMod)
+    .slice(1)
+    .map(Number)
+  const go = nodeProcess.env.TURBOPACK_GO || 'go'
+  const goVersion = await execa(go, ['env', 'GOVERSION'], { reject: false })
+  const [major, minor] = (/^go(\d+)\.(\d+)/.exec(goVersion.stdout ?? '') || [])
+    .slice(1)
+    .map(Number)
+  const hasGo =
+    goVersion.exitCode === 0 &&
+    (major > minMajor || (major === minMajor && minor >= minMinor))
+  if (!hasGo) {
+    throw new Error(
+      `NEXT_BUILD_FRONT_SERVER=1 needs Go ${minMajor}.${minMinor}+ (packages/next/src/server/front/go.mod), which wasn't found (tried "${go}"; set TURBOPACK_GO to pick another).`
+    )
+  }
+
+  const hostTarget = {
+    os: nodeProcess.platform,
+    arch: targets.goArch[nodeProcess.arch],
+  }
+  const isTarget = (target) =>
+    targets.targets.some((t) => t.os === target.os && t.arch === target.arch)
+  if (opts.dev && !isTarget(hostTarget)) {
+    console.warn(
+      `warning: next-front has no build for ${nodeProcess.platform}/${nodeProcess.arch}.`
+    )
+    return
+  }
+  for (const { os, arch } of opts.dev ? [hostTarget] : targets.targets) {
+    await execa(
+      go,
+      [
+        'build',
+        '-trimpath',
+        '-buildvcs=false',
+        '-ldflags=-s -w',
+        '-o',
+        join(
+          __dirname,
+          'dist/server/front',
+          targets.binaryName.replace('{os}', os).replace('{arch}', arch)
+        ),
+        '.',
+      ],
+      {
+        cwd: frontDir,
+        env: { CGO_ENABLED: '0', GOOS: os, GOARCH: arch, GOTOOLCHAIN: 'local' },
+        stdio: 'inherit',
+      }
+    )
+  }
 }
 
 export async function compile(task, opts) {
@@ -2791,6 +2867,7 @@ export default async function (task) {
   await task.watch('src/bin', 'bin', opts)
   await task.watch('src/pages', 'pages', opts)
   await task.watch('src/server', ['server', 'server_esm', 'server_wasm'], opts)
+  await task.watch('src/server/front/*.go', 'front_server', opts)
   await task.watch('src/api', 'api_esm', opts)
   await task.watch(
     'src/build',

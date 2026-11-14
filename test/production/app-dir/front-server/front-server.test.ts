@@ -174,7 +174,8 @@ describe('front-server', () => {
 
     // Raw non-ASCII bytes in the target aren't covered here: Node 24.22
     // rejects them with 400 and Node 20.9 routes them, so today's behavior
-    // depends on the Node version.
+    // depends on the Node version. The front forwards them byte for byte
+    // (packages/next/src/server/front/main_test.go).
     it('rejects a malformed escape', async () => {
       const res = await rawRequest(
         Number(next.appPort),
