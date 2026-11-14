@@ -27,33 +27,21 @@ Hydration errors can occur from:
 
 ## Possible Ways to Fix It
 
-The following strategies can help address this error:
+Ensure that the component renders the same content on the server and during the initial client render. The following approaches help when a value differs between them.
 
-### Solution 1: Using `useEffect` to run on the client only
+### Solution 1: Rendering changing values in the browser
 
-Ensure that the component renders the same content server-side as it does during the initial client-side render to prevent a hydration mismatch. You can intentionally render different content on the client with the `useEffect` hook.
+Values such as `Date.now()` can differ on the server and client. With React 19.3, call `use(browser())` in a Client Component inside `<Suspense>` to render a fallback on the server and defer the changing value to the browser.
 
-```jsx
-import { useState, useEffect } from 'react'
-
-export default function App() {
-  const [isClient, setIsClient] = useState(false)
-
-  useEffect(() => {
-    setIsClient(true)
-  }, [])
-
-  return <h1>{isClient ? 'This is never prerendered' : 'Prerendered'}</h1>
-}
-```
-
-During React hydration, `useEffect` is called. This means browser APIs like `window` are available to use without hydration mismatches.
+See the [timestamp example and tradeoffs](/docs/app/guides/preventing-flash-before-hydration#rendering-client-specific-content).
 
 ### Solution 2: Disabling SSR on specific components
 
 Next.js allows you to [disable prerendering](/docs/app/guides/lazy-loading#skipping-ssr) on specific components, which can prevent hydration mismatches.
 
 ```jsx
+'use client'
+
 import dynamic from 'next/dynamic'
 
 const NoSSR = dynamic(() => import('../components/no-ssr'), { ssr: false })
@@ -72,13 +60,16 @@ export default function Page() {
 Sometimes content will inevitably differ between the server and client, such as a timestamp. You can silence the hydration mismatch warning by adding `suppressHydrationWarning={true}` to the element.
 
 ```jsx
-<time datetime="2016-10-25" suppressHydrationWarning />
+<time dateTime="2016-10-25" suppressHydrationWarning />
 ```
 
-> **Good to know:**
->
-> - This only works one level deep, and is intended to be an escape hatch. Don’t overuse it.
-> - React will **not** attempt to patch mismatched text content when `suppressHydrationWarning={true}` is set.
+Suppression only applies one level deep, and React will not patch mismatched text content on that element. Use this escape hatch sparingly.
+
+<span id="solution-1-using-useeffect-to-run-on-the-client-only" />
+
+### Why not `useEffect`?
+
+A mount effect can avoid a mismatch, but a synchronous state update adds a render and triggers `react-hooks/set-state-in-effect` in `eslint-config-next`. See [Why not `useEffect`?](/docs/app/guides/preventing-flash-before-hydration#why-not-useeffect) for the original pattern and its tradeoffs.
 
 ## Common iOS issues
 

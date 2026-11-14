@@ -218,7 +218,7 @@ This can be useful for third-party libraries that rely on browser APIs like `win
 
 React 19.3 includes the [`browser`](https://react.dev/reference/react-dom/browser) API. Use `use(browser())` only when a Client Component's first browser render cannot match server-rendered HTML.
 
-During prerendering, `use(browser())` suspends to the closest `<Suspense>` boundary. The fallback becomes the component's initial HTML, so crawlers that don't execute JavaScript see the fallback instead of the component. Keep content that should be indexed outside the browser-only boundary.
+During prerendering, `use(browser())` suspends to the closest `<Suspense>` boundary. The fallback becomes the component's initial HTML, so crawlers that don't execute JavaScript see the fallback instead of the component. Keep content that should be indexed outside the browser-only boundary. If the client-specific value needs to be visible before React loads, see [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration#choose-an-approach).
 
 For example, this editor reads a saved draft from `localStorage`:
 
@@ -258,7 +258,7 @@ export default function Page() {
 }
 ```
 
-In the browser, `browser()` returns `undefined`, and the editor renders with the saved draft.
+In the browser, `use(browser())` allows rendering to continue, and the editor renders with the saved draft.
 
 See both approaches in the [live demo](https://next-spa-patterns.labs.vercel.dev/browser-only). The [demo source](https://github.com/nextjs/next-spa-patterns/tree/main/app/browser-only) contains the complete examples.
 
