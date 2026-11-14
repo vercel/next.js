@@ -5,14 +5,11 @@ import { retry } from 'next-test-utils'
 describe('segment-config-precedence', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    // Turbopack validates this collision before applying --debug-build-paths.
-    overrideFiles: !process.env.IS_TURBOPACK_TEST
-      ? {
-          'app/explicit-children': new FileRef(
-            `${__dirname}/fixtures/explicit-children`
-          ),
-        }
-      : undefined,
+    overrideFiles: {
+      'app/explicit-children': new FileRef(
+        `${__dirname}/fixtures/explicit-children`
+      ),
+    },
     // TODO: Include these routes once Turbopack accepts conflicting sibling
     // deployment configs. Their individual tests are excluded below.
     buildArgs: process.env.IS_TURBOPACK_TEST
@@ -489,8 +486,6 @@ describe('segment-config-precedence', () => {
     )
   })
 
-  // TODO: Fix Turbopack matching an explicit @children page alongside an ordinary page.
-  // @force-gate !turbopack
   it('accepts an ordinary page alongside an explicit @children page', async () => {
     const response = await next.fetch('/explicit-children')
     expect(response.status).toBe(200)
