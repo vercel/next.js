@@ -34,6 +34,7 @@ function verifyAndRunTypeScript(
   pagesDir: string | undefined,
   debugBuildPaths: { app: string[]; pages: string[] } | undefined,
   useTypeScriptCli: boolean,
+  compilerPackage: string | undefined,
   onFirstCliOutput?: () => void
 ) {
   let impl: typeof import('../lib/verify-typescript-setup').verifyAndRunTypeScript
@@ -78,6 +79,7 @@ function verifyAndRunTypeScript(
     pagesDir,
     debugBuildPaths,
     useTypeScriptCli,
+    compilerPackage,
     onFirstCliOutput,
   })
     .then((result) => {
@@ -152,6 +154,7 @@ export async function startTypeChecking({
           pagesDir,
           debugBuildPaths,
           useTypeScriptCli,
+          config.typescript.compilerPackage,
           // Stop the spinner before as soon as the subprocess reports output.
           useTypeScriptCli && typeCheckingSpinner
             ? () => typeCheckingSpinner.stop()

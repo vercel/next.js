@@ -6,6 +6,7 @@ import spawn from 'next/dist/compiled/cross-spawn'
 
 import { bold } from '../picocolors'
 import { resolveFrom } from '../resolve-from'
+import semver from 'next/dist/compiled/semver'
 
 export interface TypeScriptPackageInfo {
   packageJsonPath: string
@@ -16,11 +17,12 @@ export interface TypeScriptPackageInfo {
 }
 
 export function getTypeScriptPackageInfo(
-  baseDir: string
+  baseDir: string,
+  compilerPackage = 'typescript'
 ): TypeScriptPackageInfo | null {
   let packageJsonPath: string
   try {
-    packageJsonPath = resolveFrom(baseDir, 'typescript/package.json')
+    packageJsonPath = resolveFrom(baseDir, `${compilerPackage}/package.json`)
   } catch {
     return null
   }
@@ -38,7 +40,12 @@ export function getTypeScriptPackageInfo(
       : (packageJson.bin?.tsc ??
         Object.entries(packageJson.bin ?? {}).find(([name]) =>
           /^tsc\d+$/.test(name)
-        )?.[1])
+        )?.[1] ??
+        // Alternative compilers can expose a differently named CLI (e.g.
+        // tsc-rs or tsgo). Do not guess when a package has multiple binaries.
+        (Object.keys(packageJson.bin ?? {}).length === 1
+          ? Object.values(packageJson.bin!)[0]
+          : undefined))
   const tscBinPath = tscBin ? path.resolve(packageDir, tscBin) : undefined
   let tscPath = tscBinPath
 
@@ -64,6 +71,26 @@ export function getTypeScriptPackageInfo(
     apiPath: existsSync(apiPath) ? apiPath : undefined,
     tscPath: tscPath && existsSync(tscPath) ? tscPath : undefined,
   }
+}
+
+/** Package versions need not match the TypeScript version they implement. */
+export async function getTypeScriptCliVersion(
+  baseDir: string,
+  tscPath: string
+): Promise<string> {
+  const result = await runTypeScriptCli({
+    cwd: baseDir,
+    tscPath,
+    args: ['--version'],
+    captureOutput: true,
+  })
+  const version = result.stdout.trim().match(/^Version (\S+)$/)?.[1]
+  if (result.exitCode !== 0 || !version || !semver.valid(version)) {
+    throw new Error(
+      `The configured TypeScript compiler must support --version and report a compatible TypeScript version. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/typescript#compilerpackage`
+    )
+  }
+  return version
 }
 
 export function hasNativeTypeScriptPreview(baseDir: string): boolean {

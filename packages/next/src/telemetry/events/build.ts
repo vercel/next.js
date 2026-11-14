@@ -14,7 +14,7 @@ type EventTypeCheckCompleted = {
   inputFilesCount?: number
   totalFilesCount?: number
   incremental?: boolean
-  typeCheckMode: 'typescript-api' | 'typescript-cli'
+  typeCheckMode: 'typescript-api' | 'typescript-cli' | 'custom-cli'
 }
 
 export function eventTypeCheckCompleted(event: EventTypeCheckCompleted): {
