@@ -36,6 +36,8 @@ import { getCacheControlHeader } from '../../server/lib/cache-control'
 import { INFINITE_CACHE, NEXT_CACHE_TAGS_HEADER } from '../../lib/constants'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
 import { isRouteCacheOwner } from '../../server/lib/route-cache-key'
+import { isDynamicRoute } from '../../shared/lib/router/utils/is-dynamic'
+import { isRouteHandlerParamMatchingAllowed } from '../../server/route-modules/app-route/helpers/param-matching'
 import {
   CachedRouteKind,
   type ResponseCacheEntry,
@@ -46,10 +48,14 @@ import {
 // instead of a replacement because this could also be `undefined` instead of
 // an empty string.
 declare const nextConfigOutput: AppRouteRouteModuleOptions['nextConfigOutput']
+declare const isMetadataRoute: boolean
+declare const isStaticMetadataFile: boolean
 
 // We inject the nextConfigOutput here so that we can use them in the route
 // module.
 // INJECT:nextConfigOutput
+// INJECT:isMetadataRoute
+// INJECT:isStaticMetadataFile
 
 const routeModule = new AppRouteRouteModule({
   definition: {
@@ -62,6 +68,8 @@ const routeModule = new AppRouteRouteModule({
   distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
   relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
   resolvedPagePath: 'VAR_RESOLVED_PAGE_PATH',
+  isMetadataRoute,
+  isStaticMetadataFile,
   nextConfigOutput,
   // The lazy require factory ensures that:
   // - In dev: devRequestTimingInternalsEnd is set before userland executes,
@@ -201,7 +209,31 @@ async function handleRequest(
     previewProps,
   } = prepareResult
 
+  const isMinimalMode = Boolean(getRequestMeta(req, 'minimalMode'))
   const normalizedSrcPage = normalizeAppPath(srcPage)
+  const paramMatching = routeModule.isDev
+    ? getRequestMeta(req, 'devRouteHandlerParamMatching')
+    : prerenderManifest.routeHandlerParamMatching?.[normalizedSrcPage]
+
+  // Cached GET hits stay lazy. Missing policy still fails before executing a
+  // method, including non-GET requests that could otherwise hit the GET cache.
+  const assertParamMatchingConfiguration = async () => {
+    if (
+      !routeModule.isDev &&
+      isDynamicRoute(normalizedSrcPage) &&
+      !paramMatching
+    ) {
+      await routeModule.ensureUserland()
+      if (
+        'unstable_paramMatching' in routeModule.userland ||
+        'unstable_generateParamMatching' in routeModule.userland
+      ) {
+        throw new Error(
+          `Route Handler "${normalizedSrcPage}" is missing its parameter matching admission configuration. Rebuild the application and preserve the full prerender manifest when packaging the handler.`
+        )
+      }
+    }
+  }
 
   // Only this route's prerenders can establish ISR or admit generated params.
   const isPrerendered =
@@ -222,12 +254,42 @@ async function handleRequest(
     if (routerServerContext?.render404) {
       await routerServerContext.render404(req, res, parsedUrl, false)
     } else {
+      res.statusCode = 404
       res.end('This page could not be found')
     }
     return null
   }
 
-  if (isIsr && !isDraftMode) {
+  // Admission precedes method resolution and cache access, including when a
+  // dynamic GET or non-GET method has no prerender entry at all.
+  if (
+    !isDraftMode &&
+    paramMatching &&
+    !isRouteHandlerParamMatchingAllowed(params, paramMatching)
+  ) {
+    // Only bubble when the router has opted in. Standalone handlers can have
+    // a render404 callback without the page renderer being packaged with them.
+    if (!getRequestMeta(req, 'bubbleNoFallback')) {
+      res.statusCode = 404
+      res.end('This page could not be found')
+      return null
+    }
+    throw new NoFallbackError()
+  }
+
+  // Only GET and its automatic HEAD implementation share a response cache.
+  // Authored methods still obey the same admission policy before executing.
+  if (req.method !== 'GET') {
+    await assertParamMatchingConfiguration()
+    if (paramMatching) {
+      await routeModule.ensureUserland()
+      if (req.method !== 'HEAD' || routeModule.userland.HEAD) {
+        isIsr = false
+      }
+    }
+  }
+
+  if (isIsr && !isDraftMode && !paramMatching) {
     const prerenderInfo = prerenderManifest.dynamicRoutes[normalizedSrcPage]
 
     if (prerenderInfo) {
@@ -264,7 +326,6 @@ async function handleRequest(
   const isWrappedByNextServer = Boolean(
     routerServerContext?.isWrappedByNextServer
   )
-  const isMinimalMode = Boolean(getRequestMeta(req, 'minimalMode'))
 
   const incrementalCache =
     getRequestMeta(req, 'incrementalCache') ||
@@ -336,6 +397,8 @@ async function handleRequest(
         res.end('This page could not be found')
         return null
       }
+
+      await assertParamMatchingConfiguration()
 
       const response =
         cacheKey === null

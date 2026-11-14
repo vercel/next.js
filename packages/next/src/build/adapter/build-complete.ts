@@ -55,7 +55,6 @@ import {
 
 import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
 import { getStaticMetadataPrerenderPathname } from '../../lib/metadata/get-metadata-route'
-import { isStaticMetadataFile } from '../../lib/metadata/is-metadata-route'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import { getRedirectStatus, modifyRouteRegex } from '../../lib/redirect-status'
 import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
@@ -668,6 +667,7 @@ export async function handleBuildComplete({
   adapterPath,
   appPageKeys,
   staticPages,
+  staticMetadataRoutes,
   nextVersion,
   hasStatic404,
   hasStatic500,
@@ -699,6 +699,7 @@ export async function handleBuildComplete({
   previewProps: __ApiPreviewProps
   bundler: Bundler
   staticPages: Set<string>
+  staticMetadataRoutes: ReadonlySet<string>
   hasNodeMiddleware: boolean
   config: NextConfigComplete
   pageKeys: readonly string[]
@@ -1214,8 +1215,9 @@ export async function handleBuildComplete({
       const staticMetadataPrerenders = new Set(
         Object.keys(prerenderManifest.routes).filter(
           (pathname) =>
-            isStaticMetadataFile(pathname) &&
-            !hasRevalidation(prerenderManifest.routes[pathname])
+            staticMetadataRoutes.has(
+              prerenderManifest.routes[pathname].srcRoute ?? pathname
+            ) && !hasRevalidation(prerenderManifest.routes[pathname])
         )
       )
 
@@ -1227,18 +1229,22 @@ export async function handleBuildComplete({
           const normalizedPage = normalizeAppPath(page)
 
           // Metadata that remains a prerender needs its backing runtime route.
-          const staticMetadataPrerenderPathname =
-            getStaticMetadataPrerenderPathname(normalizedPage) ?? normalizedPage
+          const isStaticMetadataFile = staticMetadataRoutes.has(normalizedPage)
+          const staticMetadataPrerenderPathname = isStaticMetadataFile
+            ? (getStaticMetadataPrerenderPathname(normalizedPage) ??
+              normalizedPage)
+            : normalizedPage
           const isEmittedAsStaticFile =
-            staticMetadataPrerenders.has(staticMetadataPrerenderPathname) ||
-            config.i18n?.locales?.some((locale) => {
-              const localePathname = path.posix.join(
-                '/',
-                locale,
-                staticMetadataPrerenderPathname.slice(1)
-              )
-              return staticMetadataPrerenders.has(localePathname)
-            })
+            isStaticMetadataFile &&
+            (staticMetadataPrerenders.has(staticMetadataPrerenderPathname) ||
+              config.i18n?.locales?.some((locale) => {
+                const localePathname = path.posix.join(
+                  '/',
+                  locale,
+                  staticMetadataPrerenderPathname.slice(1)
+                )
+                return staticMetadataPrerenders.has(localePathname)
+              }))
 
           if (isEmittedAsStaticFile) {
             continue
@@ -1936,10 +1942,6 @@ export async function handleBuildComplete({
       }
 
       for (const dynamicRoute in prerenderManifest.dynamicRoutes) {
-        if (isStaticMetadataFile(dynamicRoute)) {
-          continue
-        }
-
         const {
           fallback,
           fallbackExpire,
@@ -1960,6 +1962,9 @@ export async function handleBuildComplete({
         } = prerenderManifest.dynamicRoutes[dynamicRoute]
 
         const srcRoute = fallbackSourceRoute || dynamicRoute
+        if (staticMetadataRoutes.has(srcRoute)) {
+          continue
+        }
         const parentOutput = getParentOutput(srcRoute, dynamicRoute)
         const isAppPage = Boolean(appOutputMap[srcRoute])
 
