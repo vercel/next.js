@@ -693,7 +693,10 @@ export class FlightClientEntryPlugin {
               return {
                 id,
                 exportedName,
-                filename: path.posix.relative(this.projectDir, modResource),
+                filename: path.posix.relative(
+                  normalizePathSep(this.projectDir),
+                  normalizePathSep(modResource)
+                ),
               }
             })
           )
@@ -801,7 +804,10 @@ export class FlightClientEntryPlugin {
             return {
               id,
               exportedName,
-              filename: path.posix.relative(this.projectDir, modResource),
+              filename: path.posix.relative(
+                normalizePathSep(this.projectDir),
+                normalizePathSep(modResource)
+              ),
             }
           }),
         ])
@@ -1133,11 +1139,13 @@ export class FlightClientEntryPlugin {
           ? pluginState.edgeServerActionModules
           : pluginState.serverActionModules
 
-        if (!mapping[chunkGroup.name]) {
-          mapping[chunkGroup.name] = {}
+        const entryName = normalizePathSep(chunkGroup.name)
+
+        if (!mapping[entryName]) {
+          mapping[entryName] = {}
         }
 
-        mapping[chunkGroup.name][fromClient ? 'client' : 'server'] = {
+        mapping[entryName][fromClient ? 'client' : 'server'] = {
           moduleId: modId,
           async: compilation.moduleGraph.isAsync(mod),
         }
@@ -1147,11 +1155,12 @@ export class FlightClientEntryPlugin {
     for (let id in pluginState.serverActions) {
       const { layer, ...action } = pluginState.serverActions[id]
       for (let name in action.workers) {
-        const modId =
-          pluginState.serverActionModules[name][
-            layer![name] === WEBPACK_LAYERS.actionBrowser ? 'client' : 'server'
-          ]
-        action.workers[name] = modId!
+        const targetLayer =
+          layer![name] === WEBPACK_LAYERS.actionBrowser ? 'client' : 'server'
+        const modId = pluginState.serverActionModules[name]?.[targetLayer]
+        if (modId) {
+          action.workers[name] = modId
+        }
       }
       serverActions[id] = action
     }
@@ -1159,11 +1168,12 @@ export class FlightClientEntryPlugin {
     for (let id in pluginState.edgeServerActions) {
       const { layer, ...action } = pluginState.edgeServerActions[id]
       for (let name in action.workers) {
-        const modId =
-          pluginState.edgeServerActionModules[name][
-            layer![name] === WEBPACK_LAYERS.actionBrowser ? 'client' : 'server'
-          ]
-        action.workers[name] = modId!
+        const targetLayer =
+          layer![name] === WEBPACK_LAYERS.actionBrowser ? 'client' : 'server'
+        const modId = pluginState.edgeServerActionModules[name]?.[targetLayer]
+        if (modId) {
+          action.workers[name] = modId
+        }
       }
       edgeServerActions[id] = action
     }
