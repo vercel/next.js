@@ -1306,45 +1306,19 @@ impl FileSystem for DiskFileSystem {
         // attributed to the caller rather than surfacing later when the effect is applied.
         validate_path_length(&full_path)?;
 
-        // Persist the file content so it is stored in the persistent cache.
-        // Since FileContent uses serialization = "hash", persisting it here ensures the full
-        // content is available in the persistent cache (via PersistedFileContent) and does not
-        // require recomputing the content on cache restore — avoiding unnecessary downstream
-        // recomputation.
-        //
-        // Files composed from other cells (`File::from_cell_rope`) are the exception: only their
-        // `CellRope` (inline bytes plus references) is persisted, because the referenced cells
-        // persist the bytes already. The hash is the same one computed for a flat write of the
-        // same bytes, so switching a path between the two doesn't rewrite an unchanged file.
-        //
-        // `File`'s equality ignores its composition, so a cell can keep an older `File` with the
-        // same bytes whose `CellRope` no longer reads them (its cells changed since). The rope is
-        // only used if it still reads exactly the file's bytes; otherwise the file is written
-        // flat. The read is untracked: tracking it would persist a dependency on every referenced
-        // cell. If the cells change later, capturing the effect fails its hash check and retries,
-        // which reruns this check against the new bytes.
-        if let FileContent::Content(file) = &*content.await?
-            && let Some(rope) = file.composed_from()
-            && file.meta == FileMeta::default()
-            && rope.untracked().await?.read_untracked().await? == *file.content()
-        {
-            WriteEffect {
-                full_path: Arc::new(full_path),
-                fs: self,
-                content: WriteEffectContent::Composed(rope),
-                content_hash: composed_content_hash(file.content()),
-            }
-            .resolved_cell()
-            .emit();
-            return Ok(());
-        }
-        let content = content.persist().to_resolved().await?;
-        let content_hash = hash_xxh3_hash128(&*content.await?);
+        // Never read `content` here: `FileContent` uses `serialization = "hash"`, so after a
+        // cache restore its value isn't available and reading it would re-execute its producer
+        // (and everything it depends on). `prepare_write` reads it instead; its output is
+        // persisted, so a rerun of this task (e.g. after the project moved) reuses it.
+        let PreparedWrite {
+            content,
+            content_hash,
+        } = prepare_write(*content).owned().await?;
 
         WriteEffect {
             full_path: Arc::new(full_path),
             fs: self,
-            content: WriteEffectContent::Flat(content),
+            content,
             content_hash,
         }
         .resolved_cell()
@@ -1672,7 +1646,59 @@ enum WriteEffectContent {
     Flat(ResolvedVc<PersistedFileContent>),
     /// A [`CellRope`] whose bytes are persisted by the cells it references (a
     /// [`File::from_cell_rope`] file).
-    Composed(ResolvedVc<CellRope>),
+    Composed {
+        rope: ResolvedVc<CellRope>,
+        /// The file the rope was taken from. Its bytes are only read if the rope no longer reads
+        /// them, see [`WriteEffect::capture`].
+        file: ResolvedVc<FileContent>,
+    },
+}
+
+/// What [`DiskFileSystem::write`] declares for a file. See [`prepare_write`].
+#[turbo_tasks::value]
+#[derive(Clone)]
+struct PreparedWrite {
+    content: WriteEffectContent,
+    #[bincode(fixint)]
+    content_hash: u128,
+}
+
+/// Decides how [`DiskFileSystem::write`] writes `content`, in its own task so that the decision is
+/// persisted. See the comment in [`DiskFileSystem::write`].
+///
+/// Flat files are persisted as a whole ([`FileContent::persist`]), so restoring the cache doesn't
+/// need to recompute them. Files composed from other cells ([`File::from_cell_rope`]) are the
+/// exception: only their [`CellRope`] (inline bytes plus references) is persisted, because the
+/// referenced cells persist the bytes already. The hash is the same one computed for a flat write
+/// of the same bytes, so switching a path between the two doesn't rewrite an unchanged file.
+///
+/// `File`'s equality ignores its composition, so a cell can keep an older `File` with the same
+/// bytes whose `CellRope` no longer reads them (its cells changed since). The rope is only used if
+/// it still reads exactly the file's bytes; otherwise the file is written flat. The read is
+/// untracked: tracking it would persist a dependency on every referenced cell.
+#[turbo_tasks::function]
+async fn prepare_write(content: ResolvedVc<FileContent>) -> Result<Vc<PreparedWrite>> {
+    if let FileContent::Content(file) = &*content.await?
+        && let Some(rope) = file.composed_from()
+        && file.meta == FileMeta::default()
+        && rope.untracked().await?.read_untracked().await? == *file.content()
+    {
+        return Ok(PreparedWrite {
+            content: WriteEffectContent::Composed {
+                rope,
+                file: content,
+            },
+            content_hash: composed_content_hash(file.content()),
+        }
+        .cell());
+    }
+    let persisted = content.persist().to_resolved().await?;
+    let content_hash = hash_xxh3_hash128(&*persisted.await?);
+    Ok(PreparedWrite {
+        content: WriteEffectContent::Flat(persisted),
+        content_hash,
+    }
+    .cell())
 }
 
 /// The hash [`DiskFileSystem::write`] computes for a file with these bytes and default
@@ -1716,9 +1742,11 @@ impl Effect for WriteEffect {
             // cell — that would pin it and defeat the eviction this refactor enables.
             match &self.content {
                 WriteEffectContent::Flat(content) => Some((*content).untracked().await?),
-                WriteEffectContent::Composed(rope) => capture_composed(*rope, self.content_hash)
-                    .await
-                    .map(ReadRef::new_owned),
+                WriteEffectContent::Composed { rope, file } => {
+                    capture_composed(*rope, *file, self.content_hash)
+                        .await
+                        .map(ReadRef::new_owned)
+                }
             }
         };
         Ok(Box::new(CapturedWriteEffect {
@@ -1734,18 +1762,28 @@ impl Effect for WriteEffect {
 /// memory until the effect is applied.
 ///
 /// The referenced cells may have changed since the producer composed the rope (a `CellRope` points
-/// at the cells' *current* values) or may fail to read. In both cases, this returns `None`: no
-/// content is captured, so applying the effect takes the `ApplyError::Retry` path, which
-/// invalidates the producer. Stale or mixed bytes are never written.
+/// at the cells' *current* values) or may fail to read. This happens when the effect's `File` is
+/// an older, equal value that was kept in its cell (see [`prepare_write`]), or while the cells are
+/// being recomputed. The file's own bytes are then read instead: reading them may recompute the
+/// file, but only in this rare case. If those don't match either (the file changed since the
+/// effect was declared), this returns `None`: no content is captured, so applying the effect takes
+/// the `ApplyError::Retry` path, which invalidates the producer. Stale or mixed bytes are never
+/// written.
 async fn capture_composed(
     rope: ResolvedVc<CellRope>,
+    file: ResolvedVc<FileContent>,
     content_hash: u128,
 ) -> Option<PersistedFileContent> {
-    let bytes = async { rope.untracked().await?.read_untracked().await }
-        .await
-        .ok()?;
-    (composed_content_hash(&bytes) == content_hash)
-        .then(|| PersistedFileContent::Content(File::from(bytes)))
+    if let Ok(bytes) = async { rope.untracked().await?.read_untracked().await }.await
+        && composed_content_hash(&bytes) == content_hash
+    {
+        return Some(PersistedFileContent::Content(File::from(bytes)));
+    }
+    let FileContent::Content(file) = &*file.untracked().await.ok()? else {
+        return None;
+    };
+    (composed_content_hash(file.content()) == content_hash)
+        .then(|| PersistedFileContent::Content(File::from(file.content().clone())))
 }
 
 /// How much a file write buffers before writing to the file, see [`write_file_content`].
