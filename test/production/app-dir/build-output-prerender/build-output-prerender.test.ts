@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { gate } from 'next-test-utils'
 import path from 'path'
 const { version: nextVersion } = require('next/package.json')
 
@@ -15,9 +16,10 @@ describe('build-output-prerender', () => {
       beforeAll(() => next.build())
 
       it('prints only the user-selected experimental flags (and the ones enabled via env variable)', async () => {
+        const preambleOutput = await getPreambleOutput(next.cliOutput)
         if (cacheComponentsEnabled) {
           if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            expect(preambleOutput).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Turbopack)
              ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
 
@@ -34,7 +36,7 @@ describe('build-output-prerender', () => {
                · staticGenerationMaxConcurrency: 1"
             `)
           } else if (isRspack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            expect(preambleOutput).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Rspack)
              ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
 
@@ -50,7 +52,7 @@ describe('build-output-prerender', () => {
                · staticGenerationMaxConcurrency: 1"
             `)
           } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            expect(preambleOutput).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (webpack)
              ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
 
@@ -68,7 +70,7 @@ describe('build-output-prerender', () => {
           }
         } else {
           if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            expect(preambleOutput).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Turbopack)
              ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
 
@@ -84,7 +86,7 @@ describe('build-output-prerender', () => {
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           } else if (isRspack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            expect(preambleOutput).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Rspack)
              ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
 
@@ -99,7 +101,7 @@ describe('build-output-prerender', () => {
                · staticGenerationMaxConcurrency: 1"
             `)
           } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            expect(preambleOutput).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (webpack)
              ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
 
@@ -178,9 +180,10 @@ describe('build-output-prerender', () => {
       beforeAll(() => next.build())
 
       it('prints a warning and the customized experimental flags', async () => {
+        const preambleOutput = await getPreambleOutput(next.cliOutput)
         if (cacheComponentsEnabled) {
           if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            expect(preambleOutput).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Turbopack)
              ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
@@ -202,7 +205,7 @@ describe('build-output-prerender', () => {
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
           } else if (isRspack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            expect(preambleOutput).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Rspack)
              ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
@@ -223,7 +226,7 @@ describe('build-output-prerender', () => {
                · staticGenerationMaxConcurrency: 1"
             `)
           } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            expect(preambleOutput).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (webpack)
              ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
@@ -246,7 +249,7 @@ describe('build-output-prerender', () => {
           }
         } else {
           if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            expect(preambleOutput).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Turbopack)
              ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
@@ -267,7 +270,7 @@ describe('build-output-prerender', () => {
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
           } else if (isRspack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            expect(preambleOutput).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Rspack)
              ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
@@ -287,7 +290,7 @@ describe('build-output-prerender', () => {
                · staticGenerationMaxConcurrency: 1"
             `)
           } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            expect(preambleOutput).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (webpack)
              ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
@@ -421,9 +424,10 @@ describe('build-output-prerender', () => {
       beforeAll(() => next.build())
 
       it('prints no experimental flags (unless enabled via env variable)', async () => {
+        const preambleOutput = await getPreambleOutput(next.cliOutput)
         if (cacheComponentsEnabled) {
           if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            expect(preambleOutput).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Turbopack)
              ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
 
@@ -439,7 +443,7 @@ describe('build-output-prerender', () => {
                ✓ serverComponentsHmrCancellation (enabled by \`__NEXT_EXPERIMENTAL_SERVER_COMPONENTS_HMR_CANCELLATION\`)"
             `)
           } else if (isRspack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            expect(preambleOutput).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Rspack)
              ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
 
@@ -454,7 +458,7 @@ describe('build-output-prerender', () => {
                ✓ cachedNavigations (enabled by \`__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS\`)"
             `)
           } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            expect(preambleOutput).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (webpack)
              ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
 
@@ -471,20 +475,20 @@ describe('build-output-prerender', () => {
           }
         } else {
           if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            expect(preambleOutput).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Turbopack)
              ✓ Running next.config took N
              - Experiments (use with caution):
                ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
             `)
           } else if (isRspack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            expect(preambleOutput).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Rspack)
              ✓ Running next.config took N
              - Experiments (use with caution):"
             `)
           } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            expect(preambleOutput).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (webpack)
              ✓ Running next.config took N
              - Experiments (use with caution):
@@ -505,9 +509,10 @@ describe('build-output-prerender', () => {
       beforeAll(() => next.build())
 
       it('prints a warning and the customized experimental flags', async () => {
+        const preambleOutput = await getPreambleOutput(next.cliOutput)
         if (cacheComponentsEnabled) {
           if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            expect(preambleOutput).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Turbopack)
              ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
@@ -528,7 +533,7 @@ describe('build-output-prerender', () => {
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
           } else if (isRspack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            expect(preambleOutput).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Rspack)
              ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
@@ -548,7 +553,7 @@ describe('build-output-prerender', () => {
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
             `)
           } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            expect(preambleOutput).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (webpack)
              ⚠ \`cacheComponents\` is enabled without a corresponding \`partialPrefetching\` option. Set \`partialPrefetching\` to either \`true\` or \`false\`.
@@ -570,7 +575,7 @@ describe('build-output-prerender', () => {
           }
         } else {
           if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            expect(preambleOutput).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Turbopack)
              ✓ Running next.config took N
@@ -582,7 +587,7 @@ describe('build-output-prerender', () => {
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
           } else if (isRspack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            expect(preambleOutput).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (Rspack)
              ✓ Running next.config took N
@@ -593,7 +598,7 @@ describe('build-output-prerender', () => {
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
             `)
           } else {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
+            expect(preambleOutput).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
              ▲ Next.js x.y.z (webpack)
              ✓ Running next.config took N
@@ -611,7 +616,16 @@ describe('build-output-prerender', () => {
   })
 })
 
-function getPreambleOutput(cliOutput: string): string {
+async function getPreambleOutput(cliOutput: string): Promise<string> {
+  const runtimeFlag =
+    '  ✓ externalBrowserRuntime (enabled by `__NEXT_EXPERIMENTAL_EXTERNAL_BROWSER_RUNTIME`)'
+  if (await gate((c) => c.externalBrowserRuntime)) {
+    expect(cliOutput).toContain(runtimeFlag)
+    cliOutput = cliOutput.replace(`${runtimeFlag}\n`, '')
+  } else {
+    expect(cliOutput).not.toContain('externalBrowserRuntime')
+  }
+
   const lines: string[] = []
 
   for (const line of cliOutput.split('\n')) {
