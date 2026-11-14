@@ -4,7 +4,6 @@ use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
-use tracing::Instrument;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{FxIndexSet, JoinIterExt, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 
@@ -322,7 +321,20 @@ async fn chunk_group_content_operation(
         .map(async |chunk_group| chunk_group_info.get_index_of(chunk_group.key()).await)
         .try_join()
         .await?;
-    let chunk_group_info = chunk_group_info.await?;
+    // Only the registered chunk groups being chunked, so this doesn't depend on other chunk
+    // groups (or on the whole `ChunkGroupInfo`).
+    let registered_chunk_groups = {
+        let all_chunk_groups = chunk_group_info.chunk_groups().keyed_reader().await?;
+        chunk_group_indices
+            .iter()
+            .map(|&index| {
+                all_chunk_groups
+                    .get(&(index as u32))
+                    .cloned()
+                    .with_context(|| format!("chunk group index {index} is out of range"))
+            })
+            .collect::<Result<SmallVec<[_; 1]>>>()?
+    };
     let available_chunk_groups = match availability_info.available_chunk_groups() {
         Some(available_chunk_groups) => {
             let available_chunk_groups = available_chunk_groups.await?;
@@ -336,15 +348,16 @@ async fn chunk_group_content_operation(
         .as_ref()
         .map(|available| available.chunk_groups(module_graph))
         .transpose()?;
-    let module_chunk_groups = chunk_group_info.module_chunk_groups.await?;
-    let async_loader_chunk_groups = chunk_group_info.async_loader_chunk_groups.await?;
+    let module_chunk_groups = chunk_group_info.module_chunk_groups().await?;
+    let async_loader_chunk_groups = chunk_group_info.async_loader_chunk_groups().await?;
 
     // The ordered entries of all groups, in list order. An entry shared by several groups is
     // traversed once.
-    let entries = chunk_group_indices
-        .iter()
-        .flat_map(|&index| module_batches_graph.get_ordered_entries(&chunk_group_info, index))
-        .collect::<FxIndexSet<_>>()
+    let mut ordered_entries = FxIndexSet::default();
+    for (&index, chunk_group) in chunk_group_indices.iter().zip(&registered_chunk_groups) {
+        ordered_entries.extend(module_batches_graph.get_ordered_entries(chunk_group, index)?);
+    }
+    let entries = ordered_entries
         .into_iter()
         .map(|entry| module_batches_graph.get_entry_index(entry))
         .try_join()
@@ -500,32 +513,43 @@ async fn chunk_group_content_operation(
 
     let chunkable_items = if let Some((merged_modules, merged_modules_ref)) = &should_merge_modules
     {
-        state
-            .chunkable_items
-            .into_iter()
-            .map(async |chunkable_module| match chunkable_module {
-                ChunkableModuleOrBatch::Module(module) => {
-                    let module = match merged_modules_ref
-                        .should_replace_module(ResolvedVc::upcast(module))
-                        .await?
-                    {
-                        Some(None) => return Ok(None),
-                        Some(Some(replacement)) => replacement,
-                        None => module,
-                    };
-
-                    Ok(Some(ChunkableModuleOrBatch::Module(module)))
+        // Look up every module in one keyed read of the replacements (instead of one keyed read
+        // per module), so this only depends on the entries of the modules in this chunk group.
+        let mut items = Vec::with_capacity(state.chunkable_items.len());
+        let mut batches = Vec::new();
+        {
+            let replacements = merged_modules_ref.replacements.keyed_reader().await?;
+            let _span = tracing::trace_span!("replace with merged modules").entered();
+            for chunkable_module in state.chunkable_items {
+                match chunkable_module {
+                    ChunkableModuleOrBatch::Module(module) => {
+                        match replacements.get(&ResolvedVc::upcast::<Box<dyn Module>>(module)) {
+                            // Already included in another merged module.
+                            Some(None) => {}
+                            Some(Some(replacement)) => {
+                                items.push(ChunkableModuleOrBatch::Module(*replacement))
+                            }
+                            None => items.push(ChunkableModuleOrBatch::Module(module)),
+                        }
+                    }
+                    ChunkableModuleOrBatch::Batch(batch) => {
+                        batches.push((items.len(), batch));
+                        // Placeholder, replaced by the mapped batch below.
+                        items.push(ChunkableModuleOrBatch::Batch(batch));
+                    }
+                    ChunkableModuleOrBatch::None(i) => items.push(ChunkableModuleOrBatch::None(i)),
                 }
-                ChunkableModuleOrBatch::Batch(batch) => Ok(Some(ChunkableModuleOrBatch::Batch(
-                    map_module_batch(*merged_modules, *batch)
-                        .to_resolved()
-                        .await?,
-                ))),
-                ChunkableModuleOrBatch::None(i) => Ok(Some(ChunkableModuleOrBatch::None(i))),
-            })
-            .try_flat_join()
-            .instrument(tracing::trace_span!("replace with merged modules"))
-            .await?
+            }
+        }
+        let mapped_batches = batches
+            .iter()
+            .map(|&(_, batch)| map_module_batch(*merged_modules, *batch).to_resolved())
+            .try_join()
+            .await?;
+        for ((position, _), batch) in batches.into_iter().zip(mapped_batches) {
+            items[position] = ChunkableModuleOrBatch::Batch(batch);
+        }
+        items
     } else {
         state.chunkable_items.into_iter().collect()
     };
@@ -655,15 +679,207 @@ mod tests {
     use anyhow::Result;
     use smallvec::smallvec;
     use turbo_rcstr::rcstr;
-    use turbo_tasks::{Completion, ResolvedVc, Vc};
+    use turbo_tasks::{Completion, OperationVc, ResolvedVc, Vc};
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
     use turbo_tasks_fs::{File, FileContent, FileSystem, VirtualFileSystem};
 
     use super::{dedup_chunk_groups, entry_group_modules};
     use crate::{
-        asset::AssetContent, module::Module, module_graph::chunk_group_info::ChunkGroup,
-        raw_module::RawModule, source::Source, virtual_source::VirtualSource,
+        asset::{Asset, AssetContent},
+        chunk::{ChunkGroupContentInner, ChunkItem, ChunkableModule, ChunkingContext},
+        ident::AssetIdent,
+        module::{Module, ModuleSideEffects},
+        module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
+        raw_module::RawModule,
+        source::{OptionSource, Source},
+        virtual_source::VirtualSource,
     };
+
+    /// A [`ChunkableModule`] that is only used for its identity.
+    #[turbo_tasks::value]
+    struct TestChunkableModule {
+        path: turbo_tasks_fs::FileSystemPath,
+    }
+
+    #[turbo_tasks::value_impl]
+    impl Asset for TestChunkableModule {
+        #[turbo_tasks::function]
+        fn content(&self) -> Vc<AssetContent> {
+            panic!("TestChunkableModule::content shouldn't be called")
+        }
+    }
+
+    #[turbo_tasks::value_impl]
+    impl Module for TestChunkableModule {
+        #[turbo_tasks::function]
+        fn ident(&self) -> Vc<AssetIdent> {
+            AssetIdent::from_path(self.path.clone()).into_vc()
+        }
+
+        #[turbo_tasks::function]
+        fn source(&self) -> Vc<OptionSource> {
+            Vc::cell(None)
+        }
+
+        #[turbo_tasks::function]
+        fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+            ModuleSideEffects::SideEffectful.cell()
+        }
+    }
+
+    #[turbo_tasks::value_impl]
+    impl ChunkableModule for TestChunkableModule {
+        #[turbo_tasks::function]
+        fn as_chunk_item(
+            self: Vc<Self>,
+            _module_graph: Vc<ModuleGraph>,
+            _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        ) -> Vc<Box<dyn ChunkItem>> {
+            panic!("TestChunkableModule::as_chunk_item shouldn't be called")
+        }
+    }
+
+    async fn test_chunkable_module(name: &str) -> Result<ResolvedVc<Box<dyn ChunkableModule>>> {
+        let root = VirtualFileSystem::new_with_name(rcstr!("chunk-group-test"))
+            .root()
+            .await?;
+        Ok(ResolvedVc::upcast(
+            TestChunkableModule {
+                path: root.join(name)?,
+            }
+            .resolved_cell(),
+        ))
+    }
+
+    #[turbo_tasks::function(operation, root)]
+    async fn chunk_group_content_equality_operation() -> Result<Vc<Completion>> {
+        let a = test_chunkable_module("a.js").await?;
+        let b = test_chunkable_module("b.js").await?;
+        let content =
+            |async_modules: [ResolvedVc<Box<dyn ChunkableModule>>; 2]| ChunkGroupContentInner {
+                chunkable_items: vec![],
+                batch_groups: vec![],
+                async_modules: async_modules.into_iter().collect(),
+                collecting_modules: Default::default(),
+            };
+        assert!(content([a, b]) == content([a, b]));
+        // The order is the order of the chunk items, so a reorder must not compare equal.
+        assert!(content([a, b]) != content([b, a]));
+        Ok(Completion::new())
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn chunk_group_content_equality_is_order_sensitive() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async {
+            chunk_group_content_equality_operation()
+                .read_strongly_consistent()
+                .await?;
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[turbo_tasks::value(transparent)]
+    struct ContentStep(turbo_tasks::State<u32>);
+
+    #[turbo_tasks::function(operation, root)]
+    fn content_step_operation() -> Vc<ContentStep> {
+        ContentStep(turbo_tasks::State::new(0)).cell()
+    }
+
+    #[turbo_tasks::value(transparent)]
+    struct TestModules(Vec<ResolvedVc<Box<dyn ChunkableModule>>>);
+
+    #[turbo_tasks::function(operation, root)]
+    async fn content_test_modules_operation() -> Result<Vc<TestModules>> {
+        Ok(Vc::cell(vec![
+            test_chunkable_module("a.js").await?,
+            test_chunkable_module("b.js").await?,
+        ]))
+    }
+
+    /// Step 1 and 2 produce the same content, step 3 reorders it.
+    #[turbo_tasks::function(operation, root)]
+    async fn content_by_step_operation(
+        step: ResolvedVc<ContentStep>,
+        modules: ResolvedVc<TestModules>,
+    ) -> Result<Vc<ChunkGroupContentInner>> {
+        let step = *step.await?.get();
+        let modules = modules.await?;
+        let (a, b) = (modules[0], modules[1]);
+        let async_modules = if step >= 3 { [b, a] } else { [a, b] };
+        Ok(ChunkGroupContentInner {
+            chunkable_items: vec![],
+            batch_groups: vec![],
+            async_modules: async_modules.into_iter().collect(),
+            collecting_modules: Default::default(),
+        }
+        .cell())
+    }
+
+    static CONTENT_READS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+    #[turbo_tasks::value]
+    struct ContentReadResult {
+        execution: usize,
+        first_async_module: ResolvedVc<Box<dyn ChunkableModule>>,
+    }
+
+    /// Stands in for the chunking of a chunk group: reads its content and counts executions.
+    #[turbo_tasks::function(operation, root)]
+    async fn read_content_operation(
+        content: OperationVc<ChunkGroupContentInner>,
+    ) -> Result<Vc<ContentReadResult>> {
+        let content = content.connect().await?;
+        Ok(ContentReadResult {
+            execution: CONTENT_READS.fetch_add(1, std::sync::atomic::Ordering::SeqCst),
+            first_async_module: *content.async_modules.first().unwrap(),
+        }
+        .cell())
+    }
+
+    /// A recomputed chunk group content that compares equal doesn't invalidate its readers, a
+    /// reordered one does.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn chunk_group_content_is_compared_on_update() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async {
+            let step_op = content_step_operation();
+            let step_vc = step_op.resolve().strongly_consistent().await?;
+            let step = step_op.read_strongly_consistent().await?;
+            step.set(1);
+            let modules_op = content_test_modules_operation();
+            let modules = modules_op.read_strongly_consistent().await?;
+            let modules_vc = modules_op.resolve().strongly_consistent().await?;
+            let content = content_by_step_operation(step_vc, modules_vc);
+            let read = read_content_operation(content);
+
+            let read1 = read.read_strongly_consistent().await?;
+            assert_eq!(read1.first_async_module, modules[0]);
+
+            // Recomputed, but equal: the reader isn't recomputed.
+            step.set(2);
+            let read2 = read.read_strongly_consistent().await?;
+            assert_eq!(read2.execution, read1.execution);
+
+            // Reordered: the reader is recomputed and sees the new order.
+            step.set(3);
+            let read3 = read.read_strongly_consistent().await?;
+            assert_ne!(read3.execution, read2.execution);
+            assert_eq!(read3.first_async_module, modules[1]);
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
 
     async fn test_module(name: &str) -> Result<ResolvedVc<Box<dyn Module>>> {
         let root = VirtualFileSystem::new_with_name(rcstr!("chunk-group-test"))

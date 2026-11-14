@@ -24,7 +24,7 @@ use crate::{
     module::Module,
     module_graph::{
         GraphTraversalAction, ModuleGraph,
-        chunk_group_info::{ChunkGroupInfo, ChunkGroupKey},
+        chunk_group_info::{ChunkGroup, ChunkGroupKey},
         module_batch::{ChunkableModuleOrBatch, ModuleBatch, ModuleBatchGroup, ModuleOrBatch},
         traced_di_graph::{TracedDiGraph, iter_neighbors_rev},
     },
@@ -77,8 +77,8 @@ pub struct ModuleBatchesGraph {
 
     /// For chunk groups where the postorder of entries is different than the order of the
     /// `ChunkGroup::entries()` this contains Some with the postorder list of entries of that chunk
-    /// group. The index in this list corresponds to the index in the
-    /// chunk_group_info.chunk_groups.
+    /// group. The index in this list corresponds to the chunk group index (see
+    /// [`crate::module_graph::chunk_group_info::ChunkGroupInfo::chunk_groups`]).
     ordered_entries: Vec<Option<EntriesList>>,
 }
 
@@ -106,25 +106,32 @@ impl ModuleBatchesGraph {
         Ok(*entry)
     }
 
+    /// The entries of `chunk_group` (the chunk group with index `idx`) in postorder.
+    ///
+    /// `chunk_group` and this graph are read from different cells. While they recompute, an
+    /// eventually consistent reader can pair them from different executions, so a mismatch is an
+    /// error (the reader is recomputed once both are updated) rather than a panic.
     pub fn get_ordered_entries<'l>(
         &'l self,
-        chunk_group_info: &'l ChunkGroupInfo,
+        chunk_group: &'l ChunkGroup,
         idx: usize,
-    ) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + 'l {
+    ) -> Result<impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + 'l> {
         if let Some(EntriesList(ordered_entries)) = self
             .ordered_entries
             .get(idx)
             .as_ref()
             .and_then(|o| o.as_ref())
         {
-            if let Some(chunk_group) = chunk_group_info.chunk_groups.get(idx) {
-                debug_assert_eq!(ordered_entries.len(), chunk_group.entries_count());
+            if ordered_entries.len() != chunk_group.entries_count() {
+                bail!(
+                    "ordered entries of chunk group {idx} have {} entries, the chunk group has {}",
+                    ordered_entries.len(),
+                    chunk_group.entries_count()
+                );
             }
-            Either::Left(Either::Left(ordered_entries.iter().copied()))
-        } else if let Some(chunk_group) = chunk_group_info.chunk_groups.get(idx) {
-            Either::Right(chunk_group.entries())
+            Ok(Either::Left(ordered_entries.iter().copied()))
         } else {
-            Either::Left(Either::Right(std::iter::empty()))
+            Ok(Either::Right(chunk_group.entries()))
         }
     }
 
@@ -392,6 +399,7 @@ pub async fn compute_module_batches(
     async move {
         let chunk_group_info = module_graph.chunk_group_info().await?;
         let module_chunk_groups = chunk_group_info.module_chunk_groups.await?;
+        let chunk_groups = chunk_group_info.chunk_groups.await?;
         let collected_modules = module_graph.collected_modules().await?;
         let module_graph = module_graph.await?;
 
@@ -429,7 +437,7 @@ pub async fn compute_module_batches(
         })?;
 
         // All entries are boundary modules too
-        for chunk_group in &chunk_group_info.chunk_groups {
+        for chunk_group in chunk_groups.values() {
             pre_batches.boundary_modules.extend(chunk_group.entries());
         }
 
@@ -464,7 +472,7 @@ pub async fn compute_module_batches(
         let mut chunk_group_indices_with_merged_children = FxHashSet::default();
 
         // Start with the entries...
-        for chunk_group in &chunk_group_info.chunk_groups {
+        for chunk_group in chunk_groups.values() {
             for entry in chunk_group.entries() {
                 pre_batches.ensure_pre_batch_for_module(entry, &module_chunk_groups, &mut queue)?;
             }
@@ -500,9 +508,8 @@ pub async fn compute_module_batches(
         span.record("initial_pre_batches", pre_batches.batches.len());
 
         // Figure out the order of all merged groups
-        let mut ordered_entries: Vec<Option<EntriesList>> =
-            vec![None; chunk_group_info.chunk_groups.len()];
-        for (i, chunk_group) in chunk_group_info.chunk_groups.iter().enumerate() {
+        let mut ordered_entries: Vec<Option<EntriesList>> = vec![None; chunk_groups.len()];
+        for (i, chunk_group) in chunk_groups.values().enumerate() {
             if !chunk_group_indices_with_merged_children.contains(&i) {
                 continue;
             }
@@ -1044,7 +1051,7 @@ pub async fn compute_module_batches(
 
         // Find the NodeIndices for our entries of the graph
         let mut entries = FxHashMap::default();
-        for chunk_group in &chunk_group_info.chunk_groups {
+        for chunk_group in chunk_groups.values() {
             for module in chunk_group.entries() {
                 if let Some(batch) = pre_batches.entries.get(&module).copied() {
                     entries.insert(module, batch_indices[batch]);
