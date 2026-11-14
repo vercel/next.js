@@ -59,6 +59,17 @@ jobs:
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
+      - name: check for front server change
+        id: front-server-change
+        run: |
+          set -euo pipefail
+          FRONT_SERVER="$(node scripts/run-for-change.mjs --type front-server --exec echo 'true')"
+          {
+            echo "FRONT_SERVER<<EOF"
+            echo "$FRONT_SERVER"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: check for release
         id: is-release
         run: |
@@ -77,6 +88,16 @@ jobs:
         ${{
           github.event_name == 'pull_request' &&
           steps.turbopack-change.outputs.TURBOPACK_ONLY != 'false'
+        }}
+      # test-front-server-prod runs on every canary push, and on pull requests
+      # only when the front server's files change.
+      front-server: >-
+        ${{
+          (github.event_name == 'push' && github.ref == 'refs/heads/canary') ||
+          (
+            github.event_name == 'pull_request' &&
+            steps.front-server-change.outputs.FRONT_SERVER == 'true'
+          )
         }}
       rspack: >-
         ${{
@@ -1188,11 +1209,13 @@ jobs:
 
   # Reruns the routing gate and the front server's behavior suite with
   # `next start` behind the experimental Go front server. Both must pass the
-  # same as they do without it (packages/next/src/server/front).
+  # same as they do without it (packages/next/src/server/front). Runs on every
+  # canary push, and on pull requests that change the front server's files
+  # (the `front-server` group in scripts/run-for-change.mjs).
   test-front-server-prod:
     name: test front server prod
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.front-server == 'true' }}
 
     strategy:
       fail-fast: false
