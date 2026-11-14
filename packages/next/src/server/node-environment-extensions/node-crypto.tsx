@@ -24,6 +24,8 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     const _randomUUID = nodeCrypto.randomUUID
     nodeCrypto.randomUUID = function randomUUID() {
       io(randomUUIDExpression, 'random')
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       return _randomUUID.apply(this, arguments as any)
     }
   } catch {
@@ -41,6 +43,8 @@ if (process.env.NEXT_RUNTIME === 'edge') {
         // randomBytes is sync if the second arg is undefined
         io(randomBytesExpression, 'random')
       }
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       return _randomBytes.apply(this, arguments as any)
     }
   } catch {
@@ -56,6 +60,8 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     // @ts-expect-error -- TODO: tell TS the overloads are preserved
     nodeCrypto.randomFillSync = function randomFillSync() {
       io(randomFillSyncExpression, 'random')
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       return _randomFillSync.apply(this, arguments as any)
     }
   } catch {
@@ -73,6 +79,8 @@ if (process.env.NEXT_RUNTIME === 'edge') {
         // randomInt is sync if the third arg is undefined
         io(randomIntExpression, 'random')
       }
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       return _randomInt.apply(this, arguments as any)
     }
   } catch {
@@ -88,6 +96,8 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     // @ts-expect-error -- TODO: tell TS the overloads are preserved
     nodeCrypto.generatePrimeSync = function generatePrimeSync() {
       io(generatePrimeSyncExpression, 'random')
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       return _generatePrimeSync.apply(this, arguments as any)
     }
   } catch {
@@ -103,6 +113,8 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     // @ts-expect-error -- TODO: tell TS the overloads are preserved
     nodeCrypto.generateKeyPairSync = function generateKeyPairSync() {
       io(generateKeyPairSyncExpression, 'random')
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       return _generateKeyPairSync.apply(this, arguments as any)
     }
   } catch {
@@ -117,6 +129,8 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     const _generateKeySync = nodeCrypto.generateKeySync
     nodeCrypto.generateKeySync = function generateKeySync() {
       io(generateKeySyncExpression, 'random')
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       return _generateKeySync.apply(this, arguments as any)
     }
   } catch {

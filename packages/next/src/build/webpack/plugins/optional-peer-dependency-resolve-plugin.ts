@@ -9,6 +9,8 @@ export class OptionalPeerDependencyResolverPlugin {
       'OptionalPeerDependencyResolverPlugin',
       (request, resolveContext, callback) => {
         // if we've already recursed into this plugin, we want to skip it
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         if ((request as any)[pluginSymbol]) {
           return callback()
         }
@@ -31,6 +33,8 @@ export class OptionalPeerDependencyResolverPlugin {
           target,
           // when we call doResolve again, we need to make sure we don't
           // recurse into this plugin again
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           { ...request, [pluginSymbol]: true } as any,
           null,
           resolveContext,

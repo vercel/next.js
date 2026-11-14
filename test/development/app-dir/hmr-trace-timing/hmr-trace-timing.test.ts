@@ -35,6 +35,8 @@ describe('render-path tracing', () => {
     // Verify the first render-path event has expected attributes
     const renderEvent = renderPathEvents![0]
     expect(renderEvent.tags).toBeDefined()
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const renderTags = renderEvent.tags as any
 
     expect(renderTags.path).toBeDefined()

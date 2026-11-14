@@ -39,6 +39,8 @@ async function recordIndicatorStates(
     const root = Array.from(document.querySelectorAll('nextjs-portal'))
       .map((portal) => portal.shadowRoot)
       .find((shadowRoot) => shadowRoot?.querySelector('[data-next-badge]'))
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const states = ((window as any).__indicatorStates = [])
     if (!root) return
     const record = () =>
@@ -55,6 +57,8 @@ async function recordIndicatorStates(
       })
     record()
     const observer = new MutationObserver(record)
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     ;(window as any).__indicatorObserver = observer
     observer.observe(root, { attributes: true, childList: true, subtree: true })
   })
@@ -62,12 +66,20 @@ async function recordIndicatorStates(
   await action()
 
   const raw: IndicatorState[] = JSON.parse(
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     await browser.eval(() => JSON.stringify((window as any).__indicatorStates))
   )
 
   await browser.eval(() => {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     ;(window as any).__indicatorObserver?.disconnect()
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     delete (window as any).__indicatorObserver
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     delete (window as any).__indicatorStates
   })
 

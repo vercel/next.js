@@ -23,16 +23,22 @@ describe('config', () => {
   })
   it('Should get the configuration', async () => {
     const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfig)
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect((config as any).customConfig).toBe(true)
   })
 
   it('Should pass the phase correctly', async () => {
     const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfigFn)
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect((config as any).phase).toBe(PHASE_DEVELOPMENT_SERVER)
   })
 
   it('Should pass the defaultConfig correctly', async () => {
     const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfigFn)
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect((config as any).defaultConfig).toBeDefined()
   })
 
@@ -48,6 +54,8 @@ describe('config', () => {
         customConfigKey: 'customConfigValue',
       },
     })
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect((config as any).customConfigKey).toBe('customConfigValue')
   })
 
@@ -58,6 +66,8 @@ describe('config', () => {
         onDemandEntries: { custom: true },
       },
     })
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect((config as any).customConfig).toBe(true)
     expect(config.onDemandEntries.maxInactiveAge).toBeDefined()
   })
@@ -111,6 +121,8 @@ describe('config', () => {
     expect(Object.isFrozen(config.images.deviceSizes)).toBe(true)
     expect(Object.isFrozen(config.experimental)).toBe(true)
     expect(() => {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       ;(config.images as any).path = '/changed'
     }).toThrow(TypeError)
 
@@ -124,6 +136,8 @@ describe('config', () => {
     expect(Object.isFrozen(imageConfigDefault.deviceSizes)).toBe(true)
 
     // Class instances are left alone, so a global RegExp keeps working.
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const [loadedIgnore] = (config.logging as any).incomingRequests.ignore
     expect(Object.isFrozen(loadedIgnore)).toBe(false)
     expect(loadedIgnore.test('/healthz')).toBe(true)
@@ -230,7 +244,11 @@ describe('config', () => {
         bogusSetting: { custom: true },
       },
     })
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect((config as any).bogusSetting).toBeDefined()
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect((config as any).bogusSetting.custom).toBe(true)
   })
 
@@ -310,6 +328,8 @@ describe('config', () => {
           },
         },
       })
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       expect((config as any).sassOptions.functions).toBeDefined()
     } finally {
       if (originalTurbopack !== undefined) {
@@ -323,6 +343,8 @@ describe('config', () => {
       PHASE_DEVELOPMENT_SERVER,
       join(__dirname, '_resolvedata', 'js-ts-config')
     )
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect((config as any).__test__ext).toBe('js')
   })
 
@@ -331,6 +353,8 @@ describe('config', () => {
       PHASE_DEVELOPMENT_SERVER,
       join(__dirname, '_resolvedata', 'typescript-config')
     )
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect((config as any).__test__ext).toBe('ts')
   })
 

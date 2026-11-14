@@ -377,6 +377,8 @@ function validateParams(
         params.hasOwnProperty(key) &&
         (paramValue === null ||
           paramValue === undefined ||
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           (paramValue as any) === false)
       ) {
         paramValue = []

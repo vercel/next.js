@@ -393,6 +393,8 @@ export function createPatchedFetcher(
 
     // Do create a new span trace for internal fetches in the
     // non-verbose mode.
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const isInternal = (init?.next as any)?.internal === true
     const hideSpan = process.env.NEXT_OTEL_FETCH_DISABLED === '1'
     // We don't track fetch metrics for internal fetches
@@ -462,7 +464,11 @@ export function createPatchedFetcher(
 
         const getRequestMeta = (field: string) => {
           // If request input is present but init is not, retrieve from input first.
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           const value = (init as any)?.[field]
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           return value || (isRequestInput ? (input as any)[field] : null)
         }
 
@@ -471,7 +477,9 @@ export function createPatchedFetcher(
           return typeof init?.next?.[field] !== 'undefined'
             ? init?.next?.[field]
             : isRequestInput
-              ? (input as any).next?.[field]
+              ? // TODO(as-any): pre-existing cast, not yet reviewed
+                // eslint-disable-next-line @next/internal/no-as-any
+                (input as any).next?.[field]
               : undefined
         }
         // RequestInit doesn't keep extra fields e.g. next so it's
@@ -934,8 +942,12 @@ export function createPatchedFetcher(
           ]
 
           if (isRequestInput) {
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             const reqInput: Request = input as any
             const reqOptions: RequestInit = {
+              // TODO(as-any): pre-existing cast, not yet reviewed
+              // eslint-disable-next-line @next/internal/no-as-any
               body: (reqInput as any)._ogBody || reqInput.body,
             }
 

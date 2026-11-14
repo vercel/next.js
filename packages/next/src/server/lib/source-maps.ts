@@ -199,11 +199,15 @@ const bundlerFindSourceMapURLSymbol = Symbol.for(
 export function setBundlerFindSourceMapURLImplementation(
   findSourceMapURLImplementation: FindSourceMapURL
 ): void {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(globalThis as any)[bundlerFindSourceMapURLSymbol] =
     findSourceMapURLImplementation
 }
 
 function bundlerFindSourceMapURL(scriptNameOrSourceURL: string): string | null {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   const implementation: FindSourceMapURL | undefined = (globalThis as any)[
     bundlerFindSourceMapURLSymbol
   ]

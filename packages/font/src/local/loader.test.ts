@@ -15,6 +15,8 @@ describe('next/font/local loader', () => {
           fs: {
             readFile: (_: string, cb: any) => cb(null, 'fontdata'),
           },
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
         } as any,
       })
 
@@ -41,6 +43,8 @@ describe('next/font/local loader', () => {
           fs: {
             readFile: (_: string, cb: any) => cb(null, 'fontdata'),
           },
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
         } as any,
       })
 
@@ -77,6 +81,8 @@ describe('next/font/local loader', () => {
           fs: {
             readFile: (_: string, cb: any) => cb(null, 'fontdata'),
           },
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
         } as any,
       })
 
@@ -129,6 +135,8 @@ describe('next/font/local loader', () => {
           fs: {
             readFile: (path: string, cb: any) => cb(null, path),
           },
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
         } as any,
       })
 
@@ -200,6 +208,8 @@ describe('next/font/local loader', () => {
           fs: {
             readFile: (path: string, cb: any) => cb(null, path),
           },
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
         } as any,
       })
 
@@ -248,6 +258,8 @@ describe('next/font/local loader', () => {
           fs: {
             readFile: (_: string, cb: any) => cb(null, 'fontdata'),
           },
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
         } as any,
       })
 

@@ -51,7 +51,11 @@ describe('warm-restart task statistics', () => {
 
   beforeAll(() => {
     // No file edits in this test — skip HMR debounce.
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     ;(next as any).handleDevWatchDelayBeforeChange = () => {}
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     ;(next as any).handleDevWatchDelayAfterChange = () => {}
   })
 
@@ -123,6 +127,8 @@ describe('warm-restart task statistics', () => {
     // and run a second build manually for the warm measurement.
     await stop()
 
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const result = await (next as any).build()
     if (result.exitCode !== 0) {
       throw new Error(`next build exited with ${result.exitCode}`)

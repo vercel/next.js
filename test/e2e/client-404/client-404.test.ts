@@ -51,6 +51,8 @@ describe('Client 404', () => {
 
   it('should hard navigate to URL on failing to load bundle', async () => {
     const browser = await next.browser('/invalid-link')
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     await browser.eval(() => ((window as any).beforeNav = 'hi'))
     await browser.elementByCss('#to-nonexistent').click()
     await retry(async () => {
@@ -58,6 +60,8 @@ describe('Client 404', () => {
         /404/
       )
     })
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(await browser.eval(() => (window as any).beforeNav)).not.toBe('hi')
   })
 
@@ -74,6 +78,8 @@ describe('Client 404', () => {
           })
         },
       })
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       await browser.eval(() => ((window as any).beforeNav = 'hi'))
       await browser.elementByCss('#to-missing').click()
 
@@ -81,6 +87,8 @@ describe('Client 404', () => {
         expect(await browser.url()).toContain('/missing')
       })
       expect(await browser.elementByCss('#missing').text()).toBe('poof')
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       expect(await browser.eval(() => (window as any).beforeNav)).not.toBe('hi')
     })
   }

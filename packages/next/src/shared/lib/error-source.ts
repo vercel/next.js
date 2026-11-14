@@ -1,6 +1,8 @@
 const symbolError = Symbol.for('NextjsError')
 
 export function getErrorSource(error: Error): 'server' | 'edge-server' | null {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   return (error as any)[symbolError] || null
 }
 

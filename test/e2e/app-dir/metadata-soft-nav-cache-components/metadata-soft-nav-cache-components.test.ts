@@ -21,6 +21,8 @@ describe('metadata-soft-nav-cache-components', () => {
   }
 
   it('applies dynamic metadata after navigating to an already-prefetched route', async () => {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     let page: Playwright.Page = null as any
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
@@ -56,6 +58,8 @@ describe('metadata-soft-nav-cache-components', () => {
   })
 
   it('does not blank a complete static title when navigating to a prefetched route with a dynamic body', async () => {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     let page: Playwright.Page = null as any
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {

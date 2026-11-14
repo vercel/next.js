@@ -123,6 +123,8 @@ function buildManifest(
         // are already loaded. In this case we only need need
         // the module id and no files
         if (chunkGroup) {
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           for (const chunk of (chunkGroup as any)
             .chunks as webpack.Compilation['chunks']) {
             chunk.files.forEach((file: string) => {
@@ -156,7 +158,8 @@ function buildManifest(
 
   manifest = Object.keys(manifest)
     .sort()
-    // eslint-disable-next-line no-sequences
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line no-sequences, @next/internal/no-as-any
     .reduce((a, c) => ((a[c] = manifest[c]), a), {} as any)
 
   return {

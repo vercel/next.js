@@ -74,6 +74,8 @@ function createServer({ release }: { release: boolean }) {
     res.setHeader('content-type', 'text/html')
     res.write(`<html><body>${'x'.repeat(4096)}`)
     // Flush so the client receives a chunk, then leave the response open.
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     ;(res as any).flush()
   })
 }

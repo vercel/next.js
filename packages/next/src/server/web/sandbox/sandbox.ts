@@ -88,6 +88,8 @@ export async function getRuntimeContext(
 
   // expose router server context for access to dev handlers like
   // logErrorWithOriginalStack
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(runtime.context.globalThis as any as typeof routerServerGlobal)[
     RouterServerContextSymbol
   ] = routerServerGlobal[RouterServerContextSymbol]

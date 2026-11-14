@@ -890,6 +890,8 @@ export default class DevServer extends Server {
           const existingManifest: PrerenderManifest =
             JSON.parse(rawExistingManifest)
           for (const staticPath of value.staticPaths || []) {
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             existingManifest.routes[staticPath] = {} as any
           }
 

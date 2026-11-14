@@ -534,6 +534,8 @@ export function runNextCommandDev(
         start: /✓ ready/i,
       }
 
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       const strippedMessage = stripAnsi(message) as any
 
       if (
@@ -2154,6 +2156,8 @@ export function normalizeManifest<T>(
 export function getDistDir(): '.next' | '.next/dev' {
   // global.isNextDev is set in e2e/development/production tests.
   // NEXT_TEST_MODE is set in CI or local test-* commands.
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   return (global as any).isNextDev || process.env.NEXT_TEST_MODE === 'dev'
     ? '.next/dev'
     : '.next'
@@ -2174,6 +2178,8 @@ export function getClientReferenceManifest(
   const modulePath = require.resolve(manifestPath)
 
   // Clear global
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   delete (globalThis as any).__RSC_MANIFEST
 
   // Need to use jest.isolateModules because Jest messes with require.cache and `delete
@@ -2183,6 +2189,8 @@ export function getClientReferenceManifest(
     require(modulePath)
   })
 
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   const manifest = (globalThis as any).__RSC_MANIFEST[
     route
   ] as ClientReferenceManifest

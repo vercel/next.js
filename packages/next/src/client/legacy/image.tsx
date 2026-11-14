@@ -36,6 +36,8 @@ const emptyDataURL =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
 if (typeof window === 'undefined') {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(globalThis as any).__NEXT_IMAGE_IMPORTED = true
 }
 

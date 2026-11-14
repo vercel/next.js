@@ -35,6 +35,8 @@ export type ReadonlyRequestCookies = Omit<
 
 export class RequestCookiesAdapter {
   public static seal(cookies: RequestCookies): ReadonlyRequestCookies {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     return new Proxy(cookies as any, {
       get(target, prop, receiver) {
         switch (prop) {
@@ -67,6 +69,8 @@ const SYMBOL_MODIFY_COOKIE_VALUES = Symbol.for('next.mutated.cookies')
 export function getModifiedCookieValues(
   cookies: ResponseCookies
 ): ResponseCookie[] {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   const modified: ResponseCookie[] | undefined = (cookies as unknown as any)[
     SYMBOL_MODIFY_COOKIE_VALUES
   ]

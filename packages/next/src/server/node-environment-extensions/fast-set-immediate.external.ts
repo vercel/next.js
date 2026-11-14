@@ -28,7 +28,11 @@ const FAST_SET_IMMEDIATE_ORIGINALS_KEY = Symbol.for(
 )
 
 // Re-evaluations in dev should always use the same base/original functions.
+// TODO(as-any): pre-existing cast, not yet reviewed
+// eslint-disable-next-line @next/internal/no-as-any
 const originals = ((globalThis as any)[FAST_SET_IMMEDIATE_ORIGINALS_KEY] ??
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ((globalThis as any)[FAST_SET_IMMEDIATE_ORIGINALS_KEY] = {
     setImmediate: globalThis.setImmediate,
     clearImmediate: globalThis.clearImmediate,

@@ -1287,6 +1287,8 @@ export function upgradeToPendingSegment(
   stage: AppStage,
   completeness: Completeness
 ): PendingSegmentCacheEntry {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   const pendingEntry: PendingSegmentCacheEntry = emptyEntry as any
   pendingEntry.status = EntryStatus.Pending
   pendingEntry.stage = stage
@@ -1547,6 +1549,8 @@ export function fulfillRouteCacheEntry(
   supportsPerSegmentPrefetching: boolean
 ): FulfilledRouteCacheEntry {
   const tree = root.tree
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   const fulfilledEntry: FulfilledRouteCacheEntry = entry as any
   fulfilledEntry.status = EntryStatus.Fulfilled
   fulfilledEntry.root = createRootRouteTree(
@@ -1623,6 +1627,8 @@ function fulfillSegmentCacheEntry(
   stage: AppStage,
   completeness: Completeness
 ): FulfilledSegmentCacheEntry {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   const fulfilledEntry: FulfilledSegmentCacheEntry = segmentCacheEntry as any
   fulfilledEntry.status = EntryStatus.Fulfilled
   fulfilledEntry.rsc = rsc
@@ -1656,6 +1662,8 @@ function rejectRouteCacheEntry(
   entry: PendingRouteCacheEntry,
   staleAt: number
 ): void {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   const rejectedEntry: RejectedRouteCacheEntry = entry as any
   rejectedEntry.status = EntryStatus.Rejected
   rejectedEntry.staleAt = staleAt
@@ -1666,6 +1674,8 @@ function rejectSegmentCacheEntry(
   entry: PendingSegmentCacheEntry,
   staleAt: number
 ): void {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   const rejectedEntry: RejectedSegmentCacheEntry = entry as any
   rejectedEntry.status = EntryStatus.Rejected
   rejectedEntry.staleAt = staleAt

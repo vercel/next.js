@@ -292,6 +292,8 @@ export function getAppLoader() {
 
 export function getAppEntry(opts: Readonly<AppLoaderOptions>) {
   if (process.env.NEXT_RSPACK && process.env.BUILTIN_APP_LOADER) {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     ;(opts as any).projectRoot = normalize(join(__dirname, '../../..'))
   }
   return {

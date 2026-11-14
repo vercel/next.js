@@ -512,6 +512,8 @@ export async function closeRequestInsightsJournal(): Promise<void> {
   await Promise.all(
     [...registry.journals.values()].map((journal) => journal.flush())
   )
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   delete (globalThis as any)[REQUEST_INSIGHTS_JOURNAL_KEY]
 }
 

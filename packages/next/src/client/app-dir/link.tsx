@@ -564,6 +564,8 @@ export default function LinkComponent(
   // This will return the first child, if multiple are provided it will throw an error
   let child: any
   if (legacyBehavior) {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     if ((children as any)?.$$typeof === Symbol.for('react.lazy')) {
       throw new Error(
         `\`<Link legacyBehavior>\` received a direct child that is either a Server Component, or JSX that was loaded with React.lazy(). This is not supported. Either remove legacyBehavior, or make the direct child a Client Component that renders the Link's \`<a>\` tag.`
@@ -601,6 +603,8 @@ export default function LinkComponent(
     }
   } else {
     if (process.env.NODE_ENV === 'development') {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       if ((children as any)?.type === 'a') {
         throw new Error(
           'Invalid <Link> with <a> child. Please remove <a> or use <Link legacyBehavior>.\nLearn more: https://nextjs.org/docs/messages/invalid-new-link-with-extra-anchor'

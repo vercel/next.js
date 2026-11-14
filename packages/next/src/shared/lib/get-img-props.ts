@@ -334,6 +334,8 @@ export function getImgProps(
 
   // Remove property so it's not spread on <img> element
   delete rest.loader
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   delete (rest as any).srcSet
 
   // This special value indicates that the user

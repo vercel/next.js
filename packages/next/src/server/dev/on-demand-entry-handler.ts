@@ -575,6 +575,8 @@ export function onDemandEntryHandler({
   const hasAppDir = !!appDir
   let curInvalidator: Invalidator = getInvalidator(
     multiCompiler.outputPath
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
   ) as any
   const curEntries = getEntries(multiCompiler.outputPath)
 

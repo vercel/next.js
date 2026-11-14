@@ -371,6 +371,8 @@ export function getJestSWCOptions({
         ...baseOptions.jsc.transform.optimizer.globals?.envs,
         __NEXT_IMAGE_OPTS: JSON.stringify(imageConfig),
       },
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
     } as any
   }
 

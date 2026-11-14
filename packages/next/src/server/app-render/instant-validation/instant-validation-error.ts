@@ -8,6 +8,8 @@ export function isInstantValidationError(
     err &&
     typeof err === 'object' &&
     err instanceof Error &&
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     (err as any).digest === INSTANT_VALIDATION_ERROR_DIGEST
   )
 }

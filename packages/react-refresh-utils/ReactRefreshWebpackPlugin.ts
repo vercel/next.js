@@ -11,6 +11,8 @@ function injectRefreshFunctions(
   compilation: WebpackCompilation,
   Template: typeof WebpackTemplate
 ) {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   const hookVars: any = (compilation.mainTemplate.hooks as any).localVars
 
   hookVars.tap('ReactFreshWebpackPlugin', (source: string) =>
@@ -41,6 +43,8 @@ function webpack4(this: ReactFreshWebpackPlugin, compiler: WebpackCompiler) {
   compiler.hooks.compilation.tap('ReactFreshWebpackPlugin', (compilation) => {
     injectRefreshFunctions(compilation, Template)
 
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const hookRequire: any = (compilation.mainTemplate.hooks as any).require
 
     // @ts-ignore webpack 5 types compat

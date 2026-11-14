@@ -154,6 +154,8 @@ export const buildCustomRoute = <T>(
     strict: true,
     removeUnnamedParams: true,
     regexModifier: (regex: string) => {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       if (!(item as any).internal) {
         regex = modifyRouteRegex(
           regex,

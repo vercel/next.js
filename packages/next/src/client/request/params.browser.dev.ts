@@ -58,7 +58,11 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
   // Mark it as fulfilled the way React does once it has tracked it, so `use()`
   // can unwrap it without suspending. This goes through the proxy, like React
   // does, so a param named `value` isn't reported as a sync access.
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(proxiedPromise as any).status = 'fulfilled'
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(proxiedPromise as any).value = underlyingParams
 
   CachedParams.set(underlyingParams, proxiedPromise)

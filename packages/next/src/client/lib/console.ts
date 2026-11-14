@@ -95,10 +95,14 @@ export function formatConsoleArgs(args: unknown[]): string {
       }
       case 'd':
       case 'i': {
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         result += parseInt(args[idx++] as any, 10)
         break
       }
       case 'f': {
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         result += parseFloat(args[idx++] as any)
         break
       }

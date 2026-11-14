@@ -4,7 +4,7 @@ import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
 const ErrorLoader: webpack.LoaderDefinitionFunction = function () {
   // @ts-ignore exists
-  const options = this.getOptions() || ({} as any)
+  const options = this.getOptions() || ({} as any) // eslint-disable-line @next/internal/no-as-any -- TODO(as-any): pre-existing cast, not yet reviewed
 
   const { reason = 'An unknown error has occurred' } = options
 

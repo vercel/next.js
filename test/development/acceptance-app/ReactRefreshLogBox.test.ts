@@ -637,6 +637,8 @@ describe('ReactRefreshLogBox app', () => {
               .querySelector('body nextjs-portal')
               .shadowRoot.querySelector(
                 '#nextjs__container_errors_desc a:nth-of-type(1)'
+                // TODO(as-any): pre-existing cast, not yet reviewed
+                // eslint-disable-next-line @next/internal/no-as-any
               ) as any
           ).href
       )
@@ -695,6 +697,8 @@ describe('ReactRefreshLogBox app', () => {
               .querySelector('body nextjs-portal')
               .shadowRoot.querySelector(
                 '#nextjs__container_errors_desc a:nth-of-type(1)'
+                // TODO(as-any): pre-existing cast, not yet reviewed
+                // eslint-disable-next-line @next/internal/no-as-any
               ) as any
           ).href
       )
@@ -753,6 +757,8 @@ describe('ReactRefreshLogBox app', () => {
               .querySelector('body nextjs-portal')
               .shadowRoot.querySelector(
                 '#nextjs__container_errors_desc a:nth-of-type(1)'
+                // TODO(as-any): pre-existing cast, not yet reviewed
+                // eslint-disable-next-line @next/internal/no-as-any
               ) as any
           ).href
       )
@@ -811,6 +817,8 @@ describe('ReactRefreshLogBox app', () => {
               .querySelector('body nextjs-portal')
               .shadowRoot.querySelector(
                 '#nextjs__container_errors_desc a:nth-of-type(1)'
+                // TODO(as-any): pre-existing cast, not yet reviewed
+                // eslint-disable-next-line @next/internal/no-as-any
               ) as any
           ).href
       )
@@ -823,6 +831,8 @@ describe('ReactRefreshLogBox app', () => {
               .querySelector('body nextjs-portal')
               .shadowRoot.querySelector(
                 '#nextjs__container_errors_desc a:nth-of-type(2)'
+                // TODO(as-any): pre-existing cast, not yet reviewed
+                // eslint-disable-next-line @next/internal/no-as-any
               ) as any
           ).href
       )

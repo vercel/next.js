@@ -163,6 +163,8 @@ export async function adapter(
 
   // TODO-APP: use explicit marker for this
   const isEdgeRendering =
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     typeof (globalThis as any).__BUILD_MANIFEST !== 'undefined'
 
   params.request.url = normalizeRscURL(params.request.url)
@@ -260,9 +262,13 @@ export async function adapter(
     // If we are inside of the next start sandbox
     // leverage the shared instance if not we need
     // to create a fresh cache instance each time
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     !(globalThis as any).__incrementalCacheShared &&
     params.IncrementalCache
   ) {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     ;(globalThis as any).__incrementalCache = new (
       params as {
         IncrementalCache: typeof import('../lib/incremental-cache').IncrementalCache
@@ -272,10 +278,14 @@ export async function adapter(
       minimalMode: process.env.NODE_ENV !== 'development',
       fetchCacheKeyPrefix: process.env.__NEXT_FETCH_CACHE_KEY_PREFIX,
       dev: process.env.NODE_ENV === 'development',
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       requestHeaders: params.request.headers as any,
 
       previewProps: getEdgePreviewProps(),
       prerenderManifest: {
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         version: -1 as any, // letting us know this doesn't conform to spec
         routes: {},
         dynamicRoutes: {},

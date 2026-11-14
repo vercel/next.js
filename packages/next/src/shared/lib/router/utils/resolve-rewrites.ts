@@ -60,6 +60,8 @@ export default function resolveRewrites(
               acc[key] = value.join('=')
               return acc
             }, {}),
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
         } as any,
         parsedAs.query,
         rewrite.has,

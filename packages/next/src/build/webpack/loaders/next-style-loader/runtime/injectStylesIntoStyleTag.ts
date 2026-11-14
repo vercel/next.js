@@ -32,6 +32,8 @@ const getTargetElement = (function () {
         try {
           // This will throw an exception if access to iframe is blocked
           // due to cross-origin restrictions
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           styleTarget = (styleTarget as any).contentDocument.head
         } catch (e) {
           // istanbul ignore next

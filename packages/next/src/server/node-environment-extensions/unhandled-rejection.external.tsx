@@ -177,6 +177,8 @@ function patchWithoutReentrancy<T extends UnderlyingMethod>(
       } finally {
         bypassPatch = previousBypassPatch
       }
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
     } as any,
   }[original.name]
 
@@ -199,6 +201,8 @@ const MACGUFFIN_EVENT = 'Next.UnhandledRejectionFilter.MacguffinEvent'
  * This should be called once during server startup to install the global filter.
  */
 function installUnhandledRejectionFilter(): void {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   if ((globalThis as any)[FILTER_INSTALLED_KEY] || filterInstalled) {
     // Already installed by another evaluation of this module in the same
     // process (e.g., Jest's module system re-evaluating an already-loaded
@@ -244,6 +248,8 @@ function installUnhandledRejectionFilter(): void {
         try {
           originalProcessAddListener.call(
             process,
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             MACGUFFIN_EVENT as any,
             listener
           )
@@ -257,6 +263,8 @@ function installUnhandledRejectionFilter(): void {
         return process
       }
       // For other events, use the original method
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       return originalProcessAddListener.call(process, event as any, listener)
     } as typeof process.addListener
   )
@@ -382,6 +390,8 @@ You can debug event listener operations by running Next.js with \`NEXT_UNHANDLED
         try {
           originalProcessPrependListener.call(
             process,
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             MACGUFFIN_EVENT as any,
             listener
           )
@@ -400,6 +410,8 @@ You can debug event listener operations by running Next.js with \`NEXT_UNHANDLED
       // For other events, use the original method
       return originalProcessPrependListener.call(
         process,
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         event as any,
         listener
       )
@@ -445,6 +457,8 @@ You can debug event listener operations by running Next.js with \`NEXT_UNHANDLED
         try {
           originalProcessPrependOnceListener.call(
             process,
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             MACGUFFIN_EVENT as any,
             listener
           )
@@ -466,6 +480,8 @@ You can debug event listener operations by running Next.js with \`NEXT_UNHANDLED
       // For other events, use the original method
       return originalProcessPrependOnceListener.call(
         process,
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         event as any,
         listener
       )
@@ -522,11 +538,15 @@ You can debug event listener operations by running Next.js with \`NEXT_UNHANDLED
         debugWithTrace?.(`Retrieving all 'unhandledRejection' listeners.`)
         return [filteringUnhandledRejectionHandler, ...underlyingListeners]
       }
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       return originalProcessListeners.call(process, event as any)
     } as typeof process.listeners
   )
 
   filterInstalled = true
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(globalThis as any)[FILTER_INSTALLED_KEY] = true
 }
 

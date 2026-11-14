@@ -35,6 +35,8 @@ export function traverseModules(
       for (const mod of chunkModules) {
         const modId = compilation.chunkGraph.getModuleId(mod)?.toString()
         if (modId) callback(mod, chunk, chunkGroup, modId)
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         const anyModule = mod as any
         if (anyModule.modules) {
           for (const subMod of anyModule.modules)
@@ -78,6 +80,8 @@ export function forEachEntryModule(
       request.startsWith('next-edge-app-route-loader?')
     ) {
       entryModule.dependencies.forEach((dependency) => {
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         const modRequest: string | undefined = (dependency as any).request
         if (modRequest?.includes(getAppLoader())) {
           entryModule = compilation.moduleGraph.getResolvedModule(dependency)

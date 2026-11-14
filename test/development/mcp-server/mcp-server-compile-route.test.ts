@@ -82,6 +82,8 @@ async function callMcpTool(
       it('should return notFound for a non-existent specifier', async () => {
         const result = (await callMcpTool(next.url, 'compile_route', {
           routeSpecifier: '/does-not-exist',
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
         })) as any
         expect(result).toMatchObject({
           notFound: true,
@@ -165,6 +167,8 @@ async function callMcpTool(
       it('should return notFound when no route matches', async () => {
         const result = (await callMcpTool(next.url, 'compile_route', {
           path: '/nope/x',
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
         })) as any
         expect(result).toMatchObject({ notFound: true, input: '/nope/x' })
       })
@@ -175,6 +179,8 @@ async function callMcpTool(
         const result = (await callMcpTool(next.url, 'compile_route', {
           routeSpecifier: '/',
           path: '/',
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
         })) as any
         expect(result).toMatchObject({
           error: expect.stringContaining('exactly one'),
@@ -182,6 +188,8 @@ async function callMcpTool(
       })
 
       it('should error when neither routeSpecifier nor path is provided', async () => {
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         const result = (await callMcpTool(next.url, 'compile_route', {})) as any
         expect(result).toMatchObject({
           error: expect.stringContaining('exactly one'),

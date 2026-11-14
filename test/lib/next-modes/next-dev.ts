@@ -119,6 +119,8 @@ export class NextDevInstance extends NextInstance {
     const useTurbo =
       !process.env.NEXT_TEST_WASM &&
       !process.env.NEXT_TEST_WASM_AFTER_JEST &&
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       ((this as any).turbo || (this as any).experimentalTurbo)
 
     let startArgs = [
@@ -153,6 +155,8 @@ export class NextDevInstance extends NextInstance {
             ...process.env,
             ...this.env,
             ...options.env,
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             NODE_ENV: this.env.NODE_ENV || ('' as any),
             PORT: this.forcedPort || '0',
             __NEXT_TEST_MODE: 'e2e',

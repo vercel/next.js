@@ -96,7 +96,11 @@ urlPropertyFields.forEach((field) => {
 
 coreMethodFields.forEach((field) => {
   // We don't really know the types here, so we add them later instead
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(singletonRouter as any)[field] = (...args: any[]) => {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const router = getRouter() as any
     return router[field](...args)
   }
@@ -108,6 +112,8 @@ routerEvents.forEach((event) => {
       const eventField = `on${event.charAt(0).toUpperCase()}${event.substring(
         1
       )}`
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       const _singletonRouter = singletonRouter as any
       if (_singletonRouter[eventField]) {
         try {
@@ -167,7 +173,11 @@ export function createRouter(
  * @internal
  */
 export function makePublicRouterInstance(router: Router): NextRouter {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   const scopedRouter = router as any
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   const instance = {} as any
 
   for (const property of urlPropertyFields) {

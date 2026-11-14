@@ -28,6 +28,8 @@ import defaultLoader from 'next/dist/shared/lib/image-loader'
 import { useMergedRef } from './use-merged-ref'
 
 if (typeof window === 'undefined') {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(globalThis as any).__NEXT_IMAGE_IMPORTED = true
 }
 
