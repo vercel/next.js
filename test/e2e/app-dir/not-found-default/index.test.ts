@@ -85,6 +85,14 @@ describe('app dir - not found with default 404 page', () => {
     )
   })
 
+  it('should render custom not-found inside route group for non-existent page', async () => {
+    const browser = await next.browser('/with-not-found-route/missing')
+    await browser.waitForElementByCss('#group-custom-not-found')
+    expect(await browser.elementByCss('#group-custom-not-found').text()).toBe(
+      'Custom Not Found in Route Group'
+    )
+  })
+
   it('should render default not found for group routes if not found is not defined', async () => {
     const browser = await next.browser('/group-dynamic/123')
     expect(await browser.elementByCss('#page').text()).toBe(
