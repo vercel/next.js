@@ -277,9 +277,25 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_member_expr(&mut self, e: &MemberExpr) {
-        self.in_member_or_var = true;
-        e.visit_children_with(self);
-        self.in_member_or_var = false;
+        // Only a plain identifier in the object position of a member
+        // expression can be rewritten by the main pass (`server.Response`), so
+        // it is not force-kept here. Everything else — including computed
+        // props and any nested expressions — is never rewritten and must keep
+        // its bindings, so it is visited with the flag cleared. Setting the
+        // flag for the whole subtree would leak it into computed props (e.g.
+        // `handlers[server]`), dropping bindings whose uses remain.
+        if e.obj.is_ident() {
+            self.in_member_or_var = true;
+            e.obj.visit_with(self);
+            self.in_member_or_var = false;
+        } else {
+            e.obj.visit_with(self);
+        }
+
+        // Non-computed props are property names, not bindings — skip them.
+        if let MemberProp::Computed(computed) = &e.prop {
+            computed.visit_with(self);
+        }
 
         if let (Expr::Ident(obj), MemberProp::Computed(..)) = (&*e.obj, &e.prop) {
             self.data.ignored.insert(obj.to_id());
