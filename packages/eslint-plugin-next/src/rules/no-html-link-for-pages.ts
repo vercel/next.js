@@ -30,11 +30,14 @@ const fsExistsSyncCache = {}
 const memoize = <T = any>(fn: (...args: any[]) => T) => {
   const cache = {}
   return (...args: any[]): T => {
-    const key = JSON.stringify(args)
-    if (cache[key] === undefined) {
-      cache[key] = fn(...args)
+    // Include pageExtensions in cache key
+    const cacheKey = JSON.stringify(args.map((arg) => 
+      Array.isArray(arg) ? arg.sort() : arg
+    ))
+    if (cache[cacheKey] === undefined) {
+      cache[cacheKey] = fn(...args)
     }
-    return cache[key]
+    return cache[cacheKey]
   }
 }
 
@@ -116,18 +119,31 @@ export default defineRule({
     type: 'problem',
     schema: [
       {
-        oneOf: [
-          {
-            type: 'string',
+        type: 'object',
+        properties: {
+          pages: {
+            oneOf: [
+              {
+                type: 'string',
+              },
+              {
+                type: 'array',
+                uniqueItems: true,
+                items: {
+                  type: 'string',
+                },
+              },
+            ],
           },
-          {
+          pageExtensions: {
             type: 'array',
             uniqueItems: true,
             items: {
               type: 'string',
             },
           },
-        ],
+        },
+        additionalProperties: false,
       },
     ],
   },
@@ -136,8 +152,9 @@ export default defineRule({
    * Creates an ESLint rule listener.
    */
   create(context) {
-    const ruleOptions: (string | string[])[] = context.options
-    const [customPagesDirectory] = ruleOptions
+    const ruleOptions: any = context.options[0] || {}
+    const customPagesDirectory = ruleOptions.pages || ruleOptions
+    const pageExtensions: string[] | undefined = ruleOptions.pageExtensions
 
     const rootDirs = getRootDirs(context)
 
@@ -174,8 +191,16 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories(
+      '/',
+      foundPagesDirs,
+      pageExtensions
+    )
+    const appDirUrls = cachedGetUrlFromAppDirectory(
+      '/',
+      foundAppDirs,
+      pageExtensions
+    )
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
