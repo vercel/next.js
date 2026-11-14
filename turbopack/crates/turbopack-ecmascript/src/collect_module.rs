@@ -175,7 +175,7 @@ impl EcmascriptChunkPlaceable for EcmascriptCollectModuleWithChunkGroup {
             EsmExports {
                 exports: [(
                     COLLECT_LIST_EXPORT.clone(),
-                    EsmExport::LocalBinding(COLLECT_LIST_EXPORT.clone(), Liveness::Constant),
+                    EsmExport::LocalBinding(COLLECT_LIST_EXPORT.clone(), Liveness::Constant, false),
                 )]
                 .into(),
                 star_exports: vec![],
