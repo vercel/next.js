@@ -26,6 +26,7 @@ import {
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { isRequestApiAllowedInCurrentPhase } from './utils'
+import { getResolvedPromise } from './resolved-promise'
 import { applyOwnerStack } from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
@@ -47,9 +48,9 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
 
     if (workStore.forceStatic) {
       // When using forceStatic we override all other logic and always just return an empty
-      // cookies object without tracking
-      const underlyingCookies = createEmptyCookies()
-      return makeUntrackedCookies(underlyingCookies)
+      // cookies object without tracking. It is a new object for every call, so
+      // there is no promise to share between calls.
+      return Promise.resolve(createEmptyCookies())
     }
 
     if (workStore.dynamicShouldError) {
@@ -97,13 +98,13 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
               workUnitStore.cookies
             )
           } else {
-            return makeUntrackedCookies(workUnitStore.cookies)
+            return makeUntrackedCookies(workStore, workUnitStore.cookies)
           }
         }
         case 'private-cache':
           // Private caches are delayed until the runtime stage in use-cache-wrapper,
           // so we don't need an additional delay here.
-          return makeUntrackedCookies(workUnitStore.cookies)
+          return makeUntrackedCookies(workStore, workUnitStore.cookies)
         case 'request':
           trackDynamicDataInDynamicRender(workUnitStore)
 
@@ -134,7 +135,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
               return workUnitStore.asyncApiPromises.cookies
             }
           } else {
-            return makeUntrackedCookies(underlyingCookies)
+            return makeUntrackedCookies(workStore, underlyingCookies)
           }
         default:
           workUnitStore satisfies never
@@ -177,17 +178,10 @@ function makeHangingCookies(
 }
 
 function makeUntrackedCookies(
+  workStore: WorkStore,
   underlyingCookies: ReadonlyRequestCookies
 ): Promise<ReadonlyRequestCookies> {
-  const cachedCookies = CachedCookies.get(underlyingCookies)
-  if (cachedCookies) {
-    return cachedCookies
-  }
-
-  const promise = Promise.resolve(underlyingCookies)
-  CachedCookies.set(underlyingCookies, promise)
-
-  return promise
+  return getResolvedPromise(workStore, underlyingCookies)
 }
 
 function makeUntrackedCookiesWithDevWarnings(
