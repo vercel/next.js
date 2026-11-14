@@ -266,6 +266,21 @@ describe('isSyncIOError', () => {
     }
   )
 
+  it.each<[SyncIOApiType]>([['time'], ['random'], ['crypto']])(
+    'suggests a Client Component for createSyncIOError(%s) without prescribing an I/O API',
+    (type) => {
+      expect(createSyncIOError(ROUTE, 'expr', type).message).toContain(
+        'Render on the client with `"use client"`'
+      )
+      expect(createSyncIOError(ROUTE, 'expr', type).message).not.toContain(
+        'use(io())'
+      )
+      expect(createSyncIOError(ROUTE, 'expr', type).message).not.toContain(
+        'use(browser())'
+      )
+    }
+  )
+
   it('returns false for non sync-IO factory output', () => {
     expect(isSyncIOError(createRuntimeBodyError(ROUTE).message)).toBe(false)
     expect(isSyncIOError(createDynamicMetadataError(ROUTE).message)).toBe(false)
@@ -724,6 +739,26 @@ describe('card sets for all error families', () => {
     ])
   })
 
+  it.each([
+    ['Math.random()', 'return <Dots seed={Math.random()} />'],
+    ['Date.now()', 'return <Clock time={Date.now()} />'],
+    ['crypto.randomUUID()', 'return <Id>{crypto.randomUUID()}</Id>'],
+  ])(
+    'sync-io %s shows a three-line browser-only client pattern',
+    (cause, renderSnippet) => {
+      const clientCard = getCards('sync-io', 'runtime', cause).find(
+        (card) => card.id === 'render-on-the-client'
+      )
+
+      expect(clientCard?.title).toBe('Render on the client')
+      expect(clientCard?.snippets).toEqual([
+        { text: '"use client"', highlight: true },
+        { text: 'use(browser())' },
+        { text: renderSnippet },
+      ])
+    }
+  )
+
   it('sync-io-client math', () => {
     expect(
       getCards('sync-io-client', 'runtime', 'Math.random()').map(
@@ -753,6 +788,23 @@ describe('card sets for all error families', () => {
     ).toEqual([
       'wrap-in-or-move-into-suspense',
       'move-into-effect-or-event-handler',
+    ])
+  })
+
+  it.each([
+    ['Math.random()', '<RandomId />'],
+    ['Date.now()', '<DateDisplay />'],
+    ['crypto.randomUUID()', '<TokenId />'],
+  ])('sync-io-client %s keeps the Suspense fix distinct', (cause, child) => {
+    const suspenseCard = getCards('sync-io-client', 'runtime', cause).find(
+      (card) => card.id === 'wrap-in-or-move-into-suspense'
+    )
+
+    expect(suspenseCard?.title).toBe('Wrap in or move into Suspense')
+    expect(suspenseCard?.snippets).toEqual([
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: `  ${child}` },
+      { text: '</Suspense>', highlight: true },
     ])
   })
 })
