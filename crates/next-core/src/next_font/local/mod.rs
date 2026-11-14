@@ -103,7 +103,11 @@ impl ImportMappingReplacement for NextFontLocalReplacer {
         }
 
         let request_hash = get_request_hash(query.as_str());
-        let qstr = qstring::QString::from(query.as_str());
+        // QString leaves backslashes unescaped. Encode them so the generated JavaScript import
+        // preserves JSON string escapes in custom declarations.
+        let qstr = qstring::QString::from(query.as_str())
+            .to_string()
+            .replace('\\', "%5C");
         let options_vc = NextFontLocalOptions::from_query_map(query.clone());
 
         let font_fallbacks = &*get_font_fallbacks(lookup_path.clone(), options_vc).await?;
