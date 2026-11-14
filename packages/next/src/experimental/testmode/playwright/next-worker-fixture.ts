@@ -45,7 +45,14 @@ class NextWorkerFixtureImpl implements NextWorkerFixture {
     request: Request
   ): Promise<FetchHandlerResult> {
     const handler = this.proxyFetchMap.get(testId)
-    return handler?.(request)
+    if (!handler) {
+      // The test that issued this fetch has already been torn down, e.g. a
+      // prefetch or background revalidation that outlived it. Nothing is left
+      // to mock or report it, and throwing "Proxy request aborted" would land
+      // in whichever later test happens to share the in-flight work.
+      return 'continue'
+    }
+    return handler(request)
   }
 }
 
