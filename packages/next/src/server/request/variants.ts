@@ -5,9 +5,13 @@ import { throwToInterruptStaticGeneration } from '../app-render/dynamic-renderin
 import {
   makeDynamicHangingPromise,
   makeRuntimeHangingPromise,
+  RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
+import type { AdvanceableRenderStage } from '../app-render/staged-rendering'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
+import type { WorkUnitStore } from '../app-render/work-unit-async-storage.external'
 import {
+  getStagedRenderingController,
   throwForMissingRequestStore,
   workUnitAsyncStorage,
 } from '../app-render/work-unit-async-storage.external'
@@ -39,6 +43,33 @@ export interface Variant<T extends string = string> {
   readonly [VARIANT_DECIDE]: (request: NextRequest) => T | Promise<T>
 }
 
+export function getVariantKey(value: Variant<string>): string {
+  return value[VARIANT_KEY]
+}
+
+export function getVariantDecide(
+  value: Variant<string>
+): (request: NextRequest) => string | Promise<string> {
+  return value[VARIANT_DECIDE]
+}
+
+/**
+ * Asserts that the value a `decide` function returned is a string.
+ *
+ * Any string is allowed, whatever characters it holds, because the transport
+ * encodes it. A value that is not a string is the one thing to reject: it would
+ * serialize into something that does not round-trip.
+ */
+export function assertValidVariantValue(key: string, value: unknown): string {
+  if (typeof value !== 'string') {
+    throw new Error(
+      `The variant \`${key}\` resolved to a ${typeof value} value. Variant values must be strings.`
+    )
+  }
+
+  return value
+}
+
 /**
  * Defines a variant.
  *
@@ -46,8 +77,8 @@ export interface Variant<T extends string = string> {
  * flags service. A route can be prerendered against a variant, in addition to
  * its route params.
  *
- * The framework invokes `decide`, and user code never invokes it. The return
- * value is the reader. A call to the reader during a render returns the value
+ * The framework invokes `decide`. User code calls the return value instead,
+ * which is the reader. A call to the reader during a render returns the value
  * that the current request resolved.
  *
  * TODO(variants): `decide` receives the request only until it receives the
@@ -89,6 +120,31 @@ export function unstable_variant<T extends string = string>(
 }
 
 /**
+ * Resolves a variant value at the render stage that the value belongs to.
+ *
+ * A variant value must not appear in anything a render caches. No cache key
+ * names a variant, so no shell and no prerender may hold one. The runtime stage
+ * comes after all of them, so a value delayed to that stage stays out.
+ *
+ * A render without staged rendering produces no shell, so the value resolves at
+ * once.
+ */
+function resolveInStage(
+  workUnitStore: WorkUnitStore,
+  stage: AdvanceableRenderStage,
+  variantName: string,
+  value: string
+): Promise<string> {
+  const stagedRendering = getStagedRenderingController(workUnitStore)
+
+  if (!stagedRendering) {
+    return Promise.resolve(value)
+  }
+
+  return stagedRendering.delayUntilStage(stage, variantName, value)
+}
+
+/**
  * Reads the value that the current request resolved for a variant.
  *
  * This function is not `async`, by design. A prerender interrupts a read either
@@ -108,16 +164,28 @@ function readVariant(key: string): Promise<string> {
 
   switch (workUnitStore.type) {
     case 'request': {
-      // A request resolves its variants before the render, and the values
-      // reach the render through this store. A read finds nothing when the
-      // request resolved nothing.
+      const value = workUnitStore.variants?.[key]
+
+      if (value !== undefined) {
+        // TODO(variants): a value that a combination declared belongs to an
+        // earlier stage, because the prerender of that combination can hold it.
+        // Only a value that no combination declared waits for the runtime
+        // stage.
+        return resolveInStage(
+          workUnitStore,
+          RENDER_STAGES_BY_DATA_KIND.runtimeLinkData,
+          variantName,
+          value
+        )
+      }
+
+      // A request resolves its variants before the render, and the values reach
+      // the render through this store. A read finds nothing when the request
+      // resolved nothing.
       //
       // The message names no cause, on purpose. Resolution covers every route
       // that reads a variant, so no matcher configuration explains a missing
       // value.
-      //
-      // TODO(variants): no code puts values on this store yet, so every read
-      // reaches this error.
       throw new Error(
         `Route ${workStore.route} read ${variantName}, but no value was resolved for this request.`
       )

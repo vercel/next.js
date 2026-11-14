@@ -11,3 +11,10 @@ export const theme = unstable_variant(
     request.cookies.get('theme')?.value === 'dark' ? 'dark' : 'light',
   'theme@variants.ts'
 )
+
+// A second variant. A resolved set then holds more than one pair, which
+// exercises the canonical ordering.
+export const locale = unstable_variant(
+  (request) => (request.cookies.get('locale')?.value === 'de' ? 'de' : 'en'),
+  'locale@variants.ts'
+)
