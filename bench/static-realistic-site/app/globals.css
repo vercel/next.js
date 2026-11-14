@@ -1,0 +1,150 @@
+:root {
+  --ink: #1d2a26;
+  --paper: #f4f1ea;
+  --line: #d9d3c5;
+  --accent: #b4532a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  background: var(--paper);
+  font:
+    16px/1.5 system-ui,
+    sans-serif;
+}
+
+a {
+  color: inherit;
+}
+
+main {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.skip-link {
+  position: absolute;
+  left: -100rem;
+}
+
+.site-header .bar {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.announcement {
+  margin: 0;
+  padding: 0.25rem 1.5rem;
+  color: var(--paper);
+  background: var(--ink);
+}
+
+.mega > ul,
+.site-footer nav,
+.locales,
+.category-strip ul,
+.gallery-thumbs,
+.tags,
+.social {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mega ul ul {
+  display: none;
+  padding: 0;
+  list-style: none;
+}
+
+.mega li:hover ul {
+  display: block;
+}
+
+.grid,
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.card,
+.cards li {
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+}
+
+.card img,
+.cards img,
+.prose img,
+.gallery-main {
+  max-width: 100%;
+  height: auto;
+}
+
+.product,
+.docs-version {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+.docs-version {
+  grid-template-columns: 16rem 1fr;
+}
+
+.price s {
+  margin-left: 0.5rem;
+  color: var(--accent);
+}
+
+.prose {
+  max-width: 44rem;
+}
+
+.prose pre {
+  overflow: auto;
+  padding: 0.75rem;
+  background: #fff;
+}
+
+.prose table,
+.specs table,
+.product-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.prose td,
+.prose th,
+.specs td,
+.specs th {
+  padding: 0.25rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+.skeleton {
+  min-height: 2rem;
+  background: var(--line);
+}
+
+.site-footer {
+  margin-top: 3rem;
+  padding: 1.5rem;
+  border-top: 1px solid var(--line);
+}

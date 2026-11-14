@@ -1,0 +1,5 @@
+.next/
+.next-compiled/
+.next-profiles/
+# Written by generate-routes.mjs
+app/\[locale\]/(gen)/s/
