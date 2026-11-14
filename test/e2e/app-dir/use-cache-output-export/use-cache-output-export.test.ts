@@ -9,12 +9,6 @@ describe('use-cache-output-export', () => {
     skipStart: isNextStart,
   })
 
-  if (process.env.__NEXT_CACHE_COMPONENTS === 'true') {
-    return it.skip('for PPR', () => {
-      // PPR is not compatible with `output: 'export'`.
-    })
-  }
-
   it('should work', async () => {
     let html: string
     let server: Server | undefined

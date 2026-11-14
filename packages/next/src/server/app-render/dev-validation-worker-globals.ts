@@ -90,6 +90,7 @@ export interface DevValidationSnapshot {
   fallbackRouteParams: OpaqueFallbackRouteParams | null
   optimisticRouting: boolean
   forceStatic: boolean | undefined
+  isStaticExport: boolean
   validationLevel: ValidationLevel
   implicitTags: string[]
   /**

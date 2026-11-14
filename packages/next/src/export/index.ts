@@ -270,7 +270,10 @@ async function exportAppImpl(
 
   let prerenderManifest: DeepReadonly<PrerenderManifest> | undefined
   try {
-    prerenderManifest = require(join(distDir, PRERENDER_MANIFEST))
+    // Generate mode rewrites this manifest between export passes. Read it fresh.
+    prerenderManifest = JSON.parse(
+      await fs.readFile(join(distDir, PRERENDER_MANIFEST), 'utf8')
+    )
   } catch {}
 
   let appRoutePathManifest: Record<string, string> | undefined
@@ -914,12 +917,6 @@ async function exportAppImpl(
       durations.durationsByPath.set(path, result.duration)
       collector.byPage.set(page, durations)
     }
-  }
-
-  // Export mode provide static outputs that are not compatible with PPR mode.
-  if (!options.buildExport && nextConfig.cacheComponents) {
-    // TODO: add message
-    throw new Error('Invariant: PPR cannot be enabled in export mode')
   }
 
   // copy prerendered routes to outDir

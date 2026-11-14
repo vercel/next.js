@@ -121,6 +121,7 @@ export async function loadStaticPaths({
       {
         cacheComponents: config.cacheComponents,
         partialPrefetching: config.partialPrefetching,
+        output: nextConfigOutput,
       }
     )
 

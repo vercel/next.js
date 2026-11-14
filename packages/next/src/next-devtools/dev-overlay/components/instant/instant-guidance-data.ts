@@ -1071,7 +1071,8 @@ function filterCacheForConnection(
 export function getCards(
   kind: GuidanceKind,
   variant: GuidanceVariant,
-  cause?: string
+  cause?: string,
+  isStaticExport = false
 ): FixCard[] {
   switch (kind) {
     case 'static-viewport':
@@ -1136,8 +1137,12 @@ export function getCards(
           return variant satisfies never
       }
     }
-    case 'sync-io':
-      return (cause && syncCardsByCause[cause]) || []
+    case 'sync-io': {
+      const cards = (cause && syncCardsByCause[cause]) || []
+      return isStaticExport
+        ? cards.filter((card) => card.group !== 'dynamic')
+        : cards
+    }
     case 'sync-io-client':
       return (cause && syncClientCardsByCause[cause]) || []
     case 'unrendered-segment':

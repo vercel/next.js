@@ -175,6 +175,7 @@ type StaticRouteErrorDetails = {
   kind: 'static-route' | 'static-metadata' | 'static-viewport'
   variant: GuidanceVariant
   headline: string
+  isStaticExport?: boolean
 }
 
 type ClientHookErrorDetails = {
@@ -197,6 +198,7 @@ type DynamicViewportErrorDetails = {
 type SyncIOErrorDetails = {
   type: 'sync-io'
   cause: string
+  isStaticExport?: boolean
 }
 
 type SyncIOClientErrorDetails = {
@@ -318,6 +320,7 @@ function InstantRuntimeError({
   kind = 'blocking-route',
   explanation,
   cause,
+  isStaticExport,
   showExplanation = true,
   dialogResizerRef,
   generateErrorInfo,
@@ -327,6 +330,7 @@ function InstantRuntimeError({
   kind?: GuidanceKind
   explanation?: string
   cause?: string
+  isStaticExport?: boolean
   showExplanation?: boolean
   dialogResizerRef: React.RefObject<HTMLDivElement | null>
   generateErrorInfo: () => Promise<string>
@@ -360,6 +364,7 @@ function InstantRuntimeError({
         kind={kind}
         explanation={explanation}
         cause={derivedCause}
+        isStaticExport={isStaticExport}
         showExplanation={showExplanation}
         generateErrorInfo={generateErrorInfo}
       />
@@ -475,6 +480,9 @@ export function getBlockingRouteErrorDetails(
       kind: `static-${staticRouteMatch[1]}` as StaticRouteErrorDetails['kind'],
       variant: getGuidanceVariant(message),
       headline: message.split('\n')[0].replace(/^Route "[^"]*": /, ''),
+      ...(message.includes('`output: "export"`')
+        ? { isStaticExport: true }
+        : {}),
     }
   }
 
@@ -543,6 +551,9 @@ export function getBlockingRouteErrorDetails(
         return {
           type: isClient ? 'sync-io-client' : 'sync-io',
           cause: api,
+          ...(!isClient && message.includes('`output: "export"`')
+            ? { isStaticExport: true }
+            : {}),
         }
       }
     }
@@ -1087,6 +1098,7 @@ export function Errors({
             <InstantHeaderExplanation
               kind={errorDetails.kind}
               variant={errorDetails.variant}
+              isStaticExport={errorDetails.isStaticExport}
             />
           }
           renderTabBar={renderTabBar}
@@ -1110,6 +1122,7 @@ export function Errors({
               error={activeError}
               variant={errorDetails.variant}
               kind={errorDetails.kind}
+              isStaticExport={errorDetails.isStaticExport}
               showExplanation={false}
               dialogResizerRef={dialogResizerRef}
               generateErrorInfo={generateErrorInfo}
@@ -1299,7 +1312,11 @@ export function Errors({
           }
           headerChildren={
             <InstantHeaderExplanation
-              explanation="This value can change between renders, so it must be either prerendered or computed later."
+              explanation={
+                errorDetails.isStaticExport
+                  ? 'This route uses output: "export", so this value must be prerendered or rendered on the client.'
+                  : 'This value can change between renders, so it must be either prerendered or computed later.'
+              }
               docsUrl={SYNC_IO_DOCS[errorDetails.cause]}
             />
           }
@@ -1325,6 +1342,7 @@ export function Errors({
               variant="runtime"
               kind="sync-io"
               cause={errorDetails.cause}
+              isStaticExport={errorDetails.isStaticExport}
               showExplanation={false}
               dialogResizerRef={dialogResizerRef}
               generateErrorInfo={generateErrorInfo}

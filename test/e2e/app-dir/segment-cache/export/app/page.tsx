@@ -11,6 +11,11 @@ export default function OutputExport() {
         <li>
           <LinkAccordion href="/target-page">Target</LinkAccordion>
         </li>
+        <li>
+          <LinkAccordion href="/full-prefetch-target" prefetch={true}>
+            Full prefetch
+          </LinkAccordion>
+        </li>
       </ul>
       <p>
         The following link is rewritten on the server to the same page as the
