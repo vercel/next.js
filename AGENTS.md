@@ -38,6 +38,7 @@ The main Next.js framework lives in `packages/next/`. This is what gets publishe
 - `packages/eslint-plugin-next/` - ESLint rules for Next.js
 - `packages/font/` - `next/font` implementation
 - `packages/third-parties/` - Third-party script integrations
+- `packages/next-mcp/` - `@next/mcp`, MCP servers from App Router route handlers
 
 ### README files
 
