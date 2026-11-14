@@ -59,6 +59,7 @@ function parseCookie(cookie) {
     try {
       map.set(key, decodeURIComponent(value != null ? value : "true"));
     } catch {
+      map.set(key, value != null ? value : "true");
     }
   }
   return map;
@@ -86,7 +87,7 @@ function parseSetCookie(setCookie) {
   );
   const cookie = {
     name,
-    value: decodeURIComponent(value),
+    value: (() => { try { return decodeURIComponent(value) } catch { return value } })(),
     domain,
     ...expires && { expires: new Date(expires) },
     ...httponly && { httpOnly: true },
