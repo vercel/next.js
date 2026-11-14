@@ -164,6 +164,35 @@ export async function collectSegmentData(
   hints: PrefetchHints | null,
   isUpgradeableISRFallback: boolean
 ): Promise<Map<SegmentRequestKey, Buffer>> {
+  const openStreams = new OpenPageDataStreams()
+  try {
+    return await collectSegmentDataFromOpenStreams(
+      openStreams,
+      isCacheComponentsEnabled,
+      fullPageDataBuffer,
+      staleTime,
+      clientModules,
+      serverConsumerManifest,
+      prefetchInlining,
+      hints,
+      isUpgradeableISRFallback
+    )
+  } finally {
+    openStreams.close()
+  }
+}
+
+async function collectSegmentDataFromOpenStreams(
+  openStreams: OpenPageDataStreams,
+  isCacheComponentsEnabled: boolean,
+  fullPageDataBuffer: Buffer,
+  staleTime: number,
+  clientModules: ManifestNode,
+  serverConsumerManifest: any,
+  prefetchInlining: boolean,
+  hints: PrefetchHints | null,
+  isUpgradeableISRFallback: boolean
+): Promise<Map<SegmentRequestKey, Buffer>> {
   // Traverse the router tree and generate a prefetch response for each segment.
 
   // A mutable map to collect the results as we traverse the route tree.
@@ -189,10 +218,14 @@ export async function collectSegmentData(
     const pagePayload: InitialRSCPayload = await createFromReadableStream(
       // Use a stream that never closes so pending references (dynamic
       // holes) can't error the decode.
-      createUnclosingPrefetchStream(streamFromBuffer(fullPageDataBuffer)),
+      createUnclosingPrefetchStream(
+        streamFromBuffer(fullPageDataBuffer),
+        openStreams
+      ),
       {
         findSourceMapURL,
         serverConsumerManifest,
+        unstable_allowPartialStream: true,
       }
     )
     await waitAtLeastOneReactRenderTask()
@@ -235,9 +268,13 @@ export async function collectSegmentData(
           pageShellByteLength,
           pagePrefetchByteLength,
           release.promise,
-          prefetchRelease.promise
+          prefetchRelease.promise,
+          openStreams
         )
-      : createUnclosingPrefetchStream(streamFromBuffer(fullPageDataBuffer))
+      : createUnclosingPrefetchStream(
+          streamFromBuffer(fullPageDataBuffer),
+          openStreams
+        )
   if (pageShellByteLength === null) {
     release.resolve(true)
   }
@@ -395,6 +432,37 @@ export async function collectPrefetchHints(
   shouldAttemptStaticPrefetch: boolean,
   shouldAttemptStaticNavigation: boolean
 ): Promise<PrefetchHints> {
+  const openStreams = new OpenPageDataStreams()
+  try {
+    return await collectPrefetchHintsFromOpenStreams(
+      openStreams,
+      isCacheComponentsEnabled,
+      fullPageDataBuffer,
+      staleTime,
+      clientModules,
+      serverConsumerManifest,
+      inlining,
+      shouldAttemptStaticShell,
+      shouldAttemptStaticPrefetch,
+      shouldAttemptStaticNavigation
+    )
+  } finally {
+    openStreams.close()
+  }
+}
+
+async function collectPrefetchHintsFromOpenStreams(
+  openStreams: OpenPageDataStreams,
+  isCacheComponentsEnabled: boolean,
+  fullPageDataBuffer: Buffer,
+  staleTime: number,
+  clientModules: ManifestNode,
+  serverConsumerManifest: any,
+  inlining: { maxSize: number; maxBundleSize: number } | false,
+  shouldAttemptStaticShell: boolean,
+  shouldAttemptStaticPrefetch: boolean,
+  shouldAttemptStaticNavigation: boolean
+): Promise<PrefetchHints> {
   // Warm up the module cache, same as collectSegmentData.
   try {
     await createFromReadableStream(streamFromBuffer(fullPageDataBuffer), {
@@ -406,10 +474,14 @@ export async function collectPrefetchHints(
 
   // Decode the Flight data to walk the route tree.
   const initialRSCPayload: InitialRSCPayload = await createFromReadableStream(
-    createUnclosingPrefetchStream(streamFromBuffer(fullPageDataBuffer)),
+    createUnclosingPrefetchStream(
+      streamFromBuffer(fullPageDataBuffer),
+      openStreams
+    ),
     {
       findSourceMapURL,
       serverConsumerManifest,
+      unstable_allowPartialStream: true,
     }
   )
 
@@ -909,6 +981,9 @@ async function PrefetchTreeData({
     {
       findSourceMapURL,
       serverConsumerManifest,
+      // The stream is closed when the collection is done (see
+      // OpenPageDataStreams).
+      unstable_allowPartialStream: true,
     }
   )
 
@@ -1496,12 +1571,17 @@ function createStagedPageDataStream(
   shellByteLength: number,
   prefetchByteLength: number | undefined,
   shellRelease: Promise<boolean>,
-  prefetchRelease: Promise<boolean>
+  prefetchRelease: Promise<boolean>,
+  openStreams: OpenPageDataStreams
 ): ReadableStream<Uint8Array> {
   return new ReadableStream<Uint8Array>({
     async start(controller) {
+      openStreams.add(controller)
       controller.enqueue(fullPageDataBuffer.subarray(0, shellByteLength))
       await shellRelease
+      if (openStreams.closed) {
+        return
+      }
       if (prefetchByteLength === undefined) {
         controller.enqueue(fullPageDataBuffer.subarray(shellByteLength))
       } else {
@@ -1509,17 +1589,57 @@ function createStagedPageDataStream(
           fullPageDataBuffer.subarray(shellByteLength, prefetchByteLength)
         )
         await prefetchRelease
+        if (openStreams.closed) {
+          return
+        }
         controller.enqueue(fullPageDataBuffer.subarray(prefetchByteLength))
       }
-      // Intentionally never closed, like createUnclosingPrefetchStream:
+      // Intentionally not closed here, like createUnclosingPrefetchStream:
       // the page stream may hold references that never resolve (dynamic
-      // holes), and Flight errors if the stream closes while any are pending.
+      // holes), and they have to stay pending while the collection runs.
     },
   })
 }
 
+/**
+ * The page data streams that are kept open while the prefetch data of a page
+ * is collected (see createUnclosingPrefetchStream), so that they can be closed
+ * when the collection is done.
+ *
+ * In Node.js, a web stream that is never closed is not freed by a
+ * young-generation GC, and neither is anything that was decoded from it: the
+ * whole decoded page stays in memory until the next full GC. Closing the
+ * stream releases it.
+ *
+ * The decodes that read these streams pass `unstable_allowPartialStream`.
+ * With it, closing the stream does not reject the references that are still
+ * pending: they never settle, as before.
+ */
+class OpenPageDataStreams {
+  public closed = false
+  private readonly controllers: Array<
+    ReadableStreamDefaultController<Uint8Array>
+  > = []
+
+  add(controller: ReadableStreamDefaultController<Uint8Array>): void {
+    this.controllers.push(controller)
+  }
+
+  close(): void {
+    this.closed = true
+    for (const controller of this.controllers) {
+      try {
+        controller.close()
+      } catch {
+        // The stream was errored: there is nothing left to close.
+      }
+    }
+  }
+}
+
 function createUnclosingPrefetchStream(
-  originalFlightStream: ReadableStream<Uint8Array>
+  originalFlightStream: ReadableStream<Uint8Array>,
+  openStreams: OpenPageDataStreams
 ): ReadableStream<Uint8Array> {
   // When PPR is enabled, prefetch streams may contain references that never
   // resolve, because that's how we encode dynamic data access. In the decoded
@@ -1532,8 +1652,14 @@ function createUnclosingPrefetchStream(
   // the response before all the references are resolved. As a cheat to work
   // around this, we wrap the original stream in a new stream that never closes,
   // and therefore doesn't error.
+  //
+  // The stream is closed when the caller is done with the decoded data (see
+  // OpenPageDataStreams).
   const reader = originalFlightStream.getReader()
   return new ReadableStream({
+    start(controller) {
+      openStreams.add(controller)
+    },
     async pull(controller) {
       while (true) {
         const { done, value } = await reader.read()

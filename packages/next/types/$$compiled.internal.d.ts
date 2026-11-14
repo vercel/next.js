@@ -379,6 +379,7 @@ declare module 'react-server-dom-webpack/client.edge' {
     debugChannel?: { readable?: ReadableStream }
     startTime?: number
     endTime?: number
+    unstable_allowPartialStream?: boolean
   }
 
   export type EncodeFormActionCallback = <A>(
