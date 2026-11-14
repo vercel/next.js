@@ -31,7 +31,6 @@ type LinkListProps = {
 };
 
 type LinkListItemProps = {
-  key: string;
   index: number;
   total: number;
   field: LinkField;
