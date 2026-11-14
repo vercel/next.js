@@ -6,6 +6,7 @@ A production-ready example demonstrating how to Dockerize Next.js applications u
 
 - Multi-stage Docker build for optimal image size
 - Next.js standalone mode for minimal production builds
+- [Cache Components](https://nextjs.org/docs/app/getting-started/cache-components) with a prerendered static shell
 - Security best practices (non-root user)
 - Slim Linux base image for optimal compatibility and smaller size
 - BuildKit cache mounts for faster builds
@@ -157,6 +158,19 @@ To switch to Alpine, simply change the `NODE_VERSION` ARG in the Dockerfile to `
 > [!IMPORTANT]
 > **Node.js Version Maintenance**: This Dockerfile uses Node.js 24.13.0-slim, which was the latest LTS version at the time of writing. To ensure security and stay up-to-date, regularly check and update the `NODE_VERSION` ARG in the Dockerfile to the latest Node.js LTS version. Check the latest version at [Nodejs official website](https://nodejs.org/) and browse available Node.js images on [Docker Hub](https://hub.docker.com/_/node).
 
+## Cache Components
+
+This example enables [`cacheComponents`](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) in [`next.config.ts`](./next.config.ts), so `next build` prerenders a static shell of the page inside the Docker build. [`app/cache-components.tsx`](./app/cache-components.tsx) shows the two ways to add content the static shell can't hold:
+
+- `RuntimeEnvironment` reads `APP_ENV` after [`await io()`](https://nextjs.org/docs/app/api-reference/functions/io). During prerendering, `io()` suspends, so the read happens per request and the `<Suspense>` fallback goes into the shell. Without the call, the value would be read once during the build and every container would show it.
+- `CachedTimestamp` uses [`"use cache"`](https://nextjs.org/docs/app/api-reference/directives/use-cache) with `cacheLife("minutes")`. Its first result is part of the static shell, and later results are regenerated in the background.
+
+```bash
+docker run -p 3000:3000 -e APP_ENV=staging nextjs-standalone-image
+```
+
+By default, `"use cache"` entries are stored in memory, so each container keeps its own copy. If you run more than one replica, configure [`cacheHandlers`](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheHandlers) to share entries through external storage. See [Self-hosting](https://nextjs.org/docs/app/guides/self-hosting) for details.
+
 ## Environment Variables
 
 The [`.dockerignore`](./.dockerignore) in this example **excludes `.env`**, so a local development file — which usually holds real credentials — is never copied into the build context or the final image.
@@ -165,7 +179,7 @@ The consequence is worth knowing up front: a value you rely on from `.env` is `u
 
 ### Secrets and server-only values: pass them at run time
 
-Values read on the server at request time (Route Handlers, dynamically rendered Server Components, Server Actions) are read from the environment when the request happens, so they need nothing at build time:
+Values read on the server at request time (Route Handlers, Server Actions, and Server Components that call `await io()` before the read) come from the environment when the request happens, so they need nothing at build time:
 
 ```bash
 docker run -p 3000:3000 -e MY_SECRET=value nextjs-standalone-image
