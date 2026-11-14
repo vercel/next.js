@@ -250,7 +250,7 @@ fn update_cell_data_hash(task: &mut TaskGuard<'_>, cell: &CellId, content_hash: 
     }
 }
 
-fn invalidate_cell_dependents(
+pub(in crate::backend) fn invalidate_cell_dependents(
     cell_ref: CellRef,
     mut dependent_tasks: FxIndexMap<TaskId, SmallVec<[Option<CellKey>; 2]>>,
     #[cfg(feature = "task_dirty_cause")] has_updated_key_hashes: bool,
@@ -582,7 +582,7 @@ mod invalidate_cell_dependents_tests {
                 CellKey::provisional(1),
                 CellKey::hash(5),
             ] {
-                cell_task.add_keyed_cell_dependent((reverse_ref(), key));
+                cell_task.ensure_cell_dependent(reverse_ref(), Some(key));
                 let _ = dependent.add_cell_dependencies_keyed((cell_ref(), key));
             }
             // A full dependency from the previous execution that wasn't re-read as such. The
@@ -617,13 +617,15 @@ mod invalidate_cell_dependents_tests {
     async fn provisional_refinement_waits_for_cell_content() {
         // While `update_cell` invalidates dependents, the cell content is removed. Refining the
         // `Provisional` dependency in that window conservatively keeps it (depending on the whole
-        // cell).
+        // cell). The `Hash` dependencies are added anyway, on both sides of the edge: the reader
+        // marks them before the cell's task is locked, and a mark on a mutable task must not be
+        // undone (it may already have been invalidated through it).
         let tt = backend();
         {
             let mut ctx = ExecuteContext::new(tt.backend(), &tt);
             let (mut cell_task, mut dependent) =
                 ctx.task_pair(task(CELL_TASK), task(DEPENDENT), TaskDataCategory::All);
-            cell_task.add_keyed_cell_dependent((reverse_ref(), CellKey::provisional(0)));
+            cell_task.ensure_cell_dependent(reverse_ref(), provisional(0));
             let _ = dependent.add_cell_dependencies_keyed((cell_ref(), CellKey::provisional(0)));
         }
 
@@ -637,9 +639,12 @@ mod invalidate_cell_dependents_tests {
         );
 
         let mut ctx = ExecuteContext::new(tt.backend(), &tt);
-        let dependent = ctx.task(task(DEPENDENT), TaskDataCategory::All);
+        let (cell_task, dependent) =
+            ctx.task_pair(task(CELL_TASK), task(DEPENDENT), TaskDataCategory::All);
         assert!(dependent.cell_dependencies_keyed_contains(&(cell_ref(), CellKey::provisional(0))));
-        assert!(!dependent.cell_dependencies_keyed_contains(&(cell_ref(), CellKey::hash(1))));
+        assert!(cell_task.has_keyed_cell_dependent(&(reverse_ref(), CellKey::provisional(0))));
+        assert!(dependent.cell_dependencies_keyed_contains(&(cell_ref(), CellKey::hash(1))));
+        assert!(cell_task.has_keyed_cell_dependent(&(reverse_ref(), CellKey::hash(1))));
     }
 
     #[tokio::test(flavor = "multi_thread")]

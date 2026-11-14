@@ -87,6 +87,12 @@ pub fn reopen_tt_with_gc(dir: &tempfile::TempDir) -> Arc<TurboTasks<TurboTasksBa
     open_tt_at_with_gc(dir.path(), 2, Some(true), None, None)
 }
 
+/// Opens the first session over a persistence directory from [`create_persistence_dir`], with the
+/// default worker count. Reopen it with [`reopen_tt_with_gc`] after stopping this backend.
+pub fn create_tt_at(dir: &tempfile::TempDir) -> Arc<TurboTasks<TurboTasksBackend>> {
+    open_tt_at(dir.path(), 2)
+}
+
 /// [`reopen_tt_with_gc`] with the GC root TTL pinned, so a test can age a root out inside the test
 /// rather than days later. Set at construction, where the TTL is resolved.
 pub fn reopen_tt_with_gc_ttl(
@@ -109,6 +115,18 @@ pub fn create_tt_with_workers(
 /// A fresh persistent backend in its own temp directory, with the default worker count.
 pub fn create_tt(name: &str) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
     create_tt_with_workers(name, 2)
+}
+
+/// [`create_tt_with_workers`] with the GC root TTL pinned, so roots that are no longer read age out
+/// within the test.
+pub fn create_tt_with_workers_and_gc_ttl(
+    name: &str,
+    num_workers: usize,
+    gc_root_ttl: Duration,
+) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
+    let dir = create_persistence_dir(name);
+    let tt = open_tt_at_with_gc(dir.path(), num_workers, Some(true), Some(gc_root_ttl), None);
+    (tt, dir)
 }
 
 /// [`create_tt`] with a custom GC min-progress floor
