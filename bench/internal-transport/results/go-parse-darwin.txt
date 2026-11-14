@@ -1,0 +1,18 @@
+goos: darwin
+goarch: arm64
+pkg: tbench
+cpu: Apple M5 Pro
+BenchmarkHTTPReadRequest-15        	  633607	      1897 ns/op	 428.48 MB/s	    2969 B/op	      32 allocs/op
+BenchmarkHTTPReadRequest-15        	  629125	      1951 ns/op	 416.74 MB/s	    2969 B/op	      32 allocs/op
+BenchmarkHTTPReadRequest-15        	  632464	      2010 ns/op	 404.51 MB/s	    2969 B/op	      32 allocs/op
+BenchmarkFramedParseRequest-15     	 2397375	       469.7 ns/op	1730.83 MB/s	    1344 B/op	      37 allocs/op
+BenchmarkFramedParseRequest-15     	 2549241	       624.0 ns/op	1302.99 MB/s	    1344 B/op	      37 allocs/op
+BenchmarkFramedParseRequest-15     	 1632270	       666.5 ns/op	1219.86 MB/s	    1344 B/op	      37 allocs/op
+BenchmarkHTTPWriteResponse-15      	 1262176	       942.7 ns/op	     746 B/op	      13 allocs/op
+BenchmarkHTTPWriteResponse-15      	 1350024	       904.3 ns/op	     746 B/op	      13 allocs/op
+BenchmarkHTTPWriteResponse-15      	 1339330	       935.5 ns/op	     746 B/op	      13 allocs/op
+BenchmarkFramedWriteResponse-15    	69625256	        20.70 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFramedWriteResponse-15    	54171894	        19.88 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFramedWriteResponse-15    	62798182	        19.29 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	tbench	15.032s

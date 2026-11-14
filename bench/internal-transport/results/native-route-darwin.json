@@ -1,0 +1,122 @@
+[
+  {
+    "round": 1,
+    "conc": 1,
+    "variant": "tcp",
+    "worker": "[{\"port\":64904}]",
+    "rps": 8873,
+    "p50_us": 94,
+    "p99_us": 282,
+    "node_cpu_us": 61.7
+  },
+  {
+    "round": 1,
+    "conc": 1,
+    "variant": "unix",
+    "worker": "[{\"socketPath\":\"/var/folders/4b/m8k3kk592cq4ggg43q2w6fgr0000gn/T/next-9RbR1a/go-1.sock\"}]",
+    "rps": 8842,
+    "p50_us": 97,
+    "p99_us": 298,
+    "node_cpu_us": 65.1
+  },
+  {
+    "round": 1,
+    "conc": 32,
+    "variant": "tcp",
+    "worker": "[{\"port\":64949}]",
+    "rps": 22282,
+    "p50_us": 1387,
+    "p99_us": 2505,
+    "node_cpu_us": 42.8
+  },
+  {
+    "round": 1,
+    "conc": 32,
+    "variant": "unix",
+    "worker": "[{\"socketPath\":\"/var/folders/4b/m8k3kk592cq4ggg43q2w6fgr0000gn/T/next-QHeF3S/go-1.sock\"}]",
+    "rps": 22127,
+    "p50_us": 1414,
+    "p99_us": 2353,
+    "node_cpu_us": 43.2
+  },
+  {
+    "round": 2,
+    "conc": 1,
+    "variant": "tcp",
+    "worker": "[{\"port\":65084}]",
+    "rps": 7042,
+    "p50_us": 120,
+    "p99_us": 339,
+    "node_cpu_us": 76.2
+  },
+  {
+    "round": 2,
+    "conc": 1,
+    "variant": "unix",
+    "worker": "[{\"socketPath\":\"/var/folders/4b/m8k3kk592cq4ggg43q2w6fgr0000gn/T/next-wafKs5/go-1.sock\"}]",
+    "rps": 9397,
+    "p50_us": 93,
+    "p99_us": 254,
+    "node_cpu_us": 61.6
+  },
+  {
+    "round": 2,
+    "conc": 32,
+    "variant": "tcp",
+    "worker": "[{\"port\":65185}]",
+    "rps": 21321,
+    "p50_us": 1457,
+    "p99_us": 2547,
+    "node_cpu_us": 44.4
+  },
+  {
+    "round": 2,
+    "conc": 32,
+    "variant": "unix",
+    "worker": "[{\"socketPath\":\"/var/folders/4b/m8k3kk592cq4ggg43q2w6fgr0000gn/T/next-B7oCOX/go-1.sock\"}]",
+    "rps": 22550,
+    "p50_us": 1376,
+    "p99_us": 2400,
+    "node_cpu_us": 42.2
+  },
+  {
+    "round": 3,
+    "conc": 1,
+    "variant": "tcp",
+    "worker": "[{\"port\":65315}]",
+    "rps": 4273,
+    "p50_us": 132,
+    "p99_us": 1379,
+    "node_cpu_us": 103.7
+  },
+  {
+    "round": 3,
+    "conc": 1,
+    "variant": "unix",
+    "worker": "[{\"socketPath\":\"/var/folders/4b/m8k3kk592cq4ggg43q2w6fgr0000gn/T/next-iV3nrN/go-1.sock\"}]",
+    "rps": 5172,
+    "p50_us": 175,
+    "p99_us": 504,
+    "node_cpu_us": 104.8
+  },
+  {
+    "round": 3,
+    "conc": 32,
+    "variant": "tcp",
+    "worker": "[{\"port\":65376}]",
+    "rps": 15121,
+    "p50_us": 2091,
+    "p99_us": 3437,
+    "node_cpu_us": 64
+  },
+  {
+    "round": 3,
+    "conc": 32,
+    "variant": "unix",
+    "worker": "[{\"socketPath\":\"/var/folders/4b/m8k3kk592cq4ggg43q2w6fgr0000gn/T/next-lmFrGn/go-1.sock\"}]",
+    "rps": 20601,
+    "p50_us": 1509,
+    "p99_us": 2636,
+    "node_cpu_us": 46.3
+  }
+]

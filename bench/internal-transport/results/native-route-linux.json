@@ -1,0 +1,122 @@
+[
+  {
+    "round": 1,
+    "conc": 1,
+    "variant": "tcp",
+    "worker": "[{\"port\":41591}]",
+    "rps": 3908,
+    "p50_us": 237,
+    "p99_us": 535,
+    "node_cpu_us": 143.1
+  },
+  {
+    "round": 1,
+    "conc": 1,
+    "variant": "unix",
+    "worker": "[{\"socketPath\":\"/tmp/next-5SJHBh/go-1.sock\"}]",
+    "rps": 4113,
+    "p50_us": 224,
+    "p99_us": 504,
+    "node_cpu_us": 136.7
+  },
+  {
+    "round": 1,
+    "conc": 32,
+    "variant": "tcp",
+    "worker": "[{\"port\":42903}]",
+    "rps": 22802,
+    "p50_us": 1323,
+    "p99_us": 2725,
+    "node_cpu_us": 44.2
+  },
+  {
+    "round": 1,
+    "conc": 32,
+    "variant": "unix",
+    "worker": "[{\"socketPath\":\"/tmp/next-QopoTP/go-1.sock\"}]",
+    "rps": 18105,
+    "p50_us": 1639,
+    "p99_us": 3905,
+    "node_cpu_us": 55.6
+  },
+  {
+    "round": 2,
+    "conc": 1,
+    "variant": "tcp",
+    "worker": "[{\"port\":44283}]",
+    "rps": 7768,
+    "p50_us": 120,
+    "p99_us": 280,
+    "node_cpu_us": 67.3
+  },
+  {
+    "round": 2,
+    "conc": 1,
+    "variant": "unix",
+    "worker": "[{\"socketPath\":\"/tmp/next-5tujmq/go-1.sock\"}]",
+    "rps": 7896,
+    "p50_us": 119,
+    "p99_us": 262,
+    "node_cpu_us": 67.5
+  },
+  {
+    "round": 2,
+    "conc": 32,
+    "variant": "tcp",
+    "worker": "[{\"port\":41773}]",
+    "rps": 20741,
+    "p50_us": 1489,
+    "p99_us": 2783,
+    "node_cpu_us": 49
+  },
+  {
+    "round": 2,
+    "conc": 32,
+    "variant": "unix",
+    "worker": "[{\"socketPath\":\"/tmp/next-w9vGH3/go-1.sock\"}]",
+    "rps": 16688,
+    "p50_us": 1857,
+    "p99_us": 3374,
+    "node_cpu_us": 60.8
+  },
+  {
+    "round": 3,
+    "conc": 1,
+    "variant": "tcp",
+    "worker": "[{\"port\":42739}]",
+    "rps": 5208,
+    "p50_us": 170,
+    "p99_us": 430,
+    "node_cpu_us": 102.2
+  },
+  {
+    "round": 3,
+    "conc": 1,
+    "variant": "unix",
+    "worker": "[{\"socketPath\":\"/tmp/next-hMSCYm/go-1.sock\"}]",
+    "rps": 3999,
+    "p50_us": 227,
+    "p99_us": 611,
+    "node_cpu_us": 136.6
+  },
+  {
+    "round": 3,
+    "conc": 32,
+    "variant": "tcp",
+    "worker": "[{\"port\":37499}]",
+    "rps": 17288,
+    "p50_us": 1788,
+    "p99_us": 3561,
+    "node_cpu_us": 57.9
+  },
+  {
+    "round": 3,
+    "conc": 32,
+    "variant": "unix",
+    "worker": "[{\"socketPath\":\"/tmp/next-QFY08J/go-1.sock\"}]",
+    "rps": 19991,
+    "p50_us": 1532,
+    "p99_us": 2959,
+    "node_cpu_us": 50.9
+  }
+]

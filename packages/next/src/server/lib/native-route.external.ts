@@ -5,11 +5,13 @@ import { Agent, type IncomingMessage, type ServerResponse } from 'http'
 import { join, relative, isAbsolute } from 'path'
 import type { Readable } from 'stream'
 import { proxyNativeRequest } from './native-route-proxy'
+import { privateSocketPath } from './private-socket'
 
 interface Worker {
   child: ChildProcess
   token: string
-  port: number
+  /** Where the worker listens: a Unix socket path, or a loopback port. */
+  address: { socketPath: string } | { port: number }
   agent: Agent
   active: number
   retired: boolean
@@ -24,6 +26,7 @@ export class NativeRouteManager {
   private closed = false
   private activePages: ReadonlySet<string> | undefined
   private allWorkers = new Set<Worker>()
+  private socketCount = 0
 
   constructor(
     private readonly distDir: string,
@@ -70,74 +73,90 @@ export class NativeRouteManager {
 
   private async start(executable: string): Promise<Worker> {
     const token = randomBytes(32).toString('hex')
+    // The worker listens on this socket when it can, and on a loopback port
+    // otherwise; its readiness line says which.
+    const socketPath = privateSocketPath(`go-${++this.socketCount}.sock`)
     const child = spawn(/* turbopackIgnore: true */ executable, [], {
       stdio: ['pipe', 'pipe', 'inherit'],
-      env: { ...process.env, __NEXT_GO_TOKEN: token },
+      env: {
+        ...process.env,
+        __NEXT_GO_TOKEN: token,
+        ...(socketPath ? { __NEXT_GO_SOCKET: socketPath } : {}),
+      },
       windowsHide: true,
     })
     const worker: Worker = {
       child,
       token,
-      port: 0,
+      address: { port: 0 },
       agent: new Agent({ keepAlive: true }),
       active: 0,
       retired: false,
       killTimer: undefined,
     }
     try {
-      worker.port = await new Promise<number>((resolve, reject) => {
-        const ready = child.stdout as Readable
-        const marker = Buffer.from(`\x1eNEXT_GO_READY:${token}:`)
-        let message = Buffer.alloc(0)
-        const timeout = setTimeout(() => {
-          finish(
-            new Error('Native route did not become ready within 10 seconds')
-          )
-        }, 10_000)
-        const finish = (error?: Error, port?: number) => {
-          clearTimeout(timeout)
-          ready.removeAllListeners()
-          child.off('error', onError)
-          child.off('exit', onExit)
-          if (error) reject(error)
-          else {
-            ready.pipe(process.stdout, { end: false })
-            resolve(port!)
+      worker.address = await new Promise<Worker['address']>(
+        (resolve, reject) => {
+          const ready = child.stdout as Readable
+          const marker = Buffer.from(`\x1eNEXT_GO_READY:${token}:`)
+          let message = Buffer.alloc(0)
+          const timeout = setTimeout(() => {
+            finish(
+              new Error('Native route did not become ready within 10 seconds')
+            )
+          }, 10_000)
+          const finish = (error?: Error, address?: Worker['address']) => {
+            clearTimeout(timeout)
+            ready.removeAllListeners()
+            child.off('error', onError)
+            child.off('exit', onExit)
+            if (error) reject(error)
+            else {
+              ready.pipe(process.stdout, { end: false })
+              resolve(address!)
+            }
           }
+          const onError = (error: Error) => finish(error)
+          const onExit = () =>
+            finish(new Error('Native route exited before readiness'))
+          child.once('error', onError)
+          child.once('exit', onExit)
+          ready.on('error', onError)
+          ready.on('data', (data: Buffer) => {
+            message = Buffer.concat([message, data])
+            const index = message.indexOf(marker)
+            if (index < 0) {
+              // Forward logs while retaining a possible partial readiness marker.
+              const length = Math.max(0, message.length - marker.length + 1)
+              process.stdout.write(message.subarray(0, length))
+              message = message.subarray(length)
+              return
+            }
+            process.stdout.write(message.subarray(0, index))
+            message = message.subarray(index)
+            const end = message.indexOf(10, marker.length)
+            if (end < 0) {
+              if (message.length > marker.length + 6)
+                finish(new Error('Invalid native route readiness message'))
+              return
+            }
+            // "unix" when it listens on the socket it was given, else its port.
+            const value = message.subarray(marker.length, end).toString()
+            const port = Number(value)
+            let address: Worker['address']
+            if (value === 'unix' && socketPath) {
+              address = { socketPath }
+            } else if (Number.isInteger(port) && port > 0 && port <= 65535) {
+              address = { port }
+            } else {
+              finish(new Error('Invalid native route port'))
+              return
+            }
+            process.stdout.write(message.subarray(end + 1))
+            finish(undefined, address)
+          })
         }
-        const onError = (error: Error) => finish(error)
-        const onExit = () =>
-          finish(new Error('Native route exited before readiness'))
-        child.once('error', onError)
-        child.once('exit', onExit)
-        ready.on('error', onError)
-        ready.on('data', (data: Buffer) => {
-          message = Buffer.concat([message, data])
-          const index = message.indexOf(marker)
-          if (index < 0) {
-            // Forward logs while retaining a possible partial readiness marker.
-            const length = Math.max(0, message.length - marker.length + 1)
-            process.stdout.write(message.subarray(0, length))
-            message = message.subarray(length)
-            return
-          }
-          process.stdout.write(message.subarray(0, index))
-          message = message.subarray(index)
-          const end = message.indexOf(10, marker.length)
-          if (end < 0) {
-            if (message.length > marker.length + 6)
-              finish(new Error('Invalid native route readiness message'))
-            return
-          }
-          const port = Number(message.subarray(marker.length, end).toString())
-          if (!Number.isInteger(port) || port <= 0 || port > 65535) {
-            finish(new Error('Invalid native route port'))
-            return
-          }
-          process.stdout.write(message.subarray(end + 1))
-          finish(undefined, port)
-        })
-      })
+      )
     } catch (error) {
       child.kill()
       worker.agent.destroy()

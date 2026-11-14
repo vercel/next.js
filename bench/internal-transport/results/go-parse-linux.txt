@@ -1,0 +1,17 @@
+goos: linux
+goarch: arm64
+pkg: tbench
+BenchmarkHTTPReadRequest-15        	  453198	      3193 ns/op	 254.63 MB/s	    2969 B/op	      32 allocs/op
+BenchmarkHTTPReadRequest-15        	  375744	      3462 ns/op	 234.86 MB/s	    2970 B/op	      32 allocs/op
+BenchmarkHTTPReadRequest-15        	  403648	      2894 ns/op	 280.88 MB/s	    2969 B/op	      32 allocs/op
+BenchmarkFramedParseRequest-15     	 2049462	       574.4 ns/op	1415.43 MB/s	    1344 B/op	      37 allocs/op
+BenchmarkFramedParseRequest-15     	 2102922	       633.9 ns/op	1282.63 MB/s	    1344 B/op	      37 allocs/op
+BenchmarkFramedParseRequest-15     	 1622756	       722.0 ns/op	1126.02 MB/s	    1344 B/op	      37 allocs/op
+BenchmarkHTTPWriteResponse-15      	 1217360	       982.6 ns/op	     744 B/op	      13 allocs/op
+BenchmarkHTTPWriteResponse-15      	 1204896	      1040 ns/op	     744 B/op	      13 allocs/op
+BenchmarkHTTPWriteResponse-15      	 1000000	      1116 ns/op	     742 B/op	      13 allocs/op
+BenchmarkFramedWriteResponse-15    	52719733	        24.39 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFramedWriteResponse-15    	52811089	        24.24 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFramedWriteResponse-15    	48902329	        24.73 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	tbench	14.949s

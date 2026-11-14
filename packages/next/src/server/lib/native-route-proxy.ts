@@ -42,7 +42,11 @@ export function proxyNativeRequest(
   req: IncomingMessage,
   res: ServerResponse,
   url: string,
-  target: { port: number; agent: Agent; token: string }
+  target: {
+    address: { socketPath: string } | { port: number }
+    agent: Agent
+    token: string
+  }
 ): Promise<void> {
   // Discard client-supplied internal Go headers.
   // Authenticate forwarded requests with this Go worker's token.
@@ -74,8 +78,9 @@ export function proxyNativeRequest(
   headers['x-next-internal-go-token'] = target.token
   return new Promise<void>((resolve, reject) => {
     const upstream = request({
-      hostname: '127.0.0.1',
-      port: target.port,
+      ...('socketPath' in target.address
+        ? { socketPath: target.address.socketPath }
+        : { hostname: '127.0.0.1', port: target.address.port }),
       agent: target.agent,
       method: req.method,
       path: url,
