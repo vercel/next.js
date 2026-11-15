@@ -29,6 +29,12 @@ The profile sets the point past which data correctness is more important than be
 
 > **Good to know**: A revalidation is triggered by a request, not by the `revalidateTag` call, so pages using the tag revalidate as they are visited rather than all at once.
 
+### Client cache behavior
+
+In a Server Action, a profile that resolves to `expire: 0` also triggers [`updateTag`'s client refresh and cache invalidation](/docs/app/api-reference/functions/updateTag#client-cache-behavior). A nonzero `expire` value, such as `'max'`, does not trigger these client effects.
+
+Route Handler calls invalidate server-side cached data without immediately refreshing an open page's client cache.
+
 ## Parameters
 
 ```ts

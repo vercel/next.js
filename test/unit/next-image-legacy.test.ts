@@ -103,40 +103,6 @@ describe('Image Legacy Rendering', () => {
     expect($3('noscript').length).toBe(1)
   })
 
-  it('should disable an automatic blur placeholder for a static avif', () => {
-    const element = React.createElement(Image, {
-      src: {
-        src: '/_next/static/media/test.abc123.avif',
-        width: 100,
-        height: 200,
-      },
-      placeholder: 'blur',
-      loading: 'eager',
-    })
-    const $ = cheerio.load(ReactDOM.renderToString(element))
-
-    expect($('noscript').length).toBe(0)
-    expect($.html()).not.toContain('background-image')
-  })
-
-  it('should preserve a custom blur placeholder for a static avif', () => {
-    const blurDataURL = 'data:image/png;base64,custom'
-    const element = React.createElement(Image, {
-      src: {
-        src: '/_next/static/media/test.abc123.avif',
-        width: 100,
-        height: 200,
-      },
-      placeholder: 'blur',
-      blurDataURL,
-      loading: 'eager',
-    })
-    const $ = cheerio.load(ReactDOM.renderToString(element))
-
-    expect($('noscript').length).toBe(1)
-    expect($.html()).toContain(blurDataURL)
-  })
-
   it('should render the correct sizes passed when a noscript element is rendered', async () => {
     const element = React.createElement(Image, {
       src: '/test.png',

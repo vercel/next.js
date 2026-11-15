@@ -5,9 +5,7 @@ use swc_core::{
     ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Lit},
     quote_expr,
 };
-use turbo_tasks::{
-    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
-};
+use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat};
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType},
     issue::IssueSource,
@@ -24,12 +22,12 @@ use turbopack_resolve::ecmascript::esm_resolve;
 
 use crate::{
     analyzer::imports::ImportAnnotations,
+    ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
+    async_chunk::proxy::LazyCompilationProxyModule,
+    chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::{
-        AstPath,
-        pattern_mapping::{PatternMapping, ResolveType},
-    },
+    references::pattern_mapping::{PatternMapping, ResolveType},
 };
 
 #[turbo_tasks::value]
@@ -40,12 +38,13 @@ pub struct EsmAsyncAssetReference {
     pub request: ResolvedVc<Request>,
     pub issue_source: IssueSource,
     pub error_mode: ResolveErrorMode,
-    pub import_externals: bool,
     /// The export usage extracted from the dynamic import usage pattern.
     /// Detected from destructured await, member access on await, .then()
     /// callback destructuring, or webpackExports/turbopackExports comments.
     pub export_usage: ExportUsage,
     pub resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+    /// Whether the target is compiled only after its runtime proxy is activated.
+    pub lazy_compilation: bool,
 }
 
 impl EsmAsyncAssetReference {
@@ -56,9 +55,9 @@ impl EsmAsyncAssetReference {
         issue_source: IssueSource,
         annotations: ImportAnnotations,
         error_mode: ResolveErrorMode,
-        import_externals: bool,
         export_usage: ExportUsage,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+        lazy_compilation: bool,
     ) -> Result<Self> {
         // Apply any annotation-driven transition eagerly so the stored origin is final and the
         // `annotations` don't need to be retained on the reference.
@@ -76,9 +75,9 @@ impl EsmAsyncAssetReference {
             request,
             issue_source,
             error_mode,
-            import_externals,
             export_usage,
             resolve_override,
+            lazy_compilation,
         })
     }
 }
@@ -87,14 +86,27 @@ impl EsmAsyncAssetReference {
 impl ModuleReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        if let Some(resolved) = &self.resolve_override {
-            return Ok(*ModuleResolveResult::module(*resolved));
+        if let Some(resolved) = self.resolve_override {
+            if self.lazy_compilation
+                && let Some(module) =
+                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(resolved)
+            {
+                let proxy = LazyCompilationProxyModule::new_direct(*module)
+                    .to_resolved()
+                    .await?;
+                return Ok(*ModuleResolveResult::module(ResolvedVc::upcast(proxy)));
+            }
+            return Ok(*ModuleResolveResult::module(resolved));
         }
 
         esm_resolve(
             *self.origin,
             *self.request,
-            EcmaScriptModulesReferenceSubType::DynamicImport,
+            if self.lazy_compilation {
+                EcmaScriptModulesReferenceSubType::LazyDynamicImport
+            } else {
+                EcmaScriptModulesReferenceSubType::DynamicImport
+            },
             self.error_mode,
             Some(self.issue_source),
         )
@@ -118,9 +130,14 @@ impl ModuleReference for EsmAsyncAssetReference {
 }
 
 impl IntoCodeGenReference for EsmAsyncAssetReference {
+    fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>> {
+        ResolvedVc::upcast(self.resolved_cell())
+    }
+
     fn into_code_gen_reference(
         self,
-        path: AstPath,
+        _trie: &AstPathTrieBuilder,
+        path: AstPathId,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
         (
@@ -133,17 +150,16 @@ impl IntoCodeGenReference for EsmAsyncAssetReference {
     }
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct EsmAsyncAssetReferenceCodeGen {
-    path: AstPath,
+    path: AstPathId,
     reference: ResolvedVc<EsmAsyncAssetReference>,
 }
 
 impl EsmAsyncAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
@@ -162,9 +178,7 @@ impl EsmAsyncAssetReferenceCodeGen {
         )
         .await?;
 
-        let import_externals = reference.import_externals;
-
-        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+        let visitor = create_visitor!(trie, self.path, visit_mut_expr, |expr: &mut Expr| {
             let old_expr = expr.take();
             let message = if let Expr::Call(CallExpr { args, .. }) = old_expr {
                 match args.into_iter().next() {
@@ -172,7 +186,7 @@ impl EsmAsyncAssetReferenceCodeGen {
                         spread: None,
                         expr: key_expr,
                     }) => {
-                        *expr = pm.create_import(*key_expr, import_externals);
+                        *expr = pm.create_import(*key_expr);
                         return;
                     }
                     // These are SWC bugs: https://github.com/swc-project/swc/issues/5394

@@ -177,7 +177,7 @@ export function useRouter(): AppRouterInstance {
   // a `b` prefix, so the id can be safely concatenated with other keys
   // without collision.
   const layout = useContext(LayoutRouterContext)
-  const bfcacheIdNumber = layout?.parentCacheNode.bfcacheId ?? 0
+  const bfcacheIdNumber = layout?.parentRenderTree.data.bfcacheId ?? 0
   return useMemo<AppRouterInstance>(
     () => ({
       back: router.back,
@@ -188,6 +188,7 @@ export function useRouter(): AppRouterInstance {
       replace: router.replace,
       prefetch: router.prefetch,
       experimental_gesturePush: router.experimental_gesturePush,
+      experimental_prepare: router.experimental_prepare,
       bfcacheId: '_b_' + bfcacheIdNumber + '_',
     }),
     [router, bfcacheIdNumber]

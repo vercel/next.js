@@ -35,7 +35,6 @@ import {
   type MetadataErrorType,
   type MetadataItems,
   type PageProps,
-  type Resolved,
   type SegmentProps,
   type SelectedMetadata,
   type TitleTemplates,
@@ -390,7 +389,7 @@ function prerenderMetadata(metadataItems: MetadataItems) {
   > = []
   for (let i = 0; i < metadataItems.length; i++) {
     const metadataExport = metadataItems[i][0]
-    getResult<Metadata>(resolversAndResults, metadataExport)
+    getResult<Metadata, ResolvedMetadata>(resolversAndResults, metadataExport)
   }
   return resolversAndResults
 }
@@ -404,18 +403,16 @@ function prerenderViewport(viewportItems: ViewportItems) {
   > = []
   for (let i = 0; i < viewportItems.length; i++) {
     const viewportExport = viewportItems[i]
-    getResult<Viewport>(resolversAndResults, viewportExport)
+    getResult<Viewport, ResolvedViewport>(resolversAndResults, viewportExport)
   }
   return resolversAndResults
 }
 
 const noop = () => {}
 
-function getResult<TData extends object>(
-  resolversAndResults: Array<
-    ((value: Resolved<TData>) => void) | Result<TData>
-  >,
-  exportForResult: null | TData | InstrumentedResolver<TData>
+function getResult<TData extends object, TResolved>(
+  resolversAndResults: Array<((value: TResolved) => void) | Result<TData>>,
+  exportForResult: null | TData | InstrumentedResolver<TData, TResolved>
 ) {
   if (typeof exportForResult === 'function') {
     // If the function is a 'use cache' function that uses the parent data as
@@ -431,7 +428,7 @@ function getResult<TData extends object>(
       exportForResult.$$original
     )
     if (useCacheFunctionInfo && useCacheFunctionInfo.usedArgs[1]) {
-      const promise = new Promise<Resolved<TData>>((resolve) =>
+      const promise = new Promise<TResolved>((resolve) =>
         resolversAndResults.push(resolve)
       )
       resolversAndResults.push(
@@ -447,9 +444,7 @@ function getResult<TData extends object>(
         result = exportForResult()
       } else {
         result = exportForResult(
-          new Promise<Resolved<TData>>((resolve) =>
-            resolversAndResults.push(resolve)
-          )
+          new Promise<TResolved>((resolve) => resolversAndResults.push(resolve))
         )
       }
       resolversAndResults.push(result)

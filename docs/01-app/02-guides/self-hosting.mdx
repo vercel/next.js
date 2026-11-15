@@ -108,9 +108,7 @@ If you want to host static assets on a different domain or CDN, you can use the 
 
 By default, generated cache assets will be stored in memory (defaults to 50mb) and on disk. On ephemeral compute platforms (common serverless setups), local disk is often non-persistent or unavailable, so this cache is effectively short-lived and per-instance. If you are hosting Next.js using a container orchestration platform like Kubernetes, each pod will have a copy of the cache. To prevent stale data from being shown since the cache is not shared between pods by default, you can configure the Next.js cache to provide a cache handler and disable in-memory caching.
 
-To configure the cache location when self-hosting, you can configure a custom handler in your `next.config.js` file:
-
-For production deployments, use this as a starting point and extend it with durable storage, eviction policies, error handling, and distributed tag coordination. See [Custom Next.js Cache Handler](/docs/app/api-reference/config/next-config-js/incrementalCacheHandlerPath) and the [Redis `cacheHandler` example](https://github.com/vercel/next.js/tree/canary/examples/cache-handler-redis). If you are configuring backends for `'use cache'` directives, use [`cacheHandlers`](/docs/app/api-reference/config/next-config-js/cacheHandlers).
+To configure the cache location when self-hosting, set a custom handler in your `next.config.js` file:
 
 ```jsx filename="next.config.js"
 module.exports = {
@@ -119,53 +117,21 @@ module.exports = {
 }
 ```
 
-Then, create `cache-handler.js` in the root of your project, for example:
+The handler file exports a class that implements `get`, `set`, `revalidateTag`, and `resetRequestCache`. See [`cacheHandler`](/docs/app/api-reference/config/next-config-js/incrementalCacheHandlerPath) for each method's signature, and the [Redis `cacheHandler` example](https://github.com/vercel/next.js/tree/canary/examples/cache-handler-redis) for a working implementation.
 
-```jsx filename="cache-handler.js"
-const cache = new Map()
+For production deployments, the handler must:
 
-module.exports = class CacheHandler {
-  constructor(options) {
-    this.options = options
-  }
-
-  async get(key) {
-    // This could be stored anywhere, like durable storage
-    return cache.get(key)
-  }
-
-  async set(key, data, ctx) {
-    // This could be stored anywhere, like durable storage
-    cache.set(key, {
-      value: data,
-      lastModified: Date.now(),
-      tags: ctx.tags,
-    })
-  }
-
-  async revalidateTag(tags) {
-    // tags is either a string or an array of strings
-    tags = [tags].flat()
-    // Iterate over all entries in the cache
-    for (let [key, value] of cache) {
-      // If the value's tags include the specified tag, delete this entry
-      if (value.tags.some((tag) => tags.includes(tag))) {
-        cache.delete(key)
-      }
-    }
-  }
-
-  // If you want to have temporary in memory cache for a single request that is reset
-  // before the next request you can leverage this method
-  resetRequestCache() {}
-}
-```
-
-Using a custom cache handler will allow you to ensure consistency across all pods hosting your Next.js application. For instance, you can save the cached values anywhere, like [Redis](https://github.com/vercel/next.js/tree/canary/examples/cache-handler-redis) or AWS S3.
+- **Store entries where every instance can reach them**, like [Redis](https://github.com/vercel/next.js/tree/canary/examples/cache-handler-redis) or AWS S3. A store inside the process, such as a `Map`, gives each pod its own copy of the cache again.
+- **Bound the store's size.** Use a TTL or size-based eviction to remove entries for paths and `fetch` keys that are no longer requested.
+- **Serialize entries.** Any store outside the process needs this. An entry can contain `Buffer` (for example `rscData`) and `Map` (for example `segmentData`) values that `JSON.stringify`/`JSON.parse` can't serialize and restore on their own. Not handling this serialization results in errors like `segmentData.get is not a function` or `failed to pipe response` on client-side navigation or prefetch (RSC) requests.
+- **Index entries by tag.** `APP_PAGE`, `APP_ROUTE`, and `PAGES` entries carry their tags in the `x-next-cache-tags` response header (`data.headers`), while `ctx.tags` carries tags for `fetch` entries. Keep the index in the shared store, so a `revalidateTag` call on one instance invalidates the entry on every instance.
+- **Handle storage errors**, such as timeouts and dropped connections.
 
 > **Good to know:**
 >
 > - `revalidatePath` is a convenience layer on top of cache tags. Calling `revalidatePath` will call the `revalidateTag` function with a special default tag for the provided page.
+> - If you are configuring backends for `'use cache'` directives, use [`cacheHandlers`](/docs/app/api-reference/config/next-config-js/cacheHandlers).
+> - Production-oriented community Redis handlers (GET timeouts, in-memory coalescing, multi-instance tag coordination) are listed in the [Redis example README](https://github.com/vercel/next.js/blob/canary/examples/cache-handler-redis/README.md#production-community-handlers), including [`@trieb.work/nextjs-turbo-redis-cache`](https://github.com/trieb-work/nextjs-turbo-redis-cache) and [`@mrjasonroy/cache-components-cache-handler`](https://github.com/mrjasonroy/cache-components-cache-handler).
 
 ## Build Cache
 
@@ -182,7 +148,7 @@ module.exports = {
 }
 ```
 
-> **Good to know:** When [`deploymentId`](/docs/app/api-reference/config/next-config-js/deploymentId) is set, Next.js uses a constant build ID and `generateBuildId` has no effect. [Version skew](#version-skew) is detected from the deployment ID instead.
+> **Good to know:** When [`deploymentId`](/docs/app/api-reference/config/next-config-js/deploymentId) is set, Next.js uses a constant build ID unless you explicitly configure `generateBuildId`. [Version skew](#version-skew) is detected from the deployment ID instead.
 
 ## Multi-Server Deployments
 
@@ -233,6 +199,12 @@ module.exports = {
 ```
 
 > **Good to know:** When the application is reloaded, there may be a loss of application state if it's not designed to persist between page navigations. URL state or local storage would persist, but component state like `useState` would be lost.
+
+### Immutable Assets
+
+When using [immutable static assets](/docs/app/api-reference/config/next-config-js/supportsImmutableAssets), preventing version skew becomes much easier:
+
+Assets can be shared across deployments, so if you just keep adding them to your existing static file folder (or CDN bucket), there will be no version skew (without having to track deployment ids in the reverse proxy/do green-blue deployments).
 
 <AppOnly>
 

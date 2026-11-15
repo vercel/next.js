@@ -1,9 +1,4 @@
-import type {
-  OpaqueFallbackRouteParamEntries,
-  OpaqueFallbackRouteParams,
-} from '../../server/request/fallback-params'
-import { getDynamicParam } from '../../shared/lib/router/utils/get-dynamic-param'
-import type { Params } from '../request/params'
+import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 import {
   createPrerenderResumeDataCache,
   createRenderResumeDataCache,
@@ -26,13 +21,20 @@ export enum DynamicState {
 }
 
 /**
- * The postponed state for dynamic data.
+ * A postponed state with a resume data cache but no React HTML-resume state.
  */
 export type DynamicDataPostponedState = {
   /**
    * The type of dynamic state.
    */
   readonly type: DynamicState.DATA
+
+  /**
+   * The params to defer during the resumed render. The render uses request
+   * metadata when this field is absent. `null` explicitly means no fallback
+   * params.
+   */
+  readonly stagedFallbackParams?: ReadonlySet<string> | null
 
   /**
    * The immutable resume data cache.
@@ -48,6 +50,13 @@ export type DynamicHTMLPostponedState = {
    * The type of dynamic state.
    */
   readonly type: DynamicState.HTML
+
+  /**
+   * The params to defer during the resumed render. An HTML state always records
+   * this set, and `null` means the prerender had no fallback params. Unlike the
+   * data state, it never falls back to request metadata.
+   */
+  readonly stagedFallbackParams: ReadonlySet<string> | null
 
   /**
    * The postponed data used by React.
@@ -134,13 +143,15 @@ export async function getDynamicHTMLPostponedState(
     )
   }
 
-  const replacements: OpaqueFallbackRouteParamEntries = Array.from(
-    fallbackRouteParams.entries()
+  const fallbackParamsString = JSON.stringify(
+    Array.from(fallbackRouteParams.keys())
   )
-  const replacementsString = JSON.stringify(replacements)
 
-  // Serialized as `<replacements.length><replacements><data>`
-  const postponedString = `${replacementsString.length}${replacementsString}${dataString}`
+  // Render staging only needs to know which params were unknown. Their opaque
+  // placeholders and types aren't needed to resume, since React's server keys
+  // don't depend on param values.
+  // Serialized as `<fallbackParams.length><fallbackParams><data>`
+  const postponedString = `${fallbackParamsString.length}${fallbackParamsString}${dataString}`
 
   // Serialized as `<postponedString.length>:<postponedString><renderResumeDataCache>`
   return serializePostponedState(
@@ -156,10 +167,22 @@ export async function getDynamicDataPostponedState(
   resumeDataCache: PrerenderResumeDataCache | RenderResumeDataCache,
   isCacheComponentsEnabled: boolean,
   maxPostponedStateSizeBytes?: number,
-  disableResumeDataCacheCompression = false
+  disableResumeDataCacheCompression = false,
+  fallbackRouteParams?: OpaqueFallbackRouteParams | null
 ): Promise<string> {
+  let postponedString = 'null'
+  if (fallbackRouteParams !== undefined) {
+    const fallbackParamsString = JSON.stringify(
+      fallbackRouteParams ? Array.from(fallbackRouteParams.keys()) : []
+    )
+
+    // Record the unknown param names even when React has no HTML to resume.
+    // An empty array explicitly records that this shell has no fallback params.
+    postponedString = `${fallbackParamsString.length}${fallbackParamsString}null`
+  }
+
   return serializePostponedState(
-    'null',
+    postponedString,
     resumeDataCache,
     isCacheComponentsEnabled,
     maxPostponedStateSizeBytes,
@@ -221,7 +244,6 @@ export function parseResumeDataCacheFromPostponedState(
 
 export function parsePostponedState(
   state: string,
-  interpolatedParams: Params,
   maxPostponedStateSizeBytes: number | undefined,
   disableResumeDataCacheCompression = false
 ): PostponedState {
@@ -234,6 +256,9 @@ export function parsePostponedState(
 
     try {
       if (postponedString === 'null') {
+        // Leave `stagedFallbackParams` unset for the `4:null<cache>` form. It
+        // contains no fallback-parameter information. A platform can send
+        // `4:nullnull` when it invokes the renderer without a cached shell.
         return { type: DynamicState.DATA, renderResumeDataCache }
       }
 
@@ -245,42 +270,30 @@ export function parsePostponedState(
           )
         }
 
-        // This is the length of the replacements entries.
+        // This is the length of the serialized fallback params.
         const length = parseInt(match)
-        const replacements = JSON.parse(
+        const fallbackParamNames = JSON.parse(
           postponedString.slice(
             match.length,
             // We then go to the end of the string.
             match.length + length
           )
-        ) as OpaqueFallbackRouteParamEntries
+        ) as string[]
+        const stagedFallbackParams =
+          fallbackParamNames.length > 0 ? new Set(fallbackParamNames) : null
 
-        let postponed = postponedString.slice(match.length + length)
-        for (const [
-          segmentKey,
-          [searchValue, dynamicParamType],
-        ] of replacements) {
-          const {
-            treeSegment: [
-              ,
-              // This is the same value that'll be used in the postponed state
-              // as it's part of the tree data. That's why we use it as the
-              // replacement value.
-              value,
-            ],
-          } = getDynamicParam(
-            interpolatedParams,
-            segmentKey,
-            dynamicParamType,
-            null,
-            null // staticSiblings not needed for postponed state
-          )
-
-          postponed = postponed.replaceAll(searchValue, value)
+        const postponed = postponedString.slice(match.length + length)
+        if (postponed === 'null') {
+          return {
+            type: DynamicState.DATA,
+            stagedFallbackParams,
+            renderResumeDataCache,
+          }
         }
 
         return {
           type: DynamicState.HTML,
+          stagedFallbackParams,
           data: JSON.parse(postponed),
           renderResumeDataCache,
         }
@@ -288,6 +301,7 @@ export function parsePostponedState(
 
       return {
         type: DynamicState.HTML,
+        stagedFallbackParams: null,
         data: JSON.parse(postponedString),
         renderResumeDataCache,
       }
@@ -370,9 +384,8 @@ export function getPostponedFromState(state: DynamicHTMLPostponedState) {
  * dynamic hole (a blocking dynamic API at the root with no Suspense boundary
  * above it). Returns false for dynamic-data states or unparseable input.
  *
- * Unlike `parsePostponedState`, this does not interpolate fallback route params
- * or build a resume data cache: it only reads the prelude marker, which is
- * independent of param values. The Instant Navigation Testing API uses this to
+ * Unlike `parsePostponedState`, this does not build a resume data cache: it only
+ * reads the prelude marker. The Instant Navigation Testing API uses this to
  * detect the blank-document case in both dev (fresh render) and production
  * (prebuilt shell), where the marker is persisted in the postponed state.
  */
@@ -394,16 +407,16 @@ export function isEmptyHTMLPrelude(state: string): boolean {
       return false
     }
 
-    // An optional `<n><replacements>` prefix carries fallback route param
-    // replacements; skip it to reach the `[preludeState, postponed]` data.
+    // An optional `<n><fallbackParams>` prefix records the unknown params;
+    // skip it to reach the `[preludeState, postponed]` data.
     if (/^[0-9]/.test(postponedString)) {
-      const replacementsLengthMatch = postponedString.match(/^([0-9]*)/)?.[1]
-      if (!replacementsLengthMatch) {
+      const fallbackParamsLengthMatch = postponedString.match(/^([0-9]*)/)?.[1]
+      if (!fallbackParamsLengthMatch) {
         return false
       }
-      const replacementsLength = parseInt(replacementsLengthMatch)
+      const fallbackParamsLength = parseInt(fallbackParamsLengthMatch)
       postponedString = postponedString.slice(
-        replacementsLengthMatch.length + replacementsLength
+        fallbackParamsLengthMatch.length + fallbackParamsLength
       )
     }
 

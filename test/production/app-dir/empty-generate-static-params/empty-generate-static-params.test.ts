@@ -2,12 +2,10 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('empty-generate-static-params', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
-
-  if (skipped) return
 
   // If we're not using cache components, there shouldn't be any build errors!
   if (process.env.__NEXT_CACHE_COMPONENTS !== 'true') {

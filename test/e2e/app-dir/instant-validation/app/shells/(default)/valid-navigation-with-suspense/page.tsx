@@ -1,5 +1,5 @@
 import { Instant } from 'next'
-import { unstable_navigation as navigation } from 'next/cache'
+import { navigation } from 'next/cache'
 import { Suspense } from 'react'
 
 export const instant: Instant = {

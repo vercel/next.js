@@ -4,7 +4,8 @@
 const nextConfig = {
   cacheComponents: true,
   cacheHandlers: {
-    default: require.resolve('./handler.js'),
+    default: require.resolve('./handler-loader.mjs'),
+    'route-aware': require.resolve('./route-aware-handler.js'),
   },
 }
 

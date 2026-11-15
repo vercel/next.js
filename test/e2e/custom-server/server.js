@@ -1,14 +1,5 @@
 // @ts-check
 
-if (process.env.POLYFILL_FETCH) {
-  // @ts-expect-error
-  global.fetch = require('node-fetch').default
-  // @ts-expect-error
-  global.Request = require('node-fetch').Request
-  // @ts-expect-error
-  global.Headers = require('node-fetch').Headers
-}
-
 const { readFileSync } = require('fs')
 
 /** @type {import('next').default} */

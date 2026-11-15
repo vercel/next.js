@@ -6,8 +6,7 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
-    turbofmt,
+    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, turbofmt,
 };
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack_core::{
@@ -26,13 +25,13 @@ use turbopack_core::{
 };
 
 use crate::{
+    ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
     },
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::AstPath,
 };
 
 /// The root-served file name for a service worker registered at `scope`. One worker is supported
@@ -220,9 +219,14 @@ impl ValueToString for ServiceWorkerAssetReference {
 }
 
 impl IntoCodeGenReference for ServiceWorkerAssetReference {
+    fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>> {
+        ResolvedVc::upcast(self.resolved_cell())
+    }
+
     fn into_code_gen_reference(
         self,
-        path: AstPath,
+        _trie: &AstPathTrieBuilder,
+        path: AstPathId,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let scope = self.scope.clone();
         let reference = self.resolved_cell();
@@ -236,17 +240,16 @@ impl IntoCodeGenReference for ServiceWorkerAssetReference {
     }
 }
 
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
 pub struct ServiceWorkerAssetReferenceCodeGen {
     scope: RcStr,
-    path: AstPath,
+    path: AstPathId,
 }
 
 impl ServiceWorkerAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         // Rewrite `register(...)`'s script argument to the served URL and pin the `{ scope }` the
@@ -270,7 +273,7 @@ impl ServiceWorkerAssetReferenceCodeGen {
             s => format!("{base_path}{s}"),
         };
 
-        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+        let visitor = create_visitor!(trie, self.path, visit_mut_expr, |expr: &mut Expr| {
             let message = if let Expr::Call(call_expr) = expr {
                 match call_expr.args.first() {
                     Some(ExprOrSpread { spread: None, .. }) => {

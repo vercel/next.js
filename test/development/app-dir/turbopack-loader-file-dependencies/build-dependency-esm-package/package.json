@@ -1,0 +1,10 @@
+{
+  "name": "build-dependency-esm-package",
+  "version": "1.0.0",
+  "exports": {
+    "./conditional.mjs": {
+      "import": "./import.mjs",
+      "require": "./require.cjs"
+    }
+  }
+}

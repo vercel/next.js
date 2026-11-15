@@ -77,6 +77,19 @@ describe('formatNodeOptions', () => {
       ],
     })
   })
+
+  it('emits one flag per element for array values', () => {
+    const result = formatNodeOptions({
+      require: ['/path/a.cjs', '/path/b.cjs'],
+      import: '/path/c.mjs',
+    })
+
+    expect(result).toEqual({
+      execArgv: [],
+      nodeOptions:
+        '--require=/path/a.cjs --require=/path/b.cjs --import=/path/c.mjs',
+    })
+  })
 })
 
 describe('getMemoryRestartStats', () => {
@@ -191,5 +204,38 @@ describe('getFormattedNodeOptionsWithoutInspect', () => {
     const result = getFormattedNodeOptionsWithoutInspect()
 
     expect(result).toBe('--other --inspect-port=0.0.0.0:1234 --additional')
+  })
+
+  it('preserves repeated --require options', () => {
+    process.env.NODE_OPTIONS =
+      '--require=/path/a.cjs --require=/path/b.cjs --other'
+    const result = getFormattedNodeOptionsWithoutInspect()
+
+    expect(result).toBe('--require=/path/a.cjs --require=/path/b.cjs --other')
+  })
+
+  it('preserves repeated --require options with space-separated values', () => {
+    process.env.NODE_OPTIONS = '--require /path/a.cjs --require /path/b.cjs'
+    const result = getFormattedNodeOptionsWithoutInspect()
+
+    expect(result).toBe('--require=/path/a.cjs --require=/path/b.cjs')
+  })
+
+  it('preserves repeated --import options', () => {
+    process.env.NODE_OPTIONS =
+      '--import=/path/a.mjs --import=/path/b.mjs --other'
+    const result = getFormattedNodeOptionsWithoutInspect()
+
+    expect(result).toBe('--import=/path/a.mjs --import=/path/b.mjs --other')
+  })
+
+  it('preserves repeated --require with quoted values', () => {
+    process.env.NODE_OPTIONS =
+      '--require "./a with spaces.js" --require "./b with spaces.js"'
+    const result = getFormattedNodeOptionsWithoutInspect()
+
+    expect(result).toBe(
+      '--require="./a with spaces.js" --require="./b with spaces.js"'
+    )
   })
 })

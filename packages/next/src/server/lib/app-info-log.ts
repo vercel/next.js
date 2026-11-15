@@ -4,10 +4,16 @@ import * as Log from '../../build/output/log'
 import { bold, purple, strikethrough } from '../../lib/picocolors'
 import type { ConfiguredExperimentalFeature } from '../config'
 import { experimentalSchema } from '../config-schema'
-import { getAgentName } from '../../telemetry/agent-name'
 import { bundlerName, getBundlerFromEnv } from '../../lib/bundler'
 import {
+  hasCurrentAgentUpgrade,
+  removeAgentUpgradeFiles,
+  writeAgentUpgradeFiles,
+  hasCurrentAgentFeedback,
   hasCurrentAgentRules,
+  removeAgentFeedbackFiles,
+  removeAgentRulesFiles,
+  writeAgentFeedbackFiles,
   writeAgentFiles,
   type AgentFilesResult,
 } from './generate-agent-files'
@@ -114,23 +120,49 @@ export function logExperimentalInfo({
 }
 
 /**
- * When `next dev` detects an AI coding agent but the managed
- * agent-rules block is missing from AGENTS.md / CLAUDE.md — or an
- * outdated version of it is installed — auto-generate or refresh the
- * files so the agent has access to version-matched docs. Returns the
- * write result when files were touched, or `null` when no action was
- * needed.
- *
- * Callers gate this on `config.agentRules !== false` — opt-out is
- * declarative in next.config, not inside this function.
+ * Keep the agent-rules block in sync with next.config.
+ * Disabling it removes only that managed block.
  */
-export async function ensureAgentRulesForDev(
-  dir: string
+export async function syncAgentRulesForDev(
+  dir: string,
+  enabled: boolean
 ): Promise<AgentFilesResult | null> {
-  if ((await getAgentName()) === null) return null
+  if (!enabled) return removeAgentRulesFiles(dir)
   if (hasCurrentAgentRules(dir)) return null
 
   return writeAgentFiles(dir)
+}
+
+/**
+ * Keep the opt-in agent-feedback block in sync with next.config.
+ * Disabling it removes only that managed block.
+ */
+export async function syncAgentFeedbackForDev(
+  dir: string,
+  enabled: boolean
+): Promise<AgentFilesResult | null> {
+  if (!enabled) return removeAgentFeedbackFiles(dir)
+  if (hasCurrentAgentFeedback(dir)) return null
+
+  return writeAgentFeedbackFiles(dir)
+}
+
+/**
+ * Sync upgrade delegation using the reminder policy independently of agentRules.
+ * Disabling reminders removes only this managed block.
+ */
+export async function syncAgentUpgradeForDev(
+  dir: string,
+  enabled: boolean
+): Promise<AgentFilesResult | null> {
+  if (!enabled) {
+    return removeAgentUpgradeFiles(dir)
+  }
+  if (hasCurrentAgentUpgrade(dir)) {
+    return null
+  }
+
+  return writeAgentUpgradeFiles(dir)
 }
 
 /**

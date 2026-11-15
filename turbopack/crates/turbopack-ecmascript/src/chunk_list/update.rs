@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::Serialize;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TraitRef, Vc, trace::TraceRawVcs};
+use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TraitRef, Vc};
 use turbopack_core::{
     update_instruction::UpdateInstruction,
     version::{
@@ -12,7 +12,7 @@ use turbopack_core::{
 
 use super::{merged_update::EcmascriptMergedUpdate, version::ChunkListVersion};
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, NonLocalValue)]
 #[serde(untagged)]
 pub enum EcmascriptUpdateInstruction {
     ChunkList(ChunkListUpdate),
@@ -20,7 +20,7 @@ pub enum EcmascriptUpdateInstruction {
 }
 
 /// Update of a chunk list from one version to another.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, NonLocalValue)]
 #[serde(tag = "type", rename = "ChunkListUpdate", rename_all = "camelCase")]
 pub struct ChunkListUpdate {
     /// A map from chunk path to a corresponding update of that chunk.
@@ -38,7 +38,7 @@ impl ChunkListUpdate {
 }
 
 /// Update of a chunk from one version to another.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, NonLocalValue)]
 #[serde(tag = "type")]
 #[serde(rename_all = "camelCase")]
 pub enum ChunkUpdate {

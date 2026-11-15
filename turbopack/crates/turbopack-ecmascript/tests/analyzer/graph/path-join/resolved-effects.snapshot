@@ -20,17 +20,17 @@
 0 -> 12 member call = path*0*["join"]("foo/", "/bar")
 - *0* path: The Node.js path module: https://nodejs.org/api/path.html
 
-0 -> 14 free var = FreeVar(global)
-
-0 -> 15 member call = path*0*["join"]("foo", "bar", "..", "baz", ???*1*, "..", "foo")
+0 -> 14 member call = path*0*["join"]("foo", "bar", "..", "baz", ???*1*, "..", "foo")
 - *0* path: The Node.js path module: https://nodejs.org/api/path.html
 - *1* FreeVar(global)
   ⚠️  unknown global
   ⚠️  This value might have side effects
+
+14 -> 15 free var = FreeVar(global)
 
 0 -> 16 free var = FreeVar(require)
 
 0 -> 17 call = require*0*("path")
 - *0* require: The require method from CommonJS
 
-0 -> 22 dynamic import = FreeVar(import)("path")
+0 -> 23 dynamic import = FreeVar(import)("path")

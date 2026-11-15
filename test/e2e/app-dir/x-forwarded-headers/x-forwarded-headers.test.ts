@@ -1,14 +1,14 @@
 import { nextTestSetup } from 'e2e-utils'
+import { fetchViaRawHttp } from 'next-test-utils'
 
+// Deploy mode exclusion: The assertions exercise behavior specific to the local Next.js server.
+// This test is skipped because it sends requests with manipulated host headers
+// which doesn't work in a deployed environment
+// @force-gate !deploy
 describe('x-forwarded-headers', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    // This test is skipped because it sends requests with manipulated host headers
-    // which doesn't work in a deployed environment
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('should include x-forwarded-* headers', async () => {
     const res = await next.fetch('/')
@@ -31,7 +31,9 @@ describe('x-forwarded-headers', () => {
       const reqHeaders = {
         host: `subdomain.localhost:${url.port}`,
       }
-      const res = await next.fetch('/', {
+      // Global fetch derives the Host header from the URL authority and
+      // cannot override it, so this uses a raw HTTP request.
+      const res = await fetchViaRawHttp(next.appPort, '/', {
         headers: reqHeaders,
       })
       const headers = await res.json()
@@ -55,7 +57,7 @@ describe('x-forwarded-headers', () => {
         port: '1234',
         proto: 'https',
       }
-      const res = await next.fetch('/', {
+      const res = await fetchViaRawHttp(next.appPort, '/', {
         headers: {
           host: 'override.localhost',
           'x-forwarded-host': reqHeaders.host,

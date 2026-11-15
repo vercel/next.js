@@ -1,14 +1,13 @@
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
+// Deploy mode exclusion: This suite manually changes the local `node_modules` tree.
+// This test is skipped when deployed because it relies on manually patched `node_modules`
+// @force-gate !deploy
 describe('app-dir - server components externals', () => {
-  const { next, isTurbopack, skipped } = nextTestSetup({
-    // This test is skipped when deployed because it relies on manually patched `node_modules`
-    skipDeployment: true,
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
-
-  if (skipped) return
 
   it('should have externals for those in config.serverExternalPackages', async () => {
     const $ = await next.render$('/')

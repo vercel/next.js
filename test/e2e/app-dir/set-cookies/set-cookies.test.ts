@@ -1,5 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import type { Response } from 'node-fetch'
 
 import cookies, { nextConfigHeaders } from './cookies.mjs'
 
@@ -10,16 +9,13 @@ function getSetCookieHeaders(res: Response): ReadonlyArray<string> {
   )
 }
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// TODO: re-enable once this behavior is corrected on deploy
+// @force-gate !deploy
 describe('set-cookies', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    // TODO: re-enable once this behavior is corrected on deploy
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   describe.each([
     { dir: 'pages', runtimes: ['edge', 'experimental-edge', 'node'] },

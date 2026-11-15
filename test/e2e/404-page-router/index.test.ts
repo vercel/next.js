@@ -1,6 +1,6 @@
 import path from 'path'
 import fs from 'fs-extra'
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup, isNextDev } from 'e2e-utils'
 import { check, retry } from 'next-test-utils'
 
 const pathnames = {
@@ -19,7 +19,7 @@ const table = [
   { basePath: true, i18n: true, middleware: false },
   { basePath: false, i18n: false, middleware: false },
 
-  ...((global as any).isNextDev
+  ...(isNextDev
     ? []
     : [
         // TODO: investigate this failure in development
@@ -34,6 +34,9 @@ module.exports = {
 }
 `
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It currently avoids creating five deployments rather than documenting an incompatibility.
+// @force-gate !deploy
 describe('404-page-router', () => {
   const { next } = nextTestSetup({
     files: {
@@ -47,14 +50,7 @@ describe('404-page-router', () => {
   describe.each(table)(
     '404-page-router with basePath of $basePath and i18n of $i18n and middleware $middleware',
     (options) => {
-      const isDev = (global as any).isNextDev
-
-      if ((global as any).isNextDeploy) {
-        // TODO: investigate condensing these tests to avoid
-        // 5 separate deploys for this one test
-        it('should skip for deploy', () => {})
-        return
-      }
+      const isDev = isNextDev
 
       beforeAll(async () => {
         // Only add in the middleware if we're testing with middleware enabled.

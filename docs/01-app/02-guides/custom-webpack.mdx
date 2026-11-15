@@ -1,0 +1,47 @@
+---
+title: How to use a custom webpack version in Next.js
+nav_title: Custom Webpack
+description: Use your application's webpack installation with Next.js instead of the bundled version.
+---
+
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
+By default, `--webpack` uses the webpack version bundled with Next.js. To use webpack installed in your application instead, install webpack in your application and pass `--custom-webpack` to `next dev` or `next build`. Run the development and production commands separately; `next dev` keeps running until stopped:
+
+```bash package="pnpm"
+pnpm add -D webpack@^5.98.0
+pnpm next dev --custom-webpack
+pnpm next build --custom-webpack
+```
+
+```bash package="npm"
+npm install -D webpack@^5.98.0
+npx next dev --custom-webpack
+npx next build --custom-webpack
+```
+
+```bash package="yarn"
+yarn add -D webpack@^5.98.0
+yarn next dev --custom-webpack
+yarn next build --custom-webpack
+```
+
+```bash package="bun"
+bun add -D webpack@^5.98.0
+bunx next dev --custom-webpack
+bunx next build --custom-webpack
+```
+
+**Use a custom webpack version at your own risk.** Next.js does not validate the installed webpack version, and compatibility with other versions is not guaranteed. The examples use `^5.98.0`; this feature is tested with webpack 5.98.0 and 5.111.0.
+
+Run the install command from your application's directory. The custom version is available when Next.js evaluates `next.config.js`, so your webpack configuration and plugins can import it. If webpack is not installed in the application, `--custom-webpack` reports how to install it.
+
+**Using pnpm with restricted hoisting:** Next.js resolves webpack directly from your application, even when pnpm does not hoist it. However, custom webpack plugins or other workspace tooling may resolve webpack from their own package locations. If they cannot find it because you have restricted pnpm's [hoisting](https://pnpm.io/settings/node-modules#hoistpattern), add `webpack` to your existing `hoistPattern` in the workspace root's `pnpm-workspace.yaml`:
+
+```yaml filename="pnpm-workspace.yaml"
+hoistPattern:
+  - '*eslint*' # Example existing pattern; keep your own patterns.
+  - webpack
+```
+
+Keep any other patterns your project already uses. If you use pnpm's default `hoistPattern` (`['*']`), you do not need this setting. If you have disabled hoisting entirely with `hoist: false`, enable it before using `hoistPattern`. See [pnpm's node-modules settings](https://pnpm.io/settings/node-modules) for details.

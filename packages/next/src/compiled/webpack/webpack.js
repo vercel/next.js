@@ -8,29 +8,36 @@ if (process.env.NEXT_RSPACK) {
     StringXor: require('./bundle5')().StringXor,
   })
 } else if (process.env.NEXT_PRIVATE_LOCAL_WEBPACK) {
+  const path = require('path')
+  const projectDir = process.env.NEXT_PRIVATE_LOCAL_WEBPACK
+  // A bare require here resolves from Next.js's compiled package, which can find
+  // a different webpack than next.config.js (or none in an isolated install).
+  // Use the project's resolution base for all webpack imports instead.
+  const projectRequire = require('module').createRequire(
+    path.join(
+      path.isAbsolute(projectDir) ? projectDir : process.cwd(),
+      'package.json'
+    )
+  )
   Object.assign(exports, {
-    // eslint-disable-next-line import/no-extraneous-dependencies
-    BasicEvaluatedExpression: require('webpack/lib/javascript/BasicEvaluatedExpression'),
-    // eslint-disable-next-line import/no-extraneous-dependencies
-    ConcatenatedModule: require('webpack/lib/optimize/ConcatenatedModule'),
-    // eslint-disable-next-line import/no-extraneous-dependencies
-    makePathsAbsolute: require('webpack/lib/util/identifier').makePathsAbsolute,
-    // eslint-disable-next-line import/no-extraneous-dependencies
-    ModuleFilenameHelpers: require('webpack/lib/ModuleFilenameHelpers'),
-    // eslint-disable-next-line import/no-extraneous-dependencies
-    NodeTargetPlugin: require('webpack/lib/node/NodeTargetPlugin'),
-    // eslint-disable-next-line import/no-extraneous-dependencies
-    RuntimeGlobals: require('webpack/lib/RuntimeGlobals'),
-    // eslint-disable-next-line import/no-extraneous-dependencies
-    SourceMapDevToolModuleOptionsPlugin: require('webpack/lib/SourceMapDevToolModuleOptionsPlugin'),
-    // eslint-disable-next-line import/no-extraneous-dependencies
-    StringXor: require('webpack/lib/util/StringXor'),
-    // eslint-disable-next-line import/no-extraneous-dependencies
-    NormalModule: require('webpack/lib/NormalModule'),
-    // eslint-disable-next-line import/no-extraneous-dependencies
-    sources: require('webpack').sources,
-    // eslint-disable-next-line import/no-extraneous-dependencies
-    webpack: require('webpack'),
+    BasicEvaluatedExpression: projectRequire(
+      'webpack/lib/javascript/BasicEvaluatedExpression'
+    ),
+    ConcatenatedModule: projectRequire(
+      'webpack/lib/optimize/ConcatenatedModule'
+    ),
+    makePathsAbsolute: projectRequire('webpack/lib/util/identifier')
+      .makePathsAbsolute,
+    ModuleFilenameHelpers: projectRequire('webpack/lib/ModuleFilenameHelpers'),
+    NodeTargetPlugin: projectRequire('webpack/lib/node/NodeTargetPlugin'),
+    RuntimeGlobals: projectRequire('webpack/lib/RuntimeGlobals'),
+    SourceMapDevToolModuleOptionsPlugin: projectRequire(
+      'webpack/lib/SourceMapDevToolModuleOptionsPlugin'
+    ),
+    StringXor: projectRequire('webpack/lib/util/StringXor'),
+    NormalModule: projectRequire('webpack/lib/NormalModule'),
+    sources: projectRequire('webpack').sources,
+    webpack: projectRequire('webpack'),
   })
 } else {
   Object.assign(exports, require('./bundle5')())

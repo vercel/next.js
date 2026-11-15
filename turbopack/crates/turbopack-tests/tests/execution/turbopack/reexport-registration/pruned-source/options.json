@@ -1,0 +1,5 @@
+{
+  "followReexports": true,
+  "scopeHoisting": true,
+  "globalModuleIds": true
+}

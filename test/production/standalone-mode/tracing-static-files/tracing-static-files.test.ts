@@ -3,15 +3,11 @@ import { nextTestSetup } from 'e2e-utils'
 describe('standalone mode - tracing-static-files', () => {
   const dependencies = require('./package.json').dependencies
 
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     dependencies,
     skipStart: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should trace process.cwd calls in node_modules', async () => {
     let { exitCode } = await next.build()

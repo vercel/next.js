@@ -6,6 +6,7 @@ import {
   BUILD_MANIFEST,
   MIDDLEWARE_BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
+  CLIENT_STATIC_FILES_RUNTIME_EXTERNAL_BROWSER_RUNTIME_SYMBOL,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
@@ -181,6 +182,15 @@ export default class BuildManifestPlugin {
           )
         })
         .map((v) => v.name)
+
+      // `CopyFilePlugin` emits at most one of these, and only when
+      // `experimental.externalBrowserRuntime` is enabled.
+      assetMap.externalBrowserRuntimeFile = compilationAssets.find(
+        (p) =>
+          p.name.endsWith('.js') &&
+          p.info &&
+          CLIENT_STATIC_FILES_RUNTIME_EXTERNAL_BROWSER_RUNTIME_SYMBOL in p.info
+      )?.name
 
       assetMap.devFiles = getEntrypointFiles(
         entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH)

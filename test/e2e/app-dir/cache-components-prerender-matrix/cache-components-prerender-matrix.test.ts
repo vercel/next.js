@@ -9,8 +9,6 @@ import { retry } from 'next-test-utils'
 // not implement it yet — its blocking entries still key and bake
 // never-prerenderable params — so deploy runs are limited to adapter
 // deployments until that ships (see vercel/vercel#17179).
-const isAdapterTest = process.env.NEXT_ENABLE_ADAPTER === '1'
-
 type NextInstance = ReturnType<typeof nextTestSetup>['next']
 
 // A first-principles test matrix for cache components prerendering.
@@ -67,7 +65,7 @@ type NextInstance = ReturnType<typeof nextTestSetup>['next']
 // allowQuery, keying and baking them on deployed infra. The fully-static
 // and dynamic matrices pass before and after those fixes and guard them
 // against over-correction. Deploy runs are adapter-only for now (see the
-// `skipDeployment` note above the `isAdapterTest` declaration).
+// `@force-gate !deploy || adapter` on the suite below).
 
 const PARAMS = ['lang', 'category', 'id'] as const
 type ParamName = (typeof PARAMS)[number]
@@ -449,10 +447,12 @@ function createDocumentFetcher(next: NextInstance) {
   }
 }
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// No deploy-specific incompatibility is documented.
+// @force-gate !deploy || adapter
 describe('cache-components-prerender-matrix', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
-    skipDeployment: !isAdapterTest,
   })
 
   if (isNextDev) {

@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('Edge config validations', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     skipStart: true,
     files: {
       'pages/index.js': `
@@ -24,7 +24,9 @@ describe('Edge config validations', () => {
     const res = await next.build()
     expect(res.exitCode).toBe(1)
     expect(res.cliOutput).toContain(
-      'middleware contains invalid middleware config: Expected string, received boolean at "unstable_allowDynamic", or Expected array, received boolean at "unstable_allowDynamic"'
+      isTurbopack
+        ? "Next.js can't recognize the exported `config` field in route. `unstable_allowDynamic` needs to be a static string or array of static strings."
+        : 'middleware contains invalid middleware config: Expected string, received boolean at "unstable_allowDynamic", or Expected array, received boolean at "unstable_allowDynamic"'
     )
   })
 })

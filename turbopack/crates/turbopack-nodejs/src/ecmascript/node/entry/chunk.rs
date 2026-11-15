@@ -13,7 +13,7 @@ use turbopack_core::{
         OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsReferences,
         OutputAssetsWithReferenced,
     },
-    source_map::{GenerateSourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, SourceMapAsset, SourceMapGenerationOptions, SourceMapType},
     version::VersionedContent,
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs};
@@ -75,8 +75,8 @@ impl EcmascriptBuildNodeEntryChunk {
         let chunk_path = self.path().owned().await?;
         let chunk_directory = self.path().await?.parent();
         let runtime_path = self.runtime_chunk().path().owned().await?;
-        let runtime_relative_path =
-            if let Some(path) = chunk_directory.get_relative_path_to(&runtime_path) {
+        let runtime_request =
+            if let Some(path) = chunk_directory.get_relative_request_to(&runtime_path) {
                 path
             } else {
                 turbobail!(
@@ -90,14 +90,14 @@ impl EcmascriptBuildNodeEntryChunk {
             turbobail!("chunk path ({chunk_path}) is not in output root ({output_root})");
         };
 
-        let mut code = CodeBuilder::default();
+        let mut code = CodeBuilder::new(false, SourceMapGenerationOptions::NONE);
 
         writedoc!(
             code,
             r#"
                 var R=require({})({})
             "#,
-            StringifyJs(&*runtime_relative_path),
+            StringifyJs(&*runtime_request),
             StringifyJs(chunk_public_path),
         )?;
 
@@ -160,7 +160,7 @@ impl EcmascriptBuildNodeEntryChunk {
         // modules would strip a helper that another graph's chunks call, and which variant lands
         // on disk depends on emission order.
         let include_async_module_runtime = *self.chunking_context.shared_runtime_chunk().await?
-            || !self.module_graph.async_module_info().await?.is_empty();
+            || *self.module_graph.has_async_modules().await?;
         Ok(EcmascriptBuildNodeRuntimeChunk::new(
             *self.chunking_context,
             include_async_module_runtime,
@@ -172,6 +172,10 @@ impl EcmascriptBuildNodeEntryChunk {
         let this = self.await?;
         Ok(SourceMapAsset::new_fixed(
             this.path.clone(),
+            this.chunking_context
+                .emitted_source_map_type()
+                .await?
+                .unwrap_or_default(),
             Vc::upcast(self),
         ))
     }
@@ -246,7 +250,7 @@ impl EcmascriptBuildNodeEntryChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBuildNodeEntryChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
-        self.code().generate_source_map()
+    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent> {
+        self.code().generate_source_map(ty)
     }
 }

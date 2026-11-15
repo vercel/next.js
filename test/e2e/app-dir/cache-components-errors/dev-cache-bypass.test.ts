@@ -1,13 +1,9 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 
 describe('Cache Components Errors', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname + '/fixtures/dev-cache-bypass',
   })
-
-  if (skipped) {
-    return
-  }
 
   describe('Warning for Bypassing Caches in Dev', () => {
     async function enableDraftMode() {

@@ -30,13 +30,9 @@ async function callMcpTool(
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'mcp-server compile_route tool',
   () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: path.join(__dirname, 'fixtures', 'dynamic-routes-app'),
     })
-
-    if (skipped) {
-      return
-    }
 
     describe('routeSpecifier input', () => {
       it('should compile a valid app router root route', async () => {
@@ -201,13 +197,9 @@ async function callMcpTool(
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'mcp-server compile_route with compilation errors',
   () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: path.join(__dirname, 'fixtures', 'compilation-errors-app'),
     })
-
-    if (skipped) {
-      return
-    }
 
     it('should return compilation issues inline in the response', async () => {
       const result = (await callMcpTool(next.url, 'compile_route', {

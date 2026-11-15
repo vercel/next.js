@@ -1,0 +1,8 @@
+/.tarballs/
+/experiments/
+/results/
+/agent-results.json
+
+# Upgrade eval execution artifacts
+/next-upgrade/.work/
+/next-upgrade/results/

@@ -28,7 +28,7 @@ use turbopack_ecmascript::{CustomTransformer, TransformContext};
 )]
 pub struct SwcPluginModule {
     pub name: RcStr,
-    #[turbo_tasks(trace_ignore, debug_ignore)]
+    #[turbo_tasks(unsafe_ignore, debug_ignore)]
     pub plugin: swc_core::plugin_runner::plugin_module_bytes::CompiledPluginModuleBytes,
 }
 
@@ -134,7 +134,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
             .await?;
 
         let should_enable_comments_proxy =
-            !ctx.comments.leading.is_empty() && !ctx.comments.trailing.is_empty();
+            !ctx.comments.is_leading_empty() && !ctx.comments.is_trailing_empty();
 
         //[TODO]: as same as swc/core does, we should set should_enable_comments_proxy
         // depends on the src's comments availability. For now, check naively if leading

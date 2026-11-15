@@ -1,11 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from '../../../lib/next-test-utils'
 
+// No access to runtime logs when deployed.
+// @force-gate !deploy
 describe('actions-unused-args', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
-    // No access to runtime logs when deployed.
-    skipDeployment: true,
   })
 
   if (skipped) {

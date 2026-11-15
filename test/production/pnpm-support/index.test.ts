@@ -61,7 +61,9 @@ describe('pnpm support', () => {
     const { next } = nextTestSetup({
       files: {
         pages: new FileRef(path.join(__dirname, 'app-multi-page/pages')),
-        '.npmrc': new FileRef(path.join(__dirname, 'app-multi-page/.npmrc')),
+        'pnpm-workspace.yaml': new FileRef(
+          path.join(__dirname, 'app-multi-page/pnpm-workspace.yaml')
+        ),
         'next.config.js': new FileRef(
           path.join(__dirname, 'app-multi-page/next.config.js')
         ),

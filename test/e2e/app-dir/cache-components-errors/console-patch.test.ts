@@ -1,20 +1,25 @@
-import { isNextDev, nextTestSetup } from 'e2e-utils'
+import { isNextDeploy, isNextDev, nextTestSetup } from 'e2e-utils'
 import { getPrerenderOutput } from './utils'
 import { retry } from 'next-test-utils'
 
 describe('Cache Components Errors', () => {
-  const { next, isTurbopack, isNextStart, skipped } = nextTestSetup({
+  const { next, isTurbopack, isNextStart } = nextTestSetup({
     files: __dirname + '/fixtures/console-patch',
-    skipDeployment: true,
     skipStart: !isNextDev,
-    env: {
-      NODE_OPTIONS: '--require ./patch-console.js',
-    },
+    // In deploy mode, `env` also reaches the deploy tooling and the deployed
+    // functions, where `./patch-console.js` can't be resolved, so only the
+    // build gets the patched console there.
+    ...(isNextDeploy
+      ? {
+          buildCommand:
+            "NODE_OPTIONS='--require ./patch-console.js' next build",
+        }
+      : {
+          env: {
+            NODE_OPTIONS: '--require ./patch-console.js',
+          },
+        }),
   })
-
-  if (skipped) {
-    return
-  }
 
   let cliOutputLength: number
 
@@ -54,6 +59,17 @@ describe('Cache Components Errors', () => {
         })
       } else {
         it('does not fail the build for Sync IO if console.log is patched to call new Date() internally', async () => {
+          if (isNextDeploy) {
+            // The deployment only succeeds if the build does.
+            await next.start()
+
+            expect(next.cliOutput).toContain(
+              '[<timestamp>] This is a console log from a server component page'
+            )
+            expect(next.cliOutput).not.toContain('Build error occurred')
+            return
+          }
+
           try {
             await next.build()
           } catch {}
@@ -77,7 +93,7 @@ describe('Cache Components Errors', () => {
              [<timestamp>]"
             `)
           }
-        })
+        }, 240_000)
       }
     })
   })

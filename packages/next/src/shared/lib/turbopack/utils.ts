@@ -50,10 +50,10 @@ export function getIssueKey(issue: Issue): IssueKey {
   )}-${JSON.stringify(issue.description)}`
 }
 
-export function processIssues(
+export function processIssues<T>(
   currentEntryIssues: EntryIssuesMap,
   key: EntryKey,
-  result: TurbopackResult,
+  result: TurbopackResult<T>,
   throwIssue: boolean,
   logErrors: boolean
 ) {
@@ -130,7 +130,9 @@ export function formatIssue(issue: Issue) {
     documentationLink = 'https://nextjs.org/docs/messages/module-not-found'
   }
 
-  const formattedFilePath = formatFilePath(filePath)
+  // Prefer the issue source filepath when possible. This represents the source mapped
+  // error location
+  const formattedFilePath = formatFilePath(source?.source.filePath ?? filePath)
 
   let message = ''
 

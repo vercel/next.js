@@ -9,7 +9,6 @@ import { getAnonymousMeta } from './anonymous-meta'
 import * as ciEnvironment from '../server/ci-info'
 import { postNextTelemetryPayload } from './post-telemetry-payload'
 import { getRawProjectId } from './project-id'
-import { AbortController } from 'next/dist/compiled/@edge-runtime/ponyfill'
 import fs from 'fs'
 
 // This is the key that stores whether or not telemetry is enabled or disabled.
@@ -48,10 +47,20 @@ function getStorageDirectory(distDir: string): string | undefined {
   return undefined
 }
 
+function createConf(cwd?: string): Conf<any> | null {
+  try {
+    // Conf can throw permission errors during initialization.
+    return new Conf({ projectName: 'nextjs', cwd })
+  } catch {
+    return null
+  }
+}
+
 export class Telemetry {
   readonly sessionId: string
 
   private conf: Conf<any> | null
+  private preferencesConf: Conf<any> | null
   private distDir: string
   private loadProjectId: undefined | string | Promise<string>
   private NEXT_TELEMETRY_DISABLED: any
@@ -59,7 +68,13 @@ export class Telemetry {
 
   private queue: Set<Promise<RecordObject>>
 
-  constructor({ distDir }: { distDir: string }) {
+  constructor({
+    distDir,
+    skipNotify = false,
+  }: {
+    distDir: string
+    skipNotify?: boolean
+  }) {
     // Read in the constructor so that .env can be loaded before reading
     const { NEXT_TELEMETRY_DISABLED, NEXT_TELEMETRY_DEBUG } = process.env
     this.NEXT_TELEMETRY_DISABLED = NEXT_TELEMETRY_DISABLED
@@ -67,18 +82,24 @@ export class Telemetry {
     this.distDir = distDir
     const storageDirectory = getStorageDirectory(distDir)
 
-    try {
-      // `conf` incorrectly throws a permission error during initialization
-      // instead of waiting for first use. We need to handle it, otherwise the
-      // process may crash.
-      this.conf = new Conf({ projectName: 'nextjs', cwd: storageDirectory })
-    } catch (_) {
-      this.conf = null
-    }
+    this.conf = createConf(storageDirectory)
+    // The CLI, dev server, and build can use different cache directories.
+    // Read the preference from the CLI's working-directory cache while keeping
+    // ephemeral identifiers in their existing caches.
+    const preferencesDirectory =
+      storageDirectory === undefined
+        ? undefined
+        : path.join(process.cwd(), 'cache')
+    this.preferencesConf =
+      storageDirectory === preferencesDirectory
+        ? this.conf
+        : createConf(preferencesDirectory)
     this.sessionId = randomBytes(32).toString('hex')
     this.queue = new Set()
 
-    this.notify()
+    if (!skipNotify) {
+      this.notify()
+    }
   }
 
   private notify = () => {
@@ -133,24 +154,27 @@ export class Telemetry {
   }
 
   private get isDisabled(): boolean {
-    if (!!this.NEXT_TELEMETRY_DISABLED || !this.conf) {
+    if (!!this.NEXT_TELEMETRY_DISABLED || !this.conf || !this.preferencesConf) {
       return true
     }
-    return this.conf.get(TELEMETRY_KEY_ENABLED, true) === false
+    return (
+      this.preferencesConf.get(TELEMETRY_KEY_ENABLED, true) === false ||
+      (this.preferencesConf !== this.conf &&
+        this.conf.get(TELEMETRY_KEY_ENABLED, true) === false)
+    )
   }
 
   setEnabled = (_enabled: boolean) => {
     const enabled = !!_enabled
-    this.conf && this.conf.set(TELEMETRY_KEY_ENABLED, enabled)
-    return this.conf && this.conf.path
+    this.preferencesConf?.set(TELEMETRY_KEY_ENABLED, enabled)
+    if (this.conf !== this.preferencesConf) {
+      this.conf?.set(TELEMETRY_KEY_ENABLED, enabled)
+    }
+    return this.preferencesConf?.path ?? this.conf?.path ?? null
   }
 
   get isEnabled(): boolean {
-    return (
-      !this.NEXT_TELEMETRY_DISABLED &&
-      !!this.conf &&
-      this.conf.get(TELEMETRY_KEY_ENABLED, true) !== false
-    )
+    return !this.isDisabled
   }
 
   oneWayHash = (payload: BinaryLike): string => {
@@ -223,28 +247,45 @@ export class Telemetry {
   // writes current events to disk and spawns separate
   // detached process to submit the records without blocking
   // the main process from exiting
-  flushDetached = (mode: 'dev', dir: string) => {
-    const allEvents: TelemetryEvent[] = []
+  flushDetached = ({
+    mode,
+    dir,
+    events,
+  }: {
+    mode: 'dev'
+    dir: string
+    events: TelemetryEvent[] | null
+  }) => {
+    if (!this.isEnabled) {
+      return
+    }
 
-    this.queue.forEach((item: any) => {
-      try {
-        item._controller?.abort()
-        allEvents.push(...item._events)
-      } catch (_) {
-        // if we fail to abort ignore this event
-      }
-    })
+    // Nudges detach only their own events; shutdown flushes the full queue.
+    const allEvents: TelemetryEvent[] = events ?? []
+
+    if (events === null) {
+      this.queue.forEach((item: any) => {
+        try {
+          item._controller?.abort()
+          allEvents.push(...item._events)
+        } catch (_) {
+          // if we fail to abort ignore this event
+        }
+      })
+    }
 
     if (allEvents.length === 0) {
       // No events to flush
       return
     }
 
-    fs.mkdirSync(this.distDir, { recursive: true })
-    // Use unique filename per process to avoid race conditions between parent/child
-    const eventsFile = `_events_${process.pid}.json`
+    // Builds preserve cache while cleaning distDir, so detached batches survive cleanup.
+    const eventsDirectory = path.join(this.distDir, 'cache')
+    fs.mkdirSync(eventsDirectory, { recursive: true })
+    // Each flush owns its file so a later shutdown flush cannot replace a nudge batch.
+    const eventsFile = `_events_${process.pid}_${randomBytes(8).toString('hex')}.json`
     fs.writeFileSync(
-      path.join(this.distDir, eventsFile),
+      path.join(eventsDirectory, eventsFile),
       JSON.stringify(allEvents)
     )
 
@@ -261,7 +302,14 @@ export class Telemetry {
 
     spawn(
       process.execPath,
-      [require.resolve('./detached-flush'), mode, dir, eventsFile],
+      [
+        require.resolve('./detached-flush'),
+        mode,
+        dir,
+        eventsFile,
+        // Use the same directory as the batch file, without reloading user config.
+        this.distDir,
+      ],
       {
         detached: !this.NEXT_TELEMETRY_DEBUG,
         windowsHide: true,
@@ -330,7 +378,9 @@ export class Telemetry {
       },
       postController.signal
     )
+    // Bound delivery even when callers await record/flush; retries share this deadline.
+    const timeout = setTimeout(() => postController.abort(), 5000)
     res._controller = postController
-    return res
+    return res.finally(() => clearTimeout(timeout))
   }
 }

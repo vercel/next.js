@@ -21,18 +21,24 @@ const TEST_TEAMS = [
     teamId: TEST_TEAM_NAME,
     tokenEnvVar: 'VERCEL_TEST_TOKEN',
     token: TEST_TOKEN,
+    extraProjects: [],
   },
   {
     teamEnvVar: 'VERCEL_ADAPTER_TEST_TEAM',
     teamId: ADAPTER_TEST_TEAM_NAME,
     tokenEnvVar: 'VERCEL_ADAPTER_TEST_TOKEN',
     token: ADAPTER_TEST_TOKEN,
+    // The cache-components deploy job in build_and_test.yml deploys into its
+    // own project so its revalidations cannot interfere with the plain
+    // deploy job's suites.
+    extraProjects: ['vtest314-e2e-tests-cache-components'],
   },
   {
     teamEnvVar: 'VERCEL_TURBOPACK_TEST_TEAM',
     teamId: TURBOPACK_TEST_TEAM_NAME,
     tokenEnvVar: 'VERCEL_TURBOPACK_TEST_TOKEN',
     token: TURBOPACK_TEST_TOKEN,
+    extraProjects: [],
   },
 ]
 
@@ -42,22 +48,30 @@ async function main() {
   // Keep going after a failure so that one misconfigured or unreachable team
   // does not stop the others from being reset. `resetProject` rejects an absent
   // teamId or token itself, so this only has to say which variables to check.
-  for (const { teamEnvVar, teamId, tokenEnvVar, token } of TEST_TEAMS) {
-    try {
-      await resetProject({
-        projectName: TEST_PROJECT_NAME,
-        teamId,
-        token,
-        disableDeploymentProtection: true,
-      })
-    } catch (err) {
-      console.error(
-        new Error(
-          `Failed to reset the ${TEST_PROJECT_NAME} project for ${teamEnvVar}. Verify that ${teamEnvVar} and ${tokenEnvVar} are set correctly.`,
-          { cause: err }
+  for (const {
+    teamEnvVar,
+    teamId,
+    tokenEnvVar,
+    token,
+    extraProjects,
+  } of TEST_TEAMS) {
+    for (const projectName of [TEST_PROJECT_NAME, ...extraProjects]) {
+      try {
+        await resetProject({
+          projectName,
+          teamId,
+          token,
+          disableDeploymentProtection: true,
+        })
+      } catch (err) {
+        console.error(
+          new Error(
+            `Failed to reset the ${projectName} project for ${teamEnvVar}. Verify that ${teamEnvVar} and ${tokenEnvVar} are set correctly.`,
+            { cause: err }
+          )
         )
-      )
-      hadFailure = true
+        hadFailure = true
+      }
     }
   }
 

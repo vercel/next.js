@@ -19,6 +19,7 @@ env:
 jobs:
   create-pull-request:
     runs-on: ubuntu-latest
+    environment: bot-autonomous
     permissions:
       # The built-in token is only used to read the facebook/react compare API
       # for the changelog. Everything that writes to this repository
@@ -61,7 +62,7 @@ jobs:
 
       - name: Setup corepack
         run: |
-          npm i -g corepack@0.31
+          npm i -g corepack@0.34.7
           corepack enable
 
       - name: Install dependencies
@@ -71,8 +72,10 @@ jobs:
 
       - name: Create Pull Request
         shell: bash
-        run: pnpm sync-react --actor "${{ github.actor }}" --commit --create-pull --version "${{ inputs.version }}"
+        run: pnpm sync-react --actor "$ACTOR" --commit --create-pull --version "$INPUT_VERSION"
         env:
+          ACTOR: ${{ github.actor }}
+          INPUT_VERSION: ${{ inputs.version }}
           # Only used to authenticate the facebook/react compare API request
           # that builds the changelog, so it doesn't hit anonymous rate limits.
           # The commits, branch, and Pull Request all use the app token below.

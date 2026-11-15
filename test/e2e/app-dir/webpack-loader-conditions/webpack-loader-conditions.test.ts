@@ -4,12 +4,9 @@ import { nextTestSetup } from 'e2e-utils'
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'webpack-loader-conditions',
   () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
     })
-
-    if (skipped) return
 
     it('should render correctly on server site', async () => {
       const res = await next.fetch('/')

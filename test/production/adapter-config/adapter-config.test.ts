@@ -3,6 +3,7 @@ import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import type { AdapterOutput, NextAdapter } from 'next'
 import { version as nextVersion } from 'next/package.json'
+import { RouteKind } from 'next/dist/server/route-kind'
 
 describe('adapter-config', () => {
   const { next } = nextTestSetup({
@@ -19,6 +20,51 @@ describe('adapter-config', () => {
     expect(await res2.text()).toContain('hello world')
 
     expect(next.cliOutput).toContain('called modify config in adapter')
+  })
+
+  it('keeps revalidating metadata as a prerender backed by an app route', async () => {
+    const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
+      await next.readJSON('build-complete.json')
+    const pathname = '/docs/revalidating/sitemap.xml'
+
+    const prerender = outputs.prerenders.find(
+      (output) => output.pathname === pathname
+    )
+    expect(prerender).toBeDefined()
+    expect(prerender?.fallback?.initialRevalidate).toBe(5)
+
+    const appRoute = outputs.appRoutes.find(
+      (output) => output.pathname === pathname
+    )
+    expect(appRoute).toBeDefined()
+    expect(prerender?.parentOutputId).toBe(appRoute?.id)
+    expect(
+      outputs.staticFiles.find((output) => output.pathname === pathname)
+    ).toBeUndefined()
+  })
+
+  it('keeps tagged metadata as a prerender backed by an app route', async () => {
+    const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
+      await next.readJSON('build-complete.json')
+    const pathname = '/docs/tagged/sitemap.xml'
+
+    const prerender = outputs.prerenders.find(
+      (output) => output.pathname === pathname
+    )
+    expect(prerender).toBeDefined()
+    expect(prerender?.fallback?.initialRevalidate).toBe(false)
+    expect(
+      prerender?.fallback?.initialHeaders?.['x-next-cache-tags']
+    ).toContain('adapter-config:tagged-sitemap')
+
+    const appRoute = outputs.appRoutes.find(
+      (output) => output.pathname === pathname
+    )
+    expect(appRoute).toBeDefined()
+    expect(prerender?.parentOutputId).toBe(appRoute?.id)
+    expect(
+      outputs.staticFiles.find((output) => output.pathname === pathname)
+    ).toBeUndefined()
   })
 
   it('should call onBuildComplete with correct context', async () => {
@@ -461,6 +507,78 @@ describe('adapter-config', () => {
       shouldNormalizeNextData: expect.toBeBoolean(),
       rsc: expect.toBeObject(),
     })
+  })
+
+  it('uses scoped build files for response artifacts', async () => {
+    const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
+      await next.readJSON('build-complete.json')
+    for (const [pathname, router, extension, route, sidecar] of [
+      [
+        '/grouped',
+        'app',
+        '.html',
+        { kind: RouteKind.APP_PAGE, sourceRoute: '/(group)/grouped/page' },
+        '.rsc',
+      ],
+      [
+        '/isr-app/first',
+        'app',
+        '.html',
+        { kind: RouteKind.APP_PAGE, sourceRoute: '/isr-app/[slug]/page' },
+        '.rsc',
+      ],
+      [
+        '/isr-route/first',
+        'app',
+        '.body',
+        { kind: RouteKind.APP_ROUTE, sourceRoute: '/isr-route/[slug]/route' },
+        undefined,
+      ],
+      [
+        '/isr-pages/first',
+        'pages',
+        '.html',
+        { kind: RouteKind.PAGES, sourceRoute: '/isr-pages/[slug]' },
+        '.json',
+      ],
+      [
+        '/isr-pages-fallback-true/[slug]',
+        'pages',
+        '.html',
+        {
+          kind: RouteKind.PAGES,
+          sourceRoute: '/isr-pages-fallback-true/[slug]',
+        },
+        undefined,
+      ],
+    ] as const) {
+      const output = outputs.prerenders.find(
+        (item) => item.pathname === `/docs${pathname}`
+      )
+      const artifact = next.getPrerenderFilePath(pathname, extension, {
+        router,
+        route,
+      })
+      expect(output?.fallback?.filePath).toBe(path.join(next.testDir, artifact))
+      expect(await next.hasFile(artifact)).toBe(true)
+      expect(
+        await next.hasFile(`.next/server/${router}${pathname}${extension}`)
+      ).toBe(false)
+      expect(await next.hasFile(`.next/server/${router}${pathname}.meta`)).toBe(
+        false
+      )
+      expect(
+        await next.hasFile(artifact.replace(/\.(?:html|body)$/, '.meta'))
+      ).toBe(true)
+      if (sidecar) {
+        expect(
+          await next.hasFile(artifact.replace(/\.(?:html|body)$/, sidecar))
+        ).toBe(true)
+        expect(
+          await next.hasFile(`.next/server/${router}${pathname}${sidecar}`)
+        ).toBe(false)
+      }
+    }
   })
 
   it('should propagate preferredRegion to adapter output', async () => {

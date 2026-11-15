@@ -1,6 +1,6 @@
 // A blocking route (`instant = false`) with a dynamic param and no
 // `generateStaticParams`. The `'use cache'` read sits after `await params`, so
-// it can only run once the param resolves, in the runtime stage.
+// it can only run once the param resolves, in the PrefetchRuntime stage.
 export const instant = false
 
 async function getCachedValue() {

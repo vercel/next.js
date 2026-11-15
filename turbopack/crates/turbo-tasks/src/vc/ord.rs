@@ -9,11 +9,7 @@ use std::{
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    ResolvedVc, Vc,
-    trace::{TraceRawVcs, TraceRawVcsContext},
-    vc::into_future,
-};
+use crate::{ResolvedVc, Vc, vc::into_future};
 #[cfg(debug_assertions)]
 use crate::{
     UpcastStrict,
@@ -133,15 +129,6 @@ where
         f.debug_tuple("OrdResolvedVc")
             .field(&self.node.node.node)
             .finish()
-    }
-}
-
-impl<T> TraceRawVcs for OrdResolvedVc<T>
-where
-    T: ?Sized,
-{
-    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
-        TraceRawVcs::trace_raw_vcs(&self.node, trace_context);
     }
 }
 

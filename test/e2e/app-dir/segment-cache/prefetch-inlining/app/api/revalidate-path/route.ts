@@ -2,7 +2,8 @@ import { revalidatePath } from 'next/cache'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(req: NextRequest) {
-  const path = req.nextUrl.searchParams.get('path') || '/'
+  const path =
+    req.nextUrl.searchParams.get('path') || '/test-on-demand-revalidate'
 
   try {
     revalidatePath(path)

@@ -8,6 +8,7 @@ const crypto = require('node:crypto')
 
 const cacheDir = path.join(__dirname, '.file-system-cache')
 
+/** @param {string} cacheKey */
 function filePathForKey(cacheKey) {
   const hash = crypto.createHash('sha256').update(cacheKey).digest('hex')
   return path.join(cacheDir, `${hash}.json`)

@@ -1,5 +1,5 @@
 import { join } from 'path'
-import { findPort, retry } from 'next-test-utils'
+import { findPort, retry, fetchViaRawHttp } from 'next-test-utils'
 import https from 'https'
 import httpProxy from 'http-proxy'
 import fs from 'fs'
@@ -8,14 +8,13 @@ import { nextTestSetup } from 'e2e-utils'
 let proxyPort
 let proxyServer: https.Server
 
+// Deploy mode exclusion: This suite controls a local server or proxy process.
+// This test is skipped when deployed because it relies on a proxy server
+// @force-gate !deploy
 describe('next-image-proxy', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    // This test is skipped when deployed because it relies on a proxy server
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   beforeAll(async () => {
     proxyPort = await findPort()
@@ -98,11 +97,17 @@ describe('next-image-proxy', () => {
   it('should work with connection upgrade by removing it via filterReqHeaders()', async () => {
     const $ = await next.render$('/')
     const url1 = $('#app-page').attr('src')
+    // Global fetch refuses to send a `Connection: upgrade` header, so this
+    // uses a raw HTTP request.
     const opts = { headers: { connection: 'upgrade' } }
-    const res1 = await next.fetch(url1, opts)
+    const rawPath = (src: string) => {
+      const u = new URL(src, next.url)
+      return u.pathname + u.search
+    }
+    const res1 = await fetchViaRawHttp(next.appPort, rawPath(url1), opts)
     expect(res1.status).toBe(200)
     const url2 = $('#remote-app-page').attr('src')
-    const res2 = await next.fetch(url2, opts)
+    const res2 = await fetchViaRawHttp(next.appPort, rawPath(url2), opts)
     expect(res2.status).toBe(200)
   })
 

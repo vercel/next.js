@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup, isNextDev } from 'e2e-utils'
 import { check, fetchViaHTTP, renderViaHTTP, waitFor } from 'next-test-utils'
 
 function splitLines(text) {
@@ -31,12 +31,6 @@ async function testRoute(appPort, url, { isStatic, isEdge }) {
 describe('Switchable runtime', () => {
   let context
 
-  if ((global as any).isNextDeploy) {
-    // TODO-APP: re-enable after Prerenders are handled on deploy
-    it('should skip for deploy temporarily', () => {})
-    return
-  }
-
   const { next } = nextTestSetup({
     files: new FileRef(__dirname),
   })
@@ -50,7 +44,7 @@ describe('Switchable runtime', () => {
     }
   })
 
-  if ((global as any).isNextDev) {
+  if (isNextDev) {
     describe('Switchable runtime (dev)', () => {
       it('should not include edge api routes and edge ssr routes into dev middleware manifest', async () => {
         const res = await fetchViaHTTP(

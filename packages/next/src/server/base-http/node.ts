@@ -125,10 +125,9 @@ export class NodeNextResponse extends BaseNextResponse<Writable> {
     const values = this._res.getHeader(name)
 
     if (values === undefined) return undefined
+    if (Array.isArray(values)) return values.map(String)
 
-    return (Array.isArray(values) ? values : [values]).map((value) =>
-      value.toString()
-    )
+    return [String(values)]
   }
 
   hasHeader(name: string): boolean {
@@ -136,8 +135,11 @@ export class NodeNextResponse extends BaseNextResponse<Writable> {
   }
 
   getHeader(name: string): string | undefined {
-    const values = this.getHeaderValues(name)
-    return Array.isArray(values) ? values.join(',') : undefined
+    const value = this._res.getHeader(name)
+
+    if (value === undefined || typeof value === 'string') return value
+
+    return Array.isArray(value) ? value.join(',') : String(value)
   }
 
   getHeaders(): OutgoingHttpHeaders {
@@ -145,10 +147,22 @@ export class NodeNextResponse extends BaseNextResponse<Writable> {
   }
 
   appendHeader(name: string, value: string): this {
-    const currentValues = this.getHeaderValues(name) ?? []
+    const current = this._res.getHeader(name)
 
-    if (!currentValues.includes(value)) {
-      this._res.setHeader(name, [...currentValues, value])
+    if (
+      current === undefined ||
+      (Array.isArray(current) && current.length === 0)
+    ) {
+      // Keep a single value as a plain string. Consumers such as the
+      // compression middleware expect string header values and skip
+      // headers stored as single-element arrays.
+      this._res.setHeader(name, value)
+    } else if (Array.isArray(current)) {
+      if (!current.includes(value)) {
+        this._res.setHeader(name, [...current, value])
+      }
+    } else if (String(current) !== value) {
+      this._res.setHeader(name, [String(current), value])
     }
 
     return this

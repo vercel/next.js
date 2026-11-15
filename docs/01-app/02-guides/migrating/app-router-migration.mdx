@@ -506,11 +506,12 @@ export default function ExampleClientComponent() {
 In addition, the new `useRouter` hook has the following changes:
 
 - `isFallback` has been removed because `fallback` has [been replaced](#replacing-fallback).
-- The `locale`, `locales`, `defaultLocales`, `domainLocales` values have been removed because built-in i18n Next.js features are no longer necessary in the `app` directory. [Learn more about i18n](/docs/app/guides/internationalization).
+- The `locale`, `locales`, `defaultLocale`, `domainLocales` values have been removed because built-in i18n Next.js features are no longer necessary in the `app` directory. [Learn more about i18n](/docs/app/guides/internationalization).
 - `basePath` has been removed. The alternative will not be part of `useRouter`. It has not yet been implemented.
 - `asPath` has been removed because the concept of `as` has been removed from the new router.
 - `isReady` has been removed because it is no longer necessary. During [prerendering](/docs/app/glossary#prerendering), any component that uses the [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) hook will skip the prerendering step and instead be rendered on the client at runtime.
 - `route` has been removed. `usePathname` or `useSelectedLayoutSegments()` provide an alternative.
+- `router.push()` and `router.replace()` no longer return a Promise. They queue the route change as a React Transition and return right away. To show a pending state, call them inside the `startTransition` returned by [`useTransition`](https://react.dev/reference/react/useTransition) and read `isPending`. See [Filter with pending feedback](/docs/app/guides/interactive-apps#step-3-filter-with-pending-feedback) for an example.
 
 [View the `useRouter()` API reference](/docs/app/api-reference/functions/use-router).
 

@@ -1,10 +1,9 @@
-import type { FlightRouterState } from '../../../shared/lib/app-router-types'
 import { PrefetchHint } from '../../../shared/lib/app-router-types'
-import type { RouteTree, RSCSegmentData } from '../segment-cache/cache'
+import type { RouteTree } from '../segment-cache/cache'
 
-export function isNavigatingToNewRootLayout(
-  currentTree: FlightRouterState,
-  nextTree: RouteTree<RSCSegmentData | null>
+export function isNavigatingToNewRootLayout<TCurrent, TNext>(
+  currentTree: RouteTree<TCurrent>,
+  nextTree: RouteTree<TNext>
 ): boolean {
   // Decides whether navigating from currentTree to nextTree crosses into a
   // different root layout, which requires a full-page (MPA-style) navigation.
@@ -16,7 +15,7 @@ export function isNavigatingToNewRootLayout(
   // dynamic param *values*) for the same depth. So we walk the prefix in
   // lockstep and report a change as soon as the prefixes diverge.
   const currentInPrefix =
-    ((currentTree[4] ?? 0) & PrefetchHint.IsRootLayoutOrAbove) !== 0
+    (currentTree.prefetchHints & PrefetchHint.IsRootLayoutOrAbove) !== 0
   const nextInPrefix =
     (nextTree.prefetchHints & PrefetchHint.IsRootLayoutOrAbove) !== 0
 
@@ -38,7 +37,7 @@ export function isNavigatingToNewRootLayout(
   // (e.g. /[name] for slug1 vs slug2) still resolve to the same /[name]/layout.
   // E.g. /same/(group1)/layout.js -> /same/(group2)/layout.js: (group1) changed
   // to (group2) inside the prefix, so the root layout changed.
-  const currentTreeSegment = currentTree[0]
+  const currentTreeSegment = currentTree.segment
   const nextTreeSegment = nextTree.segment
   if (Array.isArray(currentTreeSegment) && Array.isArray(nextTreeSegment)) {
     if (
@@ -54,10 +53,10 @@ export function isNavigatingToNewRootLayout(
   // Keep walking the prefix. (Above the root layout there is only a `children`
   // slot, but we traverse all slots defensively.)
   const slots = nextTree.slots
-  const currentTreeChildren = currentTree[1]
+  const currentTreeChildren = currentTree.slots
   if (slots !== null) {
     for (const [slot, nextTreeChild] of slots) {
-      const currentTreeChild = currentTreeChildren[slot]
+      const currentTreeChild = currentTreeChildren?.get(slot)
       if (
         currentTreeChild === undefined ||
         isNavigatingToNewRootLayout(currentTreeChild, nextTreeChild)

@@ -1,0 +1,1 @@
+Audit the JavaScript this app ships to the browser across all routes. I want to know what is worth looking at before anyone starts changing code, so leave the app as it is. Save your report to `bundle-report.md`.

@@ -1,13 +1,15 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
 import path from 'path'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely mutates files in the isolated local fixture after setup.
+// @force-gate !deploy
 describe('multi-zone', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: path.join(__dirname, 'app'),
-    skipDeployment: true,
     buildCommand: 'pnpm build',
-    startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+    startCommand: isNextDev ? 'pnpm dev' : 'pnpm start',
     serverReadyPattern: /Next mode: (production|development)/,
     packageJson: {
       scripts: {
@@ -19,10 +21,6 @@ describe('multi-zone', () => {
     },
     dependencies: require('./app/package.json').dependencies,
   })
-
-  if (skipped) {
-    return
-  }
 
   it.each([
     { pathname: '/', content: ['hello from host app'] },

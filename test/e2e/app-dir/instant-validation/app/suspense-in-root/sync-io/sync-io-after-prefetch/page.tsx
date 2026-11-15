@@ -1,4 +1,4 @@
-import { unstable_prefetch } from 'next/cache'
+import { prefetch } from 'next/cache'
 import { Suspense } from 'react'
 
 export const instant = { level: 'experimental-error' }
@@ -23,6 +23,6 @@ export default async function Page() {
 }
 
 async function SyncIOAfterPrefetch() {
-  await unstable_prefetch()
+  await prefetch()
   return Date.now()
 }

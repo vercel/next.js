@@ -59,6 +59,9 @@ function runTests(next: NextInstance, basePath: string) {
     // confirming we don't over-fetch an unchanged worker.
     const conditional = await next.fetch(swUrl, {
       headers: { 'If-None-Match': etag },
+      // undici injects Cache-Control: no-cache into requests with
+      // conditional headers, which would defeat the etag freshness check.
+      cache: 'force-cache',
     })
     expect(conditional.status).toBe(304)
   })

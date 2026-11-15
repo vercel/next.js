@@ -361,7 +361,7 @@ export default function nextTransformSsg({
           }
 
           do {
-            ;(path.scope as any).crawl()
+            path.scope.crawl()
             count = 0
 
             path.traverse({

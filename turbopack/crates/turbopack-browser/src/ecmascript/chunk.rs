@@ -8,7 +8,7 @@ use turbopack_core::{
     ident::AssetIdent,
     introspect::{Introspectable, IntrospectableChildren},
     output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
-    source_map::{GenerateSourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, SourceMapAsset, SourceMapType},
     version::VersionedContent,
 };
 use turbopack_ecmascript::chunk::EcmascriptChunk;
@@ -46,6 +46,7 @@ impl EcmascriptBrowserChunk {
             Vc::upcast(*this.chunking_context),
             this.ident_for_path().await?,
             Vc::upcast(self),
+            rcstr!(".js"),
         ))
     }
 }
@@ -124,7 +125,8 @@ impl OutputAssetsReference for EcmascriptBrowserChunk {
         let include_source_map = *this
             .chunking_context
             .reference_chunk_source_maps(Vc::upcast(self))
-            .await?;
+            .await?
+            && *self.own_content().has_source_map().await?;
         let ref_assets = chunk_references.assets.await?;
         let mut assets =
             Vec::with_capacity(ref_assets.len() + if include_source_map { 1 } else { 0 });
@@ -189,13 +191,13 @@ impl Asset for EcmascriptBrowserChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBrowserChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
-        self.own_content().generate_source_map()
+    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent> {
+        self.own_content().generate_source_map(ty)
     }
 
     #[turbo_tasks::function]
-    fn by_section(self: Vc<Self>, section: RcStr) -> Vc<FileContent> {
-        self.own_content().by_section(section)
+    fn by_section(self: Vc<Self>, section: RcStr, ty: SourceMapType) -> Vc<FileContent> {
+        self.own_content().by_section(section, ty)
     }
 }
 

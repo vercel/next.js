@@ -1,6 +1,12 @@
 export function isStableBuild() {
+  const nextVersion = process.env.__NEXT_VERSION
   return (
-    !process.env.__NEXT_VERSION?.includes('canary') &&
+    !nextVersion?.includes('canary') &&
+    // Commit preview tarballs (e.g. `16.4.0-preview-84cee7e6-20260917`, see
+    // scripts/set-preview-version.js) are built from arbitrary canary commits,
+    // so they are not stable. Numbered preview releases published to npm
+    // (e.g. `16.3.0-preview.10`) are stable.
+    !nextVersion?.includes('-preview-') &&
     !process.env.__NEXT_TEST_MODE &&
     !process.env.NEXT_PRIVATE_LOCAL_DEV
   )

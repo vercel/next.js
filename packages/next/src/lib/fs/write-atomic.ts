@@ -1,7 +1,10 @@
 import { unlinkSync, writeFileSync } from 'fs'
 import { renameSync } from './rename'
 
-export function writeFileAtomic(filePath: string, content: string): void {
+export function writeFileAtomic(
+  filePath: string,
+  content: string | Buffer
+): void {
   const tempPath = filePath + '.tmp.' + Math.random().toString(36).slice(2)
   try {
     writeFileSync(tempPath, content, 'utf-8')

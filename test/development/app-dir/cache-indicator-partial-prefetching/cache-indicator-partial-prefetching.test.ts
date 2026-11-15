@@ -10,13 +10,9 @@ import { retry, waitFor } from 'next-test-utils'
 // the shell. (The static-shell behavior is covered in the `cache-indicator`
 // suite.)
 describe('cache-indicator-partial-prefetching', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('cache after session data triggers cold cache indicator', async () => {
     const browser = await next.browser('/')
@@ -55,7 +51,7 @@ describe('cache-indicator-partial-prefetching', () => {
       const browser = await next.browser('/')
 
       // Cold navigation: the cache read sits after `await params`, so it resolves
-      // in the runtime stage, part of the runtime shell for this navigation, so a
+      // in the PrefetchRuntime stage, part of the runtime shell for this navigation, so a
       // cold cache there shows the badge.
       await browser.elementByCss('a[href="/params/prefetch-auto"]').click()
       await browser.elementById('params')
@@ -73,7 +69,7 @@ describe('cache-indicator-partial-prefetching', () => {
         const browser = await next.browser('/')
 
         // Cold navigation: the cache read sits after `await params`, so it resolves
-        // in the runtime stage as part of the speculative prefetch shell for this navigation.
+        // in the PrefetchRuntime stage as part of the speculative prefetch shell for this navigation.
         // a cold cache there shows the badge.
         await browser.elementByCss('a[href="/params/prefetch-true"]').click()
         await browser.elementById('params')

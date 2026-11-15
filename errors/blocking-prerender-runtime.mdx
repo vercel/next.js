@@ -1,6 +1,6 @@
 ---
 title: Next.js encountered runtime data during prerendering or a navigation
-kind: insight
+kind: error
 ---
 
 <div
@@ -14,7 +14,7 @@ kind: insight
     lineHeight: '1.6',
   }}
 >
-  This Insight is part of the [Instant
+  This error is part of the [Instant
   Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
   introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
   instant navigations](/docs/app/guides/instant-navigation) guide for an
@@ -24,9 +24,11 @@ kind: insight
 
 During [prerendering](/docs/app/glossary#prerendering), [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers), [`params`](/docs/app/api-reference/file-conventions/page#params-optional), or [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) was read outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, Next.js can't prerender any part of the tree that depends on a per-request value, so navigations to this route block instead of being [instant](/docs/app/guides/instant-navigation).
 
+A [`use cache`](/docs/app/api-reference/directives/use-cache) scope is also treated as runtime data when its [`expire`](/docs/app/api-reference/functions/cacheLife#expire) is under five minutes, [`stale`](/docs/app/api-reference/functions/cacheLife#stale) is under 30 seconds, or [`revalidate`](/docs/app/api-reference/functions/cacheLife#revalidate) is `0`.
+
 Uncached data accesses ([`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Window/fetch), database calls, [`await connection()`](/docs/app/api-reference/functions/connection)) have different fixes. See [Next.js encountered uncached data during prerendering](/docs/messages/blocking-prerender-dynamic).
 
-This error can also appear during a client-side navigation when the data access sits inside a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary from a parent layout but that boundary is too high. It wraps the entire segment instead of only the dynamic part, so the navigation still blocks. Push the boundary closer to the data access so the rest of the segment stays in the [static shell](/docs/app/glossary#static-shell). See [Choosing where to place the boundary](#choosing-where-to-place-the-boundary).
+An ancestor [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary can allow the initial route to prerender. During a later client navigation, however, runtime data without a closer boundary in the destination route delays the route update. Add a boundary near the data access so the navigation can show a fallback while the request-specific content renders. See [Choosing where to place the boundary](#choosing-where-to-place-the-boundary).
 
 ## Ways to fix this
 
@@ -54,7 +56,7 @@ This error can also appear during a client-side navigation when the data access 
 
 ## Wrap in or move into Suspense
 
-Choose this fix when the value really is per-request, but the page has parts that don't depend on it. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary lets the static shell ship instantly while the dynamic region [streams](/docs/app/glossary#streaming) in once the request value resolves.
+Choose this fix when the value is per-request, but the page has parts that don't depend on it. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary lets the static shell ship instantly while the dynamic region [streams](/docs/app/glossary#streaming) in once the request value resolves.
 
 ### Patterns
 
@@ -245,6 +247,12 @@ Navigations to this route are not instant. The user waits for the full server re
 - Setting [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` opts only the segment that exports it out. Descendant segments are still validated by the global default.
 - This export does not disable [prerendering](/docs/app/glossary#prerendering). The route still prerenders if it can. It only disables instant-navigation validation for the route.
 
+## Other options
+
+### Extend the cache lifetime
+
+If a short cache triggered this error, set `expire` to at least five minutes, `stale` to at least 30 seconds, and `revalidate` above `0`. Increase the lifetime only when serving shared, older content is acceptable. If the short lifetime is intentional, keep it and place the cached work inside `<Suspense>`.
+
 ## Verifying the fix
 
 After applying a fix, reload the route and confirm the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
@@ -260,20 +268,6 @@ Instant-navigation validation runs by default in [Cache Components](/docs/app/ap
 
 See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
 
-## Related Insights
+## Related validation errors
 
-- [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)
-- [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook)
-- [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
-- [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)
-- [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
-- [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
-- [`Math.random()` while prerendering](/docs/messages/blocking-prerender-random)
-- [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client)
-- [`Date.now()` while prerendering](/docs/messages/blocking-prerender-current-time)
-- [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
-- [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
-- [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
-- [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
-- [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
-- [Unrendered segment](/docs/messages/instant-unrendered-segment)
+See [Instant Navigation validation errors](/docs/messages/instant-navigation-validation) for the complete reference.

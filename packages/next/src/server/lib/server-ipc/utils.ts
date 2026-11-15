@@ -49,6 +49,7 @@ const INTERNAL_HEADERS = [
   'x-now-route-matches',
   'x-matched-path',
   'x-nextjs-data',
+  'x-next-internal-go-token',
   'x-next-resume-state-length',
   'next-resume',
 ]

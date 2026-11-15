@@ -42,8 +42,7 @@ describe('Middleware Redirect', () => {
 
     it('should have relative path for same host redirect', async () => {
       const res = await next.fetch('/to?pathname=/another', {
-        // workaround for https://github.com/node-fetch/node-fetch/issues/417
-        redirect: 'manual-dont-change' as any,
+        redirect: 'manual',
       })
       expect(res.status).toBe(302)
       expect(res.headers.get('Location')).toBe('/another')

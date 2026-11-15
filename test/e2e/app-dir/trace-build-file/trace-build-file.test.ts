@@ -1,13 +1,14 @@
 import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 import { join } from 'path'
-import { existsSync } from 'fs'
+import { existsSync, rmSync } from 'fs'
 import { parseTraceFile } from '../../../lib/parse-trace-file'
 
+// The trace assertions require access to local build output.
+// @force-gate !deploy
 describe('trace-build-file', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: !isNextDev,
-    skipDeployment: true,
     env: {
       // Enable persistent caching even when the git working directory is
       // dirty (e.g. when developing Next.js itself). Without this, the
@@ -55,6 +56,13 @@ describe('trace-build-file', () => {
     })
 
     it('should only contain allowlisted events', async () => {
+      // Remove the persistent cache so this build re-executes (and re-emits
+      // the trace spans of) all turbo-tasks operations instead of serving
+      // them from the cache.
+      rmSync(join(next.testDir, '.next', 'cache', 'turbopack'), {
+        recursive: true,
+        force: true,
+      })
       await next.build()
 
       const traceBuildPath = join(next.testDir, '.next/trace-build')
@@ -78,6 +86,9 @@ describe('trace-build-file', () => {
       }
 
       if (process.env.IS_TURBOPACK_TEST) {
+        // Compaction only runs when it is due, so it may or may not appear.
+        foundEvents.delete('turbopack-compaction')
+
         expect([...foundEvents].sort()).toMatchInlineSnapshot(`
                 [
                   "next-build",
@@ -86,8 +97,10 @@ describe('trace-build-file', () => {
                   "static-check",
                   "static-generation",
                   "telemetry-flush",
-                  "turbopack-build-events",
+                  "turbopack-emit",
+                  "turbopack-module-graph",
                   "turbopack-persistence",
+                  "turbopack-write-entrypoints",
                 ]
               `)
       } else {

@@ -41,7 +41,7 @@ impl NextDynamicEntryModule {
         Vc::upcast(SingleChunkableModuleReference::new(
             Vc::upcast(*self.module),
             rcstr!("next/dynamic reference"),
-            ExportUsage::all(),
+            ExportUsage::passthrough(true),
         ))
     }
 }

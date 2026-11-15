@@ -14,6 +14,14 @@ export default function Home() {
           </Link>
         </li>
         <li>
+          <Link
+            href="/partially-static-without-runtime-prefetch"
+            prefetch={false}
+          >
+            Go to partially static page without a runtime prefetch
+          </Link>
+        </li>
+        <li>
           <Link href="/fully-static" prefetch={false}>
             Go to fully static page
           </Link>
@@ -26,6 +34,16 @@ export default function Home() {
         <li>
           <Link href="/with-fallback-params/foo" prefetch={false}>
             Go to page with fallback params
+          </Link>
+        </li>
+        <li>
+          <Link href="/partial-fallback-params/foo" prefetch={false}>
+            Go to Partial Prefetching page with fallback params
+          </Link>
+        </li>
+        <li>
+          <Link href="/complete-prerender-shell/foo" prefetch={false}>
+            Go to complete prerender with a shell
           </Link>
         </li>
         <li>

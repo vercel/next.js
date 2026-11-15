@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { detectContentType as dct } from 'next/dist/server/image-optimizer'
+import { detectContentType as dct } from 'next/dist/server/image-optimizer/detect-content-type'
 import { readFile } from 'fs-extra'
 import { join } from 'path'
 
@@ -103,6 +103,16 @@ describe('detectContentType', () => {
   it('should return svg for slow svg', async () => {
     const buffer = await getImage('./images/slow.svg.txt')
     expect(await detectContentType(buffer)).toBe('image/svg+xml')
+  })
+  it('should return svg for svg prefixed with an ftyp-looking comment', async () => {
+    // The comment places "ftypavif"/"ftypheic" at byte offset 4 where the
+    // ISOBMFF signature looks for it. The prefixed box size is not plausible
+    // so the buffer must not be detected as AVIF/HEIC.
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"></svg>`
+    for (const brand of ['avif', 'heic']) {
+      const buffer = Buffer.from(`<!--ftyp${brand}-->\n${svg}`)
+      expect(await detectContentType(buffer)).toBe('image/svg+xml')
+    }
   })
   it('should return avif', async () => {
     const buffer = await getImage('./images/test.avif')

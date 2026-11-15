@@ -8,18 +8,24 @@ use turbo_tasks_fs::FileSystemPath;
 
 use crate::{AssetsForSourceMapping, evaluate::EvaluatePool};
 
+// Without a backend there is no implementation to consume these options.
+#[cfg_attr(
+    not(any(feature = "process_pool", feature = "worker_pool")),
+    allow(dead_code)
+)]
 pub struct CreatePoolOptions {
-    pub cwd: PathBuf,
-    pub entrypoint: PathBuf,
-    pub env: FxHashMap<RcStr, RcStr>,
-    pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-    pub assets_root: FileSystemPath,
-    pub project_dir: FileSystemPath,
-    pub concurrency: usize,
-    pub debug: bool,
+    pub(crate) cwd: PathBuf,
+    pub(crate) entrypoint: PathBuf,
+    pub(crate) env: FxHashMap<RcStr, RcStr>,
+    pub(crate) assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
+    pub(crate) assets_root: FileSystemPath,
+    pub(crate) project_dir: FileSystemPath,
+    pub(crate) concurrency: usize,
+    pub(crate) debug: bool,
 }
 
-pub type CreatePoolFuture = Pin<Box<dyn Future<Output = Result<EvaluatePool>> + Send + 'static>>;
+pub(crate) type CreatePoolFuture =
+    Pin<Box<dyn Future<Output = Result<EvaluatePool>> + Send + 'static>>;
 
 mod sealed {
     #[turbo_tasks::value_trait]

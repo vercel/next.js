@@ -1,5 +1,8 @@
 /* eslint-env jest */
-import { extractEtag, getImageEtag } from 'next/dist/server/image-optimizer'
+import {
+  extractEtag,
+  getImageEtag,
+} from 'next/dist/server/image-optimizer/extract-etag'
 import { readFile } from 'fs-extra'
 import { join } from 'path'
 

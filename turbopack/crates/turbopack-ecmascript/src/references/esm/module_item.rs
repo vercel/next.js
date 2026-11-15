@@ -10,50 +10,53 @@ use swc_core::{
     },
     quote,
 };
-use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat};
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
+    ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
     magic_identifier::MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM,
-    references::AstPath,
 };
 
 /// Makes code changes to remove export/import declarations and places the
 /// expr/decl in a normal statement. Unnamed expr/decl will be named with the
 /// magic identifier "export default"
-#[derive(
-    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
-)]
+#[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode)]
 pub struct EsmModuleItem {
-    pub path: AstPath,
-    pub supports_block_scoping: bool,
+    pub path: AstPathId,
 }
 
 impl EsmModuleItem {
-    pub fn new(path: AstPath, supports_block_scoping: bool) -> Self {
-        EsmModuleItem {
-            path,
-            supports_block_scoping,
-        }
+    pub fn new(path: AstPathId) -> Self {
+        EsmModuleItem { path }
     }
 
     pub async fn code_generation(
         &self,
-        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        trie: &AstPathTrie,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();
-        let supports_block_scoping = self.supports_block_scoping;
+        // Whether we may codegen `const` or should fall back to `var` (at the cost of slightly
+        // less correct circular import errors). Only read here, so that module analysis doesn't
+        // depend on the target environment.
+        let supports_block_scoping = *chunking_context
+            .environment()
+            .runtime_versions()
+            .supports_block_scoping()
+            .await?;
 
         visitors.push(create_visitor!(
+            trie,
             self.path,
             visit_mut_module_item,
             |module_item: &mut ModuleItem| {
                 let item = replace(module_item, ModuleItem::Stmt(quote!(";" as Stmt)));
                 if let ModuleItem::ModuleDecl(module_decl) = item {
                     match module_decl {
-                        ModuleDecl::ExportDefaultExpr(ExportDefaultExpr { box expr, .. }) => {
+                        ModuleDecl::ExportDefaultExpr(ExportDefaultExpr { expr, .. }) => {
                             let decl = Decl::Var(Box::new(VarDecl {
                                 span: DUMMY_SP,
                                 ctxt: Default::default(),
@@ -74,7 +77,7 @@ impl EsmModuleItem {
                                         Default::default(),
                                     )
                                     .into(),
-                                    init: Some(Box::new(expr)),
+                                    init: Some(expr),
                                     definite: false,
                                 }],
                             }));

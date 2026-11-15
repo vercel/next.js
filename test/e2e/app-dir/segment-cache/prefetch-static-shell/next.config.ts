@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   // Opt every route into Partial Prefetching globally: segments without a
   // per-segment `prefetch` export default to 'partial'.
   partialPrefetching: true,
+  productionBrowserSourceMaps: true,
 }
 
 export default nextConfig

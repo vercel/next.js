@@ -11,8 +11,8 @@ use crate::ident::AssetIdent;
 pub struct AnalyzeIssue {
     pub severity: IssueSeverity,
     pub source_ident: ResolvedVc<AssetIdent>,
-    pub title: ResolvedVc<RcStr>,
-    pub message: ResolvedVc<StyledString>,
+    pub title: RcStr,
+    pub message: RcStr,
     pub code: Option<RcStr>,
     pub source: Option<IssueSource>,
 }
@@ -23,8 +23,8 @@ impl AnalyzeIssue {
     pub fn new(
         severity: IssueSeverity,
         source_ident: ResolvedVc<AssetIdent>,
-        title: ResolvedVc<RcStr>,
-        message: ResolvedVc<StyledString>,
+        title: RcStr,
+        message: RcStr,
         code: Option<RcStr>,
         source: Option<IssueSource>,
     ) -> Vc<Self> {
@@ -48,15 +48,14 @@ impl Issue for AnalyzeIssue {
     }
 
     async fn title(&self) -> Result<StyledString> {
-        let title = &*self.title.await?;
         Ok(if let Some(code) = self.code.as_ref() {
             StyledString::Line(vec![
                 StyledString::Strong(code.clone()),
                 StyledString::Text(rcstr!(" ")),
-                StyledString::Text(title.clone()),
+                StyledString::Text(self.title.clone()),
             ])
         } else {
-            StyledString::Text(title.clone())
+            StyledString::Text(self.title.clone())
         })
     }
 
@@ -69,7 +68,7 @@ impl Issue for AnalyzeIssue {
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
-        Ok(Some((*self.message.await?).clone()))
+        Ok(Some(StyledString::Text(self.message.clone())))
     }
 
     fn source(&self) -> Option<IssueSource> {

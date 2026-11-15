@@ -1,5 +1,4 @@
 {
-  "extends": "../../tsconfig-tsec.json",
   "compilerOptions": {
     "strict": true,
     "stripInternal": true,

@@ -1,0 +1,45 @@
+---
+title: Cannot call `cacheTag()` outside `use cache`
+---
+
+## Why This Error Occurred
+
+The `cacheTag()` function attaches one or more tags to a cache entry so you can later revalidate it with `revalidateTag()`. Call it from a function or component that uses the `use cache` or `use cache: private` directive. When you call `cacheTag()` outside a cached function, there is no cache entry to tag.
+
+```jsx filename="app/page.js" highlight={4}
+import { cacheTag } from 'next/cache'
+
+export default async function Page() {
+  cacheTag('products') // No cache entry to tag
+  return <p>...</p>
+}
+```
+
+## Possible Ways to Fix It
+
+Move `cacheTag()` inside the cached function whose entry you want to tag.
+
+```jsx filename="app/page.js" highlight={5}
+import { cacheTag } from 'next/cache'
+
+async function getProducts() {
+  'use cache'
+  cacheTag('products') // Tags this cache entry
+  return db.products.findMany()
+}
+
+export default async function Page() {
+  const products = await getProducts()
+  return <p>...</p>
+}
+```
+
+If you don't intend to cache the function or component, remove the `cacheTag()` call. To revalidate the tag later, call [`revalidateTag()`](/docs/app/api-reference/functions/revalidateTag) from a Server Action or Route Handler.
+
+## Useful Links
+
+- [`cacheTag()` function](/docs/app/api-reference/functions/cacheTag)
+- [`cacheLife()` function](/docs/app/api-reference/functions/cacheLife)
+- [`use cache` directive](/docs/app/api-reference/directives/use-cache)
+- [`use cache: private` directive](/docs/app/api-reference/directives/use-cache-private)
+- [`revalidateTag()` function](/docs/app/api-reference/functions/revalidateTag)

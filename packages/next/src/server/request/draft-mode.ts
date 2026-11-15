@@ -18,6 +18,10 @@ import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-b
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { DynamicServerError } from '../../client/components/hooks-server-context'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import {
+  createDraftModeMutationInUseCacheError,
+  createDraftModeMutationInUnstableCacheError,
+} from '../use-cache/use-cache-messages'
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
   applyOwnerStack,
@@ -78,9 +82,9 @@ export function draftMode(): Promise<DraftMode> {
         `${exportName} must not be used within a Client Component. Next.js should be preventing ${exportName} from being included in Client Components statically, but did not in this case.`
       )
     }
-    case 'generate-static-params':
+    case 'build-time-generator':
       throw new Error(
-        `Route ${workStore.route} used \`${callingExpression}()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
+        `Route ${workStore.route} used \`${callingExpression}()\` inside \`${workUnitStore.functionName}\`. This is not supported because \`${workUnitStore.functionName}\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
       )
 
     default:
@@ -210,8 +214,9 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
       switch (workUnitStore.type) {
         case 'cache':
         case 'private-cache': {
-          const error = new Error(
-            `Route ${workStore.route} used "${expression}" inside "use cache". The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+          const error = createDraftModeMutationInUseCacheError(
+            workStore.route,
+            expression
           )
           Error.captureStackTrace(error, constructorOpt)
           applyOwnerStack(error)
@@ -219,8 +224,9 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
           throw error
         }
         case 'unstable-cache':
-          throw new Error(
-            `Route ${workStore.route} used "${expression}" inside a function cached with \`unstable_cache()\`. The enabled status of \`draftMode()\` can be read in caches but you must not enable or disable \`draftMode()\` inside a cache. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+          throw createDraftModeMutationInUnstableCacheError(
+            workStore.route,
+            expression
           )
 
         case 'prerender':
@@ -254,9 +260,9 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
         case 'request':
           trackDynamicDataInDynamicRender(workUnitStore)
           break
-        case 'generate-static-params':
+        case 'build-time-generator':
           throw new Error(
-            `Route ${workStore.route} used \`${expression}\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
+            `Route ${workStore.route} used \`${expression}\` inside \`${workUnitStore.functionName}\`. This is not supported because \`${workUnitStore.functionName}\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
           )
         default:
           workUnitStore satisfies never

@@ -64,42 +64,44 @@ export function DevOverlay() {
           instantErrorCount,
         }) => {
           return (
-            <>
-              {state.showIndicator ? (
-                <>
-                  <RenderErrorContext
-                    value={{
-                      runtimeErrors,
-                      totalErrorCount,
-                      normalErrorCount,
-                      instantErrorCount,
-                    }}
-                  >
-                    <PanelRouterContext
-                      value={{
-                        panel,
-                        setPanel,
-                        triggerRef,
-                        selectedIndex,
-                        setSelectedIndex,
-                      }}
-                    >
-                      <ErrorOverlay
-                        state={state}
-                        dispatch={dispatch}
-                        getSquashedHydrationErrorDetails={
-                          getSquashedHydrationErrorDetails
-                        }
-                        runtimeErrors={runtimeErrors}
-                        errorCount={totalErrorCount}
-                      />
-                      <PanelRouter />
-                      <DevToolsIndicator />
-                    </PanelRouterContext>
-                  </RenderErrorContext>
-                </>
-              ) : null}
-            </>
+            <RenderErrorContext
+              value={{
+                runtimeErrors,
+                totalErrorCount:
+                  totalErrorCount + (state.hasVulnerabilityInsight ? 1 : 0),
+                normalErrorCount,
+                instantErrorCount:
+                  instantErrorCount + (state.hasVulnerabilityInsight ? 1 : 0),
+              }}
+            >
+              <PanelRouterContext
+                value={{
+                  panel,
+                  setPanel,
+                  triggerRef,
+                  selectedIndex,
+                  setSelectedIndex,
+                }}
+              >
+                {/* Errors must show even before the server's HMR `sync` message
+                    tells us whether the indicator is disabled. */}
+                <ErrorOverlay
+                  state={state}
+                  dispatch={dispatch}
+                  getSquashedHydrationErrorDetails={
+                    getSquashedHydrationErrorDetails
+                  }
+                  runtimeErrors={runtimeErrors}
+                  errorCount={totalErrorCount}
+                />
+                {state.showIndicator ? (
+                  <>
+                    <PanelRouter />
+                    <DevToolsIndicator />
+                  </>
+                ) : null}
+              </PanelRouterContext>
+            </RenderErrorContext>
           )
         }}
       </RenderError>

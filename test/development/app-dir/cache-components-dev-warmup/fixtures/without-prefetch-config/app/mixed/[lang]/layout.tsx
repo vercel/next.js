@@ -1,8 +1,8 @@
 import { ReactNode, Suspense } from 'react'
 
-// `lang` is covered by `generateStaticParams`. At this segment `params` only
-// contains `lang`, so reading it here (rather than in the deeper page) lets us
-// observe the stage `lang` resolves in independently of the uncovered `id`.
+// The layout logs the resolution stage of `lang` independently of `id`. Its
+// `params` object contains only `lang`, so the staging check does not consider
+// `id`.
 export function generateStaticParams() {
   return [{ lang: 'en' }]
 }

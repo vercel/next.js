@@ -1,0 +1,77 @@
+:root {
+  --black: #000000;
+  --line: #454545;
+  --line-soft: #2a2a2a;
+  --gray: #a0a0a0;
+  --gray-dim: #6f6f6f;
+  --white: #ffffff;
+  --surface: #0a0a0a;
+  --red: #da2f36;
+  --amber: #ffb223;
+  --green: #63c173;
+  --border: 1px solid var(--line);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono:
+    var(--font-geist-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--black);
+  color: var(--white);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+main {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 48px 24px;
+}
+
+header {
+  margin-bottom: 28px;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  color: var(--gray-dim);
+}
+
+h1 {
+  margin: 0 0 8px;
+  font-size: 36px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: var(--gray);
+}
+
+::selection {
+  background: rgba(255, 255, 255, 0.25);
+}

@@ -39,6 +39,9 @@ describe('SSG Prerender Revalidate', () => {
 
     const res2 = await next.fetch('/static', {
       headers: { 'If-None-Match': etag },
+      // undici injects Cache-Control: no-cache into requests with
+      // conditional headers, which would defeat the etag freshness check.
+      cache: 'force-cache',
     })
     const cacheControl304 = res2.headers.get('Cache-Control')
     expect(cacheControl304).toEqual(cacheControl200)

@@ -8,7 +8,7 @@ use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    debug::ValueDebugFormat, trace::TraceRawVcs,
+    debug::ValueDebugFormat,
 };
 
 use crate::{
@@ -32,6 +32,8 @@ mod dev;
 mod production;
 mod style_production;
 
+pub use production::DEFAULT_ESTIMATED_REQUEST_COST_BYTES;
+
 #[turbo_tasks::value]
 struct ChunkItemsWithInfo {
     #[allow(clippy::type_complexity)]
@@ -49,7 +51,7 @@ struct BatchChunkItemsWithInfo(
     FxHashMap<ChunkItemOrBatchWithAsyncModuleInfo, ResolvedVc<ChunkItemsWithInfo>>,
 );
 
-#[derive(Clone, PartialEq, Eq, TraceRawVcs, NonLocalValue, ValueDebugFormat, Encode, Decode)]
+#[derive(Clone, PartialEq, Eq, NonLocalValue, ValueDebugFormat, Encode, Decode)]
 enum ChunkItemOrBatchWithInfo {
     ChunkItem {
         chunk_item: ChunkItemWithAsyncModuleInfo,

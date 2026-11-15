@@ -1,0 +1,1 @@
+globalThis.callableNamespaceAfter = true

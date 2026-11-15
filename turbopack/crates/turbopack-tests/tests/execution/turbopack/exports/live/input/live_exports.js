@@ -25,3 +25,8 @@ export default function defaultFunction() {
 export function setDefaultFunction(f) {
   defaultFunction = f
 }
+
+// Test-only. `index.js` inspects this module's namespace descriptors directly. The keys may
+// still be mangled when every read is statically known; `__webpack_exports_info__` reports the
+// emitted key for each original name.
+export const exportsInfo = __webpack_exports_info__

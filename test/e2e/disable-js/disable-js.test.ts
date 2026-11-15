@@ -2,11 +2,9 @@ import { nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
 
 describe('disabled runtime JS', () => {
-  const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
+  const { next, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   it('should render the page', async () => {
     const html = await next.render('/')

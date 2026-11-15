@@ -11,7 +11,7 @@ describe('ReactRefreshRegression', () => {
     skipStart: true,
     dependencies: {
       'styled-components': '6.1.16',
-      '@next/mdx': 'canary',
+      '@next/mdx': 'workspace:*',
       '@mdx-js/loader': '2.2.1',
       '@mdx-js/react': '2.2.1',
     },

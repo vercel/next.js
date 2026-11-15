@@ -37,7 +37,7 @@ export function instrumentParamsForClientValidation<TPArams extends Params>(
       case 'request':
       case 'private-cache':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never
@@ -76,7 +76,7 @@ export function expectCompleteParamsInClientValidation(
       case 'request':
       case 'private-cache':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never
@@ -112,7 +112,7 @@ export function instrumentSearchParamsForClientValidation(
       case 'request':
       case 'private-cache':
       case 'unstable-cache':
-      case 'generate-static-params':
+      case 'build-time-generator':
         break
       default:
         workUnitStore satisfies never

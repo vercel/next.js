@@ -40,8 +40,7 @@ async function assertSymbolicatedSSRError(
 // contains characters that need percent-encoding in URLs.
 describe('special project paths', () => {
   describe('in "space dir"', () => {
-    const { skipped, next } = setup('space dir')
-    if (skipped) return
+    const { next } = setup('space dir')
 
     it('symbolicates thrown SSR errors', async () => {
       await assertSymbolicatedSSRError(next)
@@ -49,8 +48,7 @@ describe('special project paths', () => {
   })
 
   describe('in "ünïcode-dir"', () => {
-    const { skipped, next } = setup('ünïcode-dir')
-    if (skipped) return
+    const { next } = setup('ünïcode-dir')
 
     it('symbolicates thrown SSR errors', async () => {
       await assertSymbolicatedSSRError(next)
@@ -58,8 +56,7 @@ describe('special project paths', () => {
   })
 
   describe('in "bracket [dir]"', () => {
-    const { skipped, next } = setup('bracket [dir]')
-    if (skipped) return
+    const { next } = setup('bracket [dir]')
 
     it('symbolicates thrown SSR errors', async () => {
       await assertSymbolicatedSSRError(next)
@@ -71,8 +68,7 @@ describe('special project paths', () => {
   // passing, `it.failing` will fail and remind us to promote them.
 
   describe('in "percent%20dir"', () => {
-    const { skipped, next } = setup('percent%20dir')
-    if (skipped) return
+    const { next } = setup('percent%20dir')
 
     it.failing('symbolicates thrown SSR errors', async () => {
       await assertSymbolicatedSSRError(next)
@@ -80,8 +76,7 @@ describe('special project paths', () => {
   })
 
   describe('in "hash#dir"', () => {
-    const { skipped, next } = setup('hash#dir')
-    if (skipped) return
+    const { next } = setup('hash#dir')
 
     it.failing('symbolicates thrown SSR errors', async () => {
       await assertSymbolicatedSSRError(next)

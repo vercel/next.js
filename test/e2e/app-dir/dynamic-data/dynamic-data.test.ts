@@ -3,14 +3,9 @@ import { nextTestSetup } from 'e2e-utils'
 process.env.__TEST_SENTINEL = 'at buildtime'
 
 describe('dynamic-data', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname + '/fixtures/main',
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should render the dynamic apis dynamically when used in a top-level scope', async () => {
     const $ = await next.render$(
@@ -307,7 +302,8 @@ describe('dynamic-data inside cache scope', () => {
       try {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Route /cookies used \`cookies()\` inside a function cached with \`unstable_cache()\`. Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
+           "description": "Route "/cookies": \`cookies()\` can't be read inside \`unstable_cache()\`. Read it outside the cached function and pass what you need as an argument.
+         Learn more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
            "environmentLabel": "Server",
            "label": "Runtime Error",
            "source": "app/cookies/page.js (4:40) @ ${isTurbopack ? '<anonymous>' : 'eval'}
@@ -327,7 +323,8 @@ describe('dynamic-data inside cache scope', () => {
       try {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Route /connection used \`connection()\` inside a function cached with \`unstable_cache()\`. The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual Request, but caches must be able to be produced before a Request so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
+           "description": "Route "/connection": \`connection()\` can't be called inside \`unstable_cache()\` because cached functions may run during prerendering, without an incoming request. Call it outside the cached function.
+         Learn more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
            "environmentLabel": "Server",
            "label": "Runtime Error",
            "source": "app/connection/page.js (4:54) @ ${isTurbopack ? '<anonymous>' : 'eval'}
@@ -347,7 +344,8 @@ describe('dynamic-data inside cache scope', () => {
       try {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Route /headers used \`headers()\` inside a function cached with \`unstable_cache()\`. Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
+           "description": "Route "/headers": \`headers()\` can't be read inside \`unstable_cache()\`. Read it outside the cached function and pass what you need as an argument.
+         Learn more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache",
            "environmentLabel": "Server",
            "label": "Runtime Error",
            "source": "app/headers/page.js (4:40) @ ${isTurbopack ? '<anonymous>' : 'eval'}
@@ -371,13 +369,13 @@ describe('dynamic-data inside cache scope', () => {
         // We expect this to fail
       }
       expect(next.cliOutput).toMatch(
-        'Error: Route /cookies used `cookies()` inside a function cached with `unstable_cache()`.'
+        'Error: Route "/cookies": `cookies()` can\'t be read inside `unstable_cache()`. Read it outside the cached function and pass what you need as an argument.'
       )
       expect(next.cliOutput).toMatch(
-        'Error: Route /connection used `connection()` inside a function cached with `unstable_cache()`.'
+        'Error: Route "/connection": `connection()` can\'t be called inside `unstable_cache()` because cached functions may run during prerendering, without an incoming request. Call it outside the cached function.'
       )
       expect(next.cliOutput).toMatch(
-        'Error: Route /headers used `headers()` inside a function cached with `unstable_cache()`.'
+        'Error: Route "/headers": `headers()` can\'t be read inside `unstable_cache()`. Read it outside the cached function and pass what you need as an argument.'
       )
     })
   }

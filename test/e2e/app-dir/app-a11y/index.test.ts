@@ -2,15 +2,10 @@ import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 describe('app a11y features', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     packageJson: {},
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   describe('route announcer', () => {
     async function getAnnouncerContent(browser: Playwright) {

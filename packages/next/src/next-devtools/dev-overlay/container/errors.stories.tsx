@@ -52,6 +52,17 @@ export const Turbopack: Story = {
   },
 }
 
+export const Vulnerability: Story = {
+  args: {
+    ...Default.args,
+    rendered: true,
+    transitionDurationMs: 0,
+    runtimeErrors: [],
+    hasVulnerabilityInsight: true,
+    isTurbopack: true,
+  },
+}
+
 export const VeryLongErrorMessage: Story = {
   args: {
     ...Default.args,

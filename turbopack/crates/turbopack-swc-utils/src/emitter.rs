@@ -10,7 +10,7 @@ use swc_core::common::{
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
-    issue::{IssueExt, IssueSeverity, IssueSource, StyledString, analyze::AnalyzeIssue},
+    issue::{IssueExt, IssueSeverity, IssueSource, analyze::AnalyzeIssue},
     source::Source,
 };
 
@@ -34,8 +34,8 @@ impl IssueCollector {
                     issue.severity
                 },
                 issue.source.ident(),
-                Vc::cell(issue.title),
-                issue.message.cell(),
+                issue.title,
+                issue.message,
                 issue.code,
                 issue.issue_source,
             )
@@ -52,8 +52,8 @@ impl IssueCollector {
             AnalyzeIssue::new(
                 issue.severity,
                 issue.source.ident(),
-                Vc::cell(issue.title.clone()),
-                issue.message.clone().cell(),
+                issue.title.clone(),
+                issue.message.clone(),
                 issue.code.clone(),
                 issue.issue_source,
             )
@@ -68,7 +68,7 @@ struct PlainAnalyzeIssue {
     severity: IssueSeverity,
     source: ResolvedVc<Box<dyn Source>>,
     title: RcStr,
-    message: StyledString,
+    message: RcStr,
     code: Option<RcStr>,
     issue_source: Option<IssueSource>,
 }
@@ -162,7 +162,7 @@ impl Emitter for IssueEmitter {
             severity,
             source: self.source,
             title,
-            message: StyledString::Text(message.into()),
+            message: message.into(),
             code,
             issue_source: source,
         };

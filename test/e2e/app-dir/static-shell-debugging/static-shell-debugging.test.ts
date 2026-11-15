@@ -1,18 +1,20 @@
 import { nextTestSetup } from 'e2e-utils'
 
 // TODO(NAR-423): Migrate to Cache Components.
-describe.skip('static-shell-debugging', () => {
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// This test skips deployment because env vars that are doubled underscore prefixed
+// are not supported. This is also intended to be used in development.
+// @force-gate !deploy
+// @force-gate TODO
+describe('static-shell-debugging', () => {
   const cacheComponents = Boolean(process.env.__NEXT_CACHE_COMPONENTS)
   const context = {
     cacheComponents,
     debugging: cacheComponents,
   }
 
-  const { next, skipped, isNextDev } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    // This test skips deployment because env vars that are doubled underscore prefixed
-    // are not supported. This is also intended to be used in development.
-    skipDeployment: true,
     env: {
       __NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING: context.debugging
         ? '1'
@@ -22,8 +24,6 @@ describe.skip('static-shell-debugging', () => {
       cacheComponents: context.cacheComponents,
     },
   })
-
-  if (skipped) return
 
   if (context.debugging && context.cacheComponents) {
     it('should only render the static shell', async () => {

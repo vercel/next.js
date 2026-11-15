@@ -1,10 +1,7 @@
-import type { FlightRouterState } from '../../shared/lib/app-router-types'
+import type { RootRouteTree } from './segment-cache/cache'
+import type { CacheNode } from '../../shared/lib/app-router-types'
 import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
-import {
-  FetchStrategy,
-  type PrefetchTaskFetchStrategy,
-  PrefetchPriority,
-} from './segment-cache/types'
+import { AppStage, PrefetchPriority } from './segment-cache/types'
 import { createCacheKey } from './segment-cache/cache-key'
 import {
   type PrefetchTask,
@@ -23,7 +20,7 @@ type Element = LinkElement | HTMLFormElement
 // shape for both to prevent a polymorphic de-opt in the VM.
 type LinkOrFormInstanceShared = {
   router: AppRouterInstance
-  fetchStrategy: PrefetchTaskFetchStrategy
+  prefetchStage: AppStage
 
   isVisible: boolean
 
@@ -171,7 +168,7 @@ export function mountLinkInstance(
   element: LinkElement,
   href: string,
   router: AppRouterInstance,
-  fetchStrategy: PrefetchTaskFetchStrategy,
+  prefetchStage: AppStage,
   prefetchEnabled: boolean,
   setOptimisticLinkStatus: (status: { pending: boolean }) => void,
   ownerStack: string | null | undefined
@@ -181,7 +178,7 @@ export function mountLinkInstance(
     if (prefetchURL !== null) {
       const instance: PrefetchableLinkInstance = {
         router,
-        fetchStrategy,
+        prefetchStage,
         isVisible: false,
         prefetchTask: null,
         prefetchHref: prefetchURL.href,
@@ -198,7 +195,7 @@ export function mountLinkInstance(
   // track its optimistic state (i.e. useLinkStatus).
   const instance: NonPrefetchableLinkInstance = {
     router,
-    fetchStrategy,
+    prefetchStage,
     isVisible: false,
     prefetchTask: null,
     prefetchHref: null,
@@ -212,7 +209,7 @@ export function mountFormInstance(
   element: HTMLFormElement,
   href: string,
   router: AppRouterInstance,
-  fetchStrategy: PrefetchTaskFetchStrategy
+  prefetchStage: AppStage
 ): void {
   const prefetchURL = coercePrefetchableUrl(href)
   if (prefetchURL === null) {
@@ -224,7 +221,7 @@ export function mountFormInstance(
   }
   const instance: FormInstance = {
     router,
-    fetchStrategy,
+    prefetchStage,
     isVisible: false,
     prefetchTask: null,
     prefetchHref: prefetchURL.href,
@@ -304,7 +301,7 @@ export function onNavigationIntent(
       unstable_upgradeToDynamicPrefetch
     ) {
       // Switch to a full prefetch
-      instance.fetchStrategy = FetchStrategy.Full
+      instance.prefetchStage = AppStage.Navigation
     }
     rescheduleLinkPrefetch(instance, PrefetchPriority.Intent)
   }
@@ -338,15 +335,14 @@ function rescheduleLinkPrefetch(
 
     const appRouterState = getCurrentAppRouterState()
     if (appRouterState !== null) {
-      const treeAtTimeOfPrefetch = appRouterState.tree
       if (existingPrefetchTask === null) {
         // Initiate a prefetch task.
         const nextUrl = appRouterState.nextUrl
         const cacheKey = createCacheKey(instance.prefetchHref, nextUrl)
         instance.prefetchTask = scheduleSegmentPrefetchTask(
           cacheKey,
-          treeAtTimeOfPrefetch,
-          instance.fetchStrategy,
+          appRouterState.root,
+          instance.prefetchStage,
           priority,
           null,
           null // navigationLockPrefetch
@@ -356,8 +352,8 @@ function rescheduleLinkPrefetch(
         // effectively the same as canceling the old task and creating a new one.
         reschedulePrefetchTask(
           existingPrefetchTask,
-          treeAtTimeOfPrefetch,
-          instance.fetchStrategy,
+          appRouterState.root,
+          instance.prefetchStage,
           priority
         )
       }
@@ -367,18 +363,18 @@ function rescheduleLinkPrefetch(
 
 export function pingVisibleLinks(
   nextUrl: string | null,
-  tree: FlightRouterState
+  root: RootRouteTree<CacheNode>
 ) {
   // For each currently visible link, cancel the existing prefetch task (if it
   // exists) and schedule a new one. This is effectively the same as if all the
   // visible links left and then re-entered the viewport.
   //
-  // This is called when the Next-Url or the base tree changes, since those
+  // This is called when the Next-Url or the active cache tree changes, since those
   // may affect the result of a prefetch task. It's also called after a
   // cache invalidation.
   for (const instance of prefetchableAndVisible) {
     const task = instance.prefetchTask
-    if (task !== null && !isPrefetchTaskDirty(task, nextUrl, tree)) {
+    if (task !== null && !isPrefetchTaskDirty(task, nextUrl, root)) {
       // The cache has not been invalidated, and none of the inputs have
       // changed. Bail out.
       continue
@@ -391,8 +387,8 @@ export function pingVisibleLinks(
     const cacheKey = createCacheKey(instance.prefetchHref, nextUrl)
     instance.prefetchTask = scheduleSegmentPrefetchTask(
       cacheKey,
-      tree,
-      instance.fetchStrategy,
+      root,
+      instance.prefetchStage,
       PrefetchPriority.Default,
       null,
       null // navigationLockPrefetch

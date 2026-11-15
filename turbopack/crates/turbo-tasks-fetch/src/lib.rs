@@ -5,6 +5,10 @@
 mod client;
 mod error;
 mod response;
+// A non-functional stand-in for `reqwest` on wasm; see the module docs for why reqwest cannot be
+// used there.
+#[cfg(target_family = "wasm")]
+mod wasm_reqwest;
 
 pub use crate::{
     client::{

@@ -1,4 +1,5 @@
 import type { ExportRouteResult } from '../types'
+import type { RouteCacheMetadata } from './types'
 import type AppRouteRouteModule from '../../server/route-modules/app-route/module'
 import type { AppRouteRouteHandlerContext } from '../../server/route-modules/app-route/module'
 import type { IncrementalCache } from '../../server/lib/incremental-cache'
@@ -46,10 +47,14 @@ export async function exportAppRoute(
   cacheComponents: boolean,
   staticPageGenerationTimeout: number,
   experimental: Required<
-    Pick<ExperimentalConfig, 'authInterrupts' | 'useCacheTimeout'>
+    Pick<
+      ExperimentalConfig,
+      'authInterrupts' | 'useCacheTimeout' | 'durableUseCacheEntries'
+    >
   >,
   buildId: string,
-  deploymentId: string
+  deploymentId: string,
+  routeCache?: RouteCacheMetadata
 ): Promise<ExportRouteResult> {
   // Ensure that the URL is absolute.
   req.url = `http://localhost:3000${req.url}`
@@ -155,7 +160,7 @@ export async function exportAppRoute(
     fileWriter.append(htmlFilepath.replace(/\.html$/, NEXT_BODY_SUFFIX), body)
 
     // Write the request metadata to a file.
-    const meta = { status: response.status, headers }
+    const meta = { status: response.status, headers, routeCache }
     fileWriter.append(
       htmlFilepath.replace(/\.html$/, NEXT_META_SUFFIX),
       JSON.stringify(meta)

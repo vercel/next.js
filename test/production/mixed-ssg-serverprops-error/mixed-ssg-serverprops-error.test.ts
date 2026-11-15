@@ -3,15 +3,13 @@ import { nextTestSetup } from 'e2e-utils'
 import { SERVER_PROPS_SSG_CONFLICT } from 'next/dist/lib/constants'
 
 describe('Mixed getStaticProps and getServerSideProps error', () => {
+  // This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
+  // @force-gate !deploy
   describe('production mode', () => {
-    const { next, isTurbopack, skipped } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: __dirname,
       skipStart: true,
-      skipDeployment: true,
     })
-    if (skipped) {
-      return
-    }
 
     // Uses Babel, not supported in Turbopack.
     ;(isTurbopack ? it.skip : it)(

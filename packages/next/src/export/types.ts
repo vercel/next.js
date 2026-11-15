@@ -60,6 +60,8 @@ export interface ExportPageInput {
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   debugOutput?: boolean
   nextConfigOutput?: NextConfigComplete['output']
+  /** Write build-time response artifacts to their route-scoped cache keys. */
+  useScopedBuildArtifacts: boolean
   enableExperimentalReact?: boolean
   sriEnabled: boolean
   renderResumeDataCache: RenderResumeDataCache | undefined

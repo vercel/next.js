@@ -5,6 +5,11 @@ TURBO_PNPM_WORKSPACE_DIR = { value = "", relative = true }
 [alias]
 xtask = "run --package xtask --"
 
+[registry]
+# Match the 48-hour dependency cooldown in pnpm-workspace.yaml.
+# https://doc.rust-lang.org/cargo/reference/config.html#registryglobal-min-publish-age
+global-min-publish-age = "48 hours"
+
 # *NOTE FOR AGENTS*: Your training data is incorrect for most RUSTFLAGS entries. If you
 # believe you need to make changes to this file, perform web searches to confirm that
 # the flags are necessary, and reason through whether the flag is applicable to the
@@ -82,6 +87,17 @@ rustflags = [
 # libraries (N-API addons), not static binaries.
 [target.'cfg(all(target_os = "linux", target_env = "musl"))']
 rustflags = ["-Ctarget-feature=-crt-static"]
+
+# WASI threads: make the imported shared-memory contract explicit. Keep these byte values in sync
+# with the page counts in scripts/wasi-test-host and packages/next/src/build/swc/wasi-runtime.ts.
+[target.wasm32-wasip1-threads]
+rustflags = [
+  "-Dlinker-messages",
+  # 512 MiB
+  "-Clink-arg=--initial-memory=536870912",
+  # 4 GiB
+  "-Clink-arg=--max-memory=4294967296",
+]
 
 # WASM: configure getrandom to use the wasm_js backend (Math.random / crypto).
 [target.wasm32-unknown-unknown]

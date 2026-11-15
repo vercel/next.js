@@ -86,7 +86,7 @@ With [Partial Prefetching](/docs/app/glossary#partial-prefetching) enabled via t
 
 - **One shell per route, shared across links.** `<Link>` prefetches the route's App Shell, which holds its static and session output. Any number of links to the same route reuse that one shell, fetched once as the first link enters the viewport, so a page with many links makes fewer prefetch requests than prefetching each route in full.
 - **The rest streams in.** Uncached data streams in after navigation, behind the shell's `<Suspense>` boundaries. A link can also resolve its URL data (`searchParams`, `params`) at prefetch time with [`prefetch={true}`](/docs/app/guides/optimizing-prefetching).
-- **Invalidations refresh prefetches.** Data invalidations (`revalidateTag`, `revalidatePath`) silently refresh associated prefetches.
+- **Immediate invalidations clear prefetches.** Data invalidations from Server Actions (`updateTag`, `revalidatePath`, or immediate-expiry `revalidateTag`) clear prefetched routes. See [client cache behavior](/docs/app/api-reference/functions/cacheLife#client-cache-behavior) for the differences between revalidation APIs.
 
 See [Adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) for the behavior change and the recommended adoption path. See [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) to resolve cached URL-specific content before navigation with `prefetch={true}`.
 
@@ -98,6 +98,8 @@ Next.js prefetches with defaults you can tune per link when they don't fit your 
 
 To prefetch manually, import the `useRouter` hook from `next/navigation`, then call `router.prefetch()` to warm routes outside the viewport or in response to analytics, hover, or scroll.
 
+With [Partial Prefetching](#partial-prefetching), `router.prefetch(href)` requests the same App Shell as a default `<Link>`. Pass `{ kind: 'full' }` to also request the per-link stage, matching `<Link prefetch={true}>`. The per-link stage can include cacheable content below [`await prefetch()`](/docs/app/api-reference/functions/prefetch).
+
 ```tsx
 'use client'
 
@@ -108,7 +110,7 @@ export function PricingCard() {
   const router = useRouter()
 
   return (
-    <div onMouseEnter={() => router.prefetch('/pricing')}>
+    <div onMouseEnter={() => router.prefetch('/pricing', { kind: 'full' })}>
       {/* other UI elements */}
       <CustomLink href="/pricing">View Pricing</CustomLink>
     </div>
@@ -151,7 +153,9 @@ export function HoverPrefetchLink({
 }
 ```
 
-`prefetch={null}` restores default (static) prefetching once the user shows intent.
+`prefetch={null}` restores default prefetching once the user shows intent.
+
+With [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), use `prefetch={active ? true : 'auto'}` instead. The `'auto'` value keeps the shared App Shell prefetched before the user shows intent, while `true` resolves cached URL-specific content before navigation after they do. Using `false` before intent disables the App Shell prefetch.
 
 ### Extending or ejecting link
 

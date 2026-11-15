@@ -1,0 +1,12 @@
+  x Route segment config "runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+   ,-[input.js:1:1]
+ 1 | export const runtime = 'nodejs'
+   :              ^^^^^^^
+ 2 | export const dynamic = 'force-dynamic'
+   `----
+  x Route segment config "dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components
+   ,-[input.js:2:1]
+ 1 | export const runtime = 'nodejs'
+ 2 | export const dynamic = 'force-dynamic'
+   :              ^^^^^^^
+   `----

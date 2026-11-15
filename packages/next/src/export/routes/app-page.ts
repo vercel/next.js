@@ -1,13 +1,9 @@
-import type { OutgoingHttpHeaders } from 'node:http'
+import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'node:http'
 import type { ExportRouteResult } from '../types'
 import type { RenderOpts } from '../../server/app-render/types'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
-import type { RouteMetadata } from './types'
+import type { RouteCacheMetadata, RouteMetadata } from './types'
 
-import type {
-  MockedRequest,
-  MockedResponse,
-} from '../../server/lib/mock-request'
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
 import {
   NEXT_CACHE_TAGS_HEADER,
@@ -18,8 +14,11 @@ import {
 } from '../../lib/constants'
 import { hasNextSupport } from '../../server/ci-info'
 import { lazyPrerenderAppPage } from '../../server/route-modules/app-page/module.render'
+import {
+  parseRequestHeaders,
+  type ParsedRequestHeaders,
+} from '../../server/route-modules/app-page/parse-request-headers'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
-import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import { NEXT_IS_PRERENDER_HEADER } from '../../client/components/app-router-headers'
 import type { FetchMetrics } from '../../server/base-http'
 import type { WorkStore } from '../../server/app-render/work-async-storage.external'
@@ -27,6 +26,8 @@ import type { OpaqueFallbackRouteParams } from '../../server/request/fallback-pa
 import { AfterRunner } from '../../server/after/run-with-after'
 import type { RequestLifecycleOpts } from '../../server/base-server'
 import type { AppSharedContext } from '../../server/app-render/app-render'
+import type { RouteMatch } from '../../server/route-modules/app-page/module'
+import { getServerActionRequestMetadata } from '../../server/lib/server-action-request-meta'
 import type { MultiFileWriter } from '../../lib/multi-file-writer'
 import {
   deflateResumeDataCache,
@@ -41,8 +42,8 @@ import {
  * Renders & exports a page associated with the /app directory
  */
 export async function exportAppPage(
-  req: MockedRequest,
-  res: MockedResponse,
+  initialStatusCode: number,
+  requestUrl: string,
   page: string,
   path: string,
   pathname: string,
@@ -53,7 +54,9 @@ export async function exportAppPage(
   debugOutput: boolean,
   isDynamicError: boolean,
   fileWriter: MultiFileWriter,
-  sharedContext: AppSharedContext
+  sharedContext: AppSharedContext,
+  routeMatch: RouteMatch,
+  routeCache?: RouteCacheMetadata
 ): Promise<ExportRouteResult> {
   const afterRunner = new AfterRunner()
 
@@ -78,16 +81,30 @@ export async function exportAppPage(
   }
 
   try {
+    const requestHeaders: IncomingHttpHeaders = {}
+    const parsedRequestHeaders: ParsedRequestHeaders = parseRequestHeaders(
+      requestHeaders,
+      {
+        isRoutePPREnabled: renderOpts.experimental.isRoutePPREnabled === true,
+        previewModeId: renderOpts.previewProps?.previewModeId,
+      }
+    )
     const result = await lazyPrerenderAppPage(
-      new NodeNextRequest(req),
-      new NodeNextResponse(res),
+      initialStatusCode,
+      requestUrl,
       pathname,
       query,
       fallbackRouteParams,
       renderOpts,
-      undefined,
-      sharedContext
+      sharedContext,
+      routeMatch,
+      parsedRequestHeaders,
+      getServerActionRequestMetadata({ headers: requestHeaders, method: 'GET' })
     )
+
+    if ('error' in result) {
+      throw result.error
+    }
 
     const html = result.toUnchunkedString()
 
@@ -197,13 +214,13 @@ export async function exportAppPage(
     fileWriter.append(htmlFilepath, html)
 
     const isParallelRoute = /\/@\w+/.test(page)
-    const isNonSuccessfulStatusCode = res.statusCode > 300
+    const statusCode = metadata.statusCode ?? initialStatusCode
+    const isNonSuccessfulStatusCode = statusCode > 300
 
     // When PPR is enabled, we don't always send 200 for routes that have been
-    // pregenerated, so we should grab the status code from the mocked
-    // response.
+    // pregenerated, so use the status reported by the prerender.
     let status: number | undefined = renderOpts.experimental.isRoutePPREnabled
-      ? res.statusCode
+      ? statusCode
       : undefined
 
     if (isDefaultNotFound) {
@@ -213,8 +230,8 @@ export async function exportAppPage(
       // Override the default /_global-error page status code to 500
       status = 500
     } else if (isNonSuccessfulStatusCode && !isParallelRoute) {
-      // If it's parallel route the status from mock response is 404
-      status = res.statusCode
+      // Parallel route slots can report 404 without setting the page's status.
+      status = statusCode
     }
 
     // Writing the request metadata to a file.
@@ -224,6 +241,7 @@ export async function exportAppPage(
       postponed,
       segmentPaths,
       prefetchHints,
+      routeCache,
     }
 
     fileWriter.append(

@@ -20,19 +20,13 @@ describe('cache-life-type-utils', () => {
     expect(output).toMatchInlineSnapshot(`
      "// Type definitions for Next.js cacheLife configs
 
-     declare module 'next/cache' {
-       export { unstable_cache } from 'next/dist/server/web/spec-extension/unstable-cache'
-       export {
-         updateTag,
-         revalidateTag,
-         revalidatePath,
-         refresh,
-       } from 'next/dist/server/web/spec-extension/revalidate'
-       export { unstable_noStore } from 'next/dist/server/web/spec-extension/unstable-no-store'
-       export { io } from 'next/dist/server/request/io'
-       export { unstable_navigation } from 'next/dist/server/request/cache-stages'
-       export { unstable_prefetch } from 'next/dist/server/request/cache-stages'
+     export {}
 
+     declare module 'next/cache' {
+       export interface CacheLifeProfiles {
+         "default": true
+         "hours": true
+       }
        
          /**
           * Cache this \`"use cache"\` for a timespan defined by the \`"default"\` profile.
@@ -62,39 +56,6 @@ describe('cache-life-type-utils', () => {
           */
          export function cacheLife(profile: "hours"): void
          
-         /**
-          * Cache this \`"use cache"\` using a custom timespan.
-          * \`\`\`
-          *   stale: ... // seconds
-          *   revalidate: ... // seconds
-          *   expire: ... // seconds
-          * \`\`\`
-          *
-          * This is similar to Cache-Control: max-age=\`stale\`,s-max-age=\`revalidate\`,stale-while-revalidate=\`expire-revalidate\`
-          *
-          * If a value is left out, the lowest of other cacheLife() calls or the default, is used instead.
-          */
-         export function cacheLife(profile: {
-           /**
-            * This cache may be stale on clients for ... seconds before checking with the server.
-            */
-           stale?: number,
-           /**
-            * If the server receives a new request after ... seconds, start revalidating new values in the background.
-            */
-           revalidate?: number,
-           /**
-            * If this entry has no traffic for ... seconds it will expire. The next request will recompute it.
-            */
-           expire?: number
-         }): void
-       
-
-       import { cacheTag } from 'next/dist/server/use-cache/cache-tag'
-       export { cacheTag }
-
-       export const unstable_cacheTag: typeof cacheTag
-       export const unstable_cacheLife: typeof cacheLife
      }
      "
     `)
@@ -159,10 +120,7 @@ describe('cache-life-type-utils', () => {
           *   expire:     1814400 seconds (3 weeks)
           *   stale:      2592000 seconds (1 month)
           *   revalidate: 5184000 seconds (2 months)
-          *   expire:     10368000 seconds (4 months)
-          *   stale: ... // seconds
-          *   revalidate: ... // seconds
-          *   expire: ... // seconds"
+          *   expire:     10368000 seconds (4 months)"
     `)
   })
 
@@ -180,19 +138,12 @@ describe('cache-life-type-utils', () => {
     expect(output).toMatchInlineSnapshot(`
      "// Type definitions for Next.js cacheLife configs
 
-     declare module 'next/cache' {
-       export { unstable_cache } from 'next/dist/server/web/spec-extension/unstable-cache'
-       export {
-         updateTag,
-         revalidateTag,
-         revalidatePath,
-         refresh,
-       } from 'next/dist/server/web/spec-extension/revalidate'
-       export { unstable_noStore } from 'next/dist/server/web/spec-extension/unstable-no-store'
-       export { io } from 'next/dist/server/request/io'
-       export { unstable_navigation } from 'next/dist/server/request/cache-stages'
-       export { unstable_prefetch } from 'next/dist/server/request/cache-stages'
+     export {}
 
+     declare module 'next/cache' {
+       export interface CacheLifeProfiles {
+         "partial": true
+       }
        
          /**
           * Cache this \`"use cache"\` for a timespan defined by the \`"partial"\` profile.
@@ -208,39 +159,6 @@ describe('cache-life-type-utils', () => {
           */
          export function cacheLife(profile: "partial"): void
          
-         /**
-          * Cache this \`"use cache"\` using a custom timespan.
-          * \`\`\`
-          *   stale: ... // seconds
-          *   revalidate: ... // seconds
-          *   expire: ... // seconds
-          * \`\`\`
-          *
-          * This is similar to Cache-Control: max-age=\`stale\`,s-max-age=\`revalidate\`,stale-while-revalidate=\`expire-revalidate\`
-          *
-          * If a value is left out, the lowest of other cacheLife() calls or the default, is used instead.
-          */
-         export function cacheLife(profile: {
-           /**
-            * This cache may be stale on clients for ... seconds before checking with the server.
-            */
-           stale?: number,
-           /**
-            * If the server receives a new request after ... seconds, start revalidating new values in the background.
-            */
-           revalidate?: number,
-           /**
-            * If this entry has no traffic for ... seconds it will expire. The next request will recompute it.
-            */
-           expire?: number
-         }): void
-       
-
-       import { cacheTag } from 'next/dist/server/use-cache/cache-tag'
-       export { cacheTag }
-
-       export const unstable_cacheTag: typeof cacheTag
-       export const unstable_cacheLife: typeof cacheLife
      }
      "
     `)
@@ -260,19 +178,12 @@ describe('cache-life-type-utils', () => {
     expect(output).toMatchInlineSnapshot(`
      "// Type definitions for Next.js cacheLife configs
 
-     declare module 'next/cache' {
-       export { unstable_cache } from 'next/dist/server/web/spec-extension/unstable-cache'
-       export {
-         updateTag,
-         revalidateTag,
-         revalidatePath,
-         refresh,
-       } from 'next/dist/server/web/spec-extension/revalidate'
-       export { unstable_noStore } from 'next/dist/server/web/spec-extension/unstable-no-store'
-       export { io } from 'next/dist/server/request/io'
-       export { unstable_navigation } from 'next/dist/server/request/cache-stages'
-       export { unstable_prefetch } from 'next/dist/server/request/cache-stages'
+     export {}
 
+     declare module 'next/cache' {
+       export interface CacheLifeProfiles {
+         "infinite": true
+       }
        
          /**
           * Cache this \`"use cache"\` for a timespan defined by the \`"infinite"\` profile.
@@ -287,45 +198,12 @@ describe('cache-life-type-utils', () => {
           */
          export function cacheLife(profile: "infinite"): void
          
-         /**
-          * Cache this \`"use cache"\` using a custom timespan.
-          * \`\`\`
-          *   stale: ... // seconds
-          *   revalidate: ... // seconds
-          *   expire: ... // seconds
-          * \`\`\`
-          *
-          * This is similar to Cache-Control: max-age=\`stale\`,s-max-age=\`revalidate\`,stale-while-revalidate=\`expire-revalidate\`
-          *
-          * If a value is left out, the lowest of other cacheLife() calls or the default, is used instead.
-          */
-         export function cacheLife(profile: {
-           /**
-            * This cache may be stale on clients for ... seconds before checking with the server.
-            */
-           stale?: number,
-           /**
-            * If the server receives a new request after ... seconds, start revalidating new values in the background.
-            */
-           revalidate?: number,
-           /**
-            * If this entry has no traffic for ... seconds it will expire. The next request will recompute it.
-            */
-           expire?: number
-         }): void
-       
-
-       import { cacheTag } from 'next/dist/server/use-cache/cache-tag'
-       export { cacheTag }
-
-       export const unstable_cacheTag: typeof cacheTag
-       export const unstable_cacheLife: typeof cacheLife
      }
      "
     `)
   })
 
-  it('should include base cacheLife function signature', () => {
+  it('should only declare the generated profile overloads', () => {
     const cacheLifeConfig = {
       custom: {
         stale: 100,
@@ -339,19 +217,12 @@ describe('cache-life-type-utils', () => {
     expect(output).toMatchInlineSnapshot(`
      "// Type definitions for Next.js cacheLife configs
 
-     declare module 'next/cache' {
-       export { unstable_cache } from 'next/dist/server/web/spec-extension/unstable-cache'
-       export {
-         updateTag,
-         revalidateTag,
-         revalidatePath,
-         refresh,
-       } from 'next/dist/server/web/spec-extension/revalidate'
-       export { unstable_noStore } from 'next/dist/server/web/spec-extension/unstable-no-store'
-       export { io } from 'next/dist/server/request/io'
-       export { unstable_navigation } from 'next/dist/server/request/cache-stages'
-       export { unstable_prefetch } from 'next/dist/server/request/cache-stages'
+     export {}
 
+     declare module 'next/cache' {
+       export interface CacheLifeProfiles {
+         "custom": true
+       }
        
          /**
           * Cache this \`"use cache"\` for a timespan defined by the \`"custom"\` profile.
@@ -367,45 +238,12 @@ describe('cache-life-type-utils', () => {
           */
          export function cacheLife(profile: "custom"): void
          
-         /**
-          * Cache this \`"use cache"\` using a custom timespan.
-          * \`\`\`
-          *   stale: ... // seconds
-          *   revalidate: ... // seconds
-          *   expire: ... // seconds
-          * \`\`\`
-          *
-          * This is similar to Cache-Control: max-age=\`stale\`,s-max-age=\`revalidate\`,stale-while-revalidate=\`expire-revalidate\`
-          *
-          * If a value is left out, the lowest of other cacheLife() calls or the default, is used instead.
-          */
-         export function cacheLife(profile: {
-           /**
-            * This cache may be stale on clients for ... seconds before checking with the server.
-            */
-           stale?: number,
-           /**
-            * If the server receives a new request after ... seconds, start revalidating new values in the background.
-            */
-           revalidate?: number,
-           /**
-            * If this entry has no traffic for ... seconds it will expire. The next request will recompute it.
-            */
-           expire?: number
-         }): void
-       
-
-       import { cacheTag } from 'next/dist/server/use-cache/cache-tag'
-       export { cacheTag }
-
-       export const unstable_cacheTag: typeof cacheTag
-       export const unstable_cacheLife: typeof cacheLife
      }
      "
     `)
   })
 
-  it('should include module exports', () => {
+  it('should augment next/cache instead of redeclaring its exports', () => {
     const cacheLifeConfig = {
       test: {
         stale: 100,
@@ -419,19 +257,12 @@ describe('cache-life-type-utils', () => {
     expect(output).toMatchInlineSnapshot(`
      "// Type definitions for Next.js cacheLife configs
 
-     declare module 'next/cache' {
-       export { unstable_cache } from 'next/dist/server/web/spec-extension/unstable-cache'
-       export {
-         updateTag,
-         revalidateTag,
-         revalidatePath,
-         refresh,
-       } from 'next/dist/server/web/spec-extension/revalidate'
-       export { unstable_noStore } from 'next/dist/server/web/spec-extension/unstable-no-store'
-       export { io } from 'next/dist/server/request/io'
-       export { unstable_navigation } from 'next/dist/server/request/cache-stages'
-       export { unstable_prefetch } from 'next/dist/server/request/cache-stages'
+     export {}
 
+     declare module 'next/cache' {
+       export interface CacheLifeProfiles {
+         "test": true
+       }
        
          /**
           * Cache this \`"use cache"\` for a timespan defined by the \`"test"\` profile.
@@ -447,39 +278,6 @@ describe('cache-life-type-utils', () => {
           */
          export function cacheLife(profile: "test"): void
          
-         /**
-          * Cache this \`"use cache"\` using a custom timespan.
-          * \`\`\`
-          *   stale: ... // seconds
-          *   revalidate: ... // seconds
-          *   expire: ... // seconds
-          * \`\`\`
-          *
-          * This is similar to Cache-Control: max-age=\`stale\`,s-max-age=\`revalidate\`,stale-while-revalidate=\`expire-revalidate\`
-          *
-          * If a value is left out, the lowest of other cacheLife() calls or the default, is used instead.
-          */
-         export function cacheLife(profile: {
-           /**
-            * This cache may be stale on clients for ... seconds before checking with the server.
-            */
-           stale?: number,
-           /**
-            * If the server receives a new request after ... seconds, start revalidating new values in the background.
-            */
-           revalidate?: number,
-           /**
-            * If this entry has no traffic for ... seconds it will expire. The next request will recompute it.
-            */
-           expire?: number
-         }): void
-       
-
-       import { cacheTag } from 'next/dist/server/use-cache/cache-tag'
-       export { cacheTag }
-
-       export const unstable_cacheTag: typeof cacheTag
-       export const unstable_cacheLife: typeof cacheLife
      }
      "
     `)
@@ -503,19 +301,12 @@ describe('cache-life-type-utils', () => {
     expect(output).toMatchInlineSnapshot(`
      "// Type definitions for Next.js cacheLife configs
 
-     declare module 'next/cache' {
-       export { unstable_cache } from 'next/dist/server/web/spec-extension/unstable-cache'
-       export {
-         updateTag,
-         revalidateTag,
-         revalidatePath,
-         refresh,
-       } from 'next/dist/server/web/spec-extension/revalidate'
-       export { unstable_noStore } from 'next/dist/server/web/spec-extension/unstable-no-store'
-       export { io } from 'next/dist/server/request/io'
-       export { unstable_navigation } from 'next/dist/server/request/cache-stages'
-       export { unstable_prefetch } from 'next/dist/server/request/cache-stages'
+     export {}
 
+     declare module 'next/cache' {
+       export interface CacheLifeProfiles {
+         "valid": true
+       }
        
          /**
           * Cache this \`"use cache"\` for a timespan defined by the \`"valid"\` profile.
@@ -531,39 +322,6 @@ describe('cache-life-type-utils', () => {
           */
          export function cacheLife(profile: "valid"): void
          
-         /**
-          * Cache this \`"use cache"\` using a custom timespan.
-          * \`\`\`
-          *   stale: ... // seconds
-          *   revalidate: ... // seconds
-          *   expire: ... // seconds
-          * \`\`\`
-          *
-          * This is similar to Cache-Control: max-age=\`stale\`,s-max-age=\`revalidate\`,stale-while-revalidate=\`expire-revalidate\`
-          *
-          * If a value is left out, the lowest of other cacheLife() calls or the default, is used instead.
-          */
-         export function cacheLife(profile: {
-           /**
-            * This cache may be stale on clients for ... seconds before checking with the server.
-            */
-           stale?: number,
-           /**
-            * If the server receives a new request after ... seconds, start revalidating new values in the background.
-            */
-           revalidate?: number,
-           /**
-            * If this entry has no traffic for ... seconds it will expire. The next request will recompute it.
-            */
-           expire?: number
-         }): void
-       
-
-       import { cacheTag } from 'next/dist/server/use-cache/cache-tag'
-       export { cacheTag }
-
-       export const unstable_cacheTag: typeof cacheTag
-       export const unstable_cacheLife: typeof cacheLife
      }
      "
     `)

@@ -1,17 +1,15 @@
-import { Readable } from 'node:stream'
+import { Readable, Writable } from 'node:stream'
 import { createHash, type Hash } from 'node:crypto'
 
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
-import { createHangingInputAbortSignal } from '../app-render/dynamic-rendering'
+import { renderToPipeableStream } from '../app-render/react-server.node'
 import { makeDynamicHangingPromise } from '../dynamic-rendering-utils'
 import {
   getClientReferenceManifest,
   getServerModuleMap,
 } from '../app-render/manifests-singleton'
-// eslint-disable-next-line import/no-extraneous-dependencies
-import { prerenderToNodeStream } from 'react-server-dom-webpack/static'
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromNodeStream } from 'react-server-dom-webpack/client'
 
@@ -78,7 +76,7 @@ async function getCachedImageResponseArrayBuffer(
     case 'prerender-client':
     case 'validation-client':
     case 'prerender-legacy':
-    case 'generate-static-params':
+    case 'build-time-generator':
       return renderImageResponseArrayBuffer(args)
     default:
       return workUnitStore satisfies never
@@ -100,18 +98,12 @@ async function getCachedImageResponseArrayBuffer(
 
   const [element, options] = args
 
-  // `createHangingInputAbortSignal` aborts once the prerender's cache-sourced
-  // input is ready, so anything the serialization below is still awaiting past
-  // that point can be treated as dynamic (non-cache) input. In the prospective
-  // pass it aborts when `cacheSignal.inputReady()` resolves (no cache reads
-  // in progress); in the final pass the caches are already filled, so it just
-  // aborts on the next tick.
-  const hangingInputAbortSignal = createHangingInputAbortSignal(workUnitStore)
-
-  // We open the cache read lazily, once we know the serialization completed and
-  // we're about to render and store the image. Opening it before serializing
-  // would keep `cacheSignal.inputReady()` from resolving and thus prevent the
-  // abort signal from ever firing, deadlocking the prospective prerender.
+  // We start the cache read only after serialization completes and the image
+  // cache lookup misses. It covers Flight deserialization and image rendering.
+  // If the element suspends on request data, an earlier read would prevent
+  // cacheReady() from triggering abortSerialization. The route handler's
+  // prospective prerender pass also awaits cacheReady(), so both the
+  // serialization and that pass would remain stuck.
   let readState: 'ready' | 'pending' | 'done' = 'ready'
 
   function beginReadOnce() {
@@ -128,73 +120,106 @@ async function getCachedImageResponseArrayBuffer(
     readState = 'done'
   }
 
-  // We serialize the element tree with `prerenderToNodeStream` rather than
-  // `renderToPipeableStream`. It's the right fit for prerendering, and it
-  // schedules work deferred for size (`deferTask`) on microtasks, so a fully
-  // static tree finishes flushing before the abort signal fires; a tree still
-  // pending at abort time is then genuinely waiting on dynamic input rather
-  // than just deferred.
-  //
-  // `renderToPipeableStream` would schedule that deferred work on
-  // `setImmediate` instead, which isn't necessarily a deal-breaker: the
-  // sequential-task scheme page rendering uses (`runInSequentialTasks`) drains
-  // pending immediates at each task boundary, so deferred work still runs in
-  // time. But route handler prerendering doesn't use that scheme, so here the
-  // deferred immediates would race the abort.
-  //
-  // The prerender halts silently on abort, leaving unfulfilled references in
-  // place rather than reporting through `onError`. So to tell a halt (the tree
-  // needed dynamic input) apart from a normal completion, we record whether the
-  // abort fired before the serialization finished. `abort()` runs this listener
-  // synchronously, well before we read `resultIsPartial` below.
-  let prerenderCompleted = false
+  const { clientModules, rscModuleMapping } = getClientReferenceManifest()
+  const chunks: Buffer[] = []
+  let serializationCompleted = false
   let resultIsPartial = false
   let serializationError: unknown
 
-  hangingInputAbortSignal.addEventListener(
-    'abort',
-    () => {
-      if (!prerenderCompleted) {
-        resultIsPartial = true
-      }
-    },
-    { once: true }
-  )
+  const serialized = new Promise<void>((resolve, reject) => {
+    const destination = new Writable({
+      write(chunk, _encoding, callback) {
+        chunks.push(Buffer.from(chunk))
+        callback()
+      },
+    })
+    destination.once('finish', () => {
+      serializationCompleted = true
+      resolve()
+    })
+    destination.once('close', () => {
+      renderSignal.removeEventListener('abort', abortSerialization)
+    })
+    destination.once('error', reject)
 
-  const { clientModules, rscModuleMapping } = getClientReferenceManifest()
+    const debugDestination =
+      process.env.NODE_ENV === 'development'
+        ? new Writable({
+            write(_chunk, _encoding, callback) {
+              callback()
+            },
+          })
+        : undefined
+    debugDestination?.once('error', reject)
 
-  try {
     // We serialize only the `element`. It's the part that needs Flight, to run
     // its async Server Components once and to surface any dynamic input. The
     // `options` are already-resolved plain data; they're folded into the cache
     // key directly and passed to satori as-is below.
-    const { prelude } = await prerenderToNodeStream(element, clientModules, {
-      signal: hangingInputAbortSignal,
+    //
+    // Streaming Flight can use `setImmediate` to resume suspended work, flush
+    // chunks, or defer large subtrees. The route and page scheduler
+    // (`runInSequentialTasks`) drains these immediates at each task boundary.
+    const pipeable = renderToPipeableStream(element, clientModules, {
       filterStackFrame: undefined,
+      // The debug channel keeps diagnostic values out of the bytes used as the
+      // cache key. The Flight client ignores their missing references when no
+      // readable debug channel is supplied.
+      debugChannel: debugDestination,
+      // A future time origin omits I/O debug records in both passes. Otherwise
+      // the prospective pass would include records that predate the final
+      // render and are omitted there. Their references would remain in the main
+      // stream even with a separate debug channel and change the cache key.
+      startTime:
+        process.env.NODE_ENV === 'development'
+          ? Number.MAX_SAFE_INTEGER
+          : undefined,
       onError(error) {
-        // A halt (our deliberate abort) emits nothing, so this is only called
-        // for genuine serialization errors. We surface the first one.
+        // Streaming aborts report errors through `onError`. Ignore our
+        // deliberate abort and surface the first genuine serialization error.
         if (serializationError === undefined && !resultIsPartial) {
           serializationError = error
         }
       },
     })
 
-    prerenderCompleted = true
+    function abortSerialization() {
+      if (!serializationCompleted) {
+        // Record the partial result before aborting, because abort can call
+        // `onError` synchronously for the unfinished work.
+        resultIsPartial = true
+        pipeable.abort()
+      }
+    }
+
+    pipeable.pipe(destination)
+
+    if (renderSignal.aborted) {
+      abortSerialization()
+    } else {
+      renderSignal.addEventListener('abort', abortSerialization, { once: true })
+    }
+
+    if (cacheSignal) {
+      void cacheSignal.cacheReady().then(abortSerialization)
+    }
+  })
+
+  try {
+    await serialized
 
     if (serializationError !== undefined) {
       throw serializationError
     }
 
     if (resultIsPartial) {
-      // The element tree needed dynamic input (e.g. `cookies()` or an uncached
-      // `fetch`), so the image can't be produced statically. Return a hanging
-      // promise: the body never resolves, and the final prerender's macrotask
-      // budget then classifies the route as dynamic.
-      // Whatever dynamic input made the element partial already classified
-      // itself when it created its own hanging promise (cookies() creates a
-      // runtime hanging promise, an uncached fetch creates a dynamic one,
-      // ...), so this wrapper adds no new information and can use the
+      // The element tree did not finish before the cutoff, for example because
+      // it awaited `cookies()` or an uncached `fetch`. Return a hanging promise
+      // so the final prerender's body deadline classifies the route as dynamic.
+      //
+      // Request APIs classify their own hanging promises: `cookies()` creates a
+      // runtime hanging promise, and an uncached fetch creates a dynamic one.
+      // This wrapper adds no new information about the input, so it can use the
       // non-recording dynamic variant.
       return makeDynamicHangingPromise<ArrayBuffer>(
         renderSignal,
@@ -203,26 +228,15 @@ async function getCachedImageResponseArrayBuffer(
       )
     }
 
-    // The serialization finished before any dynamic input was needed, so we
-    // will render and cache the image. Hold the cache read now, before the
-    // stream is buffered and deserialized below, so that the prospective
-    // prerender's `cacheReady()` waits for the image to be stored.
-    beginReadOnce()
-
-    const chunks: Buffer[] = []
-    for await (const chunk of prelude) {
-      chunks.push(chunk)
-    }
-
     const elementBuffer = Buffer.concat(chunks)
 
-    // Derive a stable cache key from the serialized element plus the options.
+    // Derive a cache key from the serialized element plus the options.
     // We hash rather than reuse the raw serialized bytes so the key stays
     // compact even for large inputs (e.g. embedded fonts), and we fold the
     // options in by content so two images that differ only in their options
     // (size, fonts, ...) don't collide. The options are hashed directly here,
     // never serialized through Flight, which would both bloat the key and apply
-    // `Buffer.prototype .toJSON` to font data.
+    // `Buffer.prototype.toJSON` to font data.
     const hash = createHash('sha256')
     hash.update(elementBuffer)
     updateHashWithOptions(hash, options)
@@ -233,6 +247,11 @@ async function getCachedImageResponseArrayBuffer(
     if (cached) {
       return await cached
     }
+
+    // Start the cache read before deserializing the element's Flight stream, so
+    // the route handler's prospective prerender waits for the image to be
+    // stored.
+    beginReadOnce()
 
     // Deserialize the element and hand it to satori. Because the user's
     // components already ran during serialization, satori only walks resolved
@@ -249,11 +268,10 @@ async function getCachedImageResponseArrayBuffer(
       { findSourceMapURL: undefined }
     )
 
-    // The Flight client hands back the output of an async Server Component as
-    // a `React.lazy` (sync components and plain host elements are inlined).
+    // Flight can represent async or size-deferred subtrees as React.lazy.
     // satori can't unwrap lazies, so we resolve them into plain elements first.
-    // We only reach here once the serialization completed, so every lazy is
-    // already resolved and `_init` returns synchronously.
+    // The complete Flight buffer provides the model rows needed to initialize
+    // these subtrees synchronously.
     const resolvedElement = resolveFlightLazies(deserializedElement)
 
     // Pair the resolved element with the original, in-memory `options`, which
@@ -292,8 +310,8 @@ async function getCachedImageResponseArrayBuffer(
  * `ImageResponse` options are plain data: numbers, strings, booleans, nested
  * plain objects/arrays, and binary font data. Exotic objects such as `Map` or
  * `Date` keep their state outside their enumerable own keys, so the key walk
- * below would hash them incorrectly. Options never contain these, but we warn
- * if one ever shows up so a mis-keyed cache can be reported.
+ * below would hash them incorrectly. We do not expect these in options, but
+ * warn if one shows up so a possible cache collision can be reported.
  *
  * The encoding is self-delimiting: every node starts with a type tag, and
  * variable-length parts (byte runs, primitives, keys) are length-prefixed,

@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextDeploy } from 'e2e-utils'
 import { waitForNoRedbox, renderViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
 
@@ -62,7 +62,7 @@ describe('Type module interop', () => {
 
   beforeAll(async () => {
     // can't modify build output after deploy
-    if (!(global as any).isNextDeploy) {
+    if (!isNextDeploy) {
       const contents = await next.readFile('package.json')
       const pkg = JSON.parse(contents)
       await next.patchFile(

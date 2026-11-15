@@ -34,7 +34,6 @@ pnpm create next-app --example with-oxlint with-oxlint-app
 
 ## Linting the application
 
-
 ```bash
 npm run lint
 ```

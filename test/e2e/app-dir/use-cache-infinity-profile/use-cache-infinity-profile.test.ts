@@ -6,8 +6,6 @@ const uuidRegExp =
 describe('use-cache-infinity-profile', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,
-    // Deployment platforms provide their own cache handlers.
-    skipDeployment: true,
   })
 
   it('caches forever with a configured profile using Infinity revalidate and expire', async () => {

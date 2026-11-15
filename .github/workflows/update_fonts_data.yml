@@ -7,10 +7,13 @@ on:
   # Allow manual runs
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   create-pull-request:
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'vercel'
+    environment: bot-autonomous
     steps:
       - name: Create GitHub App token
         id: release-app-token
@@ -48,7 +51,7 @@ jobs:
 
       - name: Setup corepack
         run: |
-          npm i -g corepack@0.31
+          npm i -g corepack@0.34.7
           corepack enable
 
       - name: Install dependencies

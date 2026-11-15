@@ -224,7 +224,7 @@ impl Fold for OptimizeBarrel {
 
         // If the file is not a barrel file, we export nothing.
         if !is_barrel {
-            new_items = vec![];
+            new_items.clear();
         } else {
             // Otherwise we export the meta information.
             new_items.push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {

@@ -42,6 +42,7 @@ export function parseBundlerArgs(options: {
   turbo?: boolean
   turbopack?: boolean
   webpack?: boolean
+  customWebpack?: boolean
 }): Bundler {
   const bundlerFlags = new Map<Bundler, string[]>()
   const setBundlerFlag = (bundler: Bundler, flag: string) => {
@@ -68,6 +69,9 @@ export function parseBundlerArgs(options: {
   if (options.webpack) {
     setBundlerFlag(Bundler.Webpack, '--webpack')
   }
+  if (options.customWebpack) {
+    setBundlerFlag(Bundler.Webpack, '--custom-webpack')
+  }
 
   if (process.env.IS_WEBPACK_TEST) {
     setBundlerFlag(
@@ -88,7 +92,10 @@ export function parseBundlerArgs(options: {
     )
   }
 
-  if (bundlerFlags.size > 1) {
+  if (
+    bundlerFlags.size > 1 ||
+    (options.webpack === true && options.customWebpack === true)
+  ) {
     console.error(
       `Multiple bundler flags set: ${Array.from(bundlerFlags.values()).flat().join(', ')}.
 

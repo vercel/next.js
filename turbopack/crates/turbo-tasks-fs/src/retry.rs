@@ -15,7 +15,7 @@ const MAX_RETRY_ATTEMPTS: usize = 10;
 ///
 /// This used to use [`tokio::task::spawn_blocking`], but now the IO operation blocks the current
 /// thread, as we already wrap callers of this function in
-/// [`crate::ConcurrencyLimitedExt::concurrency_limited`] and it
+/// `ConcurrencyLimitedExt::concurrency_limited` (in `disk.rs`) and it
 /// appears to be faster to block the tokio thread than to spawn. Most of our IO operations are very
 /// short anyways. See this PR: <https://github.com/vercel/next.js/pull/87661>.
 pub(crate) async fn retry_blocking<T>(func: impl FnMut() -> io::Result<T>) -> io::Result<T> {

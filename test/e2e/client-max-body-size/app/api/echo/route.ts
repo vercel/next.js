@@ -6,6 +6,8 @@ export async function POST(request: NextRequest) {
     JSON.stringify({
       message: 'Hello World',
       bodySize: body.length,
+      contentLength: request.headers.get('content-length'),
+      probe: request.headers.get('x-body-probe'),
     }),
     {
       status: 200,

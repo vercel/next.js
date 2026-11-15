@@ -1,0 +1,9 @@
+{
+  "name": "test-pkg",
+  "version": "1.0.0",
+  "private": true,
+  "sideEffects": false,
+  "exports": {
+    "./base": "./dist/src/index.js"
+  }
+}

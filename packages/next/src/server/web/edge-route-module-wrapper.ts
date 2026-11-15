@@ -132,6 +132,7 @@ export class EdgeRouteModuleWrapper {
           // never read. 0 is a sentinel: if something ever reads it, the cache
           // fill will time out immediately and surface the bug.
           useCacheTimeout: 0,
+          durableUseCacheEntries: false,
         },
         cacheLifeProfiles: nextConfig.cacheLife,
         // Edge runtime doesn't do static generation, so this value does not
@@ -146,7 +147,13 @@ export class EdgeRouteModuleWrapper {
     }
 
     // Get the response from the handler.
-    let res = await this.routeModule.handle(request, context)
+    let res: Response
+    try {
+      res = await this.routeModule.handle(request, context)
+    } catch (error) {
+      closeController.dispatchClose()
+      throw error
+    }
 
     const waitUntilPromises = [internal_getCurrentFunctionWaitUntil()]
     if (context.renderOpts.pendingWaitUntil) {

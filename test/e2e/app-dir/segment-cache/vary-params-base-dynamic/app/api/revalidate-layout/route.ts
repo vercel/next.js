@@ -9,6 +9,13 @@ type RevalidateMode =
   | 'path-team-layout'
   | 'path-team-page'
 
+// The `_N_T_/layout` and `('/', 'layout')` modes exercise root-layout
+// revalidation, which is this suite's test subject. When this fixture is
+// deployed to a shared Vercel project, these calls purge the root layout of
+// every other deployment in the project (revalidation is project-scoped), so
+// suites that assert cache persistence on `/` can observe interference from
+// this suite. This is a known, accepted blast radius.
+
 function isRevalidateMode(value: string): value is RevalidateMode {
   return (
     value === 'tag-layout-expireNow' ||

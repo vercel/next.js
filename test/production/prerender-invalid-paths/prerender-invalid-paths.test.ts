@@ -1,13 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('Legacy Prerender', () => {
+  // This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
+  // @force-gate !deploy
   describe('production mode', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       skipStart: true,
       files: __dirname,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     describe('handles old getStaticParams', () => {
       it('should fail the build', async () => {

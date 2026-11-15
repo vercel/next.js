@@ -1,5 +1,5 @@
 import cheerio from 'cheerio'
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup, isNextDev } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 import { join } from 'path'
 
@@ -35,12 +35,9 @@ function hrefMatchesFontWithoutSizeAdjust(href: string) {
   }
 }
 
+// Deploy mode exclusion: This suite passes an absolute local mocked-font-response path into the build.
+// @force-gate !deploy
 describe('next/font', () => {
-  if ((global as any).isNextDeploy) {
-    it('should skip next deploy for now', () => {})
-    return
-  }
-
   const { next } = nextTestSetup({
     files: {
       pages: new FileRef(join(__dirname, `app/pages`)),
@@ -48,14 +45,14 @@ describe('next/font', () => {
       fonts: new FileRef(join(__dirname, `app/fonts`)),
     },
     dependencies: {
-      '@next/font': 'canary',
+      '@next/font': 'workspace:*',
     },
     env: {
       NEXT_FONT_GOOGLE_MOCKED_RESPONSES: mockedGoogleFontResponses,
     },
   })
 
-  if ((global as any).isNextDev) {
+  if (isNextDev) {
     it('should use production cache control for fonts', async () => {
       const $ = await next.render$('/')
       const link = $('[rel="preload"][as="font"]').attr('href')

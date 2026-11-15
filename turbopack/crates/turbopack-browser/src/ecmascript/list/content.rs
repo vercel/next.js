@@ -6,13 +6,14 @@ use either::Either;
 use indoc::writedoc;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc, trace::TraceRawVcs};
+use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
+    source_map::SourceMapGenerationOptions,
     version::{Update, Version, VersionedContent},
 };
 use turbopack_ecmascript::{
@@ -28,9 +29,7 @@ use crate::chunking_context::{
     CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR, CurrentChunkMethod,
 };
 
-#[derive(
-    Clone, Debug, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode,
-)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 enum CurrentChunkMethodWithData {
     StringLiteral(RcStr),
     DocumentCurrentScript,
@@ -122,7 +121,7 @@ impl EcmascriptDevChunkListContent {
             }
         };
 
-        let mut code = CodeBuilder::default();
+        let mut code = CodeBuilder::new(false, SourceMapGenerationOptions::NONE);
 
         // When loaded, JS chunks must register themselves with the `TURBOPACK` global
         // variable. Similarly, we register the chunk list with the

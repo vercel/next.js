@@ -33,7 +33,7 @@ describe('eslint-config-next/typescript', () => {
        },
        "plugins": [
          "@",
-         "@typescript-eslint:@typescript-eslint/eslint-plugin@8.46.0",
+         "@typescript-eslint:@typescript-eslint/eslint-plugin@8.71.0",
        ],
        "rules": {
          "@typescript-eslint/ban-ts-comment": [

@@ -2,6 +2,8 @@
 
 use std::borrow::Cow;
 
+use smallvec::SmallVec;
+
 /// Converts system paths into Unix paths. This is a noop on Unix systems, and replaces backslash
 /// directory separators with forward slashes on Windows.
 #[inline]
@@ -62,7 +64,7 @@ pub fn join_path(fs_path: &str, join: &str) -> Option<String> {
 ///
 /// Returns None if the path would need to start with ".." to be equal.
 pub fn normalize_path(str: &str) -> Option<String> {
-    let mut segments = Vec::new();
+    let mut segments = SmallVec::<[&str; 8]>::new();
     for segment in str.split('/') {
         match segment {
             "." | "" => {}
@@ -83,7 +85,8 @@ pub fn normalize_path(str: &str) -> Option<String> {
 /// A request might only start with a single "." segment and no ".." segments, or any positive
 /// number of ".." segments but no "." segment.
 pub fn normalize_request(str: &str) -> String {
-    let mut segments = vec!["."];
+    let mut segments = SmallVec::<[&str; 8]>::new();
+    segments.push(".");
     // Keeps track of our directory depth so that we can pop directories when encountering a "..".
     // If this is positive, then we're inside a directory and we can pop that. If it's 0, then we
     // can't pop the directory and we must keep the ".." in our segments. This is not the same as
@@ -116,11 +119,41 @@ pub fn normalize_request(str: &str) -> String {
     segments.join("/")
 }
 
-pub fn get_relative_path_to(from: &str, target: &str) -> String {
+/// Returns the path of `target` relative to `from`, as a plain path: `"c"`, `"../c"`, or `"."` when
+/// the two are equal.
+///
+/// The result is not prefixed with `./`, so it is a path and not a module request. Use
+/// [`get_relative_request_to`] to build an import specifier, where a bare `"c"` would be read as a
+/// package name rather than as a file next to `from`.
+///
+/// Returns `"."` by reference when the paths are identical, or `target` by reference when `from`
+/// is empty.
+pub fn get_relative_path_to<'a>(from: &str, target: &'a str) -> Cow<'a, str> {
+    if from.is_empty() && !target.is_empty() {
+        return Cow::Borrowed(target);
+    }
+
+    relative_to(from, target, false)
+}
+
+/// Returns the path of `target` relative to `from`, as an explicitly relative module request:
+/// `"./c"`, `"../c"`, or `"."` when the two are equal.
+///
+/// The `./` prefix is what makes the result a relative request: without it, `"c"` resolves as the
+/// package `c` instead of the file `c` next to `from`. Use [`get_relative_path_to`] when a plain
+/// path is wanted instead.
+///
+/// Returns `"."` by reference when the paths are identical.
+pub fn get_relative_request_to<'a>(from: &str, target: &'a str) -> Cow<'a, str> {
+    relative_to(from, target, true)
+}
+
+/// Shared by [`get_relative_path_to`] and [`get_relative_request_to`]; `explicitly_relative` adds
+/// the leading `./` that distinguishes a request from a path.
+fn relative_to<'a>(from: &str, target: &'a str, explicitly_relative: bool) -> Cow<'a, str> {
     fn split(s: &str) -> impl Iterator<Item = &str> {
-        let empty = s.is_empty();
         let mut iterator = s.split('/');
-        if empty {
+        if s.is_empty() {
             iterator.next();
         }
         iterator
@@ -131,21 +164,22 @@ pub fn get_relative_path_to(from: &str, target: &str) -> String {
     while from_segments.peek() == target_segments.peek() {
         from_segments.next();
         if target_segments.next().is_none() {
-            return ".".to_string();
+            return Cow::Borrowed(".");
         }
     }
-    let mut result = Vec::new();
-    if from_segments.peek().is_none() {
-        result.push(".");
-    } else {
+    let mut result = SmallVec::<[&str; 8]>::new();
+    if from_segments.peek().is_some() {
         while from_segments.next().is_some() {
             result.push("..");
         }
+    } else if explicitly_relative {
+        // Nothing to walk up, so the path would be bare (`c`) without this.
+        result.push(".");
     }
     for segment in target_segments {
         result.push(segment);
     }
-    result.join("/")
+    Cow::Owned(result.join("/"))
 }
 
 pub fn get_parent_path(path: &str) -> &str {
@@ -183,5 +217,49 @@ mod tests {
     #[case("a/../../file.js")]
     fn test_normalize_path_invalid(#[case] path: &str) {
         assert_eq!(None, normalize_path(path));
+    }
+
+    #[rstest]
+    #[case("a/b/c", "a/b/c", ".", true)]
+    #[case("a/c/d", "a/b/c", "../../b/c", false)]
+    #[case("", "a/b/c", "a/b/c", true)]
+    #[case("", "", ".", true)]
+    #[case("a/b", "a/b/c", "c", false)]
+    #[case("a/b/c", "", "../../..", false)]
+    #[case("a/b/c", "c/b/a", "../../../c/b/a", false)]
+    #[case("file:///a/b/c", "file:///c/b/a", "../../../c/b/a", false)]
+    fn test_get_relative_path_to(
+        #[case] from: &str,
+        #[case] target: &str,
+        #[case] expected: &str,
+        #[case] borrowed: bool,
+    ) {
+        let relative = get_relative_path_to(from, target);
+        assert_eq!(relative, expected);
+        assert_eq!(matches!(relative, Cow::Borrowed(_)), borrowed);
+    }
+
+    /// The same cases as [`test_get_relative_path_to`], so the two forms can be compared row by
+    /// row. They differ only where the result would otherwise be a bare path, which is exactly
+    /// where a request needs its `./`.
+    #[rstest]
+    #[case("a/b/c", "a/b/c", ".", true)]
+    #[case("a/c/d", "a/b/c", "../../b/c", false)]
+    #[case("", "a/b/c", "./a/b/c", false)]
+    #[case("", "", ".", true)]
+    #[case("a/b", "a/b/c", "./c", false)]
+    #[case("a/b", "a/b/c/d", "./c/d", false)]
+    #[case("a/b/c", "", "../../..", false)]
+    #[case("a/b/c", "c/b/a", "../../../c/b/a", false)]
+    #[case("file:///a/b/c", "file:///c/b/a", "../../../c/b/a", false)]
+    fn test_get_relative_request_to(
+        #[case] from: &str,
+        #[case] target: &str,
+        #[case] expected: &str,
+        #[case] borrowed: bool,
+    ) {
+        let relative = get_relative_request_to(from, target);
+        assert_eq!(relative, expected);
+        assert_eq!(matches!(relative, Cow::Borrowed(_)), borrowed);
     }
 }

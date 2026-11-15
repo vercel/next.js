@@ -1,12 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
+import { waitForNoRedbox } from 'next-test-utils'
 
 describe('next-link', () => {
-  const { skipped, next, isNextDev } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('errors on invalid href', async () => {
     const browser = await next.browser('/invalid-href')
@@ -39,7 +37,7 @@ describe('next-link', () => {
     if (isNextDev) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Failed prop type: The prop \`prefetch\` expects a \`boolean | "auto"\` in \`<Link>\`, but got \`string\` instead.
+         "description": "Failed prop type: The prop \`prefetch\` expects a \`boolean | "auto" | "shell" | "prefetch" | "navigation"\` in \`<Link>\`, but got \`string\` instead.
        Open your browser's console to view the Component stack trace.",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -60,5 +58,16 @@ describe('next-link', () => {
         `"Link with unknown \`prefetch\` renders in prod."`
       )
     }
+  })
+
+  // Prop validation only runs in dev, so this can't fail in production.
+  // @force-gate dev
+  it('accepts the `prefetch` values that name a stage (dev-only)', async () => {
+    const browser = await next.browser('/valid-prefetch')
+
+    await waitForNoRedbox(browser)
+    expect(await browser.elementByCss('body').text()).toContain(
+      'Link with `prefetch="navigation"`'
+    )
   })
 })

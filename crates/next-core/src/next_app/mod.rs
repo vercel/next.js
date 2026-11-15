@@ -14,7 +14,6 @@ use std::{
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
-use turbo_tasks::trace::TraceRawVcs;
 
 pub use crate::next_app::{
     app_client_references_chunks::{
@@ -27,9 +26,36 @@ pub use crate::next_app::{
     app_route_entry::get_app_route_entry,
 };
 
+/// The reason a segment can't be appended to an [AppPage].
+#[derive(Debug, thiserror::Error)]
+pub enum AppPageError {
+    /// Nothing that modifies the path can follow a catch-all segment, so the resulting route could
+    /// never be matched.
+    #[error(
+        "Invalid segment {segment:?}, catch all segment must be the last segment modifying the \
+         path (segments: {segments:?})"
+    )]
+    SegmentAfterCatchAll {
+        segment: PageSegment,
+        catch_all: PageSegment,
+        segments: Vec<PageSegment>,
+    },
+    #[error(
+        "Invalid segment {segment:?}, this page path already has the final PageType appended \
+         (segments: {segments:?})"
+    )]
+    AlreadyComplete {
+        segment: PageSegment,
+        segments: Vec<PageSegment>,
+    },
+    /// The segment couldn't be parsed.
+    #[error(transparent)]
+    InvalidSegment(#[from] anyhow::Error),
+}
+
 /// See [AppPage].
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Encode, Decode)]
 pub enum PageSegment {
     /// e.g. `/dashboard`
     Static(RcStr),
@@ -122,7 +148,7 @@ impl Display for PageSegment {
 }
 
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Encode, Decode)]
 pub enum PageType {
     Page,
     Route,
@@ -141,7 +167,7 @@ impl Display for PageType {
 /// intercepting routes, parallel routes and route/page suffixes that are not
 /// part of the pathname.
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, Hash, PartialEq, Eq, Default, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Default, Encode, Decode)]
 pub struct AppPage(pub Vec<PageSegment>);
 
 impl AppPage {
@@ -149,45 +175,41 @@ impl AppPage {
         Self::default()
     }
 
-    pub fn push(&mut self, segment: PageSegment) -> Result<()> {
-        let has_catchall = self.0.iter().any(|segment| {
-            matches!(
-                segment,
-                PageSegment::CatchAll(..) | PageSegment::OptionalCatchAll(..)
-            )
-        });
-
-        if has_catchall
-            && matches!(
-                segment,
-                PageSegment::Static(..)
-                    | PageSegment::Dynamic(..)
-                    | PageSegment::CatchAll(..)
-                    | PageSegment::OptionalCatchAll(..)
-            )
-        {
-            bail!(
-                "Invalid segment {:?}, catch all segment must be the last segment modifying the \
-                 path (segments: {:?})",
-                segment,
-                self.0
-            )
+    pub fn push(&mut self, segment: PageSegment) -> Result<(), AppPageError> {
+        if matches!(
+            segment,
+            PageSegment::Static(..)
+                | PageSegment::Dynamic(..)
+                | PageSegment::CatchAll(..)
+                | PageSegment::OptionalCatchAll(..)
+        ) {
+            // A catch-all segment is usually one of the last segments, so search from the end.
+            if let Some(catch_all) = self.0.iter().rev().find(|segment| {
+                matches!(
+                    segment,
+                    PageSegment::CatchAll(..) | PageSegment::OptionalCatchAll(..)
+                )
+            }) {
+                return Err(AppPageError::SegmentAfterCatchAll {
+                    segment,
+                    catch_all: catch_all.clone(),
+                    segments: self.0.clone(),
+                });
+            }
         }
 
         if self.is_complete() {
-            bail!(
-                "Invalid segment {:?}, this page path already has the final PageType appended \
-                 (segments: {:?})",
+            return Err(AppPageError::AlreadyComplete {
                 segment,
-                self.0
-            )
+                segments: self.0.clone(),
+            });
         }
 
         self.0.push(segment);
         Ok(())
     }
 
-    pub fn push_str(&mut self, segment: &str) -> Result<()> {
+    pub fn push_str(&mut self, segment: &str) -> Result<(), AppPageError> {
         if segment.is_empty() {
             return Ok(());
         }
@@ -195,13 +217,13 @@ impl AppPage {
         self.push(PageSegment::parse(segment)?)
     }
 
-    pub fn clone_push(&self, segment: PageSegment) -> Result<Self> {
+    pub fn clone_push(&self, segment: PageSegment) -> Result<Self, AppPageError> {
         let mut cloned = self.clone();
         cloned.push(segment)?;
         Ok(cloned)
     }
 
-    pub fn clone_push_str(&self, segment: &str) -> Result<Self> {
+    pub fn clone_push_str(&self, segment: &str) -> Result<Self, AppPageError> {
         let mut cloned = self.clone();
         cloned.push_str(segment)?;
         Ok(cloned)
@@ -279,7 +301,7 @@ impl AppPage {
     }
 
     pub fn complete(&self, page_type: PageType) -> Result<Self> {
-        self.clone_push(PageSegment::PageType(page_type))
+        Ok(self.clone_push(PageSegment::PageType(page_type))?)
     }
 }
 
@@ -325,7 +347,7 @@ impl PartialOrd for AppPage {
 ///
 /// Also see [AppPath].
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Encode, Decode)]
 pub enum PathSegment {
     /// e.g. `/dashboard`
     Static(RcStr),
@@ -366,7 +388,7 @@ impl Display for PathSegment {
 /// Does not include internal modifiers as it's the equivalent of the http
 /// request path.
 #[turbo_tasks::task_input]
-#[derive(Clone, Debug, Hash, PartialEq, Eq, Default, TraceRawVcs, Encode, Decode)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, Default, Encode, Decode)]
 pub struct AppPath(pub Vec<PathSegment>);
 
 impl AppPath {
@@ -394,21 +416,28 @@ impl AppPath {
     }
 
     pub fn contains(&self, other: &AppPath) -> bool {
+        self.contains_segments(other.0.iter().map(PathSegmentRef::from))
+    }
+
+    /// Same as `self.contains(&AppPath::from(page.clone()))`, but without allocating an
+    /// intermediate [AppPath].
+    pub fn contains_page(&self, page: &AppPage) -> bool {
+        self.contains_segments(page.0.iter().filter_map(PathSegmentRef::from_page_segment))
+    }
+
+    fn contains_segments<'a>(&self, other: impl IntoIterator<Item = PathSegmentRef<'a>>) -> bool {
         // TODO: handle OptionalCatchAll properly.
-        for (i, segment) in other.0.iter().enumerate() {
+        for (i, segment) in other.into_iter().enumerate() {
             let Some(self_segment) = self.0.get(i) else {
                 // other is longer than self
                 return false;
             };
 
-            if self_segment == segment {
+            if segment == *self_segment {
                 continue;
             }
 
-            if matches!(
-                segment,
-                PathSegment::CatchAll(_) | PathSegment::OptionalCatchAll(_)
-            ) {
+            if segment.is_catchall() {
                 return true;
             }
 
@@ -418,9 +447,9 @@ impl AppPath {
         true
     }
 
-    /// Returns true if ANY segment in the entire path is an interception route.
-    /// This is different from `is_intercepting()` which only checks the last
-    /// segment.
+    /// Returns true if any segment in the path is an interception route.
+    /// Unlike `AppPage::is_intercepting()`, this also identifies descendants
+    /// below the interception marker.
     pub fn contains_interception(&self) -> bool {
         self.iter().any(|segment| {
             matches!(
@@ -429,6 +458,165 @@ impl AppPath {
             )
         })
     }
+
+    /// Returns the ordinary route that an interception route substitutes for.
+    /// This is the route that must handle a direct request or hard refresh.
+    pub fn intercepted_path(&self) -> Option<AppPath> {
+        let (interception_index, segment) =
+            self.iter().enumerate().find_map(|(index, segment)| {
+                let PathSegment::Static(segment) = segment else {
+                    return None;
+                };
+
+                let (marker, target) =
+                    ["(..)(..)", "(...)", "(..)", "(.)"]
+                        .into_iter()
+                        .find_map(|marker| {
+                            segment.strip_prefix(marker).map(|target| (marker, target))
+                        })?;
+                Some((index, (marker, target)))
+            })?;
+
+        let (marker, target) = segment;
+        if target.is_empty() {
+            return None;
+        }
+
+        let mut canonical_segments = match marker {
+            "(...)" => Vec::new(),
+            _ => self.0[..interception_index].to_vec(),
+        };
+        let levels_to_pop = match marker {
+            "(..)(..)" => 2,
+            "(..)" => 1,
+            _ => 0,
+        };
+        for _ in 0..levels_to_pop {
+            canonical_segments.pop()?;
+        }
+        let target = if let Some(target) = target
+            .strip_prefix("[[...")
+            .and_then(|target| target.strip_suffix("]]"))
+        {
+            PathSegment::OptionalCatchAll(target.into())
+        } else if let Some(target) = target
+            .strip_prefix("[...")
+            .and_then(|target| target.strip_suffix(']'))
+        {
+            PathSegment::CatchAll(target.into())
+        } else if let Some(target) = target
+            .strip_prefix('[')
+            .and_then(|target| target.strip_suffix(']'))
+        {
+            PathSegment::Dynamic(target.into())
+        } else {
+            PathSegment::Static(target.into())
+        };
+        canonical_segments.push(target);
+        canonical_segments.extend_from_slice(&self.0[interception_index + 1..]);
+
+        Some(AppPath(canonical_segments))
+    }
+
+    /// Returns whether the supplied ordinary route patterns cover every URL matched by this
+    /// route pattern.
+    pub fn is_route_pattern_covered_by<'a>(
+        &self,
+        ordinary_routes: impl IntoIterator<Item = &'a AppPath>,
+    ) -> bool {
+        let route = RoutePattern::new(self);
+        let ordinary_routes = ordinary_routes
+            .into_iter()
+            .map(RoutePattern::new)
+            .collect::<Vec<_>>();
+
+        if !route.unbounded {
+            return ordinary_routes
+                .iter()
+                .any(|ordinary| pattern_covers_at_length(ordinary, &route, route.min_length));
+        }
+
+        let Some(unbounded_coverage_start) = ordinary_routes
+            .iter()
+            .filter(|ordinary| ordinary.unbounded && prefix_covers(ordinary, &route))
+            .map(|ordinary| ordinary.min_length.max(route.min_length))
+            .min()
+        else {
+            return false;
+        };
+
+        // An optional or required catchall can have its shorter paths covered by fixed routes
+        // before another catchall takes over the remaining suffix.
+        (route.min_length..unbounded_coverage_start).all(|length| {
+            ordinary_routes
+                .iter()
+                .any(|ordinary| pattern_covers_at_length(ordinary, &route, length))
+        })
+    }
+}
+
+struct RoutePattern<'a> {
+    prefix: &'a [PathSegment],
+    min_length: usize,
+    unbounded: bool,
+}
+
+impl<'a> RoutePattern<'a> {
+    fn new(path: &'a AppPath) -> Self {
+        match path.last() {
+            Some(PathSegment::CatchAll(_)) => Self {
+                prefix: &path[..path.len() - 1],
+                min_length: path.len(),
+                unbounded: true,
+            },
+            Some(PathSegment::OptionalCatchAll(_)) => Self {
+                prefix: &path[..path.len() - 1],
+                min_length: path.len() - 1,
+                unbounded: true,
+            },
+            _ => Self {
+                prefix: path,
+                min_length: path.len(),
+                unbounded: false,
+            },
+        }
+    }
+}
+
+fn accepts_length(pattern: &RoutePattern<'_>, length: usize) -> bool {
+    if pattern.unbounded {
+        length >= pattern.min_length
+    } else {
+        length == pattern.min_length
+    }
+}
+
+fn prefix_covers(canonical: &RoutePattern<'_>, intercepted: &RoutePattern<'_>) -> bool {
+    canonical
+        .prefix
+        .iter()
+        .enumerate()
+        .all(|(index, canonical_segment)| match canonical_segment {
+            PathSegment::Dynamic(_) => true,
+            PathSegment::Static(canonical_segment) => matches!(
+                intercepted.prefix.get(index),
+                Some(PathSegment::Static(intercepted_segment))
+                    if canonical_segment == intercepted_segment
+            ),
+            PathSegment::CatchAll(_) | PathSegment::OptionalCatchAll(_) => {
+                unreachable!("catchall segments are excluded from the route prefix")
+            }
+        })
+}
+
+fn pattern_covers_at_length(
+    canonical: &RoutePattern<'_>,
+    intercepted: &RoutePattern<'_>,
+    length: usize,
+) -> bool {
+    accepts_length(canonical, length)
+        && accepts_length(intercepted, length)
+        && prefix_covers(canonical, intercepted)
 }
 
 impl Deref for AppPath {
@@ -469,6 +657,53 @@ impl PartialOrd for AppPath {
     }
 }
 
+#[derive(Clone, Copy)]
+enum PathSegmentRef<'a> {
+    Static(&'a RcStr),
+    Dynamic(&'a RcStr),
+    CatchAll(&'a RcStr),
+    OptionalCatchAll(&'a RcStr),
+}
+
+impl<'a> PathSegmentRef<'a> {
+    fn from_page_segment(segment: &'a PageSegment) -> Option<Self> {
+        match segment {
+            PageSegment::Static(s) => Some(Self::Static(s)),
+            PageSegment::Dynamic(s) => Some(Self::Dynamic(s)),
+            PageSegment::CatchAll(s) => Some(Self::CatchAll(s)),
+            PageSegment::OptionalCatchAll(s) => Some(Self::OptionalCatchAll(s)),
+            PageSegment::Group(_) | PageSegment::Parallel(_) | PageSegment::PageType(_) => None,
+        }
+    }
+
+    fn is_catchall(self) -> bool {
+        matches!(self, Self::CatchAll(_) | Self::OptionalCatchAll(_))
+    }
+}
+
+impl<'a> From<&'a PathSegment> for PathSegmentRef<'a> {
+    fn from(segment: &'a PathSegment) -> Self {
+        match segment {
+            PathSegment::Static(s) => Self::Static(s),
+            PathSegment::Dynamic(s) => Self::Dynamic(s),
+            PathSegment::CatchAll(s) => Self::CatchAll(s),
+            PathSegment::OptionalCatchAll(s) => Self::OptionalCatchAll(s),
+        }
+    }
+}
+
+impl PartialEq<PathSegment> for PathSegmentRef<'_> {
+    fn eq(&self, other: &PathSegment) -> bool {
+        match (self, other) {
+            (Self::Static(a), PathSegment::Static(b))
+            | (Self::Dynamic(a), PathSegment::Dynamic(b))
+            | (Self::CatchAll(a), PathSegment::CatchAll(b))
+            | (Self::OptionalCatchAll(a), PathSegment::OptionalCatchAll(b)) => *a == b,
+            _ => false,
+        }
+    }
+}
+
 impl From<AppPage> for AppPath {
     fn from(value: AppPage) -> Self {
         AppPath(
@@ -489,7 +724,115 @@ impl From<AppPage> for AppPath {
 
 #[cfg(test)]
 mod test {
-    use crate::next_app::{AppPage, PageSegment, PageType};
+    use crate::next_app::{AppPage, AppPath, PageSegment, PageType};
+
+    #[test]
+    fn resolves_intercepted_app_paths() {
+        for (interception, canonical) in [
+            ("/(.)photo/[id]", "/photo/[id]"),
+            ("/feed/(.)photo/[id]", "/feed/photo/[id]"),
+            ("/feed/(..)photo/[id]", "/photo/[id]"),
+            ("/feed/nested/(..)(..)photo/[id]", "/photo/[id]"),
+            ("/feed/(...)photo/[id]", "/photo/[id]"),
+            ("/(.)[username]/[id]", "/[username]/[id]"),
+            ("/(.)[...slug]", "/[...slug]"),
+            ("/(.)[[...slug]]", "/[[...slug]]"),
+        ] {
+            let interception =
+                AppPath::from(AppPage::parse(interception.trim_start_matches('/')).unwrap());
+            let canonical =
+                AppPath::from(AppPage::parse(canonical.trim_start_matches('/')).unwrap());
+
+            assert_eq!(interception.intercepted_path(), Some(canonical));
+        }
+    }
+
+    #[test]
+    fn checks_route_pattern_coverage() {
+        for (route, ordinary_routes, expected) in [
+            ("/photo/[id]", &["/photo/[slug]"][..], true),
+            ("/showcase/[...parts]", &["/[...slug]"][..], true),
+            (
+                "/items/[...parts]",
+                &["/items/[id]", "/items/[id]/[...rest]"][..],
+                true,
+            ),
+            (
+                "/items/[[...parts]]",
+                &["/items", "/items/[...rest]"][..],
+                true,
+            ),
+            ("/photo/[id]", &[][..], false),
+            ("/items/[...parts]", &["/items/[id]"][..], false),
+            ("/items/[[...parts]]", &["/items/[...rest]"][..], false),
+            ("/items/[id]", &["/items/one", "/items/two"][..], false),
+        ] {
+            let route = AppPath::from(AppPage::parse(route.trim_start_matches('/')).unwrap());
+            let ordinary_routes = ordinary_routes
+                .iter()
+                .map(|route| AppPath::from(AppPage::parse(route.trim_start_matches('/')).unwrap()))
+                .collect::<Vec<_>>();
+
+            assert_eq!(
+                route.is_route_pattern_covered_by(ordinary_routes.iter()),
+                expected,
+                "coverage for {route} from {ordinary_routes:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn contains_page_matches_contains() {
+        for (for_app_path, page, expected) in [
+            // root contains everything
+            ("/blog/[slug]", "", true),
+            ("/", "", true),
+            // static segments
+            ("/blog/[slug]", "blog", true),
+            ("/blog/[slug]", "docs", false),
+            ("/blog", "blog/post", false),
+            // dynamic segments only match the same parameter
+            ("/blog/[slug]", "blog/[slug]", true),
+            ("/blog/[slug]", "blog/[id]", false),
+            // route groups, parallel routes and the page type are not part of the path
+            ("/blog/[slug]", "(marketing)", true),
+            ("/blog/[slug]", "(marketing)/blog", true),
+            ("/blog/[slug]", "(marketing)/docs", false),
+            ("/blog/[slug]", "blog/@modal", true),
+            ("/blog/[slug]", "blog/@modal/[slug]", true),
+            ("/blog/[slug]", "blog/@modal/[id]", false),
+            ("/blog/[slug]", "blog/[slug]/page", true),
+            // interception segments are static path segments
+            ("/feed/(.)photo/[id]", "feed/(.)photo", true),
+            ("/feed/(.)photo/[id]", "feed/photo", false),
+            ("/feed/photo/[id]", "feed/(.)photo", false),
+            ("/feed/(..)photo/[id]", "feed/(..)photo/[id]", true),
+            // catch-all segments contain any path of at least the same length
+            ("/docs/a/b", "docs/[...slug]", true),
+            ("/docs/a/b", "[...slug]", true),
+            ("/docs", "docs/[...slug]", false),
+            ("/docs/[...slug]", "docs/[...slug]", true),
+            ("/docs/a", "docs/[[...slug]]", true),
+            ("/docs/[[...slug]]", "docs/[[...slug]]", true),
+            ("/docs/[...slug]", "docs/[[...slug]]", true),
+            ("/docs/[[...slug]]", "@slot/docs/[...slug]", true),
+        ] {
+            let for_app_path =
+                AppPath::from(AppPage::parse(for_app_path.trim_start_matches('/')).unwrap());
+            let page = AppPage::parse(page).unwrap();
+
+            assert_eq!(
+                for_app_path.contains_page(&page),
+                for_app_path.contains(&AppPath::from(page.clone())),
+                "contains_page and contains disagree for {for_app_path} and {page}"
+            );
+            assert_eq!(
+                for_app_path.contains_page(&page),
+                expected,
+                "{for_app_path} contains {page}"
+            );
+        }
+    }
 
     #[test]
     fn test_normalize_metadata_route() {

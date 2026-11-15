@@ -1,15 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('worker-react-refresh', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     dependencies: require('./package.json').dependencies,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('does not cause any runtime errors', async () => {
     const pageErrors: unknown[] = []

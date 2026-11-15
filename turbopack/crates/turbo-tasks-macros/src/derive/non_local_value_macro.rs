@@ -3,7 +3,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{Data, DeriveInput, Generics, Ident, parse_macro_input, parse_quote};
 
-use crate::{assert_fields::assert_fields_impl_trait, derive::trace_raw_vcs_macro::filter_field};
+use crate::{assert_fields::assert_fields_impl_trait, derive::filter_field};
 
 /// Emits `unsafe impl NonLocalValue for #ident` plus the field assertions that fail compilation
 /// (pointing at the offending field) if any field is not a `NonLocalValue`.

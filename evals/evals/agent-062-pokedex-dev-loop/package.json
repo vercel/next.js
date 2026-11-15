@@ -1,0 +1,12 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "eval:setup": "node eval-setup.mjs",
+    "build": "APP_PORT=3101 node tests/run.mjs --list"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "vitest": "^3.1.3"
+  }
+}

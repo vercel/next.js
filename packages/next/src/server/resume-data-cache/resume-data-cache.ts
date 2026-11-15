@@ -56,16 +56,6 @@ export interface RenderResumeDataCache {
    * enforce immutability.
    */
   readonly imageResponses: Omit<ImageResponseCacheStore, 'set'>
-
-  /**
-   * Serialized cache keys that were intentionally skipped during the
-   * prospective prerender (e.g. because the cached function accessed fallback
-   * params or other dynamic data). During the final prerender, a key in this
-   * set is returned as a hanging promise early, without attempting to look up
-   * or generate a cache entry. Optional because this field is intentionally not
-   * serialized and won't be present in deserialized caches.
-   */
-  readonly dynamicCacheKeys?: ReadonlySet<string>
 }
 
 /**
@@ -116,20 +106,6 @@ export interface PrerenderResumeDataCache {
    * prerender. Never persisted in the resume store.
    */
   readonly imageResponses: ImageResponseCacheStore
-
-  /**
-   * Tracks serialized cache keys that were intentionally skipped during the
-   * prospective prerender (e.g. because the cached function accessed fallback
-   * params or other dynamic data). During the final prerender, a key in this
-   * set is returned as a hanging promise early, without attempting to look up
-   * or generate a cache entry.
-   *
-   * This is intentionally not serialized. It is only used in-memory within a
-   * single prerender cycle (prospective to final). During the resume at request
-   * time, a cache miss for a dynamic key should generate a fresh entry rather
-   * than being short-circuited.
-   */
-  readonly dynamicCacheKeys: Set<string>
 }
 
 /**
@@ -236,9 +212,6 @@ export function createPrerenderResumeDataCache(
       encryptedBoundArgs: new Map(source.encryptedBoundArgs),
       decryptedBoundArgs: new Map(source.decryptedBoundArgs),
       imageResponses: new Map(source.imageResponses),
-      dynamicCacheKeys: source.dynamicCacheKeys
-        ? new Set(source.dynamicCacheKeys)
-        : new Set(),
     }
   } else {
     return {
@@ -248,7 +221,6 @@ export function createPrerenderResumeDataCache(
       encryptedBoundArgs: new Map(),
       decryptedBoundArgs: new Map(),
       imageResponses: new Map(),
-      dynamicCacheKeys: new Set(),
     }
   }
 }

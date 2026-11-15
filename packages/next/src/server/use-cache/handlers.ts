@@ -14,6 +14,9 @@ const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
 const handlersSymbol = Symbol.for('@next/cache-handlers')
 const handlersMapSymbol = Symbol.for('@next/cache-handlers-map')
 const handlersSetSymbol = Symbol.for('@next/cache-handlers-set')
+const customCacheHandlersRegistrationSymbol = Symbol.for(
+  '@next/custom-cache-handlers-registration'
+)
 const privateHandlerSymbol = Symbol.for('@next/cache-handlers-private')
 const builtInHandlersSymbol = Symbol.for('@next/cache-handlers-built-in')
 const devFrontHandlersSymbol = Symbol.for('@next/cache-handlers-dev-fronts')
@@ -42,6 +45,7 @@ const reference: typeof globalThis & {
   }
   [handlersMapSymbol]?: Map<string, CacheHandler>
   [handlersSetSymbol]?: Set<CacheHandler>
+  [customCacheHandlersRegistrationSymbol]?: Promise<void>
   [builtInHandlersSymbol]?: Set<CacheHandler>
   // DEV-only
   [privateHandlerSymbol]?: CacheHandler
@@ -54,13 +58,12 @@ const reference: typeof globalThis & {
  * Initialize the cache handlers.
  * @param cacheMaxMemorySize - The maximum memory size of the cache in bytes, if
  *  not provided, the default memory size will be used.
- * @returns `true` if the cache handlers were initialized, `false` if they were already initialized.
  */
-export function initializeCacheHandlers(cacheMaxMemorySize: number): boolean {
+export function initializeCacheHandlers(cacheMaxMemorySize: number): void {
   // If the cache handlers have already been initialized, don't do it again.
   if (reference[handlersMapSymbol]) {
     debug?.('cache handlers already initialized')
-    return false
+    return
   }
 
   debug?.('initializing cache handlers')
@@ -136,8 +139,18 @@ export function initializeCacheHandlers(cacheMaxMemorySize: number): boolean {
     reference[devFrontHandlersSymbol] = new Map()
     reference[devTieredHandlersSymbol] = new Map()
   }
+}
 
-  return true
+export function registerCustomCacheHandlers(
+  register: () => Promise<void>
+): Promise<void> {
+  let pendingPromise = reference[customCacheHandlersRegistrationSymbol]
+  if (!pendingPromise) {
+    pendingPromise = register()
+    reference[customCacheHandlersRegistrationSymbol] = pendingPromise
+  }
+
+  return pendingPromise
 }
 
 /**
@@ -233,44 +246,34 @@ export function getDevTieredCacheHandler(
 }
 
 /**
- * Get an iterator over the cache handlers.
- * @returns An iterator over the cache handlers, or `undefined` if they are not
- * initialized.
+ * Get the cache handlers. In dev, this also includes the built-in handlers (the
+ * private handler and the per-kind front handlers). The built-in handlers are
+ * not part of the registered set, but tag operations must still reach them:
+ * their `updateTags` writes the shared tags manifest that their `get` consults,
+ * so `revalidateTag` can invalidate their entries.
+ * @returns The cache handlers, or `undefined` if they are not initialized.
  */
-export function getCacheHandlers(): IterableIterator<CacheHandler> | undefined {
+export function getCacheHandlers(): CacheHandler[] | undefined {
   const handlersSet = reference[handlersSetSymbol]
   if (!handlersSet) {
     return undefined
   }
 
+  const handlers = Array.from(handlersSet)
+
   if (process.env.__NEXT_DEV_SERVER) {
-    return iterateCacheHandlersWithDevBuiltIns(handlersSet)
+    const privateHandler = reference[privateHandlerSymbol]
+    if (privateHandler) {
+      handlers.push(privateHandler)
+    }
+
+    const devFrontHandlers = reference[devFrontHandlersSymbol]
+    if (devFrontHandlers) {
+      handlers.push(...devFrontHandlers.values())
+    }
   }
 
-  return handlersSet.values()
-}
-
-/**
- * Yields the registered handlers plus the dev-only built-in handlers (the
- * private handler and the per-kind front handlers). The built-in handlers are
- * not part of the registered set, but tag operations must still reach them:
- * their `updateTags` writes the shared tags manifest that their `get` consults,
- * so `revalidateTag` can invalidate their entries.
- */
-function* iterateCacheHandlersWithDevBuiltIns(
-  handlersSet: Set<CacheHandler>
-): IterableIterator<CacheHandler> {
-  yield* handlersSet
-
-  const privateHandler = reference[privateHandlerSymbol]
-  if (privateHandler) {
-    yield privateHandler
-  }
-
-  const devFrontHandlers = reference[devFrontHandlersSymbol]
-  if (devFrontHandlers) {
-    yield* devFrontHandlers.values()
-  }
+  return handlers
 }
 
 /**

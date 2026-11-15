@@ -15,13 +15,13 @@
 //! // The common case: type contains no unresolved Vcs (only ResolvedVc / OperationVc / leaves).
 //! // Emits both NonLocalValue and the empty-body TaskInput impl.
 //! #[turbo_tasks::task_input]
-//! #[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+//! #[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
 //! pub struct MyTaskInput { ... }
 //!
 //! // Opt out of NonLocalValue: type contains Vc<T> fields. Emits a field-walking
 //! // resolve_input that recursively calls TaskInput::resolve_input on each field.
 //! #[turbo_tasks::task_input(contains_unresolved_vcs)]
-//! #[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
+//! #[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
 //! pub struct VcCarrier { vc: Vc<SomeType> }
 //! ```
 

@@ -1,4 +1,5 @@
 import fs from 'fs-extra'
+import { promises as fsPromises } from 'fs'
 import os from 'os'
 import path from 'path'
 
@@ -24,7 +25,20 @@ export async function useTempDir(
     await fn(folder)
   } finally {
     if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
-      await fs.remove(folder)
+      // Use Node's native `rm` rather than fs-extra's `remove()`. On Windows, a
+      // freshly installed project can briefly be locked (EPERM/EBUSY), e.g. by
+      // antivirus or a lingering child process. fs-extra@9's rimraf then runs
+      // `assert(er instanceof Error)`, which fails under Jest because fs errors
+      // come from a different realm. The assert throws inside an fs callback,
+      // so `remove()` never settles and the test hangs until it times out.
+      //
+      // `maxRetries` makes Node retry transient filesystem errors with a
+      // linear backoff, which handles short-lived Windows locks.
+      await fsPromises.rm(folder, {
+        recursive: true,
+        force: true,
+        maxRetries: 10,
+      })
     }
   }
 }

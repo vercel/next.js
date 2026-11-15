@@ -10,7 +10,7 @@ use turbopack_core::{
         OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsReferences,
         OutputAssetsWithReferenced,
     },
-    source_map::{GenerateSourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, SourceMapAsset, SourceMapType},
 };
 use turbopack_ecmascript::chunk::EcmascriptChunk;
 
@@ -27,7 +27,7 @@ use crate::{
 #[turbo_tasks::value(shared)]
 #[derive(ValueToString)]
 #[value_to_string("Ecmascript Browser Single Entry Chunk")]
-pub(crate) struct EcmascriptBrowserSingleEntryChunk {
+pub struct EcmascriptBrowserSingleEntryChunk {
     chunking_context: ResolvedVc<BrowserChunkingContext>,
     path: FileSystemPath,
     chunk: ResolvedVc<EcmascriptChunk>,
@@ -65,17 +65,16 @@ impl EcmascriptBrowserSingleEntryChunk {
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
 
-        let source_maps = *this
-            .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
-            .await?;
         let mut code = CodeBuilder::new(
-            source_maps,
             *this.chunking_context.debug_ids_enabled().await?,
+            *this
+                .chunking_context
+                .source_map_generation_options()
+                .await?,
         );
 
         let module_chunk = EcmascriptBrowserChunk::new(*this.chunking_context, *this.chunk);
-        code.push_code(&*module_chunk.own_content().code().await?);
+        code.push_code(&*module_chunk.own_content().code().await?)?;
 
         let evaluate_chunk = EcmascriptBrowserEvaluateChunk::new(
             *this.chunking_context,
@@ -84,7 +83,7 @@ impl EcmascriptBrowserSingleEntryChunk {
             *this.evaluatable_assets,
             *this.module_graph,
         );
-        code.push_code(&*evaluate_chunk.code().await?);
+        code.push_code(&*evaluate_chunk.code().await?)?;
 
         // Append the shared runtime chunk; without `shared_runtime` it's already inlined above.
         if *this.chunking_context.shared_runtime().await? {
@@ -92,7 +91,7 @@ impl EcmascriptBrowserSingleEntryChunk {
                 .chunking_context
                 .generate_runtime_chunk(*this.module_graph)
                 .await?;
-            code.push_code(&*runtime_chunk.code().await?);
+            code.push_code(&*runtime_chunk.code().await?)?;
         }
 
         Ok(Code::cell(code.build()))
@@ -103,6 +102,10 @@ impl EcmascriptBrowserSingleEntryChunk {
         let this = self.await?;
         Ok(SourceMapAsset::new_fixed(
             this.path.clone(),
+            this.chunking_context
+                .emitted_source_map_type()
+                .await?
+                .unwrap_or_default(),
             Vc::upcast(self),
         ))
     }
@@ -147,7 +150,14 @@ impl Asset for EcmascriptBrowserSingleEntryChunk {
         Ok(AssetContent::file(
             FileContent::Content(File::from(
                 self.code()
-                    .to_rope_with_magic_comments(|| self.source_map())
+                    .to_rope_with_magic_comments(
+                        *self
+                            .await?
+                            .chunking_context
+                            .emitted_source_map_type()
+                            .await?,
+                        || self.source_map(),
+                    )
                     .await?,
             ))
             .cell(),
@@ -158,7 +168,7 @@ impl Asset for EcmascriptBrowserSingleEntryChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBrowserSingleEntryChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
-        self.code().generate_source_map()
+    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent> {
+        self.code().generate_source_map(ty)
     }
 }

@@ -1,4 +1,5 @@
 const nextJest = require('next/jest')
+const { withGateTransformer } = require('./test/lib/gate/jest-transformer')
 
 const createJestConfig = nextJest()
 
@@ -7,6 +8,7 @@ const createJestConfig = nextJest()
 const customJestConfig = {
   displayName: process.env.IS_WEBPACK_TEST ? 'webpack' : 'Turbopack',
   testMatch: ['**/*.test.js', '**/*.test.ts', '**/*.test.jsx', '**/*.test.tsx'],
+  globalSetup: '<rootDir>/jest-global-setup.ts',
   setupFilesAfterEnv: ['<rootDir>/jest-setup-after-env.ts'],
   verbose: true,
   rootDir: 'test',
@@ -89,4 +91,11 @@ if (enableTestReport) {
 }
 
 // createJestConfig is exported in this way to ensure that next/jest can load the Next.js config which is async
-module.exports = createJestConfig(customJestConfig)
+const createConfig = createJestConfig(customJestConfig)
+
+module.exports = async function createConfigWithGates() {
+  // `withGateTransformer` chains the `@gate` pragma rewrite in front of the
+  // SWC transformer that `next/jest` configured, keeping next/jest's SWC
+  // options as the single source of truth. See test/lib/gate/.
+  return withGateTransformer(await createConfig())
+}

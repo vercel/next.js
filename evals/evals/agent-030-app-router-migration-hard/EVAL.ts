@@ -33,8 +33,10 @@ test('Root layout exists and replaces _app/_document', () => {
   // Should include metadata (replacing Head in _document.js)
   expect(layoutContent).toMatch(/metadata|Metadata/)
 
-  // Should accept children prop with ReactNode type
-  expect(layoutContent).toMatch(/children.*ReactNode/)
+  // Accept both documented root-layout typing forms (next.js#98365).
+  const layoutCode = stripComments(layoutContent)
+  expect(layoutCode).toMatch(/children/)
+  expect(layoutCode).toMatch(/(?:React\.)?ReactNode|LayoutProps\s*</)
 })
 
 // The "is it a Server Component fetching data" check is semantic, so it uses the
@@ -152,7 +154,7 @@ test('Metadata API replaces next/head', () => {
   }
 })
 
-test('Error handling migrated to error.js and not-found.js', () => {
+test('Error handling migrated to error.js and not-found.js', async () => {
   // Check for error.js file
   const errorPath = join(process.cwd(), 'app', 'error.tsx')
   expect(existsSync(errorPath)).toBe(true)
@@ -162,8 +164,27 @@ test('Error handling migrated to error.js and not-found.js', () => {
   // Should be a Client Component for error boundaries
   expect(errorContent).toMatch(/['"]use client['"];?/)
 
-  // Should accept error props
-  expect(errorContent).toMatch(/error.*Error|Error.*error/)
+  // Follow the exported component instead of requiring its implementation
+  // and Error annotation to appear literally in app/error.tsx.
+  await expect(environment).toSatisfyCriterion(
+    `app/error.tsx exports a working App Router error boundary Client Component.
+Follow its default export, including local imports, re-exports, and wrapper
+components. First read the installed Next.js error-file reference under
+node_modules/next/dist/docs and check the installed version's supported props;
+do not assume a recovery callback name from older Next.js versions. The current
+canary documents retry as the recommended recovery callback and also supports
+reset. Either supported callback is valid; do not require both.
+
+The exported component must accept the framework-provided error, render an error
+fallback, and wire its recovery action to a supported framework callback. An
+inline implementation, a re-export of a shared component, and a wrapper
+forwarding the props are equally valid. Type annotations may be inline or imported.
+
+Reject a missing or unresolved export, a non-component export, a wrapper that
+drops required props, or a recovery action that calls an undefined callback.
+Follow the actual implementation and the installed framework contract, not
+filenames, comments, type names, or assumptions about older framework APIs.`
+  )
 
   // Check for not-found.js file
   const notFoundPath = join(process.cwd(), 'app', 'not-found.tsx')

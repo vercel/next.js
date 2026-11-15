@@ -19,4 +19,7 @@ export const dynamicParams = true // true | false
 > **Good to know**:
 >
 > - This option replaces the `fallback: true | false | blocking` option of `getStaticPaths` in the `pages` directory.
-> - `dynamicParams` is not available when [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled.
+
+## With Cache Components
+
+`dynamicParams` is not available when [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled. Paths not returned by `generateStaticParams` are handled at request time. Call [`notFound()`](/docs/app/api-reference/functions/not-found) in the page when the requested resource does not exist to render the not-found UI. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes) for how streaming affects the HTTP status.

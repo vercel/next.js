@@ -7,12 +7,9 @@ const testFn =
     : describe
 
 testFn('import-meta-glob', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('should resolve lazy glob modules', async () => {
     const $ = await next.render$('/')

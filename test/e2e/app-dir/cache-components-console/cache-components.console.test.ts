@@ -3,19 +3,18 @@ import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 // TODO(restart-on-cache-miss): cacheSignal timing changes break console log dimming/hiding tests
-describe.skip('cache-components - Console Dimming - Validation', () => {
-  const { next, skipped, isTurbopack } = nextTestSetup({
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
+// @force-gate TODO
+describe('cache-components - Console Dimming - Validation', () => {
+  const { next, isTurbopack } = nextTestSetup({
     env: {
       FORCE_COLOR: '1',
     },
     files: __dirname + '/fixtures/default',
-    skipDeployment: true,
     skipStart: !isNextDev,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('dims console calls during prospective rendering', async () => {
     const path: string = '/console'
@@ -202,19 +201,17 @@ describe.skip('cache-components - Console Dimming - Validation', () => {
 
 // TODO(restart-on-cache-miss): cacheSignal timing changes break console log dimming/hiding tests
 describe.skip('cache-components - Logging after Abort', () => {
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // @force-gate !deploy
   describe('(default) With Dimming - Server', () => {
-    const { next, skipped, isTurbopack } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       env: {
         FORCE_COLOR: '1',
       },
       files: __dirname + '/fixtures/default',
-      skipDeployment: true,
       skipStart: !isNextDev,
     })
-
-    if (skipped) {
-      return
-    }
 
     it('dims console calls after a prerender has aborted', async () => {
       const path: string = '/console-after-abort/server'
@@ -380,19 +377,17 @@ describe.skip('cache-components - Logging after Abort', () => {
     })
   })
 
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // @force-gate !deploy
   describe('(default) With Dimming - Client', () => {
-    const { next, skipped, isTurbopack } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       env: {
         FORCE_COLOR: '1',
       },
       files: __dirname + '/fixtures/default',
-      skipDeployment: true,
       skipStart: !isNextDev,
     })
-
-    if (skipped) {
-      return
-    }
 
     it('dims console calls after a prerender has aborted', async () => {
       const path: string = '/console-after-abort/client'
@@ -549,19 +544,17 @@ describe.skip('cache-components - Logging after Abort', () => {
     })
   })
 
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // @force-gate !deploy
   describe('With Hiding - Server', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       env: {
         FORCE_COLOR: '1',
       },
       files: __dirname + '/fixtures/hide-logs-after-abort',
-      skipDeployment: true,
       skipStart: !isNextDev,
     })
-
-    if (skipped) {
-      return
-    }
 
     it('hides console calls after a prerender has aborted', async () => {
       const path: string = '/console-after-abort/server'
@@ -650,19 +643,17 @@ describe.skip('cache-components - Logging after Abort', () => {
     })
   })
 
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // @force-gate !deploy
   describe('With Hiding - Client', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       env: {
         FORCE_COLOR: '1',
       },
       files: __dirname + '/fixtures/hide-logs-after-abort',
-      skipDeployment: true,
       skipStart: !isNextDev,
     })
-
-    if (skipped) {
-      return
-    }
 
     it('hides console calls after a prerender has aborted', async () => {
       const path: string = '/console-after-abort/client'

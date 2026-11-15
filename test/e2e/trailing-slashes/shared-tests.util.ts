@@ -15,7 +15,7 @@ export function testShouldRedirect(
     async (route, expectedLocation) => {
       const res = await next.fetch(route, { redirect: 'manual' })
       expect(res.status).toBe(308)
-      const { pathname } = new URL(res.headers.get('location'))
+      const { pathname } = new URL(res.headers.get('location'), res.url)
       expect(pathname).toBe(expectedLocation)
     }
   )

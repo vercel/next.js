@@ -22,23 +22,6 @@ describe('Image Component Tests', () => {
     return false
   }
 
-  async function hasImagePreloadBeforeCSSPreload(browser) {
-    const links = await browser.elementsByCss('link')
-    let foundImage = false
-    for (const link of links) {
-      const rel = await link.getAttribute('rel')
-      if (rel === 'preload') {
-        const linkAs = await link.getAttribute('as')
-        if (linkAs === 'image') {
-          foundImage = true
-        } else if (linkAs === 'style' && foundImage) {
-          return true
-        }
-      }
-    }
-    return false
-  }
-
   function runTests(browser: () => Browser) {
     it('should render an image tag', async () => {
       expect(await browser().hasElementByCssSelector('img')).toBeTruthy()
@@ -333,8 +316,19 @@ describe('Image Component Tests', () => {
         )
       ).toBe(true)
     })
-    it('should not create any preload tags higher up the page than CSS preload tags', async () => {
-      expect(await hasImagePreloadBeforeCSSPreload(browser)).toBe(false)
+    it('should render image preload tags after CSS preload tags in SSR HTML', async () => {
+      // This assertion checks the SSR order before React 18 client-side head
+      // updates can reorder the preload links.
+      const $ = await next.render$('/')
+      const preloadTypes = $('link[rel="preload"]')
+        .toArray()
+        .map((link) => $(link).attr('as'))
+      const firstImagePreloadIndex = preloadTypes.indexOf('image')
+      const lastStylePreloadIndex = preloadTypes.lastIndexOf('style')
+
+      expect(firstImagePreloadIndex).toBeGreaterThanOrEqual(0)
+      expect(lastStylePreloadIndex).toBeGreaterThanOrEqual(0)
+      expect(firstImagePreloadIndex).toBeGreaterThan(lastStylePreloadIndex)
     })
     it('should add data-nimg data attribute based on layout', async () => {
       expect(

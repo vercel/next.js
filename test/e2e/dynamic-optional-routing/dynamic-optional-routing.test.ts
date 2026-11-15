@@ -1,13 +1,15 @@
 import cheerio from 'cheerio'
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { FileRef, nextTestSetup, isNextDev } from 'e2e-utils'
+import { join } from 'path'
 import { retry } from 'next-test-utils'
 
+const files = {
+  pages: new FileRef(join(__dirname, 'pages')),
+  'next.config.js': new FileRef(join(__dirname, 'next.config.js')),
+}
+
 describe('Dynamic Optional Routing', () => {
-  const { next, skipped } = nextTestSetup({
-    files: __dirname,
-    skipDeployment: true,
-  })
-  if (skipped) return
+  const { next } = nextTestSetup({ files })
 
   it('should render catch-all top-level route with multiple segments', async () => {
     const html = await next.render('/hello/world')
@@ -217,82 +219,58 @@ describe('Dynamic Optional Routing', () => {
 })
 
 describe('Dynamic Optional Routing - build validation', () => {
-  const { next, skipped } = nextTestSetup({
-    files: __dirname,
-    skipStart: true,
-    skipDeployment: true,
-  })
-  if (skipped) return
+  describe.each([
+    {
+      name: 'when optional route has index.js at root',
+      page: 'pages/index.js',
+      fixture: 'dummy-page.js',
+      message:
+        /You cannot define a route with the same specificity as a optional catch-all route/,
+    },
+    {
+      name: 'when optional route has same page at root',
+      page: 'pages/nested.js',
+      fixture: 'dummy-page.js',
+      message:
+        /You cannot define a route with the same specificity as a optional catch-all route/,
+    },
+    {
+      name: 'when mixed with regular catch-all',
+      page: 'pages/nested/[...param].js',
+      fixture: 'dummy-page.js',
+      message: /You cannot use both .+ at the same level/,
+    },
+    {
+      name: 'when optional but no catch-all',
+      page: 'pages/invalid/[[param]].js',
+      fixture: 'dummy-page.js',
+      message: /Optional route parameters are not yet supported/,
+    },
+    {
+      name: 'when param is not explicitly defined',
+      page: 'pages/invalid/[[...slug]].js',
+      fixture: 'missing-param.js',
+      message:
+        'A required parameter (slug) was not provided as an array received undefined in getStaticPaths for /invalid/[[...slug]]',
+    },
+  ])('$name', ({ page, fixture, message }) => {
+    const { next } = nextTestSetup({
+      files: {
+        ...files,
+        [page]: new FileRef(join(__dirname, 'fixtures', fixture)),
+      },
+      skipStart: true,
+    })
 
-  const DUMMY_PAGE = 'export default () => null'
-
-  it('should fail to build when optional route has index.js at root', async () => {
-    await next.patchFile('pages/index.js', DUMMY_PAGE)
-    await next.build()
-    expect(next.cliOutput).toMatch(
-      /You cannot define a route with the same specificity as a optional catch-all route/
-    )
-    // Clean up for next test
-    await next.deleteFile('pages/index.js')
-  })
-
-  it('should fail to build when optional route has same page at root', async () => {
-    await next.patchFile('pages/nested.js', DUMMY_PAGE)
-    await next.build()
-    expect(next.cliOutput).toMatch(
-      /You cannot define a route with the same specificity as a optional catch-all route/
-    )
-    // Clean up for next test
-    await next.deleteFile('pages/nested.js')
-  })
-
-  it('should fail to build when mixed with regular catch-all', async () => {
-    await next.patchFile('pages/nested/[...param].js', DUMMY_PAGE)
-    await next.build()
-    expect(next.cliOutput).toMatch(/You cannot use both .+ at the same level/)
-    // Clean up for next test
-    await next.deleteFile('pages/nested/[...param].js')
-  })
-
-  it('should fail to build when optional but no catch-all', async () => {
-    await next.patchFile('pages/invalid/[[param]].js', DUMMY_PAGE)
-    await next.build()
-    expect(next.cliOutput).toMatch(
-      /Optional route parameters are not yet supported/
-    )
-    // Clean up for next test
-    await next.deleteFile('pages/invalid/[[param]].js')
-  })
-
-  it('should fail to build when param is not explicitly defined', async () => {
-    await next.patchFile(
-      'pages/invalid/[[...slug]].js',
-      `
-      export async function getStaticPaths() {
-        return {
-          paths: [
-            { params: {} },
-          ],
-          fallback: false,
-        }
+    it('should fail to build', async () => {
+      if (isNextDev) {
+        // These build diagnostics also run in the dev test matrix.
+        const { exitCode } = await next.build()
+        expect(exitCode).toBe(1)
+      } else {
+        await expect(next.start()).rejects.toThrow()
       }
-
-      export async function getStaticProps({ params }) {
-        return { props: { params } }
-      }
-
-      export default function Index(props) {
-        return (
-          <div>Invalid</div>
-        )
-      }
-    `
-    )
-    await next.build()
-    expect(next.cliOutput).toMatch(
-      'A required parameter (slug) was not provided as an array received undefined in getStaticPaths for /invalid/[[...slug]]'
-    )
-    // Clean up
-    await next.deleteFile('pages/invalid/[[...slug]].js')
+      expect(next.cliOutput).toMatch(message)
+    }, 240_000)
   })
 })

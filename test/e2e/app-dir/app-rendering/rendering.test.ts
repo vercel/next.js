@@ -3,14 +3,9 @@ import { waitFor } from 'next-test-utils'
 import cheerio from 'cheerio'
 
 describe('app dir rendering', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should serve app/page.server.js at /', async () => {
     const html = await next.render('/')

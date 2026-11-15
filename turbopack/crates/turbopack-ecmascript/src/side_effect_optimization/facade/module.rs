@@ -11,12 +11,14 @@ use turbopack_core::{
     module_graph::ModuleGraph,
     reference::ModuleReferences,
     resolve::{ExportUsage, ModulePart},
+    source_map::SourceMapGenerationOptions,
 };
 
 use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptAnalyzableExt,
-    EcmascriptModuleContent, EcmascriptModuleContentOptions, EcmascriptOptions,
+    EcmascriptModuleContent, EcmascriptModuleContentOptions, EcmascriptOptions, EnvVarInfo,
     MergedEcmascriptModule, SpecifiedModuleType,
+    analyzer::imports::ExportRegistrationMode,
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
@@ -81,19 +83,40 @@ impl EcmascriptModuleFacadeModule {
             );
         };
         let result = module.analyze().await?;
-        Ok((
-            vec![
-                // TODO skip if side effect free and no local exports
-                EcmascriptModulePartReference::new_part(
-                    *self.module,
-                    ModulePart::locals(),
-                    ExportUsage::all(),
-                )
-                .to_resolved()
-                .await?,
-            ],
-            result.esm_reexport_references,
-        ))
+
+        // The locals module has to be *evaluated* for its side effects and ordering, which this
+        // reference is what guarantees. `evaluation()` rather than `all()`: the latter would also
+        // claim every export is used, widening the locals module's usage to `All` unconditionally
+        // and defeating both export mangling and tree shaking of its unused exports.
+        let mut part_references = vec![
+            EcmascriptModulePartReference::new_part(
+                *self.module,
+                ModulePart::locals(),
+                ExportUsage::evaluation(),
+            )
+            .to_resolved()
+            .await?,
+        ];
+        // Then one reference per export that comes from the locals module, so the module graph
+        // carries *which* names this facade needs from it. Without these the evaluation reference
+        // would be the only facade -> locals edge, and it would have to claim `all()`.
+        if let EcmascriptExports::EsmExports(esm_exports) = &*self.module.get_exports().await? {
+            for (name, export) in &esm_exports.await?.exports {
+                if matches!(export, EsmExport::LocalBinding(..)) {
+                    part_references.push(
+                        EcmascriptModulePartReference::new_part(
+                            *self.module,
+                            ModulePart::locals(),
+                            ExportUsage::named(name.clone()),
+                        )
+                        .to_resolved()
+                        .await?,
+                    );
+                }
+            }
+        }
+
+        Ok((part_references, result.esm_reexport_references))
     }
 }
 
@@ -153,10 +176,12 @@ impl EcmascriptAnalyzable for EcmascriptModuleFacadeModule {
     }
 
     #[turbo_tasks::function]
-    fn module_content_without_analysis(
-        &self,
-        _generate_source_map: bool,
-    ) -> Result<Vc<EcmascriptModuleContent>> {
+    fn env_var_info(self: Vc<Self>) -> Vc<EnvVarInfo> {
+        EnvVarInfo::empty()
+    }
+
+    #[turbo_tasks::function]
+    fn module_content_without_analysis(&self) -> Result<Vc<EcmascriptModuleContent>> {
         bail!("EcmascriptModuleFacadeModule::module_content_without_analysis shouldn't be called");
     }
 
@@ -181,9 +206,12 @@ impl EcmascriptAnalyzable for EcmascriptModuleFacadeModule {
             // The facade module cannot generate source maps, because the inserted references
             // contain spans from the original module, but the facade module itself doesn't have the
             // original module's swc_common::SourceMap in `parsed`.
-            generate_source_map: false,
+            source_map_generation_options: SourceMapGenerationOptions::NONE,
             original_source_map: None,
             exports: self.get_exports().to_resolved().await?,
+            // A synthetic facade only evaluates the locals part and forwards bindings from its
+            // referenced modules, so compact registration can preserve its complete import order.
+            export_registration_mode: Some(ExportRegistrationMode::Reexport),
             async_module_info,
         }
         .cell())
@@ -238,6 +266,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
         let exports = EsmExports {
             exports: FrozenMap::from_unique_sorted_box(exports.into_boxed_slice()),
             star_exports: esm_exports.star_exports.clone(),
+            mangle_export_names: esm_exports.mangle_export_names,
         }
         .resolved_cell();
         Ok(EcmascriptExports::EsmExports(exports).cell())

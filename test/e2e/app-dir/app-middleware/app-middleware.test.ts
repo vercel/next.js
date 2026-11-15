@@ -2,7 +2,6 @@
 import cheerio from 'cheerio'
 import { check, retry, withQuery } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
-import type { Response } from 'node-fetch'
 
 describe('app-dir with middleware', () => {
   const { next, isNextDeploy } = nextTestSetup({
@@ -182,6 +181,28 @@ describe('app-dir with middleware', () => {
     // Cleanup
     await browser.deleteCookies()
   })
+
+  it.each(['/rsc-cookies', '/rsc-cookies-edge'])(
+    'should prefer middleware cookies over request cookies in %s',
+    async (pathname) => {
+      const res = await next.fetch(pathname, {
+        headers: {
+          cookie: 'rsc-cookie-value-1=from-request; other-cookie=preserved',
+        },
+      })
+      expect(res.status).toBe(200)
+
+      const $ = cheerio.load(await res.text())
+      const setCookie = res.headers.get('set-cookie')
+      const cookie1 = setCookie.match(/rsc-cookie-value-1=([^;]+)/)[1]
+      const cookie2 = setCookie.match(/rsc-cookie-value-2=([^;]+)/)[1]
+      expect(cookie1).toMatch(/^\d+\.\d+$/)
+      expect(cookie2).toMatch(/^\d+\.\d+$/)
+      expect($('#rsc-cookie-1').text()).toBe(`Cookie 1: ${cookie1}`)
+      expect($('#rsc-cookie-2').text()).toBe(`Cookie 2: ${cookie2}`)
+      expect($('#total-cookies').text()).toBe('Total Cookie Length: 3')
+    }
+  )
 
   it('should respect cookie options of merged middleware cookies', async () => {
     const browser = await next.browser('/rsc-cookies/cookie-options')

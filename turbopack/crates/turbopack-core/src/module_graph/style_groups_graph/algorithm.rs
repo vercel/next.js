@@ -5,14 +5,17 @@
 
 use std::{
     cmp::Reverse,
-    collections::{BinaryHeap, VecDeque},
+    collections::{BTreeSet, BinaryHeap},
 };
 
-use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
+use petgraph::{
+    graph::{DiGraph, EdgeIndex, NodeIndex},
+    visit::EdgeRef,
+};
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_tasks::FxIndexMap;
 
-use super::subgraph_view::{ReadonlyGraph, SubgraphView};
+use super::subgraph_view::ReadonlyGraph;
 use crate::module::StyleType;
 
 // ---------------------------------------------------------------------------
@@ -216,300 +219,327 @@ where
 }
 
 // ---------------------------------------------------------------------------
-// find_short_cycle (bidirectional Dijkstra)
-// ---------------------------------------------------------------------------
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Direction2 {
-    Forward,
-    Backward,
-    Cycle,
-}
-
-#[derive(Debug, Clone)]
-struct Candidate {
-    direction: Direction2,
-    /// Predecessor on the forward half of the search tree. `Some` for nodes reached by the
-    /// forward frontier (`Forward` or `Cycle` direction); `None` for the start node and for
-    /// nodes reached only by the backward frontier.
-    forward_predecessor: Option<NodeIndex>,
-    /// Predecessor on the backward half of the search tree. Mirror of `forward_predecessor`.
-    backward_predecessor: Option<NodeIndex>,
-    /// `u64::MAX` is used as the sentinel for "visited / +infinity" — matches the JS `Infinity`.
-    distance: u64,
-}
-
-/// Find a short cycle inside `graph`. Returns `None` if `graph` is empty or has no cycle
-/// reachable from `start_node` (or, when `start_node` is `None`, from the first node yielded
-/// by `graph.nodes()`). The cycle is returned as an array of distinct node ids; every
-/// consecutive pair has an edge and the last node has an edge back to the first (the closing
-/// wrap is implicit, not repeated).
-///
-/// The result is "a short" cycle, not necessarily the global shortest: only starts that
-/// already appear on the current best cycle are tried.
-pub(super) fn find_short_cycle<'a, G>(
-    graph: G,
-    start_node: Option<NodeIndex>,
-) -> Option<Vec<NodeIndex>>
-where
-    G: ReadonlyGraph<'a>,
-{
-    let start = match start_node {
-        Some(n) => n,
-        None => graph.nodes().next()?,
-    };
-
-    let initial = find_shortest_cycle_from_node(graph, start)?;
-    let mut cycle: VecDeque<NodeIndex> = initial.into();
-    // 2-cycles are already minimal — no shift can produce a shorter one. Skip the (otherwise
-    // up-to-k-call) shift loop in this common case.
-    let mut remaining_shifts = if cycle.len() <= 2 { 0 } else { cycle.len() };
-
-    while remaining_shifts > 0 {
-        let Some(shifted) = cycle.pop_front() else {
-            break;
-        };
-        cycle.push_back(shifted);
-        // Every node on a cycle is itself on a cycle (within the same graph snapshot), so this
-        // call is expected to find one.
-        let new_cycle = find_shortest_cycle_from_node(graph, shifted)
-            .expect("every node on a cycle must itself be on a cycle");
-        if new_cycle.len() < cycle.len() {
-            remaining_shifts = new_cycle.len();
-            cycle = new_cycle.into();
-        } else {
-            remaining_shifts -= 1;
-        }
-    }
-    Some(cycle.into())
-}
-
-/// Returns `None` if no cycle is reachable from `start`.
-fn find_shortest_cycle_from_node<'a, G>(graph: G, start: NodeIndex) -> Option<Vec<NodeIndex>>
-where
-    G: ReadonlyGraph<'a>,
-{
-    let mut candidates: FxHashMap<NodeIndex, Candidate> = FxHashMap::default();
-    // Min-heap keyed by `(distance, seq)`. `seq` is a strictly-increasing counter so ties break
-    // by insertion order (earlier insertions win). Entries are never removed on relaxation;
-    // stale entries are filtered when popped by comparing to `candidates[node].distance`.
-    let mut heap: BinaryHeap<Reverse<(u64, u32, NodeIndex)>> = BinaryHeap::new();
-    let mut next_seq: u32 = 0;
-
-    // Seed: a backward "stub" at the start node, plus a forward step over each outgoing edge.
-    candidates.insert(
-        start,
-        Candidate {
-            direction: Direction2::Backward,
-            forward_predecessor: None,
-            backward_predecessor: None,
-            distance: 0,
-        },
-    );
-    heap.push(Reverse((0, next_seq, start)));
-    next_seq += 1;
-
-    for (edge, weight) in graph.outgoing_edges_with_weight(start) {
-        let distance = weight as u64;
-        candidates.insert(
-            edge,
-            Candidate {
-                direction: Direction2::Forward,
-                forward_predecessor: Some(start),
-                backward_predecessor: None,
-                distance,
-            },
-        );
-        heap.push(Reverse((distance, next_seq, edge)));
-        next_seq += 1;
-    }
-
-    loop {
-        // Pop the lowest-distance live entry, skipping stale ones.
-        let (node, current_distance) = loop {
-            let Reverse((dist, _, node)) = heap.pop()?;
-            match candidates.get(&node) {
-                Some(cand) if cand.distance == dist => break (node, dist),
-                _ => continue,
-            }
-        };
-
-        let direction = candidates[&node].direction;
-
-        // A node with `direction == Cycle` is one where the forward and backward frontiers
-        // collided. Splice the two halves back into a cycle and return.
-        if direction == Direction2::Cycle {
-            let cand = candidates.remove(&node).unwrap();
-            let mut result = reconstruct_path(&candidates, cand.forward_predecessor, true);
-            result.push(node);
-            // `backward_path` always begins with the cycle's start node; drop that head before
-            // reversing.
-            let backward = reconstruct_path(&candidates, cand.backward_predecessor, false);
-            result.extend(backward.into_iter().skip(1).rev());
-            return Some(result);
-        }
-
-        // Mark `node` as visited (sentinel `u64::MAX` distance).
-        candidates.get_mut(&node).unwrap().distance = u64::MAX;
-        // Snapshot neighbours before mutating `candidates` (avoids overlapping borrows).
-        let neighbours: Vec<(NodeIndex, u32)> = match direction {
-            Direction2::Forward => graph.outgoing_edges_with_weight(node).collect(),
-            Direction2::Backward => graph.incoming_edges_with_weight(node).collect(),
-            Direction2::Cycle => unreachable!(),
-        };
-
-        for (edge, weight) in neighbours {
-            let new_distance = current_distance + weight as u64;
-            match candidates.get_mut(&edge) {
-                None => {
-                    // Unseen neighbour — extend the unidirectional frontier.
-                    let (fwd, bwd) = match direction {
-                        Direction2::Forward => (Some(node), None),
-                        Direction2::Backward => (None, Some(node)),
-                        Direction2::Cycle => unreachable!(),
-                    };
-                    candidates.insert(
-                        edge,
-                        Candidate {
-                            direction,
-                            forward_predecessor: fwd,
-                            backward_predecessor: bwd,
-                            distance: new_distance,
-                        },
-                    );
-                    heap.push(Reverse((new_distance, next_seq, edge)));
-                    next_seq += 1;
-                }
-                Some(existing) if existing.distance == u64::MAX => {
-                    // Already visited — leave it.
-                }
-                Some(existing) if existing.direction == direction => {
-                    // Same-direction relaxation.
-                    if new_distance < existing.distance {
-                        if direction == Direction2::Forward {
-                            existing.forward_predecessor = Some(node);
-                        } else {
-                            existing.backward_predecessor = Some(node);
-                        }
-                        existing.distance = new_distance;
-                        heap.push(Reverse((new_distance, next_seq, edge)));
-                        next_seq += 1;
-                    }
-                }
-                Some(existing) if existing.direction == Direction2::Cycle => {
-                    // Already a cycle candidate — relax the half coming from `direction`.
-                    if new_distance < existing.distance {
-                        if direction == Direction2::Forward {
-                            existing.forward_predecessor = Some(node);
-                        } else {
-                            existing.backward_predecessor = Some(node);
-                        }
-                        existing.distance = new_distance;
-                        heap.push(Reverse((new_distance, next_seq, edge)));
-                        next_seq += 1;
-                    }
-                }
-                Some(existing) => {
-                    // Opposite unidirectional frontiers met → upgrade to a cycle candidate.
-                    // The opposite-direction predecessor was already populated when `existing`
-                    // joined the frontier; we just fill in our side.
-                    existing.direction = Direction2::Cycle;
-                    if direction == Direction2::Forward {
-                        existing.forward_predecessor = Some(node);
-                    } else {
-                        existing.backward_predecessor = Some(node);
-                    }
-                    // Distance is unchanged; the existing heap entry at the old distance is
-                    // still valid and will pop the upgraded `Cycle` candidate.
-                }
-            }
-        }
-    }
-}
-
-/// Walk back through predecessors to reconstruct the path from `start` to (but not including)
-/// the cycle node. `forward = true` follows forward predecessors; `false` follows backward.
-/// Returns the path in order `[start, ..., last_predecessor]`.
-fn reconstruct_path(
-    candidates: &FxHashMap<NodeIndex, Candidate>,
-    from: Option<NodeIndex>,
-    forward: bool,
-) -> Vec<NodeIndex> {
-    let mut path: Vec<NodeIndex> = Vec::new();
-    let mut cur = from;
-    while let Some(n) = cur {
-        path.push(n);
-        let c = &candidates[&n];
-        cur = if forward {
-            c.forward_predecessor
-        } else {
-            c.backward_predecessor
-        };
-    }
-    path.reverse();
-    path
-}
-
-// ---------------------------------------------------------------------------
 // make_acyclic
 // ---------------------------------------------------------------------------
 
-/// Mutate `graph` in place to remove all multi-node cycles by repeatedly cutting the
-/// lowest-weight edge of a short cycle in each SCC.
-pub(super) fn make_acyclic<N>(graph: &mut DiGraph<N, u32>) {
-    let mut queue: Vec<FxHashSet<NodeIndex>> = Vec::new();
-    for scc in strongly_connected_components(&*graph) {
-        if scc.len() > 1 {
-            queue.push(scc);
+type ScoreHeap = BinaryHeap<(i64, Reverse<NodeIndex>)>;
+
+struct FeedbackArcScratch {
+    active: Vec<bool>,
+    incoming_count: Vec<usize>,
+    outgoing_count: Vec<usize>,
+    incoming_weight: Vec<i64>,
+    outgoing_weight: Vec<i64>,
+}
+
+impl FeedbackArcScratch {
+    fn new(bound: usize) -> Self {
+        Self {
+            active: vec![false; bound],
+            incoming_count: vec![0; bound],
+            outgoing_count: vec![0; bound],
+            incoming_weight: vec![0; bound],
+            outgoing_weight: vec![0; bound],
+        }
+    }
+}
+
+/// Queue an active node according to its current source/sink status and weighted score.
+fn queue_feedback_arc_node(
+    node: NodeIndex,
+    active: &[bool],
+    incoming_count: &[usize],
+    outgoing_count: &[usize],
+    incoming_weight: &[i64],
+    outgoing_weight: &[i64],
+    sources: &mut BTreeSet<NodeIndex>,
+    sinks: &mut BTreeSet<NodeIndex>,
+    scores: &mut ScoreHeap,
+) {
+    if !active[node.index()] {
+        return;
+    }
+    if incoming_count[node.index()] == 0 {
+        sources.insert(node);
+    }
+    if outgoing_count[node.index()] == 0 {
+        sinks.insert(node);
+    }
+    if incoming_count[node.index()] > 0 && outgoing_count[node.index()] > 0 {
+        scores.push((
+            outgoing_weight[node.index()] - incoming_weight[node.index()],
+            Reverse(node),
+        ));
+    }
+}
+
+/// Compute a deterministic weighted feedback-arc ordering for one SCC.
+///
+/// This is the weighted Eades-Lin-Smyth heuristic: peel sinks and sources, and when neither exists,
+/// peel the node with the largest `outgoing_weight - incoming_weight`. Edges that point backward in
+/// the resulting order are the approximate minimum feedback arc set.
+fn feedback_arc_order<N>(
+    graph: &DiGraph<N, u32>,
+    scc: &FxHashSet<NodeIndex>,
+    scratch: &mut FeedbackArcScratch,
+) -> Vec<NodeIndex> {
+    let mut nodes: Vec<_> = scc.iter().copied().collect();
+    nodes.sort_unstable_by_key(|node| node.index());
+
+    let FeedbackArcScratch {
+        active,
+        incoming_count,
+        outgoing_count,
+        incoming_weight,
+        outgoing_weight,
+    } = scratch;
+    for &node in &nodes {
+        active[node.index()] = true;
+        incoming_count[node.index()] = 0;
+        outgoing_count[node.index()] = 0;
+        incoming_weight[node.index()] = 0;
+        outgoing_weight[node.index()] = 0;
+    }
+
+    for &node in &nodes {
+        for (target, weight) in graph.outgoing_edges_with_weight(node) {
+            if target != node && scc.contains(&target) {
+                outgoing_count[node.index()] += 1;
+                outgoing_weight[node.index()] += i64::from(weight);
+                incoming_count[target.index()] += 1;
+                incoming_weight[target.index()] += i64::from(weight);
+            }
         }
     }
 
-    while let Some(scc) = queue.pop() {
-        // Inner loop: keep cutting edges from cycles inside this SCC, seeding each subsequent
-        // search at the previous cut's target. The seed is likely still on a cycle until the
-        // local cycles around it are gone, at which point `find_short_cycle` returns `None` and
-        // we re-run SCC to discover any remaining components.
-        let mut seed_node: Option<NodeIndex> = None;
-        loop {
-            // Live view restricted to the current SCC.
-            let view = SubgraphView::new(&*graph, &scc);
-            let Some(short_cycle) = find_short_cycle(view, seed_node) else {
-                break;
-            };
+    let mut sources = BTreeSet::new();
+    let mut sinks = BTreeSet::new();
+    let mut scores = ScoreHeap::new();
+    for &node in &nodes {
+        queue_feedback_arc_node(
+            node,
+            active,
+            incoming_count,
+            outgoing_count,
+            incoming_weight,
+            outgoing_weight,
+            &mut sources,
+            &mut sinks,
+            &mut scores,
+        );
+    }
 
-            // Walk the cycle's k edges directly (closing wrap implicit) and find the minimum-
-            // weight one. Considering edges *on the cycle path* — rather than any edge between
-            // cycle nodes — guarantees the chosen cut breaks this cycle, not an unrelated chord.
-            let mut min_weight: Option<u32> = None;
-            let mut min_edge: Option<EdgeIndex> = None;
-            let mut min_to: Option<NodeIndex> = None;
-            for i in 0..short_cycle.len() {
-                let from = short_cycle[i];
-                let to = short_cycle[(i + 1) % short_cycle.len()];
-                let Some(edge) = graph.find_edge(from, to) else {
-                    continue;
-                };
-                let weight = *graph.edge_weight(edge).unwrap();
-                if min_weight.is_none_or(|w| weight < w) {
-                    min_weight = Some(weight);
-                    min_edge = Some(edge);
-                    min_to = Some(to);
+    let mut left = Vec::with_capacity(nodes.len());
+    let mut right = Vec::new();
+    while left.len() + right.len() < nodes.len() {
+        let (node, place_left) = if let Some(&node) = sinks.first() {
+            (node, false)
+        } else if let Some(&node) = sources.first() {
+            (node, true)
+        } else {
+            loop {
+                let (score, Reverse(node)) = scores
+                    .pop()
+                    .expect("every active non-source/non-sink node has a score");
+                let current_score = outgoing_weight[node.index()] - incoming_weight[node.index()];
+                if active[node.index()]
+                    && incoming_count[node.index()] > 0
+                    && outgoing_count[node.index()] > 0
+                    && score == current_score
+                {
+                    break (node, true);
+                }
+            }
+        };
+
+        active[node.index()] = false;
+        sources.remove(&node);
+        sinks.remove(&node);
+        if place_left {
+            left.push(node);
+        } else {
+            right.push(node);
+        }
+
+        for (target, weight) in graph.outgoing_edges_with_weight(node) {
+            if target != node && active[target.index()] {
+                incoming_count[target.index()] -= 1;
+                incoming_weight[target.index()] -= i64::from(weight);
+                queue_feedback_arc_node(
+                    target,
+                    active,
+                    incoming_count,
+                    outgoing_count,
+                    incoming_weight,
+                    outgoing_weight,
+                    &mut sources,
+                    &mut sinks,
+                    &mut scores,
+                );
+            }
+        }
+        for (source, weight) in graph.incoming_edges_with_weight(node) {
+            if source != node && active[source.index()] {
+                outgoing_count[source.index()] -= 1;
+                outgoing_weight[source.index()] -= i64::from(weight);
+                queue_feedback_arc_node(
+                    source,
+                    active,
+                    incoming_count,
+                    outgoing_count,
+                    incoming_weight,
+                    outgoing_weight,
+                    &mut sources,
+                    &mut sinks,
+                    &mut scores,
+                );
+            }
+        }
+    }
+
+    left.extend(right.into_iter().rev());
+    left
+}
+
+// In a deterministic 5,000-case corpus every SCC converged within four sweeps; the 499-module
+// production reproduction converged after six. Ten leaves headroom while the strict-improvement
+// rule still terminates already-converged orders early.
+const MAX_REFINEMENT_SWEEPS: usize = 10;
+
+/// Improve a feedback-arc order with deterministic node-insertion sweeps.
+///
+/// Moving one node only changes its pairwise contribution against the nodes it crosses, so every
+/// candidate position can be scored in one pass over `order`. A move is accepted only when it
+/// strictly increases the total weight of forward-pointing original edges; equal scores keep the
+/// existing order. The fixed sweep limit bounds the work while allowing earlier moves to unlock
+/// improvements for nodes already visited in the same sweep.
+pub(super) fn refine_feedback_arc_order<N>(
+    order: &mut [NodeIndex],
+    graph: &DiGraph<N, u32>,
+    scc: &FxHashSet<NodeIndex>,
+) {
+    // The weighted seed is already optimal for a two-node SCC, and no non-adjacent insertion is
+    // possible. Avoid per-SCC allocation for this common fragmented-graph shape.
+    if order.len() <= 2 {
+        return;
+    }
+
+    let mut weights = FxHashMap::default();
+    for &source in order.iter() {
+        for (target, weight) in graph.outgoing_edges_with_weight(source) {
+            if target != source && scc.contains(&target) {
+                weights.insert((source, target), weight as u64);
+            }
+        }
+    }
+
+    let edge_weight = |source, target| weights.get(&(source, target)).copied().unwrap_or(0);
+    let mut score: u64 = order
+        .iter()
+        .enumerate()
+        .map(|(i, &source)| {
+            order[i + 1..]
+                .iter()
+                .map(|&target| edge_weight(source, target))
+                .sum::<u64>()
+        })
+        .sum();
+    let mut nodes = order.to_vec();
+    nodes.sort_unstable_by_key(|node| node.index());
+
+    for _ in 0..MAX_REFINEMENT_SWEEPS {
+        let mut changed = false;
+        for &node in &nodes {
+            let old_position = order
+                .iter()
+                .position(|&candidate| candidate == node)
+                .expect("refinement nodes come from the current order");
+            let (before, node_and_after) = order.split_at(old_position);
+            let after = &node_and_after[1..];
+            let old_contribution: u64 = before
+                .iter()
+                .map(|&source| edge_weight(source, node))
+                .chain(after.iter().map(|&target| edge_weight(node, target)))
+                .sum();
+            let score_without_node = score - old_contribution;
+
+            // Score every insertion position in the conceptual `before + after` sequence. This
+            // avoids cloning and removing the whole order for every node.
+            let mut contribution: u64 = before
+                .iter()
+                .chain(after)
+                .map(|&target| edge_weight(node, target))
+                .sum();
+            let mut best_score = score;
+            let mut best_position = None;
+            for (position, crossed) in before
+                .iter()
+                .chain(after)
+                .copied()
+                .map(Some)
+                .chain(std::iter::once(None))
+                .enumerate()
+            {
+                let candidate_score = score_without_node + contribution;
+                if candidate_score > best_score {
+                    best_score = candidate_score;
+                    best_position = Some(position);
+                }
+                if let Some(crossed) = crossed {
+                    contribution =
+                        contribution + edge_weight(crossed, node) - edge_weight(node, crossed);
                 }
             }
 
-            let (Some(edge), Some(to)) = (min_edge, min_to) else {
-                break;
-            };
-            graph.remove_edge(edge);
-            seed_node = Some(to);
+            if let Some(position) = best_position {
+                if position < old_position {
+                    order[position..=old_position].rotate_right(1);
+                } else {
+                    order[old_position..=position].rotate_left(1);
+                }
+                score = best_score;
+                changed = true;
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+}
+
+/// Mutate `graph` in place to remove all multi-node cycles in one bulk pass per SCC.
+pub(super) fn make_acyclic<N>(graph: &mut DiGraph<N, u32>) {
+    let cyclic_sccs: Vec<_> = strongly_connected_components(&*graph)
+        .into_iter()
+        .filter(|scc| scc.len() > 1)
+        .collect();
+
+    let mut scratch = FeedbackArcScratch::new(graph.node_count());
+    let mut position = vec![usize::MAX; graph.node_count()];
+    for scc in cyclic_sccs {
+        let mut order = feedback_arc_order(&*graph, &scc, &mut scratch);
+        refine_feedback_arc_order(&mut order, &*graph, &scc);
+        for (index, &node) in order.iter().enumerate() {
+            position[node.index()] = index;
         }
 
-        // Re-check this SCC for residual multi-node SCCs.
-        let view = SubgraphView::new(&*graph, &scc);
-        for new_scc in strongly_connected_components(view) {
-            if new_scc.len() > 1 {
-                queue.push(new_scc);
+        let mut backward_edges = Vec::new();
+        for &source in &order {
+            for edge in graph.edges(source) {
+                let target = edge.target();
+                if target != source
+                    && scc.contains(&target)
+                    && position[source.index()] > position[target.index()]
+                {
+                    backward_edges.push(edge.id());
+                }
             }
+        }
+        // `DiGraph::remove_edge` fills the removed slot with the last edge. Removing in descending
+        // index order keeps every not-yet-removed edge index valid.
+        backward_edges.sort_unstable_by_key(|edge| Reverse(edge.index()));
+        for edge in backward_edges {
+            graph.remove_edge(edge);
         }
     }
 }
@@ -524,8 +554,7 @@ pub(super) fn make_acyclic<N>(graph: &mut DiGraph<N, u32>) {
 ///
 /// The shared-group count is read from [`ModuleChunkGroups`] (built by [`create_graph`]). Reading
 /// from the original chunk-group data (not the post-[`make_acyclic`] graph) gives a lossless
-/// signal: [`make_acyclic`] deletes ~30% of edge weight on real inputs, and those deleted edges
-/// represent real co-occurrences.
+/// signal: the feedback-arc heuristic deletes edges that still represent real co-occurrences.
 ///
 /// **Tie-breaking** is done by looking further back through `result`: when multiple candidates
 /// share the same count with the last-placed module, the tie is broken by the count with the
