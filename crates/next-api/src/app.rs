@@ -1281,7 +1281,8 @@ impl Endpoint for GoEndpoint {
         .to_resolved()
         .await?;
         let module_root = sources.await?.root.clone();
-        // Only the entrypoint file's values are described; `var Config` is read from it alone.
+        // Only the entrypoint file is parsed: handlers, `Proxy` and `var Config` must live there.
+        // The rest of the package is compiled but not analyzed.
         let entrypoint: RcStr = module_root
             .get_path_to(&this.path)
             .context("Go entrypoint outside module")?

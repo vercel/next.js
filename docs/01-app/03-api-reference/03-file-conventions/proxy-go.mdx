@@ -17,7 +17,7 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-Enable `experimental.goRoutes` and follow the [Go setup requirements](/docs/app/api-reference/file-conventions/route-go#setup). Create `proxy.go` beside `app` or `pages`, including inside `src` when applicable. Export a `Proxy` function with the signature shown above.
+Enable `experimental.goRoutes` and follow the [Go setup requirements](/docs/app/api-reference/file-conventions/route-go#setup). Create `proxy.go` beside `app` or `pages`, including inside `src` when applicable. Export a `Proxy` function with the signature shown above from `proxy.go` itself; only that file is parsed to find it.
 
 ## Reference
 

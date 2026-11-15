@@ -17,10 +17,10 @@ use crate::{GO_ACTIONS, GoBuildSession, GoSourceSet, process};
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug, Deserialize)]
 pub struct GoDeclarations {
-    /// All package-level functions, including unexported names such as `main`. Methods are
-    /// excluded.
+    /// All package-level functions of the analyzed files, including unexported names such as
+    /// `main`. Methods are excluded.
     pub functions: Vec<RcStr>,
-    /// Exported package-level `var` and `const` declarations of the requested files, keyed by
+    /// Exported package-level `var` and `const` declarations of the analyzed files, keyed by
     /// name. Each value is a
     /// JSON document with the declaration's `pos`, whether it is `constant`, its file's
     /// `imports`, and a syntax description of its initializer: composite literals (with their
@@ -35,9 +35,9 @@ pub struct GoDeclarations {
 #[turbo_tasks::function]
 pub async fn go_declarations(
     sources: ResolvedVc<GoSourceSet>,
-    // Source names (as in `GoSourceSet::files`) whose values are described. Describing values
-    // is limited to these files; every file is still scanned for functions.
-    value_files: Vec<RcStr>,
+    // Source names (as in `GoSourceSet::files`) to parse, typically just the entrypoint.
+    // The rest of the package is compiled but never parsed here.
+    files: Vec<RcStr>,
     host_session: ResolvedVc<GoBuildSession>,
 ) -> Result<Vc<GoDeclarations>> {
     let session_failure = Completion::session_dependent().to_resolved().await?;
@@ -48,10 +48,18 @@ pub async fn go_declarations(
         .await?
         .context("Go parser requires a disk filesystem")?;
     let go_context = &host_session.await?.go_context;
-    let input = serde_json::to_vec(&serde_json::json!({
-        "sources": &sources.await?.files,
-        "values": value_files,
-    }))?;
+    let source_set = sources.await?;
+    let selected = files
+        .iter()
+        .map(|name| {
+            let source = source_set
+                .files
+                .get(name)
+                .with_context(|| format!("Go source is not in the source set: {name}"))?;
+            Ok((name, source))
+        })
+        .collect::<Result<BTreeMap<_, _>>>()?;
+    let input = serde_json::to_vec(&selected)?;
     let report = match go_context
         .run_executable_with_input(&path, &[], Some(&input))
         .await
