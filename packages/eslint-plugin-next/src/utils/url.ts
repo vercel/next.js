@@ -26,11 +26,8 @@ function parseUrlForPages(
   const indexRegex = new RegExp('^index\\.(' + extensions + ')$')
 
   fsReadDirSyncCache[directory].forEach((dirent) => {
-    if (
-      !dirent.isDirectory() &&
-      !dirent.isSymbolicLink() &&
-      extPattern.test(dirent.name)
-    ) {
+    // Symlinked page files still count as pages; only symlinked directories are skipped.
+    if (!dirent.isDirectory() && extPattern.test(dirent.name)) {
       if (indexRegex.test(dirent.name)) {
         res.push(urlprefix)
       } else {
@@ -70,11 +67,7 @@ function parseUrlForAppDir(
   const pageRouteRegex = new RegExp('^(?:page|route)\\.(' + extensions + ')$')
 
   fsReadDirSyncCache[directory].forEach((dirent) => {
-    if (
-      !dirent.isDirectory() &&
-      !dirent.isSymbolicLink() &&
-      pageRouteRegex.test(dirent.name)
-    ) {
+    if (!dirent.isDirectory() && pageRouteRegex.test(dirent.name)) {
       res.push(urlprefix)
     } else if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
       const dirPath = path.join(directory, dirent.name)
