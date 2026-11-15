@@ -53,7 +53,7 @@ function instantiateModule(
   try {
     moduleFactory(context, module, exports)
   } catch (error) {
-    cacheModuleError(moduleCache, module, error)
+    module.error = error as any
     throw error
   }
 

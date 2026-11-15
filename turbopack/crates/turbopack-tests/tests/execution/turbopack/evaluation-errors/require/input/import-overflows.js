@@ -1,10 +1,10 @@
-globalThis.overflowEvalCounter ??= 0
-globalThis.overflowEvalCounter++
+globalThis.importOverflowCounter ??= 0
+globalThis.importOverflowCounter++
 
 const grow = (n) => grow(n + 1) + 1
 
 // Only the first evaluation runs out of stack.
-if (globalThis.overflowEvalCounter === 1) {
+if (globalThis.importOverflowCounter === 1) {
   grow(0)
 }
 

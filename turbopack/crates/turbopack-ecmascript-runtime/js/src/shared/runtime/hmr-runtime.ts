@@ -624,7 +624,7 @@ function instantiateModule(
       exports
     )
   } catch (error) {
-    cacheModuleError(moduleCache, module, error)
+    module.error = error as any
     throw error
   } finally {
     finishExecution?.()
