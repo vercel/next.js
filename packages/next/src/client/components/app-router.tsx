@@ -4,6 +4,8 @@ import React, {
   useMemo,
   useInsertionEffect,
   useDeferredValue,
+  useLayoutEffect,
+  useRef,
 } from 'react'
 import {
   AppRouterContext,
@@ -200,6 +202,10 @@ function Head({
   // final values. The second argument is returned on initial render, then it
   // re-renders with the first argument.
   return useDeferredValue(head, resolvedPrefetchRsc)
+}
+
+function isReactOwned(node: Element): boolean {
+  return Object.keys(node).some((key) => key.startsWith('__react'))
 }
 
 /**
@@ -486,6 +492,37 @@ function Router({
     }
   }, [tree, scrollRef, nextUrl, previousNextUrl])
 
+  const headKey = createHeadKey(root.head.varyPath)
+  const previousHeadKey = useRef<string | null>(null)
+  const staleMetadata = useRef<Element[] | null>(null)
+
+  // Metadata is hoisted out of the server's Suspense boundary. If navigation
+  // replaces a dehydrated boundary, React cannot remove its hoisted nodes
+  // because they were never attached to a client fiber. Keep the initial
+  // response available for the first paint, then remove only those unowned
+  // nodes once the replacement head has committed.
+  if (
+    previousHeadKey.current !== null &&
+    previousHeadKey.current !== headKey &&
+    typeof document !== 'undefined'
+  ) {
+    staleMetadata.current = Array.from(
+      document.head.querySelectorAll('[data-next-metadata]')
+    )
+  }
+
+  useLayoutEffect(() => {
+    if (staleMetadata.current !== null) {
+      for (const node of staleMetadata.current) {
+        if (!isReactOwned(node)) {
+          node.remove()
+        }
+      }
+      staleMetadata.current = null
+    }
+    previousHeadKey.current = headKey
+  }, [headKey])
+
   // The head is wrapped in an extra component so we can use
   // `useDeferredValue` to swap between the prefetched and final versions of
   // the head. (This is what LayoutRouter does for segment data, too.)
@@ -494,9 +531,7 @@ function Router({
   // different page, one of its path param values changes (the same inputs as
   // LayoutRouter's keys), or its search params change. These are the entries
   // of the head's vary path (see getHeadRequestKey).
-  const head = (
-    <Head key={createHeadKey(root.head.varyPath)} headRenderTree={root.head} />
-  )
+  const head = <Head key={headKey} headRenderTree={root.head} />
 
   let content = (
     <RedirectBoundary>
