@@ -381,7 +381,7 @@ impl TurboTasksBackend {
         &'a self,
         turbo_tasks: &'a TurboTasks<TurboTasksBackend>,
     ) -> ExecuteContext<'a> {
-        ExecuteContext::new(self, turbo_tasks)
+        ExecuteContext::new(turbo_tasks)
     }
 
     /// Like [`TurboTasksBackend::execute_context`], but with an explicit current task priority
@@ -392,7 +392,7 @@ impl TurboTasksBackend {
         turbo_tasks: &'a TurboTasks<TurboTasksBackend>,
         current_task_priority: TaskPriority,
     ) -> ExecuteContext<'a> {
-        ExecuteContext::new(self, turbo_tasks).with_current_task_priority(current_task_priority)
+        ExecuteContext::new(turbo_tasks).with_current_task_priority(current_task_priority)
     }
 
     /// Like [`TurboTasksBackend::execute_context`], but refuses to hand out a context once
@@ -411,7 +411,6 @@ impl TurboTasksBackend {
             return None;
         }
         Some(ExecuteContext::new_with_shutdown_guard(
-            self,
             turbo_tasks,
             stopping,
         ))
