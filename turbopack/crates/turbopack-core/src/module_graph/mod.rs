@@ -20,8 +20,8 @@ use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level, Span};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CollectiblesSource, FxIndexSet, JoinIterExt, NonLocalValue, OperationVc, ReadRef, ResolvedVc,
-    TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+    FxIndexSet, JoinIterExt, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TryFlatJoinIterExt,
+    TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
     util::SharedError,
@@ -31,7 +31,7 @@ use turbo_tasks_fs::FileSystemPath;
 use crate::{
     chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType, MergeableModule, TracedMode},
     ident::AssetIdent,
-    issue::{ImportTraces, Issue, IssueExt, IssueSeverity, analyze::AnalyzeIssue},
+    issue::{ImportTraces, IssueExt, IssueSeverity, analyze::AnalyzeIssue},
     module::{Module, ModuleSideEffects},
     module_graph::{
         async_module_info::{AsyncModulesInfo, compute_async_module_info},
@@ -1066,17 +1066,10 @@ impl ModuleGraph {
     }
 
     #[turbo_tasks::function(root)]
-    pub async fn async_module_info(self: Vc<Self>) -> Result<Vc<AsyncModulesInfo>> {
-        // `compute_async_module_info` calls `module.is_self_async()`, so we need to again ignore
-        // all issues such that they aren't emitted multiple times.
-        async move {
-            let result_op = compute_async_module_info(self.to_resolved().await?);
-            let result_vc = result_op.resolve().strongly_consistent().await?;
-            result_op.drop_collectibles::<Box<dyn Issue>>();
-            anyhow::Ok(*result_vc)
-        }
-        .instrument(tracing::info_span!("compute async module info"))
-        .await
+    pub async fn async_module_info(self: ResolvedVc<Self>) -> Result<Vc<AsyncModulesInfo>> {
+        compute_async_module_info(self)
+            .instrument(tracing::info_span!("compute async module info"))
+            .await
     }
 
     /// Whether the graph contains any async module (see [`ModuleGraph::async_module_info`]).

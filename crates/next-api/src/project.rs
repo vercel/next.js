@@ -77,10 +77,7 @@ use turbopack_core::{
     environment::NodeJsVersion,
     file_source::FileSource,
     ident::Layer,
-    issue::{
-        CollectibleIssuesExt, Issue, IssueExt, IssueFilter, IssueSeverity, IssueStage, PlainIssue,
-        StyledString,
-    },
+    issue::{Issue, IssueExt, IssueFilter, IssueSeverity, IssueStage, PlainIssue, StyledString},
     module::{Module, Modules, StyleModule},
     module_graph::{
         GraphEntries, ModuleGraph, ModuleGraphOptions, SingleModuleGraph, SingleModuleGraphNode,
@@ -1812,34 +1809,12 @@ impl Project {
         })
     }
 
-    /// Computes the whole app module graph without dropping issues.
-    ///
-    /// Use this instead of [Self::whole_app_module_graphs] when you need to collect issues from
-    /// the computation (e.g. for the `get_compilation_issues` MCP tool).
-    #[turbo_tasks::function]
-    pub async fn whole_app_module_graphs_without_dropping_issues(
-        self: ResolvedVc<Self>,
-    ) -> Result<Vc<BaseAndFullModuleGraph>> {
-        let module_graphs_op = whole_app_module_graph_operation(self);
-        let module_graphs_vc = module_graphs_op.connect();
-        scale_down_node_pool(self).await?;
-        Ok(module_graphs_vc)
-    }
-
-    /// Computes the whole app module graph, dropping issues in development mode so that
-    /// individual routes don't each report every issue from the shared graph.
+    /// Computes the whole app module graph.
     #[turbo_tasks::function(root)]
     pub async fn whole_app_module_graphs(
         self: ResolvedVc<Self>,
     ) -> Result<Vc<BaseAndFullModuleGraph>> {
-        let module_graphs_op = whole_app_module_graph_operation(self);
-        let module_graphs_vc = if self.next_mode().await?.is_production() {
-            module_graphs_op.connect()
-        } else {
-            let vc = module_graphs_op.resolve().strongly_consistent().await?;
-            module_graphs_op.drop_issues();
-            *vc
-        };
+        let module_graphs_vc = whole_app_module_graph_operation(self).connect();
         scale_down_node_pool(self).await?;
         Ok(module_graphs_vc)
     }
@@ -3019,16 +2994,12 @@ impl Project {
     }
 
     /// The whole-app graphs, for the import traces of the issues of the whole app (e.g. of a
-    /// build). Doesn't drop issues: it's only used for the graphs.
+    /// build).
     #[turbo_tasks::function]
     pub async fn whole_app_module_graphs_for_import_traces(
         self: Vc<Self>,
     ) -> Result<Vc<ModuleGraphs>> {
-        Ok(Vc::cell(vec![
-            self.whole_app_module_graphs_without_dropping_issues()
-                .await?
-                .full,
-        ]))
+        Ok(Vc::cell(vec![self.whole_app_module_graphs().await?.full]))
     }
 
     /// Completion when server side changes are detected in output assets

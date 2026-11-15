@@ -2955,14 +2955,7 @@ async fn get_all_compilation_issues_inner_operation(
 ) -> Result<Vc<()>> {
     let project = container.project();
     // Build the whole app module graph without chunking, code gen, or disk emission.
-    // We use whole_app_module_graphs_without_dropping_issues() instead of
-    // whole_app_module_graphs() because the latter drops issues in development mode
-    // (to avoid duplicate per-route HMR noise). The non-dropping variant ensures issues
-    // like missing modules and transform errors are properly collected as collectables here.
-    project
-        .whole_app_module_graphs_without_dropping_issues()
-        .as_side_effect()
-        .await?;
+    project.whole_app_module_graphs().as_side_effect().await?;
     Ok(Vc::cell(()))
 }
 

@@ -18,7 +18,7 @@ impl AsyncModulesInfo {
     }
 }
 
-#[turbo_tasks::function(operation, root)]
+/// Computes [`ModuleGraph::async_module_info`], in its task.
 pub async fn compute_async_module_info(
     graphs: ResolvedVc<ModuleGraph>,
 ) -> Result<Vc<AsyncModulesInfo>> {

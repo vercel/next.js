@@ -17,8 +17,7 @@ use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CollectiblesSource, FxIndexMap, FxIndexSet, OperationVc, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, Vc,
+    FxIndexMap, FxIndexSet, OperationVc, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -51,11 +50,8 @@ pub struct NextDynamicGraphs(Vec<ResolvedVc<NextDynamicGraph>>);
 
 #[turbo_tasks::value_impl]
 impl NextDynamicGraphs {
-    #[turbo_tasks::function(operation, root)]
-    async fn new_operation(
-        graphs: ResolvedVc<ModuleGraph>,
-        is_single_page: bool,
-    ) -> Result<Vc<Self>> {
+    #[turbo_tasks::function(root)]
+    pub async fn new(graphs: ResolvedVc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
         let graphs_ref = &graphs.iter_graphs().await?;
         let next_dynamic = async {
             graphs_ref
@@ -70,21 +66,6 @@ impl NextDynamicGraphs {
         .instrument(tracing::info_span!("generating next/dynamic graphs"))
         .await?;
         Ok(Self(next_dynamic).cell())
-    }
-
-    #[turbo_tasks::function(root)]
-    pub async fn new(graphs: ResolvedVc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
-        // TODO get rid of this function once everything inside of
-        // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
-        let result_op = Self::new_operation(graphs, is_single_page);
-        let result_vc = if !is_single_page {
-            let result_vc = result_op.resolve().strongly_consistent().await?;
-            result_op.drop_collectibles::<Box<dyn Issue>>();
-            *result_vc
-        } else {
-            result_op.connect()
-        };
-        Ok(result_vc)
     }
 
     /// Returns the next/dynamic-ally imported (client) modules (from RSC and SSR modules) for the
@@ -250,11 +231,8 @@ pub struct ServerActionsGraphs(Vec<ResolvedVc<ServerActionsGraph>>);
 
 #[turbo_tasks::value_impl]
 impl ServerActionsGraphs {
-    #[turbo_tasks::function(operation, root)]
-    async fn new_operation(
-        graphs: ResolvedVc<ModuleGraph>,
-        is_single_page: bool,
-    ) -> Result<Vc<Self>> {
+    #[turbo_tasks::function(root)]
+    pub async fn new(graphs: ResolvedVc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
         let graphs_ref = &graphs.iter_graphs().await?;
         let server_actions = async {
             graphs_ref
@@ -268,21 +246,6 @@ impl ServerActionsGraphs {
         .instrument(tracing::info_span!("generating server actions graphs"))
         .await?;
         Ok(Self(server_actions).cell())
-    }
-
-    #[turbo_tasks::function(root)]
-    pub async fn new(graphs: ResolvedVc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
-        // TODO get rid of this function once everything inside of
-        // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
-        let result_op = Self::new_operation(graphs, is_single_page);
-        let result_vc = if !is_single_page {
-            let result_vc = result_op.resolve().strongly_consistent().await?;
-            result_op.drop_collectibles::<Box<dyn Issue>>();
-            *result_vc
-        } else {
-            result_op.connect()
-        };
-        Ok(result_vc)
     }
 
     /// Returns the server actions for the given page.
@@ -426,11 +389,8 @@ pub struct ClientReferencesGraphs(Vec<ResolvedVc<ClientReferencesGraph>>);
 
 #[turbo_tasks::value_impl]
 impl ClientReferencesGraphs {
-    #[turbo_tasks::function(operation, root)]
-    async fn new_operation(
-        graphs: ResolvedVc<ModuleGraph>,
-        is_single_page: bool,
-    ) -> Result<Vc<Self>> {
+    #[turbo_tasks::function(root)]
+    pub async fn new(graphs: ResolvedVc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
         let graphs_ref = graphs.iter_graphs().await?;
         let client_references = async {
             graphs_ref
@@ -445,21 +405,6 @@ impl ClientReferencesGraphs {
         .instrument(tracing::info_span!("generating client references graphs"))
         .await?;
         Ok(Self(client_references).cell())
-    }
-
-    #[turbo_tasks::function(root)]
-    pub async fn new(graphs: ResolvedVc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
-        // TODO get rid of this function once everything inside of
-        // `get_global_information_for_endpoint_inner` calls `take_collectibles()` when needed
-        let result_op = Self::new_operation(graphs, is_single_page);
-        let result_vc = if !is_single_page {
-            let result_vc = result_op.resolve().strongly_consistent().await?;
-            result_op.drop_collectibles::<Box<dyn Issue>>();
-            *result_vc
-        } else {
-            result_op.connect()
-        };
-        Ok(result_vc)
     }
 
     /// Returns the client references for the given page.
