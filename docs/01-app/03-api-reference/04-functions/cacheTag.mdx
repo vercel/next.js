@@ -91,6 +91,8 @@ export default async function submit() {
 }
 ```
 
+With the default in-memory `use cache` handler, tags are tracked locally on each server instance. Calling `revalidateTag` on one instance does not invalidate entries held by other instances. See [`revalidateTag` with multiple server instances](/docs/app/api-reference/functions/revalidateTag#multiple-server-instances) for shared cache handler and hosting provider considerations.
+
 ## Good to know
 
 - **Idempotent Tags**: Applying the same tag multiple times has no additional effect.

@@ -29,6 +29,12 @@ The profile sets the point past which data correctness is more important than be
 
 > **Good to know**: A revalidation is triggered by a request, not by the `revalidateTag` call, so pages using the tag revalidate as they are visited rather than all at once.
 
+### Multiple server instances
+
+With the default in-memory handler for [`'use cache'`](/docs/app/api-reference/directives/use-cache), `revalidateTag` only invalidates entries on the server instance that receives the call. Entries cached by other instances are unaffected, including when you pass `{ expire: 0 }`.
+
+For self-hosted deployments with multiple instances, use a [custom cache handler that coordinates tag state through shared storage](/docs/app/api-reference/config/next-config-js/cacheHandlers#distributed-tag-coordination). Hosting providers can replace the default handler, so check your provider's documentation for cross-instance tag invalidation guarantees.
+
 ### Client cache behavior
 
 In a Server Action, a profile that resolves to `expire: 0` also triggers [`updateTag`'s client refresh and cache invalidation](/docs/app/api-reference/functions/updateTag#client-cache-behavior). A nonzero `expire` value, such as `'max'`, does not trigger these client effects.
