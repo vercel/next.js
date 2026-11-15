@@ -417,12 +417,13 @@ When you deploy to Vercel, runs appear in your project's dashboard.
 
 ## Deploying
 
-Workflow SDK stores runs and queues jobs through an adapter called a World:
+Workflow SDK stores runs and queues jobs in a pluggable backend called a World. A World is separate from your [deployment adapter](/docs/app/getting-started/deploying#adapters): the adapter deploys the workflow routes like any other Route Handler, and the World stores runs and calls those routes when work is queued.
 
 - **Vercel**: No configuration needed. Workflows run on [Vercel Workflow](https://vercel.com/docs/workflows).
-- **Node.js server or Docker container**: Use the [Postgres World](https://workflow-sdk.dev/worlds/postgres) to store runs and queue jobs in your own PostgreSQL database. It runs a worker that you start from [`instrumentation.ts`](/docs/app/guides/instrumentation).
+- **Node.js server or Docker container**: Use the [Postgres World](https://workflow-sdk.dev/worlds/postgres). Its worker needs a long-running process, which you start from [`instrumentation.ts`](/docs/app/guides/instrumentation).
+- **Serverless platforms**: Use a World whose queue calls your app over HTTP. See [Worlds](https://workflow-sdk.dev/worlds).
 
-For other platforms, see the list of [Worlds](https://workflow-sdk.dev/worlds).
+Choose a World with the `WORKFLOW_TARGET_WORLD` environment variable. Outside Vercel, Workflow SDK uses the local World unless you set one. The local World keeps runs on the server's filesystem and is meant for development.
 
 ## Next steps
 

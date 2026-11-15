@@ -48,9 +48,12 @@ In development, Workflow SDK stores runs and queues jobs on your local filesyste
 npx workflow web
 ```
 
-### Self-hosting
+### Deploying outside Vercel
 
-To run workflows on your own infrastructure, such as `next start` or a Docker container, use the [Postgres World](https://workflow-sdk.dev/worlds/postgres). See [Worlds](https://workflow-sdk.dev/worlds) for other options.
+Outside Vercel, choose where Workflow SDK stores runs and queues jobs with the `WORKFLOW_TARGET_WORLD` environment variable. Without it, the app uses the local World, which keeps runs on the server's filesystem and is meant for development.
+
+- **Node.js server or Docker container** (`next start`): use the [Postgres World](https://workflow-sdk.dev/worlds/postgres), and start its worker from `instrumentation.ts`.
+- **Serverless platforms**: use a World whose queue calls your app over HTTP. See [Worlds](https://workflow-sdk.dev/worlds).
 
 ## Learn more
 
