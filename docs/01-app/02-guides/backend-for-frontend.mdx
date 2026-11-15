@@ -976,5 +976,5 @@ Some hosts deploy Route Handlers as lambda functions. This means:
 
 - Route Handlers cannot share data between requests.
 - The environment may not support writing to File System.
-- Long-running handlers may be terminated due to timeouts.
+- Long-running handlers may be terminated due to timeouts. To run long tasks outside the request, see [Background Jobs](/docs/app/guides/background-jobs).
 - WebSockets won’t work because the connection closes on timeout, or after the response is generated.

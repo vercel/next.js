@@ -1,0 +1,422 @@
+---
+title: How to run background jobs and long-running tasks
+nav_title: Background Jobs
+description: Learn when to use `after` for best-effort work, and how to use Workflow SDK for durable background jobs and long-running tasks in Next.js.
+related:
+  title: Next Steps
+  description: Learn more about the APIs used in this guide.
+  links:
+    - app/api-reference/functions/after
+    - app/api-reference/file-conventions/route-segment-config/maxDuration
+    - app/guides/self-hosting
+---
+
+Some work should not make the user wait: recording analytics, sending emails, processing uploads, calling AI models, or syncing data with another service. Next.js gives you two ways to run that work outside the request:
+
+- [`after`](/docs/app/api-reference/functions/after) runs a callback after the response is sent, in the same request.
+- [Workflow SDK](https://workflow-sdk.dev) runs background jobs on a queue, retries failed steps, and saves progress so a job finishes even across crashes and deployments.
+
+This guide shows when to use each, and how to set up Workflow SDK in a Next.js application.
+
+## Choosing an approach
+
+|                             | `after`                                                                                                      | Workflow SDK                                                           |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| **Where it runs**           | In the same request, after the response is sent                                                              | On a queue, outside the request that started it                        |
+| **How long it can run**     | Up to the route's [`maxDuration`](/docs/app/api-reference/file-conventions/route-segment-config/maxDuration) | Minutes, days, or months, split into steps                             |
+| **When something fails**    | The callback fails and the work is lost                                                                      | The failed step retries, and completed steps are not repeated          |
+| **Crashes and deployments** | Work that has not finished is lost                                                                           | The job resumes from its last completed step                           |
+| **Visibility**              | Your own logging                                                                                             | Every run, step, and retry is recorded and can be inspected            |
+| **Use it for**              | Logging, analytics, and other best-effort side effects                                                       | Emails, payments, data processing, AI agents, and multi-step processes |
+
+A good rule of thumb: if losing the work would be a bug, use a workflow.
+
+## Best-effort work with `after`
+
+Use [`after`](/docs/app/api-reference/functions/after) for small side effects that should not delay the response:
+
+```ts filename="app/api/posts/route.ts" switcher
+import { after } from 'next/server'
+import { db } from '@/lib/db'
+import { logEvent } from '@/lib/analytics'
+
+export async function POST(request: Request) {
+  const post = await db.post.create({ data: await request.json() })
+
+  after(async () => {
+    await logEvent('post_created', { postId: post.id })
+  })
+
+  return Response.json(post)
+}
+```
+
+```js filename="app/api/posts/route.js" switcher
+import { after } from 'next/server'
+import { db } from '@/lib/db'
+import { logEvent } from '@/lib/analytics'
+
+export async function POST(request) {
+  const post = await db.post.create({ data: await request.json() })
+
+  after(async () => {
+    await logEvent('post_created', { postId: post.id })
+  })
+
+  return Response.json(post)
+}
+```
+
+`after` is best-effort. The callback runs in the same process as the request and is not retried or saved anywhere. The work is lost when:
+
+- The callback throws an error.
+- The request reaches its [`maxDuration`](/docs/app/api-reference/file-conventions/route-segment-config/maxDuration).
+- The server or serverless instance crashes, is scaled down, or is replaced by a new deployment.
+
+## Durable work with Workflow SDK
+
+[Workflow SDK](https://workflow-sdk.dev) is an open-source library for durable background jobs. You write a job as a regular async function and mark it with two directives:
+
+- `'use workflow'` marks the function that coordinates the job.
+- `'use step'` marks each unit of work. Steps run with full Node.js access, and their results are saved as they complete.
+
+When a step fails, Workflow SDK retries it. When the process stops, the job resumes from the last completed step instead of starting over.
+
+### Step 1: Install Workflow SDK
+
+Install the `workflow` package:
+
+```bash package="pnpm"
+pnpm add workflow
+```
+
+```bash package="npm"
+npm install workflow
+```
+
+```bash package="yarn"
+yarn add workflow
+```
+
+```bash package="bun"
+bun add workflow
+```
+
+Then wrap your Next.js config with `withWorkflow`:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+import { withWorkflow } from 'workflow/next'
+
+const nextConfig: NextConfig = {
+  // Your Next.js config
+}
+
+export default withWorkflow(nextConfig)
+```
+
+```js filename="next.config.js" switcher
+const { withWorkflow } = require('workflow/next')
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // Your Next.js config
+}
+
+module.exports = withWorkflow(nextConfig)
+```
+
+`withWorkflow` compiles your workflows and adds the routes that run them under `/.well-known/workflow/`. If your app has a [Proxy](/docs/app/api-reference/file-conventions/proxy), exclude these routes from its matcher:
+
+```ts filename="proxy.ts"
+export const config = {
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.well-known/workflow/).*)',
+  ],
+}
+```
+
+### Step 2: Write a workflow
+
+Create a workflow that signs up a user, sends a welcome email, and sends a follow-up three days later:
+
+```ts filename="workflows/onboarding.ts" switcher
+import { sleep } from 'workflow'
+import { db } from '@/lib/db'
+import { sendEmail } from '@/lib/email'
+
+export async function onboardUser(email: string) {
+  'use workflow'
+
+  const user = await createUser(email)
+  await sendWelcomeEmail(user.email)
+
+  // Pauses the workflow without using any compute
+  await sleep('3d')
+
+  await sendFollowUpEmail(user.email)
+
+  return { userId: user.id }
+}
+
+async function createUser(email: string) {
+  'use step'
+  return db.user.create({ data: { email } })
+}
+
+async function sendWelcomeEmail(email: string) {
+  'use step'
+  // If the email provider fails, this step is retried
+  await sendEmail({ to: email, template: 'welcome' })
+}
+
+async function sendFollowUpEmail(email: string) {
+  'use step'
+  await sendEmail({ to: email, template: 'follow-up' })
+}
+```
+
+```js filename="workflows/onboarding.js" switcher
+import { sleep } from 'workflow'
+import { db } from '@/lib/db'
+import { sendEmail } from '@/lib/email'
+
+export async function onboardUser(email) {
+  'use workflow'
+
+  const user = await createUser(email)
+  await sendWelcomeEmail(user.email)
+
+  // Pauses the workflow without using any compute
+  await sleep('3d')
+
+  await sendFollowUpEmail(user.email)
+
+  return { userId: user.id }
+}
+
+async function createUser(email) {
+  'use step'
+  return db.user.create({ data: { email } })
+}
+
+async function sendWelcomeEmail(email) {
+  'use step'
+  // If the email provider fails, this step is retried
+  await sendEmail({ to: email, template: 'welcome' })
+}
+
+async function sendFollowUpEmail(email) {
+  'use step'
+  await sendEmail({ to: email, template: 'follow-up' })
+}
+```
+
+> **Good to know:**
+>
+> - The workflow function runs in a sandbox and is replayed to restore its state, so keep side effects such as database calls and network requests in steps.
+> - Each step runs within a single function invocation, so split work that takes longer than your platform's maximum function duration into several steps.
+> - Workflow arguments and step results are saved, so they must be serializable.
+> - To stop a step from retrying, throw a [`FatalError`](https://workflow-sdk.dev/docs/foundations/errors-and-retries).
+
+### Step 3: Start the workflow
+
+Call `start` from a [Route Handler](/docs/app/api-reference/file-conventions/route) or a [Server Function](/docs/app/getting-started/mutating-data). It adds the job to the queue and returns right away, without waiting for the workflow to finish:
+
+```ts filename="app/api/signup/route.ts" switcher
+import { start } from 'workflow/api'
+import { onboardUser } from '@/workflows/onboarding'
+
+export async function POST(request: Request) {
+  const { email } = await request.json()
+  const run = await start(onboardUser, [email])
+
+  return Response.json({ runId: run.runId })
+}
+```
+
+```js filename="app/api/signup/route.js" switcher
+import { start } from 'workflow/api'
+import { onboardUser } from '@/workflows/onboarding'
+
+export async function POST(request) {
+  const { email } = await request.json()
+  const run = await start(onboardUser, [email])
+
+  return Response.json({ runId: run.runId })
+}
+```
+
+```ts filename="app/actions.ts" switcher
+'use server'
+
+import { start } from 'workflow/api'
+import { onboardUser } from '@/workflows/onboarding'
+
+export async function signUp(formData: FormData) {
+  const email = formData.get('email') as string
+  await start(onboardUser, [email])
+}
+```
+
+```js filename="app/actions.js" switcher
+'use server'
+
+import { start } from 'workflow/api'
+import { onboardUser } from '@/workflows/onboarding'
+
+export async function signUp(formData) {
+  const email = formData.get('email')
+  await start(onboardUser, [email])
+}
+```
+
+### Step 4: Check a run's status
+
+Use the `runId` returned by `start` to look up a run with `getRun`. For example, a Route Handler that a page can poll:
+
+```ts filename="app/api/runs/[runId]/route.ts" switcher
+import { getRun } from 'workflow/api'
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ runId: string }> }
+) {
+  const { runId } = await params
+  const run = getRun(runId)
+
+  if (!(await run.exists)) {
+    return Response.json({ error: 'Run not found' }, { status: 404 })
+  }
+
+  return Response.json({ status: await run.status })
+}
+```
+
+```js filename="app/api/runs/[runId]/route.js" switcher
+import { getRun } from 'workflow/api'
+
+export async function GET(request, { params }) {
+  const { runId } = await params
+  const run = getRun(runId)
+
+  if (!(await run.exists)) {
+    return Response.json({ error: 'Run not found' }, { status: 404 })
+  }
+
+  return Response.json({ status: await run.status })
+}
+```
+
+To send progress to the UI while a workflow runs, write to the run's stream from a step and read it with `run.getReadable()`. See [Streaming](https://workflow-sdk.dev/docs/foundations/streaming).
+
+### Step 5: Wait for an event
+
+A workflow can pause until something outside it happens, such as an approval or a webhook. Create a hook with a token you can reconstruct later, and await it:
+
+```ts filename="workflows/refund.ts" switcher
+import { createHook } from 'workflow'
+import { refundOrder } from '@/lib/payments'
+
+export async function refundRequest(orderId: string) {
+  'use workflow'
+
+  const hook = createHook<{ approved: boolean }>({
+    token: `refund:${orderId}`,
+  })
+
+  // Pauses until the hook is resumed, without using any compute
+  const { approved } = await hook
+
+  if (approved) {
+    await issueRefund(orderId)
+  }
+}
+
+async function issueRefund(orderId: string) {
+  'use step'
+  await refundOrder(orderId)
+}
+```
+
+```js filename="workflows/refund.js" switcher
+import { createHook } from 'workflow'
+import { refundOrder } from '@/lib/payments'
+
+export async function refundRequest(orderId) {
+  'use workflow'
+
+  const hook = createHook({
+    token: `refund:${orderId}`,
+  })
+
+  // Pauses until the hook is resumed, without using any compute
+  const { approved } = await hook
+
+  if (approved) {
+    await issueRefund(orderId)
+  }
+}
+
+async function issueRefund(orderId) {
+  'use step'
+  await refundOrder(orderId)
+}
+```
+
+Resume the workflow from a Server Function with `resumeHook`. The token identifies the run, but it does not authorize the caller, so verify the user first:
+
+```ts filename="app/actions.ts" switcher
+'use server'
+
+import { resumeHook } from 'workflow/api'
+import { verifyAdmin } from '@/lib/auth'
+
+export async function reviewRefund(orderId: string, approved: boolean) {
+  await verifyAdmin()
+  await resumeHook(`refund:${orderId}`, { approved })
+}
+```
+
+```js filename="app/actions.js" switcher
+'use server'
+
+import { resumeHook } from 'workflow/api'
+import { verifyAdmin } from '@/lib/auth'
+
+export async function reviewRefund(orderId, approved) {
+  await verifyAdmin()
+  await resumeHook(`refund:${orderId}`, { approved })
+}
+```
+
+To receive an HTTP request from another service instead, use a [webhook](https://workflow-sdk.dev/docs/foundations/hooks#understanding-webhooks).
+
+## Inspecting runs
+
+Workflow SDK records every run, step, retry, and sleep. During development, run `next dev` and open the local dashboard:
+
+```bash filename="Terminal"
+npx workflow web
+```
+
+When you deploy to Vercel, runs appear in your project's dashboard.
+
+## Deploying
+
+Workflow SDK stores runs and queues jobs through an adapter called a World:
+
+- **Vercel**: No configuration needed. Workflows run on [Vercel Workflow](https://vercel.com/docs/workflows).
+- **Node.js server or Docker container**: Use the [Postgres World](https://workflow-sdk.dev/worlds/postgres) to store runs and queue jobs in your own PostgreSQL database. It runs a worker that you start from [`instrumentation.ts`](/docs/app/guides/instrumentation).
+
+For other platforms, see the list of [Worlds](https://workflow-sdk.dev/worlds).
+
+## Next steps
+
+This guide covers the basics. To learn more, see the [Workflow SDK documentation](https://workflow-sdk.dev/docs):
+
+- [Workflows and steps](https://workflow-sdk.dev/docs/foundations/workflows-and-steps)
+- [Errors and retries](https://workflow-sdk.dev/docs/foundations/errors-and-retries)
+- [Hooks and webhooks](https://workflow-sdk.dev/docs/foundations/hooks)
+- [Idempotency](https://workflow-sdk.dev/docs/foundations/idempotency)
+- [`withWorkflow` options](https://workflow-sdk.dev/docs/api-reference/workflow-next/with-workflow), including `basePath` and route prefixes
