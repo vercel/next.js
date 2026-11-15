@@ -52,10 +52,23 @@ type PlatformTaskScript =
       darwin?: TaskScript
     }
 
+/**
+ * Returns the version of the specified package as installed in the project.
+ * Resolves from the current working directory first, so the project's own
+ * dependencies are reported even when the CLI itself is run from elsewhere
+ * (e.g. `npx`, `pnpm dlx`, or a global install). For `next` itself, falls
+ * back to the version of the running CLI when the project doesn't have it.
+ */
 function getPackageVersion(packageName: string) {
   try {
-    return require(`${packageName}/package.json`).version
+    const packageJsonPath = require.resolve(`${packageName}/package.json`, {
+      paths: [process.cwd()],
+    })
+    return require(packageJsonPath).version
   } catch {
+    if (packageName === 'next') {
+      return require('next/package.json').version
+    }
     return 'N/A'
   }
 }
