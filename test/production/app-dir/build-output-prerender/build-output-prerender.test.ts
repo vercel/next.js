@@ -420,6 +420,12 @@ describe('build-output-prerender', () => {
 
       beforeAll(() => next.build())
 
+      it('emits the full segment only with Cache Components', async () => {
+        expect(
+          await next.hasFile('.next/server/app/index.segments/_full.segment.rsc')
+        ).toBe(cacheComponentsEnabled)
+      })
+
       it('prints no experimental flags (unless enabled via env variable)', async () => {
         if (cacheComponentsEnabled) {
           if (isTurbopack) {

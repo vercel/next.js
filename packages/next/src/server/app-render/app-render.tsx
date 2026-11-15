@@ -11347,7 +11347,10 @@ async function collectSegmentData(
     serverConsumerManifest,
     Boolean(renderOpts.experimental.prefetchInlining),
     hints,
-    isUpgradeableISRFallback
+    isUpgradeableISRFallback,
+    renderOpts.cacheComponents ||
+      renderOpts.experimental.isRoutePPREnabled === true ||
+      renderOpts.experimental.exposeTestingApi === true
   )
 }
 
