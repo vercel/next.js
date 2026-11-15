@@ -161,7 +161,12 @@ export async function onboardUser(email: string) {
 
 async function createUser(email: string) {
   'use step'
-  return db.user.create({ data: { email } })
+  // Upsert, so a retry after a lost result reuses the same user
+  return db.user.upsert({
+    where: { email },
+    create: { email },
+    update: {},
+  })
 }
 
 async function sendWelcomeEmail(email: string) {
@@ -197,7 +202,12 @@ export async function onboardUser(email) {
 
 async function createUser(email) {
   'use step'
-  return db.user.create({ data: { email } })
+  // Upsert, so a retry after a lost result reuses the same user
+  return db.user.upsert({
+    where: { email },
+    create: { email },
+    update: {},
+  })
 }
 
 async function sendWelcomeEmail(email) {
@@ -217,6 +227,7 @@ async function sendFollowUpEmail(email) {
 > - The workflow function runs in a sandbox and is replayed to restore its state, so keep side effects such as database calls and network requests in steps.
 > - Each step runs within a single function invocation, so split work that takes longer than your platform's maximum function duration into several steps.
 > - Workflow arguments and step results are saved, so they must be serializable.
+> - A step can run more than once, for example when it fails after writing to the database but before its result is saved. Write steps so that running them again is safe. See [Idempotency](https://workflow-sdk.dev/docs/foundations/idempotency).
 > - To stop a step from retrying, throw a [`FatalError`](https://workflow-sdk.dev/docs/foundations/errors-and-retries).
 
 ### Step 3: Start the workflow
