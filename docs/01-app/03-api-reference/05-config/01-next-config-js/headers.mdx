@@ -103,7 +103,7 @@ The pattern `/blog/:slug` matches `/blog/first-post` and `/blog/post-1` but not 
 
 You can use modifiers on parameters: `*` (zero or more), `+` (one or more), `?` (zero or one). For example, `/blog/:slug*` matches `/blog`, `/blog/a`, and `/blog/a/b/c`.
 
-The `source` pattern matches the URL-encoded request pathname. Percent-encode non-ASCII characters in literal segments. For example, use `source: '/%C3%BCber/:path*'` to match `/über/example`. Keep parameters and modifiers such as `:path*` unchanged.
+Percent-encode non-ASCII characters in `source`. See [source encoding](/docs/app/api-reference/config/next-config-js/redirects#non-ascii-characters) for an example.
 
 Read more details on [path-to-regexp](https://github.com/pillarjs/path-to-regexp) documentation.
 
