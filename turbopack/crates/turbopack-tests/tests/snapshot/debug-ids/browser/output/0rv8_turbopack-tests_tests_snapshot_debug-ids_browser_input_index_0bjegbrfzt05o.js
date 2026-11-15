@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="c6c6f332-969d-89a7-21c1-db62b9deb36c")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="771f914c-19d0-8359-4129-a0d67bc0814b")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -92,28 +92,18 @@ function defineProp(obj, name, options) {
     return module;
 }
 /**
- * Whether `error` is the engine running out of stack. The error is recognized by name and message rather than with
- * `instanceof`, so one thrown in another realm (a `vm` context) is recognized too.
- */ function isStackOverflowError(error) {
-    const { name, message } = error ?? {};
-    if (typeof message !== 'string') return false;
-    return name === 'RangeError' && message.includes('Maximum call stack size exceeded') || name === 'InternalError' && message.includes('too much recursion');
-}
-/**
- * Remembers the error a module factory threw, so that later loads of the module rethrow it instead of evaluating it
- * again. A stack overflow is the exception: it says how deep the stack was when the module first ran, not
- * anything about the module, so the module is dropped from the cache and runs again on the next load. Whatever
- * imported the dropped module before it failed holds the exports object of the failed run, and the next load
- * creates a new one.
- */ function cacheModuleError(moduleCache, module, error) {
-    if (isStackOverflowError(error)) {
-        // HMR may already have replaced the entry while the factory ran.
-        if (moduleCache.get(module.id) === module) {
-            moduleCache.delete(module.id);
-        }
-        return;
-    }
-    module.error = error;
+ * Drops the modules that failed with `error` from the cache, so the next load evaluates them again.
+ *
+ * Called when a `require()` throws. An `import` keeps a module's evaluation error, as ESM requires, and every
+ * importer within the failed load sees the same error. `require()` follows CommonJS instead: Node.js removes a
+ * module that throws from `require.cache`, and Next.js's webpack config does the same with
+ * `output.strictModuleExceptionHandling`. Each module that failed with this error had it stored as its
+ * `module.error` before the error reached the caller, so a module is always either cached with its error or gone.
+ */ function forgetModulesFailedWith(moduleCache, error) {
+    if (error === undefined) return;
+    moduleCache.forEach((module, id)=>{
+        if (module.error === error) moduleCache.delete(id);
+    });
 }
 function getOverwrittenModule(moduleCache, id) {
     let module = moduleCache.get(id);
@@ -531,7 +521,12 @@ typeof require === 'function' ? require : function require1() {
 };
 contextPrototype.t = runtimeRequire;
 function commonJsRequire(id) {
-    return getOrInstantiateModuleFromParent(id, this.m).exports;
+    try {
+        return getOrInstantiateModuleFromParent(id, this.m).exports;
+    } catch (error) {
+        forgetModulesFailedWith(this.c, error);
+        throw error;
+    }
 }
 contextPrototype.r = commonJsRequire;
 /**
@@ -557,7 +552,6 @@ contextPrototype.r = commonJsRequire;
  * `require.context` and require/import expression runtime.
  */ function moduleContextFactory(ids, mode = 0) {
     const context = this;
-    const parentModule = this.m;
     const map = {};
     for(let i = 0; i < ids.length; i += 2){
         const entry = ids[i + 1];
@@ -573,7 +567,7 @@ contextPrototype.r = commonJsRequire;
             id = ()=>entry;
             if (mode === 0) {
                 // inlined require implementation, which gives an ignored module empty exports
-                module = ()=>entry === undefined ? {} : getOrInstantiateModuleFromParent(entry, parentModule).exports;
+                module = ()=>entry === undefined ? {} : commonJsRequire.call(context, entry);
             } else if (entry === undefined) {
                 module = ()=>Promise.resolve({});
             } else if (mode === 1) {
@@ -1687,7 +1681,7 @@ function formatDependencyChain(dependencyChain) {
         // this frame smaller.
         moduleFactory(createDevModuleContext(module, exports, finishExecution !== undefined), module, exports);
     } catch (error) {
-        cacheModuleError(moduleCache, module, error);
+        module.error = error;
         throw error;
     } finally{
         finishExecution?.();
@@ -2732,5 +2726,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=c6c6f332-969d-89a7-21c1-db62b9deb36c
+//# debugId=771f914c-19d0-8359-4129-a0d67bc0814b
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map

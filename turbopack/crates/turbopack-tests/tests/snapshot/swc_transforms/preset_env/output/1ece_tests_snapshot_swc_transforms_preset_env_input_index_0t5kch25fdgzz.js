@@ -216,28 +216,18 @@ function defineProp(obj, name, options) {
     return module;
 }
 /**
- * Whether `error` is the engine running out of stack. The error is recognized by name and message rather than with
- * `instanceof`, so one thrown in another realm (a `vm` context) is recognized too.
- */ function isStackOverflowError(error) {
-    var _ref = error !== null && error !== void 0 ? error : {}, name = _ref.name, message = _ref.message;
-    if (typeof message !== 'string') return false;
-    return name === 'RangeError' && message.includes('Maximum call stack size exceeded') || name === 'InternalError' && message.includes('too much recursion');
-}
-/**
- * Remembers the error a module factory threw, so that later loads of the module rethrow it instead of evaluating it
- * again. A stack overflow is the exception: it says how deep the stack was when the module first ran, not
- * anything about the module, so the module is dropped from the cache and runs again on the next load. Whatever
- * imported the dropped module before it failed holds the exports object of the failed run, and the next load
- * creates a new one.
- */ function cacheModuleError(moduleCache, module, error) {
-    if (isStackOverflowError(error)) {
-        // HMR may already have replaced the entry while the factory ran.
-        if (moduleCache.get(module.id) === module) {
-            moduleCache.delete(module.id);
-        }
-        return;
-    }
-    module.error = error;
+ * Drops the modules that failed with `error` from the cache, so the next load evaluates them again.
+ *
+ * Called when a `require()` throws. An `import` keeps a module's evaluation error, as ESM requires, and every
+ * importer within the failed load sees the same error. `require()` follows CommonJS instead: Node.js removes a
+ * module that throws from `require.cache`, and Next.js's webpack config does the same with
+ * `output.strictModuleExceptionHandling`. Each module that failed with this error had it stored as its
+ * `module.error` before the error reached the caller, so a module is always either cached with its error or gone.
+ */ function forgetModulesFailedWith(moduleCache, error) {
+    if (error === undefined) return;
+    moduleCache.forEach(function(module, id) {
+        if (module.error === error) moduleCache.delete(id);
+    });
 }
 function getOverwrittenModule(moduleCache, id) {
     var module = moduleCache.get(id);
@@ -736,7 +726,12 @@ typeof require === 'function' ? require : function require1() {
 };
 contextPrototype.t = runtimeRequire;
 function commonJsRequire(id) {
-    return getOrInstantiateModuleFromParent(id, this.m).exports;
+    try {
+        return getOrInstantiateModuleFromParent(id, this.m).exports;
+    } catch (error) {
+        forgetModulesFailedWith(this.c, error);
+        throw error;
+    }
 }
 contextPrototype.r = commonJsRequire;
 /**
@@ -778,7 +773,7 @@ contextPrototype.r = commonJsRequire;
             if (mode === 0) {
                 // inlined require implementation, which gives an ignored module empty exports
                 module = function module() {
-                    return entry === undefined ? {} : getOrInstantiateModuleFromParent(entry, parentModule).exports;
+                    return entry === undefined ? {} : commonJsRequire.call(context, entry);
                 };
             } else if (entry === undefined) {
                 module = function module() {
@@ -804,7 +799,6 @@ contextPrototype.r = commonJsRequire;
     };
     var mode = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : 0;
     var context = this;
-    var parentModule = this.m;
     var map = {};
     for(var i = 0; i < ids.length; i += 2)_loop(i);
     function moduleContext(id) {
@@ -1677,7 +1671,7 @@ function instantiateModule(id, sourceType, sourceData) {
     try {
         moduleFactory(context, module, exports);
     } catch (error) {
-        cacheModuleError(moduleCache, module, error);
+        module.error = error;
         throw error;
     }
     if (module.namespaceObject && module.exports !== module.namespaceObject) {
