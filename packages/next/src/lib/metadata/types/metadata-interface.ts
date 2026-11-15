@@ -187,6 +187,12 @@ interface Metadata extends DeprecatedMetadataFields {
   /**
    * The referrer setting for the document.
    *
+   * @remarks
+   * With `"no-referrer"`, native Server Action form submissions (for example,
+   * with JavaScript disabled) can send `Origin: null` and fail the origin check.
+   * Remove this setting or use `"strict-origin-when-cross-origin"` to support
+   * native submissions. Hydrated submissions can still succeed.
+   *
    * @example
    * ```tsx
    * referrer: "origin"

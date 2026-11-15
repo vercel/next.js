@@ -14,6 +14,8 @@ Options for configuring Server Actions behavior in your Next.js application. For
 
 To prevent cross-site request forgery (CSRF), Next.js compares the host in the request's `Origin` header with `x-forwarded-host`, or `host` when `x-forwarded-host` is absent. A mismatch is rejected unless the origin host matches an entry in `allowedOrigins`. Requests without an `Origin` header bypass this comparison.
 
+The literal header value `Origin: null` still goes through this comparison. A `no-referrer` policy can produce this value on native form submissions, such as when JavaScript is disabled, causing a same-origin Server Action to be rejected. Remove the policy or use `strict-origin-when-cross-origin` rather than adding `null` to `allowedOrigins`. See [referrer policies and native form submissions](/docs/app/guides/data-security#referrer-policies-and-native-form-submissions).
+
 > **Good to know**: Server Actions are stable and enabled by default in Next.js 14 and later. The `allowedOrigins` and `bodySizeLimit` options remain experimental and must be configured under `experimental.serverActions`.
 
 ```js filename="next.config.js"
