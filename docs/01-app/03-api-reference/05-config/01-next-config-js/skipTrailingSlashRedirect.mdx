@@ -91,7 +91,9 @@ export default function proxy(request: NextRequest) {
     !pathname.endsWith('/') &&
     !pathname.match(/((?!\.well-known(?:\/.*)?)(?:[^/]+\/)*[^/]+\.\w+)/)
   ) {
-    return NextResponse.redirect(new URL(`${pathname}/`, request.nextUrl))
+    return NextResponse.redirect(
+      new URL(`${pathname}/${request.nextUrl.search}`, request.nextUrl)
+    )
   }
 }
 ```
@@ -113,7 +115,9 @@ export default function proxy(request) {
     !pathname.endsWith('/') &&
     !pathname.match(/((?!\.well-known(?:\/.*)?)(?:[^/]+\/)*[^/]+\.\w+)/)
   ) {
-    return NextResponse.redirect(new URL(`${pathname}/`, request.nextUrl))
+    return NextResponse.redirect(
+      new URL(`${pathname}/${request.nextUrl.search}`, request.nextUrl)
+    )
   }
 }
 ```
