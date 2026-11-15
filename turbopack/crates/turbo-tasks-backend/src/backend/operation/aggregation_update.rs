@@ -694,7 +694,9 @@ impl AggregatedDataUpdate {
     }
 
     /// Applies the update to the task. It may return an aggregated update that should be applied to
-    /// upper tasks.
+    /// upper tasks, already filtered with [`Self::for_uppers_of`]: every path that passes an update
+    /// on through a task goes through here, so a collectibles boundary can't be bypassed (e.g. when
+    /// it gains or loses an inner child).
     #[allow(clippy::needless_late_init)]
     fn apply(
         &self,
@@ -886,7 +888,7 @@ impl AggregatedDataUpdate {
                 result.collectibles_update.push((*collectible, -1));
             }
         }
-        result
+        result.for_uppers_of(task)
     }
 
     /// Returns true, when the update is empty resp. a no-op.
@@ -2206,9 +2208,7 @@ impl AggregationUpdateQueue {
             "aggregated data update",
             |mut upper, ctx| {
                 self.check_optimization_pending(&upper);
-                let diff = update
-                    .apply(&mut upper, ctx.should_track_activeness(), self)
-                    .for_uppers_of(&upper);
+                let diff = update.apply(&mut upper, ctx.should_track_activeness(), self);
                 if !diff.is_empty() {
                     let upper_ids = get_uppers(&upper);
                     if !upper_ids.is_empty() {
@@ -2652,7 +2652,6 @@ impl AggregationUpdateQueue {
             // race conditions
             is_upper_active = upper.is_active();
         }
-        let boundary = !diffs.is_empty() && is_collectibles_boundary(&upper);
         let upper_ids = if diffs.is_empty() {
             TaskIdVec::new()
         } else {
@@ -2663,11 +2662,7 @@ impl AggregationUpdateQueue {
             // Outside of the lock: merge the outgoing diffs into a single update for the uppers of
             // the upper, instead of cloning the list and enqueuing one job per diff. Each input
             // was already applied to the upper above, including intermediate effects.
-            let mut update = AggregatedDataUpdate::merge_all(diffs);
-            if boundary {
-                // See `AggregatedDataUpdate::for_uppers_of`.
-                update.collectibles_update.clear();
-            }
+            let update = AggregatedDataUpdate::merge_all(diffs);
             if !update.is_empty() {
                 self.push(AggregatedDataUpdateJob { upper_ids, update }.into());
             }

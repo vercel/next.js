@@ -7,7 +7,7 @@
 
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{CollectiblesSource, ResolvedVc, ValueToString, Vc, emit};
+use turbo_tasks::{CollectiblesSource, ReadRef, ResolvedVc, State, ValueToString, Vc, emit};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
@@ -72,6 +72,121 @@ async fn check() -> Result<Vc<()>> {
     }
     assert_eq!(held, vec![RcStr::from("1")]);
     Ok(Vc::cell(()))
+}
+
+/// Computes the leaf before the boundary connects to it, so the boundary gets a child that already
+/// holds a collectible.
+#[turbo_tasks::function(operation, root)]
+async fn precompute_leaf() -> Result<Vc<u32>> {
+    Ok(Vc::cell(*emitting_leaf(3).await?))
+}
+
+#[turbo_tasks::function(operation, root, collectibles_boundary)]
+async fn boundary_of_precomputed_leaf() -> Result<Vc<u32>> {
+    Ok(Vc::cell(*emitting_leaf(3).await?))
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn caller_of_precomputed() -> Result<Vc<u32>> {
+    Ok(Vc::cell(
+        *boundary_of_precomputed_leaf()
+            .read_strongly_consistent()
+            .await?,
+    ))
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn check_precomputed() -> Result<Vc<()>> {
+    precompute_leaf().read_strongly_consistent().await?;
+    let caller = caller_of_precomputed();
+    assert_eq!(*caller.read_strongly_consistent().await?, 3);
+    assert!(
+        caller
+            .peek_collectibles::<Box<dyn ValueToString>>()
+            .is_empty(),
+        "the collectible of a child that emitted before the boundary connected to it reached the \
+         caller"
+    );
+    Ok(Vc::cell(()))
+}
+
+#[turbo_tasks::value]
+struct Switch {
+    uses_leaf: State<bool>,
+}
+
+/// Reads the leaf only while the switch is on, so turning it off removes the leaf from the
+/// boundary's subgraph.
+#[turbo_tasks::function(operation, root, collectibles_boundary)]
+async fn switching_boundary(switch: ResolvedVc<Switch>) -> Result<Vc<u32>> {
+    Ok(Vc::cell(if *switch.await?.uses_leaf.get() {
+        *emitting_leaf(4).await?
+    } else {
+        0
+    }))
+}
+
+/// Reads the same leaf without a boundary.
+#[turbo_tasks::function(operation, root)]
+async fn direct_leaf() -> Result<Vc<u32>> {
+    Ok(Vc::cell(*emitting_leaf(4).await?))
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn switching_caller(switch: ResolvedVc<Switch>) -> Result<Vc<u32>> {
+    let boundary = *switching_boundary(switch)
+        .read_strongly_consistent()
+        .await?;
+    let direct = *direct_leaf().read_strongly_consistent().await?;
+    Ok(Vc::cell(boundary + direct))
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn switching_caller_collectibles(switch: ResolvedVc<Switch>) -> Result<Vc<Vec<RcStr>>> {
+    let caller = switching_caller(switch);
+    caller.read_strongly_consistent().await?;
+    let mut reached = Vec::new();
+    for collectible in caller.peek_collectibles::<Box<dyn ValueToString>>() {
+        reached.push(collectible.to_string().owned().await?);
+    }
+    Ok(Vc::cell(reached))
+}
+
+/// When the boundary loses a child, removing the child's collectibles must stop at the boundary
+/// too: they never reached the caller through it, so the caller's count from its own path to the
+/// child must not be decremented.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn boundary_losing_a_child_keeps_the_callers_collectibles() {
+    run_once(&REGISTRATION, async || {
+        let switch = ReadRef::new_owned(Switch {
+            uses_leaf: State::new(true),
+        });
+        let switch_vc = ReadRef::resolved_cell(switch.clone());
+        let collectibles = switching_caller_collectibles(switch_vc);
+        assert_eq!(
+            *collectibles.read_strongly_consistent().await?,
+            vec![RcStr::from("4")]
+        );
+        switch.uses_leaf.set(false);
+        assert_eq!(
+            *collectibles.read_strongly_consistent().await?,
+            vec![RcStr::from("4")],
+            "the caller still reads the leaf directly"
+        );
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn boundary_keeps_the_collectibles_of_existing_children() {
+    run_once(&REGISTRATION, async || {
+        check_precomputed().read_strongly_consistent().await?;
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap()
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
