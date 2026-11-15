@@ -8,5 +8,11 @@ export default {
       path.join(projectDir, 'go-proxy-output.json'),
       JSON.stringify(outputs.middleware)
     )
+    await fs.writeFile(
+      path.join(projectDir, 'go-app-pages-output.json'),
+      JSON.stringify(
+        outputs.appPages.map(({ id, pathname }) => ({ id, pathname }))
+      )
+    )
   },
 }

@@ -173,6 +173,13 @@ func nextGoForwardedProto(value string) string {
 
 func nextGoHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Adapter builds invoke Go directly, bypassing the JavaScript adapter's
+		// RSC URL normalization. Keep proxy authorization on the page identity.
+		if strings.HasSuffix(r.URL.Path, ".rsc") {
+			r.URL.Path = strings.TrimSuffix(r.URL.Path, ".rsc")
+			r.URL.RawPath = strings.TrimSuffix(r.URL.RawPath, ".rsc")
+			r.RequestURI = r.URL.RequestURI()
+		}
 		response := &nextGoProxyWriter{ResponseWriter: w, request: r}
 		// Next.js resolves destinations against its own request origin, which
 		// differs from the client's Host. Adapter builds resolve against r.Host,
