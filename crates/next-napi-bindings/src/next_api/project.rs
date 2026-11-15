@@ -1146,8 +1146,7 @@ struct EntrypointsWithIssues {
 async fn get_entrypoints_with_issues_operation(
     container: ResolvedVc<ProjectContainer>,
 ) -> Result<Vc<EntrypointsWithIssues>> {
-    let entrypoints_operation =
-        EntrypointsOperation::new(project_container_entrypoints_operation(container));
+    let entrypoints_operation = entrypoints_operation_with_route_conflicts(container);
     let filter = container.project().issue_filter().await?;
     // Computing the entrypoints doesn't build module graphs, so there are no import traces.
     let (entrypoints, issues, effects) =
@@ -1158,6 +1157,20 @@ async fn get_entrypoints_with_issues_operation(
         effects,
     }
     .cell())
+}
+
+/// [`EntrypointsOperation::new`] for the project's entrypoints, with the issues of conflicting
+/// routes, which the entrypoints don't emit (see `Project::emit_route_conflict_issues`).
+#[turbo_tasks::function(operation, root)]
+async fn entrypoints_operation_with_route_conflicts(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<EntrypointsOperation>> {
+    container
+        .project()
+        .emit_route_conflict_issues(/* app_route_filter= */ None)
+        .as_side_effect()
+        .await?;
+    Ok(EntrypointsOperation::new(project_container_entrypoints_operation(container)).connect())
 }
 
 #[turbo_tasks::function(operation, root)]
@@ -1686,14 +1699,11 @@ async fn get_all_written_entrypoints_with_issues_operation(
     app_dir_only: bool,
     write_phase: EntrypointsWritePhase,
 ) -> Result<Vc<AllWrittenEntrypointsWithIssues>> {
-    let entrypoints_operation = EntrypointsOperation::new(all_entrypoints_write_to_disk_operation(
-        container,
-        app_dir_only,
-        write_phase,
-    ));
+    let write_operation =
+        all_entrypoints_write_to_disk_operation(container, app_dir_only, write_phase);
     let filter = container.project().issue_filter().await?;
-    let (entrypoints, issues, effects) = strongly_consistent_catch_collectables(
-        entrypoints_operation,
+    let (written, issues, effects) = strongly_consistent_catch_collectables(
+        write_operation,
         &filter,
         Some(
             container
@@ -1702,6 +1712,17 @@ async fn get_all_written_entrypoints_with_issues_operation(
         ),
     )
     .await?;
+    // Picked from the plain entrypoints, not from the write operation: the per-route operations
+    // connect to the operation they pick from, and would each get the issues and effects of
+    // writing the whole app.
+    let entrypoints = match written {
+        Some(_) => Some(
+            EntrypointsOperation::new(project_container_entrypoints_operation(container))
+                .read_strongly_consistent()
+                .await?,
+        ),
+        None => None,
+    };
     Ok(AllWrittenEntrypointsWithIssues {
         entrypoints,
         issues,
@@ -1720,10 +1741,21 @@ pub async fn all_entrypoints_write_to_disk_operation(
     let wall_start = SystemTime::now();
     // Compute all outputs for this phase but do not emit to disk yet.
     let output_assets_operation = output_assets_operation(project, app_dir_only, write_phase);
-    let result = output_assets_operation
-        .connect()
-        .await
-        .map(|_| project.entrypoints());
+    let result = async {
+        output_assets_operation.connect().await?;
+        // The entrypoints don't emit these, see `Project::emit_route_conflict_issues`. For the
+        // routes of this phase, like `output_assets_operation`.
+        let next_project = project.project();
+        let deferred_entries = next_project.deferred_entries().owned().await?;
+        let app_route_filter =
+            app_route_filter_for_write_phase(next_project, write_phase, &deferred_entries).await?;
+        next_project
+            .emit_route_conflict_issues(app_route_filter)
+            .as_side_effect()
+            .await?;
+        Ok(project.entrypoints())
+    }
+    .await;
 
     turbo_tasks().send_compilation_event(Arc::new(TraceEvent::new_with_duration(
         "turbopack-write-entrypoints",
@@ -1791,15 +1823,14 @@ async fn emit_all_output_assets_once_with_issues_operation(
     let start = Instant::now();
     let wall_start = SystemTime::now();
     let result = async {
-        let entrypoints_operation =
-            EntrypointsOperation::new(emit_all_output_assets_once_operation(
-                container,
-                app_dir_only,
-                has_deferred_entrypoints,
-            ));
+        let emit_operation = emit_all_output_assets_once_operation(
+            container,
+            app_dir_only,
+            has_deferred_entrypoints,
+        );
         let filter = container.project().issue_filter().await?;
         let (_, issues, effects) = strongly_consistent_catch_collectables(
-            entrypoints_operation,
+            emit_operation,
             &filter,
             Some(
                 container
