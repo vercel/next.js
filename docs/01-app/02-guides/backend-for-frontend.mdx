@@ -652,6 +652,8 @@ export async function GET(request) {
 }
 ```
 
+> **Good to know:** Webhook providers usually expect a fast response and retry the delivery when it times out. To run slow or multi-step work for an event, start a [background job](/docs/app/guides/background-jobs) and respond right away. The job retries failed steps, so a failure partway through doesn't lose the event.
+
 Callback URLs are another use case. When a user completes a third-party flow, the third party sends them to a callback URL. Use a Route Handler to verify the response and decide where to redirect the user.
 
 ```ts filename="/app/auth/callback/route.ts" switcher

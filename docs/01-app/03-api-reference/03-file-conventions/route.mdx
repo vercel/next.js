@@ -398,6 +398,8 @@ export async function POST(req) {
 }
 ```
 
+> **Good to know:** A streamed response ends when the request reaches its [`maxDuration`](/docs/app/api-reference/file-conventions/route-segment-config/maxDuration), and a client that disconnects loses the rest of the response. For AI agents that run longer, or whose output must survive a crash or a page reload, run the agent as a [background job](/docs/app/guides/background-jobs). See [AI agents](https://workflow-sdk.dev/docs/ai) in the Workflow SDK docs.
+
 These abstractions use the Web APIs to create a stream. You can also use the underlying Web APIs directly.
 
 ```ts filename="app/api/route.ts" switcher

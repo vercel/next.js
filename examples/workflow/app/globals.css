@@ -1,0 +1,148 @@
+:root {
+  --black: #000000;
+  --line: #333333;
+  --gray: #a0a0a0;
+  --white: #ffffff;
+  --surface: #0a0a0a;
+  --amber: #ffb223;
+  --green: #63c173;
+  --blue: #52a8ff;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono:
+    var(--font-geist-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--black);
+  color: var(--white);
+  font-family: var(--font-sans);
+}
+
+main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 64px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 32px;
+  letter-spacing: -0.02em;
+}
+
+a {
+  color: var(--white);
+}
+
+code,
+.mono {
+  font-family: var(--font-mono);
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--gray);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.subtitle {
+  margin: 8px 0 0;
+  color: var(--gray);
+  line-height: 1.6;
+}
+
+.hint {
+  margin: 0;
+  color: var(--gray);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 20px;
+}
+
+label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--gray);
+  font-size: 14px;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--black);
+  color: var(--white);
+  font: inherit;
+}
+
+button {
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--white);
+  color: var(--black);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.status {
+  margin: 0 0 16px;
+  font-weight: 500;
+}
+
+.events {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.events li {
+  display: flex;
+  gap: 12px;
+  padding-left: 12px;
+  border-left: 2px solid var(--green);
+}
+
+.events li[data-type="retry"] {
+  border-color: var(--amber);
+}
+
+.events li[data-type="sleep"] {
+  border-color: var(--blue);
+}
+
+.time {
+  color: var(--gray);
+  font-family: var(--font-mono);
+}
