@@ -127,9 +127,7 @@ impl Asset for NftJsonAsset {
             .await?;
 
             let traced_files = this.traced_files.await?;
-            let module_data = traced_files.module_data.await?;
-            let module_idents = module_data.idents.keyed_reader().await?;
-            let module_hashes = module_data.hashes.keyed_reader().await?;
+            let module_idents = traced_files.module_idents.keyed_reader().await?;
 
             let result = all_assets
                 .iter()
@@ -158,12 +156,17 @@ impl Asset for NftJsonAsset {
                         }
                         AssetOrModule::Module(v) => {
                             let ident = module_idents.get(&v).context("missing path for module")?;
-                            let hash = module_hashes.get(&v).context("missing hash for module")?;
                             let source = v.source().await?.context("NFT module has no content")?;
+                            // Only modules that are part of this trace (after excludes) are hashed,
+                            // so excluded files are never read.
+                            let content = source.content().to_resolved().await?;
                             (
                                 ident.path.clone(),
-                                (**hash).clone(),
-                                source.content().await?,
+                                content
+                                    .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
+                                    .owned()
+                                    .await?,
+                                content.await?,
                             )
                         }
                     };
