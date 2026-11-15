@@ -1,5 +1,5 @@
 //! Cached Go syntax queries. Frameworks interpret declarations and generate their own entrypoints.
-use std::{io::Read, sync::atomic::Ordering};
+use std::{collections::BTreeMap, io::Read, sync::atomic::Ordering};
 
 use anyhow::{Context, Result, ensure};
 use serde::Deserialize;
@@ -20,6 +20,12 @@ pub struct GoDeclarations {
     /// All package-level functions, including unexported names such as `main`. Methods are
     /// excluded.
     pub functions: Vec<RcStr>,
+    /// Exported package-level `var` and `const` declarations, keyed by name. Each value is a
+    /// JSON document with the declaration's `pos`, whether it is `constant`, its file's
+    /// `imports`, and a syntax description of its initializer: composite literals (with their
+    /// type as written and keyed or positional elements), string and integer literals, and
+    /// `true`/`false`. Every other expression is `{"kind":"unsupported"}`. Nothing is evaluated.
+    pub values: BTreeMap<RcStr, RcStr>,
     /// Parsing errors are retained without preventing the compiler from emitting its normal
     /// diagnostics. Callers can still generate an entrypoint from valid declarations.
     pub syntax_errors: Vec<RcStr>,

@@ -98,8 +98,10 @@ module invalidates selection. `GoSourceSelection::Files` accepts explicit names;
 `Directory` selects regular `.go` siblings except `_test.go`. Both use named-file
 semantics: platform suffixes and build tags do not filter the selected entry files.
 
-`go_declarations(sources, host_session)` reports top-level function names and syntax
-errors using Go's parser. The parser tool is cached independently of application
+`go_declarations(sources, host_session)` reports top-level function names, exported
+package-level values and syntax errors using Go's parser. Values describe initializer
+syntax only: composite, string, integer and boolean literals are structural and every other
+expression is unsupported, so consumers can read static configuration without evaluating it. The parser tool is cached independently of application
 modules, and queries are keyed by their resolved source generation. It never loads application code.
 Consumers interpret names and generate their own entrypoints. Syntax errors are
 available while allowing the compiler to emit its usual diagnostics.

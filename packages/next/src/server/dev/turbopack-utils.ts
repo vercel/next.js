@@ -609,6 +609,8 @@ export function hasEntrypointForKey(
 // hooks only used by the dev server.
 type HandleEntrypointsHooks = {
   handleWrittenEndpoint: HandleWrittenEndpoint
+  /** Applies a native proxy's static config from its written descriptor. */
+  loadNativeMiddleware: () => Promise<void>
   propagateServerField: (
     field: PropagateToWorkersField,
     args: any
@@ -786,6 +788,13 @@ export async function handleEntrypoints({
       const writtenEndpoint = await endpoint.writeToDisk()
       dev.hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
       processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
+      // A failed native compile publishes no descriptor; keep the last config.
+      if (
+        writtenEndpoint.value.type === 'native' &&
+        writtenEndpoint.value.entryPath
+      ) {
+        await dev.hooks.loadNativeMiddleware()
+      }
       await manifestLoader.loadMiddlewareManifest('middleware', 'middleware')
       const middlewareConfig =
         manifestLoader.getMiddlewareManifest(key)?.middleware['/']

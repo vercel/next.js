@@ -164,18 +164,6 @@ describe('static Go config', () => {
 describe('static Go config diagnostics', () => {
   const { next } = nextTestSetup({ files: __dirname, skipStart: true })
   prepareSDK(next)
-  it('checks the SDK parser against static and computed syntax', async () => {
-    await expect(
-      exec(
-        process.env.TURBOPACK_GO || 'go',
-        ['test', './internal/configparser'],
-        {
-          cwd: join(next.testDir, 'node_modules/next/go'),
-          env: { ...process.env, GOWORK: 'off' },
-        }
-      )
-    ).resolves.toHaveProperty('stdout')
-  })
   const cases = [
     {
       file: 'proxy.go',

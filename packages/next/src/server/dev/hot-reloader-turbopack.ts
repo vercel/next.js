@@ -36,6 +36,8 @@ import type {
 } from '../../build/swc/types'
 import { createDefineEnv, getBindingsSync } from '../../build/swc'
 import * as Log from '../../build/output/log'
+import { readGoProxyConfig } from '../../build/analysis/go-config'
+import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import {
   BLOCKED_PAGES,
   CLIENT_REFERENCE_MANIFEST,
@@ -1282,6 +1284,28 @@ export async function createHotReloaderTurbopack(
               return clearRequireCache(id, result.value, {
                 force: forceDeleteCache,
               })
+            },
+            loadNativeMiddleware: async () => {
+              // Turbopack records proxy.go's static Config in the descriptor it
+              // just wrote. Source-level static info has no Go matchers.
+              try {
+                const { matchers } = await readGoProxyConfig(
+                  join(distDir, 'server', 'middleware.native.json'),
+                  join(projectPath, opts.isSrcDir ? 'src' : '', 'proxy.go'),
+                  nextConfig
+                )
+                serverFields.middleware = {
+                  match: null as any,
+                  page: '/',
+                  matchers,
+                  runtime: 'go',
+                  nativeEntry: 'middleware.native.json',
+                }
+                opts.fsChecker.middlewareMatcher =
+                  getMiddlewareRouteMatcher(matchers)
+              } catch (error) {
+                Log.error(error instanceof Error ? error.message : error)
+              }
             },
             propagateServerField: propagateServerField.bind(null, opts),
             sendHmr,

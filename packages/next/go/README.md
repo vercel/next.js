@@ -12,8 +12,7 @@ go get github.com/vercel/next.js/packages/next/go@<version-or-commit>
 
 This downloads the dependency and records it in `go.mod` and `go.sum` before
 Next.js builds. Local module replacements and Go workspaces are not supported
-by the native Go compiler. The `next` npm package also ships the SDK source
-and its AST reader.
+by the native Go compiler. The `next` npm package also ships the SDK source.
 
 In `route.go`:
 
@@ -45,7 +44,8 @@ var Config = next.ProxyConfig{
 }
 ```
 
-Only the entrypoint file's package-level `var Config` is read. Initializers must
+Turbopack reads the package-level `var Config` with Go's parser while it
+discovers the handler functions, in the same pass. Initializers must
 use keyed struct literals, integer and string literals, `[]string` literals, and
 nested `[]next.Matcher` / `[]next.RouteHas` literals. Named import aliases work.
 `Locale: false` disables locale matching for a matcher; omit it for the default.

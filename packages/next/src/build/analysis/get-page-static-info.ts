@@ -46,7 +46,6 @@ import {
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { isProxyFile } from '../utils'
-import { readGoConfig } from './go-config'
 
 const PARSE_PATTERN =
   /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|unstable_paramMatching|unstable_generateParamMatching|export const|generateImageMetadata|generateSitemaps|middleware|proxy/
@@ -654,15 +653,12 @@ export async function getAppPageStaticInfo({
   if (/(?:^|[\\/])route\.go$/.test(pageFilePath)) {
     if (!process.env.TURBOPACK)
       throw new Error('route.go requires Turbopack; remove --webpack')
-    const config = await readGoConfig(pageFilePath, 'route')
     return {
       type: PAGE_TYPES.APP,
-      config: {
-        dynamic: 'force-dynamic',
-      },
+      config: { dynamic: 'force-dynamic' },
       runtime: undefined,
-      preferredRegion: config.preferredRegion,
-      maxDuration: config.maxDuration,
+      preferredRegion: undefined,
+      maxDuration: undefined,
       hadUnsupportedValue: false,
     }
   }
@@ -823,20 +819,16 @@ export async function getPagesPageStaticInfo({
       throw new Error('proxy.go requires Turbopack; remove --webpack')
     if (!nextConfig.experimental?.goRoutes)
       throw new Error('proxy.go requires experimental.goRoutes: true')
-    const config = await readGoConfig(pageFilePath, 'proxy')
     return {
       // Root proxies use the non-App static-info shape, just like proxy.ts.
       type: PAGE_TYPES.PAGES,
       config: undefined,
       runtime: undefined,
       middleware: {
-        matchers: getMiddlewareMatchers(
-          config.matcher ?? '/:path*',
-          nextConfig
-        ),
+        matchers: getMiddlewareMatchers('/:path*', nextConfig),
       },
-      preferredRegion: config.preferredRegion,
-      maxDuration: config.maxDuration,
+      preferredRegion: undefined,
+      maxDuration: undefined,
       hadUnsupportedValue: false,
     }
   }

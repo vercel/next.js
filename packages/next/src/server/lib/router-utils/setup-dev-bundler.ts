@@ -685,7 +685,12 @@ async function startWatcher(
           middlewareEntry = {
             page: '/',
             match: null as any,
-            matchers: staticInfo.middleware?.matchers || [
+            // proxy.go matchers come from Turbopack's compiled descriptor (see
+            // loadNativeMiddleware); keep them across file system events.
+            matchers: (fileBase === 'proxy.go' &&
+            serverFields.middleware?.runtime === 'go'
+              ? serverFields.middleware.matchers
+              : staticInfo.middleware?.matchers) || [
               { regexp: '^/.*$', originalSource: '/:path*' },
             ],
             ...(fileBase === 'proxy.go'

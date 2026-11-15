@@ -1259,8 +1259,8 @@ async fn analyzed_sources_and_generated_dispatch_share_one_identity() -> Result<
     session
         .write(
             &format!("{directory}/handler.go"),
-            "package main\nfunc GET() string { return \"v1\" }\ntype Handler struct{}\nfunc \
-             (Handler) POST() {}\n",
+            "package main\nconst Version = \"v1\"\nfunc GET() string { return \"v1\" }\ntype \
+             Handler struct{}\nfunc (Handler) POST() {}\n",
         )
         .await?;
     session
@@ -1306,6 +1306,14 @@ async fn analyzed_sources_and_generated_dispatch_share_one_identity() -> Result<
         })
         .await?;
     assert_eq!(declarations.functions, vec![rcstr!("GET")]);
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&declarations.values["Version"])?["value"],
+        serde_json::json!({
+            "kind": "string",
+            "pos": format!("{directory}/handler.go:2:17"),
+            "value": "v1",
+        })
+    );
     assert!(declarations.syntax_errors.is_empty());
     let generated = BTreeMap::from([(
         RcStr::from(format!("{directory}/generated.go")),
