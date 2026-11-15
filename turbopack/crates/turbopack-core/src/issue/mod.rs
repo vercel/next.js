@@ -1111,11 +1111,6 @@ where
     ///
     /// Must be called in a turbo-task as this constructs a `cell`
     fn peek_issues(self) -> CapturedIssues;
-
-    /// Drops all issues from `source`
-    ///
-    /// This unemits the issues. They will not propagate up.
-    fn drop_issues(self);
 }
 
 impl<T> CollectibleIssuesExt for T
@@ -1126,10 +1121,6 @@ where
         CapturedIssues {
             issues: self.peek_collectibles(),
         }
-    }
-
-    fn drop_issues(self) {
-        self.drop_collectibles::<Box<dyn Issue>>();
     }
 }
 

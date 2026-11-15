@@ -124,7 +124,6 @@ async fn gated_source(input: ResolvedVc<Input>, gates: TransientInstance<Gates>)
 #[turbo_tasks::function(operation, root)]
 async fn gated_collector(
     input: ResolvedVc<Input>,
-    take: bool,
     gates: TransientInstance<Gates>,
 ) -> Result<Vc<u32>> {
     gates.executions.fetch_add(1, Ordering::AcqRel);
@@ -149,25 +148,21 @@ async fn gated_collector(
     } else {
         source.read_strongly_consistent().await?;
     }
-    let collectibles = if take {
-        source.take_collectibles::<Box<dyn ValueToString>>()
-    } else {
-        source.peek_collectibles::<Box<dyn ValueToString>>()
-    };
+    let collectibles = source.peek_collectibles::<Box<dyn ValueToString>>();
     Ok(Vc::cell(collectibles.len() as u32))
 }
 
-async fn gated_executions_after_change(take: bool) -> Result<usize> {
+async fn gated_executions_after_change() -> Result<usize> {
     let input = ReadRef::new_owned(Input {
         count: State::new(5),
     });
     let input_vc = ReadRef::resolved_cell(input.clone());
     let gates = TransientInstance::new(Gates::default());
-    let collector = gated_collector(input_vc, take, gates.clone());
+    let collector = gated_collector(input_vc, gates.clone());
 
     assert_eq!(*collector.read_strongly_consistent().await?, 5);
     let initial = gates.executions.load(Ordering::Acquire);
-    assert_eq!(initial, 1, "take={take}: initial executions");
+    assert_eq!(initial, 1, "initial executions");
 
     gates.armed.store(true, Ordering::Release);
     input.count.set(200);
@@ -178,13 +173,11 @@ async fn gated_executions_after_change(take: bool) -> Result<usize> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn gated_collector_is_not_re_executed_for_collectibles_it_has_not_read_yet() {
     run_once(&REGISTRATION, async || {
-        for take in [false, true] {
-            assert_eq!(
-                gated_executions_after_change(take).await?,
-                1,
-                "take={take}: executions after the input change"
-            );
-        }
+        assert_eq!(
+            gated_executions_after_change().await?,
+            1,
+            "executions after the input change"
+        );
         anyhow::Ok(())
     })
     .await

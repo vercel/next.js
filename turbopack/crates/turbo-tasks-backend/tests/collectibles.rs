@@ -88,70 +88,38 @@ async fn test_multi_emitting() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn taking_collectibles() {
-    run_once(&REGISTRATION, async || {
-        let result_op = my_collecting_function();
-        let result_val = result_op.connect().strongly_consistent().await?;
-        let list = result_op.take_collectibles::<Box<dyn ValueToString>>();
-        // my_collecting_function already processed the collectibles so the list should
-        // be empty
-        assert!(list.is_empty());
-        assert_eq!(result_val.0, 0);
-        anyhow::Ok(())
-    })
-    .await
-    .unwrap()
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn taking_collectibles_extra_layer() {
-    run_once(&REGISTRATION, async || {
-        let result_op = my_collecting_function_indirect();
-        let result_val = result_op.connect().strongly_consistent().await?;
-        let list = result_op.take_collectibles::<Box<dyn ValueToString>>();
-        // my_collecting_function already processed the collectibles so the list should
-        // be empty
-        assert!(list.is_empty());
-        assert_eq!(result_val.0, 0);
-        anyhow::Ok(())
-    })
-    .await
-    .unwrap()
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn taking_collectibles_parallel() {
+async fn peeking_collectibles_parallel() {
     run_once(&REGISTRATION, async || {
         let result_op = my_transitive_emitting_function(rcstr!(""), rcstr!("a"));
         let result_val = result_op.connect().strongly_consistent().await?;
-        let list = result_op.take_collectibles::<Box<dyn ValueToString>>();
+        let list = result_op.peek_collectibles::<Box<dyn ValueToString>>();
         assert_eq!(list.len(), 2);
         assert_eq!(result_val.0, 0);
 
         let result_op = my_transitive_emitting_function(rcstr!(""), rcstr!("b"));
         let result_val = result_op.connect().strongly_consistent().await?;
-        let list = result_op.take_collectibles::<Box<dyn ValueToString>>();
+        let list = result_op.peek_collectibles::<Box<dyn ValueToString>>();
         assert_eq!(list.len(), 2);
         assert_eq!(result_val.0, 0);
 
         let result_op =
             my_transitive_emitting_function_with_child_scope(rcstr!(""), rcstr!("b"), rcstr!("1"));
         let result_val = result_op.connect().strongly_consistent().await?;
-        let list = result_op.take_collectibles::<Box<dyn ValueToString>>();
+        let list = result_op.peek_collectibles::<Box<dyn ValueToString>>();
         assert_eq!(list.len(), 2);
         assert_eq!(result_val.0, 0);
 
         let result_op =
             my_transitive_emitting_function_with_child_scope(rcstr!(""), rcstr!("b"), rcstr!("2"));
         let result_val = result_op.connect().strongly_consistent().await?;
-        let list = result_op.take_collectibles::<Box<dyn ValueToString>>();
+        let list = result_op.peek_collectibles::<Box<dyn ValueToString>>();
         assert_eq!(list.len(), 2);
         assert_eq!(result_val.0, 0);
 
         let result_op =
             my_transitive_emitting_function_with_child_scope(rcstr!(""), rcstr!("c"), rcstr!("3"));
         let result_val = result_op.connect().strongly_consistent().await?;
-        let list = result_op.take_collectibles::<Box<dyn ValueToString>>();
+        let list = result_op.peek_collectibles::<Box<dyn ValueToString>>();
         assert_eq!(list.len(), 2);
         assert_eq!(result_val.0, 0);
 
@@ -162,11 +130,11 @@ async fn taking_collectibles_parallel() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn taking_collectibles_with_resolve() {
+async fn peeking_collectibles_with_resolve() {
     run_once(&REGISTRATION, async || {
         let result_op = my_transitive_emitting_function_with_resolve(rcstr!("resolve"));
         result_op.connect().strongly_consistent().await?;
-        let list = result_op.take_collectibles::<Box<dyn ValueToString>>();
+        let list = result_op.peek_collectibles::<Box<dyn ValueToString>>();
         assert_eq!(list.len(), 2);
 
         anyhow::Ok(())
@@ -177,28 +145,6 @@ async fn taking_collectibles_with_resolve() {
 
 #[turbo_tasks::value(transparent)]
 struct Collectibles(AutoSet<ResolvedVc<Box<dyn ValueToString>>>);
-
-#[turbo_tasks::function(operation, root)]
-async fn my_collecting_function() -> Result<Vc<Thing>> {
-    let result_op = my_transitive_emitting_function(rcstr!(""), rcstr!(""));
-    let result_vc = result_op.connect();
-    // Collectibles are only stable after a strongly consistent read of their source.
-    result_op.read_strongly_consistent().await?;
-    result_op.drop_collectibles::<Box<dyn ValueToString>>();
-    Ok(result_vc)
-}
-
-#[turbo_tasks::function(operation, root)]
-async fn my_collecting_function_indirect() -> Result<Vc<Thing>> {
-    let result_op = my_collecting_function();
-    let result_vc = result_op.connect();
-    result_vc.strongly_consistent().await?;
-    let list = result_op.peek_collectibles::<Box<dyn ValueToString>>();
-    // my_collecting_function already processed the collectibles so the list should
-    // be empty
-    assert!(list.is_empty());
-    Ok(result_vc)
-}
 
 #[turbo_tasks::function(operation, root)]
 async fn my_multi_emitting_function() -> Result<Vc<Thing>> {

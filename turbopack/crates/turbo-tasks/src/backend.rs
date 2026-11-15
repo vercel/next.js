@@ -742,26 +742,6 @@ pub trait Backend: Sized + Sync + Send {
         turbo_tasks: &TurboTasks<Self>,
     );
 
-    fn unemit_collectible(
-        &self,
-        trait_type: TraitTypeId,
-        collectible: RawVc,
-        count: u32,
-        task: TaskId,
-        turbo_tasks: &TurboTasks<Self>,
-    );
-
-    /// Unemits every collectible with a positive count in `collectibles` from `task`, as if
-    /// [`Backend::unemit_collectible`] was called for each of them, but applied as a single
-    /// operation.
-    fn unemit_collectibles(
-        &self,
-        trait_type: TraitTypeId,
-        collectibles: &TaskCollectiblesMap,
-        task: TaskId,
-        turbo_tasks: &TurboTasks<Self>,
-    );
-
     fn update_task_cell(
         &self,
         task: TaskId,

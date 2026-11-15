@@ -271,21 +271,6 @@ impl<T> CollectiblesSource for OperationVc<T>
 where
     T: ?Sized,
 {
-    fn drop_collectibles<Vt: VcValueTrait>(self) {
-        let tt = turbo_tasks();
-        let map = tt.read_task_collectibles(self.task, Vt::get_trait_type_id());
-        tt.unemit_collectibles(Vt::get_trait_type_id(), &map);
-    }
-
-    fn take_collectibles<Vt: VcValueTrait>(self) -> AutoSet<ResolvedVc<Vt>> {
-        let tt = turbo_tasks();
-        let map = tt.read_task_collectibles(self.task, Vt::get_trait_type_id());
-        tt.unemit_collectibles(Vt::get_trait_type_id(), &map);
-        map.into_iter()
-            .filter_map(|(raw, count)| (count > 0).then_some(raw.try_into().unwrap()))
-            .collect()
-    }
-
     fn peek_collectibles<Vt: VcValueTrait>(self) -> AutoSet<ResolvedVc<Vt>> {
         let tt = turbo_tasks();
         let map = tt.read_task_collectibles(self.task, Vt::get_trait_type_id());

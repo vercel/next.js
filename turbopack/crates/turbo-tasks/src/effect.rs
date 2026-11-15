@@ -314,10 +314,14 @@ impl EffectStateStorage {
 /// # Ok(())
 /// # }
 /// ```
+///
+/// The effects stay collectibles of `source`'s subgraph, so they also reach the uppers of the
+/// calling task. Applying an effect whose value was already applied is a no-op (see
+/// [`EffectStateStorage`]), so an upper that also applies them doesn't write twice.
 pub async fn take_effects(source: impl CollectiblesSource) -> Result<Effects> {
     debug_assert_not_in_top_level_task("take_effects");
     let effects: Vec<ResolvedVc<Box<dyn Effect>>> = source
-        .take_collectibles::<Box<dyn Effect>>()
+        .peek_collectibles::<Box<dyn Effect>>()
         .into_iter()
         .collect();
 

@@ -1311,10 +1311,6 @@ impl<'e> ExecuteContext<'e> {
         }
         None
     }
-
-    pub fn debug_get_task_description(&self, task_id: TaskId) -> String {
-        self.backend().debug_get_task_description(task_id)
-    }
 }
 
 pub struct ChildExecuteContext<'e> {
