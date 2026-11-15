@@ -6,6 +6,10 @@ import { nextTestSetup } from 'e2e-utils'
 // handler reads `path.join(process.cwd(), '..', name)`, which makes the whole
 // monorepo root part of the trace, while `outputFileTracingExcludes` excludes
 // the `target` directory at the monorepo root.
+//
+// Turbopack-specific: webpack traces with nft and doesn't expand dynamic paths
+// over the file system the same way.
+// @force-gate turbopack
 describe('output-file-tracing-dynamic-cwd', () => {
   const { next } = nextTestSetup({
     files: __dirname,
