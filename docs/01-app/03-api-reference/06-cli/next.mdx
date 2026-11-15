@@ -196,7 +196,7 @@ The following options are available for the `next typegen` command:
 | `-h, --help`  | Show all available options.                                                                  |
 | `[directory]` | A directory on which to generate types. If not provided, the current directory will be used. |
 
-Output files are written to `<distDir>/types` (typically: `.next/dev/types` in development or `.next/types` in production):
+Output files are written to `<distDir>/types` (typically `.next/types`). `next dev` writes its own types to `.next/dev/types`. When no `next dev` server is running, `next typegen` removes `.next/dev/types` so that types for moved or deleted routes don't fail type checking. `next dev` regenerates them when it starts.
 
 ```bash filename="Terminal"
 next typegen
