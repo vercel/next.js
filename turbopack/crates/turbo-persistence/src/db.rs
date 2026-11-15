@@ -852,8 +852,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             .context("Failed to read uncompressed length from blob file")?;
         let expected_checksum = reader.read_u32::<BE>()?;
 
-        // Verify checksum on the compressed on-disk data before decompression.
-        let actual_checksum = checksum_block(reader);
+        // Verify the checksum, which covers the length header and the compressed on-disk data,
+        // before the length is used to size the decompression buffer.
+        let actual_checksum = checksum_block(uncompressed_length, reader);
         if actual_checksum != expected_checksum {
             bail!(
                 "Cache corruption detected: checksum mismatch in blob file {:08}.blob (expected \
@@ -1681,8 +1682,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     };
 
                     // The keys read recently: the used keys of the meta files written by commits
-                    // that are still alive, i.e. whose SST files were not all merged yet. We only
-                    // capture this for bottom compactions.
+                    // that are still alive, i.e. whose SST files were not all merged yet, and the
+                    // ones carried forward by intermediate merges (see below). We only capture
+                    // this for bottom compactions.
                     let used_key_hashes = if merge_jobs.iter().any(|job| {
                         job.bottom
                             && (job.members.len() > 1 || !sst_strictly_in_shard(job.members[0]))
@@ -1690,6 +1692,29 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         union_used_key_hashes(meta_files)?
                     } else {
                         None
+                    };
+
+                    // An intermediate merge can merge the last SST file of a commit that recorded
+                    // used keys, which retires its meta file, while the merged entries are not
+                    // bottom merged yet, e.g. when the rewrite quota or `max_merge_jobs` leaves
+                    // the bottom merge of their shard for later. The new meta file therefore
+                    // carries the used keys of the meta files of all intermediate merge inputs
+                    // forward, so that a later bottom merge still knows them. They are carried
+                    // even if such a meta file stays alive, as it can be retired later by a merge
+                    // of other files, e.g. by the bottom merge of another shard, while the outputs
+                    // still need them. When the new meta file also describes bottom merge or move
+                    // outputs, the used keys live until those are merged too, which only makes
+                    // some cold entries hot for longer.
+                    let carried_used_key_hashes = {
+                        let mut meta_indices = merge_jobs
+                            .iter()
+                            .filter(|job| !job.bottom)
+                            .flat_map(|job| job.members.iter())
+                            .map(|&index| ssts_with_ranges[index].meta_index)
+                            .collect::<Vec<_>>();
+                        meta_indices.sort_unstable();
+                        meta_indices.dedup();
+                        union_used_key_hashes(meta_indices.into_iter().map(|i| &meta_files[i]))?
                     };
 
                     // Later we will remove the merged files. Capture each one's size now (we know
@@ -2191,6 +2216,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
                     for f in sst_files_to_delete.iter() {
                         meta_file_builder.add_obsolete_sst_file(f.seq);
+                    }
+                    if let Some(used_key_hashes) = carried_used_key_hashes {
+                        meta_file_builder.set_used_key_hashes_amqf(used_key_hashes);
                     }
 
                     let new_meta_file = {
@@ -2806,9 +2834,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 const USED_KEYS_FINGERPRINT_BITS: u8 = 32;
 
 /// The union of the used keys recorded in the meta files, or `None` if there are none.
-fn union_used_key_hashes(meta_files: &[MetaFile]) -> Result<Option<qfilter::Filter>> {
+fn union_used_key_hashes<'l>(
+    meta_files: impl IntoIterator<Item = &'l MetaFile>,
+) -> Result<Option<qfilter::Filter>> {
     let filters = meta_files
-        .iter()
+        .into_iter()
         .filter_map(|meta_file| meta_file.deserialize_used_key_hashes_amqf().transpose())
         .collect::<Result<Vec<_>>>()?
         .into_iter()

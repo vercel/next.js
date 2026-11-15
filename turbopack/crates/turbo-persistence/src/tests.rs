@@ -2122,6 +2122,53 @@ fn count_blob_files(dir: &Path) -> usize {
         .count()
 }
 
+/// The blob CRC covers the header's uncompressed length, so corrupting only the length is reported
+/// as a checksum mismatch before it is used to size the decompression buffer.
+// Writes a production-size blob, which is too slow under Miri.
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn corrupt_blob_length_is_detected(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let blob_value = vec![42u8; MAX_MEDIUM_VALUE_SIZE + 1];
+    {
+        let db = open_db::<1>(path, mmap)?;
+        let batch = db.write_batch()?;
+        batch.put(0, vec![1u8], blob_value.clone().into())?;
+        db.commit_write_batch(batch)?;
+        db.shutdown();
+    }
+    let blob_path = fs::read_dir(path)?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .find(|p| p.extension().is_some_and(|ext| ext == "blob"))
+        .expect("a blob file");
+    let original = fs::read(&blob_path)?;
+    let length = u32::from_be_bytes(original[..4].try_into()?);
+    assert_eq!(length as usize, blob_value.len());
+
+    for corrupt_length in [length + 1, length - 1, 0, u32::MAX] {
+        let mut bytes = original.clone();
+        bytes[..4].copy_from_slice(&corrupt_length.to_be_bytes());
+        fs::write(&blob_path, &bytes)?;
+        let db = open_db::<1>(path, mmap)?;
+        let message = match db.get(0, &vec![1u8]) {
+            Ok(value) => panic!(
+                "length {corrupt_length}: read succeeded ({:?} bytes)",
+                value.map(|v| v.len())
+            ),
+            Err(err) => format!("{err:#}"),
+        };
+        assert!(
+            message.contains("checksum mismatch"),
+            "length {corrupt_length}: unexpected error: {message}"
+        );
+    }
+    Ok(())
+}
+
 /// Test that compaction deletes blob files when their entries are superseded
 /// by newer values (SingleValue family).
 // The first access-mode variant exceeded 20 minutes under Miri while processing the production-size
@@ -3189,6 +3236,138 @@ fn used_keys_live_as_long_as_the_meta_file_that_recorded_them(#[case] mmap: bool
     put_all(2)?;
     db.full_compact()?;
     assert_eq!(bottom_entry_counts(&db)?, (0, KEYS as usize));
+    Ok(())
+}
+
+/// How [`used_keys_survive_intermediate_merges`] leaves the bottom merge of a shard for later.
+#[cfg(not(miri))]
+#[derive(Clone, Copy, Debug)]
+enum PartialCompaction {
+    /// One pass bottom merges one shard and intermediate merges the other.
+    SamePass,
+    /// One pass bottom merges one shard, a later one intermediate merges the other.
+    BottomFirst,
+    /// One pass intermediate merges one shard, while the meta file that recorded the used keys is
+    /// kept alive by the other shard's files. A later pass bottom merges that other shard, which
+    /// retires it.
+    IntermediateFirst,
+}
+
+/// An intermediate merge can retire the meta file that recorded the used keys before every shard
+/// had its bottom merge, e.g. when the rewrite quota or `max_merge_jobs` leaves a shard's bottom
+/// merge for later. The used keys then have to live on in the meta file written by the compaction,
+/// until the merged entries are bottom merged.
+#[cfg(not(miri))]
+#[rstest]
+fn used_keys_survive_intermediate_merges(
+    #[values(true, false)] mmap: bool,
+    #[values(
+        PartialCompaction::SamePass,
+        PartialCompaction::BottomFirst,
+        PartialCompaction::IntermediateFirst
+    )]
+    partial: PartialCompaction,
+) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let config = two_shard_config(mmap)?;
+    let db = open_db_with_config::<1>(path, config.clone())?;
+    const KEYS: u32 = TWO_SHARD_KEYS;
+    let put_all =
+        |db: &TurboPersistence<RayonParallelScheduler, 1>, generation: u32| -> Result<()> {
+            let batch = db.write_batch()?;
+            for key in 0..KEYS {
+                batch.put(
+                    0,
+                    key.to_be_bytes().to_vec(),
+                    generation.to_be_bytes().to_vec().into(),
+                )?;
+            }
+            db.commit_write_batch(batch)?;
+            Ok(())
+        };
+    put_all(&db, 0)?;
+    db.full_compact()?;
+    for key in 0..KEYS {
+        db.get(0, &key.to_be_bytes())?.unwrap();
+    }
+    // The first commit records the reads, the second one none. Each shard has two files above its
+    // bottom run then.
+    put_all(&db, 1)?;
+    put_all(&db, 2)?;
+    let intermediate_only = CompactConfig {
+        max_space_amplification_percent: u16::MAX,
+        max_files_above_bottom: 1,
+        ..CompactConfig::full()
+    };
+    match partial {
+        PartialCompaction::BottomFirst => {
+            // Bottom merge only one shard. The other shard keeps the files of the commit that
+            // recorded the used keys.
+            db.compact(&CompactConfig {
+                max_merge_jobs: 1,
+                ..CompactConfig::full()
+            })?;
+            // Then the other shard gets an intermediate merge instead of a bottom merge, which
+            // merges the last file of that commit.
+            db.compact(&intermediate_only)?;
+        }
+        PartialCompaction::SamePass => {
+            // The rewrite quota of 0 bottom merges only one shard, and the other one gets an
+            // intermediate merge in the same pass, which merges the last file of that commit.
+            db.compact(&CompactConfig {
+                max_files_above_bottom: 1,
+                rewrite_per_fresh_byte: 0.0,
+                ..CompactConfig::full()
+            })?;
+        }
+        PartialCompaction::IntermediateFirst => {
+            // Intermediate merge only one shard. The commit that recorded the used keys still has
+            // a file in the other shard.
+            db.compact(&CompactConfig {
+                max_merge_jobs: 1,
+                ..intermediate_only
+            })?;
+            // Bottom merge only the other shard, which merges the last file of that commit. It
+            // has two rewrites of all its keys above its bottom run, the merged shard only one.
+            db.compact(&CompactConfig {
+                max_space_amplification_percent: 150,
+                max_files_above_bottom: 6,
+                ..CompactConfig::full()
+            })?;
+        }
+    }
+    let (hot, _) = bottom_entry_counts(&db)?;
+    assert!(hot > 0 && hot < KEYS as usize);
+    // The carried used keys are persisted.
+    db.shutdown();
+    let db = open_db_with_config::<1>(path, config)?;
+    // The bottom merge of the other shard still knows the read keys.
+    db.full_compact()?;
+    assert_eq!(bottom_entry_counts(&db)?, (KEYS as usize, 0));
+
+    // Every file with entries of the read keys was bottom merged now, so the used keys expire. (No
+    // key was read since, which the next commit would record again.)
+    let mut generation = 3;
+    if matches!(partial, PartialCompaction::SamePass) {
+        // Except that the meta file carrying the used keys also describes the bottom run written
+        // by the same pass for the first shard, which the full compaction above didn't merge, as
+        // nothing was written into that shard since. So the next bottom merge still uses them,
+        // which merges that bottom run and retires the meta file.
+        put_all(&db, generation)?;
+        db.full_compact()?;
+        assert_eq!(bottom_entry_counts(&db)?, (KEYS as usize, 0));
+        generation += 1;
+    }
+    put_all(&db, generation)?;
+    db.full_compact()?;
+    assert_eq!(bottom_entry_counts(&db)?, (0, KEYS as usize));
+    for key in 0..KEYS {
+        assert_eq!(
+            &*db.get(0, &key.to_be_bytes())?.unwrap(),
+            &generation.to_be_bytes()
+        );
+    }
     Ok(())
 }
 
