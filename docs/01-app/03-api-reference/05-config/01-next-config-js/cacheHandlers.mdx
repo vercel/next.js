@@ -320,7 +320,9 @@ If an invalidation is more recent than the entry, report the entry as out of dat
 
 ## Distributed Tag Coordination
 
-When running multiple Next.js instances, tag invalidation must be coordinated across instances. The default in-memory handler only tracks tags locally, so calling `revalidateTag()` on one instance does not affect others.
+The default in-memory [`'use cache'`](/docs/app/api-reference/directives/use-cache) handler stores cache entries and tag state locally on each server instance. Calling [`revalidateTag()`](/docs/app/api-reference/functions/revalidateTag) on one instance does not invalidate entries held by other instances. This also applies to `{ expire: 0 }`, which changes expiration timing without propagating invalidation to other instances.
+
+Self-hosted deployments with multiple instances need a custom handler that shares tag invalidation state. Hosting providers can replace the default handler, so check your provider's documentation for cross-instance tag invalidation guarantees.
 
 To coordinate tags across instances:
 
