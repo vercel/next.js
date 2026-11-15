@@ -78,6 +78,14 @@ export default async function loader(
         throw error
       }
 
+      // Sass can emit a BOM before a module's CSS. PostCSS preserves it, but
+      // webpack later concatenates multiple modules into one stylesheet, where
+      // a BOM before a later module becomes part of its first selector. Clear
+      // the flag on the AST too, because css-loader reuses this PostCSS root.
+      if (result.root.source?.input?.hasBOM) {
+        result.root.source.input.hasBOM = false
+      }
+
       for (const warning of result.warnings()) {
         this.emitWarning(new Warning(warning))
       }
