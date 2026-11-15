@@ -122,6 +122,7 @@ import {
 import type { EventBuildFeatureUsage } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { discoverRoutes, createPagesMapping } from './route-discovery'
+import { warnAboutPrivateFolderRouteFiles } from './private-folder-route-files'
 import { sortByPageExts } from './sort-by-page-exts'
 import { getConventionFileBaseName } from './get-convention-file-base-name'
 import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
@@ -1571,6 +1572,8 @@ export default async function build(
       // Update appDirOnly from discovery (may have changed if no pages found)
       appDirOnly = discovery.appDirOnly
       NextBuildContext.appDirOnly = appDirOnly
+
+      warnAboutPrivateFolderRouteFiles(dir, discovery.privateFolderRouteFiles)
 
       const pagesPaths = discovery.pagesPaths
 

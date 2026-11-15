@@ -25,6 +25,7 @@ import { setGlobal } from '../../../trace/shared'
 import type { Telemetry } from '../../../telemetry/storage'
 import type { IncomingMessage, ServerResponse } from 'http'
 import { createValidFileMatcher } from '../find-page-file'
+import { warnAboutPrivateFolderRouteFiles } from '../../../build/private-folder-route-files'
 import {
   EVENT_BUILD_FEATURE_USAGE,
   eventCliSession,
@@ -504,6 +505,8 @@ async function startWatcher(
     let previousRouteMatchingErrors: string | null = null
     let hadInitialScan = false
     let previousDuplicatePagePaths: Set<string> = new Set()
+    // page/route files inside private folders that were already warned about
+    const reportedPrivateFolderRouteFiles = new Set<string>()
 
     const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
     const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
@@ -556,6 +559,7 @@ async function startWatcher(
       let tsconfigChange = false
       let conflictingPageChange = 0
       let hasRootAppNotFound = false
+      const newPrivateFolderRouteFiles: string[] = []
 
       const { appFiles, pageFiles, staticMetadataFiles } = opts.fsChecker
 
@@ -787,7 +791,16 @@ async function startWatcher(
           const normalizedPageName = normalizePathSep(pageName)
 
           // Skip files/directories starting with `_` in the app directory
-          if (normalizedPageName.includes('/_')) continue
+          if (normalizedPageName.includes('/_')) {
+            if (
+              validFileMatcher.isAppPageOrRouteFile(fileName) &&
+              !reportedPrivateFolderRouteFiles.has(fileName)
+            ) {
+              reportedPrivateFolderRouteFiles.add(fileName)
+              newPrivateFolderRouteFiles.push(fileName)
+            }
+            continue
+          }
 
           // Record parallel route slots
           addSlotIfNew(slots, normalizedPageName)
@@ -914,6 +927,8 @@ async function startWatcher(
 
         routedPages.push(pageName)
       }
+
+      warnAboutPrivateFolderRouteFiles(dir, newPrivateFolderRouteFiles)
 
       const numConflicting = conflictingAppPagePaths.size
       conflictingPageChange = numConflicting - previousConflictingPagePaths.size
