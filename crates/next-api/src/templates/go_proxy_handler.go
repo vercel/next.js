@@ -16,7 +16,8 @@ type ProxyOptions struct {
 type RequestOptions struct {
 	// A nil map preserves the request headers. A non-nil map replaces them;
 	// an empty map removes them. Names are case-insensitive: values for names
-	// that differ only in case are combined.
+	// that differ only in case are combined. Hop-by-hop headers, such as
+	// Connection and the headers it lists, are ignored.
 	Headers http.Header
 }
 
@@ -107,6 +108,29 @@ func nextGoProxyOptions(w http.ResponseWriter, options []ProxyOptions) {
 		return
 	}
 	headers := options[0].Request.Headers
+	// Connection-level headers describe the hop to the proxy, not the
+	// downstream request, and r.Header.Clone() includes them. Proxy
+	// credentials are kept so a cloned map matches passing nil.
+	hopByHop := map[string]bool{
+		"connection":        true,
+		"keep-alive":        true,
+		"proxy-connection":  true,
+		"te":                true,
+		"trailer":           true,
+		"transfer-encoding": true,
+		"upgrade":           true,
+	}
+	for key, values := range headers {
+		if strings.EqualFold(key, "Connection") {
+			for _, value := range values {
+				for _, name := range strings.Split(value, ",") {
+					if name = strings.TrimSpace(name); name != "" {
+						hopByHop[strings.ToLower(name)] = true
+					}
+				}
+			}
+		}
+	}
 	// Iterate in a stable order so values for names that differ only in case
 	// are combined deterministically instead of the last map entry winning.
 	keys := make([]string, 0, len(headers))
@@ -118,6 +142,9 @@ func nextGoProxyOptions(w http.ResponseWriter, options []ProxyOptions) {
 	values := make(map[string][]string, len(keys))
 	for _, key := range keys {
 		name := strings.ToLower(key)
+		if hopByHop[name] {
+			continue
+		}
 		if _, seen := values[name]; !seen {
 			names = append(names, name)
 			values[name] = nil
