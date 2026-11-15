@@ -1,8 +1,9 @@
 import type { AppType } from 'next/app'
 
 const MyApp: AppType<{ foo: string }> = ({ Component, pageProps, foo }) => {
-  // The getInitialProps value belongs to the App component's props, not pageProps.
-  void foo
+  // getInitialProps values are merged into the App component's props.
+  const value: string = foo
+  void value
   return <Component {...pageProps} />
 }
 
