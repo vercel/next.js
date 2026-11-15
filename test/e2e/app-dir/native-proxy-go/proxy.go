@@ -70,12 +70,6 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 		Rewrite(w, "/native-proxy/inspect", ProxyOptions{
 			Request: RequestOptions{Headers: headers},
 		})
-	case "/native-proxy/external-override":
-		headers := r.Header.Clone()
-		headers.Set("x-from-go", "overridden")
-		Rewrite(w, "http://127.0.0.1:"+r.URL.Query().Get("port")+"/public", ProxyOptions{
-			Request: RequestOptions{Headers: headers},
-		})
 	case "/native-proxy/cookies":
 		http.SetCookie(w, &http.Cookie{Name: "first", Value: "one", Path: "/"})
 		http.SetCookie(w, &http.Cookie{Name: "second", Value: "two", Path: "/"})

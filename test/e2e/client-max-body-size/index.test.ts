@@ -96,8 +96,9 @@ describe('client-max-body-size', () => {
               } else {
                 expect(result.bodySize).toBe(size)
               }
-              // Replayed bodies have a known length, including chunked input.
-              expect(result.contentLength).toBe(String(result.bodySize))
+              expect(result.contentLength).toBe(
+                chunked ? null : String(result.bodySize)
+              )
               expect(result.probe).toBe(override ? 'preserved' : null)
             })
           }

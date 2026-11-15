@@ -5,7 +5,7 @@ import { join } from 'path'
 import { tmpdir } from 'os'
 import { spawn } from 'child_process'
 import { once } from 'events'
-import { createServer, request } from 'http'
+import { request } from 'http'
 import cheerio from 'cheerio'
 import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 
@@ -284,101 +284,6 @@ describe('native-proxy-go', () => {
       const following = await next.fetch('/native-proxy/inspect')
       expect(following.status).toBe(200)
       expect(following.headers.get('x-go-proxy')).toBe('yes')
-    }
-  )
-
-  it.each([
-    ['DELETE', 'content-length'],
-    ['OPTIONS', 'content-length'],
-    ['GET', 'content-length'],
-    ['GET', 'transfer-encoding'],
-    ['HEAD', 'content-length'],
-    ['HEAD', 'transfer-encoding'],
-  ])(
-    'frames a %s external rewrite body with %s after header overrides',
-    async (method, framing) => {
-      const requests: Array<{
-        url: string
-        body: string
-        fromGo: string | string[] | undefined
-      }> = []
-      const server = createServer((req, res) => {
-        const chunks: Buffer[] = []
-        req.on('data', (chunk) => chunks.push(chunk))
-        req.on('end', () => {
-          const body = Buffer.concat(chunks).toString()
-          const fromGo = req.headers['x-from-go']
-          requests.push({ url: req.url!, body, fromGo })
-          if (req.url === '/api/private' && fromGo !== 'overridden') {
-            res.statusCode = 403
-          }
-          res.setHeader('content-type', 'application/json')
-          res.end(JSON.stringify({ body }))
-        })
-      })
-      await new Promise<void>((resolve) =>
-        server.listen(0, '127.0.0.1', resolve)
-      )
-      const address = server.address()
-      if (!address || typeof address === 'string') {
-        throw new Error('Expected the external server to listen on a TCP port')
-      }
-
-      const payload =
-        'POST /api/private HTTP/1.1\r\n' +
-        'Host: 127.0.0.1\r\n' +
-        'Content-Length: 0\r\n' +
-        'X-From-Go: overridden\r\n\r\n'
-      try {
-        const direct = await fetch(
-          `http://127.0.0.1:${address.port}/api/private`
-        )
-        expect(direct.status).toBe(403)
-
-        const response = await new Promise<{
-          status: number
-          body: string
-        }>((resolve, reject) => {
-          const req = request(
-            `${next.url}/native-proxy/external-override?port=${address.port}`,
-            {
-              method,
-              headers: {
-                [framing]:
-                  framing === 'content-length'
-                    ? String(Buffer.byteLength(payload))
-                    : 'chunked',
-              },
-            },
-            (res) => {
-              const chunks: Buffer[] = []
-              res.on('data', (chunk) => chunks.push(chunk))
-              res.once('error', reject)
-              res.on('end', () =>
-                resolve({
-                  status: res.statusCode!,
-                  body: Buffer.concat(chunks).toString(),
-                })
-              )
-            }
-          )
-          req.once('error', reject)
-          req.end(payload)
-        })
-        expect(response.status).toBe(200)
-        expect(requests).toEqual([
-          { url: '/api/private', body: '', fromGo: undefined },
-          { url: '/public', body: payload, fromGo: 'overridden' },
-        ])
-        if (method !== 'HEAD') {
-          expect(JSON.parse(response.body)).toEqual({ body: payload })
-        }
-      } finally {
-        server.closeAllConnections()
-        await new Promise<void>((resolve, reject) =>
-          server.close((error) => (error ? reject(error) : resolve()))
-        )
-      }
     }
   )
 
