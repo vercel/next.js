@@ -1281,7 +1281,12 @@ impl Endpoint for GoEndpoint {
         .to_resolved()
         .await?;
         let module_root = sources.await?.root.clone();
-        let analysis = go_declarations(*sources, session).await?;
+        // Only the entrypoint file's values are described; `var Config` is read from it alone.
+        let entrypoint: RcStr = module_root
+            .get_path_to(&this.path)
+            .context("Go entrypoint outside module")?
+            .into();
+        let analysis = go_declarations(*sources, vec![entrypoint], session).await?;
         if is_proxy {
             ensure!(
                 analysis.functions.iter().any(|name| name == "Proxy"),

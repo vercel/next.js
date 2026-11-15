@@ -1232,9 +1232,11 @@ fn selected_sources(
 fn selected_declarations(
     sources: ResolvedVc<GoSourceSet>,
     options: GoBuildOptions,
+    value_files: Vec<RcStr>,
 ) -> Vc<GoDeclarations> {
     go_declarations(
         *sources,
+        value_files,
         GoBuildSession::persistent("source-set-test".into(), options),
     )
 }
@@ -1299,9 +1301,13 @@ async fn analyzed_sources_and_generated_dispatch_share_one_identity() -> Result<
         .run_once({
             let options = options.clone();
             async move {
-                selected_declarations(sources, options)
-                    .read_strongly_consistent()
-                    .await
+                selected_declarations(
+                    sources,
+                    options,
+                    vec![format!("{directory}/handler.go").into()],
+                )
+                .read_strongly_consistent()
+                .await
             }
         })
         .await?;
@@ -1381,9 +1387,10 @@ async fn analyzed_sources_and_generated_dispatch_share_one_identity() -> Result<
                             .resolve()
                             .strongly_consistent()
                             .await?;
-                            let declarations = selected_declarations(sources, options.clone())
-                                .read_strongly_consistent()
-                                .await?;
+                            let declarations =
+                                selected_declarations(sources, options.clone(), vec![])
+                                    .read_strongly_consistent()
+                                    .await?;
                             assert_eq!(declarations.functions, vec![rcstr!("GET")]);
                             selected_bundle(sources, options.clone(), generated.clone())
                                 .read_strongly_consistent()
@@ -1433,7 +1440,7 @@ async fn analyzed_sources_and_generated_dispatch_share_one_identity() -> Result<
         .run_once({
             let options = options.clone();
             async move {
-                selected_declarations(current, options)
+                selected_declarations(current, options, vec![])
                     .read_strongly_consistent()
                     .await
             }

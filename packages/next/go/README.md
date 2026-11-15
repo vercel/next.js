@@ -44,8 +44,8 @@ var Config = next.ProxyConfig{
 }
 ```
 
-Turbopack reads the package-level `var Config` with Go's parser while it
-discovers the handler functions, in the same pass. Initializers must
+Only the entrypoint file's package-level `var Config` is read, by Turbopack's
+Go parser in the same pass that discovers the handler functions. Initializers must
 use keyed struct literals, integer and string literals, `[]string` literals, and
 nested `[]next.Matcher` / `[]next.RouteHas` literals. Named import aliases work.
 `Locale: false` disables locale matching for a matcher; omit it for the default.

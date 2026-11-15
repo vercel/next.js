@@ -116,9 +116,19 @@ func (f file) describe(expr ast.Expr) node {
 }
 
 func analyze() error {
-	var sources map[string]string
-	if err := json.NewDecoder(os.Stdin).Decode(&sources); err != nil {
+	var input struct {
+		Sources map[string]string `json:"sources"`
+		// Values names the files whose package-level values are described. Other files
+		// are only scanned for functions.
+		Values []string `json:"values"`
+	}
+	if err := json.NewDecoder(os.Stdin).Decode(&input); err != nil {
 		return err
+	}
+	sources := input.Sources
+	describeValues := map[string]bool{}
+	for _, name := range input.Values {
+		describeValues[name] = true
 	}
 	names := make([]string, 0, len(sources))
 	for name := range sources {
@@ -137,16 +147,18 @@ func analyze() error {
 		}
 		f := file{positions}
 		imports := []importSpec{}
-		for _, spec := range parsed.Imports {
-			path, err := strconv.Unquote(spec.Path.Value)
-			if err != nil {
-				continue
+		if describeValues[name] {
+			for _, spec := range parsed.Imports {
+				path, err := strconv.Unquote(spec.Path.Value)
+				if err != nil {
+					continue
+				}
+				imported := importSpec{Path: path}
+				if spec.Name != nil {
+					imported.Name = spec.Name.Name
+				}
+				imports = append(imports, imported)
 			}
-			imported := importSpec{Path: path}
-			if spec.Name != nil {
-				imported.Name = spec.Name.Name
-			}
-			imports = append(imports, imported)
 		}
 		for _, declaration := range parsed.Decls {
 			switch d := declaration.(type) {
@@ -155,10 +167,10 @@ func analyze() error {
 				if d.Recv == nil {
 					functions[d.Name.Name] = true
 				}
-			// Exported package-level values only. Multiple names, missing initializers and
-			// computed initializers are reported as unsupported rather than omitted.
+			// Exported package-level values of the requested files only. Multiple names, missing
+			// initializers and computed initializers are reported as unsupported, not omitted.
 			case *ast.GenDecl:
-				if d.Tok != token.VAR && d.Tok != token.CONST {
+				if !describeValues[name] || (d.Tok != token.VAR && d.Tok != token.CONST) {
 					continue
 				}
 				for _, spec := range d.Specs {
