@@ -139,9 +139,9 @@ export function loadEnvConfig(
   if (combinedEnv && !forceReload) {
     return { combinedEnv, parsedEnv, loadedEnvFiles: cachedLoadedEnvFiles }
   }
-  replaceProcessEnv(initialEnv)
-  previousLoadedEnvFiles = cachedLoadedEnvFiles
-  cachedLoadedEnvFiles = []
+  // Read the files before touching process.env, so a forced reload
+  // never wipes the environment before it knows what the re-read found.
+  const nextLoadedEnvFiles: LoadedEnvFiles = []
 
   const isTest = process.env.NODE_ENV === 'test'
   const mode = isTest ? 'test' : dev ? 'development' : 'production'
@@ -168,7 +168,7 @@ export function loadEnvConfig(
       }
 
       const contents = fs.readFileSync(dotEnvPath, 'utf8')
-      cachedLoadedEnvFiles.push({
+      nextLoadedEnvFiles.push({
         path: envFile,
         contents,
         env: {}, // This will be populated in processEnv
@@ -179,6 +179,46 @@ export function loadEnvConfig(
       }
     }
   }
+
+  // A FIFO-mounted .env file serves its contents once and reads empty
+  // thereafter, so a watcher-triggered forced reload must not lose the
+  // values it previously supplied. Carry those forward, but only for
+  // files that are still FIFOs: emptying or deleting a regular .env
+  // file must still remove its variables on reload.
+  if (forceReload) {
+    for (const previousFile of cachedLoadedEnvFiles) {
+      if (previousFile.contents.length === 0) {
+        continue
+      }
+      const nextFile = nextLoadedEnvFiles.find(
+        (file) => file.path === previousFile.path
+      )
+      if (nextFile && nextFile.contents.length > 0) {
+        continue
+      }
+      try {
+        const stats = fs.statSync(path.join(dir, previousFile.path))
+        if (!stats.isFIFO()) {
+          continue
+        }
+      } catch {
+        continue
+      }
+      if (nextFile) {
+        nextFile.contents = previousFile.contents
+      } else {
+        nextLoadedEnvFiles.push({
+          path: previousFile.path,
+          contents: previousFile.contents,
+          env: {},
+        })
+      }
+    }
+  }
+
+  replaceProcessEnv(initialEnv)
+  previousLoadedEnvFiles = cachedLoadedEnvFiles
+  cachedLoadedEnvFiles = nextLoadedEnvFiles
   ;[combinedEnv, parsedEnv] = processEnv(
     cachedLoadedEnvFiles,
     dir,
