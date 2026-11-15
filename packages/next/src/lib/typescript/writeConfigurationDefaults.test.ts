@@ -206,5 +206,77 @@ describe('writeConfigurationDefaults()', () => {
         })
       })
     })
+
+    // Test for Node16 module preservation
+    it('should not change module field when it is set to node16', async () => {
+      await writeFile(
+        tsConfigPath,
+        JSON.stringify({ compilerOptions: { module: 'node16' } }),
+        { encoding: 'utf8' }
+      )
+
+      await writeConfigurationDefaults(
+        ts,
+        tsConfigPath,
+        isFirstTimeSetup,
+        hasAppDir,
+        distDir,
+        hasPagesDir
+      )
+
+      const tsConfig = await readFile(tsConfigPath, { encoding: 'utf8' })
+      const parsed = JSON.parse(tsConfig)
+
+      // The module field should remain as node16
+      expect(parsed.compilerOptions.module).toBe('node16')
+
+      // Verify that no warning about module change was logged
+      const logs = consoleLogSpy.mock.calls
+        .flat()
+        .join('\n')
+        // eslint-disable-next-line no-control-regex
+        .replace(/\x1B\[\d+m/g, '')
+
+      expect(logs).not.toContain('module was set to esnext')
+    })
+
+    // Test for Node20 module preservation/fallback based on TypeScript version
+    it('should handle node20 module field based on TypeScript version', async () => {
+      const hasNode20Support = (ts.ModuleKind as any).Node20 !== undefined
+
+      await writeFile(
+        tsConfigPath,
+        JSON.stringify({ compilerOptions: { module: 'node20' } }),
+        { encoding: 'utf8' }
+      )
+
+      await writeConfigurationDefaults(
+        ts,
+        tsConfigPath,
+        isFirstTimeSetup,
+        hasAppDir,
+        distDir,
+        hasPagesDir
+      )
+
+      const tsConfig = await readFile(tsConfigPath, { encoding: 'utf8' })
+      const parsed = JSON.parse(tsConfig)
+
+      const logs = consoleLogSpy.mock.calls
+        .flat()
+        .join('\n')
+        // eslint-disable-next-line no-control-regex
+        .replace(/\x1B\[\d+m/g, '')
+
+      if (hasNode20Support) {
+        // TypeScript 5.9+ - node20 should be preserved
+        expect(parsed.compilerOptions.module).toBe('node20')
+        expect(logs).not.toContain('module was set to esnext')
+      } else {
+        // TypeScript < 5.9 - node20 should be changed to esnext
+        expect(parsed.compilerOptions.module).toBe('esnext')
+        expect(logs).toContain('module was set to esnext')
+      }
+    })
   })
 })
