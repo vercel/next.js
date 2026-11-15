@@ -5,6 +5,10 @@ import { nextTestSetup } from 'e2e-utils'
 // The test directory is a monorepo root with the Next.js app in `web/`. Route
 // handlers read dynamic paths relative to the monorepo root and to the project
 // directory, which makes those whole directories part of the trace.
+//
+// Turbopack-specific: webpack traces with nft and doesn't expand dynamic paths
+// over the file system the same way.
+// @force-gate turbopack
 describe('output-file-tracing-dangling-symlink', () => {
   const { next } = nextTestSetup({
     files: __dirname,
