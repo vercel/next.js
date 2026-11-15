@@ -370,10 +370,11 @@ describe('required server files', () => {
     'should warn when "next" is imported directly',
     async () => {
       await renderViaHTTP(appPort, '/gssp', undefined, withInvocationId())
-      await check(
-        () => stderr,
-        /"next" should not be imported directly, imported in/
-      )
+      await retry(() => {
+        expect(stderr.replace(/\\/g, '/')).toMatch(
+          /"next" should not be imported directly, imported in .*\/\.next\/server\/.*\.js/
+        )
+      })
     }
   )
 

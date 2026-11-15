@@ -139,7 +139,8 @@ async function handleCJS({
     // filename & extension don't matter here
     const config = requireFromString(
       code,
-      path.resolve(dir, 'next.config.compiled.js')
+      path.resolve(dir, 'next.config.compiled.js'),
+      module
     )
     // At this point we have already loaded the bindings without this configuration setting due to the `transform` call above.
     // Possibly we fell back to wasm in which case, it all works out but if not we need to warn

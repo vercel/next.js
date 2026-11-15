@@ -7,11 +7,6 @@ import {
 import { Page } from 'playwright'
 
 export type { Playwright }
-
-if (!process.env.TEST_FILE_PATH) {
-  process.env.TEST_FILE_PATH = module.parent!.filename
-}
-
 ;(global as any).browserName = process.env.BROWSER_NAME || 'chrome'
 
 let browserTeardown: (() => Promise<void>)[] = []

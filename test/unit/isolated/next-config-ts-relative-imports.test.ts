@@ -34,11 +34,17 @@ function loadConfigFrom(cwd: string) {
   }
   delete env.__NEXT_TEST_MODE
 
-  const result = spawnSync(process.execPath, ['-e', script], {
-    cwd,
-    env,
-    encoding: 'utf8',
-  })
+  const result = spawnSync(
+    process.execPath,
+    ['--pending-deprecation', '--trace-deprecation', '--eval', script],
+    {
+      cwd,
+      env,
+      encoding: 'utf8',
+    }
+  )
+  expect(result.status).toBe(0)
+  expect(result.stderr).not.toContain('[DEP0144]')
   const match = /^RESULT=(.*)$/m.exec(result.stdout)
   return {
     status: result.status,
