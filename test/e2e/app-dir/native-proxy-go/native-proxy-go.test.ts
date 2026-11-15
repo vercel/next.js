@@ -578,12 +578,22 @@ describe('native-proxy-go', () => {
               old: '1',
               [parameter]: destination,
             }).toString()
-            const response = await fetch(url, { redirect: 'manual' })
+            // Only Next.js may choose the resolution host. A forged internal
+            // header must not turn this into an external destination.
+            const response = await fetch(url, {
+              redirect: 'manual',
+              headers: { 'x-next-internal-go-rewrite-host': 'evil.example' },
+            })
             expect(response.headers.get(header)).toBe(
               new URL(destination, url).href
             )
           }
         }
+        const forged = await fetch(
+          `http://127.0.0.1:${port}/native-proxy/inspect`,
+          { headers: { 'x-next-internal-test': 'internal value' } }
+        )
+        expect(forged.headers.get('x-private-token')).toBe('false')
       } finally {
         const exited = once(child, 'exit')
         child.kill()

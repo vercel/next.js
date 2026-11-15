@@ -146,10 +146,12 @@ func nextGoForwardedProto(value string) string {
 
 func nextGoHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		response := &nextGoProxyWriter{
-			ResponseWriter: w,
-			request:        r,
-			rewriteHost:    r.Header.Get("x-next-internal-go-rewrite-host"),
+		response := &nextGoProxyWriter{ResponseWriter: w, request: r}
+		// Next.js resolves destinations against its own request origin, which
+		// differs from the client's Host. Adapter builds resolve against r.Host,
+		// the host the platform routed, and never read internal headers.
+		if nextGoTrustInternalHeaders {
+			response.rewriteHost = r.Header.Get("x-next-internal-go-rewrite-host")
 		}
 		r.Header.Del("x-next-internal-go-token")
 		r.Header.Del("x-next-internal-go-rewrite-host")
