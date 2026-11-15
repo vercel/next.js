@@ -1679,6 +1679,16 @@ export interface ExperimentalConfig {
    */
   mcpServer?: boolean
 
+  /**
+   * Expose the `run_browser_actions` tool on the MCP server. The tool lets an
+   * AI assistant drive a headless Playwright browser against the dev server
+   * (click, fill, read text). It requires `mcpServer` to be enabled and
+   * Playwright to be installed in the project.
+   *
+   * @default false
+   */
+  mcpBrowserActions?: boolean
+
   /** Report runtime errors and their catching boundary over the development HMR socket. */
   exposeRuntimeErrorsToHMR?: boolean
 
@@ -2558,6 +2568,7 @@ export const defaultConfig = Object.freeze({
     proxyClientMaxBodySize: 10_485_760, // 10MB
     hideLogsAfterAbort: false,
     mcpServer: true,
+    mcpBrowserActions: false,
     exposeRuntimeErrorsToHMR: false,
     turbopackFileSystemCacheForDev: true,
     turbopackFileSystemCacheForBuild: true,
