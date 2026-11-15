@@ -572,7 +572,7 @@ For example, a user trying to download an image, but having it treated as a diff
 
 [This header](https://developer.mozilla.org/docs/Web/HTTP/Headers/Referrer-Policy) controls how much information the browser includes when navigating from the current website (origin) to another.
 
-For Server Action forms, `no-referrer` can cause native submissions without JavaScript to send `Origin: null` and fail the origin check. Use a policy such as `strict-origin-when-cross-origin` to support native submissions. See [referrer policies and native form submissions](/docs/app/guides/data-security#referrer-policies-and-native-form-submissions).
+`no-referrer` can prevent [native Server Action form submissions](/docs/app/guides/data-security#referrer-policies-and-native-form-submissions).
 
 ```js
 {

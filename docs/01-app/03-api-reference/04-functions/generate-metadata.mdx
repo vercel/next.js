@@ -395,7 +395,7 @@ export const metadata = {
 
 `referrer` accepts `'no-referrer'`, `'origin'`, `'no-referrer-when-downgrade'`, `'origin-when-cross-origin'`, `'same-origin'`, `'strict-origin'`, or `'strict-origin-when-cross-origin'`.
 
-> **Good to know**: With `referrer: 'no-referrer'`, native form submissions to Server Actions can send `Origin: null`, for example when JavaScript is disabled. Next.js aborts these requests with `Invalid Server Actions request.` because the origin does not match the host. Remove this setting or use `'strict-origin-when-cross-origin'` to support native submissions. Hydrated submissions can still succeed. See [Server Actions and referrer policies](/docs/app/guides/data-security#referrer-policies-and-native-form-submissions).
+> **Good to know**: A `'no-referrer'` policy can prevent [native Server Action form submissions](/docs/app/guides/data-security#referrer-policies-and-native-form-submissions).
 
 ### `metadataBase`
 
