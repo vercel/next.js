@@ -111,6 +111,8 @@ pub trait Endpoint {
     fn additional_entries(self: Vc<Self>, _graph: Vc<ModuleGraph>) -> Vc<GraphEntries> {
         GraphEntries::empty()
     }
+    /// The module graphs that the output of this endpoint is compiled with. Used for the import
+    /// traces of its issues, so it must not build graphs that the output doesn't.
     #[turbo_tasks::function]
     fn module_graphs(self: Vc<Self>) -> Vc<ModuleGraphs>;
     /// The project this endpoint belongs to.
