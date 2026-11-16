@@ -553,8 +553,8 @@ async fn standalone_and_unsupported_configuration() -> Result<()> {
     session
         .write(
             "go.mod",
-            "module example.com/native-fixture\ngo 1.24\nreplace example.com/outside => \
-             ../outside\n",
+            "module example.com/native-fixture\ngo 1.24\nrequire example.com/outside \
+             v0.0.0\nreplace example.com/outside => ../outside\n",
         )
         .await?;
     assert!(
@@ -600,6 +600,56 @@ async fn standalone_and_unsupported_configuration() -> Result<()> {
             .to_string(),
         "Go build cancelled"
     );
+    session.stop().await;
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn directory_replacements_inside_the_module_are_tracked_sources() -> Result<()> {
+    let session = Session::new().await?;
+    // Frameworks map an SDK shipped in node_modules with an ordinary directory replacement,
+    // which editors and linters resolve too. No module download or go.sum entry is needed.
+    session
+        .write("node_modules/sdk/go.mod", "module next/go\ngo 1.24\n")
+        .await?;
+    session
+        .write(
+            "node_modules/sdk/sdk.go",
+            "package next\nconst Message = \"sdk-v1\"\n",
+        )
+        .await?;
+    let module = "module example.com/native-fixture\ngo 1.24\nrequire next/go v0.0.0\n";
+    session
+        .write(
+            "go.mod",
+            &format!("{module}replace next/go => ./node_modules/sdk\n"),
+        )
+        .await?;
+    session
+        .write(
+            "main.go",
+            "package main\nimport (\n\t\"fmt\"\n\tnext \"next/go\"\n)\nfunc main() { \
+             fmt.Println(next.Message) }\n",
+        )
+        .await?;
+    assert_eq!(session.run(&["main.go"]).await?.trim(), "sdk-v1");
+    session
+        .replace("node_modules/sdk/sdk.go", "sdk-v1", "sdk-v2")
+        .await?;
+    assert_eq!(session.run(&["main.go"]).await?.trim(), "sdk-v2");
+    for (replacement, message) in [
+        ("example.com/sdk v1.0.0", "versioned Go module replacements"),
+        ("../outside", "inside the module"),
+    ] {
+        session
+            .write(
+                "go.mod",
+                &format!("{module}replace next/go => {replacement}\n"),
+            )
+            .await?;
+        let error = session.fetch(&["main.go"]).await.unwrap_err().to_string();
+        assert!(error.contains(message), "{error}");
+    }
     session.stop().await;
     Ok(())
 }

@@ -1,8 +1,8 @@
 package main
 
 import (
-	next "github.com/vercel/next.js/packages/next/go"
 	"net/http"
+	"next/go"
 )
 
 var Config = next.ProxyConfig{

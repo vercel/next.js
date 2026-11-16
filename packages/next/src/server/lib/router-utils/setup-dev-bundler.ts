@@ -59,6 +59,7 @@ import {
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
+import { ensureGoSdkReplacement } from '../../../lib/go-sdk'
 
 import {
   isMiddlewareFile,
@@ -216,6 +217,10 @@ async function startWatcher(
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
 
   fs.mkdirSync(distDir, { recursive: true })
+
+  if (nextConfig.experimental.goRoutes) {
+    await ensureGoSdkReplacement(dir)
+  }
 
   // Create server info to store in the lockfile itself
   // This allows other processes to discover the running server

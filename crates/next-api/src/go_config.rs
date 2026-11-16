@@ -6,7 +6,8 @@ use serde::Deserialize;
 use serde_json::{Map, Value};
 use turbo_rcstr::RcStr;
 
-const SDK_PATH: &str = "github.com/vercel/next.js/packages/next/go";
+/// The SDK ships in the installed `next` package; go.mod maps this path there.
+const SDK_PATH: &str = "next/go";
 /// The SDK's package clause, which applies to an import without an explicit name.
 const SDK_PACKAGE: &str = "next";
 
@@ -276,8 +277,7 @@ mod tests {
 
     use super::*;
 
-    const IMPORT: &str =
-        r#"[{"name":"framework","path":"github.com/vercel/next.js/packages/next/go"}]"#;
+    const IMPORT: &str = r#"[{"name":"framework","path":"next/go"}]"#;
 
     fn string(value: &str) -> String {
         format!(r#"{{"kind":"string","pos":"p.go:1:1","value":"{value}"}}"#)
@@ -420,7 +420,7 @@ mod tests {
                 }],
             }))
         );
-        let unnamed = r#"[{"name":"","path":"github.com/vercel/next.js/packages/next/go"}]"#;
+        let unnamed = r#"[{"name":"","path":"next/go"}]"#;
         assert_eq!(
             proxy(composite(Some("next.ProxyConfig"), &[]), unnamed),
             Ok(json!({}))

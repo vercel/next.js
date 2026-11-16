@@ -494,14 +494,16 @@ struct Module {
     main: bool,
     #[serde(default)]
     go_mod: String,
-    replace: Option<serde_json::Value>,
+    #[serde(default)]
+    version: String,
+    replace: Option<Box<Module>>,
 }
 
 #[derive(Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 struct ModuleConfig {
     module: Option<Module>,
-    replace: Option<Vec<serde_json::Value>>,
+    replace: Option<Vec<ModuleReplacement>>,
     #[serde(default)]
     // Go 1.24 emits null for an empty requirement slice.
     require: Option<Vec<Requirement>>,
@@ -511,7 +513,43 @@ struct ModuleConfig {
 #[serde(rename_all = "PascalCase")]
 struct Requirement {
     path: String,
+    #[serde(default)]
     version: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct ModuleReplacement {
+    old: Requirement,
+    new: Requirement,
+}
+
+/// Resolves a directory replacement's target inside the main module. Only directory
+/// replacements are supported: they are tracked like module sources and need no download.
+fn replacement_directory(project: &Path, replacement: &ModuleReplacement) -> Result<PathBuf> {
+    ensure!(
+        replacement.new.version.is_empty(),
+        "versioned Go module replacements are not supported in this release: {}",
+        replacement.old.path
+    );
+    // Normalize lexically; source path validation rejects symlinks when inputs are tracked.
+    let mut directory = PathBuf::new();
+    for part in project.join(&replacement.new.path).components() {
+        match part {
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                directory.pop();
+            }
+            part => directory.push(part),
+        }
+    }
+    ensure!(
+        directory.starts_with(project) && directory != project,
+        "Go module replacements must point to a directory inside the module: {} => {}",
+        replacement.old.path,
+        replacement.new.path
+    );
+    Ok(directory)
 }
 
 // Go's module cache escapes uppercase ASCII as ! followed by its lowercase form.
@@ -824,10 +862,16 @@ async fn observe_packages(
         let dir = Path::new(&pkg.dir);
         tracker.dir(dir).await?;
         if let Some(module) = &pkg.module {
-            ensure!(
-                module.replace.is_none(),
-                "Go module replacements are not supported in this release"
-            );
+            if let Some(replacement) = &module.replace {
+                // The module configuration already admitted only directory replacements.
+                ensure!(
+                    replacement.version.is_empty(),
+                    "versioned Go module replacements are not supported in this release"
+                );
+                if !replacement.go_mod.is_empty() {
+                    tracker.file(Path::new(&replacement.go_mod)).await?;
+                }
+            }
             if !module.go_mod.is_empty() {
                 tracker.file(Path::new(&module.go_mod)).await?;
             }
@@ -946,14 +990,33 @@ async fn discover(
         )
         .await?;
         let config: ModuleConfig = serde_json::from_str(&config)?;
-        ensure!(
-            config.replace.as_ref().is_none_or(Vec::is_empty),
-            "Go module replacements are not supported in this release"
-        );
+        let replacements = config.replace.as_deref().unwrap_or_default();
         // Even an unresolved dependency needs cache dependencies. Downloading a module can
         // repair it without changing go.mod/go.sum, so retain reads for its future cache entries.
         let cache = Path::new(go_context.module_cache.as_str());
         for requirement in config.require.iter().flatten() {
+            // Go applies a version-specific replacement before a path-wide one, and ignores
+            // replacements of modules that are not required.
+            let replacement = replacements
+                .iter()
+                .find(|replacement| {
+                    replacement.old.path == requirement.path
+                        && replacement.old.version == requirement.version
+                })
+                .or_else(|| {
+                    replacements.iter().find(|replacement| {
+                        replacement.old.path == requirement.path
+                            && replacement.old.version.is_empty()
+                    })
+                });
+            if let Some(replacement) = replacement {
+                // A directory replacement resolves from its own go.mod and sources, never the
+                // module cache. Observe its go.mod so creating or editing it invalidates
+                // discovery; its packages are tracked like module sources below.
+                let directory = replacement_directory(&project, replacement)?;
+                tracker.file(&directory.join("go.mod")).await?;
+                continue;
+            }
             ensure!(
                 Path::new(&requirement.path)
                     .components()

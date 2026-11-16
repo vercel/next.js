@@ -1,3 +1,3 @@
-module github.com/vercel/next.js/packages/next/go
+module next/go
 
 go 1.24.0

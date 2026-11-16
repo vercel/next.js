@@ -28,7 +28,7 @@ module's `next.ProxyConfig`, `next.Matcher` and `next.RouteHas` types. Only
 ```go
 package main
 
-import next "github.com/vercel/next.js/packages/next/go"
+import "next/go"
 
 var Config = next.ProxyConfig{
     Matcher: []next.Matcher{
@@ -38,20 +38,29 @@ var Config = next.ProxyConfig{
 }
 ```
 
-Install this Go module at a version or commit containing the SDK:
-
-```sh
-go get github.com/vercel/next.js/packages/next/go@<version-or-commit>
-```
-
-This downloads the dependency and records it in `go.mod` and `go.sum` before
-Next.js builds. Local module replacements and Go workspaces are not supported
-by the native Go compiler. The `next` npm package also ships the SDK source.
-
 `Config` must use keyed struct literals, string literals, and nested
 `[]next.Matcher` / `[]next.RouteHas` literals. Named import aliases work.
 `Locale: false` disables locale matching for a matcher; omit it for the default.
 Matcher conditions and paths use the existing Next.js validation.
+
+## Module mapping
+
+The SDK is the `next/go` module shipped inside the installed `next` package.
+`next dev` maps it in `go.mod` with a directory replacement to its real location,
+and logs when it does, the same way it reconfigures `tsconfig.json`:
+
+```go
+replace next/go => ./node_modules/next/go
+```
+
+Editors, linters and other Go tools resolve the SDK through this ordinary
+replacement, always at the installed Next.js version, without downloads or
+`go.sum` entries. Importing `next/go` adds the requirement through `go mod tidy`,
+`go get next/go`, or your editor. `next build` never edits `go.mod`; when the
+module requires `next/go` without the mapping, the build fails with the
+`go mod edit` command to run. With pnpm the replacement names the package's real
+directory under `node_modules/.pnpm`, so it changes when Next.js is upgraded;
+`next dev` updates it. Versioned replacements and Go workspaces are not supported.
 
 ## Static analysis
 

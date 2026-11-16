@@ -1,46 +1,23 @@
 import { nextTestSetup } from 'e2e-utils'
-import { join } from 'path'
+import { join, relative, sep } from 'path'
 import { retry } from 'next-test-utils'
-import { promises as fs } from 'fs'
-import { tmpdir } from 'os'
-import { pathToFileURL } from 'url'
+import { realpathSync } from 'fs'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
 
 const exec = promisify(execFile)
 
-// A local module proxy exercises ordinary downloaded dependencies without a
-// published SDK release or relaxing the compiler's replacement restrictions.
-function prepareSDK(next: ReturnType<typeof nextTestSetup>['next']) {
-  let cache: string
+// The SDK ships in the installed next package. Map it the way next dev does:
+// a directory replacement to its real location, with nothing downloaded.
+function mapSDK(next: ReturnType<typeof nextTestSetup>['next']) {
   beforeAll(async () => {
-    cache = await fs.mkdtemp(join(tmpdir(), 'next-go-config-module-'))
-    const proxy = join(cache, 'proxy')
-    const sdk = join(next.testDir, 'node_modules/next/go')
+    const dir = realpathSync(next.testDir)
+    const sdk = relative(dir, realpathSync(join(dir, 'node_modules/next/go')))
     await exec(
       process.env.TURBOPACK_GO || 'go',
-      ['run', join(next.testDir, 'tools/module-proxy/main.go'), sdk, proxy],
-      { env: { ...process.env, GO111MODULE: 'off', GOWORK: 'off' } }
+      ['mod', 'edit', `-replace=next/go=./${sdk.split(sep).join('/')}`],
+      { cwd: dir, env: { ...process.env, GOWORK: 'off', GOFLAGS: '' } }
     )
-    next.env.GOMODCACHE = join(cache, 'modules')
-    await exec(
-      process.env.TURBOPACK_GO || 'go',
-      ['mod', 'download', 'github.com/vercel/next.js/packages/next/go'],
-      {
-        cwd: next.testDir,
-        env: {
-          ...process.env,
-          GOWORK: 'off',
-          GOSUMDB: 'off',
-          GOPROXY: pathToFileURL(proxy).href,
-          GOMODCACHE: next.env.GOMODCACHE,
-          GOFLAGS: '-modcacherw',
-        },
-      }
-    )
-  })
-  afterAll(async () => {
-    if (cache) await fs.rm(cache, { recursive: true, force: true })
   })
 }
 
@@ -51,7 +28,7 @@ describe('static Go config', () => {
     files: __dirname,
     skipStart: true,
   })
-  prepareSDK(next)
+  mapSDK(next)
   beforeAll(async () => {
     await next.start()
   })
@@ -161,7 +138,7 @@ describe('static Go config', () => {
 // @force-gate turbopack && start
 describe('static Go config diagnostics', () => {
   const { next } = nextTestSetup({ files: __dirname, skipStart: true })
-  prepareSDK(next)
+  mapSDK(next)
   const cases = [
     {
       file: 'proxy.go',

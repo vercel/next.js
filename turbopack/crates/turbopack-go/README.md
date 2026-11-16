@@ -93,7 +93,8 @@ integration lives outside this crate.
 
 `go_source_set(boundary, directory, selection, session)` returns a tracked source set.
 It finds the nearest ancestor `go.mod` within the supplied boundary, falling back to
-the source directory. Missing module files are observed too, so creating a nearer
+the source directory. Directory replacements inside the module are tracked like module
+sources and need no download; versioned replacements are rejected. Missing module files are observed too, so creating a nearer
 module invalidates selection. `GoSourceSelection::Files` accepts explicit names;
 `Directory` selects regular `.go` siblings except `_test.go`. Both use named-file
 semantics: platform suffixes and build tags do not filter the selected entry files.
