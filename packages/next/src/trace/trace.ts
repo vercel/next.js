@@ -7,7 +7,7 @@ import {
   recordSpan as recordSpanCallback,
 } from '../server/lib/trace/local-span-recorder'
 import type { SpanId, TraceEvent, TraceState } from './types'
-import type { Span as OpenTelemetrySpan } from '@opentelemetry/api'
+import type { Span as OpenTelemetrySpan } from 'next/dist/compiled/@opentelemetry/api'
 export { normalizeTraceAttributes } from '../server/lib/trace/span-attributes'
 
 const NUM_OF_MICROSEC_IN_NANOSEC = BigInt('1000')
@@ -133,7 +133,7 @@ export const trace = (name: string, parentId?: SpanId, attrs?: Attributes) =>
   new Span({ name, parentId, attrs })
 
 export type LocalSpanTiming = {
-  startTime?: import('@opentelemetry/api').SpanOptions['startTime']
+  startTime?: import('next/dist/compiled/@opentelemetry/api').SpanOptions['startTime']
   monotonicStartTime?: bigint
   wallStartTimeMs?: number
 }

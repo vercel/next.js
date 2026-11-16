@@ -1,5 +1,5 @@
 import type { ClientTraceDataEntry } from './tracer'
-import type { SpanOptions } from '@opentelemetry/api'
+import type { SpanOptions } from 'next/dist/compiled/@opentelemetry/api'
 
 export function getTimestamp(time?: SpanOptions['startTime']): number {
   if (time instanceof Date) {

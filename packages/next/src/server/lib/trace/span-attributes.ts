@@ -1,4 +1,4 @@
-import type { AttributeValue } from '@opentelemetry/api'
+import type { AttributeValue } from 'next/dist/compiled/@opentelemetry/api'
 
 export function normalizeTraceAttributes(
   attributes: Record<string, unknown> | undefined,

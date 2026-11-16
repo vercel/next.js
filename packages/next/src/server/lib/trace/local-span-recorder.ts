@@ -6,7 +6,7 @@ import type {
   SpanContext,
   SpanOptions,
   SpanStatusCode,
-} from '@opentelemetry/api'
+} from 'next/dist/compiled/@opentelemetry/api'
 import {
   isLocalSpanRecordingEnabled,
   isLocalSpanSinkActive,
