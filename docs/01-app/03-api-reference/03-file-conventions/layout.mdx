@@ -288,9 +288,9 @@ export default function Breadcrumbs() {
 ```
 
 ```tsx filename="app/docs/layout.tsx" switcher
-import { Breadcrumbs } from '@/app/ui/Breadcrumbs'
+import Breadcrumbs from '@/app/ui/breadcrumbs'
 
-export default function Layout({ children }) {
+export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Breadcrumbs />
@@ -301,7 +301,7 @@ export default function Layout({ children }) {
 ```
 
 ```jsx filename="app/docs/layout.js" switcher
-import { Breadcrumbs } from '@/app/ui/Breadcrumbs'
+import Breadcrumbs from '@/app/ui/breadcrumbs'
 
 export default function Layout({ children }) {
   return (
