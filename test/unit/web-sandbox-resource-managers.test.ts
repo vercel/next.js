@@ -6,6 +6,8 @@ import {
 
 // A fake edge-runtime global object; the managers only use it as the `this`
 // value passed to timer callbacks.
+// TODO(as-any): pre-existing cast, not yet reviewed
+// eslint-disable-next-line @next/internal/no-as-any
 const globalObject = {} as any
 
 async function waitFor(condition: () => boolean, timeoutMs = 1000) {

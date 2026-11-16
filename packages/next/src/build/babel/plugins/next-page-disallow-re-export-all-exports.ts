@@ -9,7 +9,11 @@ export default function NextPageDisallowReExportAllExports(): PluginObj<any> {
           `Using \`export * from '...'\` in a page is disallowed. Please use \`export { default } from '...'\` instead.\n` +
             `Read more: https://nextjs.org/docs/messages/export-all-in-page`
         )
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(err as any).code = 'BABEL_PARSE_ERROR'
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(err as any).loc =
           path.node.loc?.start ?? path.node.loc?.end ?? path.node.loc
         throw err

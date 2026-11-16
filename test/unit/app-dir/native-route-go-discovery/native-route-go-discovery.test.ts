@@ -2,8 +2,12 @@ import {
   createValidFileMatcher,
   findPageFile,
 } from 'next/dist/server/lib/find-page-file'
-import { getAppPageStaticInfo } from 'next/dist/build/analysis/get-page-static-info'
+import {
+  getAppPageStaticInfo,
+  getPagesPageStaticInfo,
+} from 'next/dist/build/analysis/get-page-static-info'
 import { createPagesMapping } from 'next/dist/build/route-discovery'
+import { getPossibleMiddlewareFilenames } from 'next/dist/build/utils'
 import { PAGE_TYPES } from 'next/dist/lib/page-types'
 import { join } from 'path'
 import { normalizePathSep } from 'next/dist/shared/lib/page-path/normalize-path-sep'
@@ -85,6 +89,79 @@ describe('native route discovery', () => {
     )
     expect(result.page).toBe('/native/route')
     expect(normalizePathSep(result.filename)).toContain('/app/native/route.go')
+  })
+  it('resolves root Go proxies without enabling Go Pages routes', async () => {
+    await expect(
+      findPageFile(__dirname, '/proxy', ['ts'], false, { goProxy: true })
+    ).resolves.toBe('proxy.go')
+    await expect(
+      findPageFile(__dirname, '/proxy', ['ts'], false)
+    ).resolves.toBeNull()
+    const result = await findPagePathData(
+      __dirname,
+      '/proxy',
+      ['ts'],
+      undefined,
+      join(__dirname, 'app'),
+      false,
+      false,
+      true
+    )
+    expect(result.page).toBe('/proxy')
+    expect(normalizePathSep(result.filename)).toBe(
+      normalizePathSep(join(__dirname, 'proxy.go'))
+    )
+  })
+  it('ignores root proxy.go files unless Go routes are enabled', async () => {
+    // An unrelated Go module may share the project root.
+    await expect(
+      findPagePathData(
+        __dirname,
+        '/proxy',
+        ['ts'],
+        undefined,
+        join(__dirname, 'app'),
+        false
+      )
+    ).rejects.toThrow('Cannot find module for page: /proxy')
+    expect(
+      getPossibleMiddlewareFilenames(__dirname, ['ts']).map((file) =>
+        normalizePathSep(file)
+      )
+    ).not.toContain(normalizePathSep(join(__dirname, 'proxy.go')))
+    expect(
+      getPossibleMiddlewareFilenames(__dirname, ['ts'], true).map((file) =>
+        normalizePathSep(file)
+      )
+    ).toContain(normalizePathSep(join(__dirname, 'proxy.go')))
+  })
+  it('requires opt-in and Turbopack for Go proxies, and uses an all-paths matcher', async () => {
+    const saved = process.env.TURBOPACK
+    const params = {
+      pageFilePath: '/project/proxy.go',
+      nextConfig: {},
+      isDev: false,
+      page: '/proxy',
+      pageType: PAGE_TYPES.ROOT,
+    }
+    try {
+      delete process.env.TURBOPACK
+      await expect(getPagesPageStaticInfo(params)).rejects.toThrow(
+        'proxy.go requires Turbopack'
+      )
+      process.env.TURBOPACK = '1'
+      await expect(getPagesPageStaticInfo(params)).rejects.toThrow(
+        'experimental.goRoutes'
+      )
+      const defaults = await getPagesPageStaticInfo({
+        ...params,
+        nextConfig: { experimental: { goRoutes: true } },
+      })
+      expect(defaults.middleware!.matchers![0].originalSource).toBe('/:path*')
+    } finally {
+      if (saved === undefined) delete process.env.TURBOPACK
+      else process.env.TURBOPACK = saved
+    }
   })
   it('resolves Go and TS handlers while Rust diagnoses conflicts', async () => {
     await expect(

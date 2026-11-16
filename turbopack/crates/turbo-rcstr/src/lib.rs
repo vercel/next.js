@@ -183,7 +183,7 @@ impl RcStr {
                 })
             }
         } else {
-            inline_atom(s).unwrap()
+            inline_atom(s)
         }
     }
 }
@@ -496,7 +496,7 @@ impl Drop for RcStr {
 
 // Exports for our macro
 #[doc(hidden)]
-pub const fn inline_atom(s: &str) -> Option<RcStr> {
+pub const fn inline_atom(s: &str) -> RcStr {
     dynamic::inline_atom(s)
 }
 
@@ -800,19 +800,16 @@ mod tests {
     #[test]
     fn test_inline_atom() {
         // This is a silly test, just asserts that we can evaluate this in a constant context.
-        const STR: RcStr = {
-            let inline = inline_atom("hello");
-            if inline.is_some() {
-                inline.unwrap()
-            } else {
-                unreachable!();
-            }
-        };
+        const STR: RcStr = inline_atom("hello");
         assert_eq!(STR, RcStr::from("hello"));
+    }
 
+    #[test]
+    #[should_panic]
+    fn test_inline_atom_too_long() {
         // A literal one byte past the capacity must not inline, on either width.
         let too_long = "x".repeat(MAX_INLINE_LEN + 1);
-        assert!(inline_atom(&too_long).is_none());
+        inline_atom(&too_long);
     }
 
     /// The inline capacity must be the same on every target. `turbo-rcstr-macros` runs on the

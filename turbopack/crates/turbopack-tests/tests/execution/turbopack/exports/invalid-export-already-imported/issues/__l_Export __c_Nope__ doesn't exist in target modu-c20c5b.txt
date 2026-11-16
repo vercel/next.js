@@ -1,0 +1,23 @@
+error - [bindings] /turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export-already-imported/input/all-imported.js:3:1  Export Nope doesn't exist in target module
+  
+       1 | // Every export of the module is already imported, so nothing is suggested for
+       2 | // `Nope`.
+         + v--------------------------------------------------v
+       3 + import { Kitten, Kit, Mitten, Nope } from './module'
+         + ^--------------------------------------------------^
+       4 | 
+       5 | export default [Kitten, Kit, Mitten, Nope]
+       6 | 
+  
+  The export Nope was not found in module [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export-already-imported/input/module.js [test] (ecmascript).
+  
+  All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+  
+  
+  | These are the exports of the module:
+  | Kit, Kitten, Mitten
+  | 
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export-already-imported/input/all-imported.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export-already-imported/input/index.js

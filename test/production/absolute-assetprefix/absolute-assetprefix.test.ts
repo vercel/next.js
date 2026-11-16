@@ -48,6 +48,8 @@ describe('absolute assetPrefix with path prefix', () => {
     })
 
     await new Promise<void>((resolve) => cdn.listen(0, resolve))
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     cdnPort = (cdn.address() as any).port
 
     const config = await next.readFile('next.config.js')
