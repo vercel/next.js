@@ -261,12 +261,15 @@ Opened meta files are stored in per-family shards. A lookup scans only the reque
 files, from newest to oldest; there is no ordering dependency between families.
 
 SST files are opened eagerly in the background. Opening the database only loads the meta files
-(see [Opening](#opening)) and then starts opening their SST files without waiting for them. A
-commit or compaction does the same for the SST files of the meta files it adds. The opens are
+(see [Opening](#opening)) and then starts opening their SST files without waiting for them. This
+hides the latency of opening SST files on slow (e.g. network attached) storage, where opening them
+one at a time as lookups first reach them would serialize their dependent reads. The opens are
 spread over several tasks run with `ParallelScheduler::spawn_blocking`, so many files are opened in
-parallel on blocking threads, newest meta files first, since lookups consult those first. On WASI
-eager opening is disabled and SST files are only opened lazily, because WASI runtimes that run each
-thread as its own instance give every thread its own file descriptor table.
+parallel on blocking threads, newest meta files first, since lookups consult those first. SST files
+written by a commit or compaction are not opened eagerly: they were written moments ago, so they are
+usually still in the page cache and opening them lazily is cheap. On WASI eager opening is disabled
+and SST files are only opened lazily, because WASI runtimes that run each thread as its own instance
+give every thread its own file descriptor table.
 
 A lookup that gets past an entry's meta file checks (hash range and AMQF) uses the SST file if it
 is open already, waits for it if a background open is in progress, and otherwise opens it itself.
@@ -274,7 +277,7 @@ An open file stays cached on its meta file entry. A failed background open is ig
 lookup that needs the file opens it lazily and reports the error. Every background open runs to
 completion: if its entry was dropped in the meantime (e.g. retired by compaction, or because the
 database was closed), the opened file is closed again right away. Compaction clears all cached SST
-files before it merges, and then only opens the files it wrote eagerly. How an SST file is opened
+files before it merges. How an SST file is opened
 depends on the access mode:
 
 - `AccessMode::Mmap`: the SST file is memory mapped, and key and value blocks are read from the

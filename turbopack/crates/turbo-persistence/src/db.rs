@@ -614,7 +614,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     }
 
     /// Opens the SST files of `meta_files` that aren't open yet in the background, so that lookups
-    /// usually find them open.
+    /// usually find them open. Called once the database has loaded its meta files, where the SST
+    /// files may be on slow (e.g. network attached) storage and opening them one at a time as
+    /// lookups first reach them would serialize their dependent reads.
     ///
     /// The opens are spread over several [`ParallelScheduler::spawn_blocking`] tasks that run in
     /// parallel, and this returns without waiting for them. Newer meta files are opened first,
@@ -1415,9 +1417,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             }
         }
 
-        // Start opening the SST files of the new meta files in the background. The entries keep
-        // their SST slots when their meta files move into `inner` below, so the opens land there.
-        self.spawn_eager_sst_opens(new_meta_files.iter());
+        // The SST files of the new meta files are not opened eagerly: they were written moments
+        // ago, so they are usually still in the page cache and opening them lazily is cheap.
 
         // ── Phase C: structurally update inner (CURRENT is already durable). ──
         //
