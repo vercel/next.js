@@ -1,8 +1,6 @@
 import { load } from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
-import { createServer, type Server } from 'http'
-import httpProxy from 'http-proxy'
-import { findPort, gate, retry } from 'next-test-utils'
+import { gate, retry } from 'next-test-utils'
 import type { Page } from 'playwright'
 
 describe('external-browser-runtime', () => {
@@ -40,12 +38,20 @@ describe('external-browser-runtime', () => {
     async (pathname) => {
       const response = await next.fetch(pathname)
       expect(response.status).toBe(pathname === '/missing' ? 404 : 200)
-      const $ = load(await response.text())
-      const templates = $('template[data-next-turbopack]')
+      const html = await response.text()
+      const $ = load(html)
+      // The bootstrap rides on the Turbopack runtime's own script tag, which
+      // reads it from `document.currentScript`.
+      const runtimeScripts = $('script[data-turbopack-bootstrap]')
+      expect($('template[data-turbopack-bootstrap]')).toHaveLength(0)
 
       if (await gate((c) => !c.dev && c.turbopack)) {
-        expect(templates).toHaveLength(1)
-        const params = JSON.parse(templates.attr('data-next-turbopack'))
+        expect(runtimeScripts).toHaveLength(1)
+        expect(runtimeScripts.attr('src')).toBeTruthy()
+        expect(html.match(/data-turbopack-bootstrap=/g)).toHaveLength(1)
+        const params = JSON.parse(
+          runtimeScripts.attr('data-turbopack-bootstrap')
+        )
         expect(params).toEqual([
           {
             otherChunks: expect.any(Array),
@@ -55,7 +61,7 @@ describe('external-browser-runtime', () => {
         expect(params[0].otherChunks.length).toBeGreaterThan(0)
         expect(params[0].runtimeModuleIds.length).toBeGreaterThan(0)
       } else {
-        expect(templates).toHaveLength(0)
+        expect(runtimeScripts).toHaveLength(0)
       }
 
       if (!isNextDev) {
@@ -75,88 +81,64 @@ describe('external-browser-runtime', () => {
     ['/missing', 'before'],
     ['/missing', 'after'],
   ])(
-    'hydrates %s with bootstrap data %s the loader',
+    'hydrates %s when the Turbopack runtime runs %s the other chunks',
     async (pathname, order) => {
       const usesBootstrapData = await gate((c) => !c.dev && c.turbopack)
+      let runtimePath: string | undefined
+      if (usesBootstrapData) {
+        const $ = load(await (await next.fetch(pathname)).text())
+        const runtimeSrc = $('script[data-turbopack-bootstrap]').attr('src')
+        expect(runtimeSrc).toBeTruthy()
+        runtimePath = new URL(runtimeSrc, 'http://n').pathname
+      }
+
       let release: () => void
-      const ready = new Promise<void>((resolve) => {
+      const released = new Promise<void>((resolve) => {
         release = resolve
       })
-      let server: Server
-      let proxy: ReturnType<typeof httpProxy.createProxyServer>
-      let browser: Awaited<ReturnType<typeof next.browser>>
-      let loaderBlocked = false
+      let blocked = false
       let page: Page
+      let browser: Awaited<ReturnType<typeof next.browser>>
 
       try {
-        let baseUrl: number
-        if (usesBootstrapData && order === 'after') {
-          const response = await next.fetch(pathname)
-          const html = await response.text()
-          const metadataOffset = html.indexOf('<template data-next-turbopack=')
-          expect(metadataOffset).toBeGreaterThan(0)
-          const headers = Object.fromEntries(response.headers)
-          delete headers['content-encoding']
-          delete headers['content-length']
-          delete headers['transfer-encoding']
-
-          proxy = httpProxy.createProxyServer({
-            target: next.url,
-            changeOrigin: true,
-          })
-          server = createServer((req, res) => {
-            if (req.url === pathname) {
-              res.writeHead(response.status, headers)
-              // Preserve the document bytes and order, but pause delivery before
-              // the metadata so the async loader can execute during parsing.
-              res.write(html.slice(0, metadataOffset))
-              void ready.then(() => res.end(html.slice(metadataOffset)))
-            } else {
-              proxy.web(req, res)
-            }
-          })
-          baseUrl = await findPort()
-          await new Promise<void>((resolve) => server.listen(baseUrl, resolve))
-        }
-
         browser = await next.browser(pathname, {
-          baseUrl,
           waitUntil: 'commit',
           waitHydration: false,
           async beforePageLoad(value) {
             page = value
-            if (!usesBootstrapData || order !== 'before') return
+            if (!runtimePath) return
 
+            // 'before': hold the other scripts until the runtime has run.
+            // 'after': hold the runtime until the entry chunks have queued
+            // their registrations.
             await page.route('**/*.js*', async (route) => {
-              const response = await route.fetch()
-              if ((await response.text()).includes('data-next-turbopack')) {
-                loaderBlocked = true
-                await ready
+              const isRuntime =
+                new URL(route.request().url()).pathname === runtimePath
+              if (isRuntime === (order === 'after')) {
+                blocked = true
+                await released
               }
-              await route.fulfill({ response })
+              await route.continue()
             })
           },
         })
 
         if (usesBootstrapData) {
           await retry(async () => {
-            const loaderExecuted = await page.evaluate(
-              '!!self.TURBOPACK && !Array.isArray(self.TURBOPACK)'
-            )
-            expect(loaderExecuted).toBe(order === 'after')
-            expect(
-              await page.evaluate(
-                () =>
-                  document.querySelectorAll('template[data-next-turbopack]')
-                    .length
-              )
-            ).toBe(order === 'before' ? 1 : 0)
+            expect(blocked).toBe(true)
             if (order === 'before') {
-              expect(loaderBlocked).toBe(true)
+              // The runtime replaced the queue with `{ push: registerChunk }`.
+              expect(
+                await page.evaluate(
+                  '!!self.TURBOPACK && !Array.isArray(self.TURBOPACK)'
+                )
+              ).toBe(true)
             } else {
-              expect(await page.evaluate(() => document.readyState)).toBe(
-                'loading'
-              )
+              expect(
+                await page.evaluate(
+                  'Array.isArray(self.TURBOPACK) && self.TURBOPACK.length > 0'
+                )
+              ).toBe(true)
             }
           })
         }
@@ -169,22 +151,9 @@ describe('external-browser-runtime', () => {
         await retry(async () => {
           expect(await browser.elementByCss('#counter').text()).toBe('count: 1')
         })
-        expect(
-          await browser.eval(
-            () =>
-              document.querySelectorAll('template[data-next-turbopack]').length
-          )
-        ).toBe(0)
       } finally {
         release()
         await browser?.close()
-        if (server) {
-          server.closeAllConnections()
-          await new Promise<void>((resolve, reject) => {
-            server.close((error) => (error ? reject(error) : resolve()))
-          })
-          proxy.close()
-        }
       }
     }
   )
@@ -217,15 +186,21 @@ describe('external-browser-runtime', () => {
     expect($(`script[src="${runtimes[0].src}"]`).attr('crossorigin')).toBe(
       'use-credentials'
     )
-    expect(runtimes[0].body).not.toContain('data-next-turbopack')
+    expect(runtimes[0].body).not.toContain('data-turbopack-bootstrap')
 
     const bootstrapConsumers = responses.filter((r) =>
-      r.body.includes('data-next-turbopack')
+      r.body.includes('data-turbopack-bootstrap')
     )
     if (await gate((c) => !c.dev && c.turbopack)) {
+      // The Turbopack runtime that reads the bootstrap is the script carrying it.
       expect(bootstrapConsumers).toHaveLength(1)
       expect(bootstrapConsumers[0].status).toBe(200)
       expect(bootstrapConsumers[0].src).not.toBe(runtimes[0].src)
+      expect(
+        $(`script[src="${bootstrapConsumers[0].src}"]`).attr(
+          'data-turbopack-bootstrap'
+        )
+      ).toBeTruthy()
     } else {
       expect(bootstrapConsumers).toHaveLength(0)
     }

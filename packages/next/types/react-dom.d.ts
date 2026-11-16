@@ -1,5 +1,18 @@
 export {}
 
+declare module 'react-dom' {
+  /**
+   * Options for `preinit`.
+   *
+   * `dataAttributes` (`as: "script"` only) is proposed in
+   * https://github.com/react/react/pull/38254 and not yet in `@types/react-dom`.
+   * Keys are full `data-*` attribute names.
+   */
+  export interface PreinitOptions {
+    dataAttributes?: { [name: `data-${string}`]: string } | undefined
+  }
+}
+
 declare module 'react-dom/server' {
   /**
    * Options for `renderToReadableStream`.

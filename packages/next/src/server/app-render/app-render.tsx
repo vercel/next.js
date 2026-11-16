@@ -3615,7 +3615,7 @@ async function renderToStream(
     subresourceIntegrityManifest
   )
 
-  const [preinitScripts, bootstrapScript] = getRequiredScripts(
+  const [preinitScripts, bootstrapScripts] = getRequiredScripts(
     buildManifest,
     // Why is assetPrefix optional on renderOpts?
     // @TODO make it default empty string on renderOpts and get rid of it from ctx
@@ -3624,7 +3624,8 @@ async function renderToStream(
     subresourceIntegrityManifest,
     getAssetQueryString(ctx, true),
     nonce,
-    page
+    page,
+    externalBrowserRuntime
   )
 
   // In development mode, set the request ID as a global variable, before the
@@ -4238,7 +4239,7 @@ async function renderToStream(
           },
           maxHeadersLength: reactMaxHeadersLength,
           bootstrapScriptContent,
-          bootstrapScripts: [bootstrapScript],
+          bootstrapScripts,
           unstable_externalRuntimeSrc: externalRuntimeSrc,
           formState,
         }
@@ -4387,7 +4388,7 @@ async function renderToStream(
           },
           maxHeadersLength: reactMaxHeadersLength,
           bootstrapScriptContent,
-          bootstrapScripts: [bootstrapScript],
+          bootstrapScripts,
           unstable_externalRuntimeSrc: externalRuntimeSrc,
           formState,
         }
@@ -4481,14 +4482,15 @@ async function renderToStream(
         metadata.statusCode = res.statusCode
       }
 
-      const [errorPreinitScripts, errorBootstrapScript] = getRequiredScripts(
+      const [errorPreinitScripts, errorBootstrapScripts] = getRequiredScripts(
         buildManifest,
         assetPrefix,
         crossOrigin,
         subresourceIntegrityManifest,
         getAssetQueryString(ctx, false),
         nonce,
-        UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
+        UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+        externalBrowserRuntime
       )
 
       const errorBootstrap = process.env.__NEXT_DEV_SERVER
@@ -4556,7 +4558,7 @@ async function renderToStream(
             {
               nonce,
               bootstrapScriptContent: errorBootstrapScriptContent,
-              bootstrapScripts: [errorBootstrapScript],
+              bootstrapScripts: errorBootstrapScripts,
               unstable_externalRuntimeSrc: externalRuntimeSrc,
               formState,
               onAllReady: finishHtmlRender,
@@ -4657,7 +4659,7 @@ async function renderToStream(
               {
                 nonce,
                 bootstrapScriptContent: errorBootstrapScriptContent,
-                bootstrapScripts: [errorBootstrapScript],
+                bootstrapScripts: errorBootstrapScripts,
                 unstable_externalRuntimeSrc: externalRuntimeSrc,
                 formState,
               }
@@ -8988,8 +8990,11 @@ async function continueStaticPrerenderWithInlinedData(
 }
 
 /**
- * Emits the Turbopack chunk-group bootstrap ahead of the inlined Flight data,
- * as a data template or an inline script. Cache Components leave it out of the static
+ * Emits the inline Turbopack chunk-group bootstrap script ahead of the inlined
+ * Flight data. With `experimental.externalBrowserRuntime`, the bootstrap is
+ * data on the runtime's `<script>` tag instead (see `getRequiredScripts`),
+ * so it's part of the static shell and nothing is emitted here. Otherwise
+ * Cache Components leave it out of the static
  * shell, which is prerendered without a request and so can't carry a CSP
  * nonce. The shell then gets it from here: as part of the response when the
  * shell is complete, or from the per-request resume (with the request's nonce)
@@ -9000,11 +9005,11 @@ function withTurbopackBootstrap(
   turbopackBootstrap: TurbopackBootstrap | undefined,
   nonce: string | undefined
 ): AnyStream {
-  if (!turbopackBootstrap) {
+  if (!turbopackBootstrap?.scriptContent) {
     return inlinedDataStream
   }
   return chainStreams(
-    createTurbopackBootstrapStream(turbopackBootstrap, nonce),
+    createTurbopackBootstrapStream(turbopackBootstrap.scriptContent, nonce),
     inlinedDataStream
   )
 }
@@ -9100,7 +9105,7 @@ async function prerenderToStream(
     subresourceIntegrityManifest
   )
 
-  const [preinitScripts, bootstrapScript] = getRequiredScripts(
+  const [preinitScripts, bootstrapScripts] = getRequiredScripts(
     buildManifest,
     // Why is assetPrefix optional on renderOpts?
     // @TODO make it default empty string on renderOpts and get rid of it from ctx
@@ -9109,7 +9114,8 @@ async function prerenderToStream(
     subresourceIntegrityManifest,
     getAssetQueryString(ctx, true),
     nonce,
-    page
+    page,
+    externalBrowserRuntime
   )
 
   // The Turbopack chunk-group bootstrap (only set with the shared runtime). The
@@ -9624,7 +9630,7 @@ async function prerenderToStream(
               }
             },
             bootstrapScriptContent,
-            bootstrapScripts: [bootstrapScript],
+            bootstrapScripts,
             unstable_externalRuntimeSrc: externalRuntimeSrc,
           }
         )
@@ -10084,7 +10090,7 @@ async function prerenderToStream(
                 onHeaders: finalClientOnHeaders,
                 maxHeadersLength: reactMaxHeadersLength,
                 bootstrapScriptContent,
-                bootstrapScripts: [bootstrapScript],
+                bootstrapScripts,
                 unstable_externalRuntimeSrc: externalRuntimeSrc,
               }
             )
@@ -10366,7 +10372,7 @@ async function prerenderToStream(
               ? `${turbopackBootstrap.scriptContent};${bootstrapScriptContent}`
               : turbopackBootstrap.scriptContent
             : bootstrapScriptContent,
-          bootstrapScripts: [bootstrapScript],
+          bootstrapScripts,
           unstable_externalRuntimeSrc: externalRuntimeSrc,
         },
         { waitForAllReady: true }
@@ -10506,14 +10512,15 @@ async function prerenderToStream(
       }
     }
 
-    const [errorPreinitScripts, errorBootstrapScript] = getRequiredScripts(
+    const [errorPreinitScripts, errorBootstrapScripts] = getRequiredScripts(
       buildManifest,
       assetPrefix,
       crossOrigin,
       subresourceIntegrityManifest,
       getAssetQueryString(ctx, false),
       nonce,
-      UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
+      UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+      externalBrowserRuntime
     )
 
     const errorBootstrap = getTurbopackBootstrap(
@@ -10699,7 +10706,7 @@ async function prerenderToStream(
                 nonce,
                 // Like the regular prerender, the Turbopack bootstrap is left
                 // out of the shell; see `withTurbopackBootstrap`.
-                bootstrapScripts: [errorBootstrapScript],
+                bootstrapScripts: errorBootstrapScripts,
                 unstable_externalRuntimeSrc: externalRuntimeSrc,
                 formState,
                 signal: errorClientReactController.signal,
@@ -10954,7 +10961,7 @@ async function prerenderToStream(
         {
           nonce,
           bootstrapScriptContent: errorBootstrap?.scriptContent,
-          bootstrapScripts: [errorBootstrapScript],
+          bootstrapScripts: errorBootstrapScripts,
           unstable_externalRuntimeSrc: externalRuntimeSrc,
           formState,
         },

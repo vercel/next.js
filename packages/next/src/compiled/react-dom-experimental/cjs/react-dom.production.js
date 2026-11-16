@@ -63,7 +63,22 @@ function createPortal$1(children, containerInfo, implementation) {
   };
 }
 var ReactSharedInternals =
-  React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+    React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
+  hasOwnProperty = Object.prototype.hasOwnProperty,
+  VALID_ATTRIBUTE_NAME_REGEX = RegExp(
+    "^[:A-Z_a-z\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFFD][:A-Z_a-z\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFFD\\-.0-9\\u00B7\\u0300-\\u036F\\u203F-\\u2040]*$"
+  ),
+  illegalAttributeNameCache = {},
+  validatedAttributeNameCache = {};
+function isAttributeNameSafe(attributeName) {
+  if (hasOwnProperty.call(validatedAttributeNameCache, attributeName))
+    return !0;
+  if (hasOwnProperty.call(illegalAttributeNameCache, attributeName)) return !1;
+  if (VALID_ATTRIBUTE_NAME_REGEX.test(attributeName))
+    return (validatedAttributeNameCache[attributeName] = !0);
+  illegalAttributeNameCache[attributeName] = !0;
+  return !1;
+}
 function getCrossOriginStringAs(as, input) {
   if ("font" === as) return "";
   if ("string" === typeof input)
@@ -123,23 +138,37 @@ exports.preinit = function (href, options) {
         "string" === typeof options.fetchPriority
           ? options.fetchPriority
           : void 0;
-    "style" === as
-      ? Internals.d.S(
-          href,
-          "string" === typeof options.precedence ? options.precedence : void 0,
-          {
-            crossOrigin: crossOrigin,
-            integrity: integrity,
-            fetchPriority: fetchPriority
-          }
-        )
-      : "script" === as &&
-        Internals.d.X(href, {
+    if ("style" === as)
+      Internals.d.S(
+        href,
+        "string" === typeof options.precedence ? options.precedence : void 0,
+        {
           crossOrigin: crossOrigin,
           integrity: integrity,
-          fetchPriority: fetchPriority,
-          nonce: "string" === typeof options.nonce ? options.nonce : void 0
-        });
+          fetchPriority: fetchPriority
+        }
+      );
+    else if ("script" === as) {
+      as = {
+        crossOrigin: crossOrigin,
+        integrity: integrity,
+        fetchPriority: fetchPriority,
+        nonce: "string" === typeof options.nonce ? options.nonce : void 0
+      };
+      if (
+        null != options.dataAttributes &&
+        ((options = options.dataAttributes), "object" === typeof options)
+      )
+        for (var name in options)
+          hasOwnProperty.call(options, name) &&
+            ((crossOrigin = options[name]),
+            5 >= name.length ||
+              !name.startsWith("data-") ||
+              (isAttributeNameSafe(name) &&
+                "string" === typeof crossOrigin &&
+                (as[name] = crossOrigin)));
+      Internals.d.X(href, as);
+    }
   }
 };
 exports.preinitModule = function (href, options) {
@@ -226,4 +255,4 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.3.0-experimental-df6aa4ec-20261112";
+exports.version = "19.3.0";

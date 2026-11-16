@@ -20492,15 +20492,12 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
   }
 };
 var isomorphicReactPackageVersion$jscomp$inline_2358 = React.version;
-if (
-  "19.3.0-canary-df6aa4ec-20261112" !==
-  isomorphicReactPackageVersion$jscomp$inline_2358
-)
+if ("19.3.0" !== isomorphicReactPackageVersion$jscomp$inline_2358)
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2358,
-      "19.3.0-canary-df6aa4ec-20261112"
+      "19.3.0"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -20520,24 +20517,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2922 = {
+var internals$jscomp$inline_2928 = {
   bundleType: 0,
-  version: "19.3.0-canary-df6aa4ec-20261112",
+  version: "19.3.0",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-canary-df6aa4ec-20261112"
+  reconcilerVersion: "19.3.0"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2923 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2929 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2923.isDisabled &&
-    hook$jscomp$inline_2923.supportsFiber
+    !hook$jscomp$inline_2929.isDisabled &&
+    hook$jscomp$inline_2929.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2923.inject(
-        internals$jscomp$inline_2922
+      (rendererID = hook$jscomp$inline_2929.inject(
+        internals$jscomp$inline_2928
       )),
-        (injectedHook = hook$jscomp$inline_2923);
+        (injectedHook = hook$jscomp$inline_2929);
     } catch (err) {}
 }
 function getCrossOriginStringAs(as, input) {
@@ -20693,23 +20690,37 @@ exports.preinit = function (href, options) {
         "string" === typeof options.fetchPriority
           ? options.fetchPriority
           : void 0;
-    "style" === as
-      ? ReactDOMSharedInternals.d.S(
-          href,
-          "string" === typeof options.precedence ? options.precedence : void 0,
-          {
-            crossOrigin: crossOrigin,
-            integrity: integrity,
-            fetchPriority: fetchPriority
-          }
-        )
-      : "script" === as &&
-        ReactDOMSharedInternals.d.X(href, {
+    if ("style" === as)
+      ReactDOMSharedInternals.d.S(
+        href,
+        "string" === typeof options.precedence ? options.precedence : void 0,
+        {
           crossOrigin: crossOrigin,
           integrity: integrity,
-          fetchPriority: fetchPriority,
-          nonce: "string" === typeof options.nonce ? options.nonce : void 0
-        });
+          fetchPriority: fetchPriority
+        }
+      );
+    else if ("script" === as) {
+      as = {
+        crossOrigin: crossOrigin,
+        integrity: integrity,
+        fetchPriority: fetchPriority,
+        nonce: "string" === typeof options.nonce ? options.nonce : void 0
+      };
+      if (
+        null != options.dataAttributes &&
+        ((options = options.dataAttributes), "object" === typeof options)
+      )
+        for (var name in options)
+          hasOwnProperty.call(options, name) &&
+            ((crossOrigin = options[name]),
+            5 >= name.length ||
+              !name.startsWith("data-") ||
+              (isAttributeNameSafe(name) &&
+                "string" === typeof crossOrigin &&
+                (as[name] = crossOrigin)));
+      ReactDOMSharedInternals.d.X(href, as);
+    }
   }
 };
 exports.preinitModule = function (href, options) {
@@ -20796,7 +20807,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.3.0-canary-df6aa4ec-20261112";
+exports.version = "19.3.0";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

@@ -8,6 +8,12 @@ import {
 } from '../get-page-files'
 import { streamFromString } from '../stream-utils/node-web-streams-helper'
 
+/**
+ * The Turbopack chunk-group bootstrap: an inline script, or, with
+ * `experimental.externalBrowserRuntime`, JSON data that `getRequiredScripts`
+ * attaches to the Turbopack runtime's own `<script>` tag, which reads it from
+ * `document.currentScript`. The data form is never emitted as a separate tag.
+ */
 export type TurbopackBootstrap =
   | { scriptContent: string; data?: never }
   | { scriptContent?: never; data: string }
@@ -40,31 +46,25 @@ export function getTurbopackBootstrap(
 }
 
 /**
- * A Cache Components static shell cannot carry a per-request CSP nonce, so its
- * bootstrap is emitted with the resume. Data templates need no nonce and are
- * consumed by the shared Turbopack runtime, before the framework entry can run.
+ * A Cache Components static shell cannot carry a per-request CSP nonce, so an
+ * inline bootstrap script is emitted with the resume instead.
  */
 export function createTurbopackBootstrapStream(
-  bootstrap: TurbopackBootstrap,
+  scriptContent: string,
   nonce: string | undefined
 ): ReadableStream<Uint8Array> {
-  if (bootstrap.data !== undefined) {
-    return streamFromString(
-      `<template data-next-turbopack="${htmlEscapeAttributeString(bootstrap.data)}"></template>`
-    )
-  }
-
   const startScriptTag = nonce
     ? `<script nonce="${htmlEscapeAttributeString(nonce)}">`
     : '<script>'
   return streamFromString(
-    `${startScriptTag}${htmlEscapeJsonString(bootstrap.scriptContent)}</script>`
+    `${startScriptTag}${htmlEscapeJsonString(scriptContent)}</script>`
   )
 }
 
 /**
- * The bootstrap for serving a static shell on its own, without the resume that
- * normally includes it. Returns undefined when the build has no bootstrap params.
+ * The inline bootstrap for serving a static shell on its own, without the
+ * resume that normally includes it. Returns undefined when the build has no
+ * bootstrap params, or when the bootstrap rides on the runtime script tag.
  */
 export function createTurbopackBootstrapStreamForPage(
   buildManifest: BuildManifest,
@@ -77,7 +77,7 @@ export function createTurbopackBootstrapStreamForPage(
     [page],
     externalBrowserRuntime
   )
-  return bootstrap
-    ? createTurbopackBootstrapStream(bootstrap, nonce)
+  return bootstrap?.scriptContent
+    ? createTurbopackBootstrapStream(bootstrap.scriptContent, nonce)
     : undefined
 }
