@@ -233,7 +233,10 @@ export class NativeRouteManager {
     }
   }
 
-  private async getWorker(page: string, entry: string): Promise<Worker> {
+  private async getWorker(
+    page: string,
+    entry: string
+  ): Promise<{ worker: Worker; assets?: string }> {
     if (this.closed) throw new Error('Next.js server is closing')
     // Development output can change between requests; production output cannot.
     let descriptor = this.dev ? undefined : this.executablePaths.get(entry)
@@ -273,7 +276,7 @@ export class NativeRouteManager {
       this.workers.delete(previous)
       old?.then((value) => this.retire(value)).catch(() => {})
     }
-    return worker
+    return { worker, assets }
   }
 
   async invoke(
@@ -283,7 +286,7 @@ export class NativeRouteManager {
     res: ServerResponse,
     url: string
   ): Promise<void> {
-    const worker = await this.getWorker(page, entry)
+    const { worker, assets } = await this.getWorker(page, entry)
     // Disconnects during descriptor resolution or startup predate the
     // transport listeners below. Do not dispatch those requests to Go.
     if (req.aborted || res.destroyed) return
@@ -299,7 +302,7 @@ export class NativeRouteManager {
   /** Return a response to Next's middleware adapter without finishing the client response. */
   async invokeMiddleware(entry: string, req: Request): Promise<Response> {
     req.signal.throwIfAborted()
-    const worker = await this.getWorker('/_middleware', entry)
+    const { worker } = await this.getWorker('/_middleware', entry)
     req.signal.throwIfAborted()
     const url = new URL(req.url)
     const headers: Record<string, string> = Object.create(null)
