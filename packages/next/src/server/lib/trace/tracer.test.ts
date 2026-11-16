@@ -27,8 +27,8 @@ import {
 } from './span-store'
 import {
   registerLocalSpanRecorder,
-  traceRequestSpan,
-} from './request-span-recorder'
+  traceLocalSpan,
+} from './local-span-recorder'
 import {
   AppRouteRouteModuleSpan,
   AppRenderSpan,
@@ -58,6 +58,14 @@ function getSpanRecords(filter: { name?: string } = {}): SpanStoreRecord[] {
   return spanRecords.filter(
     (span) => filter.name === undefined || span.name === filter.name
   )
+}
+
+function sdkSpan(spanId = '0123456789abcdef') {
+  return trace.wrapSpanContext({
+    traceId: '0123456789abcdef0123456789abcdef',
+    spanId,
+    traceFlags: 1,
+  })
 }
 
 const getter: TextMapGetter<Record<string, string | undefined>> = {
@@ -613,9 +621,9 @@ describe('local span recording', () => {
     let activeSpanDuringDirectWithSpan
 
     await context.with(foregroundContext, () =>
-      traceRequestSpan({ name: 'Instant Insights', parent: null }, async () => {
+      traceLocalSpan({ name: 'Instant Insights', parent: null }, async () => {
         activeSpanDuringLocalWork = trace.getSpan(context.active())
-        await traceRequestSpan(
+        await traceLocalSpan(
           { name: 'Prepare validation inputs' },
           async () => {
             activeSpanDuringNestedLocalWork = trace.getSpan(context.active())
@@ -745,7 +753,7 @@ describe('local span recording', () => {
 
     await getTracer().trace(AppRenderSpan.renderToReadableStream, () =>
       context.with(trace.setSpan(context.active(), publicChild), () =>
-        traceRequestSpan({ name: 'local helper' }, async () => undefined)
+        traceLocalSpan({ name: 'local helper' }, async () => undefined)
       )
     )
 
@@ -1012,7 +1020,7 @@ describe('local span recording', () => {
           require('./span-store') as typeof import('./span-store'))
         setIsolatedSpanRecorderForTest((span) => spanRecords.push(span))
         const { registerLocalSpanRecorder: registerIsolatedLocalSpanRecorder } =
-          require('./request-span-recorder') as typeof import('./request-span-recorder')
+          require('./local-span-recorder') as typeof import('./local-span-recorder')
         registerIsolatedLocalSpanRecorder()
         const { getTracer: getIsolatedTracer } =
           require('./tracer') as typeof import('./tracer')
