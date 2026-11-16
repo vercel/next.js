@@ -325,6 +325,7 @@ export type CompilationEvent = {
 export interface UpdateInfo {
   duration: number
   tasks: number
+  fileChanges: boolean
 }
 
 export interface Project {

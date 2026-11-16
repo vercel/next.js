@@ -1243,9 +1243,9 @@ impl fmt::Display for InvalidateRescan {
 
 /// [Invalidation kind][InvalidationReasonKind] for [`InvalidateRescan`].
 #[derive(PartialEq, Eq, Hash)]
-struct InvalidateRescanKind;
+pub(crate) struct InvalidateRescanKind;
 
-static INVALIDATE_RESCAN_KIND: InvalidateRescanKind = InvalidateRescanKind;
+pub(crate) static INVALIDATE_RESCAN_KIND: InvalidateRescanKind = InvalidateRescanKind;
 
 impl InvalidationReasonKind for InvalidateRescanKind {
     fn fmt(

@@ -219,6 +219,13 @@ impl InvalidationReasonSet {
         self.map.is_empty()
     }
 
+    /// Whether the set contains a reason of the given kind.
+    pub fn contains_kind(&self, kind: &'static dyn InvalidationReasonKind) -> bool {
+        self.map.contains_key(&MapKey::Typed {
+            kind: StaticOrArc::Static(kind),
+        })
+    }
+
     pub fn len(&self) -> usize {
         self.map.len()
     }
