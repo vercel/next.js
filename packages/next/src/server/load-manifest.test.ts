@@ -140,7 +140,6 @@ describe('evalManifest', () => {
       files.c = webpackManifest('/c/page')
       const c: any = evalManifest('c', false)
       expect(c.__RSC_MANIFEST['/c/page'].deploymentId).toBe('dpl_test')
-      expect(c.process.env.NEXT_DEPLOYMENT_ID).toBe('dpl_test')
     } finally {
       if (previous === undefined) delete process.env.NEXT_DEPLOYMENT_ID
       else process.env.NEXT_DEPLOYMENT_ID = previous
@@ -220,7 +219,7 @@ describe('evalManifest', () => {
         const b: any = isolatedEvalManifest('b', false)
 
         expect(spy).toHaveBeenCalledTimes(1)
-        expect(Object.keys(a)).toEqual(['__RSC_MANIFEST', 'process'])
+        expect(Object.keys(a)).toEqual(['__RSC_MANIFEST'])
         expect(Object.keys(b.__RSC_MANIFEST)).toEqual(['/b/page'])
       } finally {
         spy.mockRestore()

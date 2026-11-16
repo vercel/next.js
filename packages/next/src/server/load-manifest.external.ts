@@ -118,14 +118,9 @@ export function evalManifest<T extends object>(
     throw new Error('Manifest file is empty')
   }
 
-  const processObject = {
+  let contextObject = evalInSharedContext(content, {
     env: { NEXT_DEPLOYMENT_ID: process.env.NEXT_DEPLOYMENT_ID },
-  }
-  let contextObject: Record<string, unknown> = evalInSharedContext(
-    content,
-    processObject
-  )
-  contextObject.process = processObject
+  })
 
   // Freeze the result so it cannot be modified if we're caching it.
   if (shouldCache) {
