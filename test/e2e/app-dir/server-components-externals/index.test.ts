@@ -32,6 +32,10 @@ describe('app-dir - server components externals', () => {
     // the assertion is about the list rather than about anything `keyv` does.
     const text = $('#directory').text()
     expect(text).toBe(path.join(next.testDir, 'node_modules', 'keyv'))
+    expect($('#contains').text()).toBe('["function",true,false]')
+    expect($('#contains-directory').text()).toBe(
+      path.join(next.testDir, 'node_modules', 'keyv', 'string', '#', 'contains')
+    )
   })
 
   // Inspect webpack server bundles
