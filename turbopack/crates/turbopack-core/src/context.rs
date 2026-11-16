@@ -100,4 +100,9 @@ pub trait AssetContext {
     /// Gets a new AssetContext with the transition applied.
     #[turbo_tasks::function]
     fn with_transition(self: Vc<Self>, transition: RcStr) -> Vc<Box<dyn AssetContext>>;
+
+    /// Gets a new AssetContext that compiles dynamic import targets eagerly, for evaluation
+    /// environments that can't activate lazily compiled imports.
+    #[turbo_tasks::function]
+    fn without_lazy_compilation(self: Vc<Self>) -> Vc<Box<dyn AssetContext>>;
 }

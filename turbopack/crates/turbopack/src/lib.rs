@@ -1193,6 +1193,35 @@ impl AssetContext for ModuleAssetContext {
             },
         )
     }
+
+    #[turbo_tasks::function]
+    async fn without_lazy_compilation(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
+        let this = self.await?;
+        let module_options_context = this.module_options_context.await?;
+        if !module_options_context.ecmascript.lazy_compilation {
+            return Ok(Vc::upcast(self));
+        }
+        let module_options_context = ModuleOptionsContext {
+            ecmascript: EcmascriptOptionsContext {
+                lazy_compilation: false,
+                ..module_options_context.ecmascript.clone()
+            },
+            ..(*module_options_context).clone()
+        }
+        .resolved_cell();
+        Ok(Vc::upcast(
+            ModuleAssetContext {
+                transitions: this.transitions,
+                compile_time_info: this.compile_time_info,
+                module_options_context,
+                resolve_options_context: this.resolve_options_context,
+                layer: this.layer.clone(),
+                transition: this.transition,
+                replace_externals: this.replace_externals,
+            }
+            .cell(),
+        ))
+    }
 }
 
 #[turbo_tasks::function]

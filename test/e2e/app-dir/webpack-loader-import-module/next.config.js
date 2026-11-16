@@ -4,6 +4,11 @@ const path = require('path')
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+  // Exercise loader evaluation with lazy compilation regardless of the defaults.
+  experimental: {
+    turbopackLazyDynamicImports: true,
+    turbopackLazyDynamicImportsSSR: true,
+  },
   turbopack: {
     resolveAlias: {
       'alias-data': './alias-data.mjs',
