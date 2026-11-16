@@ -1,25 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
-import { join, relative, sep } from 'path'
+import { join } from 'path'
 import { retry } from 'next-test-utils'
-import { realpathSync } from 'fs'
-import { execFile } from 'child_process'
-import { promisify } from 'util'
-
-const exec = promisify(execFile)
-
-// The SDK ships in the installed next package. Map it the way next dev does:
-// a directory replacement to its real location, with nothing downloaded.
-function mapSDK(next: ReturnType<typeof nextTestSetup>['next']) {
-  beforeAll(async () => {
-    const dir = realpathSync(next.testDir)
-    const sdk = relative(dir, realpathSync(join(dir, 'node_modules/next/go')))
-    await exec(
-      process.env.TURBOPACK_GO || 'go',
-      ['mod', 'edit', `-replace=next/go=./${sdk.split(sep).join('/')}`],
-      { cwd: dir, env: { ...process.env, GOWORK: 'off', GOFLAGS: '' } }
-    )
-  })
-}
 
 // Hosted Go support requires the companion adapter/builder releases.
 // @force-gate turbopack && !deploy
@@ -28,7 +9,6 @@ describe('static Go config', () => {
     files: __dirname,
     skipStart: true,
   })
-  mapSDK(next)
   beforeAll(async () => {
     await next.start()
   })
@@ -138,7 +118,6 @@ describe('static Go config', () => {
 // @force-gate turbopack && start
 describe('static Go config diagnostics', () => {
   const { next } = nextTestSetup({ files: __dirname, skipStart: true })
-  mapSDK(next)
   const cases = [
     {
       file: 'proxy.go',
