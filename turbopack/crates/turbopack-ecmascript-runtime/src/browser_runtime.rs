@@ -294,10 +294,9 @@ pub async fn get_browser_runtime_code(
             &*embed_static_code(
                 asset_context,
                 rcstr!("browser/runtime/dom/bootstrap-metadata.ts"),
-                generate_source_map,
             )
             .await?,
-        );
+        )?;
         writedoc!(
             code,
             "registerBootstrapMetadata({}, registerChunk);",
