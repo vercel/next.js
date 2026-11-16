@@ -82,6 +82,8 @@ export async function createIncrementalCache({
     minimalMode: hasNextSupport,
   })
 
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(globalThis as any).__incrementalCache = incrementalCache
 
   return incrementalCache

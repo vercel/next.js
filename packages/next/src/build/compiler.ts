@@ -71,6 +71,8 @@ export function runCompiler(
             if (reason) {
               return resolve([
                 {
+                  // TODO(as-any): pre-existing cast, not yet reviewed
+                  // eslint-disable-next-line @next/internal/no-as-any
                   errors: [{ message: reason, details: (err as any).details }],
                   warnings: [],
                   stats,

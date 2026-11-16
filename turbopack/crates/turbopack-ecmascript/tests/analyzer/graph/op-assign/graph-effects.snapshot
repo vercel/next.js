@@ -596,7 +596,9 @@
             ),
         ),
         args: [
-            Spread,
+            Spread(
+                [],
+            ),
         ],
         ast_path: [
             Program(

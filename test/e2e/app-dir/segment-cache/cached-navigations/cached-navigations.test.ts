@@ -489,9 +489,9 @@ describe('cached navigations', () => {
           .click()
         await browser.elementByCss(`a[href="${route}"]`).click()
       }
-      if (isNextDeploy) {
-        // The platform serves a completed static prerender, not an unmarked
-        // live-render prefix.
+      if (isNextDeploy || index > 0) {
+        // The platform marks the first response static. next start does so on
+        // the first revisit, once the background prerender is cached.
         await act(navigate, 'no-requests')
         expect(await browser.elementById('top').text()).toBe('Top: t4')
         continue
@@ -500,8 +500,8 @@ describe('cached navigations', () => {
       await act(async () => {
         await act(navigate, { includes: 'Top:', block: true })
 
-        // A live navigation response is marked partial even for a static
-        // page, so nothing from it was written into the cache.
+        // The first revisit fetches the completed prerender. The page remains
+        // pending until that response reaches the client.
         expect(await browser.elementByCss('main').text()).not.toContain(
           'Top: t4'
         )

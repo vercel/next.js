@@ -15,7 +15,7 @@ use crate::{
                 get_aggregation_number, get_uppers, is_aggregating_node,
             },
         },
-        storage_schema::TaskStorageAccessors,
+        storage_schema::{ActivenessAccessors, TaskStorageAccessors},
     },
     data::{CellRef, CollectibleRef, CollectiblesRef},
 };
@@ -85,7 +85,7 @@ pub fn capture_all_edges(task: &TaskGuard<'_>) -> Vec<OutdatedEdge> {
                 },
             }),
     );
-    old_edges.extend(task.iter_cell_dependents_keyed().map(|(entry, key)| {
+    old_edges.extend(task.iter_keyed_cell_dependents().map(|(entry, key)| {
         OutdatedEdge::KeyedCellDependency {
             dependent: entry.task,
             cell: CellRef {
@@ -204,12 +204,11 @@ fn cleanup_old_edges_inner(
                     queue.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
                         upper_id: task_id,
                         lost_follower_ids: children,
-                        retry: 0,
                     });
                 } else {
                     let upper_ids = get_uppers(&task);
-                    let has_active_count = ctx.should_track_activeness()
-                        && task.get_activeness().is_some_and(|a| a.active_counter > 0);
+                    let has_active_count =
+                        ctx.should_track_activeness() && task.has_positive_active_count();
                     drop(task);
                     if has_active_count {
                         // TODO combine both operations to avoid the clone
@@ -281,21 +280,42 @@ fn cleanup_old_edges_inner(
                 cell,
                 key,
             } => {
-                // Same as above but in the `_keyed` sets.
-                {
-                    let mut task = ctx.task(cell.task, TaskDataCategory::Data);
-                    task.remove_cell_dependents_keyed(&(
-                        CellRef {
-                            task: dependent,
-                            cell: cell.cell,
-                        },
+                // Same as above but in the `_keyed` sets, for all keyed edges at once: a task often
+                // has many keyed dependencies on the same cell (or many keyed dependents), so each
+                // owner task and each dependent is locked once instead of once per edge. Like
+                // above, the owner sides are removed before the dependent sides.
+                let mut edges = vec![(dependent, cell, key)];
+                outdated.retain(|e| match *e {
+                    OutdatedEdge::KeyedCellDependency {
+                        dependent,
+                        cell,
                         key,
-                    ));
+                    } => {
+                        edges.push((dependent, cell, key));
+                        false
+                    }
+                    _ => true,
+                });
+                edges.sort_unstable_by_key(|&(_, cell, _)| cell.task);
+                for owner_edges in edges.chunk_by(|a, b| a.1.task == b.1.task) {
+                    let mut task = ctx.task(owner_edges[0].1.task, TaskDataCategory::Data);
+                    for &(dependent, cell, key) in owner_edges {
+                        task.remove_keyed_cell_dependent(&(
+                            CellRef {
+                                task: dependent,
+                                cell: cell.cell,
+                            },
+                            key,
+                        ));
+                    }
                 }
-                {
-                    let mut task = ctx.task(dependent, TaskDataCategory::Data);
-                    task.remove_cell_dependencies_keyed(&(cell, key));
-                    task.remove_outdated_cell_dependencies_keyed(&(cell, key));
+                edges.sort_unstable_by_key(|&(dependent, _, _)| dependent);
+                for dependent_edges in edges.chunk_by(|a, b| a.0 == b.0) {
+                    let mut task = ctx.task(dependent_edges[0].0, TaskDataCategory::Data);
+                    for &(_, cell, key) in dependent_edges {
+                        task.remove_cell_dependencies_keyed(&(cell, key));
+                        task.remove_outdated_cell_dependencies_keyed(&(cell, key));
+                    }
                 }
             }
             OutdatedEdge::OutputDependency {

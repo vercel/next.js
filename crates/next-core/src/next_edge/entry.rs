@@ -34,7 +34,7 @@ pub async fn wrap_edge_entry(
     Ok(asset_context
         .process(
             template_source,
-            ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
+            ReferenceType::Internal(ResolvedVc::cell(inner_assets.into())),
         )
         .module())
 }
