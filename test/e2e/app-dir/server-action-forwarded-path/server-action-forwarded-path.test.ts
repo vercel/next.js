@@ -6,15 +6,18 @@ describe('server-action-forwarded-path', () => {
     files: __dirname,
   })
 
-  it('forwards an action to a dynamic route through a strict front end', async () => {
-    const browser = await next.browser('/items/1/edit')
-    await browser.elementByCss('#leave-editor').click()
-    await retry(async () => {
-      expect(await browser.elementByCss('h1').text()).toBe('Item')
-    })
-    await browser.elementByCss('#save-draft').click()
-    await retry(async () => {
-      expect(await browser.elementByCss('#result').text()).toBe('1:hello')
-    })
-  })
+  it.each(['items', '_shop'])(
+    'forwards an action to /%s/[id]/edit through a strict front end',
+    async (route) => {
+      const browser = await next.browser(`/${route}/1/edit`)
+      await browser.elementByCss('#leave-editor').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('h1').text()).toBe('Item')
+      })
+      await browser.elementByCss('#save-draft').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#result').text()).toBe('1:hello')
+      })
+    }
+  )
 })

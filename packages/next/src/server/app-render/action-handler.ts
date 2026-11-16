@@ -259,9 +259,11 @@ async function createForwardedActionResponse(
     }
   }
 
-  const fetchUrl = new URL(
-    `${origin}${basePath}${encodeURIPath(workerPathname)}`
+  // Webpack worker entries can retain the escaped underscore used in app paths.
+  const encodedWorkerPathname = encodeURIPath(
+    workerPathname.replace(/%5F/g, '_')
   )
+  const fetchUrl = new URL(`${origin}${basePath}${encodedWorkerPathname}`)
 
   try {
     let body: BodyInit | ReadableStream<Uint8Array> | undefined
