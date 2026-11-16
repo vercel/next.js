@@ -1063,6 +1063,25 @@ export default abstract class Server<
     }
   }
 
+  protected setForwardedHeaders(
+    headers: IncomingMessage['headers'],
+    originalRequest?: IncomingMessage
+  ) {
+    const xForwardedProto = originalRequest?.headers['x-forwarded-proto']
+    const isHttps = xForwardedProto
+      ? xForwardedProto === 'https'
+      : !!(originalRequest?.socket as TLSSocket)?.encrypted
+
+    headers['x-forwarded-host'] ??= headers['host'] ?? this.hostname
+    headers['x-forwarded-port'] ??= this.port
+      ? this.port.toString()
+      : isHttps
+        ? '443'
+        : '80'
+    headers['x-forwarded-proto'] ??= isHttps ? 'https' : 'http'
+    headers['x-forwarded-for'] ??= originalRequest?.socket?.remoteAddress
+  }
+
   private async handleRequestImpl(
     req: ServerRequest,
     res: ServerResponse,
@@ -1109,21 +1128,10 @@ export default abstract class Server<
         )
       }
 
-      // Update the `x-forwarded-*` headers.
-      const { originalRequest = null } = isNodeNextRequest(req) ? req : {}
-      const xForwardedProto = originalRequest?.headers['x-forwarded-proto']
-      const isHttps = xForwardedProto
-        ? xForwardedProto === 'https'
-        : !!(originalRequest?.socket as TLSSocket)?.encrypted
-
-      req.headers['x-forwarded-host'] ??= req.headers['host'] ?? this.hostname
-      req.headers['x-forwarded-port'] ??= this.port
-        ? this.port.toString()
-        : isHttps
-          ? '443'
-          : '80'
-      req.headers['x-forwarded-proto'] ??= isHttps ? 'https' : 'http'
-      req.headers['x-forwarded-for'] ??= originalRequest?.socket?.remoteAddress
+      this.setForwardedHeaders(
+        req.headers,
+        isNodeNextRequest(req) ? req.originalRequest : undefined
+      )
 
       // This should be done before any normalization of the pathname happens as
       // it captures the initial URL.
