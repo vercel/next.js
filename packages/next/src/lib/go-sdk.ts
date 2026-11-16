@@ -58,9 +58,10 @@ function isMapped(dir: string, goMod: GoMod): boolean {
 }
 
 /**
- * `next dev`: map `next/go` to the installed SDK in go.mod, like TypeScript
- * setup reconfigures tsconfig.json. Only the replacement is managed; Go tooling
- * (`go mod tidy`, `go get`, editors) adds the requirement when it is imported.
+ * `next dev` and `next build`: map `next/go` to the installed SDK in go.mod,
+ * like TypeScript setup reconfigures tsconfig.json. Only the replacement is
+ * managed; Go tooling (`go mod tidy`, `go get`, editors) adds the requirement
+ * when it is imported.
  */
 export async function ensureGoSdkReplacement(dir: string): Promise<void> {
   if (!existsSync(path.join(dir, 'go.mod'))) return
@@ -84,22 +85,4 @@ export async function ensureGoSdkReplacement(dir: string): Promise<void> {
       `Could not map ${GO_SDK_MODULE} to the installed Next.js in go.mod: ${error instanceof Error ? error.message : String(error)}`
     )
   }
-}
-
-/**
- * `next build`: verify the mapping without modifying go.mod. Only modules that
- * require the SDK need it.
- */
-export async function verifyGoSdkReplacement(dir: string): Promise<void> {
-  if (!existsSync(path.join(dir, 'go.mod'))) return
-  const goMod: GoMod = JSON.parse(await go(dir, ['mod', 'edit', '-json']))
-  if (
-    !goMod.Require?.some(({ Path }) => Path === GO_SDK_MODULE) ||
-    isMapped(dir, goMod)
-  ) {
-    return
-  }
-  throw new Error(
-    `go.mod requires ${GO_SDK_MODULE} but does not map it to the installed Next.js. Run "go mod edit -replace=${GO_SDK_MODULE}=${replacementPath(dir)}", or run next dev once to add the mapping.`
-  )
 }

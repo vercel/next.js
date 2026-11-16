@@ -46,8 +46,8 @@ Matcher conditions and paths use the existing Next.js validation.
 ## Module mapping
 
 The SDK is the `next/go` module shipped inside the installed `next` package.
-`next dev` maps it in `go.mod` with a directory replacement to its real location,
-and logs when it does, the same way it reconfigures `tsconfig.json`:
+`next dev` and `next build` map it in `go.mod` with a directory replacement to its
+real location, and log when they do, the same way they reconfigure `tsconfig.json`:
 
 ```go
 replace next/go => ./node_modules/next/go
@@ -56,11 +56,11 @@ replace next/go => ./node_modules/next/go
 Editors, linters and other Go tools resolve the SDK through this ordinary
 replacement, always at the installed Next.js version, without downloads or
 `go.sum` entries. Importing `next/go` adds the requirement through `go mod tidy`,
-`go get next/go`, or your editor. `next build` never edits `go.mod`; when the
-module requires `next/go` without the mapping, the build fails with the
-`go mod edit` command to run. With pnpm the replacement names the package's real
-directory under `node_modules/.pnpm`, so it changes when Next.js is upgraded;
-`next dev` updates it. Versioned replacements and Go workspaces are not supported.
+`go get next/go`, or your editor. Only this replacement is managed; requirements
+and `go.sum` are left to Go. With pnpm the replacement names the package's real
+directory under `node_modules/.pnpm`, so it changes when Next.js is upgraded, and
+the next `next dev` or `next build` updates it. Versioned replacements and Go
+workspaces are not supported.
 
 ## Static analysis
 
