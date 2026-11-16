@@ -779,7 +779,8 @@ export async function handleBuildComplete({
         pagesSharedNodeAssetsHashes,
         appPagesSharedNodeAssets,
         appPagesSharedNodeAssetsHashes,
-        proxyOmittedSharedNodeAssets,
+        routeSharedNodeAssets,
+        routeSharedNodeAssetsHashes,
       } = await getSharedNodeAssets({
         distDir,
         requiredServerFiles,
@@ -806,30 +807,20 @@ export async function handleBuildComplete({
           syntheticSymlinks,
           config.outputHashSalt || ''
         )
-        // The proxy doesn't need the required server files, but keep any that
-        // its own trace lists.
-        const omittedKeys =
-          type === 'proxy'
-            ? [...proxyOmittedSharedNodeAssets].filter(
-                (key) => !(key in assets)
-              )
-            : []
         Object.assign(
           assets,
           sharedNodeAssets,
+          type !== 'proxy' ? routeSharedNodeAssets : {},
           type === 'pages' ? pagesSharedNodeAssets : {},
           type === 'app' ? appPagesSharedNodeAssets : {}
         )
         Object.assign(
           assetsHashes,
           sharedNodeAssetsHashes,
+          type !== 'proxy' ? routeSharedNodeAssetsHashes : {},
           type === 'pages' ? pagesSharedNodeAssetsHashes : {},
           type === 'app' ? appPagesSharedNodeAssetsHashes : {}
         )
-        for (const key of omittedKeys) {
-          delete assets[key]
-          delete assetsHashes[key]
-        }
         if (entryHash) {
           assetsHashes[path.relative(repoRoot, entryFilePath)] = entryHash
         }
@@ -2776,6 +2767,10 @@ async function getSharedNodeAssets({
   const pagesSharedNodeAssetsHashes: Record<string, string> = {}
   const appPagesSharedNodeAssets: Record<string, string> = {}
   const appPagesSharedNodeAssetsHashes: Record<string, string> = {}
+  // The required server files are only needed by route handlers, not by the
+  // proxy.
+  const routeSharedNodeAssets: Record<string, string> = {}
+  const routeSharedNodeAssetsHashes: Record<string, string> = {}
   const salt = config.outputHashSalt || ''
 
   const moduleTypes = ['app-page', 'pages'] as const
@@ -2989,28 +2984,27 @@ async function getSharedNodeAssets({
     )
   }
 
-  // Required server files are read by the Node route handlers (via
-  // `RouteModule#prepare` / `NextNodeServer`), not by the proxy (middleware)
-  // runtime, so the proxy output omits them. Files that something else (e.g.
-  // the instrumentation trace) already added are kept, as is the distDir
-  // `package.json` (the `{"type":"commonjs"}` boundary for `.next/server/**`).
-  const proxyOmittedSharedNodeAssets = new Set<string>()
+  // The distDir `package.json` marks `.next/server/**` as CommonJS, so every
+  // Node.js output needs it, including the proxy.
   const distDirPackageJsonPath = path.join(distDir, 'package.json')
+  await pushAsset(
+    sharedNodeAssets,
+    sharedNodeAssetsHashes,
+    path.relative(repoRoot, distDirPackageJsonPath),
+    distDirPackageJsonPath,
+    bundler,
+    salt
+  )
 
   // Run after hasInstrumentationHook, which inserts the NFT-provided file hash for .next/server/instrumentation.js
   for (const file of requiredServerFiles) {
-    // add to shared node assets
     const filePath = path.join(dir, file)
     const fileOutputPath = path.relative(repoRoot, filePath)
-    if (
-      path.resolve(filePath) !== path.resolve(distDirPackageJsonPath) &&
-      !(fileOutputPath in sharedNodeAssets)
-    ) {
-      proxyOmittedSharedNodeAssets.add(fileOutputPath)
-    }
+    // Already a shared asset (e.g. instrumentation, distDir package.json).
+    if (fileOutputPath in sharedNodeAssets) continue
     await pushAsset(
-      sharedNodeAssets,
-      sharedNodeAssetsHashes,
+      routeSharedNodeAssets,
+      routeSharedNodeAssetsHashes,
       fileOutputPath,
       filePath,
       bundler,
@@ -3025,7 +3019,8 @@ async function getSharedNodeAssets({
     pagesSharedNodeAssetsHashes,
     appPagesSharedNodeAssets,
     appPagesSharedNodeAssetsHashes,
-    proxyOmittedSharedNodeAssets,
+    routeSharedNodeAssets,
+    routeSharedNodeAssetsHashes,
   }
 }
 
