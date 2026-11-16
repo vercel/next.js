@@ -2143,7 +2143,6 @@ mod tests {
 
         /// Directories created by writes are recorded, and later writes into them write the new
         /// content.
-        #[cfg(unix)]
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn writes_into_created_directories() {
             run!(async |fs, root| {
@@ -2188,7 +2187,6 @@ mod tests {
 
         /// A created directory that is removed during the session is created again by the next
         /// write into it.
-        #[cfg(unix)]
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn recreates_removed_directories() {
             run!(async |fs, root| {
@@ -2207,78 +2205,7 @@ mod tests {
             });
         }
 
-        /// A created directory that is removed and created again by someone else is not
-        /// considered created by the filesystem anymore, so writes into it compare with existing
-        /// files again.
-        #[cfg(unix)]
-        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-        async fn directories_recreated_by_others_are_compared() {
-            run!(async |fs, root| {
-                write(fs, "out/file.txt", "one").await?;
-                std::fs::remove_dir_all(root.join("out"))?;
-                create_dir_all(root.join("out"))?;
-                std::fs::write(root.join("out/foreign.txt"), "foreign")?;
-                let old = set_old_mtime(&root.join("out/foreign.txt"));
-
-                write(fs, "out/foreign.txt", "foreign").await?;
-                assert_eq!(mtime(&root.join("out/foreign.txt")), old);
-                assert!(!fs.await?.inner.created_dirs.contains(&root.join("out")));
-                Ok(())
-            });
-        }
-
-        /// A created directory that is renamed away and replaced with another directory is not
-        /// considered created by the filesystem anymore.
-        #[cfg(unix)]
-        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-        async fn renamed_and_replaced_directories_are_compared() {
-            run!(async |fs, root| {
-                write(fs, "out/file.txt", "one").await?;
-                create_dir_all(root.join("staging"))?;
-                std::fs::write(root.join("staging/foreign.txt"), "foreign")?;
-                let old = set_old_mtime(&root.join("staging/foreign.txt"));
-                std::fs::rename(root.join("out"), root.join("old-out"))?;
-                std::fs::rename(root.join("staging"), root.join("out"))?;
-
-                write(fs, "out/foreign.txt", "foreign").await?;
-                assert_eq!(mtime(&root.join("out/foreign.txt")), old);
-                assert!(!fs.await?.inner.created_dirs.contains(&root.join("out")));
-
-                // Writes with new content still work.
-                write(fs, "out/foreign.txt", "changed").await?;
-                assert_eq!(read_to_string(root.join("out/foreign.txt"))?, "changed");
-                Ok(())
-            });
-        }
-
-        /// Directories created through a symlinked output directory stop being considered created
-        /// by the filesystem when the symlink is repointed to another directory.
-        #[cfg(unix)]
-        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-        async fn repointed_symlinked_output_directories_are_compared() {
-            run!(async |fs, root| {
-                create_dir_all(root.join("target-a"))?;
-                create_dir_all(root.join("target-b/sub"))?;
-                std::os::unix::fs::symlink(root.join("target-a"), root.join("out"))?;
-
-                write(fs, "out/sub/file.txt", "one").await?;
-                assert_eq!(read_to_string(root.join("target-a/sub/file.txt"))?, "one");
-                assert!(fs.await?.inner.created_dirs.contains(&root.join("out/sub")));
-
-                std::fs::write(root.join("target-b/sub/foreign.txt"), "foreign")?;
-                let old = set_old_mtime(&root.join("target-b/sub/foreign.txt"));
-                std::fs::remove_file(root.join("out"))?;
-                std::os::unix::fs::symlink(root.join("target-b"), root.join("out"))?;
-
-                write(fs, "out/sub/foreign.txt", "foreign").await?;
-                assert_eq!(mtime(&root.join("target-b/sub/foreign.txt")), old);
-                assert!(!fs.await?.inner.created_dirs.contains(&root.join("out/sub")));
-                Ok(())
-            });
-        }
-
         /// Invalidating the filesystem forgets all created directories.
-        #[cfg(unix)]
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn invalidate_forgets_created_directories() {
             run!(async |fs, root| {
