@@ -114,14 +114,12 @@ pub fn root_task_dispose(
 }
 
 /// [Peeks] at the [`Issue`]s held by the given source and returns them as [`PlainIssue`]s.
-/// It does not [consume] any [`Issue`]s held by the source.
 ///
 /// The import traces of the issues are found in `module_graphs`, which should be the graphs that
 /// the source was compiled with.
 ///
 /// [Peeks]: turbo_tasks::CollectiblesSource::peek_collectibles
 /// [`Issue`]: turbopack_core::issue::Issue
-/// [consume]: turbo_tasks::CollectiblesSource::take_collectibles
 pub async fn get_issues<T: Send>(
     source: OperationVc<T>,
     filter: &IssueFilter,
