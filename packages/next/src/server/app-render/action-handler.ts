@@ -80,6 +80,7 @@ import {
   ActionDidRevalidateStaticAndDynamic,
 } from '../../shared/lib/action-revalidation-kind'
 import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/cache-busting-search-param'
+import { encodeURIPath } from '../../shared/lib/encode-uri-path'
 
 const INLINE_ACTION_PREFIX = '$$RSC_SERVER_ACTION_'
 
@@ -258,7 +259,9 @@ async function createForwardedActionResponse(
     }
   }
 
-  const fetchUrl = new URL(`${origin}${basePath}${workerPathname}`)
+  const fetchUrl = new URL(
+    `${origin}${basePath}${encodeURIPath(workerPathname)}`
+  )
 
   try {
     let body: BodyInit | ReadableStream<Uint8Array> | undefined
