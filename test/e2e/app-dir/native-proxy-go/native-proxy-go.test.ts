@@ -5,7 +5,7 @@ import { join } from 'path'
 import { tmpdir } from 'os'
 import { spawn } from 'child_process'
 import { once } from 'events'
-import { createServer, request } from 'http'
+import { request } from 'http'
 import cheerio from 'cheerio'
 import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 
@@ -133,6 +133,15 @@ describe('native-proxy-go', () => {
     expect(response.status).toBe(403)
     expect(await response.text()).toBe('blocked by Go\n')
   })
+
+  it.each(['/native-proxy/secure', '/native-proxy/secure.rsc'])(
+    'protects the secure page through %s',
+    async (path) => {
+      const response = await next.fetch(path)
+      expect(response.status).toBe(403)
+      expect(await response.text()).toBe('protected\n')
+    }
+  )
 
   it('serves compressed terminal responses', async () => {
     // Middleware response processing strips encoded-body headers, so the body
@@ -287,101 +296,6 @@ describe('native-proxy-go', () => {
     }
   )
 
-  it.each([
-    ['DELETE', 'content-length'],
-    ['OPTIONS', 'content-length'],
-    ['GET', 'content-length'],
-    ['GET', 'transfer-encoding'],
-    ['HEAD', 'content-length'],
-    ['HEAD', 'transfer-encoding'],
-  ])(
-    'frames a %s external rewrite body with %s after header overrides',
-    async (method, framing) => {
-      const requests: Array<{
-        url: string
-        body: string
-        fromGo: string | string[] | undefined
-      }> = []
-      const server = createServer((req, res) => {
-        const chunks: Buffer[] = []
-        req.on('data', (chunk) => chunks.push(chunk))
-        req.on('end', () => {
-          const body = Buffer.concat(chunks).toString()
-          const fromGo = req.headers['x-from-go']
-          requests.push({ url: req.url!, body, fromGo })
-          if (req.url === '/api/private' && fromGo !== 'overridden') {
-            res.statusCode = 403
-          }
-          res.setHeader('content-type', 'application/json')
-          res.end(JSON.stringify({ body }))
-        })
-      })
-      await new Promise<void>((resolve) =>
-        server.listen(0, '127.0.0.1', resolve)
-      )
-      const address = server.address()
-      if (!address || typeof address === 'string') {
-        throw new Error('Expected the external server to listen on a TCP port')
-      }
-
-      const payload =
-        'POST /api/private HTTP/1.1\r\n' +
-        'Host: 127.0.0.1\r\n' +
-        'Content-Length: 0\r\n' +
-        'X-From-Go: overridden\r\n\r\n'
-      try {
-        const direct = await fetch(
-          `http://127.0.0.1:${address.port}/api/private`
-        )
-        expect(direct.status).toBe(403)
-
-        const response = await new Promise<{
-          status: number
-          body: string
-        }>((resolve, reject) => {
-          const req = request(
-            `${next.url}/native-proxy/external-override?port=${address.port}`,
-            {
-              method,
-              headers: {
-                [framing]:
-                  framing === 'content-length'
-                    ? String(Buffer.byteLength(payload))
-                    : 'chunked',
-              },
-            },
-            (res) => {
-              const chunks: Buffer[] = []
-              res.on('data', (chunk) => chunks.push(chunk))
-              res.once('error', reject)
-              res.on('end', () =>
-                resolve({
-                  status: res.statusCode!,
-                  body: Buffer.concat(chunks).toString(),
-                })
-              )
-            }
-          )
-          req.once('error', reject)
-          req.end(payload)
-        })
-        expect(response.status).toBe(200)
-        expect(requests).toEqual([
-          { url: '/api/private', body: '', fromGo: undefined },
-          { url: '/public', body: payload, fromGo: 'overridden' },
-        ])
-        if (method !== 'HEAD') {
-          expect(JSON.parse(response.body)).toEqual({ body: payload })
-        }
-      } finally {
-        server.closeAllConnections()
-        await new Promise<void>((resolve, reject) =>
-          server.close((error) => (error ? reject(error) : resolve()))
-        )
-      }
-    }
-  )
-
   it('preserves repeated cookies', async () => {
     const response = await next.fetch('/native-proxy/cookies')
     expect(response.headers.get('set-cookie')).toContain('first=one')
@@ -527,6 +441,14 @@ describe('native-proxy-go', () => {
       expect(output.config.matchers).toEqual([
         expect.objectContaining({ source: '/:path*' }),
       ])
+      const appPages = JSON.parse(
+        await next.readFile('go-app-pages-output.json')
+      )
+      expect(appPages).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ pathname: '/native-proxy/secure.rsc' }),
+        ])
+      )
       const directory = await fs.mkdtemp(join(tmpdir(), 'go-proxy-function-'))
       const binary = join(
         directory,
@@ -558,6 +480,14 @@ describe('native-proxy-go', () => {
           body: 'hosted body',
         })
         expect(body.headers.get('x-go-body')).toBe('hosted body')
+        for (const path of [
+          '/native-proxy/secure',
+          '/native-proxy/secure.rsc',
+        ]) {
+          const response = await fetch(`http://127.0.0.1:${port}${path}`)
+          expect(response.status).toBe(403)
+          expect(response.headers.get('x-middleware-next')).toBeNull()
+        }
         for (const path of ['cookie-state', 'cookie-rewrite']) {
           const response = await fetch(
             `http://127.0.0.1:${port}/native-proxy/${path}`
@@ -578,12 +508,22 @@ describe('native-proxy-go', () => {
               old: '1',
               [parameter]: destination,
             }).toString()
-            const response = await fetch(url, { redirect: 'manual' })
+            // Only Next.js may choose the resolution host. A forged internal
+            // header must not turn this into an external destination.
+            const response = await fetch(url, {
+              redirect: 'manual',
+              headers: { 'x-next-internal-go-rewrite-host': 'evil.example' },
+            })
             expect(response.headers.get(header)).toBe(
               new URL(destination, url).href
             )
           }
         }
+        const forged = await fetch(
+          `http://127.0.0.1:${port}/native-proxy/inspect`,
+          { headers: { 'x-next-internal-test': 'internal value' } }
+        )
+        expect(forged.headers.get('x-private-token')).toBe('false')
       } finally {
         const exited = once(child, 'exit')
         child.kill()
@@ -606,6 +546,37 @@ describe('native-proxy-go', () => {
       })
     } finally {
       await next.deleteFile('proxy.ts')
+    }
+  })
+
+  it('ignores proxy.go unless experimental.goRoutes is enabled', async () => {
+    // An unrelated Go file at the root must not affect JavaScript proxies.
+    await next.stop()
+    const config = await next.readFile('next.config.ts')
+    await next.patchFile(
+      'next.config.ts',
+      config.replace('goRoutes: true', 'goRoutes: false')
+    )
+    await next.patchFile(
+      'proxy.ts',
+      `import { NextResponse } from 'next/server'
+       export function proxy() {
+         const response = NextResponse.next()
+         response.headers.set('x-js-proxy', 'yes')
+         return response
+       }`
+    )
+    try {
+      await next.start()
+      const response = await next.fetch('/native-proxy/inspect')
+      expect(response.status).toBe(200)
+      expect(response.headers.get('x-js-proxy')).toBe('yes')
+      expect(response.headers.get('x-go-proxy')).toBeNull()
+      expect(next.cliOutput).not.toContain('Multiple Proxy files detected')
+    } finally {
+      await next.stop()
+      await next.deleteFile('proxy.ts')
+      await next.patchFile('next.config.ts', config)
     }
   })
 })

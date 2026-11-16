@@ -82,7 +82,6 @@ use turbopack_resolve::{ecmascript::cjs_resolve, resolve_options_context::Resolv
 use crate::{
     dynamic_imports::{NextDynamicChunkAvailability, collect_next_dynamic_chunks},
     font::FontManifest,
-    go_config::go_entry_config,
     loadable_manifest::create_react_loadable_manifest,
     module_graph::{ClientReferencesGraphs, NextDynamicGraphs, ServerActionsGraphs},
     nft::{EndpointTraceResult, trace_endpoint},
@@ -110,12 +109,7 @@ pub struct AppProject {
 #[turbo_tasks::value(transparent)]
 pub struct OptionAppProject(Option<ResolvedVc<AppProject>>);
 
-impl AppProject {}
-impl AppProject {
-    pub fn client_transition_name() -> RcStr {
-        rcstr!("next-ecmascript-client-reference")
-    }
-}
+pub static CLIENT_TRANSITION_NAME: RcStr = rcstr!("next-ecmascript-client-reference");
 
 #[turbo_tasks::value_impl]
 impl AppProject {
@@ -150,7 +144,7 @@ impl AppProject {
             client_transition: Some(ResolvedVc::upcast(
                 self.client_transition().to_resolved().await?,
             )),
-            ecmascript_client_reference_transition_name: Some(Self::client_transition_name()),
+            ecmascript_client_reference_transition_name: Some(CLIENT_TRANSITION_NAME.clone()),
         }
         .cell())
     }
@@ -160,7 +154,7 @@ impl AppProject {
         let this = self.await?;
         Ok(ServerContextType::AppRoute {
             app_dir: this.app_dir.clone(),
-            ecmascript_client_reference_transition_name: Some(Self::client_transition_name()),
+            ecmascript_client_reference_transition_name: Some(CLIENT_TRANSITION_NAME.clone()),
         }
         .cell())
     }
@@ -380,7 +374,7 @@ impl AppProject {
         Ok(TransitionOptions {
             named_transitions: [
                 (
-                    AppProject::client_transition_name(),
+                    CLIENT_TRANSITION_NAME.clone(),
                     ecmascript_client_reference_transition.to_resolved().await?,
                 ),
                 (
@@ -482,7 +476,7 @@ impl AppProject {
     pub(crate) async fn route_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
-                AppProject::client_transition_name(),
+                CLIENT_TRANSITION_NAME.clone(),
                 self.ecmascript_client_reference_transition()
                     .to_resolved()
                     .await?,
@@ -533,7 +527,7 @@ impl AppProject {
     async fn edge_route_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
-                AppProject::client_transition_name(),
+                CLIENT_TRANSITION_NAME.clone(),
                 self.edge_ecmascript_client_reference_transition()
                     .to_resolved()
                     .await?,
@@ -1281,38 +1275,13 @@ impl Endpoint for GoEndpoint {
         .to_resolved()
         .await?;
         let module_root = sources.await?.root.clone();
-        // Only the entrypoint file is parsed: handlers, `Proxy` and `var Config` must live there.
-        // The rest of the package is compiled but not analyzed.
-        let entrypoint: RcStr = module_root
-            .get_path_to(&this.path)
-            .context("Go entrypoint outside module")?
-            .into();
-        let analysis = go_declarations(*sources, vec![entrypoint], session).await?;
+        let analysis = go_declarations(*sources, session).await?;
         if is_proxy {
             ensure!(
                 analysis.functions.iter().any(|name| name == "Proxy"),
                 "proxy.go must export func Proxy(http.ResponseWriter, *http.Request)"
             );
         }
-        // Static `var Config` is read from the same syntax analysis and published in the
-        // descriptor, so Next.js never parses Go entrypoints separately.
-        let config = match go_entry_config(&analysis.functions, &analysis.values, is_proxy) {
-            Ok(config) => config,
-            Err(message) => {
-                GoRouteIssue {
-                    path: this.path.clone(),
-                    message: message.into(),
-                }
-                .resolved_cell()
-                .emit();
-                return Ok(EndpointOutput {
-                    project,
-                    output_assets: OutputAssets::empty().to_resolved().await?,
-                    output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
-                }
-                .cell());
-            }
-        };
         let methods = analysis.functions.iter().filter(|name| {
             matches!(
                 name.as_str(),
@@ -1414,7 +1383,7 @@ impl Endpoint for GoEndpoint {
         let entry = format!("{output_name}.native.json");
         let executable = format!("{output_name}-{hash}{}", go_session.go_context.exe_suffix);
         let node_root = project.node_root().owned().await?;
-        let mut descriptor = serde_json::json!({ "executable": executable, "goos": go_session.go_context.goos, "goarch": go_session.go_context.goarch, "config": config });
+        let mut descriptor = serde_json::json!({ "executable": executable, "goos": go_session.go_context.goos, "goarch": go_session.go_context.goarch });
         if is_proxy {
             descriptor["source"] =
                 serde_json::to_value(project.project_path().await?.get_path_to(&this.path))?;
@@ -2220,7 +2189,7 @@ impl AppEndpoint {
                             .as_ref()
                             .map(|region| Regions::Multiple(region.to_vec())),
                         matchers: vec![matchers],
-                        env: project.edge_env().owned().await?,
+                        env: project.edge_env().owned().await?.into_iter().collect(),
                     };
                     let middleware_manifest_v2 = MiddlewaresManifestV2 {
                         sorted_middleware: vec![app_entry.original_name.clone()],
@@ -2433,7 +2402,7 @@ impl AppEndpoint {
                                 let merged = chunk_group_info
                                     .get_shared_merged_chunk_group(
                                         entry_index,
-                                        NEXT_SERVER_UTILITY_MERGE_TAG,
+                                        NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
                                     )
                                     .await?;
                                 merged.as_ref().map(|group| group.chunk_group.key())

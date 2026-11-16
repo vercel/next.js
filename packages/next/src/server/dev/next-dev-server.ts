@@ -363,7 +363,7 @@ export default class DevServer extends Server {
         normalizedPath,
         this.nextConfig.pageExtensions,
         false,
-        { isRoot: true }
+        { goProxy: !!this.nextConfig.experimental.goRoutes }
       ).then(Boolean)
     }
 

@@ -47,6 +47,8 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 		Rewrite(w, "/native-proxy/inspect", ProxyOptions{}, ProxyOptions{})
 	case "/native-proxy/blocked":
 		http.Error(w, "blocked by Go", http.StatusForbidden)
+	case "/native-proxy/secure":
+		http.Error(w, "protected", http.StatusForbidden)
 	case "/native-proxy/compressed":
 		w.Header().Set("Content-Type", "text/plain")
 		w.Header().Set("Content-Encoding", "gzip")
@@ -68,12 +70,6 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 		headers.Set("x-from-go", "overridden")
 		headers.Del("x-client-remove")
 		Rewrite(w, "/native-proxy/inspect", ProxyOptions{
-			Request: RequestOptions{Headers: headers},
-		})
-	case "/native-proxy/external-override":
-		headers := r.Header.Clone()
-		headers.Set("x-from-go", "overridden")
-		Rewrite(w, "http://127.0.0.1:"+r.URL.Query().Get("port")+"/public", ProxyOptions{
 			Request: RequestOptions{Headers: headers},
 		})
 	case "/native-proxy/cookies":

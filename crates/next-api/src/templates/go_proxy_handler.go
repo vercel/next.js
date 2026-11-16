@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 )
 
@@ -13,9 +14,17 @@ type ProxyOptions struct {
 
 // RequestOptions contains downstream request overrides.
 type RequestOptions struct {
-	// A nil map preserves the request headers. A non-nil map replaces them.
+	// A nil map preserves the request headers. A non-nil map replaces them;
+	// an empty map removes them. Names are case-insensitive: values for names
+	// that differ only in case are combined. Hop-by-hop headers, such as
+	// Connection and the headers it lists, are ignored.
 	Headers http.Header
 }
+
+// nextGoEmptyOverride stands in for an empty override list, which Next.js
+// otherwise ignores. Listing a header that the request never carries removes
+// every other request header without changing JavaScript proxy semantics.
+const nextGoEmptyOverride = "x-next-internal-go-empty-override"
 
 // Next continues routing only when the proxy explicitly returns this header.
 // All other responses are terminal, including empty responses.
@@ -61,13 +70,10 @@ func (w *nextGoProxyWriter) WriteHeader(status int) {
 		// absolute URLs, and the platform can then make same-origin URLs relative.
 		// Preserve RawPath, RawQuery and ForceQuery when resolving references.
 		base := *w.request.URL
-		base.Scheme = w.request.Header.Get("X-Forwarded-Proto")
+		base.Scheme = nextGoForwardedProto(w.request.Header.Get("X-Forwarded-Proto"))
 		base.Host = w.rewriteHost
 		if base.Host == "" {
 			base.Host = w.request.Host
-		}
-		if base.Scheme == "" {
-			base.Scheme = "http"
 		}
 		for _, key := range []string{"Location", "x-middleware-rewrite"} {
 			if value := w.Header().Get(key); value != "" {
@@ -102,21 +108,84 @@ func nextGoProxyOptions(w http.ResponseWriter, options []ProxyOptions) {
 		return
 	}
 	headers := options[0].Request.Headers
-	names := make([]string, 0, len(headers))
-	for name, values := range headers {
-		name = strings.ToLower(name)
-		names = append(names, name)
-		w.Header()["x-middleware-request-"+name] = values
+	// Connection-level headers describe the hop to the proxy, not the
+	// downstream request, and r.Header.Clone() includes them. Proxy
+	// credentials are kept so a cloned map matches passing nil.
+	hopByHop := map[string]bool{
+		"connection":        true,
+		"keep-alive":        true,
+		"proxy-connection":  true,
+		"te":                true,
+		"trailer":           true,
+		"transfer-encoding": true,
+		"upgrade":           true,
+	}
+	for key, values := range headers {
+		if strings.EqualFold(key, "Connection") {
+			for _, value := range values {
+				for _, name := range strings.Split(value, ",") {
+					if name = strings.TrimSpace(name); name != "" {
+						hopByHop[strings.ToLower(name)] = true
+					}
+				}
+			}
+		}
+	}
+	// Iterate in a stable order so values for names that differ only in case
+	// are combined deterministically instead of the last map entry winning.
+	keys := make([]string, 0, len(headers))
+	for key := range headers {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	names := make([]string, 0, len(keys))
+	values := make(map[string][]string, len(keys))
+	for _, key := range keys {
+		name := strings.ToLower(key)
+		if hopByHop[name] {
+			continue
+		}
+		if _, seen := values[name]; !seen {
+			names = append(names, name)
+			values[name] = nil
+		}
+		values[name] = append(values[name], headers[key]...)
+	}
+	for _, name := range names {
+		w.Header()["x-middleware-request-"+name] = values[name]
+	}
+	if len(names) == 0 {
+		names = append(names, nextGoEmptyOverride)
 	}
 	w.Header().Set("x-middleware-override-headers", strings.Join(names, ","))
 }
 
+// nextGoForwardedProto returns the client-facing scheme. Proxies may append
+// their own hop to X-Forwarded-Proto, so only the first entry is used.
+func nextGoForwardedProto(value string) string {
+	first, _, _ := strings.Cut(value, ",")
+	switch scheme := strings.ToLower(strings.TrimSpace(first)); scheme {
+	case "http", "https":
+		return scheme
+	}
+	return "http"
+}
+
 func nextGoHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		response := &nextGoProxyWriter{
-			ResponseWriter: w,
-			request:        r,
-			rewriteHost:    r.Header.Get("x-next-internal-go-rewrite-host"),
+		// Adapter builds invoke Go directly, bypassing the JavaScript adapter's
+		// RSC URL normalization. Keep proxy authorization on the page identity.
+		if strings.HasSuffix(r.URL.Path, ".rsc") {
+			r.URL.Path = strings.TrimSuffix(r.URL.Path, ".rsc")
+			r.URL.RawPath = strings.TrimSuffix(r.URL.RawPath, ".rsc")
+			r.RequestURI = r.URL.RequestURI()
+		}
+		response := &nextGoProxyWriter{ResponseWriter: w, request: r}
+		// Next.js resolves destinations against its own request origin, which
+		// differs from the client's Host. Adapter builds resolve against r.Host,
+		// the host the platform routed, and never read internal headers.
+		if nextGoTrustInternalHeaders {
+			response.rewriteHost = r.Header.Get("x-next-internal-go-rewrite-host")
 		}
 		r.Header.Del("x-next-internal-go-token")
 		r.Header.Del("x-next-internal-go-rewrite-host")

@@ -7,6 +7,7 @@ import {
   getPagesPageStaticInfo,
 } from 'next/dist/build/analysis/get-page-static-info'
 import { createPagesMapping } from 'next/dist/build/route-discovery'
+import { getPossibleMiddlewareFilenames } from 'next/dist/build/utils'
 import { PAGE_TYPES } from 'next/dist/lib/page-types'
 import { join } from 'path'
 import { normalizePathSep } from 'next/dist/shared/lib/page-path/normalize-path-sep'
@@ -91,7 +92,7 @@ describe('native route discovery', () => {
   })
   it('resolves root Go proxies without enabling Go Pages routes', async () => {
     await expect(
-      findPageFile(__dirname, '/proxy', ['ts'], false, { isRoot: true })
+      findPageFile(__dirname, '/proxy', ['ts'], false, { goProxy: true })
     ).resolves.toBe('proxy.go')
     await expect(
       findPageFile(__dirname, '/proxy', ['ts'], false)
@@ -102,12 +103,37 @@ describe('native route discovery', () => {
       ['ts'],
       undefined,
       join(__dirname, 'app'),
-      false
+      false,
+      false,
+      true
     )
     expect(result.page).toBe('/proxy')
     expect(normalizePathSep(result.filename)).toBe(
       normalizePathSep(join(__dirname, 'proxy.go'))
     )
+  })
+  it('ignores root proxy.go files unless Go routes are enabled', async () => {
+    // An unrelated Go module may share the project root.
+    await expect(
+      findPagePathData(
+        __dirname,
+        '/proxy',
+        ['ts'],
+        undefined,
+        join(__dirname, 'app'),
+        false
+      )
+    ).rejects.toThrow('Cannot find module for page: /proxy')
+    expect(
+      getPossibleMiddlewareFilenames(__dirname, ['ts']).map((file) =>
+        normalizePathSep(file)
+      )
+    ).not.toContain(normalizePathSep(join(__dirname, 'proxy.go')))
+    expect(
+      getPossibleMiddlewareFilenames(__dirname, ['ts'], true).map((file) =>
+        normalizePathSep(file)
+      )
+    ).toContain(normalizePathSep(join(__dirname, 'proxy.go')))
   })
   it('requires opt-in and Turbopack for Go proxies, and uses an all-paths matcher', async () => {
     const saved = process.env.TURBOPACK

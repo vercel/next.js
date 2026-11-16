@@ -59,7 +59,6 @@ import {
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
-import { ensureGoSdkReplacement } from '../../../lib/go-sdk'
 
 import {
   isMiddlewareFile,
@@ -173,6 +172,28 @@ export type ServerFields = {
   resetFetch?: () => void
 }
 
+/**
+ * Whether a route has a segment after a catch-all segment, e.g.
+ * `/blog/[...slug]/opengraph-image`. A catch-all segment must be the last
+ * segment of a route, so such a route can never be matched.
+ */
+function isNestedInCatchAllSegment(route: string): boolean {
+  const segments = route
+    .split('/')
+    .filter(
+      (segment) =>
+        segment !== '' &&
+        !(segment.startsWith('(') && segment.endsWith(')')) &&
+        !segment.startsWith('@')
+    )
+  const catchAllIndex = segments.findIndex(
+    (segment) =>
+      (segment.startsWith('[[...') && segment.endsWith(']]')) ||
+      (segment.startsWith('[...') && segment.endsWith(']'))
+  )
+  return catchAllIndex !== -1 && catchAllIndex < segments.length - 1
+}
+
 async function verifyTypeScript(opts: SetupOpts) {
   const verifyResult = await verifyAndRunTypeScript({
     dir: opts.dir,
@@ -217,10 +238,6 @@ async function startWatcher(
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
 
   fs.mkdirSync(distDir, { recursive: true })
-
-  if (nextConfig.experimental.goRoutes) {
-    await ensureGoSdkReplacement(dir)
-  }
 
   // Create server info to store in the lockfile itself
   // This allows other processes to discover the running server
@@ -437,7 +454,8 @@ async function startWatcher(
     const files = [
       ...getPossibleMiddlewareFilenames(
         path.join(rootDir!, '..'),
-        nextConfig.pageExtensions
+        nextConfig.pageExtensions,
+        !!nextConfig.experimental.goRoutes
       ),
       ...getPossibleInstrumentationHookFilenames(
         path.join(rootDir!, '..'),
@@ -566,7 +584,12 @@ async function startWatcher(
           middlewareFilePath = fileName
         }
         if (isAtConventionLevel && fileBaseName === PROXY_FILENAME) {
-          if (proxyFilePath)
+          // A Go proxy cannot be combined with a JavaScript one. Multiple
+          // JavaScript Proxy files keep resolving to the last one.
+          if (
+            proxyFilePath &&
+            (proxyFilePath.endsWith('.go') || fileName.endsWith('.go'))
+          )
             throw new Error(
               `Multiple Proxy files detected: "./${normalizePathSep(path.relative(dir, proxyFilePath))}" and "./${normalizePathSep(path.relative(dir, fileName))}". Remove one of these files; Next.js supports a single Proxy file.`
             )
@@ -690,12 +713,7 @@ async function startWatcher(
           middlewareEntry = {
             page: '/',
             match: null as any,
-            // proxy.go matchers come from Turbopack's compiled descriptor (see
-            // loadNativeMiddleware); keep them across file system events.
-            matchers: (fileBase === 'proxy.go' &&
-            serverFields.middleware?.runtime === 'go'
-              ? serverFields.middleware.matchers
-              : staticInfo.middleware?.matchers) || [
+            matchers: staticInfo.middleware?.matchers || [
               { regexp: '^/.*$', originalSource: '/:path*' },
             ],
             ...(fileBase === 'proxy.go'
@@ -1348,7 +1366,14 @@ async function startWatcher(
         // we serve a separate manifest with all pages for the client in
         // dev mode so that we can match a page after a rewrite on the client
         // before it has been built and is populated in the _buildManifest
-        const sortedRoutes = getSortedRoutes(routedPages)
+        const sortedRoutes = getSortedRoutes(
+          // Turbopack reports routes nested inside a catch-all segment as an
+          // error and doesn't create entrypoints for them. Leave them out here
+          // so they don't stop the dev server from starting.
+          opts.turbo
+            ? routedPages.filter((page) => !isNestedInCatchAllSegment(page))
+            : routedPages
+        )
 
         opts.fsChecker.dynamicRoutes = sortedRoutes.map(
           (page): FilesystemDynamicRoute => {
