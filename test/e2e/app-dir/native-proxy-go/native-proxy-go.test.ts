@@ -14,6 +14,13 @@ import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/util
 describe('native-proxy-go', () => {
   const { next, isNextStart } = nextTestSetup({ files: __dirname })
 
+  it('maps next/go to the SDK in the installed next package', async () => {
+    // proxy.go imports next/go; Next.js adds the go.mod replacement on start.
+    expect(await next.readFile('go.mod')).toMatch(
+      /^replace next\/go => \.\/\S+\/next\/go$/m
+    )
+  })
+
   it('continues to a JS handler and matches all paths', async () => {
     const response = await next.fetch('/native-proxy/inspect')
     expect(response.status).toBe(200)

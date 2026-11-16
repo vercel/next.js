@@ -48,6 +48,8 @@ module.exports = {
 
 Install Go 1.24 or newer on `PATH`, or set `TURBOPACK_GO` to its executable path. Go is required for `next dev` and `next build`. `next start` runs the compiled executables without the Go compiler. Applications without Go handlers do not require Go.
 
+The `next/go` SDK, which `proxy.go` uses for `next.Next` and `next.Rewrite`, ships inside the installed `next` package. When `go.mod` exists, `next dev` and `next build` add a directory replacement that maps `next/go` to it (for example `replace next/go => ./node_modules/next/go`) and log the change, like they reconfigure `tsconfig.json`, so Go editors and linters resolve the SDK too. Commit the updated `go.mod`.
+
 ## Reference
 
 ### HTTP Methods
@@ -470,8 +472,8 @@ Adapter deployments require an adapter that supports `runtime: 'go'`. See [Go ad
 - Runtime file reads are not traced. Use `go:embed` for assets shipped with Go handlers.
 - Go handlers read the process environment. `next.config` environment inlining does not apply.
 - Go builds target the build host operating system and architecture with CGO disabled. The build environment must match the deployment runtime.
-- Dependencies must build with CGO disabled and already be downloaded into the selected toolchain's module cache. Builds do not download dependencies or modify `go.mod` or `go.sum`.
-- Go workspaces, module replacements, vendoring, source symlinks, and cross-compilation are unsupported.
+- Dependencies must build with CGO disabled and already be downloaded into the selected toolchain's module cache. Builds do not download dependencies, add requirements, or modify `go.sum`; the only `go.mod` change Next.js makes is the `next/go` replacement.
+- Go workspaces, versioned module replacements, directory replacements outside the module, vendoring, source symlinks, and cross-compilation are unsupported. Directory replacements inside the module, such as the `next/go` mapping, are supported.
 - The same experiment enables [`proxy.go`](/docs/app/api-reference/file-conventions/proxy-go). Go Pages API routes, `page.go`, and `layout.go` are unsupported.
 
 Go routes support Turbopack's filesystem cache and Go's build cache. Unchanged executables can be reused across server or build processes. Source files, dependencies, embedded assets, generated wrappers, toolchain settings, and compilation targets participate in invalidation.
