@@ -2,7 +2,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('SCSS Support', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, isRspack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
@@ -12,7 +12,13 @@ describe('SCSS Support', () => {
       await expect(next.start()).rejects.toThrow()
       const cliOutput = next.cliOutput
 
-      expect(cliOutput).toContain('./styles/global.scss')
+      if (isRspack) {
+        expect(cliOutput.replaceAll('\\', '/')).toContain(
+          `${next.testDir.replaceAll('\\', '/')}/styles/global.scss`
+        )
+      } else {
+        expect(cliOutput).toContain('./styles/global.scss')
+      }
       expect(cliOutput).toContain(
         "To use Next.js' built-in Sass support, you first need to install `sass`."
       )

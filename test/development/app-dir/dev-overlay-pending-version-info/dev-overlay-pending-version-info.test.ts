@@ -27,7 +27,7 @@ describe.each([
 ])(
   'dev-overlay-pending-version-info ($router)',
   ({ pathname, file, content }) => {
-    const { next } = nextTestSetup({
+    const { next, isRspack } = nextTestSetup({
       files: __dirname,
     })
 
@@ -43,9 +43,17 @@ describe.each([
       )
 
       await waitForRedbox(browser)
-      expect(await getRedboxDescription(browser)).toBe(
-        "Module not found: Can't resolve 'does-not-exist'"
-      )
+      if (isRspack) {
+        expect(
+          (await getRedboxDescription(browser)).replaceAll('\\', '/')
+        ).toBe(
+          `  × Module not found: Can't resolve 'does-not-exist' in '${next.testDir.replaceAll('\\', '/')}/${file.split('/')[0]}'`
+        )
+      } else {
+        expect(await getRedboxDescription(browser)).toBe(
+          "Module not found: Can't resolve 'does-not-exist'"
+        )
+      }
       expect(await getVersionStatus(browser)).toContain('(unknown)')
 
       await next.patchFile('release-registry', '')
@@ -56,9 +64,17 @@ describe.each([
 
       // A late version update must not clear the current build error.
       await waitForRedbox(browser)
-      expect(await getRedboxDescription(browser)).toBe(
-        "Module not found: Can't resolve 'does-not-exist'"
-      )
+      if (isRspack) {
+        expect(
+          (await getRedboxDescription(browser)).replaceAll('\\', '/')
+        ).toBe(
+          `  × Module not found: Can't resolve 'does-not-exist' in '${next.testDir.replaceAll('\\', '/')}/${file.split('/')[0]}'`
+        )
+      } else {
+        expect(await getRedboxDescription(browser)).toBe(
+          "Module not found: Can't resolve 'does-not-exist'"
+        )
+      }
     })
   }
 )

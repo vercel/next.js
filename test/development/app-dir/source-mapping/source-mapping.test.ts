@@ -3,7 +3,7 @@ import { retry } from 'next-test-utils'
 
 // TODO(NAR-423): Migrate to Cache Components.
 describe('source-mapping', () => {
-  const { next } = nextTestSetup({
+  const { next, isRspack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -170,18 +170,35 @@ describe('source-mapping', () => {
   it('should show an error when client functions are called from server components', async () => {
     const browser = await next.browser('/server-client')
 
-    await expect(browser).toDisplayRedbox(`
-     {
-       "description": "Attempted to call useClient() from the server but useClient is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.",
-       "environmentLabel": "Prerender",
-       "label": "Runtime Error",
-       "source": "app/server-client/page.js (5:12) @ Component
-     > 5 |   useClient()
-         |            ^",
-       "stack": [
-         "Component app/server-client/page.js (5:12)",
-       ],
-     }
-    `)
+    if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "Attempted to call useClient() from the server but useClient is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.",
+         "environmentLabel": "Prerender",
+         "label": "Runtime Error",
+         "source": "app/server-client/page.js (5:12) @ Component
+       > 5 |   useClient()
+           |            ^",
+         "stack": [
+           "eval about:/Prerender/webpack-internal:///(rsc)/app/server-client/client.js (10:20)",
+           "Component app/server-client/page.js (5:12)",
+         ],
+       }
+      `)
+    } else {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "Attempted to call useClient() from the server but useClient is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.",
+         "environmentLabel": "Prerender",
+         "label": "Runtime Error",
+         "source": "app/server-client/page.js (5:12) @ Component
+       > 5 |   useClient()
+           |            ^",
+         "stack": [
+           "Component app/server-client/page.js (5:12)",
+         ],
+       }
+      `)
+    }
   })
 })

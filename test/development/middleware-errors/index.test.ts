@@ -31,20 +31,34 @@ describe('middleware - development errors', () => {
       await retry(() => {
         expect(stripAnsi(next.cliOutput)).toContain('boom')
       })
-      expect(stripAnsi(next.cliOutput)).toContain(
-        isTurbopack
-          ? '\n⨯ Error: boom' +
-              // TODO(veil): Sourcemap to original name i.e. "default"
-              '\n    at __TURBOPACK__default__export__ (middleware.js:3:15)' +
-              '\n  1 |'
-          : isRspack
-            ? '\n⨯ Error: boom' +
-              '\n    at __rspack_default_export (middleware.js:3:15)' +
-              '\n  1 |'
-            : '\n⨯ Error: boom' +
-              '\n    at default (middleware.js:3:15)' +
-              '\n  1 |'
-      )
+      if (isTurbopack) {
+        expect(stripAnsi(next.cliOutput)).toContain(
+          '\n⨯ Error: boom' +
+            // TODO(veil): Sourcemap to original name i.e. "default"
+            '\n    at __TURBOPACK__default__export__ (middleware.js:3:15)' +
+            '\n  1 |'
+        )
+      } else if (isRspack) {
+        expect(
+          stripAnsi(next.cliOutput).replaceAll(
+            /(?:\.\.\/)+src\/server\/web\/adapter\.ts/g,
+            '<next-src>/server/web/adapter.ts'
+          )
+        ).toContain(
+          '\n⨯ Error: boom' +
+            '\n    at __rspack_default_export (middleware.js:3:15)' +
+            '\n    at eval (<next-src>/server/web/adapter.ts:413:17)' +
+            '\n    at eval (<next-src>/server/web/adapter.ts:412:28)' +
+            '\n    at async adapter (<next-src>/server/web/adapter.ts:308:14)' +
+            '\n  1 |'
+        )
+      } else {
+        expect(stripAnsi(next.cliOutput)).toContain(
+          '\n⨯ Error: boom' +
+            '\n    at default (middleware.js:3:15)' +
+            '\n  1 |'
+        )
+      }
       expect(stripAnsi(next.cliOutput)).toContain(
         '' +
           "\n> 3 |         throw new Error('boom')" +
@@ -131,23 +145,37 @@ describe('middleware - development errors', () => {
           'unhandledRejection: Error: async boom!'
         )
       })
-      expect(stripAnsi(next.cliOutput)).toContain(
-        isTurbopack
-          ? '⨯ unhandledRejection: Error: async boom!' +
-              '\n    at throwError (middleware.js:4:15)' +
-              // TODO(veil): Sourcemap to original name i.e. "default"
-              '\n    at __TURBOPACK__default__export__ (middleware.js:7:9)' +
-              "\n  2 |       import { NextResponse } from 'next/server'"
-          : isRspack
-            ? '\n⨯ unhandledRejection: Error: async boom!' +
-              '\n    at throwError (middleware.js:4:15)' +
-              '\n    at __rspack_default_export (middleware.js:7:9)' +
-              "\n  2 |       import { NextResponse } from 'next/server'"
-            : '\n⨯ unhandledRejection: Error: async boom!' +
-              '\n    at throwError (middleware.js:4:15)' +
-              '\n    at default (middleware.js:7:9)' +
-              "\n  2 |       import { NextResponse } from 'next/server'"
-      )
+      if (isTurbopack) {
+        expect(stripAnsi(next.cliOutput)).toContain(
+          '⨯ unhandledRejection: Error: async boom!' +
+            '\n    at throwError (middleware.js:4:15)' +
+            // TODO(veil): Sourcemap to original name i.e. "default"
+            '\n    at __TURBOPACK__default__export__ (middleware.js:7:9)' +
+            "\n  2 |       import { NextResponse } from 'next/server'"
+        )
+      } else if (isRspack) {
+        expect(
+          stripAnsi(next.cliOutput).replaceAll(
+            /(?:\.\.\/)+src\/server\/web\/adapter\.ts/g,
+            '<next-src>/server/web/adapter.ts'
+          )
+        ).toContain(
+          '\n⨯ unhandledRejection: Error: async boom!' +
+            '\n    at throwError (middleware.js:4:15)' +
+            '\n    at __rspack_default_export (middleware.js:7:9)' +
+            '\n    at eval (<next-src>/server/web/adapter.ts:413:17)' +
+            '\n    at eval (<next-src>/server/web/adapter.ts:412:28)' +
+            '\n    at async adapter (<next-src>/server/web/adapter.ts:308:14)' +
+            "\n  2 |       import { NextResponse } from 'next/server'"
+        )
+      } else {
+        expect(stripAnsi(next.cliOutput)).toContain(
+          '\n⨯ unhandledRejection: Error: async boom!' +
+            '\n    at throwError (middleware.js:4:15)' +
+            '\n    at default (middleware.js:7:9)' +
+            "\n  2 |       import { NextResponse } from 'next/server'"
+        )
+      }
       expect(stripAnsi(next.cliOutput)).toContain(
         '' +
           "\n> 4 |         throw new Error('async boom!')" +

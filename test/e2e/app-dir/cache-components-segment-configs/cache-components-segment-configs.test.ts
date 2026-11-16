@@ -91,7 +91,7 @@ describe('cache-components-segment-configs', () => {
 })
 
 describe('cache-components-segment-configs layout propagation', () => {
-  const { next, isNextDev, isTurbopack } = nextTestSetup({
+  const { next, isNextDev, isTurbopack, isRspack } = nextTestSetup({
     files: __dirname + '/fixtures/default',
     // The root layout exports `runtime`, so the "runtime" segment config
     // propagates to each page that uses it.
@@ -119,6 +119,10 @@ describe('cache-components-segment-configs layout propagation', () => {
         // the layout error is also present in the CLI output.
         expect(redbox.description).toMatchInlineSnapshot(
           `"Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components"`
+        )
+      } else if (isRspack) {
+        expect(redbox.description).toMatchInlineSnapshot(
+          `"  ╰─▶   × Error:   x Route segment config "runtime" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components"`
         )
       } else {
         expect(redbox.description).toMatchInlineSnapshot(
