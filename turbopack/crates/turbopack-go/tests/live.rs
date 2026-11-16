@@ -12,12 +12,14 @@ use anyhow::{Context, Result, ensure};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TurboTasks, Vc};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
-use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystemPath};
+use turbo_tasks_fs::{
+    DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, FileContent, FileSystemPath,
+};
 use turbopack_go::{
     GoBuildContext, GoBuildOptions, GoBuildOutcome, GoBuildSession, GoBundleResult, GoDeclarations,
     GoSessionPool, GoSourceSelection, GoSourceSet, GoTarget, GoToolchainOptions, filesystem,
     filesystem_with_poll_interval, go_bundle_from_sources, go_bundle_with_generated_files,
-    go_declarations, go_declarations_with_assets, go_source_set, read_with_validated_inputs,
+    go_declarations, go_source_set, read_with_validated_inputs,
 };
 
 fn copy_tree(source: &Path, target: &Path) -> Result<()> {
@@ -551,8 +553,8 @@ async fn standalone_and_unsupported_configuration() -> Result<()> {
     session
         .write(
             "go.mod",
-            "module example.com/native-fixture\ngo 1.24\nreplace example.com/outside => \
-             ../outside\n",
+            "module example.com/native-fixture\ngo 1.24\nrequire example.com/outside \
+             v0.0.0\nreplace example.com/outside => ../outside\n",
         )
         .await?;
     assert!(
@@ -598,6 +600,56 @@ async fn standalone_and_unsupported_configuration() -> Result<()> {
             .to_string(),
         "Go build cancelled"
     );
+    session.stop().await;
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn directory_replacements_inside_the_module_are_tracked_sources() -> Result<()> {
+    let session = Session::new().await?;
+    // Frameworks map an SDK shipped in node_modules with an ordinary directory replacement,
+    // which editors and linters resolve too. No module download or go.sum entry is needed.
+    session
+        .write("node_modules/sdk/go.mod", "module next/go\ngo 1.24\n")
+        .await?;
+    session
+        .write(
+            "node_modules/sdk/sdk.go",
+            "package next\nconst Message = \"sdk-v1\"\n",
+        )
+        .await?;
+    let module = "module example.com/native-fixture\ngo 1.24\nrequire next/go v0.0.0\n";
+    session
+        .write(
+            "go.mod",
+            &format!("{module}replace next/go => ./node_modules/sdk\n"),
+        )
+        .await?;
+    session
+        .write(
+            "main.go",
+            "package main\nimport (\n\t\"fmt\"\n\tnext \"next/go\"\n)\nfunc main() { \
+             fmt.Println(next.Message) }\n",
+        )
+        .await?;
+    assert_eq!(session.run(&["main.go"]).await?.trim(), "sdk-v1");
+    session
+        .replace("node_modules/sdk/sdk.go", "sdk-v1", "sdk-v2")
+        .await?;
+    assert_eq!(session.run(&["main.go"]).await?.trim(), "sdk-v2");
+    for (replacement, message) in [
+        ("example.com/sdk v1.0.0", "versioned Go module replacements"),
+        ("../outside", "inside the module"),
+    ] {
+        session
+            .write(
+                "go.mod",
+                &format!("{module}replace next/go => {replacement}\n"),
+            )
+            .await?;
+        let error = session.fetch(&["main.go"]).await.unwrap_err().to_string();
+        assert!(error.contains(message), "{error}");
+    }
     session.stop().await;
     Ok(())
 }
@@ -699,36 +751,18 @@ async fn imported_build_tags_are_applied_consistently() -> Result<()> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn versioned_dependencies_use_the_module_cache_without_downloads() -> Result<()> {
-    versioned_dependency_case(false).await
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn versioned_module_replacements_use_the_module_cache_without_downloads() -> Result<()> {
-    versioned_dependency_case(true).await
-}
-
-async fn versioned_dependency_case(replacement: bool) -> Result<()> {
     let mut session = Session::new().await?;
-    let (import, module) = if replacement {
-        (
-            "library/sdk",
-            "module example.com/native-fixture\ngo 1.24\nrequire library/sdk v0.0.0\nreplace \
-             library/sdk => example.com/library v1.0.0\n",
-        )
-    } else {
-        (
-            "example.com/library",
+    session
+        .write(
+            "go.mod",
             "module example.com/native-fixture\ngo 1.24\nrequire example.com/library v1.0.0\n",
         )
-    };
-    session.write("go.mod", module).await?;
+        .await?;
     session
         .write(
             "main.go",
-            &format!(
-                "package main\nimport (\"fmt\"; \"{import}\")\nfunc main() {{ \
-                 fmt.Println(library.Text()) }}\n"
-            ),
+            "package main\nimport (\"fmt\"; \"example.com/library\")\nfunc main() { \
+             fmt.Println(library.Text()) }\n",
         )
         .await?;
     let cache = session.temp.path().join("modules");
@@ -780,7 +814,7 @@ async fn versioned_dependency_case(replacement: bool) -> Result<()> {
         .env("GOSUMDB", "off")
         .env("GOMODCACHE", &cache)
         .env("GOFLAGS", "-modcacherw")
-        .args(["mod", "download", import])
+        .args(["mod", "download", "example.com/library"])
         .output()
         .await?;
     ensure!(
@@ -930,7 +964,7 @@ async fn versioned_dependency_case(replacement: bool) -> Result<()> {
             .ok_or_else(|| anyhow::anyhow!("build unexpectedly succeeded with missing checksums"))?
             .to_string();
         ensure!(
-            error.contains("missing go.sum entry") && error.contains(import),
+            error.contains("missing go.sum entry") && error.contains("example.com/library"),
             "{error}"
         );
         assert_eq!(std::fs::read(session.project.join("go.mod"))?, original_mod);
@@ -1248,9 +1282,11 @@ fn selected_sources(
 fn selected_declarations(
     sources: ResolvedVc<GoSourceSet>,
     options: GoBuildOptions,
+    files: Vec<RcStr>,
 ) -> Vc<GoDeclarations> {
     go_declarations(
         *sources,
+        files,
         GoBuildSession::persistent("source-set-test".into(), options),
     )
 }
@@ -1275,8 +1311,8 @@ async fn analyzed_sources_and_generated_dispatch_share_one_identity() -> Result<
     session
         .write(
             &format!("{directory}/handler.go"),
-            "package main\nfunc GET() string { return \"v1\" }\ntype Handler struct{}\nfunc \
-             (Handler) POST() {}\n",
+            "package main\nconst Version = \"v1\"\nfunc GET() string { return \"v1\" }\ntype \
+             Handler struct{}\nfunc (Handler) POST() {}\n",
         )
         .await?;
     session
@@ -1315,13 +1351,25 @@ async fn analyzed_sources_and_generated_dispatch_share_one_identity() -> Result<
         .run_once({
             let options = options.clone();
             async move {
-                selected_declarations(sources, options)
-                    .read_strongly_consistent()
-                    .await
+                selected_declarations(
+                    sources,
+                    options,
+                    vec![format!("{directory}/handler.go").into()],
+                )
+                .read_strongly_consistent()
+                .await
             }
         })
         .await?;
     assert_eq!(declarations.functions, vec![rcstr!("GET")]);
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&declarations.values["Version"])?["value"],
+        serde_json::json!({
+            "kind": "string",
+            "pos": format!("{directory}/handler.go:2:17"),
+            "value": "v1",
+        })
+    );
     assert!(declarations.syntax_errors.is_empty());
     let generated = BTreeMap::from([(
         RcStr::from(format!("{directory}/generated.go")),
@@ -1389,9 +1437,13 @@ async fn analyzed_sources_and_generated_dispatch_share_one_identity() -> Result<
                             .resolve()
                             .strongly_consistent()
                             .await?;
-                            let declarations = selected_declarations(sources, options.clone())
-                                .read_strongly_consistent()
-                                .await?;
+                            let declarations = selected_declarations(
+                                sources,
+                                options.clone(),
+                                vec![format!("{directory}/handler.go").into()],
+                            )
+                            .read_strongly_consistent()
+                            .await?;
                             assert_eq!(declarations.functions, vec![rcstr!("GET")]);
                             selected_bundle(sources, options.clone(), generated.clone())
                                 .read_strongly_consistent()
@@ -1436,21 +1488,32 @@ async fn analyzed_sources_and_generated_dispatch_share_one_identity() -> Result<
         })
         .await?;
     let current = capture().await?;
-    let declarations = session
+    let (both, entrypoint) = session
         .tt
         .run_once({
             let options = options.clone();
             async move {
-                selected_declarations(current, options)
+                let analyze = |files: &[&str]| {
+                    selected_declarations(
+                        current,
+                        options.clone(),
+                        files
+                            .iter()
+                            .map(|file| format!("{directory}/{file}").into())
+                            .collect(),
+                    )
                     .read_strongly_consistent()
-                    .await
+                };
+                anyhow::Ok((
+                    analyze(&["handler.go", "other_windows.go"]).await?,
+                    analyze(&["handler.go"]).await?,
+                ))
             }
         })
         .await?;
-    assert_eq!(
-        declarations.functions,
-        vec![rcstr!("DELETE"), rcstr!("GET")]
-    );
+    assert_eq!(both.functions, vec![rcstr!("DELETE"), rcstr!("GET")]);
+    // Selected siblings are compiled but only the requested files are parsed.
+    assert_eq!(entrypoint.functions, vec![rcstr!("GET")]);
     // Creating a nearer go.mod must reselect the module even though no source bytes changed.
     session
         .write(
@@ -1556,94 +1619,60 @@ async fn shared_pool_operation(tool: RcStr) -> Result<Vc<turbo_tasks::Completion
     Ok(turbo_tasks::Completion::new())
 }
 
-#[turbo_tasks::function(operation, root)]
-fn selected_browser_declarations(
-    sources: ResolvedVc<GoSourceSet>,
-    options: GoBuildOptions,
-) -> Vc<GoDeclarations> {
-    go_declarations_with_assets(
-        *sources,
-        GoBuildSession::persistent("source-set-test".into(), options),
-        vec![rcstr!("browser/route.go")],
-        rcstr!("example.com/sdk/assets"),
-        rcstr!("assets"),
-    )
-}
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn browser_declarations_use_import_identity_and_a_bounded_source_set() -> Result<()> {
-    let session = Session::new().await?;
-    std::fs::create_dir_all(session.project.join("browser"))?;
+async fn root_package_ignores_framework_output_directories() -> Result<()> {
+    let mut session = Session::new().await?;
     session
         .write(
-            "browser/route.go",
-            r#"package main
-import (
-    client "example.com/sdk/assets"
-    other "example.com/unrelated/assets"
-)
-var dashboard = client.Browser("app/dashboard/client.ts")
-var unrelated = other.Browser("ignored.ts")
-var expression = client.Browser(string("not-literal.ts"))
-var nested = wrap(client.Browser("nested.ts"))
-func GET() {
-    _ = client.Browser("local.ts")
-    client := struct { Browser func(string) string }{}
-    _ = client.Browser("shadowed.ts")
-}
-"#,
+            "main.go",
+            "package main\nimport \"fmt\"\nfunc main() { fmt.Print(\"root-v1\") }\n",
         )
         .await?;
-    session
-        .write(
-            "browser/helper.go",
-            r#"package main
-import assets "example.com/sdk/assets"
-var helper = assets.Browser(dynamic())
-"#,
-        )
-        .await?;
-    let root = FileSystemPath {
-        fs: ResolvedVc::upcast(session.fs),
-        path: rcstr!(""),
-    };
-    let result = session
+    std::fs::create_dir_all(session.project.join(".next"))?;
+    std::fs::write(session.project.join(".next/output.go"), "not Go source")?;
+    let path: RcStr = session.project.to_string_lossy().into_owned().into();
+    session.fs = session
         .tt
-        .run_once({
-            let options = session.go_context.options.clone();
-            async move {
-                let sources = selected_sources(
-                    root.clone(),
-                    root.join("browser")?,
-                    GoSourceSelection::Directory,
-                    options.clone(),
-                )
+        .run_once(async move {
+            framework_filesystem(path)
                 .resolve()
                 .strongly_consistent()
-                .await?;
-                selected_browser_declarations(sources, options)
-                    .read_strongly_consistent()
-                    .await
-            }
+                .await
         })
         .await?;
-    assert!(result.syntax_errors.is_empty());
-    assert_eq!(result.browser_entries.len(), 1);
-    let entry = &result.browser_entries[0];
-    assert_eq!(entry.path, "app/dashboard/client.ts");
-    assert_eq!(entry.file, "browser/route.go");
-    assert_eq!(entry.line, 6);
-    assert_eq!(entry.column, 17);
-    assert_eq!(result.asset_errors.len(), 3);
-    assert!(result.asset_errors[0].contains("browser/route.go:8:"));
-    assert!(result.asset_errors[0].contains("string literal"));
-    assert!(result.asset_errors[1].contains("browser/route.go:9:"));
-    assert!(result.asset_errors[2].contains("browser/route.go:11:"));
-    assert!(
-        !result
-            .asset_errors
-            .iter()
-            .any(|error| error.contains("helper.go") || error.contains("shadowed"))
-    );
+    let first = session
+        .fetch_generated(&["main.go"], BTreeMap::new())
+        .await?;
+    assert_eq!(session.run_bytes(first).await?, "root-v1");
+    let builds = session.counts().1;
+    session
+        .write(".next/other.go", "still not a source")
+        .await?;
+    let unchanged = session
+        .fetch_generated(&["main.go"], BTreeMap::new())
+        .await?;
+    assert_eq!(session.run_bytes(unchanged).await?, "root-v1");
+    assert_eq!(session.counts().1, builds);
+    session
+        .write(
+            "main.go",
+            "package main\nimport \"fmt\"\nfunc main() { fmt.Print(\"root-v2\") }\n",
+        )
+        .await?;
+    let updated = session
+        .fetch_generated(&["main.go"], BTreeMap::new())
+        .await?;
+    assert_eq!(session.run_bytes(updated).await?, "root-v2");
     Ok(())
+}
+
+#[turbo_tasks::function(operation, root)]
+fn framework_filesystem(path: RcStr) -> Vc<DiskFileSystem> {
+    DiskFileSystem::new_with_options(
+        rcstr!("go-framework-root"),
+        Vc::cell(path),
+        vec![rcstr!(".next")],
+        DiskWatcherConfig::default(),
+        DiskFileSystemMap::empty(),
+    )
 }

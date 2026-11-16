@@ -11,7 +11,7 @@ mod session;
 mod sources;
 
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::BTreeMap,
     future::Future,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
@@ -39,7 +39,7 @@ use turbo_tasks_fs::{
 };
 
 pub use crate::{
-    analysis::{GoBrowserEntry, GoDeclarations, go_declarations, go_declarations_with_assets},
+    analysis::{GoDeclarations, go_declarations},
     paths::{paths_refer_to_same_file, validate_source_path},
     session::{GoSessionPool, GoTarget, GoToolchainOptions},
     sources::{GoSourceSelection, GoSourceSet, go_bundle_from_sources, go_source_set},
@@ -524,6 +524,34 @@ struct ModuleReplacement {
     new: Requirement,
 }
 
+/// Resolves a directory replacement's target inside the main module. Only directory
+/// replacements are supported: they are tracked like module sources and need no download.
+fn replacement_directory(project: &Path, replacement: &ModuleReplacement) -> Result<PathBuf> {
+    ensure!(
+        replacement.new.version.is_empty(),
+        "versioned Go module replacements are not supported in this release: {}",
+        replacement.old.path
+    );
+    // Normalize lexically; source path validation rejects symlinks when inputs are tracked.
+    let mut directory = PathBuf::new();
+    for part in project.join(&replacement.new.path).components() {
+        match part {
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                directory.pop();
+            }
+            part => directory.push(part),
+        }
+    }
+    ensure!(
+        directory.starts_with(project) && directory != project,
+        "Go module replacements must point to a directory inside the module: {} => {}",
+        replacement.old.path,
+        replacement.new.path
+    );
+    Ok(directory)
+}
+
 // Go's module cache escapes uppercase ASCII as ! followed by its lowercase form.
 fn module_escape(value: &str) -> String {
     let mut escaped = String::with_capacity(value.len());
@@ -835,9 +863,10 @@ async fn observe_packages(
         tracker.dir(dir).await?;
         if let Some(module) = &pkg.module {
             if let Some(replacement) = &module.replace {
+                // The module configuration already admitted only directory replacements.
                 ensure!(
-                    !replacement.version.is_empty(),
-                    "local Go module replacements are not supported in this release"
+                    replacement.version.is_empty(),
+                    "versioned Go module replacements are not supported in this release"
                 );
                 if !replacement.go_mod.is_empty() {
                     tracker.file(Path::new(&replacement.go_mod)).await?;
@@ -962,17 +991,12 @@ async fn discover(
         .await?;
         let config: ModuleConfig = serde_json::from_str(&config)?;
         let replacements = config.replace.as_deref().unwrap_or_default();
-        ensure!(
-            replacements
-                .iter()
-                .all(|replacement| !replacement.new.version.is_empty()),
-            "local Go module replacements are not supported in this release"
-        );
-        // Go resolves versioned replacements from the same module cache. Observe the
-        // effective targets, including replacements of transitive requirements, so
-        // installing a missing target can repair discovery without editing go.mod.
-        let mut modules = BTreeSet::new();
+        // Even an unresolved dependency needs cache dependencies. Downloading a module can
+        // repair it without changing go.mod/go.sum, so retain reads for its future cache entries.
+        let cache = Path::new(go_context.module_cache.as_str());
         for requirement in config.require.iter().flatten() {
+            // Go applies a version-specific replacement before a path-wide one, and ignores
+            // replacements of modules that are not required.
             let replacement = replacements
                 .iter()
                 .find(|replacement| {
@@ -985,25 +1009,23 @@ async fn discover(
                             && replacement.old.version.is_empty()
                     })
                 });
-            let requirement = replacement.map_or(requirement, |replacement| &replacement.new);
-            modules.insert((&requirement.path, &requirement.version));
-        }
-        modules.extend(
-            replacements
-                .iter()
-                .map(|replacement| (&replacement.new.path, &replacement.new.version)),
-        );
-        let cache = Path::new(go_context.module_cache.as_str());
-        for (path, version) in modules {
+            if let Some(replacement) = replacement {
+                // A directory replacement resolves from its own go.mod and sources, never the
+                // module cache. Observe its go.mod so creating or editing it invalidates
+                // discovery; its packages are tracked like module sources below.
+                let directory = replacement_directory(&project, replacement)?;
+                tracker.file(&directory.join("go.mod")).await?;
+                continue;
+            }
             ensure!(
-                Path::new(path)
+                Path::new(&requirement.path)
                     .components()
                     .all(|part| matches!(part, std::path::Component::Normal(_)))
-                    && !version.contains(['/', '\\']),
+                    && !requirement.version.contains(['/', '\\']),
                 "invalid Go module requirement path"
             );
-            let path = module_escape(path);
-            let version = module_escape(version);
+            let path = module_escape(&requirement.path);
+            let version = module_escape(&requirement.version);
             tracker
                 .parents(&cache.join(format!("{path}@{version}")))
                 .await?;
