@@ -95,6 +95,14 @@ export type PrerenderRouteMatcher = {
   readonly remainingPrerenderableParams?: readonly FallbackRouteParam[]
 }
 
+/** Handler admission is independent of whether a complete response is cached. */
+export type RouteHandlerParamMatching = {
+  /** Closed parameter names, in pathname order. */
+  readonly paramNames: readonly string[]
+  /** Correlated generated values, without reparsing their contents as syntax. */
+  readonly tuples: readonly (readonly (string | readonly string[])[])[]
+}
+
 export type StaticPathsResult = {
   fallbackMode: FallbackMode | undefined
 
@@ -106,6 +114,8 @@ export type StaticPathsResult = {
 
   /** Explicit policies after inheritance, before build-time inference. */
   paramMatching?: ParamMatching
+
+  routeHandlerParamMatching?: RouteHandlerParamMatching
 
   /**
    * DEV only: the first explicitly configured fallback parameter and every

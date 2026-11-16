@@ -9,6 +9,7 @@ import type {
   PrerenderRouteMatcher,
   PrerenderedRoute,
   StaticPathsResult,
+  RouteHandlerParamMatching,
 } from './types'
 
 import path from 'node:path'
@@ -36,6 +37,7 @@ import type { AppRouteModule } from '../../server/route-modules/app-route/module
 import type { NormalizedAppRoute } from '../../shared/lib/router/routes/app'
 import { interceptionPrefixFromParamType } from '../../shared/lib/router/utils/interception-prefix-from-param-type'
 import { isPlainObject } from '../../shared/lib/is-plain-object'
+import { isAppRouteRouteModule } from '../../server/route-modules/checks'
 import {
   type BuildTimeGeneratorStore,
   workUnitAsyncStorage,
@@ -107,6 +109,18 @@ export function filterUniqueParams(
   // Convert the Map's values (the unique `Params` objects) back into an array
   // and return it.
   return Array.from(unique.values())
+}
+
+function filterUniqueRouteHandlerParams(
+  names: readonly { paramName: string }[],
+  routeParams: readonly Params[]
+): Params[] {
+  const unique = new Map<string, Params>()
+  for (const params of routeParams) {
+    const key = JSON.stringify(names.map(({ paramName }) => params[paramName]))
+    if (!unique.has(key)) unique.set(key, params)
+  }
+  return [...unique.values()]
 }
 
 /**
@@ -1090,6 +1104,48 @@ export async function buildAppStaticPaths({
     )
   }
 
+  let routeHandlerParamMatching: RouteHandlerParamMatching | undefined
+  let shouldSkipRouteHandlerPrerendering = false
+  if (paramMatching && isAppRouteRouteModule(ComponentMod.routeModule)) {
+    for (const [paramName, mode] of Object.entries(paramMatching)) {
+      if (mode === 'blocking' || mode === 'fallback') {
+        throw new Error(
+          `Route Handler "${page}" cannot configure parameter "${paramName}" as "${mode}". Route Handlers only support "not-found" and "dynamic" parameter matching.`
+        )
+      }
+    }
+
+    shouldSkipRouteHandlerPrerendering = pathnameRouteParamSegments.some(
+      ({ paramName }, index) =>
+        paramMatching[paramName] === 'dynamic' ||
+        (paramMatching[paramName] === undefined &&
+          !prerenderablePathSegments[index].isPrerenderable)
+    )
+
+    // Validate the closed prefix separately: an unknown suffix needs no body
+    // prerender, but every closed value must still have its required type.
+    const closedSegments = pathnameRouteParamSegments.filter(
+      ({ paramName }) => paramMatching[paramName] === 'not-found'
+    )
+    const validatedParams = validateParams(
+      page,
+      false,
+      closedSegments,
+      [],
+      routeParams
+    )
+    routeHandlerParamMatching = {
+      paramNames: closedSegments.map(({ paramName }) => paramName),
+      tuples:
+        closedSegments.length === 0
+          ? [[]]
+          : filterUniqueRouteHandlerParams(closedSegments, validatedParams).map(
+              (params) =>
+                closedSegments.map(({ paramName }) => params[paramName]!)
+            ),
+    }
+  }
+
   await afterRunner.executeAfter()
 
   let lastDynamicSegmentHadGenerateStaticParams = false
@@ -1129,6 +1185,12 @@ export async function buildAppStaticPaths({
   const hadAllParamsGenerated =
     pathnameRouteParamSegments.length === 0 ||
     (routeParams.length > 0 && missingParamNames.size === 0)
+
+  if (routeHandlerParamMatching && !hadAllParamsGenerated) {
+    // Partial handler tuples establish admission, not a static response. No
+    // complete body was rendered to establish that this handler supports ISR.
+    shouldSkipRouteHandlerPrerendering = true
+  }
 
   if (
     nextConfigOutput === 'export' &&
@@ -1176,14 +1238,23 @@ export async function buildAppStaticPaths({
     : FallbackMode.NOT_FOUND
 
   const rootParamSet = new Set(rootParamKeys)
-  const fallbackMode = paramMatching
-    ? getParamMatchingFallbackMode(
-        paramMatching,
-        pathnameRouteParamSegments,
-        inferredFallbackMode,
-        rootParamSet
-      )
-    : inferredFallbackMode
+  // Handler admission closes only the declared prefix. An open suffix must
+  // retain ordinary wildcard function dispatch in adapter routing.
+  const hasOpenHandlerParams =
+    routeHandlerParamMatching &&
+    pathnameRouteParamSegments.some(
+      ({ paramName }) => paramMatching?.[paramName] !== 'not-found'
+    )
+  const fallbackMode = hasOpenHandlerParams
+    ? inferredFallbackMode
+    : paramMatching
+      ? getParamMatchingFallbackMode(
+          paramMatching,
+          pathnameRouteParamSegments,
+          inferredFallbackMode,
+          rootParamSet
+        )
+      : inferredFallbackMode
 
   const getRouteFallbackMode = (
     fallbackRouteParams: readonly FallbackRouteParam[],
@@ -1329,7 +1400,10 @@ export async function buildAppStaticPaths({
       addPrerenderCandidate({}, page, page, fallbackRouteParams, rootParamKeys)
     }
 
-    filterUniqueParams(
+    const filterParams = routeHandlerParamMatching
+      ? filterUniqueRouteHandlerParams
+      : filterUniqueParams
+    filterParams(
       pathnameRouteParamSegments,
       validateParams(
         page,
@@ -1473,9 +1547,12 @@ export async function buildAppStaticPaths({
 
   return {
     fallbackMode,
-    prerenderedRoutes,
+    prerenderedRoutes: shouldSkipRouteHandlerPrerendering
+      ? undefined
+      : prerenderedRoutes,
     prerenderRouteMatchers,
     paramMatching,
+    routeHandlerParamMatching,
     explicitFallbackRouteParams,
   }
 }

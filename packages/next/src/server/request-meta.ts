@@ -1,3 +1,4 @@
+import type { RouteHandlerParamMatching } from '../build/static-paths/types'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
@@ -374,6 +375,9 @@ export interface RequestMeta {
 
   /** DEV only: parameter matching rejected this request as not found. */
   devParamMatchingRejected?: boolean
+
+  /** DEV only: the current handler policy, checked after request preparation. */
+  devRouteHandlerParamMatching?: RouteHandlerParamMatching
 
   /** DEV only: closed parameters, including for successful allowed values. */
   devNotFoundParams?: readonly string[]

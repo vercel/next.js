@@ -722,12 +722,6 @@ export async function getAppPageStaticInfo({
     )
   }
 
-  if (hasParamMatching && /\/route\.[^/]+$/.test(pageFilePath)) {
-    throw new Error(
-      `Route "${page}" cannot export parameter matching. It is only supported in layouts and pages.`
-    )
-  }
-
   if (isEdgeRuntime(config.runtime) && hasParamMatching) {
     throw new Error(
       `Page "${page}" cannot use both \`export const runtime = 'edge'\` and parameter matching.`
