@@ -2103,6 +2103,8 @@ export async function createHotReloaderTurbopack(
       if (!definition) {
         if (inputPage === '/middleware') return
         if (inputPage === '/src/middleware') return
+        if (inputPage === '/proxy') return
+        if (inputPage === '/src/proxy') return
         if (inputPage === '/instrumentation') return
         if (inputPage === '/src/instrumentation') return
       }

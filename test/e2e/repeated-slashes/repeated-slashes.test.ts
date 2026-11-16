@@ -351,16 +351,21 @@ function runTests({
           item.as ? `, "${item.as}"` : ''
         })`
       )
+      // Pushing to a missing page triggers a hard navigation, so the
+      // document may still be the old page (or mid-navigation) here. Wait for
+      // the navigation's end state instead of a one-shot read.
       await retry(async () => {
-        const readyState = await browser.eval('document.readyState')
-        expect(readyState).toMatch(/interactive|complete/)
+        expect(await browser.eval('window.location.pathname')).toBe(
+          item.pathname
+        )
+        expect(await browser.eval('window.location.search')).toBe(
+          item.search || ''
+        )
+        expect(await browser.eval('window.location.hash')).toBe(item.hash || '')
+        expect(await browser.eval('window.next?.router?.pathname')).toBe(
+          item.page
+        )
       })
-      expect(await browser.eval('window.location.pathname')).toBe(item.pathname)
-      expect(await browser.eval('window.location.search')).toBe(
-        item.search || ''
-      )
-      expect(await browser.eval('window.location.hash')).toBe(item.hash || '')
-      expect(await browser.eval('window.next.router.pathname')).toBe(item.page)
     }
   })
 

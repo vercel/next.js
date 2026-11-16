@@ -1,10 +1,11 @@
+/// Runs turbo-persistence's CPU-parallel work.
+///
+/// Every method blocks until all of its work has finished, and may run the work on the calling
+/// thread. If an implementation needs to block an async runtime thread while waiting (e.g. tokio's
+/// `block_in_place`), it handles that internally; callers don't wrap work in a separate hand-off.
 pub trait ParallelScheduler: Clone + Sync + Send {
     /// The number of tasks this scheduler can run at the same time. Always at least 1.
     fn parallelism(&self) -> usize;
-
-    fn block_in_place<R>(&self, f: impl FnOnce() -> R + Send) -> R
-    where
-        R: Send;
 
     fn parallel_for_each<T>(&self, items: &[T], f: impl Fn(&T) + Send + Sync)
     where
@@ -76,13 +77,6 @@ pub struct SerialScheduler;
 impl ParallelScheduler for SerialScheduler {
     fn parallelism(&self) -> usize {
         1
-    }
-
-    fn block_in_place<R>(&self, f: impl FnOnce() -> R + Send) -> R
-    where
-        R: Send,
-    {
-        f()
     }
 
     fn parallel_for_each<T>(&self, items: &[T], f: impl Fn(&T) + Send + Sync)

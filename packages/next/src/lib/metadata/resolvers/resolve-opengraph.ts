@@ -27,7 +27,8 @@ type FlattenArray<T> = T extends (infer U)[] ? U : T
 const OgTypeFields = {
   article: ['authors', 'tags'],
   song: ['albums', 'musicians'],
-  playlist: ['albums', 'musicians'],
+  album: ['songs', 'musicians'],
+  playlist: ['songs', 'creators'],
   radio: ['creators'],
   video: ['actors', 'directors', 'writers', 'tags'],
   basic: [
@@ -146,7 +147,7 @@ const ogTypeToFields: Record<string, readonly string[]> = {
   article: OgTypeFields.article,
   book: OgTypeFields.article,
   'music.song': OgTypeFields.song,
-  'music.album': OgTypeFields.song,
+  'music.album': OgTypeFields.album,
   'music.playlist': OgTypeFields.playlist,
   'music.radio_station': OgTypeFields.radio,
   'video.movie': OgTypeFields.video,

@@ -23,7 +23,7 @@ use auto_hash_map::AutoMap;
 use bincode::{Decode, Encode};
 use either::Either;
 use futures::FutureExt;
-use rustc_hash::{FxBuildHasher, FxHasher};
+use rustc_hash::{FxBuildHasher, FxHashSet, FxHasher};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tokio::{select, sync::mpsc::Receiver, task_local};
@@ -49,6 +49,7 @@ use crate::{
     priority_runner::{Claimable, Executor, PriorityRunner},
     registry,
     serialization_invalidation::SerializationInvalidator,
+    spawn::JoinHandle,
     task::local_task::{LocalTask, LocalTaskSpec, LocalTaskType},
     task_statistics::TaskStatisticsApi,
     util::{IdFactory, StaticOrArc},
@@ -159,7 +160,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         index: CellId,
         reader: TaskId,
         id: u32,
-        key_hashes: &mut dyn Iterator<Item = u64>,
+        key_hashes: &FxHashSet<u64>,
     );
 
     /// Reads a [`RawVcUnpacked::LocalOutput`][crate::RawVcUnpacked::LocalOutput]. If the task has
@@ -2213,10 +2214,16 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         index: CellId,
         reader: TaskId,
         id: u32,
-        key_hashes: &mut dyn Iterator<Item = u64>,
+        key_hashes: &FxHashSet<u64>,
     ) {
-        self.backend
-            .refine_provisional_cell_dependency(task, index, reader, id, key_hashes, self)
+        self.backend.refine_provisional_cell_dependency(
+            task,
+            index,
+            reader,
+            id,
+            key_hashes.iter().copied(),
+            self,
+        )
     }
 
     fn try_read_own_task_cell(
@@ -2572,6 +2579,46 @@ pub fn turbo_tasks_future_scope<T>(
     f: impl Future<Output = T>,
 ) -> impl Future<Output = T> {
     TURBO_TASKS.scope(tt, f)
+}
+
+/// Spawns `future` on another worker thread as part of the current task execution and returns a
+/// [`JoinHandle`] for its result.
+///
+/// Unlike [`spawn`][crate::spawn()], the future shares the current task's state, just like a local
+/// task does: reads of cells and outputs in it are tracked as dependencies of the current task,
+/// and the task execution doesn't complete before the future has finished (or has been dropped).
+/// Use it to spread work that reads many cells over several threads, e.g. when the reads restore
+/// data from the persistent cache.
+///
+/// A panic in `future` is resumed when the [`JoinHandle`] is awaited.
+///
+/// Must be called from within a task execution.
+pub(crate) fn spawn_in_current_task<T: Send + 'static>(
+    future: impl Future<Output = T> + Send + 'static,
+) -> JoinHandle<T> {
+    /// Balances the `register_detached` below, even when the future is dropped before it
+    /// completes (e.g. on runtime shutdown).
+    struct InFlightGuard(CurrentTaskStateHandle);
+    impl Drop for InFlightGuard {
+        fn drop(&mut self) {
+            self.0.write().unwrap().local_tasks.decrement_in_flight();
+        }
+    }
+
+    let task_state = CURRENT_TASK_STATE.with(|ts| ts.clone());
+    task_state.write().unwrap().local_tasks.register_detached();
+    let guard = InFlightGuard(task_state.clone());
+    let future = async move {
+        let result = CaptureFuture::new(future).await;
+        // Mark the future as finished before the result is handed to the joining side.
+        drop(guard);
+        result
+    };
+    JoinHandle::new(tokio::task::spawn(
+        TURBO_TASKS
+            .scope(turbo_tasks(), CURRENT_TASK_STATE.scope(task_state, future))
+            .instrument(Span::current()),
+    ))
 }
 
 /// Spawns the given future within the context of the current task.
@@ -3004,10 +3051,9 @@ impl CurrentCellRef {
             };
             let old_value = <T as VcValueType>::Read::value_to_target_ref(old_value);
             let new_value_ref = <T as VcValueType>::Read::value_to_target_ref(&new_value);
-            let updated_keys = old_value.different_keys(new_value_ref);
-            if updated_keys.is_empty() {
-                return None;
-            }
+            // An empty set of keys still updates the value, but only invalidates readers of the
+            // whole value (see `KeyedEq::different_keys`).
+            let updated_keys = old_value.different_keys(new_value_ref)?;
             // Duplicates are very unlikely, but ok since the backend is deduplicating them
             let updated_key_hashes = updated_keys
                 .into_iter()
@@ -3039,10 +3085,9 @@ impl CurrentCellRef {
             let old_value = <T as VcValueType>::Read::value_to_target_ref(old_value);
             let new_value = extract_sr_value::<T>(&new_shared_reference);
             let new_value = <T as VcValueType>::Read::value_to_target_ref(new_value);
-            let updated_keys = old_value.different_keys(new_value);
-            if updated_keys.is_empty() {
-                return None;
-            }
+            // An empty set of keys still updates the value, but only invalidates readers of the
+            // whole value (see `KeyedEq::different_keys`).
+            let updated_keys = old_value.different_keys(new_value)?;
             // Duplicates are very unlikely, but ok since the backend is deduplicating them
             let updated_key_hashes = updated_keys
                 .into_iter()

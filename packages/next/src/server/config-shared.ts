@@ -82,8 +82,8 @@ export type NextConfigComplete = Required<
       instantInsights: { validationLevel: ValidationLevel }
       // Normalized by finalized config with a default and the expected type
       turbopackMemoryEvictionMode: MemoryEvictionMode
-      // Normalized by config.ts: `false`/unset becomes `undefined` (GC off),
-      // `true` becomes `{}` (GC on with default timings)
+      // Normalized by config.ts: `false` becomes `undefined` (GC off),
+      // `true`/unset becomes `{}` (GC on with default timings)
       turbopackGcOptions: TurbopackGcOptions | undefined
     }
     // The root directory of the distDir. In development mode, this is the parent directory of `distDir`
@@ -511,13 +511,17 @@ export interface DeprecatedConfig {
 }
 
 export interface ExperimentalConfig {
-  /** Native Go App Router handlers. Turbopack and self-hosted next start only. */
+  /** Enable native Go route handlers and proxies. Requires Turbopack. */
   goRoutes?: boolean
-  /** Nudge coding agents about security upgrades, stable releases, or Future Defaults. */
+  /**
+   * Nudge coding agents about security upgrades, stable releases, or Future Defaults.
+   * `next dev` manages upgrade instructions in AGENTS.md using this policy.
+   */
   agentUpgrade?: 'security' | 'latest' | 'experimental-future' | false
   /**
    * Adds managed instructions to AGENTS.md that let AI coding agents prepare
-   * anonymized Next.js feedback for user review.
+   * anonymized Next.js feedback for user review. Written by `next dev` when
+   * enabled. Requires telemetry and does not run in CI.
    */
   agentFeedback?: boolean
   /**
@@ -844,9 +848,8 @@ export interface ExperimentalConfig {
    * Enables Turbopack's garbage collector, which deletes unreachable
    * tasks from the persistent cache and from memory.
    *
-   *
-   * - `false` (default): never collect.
-   * - `true`: collect
+   * - `false`: never collect.
+   * - `true` (default): collect
    * - An object: collect, overriding individual timings.
    *   - `minProgressMs`: how long a GC pass runs before it will honour an
    *     interrupt. Defaults to 100ms.
@@ -905,7 +908,9 @@ export interface ExperimentalConfig {
   /**
    * Minify each module separately instead of each finished chunk, so minification runs in
    * parallel and is cached per module. The trade-off is slightly worse compression.
-   * Defaults to false. Only applies to production builds.
+   * Chunking then sizes modules by their minified code, see `turbopackChunking`.
+   * Defaults to true on canary releases and false on stable releases. Only applies to
+   * production builds.
    */
   turbopackMinifyBeforeChunking?: boolean
 
@@ -919,6 +924,10 @@ export interface ExperimentalConfig {
   /**
    * (`next --turbopack` only) These options change the assumptions Turbopack makes when
    * making chunk merging decisions and the raw size thresholds it uses.
+   *
+   * Sizes are measured on unminified code, or on minified code when
+   * `turbopackMinifyBeforeChunking` applies. In that case the default sizes and request cost
+   * below are scaled down to match; values set here are used as-is.
    */
   turbopackChunking?: {
     /**
@@ -2261,10 +2270,9 @@ export interface NextConfig {
   expireTime?: number
 
   /**
-   * When `next dev` detects an AI coding agent and no managed
-   * agent-rules block is present, Next.js auto-generates `AGENTS.md` at the
-   * project root so the agent reads version-matched docs from
-   * `node_modules/next/dist/docs/` instead of stale training data. Set to
+   * When `next dev` runs, Next.js creates or updates the managed agent-rules
+   * block in `AGENTS.md` at the project root so coding agents read version-matched
+   * docs from `node_modules/next/dist/docs/` instead of stale training data. Set to
    * `false` to disable this behavior.
    *
    * @default true

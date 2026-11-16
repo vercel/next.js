@@ -109,12 +109,7 @@ pub struct AppProject {
 #[turbo_tasks::value(transparent)]
 pub struct OptionAppProject(Option<ResolvedVc<AppProject>>);
 
-impl AppProject {}
-impl AppProject {
-    pub fn client_transition_name() -> RcStr {
-        rcstr!("next-ecmascript-client-reference")
-    }
-}
+pub static CLIENT_TRANSITION_NAME: RcStr = rcstr!("next-ecmascript-client-reference");
 
 #[turbo_tasks::value_impl]
 impl AppProject {
@@ -149,7 +144,7 @@ impl AppProject {
             client_transition: Some(ResolvedVc::upcast(
                 self.client_transition().to_resolved().await?,
             )),
-            ecmascript_client_reference_transition_name: Some(Self::client_transition_name()),
+            ecmascript_client_reference_transition_name: Some(CLIENT_TRANSITION_NAME.clone()),
         }
         .cell())
     }
@@ -159,7 +154,7 @@ impl AppProject {
         let this = self.await?;
         Ok(ServerContextType::AppRoute {
             app_dir: this.app_dir.clone(),
-            ecmascript_client_reference_transition_name: Some(Self::client_transition_name()),
+            ecmascript_client_reference_transition_name: Some(CLIENT_TRANSITION_NAME.clone()),
         }
         .cell())
     }
@@ -379,7 +374,7 @@ impl AppProject {
         Ok(TransitionOptions {
             named_transitions: [
                 (
-                    AppProject::client_transition_name(),
+                    CLIENT_TRANSITION_NAME.clone(),
                     ecmascript_client_reference_transition.to_resolved().await?,
                 ),
                 (
@@ -481,7 +476,7 @@ impl AppProject {
     pub(crate) async fn route_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
-                AppProject::client_transition_name(),
+                CLIENT_TRANSITION_NAME.clone(),
                 self.ecmascript_client_reference_transition()
                     .to_resolved()
                     .await?,
@@ -532,7 +527,7 @@ impl AppProject {
     async fn edge_route_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
-                AppProject::client_transition_name(),
+                CLIENT_TRANSITION_NAME.clone(),
                 self.edge_ecmascript_client_reference_transition()
                     .to_resolved()
                     .await?,
@@ -1116,10 +1111,10 @@ pub async fn app_entry_point_to_route(
             Route::AppGoRoute {
                 original_name: page.to_string().into(),
                 endpoint: ResolvedVc::upcast(
-                    GoRouteEndpoint {
-                        app_project,
+                    GoEndpoint {
+                        project: app_project.project().to_resolved().await?,
                         path,
-                        page,
+                        kind: GoEndpointKind::Route { page },
                     }
                     .resolved_cell(),
                 ),
@@ -1156,11 +1151,31 @@ pub async fn app_entry_point_to_route(
     .cell())
 }
 
+#[derive(Clone, PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]
+enum GoEndpointKind {
+    Route { page: AppPage },
+    Proxy,
+}
+
 #[turbo_tasks::value(shared)]
-struct GoRouteEndpoint {
-    app_project: ResolvedVc<AppProject>,
+struct GoEndpoint {
+    project: ResolvedVc<Project>,
     path: FileSystemPath,
-    page: AppPage,
+    kind: GoEndpointKind,
+}
+
+pub(crate) fn go_proxy_endpoint(
+    project: ResolvedVc<Project>,
+    path: FileSystemPath,
+) -> Vc<Box<dyn Endpoint>> {
+    Vc::upcast(
+        GoEndpoint {
+            project,
+            path,
+            kind: GoEndpointKind::Proxy,
+        }
+        .cell(),
+    )
 }
 
 async fn is_adapter_build(project: ResolvedVc<Project>) -> Result<bool> {
@@ -1207,15 +1222,20 @@ impl Issue for GoRouteIssue {
 }
 
 #[turbo_tasks::value_impl]
-impl Endpoint for GoRouteEndpoint {
+impl Endpoint for GoEndpoint {
     #[turbo_tasks::function]
     async fn output(self: Vc<Self>) -> Result<Vc<EndpointOutput>> {
         let this = self.await?;
-        let project = this.app_project.project().to_resolved().await?;
+        let project = this.project;
+        let is_proxy = matches!(this.kind, GoEndpointKind::Proxy);
         if !*project.next_config().go_routes().await? {
             GoRouteIssue {
                 path: this.path.clone(),
-                message: rcstr!("route.go requires experimental.goRoutes: true"),
+                message: if is_proxy {
+                    rcstr!("proxy.go requires experimental.goRoutes: true")
+                } else {
+                    rcstr!("route.go requires experimental.goRoutes: true")
+                },
             }
             .resolved_cell()
             .emit();
@@ -1256,6 +1276,12 @@ impl Endpoint for GoRouteEndpoint {
         .await?;
         let module_root = sources.await?.root.clone();
         let analysis = go_declarations(*sources, session).await?;
+        if is_proxy {
+            ensure!(
+                analysis.functions.iter().any(|name| name == "Proxy"),
+                "proxy.go must export func Proxy(http.ResponseWriter, *http.Request)"
+            );
+        }
         let methods = analysis.functions.iter().filter(|name| {
             matches!(
                 name.as_str(),
@@ -1268,13 +1294,22 @@ impl Endpoint for GoRouteEndpoint {
             .join("\n");
         let dispatch = include_str!("templates/go_route_dispatch.go")
             .replace("\t// __NEXT_GO_ROUTE_METHODS__", &declarations);
-        let pathname = AppPath::from(this.page.clone()).to_string();
+        let (original_name, pathname) = match &this.kind {
+            GoEndpointKind::Route { page } => {
+                (page.to_string(), AppPath::from(page.clone()).to_string())
+            }
+            GoEndpointKind::Proxy => (String::new(), String::new()),
+        };
         let base_path = project.next_config().base_path().await?;
         let route_pattern = format!("{}{pathname}", base_path.as_deref().unwrap_or(""));
-        let handler = include_str!("templates/go_route_handler.go").replace(
-            "\"__NEXT_GO_ROUTE_PATTERN__\"",
-            &serde_json::to_string(&route_pattern)?,
-        );
+        let handler = if is_proxy {
+            include_str!("templates/go_proxy_handler.go").to_owned()
+        } else {
+            include_str!("templates/go_route_handler.go").replace(
+                "\"__NEXT_GO_ROUTE_PATTERN__\"",
+                &serde_json::to_string(&route_pattern)?,
+            )
+        };
         // All executables extract parameters from the selected destination URL.
         // Only the entrypoint's listener, authentication and process lifetime differ.
         let wrapper = if is_adapter_build(project).await? {
@@ -1340,14 +1375,19 @@ impl Endpoint for GoRouteEndpoint {
         let hash = AssetContent::file(*content)
             .hash(no_hash_salt(), HashAlgorithm::Xxh3Hash128Hex)
             .await?;
-        let original_name = this.page.to_string();
-        let entry = format!("app{original_name}.native.json");
-        let executable = format!(
-            "app{original_name}-{hash}{}",
-            go_session.go_context.exe_suffix
-        );
+        let output_name = if is_proxy {
+            "middleware".to_owned()
+        } else {
+            format!("app{original_name}")
+        };
+        let entry = format!("{output_name}.native.json");
+        let executable = format!("{output_name}-{hash}{}", go_session.go_context.exe_suffix);
         let node_root = project.node_root().owned().await?;
-        let descriptor = serde_json::json!({ "executable": executable, "goos": go_session.go_context.goos, "goarch": go_session.go_context.goarch });
+        let mut descriptor = serde_json::json!({ "executable": executable, "goos": go_session.go_context.goos, "goarch": go_session.go_context.goarch });
+        if is_proxy {
+            descriptor["source"] =
+                serde_json::to_value(project.project_path().await?.get_path_to(&this.path))?;
+        }
         let output_root = to_sys_path(node_root.clone())
             .await?
             .context("native Go output requires a disk filesystem")?;
@@ -1365,7 +1405,7 @@ impl Endpoint for GoRouteEndpoint {
         let descriptor_path = node_root.join(&format!("server/{entry}"))?;
         let executable_path = node_root.join(&format!("server/{executable}"))?;
         let trace = serde_json::json!({ "version": 1, "files": [descriptor_path.parent().get_path_to(&executable_path).context("native executable outside descriptor directory")?] });
-        let assets = vec![
+        let mut assets = vec![
             ResolvedVc::upcast(
                 VirtualOutputAsset::new(
                     node_root.join(&format!("server/{entry}.nft.json"))?,
@@ -1395,8 +1435,28 @@ impl Endpoint for GoRouteEndpoint {
                 .to_resolved()
                 .await?,
             ),
-            create_app_paths_manifest(node_root, &original_name, entry.into()).await?,
         ];
+        if is_proxy {
+            // This partial manifest lists Edge functions only. Like Node.js proxies,
+            // Go proxies emit an empty manifest so the manifest loader clears any
+            // previous Edge entry when the proxy changes runtime in development.
+            let middleware_manifest = MiddlewaresManifestV2::default();
+            assets.push(ResolvedVc::upcast(
+                VirtualOutputAsset::new(
+                    node_root.join("server/middleware/middleware-manifest.json")?,
+                    AssetContent::file(
+                        FileContent::Content(File::from(serde_json::to_string_pretty(
+                            &middleware_manifest,
+                        )?))
+                        .cell(),
+                    ),
+                )
+                .to_resolved()
+                .await?,
+            ));
+        } else {
+            assets.push(create_app_paths_manifest(node_root, &original_name, entry.into()).await?);
+        }
         // Validate again before these assets are offered to the output writer.
         ensure!(
             result.is_current().await?,
@@ -1433,7 +1493,7 @@ impl Endpoint for GoRouteEndpoint {
     }
     #[turbo_tasks::function]
     fn project(&self) -> Vc<Project> {
-        self.app_project.project()
+        *self.project
     }
     #[turbo_tasks::function]
     fn traced_files(self: Vc<Self>) -> Vc<FileSystemPathVec> {
@@ -2129,7 +2189,7 @@ impl AppEndpoint {
                             .as_ref()
                             .map(|region| Regions::Multiple(region.to_vec())),
                         matchers: vec![matchers],
-                        env: project.edge_env().owned().await?,
+                        env: project.edge_env().owned().await?.into_iter().collect(),
                     };
                     let middleware_manifest_v2 = MiddlewaresManifestV2 {
                         sorted_middleware: vec![app_entry.original_name.clone()],
@@ -2342,7 +2402,7 @@ impl AppEndpoint {
                                 let merged = chunk_group_info
                                     .get_shared_merged_chunk_group(
                                         entry_index,
-                                        NEXT_SERVER_UTILITY_MERGE_TAG,
+                                        NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
                                     )
                                     .await?;
                                 merged.as_ref().map(|group| group.chunk_group.key())

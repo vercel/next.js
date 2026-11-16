@@ -8,19 +8,18 @@ use std::{
     path::Path,
 };
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use mime::Mime;
-use serde_json::Value;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{NonLocalValue, OrderedJsonValue, ReadRef, ValueToString, Vc};
 use turbo_tasks_hash::{
     DeterministicHash, DeterministicHasher, HashAlgorithm, deterministic_hash, hash_xxh3_hash64,
 };
 
 use crate::{
-    DiskFileSystem, FileSystemEntryType, FileSystemPath, RealPathErrorType,
+    FileSystemEntryType, FileSystemPath, RealPathErrorType,
     json::UnparsableJson,
     retry::retry_blocking,
     rope::{Rope, RopeReader},
@@ -276,12 +275,10 @@ impl WriteLinkContent {
     /// stable across builds.
     pub async fn hash(&self, salt: &RcStr, algorithm: HashAlgorithm) -> Result<RcStr> {
         // convert the fs Vc (which is not stable across cold builds therefore cannot implement
-        // DeterministicHash) to the configured name, which should be globally unique and stable
-        // across cold builds.
-        let target_fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(self.target.fs)
-            .context("link target must use a disk filesystem")?
-            .await?;
-        let target_fs_name = target_fs.name();
+        // DeterministicHash) to its name, which should be globally unique and stable across cold
+        // builds. Only read the name: the whole filesystem may also contain location-dependent
+        // data, like the absolute root of a disk filesystem.
+        let target_fs_name = &*self.target.fs.to_string().await?;
 
         Ok(RcStr::from(deterministic_hash(
             salt,
@@ -518,7 +515,7 @@ impl FileContent {
                     },
                 ) {
                     Ok(data) => match data {
-                        Some(value) => FileJsonContent::Content(value),
+                        Some(value) => FileJsonContent::Content(value.into()),
                         None => FileJsonContent::unparsable(rcstr!(
                             "text content doesn't contain any json data"
                         )),
@@ -545,7 +542,7 @@ impl FileContent {
                     },
                 ) {
                     Ok(data) => match data {
-                        Some(value) => FileJsonContent::Content(value),
+                        Some(value) => FileJsonContent::Content(value.into()),
                         None => FileJsonContent::unparsable(rcstr!(
                             "text content doesn't contain any json data"
                         )),
@@ -660,7 +657,9 @@ impl FileContent {
 /// A file's content interpreted as a JSON value.
 #[turbo_tasks::value(shared, serialization = "skip")]
 pub enum FileJsonContent {
-    Content(Value),
+    /// Ordered: consumers read key order, e.g. `package.json` `exports` conditions are matched in
+    /// order.
+    Content(OrderedJsonValue),
     Unparsable(Box<UnparsableJson>),
     NotFound,
 }
@@ -684,7 +683,7 @@ impl ValueToString for FileJsonContent {
 #[turbo_tasks::value_impl]
 impl FileJsonContent {
     #[turbo_tasks::function]
-    pub async fn content(self: Vc<Self>) -> Result<Vc<Value>> {
+    pub async fn content(self: Vc<Self>) -> Result<Vc<OrderedJsonValue>> {
         match &*self.await? {
             FileJsonContent::Content(json) => Ok(Vc::cell(json.clone())),
             FileJsonContent::Unparsable(e) => bail!("File is not valid JSON: {}", e),

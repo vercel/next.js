@@ -1,6 +1,7 @@
 use std::{
     fmt::Debug,
     hash::{BuildHasher, BuildHasherDefault, Hash},
+    iter::FusedIterator,
     marker::PhantomData,
 };
 
@@ -10,13 +11,16 @@ use bincode::{
     enc::Encoder,
     error::{DecodeError, EncodeError},
 };
+use indexmap::{IndexMap, IndexSet};
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use shrink_to_fit::ShrinkToFit;
 
 use crate::{
     MAX_USEFUL_LINEAR_SCAN, RawAutoMap, TinyVec,
-    storage::{BackingListStorage, BackingMapIter, BackingMapStorage},
+    storage::{
+        BackingListStorage, BackingMapIter, BackingMapStorage, Equivalent, IndexedBackingMapStorage,
+    },
 };
 
 /// A set that stores small numbers of items in a linear list `L` and switches to a real map `M`
@@ -96,6 +100,14 @@ where
     M::Hasher: BuildHasher + Default,
     L: BackingListStorage<(K, ())>,
 {
+    /// Creates a set from items that are unique, e.g. the items of another set. See
+    /// [`RawAutoMap::from_unique_iterator`]: duplicate items are a logic error.
+    pub fn from_unique_iterator(iter: impl IntoIterator<Item = K>) -> Self {
+        Self {
+            map: RawAutoMap::from_unique_iterator(iter.into_iter().map(|item| (item, ()))),
+        }
+    }
+
     /// see [HashSet::insert](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.insert)
     #[inline]
     pub fn insert(&mut self, key: K) -> bool {
@@ -106,7 +118,10 @@ where
     ///
     /// Ordered storages preserve the order of the remaining items.
     #[inline]
-    pub fn remove(&mut self, key: &K) -> bool {
+    pub fn remove<Q>(&mut self, key: &Q) -> bool
+    where
+        Q: Hash + Equivalent<K> + ?Sized,
+    {
         self.map.remove(key).is_some()
     }
 
@@ -116,7 +131,10 @@ where
     /// This always swaps, also for ordered storages, so it's O(1) there but changes the order of
     /// the remaining items. For unordered storages it's the same as [`Self::remove`].
     #[inline]
-    pub fn swap_remove(&mut self, key: &K) -> bool {
+    pub fn swap_remove<Q>(&mut self, key: &Q) -> bool
+    where
+        Q: Hash + Equivalent<K> + ?Sized,
+    {
         self.map.swap_remove(key).is_some()
     }
 
@@ -137,7 +155,10 @@ where
     }
 
     /// see [HashSet::contains](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.contains)
-    pub fn contains(&self, key: &K) -> bool {
+    pub fn contains<Q>(&self, key: &Q) -> bool
+    where
+        Q: Hash + Equivalent<K> + ?Sized,
+    {
         self.map.contains_key(key)
     }
 
@@ -230,6 +251,16 @@ impl<MI: BackingMapIter<Item: SetEntry>> Iterator for Iter<MI> {
     }
 }
 
+impl<MI> ExactSizeIterator for Iter<MI> where
+    MI: BackingMapIter<Item: SetEntry, List: ExactSizeIterator> + ExactSizeIterator
+{
+}
+
+impl<MI> FusedIterator for Iter<MI> where
+    MI: BackingMapIter<Item: SetEntry, List: FusedIterator> + FusedIterator
+{
+}
+
 impl<MI: BackingMapIter<List: Clone> + Clone> Clone for Iter<MI> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
@@ -257,6 +288,20 @@ impl<K, LI: Iterator<Item = (K, ())>, MI: Iterator<Item = (K, ())>> Iterator for
     {
         self.0.fold(init, move |acc, (k, _)| f(acc, k))
     }
+}
+
+impl<K, LI, MI> ExactSizeIterator for IntoIter<LI, MI>
+where
+    LI: ExactSizeIterator<Item = (K, ())>,
+    MI: ExactSizeIterator<Item = (K, ())>,
+{
+}
+
+impl<K, LI, MI> FusedIterator for IntoIter<LI, MI>
+where
+    LI: FusedIterator<Item = (K, ())>,
+    MI: FusedIterator<Item = (K, ())>,
+{
 }
 
 impl<K, M, L> Serialize for RawAutoSet<K, M, L>
@@ -384,6 +429,66 @@ where
     }
 }
 
+/// Positional access for insertion ordered sets, like [`IndexSet`]'s. See
+/// [`RawAutoMap::get_index`].
+impl<K, M, L> RawAutoSet<K, M, L>
+where
+    M: IndexedBackingMapStorage<K, ()>,
+    L: BackingListStorage<(K, ())>,
+{
+    /// see [IndexSet::get_index](https://docs.rs/indexmap/latest/indexmap/set/struct.IndexSet.html#method.get_index)
+    pub fn get_index(&self, index: usize) -> Option<&K> {
+        self.map.get_index(index).map(|(k, _)| k)
+    }
+
+    /// see [IndexSet::get_index_of](https://docs.rs/indexmap/latest/indexmap/set/struct.IndexSet.html#method.get_index_of)
+    pub fn get_index_of<Q>(&self, key: &Q) -> Option<usize>
+    where
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
+        M::Hasher: BuildHasher,
+    {
+        self.map.get_index_of(key)
+    }
+}
+
+/// Converts an [`IndexSet`] keeping its order.
+impl<K, H, L> From<IndexSet<K, H>> for RawAutoSet<K, IndexMap<K, (), H>, L>
+where
+    K: Eq + Hash,
+    H: BuildHasher + Default,
+    L: BackingListStorage<(K, ())>,
+{
+    fn from(set: IndexSet<K, H>) -> Self {
+        Self::from_unique_iterator(set)
+    }
+}
+
+/// Converts a [`hashbrown::HashSet`].
+impl<K, H, L> From<hashbrown::HashSet<K, H>> for RawAutoSet<K, hashbrown::HashMap<K, (), H>, L>
+where
+    K: Eq + Hash,
+    H: BuildHasher + Default,
+    L: BackingListStorage<(K, ())>,
+{
+    fn from(set: hashbrown::HashSet<K, H>) -> Self {
+        Self::from_unique_iterator(set)
+    }
+}
+
+/// Converts a [`BTreeSet`](std::collections::BTreeSet). Ordered storages keep its order.
+impl<K, M, L> From<std::collections::BTreeSet<K>> for RawAutoSet<K, M, L>
+where
+    K: Eq + Hash,
+    M: BackingMapStorage<K, ()>,
+    M::Hasher: BuildHasher + Default,
+    L: BackingListStorage<(K, ())>,
+{
+    fn from(set: std::collections::BTreeSet<K>) -> Self {
+        Self::from_unique_iterator(set)
+    }
+}
+
 impl<K, M, L> FromIterator<K> for RawAutoSet<K, M, L>
 where
     K: Hash + Eq,
@@ -425,7 +530,33 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::MIN_HASH_SIZE;
+    use crate::{AutoSet, MIN_HASH_SIZE, OrderedAutoSet};
+
+    macro_rules! check_exact_size {
+        ($set:ty) => {
+            for n in [0, 5, 50] {
+                let set: $set = (0..n).collect();
+                fn check<I: ExactSizeIterator + FusedIterator>(mut iter: I, n: u32) {
+                    assert_eq!(iter.len(), n as usize);
+                    for remaining in (0..n as usize).rev() {
+                        assert!(iter.next().is_some());
+                        assert_eq!(iter.len(), remaining);
+                    }
+                    assert!(iter.next().is_none());
+                    assert!(iter.next().is_none());
+                }
+                check(set.iter(), n);
+                check((&set).into_iter(), n);
+                check(set.clone().into_iter(), n);
+            }
+        };
+    }
+
+    #[test]
+    fn iterators_exact_size_and_fused() {
+        check_exact_size!(AutoSet<u32>);
+        check_exact_size!(OrderedAutoSet<u32>);
+    }
 
     #[test]
     fn test_auto_set() {
@@ -650,5 +781,79 @@ mod tests {
         assert_eq!(size_of::<AutoSet<(NonZeroU32, u32), F, 3>>(), 32);
         assert_eq!(size_of::<Option<AutoSet<NonZeroU32>>>(), 24);
         assert_eq!(size_of::<OrderedAutoSet<NonZeroU32>>(), 16);
+    }
+
+    #[test]
+    fn test_ordered_auto_set_get_index() {
+        for n in [5usize, MAX_USEFUL_LINEAR_SCAN + 18] {
+            let mut set: OrderedAutoSet<usize> = (0..n).rev().collect();
+            for (index, key) in (0..n).rev().enumerate() {
+                assert_eq!(set.get_index(index), Some(&key));
+                assert_eq!(set.get_index_of(&key), Some(index));
+            }
+            assert_eq!(set.get_index(n), None);
+            assert_eq!(set.get_index_of(&n), None);
+            set.remove(&(n - 1));
+            assert_eq!(set.get_index(0), Some(&(n - 2)));
+            assert_eq!(set.get_index_of(&(n - 2)), Some(0));
+        }
+    }
+
+    #[test]
+    fn test_ordered_auto_set_from_index_set() {
+        type F = BuildHasherDefault<FxHasher>;
+        for n in [
+            0usize,
+            5,
+            MAX_USEFUL_LINEAR_SCAN,
+            MAX_USEFUL_LINEAR_SCAN + 1,
+            100,
+        ] {
+            let index_set: indexmap::IndexSet<usize, F> = (0..n).rev().collect();
+            let set: OrderedAutoSet<usize> = index_set.clone().into();
+            assert_eq!(set.len(), n);
+            assert_eq!(
+                set.iter().copied().collect::<Vec<_>>(),
+                (0..n).rev().collect::<Vec<_>>()
+            );
+            let collected: OrderedAutoSet<usize> = index_set.into_iter().collect();
+            assert_eq!(set, collected);
+        }
+    }
+
+    #[test]
+    fn test_from_unique_iterator_and_conversions() {
+        type F = BuildHasherDefault<FxHasher>;
+        for n in [
+            0usize,
+            5,
+            MAX_USEFUL_LINEAR_SCAN,
+            MAX_USEFUL_LINEAR_SCAN + 1,
+            100,
+        ] {
+            let ordered: OrderedAutoSet<usize> =
+                OrderedAutoSet::from_unique_iterator((0..n).rev().filter(|_| true));
+            assert_eq!(ordered.len(), n);
+            assert_eq!(
+                ordered.iter().copied().collect::<Vec<_>>(),
+                (0..n).rev().collect::<Vec<_>>()
+            );
+            let unordered: AutoSet<usize> = AutoSet::from_unique_iterator(0..n);
+            assert_eq!(unordered, (0..n).collect());
+
+            let hash_set: hashbrown::HashSet<usize, F> = (0..n).collect();
+            let from_hash_set: AutoSet<usize> = hash_set.into();
+            assert_eq!(from_hash_set, unordered);
+
+            let btree_set: std::collections::BTreeSet<usize> = (0..n).rev().collect();
+            let from_btree_ordered: OrderedAutoSet<usize> = btree_set.clone().into();
+            // The ordered set keeps the key order of the `BTreeSet`.
+            assert_eq!(
+                from_btree_ordered.iter().copied().collect::<Vec<_>>(),
+                (0..n).collect::<Vec<_>>()
+            );
+            let from_btree: AutoSet<usize> = btree_set.into();
+            assert_eq!(from_btree, unordered);
+        }
     }
 }

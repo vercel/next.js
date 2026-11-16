@@ -10,8 +10,8 @@ use tracing::Instrument;
 use turbo_bitset::Bitset;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    debug::ValueDebugFormat, turbofmt,
+    FxIndexMap, FxIndexSet, NonLocalValue, OrderedAutoSet, ReadRef, ResolvedVc, TryJoinIterExt,
+    ValueToString, Vc, debug::ValueDebugFormat, turbofmt,
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
@@ -140,9 +140,9 @@ pub struct ChunkGroupInfo {
     /// chunk groups would compare equal and keep the old order, while the bitsets in
     /// `module_chunk_groups` and the indices in `chunk_group_indices` use the new numbering.
     pub chunk_groups: Vec<ChunkGroup>,
+    /// The key of each chunk group, indexed like `chunk_groups`. Ordered for the same reason.
     #[turbo_tasks(unsafe_ignore)]
-    #[bincode(with = "turbo_bincode::indexset")]
-    pub chunk_group_keys: FxIndexSet<ChunkGroupKey>,
+    pub chunk_group_keys: OrderedAutoSet<ChunkGroupKey>,
     /// The same keys as `chunk_group_keys`, mapped to their index, in a keyed cell so a single
     /// index lookup does not depend on the whole `ChunkGroupInfo`. See [`ChunkGroupKeyToIndex`].
     pub chunk_group_indices: ResolvedVc<ChunkGroupKeyToIndex>,
@@ -630,7 +630,7 @@ impl ChunkGroupKey {
     /// Errors when the parent of a merged chunk group is not in `keys`. That happens when the
     /// key comes from a different (e.g. newer) [`ChunkGroupInfo`] than `keys`, which is transient
     /// with eventual consistency.
-    pub async fn ident_str(&self, keys: &FxIndexSet<ChunkGroupKey>) -> Result<String> {
+    pub async fn ident_str(&self, keys: &OrderedAutoSet<ChunkGroupKey>) -> Result<String> {
         Ok(match self {
             ChunkGroupKey::Entry(entries) => format!(
                 "Entry({:?})",
@@ -682,13 +682,16 @@ impl ChunkGroupKey {
     /// Delegates to [`Self::ident_str`], which already renders the chunk group unambiguously.
     /// Debug output is free to diverge from it, but note that `ident_str` must stay stable because
     /// asset idents are derived from it -- change this wrapper rather than `ident_str` itself.
-    pub async fn debug_str(&self, keys: &FxIndexSet<ChunkGroupKey>) -> Result<String> {
+    pub async fn debug_str(&self, keys: &OrderedAutoSet<ChunkGroupKey>) -> Result<String> {
         self.ident_str(keys).await
     }
 
     /// The parent key of a merged chunk group. `parent` can be out of range when the merged key
     /// comes from a different [`ChunkGroupInfo`] than `keys`, so this is an error, not a panic.
-    fn merged_parent(keys: &FxIndexSet<ChunkGroupKey>, parent: usize) -> Result<&ChunkGroupKey> {
+    fn merged_parent(
+        keys: &OrderedAutoSet<ChunkGroupKey>,
+        parent: usize,
+    ) -> Result<&ChunkGroupKey> {
         keys.get_index(parent).with_context(|| {
             format!(
                 "parent chunk group {parent} of a merged chunk group is not a known chunk group \
@@ -1073,7 +1076,10 @@ pub async fn compute_chunk_group_info(
 
             let mut result = vec![];
             result.push("Chunk Groups:".to_string());
-            let keys = chunk_groups_map.keys().cloned().collect::<FxIndexSet<_>>();
+            let keys = chunk_groups_map
+                .keys()
+                .cloned()
+                .collect::<OrderedAutoSet<_>>();
             for (i, key) in keys.iter().enumerate() {
                 result.push(format!("  {:?}: {}", i, key.debug_str(&keys).await?));
             }

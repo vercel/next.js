@@ -11,12 +11,17 @@
 //!   ([`BackingMapStorage::eq`]). Other map types can implement it too: all its iterator, entry and
 //!   extraction types are associated types, so [`RawAutoMap`](crate::RawAutoMap) doesn't depend on
 //!   the concrete map type. Their borrowed iterators also implement [`BackingMapIter`].
+//! * [`IndexedBackingMapStorage`] adds positional access (`get_index`, `get_index_of`) for
+//!   insertion ordered map storages. It is implemented for [`indexmap::IndexMap`].
 //! * [`BackingListStorage`] is implemented for [`TinyVec`], [`Vec`] and [`ArrayVec`]. A list holds
 //!   at most [`MAX_USEFUL_LINEAR_SCAN`] items. Other list types can implement it too.
+//!
+//! Key lookups take any `Q: Hash + `[`Equivalent`]`<K>`, like `hashbrown` and `indexmap` do. Every
+//! `Q` that `K` borrows as is equivalent to `K`.
 
 use std::{
-    borrow::Borrow,
     hash::{BuildHasher, Hash},
+    iter::FusedIterator,
     marker::PhantomData,
     ops::{Deref, DerefMut},
     ptr,
@@ -24,6 +29,8 @@ use std::{
 
 use arrayvec::ArrayVec;
 use hashbrown::{HashMap, hash_map as hashbrown_map};
+/// The key equivalence trait of `hashbrown` and `indexmap`, used by all key lookups.
+pub use indexmap::Equivalent;
 use indexmap::{IndexMap, map as indexmap_map, map::RawEntryApiV1};
 
 use crate::{
@@ -448,6 +455,45 @@ impl<T, L: sealed::ListBuffer<T>, P: ListPredicate<T>> Iterator for ListExtractI
     fn size_hint(&self) -> (usize, Option<usize>) {
         (0, Some(self.old_len - self.idx))
     }
+
+    // Same steps as `next`, but in one loop: the buffer pointer is read once, as nothing else
+    // can access the list while this iterator borrows it mutably.
+    #[inline]
+    fn fold<B, F>(mut self, init: B, mut f: F) -> B
+    where
+        F: FnMut(B, T) -> B,
+    {
+        let ptr = self.list.buffer_ptr();
+        let mut acc = init;
+        while self.idx < self.old_len {
+            let i = self.idx;
+            // Same invariant as in `next`.
+            // SAFETY: `i < old_len`, so the item at `i` is initialized and unvisited, and no
+            // other reference to it exists.
+            let item = unsafe { &mut *ptr.add(i) };
+            // If `test` panics, `idx` still points at the item, so it's kept by `drop`.
+            let extract = self.pred.test(item);
+            self.idx += 1;
+            if extract {
+                self.del += 1;
+                // SAFETY: the item is initialized. It's in the gap from now on, so it's never
+                // read again. `idx` and `del` are already updated, so if `f` panics, `drop`
+                // closes the gap correctly.
+                let item = unsafe { ptr::read(ptr.add(i)) };
+                acc = f(acc, item);
+            } else if self.del > 0 {
+                // SAFETY: see `next`.
+                unsafe { ptr::copy_nonoverlapping(ptr.add(i), ptr.add(i - self.del), 1) };
+            }
+        }
+        acc
+    }
+}
+
+// After returning `None`, `idx == old_len`, so it keeps returning `None`.
+impl<T, L: sealed::ListBuffer<T>, P: ListPredicate<T>> FusedIterator
+    for ListExtractIf<'_, T, L, P>
+{
 }
 
 impl<T, L: sealed::ListBuffer<T>, P> Drop for ListExtractIf<'_, T, L, P> {
@@ -559,15 +605,17 @@ pub trait BackingMapStorage<K, V>: Sized {
         K: Eq + Hash,
         Self::Hasher: BuildHasher;
     /// Removes `key`. Ordered storages preserve the order of the other entries.
-    fn remove(&mut self, key: &K) -> Option<V>
+    fn remove<Q>(&mut self, key: &Q) -> Option<V>
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         Self::Hasher: BuildHasher;
     /// Removes `key` by swapping the last entry into its place. This is O(1) for ordered storages
     /// too, but changes their order. Unordered storages remove the same way as [`Self::remove`].
-    fn swap_remove(&mut self, key: &K) -> Option<V>
+    fn swap_remove<Q>(&mut self, key: &Q) -> Option<V>
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         Self::Hasher: BuildHasher;
     fn extend(&mut self, iter: impl Iterator<Item = (K, V)>)
     where
@@ -575,16 +623,23 @@ pub trait BackingMapStorage<K, V>: Sized {
         Self::Hasher: BuildHasher;
     fn get<Q>(&self, key: &Q) -> Option<&V>
     where
-        K: Eq + Hash + Borrow<Q>,
-        Q: Hash + Eq + ?Sized,
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         Self::Hasher: BuildHasher;
-    fn get_mut(&mut self, key: &K) -> Option<&mut V>
+    fn get_key_value<Q>(&self, key: &Q) -> Option<(&K, &V)>
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         Self::Hasher: BuildHasher;
-    fn contains_key(&self, key: &K) -> bool
+    fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
+        Self::Hasher: BuildHasher;
+    fn contains_key<Q>(&self, key: &Q) -> bool
+    where
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         Self::Hasher: BuildHasher;
     fn shrink_to_fit(&mut self)
     where
@@ -626,8 +681,8 @@ pub trait BackingMapStorage<K, V>: Sized {
 
     fn raw_entry_mut<Q>(&mut self, key: &Q) -> MapEntry<Self::RawOccupied<'_>, Self::RawVacant<'_>>
     where
-        K: Eq + Hash + Borrow<Q>,
-        Q: Hash + Eq + ?Sized,
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         Self::Hasher: BuildHasher;
     fn raw_occupied_get_mut<'e, 'a>(entry: &'e mut Self::RawOccupied<'a>) -> &'e mut V
     where
@@ -656,6 +711,38 @@ pub trait BackingMapStorage<K, V>: Sized {
         K: Eq + Hash,
         V: PartialEq,
         Self::Hasher: BuildHasher;
+}
+
+/// A [`BackingMapStorage`] with positional access to its entries.
+///
+/// Only implemented by insertion ordered storages ([`BackingMapStorage::UNORDERED`] is `false`),
+/// so the index of an entry is its position in iteration order, in both the list and the map
+/// variant of a [`RawAutoMap`](crate::RawAutoMap).
+pub trait IndexedBackingMapStorage<K, V>: BackingMapStorage<K, V> {
+    /// The entry at position `index`, if `index < len`.
+    fn get_index(&self, index: usize) -> Option<(&K, &V)>;
+    /// The position of `key`, if it is in the map.
+    fn get_index_of<Q>(&self, key: &Q) -> Option<usize>
+    where
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
+        Self::Hasher: BuildHasher;
+}
+
+impl<K, V, H> IndexedBackingMapStorage<K, V> for IndexMap<K, V, H> {
+    #[inline]
+    fn get_index(&self, index: usize) -> Option<(&K, &V)> {
+        IndexMap::get_index(self, index)
+    }
+    #[inline]
+    fn get_index_of<Q>(&self, key: &Q) -> Option<usize>
+    where
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
+        H: BuildHasher,
+    {
+        IndexMap::get_index_of(self, key)
+    }
 }
 
 impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
@@ -784,17 +871,19 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
         HashMap::insert(self, key, value)
     }
     #[inline]
-    fn remove(&mut self, key: &K) -> Option<V>
+    fn remove<Q>(&mut self, key: &Q) -> Option<V>
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         HashMap::remove(self, key)
     }
     #[inline]
-    fn swap_remove(&mut self, key: &K) -> Option<V>
+    fn swap_remove<Q>(&mut self, key: &Q) -> Option<V>
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         HashMap::remove(self, key)
@@ -810,24 +899,35 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
     #[inline]
     fn get<Q>(&self, key: &Q) -> Option<&V>
     where
-        K: Eq + Hash + Borrow<Q>,
-        Q: Hash + Eq + ?Sized,
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         HashMap::get(self, key)
     }
     #[inline]
-    fn get_mut(&mut self, key: &K) -> Option<&mut V>
+    fn get_key_value<Q>(&self, key: &Q) -> Option<(&K, &V)>
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
+        H: BuildHasher,
+    {
+        HashMap::get_key_value(self, key)
+    }
+    #[inline]
+    fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
+    where
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         HashMap::get_mut(self, key)
     }
     #[inline]
-    fn contains_key(&self, key: &K) -> bool
+    fn contains_key<Q>(&self, key: &Q) -> bool
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         HashMap::contains_key(self, key)
@@ -899,8 +999,8 @@ impl<K, V, H> BackingMapStorage<K, V> for HashMap<K, V, H> {
     #[inline]
     fn raw_entry_mut<Q>(&mut self, key: &Q) -> MapEntry<Self::RawOccupied<'_>, Self::RawVacant<'_>>
     where
-        K: Eq + Hash + Borrow<Q>,
-        Q: Hash + Eq + ?Sized,
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         match HashMap::raw_entry_mut(self).from_key(key) {
@@ -1106,17 +1206,19 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
         IndexMap::insert(self, key, value)
     }
     #[inline]
-    fn remove(&mut self, key: &K) -> Option<V>
+    fn remove<Q>(&mut self, key: &Q) -> Option<V>
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         IndexMap::shift_remove(self, key)
     }
     #[inline]
-    fn swap_remove(&mut self, key: &K) -> Option<V>
+    fn swap_remove<Q>(&mut self, key: &Q) -> Option<V>
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         IndexMap::swap_remove(self, key)
@@ -1132,24 +1234,35 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
     #[inline]
     fn get<Q>(&self, key: &Q) -> Option<&V>
     where
-        K: Eq + Hash + Borrow<Q>,
-        Q: Hash + Eq + ?Sized,
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         IndexMap::get(self, key)
     }
     #[inline]
-    fn get_mut(&mut self, key: &K) -> Option<&mut V>
+    fn get_key_value<Q>(&self, key: &Q) -> Option<(&K, &V)>
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
+        H: BuildHasher,
+    {
+        IndexMap::get_key_value(self, key)
+    }
+    #[inline]
+    fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
+    where
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         IndexMap::get_mut(self, key)
     }
     #[inline]
-    fn contains_key(&self, key: &K) -> bool
+    fn contains_key<Q>(&self, key: &Q) -> bool
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         IndexMap::contains_key(self, key)
@@ -1245,8 +1358,8 @@ impl<K, V, H> BackingMapStorage<K, V> for IndexMap<K, V, H> {
     #[inline]
     fn raw_entry_mut<Q>(&mut self, key: &Q) -> MapEntry<Self::RawOccupied<'_>, Self::RawVacant<'_>>
     where
-        K: Eq + Hash + Borrow<Q>,
-        Q: Hash + Eq + ?Sized,
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         match self.raw_entry_mut_v1().from_key(key) {
@@ -1523,6 +1636,124 @@ mod tests {
         assert_eq!(&list[..], &[N]);
     }
 
+    /// `fold` extracts the same items as `next`, also after `next` was called, and a panic in
+    /// the predicate or the `fold` closure keeps the list consistent like an early drop.
+    fn check_extract_if_fold<L: BackingListStorage<Tracked>>() {
+        fn push(mut acc: Vec<Tracked>, t: Tracked) -> Vec<Tracked> {
+            acc.push(t);
+            acc
+        }
+
+        // Full `fold`.
+        let drops = Rc::new(RefCell::new(Vec::new()));
+        let mut list: L = make(N, &drops);
+        let mut visited = Vec::new();
+        let extracted = list
+            .extract_if(|t: &mut Tracked| {
+                visited.push(t.id);
+                t.id % 3 == 0
+            })
+            .fold(Vec::new(), push);
+        assert_eq!(visited, (0..N).collect::<Vec<_>>());
+        assert_eq!(
+            ids(&extracted),
+            (0..N).filter(|id| id % 3 == 0).collect::<Vec<_>>()
+        );
+        assert_eq!(
+            ids(&list),
+            (0..N).filter(|id| id % 3 != 0).collect::<Vec<_>>()
+        );
+        assert!(RefCell::borrow(&drops).is_empty());
+        drop(extracted);
+        drop(list);
+        assert_eq!(
+            sorted(RefCell::borrow(&drops).clone()),
+            (0..N).collect::<Vec<_>>()
+        );
+
+        // `next` first (leaving a gap), then `fold` the rest.
+        let drops = Rc::new(RefCell::new(Vec::new()));
+        let mut list: L = make(N, &drops);
+        let mut iter = list.extract_if(|t: &mut Tracked| t.id % 2 == 1);
+        let first = iter.next().unwrap();
+        assert_eq!(first.id, 1);
+        let rest = iter.fold(vec![first], push);
+        assert_eq!(
+            ids(&rest),
+            (0..N).filter(|id| id % 2 == 1).collect::<Vec<_>>()
+        );
+        assert_eq!(
+            ids(&list),
+            (0..N).filter(|id| id % 2 == 0).collect::<Vec<_>>()
+        );
+        drop(rest);
+        drop(list);
+        assert_eq!(
+            sorted(RefCell::borrow(&drops).clone()),
+            (0..N).collect::<Vec<_>>()
+        );
+
+        // A panic in the predicate during `fold`.
+        let drops = Rc::new(RefCell::new(Vec::new()));
+        let mut list: L = make(N, &drops);
+        let mut extracted = Vec::new();
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            list.extract_if(|t: &mut Tracked| {
+                if t.id == N / 2 {
+                    panic!("predicate panic");
+                }
+                t.id % 2 == 0
+            })
+            .fold((), |(), t| extracted.push(t))
+        }));
+        assert!(result.is_err());
+        let mut expected: Vec<u32> = (0..N / 2).filter(|id| id % 2 == 1).collect();
+        expected.extend(N / 2..N);
+        assert_eq!(ids(&list), expected);
+        assert_eq!(
+            ids(&extracted),
+            (0..N / 2).filter(|id| id % 2 == 0).collect::<Vec<_>>()
+        );
+        assert!(RefCell::borrow(&drops).is_empty());
+        drop(extracted);
+        drop(list);
+        assert_eq!(
+            sorted(RefCell::borrow(&drops).clone()),
+            (0..N).collect::<Vec<_>>()
+        );
+
+        // A panic in the `fold` closure: the item passed to it is dropped while unwinding, the
+        // unvisited items stay in order.
+        let drops = Rc::new(RefCell::new(Vec::new()));
+        let mut list: L = make(N, &drops);
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            list.extract_if(|t: &mut Tracked| t.id % 2 == 0)
+                .fold((), |(), t| {
+                    if t.id == 4 {
+                        panic!("fold panic");
+                    }
+                })
+        }));
+        assert!(result.is_err());
+        let mut expected = vec![1, 3];
+        expected.extend(5..N);
+        assert_eq!(ids(&list), expected);
+        assert_eq!(sorted(RefCell::borrow(&drops).clone()), vec![0, 2, 4]);
+        drop(list);
+        assert_eq!(
+            sorted(RefCell::borrow(&drops).clone()),
+            (0..N).collect::<Vec<_>>()
+        );
+
+        // Fused: `None` after the end.
+        let drops = Rc::new(RefCell::new(Vec::new()));
+        let mut list: L = make(N, &drops);
+        let mut iter = list.extract_if(|t: &mut Tracked| t.id == 0);
+        assert_eq!(iter.next().map(|t| t.id), Some(0));
+        assert!(iter.next().is_none());
+        assert!(iter.next().is_none());
+    }
+
     fn check_all<L: BackingListStorage<Tracked>>() {
         check_retain::<L>();
         check_swap_retain::<L>();
@@ -1530,6 +1761,7 @@ mod tests {
         check_retain_panic::<L>(true);
         check_extract_if::<L>();
         check_extract_if_panic::<L>();
+        check_extract_if_fold::<L>();
     }
 
     #[test]

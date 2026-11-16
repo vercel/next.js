@@ -798,6 +798,7 @@ export async function handleEntrypoints({
           // eslint-disable-next-line @next/internal/no-as-any
           match: null as any,
           page: '/',
+          runtime: 'edge',
           matchers: middlewareConfig.matchers,
         }
       }

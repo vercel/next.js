@@ -17,6 +17,11 @@ describe('Telemetry CLI', () => {
   const { next, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    env: {
+      // Keep preferences in this fixture's cache instead of sharing the user's
+      // global store with concurrent copies of this suite in the flake checks.
+      CI: '1',
+    },
   })
 
   it('can print telemetry status', async () => {
@@ -98,6 +103,45 @@ describe('Telemetry CLI', () => {
     // with a custom `.babelrc`, so the build can exceed the default 60s
     // per-test timeout.
     jest.setTimeout(180 * 1000)
+
+    it('honors CLI telemetry opt-out and opt-in during subsequent builds', async () => {
+      const log = path.join(next.testDir, 'telemetry-requests.log')
+      const env = {
+        // Exercise the separate CLI/build caches used by CI and Docker.
+        CI: '1',
+        NEXT_TELEMETRY_DISABLED: '',
+        NEXT_TELEMETRY_DEBUG: '',
+        NEXT_TEST_TELEMETRY_LOG: log,
+        NODE_OPTIONS: '--require ./capture-telemetry.cjs',
+      }
+
+      try {
+        const disabled = await next.runCommand(['telemetry', 'disable'], {
+          env,
+        })
+        expect(disabled.code).toBe(0)
+        expect(disabled.stdout).toContain('Status: Disabled')
+        await fs.remove(log)
+
+        const disabledBuild = await next.build({ env })
+        expect(disabledBuild.exitCode).toBe(0)
+        expect(await fs.pathExists(log)).toBe(false)
+
+        const enabled = await next.runCommand(['telemetry', 'enable'], { env })
+        expect(enabled.code).toBe(0)
+        expect(enabled.stdout).toContain('Status: Enabled')
+        await fs.remove(log)
+
+        const enabledBuild = await next.build({ env })
+        expect(enabledBuild.exitCode).toBe(0)
+        // This positive control also verifies the real delivery path was observed.
+        expect((await fs.readFile(log, 'utf8')).split('\n')).toContain(
+          'NEXT_BUILD_COMPLETED'
+        )
+      } finally {
+        await next.runCommand(['telemetry', 'enable'], { env })
+      }
+    })
 
     it('emits event when swc fails to load', async () => {
       await fs.remove(path.join(next.testDir, '.next'))

@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, bail};
 use turbo_bitset::Bitset;
-use turbo_tasks::{FixintU64, FxIndexSet, ResolvedVc, Vc};
+use turbo_tasks::{FixintU64, OrderedAutoSet, ResolvedVc, Vc};
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
 use crate::module_graph::{
@@ -205,8 +205,8 @@ fn hash_chunk_group_ident_hashes(mut hashes: Vec<u64>) -> u64 {
 /// Merged chunk group keys identify their parent by index, so the parent is translated first and a
 /// merged group whose parent is unknown to `to` is dropped along with it.
 fn translate_chunk_group(
-    from: &FxIndexSet<ChunkGroupKey>,
-    to: &FxIndexSet<ChunkGroupKey>,
+    from: &OrderedAutoSet<ChunkGroupKey>,
+    to: &OrderedAutoSet<ChunkGroupKey>,
     id: u32,
 ) -> Option<u32> {
     let key = from.get_index(id as usize)?;
@@ -227,7 +227,7 @@ fn translate_chunk_group(
 #[cfg(test)]
 mod tests {
     use turbo_rcstr::rcstr;
-    use turbo_tasks::FxIndexSet;
+    use turbo_tasks::OrderedAutoSet;
 
     use crate::{
         chunk::available_chunk_groups::{hash_chunk_group_ident_hashes, translate_chunk_group},
@@ -252,11 +252,13 @@ mod tests {
     ///
     /// Hashes the keys the way `ChunkGroupInfo::chunk_group_ident_hashes` does. Every key here is
     /// module-free, so rendering resolves no module idents and needs no turbo-tasks context.
-    async fn hash_of(keys: &FxIndexSet<ChunkGroupKey>, ids: &[u32]) -> u64 {
+    async fn hash_of(keys: &OrderedAutoSet<ChunkGroupKey>, ids: &[u32]) -> u64 {
         let mut hashes = Vec::new();
         for &id in ids {
             hashes.push(chunk_group_ident_hash(
-                &keys[id as usize]
+                &keys
+                    .get_index(id as usize)
+                    .unwrap()
                     .ident_str(keys)
                     .await
                     .expect("rendering a chunk group without modules cannot fail"),
@@ -268,11 +270,11 @@ mod tests {
     #[test]
     fn translates_chunk_groups_by_key_not_by_index() {
         // The same chunk groups, but discovered in a different order, so the indices differ.
-        let from = FxIndexSet::from_iter([
+        let from = OrderedAutoSet::from_iter([
             ChunkGroupKey::Entry(vec![]),
             ChunkGroupKey::SharedMultiple(vec![]),
         ]);
-        let to = FxIndexSet::from_iter([
+        let to = OrderedAutoSet::from_iter([
             ChunkGroupKey::SharedMultiple(vec![]),
             ChunkGroupKey::Entry(vec![]),
         ]);
@@ -283,8 +285,9 @@ mod tests {
 
     #[test]
     fn translates_a_merged_group_parent_too() {
-        let from = FxIndexSet::from_iter([ChunkGroupKey::Entry(vec![]), isolated_merged(0, "x")]);
-        let to = FxIndexSet::from_iter([
+        let from =
+            OrderedAutoSet::from_iter([ChunkGroupKey::Entry(vec![]), isolated_merged(0, "x")]);
+        let to = OrderedAutoSet::from_iter([
             ChunkGroupKey::SharedMultiple(vec![]),
             ChunkGroupKey::Entry(vec![]),
             isolated_merged(1, "x"),
@@ -297,13 +300,13 @@ mod tests {
 
     #[test]
     fn drops_chunk_groups_the_target_graph_does_not_have() {
-        let from = FxIndexSet::from_iter([
+        let from = OrderedAutoSet::from_iter([
             ChunkGroupKey::Entry(vec![]),
             ChunkGroupKey::SharedMultiple(vec![]),
             isolated_merged(0, "x"),
             isolated_merged(1, "y"),
         ]);
-        let to = FxIndexSet::from_iter([ChunkGroupKey::Entry(vec![]), isolated_merged(0, "x")]);
+        let to = OrderedAutoSet::from_iter([ChunkGroupKey::Entry(vec![]), isolated_merged(0, "x")]);
 
         // Unknown group.
         assert_eq!(translate_chunk_group(&from, &to, 1), None);
@@ -317,11 +320,11 @@ mod tests {
 
     #[test]
     fn rcstr_merge_tags_compare_by_value() {
-        let from = FxIndexSet::from_iter([
+        let from = OrderedAutoSet::from_iter([
             ChunkGroupKey::Entry(vec![]),
             isolated_merged(0, rcstr!("x").as_str()),
         ]);
-        let to = FxIndexSet::from_iter([ChunkGroupKey::Entry(vec![]), isolated_merged(0, "x")]);
+        let to = OrderedAutoSet::from_iter([ChunkGroupKey::Entry(vec![]), isolated_merged(0, "x")]);
 
         assert_eq!(translate_chunk_group(&from, &to, 1), Some(1));
     }
@@ -330,12 +333,12 @@ mod tests {
     async fn hash_does_not_depend_on_chunk_group_order() {
         // The same chunk groups, discovered in a different order by each graph, so the same
         // availability is a *different* set of indices in each: {0,2} here, {2,1} there.
-        let one = FxIndexSet::from_iter([
+        let one = OrderedAutoSet::from_iter([
             ChunkGroupKey::Entry(vec![]),
             ChunkGroupKey::SharedMultiple(vec![]),
             isolated_merged(0, "x"),
         ]);
-        let other = FxIndexSet::from_iter([
+        let other = OrderedAutoSet::from_iter([
             ChunkGroupKey::SharedMultiple(vec![]),
             isolated_merged(2, "x"),
             ChunkGroupKey::Entry(vec![]),
@@ -355,11 +358,11 @@ mod tests {
         // This is the collision that motivated hashing identities: when a consumer builds more
         // than one module graph, the same index denotes an unrelated chunk group in each, so
         // hashing the bitmap made two different availabilities claim one output path.
-        let one = FxIndexSet::from_iter([
+        let one = OrderedAutoSet::from_iter([
             ChunkGroupKey::Entry(vec![]),
             ChunkGroupKey::SharedMultiple(vec![]),
         ]);
-        let other = FxIndexSet::from_iter([
+        let other = OrderedAutoSet::from_iter([
             ChunkGroupKey::SharedMultiple(vec![]),
             ChunkGroupKey::Entry(vec![]),
         ]);
@@ -374,7 +377,7 @@ mod tests {
 
     #[tokio::test]
     async fn hash_distinguishes_different_chunk_groups() {
-        let keys = FxIndexSet::from_iter([
+        let keys = OrderedAutoSet::from_iter([
             ChunkGroupKey::Entry(vec![]),
             ChunkGroupKey::SharedMultiple(vec![]),
             isolated_merged(0, "x"),
@@ -391,8 +394,10 @@ mod tests {
     async fn merged_chunk_group_with_unknown_parent_is_an_error() {
         // A key can carry a parent index from another (e.g. newer) `ChunkGroupInfo` than `keys`.
         for key in [isolated_merged(1, "x"), shared_merged(1, "x")] {
-            let keys = FxIndexSet::from_iter([key]);
-            let error = keys[0]
+            let keys = OrderedAutoSet::from_iter([key]);
+            let error = keys
+                .get_index(0)
+                .unwrap()
                 .ident_str(&keys)
                 .await
                 .expect_err("an unknown merged parent must be reported as an error");
@@ -410,8 +415,9 @@ mod tests {
     async fn hash_never_contains_a_chunk_group_index() {
         // A merged group identifies its parent by index. Two graphs that agree on the groups but
         // not on their order must still render the parent identically.
-        let one = FxIndexSet::from_iter([ChunkGroupKey::Entry(vec![]), isolated_merged(0, "x")]);
-        let other = FxIndexSet::from_iter([
+        let one =
+            OrderedAutoSet::from_iter([ChunkGroupKey::Entry(vec![]), isolated_merged(0, "x")]);
+        let other = OrderedAutoSet::from_iter([
             ChunkGroupKey::SharedMultiple(vec![]),
             ChunkGroupKey::Entry(vec![]),
             isolated_merged(1, "x"),

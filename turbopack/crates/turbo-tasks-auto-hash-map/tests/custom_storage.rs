@@ -3,7 +3,6 @@
 //! `hashbrown::HashMap` and `indexmap::IndexMap`.
 
 use std::{
-    borrow::Borrow,
     cell::{Cell, RefCell},
     hash::{BuildHasher, BuildHasherDefault, Hash},
     ops::{Deref, DerefMut},
@@ -11,8 +10,8 @@ use std::{
 };
 
 use auto_hash_map::{
-    BackingListStorage, BackingMapIter, BackingMapStorage, MAX_USEFUL_LINEAR_SCAN, RawAutoMap,
-    RawAutoSet, TinyVec,
+    BackingListStorage, BackingMapIter, BackingMapStorage, Equivalent, MAX_USEFUL_LINEAR_SCAN,
+    RawAutoMap, RawAutoSet, TinyVec,
     map::{ListIter, ListIterMut, ListValues, ListValuesMut},
     storage::{ListPredicate, MapEntry},
 };
@@ -31,13 +30,12 @@ pub struct LinearMap<K, V, H> {
     _hasher: H,
 }
 
-impl<K: Eq, V, H> LinearMap<K, V, H> {
+impl<K, V, H> LinearMap<K, V, H> {
     fn position<Q>(&self, key: &Q) -> Option<usize>
     where
-        K: Borrow<Q>,
-        Q: Eq + ?Sized,
+        Q: Equivalent<K> + ?Sized,
     {
-        self.entries.iter().position(|(k, _)| k.borrow() == key)
+        self.entries.iter().position(|(k, _)| key.equivalent(k))
     }
 }
 
@@ -257,17 +255,19 @@ impl<K, V, H> BackingMapStorage<K, V> for LinearMap<K, V, H> {
             }
         }
     }
-    fn remove(&mut self, key: &K) -> Option<V>
+    fn remove<Q>(&mut self, key: &Q) -> Option<V>
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         let index = self.position(key)?;
         Some(self.entries.swap_remove(index).1)
     }
-    fn swap_remove(&mut self, key: &K) -> Option<V>
+    fn swap_remove<Q>(&mut self, key: &Q) -> Option<V>
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         self.remove(key)
@@ -283,23 +283,36 @@ impl<K, V, H> BackingMapStorage<K, V> for LinearMap<K, V, H> {
     }
     fn get<Q>(&self, key: &Q) -> Option<&V>
     where
-        K: Eq + Hash + Borrow<Q>,
-        Q: Hash + Eq + ?Sized,
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         self.position(key).map(|index| &self.entries[index].1)
     }
-    fn get_mut(&mut self, key: &K) -> Option<&mut V>
+    fn get_key_value<Q>(&self, key: &Q) -> Option<(&K, &V)>
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
+        H: BuildHasher,
+    {
+        self.position(key).map(|index| {
+            let (k, v) = &self.entries[index];
+            (k, v)
+        })
+    }
+    fn get_mut<Q>(&mut self, key: &Q) -> Option<&mut V>
+    where
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         let index = self.position(key)?;
         Some(&mut self.entries[index].1)
     }
-    fn contains_key(&self, key: &K) -> bool
+    fn contains_key<Q>(&self, key: &Q) -> bool
     where
         K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         self.position(key).is_some()
@@ -375,8 +388,8 @@ impl<K, V, H> BackingMapStorage<K, V> for LinearMap<K, V, H> {
 
     fn raw_entry_mut<Q>(&mut self, key: &Q) -> MapEntry<Self::RawOccupied<'_>, Self::RawVacant<'_>>
     where
-        K: Eq + Hash + Borrow<Q>,
-        Q: Hash + Eq + ?Sized,
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
         H: BuildHasher,
     {
         match self.position(key) {

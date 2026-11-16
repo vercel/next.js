@@ -620,11 +620,17 @@ impl MetaFile {
     /// position is added to `resolved`, `resolved_count` is incremented and `on_found` is called
     /// with the position of the cell and the value. `resolved_count` must be the number of
     /// positions in `resolved`.
+    ///
+    /// `is_last` must be set for the last (oldest) SST file that can contain the keys. Then
+    /// `on_miss` is called with the position of every cell that is still unresolved after this
+    /// file: cells outside `range` are reported without a lookup. Otherwise `on_miss` is never
+    /// called, since an older file may still contain the key.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn batch_lookup_entry<K: QueryKey>(
         &self,
         entry_index: u32,
         range: &StaticSortedFileRange,
+        is_last: bool,
         keys: &[K],
         cells: &[(u64, u32)],
         resolved: &mut BatchGetResolved,
@@ -632,6 +638,7 @@ impl MetaFile {
         key_block_cache: &BlockCache,
         value_block_cache: &BlockCache,
         mut on_found: impl FnMut(usize, LookupValue) -> Result<()>,
+        mut on_miss: impl FnMut(usize) -> Result<()>,
     ) -> Result<MetaBatchLookupResult> {
         debug_assert!(
             cells.is_sorted_by_key(|(hash, _)| *hash),
@@ -640,7 +647,9 @@ impl MetaFile {
         #[allow(unused_mut, reason = "It's used when stats are enabled")]
         let mut lookup_result = MetaBatchLookupResult::default();
         let start_index = cells.partition_point(|&(hash, _)| hash < range.min_hash);
-        if start_index >= cells.len() {
+        if !is_last && start_index >= cells.len() {
+            // Every key hash is below the range: skip computing `end_index`. The last file can't
+            // return early, since it still has to report the misses.
             #[cfg(feature = "stats")]
             {
                 lookup_result.range_misses += 1;
@@ -653,21 +662,38 @@ impl MetaFile {
             {
                 lookup_result.range_misses += 1;
             }
-            return Ok(lookup_result);
+            if !is_last {
+                return Ok(lookup_result);
+            }
         }
+        // The last file reports every unresolved cell, so it walks all of them; other files only
+        // walk the cells in their range.
+        let (walk_start, walk_end) = if is_last {
+            (0, cells.len())
+        } else {
+            (start_index, end_index)
+        };
         let entry = &self.entries[entry_index as usize];
-        for (position, &(hash, index)) in cells.iter().enumerate().take(end_index).skip(start_index)
-        {
-            debug_assert!(range.contains(hash), "Key hash out of range");
+        for (position, &(hash, index)) in cells.iter().enumerate().take(walk_end).skip(walk_start) {
             // `batch_get` has at most `u32::MAX` keys, so positions fit in a `u32`.
             let bit = position as u32;
             if resolved.contains(bit) {
                 continue;
             }
+            if position < start_index || position >= end_index {
+                // Only reachable for the last file: the key is outside its range.
+                debug_assert!(is_last && !range.contains(hash));
+                on_miss(position)?;
+                continue;
+            }
+            debug_assert!(range.contains(hash), "Key hash out of range");
             if !entry.amqf.contains_fingerprint(hash) {
                 #[cfg(feature = "stats")]
                 {
                     lookup_result.quick_filter_misses += 1;
+                }
+                if is_last {
+                    on_miss(position)?;
                 }
                 continue;
             }
@@ -698,6 +724,9 @@ impl MetaFile {
                 #[cfg(feature = "stats")]
                 {
                     lookup_result.sst_misses += 1;
+                }
+                if is_last {
+                    on_miss(position)?;
                 }
             }
         }
