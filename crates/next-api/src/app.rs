@@ -75,7 +75,7 @@ use turbopack_core::{
 use turbopack_ecmascript::single_file_ecmascript_output::SingleFileEcmascriptOutput;
 use turbopack_go::{
     GoBuildOutcome, GoBuildSession, GoSessionPool, GoSourceSelection, GoToolchainOptions,
-    go_bundle_from_sources, go_declarations, go_source_set,
+    go_declarations, go_package_bundle_from_sources, go_source_set,
 };
 use turbopack_resolve::{ecmascript::cjs_resolve, resolve_options_context::ResolveOptionsContext};
 
@@ -1196,6 +1196,32 @@ async fn managed_session(
     Ok(*owner.await?.session(scope, options, None, watch).await?)
 }
 
+/// Virtual directory of the generated `main` package, relative to the Go module root.
+const GO_ENTRYPOINT_DIRECTORY: &str = "_next_go/main";
+/// Module path for route directories that have no go.mod.
+const GO_STANDALONE_MODULE: &str = "next-go-route";
+
+/// Virtual, module-relative package directory for a route or proxy directory. The name is a
+/// valid import path element, readable in stack traces, and unique per source directory.
+fn go_package_alias(source_directory: &str, is_proxy: bool) -> String {
+    let mut name = String::new();
+    for ch in source_directory.chars() {
+        if ch.is_ascii_alphanumeric() {
+            name.push(ch);
+        } else if !name.is_empty() && !name.ends_with('_') {
+            name.push('_');
+        }
+    }
+    let name = name.trim_end_matches('_');
+    let kind = if is_proxy { "proxy" } else { "route" };
+    let hash = turbo_tasks_hash::hash_xxh3_hash64(source_directory) as u32;
+    if name.is_empty() {
+        format!("_next_go/{kind}_{hash:08x}")
+    } else {
+        format!("_next_go/{kind}_{name}_{hash:08x}")
+    }
+}
+
 #[turbo_tasks::value]
 struct GoRouteIssue {
     path: FileSystemPath,
@@ -1299,6 +1325,37 @@ impl Endpoint for GoEndpoint {
             .cell());
         }
         let analysis = go_declarations(*sources, session).await?;
+        // Next.js owns the program entrypoint. It imports the route directory as an ordinary
+        // package, so that directory cannot be a program itself.
+        if analysis.packages.iter().any(|name| name == "main") {
+            let (file, suggestion) = if is_proxy {
+                ("proxy.go", "proxy")
+            } else {
+                ("route.go", "route")
+            };
+            GoRouteIssue {
+                path: this.path.clone(),
+                message: format!(
+                    "{file} must not use `package main`. Next.js generates the program entrypoint \
+                     and imports this directory as a package. Rename the package in every .go \
+                     file in this directory, for example to `package {suggestion}`."
+                )
+                .into(),
+            }
+            .resolved_cell()
+            .emit();
+            return Ok(EndpointOutput {
+                project,
+                output_assets: OutputAssets::empty().to_resolved().await?,
+                output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
+            }
+            .cell());
+        }
+        // Files that disagree are reported by the compiler.
+        let package = analysis
+            .packages
+            .first()
+            .map_or("route", |name| name.as_str());
         if is_proxy {
             ensure!(
                 analysis.functions.iter().any(|name| name == "Proxy"),
@@ -1316,6 +1373,7 @@ impl Endpoint for GoEndpoint {
             .collect::<Vec<_>>()
             .join("\n");
         let dispatch = include_str!("templates/go_route_dispatch.go")
+            .replace("__NEXT_GO_PACKAGE__", package)
             .replace("\t// __NEXT_GO_ROUTE_METHODS__", &declarations);
         let (original_name, pathname) = match &this.kind {
             GoEndpointKind::Route { page } => {
@@ -1332,41 +1390,57 @@ impl Endpoint for GoEndpoint {
                 "\"__NEXT_GO_ROUTE_PATTERN__\"",
                 &serde_json::to_string(&route_pattern)?,
             )
+        }
+        .replace("__NEXT_GO_PACKAGE__", package);
+        // The route directory is overlaid at a virtual directory with a valid import path, since
+        // segments such as `[id]` or `(group)` are not. Nothing is written to the project.
+        let source_directory = if module_root == directory {
+            ""
+        } else {
+            module_root
+                .get_path_to(&directory)
+                .context("Go route outside module")?
+        };
+        let alias = go_package_alias(source_directory, is_proxy);
+        let mut generated = BTreeMap::new();
+        let import_path = match &source_set.module_path {
+            Some(module_path) => format!("{module_path}/{alias}"),
+            None => {
+                // A directory without go.mod gets a module so the entrypoint can import it.
+                generated.insert(
+                    rcstr!("go.mod"),
+                    RcStr::from(format!("module {GO_STANDALONE_MODULE}\n\ngo 1.24\n")),
+                );
+                format!("{GO_STANDALONE_MODULE}/{alias}")
+            }
         };
         // All executables extract parameters from the selected destination URL.
         // Only the entrypoint's listener, authentication and process lifetime differ.
         let wrapper = if is_adapter_build(project).await? {
-            include_str!("templates/go_route_adapter_main.go").to_owned()
+            include_str!("templates/go_route_adapter_main.go")
         } else {
-            include_str!("templates/go_route_main.go").to_owned()
-        };
-        let generated_path = directory.join("zz_next_route_main.go")?;
-        let dispatch_path = directory.join("zz_next_route_dispatch.go")?;
-        let handler_path = directory.join("zz_next_route_handler.go")?;
-        let generated = BTreeMap::from([
+            include_str!("templates/go_route_main.go")
+        }
+        .replace(
+            "\"__NEXT_GO_ROUTE_IMPORT__\"",
+            &serde_json::to_string(&import_path)?,
+        );
+        generated.extend([
             (
-                module_root
-                    .get_path_to(&handler_path)
-                    .context("Go handler outside module")?
-                    .into(),
+                RcStr::from(format!("{alias}/zz_next_route_handler.go")),
                 RcStr::from(handler),
             ),
             (
-                module_root
-                    .get_path_to(&generated_path)
-                    .context("Go wrapper outside module")?
-                    .into(),
-                RcStr::from(wrapper),
-            ),
-            (
-                module_root
-                    .get_path_to(&dispatch_path)
-                    .context("Go dispatch outside module")?
-                    .into(),
+                RcStr::from(format!("{alias}/zz_next_route_dispatch.go")),
                 RcStr::from(dispatch),
             ),
+            (
+                RcStr::from(format!("{GO_ENTRYPOINT_DIRECTORY}/main.go")),
+                RcStr::from(wrapper),
+            ),
         ]);
-        let result = go_bundle_from_sources(*sources, session, generated).await?;
+        let result =
+            go_package_bundle_from_sources(*sources, session, alias.into(), generated).await?;
         ensure!(
             result.is_current().await?,
             "Go route inputs changed during compilation; retry the request"
