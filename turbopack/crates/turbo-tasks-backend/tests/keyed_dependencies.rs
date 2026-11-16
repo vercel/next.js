@@ -36,6 +36,8 @@ struct Inputs {
     unread: State<u32>,
     /// Readers read keys `(shift % 2) * m .. (shift % 2) * m + m`.
     shift: State<u32>,
+    /// Whether `maybe_readers` executes the readers at all.
+    enabled: State<bool>,
 }
 
 #[turbo_tasks::function(operation, root)]
@@ -46,6 +48,7 @@ fn create_inputs(test: u32) -> Vc<Inputs> {
         one: State::new(0),
         unread: State::new(0),
         shift: State::new(0),
+        enabled: State::new(true),
     }
     .cell()
 }
@@ -118,12 +121,41 @@ async fn readers(
     m: u32,
     mode: u8,
 ) -> Result<Vc<u64>> {
+    Ok(readers_sum(*inputs, test, n, m, mode))
+}
+
+#[turbo_tasks::function]
+async fn readers_sum(
+    inputs: ResolvedVc<Inputs>,
+    test: u32,
+    n: u32,
+    m: u32,
+    mode: u8,
+) -> Result<Vc<u64>> {
     let map = make_map(*inputs, m).to_resolved().await?;
     let sums = (0..n)
         .map(|index| reader(*map, *inputs, test, index, m, mode))
         .try_join()
         .await?;
     Ok(Vc::cell(sums.iter().map(|sum| **sum).sum()))
+}
+
+/// Like `readers`, but only executes the readers while `enabled` is set. The map is always
+/// computed (it stays in the graph when the readers leave it).
+#[turbo_tasks::function(operation, root)]
+async fn maybe_readers(
+    inputs: ResolvedVc<Inputs>,
+    test: u32,
+    n: u32,
+    m: u32,
+    mode: u8,
+) -> Result<Vc<u64>> {
+    let len = make_map(*inputs, m).await?.len() as u64;
+    if *inputs.await?.enabled.get() {
+        Ok(readers_sum(*inputs, test, n, m, mode))
+    } else {
+        Ok(Vc::cell(len))
+    }
 }
 
 /// The sum `readers` returns for the given input values (`one == 0`).
@@ -289,4 +321,140 @@ async fn keyed_reader_reexecution_reuses_edges() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn keyed_get_reexecution_reuses_edges() {
     check_reexecution_reuses_edges(3, Mode::Get, "keyed_get_reexecution_reuses_edges").await;
+}
+
+/// Readers switch to a different key range, so all their old keyed dependency edges are cleaned
+/// up and replaced. Afterwards they depend on exactly the new keys.
+async fn check_key_switch_cleans_up_edges(test: u32, mode: Mode, name: &str) {
+    let (n, m) = (16, 32);
+    let (tt, _dir) = create_tt_with_workers(name, 4);
+    let tt2 = tt.clone();
+    turbo_tasks::run_once(tt.clone(), async move {
+        let inputs_op = create_inputs(test);
+        let inputs_vc = inputs_op.resolve().strongly_consistent().await?;
+        let inputs = inputs_op.read_strongly_consistent().await?;
+        let root = readers(inputs_vc, test, n, m, mode as u8);
+        assert_eq!(
+            *root.read_strongly_consistent().await?,
+            expected(n, m, 0, 0)
+        );
+        let owner = TaskId::try_from(*map_task_id(inputs_vc, m).read_strongly_consistent().await?)?;
+        let edges = (n * m) as usize;
+
+        for shift in 1..=3 {
+            let before = executions(test);
+            inputs.shift.set(shift);
+            assert_eq!(
+                *root.read_strongly_consistent().await?,
+                expected(n, m, 0, shift)
+            );
+            assert_eq!(executions(test) - before, n as u64);
+            // The old edges are gone, only the new ones remain.
+            assert_eq!(
+                tt2.backend()
+                    .keyed_cell_dependents_count_for_testing(owner, &tt2),
+                edges
+            );
+        }
+
+        // Key 0 is no longer read (`shift` is odd).
+        let before = executions(test);
+        inputs.one.set(7);
+        assert_eq!(
+            *root.read_strongly_consistent().await?,
+            expected(n, m, 0, 3)
+        );
+        assert_eq!(executions(test) - before, 0);
+
+        // The new keys are read.
+        let before = executions(test);
+        inputs.values.set(5);
+        assert_eq!(
+            *root.read_strongly_consistent().await?,
+            expected(n, m, 5, 3)
+        );
+        assert_eq!(executions(test) - before, n as u64);
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap();
+    tt.stop_and_wait().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn keyed_reader_key_switch_cleans_up_edges() {
+    check_key_switch_cleans_up_edges(
+        4,
+        Mode::KeyedReader,
+        "keyed_reader_key_switch_cleans_up_edges",
+    )
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn keyed_get_key_switch_cleans_up_edges() {
+    check_key_switch_cleans_up_edges(5, Mode::Get, "keyed_get_key_switch_cleans_up_edges").await;
+}
+
+/// Readers leave the graph and are collected by the GC while the cell's owner stays. Collecting
+/// them removes their keyed dependency edges from the owner, and changing the formerly read keys
+/// afterwards doesn't touch (or execute) them.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn keyed_readers_collected_by_gc_remove_their_edges() {
+    const TEST: u32 = 6;
+    let (n, m) = (16, 32);
+    let (tt, _dir) = create_tt_with_workers("keyed_readers_collected_by_gc_remove_their_edges", 4);
+    let tt2 = tt.clone();
+    let owner = turbo_tasks::run_once(tt.clone(), async move {
+        let inputs_op = create_inputs(TEST);
+        let inputs_vc = inputs_op.resolve().strongly_consistent().await?;
+        let inputs = inputs_op.read_strongly_consistent().await?;
+        let root = maybe_readers(inputs_vc, TEST, n, m, Mode::KeyedReader as u8);
+        assert_eq!(
+            *root.read_strongly_consistent().await?,
+            expected(n, m, 0, 0)
+        );
+        let owner = TaskId::try_from(*map_task_id(inputs_vc, m).read_strongly_consistent().await?)?;
+        assert_eq!(
+            tt2.backend()
+                .keyed_cell_dependents_count_for_testing(owner, &tt2),
+            (n * m) as usize
+        );
+        // The readers leave the graph.
+        inputs.enabled.set(false);
+        assert_eq!(*root.read_strongly_consistent().await?, (2 * m + 1) as u64);
+        anyhow::Ok(owner)
+    })
+    .await
+    .unwrap();
+
+    let collected = tt.backend().gc_for_testing(&tt);
+    assert!(collected >= n as usize, "collected {collected} tasks");
+    assert_eq!(
+        tt.backend()
+            .keyed_cell_dependents_count_for_testing(owner, &tt),
+        0
+    );
+
+    let tt2 = tt.clone();
+    turbo_tasks::run_once(tt.clone(), async move {
+        let inputs_op = create_inputs(TEST);
+        let inputs_vc = inputs_op.resolve().strongly_consistent().await?;
+        let inputs = inputs_op.read_strongly_consistent().await?;
+        let before = executions(TEST);
+        inputs.one.set(7);
+        inputs.values.set(3);
+        let root = maybe_readers(inputs_vc, TEST, n, m, Mode::KeyedReader as u8);
+        assert_eq!(*root.read_strongly_consistent().await?, (2 * m + 1) as u64);
+        assert_eq!(executions(TEST) - before, 0);
+        assert_eq!(
+            tt2.backend()
+                .keyed_cell_dependents_count_for_testing(owner, &tt2),
+            0
+        );
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap();
+    tt.stop_and_wait().await;
 }
