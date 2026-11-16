@@ -983,7 +983,12 @@ impl EvaluateContext for WebpackLoaderContext {
                 let lookup_path = loader_path(&self.cwd, &lookup_path).await?;
 
                 let request_vc = Request::parse(Pattern::Constant(request.clone()));
-                let origin = PlainResolveOrigin::new(*self.asset_context, lookup_path.join("_")?);
+                // The loader evaluates the module graph in a separate process that can't activate
+                // lazily compiled dynamic imports, so they have to be compiled eagerly.
+                let origin = PlainResolveOrigin::new(
+                    self.asset_context.without_lazy_compilation(),
+                    lookup_path.join("_")?,
+                );
                 let resolved = esm_resolve(
                     Vc::upcast(origin),
                     request_vc,

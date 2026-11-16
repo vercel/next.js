@@ -72,4 +72,9 @@ impl AssetContext for NoopAssetContext {
     ) -> Result<Vc<Box<dyn AssetContext>>> {
         Ok(Vc::upcast(self))
     }
+
+    #[turbo_tasks::function]
+    fn without_lazy_compilation(self: Vc<Self>) -> Vc<Box<dyn AssetContext>> {
+        Vc::upcast(self)
+    }
 }
