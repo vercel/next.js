@@ -78,7 +78,7 @@ A meta file can contain metadata about multiple SST files. The metadata is store
   - 4 bytes end of AMQF offset relative to start of all AMQF data of the "used key hashes" AMQF
 - foreach described SST file
   - serialized AMQF
-- serialized "used key hashes" AMQF: the keys read since the previous commit (only in meta files written by a commit)
+- serialized "used key hashes" AMQF: the keys read since the previous commit in a meta file written by a commit, or the used keys carried forward by intermediate merges in a meta file written by compaction
 
 ### SST file
 
@@ -86,7 +86,7 @@ The SST file contains only data without any header.
 
 - foreach block
   - 4 bytes block header (uncompressed length or sentinel)
-  - 4 bytes checksum (CRC32 of uncompressed block data)
+  - 4 bytes checksum (CRC32 of the 4 header bytes and the on-disk block data)
   - block data (compressed or uncompressed)
 - foreach block
   - 4 bytes end of block offset relative to start of all blocks
@@ -102,7 +102,7 @@ The 4-byte header distinguishes compressed from uncompressed storage:
 
 #### Block Checksum
 
-Each block stores a 4-byte CRC32 checksum (big-endian) computed on the **on-disk** block data (i.e. after compression). On read, the checksum is verified **before** decompression so that on-disk damage is caught before passing data to LZ4. A checksum mismatch returns an error indicating that the cached data is damaged.
+Each block stores a 4-byte CRC32 checksum (big-endian) computed over the 4-byte header (uncompressed length or sentinel, big-endian) followed by the **on-disk** block data (i.e. after compression). On read, the checksum is verified **before** decompression, so that on-disk damage to either the data or the header is caught before the header's length is used to size a buffer or the data is passed to the decompressor. A checksum mismatch returns an error indicating that the cached data is damaged. Compaction copies medium value blocks without decompressing or verifying them, keeping their header and checksum, so a damaged block stays detectable when the copy is read.
 
 #### Index Block
 
@@ -250,10 +250,10 @@ reordering entries within a block is a format violation rather than a free choic
 The plain value compressed with dynamic compression. Each blob file has an 8-byte header:
 
 - 4 bytes: uncompressed length (u32 big-endian)
-- 4 bytes: CRC32 checksum of the compressed data (u32 big-endian)
+- 4 bytes: CRC32 checksum of the uncompressed length bytes followed by the compressed data (u32 big-endian)
 - remaining bytes: value data compressed with the blob's key-family configuration
 
-The checksum is verified on the compressed data **before** decompression when the blob is read.
+The checksum is verified **before** decompression when the blob is read, so a damaged length is caught before it is used to size the decompression buffer.
 
 ## Reading
 
@@ -421,7 +421,7 @@ The key space of each family is split into a power-of-two number of shards by th
 - A bottom merge merges all files of a shard into a new bottom run, dropping superseded entries and tombstones. It runs when the files above the bottom run exceed `max_space_amplification_percent` of the bottom run, counting each tombstone as an average bottom entry since it deletes one. This bounds the space amplification.
 - An intermediate merge merges files above the bottom run when there are more than `max_files_above_bottom`, to bound the number of files a lookup consults. Like RocksDB's universal compaction, it takes the newest file and then each next older one that is at most `size_ratio_percent` larger than the files taken so far (but at least the two newest), so small files from small commits are merged with each other without rewriting larger files written before them.
 
-A bottom merge writes the entries of recently read keys (the union of the "used key hashes" AMQFs of all meta files) into separate hot SST files, and the rest into cold ones. Processes tend to read the same keys again, so this packs them into fewer blocks, which matters on storage where reads are expensive. Since a bottom merge always includes the whole shard, hot and cold files are merged together and every version of a key meets. The used keys are never copied into the meta files written by compaction, so they expire once all SST files of the commit that recorded them are merged.
+A bottom merge writes the entries of recently read keys (the union of the "used key hashes" AMQFs of all meta files) into separate hot SST files, and the rest into cold ones. Processes tend to read the same keys again, so this packs them into fewer blocks, which matters on storage where reads are expensive. Since a bottom merge always includes the whole shard, hot and cold files are merged together and every version of a key meets. The used keys expire once all SST files of the commit that recorded them are bottom merged: an intermediate merge (e.g. of a shard whose bottom merge was left for later by the rewrite quota or `max_merge_jobs`) copies the used keys of the meta files of its input files into the meta file written by the compaction, so they expire once that meta file's SST files are merged. When that meta file also describes bottom merge or move outputs of the same compaction, the used keys live until those are merged too. A bottom merge doesn't copy them.
 
 Bottom merges are paced by the fresh (not yet compacted) files of the family: they are scheduled until they rewrote `rewrite_per_fresh_byte` times the size of those files (the last one may go past it, and the first one always runs), so compaction cost follows the amount of new data. Since keys are hashes, shards grow at the same rate; the rewrite quota spreads their bottom merges over multiple compactions. A skipped compaction leaves the fresh files in place, which increases the next quota. The default is 3: a bottom merge at the 50% trigger rewrites 1.5 times the bytes above the bottom run for each 0.5 of them, so in steady state a written byte is copied about 3 times. A shard over twice the trigger, or with over twice `max_files_above_bottom` files above its bottom run, is bottom merged even when the quota is reached, which bounds how far a shard can fall behind (e.g. after a GC purge, whose small tombstone files give a small quota).
 
@@ -437,8 +437,9 @@ Bottom merges are paced by the fresh (not yet compacted) files of the family: th
   reads in file access mode. Either way, its block-offset table (4 bytes per block) is read with one
   positional read (`pread`) and decoded in place. It is validated once (every block holds at least
   its header and ends before the table) and kept in memory, so locating a block neither reads the
-  file nor re-checks the offsets. The index block is read the same way, verified, and kept in memory
-  for every lookup. Blob files are read when a value references them.
+  file nor re-checks the offsets. The validation is exposed as `static_sorted_file::BlockOffsets`,
+  which the `sst_inspect` tool uses as well. The index block is read the same way, verified, and
+  kept in memory for every lookup. Blob files are read when a value references them.
 
 ## Closing
 

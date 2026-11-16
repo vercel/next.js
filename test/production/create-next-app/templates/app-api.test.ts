@@ -43,6 +43,12 @@ function shouldBeApiTemplateProject({
   })
 }
 
+// Each test runs create-next-app with a real `npm install`, then `next build`
+// and `next start`. When the npm cache is cold (the first install on a fresh
+// CI runner), that install alone takes ~85s, which exceeds Jest's default 60s
+// timeout. 180s covers a cold install plus build and start with headroom.
+jest.setTimeout(180_000)
+
 describe('create-next-app --api (Headless App)', () => {
   let nextTgzFilename: string
 

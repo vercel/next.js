@@ -2,9 +2,13 @@ use anyhow::{Result, bail};
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use either::Either;
+use rustc_hash::FxHashSet;
 use strsim::jaro;
 use swc_core::{
-    common::{BytePos, DUMMY_SP, Span, SyntaxContext, source_map::PURE_SP},
+    common::{
+        BytePos, DUMMY_SP, Span, SyntaxContext,
+        source_map::{PURE_SP, SmallPos},
+    },
     ecma::ast::{
         ComputedPropName, Decl, Expr, ExprStmt, Ident, Lit, MemberExpr, MemberProp, Number,
         SeqExpr, Stmt, Str,
@@ -39,13 +43,14 @@ use turbopack_core::{
 use turbopack_resolve::ecmascript::esm_resolve;
 
 use crate::{
-    EcmascriptModuleAsset, ScopeHoistingContext,
-    analyzer::imports::ImportAnnotations,
+    EcmascriptModuleAsset, EcmascriptParsable, ScopeHoistingContext,
+    analyzer::imports::{ImportAnnotations, ImportedSymbol},
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     export::Liveness,
     magic_identifier,
     module_fragments::{TURBOPACK_PART_IMPORT_SOURCE, part::module::EcmascriptModulePartAsset},
+    parse::ParseResult,
     references::{
         esm::{
             EsmExport,
@@ -329,9 +334,22 @@ impl ReferencedAsset {
                                 },
                             );
                         }
-                        Some(EsmExport::Error) | None => {
-                            // Export not found, either there was already an error, or
-                            // this is some dynamic (CJS) (re)export situation.
+                        Some(EsmExport::Error) => {
+                            // The export has failed to resolve. The module is merged into this
+                            // scope hoisting group, so it might not have a module factory that
+                            // could be imported. There is nothing to bind to, so the binding
+                            // evaluates to `undefined`.
+                            return Ok(None);
+                        }
+                        None if exports.dynamic_exports.is_empty() => {
+                            // The export is statically known to not exist. The module is merged
+                            // into this scope hoisting group, so it might not have a module
+                            // factory that could be imported. There is nothing to bind to, so the
+                            // binding evaluates to `undefined`.
+                            return Ok(None);
+                        }
+                        None => {
+                            // Export not found, this is some dynamic (CJS) (re)export situation.
                         }
                     }
                 }
@@ -758,6 +776,8 @@ impl ModuleReference for EsmAssetReference {
                         export: export_name.clone(),
                         module,
                         source: self.issue_source,
+                        importing_module: self.module,
+                        request: self.request.clone(),
                     }
                     .resolved_cell()
                     .emit();
@@ -1075,6 +1095,40 @@ pub struct InvalidExport {
     export: RcStr,
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     source: IssueSource,
+    /// The module containing the import declaration, used to find the other names imported by the
+    /// same declaration (so they aren't suggested as alternatives).
+    importing_module: ResolvedVc<EcmascriptModuleAsset>,
+    /// The request of the import declaration.
+    request: RcStr,
+}
+
+impl InvalidExport {
+    /// Returns the export names referenced by the other specifiers of the import (or re-export)
+    /// declaration that requested the missing export. All specifiers of one declaration share the
+    /// declaration's span and request.
+    ///
+    /// This reads the importing module's parse result, so it's only meant to be called when the
+    /// issue is rendered.
+    async fn names_imported_by_same_declaration(&self) -> Result<FxHashSet<RcStr>> {
+        let ParseResult::Ok { eval_context, .. } = &*self.importing_module.failsafe_parse().await?
+        else {
+            return Ok(FxHashSet::default());
+        };
+        let source = self.importing_module.await?.source;
+        Ok(eval_context
+            .imports
+            .references()
+            .filter_map(|r| {
+                let ImportedSymbol::Symbol(name) = &r.imported_symbol else {
+                    return None;
+                };
+                (IssueSource::from_swc_offsets(source, r.span.lo.to_u32(), r.span.hi.to_u32())
+                    == self.source
+                    && *r.module_path.to_string_lossy() == *self.request)
+                    .then(|| RcStr::from(&**name))
+            })
+            .collect())
+    }
 }
 
 #[async_trait]
@@ -1102,34 +1156,39 @@ impl Issue for InvalidExport {
 
     async fn description(&self) -> Result<Option<StyledString>> {
         let export_names = all_known_export_names(*self.module).await?;
+        let already_imported = self.names_imported_by_same_declaration().await?;
         let did_you_mean = export_names
             .iter()
+            .filter(|s| !already_imported.contains(*s))
             .map(|s| (s, jaro(self.export.as_str(), s.as_str())))
             .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
             .map(|(s, _)| s);
-        Ok(Some(StyledString::Stack(vec![
-            StyledString::Line(vec![
-                StyledString::Text(rcstr!("The export ")),
-                StyledString::Code(self.export.clone()),
-                StyledString::Text(rcstr!(" was not found in module ")),
-                StyledString::Strong(self.module.ident().to_string().owned().await?),
-                StyledString::Text(rcstr!(".")),
-            ]),
-            if let Some(did_you_mean) = did_you_mean {
-                StyledString::Line(vec![
-                    StyledString::Text(rcstr!("Did you mean to import ")),
-                    StyledString::Code(did_you_mean.clone()),
-                    StyledString::Text(rcstr!("?")),
-                ])
-            } else {
-                StyledString::Strong(rcstr!("The module has no exports at all."))
-            },
-            StyledString::Text(
-                "All exports of the module are statically known (It doesn't have dynamic \
-                 exports). So it's known statically that the requested export doesn't exist."
-                    .into(),
-            ),
-        ])))
+        let mut lines = vec![StyledString::Line(vec![
+            StyledString::Text(rcstr!("The export ")),
+            StyledString::Code(self.export.clone()),
+            StyledString::Text(rcstr!(" was not found in module ")),
+            StyledString::Strong(self.module.ident().to_string().owned().await?),
+            StyledString::Text(rcstr!(".")),
+        ])];
+        if let Some(did_you_mean) = did_you_mean {
+            lines.push(StyledString::Line(vec![
+                StyledString::Text(rcstr!("Did you mean to import ")),
+                StyledString::Code(did_you_mean.clone()),
+                StyledString::Text(rcstr!("?")),
+            ]));
+        } else if export_names.is_empty() {
+            lines.push(StyledString::Strong(rcstr!(
+                "The module has no exports at all."
+            )));
+        }
+        // Otherwise all exports are already imported by the same declaration, so there is nothing
+        // to suggest.
+        lines.push(StyledString::Text(
+            "All exports of the module are statically known (It doesn't have dynamic exports). So \
+             it's known statically that the requested export doesn't exist."
+                .into(),
+        ));
+        Ok(Some(StyledString::Stack(lines)))
     }
 
     async fn detail(&self) -> Result<Option<StyledString>> {

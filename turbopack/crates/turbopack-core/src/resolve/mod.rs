@@ -1593,15 +1593,17 @@ pub async fn resolve_raw(
         request: RcStr,
         path: &FileSystemPath,
         collect_affecting_sources: bool,
-    ) -> Result<ResolveResult> {
+    ) -> Result<Option<ResolveResult>> {
         let result = &*path.realpath_with_links().await?;
         let path = match &result.path_result {
             Ok(path) => path,
-            Err(error) => bail!(error.clone()),
+            // Treat matches whose symlinks cannot be resolved (e.g. a dangling symlink) as
+            // missing files instead of failing.
+            Err(_) => return Ok(None),
         };
         let request_key = RequestKey::new(request);
         let source = ResolvedVc::upcast(FileSource::new(path.clone()).to_resolved().await?);
-        Ok(if collect_affecting_sources {
+        Ok(Some(if collect_affecting_sources {
             ResolveResult::source_with_affecting_sources(
                 request_key,
                 source,
@@ -1617,7 +1619,7 @@ pub async fn resolve_raw(
             )
         } else {
             ResolveResult::source_with_key(request_key, source)
-        })
+        }))
     }
 
     async fn collect_matches(
@@ -1628,7 +1630,7 @@ pub async fn resolve_raw(
             .iter()
             .map(async |m| {
                 Ok(if let PatternMatch::File(request, path) = m {
-                    Some(to_result(request.clone(), path, collect_affecting_sources).await?)
+                    to_result(request.clone(), path, collect_affecting_sources).await?
                 } else {
                     None
                 })
@@ -3592,7 +3594,7 @@ mod tests {
         io::Write,
     };
 
-    use anyhow::Result;
+    use anyhow::{Context, Result};
     use turbo_rcstr::{RcStr, rcstr};
     use turbo_tasks::{TryJoinIterExt, Vc};
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
@@ -3695,6 +3697,89 @@ mod tests {
             assert!(missing.self_cycle);
 
             anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    /// Reordering the conditions of a `package.json` `exports` entry changes which condition
+    /// matches first. The re-read `package.json` must not compare equal to the old one: if it did,
+    /// the cell would keep the old content and resolution would keep the old priority.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_exports_conditions_reorder() {
+        let scratch = tempfile::tempdir().unwrap();
+        // The disk filesystem rejects paths behind a symlink, like the macOS temp dir.
+        let root = scratch.path().canonicalize().unwrap();
+        let package_json = root.join("package.json");
+        std::fs::write(
+            &package_json,
+            r#"{ "exports": { ".": { "import": "./a.mjs", "default": "./b.js" } } }"#,
+        )
+        .unwrap();
+        let root: RcStr = root.to_str().unwrap().into();
+
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            #[turbo_tasks::value(transparent)]
+            struct ExportsConditions(Vec<RcStr>);
+
+            /// The conditions of the `"."` entry of `package.json` `exports`, in order.
+            #[turbo_tasks::function(operation, root)]
+            async fn exports_conditions_operation(
+                fs: ResolvedVc<DiskFileSystem>,
+            ) -> Result<Vc<ExportsConditions>> {
+                let package_json = fs.root().await?.join("package.json")?;
+                let source = Vc::upcast::<Box<dyn Source>>(FileSource::new(package_json))
+                    .to_resolved()
+                    .await?;
+                let exports = exports_field(*source).await?;
+                let ExportsFieldResult::Some(exports) = &*exports else {
+                    bail!("expected an exports field");
+                };
+                let request = Pattern::Constant(rcstr!("."));
+                let entry = exports
+                    .lookup(&request)
+                    .next()
+                    .context("expected an exports entry for \".\"")??;
+                let ReplacedSubpathValue::Conditional(conditions) = entry.output else {
+                    bail!("expected conditions for \".\"");
+                };
+                Ok(Vc::cell(
+                    conditions
+                        .into_iter()
+                        .map(|(condition, _)| condition)
+                        .collect(),
+                ))
+            }
+
+            #[turbo_tasks::function(operation, root)]
+            fn disk_fs_operation(root: RcStr) -> Vc<DiskFileSystem> {
+                DiskFileSystem::new(rcstr!("test"), Vc::cell(root))
+            }
+
+            let fs_operation = disk_fs_operation(root);
+            let fs = fs_operation.resolve().strongly_consistent().await?;
+
+            let conditions = exports_conditions_operation(fs)
+                .read_strongly_consistent()
+                .await?;
+            assert_eq!(*conditions, [rcstr!("import"), rcstr!("default")]);
+
+            std::fs::write(
+                &package_json,
+                r#"{ "exports": { ".": { "default": "./b.js", "import": "./a.mjs" } } }"#,
+            )
+            .unwrap();
+            fs_operation.read_strongly_consistent().await?.invalidate();
+
+            let conditions = exports_conditions_operation(fs)
+                .read_strongly_consistent()
+                .await?;
+            assert_eq!(*conditions, [rcstr!("default"), rcstr!("import")]);
+            Ok(())
         })
         .await
         .unwrap();
@@ -4206,7 +4291,10 @@ mod tests {
 
     #[turbo_tasks::function]
     fn fs() -> Vc<Box<dyn FileSystem>> {
-        Vc::upcast(DiskFileSystem::new(rcstr!("temp"), Vc::cell(fs_path())))
+        Vc::upcast(DiskFileSystem::new(
+            rcstr!("temp"),
+            Vc::cell(rcstr!("/tmp/_mdt")),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -4218,10 +4306,6 @@ mod tests {
         let source = VirtualSource::new(path, *content);
         let module = RawModule::new(Vc::upcast(source)).to_resolved().await?;
         Ok(Vc::upcast(*module))
-    }
-
-    fn fs_path() -> RcStr {
-        rcstr!("/tmp/_mdt")
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

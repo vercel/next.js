@@ -960,7 +960,8 @@ export function createPatchedFetcher(
             next: { ...init?.next, fetchType: 'origin', fetchIdx },
           }
 
-          return originFetch(input, clonedInit)
+          return Promise.resolve()
+            .then(() => originFetch(input, clonedInit))
             .then(async (res) => {
               if (!isStale && fetchStart) {
                 trackFetchMetric(workStore, span, {

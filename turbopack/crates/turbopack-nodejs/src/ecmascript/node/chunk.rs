@@ -54,7 +54,7 @@ impl EcmascriptBuildNodeChunk {
                 .ident()
                 .owned()
                 .await?
-                .with_modifier(modifier())
+                .with_modifier(MODIFIER.clone())
                 .into_vc(),
             Vc::upcast(self),
             rcstr!(".js"),
@@ -62,9 +62,7 @@ impl EcmascriptBuildNodeChunk {
     }
 }
 
-fn modifier() -> RcStr {
-    rcstr!("ecmascript build node chunk")
-}
+static MODIFIER: RcStr = rcstr!("ecmascript build node chunk");
 
 #[turbo_tasks::value_impl]
 impl EcmascriptBuildNodeChunk {
@@ -119,7 +117,7 @@ impl OutputAsset for EcmascriptBuildNodeChunk {
             .ident()
             .owned()
             .await?
-            .with_modifier(modifier())
+            .with_modifier(MODIFIER.clone())
             .into_vc();
         Ok(this
             .chunking_context

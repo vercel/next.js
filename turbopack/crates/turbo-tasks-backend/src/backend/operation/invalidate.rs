@@ -11,7 +11,7 @@ use crate::{
                 AggregationUpdateJob, AggregationUpdateQueue, ComputeDirtyAndCleanUpdate,
             },
         },
-        storage_schema::TaskStorageAccessors,
+        storage_schema::{ActivenessAccessors, TaskStorageAccessors},
     },
     data::{Dirtyness, InProgressState, InProgressStateInner},
 };
@@ -115,6 +115,8 @@ pub(super) fn make_task_dirty_without_scheduling(
 
     #[cfg(feature = "trace_task_dirty")]
     let task_name = task.get_task_name();
+    #[cfg(feature = "trace_task_dirty")]
+    let task_id = task.id();
     if make_stale
         && let Some(InProgressState::InProgress(InProgressStateInner { stale, .. })) =
             task.get_in_progress_mut()
@@ -240,7 +242,7 @@ pub(super) fn make_task_dirty_without_scheduling(
         queue.extend(AggregationUpdateJob::data_update(task, aggregated_update));
     }
 
-    let should_schedule = !ctx.should_track_activeness() || task.has_activeness();
+    let should_schedule = !ctx.should_track_activeness() || task.is_active();
 
     if should_schedule {
         let description = EventDescription::new(|| task.get_task_desc_fn());
