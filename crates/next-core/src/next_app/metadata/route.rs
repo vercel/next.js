@@ -276,6 +276,8 @@ async fn dynamic_sitemap_route_with_generate_source(
         r#"
             import {{ NextResponse }} from 'next/server'
             import {{ default as handler, generateSitemaps }} from {resource_path}
+            import * as userland from {resource_path}
+            import {{ generateMetadataRouteStaticParams }} from 'next/dist/build/webpack/loaders/metadata/generate-route-params'
             import {{ resolveRouteData }} from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
 
             const contentType = {content_type}
@@ -326,17 +328,8 @@ async fn dynamic_sitemap_route_with_generate_source(
 
             export * from {resource_path}
 
-            export async function generateStaticParams() {{
-                const sitemaps = await generateSitemaps()
-                const params = []
-
-                for (const item of sitemaps) {{
-                    if (item?.id == null) {{
-                        throw new Error('id property is required for every item returned from generateSitemaps')
-                    }}
-                    params.push({{ __metadata_id__: item.id.toString() + '.xml' }})
-                }}
-                return params
+            export async function generateStaticParams({{ params }}) {{
+                return generateMetadataRouteStaticParams(userland, params, 'sitemap')
             }}
         "#,
         resource_path = StringifyJs(&format!("./{}", path.file_name())),
@@ -426,6 +419,8 @@ async fn dynamic_image_route_with_metadata_source(
         r#"
             import {{ NextResponse }} from 'next/server'
             import {{ default as handler, generateImageMetadata }} from {resource_path}
+            import * as userland from {resource_path}
+            import {{ generateMetadataRouteStaticParams }} from 'next/dist/build/webpack/loaders/metadata/generate-route-params'
 
             if (typeof handler !== 'function') {{
                 throw new Error('Default export is missing in {resource_path}')
@@ -463,16 +458,7 @@ async fn dynamic_image_route_with_metadata_source(
             export * from {resource_path}
 
             export async function generateStaticParams({{ params }}) {{
-                const imageMetadata = await generateImageMetadata({{ params }})
-                const staticParams = []
-
-                for (const item of imageMetadata) {{
-                    if (item?.id == null) {{
-                        throw new Error('id property is required for every item returned from generateImageMetadata')
-                    }}
-                    staticParams.push({{ __metadata_id__: item.id.toString() }})
-                }}
-                return staticParams
+                return generateMetadataRouteStaticParams(userland, params, 'image')
             }}
         "#,
         resource_path = StringifyJs(&format!("./{}", path.file_name())),

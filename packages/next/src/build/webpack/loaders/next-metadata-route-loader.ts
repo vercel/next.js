@@ -18,7 +18,8 @@ function errorOnBadHandler(resourcePath: string) {
 /* re-export the userland route configs */
 async function createReExportsCode(
   resourcePath: string,
-  loaderContext: webpack.LoaderContext<any>
+  loaderContext: webpack.LoaderContext<any>,
+  excludedExports: readonly string[] = []
 ) {
   const exportNames = await getLoaderModuleNamedExports(
     resourcePath,
@@ -26,7 +27,10 @@ async function createReExportsCode(
   )
   // Re-export configs but avoid conflicted exports
   const reExportNames = exportNames.filter(
-    (name) => name !== 'default' && name !== 'generateSitemaps'
+    (name) =>
+      name !== 'default' &&
+      name !== 'generateSitemaps' &&
+      !excludedExports.includes(name)
   )
 
   return reExportNames.length > 0
@@ -162,9 +166,11 @@ async function getDynamicImageRouteCode(
 /* dynamic image route with generateImageMetadata */
 import { NextResponse } from 'next/server'
 import { default as handler, generateImageMetadata } from ${JSON.stringify(resourcePath)}
+import * as userland from ${JSON.stringify(resourcePath)}
+import { generateMetadataRouteStaticParams } from 'next/dist/build/webpack/loaders/metadata/generate-route-params'
 
 ${errorOnBadHandler(resourcePath)}
-${await createReExportsCode(resourcePath, loaderContext)}
+${await createReExportsCode(resourcePath, loaderContext, ['generateStaticParams'])}
 
 export async function GET(_, ctx) {
   const paramsPromise = ctx.params
@@ -196,16 +202,7 @@ export async function GET(_, ctx) {
 }
 
 export async function generateStaticParams({ params }) {
-  const imageMetadata = await generateImageMetadata({ params })
-  const staticParams = []
-
-  for (const item of imageMetadata) {
-    if (item?.id == null) {
-      throw new Error('id property is required for every item returned from generateImageMetadata')
-    }
-    staticParams.push({ __metadata_id__: item.id.toString() })
-  }
-  return staticParams
+  return generateMetadataRouteStaticParams(userland, params, 'image')
 }
 `
 }
@@ -285,13 +282,15 @@ async function getDynamicSitemapRouteCode(
 /* dynamic sitemap route with generateSitemaps */
 import { NextResponse } from 'next/server'
 import { default as handler, generateSitemaps } from ${JSON.stringify(resourcePath)}
+import * as userland from ${JSON.stringify(resourcePath)}
+import { generateMetadataRouteStaticParams } from 'next/dist/build/webpack/loaders/metadata/generate-route-params'
 import { resolveRouteData } from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
 
 const contentType = ${JSON.stringify(getContentType(resourcePath))}
 const fileType = ${JSON.stringify(getFilenameAndExtension(resourcePath).name)}
 
 ${errorOnBadHandler(resourcePath)}
-${await createReExportsCode(resourcePath, loaderContext)}
+${await createReExportsCode(resourcePath, loaderContext, ['generateStaticParams'])}
 
 export async function GET(_, ctx) {
   const paramsPromise = ctx.params
@@ -332,17 +331,8 @@ export async function GET(_, ctx) {
   })
 }
 
-export async function generateStaticParams() {
-  const sitemaps = await generateSitemaps()
-  const params = []
-
-  for (const item of sitemaps) {
-    if (item?.id == null) {
-      throw new Error('id property is required for every item returned from generateSitemaps')
-    }
-    params.push({ __metadata_id__: item.id.toString() + '.xml' })
-  }
-  return params
+export async function generateStaticParams({ params }) {
+  return generateMetadataRouteStaticParams(userland, params, 'sitemap')
 }
 `
   return code
