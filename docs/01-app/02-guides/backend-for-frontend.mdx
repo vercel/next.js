@@ -378,6 +378,22 @@ export async function POST(request) {
 }
 ```
 
+### Rendering UI from a POST request
+
+An App Router `page.tsx` does not receive the incoming `Request` or its body. The `params` and `searchParams` props expose route parameters and URL search parameters, not POST data. Use a Route Handler to read a request body. A `route.ts` and a `page.tsx` also cannot occupy the same route segment, so they cannot handle the same URL as a POST endpoint and a page.
+
+If client-side JavaScript is acceptable, use a [Server Action](/docs/app/getting-started/updating-data) to receive the form data and return the next UI. React's [`useActionState`](https://react.dev/reference/react/useActionState) can manage the returned UI and submission state.
+
+If you need a native HTML form POST to work without client JavaScript and still render UI with Server Components in the same response, Next.js does not currently provide a built-in way for a page to read the POST body. One server-side workaround is to:
+
+1. Handle the POST in a Route Handler and validate the submitted data and authorization.
+2. Make a server-to-server request to a separate page route, forwarding only the small, validated payload.
+3. In that page, read the forwarded data with `headers()` and verify a short-lived signed token before using it to render the response.
+
+The internal page must reject direct requests and must not trust a custom header on its own. Keep user-specific responses out of shared caches. Do not forward secrets or large payloads in headers: infrastructure may log headers, and header size is limited.
+
+This workaround adds an internal HTTP request to each submission and is more complex than a Server Action. See the [POST form proxy example](https://github.com/icyJoseph/next-post-form-proxy) for a complete implementation and its trade-offs.
+
 ## Manipulating data
 
 Route Handlers can transform, filter, and aggregate data from one or more sources. This keeps logic out of the frontend and avoids exposing internal systems.
