@@ -3,20 +3,14 @@ import type { BuildManifest } from '../get-page-files'
 import { getTurbopackBootstrap } from './turbopack-bootstrap-script'
 
 import ReactDOM from 'react-dom'
+import type { BootstrapScriptDescriptor } from 'react-dom/server'
 
 /**
  * The Turbopack runtime reads its chunk-group bootstrap from this attribute on
  * its own `<script>` tag (`document.currentScript`), so no inline bootstrap
- * script is needed. Must match the attribute configured for the client
- * chunking context in `next-core`.
+ * script is needed. The name is defined by the Turbopack browser runtime.
  */
 const TURBOPACK_BOOTSTRAP_ATTRIBUTE = 'data-turbopack-bootstrap'
-
-type BootstrapScript = {
-  src: string
-  integrity?: string
-  crossOrigin?: string | undefined
-}
 
 export function getRequiredScripts(
   buildManifest: BuildManifest,
@@ -27,7 +21,7 @@ export function getRequiredScripts(
   nonce: string | undefined,
   pagePath: string,
   externalBrowserRuntime: boolean
-): [() => void, BootstrapScript[]] {
+): [() => void, BootstrapScriptDescriptor[]] {
   const files = (
     buildManifest.rootMainFilesTree?.[pagePath] || buildManifest.rootMainFiles
   ).map(encodeURIPath)
@@ -49,12 +43,12 @@ export function getRequiredScripts(
     integrity: SRIManifest ? SRIManifest[file] : undefined,
   }))
 
-  // React can only attach data attributes to preinitialized scripts, not to
-  // `bootstrapScripts`. If the runtime would be the only (bootstrap) script,
-  // preinitialize it as well and pass no bootstrap script: React then emits
-  // its own completed-shell marker instead.
-  const bootstrapScripts: BootstrapScript[] = []
-  if (turbopackBootstrapData === undefined || scripts.length > 1) {
+  // With the Turbopack bootstrap as data, every root main file is
+  // preinitialized and there are no `bootstrapScripts`: React can only attach
+  // data attributes to preinitialized scripts, and the file that starts the app
+  // is the runtime, which is last, not the first file.
+  const bootstrapScripts: BootstrapScriptDescriptor[] = []
+  if (turbopackBootstrapData === undefined) {
     const { src, integrity } = scripts.shift()!
     bootstrapScripts.push(
       SRIManifest ? { src, integrity, crossOrigin } : { src, crossOrigin }

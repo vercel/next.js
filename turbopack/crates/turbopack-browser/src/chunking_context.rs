@@ -195,12 +195,6 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    /// The template attribute containing JSON-encoded entry bootstrap params.
-    pub fn bootstrap_metadata_attribute(mut self, attribute: Option<RcStr>) -> Self {
-        self.chunking_context.bootstrap_metadata_attribute = attribute;
-        self
-    }
-
     /// Marks this context as being shared by multiple independent module graphs (e.g. per-page
     /// graphs), each of which only sees part of what is written to `chunk_root_path`.
     ///
@@ -385,9 +379,6 @@ pub struct BrowserChunkingContext {
     /// entrypoint's chunk group bootstrap params via
     /// `ChunkGroupResult.chunk_group_bootstrap_params`.
     shared_runtime: bool,
-    /// An optional template attribute containing an array of JSON-encoded entry bootstrap params.
-    /// The DOM runtime consumes these templates as they arrive while the document is loading.
-    bootstrap_metadata_attribute: Option<RcStr>,
     /// Whether the runtime chunk is shared with other module graphs using this context.
     /// See [`BrowserChunkingContextBuilder::shared_runtime_chunk`].
     shared_runtime_chunk: bool,
@@ -474,7 +465,6 @@ impl BrowserChunkingContext {
                 enable_dynamic_chunk_content_loading: false,
                 debug_ids: false,
                 shared_runtime: false,
-                bootstrap_metadata_attribute: None,
                 shared_runtime_chunk: false,
                 environment,
                 runtime_type,
@@ -602,11 +592,6 @@ impl BrowserChunkingContext {
     #[turbo_tasks::function]
     pub fn shared_runtime(&self) -> Vc<bool> {
         Vc::cell(self.shared_runtime)
-    }
-
-    #[turbo_tasks::function]
-    pub fn bootstrap_metadata_attribute(&self) -> Vc<Option<RcStr>> {
-        Vc::cell(self.bootstrap_metadata_attribute.clone())
     }
 
     /// Whether the runtime chunk is shared with other module graphs using this context, meaning no

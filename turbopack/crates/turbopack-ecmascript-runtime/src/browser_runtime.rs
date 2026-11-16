@@ -37,7 +37,9 @@ mod tests {
 pub struct BrowserRuntimeOptions {
     pub include_async_module_runtime: bool,
     pub support_component_chunks: bool,
-    pub bootstrap_metadata_attribute: Option<RcStr>,
+    /// Whether the runtime registers the chunk-group bootstrap params carried in the
+    /// `data-turbopack-bootstrap` attribute of its own `<script>` tag (DOM chunk loading only).
+    pub register_bootstrap_from_script: bool,
 }
 
 /// Returns the code for the ECMAScript runtime.
@@ -58,7 +60,7 @@ pub async fn get_browser_runtime_code(
     let BrowserRuntimeOptions {
         include_async_module_runtime,
         support_component_chunks,
-        bootstrap_metadata_attribute,
+        register_bootstrap_from_script,
     } = options;
     let asset_context = *asset_context;
     let environment = asset_context.compile_time_info().environment();
@@ -287,9 +289,7 @@ pub async fn get_browser_runtime_code(
             chunk_lists_global = StringifyJs(&chunk_lists_global),
         )?;
     }
-    if matches!(chunk_loading, ChunkLoading::Dom)
-        && let Some(attribute) = &bootstrap_metadata_attribute
-    {
+    if matches!(chunk_loading, ChunkLoading::Dom) && register_bootstrap_from_script {
         code.push_code(
             &*embed_static_code(
                 asset_context,
@@ -297,11 +297,7 @@ pub async fn get_browser_runtime_code(
             )
             .await?,
         )?;
-        writedoc!(
-            code,
-            "registerBootstrapMetadata({}, registerChunk);",
-            StringifyJs(attribute),
-        )?;
+        writeln!(code, "registerBootstrapFromScript(registerChunk);")?;
     }
     writedoc!(
         code,

@@ -186,10 +186,11 @@ describe('external-browser-runtime', () => {
     expect($(`script[src="${runtimes[0].src}"]`).attr('crossorigin')).toBe(
       'use-credentials'
     )
-    expect(runtimes[0].body).not.toContain('data-turbopack-bootstrap')
+    expect(runtimes[0].body).not.toContain('turbopackBootstrap')
 
+    // The Turbopack runtime reads `document.currentScript.dataset.turbopackBootstrap`.
     const bootstrapConsumers = responses.filter((r) =>
-      r.body.includes('data-turbopack-bootstrap')
+      r.body.includes('turbopackBootstrap')
     )
     if (await gate((c) => !c.dev && c.turbopack)) {
       // The Turbopack runtime that reads the bootstrap is the script carrying it.

@@ -217,11 +217,9 @@ impl EcmascriptBrowserEvaluateChunk {
                                 .chunking_context
                                 .generate_component_chunks()
                                 .await?,
-                            bootstrap_metadata_attribute: this
-                                .chunking_context
-                                .bootstrap_metadata_attribute()
-                                .owned()
-                                .await?,
+                            // The runtime is inlined into this evaluate chunk, whose params
+                            // are already part of the chunk.
+                            register_bootstrap_from_script: false,
                         },
                     );
                     code.push_code(&*runtime_code.await?)?;

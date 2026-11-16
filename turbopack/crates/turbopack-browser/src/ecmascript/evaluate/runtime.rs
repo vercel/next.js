@@ -79,10 +79,9 @@ impl EcmascriptBrowserRuntimeChunk {
                         support_component_chunks: *chunking_context
                             .generate_component_chunks()
                             .await?,
-                        bootstrap_metadata_attribute: chunking_context
-                            .bootstrap_metadata_attribute()
-                            .owned()
-                            .await?,
+                        // The shared runtime has its own `<script>` tag, which can carry
+                        // the chunk-group bootstrap params.
+                        register_bootstrap_from_script: true,
                     },
                 );
                 code.push_code(&*runtime_code.await?)?;
