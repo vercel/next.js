@@ -1,4 +1,4 @@
-error - [analysis] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/require-context-outside-root/input/index.js:7:4  TP1007 require.context(
+error - [analysis] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/require-context-outside-root/input/index.js:7:5  TP1007 require.context(
   
        3 | // snapshot.
        4 | 

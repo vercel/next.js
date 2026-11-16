@@ -36,6 +36,8 @@ import type {
 } from '../../build/swc/types'
 import { createDefineEnv, getBindingsSync } from '../../build/swc'
 import * as Log from '../../build/output/log'
+import { readGoProxyConfig } from '../../build/analysis/go-config'
+import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import {
   BLOCKED_PAGES,
   CLIENT_REFERENCE_MANIFEST,
@@ -139,9 +141,11 @@ import {
   setReactDebugChannelForHtmlRequest,
 } from './debug-channel'
 import {
+  getPendingVersionInfo,
   getVersionInfo,
   matchNextPageBundleRequest,
 } from './hot-reloader-shared-utils'
+import type { VersionInfo } from './parse-version-info'
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
 import { formatCompilationIssues } from '../mcp/tools/utils/format-compilation-issues'
 import {
@@ -1283,6 +1287,28 @@ export async function createHotReloaderTurbopack(
                 force: forceDeleteCache,
               })
             },
+            loadNativeMiddleware: async () => {
+              // Turbopack records proxy.go's static Config in the descriptor it
+              // just wrote. Source-level static info has no Go matchers.
+              try {
+                const { matchers } = await readGoProxyConfig(
+                  join(distDir, 'server', 'middleware.native.json'),
+                  join(projectPath, opts.isSrcDir ? 'src' : '', 'proxy.go'),
+                  nextConfig
+                )
+                serverFields.middleware = {
+                  match: null as any,
+                  page: '/',
+                  matchers,
+                  runtime: 'go',
+                  nativeEntry: 'middleware.native.json',
+                }
+                opts.fsChecker.middlewareMatcher =
+                  getMiddlewareRouteMatcher(matchers)
+              } catch (error) {
+                Log.error(error instanceof Error ? error.message : error)
+              }
+            },
             propagateServerField: propagateServerField.bind(null, opts),
             sendHmr,
             startBuilding,
@@ -1499,16 +1525,35 @@ export async function createHotReloaderTurbopack(
     })
   })
 
-  let versionInfoCached: ReturnType<typeof getVersionInfo> | undefined
-  // This fetch, even though not awaited, is not kicked off eagerly because the first `fetch()` in
+  let resolvedVersionInfo: VersionInfo | undefined
+  let versionInfoRequested = false
+  // This fetch is not kicked off eagerly because the first `fetch()` in
   // Node.js adds roughly 20ms main-thread blocking to load the SSL certificate cache
   // We don't want that blocking time to be in the hot path for the `ready in` logging.
-  // Instead, the fetch is kicked off lazily when the first `getVersionInfoCached()` is called.
-  const getVersionInfoCached = (): ReturnType<typeof getVersionInfo> => {
-    if (!versionInfoCached) {
-      versionInfoCached = getVersionInfo()
-    }
-    return versionInfoCached
+  // Instead, `startVersionInfoRequest()` kicks it off lazily when the first HMR
+  // client connects. The registry request is never awaited: until it resolves,
+  // clients get a placeholder in `sync`, and every connected client receives
+  // the resolved info in a `versionInfo` message. Otherwise a slow registry
+  // would delay `sync`, and with it the whole dev overlay.
+  const startVersionInfoRequest = () => {
+    if (versionInfoRequested) return
+    versionInfoRequested = true
+    getVersionInfo()
+      .then((versionInfo) => {
+        resolvedVersionInfo = versionInfo
+        for (const client of [
+          ...clientsWithoutHtmlRequestId,
+          ...clientsByHtmlRequestId.values(),
+        ]) {
+          sendToClient(client, {
+            type: HMR_MESSAGE_SENT_TO_BROWSER.VERSION_INFO,
+            versionInfo,
+          })
+        }
+      })
+      .catch((error) => {
+        console.error(error)
+      })
   }
 
   let devtoolsFrontendUrl: string | undefined
@@ -1830,34 +1875,38 @@ export async function createHotReloaderTurbopack(
         }
         sendToClient(client, turbopackConnectedMessage)
 
-        const errors: CompilationError[] = []
-
-        for (const entryIssues of currentEntryIssues.values()) {
-          for (const issue of entryIssues.values()) {
-            if (issue.severity !== 'warning') {
-              errors.push({
-                message: formatIssue(issue),
-              })
-            } else {
-              printNonFatalIssue(issue)
-            }
-          }
-        }
+        startVersionInfoRequest()
 
         if (devIndicatorServerState.disabledUntil < Date.now()) {
           devIndicatorServerState.disabledUntil = 0
         }
 
         ;(async function () {
-          const versionInfo = await getVersionInfoCached()
           const devToolsConfig = await getDevToolsConfig(distDir)
+
+          // Collect the issues only after the await so that `sync` reflects the
+          // current build state. Stale errors here would replace newer ones on
+          // the client.
+          const errors: CompilationError[] = []
+
+          for (const entryIssues of currentEntryIssues.values()) {
+            for (const issue of entryIssues.values()) {
+              if (issue.severity !== 'warning') {
+                errors.push({
+                  message: formatIssue(issue),
+                })
+              } else {
+                printNonFatalIssue(issue)
+              }
+            }
+          }
 
           const syncMessage: SyncMessage = {
             type: HMR_MESSAGE_SENT_TO_BROWSER.SYNC,
             errors,
             warnings: [],
             hash: '',
-            versionInfo,
+            versionInfo: resolvedVersionInfo ?? getPendingVersionInfo(),
             hasVulnerabilityInsight,
             debug: {
               devtoolsFrontendUrl,
@@ -2076,6 +2125,8 @@ export async function createHotReloaderTurbopack(
       if (!definition) {
         if (inputPage === '/middleware') return
         if (inputPage === '/src/middleware') return
+        if (inputPage === '/proxy') return
+        if (inputPage === '/src/proxy') return
         if (inputPage === '/instrumentation') return
         if (inputPage === '/src/instrumentation') return
       }

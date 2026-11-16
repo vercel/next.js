@@ -108,7 +108,7 @@ impl ModuleReference for CssClientReference {
     fn chunking_type(&self) -> Option<ChunkingType> {
         Some(ChunkingType::Isolated {
             _ty: ChunkGroupType::Evaluated,
-            merge_tag: Some(CLIENT_MERGE_TAG),
+            merge_tag: Some(CLIENT_MERGE_TAG.clone()),
         })
     }
 }

@@ -10,8 +10,9 @@ use turbo_tasks_fs::{
     glob::{Glob, GlobOptions},
 };
 use turbopack_core::{
-    chunk::SourceMapsType, compile_time_info::CompileTimeInfo, condition::ContextCondition,
-    environment::Environment, resolve::options::ImportMapping,
+    compile_time_info::CompileTimeInfo, condition::ContextCondition, environment::Environment,
+    loader::WebpackLoaderItems, resolve::options::ImportMapping,
+    source_map::SourceMapGenerationOptions,
 };
 use turbopack_ecmascript::{
     AnalyzeMode, TypeofWindow,
@@ -20,8 +21,7 @@ use turbopack_ecmascript::{
 };
 pub use turbopack_mdx::MdxTransformOptions;
 use turbopack_node::{
-    execution_context::ExecutionContext,
-    transforms::{postcss::PostCssTransformOptions, webpack::WebpackLoaderItems},
+    execution_context::ExecutionContext, transforms::postcss::PostCssTransformOptions,
 };
 
 use super::ModuleRule;
@@ -270,7 +270,7 @@ pub struct EcmascriptOptionsContext {
     /// reference anything and lead to an runtime error instead.
     pub ignore_dynamic_requests: bool,
     /// Specifies how Source Maps are handled.
-    pub source_maps: SourceMapsType,
+    pub source_map_generation_options: SourceMapGenerationOptions,
 
     /// Whether to allow accessing exports info via `__webpack_exports_info__`.
     pub enable_exports_info_inlining: bool,
@@ -320,7 +320,7 @@ pub struct CssOptionsContext {
     pub enable_raw_css: bool,
 
     /// Specifies how Source Maps are handled.
-    pub source_maps: SourceMapsType,
+    pub source_map_generation_options: SourceMapGenerationOptions,
 
     /// Override the conditions for module CSS (doesn't have any effect if `enable_raw_css` is
     /// true). By default (for `None`), it uses

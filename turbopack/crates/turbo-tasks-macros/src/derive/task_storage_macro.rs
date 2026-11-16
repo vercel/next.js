@@ -992,6 +992,7 @@ fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) ->
 
     // Generate eviction methods
     let eviction_methods = generate_drop_method(grouped_fields);
+    let shrink_edge_sets_method = generate_shrink_edge_sets_method(grouped_fields);
 
     quote! {
         // Import ShrinkToFit trait for the derive macro generated code
@@ -1017,6 +1018,8 @@ fn generate_task_storage_impl(_ident: &Ident, grouped_fields: &GroupedFields) ->
 
         // Generated eviction methods
         #eviction_methods
+
+        #shrink_edge_sets_method
 
         // Generated TaskStorageAccessors trait
         #accessors_trait
@@ -2002,7 +2005,7 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
                 Some((#unwraper)(old))
             } else {
                 #track_insert
-                self.typed_mut().lazy.push(#constructor);
+                self.typed_mut().lazy.push_exact(#constructor);
                 None
             }
         }
@@ -2112,10 +2115,12 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
     let is_option = field.is_option_ref();
 
     let add_name = field.prefixed_ident("add");
+    let push_name = field.prefixed_ident("push");
     let extend_name = field.prefixed_ident("extend");
     let remove_name = field.prefixed_ident("remove");
     let set_name = field.prefixed_ident("set");
     let has_name = field.suffixed_ident("contains");
+    let inflate_name = field.suffixed_ident("inflate");
     let iter_name = field.iter_ident();
     let len_name = field.len_ident();
     let is_empty_name = field.is_empty_ident();
@@ -2125,6 +2130,32 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
         quote! { #ref_expr.is_some_and(|set| set.contains(item)) }
     } else {
         quote! { #ref_expr.contains(item) }
+    };
+
+    // Only edge sets (flat arrays that can switch to a hash table) can be inflated. Inflating
+    // doesn't change the contents, so no modification is tracked. A lazy set is found without
+    // creating it.
+    let edge_set_fns = if is_edge_set(field_type) {
+        let inflate_body = if is_option {
+            let extractor = field.lazy_extractor_closure();
+            quote! {
+                if let Some((idx, _)) = self.typed().find_lazy_ref(#extractor) {
+                    self.typed_mut().lazy_at_mut(idx, #extractor).inflate();
+                }
+            }
+        } else {
+            quote! { #mut_expr.inflate() }
+        };
+        quote! {
+            #[doc = "Switches a large set to a hash table ahead of a run of lookups. Inserts and"]
+            #[doc = "removals do this themselves. Untracked: the contents don't change."]
+            fn #inflate_name(&mut self) {
+                #check_access
+                #inflate_body
+            }
+        }
+    } else {
+        quote! {}
     };
 
     let iter_body = if is_option {
@@ -2148,6 +2179,7 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
     // For transient fields, track_modification is a no-op so skip all guards.
     let remove_body;
     let add_body;
+    let push_body;
     let set_body;
     let extend_body;
 
@@ -2157,6 +2189,9 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
         };
         add_body = quote! {
             #mut_expr.insert(item)
+        };
+        push_body = quote! {
+            #mut_expr.push(item);
         };
         set_body = if is_option {
             let unwraper = field.lazy_unwrap_closure();
@@ -2215,6 +2250,12 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
             inserted
         };
 
+        // Push: the caller guarantees the item is new, so it always changes the set.
+        push_body = quote! {
+            let _track_outcome = #track_item_outcome;
+            #mut_expr.push(item);
+        };
+
         if is_option {
             // For lazy fields, combine guard and set into one operation to avoid
             // double-scanning the lazy vec (set_guard would scan via find_lazy,
@@ -2232,7 +2273,7 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
                     Some((#unwraper)(old))
                 } else {
                     #track_modification
-                    self.typed_mut().lazy.push(#ctor);
+                    self.typed_mut().lazy.push_exact(#ctor);
                     None
                 }
             };
@@ -2306,7 +2347,7 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
                     }
                     #track_modification
                     let set: #field_type = iter.collect();
-                    self.typed_mut().lazy.push(#ctor);
+                    self.typed_mut().lazy.push_exact(#ctor);
                 }
             }
         } else {
@@ -2327,13 +2368,20 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
         };
     }
 
-    quote! {
-        #[doc = "Check if the set contains an item"]
-        fn #has_name(&self, item: &#element_type) -> bool {
-            #check_access
-            #has_body
+    // An edge set can also take an item the caller knows is new, without a lookup.
+    let push_fn = if is_edge_set(field_type) {
+        quote! {
+            #[doc = "Add an item that isn't in the set yet, without looking it up."]
+            fn #push_name(&mut self, item: #element_type) {
+                #check_access
+                #push_body
+            }
         }
+    } else {
+        quote! {}
+    };
 
+    let add_fns = quote! {
         #[doc = "Add an item to the set."]
         #[doc = "Returns true if the item was newly added, false if it already existed."]
         #[doc = "Only tracks modification if the item is actually added."]
@@ -2343,12 +2391,26 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
             #add_body
         }
 
+        #push_fn
+
         #[doc = "Add multiple items to the set from an iterator."]
         #[doc = "Only tracks modification if at least one item is actually added."]
         fn #extend_name(&mut self, items: impl IntoIterator<Item = #element_type>) {
             #check_access
             #extend_body
         }
+    };
+
+    quote! {
+        #[doc = "Check if the set contains an item"]
+        fn #has_name(&self, item: &#element_type) -> bool {
+            #check_access
+            #has_body
+        }
+
+        #edge_set_fns
+
+        #add_fns
 
         #[doc = "Remove an item from the set."]
         #[doc = "Returns true if the item was present and removed, false if it wasn't present."]
@@ -2463,10 +2525,35 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
     // no-op so no undo is needed.
     let remove_outcome = field.track_modification_outcome_expr_guarded(quote! { key });
     let remove_undo = field.track_modification_undo_expr(quote! { _track_outcome });
+    // Binds the map to mutate to `map`. For lazy fields it is located (or created) by index, so
+    // `drop_if_empty` can remove the `LazyField` variant by that index once a mutation left the
+    // map empty (`is_empty` is O(1)).
+    let (bind_map, drop_if_empty) = if is_option {
+        let matches = field.lazy_matches_closure();
+        let extractor = field.lazy_extractor_closure();
+        let constructor = field.lazy_constructor(quote! { Default::default() });
+        (
+            quote! {
+                let idx = self.typed_mut().get_or_create_lazy_index(#matches, || #constructor);
+                let map = self.typed_mut().lazy_at_mut(idx, #extractor);
+            },
+            quote! {
+                if map.is_empty() {
+                    self.typed_mut().remove_lazy_at(idx);
+                }
+            },
+        )
+    } else {
+        (quote! { let map = #mut_expr; }, quote! {})
+    };
+
     let remove_body = if field.is_transient() {
         quote! {
             #track_modification
-            #mut_expr.remove(key)
+            #bind_map
+            let removed = map.remove(key);
+            #drop_if_empty
+            removed
         }
     } else if is_option {
         // Lazy: still locate the map without allocating it (a bare `field_mut()` would create an
@@ -2475,8 +2562,13 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
         quote! {
             let (idx, _) = self.typed().find_lazy_ref(#extractor)?;
             let _track_outcome = #remove_outcome;
-            let removed = self.typed_mut().lazy_at_mut(idx, #extractor).remove(key);
-            if removed.is_none() { #remove_undo }
+            let map = self.typed_mut().lazy_at_mut(idx, #extractor);
+            let removed = map.remove(key);
+            if removed.is_none() {
+                #remove_undo
+            } else if map.is_empty() {
+                self.typed_mut().remove_lazy_at(idx);
+            }
             removed
         }
     } else {
@@ -2514,7 +2606,10 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
         let update_positive_crossing_name = field.infixed_ident("update", "positive_crossing");
         let update_positive_crossing_body = if field.is_transient() {
             quote! {
-                #mut_expr.update_positive_crossing(key, delta)
+                #bind_map
+                let crossed = map.update_positive_crossing(key, delta);
+                #drop_if_empty
+                crossed
             }
         } else {
             quote! {
@@ -2522,7 +2617,10 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
                     return false;
                 }
                 #track_modification_key
-                #mut_expr.update_positive_crossing(key, delta)
+                #bind_map
+                let crossed = map.update_positive_crossing(key, delta);
+                #drop_if_empty
+                crossed
             }
         };
 
@@ -2541,7 +2639,10 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
 
     let update_count_body = if field.is_transient() {
         quote! {
-            #mut_expr.update_count(key, delta)
+            #bind_map
+            let crossed = map.update_count(key, delta);
+            #drop_if_empty
+            crossed
         }
     } else {
         quote! {
@@ -2549,16 +2650,20 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
                 return false;
             }
             #track_modification_key
-            #mut_expr.update_count(key, delta)
+            #bind_map
+            let crossed = map.update_count(key, delta);
+            #drop_if_empty
+            crossed
         }
     };
 
     let update_counts_body = if field.is_transient() {
         quote! {
-            let map = #mut_expr;
+            #bind_map
             for key in keys {
                 map.update_count(key, delta);
             }
+            #drop_if_empty
         }
     } else if field.filter_transient {
         // Batch update: track once, iff at least one key is non-transient
@@ -2577,10 +2682,11 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
             if keys.iter().any(|key| !key.is_transient()) {
                 #track_modification
             }
-            let map = #mut_expr;
+            #bind_map
             for key in keys {
                 map.update_count(key, delta);
             }
+            #drop_if_empty
         }
     } else {
         quote! {
@@ -2588,16 +2694,20 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
                 return;
             }
             #track_modification
-            let map = #mut_expr;
+            #bind_map
             for key in keys {
                 map.update_count(key, delta);
             }
+            #drop_if_empty
         }
     };
 
     let update_and_get_body = if field.is_transient() {
         quote! {
-            #mut_expr.update_and_get(key, delta)
+            #bind_map
+            let value = map.update_and_get(key, delta);
+            #drop_if_empty
+            value
         }
     } else {
         quote! {
@@ -2605,7 +2715,10 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
                 return self.#get_name(&key).copied().unwrap_or_default();
             }
             #track_modification_key
-            #mut_expr.update_and_get(key, delta)
+            #bind_map
+            let value = map.update_and_get(key, delta);
+            #drop_if_empty
+            value
         }
     };
 
@@ -2633,13 +2746,17 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
                         } else {
                             let mut new_map = CounterMap::default();
                             new_map.insert(key, value);
-                            self.typed_mut().lazy.push(#constructor);
+                            self.typed_mut().lazy.push_exact(#constructor);
                         }
                     }
                     None => {
                         // the position must be available, otherwise `f` would have mapped None to None and thus the != check above would have failed.
-                        self.typed_mut().lazy_at_mut(position.unwrap(), #extractor).remove(&key);
-
+                        let position = position.unwrap();
+                        let map = self.typed_mut().lazy_at_mut(position, #extractor);
+                        map.remove(&key);
+                        if map.is_empty() {
+                            self.typed_mut().remove_lazy_at(position);
+                        }
                     }
                 }
             }
@@ -3095,6 +3212,51 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
 /// leave the field as residue — eviction proceeds (the persistent portion is
 /// recoverable from disk) and `restore_*_from` will merge the persistent portion
 /// back in later.
+/// Generates `TaskStorage::shrink_edge_sets`, which flattens every `EdgeSet` field.
+fn generate_shrink_edge_sets_method(grouped_fields: &GroupedFields) -> TokenStream {
+    let inline: Vec<_> = grouped_fields
+        .all_inline()
+        .filter(|f| is_edge_set(&f.field_type))
+        .map(|f| {
+            let field_name = &f.field_name;
+            quote! { self.#field_name.shrink_to_fit(); }
+        })
+        .collect();
+    let lazy_arms: Vec<_> = grouped_fields
+        .all_lazy()
+        .filter(|f| is_edge_set(&f.field_type))
+        .map(|f| {
+            let variant_name = &f.variant_name;
+            quote! { LazyField::#variant_name(set) => set.shrink_to_fit(), }
+        })
+        .collect();
+    let lazy = if lazy_arms.is_empty() {
+        quote! {}
+    } else {
+        quote! {
+            for field in self.lazy.iter_mut() {
+                match field {
+                    #(#lazy_arms)*
+                    _ => {}
+                }
+            }
+        }
+    };
+    quote! {
+        #[automatically_derived]
+        impl TaskStorage {
+            /// Flattens the task's edge sets into exactly sized arrays. Inserts and removals
+            /// inflate a large set into a hash table: a task's completion flattens the sets marked
+            /// `shrink_on_completion`, but nothing flattens the ones other tasks' removals inflated.
+            /// Doesn't change the contents, so no modification is tracked.
+            pub fn shrink_edge_sets(&mut self) {
+                #(#inline)*
+                #lazy
+            }
+        }
+    }
+}
+
 fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
     let drop_data_inline: Vec<_> = grouped_fields
         .persistent_inline(Category::Data)
@@ -3365,11 +3527,24 @@ fn extract_option_inner_type(ty: &Type) -> TokenStream {
     quote! { #ty }
 }
 
-/// Extract the element type `K` from `AutoSet<K>` (which is `FxHashSet<K>`)
+/// Whether the field type is an `EdgeSet<K>`.
+fn is_edge_set(ty: &Type) -> bool {
+    if let Type::Path(type_path) = ty
+        && let Some(segment) = type_path.path.segments.last()
+    {
+        segment.ident == "EdgeSet"
+    } else {
+        false
+    }
+}
+
+/// Extract the element type `K` from `AutoSet<K>` (which is `FxHashSet<K>`) or `EdgeSet<K>`
 fn extract_set_element_type(ty: &Type) -> Option<TokenStream> {
     if let Type::Path(type_path) = ty
         && let Some(segment) = type_path.path.segments.last()
-        && (segment.ident == "AutoSet" || segment.ident == "FxHashSet")
+        && (segment.ident == "AutoSet"
+            || segment.ident == "FxHashSet"
+            || segment.ident == "EdgeSet")
         && let syn::PathArguments::AngleBracketed(args) = &segment.arguments
         && let Some(syn::GenericArgument::Type(inner)) = args.args.first()
     {
@@ -3841,7 +4016,7 @@ fn generate_decode_lazy_fields(fields: &[&FieldInfo]) -> TokenStream {
                     ));
                 }
             };
-            self.lazy.push(field);
+            self.lazy.push_exact(field);
         }
     }
 }
@@ -4032,7 +4207,7 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
                 match incoming {
                     #(#merge_lazy_arms)*
                     _ => {
-                        self.lazy.push(incoming);
+                        self.lazy.push_exact(incoming);
                     }
                 }
             }
@@ -4062,7 +4237,7 @@ fn gen_restore_lazy_merge_arm(field: &FieldInfo, discriminant: u8) -> TokenStrea
                 };
                 residue.merge_restore(incoming);
             } else {
-                self.lazy.push(LazyField::#variant_name(incoming));
+                self.lazy.push_exact(LazyField::#variant_name(incoming));
             }
         }
     }

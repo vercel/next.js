@@ -98,13 +98,17 @@ integration lives outside this crate.
 
 `go_source_set(boundary, directory, selection, session)` returns a tracked source set.
 It finds the nearest ancestor `go.mod` within the supplied boundary, falling back to
-the source directory. Missing module files are observed too, so creating a nearer
+the source directory. Directory replacements inside the module are tracked like module
+sources and need no download; versioned replacements are rejected. Missing module files are observed too, so creating a nearer
 module invalidates selection. `GoSourceSelection::Files` accepts explicit names;
 `Directory` selects regular `.go` siblings except `_test.go`. Both use named-file
 semantics: platform suffixes and build tags do not filter the selected entry files.
 
-`go_declarations(sources, host_session)` reports top-level function names and syntax
-errors using Go's parser. The parser tool is cached independently of application
+`go_declarations(sources, files, host_session)` parses only `files` (typically the
+entrypoint) from the source set and reports their top-level function names, exported
+package-level values, and syntax errors using Go's parser. Other package files are not parsed.
+Values describe initializer syntax only: composite, string, integer and boolean literals are structural and every other
+expression is unsupported, so consumers can read static configuration without evaluating it. The parser tool is cached independently of application
 modules, and queries are keyed by their resolved source generation. It never loads application code.
 `go_declarations_with_assets` also discovers direct package-level `Browser("literal")`
 initializers for a configured SDK import, restricted to an explicit list of selected

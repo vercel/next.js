@@ -125,6 +125,8 @@ import { discoverRoutes, createPagesMapping } from './route-discovery'
 import { sortByPageExts } from './sort-by-page-exts'
 import { getConventionFileBaseName } from './get-convention-file-base-name'
 import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
+import { readGoProxyConfig, readGoRouteConfig } from './analysis/go-config'
+import { verifyGoSdkReplacement } from '../lib/go-sdk'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
@@ -193,6 +195,7 @@ import { getStaticMetadataPrerenderPathname } from '../lib/metadata/get-metadata
 import { isStaticMetadataFile } from '../lib/metadata/is-metadata-route'
 import { createClientRouterFilter } from '../lib/create-client-router-filter'
 import { startTypeChecking } from './type-check'
+import { removeStaleDevTypes } from '../lib/typescript/remove-stale-dev-types'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
@@ -259,7 +262,7 @@ type Fallback = null | boolean | string
 
 export type PrerenderRouteType = 'route' | 'fallback' | 'shell' | 'page'
 export type PrerenderResponse = 'empty' | 'initial' | 'complete'
-export type PrerenderCompute = 'blocking' | 'resuming' | 'static'
+export type PrerenderCompute = 'blocking' | 'dynamic' | 'resuming' | 'static'
 
 /**
  * Classification for the primary response in a prerender group.
@@ -271,7 +274,10 @@ interface PrerenderManifestClassification {
   /** The completeness of the prerendered response. */
   response?: PrerenderResponse
 
-  /** The per-request compute needed to serve this prerender. */
+  /**
+   * The request-time compute mode for this output. Blocking outputs wait for
+   * generation or revalidation when no usable cached prerender is available.
+   */
   compute?: PrerenderCompute
 
   /** The byte size of this route's prerendered HTML. */
@@ -309,8 +315,9 @@ export interface PrerenderManifestRoute
   initialExpireSeconds: number | undefined
 
   /**
-   * The prefetch data route associated with this page. If not defined, this
-   * page does not support prefetching.
+   * The build sets this to `dataRoute` for a PPR page with a complete static
+   * RSC payload. These prerenders have no postponed work or unresolved fallback
+   * params. Its absence does not disable segment or runtime prefetching.
    */
   prefetchDataRoute: string | null | undefined
 
@@ -505,7 +512,7 @@ function getPprAppPageClassification(
         : 'complete',
     compute: result.hasPostponed
       ? result.hasEmptyStaticShell
-        ? 'blocking'
+        ? 'dynamic'
         : 'resuming'
       : 'static',
     htmlSize: result.htmlSize,
@@ -764,7 +771,6 @@ export interface FunctionsConfigManifest {
     string,
     {
       maxDuration?: number | undefined
-      runtime?: 'nodejs'
       regions?: string[] | string
       matchers?: Array<{
         regexp: string
@@ -772,7 +778,10 @@ export interface FunctionsConfigManifest {
         has?: Rewrite['has']
         missing?: Rewrite['has']
       }>
-    }
+    } & (
+      | { runtime?: 'nodejs'; nativeEntry?: never }
+      | { runtime: 'go'; nativeEntry: string }
+    )
   >
 }
 
@@ -857,7 +866,7 @@ async function writeStandaloneDirectory(
   outputFileTracingRoot: string,
   requiredServerFiles: RequiredServerFilesManifest,
   middlewareManifest: MiddlewareManifest,
-  hasNodeMiddleware: boolean,
+  middlewareConfig: FunctionsConfigManifest['functions'][string] | undefined,
   hasInstrumentationHook: boolean,
   staticPages: Set<string>,
   loadedEnvFiles: LoadedEnvFiles,
@@ -875,7 +884,7 @@ async function writeStandaloneDirectory(
         outputFileTracingRoot,
         requiredServerFiles.config,
         middlewareManifest,
-        hasNodeMiddleware,
+        middlewareConfig,
         hasInstrumentationHook,
         staticPages
       )
@@ -906,18 +915,22 @@ async function writeStandaloneDirectory(
         await fs.copyFile(filePath, outputPath)
       }
 
-      if (hasNodeMiddleware) {
+      if (middlewareConfig) {
+        const middlewareEntry =
+          middlewareConfig.runtime === 'go'
+            ? middlewareConfig.nativeEntry
+            : 'middleware.js'
         const middlewareOutput = path.join(
           distDir,
           STANDALONE_DIRECTORY,
           path.relative(outputFileTracingRoot, distDir),
           SERVER_DIRECTORY,
-          'middleware.js'
+          middlewareEntry
         )
 
         await fs.mkdir(path.dirname(middlewareOutput), { recursive: true })
         await fs.copyFile(
-          path.join(distDir, SERVER_DIRECTORY, 'middleware.js'),
+          path.join(distDir, SERVER_DIRECTORY, middlewareEntry),
           middlewareOutput
         )
       }
@@ -1468,8 +1481,13 @@ export default async function build(
         `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
       )
 
+      // proxy.go is only a convention file when Go routes are enabled, so an
+      // unrelated Go file in the project root does not affect other apps.
       const proxyDetectionRegExp = new RegExp(
-        `^${PROXY_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
+        `^${PROXY_FILENAME}\\.(?:${[
+          ...config.pageExtensions,
+          ...(config.experimental.goRoutes ? ['go'] : []),
+        ].join('|')})$`
       )
 
       const instrumentationHookDetectionRegExp = new RegExp(
@@ -1506,6 +1524,15 @@ export default async function build(
           middlewareFilePath = rootPath
         }
         if (isAtConventionLevel && fileBaseName === PROXY_FILENAME) {
+          // A Go proxy cannot be combined with a JavaScript one. Multiple
+          // JavaScript Proxy files keep resolving to the last one.
+          if (
+            proxyFilePath &&
+            (proxyFilePath.endsWith('.go') || rootPath.endsWith('.go'))
+          )
+            throw new Error(
+              `Multiple Proxy files detected: ".${normalizePathSep(proxyFilePath)}" and ".${normalizePathSep(rootPath)}". Remove one of these files; Next.js supports a single Proxy file.`
+            )
           proxyFilePath = rootPath
         }
         if (
@@ -1700,6 +1727,15 @@ export default async function build(
             routeTypesManifest,
             path.join(distDir, 'types', 'root-params.d.ts')
           )
+
+          // The TypeScript CLI type check includes every file in tsconfig,
+          // so types left behind by a stopped `next dev` would fail it after
+          // routes are moved or deleted. `next dev` writes below the
+          // configured `distDir`, which can differ from the build output with
+          // `output: 'export'`.
+          await removeStaleDevTypes({
+            distDirRoot: path.join(dir, config.distDirRoot),
+          })
         })
 
       // Turbopack already handles conflicting app and page routes.
@@ -1902,6 +1938,9 @@ export default async function build(
       let shutdownPromise = Promise.resolve()
       if (!isGenerateMode) {
         if (bundler === Bundler.Turbopack) {
+          if (config.experimental.goRoutes) {
+            await verifyGoSdkReplacement(dir)
+          }
           const {
             duration: compilerDuration,
             shutdownPromise: p,
@@ -2298,6 +2337,7 @@ export default async function build(
 
       const appPathRoutes: Record<string, string> = {}
       const nativeAppPaths = new Set<string>()
+      const nativeAppEntries = new Map<string, string>()
 
       if (appDir) {
         const appPathsManifest = await readManifest<Record<string, string>>(
@@ -2319,6 +2359,7 @@ export default async function build(
             appPathsManifest[key].endsWith('.native.json')
           ) {
             nativeAppPaths.add(key)
+            nativeAppEntries.set(key, appPathsManifest[key])
           }
           const pathname = normalizeAppPath(key)
           const routeAppPaths = appPathsByPathname.get(pathname)
@@ -2592,21 +2633,37 @@ export default async function build(
                   errorFromUnsupportedSegmentConfig()
                 }
 
+                // Go routes carry their static config in the native descriptor
+                // Turbopack emitted, instead of in source-level static info.
+                const nativeEntry = nativeAppEntries.get(
+                  originalAppPath || page
+                )
+                const goConfig = nativeEntry
+                  ? await readGoRouteConfig(
+                      path.join(distDir, SERVER_DIRECTORY, nativeEntry),
+                      pageFilePath
+                    )
+                  : undefined
+                const maxDuration = goConfig
+                  ? goConfig.maxDuration
+                  : staticInfo?.maxDuration
+                const preferredRegion = staticInfo?.preferredRegion
+
                 // If there's any thing that would contribute to the functions
                 // configuration, we need to add it to the manifest.
                 if (
                   typeof staticInfo?.runtime !== 'undefined' ||
-                  typeof staticInfo?.maxDuration !== 'undefined' ||
-                  typeof staticInfo?.preferredRegion !== 'undefined'
+                  typeof maxDuration !== 'undefined' ||
+                  typeof preferredRegion !== 'undefined'
                 ) {
-                  const regions = staticInfo?.preferredRegion
-                    ? typeof staticInfo.preferredRegion === 'string'
-                      ? [staticInfo.preferredRegion]
-                      : staticInfo.preferredRegion
+                  const regions = preferredRegion
+                    ? typeof preferredRegion === 'string'
+                      ? [preferredRegion]
+                      : preferredRegion
                     : undefined
 
                   functionsConfigManifest.functions[page] = {
-                    maxDuration: staticInfo?.maxDuration,
+                    maxDuration,
                     ...(regions && { regions }),
                   }
                 }
@@ -2973,7 +3030,6 @@ export default async function build(
       const middlewareFile = normalizePathSep(
         proxyFilePath || middlewareFilePath || ''
       )
-      let hasNodeMiddleware = false
 
       if (middlewareFile) {
         // Is format of `(/src)/(proxy|middleware).<ext>`, so split by
@@ -2996,15 +3052,29 @@ export default async function build(
         }
 
         if (staticInfo.runtime === 'nodejs' || isProxyFile(page)) {
-          hasNodeMiddleware = true
+          // Go proxies carry their static config in the native descriptor
+          // Turbopack emitted, instead of in source-level static info.
+          const goConfig = middlewareFile.endsWith('.go')
+            ? await readGoProxyConfig(
+                path.join(distDir, SERVER_DIRECTORY, 'middleware.native.json'),
+                path.join(dir, middlewareFile),
+                config
+              )
+            : undefined
           functionsConfigManifest.functions['/_middleware'] = {
-            runtime: 'nodejs',
-            matchers: staticInfo.middleware?.matchers ?? [
-              {
-                regexp: '^.*$',
-                originalSource: '/:path*',
-              },
-            ],
+            ...(goConfig
+              ? {
+                  runtime: 'go' as const,
+                  nativeEntry: 'middleware.native.json',
+                }
+              : { runtime: 'nodejs' as const }),
+            matchers: goConfig?.matchers ??
+              staticInfo.middleware?.matchers ?? [
+                {
+                  regexp: '^.*$',
+                  originalSource: '/:path*',
+                },
+              ],
           }
 
           if (bundler === Bundler.Turbopack) {
@@ -4055,6 +4125,13 @@ export default async function build(
                   fallbackMode === FallbackMode.PRERENDER
                     ? collectMeta(metadata)
                     : {}
+                const isExplicitlyBlocking =
+                  fallbackMode === FallbackMode.BLOCKING_STATIC_RENDER &&
+                  route.fallbackRouteParams.some(
+                    ({ paramName }) =>
+                      paramMatchingByRoute.get(originalAppPath)?.[paramName] ===
+                      'blocking'
+                  )
                 let classification: PrerenderManifestClassification = {}
                 if (!isAppRouteHandler) {
                   if (typeof fallback === 'string' && isRoutePPREnabled) {
@@ -4072,7 +4149,14 @@ export default async function build(
                     classification = {
                       routeType: 'page',
                       response: 'empty',
-                      compute: 'blocking',
+                      // Static navigation guarantees static server output.
+                      // Other PPR routes can render dynamically unless the
+                      // parameter policy explicitly requires a prerender first.
+                      compute: isEnsureStaticPage
+                        ? 'static'
+                        : isRoutePPREnabled && !isExplicitlyBlocking
+                          ? 'dynamic'
+                          : 'blocking',
                     }
                   }
                 }
@@ -4105,16 +4189,7 @@ export default async function build(
                   ),
                   dataRoute,
                   fallback,
-                  isExplicitlyBlocking:
-                    fallbackMode === FallbackMode.BLOCKING_STATIC_RENDER &&
-                    route.fallbackRouteParams.some(
-                      ({ paramName }) =>
-                        paramMatchingByRoute.get(originalAppPath)?.[
-                          paramName
-                        ] === 'blocking'
-                    )
-                      ? true
-                      : undefined,
+                  isExplicitlyBlocking: isExplicitlyBlocking || undefined,
                   fallbackRevalidate: fallbackCacheControl?.revalidate,
                   fallbackExpire: fallbackCacheControl?.expire,
                   fallbackStatus: meta.status,
@@ -4513,7 +4588,7 @@ export default async function build(
       // When output: export we want to end the worker later as it's still used for writeFullyStaticExport
       if (config.output !== 'export') {
         // ensure the worker is not left hanging
-        staticWorker?.end()
+        await staticWorker?.end()
         staticWorker = undefined! // Reset staticWorker to make sure it does not end in `finally`
       }
 
@@ -4745,7 +4820,7 @@ export default async function build(
       if (config.output === 'export') {
         // TODO: When writeFullyStaticExport doesn't fail when staticWorker is passed moved this after writeFullyStaticExport.
         // End the worker here when it's output: export.
-        staticWorker.end()
+        await staticWorker.end()
         staticWorker = undefined! // Reset staticWorker to make sure it does not end in `finally`
 
         await nextBuildSpan
@@ -4785,7 +4860,6 @@ export default async function build(
               nextVersion: process.env.__NEXT_VERSION as string,
               repoRoot: config.repoRoot,
               outputFileTracingRoot,
-              hasNodeMiddleware,
               hasInstrumentationHook,
               previewProps,
               adapterPath,
@@ -4814,7 +4888,7 @@ export default async function build(
               outputFileTracingRoot,
               requiredServerFilesManifest,
               middlewareManifest,
-              hasNodeMiddleware,
+              functionsConfigManifest.functions['/_middleware'],
               hasInstrumentationHook,
               staticPages,
               loadedEnvFiles,
@@ -4924,7 +4998,7 @@ export default async function build(
   } finally {
     // @ts-expect-error Existence of staticWorker is checked here intentionally.
     if (staticWorker) {
-      staticWorker.end()
+      await staticWorker.end()
     }
     // Ensure we wait for lockfile patching if present
     await lockfilePatchPromise.cur

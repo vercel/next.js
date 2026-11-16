@@ -74,6 +74,7 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
     projectPath: normalizePath(path.relative(rootPath, dir) || '.'),
     distDir,
     nextConfig: config,
+    ensureShallowSourceMaps: NextBuildContext.analyze,
     watch: {
       enable: false,
     },

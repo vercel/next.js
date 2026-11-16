@@ -60,9 +60,9 @@ pub mod _chunking {}
 pub mod _layers {}
 
 pub const PROJECT_FILESYSTEM_NAME_STR: &str = "project";
-pub const PROJECT_FILESYSTEM_NAME: RcStr = rcstr!(PROJECT_FILESYSTEM_NAME_STR);
+pub static PROJECT_FILESYSTEM_NAME: RcStr = rcstr!(PROJECT_FILESYSTEM_NAME_STR);
 pub const SOURCE_URL_PROTOCOL_STR: &str = "turbopack:";
-pub const SOURCE_URL_PROTOCOL: RcStr = rcstr!(SOURCE_URL_PROTOCOL_STR);
+pub static SOURCE_URL_PROTOCOL: RcStr = rcstr!(SOURCE_URL_PROTOCOL_STR);
 
 #[doc(hidden)]
 pub mod __private {

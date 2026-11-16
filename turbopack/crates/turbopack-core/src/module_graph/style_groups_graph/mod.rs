@@ -68,7 +68,7 @@ use std::{
 use anyhow::Result;
 use indexmap::map::Entry;
 use petgraph::graph::NodeIndex;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::{Instrument, instrument};
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
 
@@ -129,7 +129,7 @@ pub async fn compute_style_groups_graph(
         .await?;
 
     if modules_in_order.is_empty() {
-        return Ok(make_style_groups(FxIndexMap::default()));
+        return Ok(make_style_groups(FxHashMap::default()));
     }
 
     // 2. Resolve each module's `ChunkItemWithAsyncModuleInfo` and byte size in parallel.
@@ -290,11 +290,11 @@ async fn assemble_style_groups(
     chunks: &[(Vec<usize>, Option<f32>)],
     module_data: &[ModuleData],
 ) -> Result<Vc<StyleGroups>> {
-    let mut shared_chunk_items: FxIndexMap<ChunkItemWithAsyncModuleInfo, StyleItemInfo> =
-        FxIndexMap::default();
+    let mut shared_chunk_items: FxHashMap<ChunkItemWithAsyncModuleInfo, StyleItemInfo> =
+        FxHashMap::default();
     let mut order_counter: u32 = 0;
     let mut push =
-        |map: &mut FxIndexMap<ChunkItemWithAsyncModuleInfo, StyleItemInfo>,
+        |map: &mut FxHashMap<ChunkItemWithAsyncModuleInfo, StyleItemInfo>,
          chunk_item: ChunkItemWithAsyncModuleInfo,
          batch: Option<ResolvedVc<ChunkItemBatchWithAsyncModuleInfo>>| {
             map.insert(

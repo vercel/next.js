@@ -85,7 +85,13 @@ This runs the two default variants in parallel and prints pass/fail for each:
 ✓ agents-md/agent-042-your-thing  (200s)
 ```
 
-`agents-md` drops an AGENTS.md into the sandbox telling the agent to check `node_modules/next/dist/docs/` first. `baseline` doesn't. That's the whole difference — same prompt, same model, one extra file. If `agents-md` passes and `baseline` doesn't, the bundled docs are doing their job.
+`agents-md` generates the documentation pointer with the installed Next.js package's
+`writeAgentFiles()` helper and adds a `CLAUDE.md` reference to it. Existing project
+instructions in `AGENTS.md` are preserved. Setup fails if that package cannot
+generate the pointer, rather than silently substituting instructions from another
+version. `baseline` skips this setup step. Both variants use the same prompt and
+model; agents can still discover docs or have `next dev` generate instructions
+during either trial.
 
 ### Evaluating a local skill
 
@@ -105,6 +111,12 @@ The runner then adds a third `skills` variant for that fixture. It installs the 
 Browser-dependent fixtures declare `@playwright/test` in `dependencies` or
 `devDependencies` in their `package.json`. The runner detects that dependency
 and installs Chromium and its system libraries before the agent starts.
+
+The [Pokédex Skill eval](evals/agent-062-pokedex-dev-loop/README.md) uses browser
+behavior checks and keeps token, time, cost, and page-performance measurements
+alongside its pass/fail result with `--metrics`
+([instructions](metrics/README.md)). It is excluded from publication with
+`publish: false`.
 
 Fixtures opt into before/after JavaScript measurements with `"browserJs": true`
 in `eval.config.json`. The runner adds measurement hooks only to experiments

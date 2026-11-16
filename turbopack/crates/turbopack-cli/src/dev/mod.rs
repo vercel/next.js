@@ -500,7 +500,7 @@ async fn serve(
         .log_level(
             args.common
                 .log_level
-                .map_or_else(|| IssueSeverity::Warning, |l| l.0),
+                .map_or(IssueSeverity::Warning, |l| l.0),
         );
 
     for entry in entries.into_iter().filter(|entry| !is_go_entry(entry)) {

@@ -75,7 +75,7 @@ impl InstrumentationEndpoint {
             .asset_context
             .process(
                 *self.source,
-                ReferenceType::Entry(EntryReferenceSubType::Instrumentation),
+                ReferenceType::Entry(EntryReferenceSubType::default()),
             )
             .module()
             .to_resolved()

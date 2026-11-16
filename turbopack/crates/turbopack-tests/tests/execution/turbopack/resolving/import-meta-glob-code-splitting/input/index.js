@@ -13,7 +13,8 @@ function isLoaded(file) {
 }
 
 it('should include eager matches in the entry chunk', () => {
-  expect(isLoaded('eager/c.js')).toBe(true)
+  // Available without loading a chunk. Scope hoisting may merge the match into the
+  // glob's synthetic module, so it isn't necessarily registered on its own.
   expect(eager['./eager/c.js'].default).toBe('eager c')
 })
 

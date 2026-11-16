@@ -21,6 +21,16 @@ export default function Page() {
         <li>
           <PrepareLink href="/target">Prepare link to target</PrepareLink>
         </li>
+        <li>
+          <LinkAccordion href="/static-target">
+            Prefetch static target
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/static-param/a" prefetch={true}>
+            Prefetch static param a
+          </LinkAccordion>
+        </li>
       </ul>
     </>
   )

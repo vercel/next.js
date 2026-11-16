@@ -22,6 +22,7 @@ use turbopack_core::{
     reference_type::ReferenceType,
     resolve::{BindingUsage, ExportUsage, ImportUsage, ModuleResolveResult},
     source::OptionSource,
+    source_map::SourceMapGenerationOptions,
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
@@ -74,7 +75,7 @@ impl EcmascriptClientReferenceModule {
 
     #[turbo_tasks::function]
     async fn proxy_module(&self) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
-        let mut code = CodeBuilder::default();
+        let mut code = CodeBuilder::new(false, SourceMapGenerationOptions::NONE);
         let is_esm: bool;
 
         let server_module_path = &*self.server_ident.to_string().await?;
@@ -224,7 +225,7 @@ impl Module for EcmascriptClientReferenceModule {
                 EcmascriptClientReference::new(
                     *ResolvedVc::upcast(*client_module),
                     ChunkGroupType::Evaluated,
-                    Some(CLIENT_MERGE_TAG),
+                    Some(CLIENT_MERGE_TAG.clone()),
                     rcstr!("ecmascript client reference to client"),
                 )
                 .to_resolved()
@@ -234,7 +235,7 @@ impl Module for EcmascriptClientReferenceModule {
                 EcmascriptClientReference::new(
                     *ResolvedVc::upcast(*ssr_module),
                     ChunkGroupType::Entry,
-                    Some(SSR_MERGE_TAG),
+                    Some(SSR_MERGE_TAG.clone()),
                     rcstr!("ecmascript client reference to ssr"),
                 )
                 .to_resolved()

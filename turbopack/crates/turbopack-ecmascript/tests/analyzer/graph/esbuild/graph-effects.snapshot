@@ -88,6 +88,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -171,92 +172,6 @@
         span: 2725..2739,
         in_truthiness_context: false,
     },
-    FreeVar {
-        var: "__filename",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    7,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Arrow,
-            ),
-            ArrowExpr(
-                Body,
-            ),
-            ArrowFunctionBody(
-                FunctionBody,
-            ),
-            FunctionBody(
-                Stmts(
-                    0,
-                ),
-            ),
-            Stmt(
-                If,
-            ),
-            IfStmt(
-                Test,
-            ),
-            Expr(
-                Bin,
-            ),
-            BinExpr(
-                Right,
-            ),
-            Expr(
-                Paren,
-            ),
-            ParenExpr(
-                Expr,
-            ),
-            Expr(
-                Bin,
-            ),
-            BinExpr(
-                Left,
-            ),
-            Expr(
-                Bin,
-            ),
-            BinExpr(
-                Left,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 2740..2750,
-    },
     MemberCall {
         obj: Variable(
             (
@@ -276,6 +191,94 @@
                 FreeVar(
                     "__filename",
                 ),
+                [
+                    FreeVar {
+                        var: "__filename",
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    7,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Var,
+                            ),
+                            VarDecl(
+                                Decls(
+                                    0,
+                                ),
+                            ),
+                            VarDeclarator(
+                                Init,
+                            ),
+                            Expr(
+                                Arrow,
+                            ),
+                            ArrowExpr(
+                                Body,
+                            ),
+                            ArrowFunctionBody(
+                                FunctionBody,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                If,
+                            ),
+                            IfStmt(
+                                Test,
+                            ),
+                            Expr(
+                                Bin,
+                            ),
+                            BinExpr(
+                                Right,
+                            ),
+                            Expr(
+                                Paren,
+                            ),
+                            ParenExpr(
+                                Expr,
+                            ),
+                            Expr(
+                                Bin,
+                            ),
+                            BinExpr(
+                                Left,
+                            ),
+                            Expr(
+                                Bin,
+                            ),
+                            BinExpr(
+                                Left,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    0,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Ident,
+                            ),
+                        ],
+                        span: 2740..2750,
+                    },
+                ],
             ),
         ],
         ast_path: [
@@ -367,6 +370,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -450,92 +454,6 @@
         span: 2775..2789,
         in_truthiness_context: false,
     },
-    FreeVar {
-        var: "__dirname",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    7,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Arrow,
-            ),
-            ArrowExpr(
-                Body,
-            ),
-            ArrowFunctionBody(
-                FunctionBody,
-            ),
-            FunctionBody(
-                Stmts(
-                    0,
-                ),
-            ),
-            Stmt(
-                If,
-            ),
-            IfStmt(
-                Test,
-            ),
-            Expr(
-                Bin,
-            ),
-            BinExpr(
-                Right,
-            ),
-            Expr(
-                Paren,
-            ),
-            ParenExpr(
-                Expr,
-            ),
-            Expr(
-                Bin,
-            ),
-            BinExpr(
-                Right,
-            ),
-            Expr(
-                Bin,
-            ),
-            BinExpr(
-                Left,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 2790..2799,
-    },
     MemberCall {
         obj: Variable(
             (
@@ -555,6 +473,94 @@
                 FreeVar(
                     "__dirname",
                 ),
+                [
+                    FreeVar {
+                        var: "__dirname",
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    7,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Var,
+                            ),
+                            VarDecl(
+                                Decls(
+                                    0,
+                                ),
+                            ),
+                            VarDeclarator(
+                                Init,
+                            ),
+                            Expr(
+                                Arrow,
+                            ),
+                            ArrowExpr(
+                                Body,
+                            ),
+                            ArrowFunctionBody(
+                                FunctionBody,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                If,
+                            ),
+                            IfStmt(
+                                Test,
+                            ),
+                            Expr(
+                                Bin,
+                            ),
+                            BinExpr(
+                                Right,
+                            ),
+                            Expr(
+                                Paren,
+                            ),
+                            ParenExpr(
+                                Expr,
+                            ),
+                            Expr(
+                                Bin,
+                            ),
+                            BinExpr(
+                                Right,
+                            ),
+                            Expr(
+                                Bin,
+                            ),
+                            BinExpr(
+                                Left,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    0,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Ident,
+                            ),
+                        ],
+                        span: 2790..2799,
+                    },
+                ],
             ),
         ],
         ast_path: [
@@ -798,90 +804,6 @@
                         ],
                         span: 2832..2837,
                     },
-                    FreeVar {
-                        var: "__filename",
-                        ast_path: [
-                            Program(
-                                Script,
-                            ),
-                            Script(
-                                Body(
-                                    7,
-                                ),
-                            ),
-                            Stmt(
-                                Decl,
-                            ),
-                            Decl(
-                                Var,
-                            ),
-                            VarDecl(
-                                Decls(
-                                    0,
-                                ),
-                            ),
-                            VarDeclarator(
-                                Init,
-                            ),
-                            Expr(
-                                Arrow,
-                            ),
-                            ArrowExpr(
-                                Body,
-                            ),
-                            ArrowFunctionBody(
-                                FunctionBody,
-                            ),
-                            FunctionBody(
-                                Stmts(
-                                    0,
-                                ),
-                            ),
-                            Stmt(
-                                If,
-                            ),
-                            IfStmt(
-                                Cons,
-                            ),
-                            Stmt(
-                                Block,
-                            ),
-                            BlockStmt(
-                                Stmts(
-                                    0,
-                                ),
-                            ),
-                            Stmt(
-                                Throw,
-                            ),
-                            ThrowStmt(
-                                Arg,
-                            ),
-                            Expr(
-                                New,
-                            ),
-                            NewExpr(
-                                Args(
-                                    0,
-                                ),
-                            ),
-                            ExprOrSpread(
-                                Expr,
-                            ),
-                            Expr(
-                                Tpl,
-                            ),
-                            Tpl(
-                                Exprs(
-                                    0,
-                                ),
-                            ),
-                            Expr(
-                                Ident,
-                            ),
-                        ],
-                        span: 3047..3057,
-                    },
                     Call {
                         func: FreeVar(
                             "Error",
@@ -910,6 +832,92 @@
                                         ),
                                     ],
                                 ),
+                                [
+                                    FreeVar {
+                                        var: "__filename",
+                                        ast_path: [
+                                            Program(
+                                                Script,
+                                            ),
+                                            Script(
+                                                Body(
+                                                    7,
+                                                ),
+                                            ),
+                                            Stmt(
+                                                Decl,
+                                            ),
+                                            Decl(
+                                                Var,
+                                            ),
+                                            VarDecl(
+                                                Decls(
+                                                    0,
+                                                ),
+                                            ),
+                                            VarDeclarator(
+                                                Init,
+                                            ),
+                                            Expr(
+                                                Arrow,
+                                            ),
+                                            ArrowExpr(
+                                                Body,
+                                            ),
+                                            ArrowFunctionBody(
+                                                FunctionBody,
+                                            ),
+                                            FunctionBody(
+                                                Stmts(
+                                                    0,
+                                                ),
+                                            ),
+                                            Stmt(
+                                                If,
+                                            ),
+                                            IfStmt(
+                                                Cons,
+                                            ),
+                                            Stmt(
+                                                Block,
+                                            ),
+                                            BlockStmt(
+                                                Stmts(
+                                                    0,
+                                                ),
+                                            ),
+                                            Stmt(
+                                                Throw,
+                                            ),
+                                            ThrowStmt(
+                                                Arg,
+                                            ),
+                                            Expr(
+                                                New,
+                                            ),
+                                            NewExpr(
+                                                Args(
+                                                    0,
+                                                ),
+                                            ),
+                                            ExprOrSpread(
+                                                Expr,
+                                            ),
+                                            Expr(
+                                                Tpl,
+                                            ),
+                                            Tpl(
+                                                Exprs(
+                                                    0,
+                                                ),
+                                            ),
+                                            Expr(
+                                                Ident,
+                                            ),
+                                        ],
+                                        span: 3047..3057,
+                                    },
+                                ],
                             ),
                         ],
                         ast_path: [
@@ -1052,6 +1060,7 @@
                                 ),
                             ),
                         ),
+                        base_effects: [],
                         ast_path: [
                             Program(
                                 Script,
@@ -1147,104 +1156,6 @@
                         span: 3526..3536,
                         in_truthiness_context: false,
                     },
-                    FreeVar {
-                        var: "__dirname",
-                        ast_path: [
-                            Program(
-                                Script,
-                            ),
-                            Script(
-                                Body(
-                                    7,
-                                ),
-                            ),
-                            Stmt(
-                                Decl,
-                            ),
-                            Decl(
-                                Var,
-                            ),
-                            VarDecl(
-                                Decls(
-                                    0,
-                                ),
-                            ),
-                            VarDeclarator(
-                                Init,
-                            ),
-                            Expr(
-                                Arrow,
-                            ),
-                            ArrowExpr(
-                                Body,
-                            ),
-                            ArrowFunctionBody(
-                                FunctionBody,
-                            ),
-                            FunctionBody(
-                                Stmts(
-                                    1,
-                                ),
-                            ),
-                            Stmt(
-                                If,
-                            ),
-                            IfStmt(
-                                Cons,
-                            ),
-                            Stmt(
-                                Block,
-                            ),
-                            BlockStmt(
-                                Stmts(
-                                    0,
-                                ),
-                            ),
-                            Stmt(
-                                Return,
-                            ),
-                            ReturnStmt(
-                                Arg,
-                            ),
-                            Expr(
-                                Array,
-                            ),
-                            ArrayLit(
-                                Elems(
-                                    1,
-                                ),
-                            ),
-                            ExprOrSpread(
-                                Expr,
-                            ),
-                            Expr(
-                                Array,
-                            ),
-                            ArrayLit(
-                                Elems(
-                                    0,
-                                ),
-                            ),
-                            ExprOrSpread(
-                                Expr,
-                            ),
-                            Expr(
-                                Call,
-                            ),
-                            CallExpr(
-                                Args(
-                                    0,
-                                ),
-                            ),
-                            ExprOrSpread(
-                                Expr,
-                            ),
-                            Expr(
-                                Ident,
-                            ),
-                        ],
-                        span: 3537..3546,
-                    },
                     MemberCall {
                         obj: Variable(
                             (
@@ -1264,6 +1175,106 @@
                                 FreeVar(
                                     "__dirname",
                                 ),
+                                [
+                                    FreeVar {
+                                        var: "__dirname",
+                                        ast_path: [
+                                            Program(
+                                                Script,
+                                            ),
+                                            Script(
+                                                Body(
+                                                    7,
+                                                ),
+                                            ),
+                                            Stmt(
+                                                Decl,
+                                            ),
+                                            Decl(
+                                                Var,
+                                            ),
+                                            VarDecl(
+                                                Decls(
+                                                    0,
+                                                ),
+                                            ),
+                                            VarDeclarator(
+                                                Init,
+                                            ),
+                                            Expr(
+                                                Arrow,
+                                            ),
+                                            ArrowExpr(
+                                                Body,
+                                            ),
+                                            ArrowFunctionBody(
+                                                FunctionBody,
+                                            ),
+                                            FunctionBody(
+                                                Stmts(
+                                                    1,
+                                                ),
+                                            ),
+                                            Stmt(
+                                                If,
+                                            ),
+                                            IfStmt(
+                                                Cons,
+                                            ),
+                                            Stmt(
+                                                Block,
+                                            ),
+                                            BlockStmt(
+                                                Stmts(
+                                                    0,
+                                                ),
+                                            ),
+                                            Stmt(
+                                                Return,
+                                            ),
+                                            ReturnStmt(
+                                                Arg,
+                                            ),
+                                            Expr(
+                                                Array,
+                                            ),
+                                            ArrayLit(
+                                                Elems(
+                                                    1,
+                                                ),
+                                            ),
+                                            ExprOrSpread(
+                                                Expr,
+                                            ),
+                                            Expr(
+                                                Array,
+                                            ),
+                                            ArrayLit(
+                                                Elems(
+                                                    0,
+                                                ),
+                                            ),
+                                            ExprOrSpread(
+                                                Expr,
+                                            ),
+                                            Expr(
+                                                Call,
+                                            ),
+                                            CallExpr(
+                                                Args(
+                                                    0,
+                                                ),
+                                            ),
+                                            ExprOrSpread(
+                                                Expr,
+                                            ),
+                                            Expr(
+                                                Ident,
+                                            ),
+                                        ],
+                                        span: 3537..3546,
+                                    },
+                                ],
                             ),
                             Value(
                                 Constant(
@@ -1273,6 +1284,7 @@
                                         ),
                                     ),
                                 ),
+                                [],
                             ),
                             Value(
                                 Constant(
@@ -1282,6 +1294,7 @@
                                         ),
                                     ),
                                 ),
+                                [],
                             ),
                             Value(
                                 Constant(
@@ -1291,6 +1304,7 @@
                                         ),
                                     ),
                                 ),
+                                [],
                             ),
                         ],
                         ast_path: [
@@ -1666,6 +1680,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -1728,6 +1743,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -1737,6 +1753,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -1823,6 +1840,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -1909,6 +1927,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -1995,6 +2014,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -2039,6 +2059,70 @@
                 ),
             ),
         ),
+        base_effects: [
+            FreeVar {
+                var: "process",
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            5,
+                        ),
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Fn,
+                    ),
+                    FnDecl(
+                        Function,
+                    ),
+                    Function(
+                        Body,
+                    ),
+                    FunctionBody(
+                        Stmts(
+                            2,
+                        ),
+                    ),
+                    Stmt(
+                        Decl,
+                    ),
+                    Decl(
+                        Var,
+                    ),
+                    VarDecl(
+                        Decls(
+                            0,
+                        ),
+                    ),
+                    VarDeclarator(
+                        Init,
+                    ),
+                    Expr(
+                        Tpl,
+                    ),
+                    Tpl(
+                        Exprs(
+                            0,
+                        ),
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Ident,
+                    ),
+                ],
+                span: 1005..1012,
+            },
+        ],
         ast_path: [
             Program(
                 Script,
@@ -2094,68 +2178,6 @@
         span: 1005..1021,
         in_truthiness_context: false,
     },
-    FreeVar {
-        var: "process",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    5,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    2,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                Tpl,
-            ),
-            Tpl(
-                Exprs(
-                    0,
-                ),
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 1005..1012,
-    },
     Member {
         obj: Variable(
             (
@@ -2170,6 +2192,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -2319,6 +2342,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -2467,6 +2491,7 @@
                 #2,
             ),
         ),
+        effects: [],
         ast_path: [
             Program(
                 Script,
@@ -2537,6 +2562,7 @@
                                 #3,
                             ),
                         ),
+                        base_effects: [],
                         ast_path: [
                             Program(
                                 Script,
@@ -2618,6 +2644,7 @@
                                 #2,
                             ),
                         ),
+                        effects: [],
                         ast_path: [
                             Program(
                                 Script,
@@ -2694,6 +2721,7 @@
                                                 #3,
                                             ),
                                         ),
+                                        base_effects: [],
                                         ast_path: [
                                             Program(
                                                 Script,
@@ -2858,6 +2886,7 @@
                                                         ),
                                                     ],
                                                 ),
+                                                [],
                                             ),
                                         ],
                                         ast_path: [
@@ -3307,6 +3336,80 @@
                                 ),
                             ),
                         ),
+                        base_effects: [
+                            FreeVar {
+                                var: "require",
+                                ast_path: [
+                                    Program(
+                                        Script,
+                                    ),
+                                    Script(
+                                        Body(
+                                            6,
+                                        ),
+                                    ),
+                                    Stmt(
+                                        Decl,
+                                    ),
+                                    Decl(
+                                        Fn,
+                                    ),
+                                    FnDecl(
+                                        Function,
+                                    ),
+                                    Function(
+                                        Body,
+                                    ),
+                                    FunctionBody(
+                                        Stmts(
+                                            3,
+                                        ),
+                                    ),
+                                    Stmt(
+                                        Try,
+                                    ),
+                                    TryStmt(
+                                        Block,
+                                    ),
+                                    BlockStmt(
+                                        Stmts(
+                                            0,
+                                        ),
+                                    ),
+                                    Stmt(
+                                        Expr,
+                                    ),
+                                    ExprStmt(
+                                        Expr,
+                                    ),
+                                    Expr(
+                                        Assign,
+                                    ),
+                                    AssignExpr(
+                                        Right,
+                                    ),
+                                    Expr(
+                                        Call,
+                                    ),
+                                    CallExpr(
+                                        Callee,
+                                    ),
+                                    Callee(
+                                        Expr,
+                                    ),
+                                    Expr(
+                                        Member,
+                                    ),
+                                    MemberExpr(
+                                        Obj,
+                                    ),
+                                    Expr(
+                                        Ident,
+                                    ),
+                                ],
+                                span: 1602..1609,
+                            },
+                        ],
                         ast_path: [
                             Program(
                                 Script,
@@ -3372,78 +3475,6 @@
                         span: 1602..1617,
                         in_truthiness_context: false,
                     },
-                    FreeVar {
-                        var: "require",
-                        ast_path: [
-                            Program(
-                                Script,
-                            ),
-                            Script(
-                                Body(
-                                    6,
-                                ),
-                            ),
-                            Stmt(
-                                Decl,
-                            ),
-                            Decl(
-                                Fn,
-                            ),
-                            FnDecl(
-                                Function,
-                            ),
-                            Function(
-                                Body,
-                            ),
-                            FunctionBody(
-                                Stmts(
-                                    3,
-                                ),
-                            ),
-                            Stmt(
-                                Try,
-                            ),
-                            TryStmt(
-                                Block,
-                            ),
-                            BlockStmt(
-                                Stmts(
-                                    0,
-                                ),
-                            ),
-                            Stmt(
-                                Expr,
-                            ),
-                            ExprStmt(
-                                Expr,
-                            ),
-                            Expr(
-                                Assign,
-                            ),
-                            AssignExpr(
-                                Right,
-                            ),
-                            Expr(
-                                Call,
-                            ),
-                            CallExpr(
-                                Callee,
-                            ),
-                            Callee(
-                                Expr,
-                            ),
-                            Expr(
-                                Member,
-                            ),
-                            MemberExpr(
-                                Obj,
-                            ),
-                            Expr(
-                                Ident,
-                            ),
-                        ],
-                        span: 1602..1609,
-                    },
                     MemberCall {
                         obj: FreeVar(
                             "require",
@@ -3481,6 +3512,7 @@
                                         ),
                                     ],
                                 ),
+                                [],
                             ),
                         ],
                         ast_path: [
@@ -3621,6 +3653,7 @@
                                         #7,
                                     ),
                                 ),
+                                [],
                             ),
                             Value(
                                 Variable(
@@ -3629,6 +3662,7 @@
                                         #7,
                                     ),
                                 ),
+                                [],
                             ),
                         ],
                         ast_path: [
@@ -3702,6 +3736,83 @@
                                 ),
                             ),
                         ),
+                        base_effects: [
+                            FreeVar {
+                                var: "fs",
+                                ast_path: [
+                                    Program(
+                                        Script,
+                                    ),
+                                    Script(
+                                        Body(
+                                            6,
+                                        ),
+                                    ),
+                                    Stmt(
+                                        Decl,
+                                    ),
+                                    Decl(
+                                        Fn,
+                                    ),
+                                    FnDecl(
+                                        Function,
+                                    ),
+                                    Function(
+                                        Body,
+                                    ),
+                                    FunctionBody(
+                                        Stmts(
+                                            3,
+                                        ),
+                                    ),
+                                    Stmt(
+                                        Try,
+                                    ),
+                                    TryStmt(
+                                        Handler,
+                                    ),
+                                    CatchClause(
+                                        Body,
+                                    ),
+                                    BlockStmt(
+                                        Stmts(
+                                            1,
+                                        ),
+                                    ),
+                                    Stmt(
+                                        If,
+                                    ),
+                                    IfStmt(
+                                        Test,
+                                    ),
+                                    Expr(
+                                        Unary,
+                                    ),
+                                    UnaryExpr(
+                                        Arg,
+                                    ),
+                                    Expr(
+                                        Call,
+                                    ),
+                                    CallExpr(
+                                        Callee,
+                                    ),
+                                    Callee(
+                                        Expr,
+                                    ),
+                                    Expr(
+                                        Member,
+                                    ),
+                                    MemberExpr(
+                                        Obj,
+                                    ),
+                                    Expr(
+                                        Ident,
+                                    ),
+                                ],
+                                span: 1712..1714,
+                            },
+                        ],
                         ast_path: [
                             Program(
                                 Script,
@@ -3770,81 +3881,6 @@
                         span: 1712..1725,
                         in_truthiness_context: false,
                     },
-                    FreeVar {
-                        var: "fs",
-                        ast_path: [
-                            Program(
-                                Script,
-                            ),
-                            Script(
-                                Body(
-                                    6,
-                                ),
-                            ),
-                            Stmt(
-                                Decl,
-                            ),
-                            Decl(
-                                Fn,
-                            ),
-                            FnDecl(
-                                Function,
-                            ),
-                            Function(
-                                Body,
-                            ),
-                            FunctionBody(
-                                Stmts(
-                                    3,
-                                ),
-                            ),
-                            Stmt(
-                                Try,
-                            ),
-                            TryStmt(
-                                Handler,
-                            ),
-                            CatchClause(
-                                Body,
-                            ),
-                            BlockStmt(
-                                Stmts(
-                                    1,
-                                ),
-                            ),
-                            Stmt(
-                                If,
-                            ),
-                            IfStmt(
-                                Test,
-                            ),
-                            Expr(
-                                Unary,
-                            ),
-                            UnaryExpr(
-                                Arg,
-                            ),
-                            Expr(
-                                Call,
-                            ),
-                            CallExpr(
-                                Callee,
-                            ),
-                            Callee(
-                                Expr,
-                            ),
-                            Expr(
-                                Member,
-                            ),
-                            MemberExpr(
-                                Obj,
-                            ),
-                            Expr(
-                                Ident,
-                            ),
-                        ],
-                        span: 1712..1714,
-                    },
                     MemberCall {
                         obj: FreeVar(
                             "fs",
@@ -3864,6 +3900,7 @@
                                         #7,
                                     ),
                                 ),
+                                [],
                             ),
                         ],
                         ast_path: [
@@ -3965,6 +4002,102 @@
                                                 ),
                                             ),
                                         ),
+                                        base_effects: [
+                                            FreeVar {
+                                                var: "require",
+                                                ast_path: [
+                                                    Program(
+                                                        Script,
+                                                    ),
+                                                    Script(
+                                                        Body(
+                                                            6,
+                                                        ),
+                                                    ),
+                                                    Stmt(
+                                                        Decl,
+                                                    ),
+                                                    Decl(
+                                                        Fn,
+                                                    ),
+                                                    FnDecl(
+                                                        Function,
+                                                    ),
+                                                    Function(
+                                                        Body,
+                                                    ),
+                                                    FunctionBody(
+                                                        Stmts(
+                                                            3,
+                                                        ),
+                                                    ),
+                                                    Stmt(
+                                                        Try,
+                                                    ),
+                                                    TryStmt(
+                                                        Handler,
+                                                    ),
+                                                    CatchClause(
+                                                        Body,
+                                                    ),
+                                                    BlockStmt(
+                                                        Stmts(
+                                                            1,
+                                                        ),
+                                                    ),
+                                                    Stmt(
+                                                        If,
+                                                    ),
+                                                    IfStmt(
+                                                        Cons,
+                                                    ),
+                                                    Stmt(
+                                                        Block,
+                                                    ),
+                                                    BlockStmt(
+                                                        Stmts(
+                                                            0,
+                                                        ),
+                                                    ),
+                                                    Stmt(
+                                                        Try,
+                                                    ),
+                                                    TryStmt(
+                                                        Block,
+                                                    ),
+                                                    BlockStmt(
+                                                        Stmts(
+                                                            0,
+                                                        ),
+                                                    ),
+                                                    Stmt(
+                                                        Expr,
+                                                    ),
+                                                    ExprStmt(
+                                                        Expr,
+                                                    ),
+                                                    Expr(
+                                                        Call,
+                                                    ),
+                                                    CallExpr(
+                                                        Callee,
+                                                    ),
+                                                    Callee(
+                                                        Expr,
+                                                    ),
+                                                    Expr(
+                                                        Member,
+                                                    ),
+                                                    MemberExpr(
+                                                        Obj,
+                                                    ),
+                                                    Expr(
+                                                        Ident,
+                                                    ),
+                                                ],
+                                                span: 1758..1765,
+                                            },
+                                        ],
                                         ast_path: [
                                             Program(
                                                 Script,
@@ -4052,100 +4185,6 @@
                                         span: 1758..1773,
                                         in_truthiness_context: false,
                                     },
-                                    FreeVar {
-                                        var: "require",
-                                        ast_path: [
-                                            Program(
-                                                Script,
-                                            ),
-                                            Script(
-                                                Body(
-                                                    6,
-                                                ),
-                                            ),
-                                            Stmt(
-                                                Decl,
-                                            ),
-                                            Decl(
-                                                Fn,
-                                            ),
-                                            FnDecl(
-                                                Function,
-                                            ),
-                                            Function(
-                                                Body,
-                                            ),
-                                            FunctionBody(
-                                                Stmts(
-                                                    3,
-                                                ),
-                                            ),
-                                            Stmt(
-                                                Try,
-                                            ),
-                                            TryStmt(
-                                                Handler,
-                                            ),
-                                            CatchClause(
-                                                Body,
-                                            ),
-                                            BlockStmt(
-                                                Stmts(
-                                                    1,
-                                                ),
-                                            ),
-                                            Stmt(
-                                                If,
-                                            ),
-                                            IfStmt(
-                                                Cons,
-                                            ),
-                                            Stmt(
-                                                Block,
-                                            ),
-                                            BlockStmt(
-                                                Stmts(
-                                                    0,
-                                                ),
-                                            ),
-                                            Stmt(
-                                                Try,
-                                            ),
-                                            TryStmt(
-                                                Block,
-                                            ),
-                                            BlockStmt(
-                                                Stmts(
-                                                    0,
-                                                ),
-                                            ),
-                                            Stmt(
-                                                Expr,
-                                            ),
-                                            ExprStmt(
-                                                Expr,
-                                            ),
-                                            Expr(
-                                                Call,
-                                            ),
-                                            CallExpr(
-                                                Callee,
-                                            ),
-                                            Callee(
-                                                Expr,
-                                            ),
-                                            Expr(
-                                                Member,
-                                            ),
-                                            MemberExpr(
-                                                Obj,
-                                            ),
-                                            Expr(
-                                                Ident,
-                                            ),
-                                        ],
-                                        span: 1758..1765,
-                                    },
                                     MemberCall {
                                         obj: FreeVar(
                                             "require",
@@ -4165,6 +4204,7 @@
                                                         #7,
                                                     ),
                                                 ),
+                                                [],
                                             ),
                                         ],
                                         ast_path: [
@@ -4365,6 +4405,7 @@
                                                         ),
                                                     ],
                                                 ),
+                                                [],
                                             ),
                                         ],
                                         ast_path: [
@@ -4579,6 +4620,7 @@
                                         ),
                                     ),
                                 ),
+                                [],
                             ),
                         ],
                         ast_path: [
@@ -4656,6 +4698,7 @@
                                                 ),
                                             ),
                                         ),
+                                        base_effects: [],
                                         ast_path: [
                                             Program(
                                                 Script,
@@ -4726,281 +4769,6 @@
                                         span: 2299..2311,
                                         in_truthiness_context: false,
                                     },
-                                    Member {
-                                        obj: FreeVar(
-                                            "require",
-                                        ),
-                                        prop: Constant(
-                                            Str(
-                                                Atom(
-                                                    "resolve",
-                                                ),
-                                            ),
-                                        ),
-                                        ast_path: [
-                                            Program(
-                                                Script,
-                                            ),
-                                            Script(
-                                                Body(
-                                                    6,
-                                                ),
-                                            ),
-                                            Stmt(
-                                                Decl,
-                                            ),
-                                            Decl(
-                                                Fn,
-                                            ),
-                                            FnDecl(
-                                                Function,
-                                            ),
-                                            Function(
-                                                Body,
-                                            ),
-                                            FunctionBody(
-                                                Stmts(
-                                                    6,
-                                                ),
-                                            ),
-                                            Stmt(
-                                                If,
-                                            ),
-                                            IfStmt(
-                                                Cons,
-                                            ),
-                                            Stmt(
-                                                Block,
-                                            ),
-                                            BlockStmt(
-                                                Stmts(
-                                                    0,
-                                                ),
-                                            ),
-                                            Stmt(
-                                                Decl,
-                                            ),
-                                            Decl(
-                                                Var,
-                                            ),
-                                            VarDecl(
-                                                Decls(
-                                                    0,
-                                                ),
-                                            ),
-                                            VarDeclarator(
-                                                Init,
-                                            ),
-                                            Expr(
-                                                Call,
-                                            ),
-                                            CallExpr(
-                                                Args(
-                                                    0,
-                                                ),
-                                            ),
-                                            ExprOrSpread(
-                                                Expr,
-                                            ),
-                                            Expr(
-                                                Call,
-                                            ),
-                                            CallExpr(
-                                                Callee,
-                                            ),
-                                            Callee(
-                                                Expr,
-                                            ),
-                                            Expr(
-                                                Member,
-                                            ),
-                                        ],
-                                        span: 2312..2327,
-                                        in_truthiness_context: false,
-                                    },
-                                    FreeVar {
-                                        var: "require",
-                                        ast_path: [
-                                            Program(
-                                                Script,
-                                            ),
-                                            Script(
-                                                Body(
-                                                    6,
-                                                ),
-                                            ),
-                                            Stmt(
-                                                Decl,
-                                            ),
-                                            Decl(
-                                                Fn,
-                                            ),
-                                            FnDecl(
-                                                Function,
-                                            ),
-                                            Function(
-                                                Body,
-                                            ),
-                                            FunctionBody(
-                                                Stmts(
-                                                    6,
-                                                ),
-                                            ),
-                                            Stmt(
-                                                If,
-                                            ),
-                                            IfStmt(
-                                                Cons,
-                                            ),
-                                            Stmt(
-                                                Block,
-                                            ),
-                                            BlockStmt(
-                                                Stmts(
-                                                    0,
-                                                ),
-                                            ),
-                                            Stmt(
-                                                Decl,
-                                            ),
-                                            Decl(
-                                                Var,
-                                            ),
-                                            VarDecl(
-                                                Decls(
-                                                    0,
-                                                ),
-                                            ),
-                                            VarDeclarator(
-                                                Init,
-                                            ),
-                                            Expr(
-                                                Call,
-                                            ),
-                                            CallExpr(
-                                                Args(
-                                                    0,
-                                                ),
-                                            ),
-                                            ExprOrSpread(
-                                                Expr,
-                                            ),
-                                            Expr(
-                                                Call,
-                                            ),
-                                            CallExpr(
-                                                Callee,
-                                            ),
-                                            Callee(
-                                                Expr,
-                                            ),
-                                            Expr(
-                                                Member,
-                                            ),
-                                            MemberExpr(
-                                                Obj,
-                                            ),
-                                            Expr(
-                                                Ident,
-                                            ),
-                                        ],
-                                        span: 2312..2319,
-                                    },
-                                    MemberCall {
-                                        obj: FreeVar(
-                                            "require",
-                                        ),
-                                        prop: Constant(
-                                            Str(
-                                                Atom(
-                                                    "resolve",
-                                                ),
-                                            ),
-                                        ),
-                                        args: [
-                                            Value(
-                                                Constant(
-                                                    Str(
-                                                        Atom(
-                                                            "esbuild",
-                                                        ),
-                                                    ),
-                                                ),
-                                            ),
-                                        ],
-                                        ast_path: [
-                                            Program(
-                                                Script,
-                                            ),
-                                            Script(
-                                                Body(
-                                                    6,
-                                                ),
-                                            ),
-                                            Stmt(
-                                                Decl,
-                                            ),
-                                            Decl(
-                                                Fn,
-                                            ),
-                                            FnDecl(
-                                                Function,
-                                            ),
-                                            Function(
-                                                Body,
-                                            ),
-                                            FunctionBody(
-                                                Stmts(
-                                                    6,
-                                                ),
-                                            ),
-                                            Stmt(
-                                                If,
-                                            ),
-                                            IfStmt(
-                                                Cons,
-                                            ),
-                                            Stmt(
-                                                Block,
-                                            ),
-                                            BlockStmt(
-                                                Stmts(
-                                                    0,
-                                                ),
-                                            ),
-                                            Stmt(
-                                                Decl,
-                                            ),
-                                            Decl(
-                                                Var,
-                                            ),
-                                            VarDecl(
-                                                Decls(
-                                                    0,
-                                                ),
-                                            ),
-                                            VarDeclarator(
-                                                Init,
-                                            ),
-                                            Expr(
-                                                Call,
-                                            ),
-                                            CallExpr(
-                                                Args(
-                                                    0,
-                                                ),
-                                            ),
-                                            ExprOrSpread(
-                                                Expr,
-                                            ),
-                                            Expr(
-                                                Call,
-                                            ),
-                                        ],
-                                        span: 2312..2338,
-                                        in_try: false,
-                                        new: false,
-                                    },
                                     MemberCall {
                                         obj: Variable(
                                             (
@@ -5039,6 +4807,286 @@
                                                         ),
                                                     ],
                                                 ),
+                                                [
+                                                    Member {
+                                                        obj: FreeVar(
+                                                            "require",
+                                                        ),
+                                                        prop: Constant(
+                                                            Str(
+                                                                Atom(
+                                                                    "resolve",
+                                                                ),
+                                                            ),
+                                                        ),
+                                                        base_effects: [
+                                                            FreeVar {
+                                                                var: "require",
+                                                                ast_path: [
+                                                                    Program(
+                                                                        Script,
+                                                                    ),
+                                                                    Script(
+                                                                        Body(
+                                                                            6,
+                                                                        ),
+                                                                    ),
+                                                                    Stmt(
+                                                                        Decl,
+                                                                    ),
+                                                                    Decl(
+                                                                        Fn,
+                                                                    ),
+                                                                    FnDecl(
+                                                                        Function,
+                                                                    ),
+                                                                    Function(
+                                                                        Body,
+                                                                    ),
+                                                                    FunctionBody(
+                                                                        Stmts(
+                                                                            6,
+                                                                        ),
+                                                                    ),
+                                                                    Stmt(
+                                                                        If,
+                                                                    ),
+                                                                    IfStmt(
+                                                                        Cons,
+                                                                    ),
+                                                                    Stmt(
+                                                                        Block,
+                                                                    ),
+                                                                    BlockStmt(
+                                                                        Stmts(
+                                                                            0,
+                                                                        ),
+                                                                    ),
+                                                                    Stmt(
+                                                                        Decl,
+                                                                    ),
+                                                                    Decl(
+                                                                        Var,
+                                                                    ),
+                                                                    VarDecl(
+                                                                        Decls(
+                                                                            0,
+                                                                        ),
+                                                                    ),
+                                                                    VarDeclarator(
+                                                                        Init,
+                                                                    ),
+                                                                    Expr(
+                                                                        Call,
+                                                                    ),
+                                                                    CallExpr(
+                                                                        Args(
+                                                                            0,
+                                                                        ),
+                                                                    ),
+                                                                    ExprOrSpread(
+                                                                        Expr,
+                                                                    ),
+                                                                    Expr(
+                                                                        Call,
+                                                                    ),
+                                                                    CallExpr(
+                                                                        Callee,
+                                                                    ),
+                                                                    Callee(
+                                                                        Expr,
+                                                                    ),
+                                                                    Expr(
+                                                                        Member,
+                                                                    ),
+                                                                    MemberExpr(
+                                                                        Obj,
+                                                                    ),
+                                                                    Expr(
+                                                                        Ident,
+                                                                    ),
+                                                                ],
+                                                                span: 2312..2319,
+                                                            },
+                                                        ],
+                                                        ast_path: [
+                                                            Program(
+                                                                Script,
+                                                            ),
+                                                            Script(
+                                                                Body(
+                                                                    6,
+                                                                ),
+                                                            ),
+                                                            Stmt(
+                                                                Decl,
+                                                            ),
+                                                            Decl(
+                                                                Fn,
+                                                            ),
+                                                            FnDecl(
+                                                                Function,
+                                                            ),
+                                                            Function(
+                                                                Body,
+                                                            ),
+                                                            FunctionBody(
+                                                                Stmts(
+                                                                    6,
+                                                                ),
+                                                            ),
+                                                            Stmt(
+                                                                If,
+                                                            ),
+                                                            IfStmt(
+                                                                Cons,
+                                                            ),
+                                                            Stmt(
+                                                                Block,
+                                                            ),
+                                                            BlockStmt(
+                                                                Stmts(
+                                                                    0,
+                                                                ),
+                                                            ),
+                                                            Stmt(
+                                                                Decl,
+                                                            ),
+                                                            Decl(
+                                                                Var,
+                                                            ),
+                                                            VarDecl(
+                                                                Decls(
+                                                                    0,
+                                                                ),
+                                                            ),
+                                                            VarDeclarator(
+                                                                Init,
+                                                            ),
+                                                            Expr(
+                                                                Call,
+                                                            ),
+                                                            CallExpr(
+                                                                Args(
+                                                                    0,
+                                                                ),
+                                                            ),
+                                                            ExprOrSpread(
+                                                                Expr,
+                                                            ),
+                                                            Expr(
+                                                                Call,
+                                                            ),
+                                                            CallExpr(
+                                                                Callee,
+                                                            ),
+                                                            Callee(
+                                                                Expr,
+                                                            ),
+                                                            Expr(
+                                                                Member,
+                                                            ),
+                                                        ],
+                                                        span: 2312..2327,
+                                                        in_truthiness_context: false,
+                                                    },
+                                                    MemberCall {
+                                                        obj: FreeVar(
+                                                            "require",
+                                                        ),
+                                                        prop: Constant(
+                                                            Str(
+                                                                Atom(
+                                                                    "resolve",
+                                                                ),
+                                                            ),
+                                                        ),
+                                                        args: [
+                                                            Value(
+                                                                Constant(
+                                                                    Str(
+                                                                        Atom(
+                                                                            "esbuild",
+                                                                        ),
+                                                                    ),
+                                                                ),
+                                                                [],
+                                                            ),
+                                                        ],
+                                                        ast_path: [
+                                                            Program(
+                                                                Script,
+                                                            ),
+                                                            Script(
+                                                                Body(
+                                                                    6,
+                                                                ),
+                                                            ),
+                                                            Stmt(
+                                                                Decl,
+                                                            ),
+                                                            Decl(
+                                                                Fn,
+                                                            ),
+                                                            FnDecl(
+                                                                Function,
+                                                            ),
+                                                            Function(
+                                                                Body,
+                                                            ),
+                                                            FunctionBody(
+                                                                Stmts(
+                                                                    6,
+                                                                ),
+                                                            ),
+                                                            Stmt(
+                                                                If,
+                                                            ),
+                                                            IfStmt(
+                                                                Cons,
+                                                            ),
+                                                            Stmt(
+                                                                Block,
+                                                            ),
+                                                            BlockStmt(
+                                                                Stmts(
+                                                                    0,
+                                                                ),
+                                                            ),
+                                                            Stmt(
+                                                                Decl,
+                                                            ),
+                                                            Decl(
+                                                                Var,
+                                                            ),
+                                                            VarDecl(
+                                                                Decls(
+                                                                    0,
+                                                                ),
+                                                            ),
+                                                            VarDeclarator(
+                                                                Init,
+                                                            ),
+                                                            Expr(
+                                                                Call,
+                                                            ),
+                                                            CallExpr(
+                                                                Args(
+                                                                    0,
+                                                                ),
+                                                            ),
+                                                            ExprOrSpread(
+                                                                Expr,
+                                                            ),
+                                                            Expr(
+                                                                Call,
+                                                            ),
+                                                        ],
+                                                        span: 2312..2338,
+                                                        in_try: false,
+                                                        new: false,
+                                                    },
+                                                ],
                                             ),
                                         ],
                                         ast_path: [
@@ -5117,6 +5165,7 @@
                                                 ),
                                             ),
                                         ),
+                                        base_effects: [],
                                         ast_path: [
                                             Program(
                                                 Script,
@@ -5187,214 +5236,6 @@
                                         span: 2367..2376,
                                         in_truthiness_context: false,
                                     },
-                                    Member {
-                                        obj: Variable(
-                                            (
-                                                "path",
-                                                #2,
-                                            ),
-                                        ),
-                                        prop: Constant(
-                                            Str(
-                                                Atom(
-                                                    "basename",
-                                                ),
-                                            ),
-                                        ),
-                                        ast_path: [
-                                            Program(
-                                                Script,
-                                            ),
-                                            Script(
-                                                Body(
-                                                    6,
-                                                ),
-                                            ),
-                                            Stmt(
-                                                Decl,
-                                            ),
-                                            Decl(
-                                                Fn,
-                                            ),
-                                            FnDecl(
-                                                Function,
-                                            ),
-                                            Function(
-                                                Body,
-                                            ),
-                                            FunctionBody(
-                                                Stmts(
-                                                    6,
-                                                ),
-                                            ),
-                                            Stmt(
-                                                If,
-                                            ),
-                                            IfStmt(
-                                                Cons,
-                                            ),
-                                            Stmt(
-                                                Block,
-                                            ),
-                                            BlockStmt(
-                                                Stmts(
-                                                    1,
-                                                ),
-                                            ),
-                                            Stmt(
-                                                Decl,
-                                            ),
-                                            Decl(
-                                                Var,
-                                            ),
-                                            VarDecl(
-                                                Decls(
-                                                    0,
-                                                ),
-                                            ),
-                                            VarDeclarator(
-                                                Init,
-                                            ),
-                                            Expr(
-                                                Call,
-                                            ),
-                                            CallExpr(
-                                                Args(
-                                                    1,
-                                                ),
-                                            ),
-                                            ExprOrSpread(
-                                                Expr,
-                                            ),
-                                            Expr(
-                                                Tpl,
-                                            ),
-                                            Tpl(
-                                                Exprs(
-                                                    1,
-                                                ),
-                                            ),
-                                            Expr(
-                                                Call,
-                                            ),
-                                            CallExpr(
-                                                Callee,
-                                            ),
-                                            Callee(
-                                                Expr,
-                                            ),
-                                            Expr(
-                                                Member,
-                                            ),
-                                        ],
-                                        span: 2422..2435,
-                                        in_truthiness_context: false,
-                                    },
-                                    MemberCall {
-                                        obj: Variable(
-                                            (
-                                                "path",
-                                                #2,
-                                            ),
-                                        ),
-                                        prop: Constant(
-                                            Str(
-                                                Atom(
-                                                    "basename",
-                                                ),
-                                            ),
-                                        ),
-                                        args: [
-                                            Value(
-                                                Variable(
-                                                    (
-                                                        "subpath",
-                                                        #7,
-                                                    ),
-                                                ),
-                                            ),
-                                        ],
-                                        ast_path: [
-                                            Program(
-                                                Script,
-                                            ),
-                                            Script(
-                                                Body(
-                                                    6,
-                                                ),
-                                            ),
-                                            Stmt(
-                                                Decl,
-                                            ),
-                                            Decl(
-                                                Fn,
-                                            ),
-                                            FnDecl(
-                                                Function,
-                                            ),
-                                            Function(
-                                                Body,
-                                            ),
-                                            FunctionBody(
-                                                Stmts(
-                                                    6,
-                                                ),
-                                            ),
-                                            Stmt(
-                                                If,
-                                            ),
-                                            IfStmt(
-                                                Cons,
-                                            ),
-                                            Stmt(
-                                                Block,
-                                            ),
-                                            BlockStmt(
-                                                Stmts(
-                                                    1,
-                                                ),
-                                            ),
-                                            Stmt(
-                                                Decl,
-                                            ),
-                                            Decl(
-                                                Var,
-                                            ),
-                                            VarDecl(
-                                                Decls(
-                                                    0,
-                                                ),
-                                            ),
-                                            VarDeclarator(
-                                                Init,
-                                            ),
-                                            Expr(
-                                                Call,
-                                            ),
-                                            CallExpr(
-                                                Args(
-                                                    1,
-                                                ),
-                                            ),
-                                            ExprOrSpread(
-                                                Expr,
-                                            ),
-                                            Expr(
-                                                Tpl,
-                                            ),
-                                            Tpl(
-                                                Exprs(
-                                                    1,
-                                                ),
-                                            ),
-                                            Expr(
-                                                Call,
-                                            ),
-                                        ],
-                                        span: 2422..2444,
-                                        in_try: false,
-                                        new: false,
-                                    },
                                     MemberCall {
                                         obj: Variable(
                                             (
@@ -5417,6 +5258,7 @@
                                                         #16,
                                                     ),
                                                 ),
+                                                [],
                                             ),
                                             Value(
                                                 Concat(
@@ -5468,6 +5310,218 @@
                                                         ),
                                                     ],
                                                 ),
+                                                [
+                                                    Member {
+                                                        obj: Variable(
+                                                            (
+                                                                "path",
+                                                                #2,
+                                                            ),
+                                                        ),
+                                                        prop: Constant(
+                                                            Str(
+                                                                Atom(
+                                                                    "basename",
+                                                                ),
+                                                            ),
+                                                        ),
+                                                        base_effects: [],
+                                                        ast_path: [
+                                                            Program(
+                                                                Script,
+                                                            ),
+                                                            Script(
+                                                                Body(
+                                                                    6,
+                                                                ),
+                                                            ),
+                                                            Stmt(
+                                                                Decl,
+                                                            ),
+                                                            Decl(
+                                                                Fn,
+                                                            ),
+                                                            FnDecl(
+                                                                Function,
+                                                            ),
+                                                            Function(
+                                                                Body,
+                                                            ),
+                                                            FunctionBody(
+                                                                Stmts(
+                                                                    6,
+                                                                ),
+                                                            ),
+                                                            Stmt(
+                                                                If,
+                                                            ),
+                                                            IfStmt(
+                                                                Cons,
+                                                            ),
+                                                            Stmt(
+                                                                Block,
+                                                            ),
+                                                            BlockStmt(
+                                                                Stmts(
+                                                                    1,
+                                                                ),
+                                                            ),
+                                                            Stmt(
+                                                                Decl,
+                                                            ),
+                                                            Decl(
+                                                                Var,
+                                                            ),
+                                                            VarDecl(
+                                                                Decls(
+                                                                    0,
+                                                                ),
+                                                            ),
+                                                            VarDeclarator(
+                                                                Init,
+                                                            ),
+                                                            Expr(
+                                                                Call,
+                                                            ),
+                                                            CallExpr(
+                                                                Args(
+                                                                    1,
+                                                                ),
+                                                            ),
+                                                            ExprOrSpread(
+                                                                Expr,
+                                                            ),
+                                                            Expr(
+                                                                Tpl,
+                                                            ),
+                                                            Tpl(
+                                                                Exprs(
+                                                                    1,
+                                                                ),
+                                                            ),
+                                                            Expr(
+                                                                Call,
+                                                            ),
+                                                            CallExpr(
+                                                                Callee,
+                                                            ),
+                                                            Callee(
+                                                                Expr,
+                                                            ),
+                                                            Expr(
+                                                                Member,
+                                                            ),
+                                                        ],
+                                                        span: 2422..2435,
+                                                        in_truthiness_context: false,
+                                                    },
+                                                    MemberCall {
+                                                        obj: Variable(
+                                                            (
+                                                                "path",
+                                                                #2,
+                                                            ),
+                                                        ),
+                                                        prop: Constant(
+                                                            Str(
+                                                                Atom(
+                                                                    "basename",
+                                                                ),
+                                                            ),
+                                                        ),
+                                                        args: [
+                                                            Value(
+                                                                Variable(
+                                                                    (
+                                                                        "subpath",
+                                                                        #7,
+                                                                    ),
+                                                                ),
+                                                                [],
+                                                            ),
+                                                        ],
+                                                        ast_path: [
+                                                            Program(
+                                                                Script,
+                                                            ),
+                                                            Script(
+                                                                Body(
+                                                                    6,
+                                                                ),
+                                                            ),
+                                                            Stmt(
+                                                                Decl,
+                                                            ),
+                                                            Decl(
+                                                                Fn,
+                                                            ),
+                                                            FnDecl(
+                                                                Function,
+                                                            ),
+                                                            Function(
+                                                                Body,
+                                                            ),
+                                                            FunctionBody(
+                                                                Stmts(
+                                                                    6,
+                                                                ),
+                                                            ),
+                                                            Stmt(
+                                                                If,
+                                                            ),
+                                                            IfStmt(
+                                                                Cons,
+                                                            ),
+                                                            Stmt(
+                                                                Block,
+                                                            ),
+                                                            BlockStmt(
+                                                                Stmts(
+                                                                    1,
+                                                                ),
+                                                            ),
+                                                            Stmt(
+                                                                Decl,
+                                                            ),
+                                                            Decl(
+                                                                Var,
+                                                            ),
+                                                            VarDecl(
+                                                                Decls(
+                                                                    0,
+                                                                ),
+                                                            ),
+                                                            VarDeclarator(
+                                                                Init,
+                                                            ),
+                                                            Expr(
+                                                                Call,
+                                                            ),
+                                                            CallExpr(
+                                                                Args(
+                                                                    1,
+                                                                ),
+                                                            ),
+                                                            ExprOrSpread(
+                                                                Expr,
+                                                            ),
+                                                            Expr(
+                                                                Tpl,
+                                                            ),
+                                                            Tpl(
+                                                                Exprs(
+                                                                    1,
+                                                                ),
+                                                            ),
+                                                            Expr(
+                                                                Call,
+                                                            ),
+                                                        ],
+                                                        span: 2422..2444,
+                                                        in_try: false,
+                                                        new: false,
+                                                    },
+                                                ],
                                             ),
                                         ],
                                         ast_path: [
@@ -5543,6 +5597,83 @@
                                                 ),
                                             ),
                                         ),
+                                        base_effects: [
+                                            FreeVar {
+                                                var: "fs",
+                                                ast_path: [
+                                                    Program(
+                                                        Script,
+                                                    ),
+                                                    Script(
+                                                        Body(
+                                                            6,
+                                                        ),
+                                                    ),
+                                                    Stmt(
+                                                        Decl,
+                                                    ),
+                                                    Decl(
+                                                        Fn,
+                                                    ),
+                                                    FnDecl(
+                                                        Function,
+                                                    ),
+                                                    Function(
+                                                        Body,
+                                                    ),
+                                                    FunctionBody(
+                                                        Stmts(
+                                                            6,
+                                                        ),
+                                                    ),
+                                                    Stmt(
+                                                        If,
+                                                    ),
+                                                    IfStmt(
+                                                        Cons,
+                                                    ),
+                                                    Stmt(
+                                                        Block,
+                                                    ),
+                                                    BlockStmt(
+                                                        Stmts(
+                                                            2,
+                                                        ),
+                                                    ),
+                                                    Stmt(
+                                                        If,
+                                                    ),
+                                                    IfStmt(
+                                                        Test,
+                                                    ),
+                                                    Expr(
+                                                        Unary,
+                                                    ),
+                                                    UnaryExpr(
+                                                        Arg,
+                                                    ),
+                                                    Expr(
+                                                        Call,
+                                                    ),
+                                                    CallExpr(
+                                                        Callee,
+                                                    ),
+                                                    Callee(
+                                                        Expr,
+                                                    ),
+                                                    Expr(
+                                                        Member,
+                                                    ),
+                                                    MemberExpr(
+                                                        Obj,
+                                                    ),
+                                                    Expr(
+                                                        Ident,
+                                                    ),
+                                                ],
+                                                span: 2463..2465,
+                                            },
+                                        ],
                                         ast_path: [
                                             Program(
                                                 Script,
@@ -5611,81 +5742,6 @@
                                         span: 2463..2476,
                                         in_truthiness_context: false,
                                     },
-                                    FreeVar {
-                                        var: "fs",
-                                        ast_path: [
-                                            Program(
-                                                Script,
-                                            ),
-                                            Script(
-                                                Body(
-                                                    6,
-                                                ),
-                                            ),
-                                            Stmt(
-                                                Decl,
-                                            ),
-                                            Decl(
-                                                Fn,
-                                            ),
-                                            FnDecl(
-                                                Function,
-                                            ),
-                                            Function(
-                                                Body,
-                                            ),
-                                            FunctionBody(
-                                                Stmts(
-                                                    6,
-                                                ),
-                                            ),
-                                            Stmt(
-                                                If,
-                                            ),
-                                            IfStmt(
-                                                Cons,
-                                            ),
-                                            Stmt(
-                                                Block,
-                                            ),
-                                            BlockStmt(
-                                                Stmts(
-                                                    2,
-                                                ),
-                                            ),
-                                            Stmt(
-                                                If,
-                                            ),
-                                            IfStmt(
-                                                Test,
-                                            ),
-                                            Expr(
-                                                Unary,
-                                            ),
-                                            UnaryExpr(
-                                                Arg,
-                                            ),
-                                            Expr(
-                                                Call,
-                                            ),
-                                            CallExpr(
-                                                Callee,
-                                            ),
-                                            Callee(
-                                                Expr,
-                                            ),
-                                            Expr(
-                                                Member,
-                                            ),
-                                            MemberExpr(
-                                                Obj,
-                                            ),
-                                            Expr(
-                                                Ident,
-                                            ),
-                                        ],
-                                        span: 2463..2465,
-                                    },
                                     MemberCall {
                                         obj: FreeVar(
                                             "fs",
@@ -5705,6 +5761,7 @@
                                                         #16,
                                                     ),
                                                 ),
+                                                [],
                                             ),
                                         ],
                                         ast_path: [
@@ -5806,6 +5863,91 @@
                                                                 ),
                                                             ),
                                                         ),
+                                                        base_effects: [
+                                                            FreeVar {
+                                                                var: "fs",
+                                                                ast_path: [
+                                                                    Program(
+                                                                        Script,
+                                                                    ),
+                                                                    Script(
+                                                                        Body(
+                                                                            6,
+                                                                        ),
+                                                                    ),
+                                                                    Stmt(
+                                                                        Decl,
+                                                                    ),
+                                                                    Decl(
+                                                                        Fn,
+                                                                    ),
+                                                                    FnDecl(
+                                                                        Function,
+                                                                    ),
+                                                                    Function(
+                                                                        Body,
+                                                                    ),
+                                                                    FunctionBody(
+                                                                        Stmts(
+                                                                            6,
+                                                                        ),
+                                                                    ),
+                                                                    Stmt(
+                                                                        If,
+                                                                    ),
+                                                                    IfStmt(
+                                                                        Cons,
+                                                                    ),
+                                                                    Stmt(
+                                                                        Block,
+                                                                    ),
+                                                                    BlockStmt(
+                                                                        Stmts(
+                                                                            2,
+                                                                        ),
+                                                                    ),
+                                                                    Stmt(
+                                                                        If,
+                                                                    ),
+                                                                    IfStmt(
+                                                                        Cons,
+                                                                    ),
+                                                                    Stmt(
+                                                                        Block,
+                                                                    ),
+                                                                    BlockStmt(
+                                                                        Stmts(
+                                                                            0,
+                                                                        ),
+                                                                    ),
+                                                                    Stmt(
+                                                                        Expr,
+                                                                    ),
+                                                                    ExprStmt(
+                                                                        Expr,
+                                                                    ),
+                                                                    Expr(
+                                                                        Call,
+                                                                    ),
+                                                                    CallExpr(
+                                                                        Callee,
+                                                                    ),
+                                                                    Callee(
+                                                                        Expr,
+                                                                    ),
+                                                                    Expr(
+                                                                        Member,
+                                                                    ),
+                                                                    MemberExpr(
+                                                                        Obj,
+                                                                    ),
+                                                                    Expr(
+                                                                        Ident,
+                                                                    ),
+                                                                ],
+                                                                span: 2501..2503,
+                                                            },
+                                                        ],
                                                         ast_path: [
                                                             Program(
                                                                 Script,
@@ -5882,89 +6024,6 @@
                                                         span: 2501..2516,
                                                         in_truthiness_context: false,
                                                     },
-                                                    FreeVar {
-                                                        var: "fs",
-                                                        ast_path: [
-                                                            Program(
-                                                                Script,
-                                                            ),
-                                                            Script(
-                                                                Body(
-                                                                    6,
-                                                                ),
-                                                            ),
-                                                            Stmt(
-                                                                Decl,
-                                                            ),
-                                                            Decl(
-                                                                Fn,
-                                                            ),
-                                                            FnDecl(
-                                                                Function,
-                                                            ),
-                                                            Function(
-                                                                Body,
-                                                            ),
-                                                            FunctionBody(
-                                                                Stmts(
-                                                                    6,
-                                                                ),
-                                                            ),
-                                                            Stmt(
-                                                                If,
-                                                            ),
-                                                            IfStmt(
-                                                                Cons,
-                                                            ),
-                                                            Stmt(
-                                                                Block,
-                                                            ),
-                                                            BlockStmt(
-                                                                Stmts(
-                                                                    2,
-                                                                ),
-                                                            ),
-                                                            Stmt(
-                                                                If,
-                                                            ),
-                                                            IfStmt(
-                                                                Cons,
-                                                            ),
-                                                            Stmt(
-                                                                Block,
-                                                            ),
-                                                            BlockStmt(
-                                                                Stmts(
-                                                                    0,
-                                                                ),
-                                                            ),
-                                                            Stmt(
-                                                                Expr,
-                                                            ),
-                                                            ExprStmt(
-                                                                Expr,
-                                                            ),
-                                                            Expr(
-                                                                Call,
-                                                            ),
-                                                            CallExpr(
-                                                                Callee,
-                                                            ),
-                                                            Callee(
-                                                                Expr,
-                                                            ),
-                                                            Expr(
-                                                                Member,
-                                                            ),
-                                                            MemberExpr(
-                                                                Obj,
-                                                            ),
-                                                            Expr(
-                                                                Ident,
-                                                            ),
-                                                        ],
-                                                        span: 2501..2503,
-                                                    },
                                                     MemberCall {
                                                         obj: FreeVar(
                                                             "fs",
@@ -5984,6 +6043,7 @@
                                                                         #7,
                                                                     ),
                                                                 ),
+                                                                [],
                                                             ),
                                                             Value(
                                                                 Variable(
@@ -5992,6 +6052,7 @@
                                                                         #16,
                                                                     ),
                                                                 ),
+                                                                [],
                                                             ),
                                                         ],
                                                         ast_path: [
@@ -6073,6 +6134,91 @@
                                                                 ),
                                                             ),
                                                         ),
+                                                        base_effects: [
+                                                            FreeVar {
+                                                                var: "fs",
+                                                                ast_path: [
+                                                                    Program(
+                                                                        Script,
+                                                                    ),
+                                                                    Script(
+                                                                        Body(
+                                                                            6,
+                                                                        ),
+                                                                    ),
+                                                                    Stmt(
+                                                                        Decl,
+                                                                    ),
+                                                                    Decl(
+                                                                        Fn,
+                                                                    ),
+                                                                    FnDecl(
+                                                                        Function,
+                                                                    ),
+                                                                    Function(
+                                                                        Body,
+                                                                    ),
+                                                                    FunctionBody(
+                                                                        Stmts(
+                                                                            6,
+                                                                        ),
+                                                                    ),
+                                                                    Stmt(
+                                                                        If,
+                                                                    ),
+                                                                    IfStmt(
+                                                                        Cons,
+                                                                    ),
+                                                                    Stmt(
+                                                                        Block,
+                                                                    ),
+                                                                    BlockStmt(
+                                                                        Stmts(
+                                                                            2,
+                                                                        ),
+                                                                    ),
+                                                                    Stmt(
+                                                                        If,
+                                                                    ),
+                                                                    IfStmt(
+                                                                        Cons,
+                                                                    ),
+                                                                    Stmt(
+                                                                        Block,
+                                                                    ),
+                                                                    BlockStmt(
+                                                                        Stmts(
+                                                                            1,
+                                                                        ),
+                                                                    ),
+                                                                    Stmt(
+                                                                        Expr,
+                                                                    ),
+                                                                    ExprStmt(
+                                                                        Expr,
+                                                                    ),
+                                                                    Expr(
+                                                                        Call,
+                                                                    ),
+                                                                    CallExpr(
+                                                                        Callee,
+                                                                    ),
+                                                                    Callee(
+                                                                        Expr,
+                                                                    ),
+                                                                    Expr(
+                                                                        Member,
+                                                                    ),
+                                                                    MemberExpr(
+                                                                        Obj,
+                                                                    ),
+                                                                    Expr(
+                                                                        Ident,
+                                                                    ),
+                                                                ],
+                                                                span: 2548..2550,
+                                                            },
+                                                        ],
                                                         ast_path: [
                                                             Program(
                                                                 Script,
@@ -6149,89 +6295,6 @@
                                                         span: 2548..2560,
                                                         in_truthiness_context: false,
                                                     },
-                                                    FreeVar {
-                                                        var: "fs",
-                                                        ast_path: [
-                                                            Program(
-                                                                Script,
-                                                            ),
-                                                            Script(
-                                                                Body(
-                                                                    6,
-                                                                ),
-                                                            ),
-                                                            Stmt(
-                                                                Decl,
-                                                            ),
-                                                            Decl(
-                                                                Fn,
-                                                            ),
-                                                            FnDecl(
-                                                                Function,
-                                                            ),
-                                                            Function(
-                                                                Body,
-                                                            ),
-                                                            FunctionBody(
-                                                                Stmts(
-                                                                    6,
-                                                                ),
-                                                            ),
-                                                            Stmt(
-                                                                If,
-                                                            ),
-                                                            IfStmt(
-                                                                Cons,
-                                                            ),
-                                                            Stmt(
-                                                                Block,
-                                                            ),
-                                                            BlockStmt(
-                                                                Stmts(
-                                                                    2,
-                                                                ),
-                                                            ),
-                                                            Stmt(
-                                                                If,
-                                                            ),
-                                                            IfStmt(
-                                                                Cons,
-                                                            ),
-                                                            Stmt(
-                                                                Block,
-                                                            ),
-                                                            BlockStmt(
-                                                                Stmts(
-                                                                    1,
-                                                                ),
-                                                            ),
-                                                            Stmt(
-                                                                Expr,
-                                                            ),
-                                                            ExprStmt(
-                                                                Expr,
-                                                            ),
-                                                            Expr(
-                                                                Call,
-                                                            ),
-                                                            CallExpr(
-                                                                Callee,
-                                                            ),
-                                                            Callee(
-                                                                Expr,
-                                                            ),
-                                                            Expr(
-                                                                Member,
-                                                            ),
-                                                            MemberExpr(
-                                                                Obj,
-                                                            ),
-                                                            Expr(
-                                                                Ident,
-                                                            ),
-                                                        ],
-                                                        span: 2548..2550,
-                                                    },
                                                     MemberCall {
                                                         obj: FreeVar(
                                                             "fs",
@@ -6251,6 +6314,7 @@
                                                                         #16,
                                                                     ),
                                                                 ),
+                                                                [],
                                                             ),
                                                             Value(
                                                                 Constant(
@@ -6260,6 +6324,7 @@
                                                                         ),
                                                                     ),
                                                                 ),
+                                                                [],
                                                             ),
                                                         ],
                                                         ast_path: [

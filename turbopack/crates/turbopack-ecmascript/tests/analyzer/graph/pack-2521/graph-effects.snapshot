@@ -77,6 +77,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -160,6 +161,46 @@
                 ),
             ),
         ),
+        base_effects: [
+            FreeVar {
+                var: "console",
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            2,
+                        ),
+                    ),
+                    Stmt(
+                        Expr,
+                    ),
+                    ExprStmt(
+                        Expr,
+                    ),
+                    Expr(
+                        Call,
+                    ),
+                    CallExpr(
+                        Callee,
+                    ),
+                    Callee(
+                        Expr,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Ident,
+                    ),
+                ],
+                span: 102..109,
+            },
+        ],
         ast_path: [
             Program(
                 Script,
@@ -191,44 +232,6 @@
         span: 102..113,
         in_truthiness_context: false,
     },
-    FreeVar {
-        var: "console",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    2,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Callee,
-            ),
-            Callee(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 102..109,
-    },
     MemberCall {
         obj: FreeVar(
             "console",
@@ -249,6 +252,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -257,6 +261,7 @@
                         #2,
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -357,6 +362,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -427,6 +433,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -508,6 +515,7 @@
                         #6,
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [

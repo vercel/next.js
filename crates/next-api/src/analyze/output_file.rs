@@ -4,7 +4,7 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToStringRef, Vc};
+use turbo_tasks::{NonLocalValue, ResolvedVc, ValueToStringRef, Vc, debug::ValueDebugFormat};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_analyze::split_chunk::{
     ChunkPart, split_output_asset_into_parts, split_traced_file_into_parts,
@@ -32,7 +32,7 @@ pub(super) struct EmittedChunk {
     pub membership: OutputChunkModules,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode, ValueDebugFormat)]
 pub(super) struct AnalyzedOutputFile {
     pub filename: RcStr,
     pub chunk_parts: Vec<AnalyzedChunkPart>,

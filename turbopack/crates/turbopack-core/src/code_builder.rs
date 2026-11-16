@@ -1,3 +1,5 @@
+mod source_map_sections;
+
 use std::{
     cmp::min,
     io::{BufRead, Result as IoResult, Write},
@@ -9,7 +11,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use tracing::instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, Vc};
+use turbo_tasks::{FixintU128, NonLocalValue, ResolvedVc, Vc};
 use turbo_tasks_fs::{
     File, FileContent,
     rope::{Rope, RopeBuilder},
@@ -17,9 +19,13 @@ use turbo_tasks_fs::{
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash128};
 
 use crate::{
+    code_builder::source_map_sections::Mappings,
     debug_id::generate_debug_id,
     output::OutputAsset,
-    source_map::{GenerateSourceMap, SourceMap, SourceMapAsset, structured::StructuredSourceMap},
+    source_map::{
+        GenerateSourceMap, SourceMap, SourceMapAsset, SourceMapGenerationOptions, SourceMapType,
+        SourceMaps, structured::StructuredSourceMap,
+    },
     source_pos::SourcePos,
 };
 
@@ -68,7 +74,7 @@ impl SectionMap {
 }
 
 /// A mapping of byte-offset in the code string to an associated source map.
-pub type Mapping = (usize, Option<SectionMap>);
+pub type Mapping = (usize, SourceMaps<SectionMap>);
 
 /// The `"use strict";` directive written by [`CodeBuilder::push_strict_directive`].
 pub const STRICT_DIRECTIVE: &str = "\"use strict\";";
@@ -78,7 +84,7 @@ pub const STRICT_DIRECTIVE: &str = "\"use strict\";";
 #[derive(Debug, Clone, Encode, Decode)]
 pub struct Code {
     code: Rope,
-    mappings: Arc<Vec<Mapping>>,
+    mappings: Mappings,
     should_generate_debug_id: bool,
     /// Byte offset in `code` of a [`STRICT_DIRECTIVE`] that a consumer may remove, see
     /// [`CodeBuilder::push_code_without_strict_directive`]. The directive is its own unmapped
@@ -100,14 +106,59 @@ impl PersistedCode {
 }
 
 impl Code {
+    /// Rejects variants that were not generated for every mapped section.
+    pub fn validate_source_map_type(&self, ty: SourceMapType) -> Result<()> {
+        let available = !self.has_source_map() || self.mappings.is_complete(ty);
+        anyhow::ensure!(
+            available,
+            "Requested {ty:?} source map was not generated for all mapped code"
+        );
+        Ok(())
+    }
+
+    pub fn source_map_generation_options(&self) -> SourceMapGenerationOptions {
+        SourceMapGenerationOptions {
+            full: self.mappings.is_complete(SourceMapType::Full),
+            shallow: self.mappings.is_complete(SourceMapType::Shallow),
+            shallow_sources_content: self.mappings.is_complete(SourceMapType::Shallow),
+        }
+    }
+
     pub fn source_code(&self) -> &Rope {
         &self.code
     }
 
     /// Tests if any code in this Code contains an associated source map.
     pub fn has_source_map(&self) -> bool {
-        !self.mappings.is_empty()
+        self.mappings.has_source_map()
     }
+    pub fn has_source_map_for(&self, ty: SourceMapType) -> bool {
+        self.mappings.is_complete(ty) && self.mappings.has_source_map()
+    }
+
+    pub fn should_emit_source_map(&self, ty: Option<SourceMapType>) -> Result<bool> {
+        let Some(ty) = ty else { return Ok(false) };
+        self.validate_source_map_type(ty)?;
+        Ok(self.has_source_map())
+    }
+
+    pub fn source_maps(&self) -> Result<SourceMaps<Rope>> {
+        let full = self.has_source_map_for(SourceMapType::Full);
+        let shallow = self.has_source_map_for(SourceMapType::Shallow);
+        if full && shallow && self.mappings.is_shared() {
+            return Ok(SourceMaps::Shared(
+                self.generate_source_map_ref(None, SourceMapType::Full)?,
+            ));
+        }
+        Ok(SourceMaps::new(
+            full.then(|| self.generate_source_map_ref(None, SourceMapType::Full))
+                .transpose()?,
+            shallow
+                .then(|| self.generate_source_map_ref(None, SourceMapType::Shallow))
+                .transpose()?,
+        ))
+    }
+
     // Whether this code should have a debug id generated for it
     pub fn should_generate_debug_id(&self) -> bool {
         self.should_generate_debug_id
@@ -134,83 +185,75 @@ impl Code {
     // Formats the code with the source map and debug id comments as
     pub async fn to_rope_with_magic_comments(
         self: Vc<Self>,
+        emitted_source_map_ty: Option<SourceMapType>,
         source_map_path_fn: impl FnOnce() -> Vc<SourceMapAsset>,
     ) -> Result<Rope> {
         let code = self.await?;
-        Ok(
-            if code.has_source_map() || code.should_generate_debug_id() {
-                let mut rope_builder = RopeBuilder::default();
-                let debug_id = self.debug_id().await?;
-                // hand minified version of
-                // ```javascript
-                //  !() => {
-                //    (globalThis ??= {})[new g.Error().stack] = <debug_id>;
-                // }()
-                // ```
-                // But we need to be compatible with older runtimes since this code isn't transpiled
-                // according to a browser list. So we use `var`, `function` and
-                // try-caatch since we cannot rely on `Error.stack` being available.
-                // And finally to ensure it is on one line since that is what the source map
-                // expects.
-                // So like Thanos we have to do it ourselves.
-                if let Some(debug_id) = &*debug_id {
-                    // Test for `globalThis` first since it is available on all platforms released
-                    // since 2018! so it will mostly work
-                    const GLOBALTHIS_EXPR: &str = r#""undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{}"#;
-                    const GLOBAL_VAR_NAME: &str = "_debugIds";
-                    writeln!(
-                        rope_builder,
-                        r#";!function(){{try {{ var e={GLOBALTHIS_EXPR},n=(new e.Error).stack;n&&((e.{GLOBAL_VAR_NAME}|| (e.{GLOBAL_VAR_NAME}={{}}))[n]="{debug_id}")}}catch(e){{}}}}();"#,
-                    )?;
-                }
+        let emit_source_map = code.should_emit_source_map(emitted_source_map_ty)?;
+        Ok(if emit_source_map || code.should_generate_debug_id() {
+            let mut rope_builder = RopeBuilder::default();
+            let debug_id = self.debug_id().await?;
+            // hand minified version of
+            // ```javascript
+            //  !() => {
+            //    (globalThis ??= {})[new g.Error().stack] = <debug_id>;
+            // }()
+            // ```
+            // But we need to be compatible with older runtimes since this code isn't transpiled
+            // according to a browser list. So we use `var`, `function` and
+            // try-caatch since we cannot rely on `Error.stack` being available.
+            // And finally to ensure it is on one line since that is what the source map
+            // expects.
+            // So like Thanos we have to do it ourselves.
+            if let Some(debug_id) = &*debug_id {
+                // Test for `globalThis` first since it is available on all platforms released
+                // since 2018! so it will mostly work
+                const GLOBALTHIS_EXPR: &str = r#""undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{}"#;
+                const GLOBAL_VAR_NAME: &str = "_debugIds";
+                writeln!(
+                    rope_builder,
+                    r#";!function(){{try {{ var e={GLOBALTHIS_EXPR},n=(new e.Error).stack;n&&((e.{GLOBAL_VAR_NAME}|| (e.{GLOBAL_VAR_NAME}={{}}))[n]="{debug_id}")}}catch(e){{}}}}();"#,
+                )?;
+            }
 
-                rope_builder.concat(&code.code);
-                rope_builder.push_static_bytes(b"\n");
-                // Add debug ID comment if enabled
-                if let Some(debug_id) = &*debug_id {
-                    write!(rope_builder, "\n//# debugId={}", debug_id)?;
-                }
+            rope_builder.concat(&code.code);
+            rope_builder.push_static_bytes(b"\n");
+            // Add debug ID comment if enabled
+            if let Some(debug_id) = &*debug_id {
+                write!(rope_builder, "\n//# debugId={}", debug_id)?;
+            }
 
-                if code.has_source_map() {
-                    let source_map_path = source_map_path_fn().path().await?;
-                    write!(
-                        rope_builder,
-                        "\n//# sourceMappingURL={}",
-                        urlencoding::encode(source_map_path.file_name())
-                    )?;
-                }
-                rope_builder.build()
-            } else {
-                code.code.clone()
-            },
-        )
+            if emit_source_map {
+                let source_map_path = source_map_path_fn().path().await?;
+                write!(
+                    rope_builder,
+                    "\n//# sourceMappingURL={}",
+                    urlencoding::encode(source_map_path.file_name())
+                )?;
+            }
+            rope_builder.build()
+        } else {
+            code.code.clone()
+        })
     }
 }
 
 /// CodeBuilder provides a mutable container to append source code.
 pub struct CodeBuilder {
     code: RopeBuilder,
-    mappings: Option<Vec<Mapping>>,
+    mappings: Mappings,
     should_generate_debug_id: bool,
     strict_directive: Option<usize>,
 }
 
-impl Default for CodeBuilder {
-    fn default() -> Self {
-        Self {
-            code: RopeBuilder::default(),
-            mappings: Some(Vec::new()),
-            should_generate_debug_id: false,
-            strict_directive: None,
-        }
-    }
-}
-
 impl CodeBuilder {
-    pub fn new(collect_mappings: bool, should_generate_debug_id: bool) -> Self {
+    pub fn new(
+        should_generate_debug_id: bool,
+        source_map_generation_options: SourceMapGenerationOptions,
+    ) -> Self {
         Self {
             code: RopeBuilder::default(),
-            mappings: collect_mappings.then(Vec::new),
+            mappings: Mappings::new(source_map_generation_options),
             should_generate_debug_id,
             strict_directive: None,
         }
@@ -235,45 +278,36 @@ impl CodeBuilder {
     /// the default concatenation operation, but it's designed to be used
     /// with the `+=` operator.
     fn push_static_bytes(&mut self, code: &'static [u8]) {
-        self.push_map(None);
+        self.mappings.push_synthetic(self.code.len());
         self.code.push_static_bytes(code);
     }
 
     /// Pushes original user code with an optional source map if one is
     /// available. If it's not, this is no different than pushing Synthetic
     /// code.
-    pub fn push_source<M: Into<SectionMap>>(&mut self, code: &Rope, map: Option<M>) {
-        self.push_map(map.map(Into::into));
+    ///
+    /// Returns an error without appending code if a required source map variant is missing.
+    pub fn push_source<M: Into<SectionMap> + NonLocalValue>(
+        &mut self,
+        code: &Rope,
+        source_maps: SourceMaps<M>,
+    ) -> Result<()> {
+        self.mappings
+            .push(self.code.len(), source_maps.map(Into::into))?;
         self.code += code;
+        Ok(())
     }
 
     /// Copies the Synthetic/Original code of an already constructed Code into
     /// this instance.
     ///
     /// This adjusts the source map to be relative to the new code object
-    pub fn push_code(&mut self, prebuilt: &Code) {
-        if let Some((index, _)) = prebuilt.mappings.first() {
-            if *index > 0 {
-                // If the index is positive, then the code starts with a synthetic section. We
-                // may need to push an empty map in order to end the current
-                // section's mappings.
-                self.push_map(None);
-            }
-
-            let len = self.code.len();
-            if let Some(mappings) = self.mappings.as_mut() {
-                mappings.extend(
-                    prebuilt
-                        .mappings
-                        .iter()
-                        .map(|(index, map)| (index + len, map.clone())),
-                );
-            }
-        } else {
-            self.push_map(None);
-        }
-
+    ///
+    /// Returns an error without appending code if a required source map variant is missing.
+    pub fn push_code(&mut self, prebuilt: &Code) -> Result<()> {
+        self.mappings.append(self.code.len(), &prebuilt.mappings)?;
         self.code += &prebuilt.code;
+        Ok(())
     }
 
     /// Like [`CodeBuilder::push_code`], but leaves out the code's recorded `"use strict"`
@@ -282,74 +316,50 @@ impl CodeBuilder {
     ///
     /// The directive is its own unmapped section, so this only drops its bytes and moves the
     /// following sections up; no section map has to be rewritten.
-    pub fn push_code_without_strict_directive(&mut self, prebuilt: &Code) {
+    pub fn push_code_without_strict_directive(&mut self, prebuilt: &Code) -> Result<()> {
         let Some(directive) = prebuilt.strict_directive() else {
-            self.push_code(prebuilt);
-            return;
+            return self.push_code(prebuilt);
         };
         debug_assert!(
             prebuilt
                 .mappings
+                .mappings
                 .iter()
-                .all(|(index, map)| !directive.contains(index) || map.is_none()),
+                .all(|(index, map)| !directive.contains(index) || matches!(map, SourceMaps::None)),
             "a strict directive must be unmapped"
         );
         let removed = directive.len();
         // Mappings starting inside the directive only end the preceding section, which the
         // section after the directive does as well, so they are dropped.
-        let mappings = prebuilt
-            .mappings
-            .iter()
-            .filter(|(index, _)| !directive.contains(index))
-            .map(|(index, map)| {
-                let index = if *index >= directive.end {
-                    index - removed
-                } else {
-                    *index
-                };
-                (index, map.clone())
-            })
-            .collect();
+        let mut mappings = prebuilt.mappings.clone();
+        mappings.mappings = Arc::new(
+            prebuilt
+                .mappings
+                .mappings
+                .iter()
+                .filter(|(index, _)| !directive.contains(index))
+                .map(|(index, map)| {
+                    let index = if *index >= directive.end {
+                        index - removed
+                    } else {
+                        *index
+                    };
+                    (index, map.clone())
+                })
+                .collect(),
+        );
         self.push_code(&Code {
             code: prebuilt.code.skip(directive),
-            mappings: Arc::new(mappings),
+            mappings,
             should_generate_debug_id: prebuilt.should_generate_debug_id,
             strict_directive: None,
-        });
-    }
-
-    /// Setting breakpoints on synthetic code can cause weird behaviors
-    /// because Chrome will treat the location as belonging to the previous
-    /// original code section. By inserting an empty source map when reaching a
-    /// synthetic section directly after an original section, we tell Chrome
-    /// that the previous map ended at this point.
-    fn push_map(&mut self, map: Option<SectionMap>) {
-        let Some(mappings) = self.mappings.as_mut() else {
-            return;
-        };
-        if map.is_none() && matches!(mappings.last(), None | Some((_, None))) {
-            // No reason to push an empty map directly after an empty map
-            return;
-        }
-
-        debug_assert!(
-            map.is_some() || !mappings.is_empty(),
-            "the first mapping is never a None"
-        );
-        mappings.push((self.code.len(), map));
-    }
-
-    /// Tests if any code in this CodeBuilder contains an associated source map.
-    pub fn has_source_map(&self) -> bool {
-        self.mappings
-            .as_ref()
-            .is_some_and(|mappings| !mappings.is_empty())
+        })
     }
 
     pub fn build(self) -> Code {
         Code {
             code: self.code.build(),
-            mappings: Arc::new(self.mappings.unwrap_or_default()),
+            mappings: self.mappings,
             should_generate_debug_id: self.should_generate_debug_id,
             strict_directive: self.strict_directive,
         }
@@ -370,7 +380,7 @@ impl ops::AddAssign<&'static str> for &mut CodeBuilder {
 
 impl Write for CodeBuilder {
     fn write(&mut self, bytes: &[u8]) -> IoResult<usize> {
-        self.push_map(None);
+        self.mappings.push_synthetic(self.code.len());
         self.code.write(bytes)
     }
 
@@ -381,8 +391,13 @@ impl Write for CodeBuilder {
 
 impl From<Code> for CodeBuilder {
     fn from(code: Code) -> Self {
-        let mut builder = CodeBuilder::default();
-        builder.push_code(&code);
+        let mut builder = Self {
+            code: RopeBuilder::default(),
+            mappings: code.mappings,
+            should_generate_debug_id: code.should_generate_debug_id,
+            strict_directive: None,
+        };
+        builder.code += &code.code;
         builder
     }
 }
@@ -398,9 +413,15 @@ impl GenerateSourceMap for Code {
     /// far the simplest way to concatenate the source maps of the multiple
     /// chunk items into a single map file.
     #[turbo_tasks::function]
-    pub async fn generate_source_map(self: ResolvedVc<Self>) -> Result<Vc<FileContent>> {
+    pub async fn generate_source_map(
+        self: ResolvedVc<Self>,
+        ty: SourceMapType,
+    ) -> Result<Vc<FileContent>> {
         let debug_id = self.debug_id().owned().await?;
-        Ok(FileContent::Content(File::from(self.await?.generate_source_map_ref(debug_id))).cell())
+        Ok(FileContent::Content(File::from(
+            self.await?.generate_source_map_ref(debug_id, ty)?,
+        ))
+        .cell())
     }
 }
 
@@ -411,7 +432,7 @@ pub struct OptionDebugId(Option<RcStr>);
 impl Code {
     /// Returns the hash of the source code of this Code.
     #[turbo_tasks::function]
-    pub fn source_code_hash(&self) -> Vc<u128> {
+    pub fn source_code_hash(&self) -> Vc<FixintU128> {
         let code = self;
         let hash = hash_xxh3_hash128(code.source_code());
         Vc::cell(hash)
@@ -435,7 +456,12 @@ impl Code {
     /// must not split a UTF-8 sequence or a "\r\n". Splitting them is a bug in the code that built
     /// the rope, and can result in incorrect offsets for the sections after it.
     #[instrument(level = "trace", name = "Code::generate_source_map", skip_all)]
-    pub fn generate_source_map_ref(&self, debug_id: Option<RcStr>) -> Rope {
+    pub fn generate_source_map_ref(
+        &self,
+        debug_id: Option<RcStr>,
+        ty: SourceMapType,
+    ) -> Result<Rope> {
+        self.validate_source_map_type(ty)?;
         // A debug id should be passed only if the code should generate a debug id, it is however
         // allowed to turn it off to access intermediate states of the code (e.g. for minification)
         debug_assert!(debug_id.is_none() || self.should_generate_debug_id);
@@ -445,9 +471,10 @@ impl Code {
 
         let mut last_byte_pos = 0;
 
-        let mut sections = Vec::with_capacity(self.mappings.len());
+        let mappings = &self.mappings.mappings;
+        let mut sections = Vec::with_capacity(mappings.len());
         let mut read = self.code.read();
-        for (byte_pos, map) in self.mappings.iter() {
+        for (byte_pos, maps) in mappings.iter() {
             let mut want = byte_pos - last_byte_pos;
             while want > 0 {
                 // `fill_buf` never returns an error.
@@ -462,7 +489,7 @@ impl Code {
             }
             last_byte_pos = *byte_pos;
 
-            if let Some(map) = map {
+            if let Some(map) = maps.get(ty) {
                 sections.push((pos, map.to_rope()))
             } else {
                 // We don't need an empty source map when column is 0 or the next char is a newline.
@@ -483,9 +510,9 @@ impl Code {
             && sections[0].0.column == 0
             && debug_id.is_none()
         {
-            sections.into_iter().next().unwrap().1
+            Ok(sections.into_iter().next().unwrap().1)
         } else {
-            SourceMap::sections_to_rope(sections, debug_id)
+            Ok(SourceMap::sections_to_rope(sections, debug_id))
         }
     }
 }
@@ -498,10 +525,18 @@ mod tests {
 
     use super::*;
 
+    const BOTH: SourceMapGenerationOptions = SourceMapGenerationOptions {
+        full: true,
+        shallow: true,
+        shallow_sources_content: true,
+    };
+
     const SECTION_MAP: &str = r#"{"version":3,"sources":["a.js"],"names":[],"mappings":"AAAA"}"#;
 
     fn section_offsets(code: &Code) -> Vec<(u64, u64)> {
-        let map = code.generate_source_map_ref(None);
+        let map = code
+            .generate_source_map_ref(None, SourceMapType::Full)
+            .unwrap();
         let map: Value = serde_json::from_str(&map.to_str().unwrap()).unwrap();
         map["sections"]
             .as_array()
@@ -519,14 +554,16 @@ mod tests {
 
     #[test]
     fn section_offsets_count_utf16_code_units() {
-        let mut builder = CodeBuilder::default();
+        let mut builder = CodeBuilder::new(false, BOTH);
         // `🦀` is a 4-byte UTF-8 sequence and two UTF-16 code units, `é` is a single unit.
         let prefix = "line0\n\"🦀é\"; ";
         builder += prefix;
-        builder.push_source(
-            &Rope::from("mapped();".to_string()),
-            Some(Rope::from(SECTION_MAP.to_string())),
-        );
+        builder
+            .push_source(
+                &Rope::from("mapped();".to_string()),
+                SourceMaps::Shared(Rope::from(SECTION_MAP.to_string())),
+            )
+            .unwrap();
         let code = builder.build();
 
         let expected_column = "\"🦀é\"; ".encode_utf16().count() as u64;
@@ -562,8 +599,13 @@ mod tests {
     /// `(generated line, generated column, original line, original column)` of every token
     /// mapped to an original source.
     fn tokens(code: &Code) -> Vec<(u32, u32, u32, u32)> {
-        let map = match swc_sourcemap::decode_slice(&code.generate_source_map_ref(None).to_bytes())
-            .unwrap()
+        let map = match swc_sourcemap::decode_slice(
+            &code
+                .generate_source_map_ref(None, SourceMapType::Full)
+                .unwrap()
+                .to_bytes(),
+        )
+        .unwrap()
         {
             DecodedMap::Regular(map) => map,
             DecodedMap::Index(index) => index.flatten().unwrap(),
@@ -583,22 +625,23 @@ mod tests {
     }
 
     fn factory(head: &'static str, gap: &'static str, body: &str) -> Code {
-        let mut code = CodeBuilder::new(true, false);
+        let mut code = CodeBuilder::new(false, BOTH);
         code += head;
         code.push_strict_directive();
         code += gap;
-        code.push_source(&body.to_string().into(), Some(line_map(body)));
+        code.push_source(&body.to_string().into(), SourceMaps::Shared(line_map(body)))
+            .unwrap();
         code += "})";
         code.build()
     }
 
     fn compose(factory: &Code, without_directive: bool) -> Code {
-        let mut code = CodeBuilder::new(true, false);
+        let mut code = CodeBuilder::new(false, factory.source_map_generation_options());
         code += "[1,";
         if without_directive {
-            code.push_code_without_strict_directive(factory);
+            code.push_code_without_strict_directive(factory).unwrap();
         } else {
-            code.push_code(factory);
+            code.push_code(factory).unwrap();
         }
         code += "]";
         code.build()
@@ -650,8 +693,12 @@ mod tests {
 
     #[test]
     fn pushing_code_without_a_directive_is_unchanged() {
-        let mut code = CodeBuilder::new(true, false);
-        code.push_source(&"x();".to_string().into(), Some(line_map("x();")));
+        let mut code = CodeBuilder::new(false, BOTH);
+        code.push_source(
+            &"x();".to_string().into(),
+            SourceMaps::Shared(line_map("x();")),
+        )
+        .unwrap();
         let code = code.build();
         assert!(code.strict_directive().is_none());
         assert_eq!(

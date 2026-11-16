@@ -345,7 +345,7 @@ React mitigates this with Selective Hydration and you can further improve this b
 
 Next.js allows you to use the native [`window.history.pushState`](https://developer.mozilla.org/en-US/docs/Web/API/History/pushState) and [`window.history.replaceState`](https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState) methods to update the browser's history stack without reloading the page.
 
-`pushState` and `replaceState` calls integrate into the Next.js Router, allowing you to sync with [`usePathname`](/docs/app/api-reference/functions/use-pathname) and [`useSearchParams`](/docs/app/api-reference/functions/use-search-params).
+Next.js integrates `pushState` and `replaceState` calls into the router, so components that render with [`usePathname`](/docs/app/api-reference/functions/use-pathname) or [`useSearchParams`](/docs/app/api-reference/functions/use-search-params) update when the URL changes. When an event handler is the only place a component needs the URL, read `window.location` in the handler instead of calling `usePathname` or `useSearchParams`. Both hooks affect [prerendering](/docs/app/api-reference/functions/use-search-params#prerendering).
 
 #### `window.history.pushState`
 
@@ -354,13 +354,9 @@ Use it to add a new entry to the browser's history stack. The user can navigate 
 ```tsx fileName="app/ui/sort-products.tsx" switcher
 'use client'
 
-import { useSearchParams } from 'next/navigation'
-
 export default function SortProducts() {
-  const searchParams = useSearchParams()
-
   function updateSorting(sortOrder: string) {
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams(window.location.search)
     params.set('sort', sortOrder)
     window.history.pushState(null, '', `?${params.toString()}`)
   }
@@ -377,13 +373,9 @@ export default function SortProducts() {
 ```jsx fileName="app/ui/sort-products.js" switcher
 'use client'
 
-import { useSearchParams } from 'next/navigation'
-
 export default function SortProducts() {
-  const searchParams = useSearchParams()
-
   function updateSorting(sortOrder) {
-    const params = new URLSearchParams(searchParams.toString())
+    const params = new URLSearchParams(window.location.search)
     params.set('sort', sortOrder)
     window.history.pushState(null, '', `?${params.toString()}`)
   }
@@ -404,14 +396,10 @@ Use it to replace the current entry on the browser's history stack. The user is 
 ```tsx fileName="app/ui/locale-switcher.tsx" switcher
 'use client'
 
-import { usePathname } from 'next/navigation'
-
 export function LocaleSwitcher() {
-  const pathname = usePathname()
-
   function switchLocale(locale: string) {
     // e.g. '/en/about' or '/fr/contact'
-    const newPath = `/${locale}${pathname}`
+    const newPath = `/${locale}${window.location.pathname}`
     window.history.replaceState(null, '', newPath)
   }
 
@@ -427,14 +415,10 @@ export function LocaleSwitcher() {
 ```jsx fileName="app/ui/locale-switcher.js" switcher
 'use client'
 
-import { usePathname } from 'next/navigation'
-
 export function LocaleSwitcher() {
-  const pathname = usePathname()
-
   function switchLocale(locale) {
     // e.g. '/en/about' or '/fr/contact'
-    const newPath = `/${locale}${pathname}`
+    const newPath = `/${locale}${window.location.pathname}`
     window.history.replaceState(null, '', newPath)
   }
 

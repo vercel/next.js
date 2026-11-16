@@ -1,5 +1,5 @@
 use turbo_persistence::ParallelScheduler;
-use turbo_tasks::{block_in_place, parallel, scope_bounded::scope_bounded};
+use turbo_tasks::{parallel, scope_bounded::scope_bounded};
 
 #[derive(Clone, Copy, Default)]
 pub struct TurboTasksParallelScheduler;
@@ -8,13 +8,6 @@ impl ParallelScheduler for TurboTasksParallelScheduler {
     fn parallelism(&self) -> usize {
         // Same fallback as `turbo_tasks::util::good_chunk_size` when the parallelism is unknown.
         parallel::available_parallelism().map_or(4, |count| count.get())
-    }
-
-    fn block_in_place<R>(&self, f: impl FnOnce() -> R + Send) -> R
-    where
-        R: Send,
-    {
-        block_in_place(f)
     }
 
     fn parallel_for_each<T>(&self, items: &[T], f: impl Fn(&T) + Send + Sync)

@@ -10,7 +10,7 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 6 free var = FreeVar(console)
+5 -> 6 free var = FreeVar(console)
 
 0 -> 7 member call = ???*0*["log"]("initLasyInitAsyncProcess")
 - *0* FreeVar(console)

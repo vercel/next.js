@@ -1,3 +1,6 @@
+import { mkdtemp, rm, writeFile } from 'fs/promises'
+import { tmpdir } from 'os'
+import { join } from 'path'
 import {
   PHASE_INFO,
   PHASE_PRODUCTION_BUILD,
@@ -21,6 +24,35 @@ describe('loadConfig', () => {
     const configModule = await import('./config')
     loadConfig = configModule.default
   })
+  it.each([true, false])(
+    'links removed experimental.dynamicIO=%s to the migration guide',
+    async (dynamicIO) => {
+      const dir = await mkdtemp(join(tmpdir(), 'next-config-dynamic-io-'))
+      const previousMode = process.env.__NEXT_TEST_MODE
+      process.env.__NEXT_TEST_MODE = 'jest'
+
+      try {
+        await writeFile(
+          join(dir, 'next.config.js'),
+          `module.exports = ${JSON.stringify({ experimental: { dynamicIO } })}`
+        )
+
+        await expect(
+          loadConfig(PHASE_PRODUCTION_BUILD, dir, { silent: false })
+        ).rejects.toThrow(
+          'Learn more: https://nextjs.org/docs/app/guides/migrating-to-cache-components'
+        )
+      } finally {
+        if (previousMode === undefined) {
+          delete process.env.__NEXT_TEST_MODE
+        } else {
+          process.env.__NEXT_TEST_MODE = previousMode
+        }
+        await rm(dir, { recursive: true, force: true })
+      }
+    }
+  )
+
   describe('nextConfig.images defaults', () => {
     it('should assign a `images.remotePatterns` when using assetPrefix', async () => {
       const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {

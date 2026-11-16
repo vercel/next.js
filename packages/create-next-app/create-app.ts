@@ -262,6 +262,7 @@ export async function createApp({
       cacheComponents,
       agentFeedback,
     })
+    hasPackageJson = true
   }
 
   if (agentsMd) {

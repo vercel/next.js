@@ -38,7 +38,7 @@ async fn persistent_bundle(
     )
     .to_resolved()
     .await?;
-    let declarations = go_declarations(*sources, host).await?;
+    let declarations = go_declarations(*sources, vec![rcstr!("main.go")], host).await?;
     ensure!(
         declarations.functions.contains(&rcstr!("main")) || !declarations.syntax_errors.is_empty(),
         "missing function declarations"

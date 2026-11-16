@@ -1,16 +1,28 @@
-import type { RequestInsight } from '../../../shared/request-insights'
+import {
+  REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
+  type RequestInsight,
+} from '../../../shared/request-insights'
+import { summarizeRequestInsight } from '../../../shared/request-insights-summary'
+import { getRequestInsightFilterResult } from './request-filters'
 import {
   getActiveRequestKey,
+  getRequestInsightRowType,
   getRequestListEntries,
   isPageLoadRequest,
 } from './request-list'
-import { getTraceItems, getTracePosition, getTraceRange } from './trace-viewer'
+import {
+  getTraceItems,
+  getTraceNavigationIndex,
+  getTracePosition,
+  getTraceRange,
+} from './trace-viewer'
 
 function createRequest(
   overrides: Partial<RequestInsight> = {}
 ): RequestInsight {
   return {
     requestId: 'request-1',
+    source: 'unknown',
     htmlRequestId: 'html-1',
     startTime: 100,
     durationMs: 100,
@@ -22,6 +34,18 @@ function createRequest(
 }
 
 describe('request insights trace viewer', () => {
+  it('moves the active trace row without leaving the listbox', () => {
+    expect(getTraceNavigationIndex(0, 3, 'ArrowDown')).toBe(1)
+    expect(getTraceNavigationIndex(2, 3, 'ArrowDown')).toBe(2)
+    expect(getTraceNavigationIndex(2, 3, 'ArrowUp')).toBe(1)
+    expect(getTraceNavigationIndex(1, 3, 'Home')).toBe(0)
+    expect(getTraceNavigationIndex(1, 3, 'End')).toBe(2)
+    expect(getTraceNavigationIndex(1, 3, 'ArrowRight')).toBeUndefined()
+    expect(getTraceNavigationIndex(1, 3, 'ArrowLeft')).toBeUndefined()
+    expect(getTraceNavigationIndex(0, 0, 'ArrowDown')).toBeUndefined()
+    expect(getTraceNavigationIndex(0, 3, 'Enter')).toBeUndefined()
+  })
+
   it('keeps the active request selected when newer requests arrive', () => {
     const selectedRequest = createRequest({ requestId: 'selected' })
     const newerRequest = createRequest({ requestId: 'newer' })
@@ -61,7 +85,7 @@ describe('request insights trace viewer', () => {
     ])
   })
 
-  it('nests internal records directly after their request row', () => {
+  it('nests internal records under their owning request', () => {
     const newerRequest = createRequest({ requestId: 'newer' })
     const olderRequest = createRequest({ requestId: 'older' })
     const newerInstantInsights = createRequest({
@@ -91,42 +115,87 @@ describe('request insights trace viewer', () => {
     ])
   })
 
-  it('keeps orphaned internal records top-level and in root ordering', () => {
-    const request = createRequest({ requestId: 'present' })
-    const presentInstantInsights = createRequest({
-      requestId: 'present',
-      kind: 'instant-insights',
-    })
-    const orphanInstantInsights = createRequest({
-      requestId: 'evicted',
+  it('keeps internal records without a retained owner at the root', () => {
+    const instantInsights = createRequest({
+      requestId: 'orphan',
       kind: 'instant-insights',
     })
 
-    const entries = getRequestListEntries(
-      [presentInstantInsights, orphanInstantInsights, request],
-      true
-    )
-
-    expect(entries).toEqual([
-      { request: orphanInstantInsights, nested: false },
-      { request, nested: false },
-      { request: presentInstantInsights, nested: true },
+    expect(getRequestListEntries([instantInsights], true)).toEqual([
+      { request: instantInsights, nested: false },
     ])
-    // Every record appears exactly once.
-    expect(new Set(entries.map((entry) => entry.request)).size).toBe(
-      entries.length
-    )
-    expect(entries).toHaveLength(3)
+  })
+
+  it('labels and filters normalized request activity', () => {
+    const requestSpan = (rsc: boolean) => ({
+      name: 'GET',
+      startTime: 100,
+      attributes: {
+        'next.span_type': REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
+        'next.rsc': rsc,
+      },
+    })
+    const page = createRequest({
+      requestId: 'page',
+      source: 'page',
+      spans: [requestSpan(false)],
+      fetches: [{ cacheStatus: 'miss' }],
+    })
+    const rsc = createRequest({
+      requestId: 'rsc',
+      source: 'page',
+      spans: [requestSpan(true)],
+    })
+    const api = createRequest({ requestId: 'api', source: 'app-route' })
+    const asset = createRequest({ requestId: 'asset', source: 'asset' })
+
+    expect(getRequestInsightRowType(page, true).label).toBe('Page load')
+    expect(getRequestInsightRowType(rsc).label).toBe('RSC')
+    expect(getRequestInsightRowType(api).label).toBe('API')
+    expect(getRequestInsightRowType(asset).label).toBe('Asset')
+    expect(
+      getRequestInsightFilterResult(
+        [page, rsc, api],
+        ['source:page', 'cache:miss']
+      ).requests
+    ).toEqual([page])
+    expect(
+      getRequestInsightFilterResult([page, rsc, api, asset], ['source:api'])
+        .requests
+    ).toEqual([api])
+    expect(
+      getRequestInsightFilterResult([page, rsc, api, asset], ['source:asset'])
+        .requests
+    ).toEqual([asset])
+    const summaries = [page, rsc, api, asset].map(summarizeRequestInsight)
+    expect(
+      getRequestInsightFilterResult(summaries, ['source:page', 'cache:miss'])
+        .requests
+    ).toEqual([summaries[0]])
   })
 
   it('only marks the exact initial document request as the page load', () => {
     const initialRequestId = 'document-request'
+    const htmlSpan = {
+      name: 'GET',
+      startTime: 100,
+      attributes: {
+        'next.span_type': REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
+        'next.rsc': false,
+      },
+    }
+    const rscSpan = {
+      ...htmlSpan,
+      attributes: { ...htmlSpan.attributes, 'next.rsc': true },
+    }
 
     expect(
       isPageLoadRequest(
         createRequest({
-          requestId: initialRequestId,
+          requestId: 'server-owned-request',
+          source: 'page',
           htmlRequestId: initialRequestId,
+          spans: [htmlSpan],
         }),
         initialRequestId
       )
@@ -135,7 +204,9 @@ describe('request insights trace viewer', () => {
       isPageLoadRequest(
         createRequest({
           requestId: 'related-rsc-request',
+          source: 'page',
           htmlRequestId: initialRequestId,
+          spans: [rscSpan],
         }),
         initialRequestId
       )
@@ -144,7 +215,9 @@ describe('request insights trace viewer', () => {
       isPageLoadRequest(
         createRequest({
           requestId: initialRequestId,
+          source: 'instant-insights',
           kind: 'instant-insights',
+          spans: [htmlSpan],
         }),
         initialRequestId
       )
@@ -184,6 +257,16 @@ describe('request insights trace viewer', () => {
             'next.span_type': 'AppRender.instantInsights.runValidation',
           },
         },
+        ...['warmup', 'staticShell', 'validate'].map((phase, index) => ({
+          name: phase,
+          spanId: `phase-${phase}`,
+          parentSpanId: 'validate',
+          startTime: 126 + index,
+          durationMs: 1,
+          attributes: {
+            'next.span_type': `AppRender.instantInsights.${phase}`,
+          },
+        })),
       ],
     })
 
@@ -196,6 +279,90 @@ describe('request insights trace viewer', () => {
       { label: 'Instant Insights', depth: 0 },
       { label: 'Prepare validation inputs', depth: 1 },
       { label: 'Run validation', depth: 1 },
+      { label: 'warmup', depth: 2 },
+      { label: 'static shell', depth: 2 },
+      { label: 'validate', depth: 2 },
+    ])
+  })
+
+  it('uses Proxy terminology without changing the recorded OTel span', () => {
+    const middlewareSpan = {
+      name: 'middleware POST',
+      startTime: 100,
+      durationMs: 10,
+      attributes: {
+        'http.method': 'POST',
+        'next.span_name': 'middleware POST',
+        'next.span_type': 'Middleware.execute',
+      },
+    }
+    const request = createRequest({ spans: [middlewareSpan] })
+
+    expect(getTraceItems(request, false)[0]?.label).toBe('proxy POST')
+    expect(middlewareSpan).toEqual(
+      expect.objectContaining({
+        name: 'middleware POST',
+        attributes: expect.objectContaining({
+          'next.span_name': 'middleware POST',
+          'next.span_type': 'Middleware.execute',
+        }),
+      })
+    )
+  })
+
+  it('uses a generic code-loading label without changing the OTel span', () => {
+    const loadComponentsSpan = {
+      name: 'LoadComponents.loadComponents',
+      startTime: 100,
+      durationMs: 10,
+      attributes: {
+        'next.span_type': 'LoadComponents.loadComponents',
+      },
+    }
+    const request = createRequest({ spans: [loadComponentsSpan] })
+
+    expect(getTraceItems(request, false)[0]?.label).toBe('load code')
+    expect(loadComponentsSpan).toEqual(
+      expect.objectContaining({
+        name: 'LoadComponents.loadComponents',
+        attributes: expect.objectContaining({
+          'next.span_type': 'LoadComponents.loadComponents',
+        }),
+      })
+    )
+  })
+
+  it('distinguishes same-origin and external fetches in the trace', () => {
+    const request = createRequest({
+      fetches: [
+        {
+          method: 'GET',
+          url: 'https://app.test/api/data?token=%3Credacted%3E',
+          startTime: 110,
+          durationMs: 10,
+        },
+        {
+          method: 'POST',
+          url: 'https://api.example.test/api/data',
+          startTime: 120,
+          durationMs: 20,
+        },
+      ],
+    })
+
+    expect(
+      getTraceItems(request, true, 'https://app.test').map(
+        ({ label, fullLabel }) => ({ label, fullLabel })
+      )
+    ).toEqual([
+      {
+        label: 'GET /api/data?token=%3Credacted%3E · Same origin',
+        fullLabel: 'GET https://app.test/api/data?token=%3Credacted%3E',
+      },
+      {
+        label: 'POST /api/data · External origin · api.example.test',
+        fullLabel: 'POST https://api.example.test/api/data',
+      },
     ])
   })
 
@@ -264,17 +431,9 @@ describe('request insights trace viewer', () => {
           attributes: { 'next.span_type': 'BaseServer.prepareRequest' },
         },
         {
-          name: 'match route',
-          spanId: 'match',
-          parentSpanId: 'prepare',
-          startTime: 106,
-          durationMs: 5,
-          attributes: { 'next.span_type': 'NextNodeServer.matchRoute' },
-        },
-        {
           name: 'compile route',
           spanId: 'compile-route',
-          parentSpanId: 'match',
+          parentSpanId: 'prepare',
           startTime: 107.1,
           durationMs: 1.5,
           attributes: {
@@ -284,7 +443,7 @@ describe('request insights trace viewer', () => {
         {
           name: 'render',
           spanId: 'base-render',
-          parentSpanId: 'match',
+          parentSpanId: 'root',
           startTime: 110,
           durationMs: 85,
           attributes: { 'next.span_type': 'BaseServer.render' },
@@ -307,6 +466,61 @@ describe('request insights trace viewer', () => {
           durationMs: 1,
           attributes: {
             'next.span_type': 'LoadComponents.loadComponents',
+          },
+        },
+        {
+          name: 'load route module',
+          spanId: 'load-route-module',
+          parentSpanId: 'load-components',
+          startTime: 110.25,
+          durationMs: 0.1,
+          attributes: {
+            'next.span_name': 'load route module',
+            'next.span_type': 'LoadComponents.loadRouteModule',
+          },
+        },
+        {
+          name: 'prepare route module',
+          spanId: 'prepare-route-module',
+          parentSpanId: 'render-response-components',
+          startTime: 110.3,
+          durationMs: 0.8,
+          attributes: {
+            'next.span_name': 'prepare route module',
+            'next.span_type': 'RouteModule.prepare',
+          },
+        },
+        {
+          name: 'load route manifests',
+          spanId: 'load-route-manifests',
+          parentSpanId: 'prepare-route-module',
+          startTime: 110.4,
+          durationMs: 0.5,
+          attributes: {
+            'next.span_name': 'load route manifests',
+            'next.span_type': 'RouteModule.loadManifests',
+          },
+        },
+        {
+          name: 'BaseServer.renderToResponseWithComponents',
+          spanId: 'render-response-components',
+          parentSpanId: 'base-render',
+          startTime: 110.28,
+          durationMs: 1.2,
+          attributes: {
+            'next.span_type': 'BaseServer.renderToResponseWithComponents',
+          },
+        },
+        {
+          name: 'load app route module',
+          spanId: 'load-app-route-module',
+          parentSpanId: 'render-response-components',
+          startTime: 111.12,
+          durationMs: 0.2,
+          attributes: {
+            'next.route': '/api/source',
+            'next.span_name': 'load app route module',
+            'next.span_type': 'AppRouteRouteModule.loadUserland',
           },
         },
         {
@@ -381,26 +595,32 @@ describe('request insights trace viewer', () => {
       }))
     ).toEqual([
       { label: 'GET', depth: 0 },
-      { label: 'match route', depth: 1 },
-      { label: 'compile route', depth: 2 },
-      { label: 'render', depth: 2 },
-      { label: 'load components', depth: 3 },
-      { label: 'prepare app page response', depth: 3 },
-      { label: 'initialize app render', depth: 3 },
-      { label: 'render route (app) /', depth: 3 },
-      { label: 'render RSC response', depth: 4 },
-      { label: 'wait for RSC render task', depth: 4 },
-      { label: 'render HTML shell', depth: 4 },
-      { label: 'wait for HTML completion', depth: 4 },
+      { label: 'compile route', depth: 1 },
+      { label: 'render', depth: 1 },
+      { label: 'load code', depth: 2 },
+      { label: 'load route module', depth: 3 },
+      { label: 'prepare route module', depth: 2 },
+      { label: 'load app route module', depth: 2 },
+      { label: 'prepare app page response', depth: 2 },
+      { label: 'initialize app render', depth: 2 },
+      { label: 'render route (app) /', depth: 2 },
+      { label: 'render RSC response', depth: 3 },
+      { label: 'wait for RSC render task', depth: 3 },
+      { label: 'render HTML shell', depth: 3 },
+      { label: 'wait for HTML completion', depth: 3 },
     ])
     expect(getTraceItems(request, true).map((item) => item.label)).toEqual([
       'GET',
       'prepare request',
-      'match route',
       'compile route',
       'render',
       'resolve page components',
-      'load components',
+      'load code',
+      'load route module',
+      'render to response with components',
+      'prepare route module',
+      'load route manifests',
+      'load app route module',
       'prepare app page response',
       'initialize app render',
       'render route (app) /',

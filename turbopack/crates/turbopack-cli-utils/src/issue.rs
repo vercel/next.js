@@ -59,14 +59,14 @@ pub fn format_issue(
 
     let severity = plain_issue.severity;
     // TODO CLICKABLE PATHS
-    let context_path = plain_issue
-        .file_path
-        .replace("[project]", &current_dir.to_string_lossy())
-        .replace("/./", "/")
-        .replace("\\\\?\\", "");
+    let format_path = |path: &str| {
+        path.replace("[project]", &current_dir.to_string_lossy())
+            .replace("/./", "/")
+            .replace("\\\\?\\", "")
+    };
     let stage = plain_issue.stage.to_string();
 
-    let mut styled_issue = style_issue_source(plain_issue, &context_path);
+    let mut styled_issue = style_issue_source(plain_issue, format_path);
     let description = &plain_issue.description;
     if let Some(description) = description {
         writeln!(
@@ -424,7 +424,9 @@ impl IssueReporter for ConsoleUi {
             let category_map = severity_map.entry(stage.clone()).or_default();
             let issues = category_map.entry(context_path.to_string()).or_default();
 
-            let mut styled_issue = style_issue_source(plain_issue, &context_path);
+            let mut styled_issue = style_issue_source(plain_issue, |path| {
+                make_relative_to_cwd(path, project_dir, current_dir)
+            });
             let description = &plain_issue.description;
             if let Some(description) = description {
                 writeln!(
@@ -604,7 +606,16 @@ fn render_styled_string_to_ansi(styled_string: &StyledString) -> String {
     }
 }
 
-fn style_issue_source(plain_issue: &PlainIssue, context_path: &str) -> String {
+/// Formats the header line (`<path>[:<line>:<column>]  <title>`) and the code snippet of an issue.
+///
+/// When the issue has a source, the header names the source's file: the source location has
+/// already been mapped through source maps (see `IssueSource::into_plain`), so the source file
+/// can differ from `PlainIssue::file_path` (e.g. when the issue was reported for generated code).
+/// The line and column are 1-based.
+fn style_issue_source<'a, P: AsRef<str>>(
+    plain_issue: &'a PlainIssue,
+    format_path: impl Fn(&'a str) -> P,
+) -> String {
     let title = &plain_issue.title;
     let formatted_title = match title {
         StyledString::Text(text) => text.bold().to_string(),
@@ -612,20 +623,163 @@ fn style_issue_source(plain_issue: &PlainIssue, context_path: &str) -> String {
     };
 
     if let Some(source) = &plain_issue.source {
+        let source_path = format_path(&source.asset.file_path);
+        let source_path = source_path.as_ref();
         let mut styled_issue = match source.range {
             Some((start, _)) => format!(
                 "{}:{}:{}  {}",
-                context_path,
+                source_path,
                 start.line + 1,
-                start.column,
+                start.column + 1,
                 formatted_title
             ),
-            None => format!("{context_path}  {formatted_title}"),
+            None => format!("{source_path}  {formatted_title}"),
         };
         styled_issue.push('\n');
         format_source_content(source, &mut styled_issue);
         styled_issue
     } else {
-        format!("{context_path}  {formatted_title}\n")
+        let context_path = format_path(&plain_issue.file_path);
+        format!("{}  {formatted_title}\n", context_path.as_ref())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use turbo_rcstr::rcstr;
+    use turbo_tasks::ReadRef;
+    use turbo_tasks_fs::{File, FileContent};
+    use turbopack_core::{
+        issue::{
+            IssueSeverity, IssueStage, PlainIssue, PlainIssueSource, PlainSource, StyledString,
+        },
+        source_pos::SourcePos,
+    };
+
+    use super::{LogOptions, format_issue};
+
+    fn strip_ansi(s: &str) -> String {
+        let mut out = String::with_capacity(s.len());
+        let mut chars = s.chars();
+        while let Some(c) = chars.next() {
+            if c == '\x1b' {
+                // Skip a CSI sequence: ESC '[' ... final byte in '@'..='~'
+                for c in chars.by_ref() {
+                    if ('@'..='~').contains(&c) && c != '[' {
+                        break;
+                    }
+                }
+            } else {
+                out.push(c);
+            }
+        }
+        out
+    }
+
+    fn source(file_path: &str, range: Option<(SourcePos, SourcePos)>) -> PlainIssueSource {
+        PlainIssueSource {
+            asset: ReadRef::new_owned(PlainSource {
+                ident: file_path.into(),
+                file_path: file_path.into(),
+                content: ReadRef::new_owned(FileContent::Content(File::from(
+                    "const a = 1\nconst texts = import.meta.glob('./*.txt')\n",
+                ))),
+            }),
+            range,
+        }
+    }
+
+    fn issue(file_path: &str, source: Option<PlainIssueSource>) -> PlainIssue {
+        PlainIssue {
+            severity: IssueSeverity::Error,
+            stage: IssueStage::ProcessModule,
+            title: StyledString::Text(rcstr!("Something went wrong")),
+            file_path: file_path.into(),
+            description: None,
+            detail: None,
+            documentation_link: rcstr!(""),
+            source,
+            additional_sources: vec![],
+            import_traces: vec![],
+        }
+    }
+
+    fn format(issue: &PlainIssue) -> String {
+        strip_ansi(&format_issue(
+            issue,
+            None,
+            &LogOptions {
+                current_dir: PathBuf::from("/root"),
+                project_dir: PathBuf::from("/root"),
+                show_all: true,
+                log_detail: false,
+                log_level: IssueSeverity::Info,
+            },
+        ))
+    }
+
+    fn header(output: &str) -> &str {
+        output.lines().next().unwrap()
+    }
+
+    const RANGE: (SourcePos, SourcePos) = (
+        SourcePos {
+            line: 1,
+            column: 14,
+        },
+        SourcePos {
+            line: 1,
+            column: 20,
+        },
+    );
+
+    #[test]
+    fn header_uses_one_based_line_and_column() {
+        let output = format(&issue(
+            "[project]/input/index.js",
+            Some(source("[project]/input/index.js", Some(RANGE))),
+        ));
+        assert_eq!(
+            header(&output),
+            "error - [process module] /root/input/index.js:2:15  Something went wrong"
+        );
+        assert!(output.contains("import.meta.glob"), "{output}");
+    }
+
+    #[test]
+    fn header_uses_source_mapped_file_path() {
+        let output = format(&issue(
+            "[project]/input/index.js.import-meta-glob.mjs",
+            Some(source("[project]/input/index.js", Some(RANGE))),
+        ));
+        assert_eq!(
+            header(&output),
+            "error - [process module] /root/input/index.js:2:15  Something went wrong"
+        );
+        assert!(!output.contains("import-meta-glob.mjs"), "{output}");
+    }
+
+    #[test]
+    fn header_uses_source_file_path_without_range() {
+        let output = format(&issue(
+            "[project]/input/index.js.import-meta-glob.mjs",
+            Some(source("[project]/input/index.js", None)),
+        ));
+        assert_eq!(
+            header(&output),
+            "error - [process module] /root/input/index.js  Something went wrong"
+        );
+        assert!(!output.contains("import-meta-glob.mjs"), "{output}");
+    }
+
+    #[test]
+    fn header_uses_issue_file_path_without_source() {
+        let output = format(&issue("[project]/input/index.js", None));
+        assert_eq!(
+            header(&output),
+            "error - [process module] /root/input/index.js  Something went wrong"
+        );
     }
 }

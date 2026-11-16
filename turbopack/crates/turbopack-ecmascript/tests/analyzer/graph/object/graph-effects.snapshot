@@ -13,6 +13,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -57,6 +58,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -101,6 +103,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -145,6 +148,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -189,6 +193,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -233,6 +238,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -277,6 +283,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -321,6 +328,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -365,6 +373,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -409,6 +418,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -453,6 +463,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -497,6 +508,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -714,6 +726,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -758,6 +771,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -802,6 +816,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -954,6 +969,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -998,6 +1014,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -1042,6 +1059,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -1086,6 +1104,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -1130,6 +1149,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,

@@ -1,8 +1,12 @@
-import { nextTestSetup } from 'e2e-utils'
+import { isNextStart, nextTestSetup } from 'e2e-utils'
+import imageSize from 'image-size'
 
-describe('use-cache-metadata-route-handler', () => {
+const buildModes = isNextStart ? ['default', 'debug-prerender'] : ['default']
+
+describe.each(buildModes)('metadata route handlers (%s)', (mode) => {
   const { next, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
+    buildArgs: mode === 'debug-prerender' ? ['--debug-prerender'] : [],
   })
 
   it('should generate an opengraph image with a metadata route handler that uses "use cache"', async () => {
@@ -85,6 +89,41 @@ describe('use-cache-metadata-route-handler', () => {
       const [buildStatus] = next.cliOutput.match(/. \/twitter-image/)
 
       expect(buildStatus).toBe('ƒ /twitter-image')
+    }
+  })
+
+  it('should prerender an image tree with deferred Flight work', async () => {
+    const response = await next.fetch('/deferred/icon')
+    const image = Buffer.from(await response.arrayBuffer())
+
+    expect(response.status).toBe(200)
+    expect(imageSize(image)).toMatchObject({ width: 320, height: 320 })
+
+    if (isNextStart) {
+      const manifest = await next.readJSON('.next/prerender-manifest.json')
+      expect(manifest.routes).toHaveProperty('/deferred/icon')
+    }
+  })
+
+  it('should distinguish image contents and options within one route', async () => {
+    const response = await next.fetch('/variants')
+    const images: string[] = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(images).toHaveLength(3)
+    expect(images[0]).not.toBe(images[1])
+    expect(imageSize(Buffer.from(images[0], 'base64'))).toMatchObject({
+      width: 64,
+      height: 64,
+    })
+    expect(imageSize(Buffer.from(images[2], 'base64'))).toMatchObject({
+      width: 96,
+      height: 48,
+    })
+
+    if (isNextStart) {
+      const manifest = await next.readJSON('.next/prerender-manifest.json')
+      expect(manifest.routes).toHaveProperty('/variants')
     }
   })
 
@@ -189,6 +228,25 @@ describe('use-cache-metadata-route-handler', () => {
   })
 
   if (isNextStart) {
+    it('should include static image handlers in the prerender manifest', async () => {
+      const manifest = await next.readJSON('.next/prerender-manifest.json')
+
+      for (const route of [
+        '/opengraph-image',
+        '/icon',
+        '/apple-icon',
+        '/deferred/icon',
+        '/custom-font/opengraph-image',
+        '/first-post/opengraph-image',
+        '/second-post/opengraph-image',
+        '/variants',
+      ]) {
+        expect(manifest.routes).toHaveProperty(route)
+      }
+
+      expect(manifest.routes).not.toHaveProperty('/twitter-image')
+    })
+
     it('should include the client reference manifest in the route.js.nft.json files of dynamic metadata routes', async () => {
       for (const filename of [
         'icon',

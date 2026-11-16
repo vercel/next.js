@@ -33,7 +33,7 @@ Before upgrading, point `AGENTS.md` at version-matched Next.js docs so a coding 
 npx @next/codemod@canary agents-md
 ```
 
-After upgrading, check that `AGENTS.md` points at the docs bundled with the installed version in `node_modules/next/dist/docs/`. On Next.js 16.2 and later, `next dev` keeps this block up to date when it detects a coding agent. If the setup downloaded docs into `.next-docs/`, remove that directory once nothing references it. See [Version-matched documentation](/docs/app/guides/ai-agents#version-matched-documentation) for the managed block and setup details.
+After upgrading, check that `AGENTS.md` points at the docs bundled with the installed version in `node_modules/next/dist/docs/`. Running `next dev` keeps this block up to date. If the setup downloaded docs into `.next-docs/`, remove that directory once nothing references it. See [Version-matched documentation](/docs/app/guides/ai-agents#version-matched-documentation) for the managed block and setup details.
 
 ## Using the codemod
 
@@ -433,7 +433,7 @@ revalidateTag('posts')
 revalidateTag('posts', 'max')
 ```
 
-If you need immediate expiration rather than stale-while-revalidate, use [`updateTag`](/docs/app/api-reference/functions/updateTag) in Server Actions instead.
+If you need immediate expiration rather than stale-while-revalidate, use [`updateTag`](/docs/app/api-reference/functions/updateTag) in Server Actions instead. This also preserves [client refresh](/docs/app/api-reference/functions/updateTag#client-cache-behavior).
 
 ```ts filename="app/actions.ts" switcher
 'use server'
@@ -1262,6 +1262,15 @@ For the full migration path, see [Migrating to Cache Components](/docs/app/guide
 ### `unstable_rootParams`
 
 The `unstable_rootParams` function has been removed. Use [`next/root-params`](/docs/app/api-reference/functions/next-root-params) instead.
+
+### Other experimental flags removed in Next.js 16
+
+The following experimental flags were removed in later Next.js 16 minor releases. Remove them from your Next config when upgrading to the corresponding version.
+
+| Flag                               | Version history                                                            | Migration                                                                                                                                              |
+| ---------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `experimental.viewTransition`      | Introduced in 15.2.0 and removed in 16.3.0.                                | Remove the flag. View transitions work in the App Router without configuration.                                                                        |
+| `experimental.appNewScrollHandler` | Introduced in 16.2.0, enabled by default in 16.3.0, and removed in 16.4.0. | Remove the flag. The `true` value already matched the default. The `false` opt-out is no longer available, and the new handler leaves focus unchanged. |
 
 </AppOnly>
 

@@ -7,7 +7,7 @@ use turbo_tasks::{NonLocalValue, ResolvedVc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     environment::Environment, reference_type::ReferenceType, source::Source,
-    source_transform::SourceTransforms,
+    source_map::SourceMapGenerationOptions, source_transform::SourceTransforms,
 };
 use turbopack_css::CssModuleType;
 use turbopack_ecmascript::{
@@ -134,9 +134,12 @@ pub enum ModuleType {
     },
     Raw,
     NodeAddon,
-    CssModule,
+    CssModule {
+        source_map_generation_options: SourceMapGenerationOptions,
+    },
     Css {
         ty: CssModuleType,
+        source_map_generation_options: SourceMapGenerationOptions,
         environment: Option<ResolvedVc<Environment>>,
         lightningcss_features: turbopack_css::LightningCssFeatureFlags,
         module_css_debuggable_idents: bool,
@@ -164,7 +167,7 @@ impl Display for ModuleType {
             ModuleType::EcmascriptExtensionless { .. } => write!(f, "EcmascriptExtensionless"),
             ModuleType::Raw => write!(f, "Raw"),
             ModuleType::NodeAddon => write!(f, "NodeAddon"),
-            ModuleType::CssModule => write!(f, "CssModule"),
+            ModuleType::CssModule { .. } => write!(f, "CssModule"),
             ModuleType::Css { .. } => write!(f, "Css"),
             ModuleType::StaticUrlJs { .. } => write!(f, "StaticUrlJs"),
             ModuleType::StaticUrlCss { .. } => write!(f, "StaticUrlCss"),
@@ -236,6 +239,7 @@ impl ConfiguredModuleType {
         postprocess: ResolvedVc<EcmascriptInputTransforms>,
         options: ResolvedVc<EcmascriptOptions>,
         environment: Option<ResolvedVc<Environment>>,
+        source_map_generation_options: SourceMapGenerationOptions,
         lightningcss_features: turbopack_css::LightningCssFeatureFlags,
     ) -> Result<ModuleRuleEffect> {
         Ok(match self {
@@ -278,12 +282,17 @@ impl ConfiguredModuleType {
             }
             ConfiguredModuleType::Css => ModuleRuleEffect::ModuleType(ModuleType::Css {
                 ty: CssModuleType::Default,
+                source_map_generation_options,
                 environment,
                 lightningcss_features,
                 // This is global CSS, so the CSS Module naming pattern is unused.
                 module_css_debuggable_idents: false,
             }),
-            ConfiguredModuleType::CssModule => ModuleRuleEffect::ModuleType(ModuleType::CssModule),
+            ConfiguredModuleType::CssModule => {
+                ModuleRuleEffect::ModuleType(ModuleType::CssModule {
+                    source_map_generation_options,
+                })
+            }
             ConfiguredModuleType::Json => {
                 ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![ResolvedVc::upcast(
                     // TODO: can we switch this to `new_esm`?
