@@ -1,22 +1,22 @@
 ---
 title: How to prevent flash before hydration
 nav_title: Preventing Flash
-description: Learn how to prevent a flash of unstyled content (FOUC) by correcting server-rendered HTML, such as a dark mode theme, before the browser paints.
+description: Choose how to render dates, themes, and saved preferences with Suspense fallbacks, inline scripts, and external-store subscriptions.
 ---
 
-Values read from browser settings or `localStorage` aren't available during server rendering. Rendering different initial content on the server and client causes a hydration mismatch. Rendering a shared default avoids the mismatch, but replacing it after the browser paints can cause a visible flash.
+Dates, themes, and saved preferences can depend on values that aren't available during server rendering. Choose what should appear before React loads and how it should update when browser-specific values become available.
 
-To show the client-specific value on the first paint, use an **inline script** that corrects the server-rendered DOM while the browser parses the HTML. If a placeholder is acceptable, you can wait until React loads instead.
+For a date, you can show the server-formatted value first and let Suspense reveal the browser-formatted value. For a theme, painting the wrong preference can affect the whole page, so an inline script can apply the saved preference before the browser paints.
 
 ## Choose an approach
 
-Choose an approach based on when the client-specific value needs to appear and whether it can change outside React:
+Choose an approach based on the initial experience you want and whether the value needs an ongoing subscription:
 
-| Goal                                              | Approach                                                                 | Before React loads                            |
-| ------------------------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------- |
-| Show the client-specific value on the first paint | [Inline script](#dates-and-formatting)                                   | The script corrects the server-rendered value |
-| Defer content until it can render in the browser  | [`use(browser())` with `<Suspense>`](#rendering-client-specific-content) | The Suspense fallback is visible              |
-| Keep UI in sync with browser or external state    | [`useSyncExternalStore`](#subscribing-to-browser-values)                 | The shared initial value is visible           |
+| Goal                                                     | Approach                                                               | Before React loads                          |
+| -------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------- |
+| Show useful content while browser-specific content loads | [`use(browser())` with `<Suspense>`](#updating-the-date-with-suspense) | The server-rendered fallback is visible     |
+| Apply a browser preference before the first paint        | [Inline script](#fixing-it-with-an-inline-script)                      | The script updates the server-rendered HTML |
+| Keep UI subscribed to an external store                  | [`useSyncExternalStore`](#subscribing-to-browser-values)               | The shared server snapshot is visible       |
 
 ## Example
 
@@ -54,11 +54,79 @@ export function EventDate({ date }) {
 
 During SSR, `toLocaleDateString()` runs in Node.js and formats using the server's locale (e.g. `6/15/2026`). On hydration, React re-executes the component in the browser and produces the user's locale (e.g. `2026/6/15`). React detects the mismatch, throws a hydration error, and the user sees a flash.
 
-Updating the date after hydration avoids the mismatch, but the user still sees the server-formatted date first. A Server Component avoids the error entirely, but the date is permanently in the server's locale.
+A Server Component can keep the server-formatted date consistent, but displaying the browser's locale and time zone requires browser-specific formatting. Decide whether the server-formatted date is useful while that formatting loads.
 
 > **Good to know:** This issue is easy to miss in local development if your machine's locale matches your browser's. Run your dev server with `TZ` and `LANG` set differently from your browser to catch mismatches early (e.g. `TZ=UTC LANG=ja_JP.UTF-8 next dev`). `TZ=UTC` is a good default since most servers run in UTC.
 
+<span id="rendering-client-specific-content" />
+
+### Updating the date with Suspense
+
+When showing the server-formatted date first is acceptable, use it as a Suspense fallback. With React 19.3, `use(browser())` defers the inner component to the browser, where it formats the same date using the browser's locale and time zone:
+
+```tsx filename="app/components/browser-date.tsx" switcher
+'use client'
+
+import { Suspense, use } from 'react'
+import { browser } from 'react-dom'
+
+function BrowserDate({ date }: { date: string }) {
+  use(browser())
+
+  return <time dateTime={date}>{new Date(date).toLocaleDateString()}</time>
+}
+
+export function LocalDate({ date }: { date: string }) {
+  return (
+    <Suspense
+      fallback={
+        <time dateTime={date} suppressHydrationWarning>
+          {new Date(date).toLocaleDateString()}
+        </time>
+      }
+    >
+      <BrowserDate date={date} />
+    </Suspense>
+  )
+}
+```
+
+```jsx filename="app/components/browser-date.js" switcher
+'use client'
+
+import { Suspense, use } from 'react'
+import { browser } from 'react-dom'
+
+function BrowserDate({ date }) {
+  use(browser())
+
+  return <time dateTime={date}>{new Date(date).toLocaleDateString()}</time>
+}
+
+export function LocalDate({ date }) {
+  return (
+    <Suspense
+      fallback={
+        <time dateTime={date} suppressHydrationWarning>
+          {new Date(date).toLocaleDateString()}
+        </time>
+      }
+    >
+      <BrowserDate date={date} />
+    </Suspense>
+  )
+}
+```
+
+The server renders the fallback with its own formatting. React replaces it with the browser-formatted date when the inner component is ready, coordinating the update with other pending Suspense reveals. `suppressHydrationWarning` applies to the fallback because its formatting can also differ between the server and browser.
+
+The displayed date can still change. This approach keeps useful content visible and avoids a synchronous mount-effect state update, but it doesn't make browser-specific formatting available on the server.
+
+If the server has no useful value to show, use a placeholder fallback instead. See [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) for a `use(browser())` example that initializes an editor from `localStorage`.
+
 ### Fixing it with an inline script
+
+If the browser-formatted date needs to appear before React loads, an inline script can correct the HTML during parsing. Use this when the first-paint requirement warrants the extra script and DOM coordination. Otherwise, the Suspense approach above avoids that work.
 
 1. The server renders the date with its locale into a `<p>`.
 2. Place a `<script>` (via [`dangerouslySetInnerHTML`](https://react.dev/reference/react-dom/components/common#dangerously-setting-the-inner-html)) after the element. The browser runs it **synchronously** during HTML parsing, before the first paint.
@@ -525,49 +593,15 @@ export function ThemeToggle() {
 | Page is already fully dynamic                   | Format the date on the server using the `Accept-Language` header                                                                                                     |
 | Translating content between languages           | Use [internationalization](/docs/app/guides/internationalization) with per-locale static builds or dynamic rendering                                                 |
 
-### Rendering client-specific content
-
-If a value doesn't need to appear in server-rendered HTML, you can defer rendering it until the browser. For example, calling `Date.now()` during rendering can produce different timestamps on the server and client.
-
-With React 19.3, call `use(browser())` before reading the time and wrap the component in `<Suspense>`:
-
-```jsx filename="app/page.js"
-'use client'
-
-import { Suspense, use, useState } from 'react'
-import { browser } from 'react-dom'
-
-function Timestamp() {
-  use(browser())
-  const [timestamp] = useState(() => Date.now())
-
-  return (
-    <time dateTime={new Date(timestamp).toISOString()}>
-      {new Date(timestamp).toLocaleString()}
-    </time>
-  )
-}
-
-export default function Page() {
-  return (
-    <Suspense fallback={<p>Loading timestamp…</p>}>
-      <Timestamp />
-    </Suspense>
-  )
-}
-```
-
-The server renders `Loading timestamp…`. After JavaScript loads, the browser initializes the timestamp state, which stays stable across re-renders. This avoids a hydration mismatch and a mount-effect state update, but the user sees the fallback first. Use the inline-script patterns above when the value must be correct before React loads.
-
-See [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) for another example that initializes state from `localStorage`.
-
 ### Subscribing to browser values
 
-Use [`useSyncExternalStore`](https://react.dev/reference/react/useSyncExternalStore#adding-support-for-server-rendering) when a value can change outside React, such as network status or a shared `localStorage` store. `getSnapshot` reads the current value, and `subscribe` registers a callback that runs when it changes. Return the same snapshot while the underlying value is unchanged.
+Use [`useSyncExternalStore`](https://react.dev/reference/react/useSyncExternalStore#adding-support-for-server-rendering) for a value with an ongoing subscription, such as network status or a shared `localStorage` store. `getSnapshot` reads the current value, and `subscribe` registers a callback that runs when it changes. Return the same snapshot while the underlying value is unchanged.
+
+If a `useSyncExternalStore` call only uses an empty subscription and returns `false` on the server and `true` in the browser, replace it with `use(browser())` inside a Suspense boundary. Keep `useSyncExternalStore` for actual store subscriptions.
 
 For server rendering, provide a `getServerSnapshot` that returns the same value on the server and during hydration. React then reads the client snapshot. This avoids copying the value into state in a mount effect, but the initial server snapshot can still be visible before it updates.
 
-For `localStorage`, notify subscribers when your page writes to storage as well as listening for `storage` events from other documents. If the value is owned by one component, keep it in React state instead; a browser-only component can initialize that state directly, as in the linked editor example above.
+For `localStorage`, notify subscribers when your page writes to storage as well as listening for `storage` events from other documents. If the value is owned by one component, keep it in React state instead; a browser-only component can initialize that state directly, as in the [editor example](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
 
 <span id="why-not-useeffect" />
 
@@ -593,7 +627,7 @@ export default function App() {
 
 This avoids a hydration mismatch, but the user can see the placeholder before the effect runs. The synchronous `setIsClient(true)` update also adds an extra render and is reported as an error by `eslint-config-next`'s [`react-hooks/set-state-in-effect`](https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect) rule. If the update suspends, it can reactivate a parent Suspense fallback.
 
-Use [`use(browser())`](#rendering-client-specific-content) when a fallback is acceptable, or an inline script when the client-specific value needs to be visible on the first paint. Use [`useSyncExternalStore`](#subscribing-to-browser-values) for external-store subscriptions.
+Use [`use(browser())`](#updating-the-date-with-suspense) with a useful server-rendered fallback or a placeholder. Choose an inline script when the client-specific value needs to be visible on the first paint, or [`useSyncExternalStore`](#subscribing-to-browser-values) for external-store subscriptions.
 
 [`useEffect`](https://react.dev/reference/react/useEffect) still handles ongoing synchronization with external systems, such as starting and cleaning up a timer. `use(browser())` only defers rendering until the browser.
 

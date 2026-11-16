@@ -29,11 +29,11 @@ Hydration errors can occur from:
 
 Ensure that the component renders the same content on the server and during the initial client render. The following approaches help when a value differs between them.
 
-### Solution 1: Rendering changing values in the browser
+### Solution 1: Rendering client-specific values with Suspense
 
-Values such as `Date.now()` can differ on the server and client. With React 19.3, call `use(browser())` in a Client Component inside `<Suspense>` to render a fallback on the server and defer the changing value to the browser.
+Values such as locale-formatted dates can differ on the server and client. With React 19.3, call `use(browser())` in a Client Component inside `<Suspense>` to defer browser-specific rendering. The fallback can show a useful server-rendered value or a placeholder.
 
-See the [timestamp example and tradeoffs](/docs/app/guides/preventing-flash-before-hydration#rendering-client-specific-content).
+See the [date example and tradeoffs](/docs/app/guides/preventing-flash-before-hydration#updating-the-date-with-suspense).
 
 ### Solution 2: Disabling SSR on specific components
 
