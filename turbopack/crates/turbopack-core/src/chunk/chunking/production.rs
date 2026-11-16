@@ -18,7 +18,7 @@ use crate::{
 };
 
 /// Default estimated cost of an additional request, in bytes (200 KB).
-const DEFAULT_ESTIMATED_REQUEST_COST_BYTES: u64 = 200_000;
+pub const DEFAULT_ESTIMATED_REQUEST_COST_BYTES: u64 = 200_000;
 
 /// Probability that a navigation stays within a cluster.
 const CLUSTER_NAVIGATION_PROBABILITY: f64 = 0.6;

@@ -2,11 +2,14 @@ use anyhow::{Result, bail};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueDefault, ValueToString, Vc};
 use turbopack_core::chunk::{
     AsyncModuleInfo, Chunk, ChunkItem, ChunkItemBatchGroup, ChunkItemOrBatchWithAsyncModuleInfo,
-    ChunkType, ChunkingContext, round_chunk_item_size,
+    ChunkType, ChunkingContext, MinifyType, round_chunk_item_size,
 };
 
-use super::{EcmascriptChunk, EcmascriptChunkContent, EcmascriptChunkItem};
-use crate::chunk::batch::{EcmascriptChunkItemBatchGroup, EcmascriptChunkItemOrBatchWithAsyncInfo};
+use super::{ChunkMinification, EcmascriptChunk, EcmascriptChunkContent, EcmascriptChunkItem};
+use crate::chunk::{
+    batch::{EcmascriptChunkItemBatchGroup, EcmascriptChunkItemOrBatchWithAsyncInfo},
+    item::{ChunkItemFactoryContent, chunk_item_factory_content},
+};
 
 #[turbo_tasks::value]
 #[derive(Default, ValueToString)]
@@ -54,27 +57,74 @@ impl ChunkType for EcmascriptChunkType {
     #[turbo_tasks::function]
     async fn chunk_item_size(
         &self,
-        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<usize>> {
-        let Some(chunk_item) = ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(chunk_item)
+        let Some(ecmascript_chunk_item) =
+            ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(chunk_item)
         else {
             bail!("Chunk item is not an ecmascript chunk item but reporting chunk type ecmascript");
         };
-        let chunk_item = chunk_item.into_trait_ref().await?;
-        let size = match chunk_item
-            .content_with_async_module_info(async_module_info, true)
-            .await
-        {
-            Ok(content) => {
-                let content = content.await?;
-                round_chunk_item_size(content.inner_code.len())
-            }
-            Err(_) => 0,
+        let minify = ChunkMinification::for_chunking_context(chunking_context)
+            .await?
+            .per_item();
+        // Asked the same way as code generation does (see the chunk content implementations),
+        // so both share one minification.
+        let source_maps = match minify {
+            MinifyType::Minify { .. } => match chunking_context.emitted_source_map_type().await {
+                Ok(ty) => ty.is_some(),
+                Err(_) => return Ok(Vc::cell(0)),
+            },
+            MinifyType::NoMinify => false,
         };
-        Ok(Vc::cell(size))
+        Ok(Vc::cell(
+            rounded_chunk_item_size(
+                ecmascript_chunk_item,
+                async_module_info,
+                minify,
+                source_maps,
+            )
+            .await,
+        ))
     }
+}
+
+/// [`estimated_chunk_item_size`], rounded for chunking. An item whose content failed to generate
+/// counts as empty, without reporting the error: code generation reports it, see
+/// `chunk_item_factory_content`.
+pub(crate) async fn rounded_chunk_item_size(
+    chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
+    async_module_info: Option<Vc<AsyncModuleInfo>>,
+    minify: MinifyType,
+    source_maps: bool,
+) -> usize {
+    estimated_chunk_item_size(chunk_item, async_module_info, minify, source_maps)
+        .await
+        .map_or(0, round_chunk_item_size)
+}
+
+/// The size of a chunk item as it goes into a chunk (see [`chunk_item_factory_content`]), before
+/// rounding: its minified factory when chunk items are minified one by one, its raw code
+/// otherwise. Fails if the content failed to generate.
+pub(crate) async fn estimated_chunk_item_size(
+    chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
+    async_module_info: Option<Vc<AsyncModuleInfo>>,
+    minify: MinifyType,
+    source_maps: bool,
+) -> Result<usize> {
+    Ok(
+        match chunk_item_factory_content(chunk_item, async_module_info, true, minify, source_maps)
+            .await?
+        {
+            // When chunk items are minified one by one, the chunk is made of the minified
+            // factories, so size them as such. This minifies every item before chunking, but the
+            // result is shared with code generation (see `minified_module_factory`), so the work
+            // isn't repeated.
+            ChunkItemFactoryContent::Minified { factory, .. } => factory.await?.source_code().len(),
+            ChunkItemFactoryContent::Unminified(content) => content.await?.inner_code.len(),
+        },
+    )
 }
 
 #[turbo_tasks::value_impl]

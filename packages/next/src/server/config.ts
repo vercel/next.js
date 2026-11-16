@@ -484,7 +484,7 @@ function assignDefaultsAndValidate(
   if (result.experimental.goRoutes) {
     if (result.output) {
       throw new Error(
-        'experimental.goRoutes does not support standalone or static export output'
+        '`route.go` and `proxy.go` do not support standalone or static export output'
       )
     }
   }
@@ -545,11 +545,14 @@ function assignDefaultsAndValidate(
       rootTtlMs: turbopackGc.rootTtlMs,
     }
   } else {
-    // Enable by default on canary releases.
-    turbopackGcOptions = isStableBuild() ? undefined : {}
+    // Not set by the user: enabled by default with the default timings.
+    turbopackGcOptions = {}
   }
   ;(result as NextConfigComplete).experimental.turbopackGcOptions =
     turbopackGcOptions
+
+  // Enable per-module minification by default on canary releases.
+  result.experimental.turbopackMinifyBeforeChunking ??= !isStableBuild()
 
   // Normalize experimental.browserDebugInfoInTerminal to logging.browserToTerminal
   if (

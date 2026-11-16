@@ -1,6 +1,11 @@
 #[cfg(not(miri))]
 use std::time::Instant;
-use std::{fs, path::Path, sync::OnceLock};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs,
+    path::Path,
+    sync::OnceLock,
+};
 
 use anyhow::Result;
 #[cfg(not(miri))]
@@ -2117,6 +2122,53 @@ fn count_blob_files(dir: &Path) -> usize {
         .count()
 }
 
+/// The blob CRC covers the header's uncompressed length, so corrupting only the length is reported
+/// as a checksum mismatch before it is used to size the decompression buffer.
+// Writes a production-size blob, which is too slow under Miri.
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn corrupt_blob_length_is_detected(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let blob_value = vec![42u8; MAX_MEDIUM_VALUE_SIZE + 1];
+    {
+        let db = open_db::<1>(path, mmap)?;
+        let batch = db.write_batch()?;
+        batch.put(0, vec![1u8], blob_value.clone().into())?;
+        db.commit_write_batch(batch)?;
+        db.shutdown();
+    }
+    let blob_path = fs::read_dir(path)?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .find(|p| p.extension().is_some_and(|ext| ext == "blob"))
+        .expect("a blob file");
+    let original = fs::read(&blob_path)?;
+    let length = u32::from_be_bytes(original[..4].try_into()?);
+    assert_eq!(length as usize, blob_value.len());
+
+    for corrupt_length in [length + 1, length - 1, 0, u32::MAX] {
+        let mut bytes = original.clone();
+        bytes[..4].copy_from_slice(&corrupt_length.to_be_bytes());
+        fs::write(&blob_path, &bytes)?;
+        let db = open_db::<1>(path, mmap)?;
+        let message = match db.get(0, &vec![1u8]) {
+            Ok(value) => panic!(
+                "length {corrupt_length}: read succeeded ({:?} bytes)",
+                value.map(|v| v.len())
+            ),
+            Err(err) => format!("{err:#}"),
+        };
+        assert!(
+            message.contains("checksum mismatch"),
+            "length {corrupt_length}: unexpected error: {message}"
+        );
+    }
+    Ok(())
+}
+
 /// Test that compaction deletes blob files when their entries are superseded
 /// by newer values (SingleValue family).
 // The first access-mode variant exceeded 20 minutes under Miri while processing the production-size
@@ -3187,6 +3239,138 @@ fn used_keys_live_as_long_as_the_meta_file_that_recorded_them(#[case] mmap: bool
     Ok(())
 }
 
+/// How [`used_keys_survive_intermediate_merges`] leaves the bottom merge of a shard for later.
+#[cfg(not(miri))]
+#[derive(Clone, Copy, Debug)]
+enum PartialCompaction {
+    /// One pass bottom merges one shard and intermediate merges the other.
+    SamePass,
+    /// One pass bottom merges one shard, a later one intermediate merges the other.
+    BottomFirst,
+    /// One pass intermediate merges one shard, while the meta file that recorded the used keys is
+    /// kept alive by the other shard's files. A later pass bottom merges that other shard, which
+    /// retires it.
+    IntermediateFirst,
+}
+
+/// An intermediate merge can retire the meta file that recorded the used keys before every shard
+/// had its bottom merge, e.g. when the rewrite quota or `max_merge_jobs` leaves a shard's bottom
+/// merge for later. The used keys then have to live on in the meta file written by the compaction,
+/// until the merged entries are bottom merged.
+#[cfg(not(miri))]
+#[rstest]
+fn used_keys_survive_intermediate_merges(
+    #[values(true, false)] mmap: bool,
+    #[values(
+        PartialCompaction::SamePass,
+        PartialCompaction::BottomFirst,
+        PartialCompaction::IntermediateFirst
+    )]
+    partial: PartialCompaction,
+) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let config = two_shard_config(mmap)?;
+    let db = open_db_with_config::<1>(path, config.clone())?;
+    const KEYS: u32 = TWO_SHARD_KEYS;
+    let put_all =
+        |db: &TurboPersistence<RayonParallelScheduler, 1>, generation: u32| -> Result<()> {
+            let batch = db.write_batch()?;
+            for key in 0..KEYS {
+                batch.put(
+                    0,
+                    key.to_be_bytes().to_vec(),
+                    generation.to_be_bytes().to_vec().into(),
+                )?;
+            }
+            db.commit_write_batch(batch)?;
+            Ok(())
+        };
+    put_all(&db, 0)?;
+    db.full_compact()?;
+    for key in 0..KEYS {
+        db.get(0, &key.to_be_bytes())?.unwrap();
+    }
+    // The first commit records the reads, the second one none. Each shard has two files above its
+    // bottom run then.
+    put_all(&db, 1)?;
+    put_all(&db, 2)?;
+    let intermediate_only = CompactConfig {
+        max_space_amplification_percent: u16::MAX,
+        max_files_above_bottom: 1,
+        ..CompactConfig::full()
+    };
+    match partial {
+        PartialCompaction::BottomFirst => {
+            // Bottom merge only one shard. The other shard keeps the files of the commit that
+            // recorded the used keys.
+            db.compact(&CompactConfig {
+                max_merge_jobs: 1,
+                ..CompactConfig::full()
+            })?;
+            // Then the other shard gets an intermediate merge instead of a bottom merge, which
+            // merges the last file of that commit.
+            db.compact(&intermediate_only)?;
+        }
+        PartialCompaction::SamePass => {
+            // The rewrite quota of 0 bottom merges only one shard, and the other one gets an
+            // intermediate merge in the same pass, which merges the last file of that commit.
+            db.compact(&CompactConfig {
+                max_files_above_bottom: 1,
+                rewrite_per_fresh_byte: 0.0,
+                ..CompactConfig::full()
+            })?;
+        }
+        PartialCompaction::IntermediateFirst => {
+            // Intermediate merge only one shard. The commit that recorded the used keys still has
+            // a file in the other shard.
+            db.compact(&CompactConfig {
+                max_merge_jobs: 1,
+                ..intermediate_only
+            })?;
+            // Bottom merge only the other shard, which merges the last file of that commit. It
+            // has two rewrites of all its keys above its bottom run, the merged shard only one.
+            db.compact(&CompactConfig {
+                max_space_amplification_percent: 150,
+                max_files_above_bottom: 6,
+                ..CompactConfig::full()
+            })?;
+        }
+    }
+    let (hot, _) = bottom_entry_counts(&db)?;
+    assert!(hot > 0 && hot < KEYS as usize);
+    // The carried used keys are persisted.
+    db.shutdown();
+    let db = open_db_with_config::<1>(path, config)?;
+    // The bottom merge of the other shard still knows the read keys.
+    db.full_compact()?;
+    assert_eq!(bottom_entry_counts(&db)?, (KEYS as usize, 0));
+
+    // Every file with entries of the read keys was bottom merged now, so the used keys expire. (No
+    // key was read since, which the next commit would record again.)
+    let mut generation = 3;
+    if matches!(partial, PartialCompaction::SamePass) {
+        // Except that the meta file carrying the used keys also describes the bottom run written
+        // by the same pass for the first shard, which the full compaction above didn't merge, as
+        // nothing was written into that shard since. So the next bottom merge still uses them,
+        // which merges that bottom run and retires the meta file.
+        put_all(&db, generation)?;
+        db.full_compact()?;
+        assert_eq!(bottom_entry_counts(&db)?, (KEYS as usize, 0));
+        generation += 1;
+    }
+    put_all(&db, generation)?;
+    db.full_compact()?;
+    assert_eq!(bottom_entry_counts(&db)?, (0, KEYS as usize));
+    for key in 0..KEYS {
+        assert_eq!(
+            &*db.get(0, &key.to_be_bytes())?.unwrap(),
+            &generation.to_be_bytes()
+        );
+    }
+    Ok(())
+}
+
 #[cfg(not(miri))]
 #[rstest]
 #[case(true)]
@@ -3610,5 +3794,152 @@ fn batch_get_callback_error_propagates(#[case] mmap: bool) -> Result<()> {
         }
     }
     db.shutdown();
+    Ok(())
+}
+
+/// Snapshot of every entry in a persistence directory: file name to file content. Used to check
+/// that read-only opens leave the directory exactly as they found it.
+fn dir_snapshot(path: &Path) -> Result<BTreeMap<String, Vec<u8>>> {
+    let mut snapshot = BTreeMap::new();
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        let name = entry.file_name().into_string().expect("utf-8 file name");
+        snapshot.insert(name, fs::read(entry.path())?);
+    }
+    Ok(snapshot)
+}
+
+/// Names of the `.sst` / `.meta` / `.blob` files currently in `path`, keyed by sequence number.
+fn data_file_seqs(path: &Path) -> Result<BTreeSet<u32>> {
+    let mut seqs = BTreeSet::new();
+    for entry in fs::read_dir(path)? {
+        let path = entry?.path();
+        if matches!(
+            path.extension().and_then(|ext| ext.to_str()),
+            Some("sst" | "meta" | "blob")
+        ) {
+            seqs.insert(path.file_stem().unwrap().to_str().unwrap().parse()?);
+        }
+    }
+    Ok(seqs)
+}
+
+/// A database on the serial scheduler, for the read-only open tests.
+type SerialDb = TurboPersistence<crate::parallel_scheduler::SerialScheduler, 1>;
+
+fn open_read_only(path: &Path) -> Result<SerialDb> {
+    TurboPersistence::open_read_only_with_config(path.to_path_buf(), DbConfig::new())
+}
+
+/// Builds a directory in the state a crash can leave behind: a pending deletion record for the
+/// files of an older commit, orphaned files newer than `CURRENT`, and a stale `CURRENT.next`.
+/// Returns the sequence numbers listed in the deletion record and the orphaned sequence numbers.
+fn crashed_db_dir(path: &Path) -> Result<(Vec<u32>, Vec<u32>)> {
+    let db = SerialDb::open(path.to_path_buf())?;
+    let batch = db.write_batch()?;
+    batch.put(0, vec![1u8], vec![10u8].into())?;
+    db.commit_write_batch(batch)?;
+    let first_commit: Vec<u32> = data_file_seqs(path)?.into_iter().collect();
+    let batch = db.write_batch()?;
+    batch.put(0, vec![2u8], vec![20u8].into())?;
+    db.commit_write_batch(batch)?;
+    db.shutdown();
+    drop(db);
+
+    let current = read_current_version(path)?
+        .expect("CURRENT should exist")
+        .max_sequence_number;
+    // A deletion record (as written by compaction) for the first commit's files, whose deletion
+    // was interrupted.
+    let del_content: Vec<u8> = first_commit
+        .iter()
+        .flat_map(|seq| seq.to_be_bytes())
+        .collect();
+    fs::write(path.join(format!("{current:08}.del")), del_content)?;
+    // Files of a commit that crashed before `CURRENT` was updated.
+    let orphans = vec![current + 1, current + 2];
+    fs::write(path.join(format!("{:08}.sst", orphans[0])), b"orphan sst")?;
+    fs::write(path.join(format!("{:08}.meta", orphans[1])), b"orphan meta")?;
+    fs::write(path.join("CURRENT.next"), b"\xAA")?;
+    Ok((first_commit, orphans))
+}
+
+/// Opening read-only must not perform crash cleanup: orphaned files, pending deletion records
+/// and a stale `CURRENT.next` all stay on disk untouched, while reads still see the committed
+/// state. A writable open afterwards still performs the cleanup.
+#[test]
+fn read_only_open_does_not_clean_up_directory() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let (deleted, orphans) = crashed_db_dir(path)?;
+    let before = dir_snapshot(path)?;
+
+    {
+        let db = open_read_only(path)?;
+        // Files listed in the deletion record are no longer part of the database.
+        assert_eq!(db.get(0, &vec![1u8])?, None);
+        assert_eq!(db.get(0, &vec![2u8])?.as_deref(), Some(&[20u8][..]));
+        assert!(
+            db.write_batch::<Vec<u8>>().is_err(),
+            "a read-only database must refuse writes"
+        );
+        db.shutdown();
+    }
+    assert_eq!(
+        dir_snapshot(path)?,
+        before,
+        "a read-only open must not create, modify or delete files"
+    );
+
+    // A writable open still recovers the directory.
+    {
+        let db = SerialDb::open(path.to_path_buf())?;
+        assert_eq!(db.get(0, &vec![2u8])?.as_deref(), Some(&[20u8][..]));
+        db.shutdown();
+    }
+    let seqs = data_file_seqs(path)?;
+    for seq in deleted.iter().chain(&orphans) {
+        assert!(
+            !seqs.contains(seq),
+            "file {seq} should have been cleaned up"
+        );
+    }
+    assert!(!path.join("CURRENT.next").exists());
+    Ok(())
+}
+
+/// Opening read-only without a `CURRENT` file fails instead of initializing the directory, and
+/// leaves every file in place.
+#[test]
+fn read_only_open_without_current_fails_without_writing() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    crashed_db_dir(path)?;
+    fs::remove_file(path.join("CURRENT"))?;
+    let before = dir_snapshot(path)?;
+
+    assert!(open_read_only(path).is_err());
+    assert_eq!(
+        dir_snapshot(path)?,
+        before,
+        "a failed read-only open must not create, modify or delete files"
+    );
+
+    // A writable open of an empty directory still initializes it.
+    let empty = tempfile::tempdir()?;
+    assert!(open_read_only(empty.path()).is_err());
+    assert!(dir_snapshot(empty.path())?.is_empty());
+    SerialDb::open(empty.path().to_path_buf())?.shutdown();
+    assert!(read_current_version(empty.path())?.is_some());
+    Ok(())
+}
+
+/// Opening read-only at a path that doesn't exist fails without creating it.
+#[test]
+fn read_only_open_of_missing_directory_does_not_create_it() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path().join("missing");
+    assert!(open_read_only(&path).is_err());
+    assert!(!path.exists());
     Ok(())
 }

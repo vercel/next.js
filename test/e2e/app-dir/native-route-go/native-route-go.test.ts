@@ -232,6 +232,7 @@ describe('native-route-go', () => {
       headers: {
         connection: 'x-next-internal-go-token',
         'x-next-internal-go-token': 'forged',
+        'x-next-internal-test': 'internal value',
       },
     })
     expect(response.status).toBe(201)

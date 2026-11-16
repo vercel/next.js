@@ -259,6 +259,28 @@ fn be_key_u64(key: &[u8]) -> u64 {
     u64::from_be_bytes(key.try_into().expect("8-byte key"))
 }
 
+/// Stably sorts `entries` by a key that `pack` combines with the entry's index into one integer
+/// (the key in the high bits), which `index` recovers.
+///
+/// Each key is read once and the dense packed integers are sorted, instead of sorting the entries
+/// with a key extracting comparator, which reads both keys through their entries on every
+/// comparison. The index in the low bits breaks ties, so an unstable sort of the integers gives
+/// the stable order.
+fn sort_by_packed_key<T: Copy, P: Ord + Copy>(
+    entries: &mut [T],
+    pack: impl Fn(T, usize) -> P,
+    index: impl Fn(P) -> usize,
+) {
+    let mut packed: Vec<P> = entries
+        .iter()
+        .enumerate()
+        .map(|(i, &entry)| pack(entry, i))
+        .collect();
+    packed.sort_unstable();
+    let sorted: Vec<T> = packed.iter().map(|&p| entries[index(p)]).collect();
+    entries.copy_from_slice(&sorted);
+}
+
 /// Trait for entries from that SST files can be created
 pub trait Entry {
     /// Returns the hash of the key
@@ -429,8 +451,8 @@ fn write_block_to_file(
         (0, block)
     };
 
-    // Checksum is computed on the on-disk data (after compression).
-    let checksum = checksum_block(data_to_write);
+    // Checksum covers the length header and the on-disk data (after compression).
+    let checksum = checksum_block(uncompressed_size, data_to_write);
 
     write_raw_block_to_file(
         file,
@@ -1018,8 +1040,16 @@ impl<E: Entry> StreamingSstWriter<E> {
             let mut entries: Vec<&PendingEntry<E>> = pending_keys.range(start..end).collect();
             // Stable sort is important to preserve relative order of tombstones
             match info.uniform_key_len() {
-                Some(4) => entries.sort_by_key(|&e| be_key_u32(e.entry.key_bytes())),
-                Some(8) => entries.sort_by_key(|&e| be_key_u64(e.entry.key_bytes())),
+                Some(4) => sort_by_packed_key(
+                    &mut entries,
+                    |e, index| u64::from(be_key_u32(e.entry.key_bytes())) << 32 | index as u64,
+                    |packed| packed as u32 as usize,
+                ),
+                Some(8) => sort_by_packed_key(
+                    &mut entries,
+                    |e, index| u128::from(be_key_u64(e.entry.key_bytes())) << 64 | index as u128,
+                    |packed| packed as u64 as usize,
+                ),
                 _ => entries.sort_by_key(|&e| e.entry.key_bytes()),
             }
             Either::Right(entries.into_iter())
@@ -1102,7 +1132,7 @@ impl<E: Entry> StreamingSstWriter<E> {
                 index_block.put(hash, block);
             }
         }
-        let index_checksum = checksum_block(&index_buf);
+        let index_checksum = checksum_block(0, &index_buf);
         write_raw_block_to_file(
             &mut file,
             &mut self.block_offsets,
@@ -1483,13 +1513,45 @@ impl<W: Write> IndexBlockBuilder<W> {
 }
 
 #[cfg(test)]
+mod sort_by_packed_key_tests {
+    use super::sort_by_packed_key;
+
+    /// Equal keys keep their order, like the stable sort the writer used before.
+    #[test]
+    fn test_is_stable() {
+        // (key, original position), with few distinct keys so most are duplicates.
+        let entries: Vec<(u64, usize)> = (0..1000).map(|i| ((i * 7919 % 13) as u64, i)).collect();
+        let mut expected = entries.clone();
+        expected.sort_by_key(|e| e.0);
+
+        let mut by_u32 = entries.clone();
+        sort_by_packed_key(
+            &mut by_u32,
+            |e, index| (e.0 << 32) | index as u64,
+            |packed| packed as u32 as usize,
+        );
+        assert_eq!(by_u32, expected);
+
+        let mut by_u64 = entries;
+        sort_by_packed_key(
+            &mut by_u64,
+            |e, index| (u128::from(e.0 | 1 << 63) << 64) | index as u128,
+            |packed| packed as u64 as usize,
+        );
+        assert_eq!(by_u64, expected);
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
+        AccessMode,
         key::hash_key,
-        lookup_entry::LookupValue,
+        lookup_entry::{IterValue, LookupEntry, LookupValue},
         static_sorted_file::{
-            BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData,
+            BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileIter,
+            StaticSortedFileMetaData,
         },
     };
 
@@ -1516,6 +1578,12 @@ mod tests {
         Medium(Vec<u8>),
         /// Already-formatted block with `uncompressed_size = 0` (stored as-is).
         MediumRaw(Vec<u8>),
+        /// Already-formatted block copied with its original header, as compaction does.
+        MediumRawWithHeader {
+            uncompressed_size: u32,
+            checksum: u32,
+            block: Vec<u8>,
+        },
         Blob(u32),
         KeyDeleted,
         KeyValueDeleted(Vec<u8>),
@@ -1589,8 +1657,17 @@ mod tests {
                 TestValueKind::MediumRaw(v) => EntryValue::MediumRaw {
                     // uncompressed_size = 0 means the block is stored as-is (no compression).
                     uncompressed_size: 0,
-                    checksum: checksum_block(v),
+                    checksum: checksum_block(0, v),
                     block: v,
+                },
+                TestValueKind::MediumRawWithHeader {
+                    uncompressed_size,
+                    checksum,
+                    block,
+                } => EntryValue::MediumRaw {
+                    uncompressed_size: *uncompressed_size,
+                    checksum: *checksum,
+                    block,
                 },
                 TestValueKind::Blob(id) => EntryValue::Large { blob: *id },
                 TestValueKind::KeyDeleted => EntryValue::KeyDeleted,
@@ -2438,6 +2515,86 @@ mod tests {
         assert_corruption_detected(dir.path(), 1, &meta, &entries);
     }
 
+    /// Reads every entry through lookup in every access mode and through file-backed iteration,
+    /// collecting all errors.
+    /// A corrupt block must surface here as an error, not as a panic.
+    ///
+    /// With `raw_medium_length`, iteration may instead succeed if it hands out a raw medium value
+    /// block that still carries that corrupt length and fails its checksum: iteration passes
+    /// medium blocks to compaction unverified, to be copied as is (see
+    /// `corrupt_raw_medium_block_stays_detectable_after_copy`).
+    fn read_all_entries(
+        dir: &Path,
+        meta: StaticSortedFileMetaData,
+        entries: &[TestEntry],
+        raw_medium_length: Option<u32>,
+    ) -> Vec<anyhow::Error> {
+        let mut errors = Vec::new();
+        let access_modes: &[AccessMode] = &[
+            #[cfg(feature = "mmap")]
+            AccessMode::Mmap,
+            AccessMode::File,
+        ];
+        for &access_mode in access_modes {
+            match StaticSortedFile::open(dir, meta, Compression::Lz4, access_mode) {
+                Ok(sst) => {
+                    let kc = make_cache();
+                    let vc = make_cache();
+                    // Look up every entry rather than stopping at the first error, so that each
+                    // block, and with it the corrupt one, is read.
+                    let lookup_errors = entries
+                        .iter()
+                        .filter_map(|e| sst.lookup::<_, false>(e.hash, &e.key, &kc, &vc).err())
+                        .collect::<Vec<_>>();
+                    assert!(
+                        !lookup_errors.is_empty(),
+                        "lookups ({access_mode:?}) succeeded despite a corrupt block"
+                    );
+                    errors.extend(lookup_errors);
+                }
+                Err(err) => errors.push(err),
+            }
+            match StaticSortedFileIter::open(dir, meta, Compression::Lz4) {
+                Ok(iter) => {
+                    let mut iteration_error = None;
+                    let mut carries_corrupt_medium_block = false;
+                    for result in iter {
+                        match result {
+                            Ok(LookupEntry {
+                                value:
+                                    IterValue::Medium {
+                                        uncompressed_size,
+                                        checksum,
+                                        block,
+                                    },
+                                ..
+                            }) => {
+                                carries_corrupt_medium_block |= Some(uncompressed_size)
+                                    == raw_medium_length
+                                    && checksum_block(uncompressed_size, &block) != checksum;
+                            }
+                            Ok(_) => {}
+                            Err(err) => {
+                                iteration_error = Some(err);
+                                break;
+                            }
+                        }
+                    }
+                    if let Some(err) = iteration_error {
+                        errors.push(err);
+                    } else {
+                        assert!(
+                            carries_corrupt_medium_block,
+                            "iteration ({access_mode:?}) succeeded despite a corrupt block"
+                        );
+                    }
+                }
+                Err(err) => errors.push(err),
+            }
+        }
+        errors
+    }
+
     /// Overwriting the directory entry of any non-index block of a real SST with an offset
     /// outside the data section must make lookup in every access mode and file-backed iteration
     /// fail to open it, with the block-offset validation error rather than a panic or later error.
@@ -2517,6 +2674,146 @@ mod tests {
                     }
                 }
             }
+        }
+        Ok(())
+    }
+
+    /// The CRC covers the block header's uncompressed length, so corrupting only the length (with
+    /// valid offsets and payload) is reported as a checksum mismatch before it is used to size a
+    /// decompression buffer or to decide whether the block is compressed.
+    #[test]
+    fn corrupt_uncompressed_length_is_detected() -> Result<()> {
+        let mut entries = vec![TestEntry::medium(b"medium", &vec![0xAB; 8192])];
+        for i in 0..64u32 {
+            entries.push(TestEntry::small(
+                format!("small-{i:04}").as_bytes(),
+                &[i as u8; 64],
+            ));
+        }
+        sort_entries(&mut entries);
+
+        let dir = tempfile::tempdir()?;
+        let written = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+        let meta = StaticSortedFileMetaData {
+            sequence_number: 1,
+            block_count: written.block_count,
+        };
+        let path = dir.path().join("00000001.sst");
+        let original = std::fs::read(&path)?;
+        let directory_start = original.len() - usize::from(meta.block_count) * size_of::<u32>();
+
+        let mut saw_compressed = false;
+        let mut saw_uncompressed = false;
+        let mut block_start = 0;
+        for block_index in 0..usize::from(meta.block_count) {
+            let entry = directory_start + block_index * 4;
+            let block_end = u32::from_be_bytes(original[entry..entry + 4].try_into()?) as usize;
+            let length = u32::from_be_bytes(original[block_start..block_start + 4].try_into()?);
+            let corrupt_lengths = if length == 0 {
+                saw_uncompressed = true;
+                vec![1, u32::MAX]
+            } else {
+                saw_compressed = true;
+                vec![length + 1, length - 1, 0, u32::MAX]
+            };
+            for corrupt_length in corrupt_lengths {
+                let mut bytes = original.clone();
+                bytes[block_start..block_start + 4].copy_from_slice(&corrupt_length.to_be_bytes());
+                std::fs::write(&path, &bytes)?;
+                for err in read_all_entries(dir.path(), meta, &entries, Some(corrupt_length)) {
+                    let message = format!("{err:#}");
+                    assert!(
+                        message.contains("checksum mismatch"),
+                        "block {block_index} length {length} -> {corrupt_length}: unexpected \
+                         error: {message}"
+                    );
+                }
+            }
+            block_start = block_end;
+        }
+        assert!(saw_uncompressed, "expected uncompressed blocks");
+        // Compression is skipped under Miri, so only there every block is stored uncompressed.
+        assert!(cfg!(miri) || saw_compressed, "expected compressed blocks");
+        Ok(())
+    }
+
+    /// Iteration hands medium value blocks to compaction without verifying them, and compaction
+    /// copies them as is. A medium block with a corrupt length must therefore keep its original
+    /// checksum through the copy, so that the first read of the copied value detects it.
+    #[test]
+    fn corrupt_raw_medium_block_stays_detectable_after_copy() -> Result<()> {
+        let entries = vec![TestEntry::medium(b"medium", &vec![0xCD; 8192])];
+        let dir = tempfile::tempdir()?;
+        let written = write_sst(dir.path(), 1, &entries, MetaEntryFlags::default())?;
+        let meta = StaticSortedFileMetaData {
+            sequence_number: 1,
+            block_count: written.block_count,
+        };
+        // Medium value blocks are written before key and index blocks, so this is block 0.
+        let path = dir.path().join("00000001.sst");
+        let mut bytes = std::fs::read(&path)?;
+        let length = u32::from_be_bytes(bytes[..4].try_into()?);
+        // Compression is skipped under Miri, where the block is stored uncompressed.
+        assert!(
+            cfg!(miri) || length > 0,
+            "expected a compressed medium block"
+        );
+        let corrupt_length = if length == 0 { 1 } else { length + 1 };
+        bytes[..4].copy_from_slice(&corrupt_length.to_be_bytes());
+        std::fs::write(&path, &bytes)?;
+
+        let access_modes: &[AccessMode] = &[
+            #[cfg(feature = "mmap")]
+            AccessMode::Mmap,
+            AccessMode::File,
+        ];
+        for &access_mode in access_modes {
+            let iter = StaticSortedFileIter::open(dir.path(), meta, Compression::Lz4)?;
+            let copied = iter
+                .map(|entry| {
+                    let LookupEntry { key, value, .. } = entry?;
+                    let IterValue::Medium {
+                        uncompressed_size,
+                        checksum,
+                        block,
+                    } = value
+                    else {
+                        panic!("expected a raw medium value");
+                    };
+                    assert_eq!(uncompressed_size, corrupt_length);
+                    Ok(TestEntry::new(
+                        &key,
+                        TestValueKind::MediumRawWithHeader {
+                            uncompressed_size,
+                            checksum,
+                            block: block.to_vec(),
+                        },
+                    ))
+                })
+                .collect::<Result<Vec<_>>>()?;
+            assert_eq!(copied.len(), 1);
+
+            let copy_dir = tempfile::tempdir()?;
+            let copy_meta = write_sst(copy_dir.path(), 2, &copied, MetaEntryFlags::default())?;
+            let copy = StaticSortedFile::open(
+                copy_dir.path(),
+                StaticSortedFileMetaData {
+                    sequence_number: 2,
+                    block_count: copy_meta.block_count,
+                },
+                Compression::Lz4,
+                access_mode,
+            )?;
+            let kc = make_cache();
+            let vc = make_cache();
+            let message = match copy.lookup::<_, false>(copied[0].hash, &copied[0].key, &kc, &vc) {
+                Ok(_) => panic!("lookup ({access_mode:?}) of the copied corrupt block succeeded"),
+                Err(err) => format!("{err:#}"),
+            };
+            assert!(
+                message.contains("checksum mismatch"),
+                "{access_mode:?}: unexpected error: {message}"
+            );
         }
         Ok(())
     }

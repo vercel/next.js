@@ -48,7 +48,8 @@ export async function createTurbopackRoutePublisher(
   const { nextConfig, dir } = opts
   const middlewareCandidates = createMiddlewareCandidates(
     dir,
-    nextConfig.pageExtensions
+    nextConfig.pageExtensions,
+    !!nextConfig.experimental.goRoutes
   )
   const typesDir = path.join(distDir, 'types')
   const validatorFilePath = path.join(typesDir, 'validator.ts')

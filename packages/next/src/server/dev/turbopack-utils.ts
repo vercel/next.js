@@ -793,17 +793,34 @@ export async function handleEntrypoints({
       processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
       await manifestLoader.loadMiddlewareManifest('middleware', 'middleware')
       if (dev) {
-        // Node.js proxy entries have no Edge middleware manifest. Native
-        // discovery supplies matchers for either runtime without a second scan.
+        // Node.js and Go proxy entries have no Edge middleware manifest. Native
+        // discovery supplies matchers for every runtime without a second scan.
         // An existing change subscription can outlive a matcher edit or removal.
         const currentMiddleware = currentEntrypoints.global.middleware
-        dev.serverFields.middleware = currentMiddleware
-          ? {
-              match: null as any,
-              page: '/',
-              matchers: currentMiddleware.matchers,
-            }
-          : undefined
+        if (!currentMiddleware) {
+          dev.serverFields.middleware = undefined
+        } else if (writtenEndpoint.value.type === 'native') {
+          // A proxy.go compiles to a native worker described by this entry,
+          // the same name the build and the Webpack watcher use.
+          dev.serverFields.middleware = {
+            match: null as any,
+            page: '/',
+            matchers: currentMiddleware.matchers,
+            runtime: 'go',
+            nativeEntry: 'middleware.native.json',
+          }
+        } else {
+          // Turbopack reports every JavaScript middleware endpoint as Edge, so
+          // the Edge manifest tells Edge middleware apart from Node.js.
+          const isEdge =
+            !!manifestLoader.getMiddlewareManifest(key)?.middleware['/']
+          dev.serverFields.middleware = {
+            match: null as any,
+            page: '/',
+            matchers: currentMiddleware.matchers,
+            runtime: isEdge ? 'edge' : 'nodejs',
+          }
+        }
       }
       finishBuilding()
     }

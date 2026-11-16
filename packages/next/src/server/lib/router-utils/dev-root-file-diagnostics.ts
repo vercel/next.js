@@ -4,9 +4,12 @@ import * as Log from '../../../build/output/log'
 import type { NextConfigComplete } from '../../config-shared'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { MIDDLEWARE_FILENAME, PROXY_FILENAME } from '../../../lib/constants'
+import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 
 type MiddlewareCandidate = Readonly<{
   filePath: string
+  /** The path relative to the project directory, for messages. */
+  relativePath: string
   page: string
   convention: typeof MIDDLEWARE_FILENAME | typeof PROXY_FILENAME
 }>
@@ -14,7 +17,8 @@ type MiddlewareCandidate = Readonly<{
 /** A fixed candidate list, in the same order as native middleware_files. */
 export function createMiddlewareCandidates(
   dir: string,
-  pageExtensions: readonly string[]
+  pageExtensions: readonly string[],
+  goRoutes: boolean
 ): readonly MiddlewareCandidate[] {
   const conventions = [
     { convention: MIDDLEWARE_FILENAME, folder: dir, prefix: '' },
@@ -30,13 +34,42 @@ export function createMiddlewareCandidates(
       prefix: '/src',
     },
   ] as const
-  return conventions.flatMap(({ convention, folder, prefix }) =>
-    pageExtensions.map((extension) => ({
-      filePath: path.join(folder, `${convention}.${extension}`),
-      page: `${prefix}/${convention}`,
-      convention,
-    }))
+  const javascriptCandidates = conventions.flatMap(
+    ({ convention, folder, prefix }) =>
+      pageExtensions.map((extension) =>
+        createCandidate(dir, folder, prefix, convention, extension)
+      )
   )
+  // proxy.go is a convention file only when Go routes are enabled.
+  const goCandidates = goRoutes
+    ? [
+        createCandidate(dir, dir, '', PROXY_FILENAME, 'go'),
+        createCandidate(
+          dir,
+          path.join(dir, 'src'),
+          '/src',
+          PROXY_FILENAME,
+          'go'
+        ),
+      ]
+    : []
+  return [...javascriptCandidates, ...goCandidates]
+}
+
+function createCandidate(
+  dir: string,
+  folder: string,
+  prefix: string,
+  convention: MiddlewareCandidate['convention'],
+  extension: string
+): MiddlewareCandidate {
+  const filePath = path.join(folder, `${convention}.${extension}`)
+  return {
+    filePath,
+    relativePath: normalizePathSep(path.relative(dir, filePath)),
+    page: `${prefix}/${convention}`,
+    convention,
+  }
 }
 
 async function existingMiddlewareCandidates(
@@ -67,9 +100,19 @@ export async function reportMiddlewareDiagnostics(
   const middleware = existing.find(
     (candidate) => candidate.convention === MIDDLEWARE_FILENAME
   )
-  const proxy = existing.find(
+  const proxies = existing.filter(
     (candidate) => candidate.convention === PROXY_FILENAME
   )
+  const goProxy = proxies.find((candidate) => isGoCandidate(candidate))
+  const otherProxy = proxies.find((candidate) => candidate !== goProxy)
+  // A Go proxy can't be combined with another Proxy file. Several JavaScript
+  // Proxy files keep resolving to the first one, as before.
+  if (goProxy && otherProxy) {
+    throw new Error(
+      `Multiple Proxy files detected: "./${goProxy.relativePath}" and "./${otherProxy.relativePath}". Remove one of these files; Next.js supports a single Proxy file.`
+    )
+  }
+  const proxy = proxies[0]
   if (middleware && proxy) {
     const cwd = process.cwd()
     throw new Error(
@@ -88,6 +131,8 @@ export async function reportMiddlewareDiagnostics(
   const { getPagesPageStaticInfo } =
     require('../../../build/analysis/get-page-static-info') as typeof import('../../../build/analysis/get-page-static-info')
   for (const candidate of existing) {
+    // Go files have no JavaScript config to validate.
+    if (isGoCandidate(candidate)) continue
     // These root files have no App layout inheritance. Discard the parsed
     // matcher/runtime: the native inventory remains authoritative for routing.
     await getPagesPageStaticInfo({
@@ -98,4 +143,8 @@ export async function reportMiddlewareDiagnostics(
       pageType: PAGE_TYPES.PAGES,
     })
   }
+}
+
+function isGoCandidate(candidate: MiddlewareCandidate): boolean {
+  return candidate.filePath.endsWith('.go')
 }

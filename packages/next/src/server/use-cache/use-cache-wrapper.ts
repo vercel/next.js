@@ -3996,12 +3996,18 @@ async function computeCacheKeyImplementationPart(
   implementationPart: unknown
   runtimeEnvVarStateHash: string | undefined
 }> {
-  let durability = workStore.durableUseCacheEntries
-    ? getServerActionsManifest().node[id].workers?.[
-        normalizeWorkerPageName(workStore.page)
-      ]?.durability
+  const entry = workStore.durableUseCacheEntries
+    ? getServerActionsManifest().node[id]
     : undefined
-  if (durability) {
+  const durabilityKey =
+    entry?.workers?.[normalizeWorkerPageName(workStore.page)]?.durability
+  if (entry && durabilityKey !== undefined) {
+    const durability = entry.durability?.[durabilityKey]
+    if (!durability) {
+      throw new InvariantError(
+        `Missing durability metadata for key "${durabilityKey}" of action "${id}" in the server reference manifest.`
+      )
+    }
     // use cache is only supported in Node.js runtime. So we can use the Node.js crypto module here.
     const crypto = require('crypto') as typeof import('crypto')
     let runtimeEnvVarStateHash = crypto

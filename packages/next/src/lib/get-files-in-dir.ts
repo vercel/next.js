@@ -10,7 +10,14 @@ export async function getFilesInDir(path: string): Promise<Set<string>> {
     let resolvedFile: Dirent | StatsBase<number> = file
 
     if (file.isSymbolicLink()) {
-      resolvedFile = await fs.stat(join(path, file.name))
+      try {
+        resolvedFile = await fs.stat(join(path, file.name))
+      } catch (err: any) {
+        // A dangling symlink (its target does not exist) can't be a file we
+        // are looking for, so skip it instead of failing.
+        if (err.code === 'ENOENT') continue
+        throw err
+      }
     }
 
     if (resolvedFile.isFile()) {
