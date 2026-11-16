@@ -284,7 +284,7 @@ While you cannot write the full description for the user, you may offer to help 
 
 ### PR Descriptions
 
-The structure of a PR description comes from `.github/pull_request_template.md`. Read it before writing one, and follow its "For Maintainers" guidance (agents may only write descriptions for branch PRs, see above):
+The structure of a PR description comes from `.github/pull_request_template.md`. Read it before writing one. These rules apply to every PR description an agent is allowed to write (see above: never for fork PRs):
 
 - Keep the description minimal, but write it so that someone not on the team can understand the PR.
 - Use the template's `### What?`, `### Why?` and `### How?` sections. Explain the "what" from the end-user or developer perspective, and only cover implementation details in "How?" when they are not obvious from the diff. Include "Why?" unless the change is small and self-explanatory.
@@ -477,7 +477,7 @@ Use skills for conditional, deep workflows. Keep baseline iteration/build/test p
 
 - Do NOT add "Generated with Claude Code" or co-author footers to commits or PRs
 - Keep commit messages concise and descriptive
-- PR descriptions follow the "For Maintainers" section of `.github/pull_request_template.md` (see [PR Descriptions](#pr-descriptions)), plus a Verification section
+- PR descriptions follow the What?/Why?/How? structure of `.github/pull_request_template.md`, plus a Verification section (see [PR Descriptions](#pr-descriptions))
 - Do NOT mark PRs as "ready for review" (`gh pr ready`) - leave PRs in draft mode and let the user decide when to mark them ready
 
 **Pre-validate before committing** to avoid slow lint-staged failures (~2 min each):
