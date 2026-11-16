@@ -592,11 +592,103 @@ async function startWatcher(
       return count === snapshotInputs.size
     }
 
+    // The watched entries reported by Watchpack (removed files excluded) at
+    // the last route discovery pass that completed, or `undefined` when the
+    // next aggregation needs a full pass. Each entry records whether it was a
+    // file, since a file and a directory can share a path. A full pass
+    // recomputes every route, which takes hundreds of milliseconds in large
+    // apps and blocks the event loop.
+    let lastPassFiles: Map<string, boolean> | undefined
+    // Full passes can overlap when an aggregation arrives while one is still
+    // running. Their results may then finish out of order, so none of them is
+    // reused: the next aggregation runs a full pass on its own.
+    let activePasses = 0
+    let hadOverlappingPasses = false
+
+    const getWatchedFiles = (knownFiles: KnownFiles) => {
+      const watchedFiles = new Map<string, boolean>()
+      for (const [fileName, meta] of knownFiles) {
+        if (meta && isWatchedFile(fileName)) {
+          // Watchpack only reports a timestamp for files.
+          watchedFiles.set(fileName, meta.timestamp !== undefined)
+        }
+      }
+      return watchedFiles
+    }
+
+    // The files whose contents route discovery reads: the root-level files
+    // (proxy/middleware matchers, env and tsconfig/jsconfig files, and, to
+    // keep them together, instrumentation) and metadata route files
+    // (`generateSitemaps`/`generateImageMetadata`). Every other file only
+    // takes part through its path.
+    const isContentInput = (fileName: string) =>
+      filesSet.has(fileName) || validFileMatcher.isMetadataFile(fileName)
+
+    // Whether the last pass's results still stand: Watchpack reports the same
+    // files and directories as then, and none of the changed files is read by
+    // route discovery. E.g. editing a component, a page's contents or a
+    // stylesheet. `exportPathMap` is user code that may depend on more than
+    // file paths, so it always gets a full pass.
+    const canReuseLastPass = (
+      knownFiles: KnownFiles,
+      watchedFiles: Map<string, boolean>
+    ) => {
+      if (
+        typeof nextConfig.exportPathMap === 'function' ||
+        !lastPassFiles ||
+        lastPassFiles.size !== watchedFiles.size
+      ) {
+        return false
+      }
+      for (const [fileName, isFile] of watchedFiles) {
+        if (lastPassFiles.get(fileName) !== isFile) {
+          return false
+        }
+        if (
+          knownFiles.get(fileName)?.timestamp !==
+            fileWatchTimes.get(fileName) &&
+          isContentInput(fileName)
+        ) {
+          return false
+        }
+      }
+      return true
+    }
+
+    // Records the watch times a full pass would have recorded, so later
+    // aggregations detect changes relative to this one.
+    const recordWatchTimes = (knownFiles: KnownFiles) => {
+      for (const [fileName, meta] of knownFiles) {
+        if (isWatchedFile(fileName)) {
+          fileWatchTimes.set(fileName, meta?.timestamp)
+        }
+      }
+    }
+
     // One route discovery pass over `knownFiles`. The snapshot pass runs
     // before Watchpack reported anything: its entries carry no watch times, so
     // it doesn't record them or detect changes; Watchpack's first aggregation
     // does that, as it would for the initial pass.
     async function processRouteFiles(
+      knownFiles: KnownFiles,
+      isSnapshotPass: boolean
+    ) {
+      activePasses++
+      if (activePasses > 1) {
+        hadOverlappingPasses = true
+      }
+      try {
+        await runRouteDiscoveryPass(knownFiles, isSnapshotPass)
+      } finally {
+        activePasses--
+        if (activePasses === 0 && hadOverlappingPasses) {
+          lastPassFiles = undefined
+          hadOverlappingPasses = false
+        }
+      }
+    }
+
+    async function runRouteDiscoveryPass(
       knownFiles: KnownFiles,
       isSnapshotPass: boolean
     ) {
@@ -608,6 +700,12 @@ async function startWatcher(
       // Mirrors `routedPages` for constant-time lookups.
       const routedPagesSet = new Set<string>()
       hadInitialScan = true
+      // Set again once this pass completes, unless it overlapped another
+      // pass. A pass that fails, or one that is still running, can't be reused.
+      lastPassFiles = undefined
+      const watchedFiles = isSnapshotPass
+        ? undefined
+        : getWatchedFiles(knownFiles)
 
       const appPaths: Record<string, string[]> = {}
       const defaultAppPaths = new Set<string>()
@@ -1648,6 +1746,9 @@ async function startWatcher(
           )
         }
 
+        lastPassFiles =
+          activePasses === 1 && !hadOverlappingPasses ? watchedFiles : undefined
+
         if (!resolved) {
           resolve()
           resolved = true
@@ -1686,13 +1787,13 @@ async function startWatcher(
         // Nothing changed since the snapshot pass: its results stand, so only
         // record the watch times that later aggregations compare against.
         if (isUnchangedSinceSnapshot) {
-          for (const [fileName, meta] of knownFiles) {
-            if (isWatchedFile(fileName)) {
-              fileWatchTimes.set(fileName, meta?.timestamp)
-            }
-          }
+          recordWatchTimes(knownFiles)
+          lastPassFiles = getWatchedFiles(knownFiles)
           return
         }
+      } else if (canReuseLastPass(knownFiles, getWatchedFiles(knownFiles))) {
+        recordWatchTimes(knownFiles)
+        return
       }
 
       await processRouteFiles(knownFiles, false)
