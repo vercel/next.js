@@ -57,6 +57,7 @@ import {
   computeDynamicStaleAt,
   type BFCacheEntry,
 } from './segment-cache/bfcache'
+import { unresolvedThenable } from './unresolved-thenable'
 import type { VaryParams } from '../../shared/lib/segment-cache/vary-params-decoding'
 
 // This is yet another tree type that is used to track pending promises that
@@ -1214,12 +1215,24 @@ function createRenderTreeForSegment(
       }
       case EntryStatus.Pending: {
         // We haven't received data for this segment yet, but there's already
-        // an in-progress request. Since it's extremely likely to arrive
-        // before the dynamic data response, we might as well use it.
+        // an in-progress request. Use it when it has renderable data. A
+        // dynamic page under loading.tsx often has no prefetch payload, and
+        // the pending entry is then rejected (resolved to null). Resolving
+        // this promise to null renders an empty segment: the navigation waits
+        // for the prefetch, then commits with nothing inside the loading
+        // boundary, so loading.tsx never appears. Keep suspending instead,
+        // the same way a deferred null does, until the navigation's own RSC
+        // replaces this prefetch value.
         const promiseForFulfilledEntry = waitForSegmentCacheEntry(segmentEntry)
-        cachedRsc = promiseForFulfilledEntry.then((entry) =>
-          entry !== null ? entry.rsc : null
-        )
+        cachedRsc = promiseForFulfilledEntry.then((entry): React.ReactNode => {
+          const rsc = entry !== null ? entry.rsc : null
+          if (rsc === null) {
+            // Not a real Promise; returning it from `.then` keeps the outer
+            // promise pending because its `then` never settles.
+            return unresolvedThenable as React.ReactNode
+          }
+          return rsc
+        })
         // The entry's data hasn't arrived, and neither has the source of the
         // params it depends on; `cachedVaryParams` stays null.
         // Because the request is still pending, we typically don't know yet
