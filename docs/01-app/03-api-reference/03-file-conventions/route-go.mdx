@@ -48,7 +48,7 @@ module.exports = {
 
 Install Go 1.24 or newer on `PATH`, or set `TURBOPACK_GO` to its executable path. Go is required for `next dev` and `next build`. `next start` runs the compiled executables without the Go compiler. Applications without Go handlers do not require Go.
 
-The `next/go` SDK, which `proxy.go` configuration uses, ships inside the installed `next` package. When `go.mod` exists, `next dev` adds a directory replacement that maps `next/go` to it (for example `replace next/go => ./node_modules/next/go`) and logs the change, so Go editors and linters resolve the SDK too. `next build` only checks this mapping and never edits `go.mod`.
+The `next/go` SDK, which `proxy.go` configuration and `next/go/assets` use, ships inside the installed `next` package. When `go.mod` exists, `next dev` adds a directory replacement that maps `next/go` to it (for example `replace next/go => ./node_modules/next/go`) and logs the change, so Go editors and linters resolve the SDK too. `next build` only checks this mapping and never edits `go.mod`.
 
 ## Reference
 

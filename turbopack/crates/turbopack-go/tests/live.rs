@@ -19,7 +19,7 @@ use turbopack_go::{
     GoBuildContext, GoBuildOptions, GoBuildOutcome, GoBuildSession, GoBundleResult, GoDeclarations,
     GoSessionPool, GoSourceSelection, GoSourceSet, GoTarget, GoToolchainOptions, filesystem,
     filesystem_with_poll_interval, go_bundle_from_sources, go_bundle_with_generated_files,
-    go_declarations, go_source_set, read_with_validated_inputs,
+    go_declarations, go_declarations_with_assets, go_source_set, read_with_validated_inputs,
 };
 
 fn copy_tree(source: &Path, target: &Path) -> Result<()> {
@@ -1675,4 +1675,96 @@ fn framework_filesystem(path: RcStr) -> Vc<DiskFileSystem> {
         DiskWatcherConfig::default(),
         DiskFileSystemMap::empty(),
     )
+}
+
+#[turbo_tasks::function(operation, root)]
+fn selected_browser_declarations(
+    sources: ResolvedVc<GoSourceSet>,
+    options: GoBuildOptions,
+) -> Vc<GoDeclarations> {
+    go_declarations_with_assets(
+        *sources,
+        vec![rcstr!("browser/route.go")],
+        GoBuildSession::persistent("source-set-test".into(), options),
+        rcstr!("example.com/sdk/assets"),
+        rcstr!("assets"),
+    )
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn browser_declarations_use_import_identity_and_a_bounded_source_set() -> Result<()> {
+    let session = Session::new().await?;
+    std::fs::create_dir_all(session.project.join("browser"))?;
+    session
+        .write(
+            "browser/route.go",
+            r#"package main
+import (
+    client "example.com/sdk/assets"
+    other "example.com/unrelated/assets"
+)
+var dashboard = client.Browser("app/dashboard/client.ts")
+var unrelated = other.Browser("ignored.ts")
+var expression = client.Browser(string("not-literal.ts"))
+var nested = wrap(client.Browser("nested.ts"))
+func GET() {
+    _ = client.Browser("local.ts")
+    client := struct { Browser func(string) string }{}
+    _ = client.Browser("shadowed.ts")
+}
+"#,
+        )
+        .await?;
+    session
+        .write(
+            "browser/helper.go",
+            r#"package main
+import assets "example.com/sdk/assets"
+var helper = assets.Browser(dynamic())
+"#,
+        )
+        .await?;
+    let root = FileSystemPath {
+        fs: ResolvedVc::upcast(session.fs),
+        path: rcstr!(""),
+    };
+    let result = session
+        .tt
+        .run_once({
+            let options = session.go_context.options.clone();
+            async move {
+                let sources = selected_sources(
+                    root.clone(),
+                    root.join("browser")?,
+                    GoSourceSelection::Directory,
+                    options.clone(),
+                )
+                .resolve()
+                .strongly_consistent()
+                .await?;
+                selected_browser_declarations(sources, options)
+                    .read_strongly_consistent()
+                    .await
+            }
+        })
+        .await?;
+    assert!(result.syntax_errors.is_empty());
+    assert_eq!(result.browser_entries.len(), 1);
+    let entry = &result.browser_entries[0];
+    assert_eq!(entry.path, "app/dashboard/client.ts");
+    assert_eq!(entry.file, "browser/route.go");
+    assert_eq!(entry.line, 6);
+    assert_eq!(entry.column, 17);
+    assert_eq!(result.asset_errors.len(), 3);
+    assert!(result.asset_errors[0].contains("browser/route.go:8:"));
+    assert!(result.asset_errors[0].contains("string literal"));
+    assert!(result.asset_errors[1].contains("browser/route.go:9:"));
+    assert!(result.asset_errors[2].contains("browser/route.go:11:"));
+    assert!(
+        !result
+            .asset_errors
+            .iter()
+            .any(|error| error.contains("helper.go") || error.contains("shadowed"))
+    );
+    Ok(())
 }

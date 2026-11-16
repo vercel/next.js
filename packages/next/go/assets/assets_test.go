@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vercel/next.js/packages/next-go/assets"
+	"next/go/assets"
 )
 
 func TestRenderAndTemplate(t *testing.T) {

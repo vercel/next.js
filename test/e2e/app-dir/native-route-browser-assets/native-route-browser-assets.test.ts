@@ -1,27 +1,21 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { join } from 'path'
+import { join, relative, sep } from 'path'
 import { retry } from 'next-test-utils'
-import { randomUUID } from 'crypto'
-import { promises as fs } from 'fs'
-import { tmpdir } from 'os'
+import { realpathSync } from 'fs'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
-import { pathToFileURL } from 'url'
 
 const runGo = promisify(execFile)
 
 // @force-gate turbopack
 describe('native-route-browser-assets', () => {
-  const sdkCache = join(tmpdir(), `next-go-browser-${randomUUID()}`)
   const go = process.env.TURBOPACK_GO || 'go'
   const goEnv = {
     ...process.env,
     GOENV: 'off',
     GOTOOLCHAIN: 'local',
     GOWORK: 'off',
-    GOSUMDB: 'off',
-    GOMODCACHE: join(sdkCache, 'modules'),
-    GOFLAGS: '-modcacherw',
+    GOFLAGS: '',
   }
 
   const { next } = nextTestSetup({
@@ -29,41 +23,24 @@ describe('native-route-browser-assets', () => {
       app: new FileRef(join(__dirname, 'app')),
       'next.config.ts': new FileRef(join(__dirname, 'next.config.ts')),
       'go.mod': new FileRef(join(__dirname, 'go.mod')),
-      'sdk-source': new FileRef(
-        join(__dirname, '../../../../packages/next-go')
-      ),
-      'prepare-sdk.go': new FileRef(join(__dirname, 'prepare-sdk.go')),
     },
     // The deploy harness has no Go adapter; see the fixture README.
     skipDeployment: true,
     skipStart: true,
-    env: { WATCHPACK_POLLING: '50', GOMODCACHE: goEnv.GOMODCACHE },
+    env: { WATCHPACK_POLLING: '50' },
   })
 
   beforeAll(async () => {
-    await fs.mkdir(sdkCache, { recursive: true })
-    const proxy = join(sdkCache, 'proxy')
+    // The SDK ships in the installed next package. Map it the way next dev does:
+    // a directory replacement to its real location, with nothing downloaded.
+    const dir = realpathSync(next.testDir)
+    const sdk = relative(dir, realpathSync(join(dir, 'node_modules/next/go')))
     await runGo(
       go,
-      [
-        'run',
-        join(next.testDir, 'prepare-sdk.go'),
-        join(next.testDir, 'sdk-source'),
-        proxy,
-      ],
-      { env: { ...goEnv, GO111MODULE: 'off' } }
+      ['mod', 'edit', `-replace=next/go=./${sdk.split(sep).join('/')}`],
+      { cwd: dir, env: goEnv }
     )
-    // Populate an isolated cache through Go's real file-proxy protocol. The route
-    // build runs with networking disabled, using the user's ordinary module map.
-    await runGo(go, ['mod', 'download', 'next/go'], {
-      cwd: next.testDir,
-      env: { ...goEnv, GOPROXY: pathToFileURL(proxy).href },
-    })
     await next.start()
-  })
-
-  afterAll(async () => {
-    await fs.rm(sdkCache, { recursive: true, force: true })
   })
 
   it('resolves the short import through ordinary Go tooling', async () => {
