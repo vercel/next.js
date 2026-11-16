@@ -824,11 +824,11 @@ async fn observe_assembly_includes(
         .collect())
 }
 
+/// `roots` maps the main module and each directory-replaced module to its directory.
 async fn observe_packages(
     tracker: &mut Tracker<'_>,
     packages: &[Package],
-    project: &Path,
-    module: &str,
+    roots: &[(&str, PathBuf)],
     goroot: &Path,
 ) -> Result<BTreeMap<RcStr, RcStr>> {
     let mut assembly_flags = BTreeMap::new();
@@ -839,21 +839,23 @@ async fn observe_packages(
         // Track unresolved local imports and their nearest existing ancestors, so creation of a
         // previously missing package invalidates discovery without walking unrelated subtrees.
         for import in pkg.imports.iter().chain(std::iter::once(&pkg.import_path)) {
-            if let Some(relative) = import
-                .strip_prefix(module)
-                .and_then(|path| {
-                    // An import equal to the module path refers to its root package.
-                    // Missing packages have no Dir in go list's output, so this is also
-                    // needed to watch for the first source file appearing there.
-                    if path.is_empty() {
-                        Some(path)
-                    } else {
-                        path.strip_prefix('/')
-                    }
-                })
-                .filter(|_| !module.is_empty())
-            {
-                tracker.parents(&project.join(relative)).await?;
+            for (module, root) in roots {
+                if let Some(relative) = import
+                    .strip_prefix(module)
+                    .and_then(|path| {
+                        // An import equal to the module path refers to its root package.
+                        // Missing packages have no Dir in go list's output, so this is also
+                        // needed to watch for the first source file appearing there.
+                        if path.is_empty() {
+                            Some(path)
+                        } else {
+                            path.strip_prefix('/')
+                        }
+                    })
+                    .filter(|_| !module.is_empty())
+                {
+                    tracker.parents(&root.join(relative)).await?;
+                }
             }
         }
         if pkg.dir.is_empty() {
@@ -991,6 +993,8 @@ async fn discover(
         .await?;
         let config: ModuleConfig = serde_json::from_str(&config)?;
         let replacements = config.replace.as_deref().unwrap_or_default();
+        let module = config.module.as_ref().map_or("", |m| m.path.as_str());
+        let mut roots = vec![(module, project.clone())];
         // Even an unresolved dependency needs cache dependencies. Downloading a module can
         // repair it without changing go.mod/go.sum, so retain reads for its future cache entries.
         let cache = Path::new(go_context.module_cache.as_str());
@@ -1015,6 +1019,7 @@ async fn discover(
                 // discovery; its packages are tracked like module sources below.
                 let directory = replacement_directory(&project, replacement)?;
                 tracker.file(&directory.join("go.mod")).await?;
+                roots.push((requirement.path.as_str(), directory));
                 continue;
             }
             ensure!(
@@ -1037,14 +1042,12 @@ async fn discover(
                 .file(&download.join(format!("{version}.ziphash")))
                 .await?;
         }
-        let module = config.module.as_ref().map_or("", |m| m.path.as_str());
         let registered = (tracker.inputs.files.len(), tracker.inputs.directories.len());
         let packages = list(&directory, &files, &go_context, &project, &generated).await?;
         let assembly_flags = observe_packages(
             &mut tracker,
             &packages,
-            &project,
-            module,
+            &roots,
             Path::new(go_context.goroot.as_str()),
         )
         .await?;

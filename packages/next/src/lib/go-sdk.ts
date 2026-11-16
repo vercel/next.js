@@ -48,6 +48,7 @@ function replacementPath(dir: string): string {
 }
 
 function isMapped(dir: string, goMod: GoMod): boolean {
+  if (!goMod.Require?.some(({ Path }) => Path === GO_SDK_MODULE)) return false
   const replacement = goMod.Replace?.find(
     ({ Old }) => Old.Path === GO_SDK_MODULE
   )
@@ -59,9 +60,8 @@ function isMapped(dir: string, goMod: GoMod): boolean {
 
 /**
  * `next dev` and `next build`: map `next/go` to the installed SDK in go.mod,
- * like TypeScript setup reconfigures tsconfig.json. Only the replacement is
- * managed; Go tooling (`go mod tidy`, `go get`, editors) adds the requirement
- * when it is imported.
+ * like TypeScript setup reconfigures tsconfig.json. Go only applies a
+ * replacement to a required module, so the requirement is added too.
  */
 export async function ensureGoSdkReplacement(dir: string): Promise<void> {
   if (!existsSync(path.join(dir, 'go.mod'))) return
@@ -76,9 +76,15 @@ export async function ensureGoSdkReplacement(dir: string): Promise<void> {
       )
       return
     }
-    await go(dir, ['mod', 'edit', `-replace=${GO_SDK_MODULE}=${target}`])
+    const required = goMod.Require?.some(({ Path }) => Path === GO_SDK_MODULE)
+    await go(dir, [
+      'mod',
+      'edit',
+      ...(required ? [] : [`-require=${GO_SDK_MODULE}@v0.0.0`]),
+      `-replace=${GO_SDK_MODULE}=${target}`,
+    ])
     Log.info(
-      `Added "replace ${GO_SDK_MODULE} => ${target}" to go.mod so Go tools resolve the Next.js Go SDK from the installed next package.`
+      `Mapped ${GO_SDK_MODULE} to ${target} in go.mod so Go tools resolve the Next.js Go SDK from the installed next package.`
     )
   } catch (error) {
     Log.warn(

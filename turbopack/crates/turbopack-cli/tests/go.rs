@@ -1151,7 +1151,8 @@ fn watch_observes_imported_packages_and_embedded_assets() {
     let previous = std::fs::read(&target).unwrap();
     std::fs::write(
         project.join("go.mod"),
-        "module example.com/watch\ngo 1.24\nreplace example.com/unsupported => ../outside\n",
+        "module example.com/watch\ngo 1.24\nrequire example.com/unsupported v1.0.0\nreplace \
+         example.com/unsupported => ../outside\n",
     )
     .unwrap();
     wait_for_log(
@@ -1160,7 +1161,7 @@ fn watch_observes_imported_packages_and_embedded_assets() {
         || {
             std::fs::read_to_string(project.join("watch.log"))
                 .unwrap()
-                .contains("Go module replacements are not supported")
+                .contains("Go module replacements must point to a directory inside the module")
         },
     );
     assert_eq!(std::fs::read(&target).unwrap(), previous);

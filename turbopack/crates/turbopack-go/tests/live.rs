@@ -637,6 +637,24 @@ async fn directory_replacements_inside_the_module_are_tracked_sources() -> Resul
         .replace("node_modules/sdk/sdk.go", "sdk-v1", "sdk-v2")
         .await?;
     assert_eq!(session.run(&["main.go"]).await?.trim(), "sdk-v2");
+    // A missing package in the replaced module is observed, so creating it recovers even
+    // when no other package of that module is imported.
+    session
+        .write(
+            "main.go",
+            "package main\nimport (\n\t\"fmt\"\n\t\"next/go/extra\"\n)\nfunc main() { \
+             fmt.Println(extra.Value) }\n",
+        )
+        .await?;
+    let error = session.fetch(&["main.go"]).await.unwrap_err().to_string();
+    assert!(error.contains("next/go/extra"), "{error}");
+    // Write without invalidating the filesystem: only the tracked inputs reveal the change.
+    std::fs::create_dir_all(session.project.join("node_modules/sdk/extra"))?;
+    std::fs::write(
+        session.project.join("node_modules/sdk/extra/extra.go"),
+        "package extra\nconst Value = \"extra\"\n",
+    )?;
+    assert_eq!(session.run(&["main.go"]).await?.trim(), "extra");
     for (replacement, message) in [
         ("example.com/sdk v1.0.0", "versioned Go module replacements"),
         ("../outside", "inside the module"),
