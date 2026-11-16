@@ -80,9 +80,9 @@ Read more details on [path-to-regexp](https://github.com/pillarjs/path-to-regexp
 
 ### Non-ASCII characters
 
-The `source` pattern matches the URL-encoded request pathname. For redirects, rewrites, and headers, percent-encode non-ASCII characters in literal source segments. Keep parameters and modifiers such as `:path*` unchanged.
+The `source` pattern matches the URL-encoded request pathname. Next.js does not automatically percent-encode the configured pattern. For redirects, rewrites, and headers, percent-encode non-ASCII characters in literal source segments. Keep parameters and modifiers such as `:path*` unchanged.
 
-For example, browsers send `/über/example` as `/%C3%BCber/example`. Use the encoded form in `source`:
+For example, browsers automatically encode `/über/example` as `/%C3%BCber/example`. Use the encoded form in `source`:
 
 ```js filename="next.config.js"
 module.exports = {
