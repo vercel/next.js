@@ -491,7 +491,7 @@ The inline script and the lazy `useState` initializer both read from `localStora
 
 The inline script sets the attribute during parsing, which is all a production build needs. In development, though, [React's Strict Mode](https://react.dev/reference/react/StrictMode) remounts components once to surface bugs, and on that remount it resets `<html>`, `<head>`, and `<body>` to only the attributes it manages from JSX, clearing the one the script set. The page then renders without the attribute, ignoring the value's source of truth.
 
-One way to fix this is to do what you would do without the inline script at all. Read the stored value on the client and apply it, in the component that owns the theme, in a [`useLayoutEffect`](https://react.dev/reference/react/useLayoutEffect) that runs [before paint](#why-not-useeffect):
+One way to fix this is to do what you would do without the inline script at all. Read the stored value on the client and apply it, in the component that owns the theme, in a [`useLayoutEffect`](https://react.dev/reference/react/useLayoutEffect) that runs [before paint](#why-not-use-useeffect-for-the-initial-value):
 
 ```tsx filename="app/components/theme-toggle.tsx"
 'use client'
