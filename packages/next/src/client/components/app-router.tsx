@@ -80,6 +80,15 @@ function hasMissedTraversal(): boolean {
 let checkedMissedTraversalBeforeHistoryWrite = false
 let checkedMissedTraversalBeforeReplay = false
 
+// Marks a pushState/replaceState call made by the app router itself, so the
+// patched history methods can let it through untouched. It's a symbol because
+// structured clone drops symbol-keyed properties: the marker never ends up in
+// the stored history state, so user code that forwards the current state
+// (`history.replaceState(history.state, '', url)`) is still treated as an
+// external update. `__NA` can't be used for this because every entry written
+// by the app router carries it.
+const INTERNAL_HISTORY_WRITE = Symbol('next.internal-history-write')
+
 /**
  * Handles a popstate event (or one that was missed before hydration).
  * By default dispatches ACTION_RESTORE, however if the history entry was not
@@ -138,6 +147,7 @@ function HistoryUpdater({
       // __N is used to identify if the history entry can be handled by the old router.
       __NA: true,
       __PRIVATE_NEXTJS_INTERNALS_TREE: appHistoryState,
+      [INTERNAL_HISTORY_WRITE]: true,
     }
     if (
       pushRef.pendingPush &&
@@ -382,7 +392,7 @@ function Router({
     ): void {
       // TODO: Warn when Navigation API is available (navigation.navigate() should be used)
       // Avoid a loop when Next.js internals trigger pushState/replaceState
-      if (data?.__NA || data?._N) {
+      if (data?.[INTERNAL_HISTORY_WRITE] || data?._N) {
         return originalPushState(data, _unused, url)
       }
 
@@ -407,7 +417,7 @@ function Router({
     ): void {
       // TODO: Warn when Navigation API is available (navigation.navigate() should be used)
       // Avoid a loop when Next.js internals trigger pushState/replaceState
-      if (data?.__NA || data?._N) {
+      if (data?.[INTERNAL_HISTORY_WRITE] || data?._N) {
         return originalReplaceState(data, _unused, url)
       }
       data = copyNextJsInternalHistoryState(data)

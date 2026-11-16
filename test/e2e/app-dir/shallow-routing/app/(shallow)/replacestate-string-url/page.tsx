@@ -56,6 +56,24 @@ function InnerPage() {
       >
         Replace searchParam with undefined data param
       </button>
+
+      <button
+        onClick={() => {
+          const previousQuery = new URL(window.location.href).searchParams.get(
+            'query'
+          )
+          const url = `?query=${
+            previousQuery ? previousQuery + '-added' : 'foo'
+          }`
+
+          // Forwarding the current state keeps the app router's own `__NA`
+          // marker in the data passed to replaceState.
+          window.history.replaceState(window.history.state, '', url)
+        }}
+        id="replace-string-url-current-state"
+      >
+        Replace searchParam forwarding the current history state
+      </button>
     </>
   )
 }
