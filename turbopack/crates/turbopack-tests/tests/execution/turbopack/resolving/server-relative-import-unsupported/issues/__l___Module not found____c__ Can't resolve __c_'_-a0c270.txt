@@ -1,4 +1,4 @@
-error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/server-relative-import-unsupported/input/index.js:13:15  Module not found: Can't resolve '/input/dir/foo.js'
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/server-relative-import-unsupported/input/index.js:13:16  Module not found: Can't resolve '/input/dir/foo.js'
   
        9 |   expect(() => require('/package.json')).toThrow()
       10 | })

@@ -28,8 +28,9 @@ concurrency:
 
 jobs:
   evaluate:
-    if: ${{ github.repository_owner == 'vercel' && (github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch != 'canary')) }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch != 'canary') }}
     runs-on: ubuntu-latest
+    environment: bot-autonomous
     permissions:
       contents: read
     outputs:

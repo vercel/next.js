@@ -6,7 +6,7 @@ use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, ChunkingType},
     ident::AssetIdent,
-    module::{Module, ModuleSideEffects},
+    module::{ActivatableModule, Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
     resolve::{BindingUsage, ExportUsage, ImportUsage, ModuleResolveResult},
@@ -70,7 +70,9 @@ pub fn activation_key_from_chunk_path(path: &str) -> Option<RcStr> {
 /// The activation state of the lazily compiled dynamic import identified by `key`.
 ///
 /// Memoized per key, so every proxy and every reader of a given key observe the same bit.
-#[turbo_tasks::function]
+/// The state is not serialized. Invalidate cached readers in each new session so they
+/// subscribe to the recreated state.
+#[turbo_tasks::function(session_dependent)]
 pub fn lazy_compilation_state(key: RcStr) -> Vc<LazyCompilationState> {
     let _ = key;
     LazyCompilationState {
@@ -230,6 +232,9 @@ impl Module for LazyCompilationProxyModule {
         ModuleSideEffects::SideEffectful.cell()
     }
 }
+
+#[turbo_tasks::value_impl]
+impl ActivatableModule for LazyCompilationProxyModule {}
 
 #[turbo_tasks::value_impl]
 impl ChunkableModule for LazyCompilationProxyModule {

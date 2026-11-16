@@ -22,6 +22,51 @@ describe('adapter-config', () => {
     expect(next.cliOutput).toContain('called modify config in adapter')
   })
 
+  it('keeps revalidating metadata as a prerender backed by an app route', async () => {
+    const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
+      await next.readJSON('build-complete.json')
+    const pathname = '/docs/revalidating/sitemap.xml'
+
+    const prerender = outputs.prerenders.find(
+      (output) => output.pathname === pathname
+    )
+    expect(prerender).toBeDefined()
+    expect(prerender?.fallback?.initialRevalidate).toBe(5)
+
+    const appRoute = outputs.appRoutes.find(
+      (output) => output.pathname === pathname
+    )
+    expect(appRoute).toBeDefined()
+    expect(prerender?.parentOutputId).toBe(appRoute?.id)
+    expect(
+      outputs.staticFiles.find((output) => output.pathname === pathname)
+    ).toBeUndefined()
+  })
+
+  it('keeps tagged metadata as a prerender backed by an app route', async () => {
+    const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
+      await next.readJSON('build-complete.json')
+    const pathname = '/docs/tagged/sitemap.xml'
+
+    const prerender = outputs.prerenders.find(
+      (output) => output.pathname === pathname
+    )
+    expect(prerender).toBeDefined()
+    expect(prerender?.fallback?.initialRevalidate).toBe(false)
+    expect(
+      prerender?.fallback?.initialHeaders?.['x-next-cache-tags']
+    ).toContain('adapter-config:tagged-sitemap')
+
+    const appRoute = outputs.appRoutes.find(
+      (output) => output.pathname === pathname
+    )
+    expect(appRoute).toBeDefined()
+    expect(prerender?.parentOutputId).toBe(appRoute?.id)
+    expect(
+      outputs.staticFiles.find((output) => output.pathname === pathname)
+    ).toBeUndefined()
+  })
+
   it('should call onBuildComplete with correct context', async () => {
     expect(next.cliOutput).toContain('onBuildComplete called')
 

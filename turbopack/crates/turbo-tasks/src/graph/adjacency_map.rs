@@ -164,14 +164,22 @@ where
     /// Returns an iterator over the nodes in postorder topological order,
     /// starting from the roots.
     pub fn postorder_topological(&self) -> PostorderTopologicalIter<'_, T, E> {
+        self.postorder_topological_from(&self.roots)
+    }
+
+    /// Traverses existing edges in postorder, starting from the supplied roots.
+    pub fn postorder_topological_from<'graph>(
+        &'graph self,
+        roots: impl IntoIterator<Item = &'graph T>,
+    ) -> PostorderTopologicalIter<'graph, T, E> {
+        let mut stack: Vec<_> = roots
+            .into_iter()
+            .map(|root| (ReverseTopologicalPass::Pre, root))
+            .collect();
+        stack.reverse();
         PostorderTopologicalIter {
             adjacency_map: &self.adjacency_map,
-            stack: self
-                .roots
-                .iter()
-                .rev()
-                .map(|root| (ReverseTopologicalPass::Pre, root))
-                .collect(),
+            stack,
             visited: FxHashSet::default(),
         }
     }
@@ -318,5 +326,71 @@ where
         };
 
         Some(current)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::graph::{AdjacencyMap, GraphTraversal};
+
+    fn graph() -> AdjacencyMap<u8, ()> {
+        AdjacencyMap {
+            adjacency_map: [
+                (0, vec![(1, ()), (2, ())]),
+                (1, vec![(3, ())]),
+                (2, vec![(3, ())]),
+                (3, vec![]),
+                (4, vec![(4, ()), (5, ())]),
+                (5, vec![(4, ())]),
+                (6, vec![]),
+            ]
+            .into_iter()
+            .collect(),
+            roots: vec![0, 4, 6],
+        }
+    }
+
+    #[test]
+    fn rooted_postorder_preserves_order_and_deduplicates() {
+        let graph = graph();
+        let nodes: Vec<_> = graph
+            .postorder_topological_from(&[2, 1, 2])
+            .copied()
+            .collect();
+        assert_eq!(nodes, [3, 2, 1]);
+    }
+
+    #[test]
+    fn rooted_postorder_handles_cycles() {
+        let graph = graph();
+        let nodes: Vec<_> = graph.postorder_topological_from(&[4, 5]).copied().collect();
+        assert_eq!(nodes, [5, 4]);
+    }
+
+    #[test]
+    fn rooted_postorder_matches_rebuilt_subgraph() {
+        let graph = graph();
+        let mut roots = vec![vec![]];
+        for first in 0..7 {
+            roots.push(vec![first]);
+            for second in 0..7 {
+                roots.push(vec![first, second]);
+            }
+        }
+        for roots in roots {
+            let rebuilt = futures::executor::block_on(AdjacencyMap::new().visit(
+                roots.iter().copied(),
+                |node| {
+                    std::future::ready(anyhow::Ok(
+                        graph.get(&node).unwrap().copied().collect::<Vec<_>>(),
+                    ))
+                },
+            ))
+            .completed()
+            .unwrap();
+            let expected: Vec<_> = rebuilt.into_postorder_topological().collect();
+            let actual: Vec<_> = graph.postorder_topological_from(&roots).copied().collect();
+            assert_eq!(actual, expected, "roots: {roots:?}");
+        }
     }
 }

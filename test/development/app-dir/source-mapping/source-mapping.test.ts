@@ -1,10 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
-
 // TODO(NAR-423): Migrate to Cache Components.
-describe.skip('source-mapping', () => {
+describe('source-mapping', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
@@ -175,7 +173,7 @@ describe.skip('source-mapping', () => {
     await expect(browser).toDisplayRedbox(`
      {
        "description": "Attempted to call useClient() from the server but useClient is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component.",
-       "environmentLabel": "${isCacheComponentsEnabled ? 'Prerender' : 'Server'}",
+       "environmentLabel": "Prerender",
        "label": "Runtime Error",
        "source": "app/server-client/page.js (5:12) @ Component
      > 5 |   useClient()

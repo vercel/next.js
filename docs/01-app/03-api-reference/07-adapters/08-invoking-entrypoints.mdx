@@ -1,9 +1,9 @@
 ---
 title: Invoking Entrypoints
-description: Invoke Node.js and Edge build entrypoints with adapter runtime context.
+description: Invoke JavaScript build handlers and experimental Go HTTP server entrypoints.
 ---
 
-Build output entrypoints use a `handler(..., ctx)` interface, with runtime-specific request/response types.
+Node.js and Edge entrypoints use a `handler(..., ctx)` interface, with runtime-specific request/response types. Experimental Go entrypoints are compiled HTTP servers.
 
 ## Node.js runtime (`runtime: 'nodejs'`)
 
@@ -93,3 +93,17 @@ Relevant files in the Next.js core:
 - [`packages/next/src/build/templates/edge-app-route.ts`](https://github.com/vercel/next.js/blob/canary/packages/next/src/build/templates/edge-app-route.ts)
 - [`packages/next/src/build/templates/pages-edge-api.ts`](https://github.com/vercel/next.js/blob/canary/packages/next/src/build/templates/pages-edge-api.ts)
 - and [`packages/next/src/build/templates/middleware.ts`](https://github.com/vercel/next.js/blob/canary/packages/next/src/build/templates/middleware.ts)
+
+## Go runtime (`runtime: 'go'`)
+
+With experimental [`route.go`](/docs/app/api-reference/file-conventions/route-go) handlers, `output.filePath` identifies a native executable rather than a JavaScript module. Package it with the declared `assets` for the target operating system and architecture, preserving executable permissions and the asset destination paths.
+
+The executable targets the build host's operating system and architecture, with CGO disabled. Build in an environment that matches the deployment runtime. Cross-compilation is not supported for Go routes.
+
+Start the executable without arguments, set `PORT` to its assigned HTTP port, and use the packaged function directory as its working directory. The server listens on `0.0.0.0` so container and function ingress can reach it. The adapter owns network isolation. The adapter build's executable runs independently of the self-hosted Next.js server: it requires neither a private Next.js token nor a parent-owned stdin pipe.
+
+Forward the final destination URL after rewrites and proxy processing, including its query string and any `basePath`. For example, a request for `/alias?sort=asc` rewritten to `/users/123` must reach the Go server as `/users/123?sort=asc`. The handler's `r.URL`, `r.RequestURI`, and query reflect that destination, including any URL normalization the platform performs. Development and self-hosted deployments use the same destination URL contract.
+
+Each executable contains only its own emitted route pattern. It matches the destination pathname and derives decoded dynamic and catch-all parameters from it. Escaped slashes stay within their original parameter segments. A pathname that does not match the emitted route returns `404`.
+
+The platform routes requests to the correct Go function and runs its own rewrite and proxy integration. Node.js outputs continue to use their existing handler interface. JavaScript callbacks such as `ctx.waitUntil` cannot be passed to the Go process; the initial server contract provides no completion guarantee for post-response work.

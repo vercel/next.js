@@ -1,4 +1,4 @@
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup, isNextDev } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { join } from 'path'
@@ -63,7 +63,7 @@ describe('next/head', () => {
 })
 
 describe('next/head dev route discovery', () => {
-  if (!(global as any).isNextDev) {
+  if (!isNextDev) {
     return
   }
 

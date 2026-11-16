@@ -141,6 +141,7 @@ describe('layout-segment-chunk-sharing', () => {
         )
 
         mcpPort = await findPort()
+        let traceServerOutput = ''
         traceServerProcess = spawn(
           'node',
           [
@@ -152,7 +153,37 @@ describe('layout-segment-chunk-sharing', () => {
             '--mcp-port',
             String(mcpPort),
           ],
-          { stdio: 'inherit' }
+          { stdio: 'pipe' }
+        )
+        const recordTraceServerOutput = (chunk: Buffer) => {
+          const text = chunk.toString()
+          traceServerOutput += text
+          process.stdout.write(text)
+        }
+        traceServerProcess.stdout?.on('data', recordTraceServerOutput)
+        traceServerProcess.stderr?.on('data', recordTraceServerOutput)
+
+        // The MCP server can answer while the trace is still being read, so
+        // wait for the reader's end-of-file summary before querying spans.
+        // Large traces report `Initial read completed`; smaller ones report
+        // only their span count.
+        await retry(
+          async () => {
+            const output = traceServerOutput.replace(
+              // eslint-disable-next-line no-control-regex
+              /\x1b\[[0-9;]*[A-Za-z]/g,
+              ''
+            )
+            if (
+              !/Initial read completed|(?:^|[\r\n])\d+ spans(?:[\r\n]|$)/.test(
+                output
+              )
+            ) {
+              throw new Error('Trace file is still being read')
+            }
+          },
+          120_000,
+          500
         )
 
         // Wait for the MCP HTTP server to be ready.
@@ -177,7 +208,7 @@ describe('layout-segment-chunk-sharing', () => {
           30_000,
           500
         )
-      }, 120_000)
+      }, 180_000)
 
       afterAll(async () => {
         if (traceServerProcess?.pid) {
@@ -230,6 +261,30 @@ describe('layout-segment-chunk-sharing', () => {
         expect(spans.filter((name) => segmentChunking.test(name))).toHaveLength(
           1
         )
+      })
+
+      // The root layout's client references (e.g. the framework's layout
+      // router) belong to one isolated merged chunk group per page that renders
+      // the layout. Those groups are chunked together, so the root layout's
+      // client modules and its SSR modules are each chunked by a single task,
+      // instead of once per group (`client modules 0`, `client modules 1`, ...).
+      it('chunks all client reference groups of a segment in one task', async () => {
+        const spans = await findSpans(
+          'app/layout.tsx [app-rsc] (ecmascript, Next.js Server Component, '
+        )
+        const chunkingOf = (context: string, modifier: string) =>
+          spans.filter((name) =>
+            new RegExp(
+              `^turbopack_${context}::chunking_context chunking \\[project\\]/(?:.*/)?app/layout\\.tsx \\[app-rsc\\] \\(ecmascript, Next\\.js Server Component, ${modifier}(?: \\d+)?\\)$`
+            ).test(name)
+          )
+
+        expect(chunkingOf('browser', 'client modules')).toEqual([
+          expect.stringMatching(/, client modules\)$/),
+        ])
+        expect(chunkingOf('nodejs', 'ssr modules')).toEqual([
+          expect.stringMatching(/, ssr modules\)$/),
+        ])
       })
     }
   )

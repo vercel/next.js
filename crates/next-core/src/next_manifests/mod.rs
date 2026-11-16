@@ -1,5 +1,6 @@
 //! Type definitions for the Next.js manifest formats.
 
+mod chunk_tables;
 pub mod client_reference_manifest;
 mod encode_uri_component;
 
@@ -31,6 +32,9 @@ pub struct BuildManifest {
     pub client_relative_path: FileSystemPath,
 
     pub polyfill_files: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
+    /// The standalone browser runtime that applies React's instruction set when
+    /// `experimental.externalBrowserRuntime` is enabled. `None` otherwise.
+    pub external_browser_runtime_file: Option<ResolvedVc<Box<dyn OutputAsset>>>,
     pub root_main_files: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
     #[bincode(with = "turbo_bincode::indexmap")]
     pub pages: FxIndexMap<RcStr, ResolvedVc<OutputAssets>>,
@@ -73,6 +77,7 @@ impl OutputAssetsReference for BuildManifest {
             .flatten()
             .chain(root_main_files)
             .chain(self.polyfill_files.iter().copied())
+            .chain(self.external_browser_runtime_file)
             .chain(per_page_files)
             .collect();
 
@@ -102,6 +107,8 @@ impl Asset for BuildManifest {
             pub dev_files: Vec<RcStr>,
             pub amp_dev_files: Vec<RcStr>,
             pub polyfill_files: Vec<RcStr>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            pub external_browser_runtime_file: Option<RcStr>,
             pub low_priority_files: Vec<RcStr>,
             pub root_main_files: Vec<RcStr>,
             pub pages: FxIndexMap<RcStr, Vec<RcStr>>,
@@ -149,6 +156,22 @@ impl Asset for BuildManifest {
             })
             .try_join()
             .await?;
+
+        let external_browser_runtime_file: Option<RcStr> = match self.external_browser_runtime_file
+        {
+            Some(chunk) => {
+                let chunk_path = chunk.path().await?;
+                Some(
+                    client_relative_path
+                        .get_path_to(&chunk_path)
+                        .context(
+                            "failed to resolve client-relative path to external browser runtime",
+                        )?
+                        .into(),
+                )
+            }
+            None => None,
+        };
 
         let root_main_files: Vec<RcStr> = self
             .root_main_files
@@ -202,6 +225,7 @@ impl Asset for BuildManifest {
         let manifest = SerializedBuildManifest {
             pages: FxIndexMap::from_iter(pages),
             polyfill_files,
+            external_browser_runtime_file,
             root_main_files,
             root_main_files_tree: FxIndexMap::from_iter(root_main_files_tree),
             pages_chunk_group_bootstrap_params: self
@@ -437,6 +461,14 @@ pub struct ActionManifestEntry<'a> {
 
     pub filename: &'a str,
 
+    /// Durability metadata for `"use cache"` functions, keyed by a hash of the
+    /// metadata itself (code hash and runtime env vars). Workers reference an
+    /// item by that key, because most workers share the same value (but not all
+    /// of them, e.g. when the chunking context differs). Equal keys have equal
+    /// metadata, so merging manifests needs no deduplication.
+    #[serde(skip_serializing_if = "FxIndexMap::is_empty")]
+    pub durability: FxIndexMap<&'a str, ActionManifestEntryDurability<'a>>,
+
     /// Source location line number (1-indexed), if available
     #[serde(skip_serializing_if = "Option::is_none")]
     pub line: Option<u32>,
@@ -452,8 +484,9 @@ pub struct ActionManifestWorkerEntry<'a> {
     pub module_id: ActionManifestModuleId<'a>,
     #[serde(rename = "async")]
     pub is_async: bool,
+    /// The key into the entry's `durability` map.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub durability: Option<ActionManifestWorkerEntryDurability<'a>>,
+    pub durability: Option<&'a str>,
     /// The sorted root param dependencies collected from the cache module's
     /// graph. An empty list means that collection found no root params. The
     /// build omits this field when it does not collect dependencies for the
@@ -464,7 +497,7 @@ pub struct ActionManifestWorkerEntry<'a> {
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct ActionManifestWorkerEntryDurability<'a> {
+pub struct ActionManifestEntryDurability<'a> {
     pub code_hash: &'a str,
     pub runtime_env_vars_read: &'a [RcStr],
     pub runtime_env_vars_existence: &'a [RcStr],

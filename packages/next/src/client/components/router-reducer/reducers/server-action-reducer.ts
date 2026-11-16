@@ -552,7 +552,9 @@ export function serverActionReducer(
           // known route tree to mark the entry as having a dynamic rewrite.
           null,
           // Not an HMR refresh, so there's no request generation to cancel.
-          undefined
+          undefined,
+          // Not part of a prepared navigation.
+          null
         )
       }
 
@@ -568,7 +570,9 @@ export function serverActionReducer(
         nextUrl,
         freshnessPolicy,
         scrollBehavior,
-        navigateType
+        navigateType,
+        // Not part of a prepared navigation.
+        null
       )
     },
     (e: any) => {

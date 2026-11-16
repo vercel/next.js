@@ -133,6 +133,24 @@ export async function collectBuildTraces({
         'next-minimal-server.js.nft.json'
       )
       const root = outputFileTracingRoot
+      let hasNativeRoutes = false
+      if (config.experimental.goRoutes) {
+        try {
+          // One read per tracing worker, only after opting in. The emitted manifest
+          // also distinguishes an enabled experiment with no native routes.
+          const appPaths: Record<string, string> = JSON.parse(
+            await fs.readFile(
+              path.join(distDir, 'server', 'app-paths-manifest.json'),
+              'utf8'
+            )
+          )
+          hasNativeRoutes = Object.values(appPaths).some((entry) =>
+            entry.endsWith('.native.json')
+          )
+        } catch (error) {
+          if (!isError(error) || error.code !== 'ENOENT') throw error
+        }
+      }
 
       // Under standalone mode, we need to trace the extra IPC server and
       // worker files.
@@ -226,6 +244,9 @@ export async function collectBuildTraces({
         '**/next/dist/compiled/webpack/*',
         '**/node_modules/webpack5/**/*',
         '**/next/dist/server/lib/route-resolver*',
+        ...(hasNativeRoutes
+          ? []
+          : ['**/next/dist/server/lib/native-route*.js']),
         // Upgrade workflows are CLI-only and are not needed by production servers.
         '**/next/dist/lib/upgrade/**/*',
         // The testmode interceptors bundle reads its HTTP parser WASM with a
@@ -325,21 +346,6 @@ export async function collectBuildTraces({
                 // files might be removed from that step so tolerate ENOENT
                 // errors gracefully
                 return ''
-              }
-              throw e
-            }
-          },
-          async readlink(p) {
-            try {
-              return await fs.readlink(p)
-            } catch (e) {
-              if (
-                isError(e) &&
-                (e.code === 'EINVAL' ||
-                  e.code === 'ENOENT' ||
-                  e.code === 'UNKNOWN')
-              ) {
-                return null
               }
               throw e
             }

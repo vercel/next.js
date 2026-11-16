@@ -25,7 +25,9 @@ function createTemporaryFixture(fixtureName: string) {
   return dir
 }
 
-describe.skip('next test', () => {
+// TODO: Re-enable the experimental-test suite.
+// @force-gate FIXME
+describe('next test', () => {
   const { next: basicExample } = nextTestSetup({
     files: new FileRef(join(__dirname, 'basic-example')),
     dependencies: {
@@ -93,7 +95,8 @@ describe.skip('next test', () => {
   })
 
   // TODO: fix the playwright download issue
-  it.skip('should execute playwright tests', async () => {
+  // @gate FIXME
+  it('should execute playwright tests', async () => {
     const { stdout } = spawnSync('pnpm', ['next', 'experimental-test'], {
       cwd: basicExample.testDir,
       encoding: 'utf-8',

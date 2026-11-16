@@ -6,14 +6,14 @@ judge matcher with Claude Haiku. Results stay in repository evaluation artifacts
 
 ## Cases
 
-| Case | Starting Next.js | Frozen target | Task |
-| --- | --- | --- | --- |
-| security-same-major | 15.5.23 | 15.5.24 | Security upgrade |
-| security-cross-major | 13.5.11 | 15.5.24 | Security migration |
-| latest-same-major | 16.3.8 | 16.4.0 | Latest upgrade |
-| latest-cross-major | 13.5.11 | 16.4.0 | Latest migration |
-| security-nudge | Candidate stable test build 16.5.0 | Metadata 16.5.1 | Build/dev work |
-| latest-nudge | Candidate stable test build 16.5.0 | Metadata 16.6.0 | Build/dev work |
+| Case                 | Starting Next.js                   | Frozen target   | Task               |
+| -------------------- | ---------------------------------- | --------------- | ------------------ |
+| security-same-major  | 15.5.23                            | 15.5.24         | Security upgrade   |
+| security-cross-major | 13.5.11                            | 15.5.24         | Security migration |
+| latest-same-major    | 16.3.8                             | 16.4.0          | Latest upgrade     |
+| latest-cross-major   | 13.5.11                            | 16.4.0          | Latest migration   |
+| security-nudge       | Candidate stable test build 16.5.0 | Metadata 16.5.1 | Build/dev work     |
+| latest-nudge         | Candidate stable test build 16.5.0 | Metadata 16.6.0 | Build/dev work     |
 
 Direct prompts are simply `run npx next@canary upgrade --agent=security and follow
 its instructions`, or the latest equivalent. Nudge prompts ask for ordinary app

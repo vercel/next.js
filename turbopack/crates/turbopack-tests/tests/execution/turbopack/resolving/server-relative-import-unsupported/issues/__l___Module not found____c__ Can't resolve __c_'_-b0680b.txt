@@ -1,4 +1,4 @@
-error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/server-relative-import-unsupported/input/index.js:9:15  Module not found: Can't resolve '/package.json'
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/server-relative-import-unsupported/input/index.js:9:16  Module not found: Can't resolve '/package.json'
   
        5 | // guessing at that root would resolve it. It must not: reporting the request as
        6 | // unsupported and then resolving it anyway would contradict itself.

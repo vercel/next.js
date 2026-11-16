@@ -157,6 +157,9 @@ fn is_internal(file_path: &str) -> bool {
 
 /// Renders a code frame for a source location, if available.
 ///
+/// The frame is rendered from (and the internal-file check applies to) the source's own file,
+/// which, after source mapping, can differ from the issue's `file_path`.
+///
 /// This avoids transferring the full source file content across the NAPI
 /// boundary just to call back into Rust for code frame rendering.
 ///
@@ -165,13 +168,12 @@ fn is_internal(file_path: &str) -> bool {
 fn render_source_code_frame(
     severity: IssueSeverity,
     source: &PlainIssueSource,
-    file_path: &str,
 ) -> Result<Option<String>> {
     let Some((start, end)) = source.range else {
         return Ok(None);
     };
 
-    if is_internal(file_path) {
+    if is_internal(&source.asset.file_path) {
         return Ok(None);
     }
 
@@ -225,7 +227,7 @@ fn render_issue_code_frame(issue: &PlainIssue) -> Result<Option<String>> {
     let Some(source) = issue.source.as_ref() else {
         return Ok(None);
     };
-    render_source_code_frame(issue.severity, source, &issue.file_path)
+    render_source_code_frame(issue.severity, source)
 }
 
 #[napi(object)]
@@ -274,12 +276,8 @@ impl From<&PlainIssue> for NapiIssue {
                 .iter()
                 .map(|s| NapiAdditionalIssueSource {
                     description: s.description.clone(),
-                    code_frame: render_source_code_frame(
-                        issue.severity,
-                        &s.source,
-                        &s.source.asset.file_path,
-                    )
-                    .unwrap_or_default(),
+                    code_frame: render_source_code_frame(issue.severity, &s.source)
+                        .unwrap_or_default(),
                     source: (&s.source).into(),
                 })
                 .collect(),

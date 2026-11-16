@@ -306,7 +306,7 @@ export function registerSyncIoAndBlockingTests(
              - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-current-time
-               at Module.e [as generateMetadata] (app/suspense-in-root/sync-io/sync-io-after-cookies-in-generate-metadata/page.tsx:8:20)
+               at a.s.level [as generateMetadata] (app/suspense-in-root/sync-io/sync-io-after-cookies-in-generate-metadata/page.tsx:8:20)
               6 | export async function generateMetadata() {
               7 |   await cookies()
            >  8 |   const now = Date.now()

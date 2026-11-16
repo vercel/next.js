@@ -283,7 +283,12 @@ export async function createPagesMapping({
         return
       }
 
-      let pageKey = getPageFromPath(pagePath, pageExtensions)
+      let pageKey = getPageFromPath(
+        pagePath,
+        pagesType === PAGE_TYPES.APP && pagePath.endsWith('route.go')
+          ? ['go']
+          : pageExtensions
+      )
       if (isAppRoute) {
         // Turbopack encodes '_' as '%5F' in app paths; normalize to underscores.
         pageKey = pageKey.replace(/%5F/g, '_')

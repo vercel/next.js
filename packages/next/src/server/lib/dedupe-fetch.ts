@@ -1,15 +1,11 @@
 /**
  * Based on https://github.com/facebook/react/blob/d4e78c42a94be027b4dc7ed2659a5fddfbf9bd4e/packages/react/src/ReactFetch.js
  */
-import * as React from 'react'
 import { cloneResponse } from './clone-response'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { FETCH_CACHE_KEY_EXCLUDED_HEADERS } from '../../lib/constants'
 
 const simpleCacheKey = '["GET",[],null,"follow",null,null,null,null]' // generateCacheKey(new Request('https://blank'));
-
-// Headers that should not affect deduplication
-// traceparent and tracestate are used for distributed tracing and should not affect cache keys
-const headersToExcludeInCacheKey = new Set(['traceparent', 'tracestate'])
 
 function generateCacheKey(request: Request): string {
   // We pick the fields that goes into the key used to dedupe requests.
@@ -20,7 +16,7 @@ function generateCacheKey(request: Request): string {
   // IF YOU CHANGE THIS UPDATE THE simpleCacheKey ABOVE.
 
   const filteredHeaders = Array.from(request.headers.entries()).filter(
-    ([key]) => !headersToExcludeInCacheKey.has(key.toLowerCase())
+    ([key]) => !FETCH_CACHE_KEY_EXCLUDED_HEADERS.has(key.toLowerCase())
   )
 
   return JSON.stringify([
@@ -42,6 +38,9 @@ type CacheEntry = [
 ]
 
 export function createDedupeFetch(originalFetch: typeof fetch) {
+  // Importing the helper alone must not load the app-page runtime through
+  // the App Router's vendored React. Keep the same React instance when used.
+  const React = require('react') as typeof import('react')
   const getCacheEntries = React.cache(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars -- url is the cache key
     (url: string): CacheEntry[] => []

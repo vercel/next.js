@@ -8,8 +8,8 @@ use next_core::{
     get_next_package,
     next_client_reference::{CssClientReferenceModule, EcmascriptClientReferenceModule},
     next_manifests::{
-        ActionLayer, ActionManifestModuleId, ActionManifestWorkerEntry,
-        ActionManifestWorkerEntryDurability, ServerReferenceManifest,
+        ActionLayer, ActionManifestEntryDurability, ActionManifestModuleId,
+        ActionManifestWorkerEntry, ServerReferenceManifest,
     },
     root_param_getters_path,
     util::NextRuntime,
@@ -48,12 +48,14 @@ use turbopack_core::{
     ident::AssetIdent,
     module::{Module, Modules},
     module_graph::{
-        GraphTraversalAction, ModuleGraph, ModuleGraphLayer, async_module_info::AsyncModulesInfo,
-        binding_usage_info::ModuleExportUsage, chunk_group_info::ChunkGroup,
+        GraphTraversalAction, ModuleGraph, ModuleGraphLayer, SingleModuleGraphNode,
+        async_module_info::AsyncModulesInfo, binding_usage_info::ModuleExportUsage,
+        chunk_group_info::ChunkGroupKey,
     },
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::ModulePart,
+    source_map::{OptionSourceMapType, SourceMapGenerationOptions},
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
@@ -151,7 +153,9 @@ pub(crate) async fn build_server_actions_loader(
         )?;
     }
 
-    let path = project_path.join(&format!(".next-internal/server/app{page_name}/actions.js"))?;
+    // NOTE: use .mjs so that ESM syntax is valid even if package.json specifies `"type":
+    // "commonjs"`
+    let path = project_path.join(&format!(".next-internal/server/app{page_name}/actions.mjs"))?;
     let file = File::from(contents.build());
     let source = VirtualSource::new_with_ident(
         AssetIdent::from_path(path)
@@ -366,6 +370,20 @@ impl Asset for ServerActionManifestAsset {
         ) in &action_metadata
         {
             let entry = mapping.entry(hash_id).or_default();
+
+            let durability = data.as_ref().map(|d| {
+                let key = d.durability_key.as_str();
+                entry.durability.insert(
+                    key,
+                    ActionManifestEntryDurability {
+                        code_hash: d.path_code_hash.as_str(),
+                        runtime_env_vars_read: d.runtime_env_vars_read.as_slice(),
+                        runtime_env_vars_existence: d.runtime_env_vars_existence.as_slice(),
+                    },
+                );
+                key
+            });
+
             entry.workers.insert(
                 &key,
                 ActionManifestWorkerEntry {
@@ -373,11 +391,7 @@ impl Asset for ServerActionManifestAsset {
                     is_async: async_module_info
                         .is_async(self.chunk_item.module().to_resolved().await?)
                         .await?,
-                    durability: data.as_ref().map(|d| ActionManifestWorkerEntryDurability {
-                        code_hash: d.path_code_hash.as_str(),
-                        runtime_env_vars_read: d.runtime_env_vars_read.as_slice(),
-                        runtime_env_vars_existence: d.runtime_env_vars_existence.as_slice(),
-                    }),
+                    durability,
                     root_param_dependencies: root_param_dependencies
                         .as_ref()
                         .map(|names| names.as_slice()),
@@ -433,6 +447,9 @@ pub async fn to_rsc_context(
 struct ModulesInformation {
     /// The combined code hash of all modules in the subgraph.
     pub path_code_hash: RcStr,
+    /// A hash of the code hash and the runtime env var lists, which identifies this durability
+    /// metadata in the manifest.
+    pub durability_key: RcStr,
     /// The merged and deduplicated list of all runtime env vars read in the subgraph.
     pub runtime_env_vars_read: Vec<RcStr>,
     /// The merged and deduplicated list of runtime env vars used only checked for set/falsy/truthy
@@ -646,7 +663,7 @@ async fn compute_subtree_content_hash(
             }
         }
 
-        let hash = deterministic_hash("", hashes, HashAlgorithm::Xxh3Hash128Hex).into();
+        let hash: RcStr = deterministic_hash("", hashes, HashAlgorithm::Xxh3Hash128Hex).into();
         let (mut runtime_read, mut runtime_existence): (Vec<_>, Vec<_>) =
             runtime_env_vars.into_iter().partition_map(|(name, mode)| {
                 if mode == EnvVarAccessMode::Read {
@@ -659,9 +676,16 @@ async fn compute_subtree_content_hash(
         // Sort for more stable return values (less invalidation)
         runtime_read.sort_unstable();
         runtime_existence.sort_unstable();
+        let durability_key = deterministic_hash(
+            "",
+            (&hash, &runtime_read, &runtime_existence),
+            HashAlgorithm::Xxh3Hash128Hex,
+        )
+        .into();
         anyhow::Ok(
             ModulesInformation {
                 path_code_hash: hash,
+                durability_key,
                 runtime_env_vars_read: runtime_read,
                 runtime_env_vars_existence: runtime_existence,
             }
@@ -1037,13 +1061,20 @@ pub struct AllModuleActions(
 pub async fn map_server_actions(
     graph: OperationVc<ModuleGraphLayer>,
 ) -> Result<Vc<AllModuleActions>> {
-    let graph = graph.connect();
+    let graph = graph.connect().await?;
     let actions = graph
-        .await?
-        .iter_reachable_modules()?
-        .map(async |module| {
+        .iter_reachable_nodes()?
+        .map(async |(idx, node)| {
+            let SingleModuleGraphNode::Module(module) = node else {
+                // VisitedModule nodes were handled in their owning graph.
+                return Ok(None);
+            };
+            let ident = graph
+                .node_ident(idx)
+                .context("Module nodes always have an ident")?;
             // TODO: compare module contexts instead?
-            let layer = match module.ident().await?.layer.as_ref() {
+            let ident = ident.await?;
+            let layer = match ident.layer.as_ref() {
                 Some(layer)
                     if layer.name() == "app-rsc"
                         || layer.name() == "app-edge-rsc"
@@ -1058,9 +1089,9 @@ pub async fn map_server_actions(
             };
             // TODO the old implementation did parse_actions(to_rsc_context(module))
             // is that really necessary?
-            Ok(parse_actions(*module)
+            Ok(parse_actions(**module)
                 .await?
-                .map(|action_map| (module, (layer, action_map))))
+                .map(|action_map| (*module, (layer, action_map))))
         })
         .try_flat_join()
         .await?;
@@ -1168,8 +1199,13 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn reference_module_source_maps(&self, module: Vc<Box<dyn Module>>) -> Vc<bool> {
-        self.inner.reference_module_source_maps(module)
+    fn source_map_generation_options(&self) -> Vc<SourceMapGenerationOptions> {
+        self.inner.source_map_generation_options()
+    }
+
+    #[turbo_tasks::function]
+    fn emitted_source_map_type(&self) -> Vc<OptionSourceMapType> {
+        self.inner.emitted_source_map_type()
     }
 
     #[turbo_tasks::function]
@@ -1240,7 +1276,7 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
     async fn chunk_group(
         self: Vc<Self>,
         _ident: Vc<AssetIdent>,
-        _chunk_groups: SmallVec<[ChunkGroup; 1]>,
+        _chunk_groups: SmallVec<[ChunkGroupKey; 1]>,
         _module_graph: ResolvedVc<ModuleGraph>,
         _availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
@@ -1251,7 +1287,7 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
     async fn evaluated_chunk_group(
         self: Vc<Self>,
         _ident: Vc<AssetIdent>,
-        _chunk_group: ChunkGroup,
+        _chunk_group: ChunkGroupKey,
         _module_graph: ResolvedVc<ModuleGraph>,
         _extra_chunks: Vc<OutputAssets>,
         _input_availability_info: AvailabilityInfo,
@@ -1273,7 +1309,7 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
     async fn entry_chunk_group(
         self: Vc<Self>,
         _path: FileSystemPath,
-        _chunk_group: ChunkGroup,
+        _chunk_group: ChunkGroupKey,
         _module_graph: ResolvedVc<ModuleGraph>,
         _extra_chunks: Vc<OutputAssets>,
         _extra_referenced_assets: Vc<OutputAssets>,

@@ -1,5 +1,5 @@
 import cheerio from 'cheerio'
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 import { join } from 'path'
 
@@ -7,7 +7,7 @@ const mockedGoogleFontResponses = require.resolve(
   './google-font-mocked-responses.js'
 )
 
-const isDev = (global as any).isNextDev
+const isDev = isNextDev
 
 // Deploy mode exclusion: This suite passes an absolute local mocked-font-response path into the build.
 // @force-gate !deploy

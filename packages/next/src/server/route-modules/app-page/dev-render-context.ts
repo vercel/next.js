@@ -11,9 +11,11 @@ export function createDevRenderContext(
     return undefined
   }
 
-  const { serverComponentsHmrCache, hmrRefreshHash } = getRequestMeta(req)
+  const { serverComponentsHmrCache, hmrRefreshHash, initialHmrVersion } =
+    getRequestMeta(req)
   return {
     serverComponentsHmrCache: serverComponentsHmrCache ?? hmrCacheFallback,
     hmrRefreshHash,
+    initialHmrVersion,
   }
 }

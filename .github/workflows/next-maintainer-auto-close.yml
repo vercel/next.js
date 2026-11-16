@@ -29,10 +29,10 @@ jobs:
           sparse-checkout: .github/scripts/next-maintainer-auto-close.js
           sparse-checkout-cone-mode: false
 
-      - name: Pull and deliver one verified close
+      - name: Pull and deliver every released close
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const { deliverOneVerifiedClose } = require('./.github/scripts/next-maintainer-auto-close.js')
-            await deliverOneVerifiedClose({ core, github })
+            const { deliverVerifiedCloses } = require('./.github/scripts/next-maintainer-auto-close.js')
+            await deliverVerifiedCloses({ core, github })

@@ -250,6 +250,11 @@ export function setupFilesystemCacheTest(cacheEnabled: boolean) {
   function testChangesWhileStopped(changeNames: readonly ChangeName[]) {
     registerCacheWarmUp()
 
+    // TODO fix loader changes with Turbopack. Exclude them from combined tests
+    // as well as individual tests, without leaving undefined change entries.
+    changeNames = changeNames.filter(
+      (changeName) => changeName !== 'loader change' || !isTurbopack
+    )
     const name = changeNames.join(', ')
     const changes = changeNames.map(
       (changeName) => POTENTIAL_CHANGES[changeName]

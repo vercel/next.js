@@ -180,6 +180,8 @@ export function getDefineEnv({
       config.turbopack?.chunkLoadingGlobal ?? 'TURBOPACK'
     }_CHUNK_UPDATE_LISTENERS`,
     'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
+    'process.env.__NEXT_EXTERNAL_BROWSER_RUNTIME':
+      config.experimental.externalBrowserRuntime === true,
     'process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS': Boolean(
       config.experimental.cachedNavigations
     ),
@@ -398,6 +400,8 @@ export function getDefineEnv({
       config.experimental.transitionIndicator ?? false,
     'process.env.__NEXT_GESTURE_TRANSITION':
       config.experimental.gestureTransition ?? false,
+    'process.env.__NEXT_PREPARE_NAVIGATION':
+      config.experimental.prepareNavigation ?? false,
     'process.env.__NEXT_OPTIMISTIC_ROUTING':
       config.experimental.optimisticRouting ?? false,
     'process.env.__NEXT_CONCURRENT_ROUTER_QUEUE':

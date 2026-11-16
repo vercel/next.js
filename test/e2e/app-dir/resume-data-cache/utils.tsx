@@ -3,6 +3,10 @@ export async function tasky() {
   await new Promise((resolve) => setTimeout(resolve))
 }
 
+export function getCacheTag(tag: string) {
+  return `${process.env.NEXT_TEST_CACHE_TAG_PREFIX}:${tag}`
+}
+
 /**
  * A wrapper meant to ensure fetches with independent tags are cached separately
  * so that tests don't interfere with each others' fetch caches.
@@ -13,10 +17,10 @@ export async function fetchRandomWithForceCache(
   let key: string
   let tag: string | undefined
   if ('key' in opts) {
-    key = opts.key
+    key = getCacheTag(opts.key)
     tag = undefined
   } else {
-    key = tag = opts.tag
+    key = tag = getCacheTag(opts.tag)
   }
   return fetch(
     `https://next-data-api-endpoint.vercel.app/api/random?key=${encodeURIComponent(key)}`,

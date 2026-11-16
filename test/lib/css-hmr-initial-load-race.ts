@@ -96,7 +96,14 @@ export async function assertCssHmrStartupRecovery(
           reconnectHmr = () => serverSocket.close()
         })
         await page.route('**/*.js*', async (route) => {
-          const response = await route.fetch()
+          // route.fetch() runs on Playwright's process-wide keep-alive agent,
+          // which ignores the server's `Keep-Alive: timeout=5` hint and reuses
+          // sockets from earlier races. A socket idle for ~5s can be closed by
+          // the dev server just as it is reused ("socket hang up"), leaving
+          // this request unfulfilled and the page load hanging. Don't pool.
+          const response = await route.fetch({
+            headers: { ...route.request().headers(), connection: 'close' },
+          })
           await javaScriptGate
           await route.fulfill({ response })
         })

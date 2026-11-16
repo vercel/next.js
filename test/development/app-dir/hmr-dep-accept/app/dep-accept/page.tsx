@@ -22,11 +22,18 @@ export default function DepAcceptPage() {
   }, [])
 
   useEffect(() => {
-    // import.meta.turbopackHot is the ESM equivalent of module.hot
+    // Each bundler exposes its ESM HMR API through import.meta.
     if (import.meta.turbopackHot) {
       import.meta.turbopackHot.accept('./dep', () => {
         // ESM bindings are automatically re-imported before this callback runs,
         // so `value` already reflects the updated module.
+        if (mountedRef.current) {
+          setDepValue(value)
+          setAcceptCallCount((c) => c + 1)
+        }
+      })
+    } else if (import.meta.webpackHot) {
+      import.meta.webpackHot.accept('./dep', () => {
         if (mountedRef.current) {
           setDepValue(value)
           setAcceptCallCount((c) => c + 1)

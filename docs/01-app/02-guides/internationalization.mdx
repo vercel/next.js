@@ -150,7 +150,7 @@ export const getDictionary = async (locale) => dictionaries[locale]()
 
 Given the currently selected language, we can fetch the dictionary inside of a layout or page.
 
-Since `lang` is typed as `string`, using `hasLocale` narrows the type to your supported locales. It also ensures a 404 is returned if a translation is missing, rather than a runtime error.
+Since `lang` is typed as `string`, using `hasLocale` narrows the type to your supported locales. Calling `notFound()` for an unsupported locale renders the not-found UI.
 
 ```tsx filename="app/[lang]/page.tsx" switcher
 import { notFound } from 'next/navigation'

@@ -2,6 +2,7 @@ use std::{
     borrow::Borrow,
     fmt::{self, Debug, Formatter},
     hash::{Hash, Hasher},
+    io::{self, BorrowedCursor},
     ops::{Deref, Range},
     rc::Rc,
 };
@@ -12,7 +13,7 @@ use memmap2::Mmap;
 use crate::{
     Compression,
     compression::decompress_into_rc,
-    shared_bytes::{INLINE_CAPACITY, SharedBytes, is_subslice_of},
+    shared_bytes::{INLINE_CAPACITY, SharedBytes, fill_uninit, is_subslice_of},
 };
 
 /// The representation of an `RcBytes`.
@@ -192,6 +193,19 @@ impl SharedBytes for RcBytes {
             uncompressed_length,
             block,
         )?))
+    }
+
+    fn read_filled(
+        len: usize,
+        fill: impl FnOnce(BorrowedCursor<'_, u8>) -> io::Result<()>,
+    ) -> io::Result<Self> {
+        let mut bytes = Rc::<[u8]>::new_uninit_slice(len);
+        fill_uninit(
+            Rc::get_mut(&mut bytes).expect("the Rc was just created"),
+            fill,
+        )?;
+        // SAFETY: `fill_uninit` returned `Ok`, so all bytes were written.
+        Ok(Self::from(unsafe { bytes.assume_init() }))
     }
 
     #[inline]

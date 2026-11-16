@@ -310,9 +310,6 @@ export default defineConfig([
             'itSkipDeploy',
             'itCI',
             'itHeaded',
-            'itTurbopack',
-            'itTurbopackDev',
-            'itOnlyTurbopack',
           ],
         },
       ],
@@ -466,6 +463,43 @@ export default defineConfig([
           object: 'req',
           property: 'url',
           message: 'Use the explicit `requestUrl` input instead.',
+        },
+      ],
+    },
+  },
+  {
+    files: ['packages/next/src/server/app-render/app-render.tsx'],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'req',
+          property: 'url',
+          message: 'Use the explicit `requestUrl` input instead.',
+        },
+        {
+          object: 'req',
+          property: 'headers',
+          message: 'Use the explicit `requestHeaders` input instead.',
+        },
+      ],
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '../../client/components/app-router-headers',
+              importNames: ['NEXT_URL'],
+              message: 'Use the explicit route interception input instead.',
+            },
+          ],
+          patterns: [
+            {
+              group: ['**/request-meta'],
+              allowTypeImports: true,
+              message: 'Pass request metadata through explicit render inputs.',
+            },
+          ],
         },
       ],
     },

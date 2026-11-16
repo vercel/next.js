@@ -1,8 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
-// @force-gate !deploy
 describe('ssg-dynamic-routes-404-page', () => {
   const { next } = nextTestSetup({
     files: __dirname,

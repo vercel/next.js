@@ -104,20 +104,26 @@ Streaming page responses begin with a `200` status code.
 
 The initial response headers set the status for the rest of the response. Next.js can then stream redirects and HTTP access fallbacks with [`redirect`](/docs/app/api-reference/functions/redirect), [`notFound`](/docs/app/api-reference/functions/not-found), [`forbidden`](/docs/app/api-reference/functions/forbidden), or [`unauthorized`](/docs/app/api-reference/functions/unauthorized).
 
+> **Good to know:** With Cache Components, Next.js sends the prerendered shell first, along with headers that preload resources such as CSS, fonts, and images. Sending the shell starts the response with a `200`, even when the shell has no visible UI.
+
 For example, when a 404 page is streamed to the client, Next.js includes a `<meta name="robots" content="noindex">` tag in the streamed HTML. This prevents search engines from indexing that URL even if the HTTP status is 200. See Google’s guidance on the [`robots` meta tag](https://developers.google.com/search/docs/crawling-indexing/robots-meta-tag).
+
+For more context, see [Does streaming affect SEO and can streamed content be indexed?](https://vercel.com/kb/guide/does-streaming-affect-seo) and [How Google handles JavaScript throughout the indexing process](https://vercel.com/blog/how-google-handles-javascript-throughout-the-indexing-process).
 
 Some crawlers may label these responses as “soft 404s”. The `noindex` tag keeps them out of search results.
 
-Run the corresponding check before the response body streams to return a `404`, `403`, or `401` status for compliance or analytics.
+Run the corresponding check before streaming starts to return a `404`, `403`, or `401` status for compliance or analytics.
 
 For a `404`, you can check the slug in [Proxy](/docs/app/api-reference/file-conventions/proxy), then rewrite it to a not-found route or [return a `404` response](/docs/app/api-reference/file-conventions/proxy#producing-a-response). Keep Proxy checks fast, and avoid fetching full content there.
 
 <details>
-<summary>When is the response body streamed?</summary>
+<summary>When does streaming start?</summary>
 
-The response body starts streaming when a Suspense fallback renders (for example, a `loading.tsx`) or when a Server Component suspends under a `<Suspense>` boundary. Calling `notFound()`, `forbidden()`, or `unauthorized()` before this point preserves its `404`, `403`, or `401` status.
+Starting the stream sends the headers and fixes the status code.
 
-Starting the stream sends the response headers and fixes the status code.
+Without Cache Components, rendering a fallback from `loading.js` or `<Suspense>` starts streaming. If neither has started the response, Next.js can still return a `404`, `403`, or `401` when the corresponding interrupt runs.
+
+With Cache Components, an interrupt can preserve its status when it runs during prerendering, before the response begins. A request-time check inside the page runs after the shell is sent, even when the shell is empty and the route sets `instant = false`, so the status remains `200`.
 
 </details>
 

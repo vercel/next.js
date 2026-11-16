@@ -1,5 +1,4 @@
 use std::{
-    cmp::Ordering,
     fmt::Display,
     mem::take,
     ops::Deref,
@@ -20,6 +19,7 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, big_endian as 
 use crate::mmap_helper::advise_mmap_for_persistence;
 use crate::{
     AccessMode, Compression, FamilyConfig, QueryKey,
+    db::BatchGetResolved,
     lookup_entry::LookupValue,
     shard::ShardBits,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
@@ -65,7 +65,8 @@ pub(crate) const META_FILE_MAGIC: u32 = 0xFE4ADA4A;
 
 /// On-disk layout of a single entry header in the `.meta` file.
 ///
-/// Fields are big-endian to match the existing wire format written by [`MetaFileBuilder`].
+/// Fields are big-endian to match the existing wire format written by
+/// [`MetaFileBuilder`](crate::meta_file_builder::MetaFileBuilder).
 #[repr(C, packed)]
 #[derive(FromBytes, IntoBytes, Immutable, KnownLayout, Clone, Copy)]
 pub(crate) struct EntryHeader {
@@ -614,62 +615,91 @@ impl MetaFile {
     }
 
     /// Looks up the keys of `cells` in the SST file of the entry `entry_index`, whose hash range is
-    /// `range`. Only cells without a result are looked up. `cells` must be sorted by key hash.
+    /// `range`. `cells` holds `(key hash, key index)` pairs and must be sorted by key hash. Only
+    /// cells whose position is not in `resolved` yet are looked up. When a key is found, its
+    /// position is added to `resolved`, `resolved_count` is incremented and `on_found` is called
+    /// with the position of the cell and the value. `resolved_count` must be the number of
+    /// positions in `resolved`.
+    ///
+    /// `is_last` must be set for the last (oldest) SST file that can contain the keys. Then
+    /// `on_miss` is called with the position of every cell that is still unresolved after this
+    /// file: cells outside `range` are reported without a lookup. Otherwise `on_miss` is never
+    /// called, since an older file may still contain the key.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn batch_lookup_entry<K: QueryKey>(
         &self,
         entry_index: u32,
         range: &StaticSortedFileRange,
+        is_last: bool,
         keys: &[K],
-        cells: &mut [(u64, usize, Option<LookupValue>)],
-        empty_cells: &mut usize,
+        cells: &[(u64, u32)],
+        resolved: &mut BatchGetResolved,
+        resolved_count: &mut usize,
         key_block_cache: &BlockCache,
         value_block_cache: &BlockCache,
+        mut on_found: impl FnMut(usize, LookupValue) -> Result<()>,
+        mut on_miss: impl FnMut(usize) -> Result<()>,
     ) -> Result<MetaBatchLookupResult> {
         debug_assert!(
-            cells.is_sorted_by_key(|(hash, _, _)| *hash),
+            cells.is_sorted_by_key(|(hash, _)| *hash),
             "Cells must be sorted by key hash"
         );
         #[allow(unused_mut, reason = "It's used when stats are enabled")]
         let mut lookup_result = MetaBatchLookupResult::default();
-        let start_index = cells
-            .binary_search_by(|(hash, _, _)| hash.cmp(&range.min_hash).then(Ordering::Greater))
-            .err()
-            .unwrap();
-        if start_index >= cells.len() {
+        let start_index = cells.partition_point(|&(hash, _)| hash < range.min_hash);
+        if !is_last && start_index >= cells.len() {
+            // Every key hash is below the range: skip computing `end_index`. The last file can't
+            // return early, since it still has to report the misses.
             #[cfg(feature = "stats")]
             {
                 lookup_result.range_misses += 1;
             }
             return Ok(lookup_result);
         }
-        let end_index = cells
-            .binary_search_by(|(hash, _, _)| hash.cmp(&range.max_hash).then(Ordering::Less))
-            .err()
-            .unwrap();
+        let end_index = cells.partition_point(|&(hash, _)| hash <= range.max_hash);
         if start_index >= end_index {
             #[cfg(feature = "stats")]
             {
                 lookup_result.range_misses += 1;
             }
-            return Ok(lookup_result);
+            if !is_last {
+                return Ok(lookup_result);
+            }
         }
+        // The last file reports every unresolved cell, so it walks all of them; other files only
+        // walk the cells in their range.
+        let (walk_start, walk_end) = if is_last {
+            (0, cells.len())
+        } else {
+            (start_index, end_index)
+        };
         let entry = &self.entries[entry_index as usize];
-        for (hash, index, result) in &mut cells[start_index..end_index] {
-            debug_assert!(range.contains(*hash), "Key hash out of range");
-            if result.is_some() {
+        for (position, &(hash, index)) in cells.iter().enumerate().take(walk_end).skip(walk_start) {
+            // `batch_get` has at most `u32::MAX` keys, so positions fit in a `u32`.
+            let bit = position as u32;
+            if resolved.contains(bit) {
                 continue;
             }
-            if !entry.amqf.contains_fingerprint(*hash) {
+            if position < start_index || position >= end_index {
+                // Only reachable for the last file: the key is outside its range.
+                debug_assert!(is_last && !range.contains(hash));
+                on_miss(position)?;
+                continue;
+            }
+            debug_assert!(range.contains(hash), "Key hash out of range");
+            if !entry.amqf.contains_fingerprint(hash) {
                 #[cfg(feature = "stats")]
                 {
                     lookup_result.quick_filter_misses += 1;
                 }
+                if is_last {
+                    on_miss(position)?;
+                }
                 continue;
             }
             let sst_result = entry.sst(self)?.lookup::<_, false>(
-                *hash,
-                &keys[*index],
+                hash,
+                &keys[index as usize],
                 key_block_cache,
                 value_block_cache,
             )?;
@@ -679,19 +709,24 @@ impl MetaFile {
                 let Some(value) = values.pop() else {
                     unreachable!()
                 };
-                *result = Some(value);
-                *empty_cells -= 1;
+                let inserted = resolved.insert(bit);
+                debug_assert!(inserted);
+                *resolved_count += 1;
                 #[cfg(feature = "stats")]
                 {
                     lookup_result.hits += 1;
                 }
-                if *empty_cells == 0 {
+                on_found(position, value)?;
+                if *resolved_count == cells.len() {
                     return Ok(lookup_result);
                 }
             } else {
                 #[cfg(feature = "stats")]
                 {
                     lookup_result.sst_misses += 1;
+                }
+                if is_last {
+                    on_miss(position)?;
                 }
             }
         }

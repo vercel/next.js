@@ -4,7 +4,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, ValueDefault, Vc, fxindexset};
+use turbo_tasks::{FxIndexMap, ResolvedVc, ValueDefault, Vc};
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath, FileSystemPathOption};
 use turbopack_core::{
     asset::Asset,
@@ -112,7 +112,7 @@ pub async fn read_tsconfigs(
 }
 
 /// Resolves tsconfig files according to TS's implementation:
-/// https://github.com/microsoft/TypeScript/blob/611a912d/src/compiler/commandLineParser.ts#L3294-L3326
+/// <https://github.com/microsoft/TypeScript/blob/611a912d/src/compiler/commandLineParser.ts#L3294-L3326>
 #[tracing::instrument(skip_all)]
 async fn resolve_extends(
     tsconfig: Vc<Box<dyn Source>>,
@@ -368,7 +368,7 @@ pub async fn apply_tsconfig_resolve_options(
             ResolveModules::Path {
                 dir: base_url.clone(),
                 // tsconfig basepath doesn't apply to json requests
-                excluded_extensions: ResolvedVc::cell(fxindexset![rcstr!(".json")]),
+                excluded_extensions: ResolvedVc::cell(std::iter::once(rcstr!(".json")).collect()),
             },
         );
     }

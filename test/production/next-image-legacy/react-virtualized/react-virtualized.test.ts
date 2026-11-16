@@ -10,7 +10,7 @@ describe('react-virtualized wrapping next/legacy/image', () => {
     files: __dirname,
     skipStart: true,
     dependencies: {
-      'react-virtualized': 'latest',
+      'react-virtualized': '9.22.6',
       'http-proxy': '1.18.1',
     },
   })

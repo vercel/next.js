@@ -1,4 +1,4 @@
-import { isReact18, nextTestSetup } from 'e2e-utils'
+import { isReact18, nextTestSetup, isNextDeploy } from 'e2e-utils'
 import {
   waitForRedbox,
   waitForNoRedbox,
@@ -9,7 +9,7 @@ import {
 const isRspack = process.env.NEXT_RSPACK !== undefined
 
 describe('react-dom/server in React Server environment', () => {
-  const dependencies = (global as any).isNextDeploy
+  const dependencies = isNextDeploy
     ? // `link` is incompatible with the npm version used when this test is deployed
       {
         'internal-pkg': 'file:./internal-pkg',

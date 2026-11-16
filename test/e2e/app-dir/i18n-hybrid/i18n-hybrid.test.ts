@@ -1,7 +1,7 @@
 // @ts-check
 
 // @ts-ignore
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextDeploy } from 'e2e-utils'
 import cheerio from 'cheerio'
 import { retry } from 'next-test-utils'
 
@@ -9,7 +9,7 @@ const { i18n } = require('./next.config')
 
 const urls = [
   // Include the app page without a locale.
-  ...(global.isNextDeploy
+  ...(isNextDeploy
     ? []
     : [
         // TODO: enable for deploy mode when behavior is corrected

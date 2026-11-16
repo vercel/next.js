@@ -76,7 +76,7 @@ import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import type { Params } from '../server/request/params'
 import { Bundler } from '../lib/bundler'
-import { getBuildDistDir } from './utils'
+import { getBuildDistDir, getExportPathPageKey } from './utils'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
@@ -147,7 +147,7 @@ function buildRDCCacheByPage(
 
     // Normalize app pages before param matching.
     const normalizedPage = normalizeAppPath(page)
-    const pageKey = page !== path ? `${page}: ${path}` : path
+    const pageKey = getExportPathPageKey({ page, path })
     const fallbackParamNames = new Set(
       _fallbackRouteParams.map((param) => param.paramName)
     )
@@ -532,6 +532,8 @@ async function exportAppImpl(
         nextConfig.experimental.disableResumeDataCacheCompression ?? false,
       exposeTestingApi:
         nextConfig.experimental.exposeTestingApiInProductionBuild === true,
+      externalBrowserRuntime:
+        nextConfig.experimental.externalBrowserRuntime === true,
     },
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
   }
@@ -723,8 +725,22 @@ async function exportAppImpl(
 
     return (
       await Promise.all(
-        batches.map(async (batch) =>
-          worker.exportPages({
+        batches.map(async (batch) => {
+          // Only send the seeds this batch needs. Sending the whole map to
+          // every worker can exceed the maximum IPC message size.
+          let batchRenderResumeDataCaches: Record<string, string> | undefined
+          if (renderResumeDataCachesByPage) {
+            batchRenderResumeDataCaches = {}
+            for (const exportPath of batch) {
+              const pageKey = getExportPathPageKey(exportPath)
+              if (Object.hasOwn(renderResumeDataCachesByPage, pageKey)) {
+                batchRenderResumeDataCaches[pageKey] =
+                  renderResumeDataCachesByPage[pageKey]
+              }
+            }
+          }
+
+          return worker.exportPages({
             buildId,
             deploymentId: nextConfig.deploymentId,
             clientAssetToken: nextConfig.supportsImmutableAssets
@@ -745,9 +761,9 @@ async function exportAppImpl(
             cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
             fetchCache: true,
             fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
-            renderResumeDataCachesByPage,
+            renderResumeDataCachesByPage: batchRenderResumeDataCaches,
           })
-        )
+        })
       )
     ).flat()
   }

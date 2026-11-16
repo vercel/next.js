@@ -1,0 +1,17 @@
+error - [analysis] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/require-context-outside-root/input/index.js:7:5  TP1007 require.context(
+  
+       3 | // snapshot.
+       4 | 
+       5 | it('should report an issue for a context directory outside of the root', () => {
+       6 |   expect(() =>
+         |     v---------------
+       7 +     require.context(
+       8 +       '../../../../../../../../../../../../../../../../../../../../outside'
+       9 +     )
+         +-----^
+      10 |   ).toThrow()
+      11 | })
+      12 | 
+  
+  "../../../../../../../../../../../../../../../../../../../../outside"
+  ) can't be resolved: FileSystemPath("turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/require-context-outside-root/input").join("../../../../../../../../../../../../../../../../../../../../outside") leaves the filesystem root

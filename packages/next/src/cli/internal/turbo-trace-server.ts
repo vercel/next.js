@@ -86,12 +86,18 @@ function summarizeMemorySamples(span: TraceSpanInfo): string | null {
   if (!summary) return null
   const delta = summary.end - summary.start
   const deltaSign = delta >= 0 ? '+' : '-'
-  const workers = span.memorySamples.map((s) => s[3])
+  const workers = span.memorySamples.map((s) => s[4])
+  // Footprint is 0 when the platform does not report it.
+  const footprintSummary =
+    summary.maxFootprint > 0
+      ? `, maxFootprint=${formatBytes(summary.maxFootprint)}`
+      : ''
   return (
     `samples=${summary.count}, peak=${formatBytes(summary.peak)}, min=${formatBytes(summary.min)}, ` +
     `start=${formatBytes(summary.start)}, end=${formatBytes(summary.end)}, ` +
-    `Δ=${deltaSign}${formatBytes(Math.abs(delta))}, maxPressure=${summary.maxPressure}, ` +
-    `activeWorkerThreads=${Math.min(...workers)}–${Math.max(...workers)}`
+    `Δ=${deltaSign}${formatBytes(Math.abs(delta))}, maxPressure=${summary.maxPressure}` +
+    footprintSummary +
+    `, activeWorkerThreads=${Math.min(...workers)}–${Math.max(...workers)}`
   )
 }
 
@@ -151,7 +157,7 @@ function renderSpanMarkdown(
 
   const memSummary = summarizeMemorySamples(span)
   if (memSummary) {
-    md += `\n**Process samples (TurboMalloc live bytes, memory pressure, active Tokio workers):** ${memSummary}\n`
+    md += `\n**Process samples (TurboMalloc live bytes, memory pressure, memory footprint, active Tokio workers):** ${memSummary}\n`
   }
 
   if (span.children.length > 0) {
@@ -218,7 +224,7 @@ export async function startTurboTraceServerCli(
         '',
         'Allocations: `allocations` / `deallocations` / `allocationCount` and `persistentAllocations`, each with a `self*` counterpart excluding children. Comparing a total to its `self` shows whether a span allocates directly or only through descendants.',
         '',
-        '`persistentAllocations` ranks allocators; it is NOT retained memory. It is allocated-minus-freed per TurboMalloc counters, which never see turbo-tasks cell or cache drops, so a total far above real peak RSS is expected rather than a leak. For absolute memory use `memorySummary` (count/start/end/min/peak/maxPressure, precomputed from `memorySamples`).',
+        '`persistentAllocations` ranks allocators; it is NOT retained memory. It is allocated-minus-freed per TurboMalloc counters, which never see turbo-tasks cell or cache drops, so a total far above real peak RSS is expected rather than a leak. For absolute memory use `memorySummary` (count/start/end/min/peak/maxPressure/maxFootprint, precomputed from `memorySamples`; maxFootprint is the process RSS peak, 0 = not reported).',
         '',
         "But live heap is process-wide: a span's samples are just the global series sliced to its time range, so concurrent spans report identical memory however much each allocated. Rank concurrent work by the allocation fields, never by memory.",
         '',
@@ -226,7 +232,7 @@ export async function startTurboTraceServerCli(
         '',
         'For aggregated groups every allocation field is a group total, while `cpuDuration`, `correctedDuration` and `memorySamples` describe the example span only. `firstSpanId` is first in execution order; use `heaviestSpanId` to reach the member holding the most bytes.',
         '',
-        'Set `outputType: "json"` for full precision and the raw `memorySamples` entries `[tsOffsetTicks, bytes, pressure, active_worker_threads]` (active_worker_threads excludes parked and blocking-pool threads); markdown is a human summary.',
+        'Set `outputType: "json"` for full precision and the raw `memorySamples` entries `[tsOffsetTicks, bytes, pressure, footprint, active_worker_threads]` (footprint is the process RSS in bytes, 0 = not reported; active_worker_threads excludes parked and blocking-pool threads); markdown is a human summary.',
       ].join('\n'),
       inputSchema: {
         parent: z

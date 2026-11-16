@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
 import path from 'path'
 
@@ -6,10 +6,10 @@ import path from 'path'
 // It likely mutates files in the isolated local fixture after setup.
 // @force-gate !deploy
 describe('multi-zone', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: path.join(__dirname, 'app'),
     buildCommand: 'pnpm build',
-    startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+    startCommand: isNextDev ? 'pnpm dev' : 'pnpm start',
     serverReadyPattern: /Next mode: (production|development)/,
     packageJson: {
       scripts: {

@@ -10,6 +10,46 @@
                 ),
             ),
         ),
+        base_effects: [
+            FreeVar {
+                var: "module",
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            3,
+                        ),
+                    ),
+                    Stmt(
+                        Expr,
+                    ),
+                    ExprStmt(
+                        Expr,
+                    ),
+                    Expr(
+                        Assign,
+                    ),
+                    AssignExpr(
+                        Left,
+                    ),
+                    AssignTarget(
+                        Simple,
+                    ),
+                    SimpleAssignTarget(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Ident,
+                    ),
+                ],
+                span: 1622..1628,
+            },
+        ],
         ast_path: [
             Program(
                 Script,
@@ -40,44 +80,6 @@
         ],
         span: 1622..1636,
         in_truthiness_context: false,
-    },
-    FreeVar {
-        var: "module",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    3,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Left,
-            ),
-            AssignTarget(
-                Simple,
-            ),
-            SimpleAssignTarget(
-                Member,
-            ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 1622..1628,
     },
     FreeVar {
         var: "md5",
@@ -120,6 +122,7 @@
             reason: "unsupported expression",
             has_side_effects: true,
         },
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -192,6 +195,7 @@
                 ),
             ],
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -254,6 +258,7 @@
                 ),
             ),
         ),
+        base_effects: [],
         ast_path: [
             Program(
                 Script,
@@ -299,89 +304,6 @@
         span: 380..388,
         in_truthiness_context: false,
     },
-    Member {
-        obj: Variable(
-            (
-                "x",
-                #3,
-            ),
-        ),
-        prop: Variable(
-            (
-                "i",
-                #3,
-            ),
-        ),
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    0,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    11,
-                ),
-            ),
-            Stmt(
-                For,
-            ),
-            ForStmt(
-                Body,
-            ),
-            Stmt(
-                Block,
-            ),
-            BlockStmt(
-                Stmts(
-                    4,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Right,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    4,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: 484..488,
-        in_truthiness_context: false,
-    },
     Call {
         func: Variable(
             (
@@ -397,6 +319,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -405,6 +328,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -413,6 +337,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -421,6 +346,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Member(
@@ -438,6 +364,92 @@
                         ),
                     ),
                 ),
+                [
+                    Member {
+                        obj: Variable(
+                            (
+                                "x",
+                                #3,
+                            ),
+                        ),
+                        prop: Variable(
+                            (
+                                "i",
+                                #3,
+                            ),
+                        ),
+                        base_effects: [],
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    11,
+                                ),
+                            ),
+                            Stmt(
+                                For,
+                            ),
+                            ForStmt(
+                                Body,
+                            ),
+                            Stmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    4,
+                                ),
+                            ),
+                            Stmt(
+                                Expr,
+                            ),
+                            ExprStmt(
+                                Expr,
+                            ),
+                            Expr(
+                                Assign,
+                            ),
+                            AssignExpr(
+                                Right,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    4,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                        ],
+                        span: 484..488,
+                        in_truthiness_context: false,
+                    },
+                ],
             ),
             Value(
                 Constant(
@@ -447,6 +459,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -456,6 +469,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -518,101 +532,6 @@
         in_try: false,
         new: false,
     },
-    Member {
-        obj: Variable(
-            (
-                "x",
-                #3,
-            ),
-        ),
-        prop: Add(
-            3,
-            [
-                Variable(
-                    (
-                        "i",
-                        #3,
-                    ),
-                ),
-                Constant(
-                    Num(
-                        ConstantNumber(
-                            1.0,
-                        ),
-                    ),
-                ),
-            ],
-        ),
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    0,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    11,
-                ),
-            ),
-            Stmt(
-                For,
-            ),
-            ForStmt(
-                Body,
-            ),
-            Stmt(
-                Block,
-            ),
-            BlockStmt(
-                Stmts(
-                    5,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Right,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    4,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: 532..540,
-        in_truthiness_context: false,
-    },
     Call {
         func: Variable(
             (
@@ -628,6 +547,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -636,6 +556,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -644,6 +565,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -652,6 +574,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Member(
@@ -681,6 +604,104 @@
                         ],
                     ),
                 ),
+                [
+                    Member {
+                        obj: Variable(
+                            (
+                                "x",
+                                #3,
+                            ),
+                        ),
+                        prop: Add(
+                            3,
+                            [
+                                Variable(
+                                    (
+                                        "i",
+                                        #3,
+                                    ),
+                                ),
+                                Constant(
+                                    Num(
+                                        ConstantNumber(
+                                            1.0,
+                                        ),
+                                    ),
+                                ),
+                            ],
+                        ),
+                        base_effects: [],
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    11,
+                                ),
+                            ),
+                            Stmt(
+                                For,
+                            ),
+                            ForStmt(
+                                Body,
+                            ),
+                            Stmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    5,
+                                ),
+                            ),
+                            Stmt(
+                                Expr,
+                            ),
+                            ExprStmt(
+                                Expr,
+                            ),
+                            Expr(
+                                Assign,
+                            ),
+                            AssignExpr(
+                                Right,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    4,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                        ],
+                        span: 532..540,
+                        in_truthiness_context: false,
+                    },
+                ],
             ),
             Value(
                 Constant(
@@ -690,6 +711,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -699,6 +721,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -761,101 +784,6 @@
         in_try: false,
         new: false,
     },
-    Member {
-        obj: Variable(
-            (
-                "x",
-                #3,
-            ),
-        ),
-        prop: Add(
-            3,
-            [
-                Variable(
-                    (
-                        "i",
-                        #3,
-                    ),
-                ),
-                Constant(
-                    Num(
-                        ConstantNumber(
-                            2.0,
-                        ),
-                    ),
-                ),
-            ],
-        ),
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    0,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    11,
-                ),
-            ),
-            Stmt(
-                For,
-            ),
-            ForStmt(
-                Body,
-            ),
-            Stmt(
-                Block,
-            ),
-            BlockStmt(
-                Stmts(
-                    6,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Right,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    4,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: 585..593,
-        in_truthiness_context: false,
-    },
     Call {
         func: Variable(
             (
@@ -871,6 +799,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -879,6 +808,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -887,6 +817,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -895,6 +826,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Member(
@@ -924,6 +856,104 @@
                         ],
                     ),
                 ),
+                [
+                    Member {
+                        obj: Variable(
+                            (
+                                "x",
+                                #3,
+                            ),
+                        ),
+                        prop: Add(
+                            3,
+                            [
+                                Variable(
+                                    (
+                                        "i",
+                                        #3,
+                                    ),
+                                ),
+                                Constant(
+                                    Num(
+                                        ConstantNumber(
+                                            2.0,
+                                        ),
+                                    ),
+                                ),
+                            ],
+                        ),
+                        base_effects: [],
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    11,
+                                ),
+                            ),
+                            Stmt(
+                                For,
+                            ),
+                            ForStmt(
+                                Body,
+                            ),
+                            Stmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    6,
+                                ),
+                            ),
+                            Stmt(
+                                Expr,
+                            ),
+                            ExprStmt(
+                                Expr,
+                            ),
+                            Expr(
+                                Assign,
+                            ),
+                            AssignExpr(
+                                Right,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    4,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                        ],
+                        span: 585..593,
+                        in_truthiness_context: false,
+                    },
+                ],
             ),
             Value(
                 Constant(
@@ -933,6 +963,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -942,6 +973,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -1004,101 +1036,6 @@
         in_try: false,
         new: false,
     },
-    Member {
-        obj: Variable(
-            (
-                "x",
-                #3,
-            ),
-        ),
-        prop: Add(
-            3,
-            [
-                Variable(
-                    (
-                        "i",
-                        #3,
-                    ),
-                ),
-                Constant(
-                    Num(
-                        ConstantNumber(
-                            3.0,
-                        ),
-                    ),
-                ),
-            ],
-        ),
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    0,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    11,
-                ),
-            ),
-            Stmt(
-                For,
-            ),
-            ForStmt(
-                Body,
-            ),
-            Stmt(
-                Block,
-            ),
-            BlockStmt(
-                Stmts(
-                    7,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Right,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    4,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: 637..645,
-        in_truthiness_context: false,
-    },
     Call {
         func: Variable(
             (
@@ -1114,6 +1051,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -1122,6 +1060,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -1130,6 +1069,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -1138,6 +1078,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Member(
@@ -1167,6 +1108,104 @@
                         ],
                     ),
                 ),
+                [
+                    Member {
+                        obj: Variable(
+                            (
+                                "x",
+                                #3,
+                            ),
+                        ),
+                        prop: Add(
+                            3,
+                            [
+                                Variable(
+                                    (
+                                        "i",
+                                        #3,
+                                    ),
+                                ),
+                                Constant(
+                                    Num(
+                                        ConstantNumber(
+                                            3.0,
+                                        ),
+                                    ),
+                                ),
+                            ],
+                        ),
+                        base_effects: [],
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    11,
+                                ),
+                            ),
+                            Stmt(
+                                For,
+                            ),
+                            ForStmt(
+                                Body,
+                            ),
+                            Stmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    7,
+                                ),
+                            ),
+                            Stmt(
+                                Expr,
+                            ),
+                            ExprStmt(
+                                Expr,
+                            ),
+                            Expr(
+                                Assign,
+                            ),
+                            AssignExpr(
+                                Right,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    4,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                        ],
+                        span: 637..645,
+                        in_truthiness_context: false,
+                    },
+                ],
             ),
             Value(
                 Constant(
@@ -1176,6 +1215,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -1185,6 +1225,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -1247,101 +1288,6 @@
         in_try: false,
         new: false,
     },
-    Member {
-        obj: Variable(
-            (
-                "x",
-                #3,
-            ),
-        ),
-        prop: Add(
-            3,
-            [
-                Variable(
-                    (
-                        "i",
-                        #3,
-                    ),
-                ),
-                Constant(
-                    Num(
-                        ConstantNumber(
-                            4.0,
-                        ),
-                    ),
-                ),
-            ],
-        ),
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    0,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    11,
-                ),
-            ),
-            Stmt(
-                For,
-            ),
-            ForStmt(
-                Body,
-            ),
-            Stmt(
-                Block,
-            ),
-            BlockStmt(
-                Stmts(
-                    8,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Right,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    4,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: 691..699,
-        in_truthiness_context: false,
-    },
     Call {
         func: Variable(
             (
@@ -1357,6 +1303,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -1365,6 +1312,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -1373,6 +1321,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -1381,6 +1330,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Member(
@@ -1410,6 +1360,104 @@
                         ],
                     ),
                 ),
+                [
+                    Member {
+                        obj: Variable(
+                            (
+                                "x",
+                                #3,
+                            ),
+                        ),
+                        prop: Add(
+                            3,
+                            [
+                                Variable(
+                                    (
+                                        "i",
+                                        #3,
+                                    ),
+                                ),
+                                Constant(
+                                    Num(
+                                        ConstantNumber(
+                                            4.0,
+                                        ),
+                                    ),
+                                ),
+                            ],
+                        ),
+                        base_effects: [],
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    11,
+                                ),
+                            ),
+                            Stmt(
+                                For,
+                            ),
+                            ForStmt(
+                                Body,
+                            ),
+                            Stmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    8,
+                                ),
+                            ),
+                            Stmt(
+                                Expr,
+                            ),
+                            ExprStmt(
+                                Expr,
+                            ),
+                            Expr(
+                                Assign,
+                            ),
+                            AssignExpr(
+                                Right,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    4,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                        ],
+                        span: 691..699,
+                        in_truthiness_context: false,
+                    },
+                ],
             ),
             Value(
                 Constant(
@@ -1419,6 +1467,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -1428,6 +1477,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -1490,101 +1540,6 @@
         in_try: false,
         new: false,
     },
-    Member {
-        obj: Variable(
-            (
-                "x",
-                #3,
-            ),
-        ),
-        prop: Add(
-            3,
-            [
-                Variable(
-                    (
-                        "i",
-                        #3,
-                    ),
-                ),
-                Constant(
-                    Num(
-                        ConstantNumber(
-                            5.0,
-                        ),
-                    ),
-                ),
-            ],
-        ),
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    0,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    11,
-                ),
-            ),
-            Stmt(
-                For,
-            ),
-            ForStmt(
-                Body,
-            ),
-            Stmt(
-                Block,
-            ),
-            BlockStmt(
-                Stmts(
-                    9,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Right,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    4,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: 743..751,
-        in_truthiness_context: false,
-    },
     Call {
         func: Variable(
             (
@@ -1600,6 +1555,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -1608,6 +1564,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -1616,6 +1573,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -1624,6 +1582,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Member(
@@ -1653,6 +1612,104 @@
                         ],
                     ),
                 ),
+                [
+                    Member {
+                        obj: Variable(
+                            (
+                                "x",
+                                #3,
+                            ),
+                        ),
+                        prop: Add(
+                            3,
+                            [
+                                Variable(
+                                    (
+                                        "i",
+                                        #3,
+                                    ),
+                                ),
+                                Constant(
+                                    Num(
+                                        ConstantNumber(
+                                            5.0,
+                                        ),
+                                    ),
+                                ),
+                            ],
+                        ),
+                        base_effects: [],
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    11,
+                                ),
+                            ),
+                            Stmt(
+                                For,
+                            ),
+                            ForStmt(
+                                Body,
+                            ),
+                            Stmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    9,
+                                ),
+                            ),
+                            Stmt(
+                                Expr,
+                            ),
+                            ExprStmt(
+                                Expr,
+                            ),
+                            Expr(
+                                Assign,
+                            ),
+                            AssignExpr(
+                                Right,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    4,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                        ],
+                        span: 743..751,
+                        in_truthiness_context: false,
+                    },
+                ],
             ),
             Value(
                 Constant(
@@ -1662,6 +1719,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -1671,6 +1729,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -1733,101 +1792,6 @@
         in_try: false,
         new: false,
     },
-    Member {
-        obj: Variable(
-            (
-                "x",
-                #3,
-            ),
-        ),
-        prop: Add(
-            3,
-            [
-                Variable(
-                    (
-                        "i",
-                        #3,
-                    ),
-                ),
-                Constant(
-                    Num(
-                        ConstantNumber(
-                            6.0,
-                        ),
-                    ),
-                ),
-            ],
-        ),
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    0,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    11,
-                ),
-            ),
-            Stmt(
-                For,
-            ),
-            ForStmt(
-                Body,
-            ),
-            Stmt(
-                Block,
-            ),
-            BlockStmt(
-                Stmts(
-                    10,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Right,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    4,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: 796..804,
-        in_truthiness_context: false,
-    },
     Call {
         func: Variable(
             (
@@ -1843,6 +1807,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -1851,6 +1816,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -1859,6 +1825,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -1867,6 +1834,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Member(
@@ -1896,6 +1864,104 @@
                         ],
                     ),
                 ),
+                [
+                    Member {
+                        obj: Variable(
+                            (
+                                "x",
+                                #3,
+                            ),
+                        ),
+                        prop: Add(
+                            3,
+                            [
+                                Variable(
+                                    (
+                                        "i",
+                                        #3,
+                                    ),
+                                ),
+                                Constant(
+                                    Num(
+                                        ConstantNumber(
+                                            6.0,
+                                        ),
+                                    ),
+                                ),
+                            ],
+                        ),
+                        base_effects: [],
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    11,
+                                ),
+                            ),
+                            Stmt(
+                                For,
+                            ),
+                            ForStmt(
+                                Body,
+                            ),
+                            Stmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    10,
+                                ),
+                            ),
+                            Stmt(
+                                Expr,
+                            ),
+                            ExprStmt(
+                                Expr,
+                            ),
+                            Expr(
+                                Assign,
+                            ),
+                            AssignExpr(
+                                Right,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    4,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                        ],
+                        span: 796..804,
+                        in_truthiness_context: false,
+                    },
+                ],
             ),
             Value(
                 Constant(
@@ -1905,6 +1971,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -1914,6 +1981,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -1976,101 +2044,6 @@
         in_try: false,
         new: false,
     },
-    Member {
-        obj: Variable(
-            (
-                "x",
-                #3,
-            ),
-        ),
-        prop: Add(
-            3,
-            [
-                Variable(
-                    (
-                        "i",
-                        #3,
-                    ),
-                ),
-                Constant(
-                    Num(
-                        ConstantNumber(
-                            7.0,
-                        ),
-                    ),
-                ),
-            ],
-        ),
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    0,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    11,
-                ),
-            ),
-            Stmt(
-                For,
-            ),
-            ForStmt(
-                Body,
-            ),
-            Stmt(
-                Block,
-            ),
-            BlockStmt(
-                Stmts(
-                    11,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Right,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    4,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: 850..858,
-        in_truthiness_context: false,
-    },
     Call {
         func: Variable(
             (
@@ -2086,6 +2059,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -2094,6 +2068,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -2102,6 +2077,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -2110,6 +2086,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Member(
@@ -2139,6 +2116,104 @@
                         ],
                     ),
                 ),
+                [
+                    Member {
+                        obj: Variable(
+                            (
+                                "x",
+                                #3,
+                            ),
+                        ),
+                        prop: Add(
+                            3,
+                            [
+                                Variable(
+                                    (
+                                        "i",
+                                        #3,
+                                    ),
+                                ),
+                                Constant(
+                                    Num(
+                                        ConstantNumber(
+                                            7.0,
+                                        ),
+                                    ),
+                                ),
+                            ],
+                        ),
+                        base_effects: [],
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    11,
+                                ),
+                            ),
+                            Stmt(
+                                For,
+                            ),
+                            ForStmt(
+                                Body,
+                            ),
+                            Stmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    11,
+                                ),
+                            ),
+                            Stmt(
+                                Expr,
+                            ),
+                            ExprStmt(
+                                Expr,
+                            ),
+                            Expr(
+                                Assign,
+                            ),
+                            AssignExpr(
+                                Right,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    4,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                        ],
+                        span: 850..858,
+                        in_truthiness_context: false,
+                    },
+                ],
             ),
             Value(
                 Constant(
@@ -2148,6 +2223,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -2157,6 +2233,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -2219,101 +2296,6 @@
         in_try: false,
         new: false,
     },
-    Member {
-        obj: Variable(
-            (
-                "x",
-                #3,
-            ),
-        ),
-        prop: Add(
-            3,
-            [
-                Variable(
-                    (
-                        "i",
-                        #3,
-                    ),
-                ),
-                Constant(
-                    Num(
-                        ConstantNumber(
-                            8.0,
-                        ),
-                    ),
-                ),
-            ],
-        ),
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    0,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    11,
-                ),
-            ),
-            Stmt(
-                For,
-            ),
-            ForStmt(
-                Body,
-            ),
-            Stmt(
-                Block,
-            ),
-            BlockStmt(
-                Stmts(
-                    12,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Right,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    4,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: 902..910,
-        in_truthiness_context: false,
-    },
     Call {
         func: Variable(
             (
@@ -2329,6 +2311,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -2337,6 +2320,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -2345,6 +2329,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -2353,6 +2338,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Member(
@@ -2382,6 +2368,104 @@
                         ],
                     ),
                 ),
+                [
+                    Member {
+                        obj: Variable(
+                            (
+                                "x",
+                                #3,
+                            ),
+                        ),
+                        prop: Add(
+                            3,
+                            [
+                                Variable(
+                                    (
+                                        "i",
+                                        #3,
+                                    ),
+                                ),
+                                Constant(
+                                    Num(
+                                        ConstantNumber(
+                                            8.0,
+                                        ),
+                                    ),
+                                ),
+                            ],
+                        ),
+                        base_effects: [],
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    11,
+                                ),
+                            ),
+                            Stmt(
+                                For,
+                            ),
+                            ForStmt(
+                                Body,
+                            ),
+                            Stmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    12,
+                                ),
+                            ),
+                            Stmt(
+                                Expr,
+                            ),
+                            ExprStmt(
+                                Expr,
+                            ),
+                            Expr(
+                                Assign,
+                            ),
+                            AssignExpr(
+                                Right,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    4,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                        ],
+                        span: 902..910,
+                        in_truthiness_context: false,
+                    },
+                ],
             ),
             Value(
                 Constant(
@@ -2391,6 +2475,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -2400,6 +2485,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -2462,101 +2548,6 @@
         in_try: false,
         new: false,
     },
-    Member {
-        obj: Variable(
-            (
-                "x",
-                #3,
-            ),
-        ),
-        prop: Add(
-            3,
-            [
-                Variable(
-                    (
-                        "i",
-                        #3,
-                    ),
-                ),
-                Constant(
-                    Num(
-                        ConstantNumber(
-                            9.0,
-                        ),
-                    ),
-                ),
-            ],
-        ),
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    0,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    11,
-                ),
-            ),
-            Stmt(
-                For,
-            ),
-            ForStmt(
-                Body,
-            ),
-            Stmt(
-                Block,
-            ),
-            BlockStmt(
-                Stmts(
-                    13,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Right,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    4,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: 954..962,
-        in_truthiness_context: false,
-    },
     Call {
         func: Variable(
             (
@@ -2572,6 +2563,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -2580,6 +2572,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -2588,6 +2581,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -2596,6 +2590,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Member(
@@ -2625,6 +2620,104 @@
                         ],
                     ),
                 ),
+                [
+                    Member {
+                        obj: Variable(
+                            (
+                                "x",
+                                #3,
+                            ),
+                        ),
+                        prop: Add(
+                            3,
+                            [
+                                Variable(
+                                    (
+                                        "i",
+                                        #3,
+                                    ),
+                                ),
+                                Constant(
+                                    Num(
+                                        ConstantNumber(
+                                            9.0,
+                                        ),
+                                    ),
+                                ),
+                            ],
+                        ),
+                        base_effects: [],
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    11,
+                                ),
+                            ),
+                            Stmt(
+                                For,
+                            ),
+                            ForStmt(
+                                Body,
+                            ),
+                            Stmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    13,
+                                ),
+                            ),
+                            Stmt(
+                                Expr,
+                            ),
+                            ExprStmt(
+                                Expr,
+                            ),
+                            Expr(
+                                Assign,
+                            ),
+                            AssignExpr(
+                                Right,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    4,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                        ],
+                        span: 954..962,
+                        in_truthiness_context: false,
+                    },
+                ],
             ),
             Value(
                 Constant(
@@ -2634,6 +2727,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -2643,6 +2737,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -2705,101 +2800,6 @@
         in_try: false,
         new: false,
     },
-    Member {
-        obj: Variable(
-            (
-                "x",
-                #3,
-            ),
-        ),
-        prop: Add(
-            3,
-            [
-                Variable(
-                    (
-                        "i",
-                        #3,
-                    ),
-                ),
-                Constant(
-                    Num(
-                        ConstantNumber(
-                            10.0,
-                        ),
-                    ),
-                ),
-            ],
-        ),
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    0,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    11,
-                ),
-            ),
-            Stmt(
-                For,
-            ),
-            ForStmt(
-                Body,
-            ),
-            Stmt(
-                Block,
-            ),
-            BlockStmt(
-                Stmts(
-                    14,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Right,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    4,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: 1008..1017,
-        in_truthiness_context: false,
-    },
     Call {
         func: Variable(
             (
@@ -2815,6 +2815,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -2823,6 +2824,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -2831,6 +2833,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -2839,6 +2842,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Member(
@@ -2868,6 +2872,104 @@
                         ],
                     ),
                 ),
+                [
+                    Member {
+                        obj: Variable(
+                            (
+                                "x",
+                                #3,
+                            ),
+                        ),
+                        prop: Add(
+                            3,
+                            [
+                                Variable(
+                                    (
+                                        "i",
+                                        #3,
+                                    ),
+                                ),
+                                Constant(
+                                    Num(
+                                        ConstantNumber(
+                                            10.0,
+                                        ),
+                                    ),
+                                ),
+                            ],
+                        ),
+                        base_effects: [],
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    11,
+                                ),
+                            ),
+                            Stmt(
+                                For,
+                            ),
+                            ForStmt(
+                                Body,
+                            ),
+                            Stmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    14,
+                                ),
+                            ),
+                            Stmt(
+                                Expr,
+                            ),
+                            ExprStmt(
+                                Expr,
+                            ),
+                            Expr(
+                                Assign,
+                            ),
+                            AssignExpr(
+                                Right,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    4,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                        ],
+                        span: 1008..1017,
+                        in_truthiness_context: false,
+                    },
+                ],
             ),
             Value(
                 Constant(
@@ -2877,6 +2979,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -2886,6 +2989,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -2948,101 +3052,6 @@
         in_try: false,
         new: false,
     },
-    Member {
-        obj: Variable(
-            (
-                "x",
-                #3,
-            ),
-        ),
-        prop: Add(
-            3,
-            [
-                Variable(
-                    (
-                        "i",
-                        #3,
-                    ),
-                ),
-                Constant(
-                    Num(
-                        ConstantNumber(
-                            11.0,
-                        ),
-                    ),
-                ),
-            ],
-        ),
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    0,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    11,
-                ),
-            ),
-            Stmt(
-                For,
-            ),
-            ForStmt(
-                Body,
-            ),
-            Stmt(
-                Block,
-            ),
-            BlockStmt(
-                Stmts(
-                    15,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Right,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    4,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: 1058..1067,
-        in_truthiness_context: false,
-    },
     Call {
         func: Variable(
             (
@@ -3058,6 +3067,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -3066,6 +3076,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -3074,6 +3085,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -3082,6 +3094,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Member(
@@ -3111,6 +3124,104 @@
                         ],
                     ),
                 ),
+                [
+                    Member {
+                        obj: Variable(
+                            (
+                                "x",
+                                #3,
+                            ),
+                        ),
+                        prop: Add(
+                            3,
+                            [
+                                Variable(
+                                    (
+                                        "i",
+                                        #3,
+                                    ),
+                                ),
+                                Constant(
+                                    Num(
+                                        ConstantNumber(
+                                            11.0,
+                                        ),
+                                    ),
+                                ),
+                            ],
+                        ),
+                        base_effects: [],
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    11,
+                                ),
+                            ),
+                            Stmt(
+                                For,
+                            ),
+                            ForStmt(
+                                Body,
+                            ),
+                            Stmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    15,
+                                ),
+                            ),
+                            Stmt(
+                                Expr,
+                            ),
+                            ExprStmt(
+                                Expr,
+                            ),
+                            Expr(
+                                Assign,
+                            ),
+                            AssignExpr(
+                                Right,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    4,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                        ],
+                        span: 1058..1067,
+                        in_truthiness_context: false,
+                    },
+                ],
             ),
             Value(
                 Constant(
@@ -3120,6 +3231,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -3129,6 +3241,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -3191,101 +3304,6 @@
         in_try: false,
         new: false,
     },
-    Member {
-        obj: Variable(
-            (
-                "x",
-                #3,
-            ),
-        ),
-        prop: Add(
-            3,
-            [
-                Variable(
-                    (
-                        "i",
-                        #3,
-                    ),
-                ),
-                Constant(
-                    Num(
-                        ConstantNumber(
-                            12.0,
-                        ),
-                    ),
-                ),
-            ],
-        ),
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    0,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    11,
-                ),
-            ),
-            Stmt(
-                For,
-            ),
-            ForStmt(
-                Body,
-            ),
-            Stmt(
-                Block,
-            ),
-            BlockStmt(
-                Stmts(
-                    16,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Right,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    4,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: 1113..1122,
-        in_truthiness_context: false,
-    },
     Call {
         func: Variable(
             (
@@ -3301,6 +3319,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -3309,6 +3328,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -3317,6 +3337,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -3325,6 +3346,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Member(
@@ -3354,6 +3376,104 @@
                         ],
                     ),
                 ),
+                [
+                    Member {
+                        obj: Variable(
+                            (
+                                "x",
+                                #3,
+                            ),
+                        ),
+                        prop: Add(
+                            3,
+                            [
+                                Variable(
+                                    (
+                                        "i",
+                                        #3,
+                                    ),
+                                ),
+                                Constant(
+                                    Num(
+                                        ConstantNumber(
+                                            12.0,
+                                        ),
+                                    ),
+                                ),
+                            ],
+                        ),
+                        base_effects: [],
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    11,
+                                ),
+                            ),
+                            Stmt(
+                                For,
+                            ),
+                            ForStmt(
+                                Body,
+                            ),
+                            Stmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    16,
+                                ),
+                            ),
+                            Stmt(
+                                Expr,
+                            ),
+                            ExprStmt(
+                                Expr,
+                            ),
+                            Expr(
+                                Assign,
+                            ),
+                            AssignExpr(
+                                Right,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    4,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                        ],
+                        span: 1113..1122,
+                        in_truthiness_context: false,
+                    },
+                ],
             ),
             Value(
                 Constant(
@@ -3363,6 +3483,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -3372,6 +3493,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -3434,101 +3556,6 @@
         in_try: false,
         new: false,
     },
-    Member {
-        obj: Variable(
-            (
-                "x",
-                #3,
-            ),
-        ),
-        prop: Add(
-            3,
-            [
-                Variable(
-                    (
-                        "i",
-                        #3,
-                    ),
-                ),
-                Constant(
-                    Num(
-                        ConstantNumber(
-                            13.0,
-                        ),
-                    ),
-                ),
-            ],
-        ),
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    0,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    11,
-                ),
-            ),
-            Stmt(
-                For,
-            ),
-            ForStmt(
-                Body,
-            ),
-            Stmt(
-                Block,
-            ),
-            BlockStmt(
-                Stmts(
-                    17,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Right,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    4,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: 1166..1175,
-        in_truthiness_context: false,
-    },
     Call {
         func: Variable(
             (
@@ -3544,6 +3571,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -3552,6 +3580,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -3560,6 +3589,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -3568,6 +3598,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Member(
@@ -3597,6 +3628,104 @@
                         ],
                     ),
                 ),
+                [
+                    Member {
+                        obj: Variable(
+                            (
+                                "x",
+                                #3,
+                            ),
+                        ),
+                        prop: Add(
+                            3,
+                            [
+                                Variable(
+                                    (
+                                        "i",
+                                        #3,
+                                    ),
+                                ),
+                                Constant(
+                                    Num(
+                                        ConstantNumber(
+                                            13.0,
+                                        ),
+                                    ),
+                                ),
+                            ],
+                        ),
+                        base_effects: [],
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    11,
+                                ),
+                            ),
+                            Stmt(
+                                For,
+                            ),
+                            ForStmt(
+                                Body,
+                            ),
+                            Stmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    17,
+                                ),
+                            ),
+                            Stmt(
+                                Expr,
+                            ),
+                            ExprStmt(
+                                Expr,
+                            ),
+                            Expr(
+                                Assign,
+                            ),
+                            AssignExpr(
+                                Right,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    4,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                        ],
+                        span: 1166..1175,
+                        in_truthiness_context: false,
+                    },
+                ],
             ),
             Value(
                 Constant(
@@ -3606,6 +3735,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -3615,6 +3745,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -3677,101 +3808,6 @@
         in_try: false,
         new: false,
     },
-    Member {
-        obj: Variable(
-            (
-                "x",
-                #3,
-            ),
-        ),
-        prop: Add(
-            3,
-            [
-                Variable(
-                    (
-                        "i",
-                        #3,
-                    ),
-                ),
-                Constant(
-                    Num(
-                        ConstantNumber(
-                            14.0,
-                        ),
-                    ),
-                ),
-            ],
-        ),
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    0,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    11,
-                ),
-            ),
-            Stmt(
-                For,
-            ),
-            ForStmt(
-                Body,
-            ),
-            Stmt(
-                Block,
-            ),
-            BlockStmt(
-                Stmts(
-                    18,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Right,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    4,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: 1219..1228,
-        in_truthiness_context: false,
-    },
     Call {
         func: Variable(
             (
@@ -3787,6 +3823,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -3795,6 +3832,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -3803,6 +3841,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -3811,6 +3850,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Member(
@@ -3840,6 +3880,104 @@
                         ],
                     ),
                 ),
+                [
+                    Member {
+                        obj: Variable(
+                            (
+                                "x",
+                                #3,
+                            ),
+                        ),
+                        prop: Add(
+                            3,
+                            [
+                                Variable(
+                                    (
+                                        "i",
+                                        #3,
+                                    ),
+                                ),
+                                Constant(
+                                    Num(
+                                        ConstantNumber(
+                                            14.0,
+                                        ),
+                                    ),
+                                ),
+                            ],
+                        ),
+                        base_effects: [],
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    11,
+                                ),
+                            ),
+                            Stmt(
+                                For,
+                            ),
+                            ForStmt(
+                                Body,
+                            ),
+                            Stmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    18,
+                                ),
+                            ),
+                            Stmt(
+                                Expr,
+                            ),
+                            ExprStmt(
+                                Expr,
+                            ),
+                            Expr(
+                                Assign,
+                            ),
+                            AssignExpr(
+                                Right,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    4,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                        ],
+                        span: 1219..1228,
+                        in_truthiness_context: false,
+                    },
+                ],
             ),
             Value(
                 Constant(
@@ -3849,6 +3987,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -3858,6 +3997,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -3920,101 +4060,6 @@
         in_try: false,
         new: false,
     },
-    Member {
-        obj: Variable(
-            (
-                "x",
-                #3,
-            ),
-        ),
-        prop: Add(
-            3,
-            [
-                Variable(
-                    (
-                        "i",
-                        #3,
-                    ),
-                ),
-                Constant(
-                    Num(
-                        ConstantNumber(
-                            15.0,
-                        ),
-                    ),
-                ),
-            ],
-        ),
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    0,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    11,
-                ),
-            ),
-            Stmt(
-                For,
-            ),
-            ForStmt(
-                Body,
-            ),
-            Stmt(
-                Block,
-            ),
-            BlockStmt(
-                Stmts(
-                    19,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Assign,
-            ),
-            AssignExpr(
-                Right,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    4,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: 1274..1283,
-        in_truthiness_context: false,
-    },
     Call {
         func: Variable(
             (
@@ -4030,6 +4075,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -4038,6 +4084,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -4046,6 +4093,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -4054,6 +4102,7 @@
                         #3,
                     ),
                 ),
+                [],
             ),
             Value(
                 Member(
@@ -4083,6 +4132,104 @@
                         ],
                     ),
                 ),
+                [
+                    Member {
+                        obj: Variable(
+                            (
+                                "x",
+                                #3,
+                            ),
+                        ),
+                        prop: Add(
+                            3,
+                            [
+                                Variable(
+                                    (
+                                        "i",
+                                        #3,
+                                    ),
+                                ),
+                                Constant(
+                                    Num(
+                                        ConstantNumber(
+                                            15.0,
+                                        ),
+                                    ),
+                                ),
+                            ],
+                        ),
+                        base_effects: [],
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    11,
+                                ),
+                            ),
+                            Stmt(
+                                For,
+                            ),
+                            ForStmt(
+                                Body,
+                            ),
+                            Stmt(
+                                Block,
+                            ),
+                            BlockStmt(
+                                Stmts(
+                                    19,
+                                ),
+                            ),
+                            Stmt(
+                                Expr,
+                            ),
+                            ExprStmt(
+                                Expr,
+                            ),
+                            Expr(
+                                Assign,
+                            ),
+                            AssignExpr(
+                                Right,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    4,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                        ],
+                        span: 1274..1283,
+                        in_truthiness_context: false,
+                    },
+                ],
             ),
             Value(
                 Constant(
@@ -4092,6 +4239,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Constant(
@@ -4101,6 +4249,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -4244,718 +4393,6 @@
         ],
         span: 1459..1466,
     },
-    FreeVar {
-        var: "bitRotateLeft",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    1,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    0,
-                ),
-            ),
-            Stmt(
-                Return,
-            ),
-            ReturnStmt(
-                Arg,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Callee,
-            ),
-            Callee(
-                Expr,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 1467..1480,
-    },
-    FreeVar {
-        var: "safeAdd",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    1,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    0,
-                ),
-            ),
-            Stmt(
-                Return,
-            ),
-            ReturnStmt(
-                Arg,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Callee,
-            ),
-            Callee(
-                Expr,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 1481..1488,
-    },
-    FreeVar {
-        var: "safeAdd",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    1,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    0,
-                ),
-            ),
-            Stmt(
-                Return,
-            ),
-            ReturnStmt(
-                Arg,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Callee,
-            ),
-            Callee(
-                Expr,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 1489..1496,
-    },
-    Call {
-        func: FreeVar(
-            "safeAdd",
-        ),
-        args: [
-            Value(
-                Variable(
-                    (
-                        "a",
-                        #5,
-                    ),
-                ),
-            ),
-            Value(
-                Variable(
-                    (
-                        "q",
-                        #5,
-                    ),
-                ),
-            ),
-        ],
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    1,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    0,
-                ),
-            ),
-            Stmt(
-                Return,
-            ),
-            ReturnStmt(
-                Arg,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-        ],
-        span: 1489..1502,
-        in_try: false,
-        new: false,
-    },
-    FreeVar {
-        var: "safeAdd",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    1,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    0,
-                ),
-            ),
-            Stmt(
-                Return,
-            ),
-            ReturnStmt(
-                Arg,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    1,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Callee,
-            ),
-            Callee(
-                Expr,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 1504..1511,
-    },
-    Call {
-        func: FreeVar(
-            "safeAdd",
-        ),
-        args: [
-            Value(
-                Variable(
-                    (
-                        "x",
-                        #5,
-                    ),
-                ),
-            ),
-            Value(
-                Variable(
-                    (
-                        "t",
-                        #5,
-                    ),
-                ),
-            ),
-        ],
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    1,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    0,
-                ),
-            ),
-            Stmt(
-                Return,
-            ),
-            ReturnStmt(
-                Arg,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    1,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-        ],
-        span: 1504..1517,
-        in_try: false,
-        new: false,
-    },
-    Call {
-        func: FreeVar(
-            "safeAdd",
-        ),
-        args: [
-            Value(
-                Call(
-                    4,
-                    FreeVar(
-                        "safeAdd",
-                    ),
-                    [
-                        Variable(
-                            (
-                                "a",
-                                #5,
-                            ),
-                        ),
-                        Variable(
-                            (
-                                "q",
-                                #5,
-                            ),
-                        ),
-                    ],
-                ),
-            ),
-            Value(
-                Call(
-                    4,
-                    FreeVar(
-                        "safeAdd",
-                    ),
-                    [
-                        Variable(
-                            (
-                                "x",
-                                #5,
-                            ),
-                        ),
-                        Variable(
-                            (
-                                "t",
-                                #5,
-                            ),
-                        ),
-                    ],
-                ),
-            ),
-        ],
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    1,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    0,
-                ),
-            ),
-            Stmt(
-                Return,
-            ),
-            ReturnStmt(
-                Arg,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-        ],
-        span: 1481..1518,
-        in_try: false,
-        new: false,
-    },
-    Call {
-        func: FreeVar(
-            "bitRotateLeft",
-        ),
-        args: [
-            Value(
-                Call(
-                    10,
-                    FreeVar(
-                        "safeAdd",
-                    ),
-                    [
-                        Call(
-                            4,
-                            FreeVar(
-                                "safeAdd",
-                            ),
-                            [
-                                Variable(
-                                    (
-                                        "a",
-                                        #5,
-                                    ),
-                                ),
-                                Variable(
-                                    (
-                                        "q",
-                                        #5,
-                                    ),
-                                ),
-                            ],
-                        ),
-                        Call(
-                            4,
-                            FreeVar(
-                                "safeAdd",
-                            ),
-                            [
-                                Variable(
-                                    (
-                                        "x",
-                                        #5,
-                                    ),
-                                ),
-                                Variable(
-                                    (
-                                        "t",
-                                        #5,
-                                    ),
-                                ),
-                            ],
-                        ),
-                    ],
-                ),
-            ),
-            Value(
-                Variable(
-                    (
-                        "s",
-                        #5,
-                    ),
-                ),
-            ),
-        ],
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    1,
-                ),
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Fn,
-            ),
-            FnDecl(
-                Function,
-            ),
-            Function(
-                Body,
-            ),
-            FunctionBody(
-                Stmts(
-                    0,
-                ),
-            ),
-            Stmt(
-                Return,
-            ),
-            ReturnStmt(
-                Arg,
-            ),
-            Expr(
-                Call,
-            ),
-            CallExpr(
-                Args(
-                    0,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Call,
-            ),
-        ],
-        span: 1467..1522,
-        in_try: false,
-        new: false,
-    },
     Call {
         func: FreeVar(
             "safeAdd",
@@ -5024,6 +4461,731 @@
                         ),
                     ],
                 ),
+                [
+                    FreeVar {
+                        var: "bitRotateLeft",
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    1,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Return,
+                            ),
+                            ReturnStmt(
+                                Arg,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    0,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Callee,
+                            ),
+                            Callee(
+                                Expr,
+                            ),
+                            Expr(
+                                Ident,
+                            ),
+                        ],
+                        span: 1467..1480,
+                    },
+                    Call {
+                        func: FreeVar(
+                            "bitRotateLeft",
+                        ),
+                        args: [
+                            Value(
+                                Call(
+                                    10,
+                                    FreeVar(
+                                        "safeAdd",
+                                    ),
+                                    [
+                                        Call(
+                                            4,
+                                            FreeVar(
+                                                "safeAdd",
+                                            ),
+                                            [
+                                                Variable(
+                                                    (
+                                                        "a",
+                                                        #5,
+                                                    ),
+                                                ),
+                                                Variable(
+                                                    (
+                                                        "q",
+                                                        #5,
+                                                    ),
+                                                ),
+                                            ],
+                                        ),
+                                        Call(
+                                            4,
+                                            FreeVar(
+                                                "safeAdd",
+                                            ),
+                                            [
+                                                Variable(
+                                                    (
+                                                        "x",
+                                                        #5,
+                                                    ),
+                                                ),
+                                                Variable(
+                                                    (
+                                                        "t",
+                                                        #5,
+                                                    ),
+                                                ),
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                                [
+                                    FreeVar {
+                                        var: "safeAdd",
+                                        ast_path: [
+                                            Program(
+                                                Script,
+                                            ),
+                                            Script(
+                                                Body(
+                                                    1,
+                                                ),
+                                            ),
+                                            Stmt(
+                                                Decl,
+                                            ),
+                                            Decl(
+                                                Fn,
+                                            ),
+                                            FnDecl(
+                                                Function,
+                                            ),
+                                            Function(
+                                                Body,
+                                            ),
+                                            FunctionBody(
+                                                Stmts(
+                                                    0,
+                                                ),
+                                            ),
+                                            Stmt(
+                                                Return,
+                                            ),
+                                            ReturnStmt(
+                                                Arg,
+                                            ),
+                                            Expr(
+                                                Call,
+                                            ),
+                                            CallExpr(
+                                                Args(
+                                                    0,
+                                                ),
+                                            ),
+                                            ExprOrSpread(
+                                                Expr,
+                                            ),
+                                            Expr(
+                                                Call,
+                                            ),
+                                            CallExpr(
+                                                Args(
+                                                    0,
+                                                ),
+                                            ),
+                                            ExprOrSpread(
+                                                Expr,
+                                            ),
+                                            Expr(
+                                                Call,
+                                            ),
+                                            CallExpr(
+                                                Callee,
+                                            ),
+                                            Callee(
+                                                Expr,
+                                            ),
+                                            Expr(
+                                                Ident,
+                                            ),
+                                        ],
+                                        span: 1481..1488,
+                                    },
+                                    Call {
+                                        func: FreeVar(
+                                            "safeAdd",
+                                        ),
+                                        args: [
+                                            Value(
+                                                Call(
+                                                    4,
+                                                    FreeVar(
+                                                        "safeAdd",
+                                                    ),
+                                                    [
+                                                        Variable(
+                                                            (
+                                                                "a",
+                                                                #5,
+                                                            ),
+                                                        ),
+                                                        Variable(
+                                                            (
+                                                                "q",
+                                                                #5,
+                                                            ),
+                                                        ),
+                                                    ],
+                                                ),
+                                                [
+                                                    FreeVar {
+                                                        var: "safeAdd",
+                                                        ast_path: [
+                                                            Program(
+                                                                Script,
+                                                            ),
+                                                            Script(
+                                                                Body(
+                                                                    1,
+                                                                ),
+                                                            ),
+                                                            Stmt(
+                                                                Decl,
+                                                            ),
+                                                            Decl(
+                                                                Fn,
+                                                            ),
+                                                            FnDecl(
+                                                                Function,
+                                                            ),
+                                                            Function(
+                                                                Body,
+                                                            ),
+                                                            FunctionBody(
+                                                                Stmts(
+                                                                    0,
+                                                                ),
+                                                            ),
+                                                            Stmt(
+                                                                Return,
+                                                            ),
+                                                            ReturnStmt(
+                                                                Arg,
+                                                            ),
+                                                            Expr(
+                                                                Call,
+                                                            ),
+                                                            CallExpr(
+                                                                Args(
+                                                                    0,
+                                                                ),
+                                                            ),
+                                                            ExprOrSpread(
+                                                                Expr,
+                                                            ),
+                                                            Expr(
+                                                                Call,
+                                                            ),
+                                                            CallExpr(
+                                                                Args(
+                                                                    0,
+                                                                ),
+                                                            ),
+                                                            ExprOrSpread(
+                                                                Expr,
+                                                            ),
+                                                            Expr(
+                                                                Call,
+                                                            ),
+                                                            CallExpr(
+                                                                Args(
+                                                                    0,
+                                                                ),
+                                                            ),
+                                                            ExprOrSpread(
+                                                                Expr,
+                                                            ),
+                                                            Expr(
+                                                                Call,
+                                                            ),
+                                                            CallExpr(
+                                                                Callee,
+                                                            ),
+                                                            Callee(
+                                                                Expr,
+                                                            ),
+                                                            Expr(
+                                                                Ident,
+                                                            ),
+                                                        ],
+                                                        span: 1489..1496,
+                                                    },
+                                                    Call {
+                                                        func: FreeVar(
+                                                            "safeAdd",
+                                                        ),
+                                                        args: [
+                                                            Value(
+                                                                Variable(
+                                                                    (
+                                                                        "a",
+                                                                        #5,
+                                                                    ),
+                                                                ),
+                                                                [],
+                                                            ),
+                                                            Value(
+                                                                Variable(
+                                                                    (
+                                                                        "q",
+                                                                        #5,
+                                                                    ),
+                                                                ),
+                                                                [],
+                                                            ),
+                                                        ],
+                                                        ast_path: [
+                                                            Program(
+                                                                Script,
+                                                            ),
+                                                            Script(
+                                                                Body(
+                                                                    1,
+                                                                ),
+                                                            ),
+                                                            Stmt(
+                                                                Decl,
+                                                            ),
+                                                            Decl(
+                                                                Fn,
+                                                            ),
+                                                            FnDecl(
+                                                                Function,
+                                                            ),
+                                                            Function(
+                                                                Body,
+                                                            ),
+                                                            FunctionBody(
+                                                                Stmts(
+                                                                    0,
+                                                                ),
+                                                            ),
+                                                            Stmt(
+                                                                Return,
+                                                            ),
+                                                            ReturnStmt(
+                                                                Arg,
+                                                            ),
+                                                            Expr(
+                                                                Call,
+                                                            ),
+                                                            CallExpr(
+                                                                Args(
+                                                                    0,
+                                                                ),
+                                                            ),
+                                                            ExprOrSpread(
+                                                                Expr,
+                                                            ),
+                                                            Expr(
+                                                                Call,
+                                                            ),
+                                                            CallExpr(
+                                                                Args(
+                                                                    0,
+                                                                ),
+                                                            ),
+                                                            ExprOrSpread(
+                                                                Expr,
+                                                            ),
+                                                            Expr(
+                                                                Call,
+                                                            ),
+                                                            CallExpr(
+                                                                Args(
+                                                                    0,
+                                                                ),
+                                                            ),
+                                                            ExprOrSpread(
+                                                                Expr,
+                                                            ),
+                                                            Expr(
+                                                                Call,
+                                                            ),
+                                                        ],
+                                                        span: 1489..1502,
+                                                        in_try: false,
+                                                        new: false,
+                                                    },
+                                                ],
+                                            ),
+                                            Value(
+                                                Call(
+                                                    4,
+                                                    FreeVar(
+                                                        "safeAdd",
+                                                    ),
+                                                    [
+                                                        Variable(
+                                                            (
+                                                                "x",
+                                                                #5,
+                                                            ),
+                                                        ),
+                                                        Variable(
+                                                            (
+                                                                "t",
+                                                                #5,
+                                                            ),
+                                                        ),
+                                                    ],
+                                                ),
+                                                [
+                                                    FreeVar {
+                                                        var: "safeAdd",
+                                                        ast_path: [
+                                                            Program(
+                                                                Script,
+                                                            ),
+                                                            Script(
+                                                                Body(
+                                                                    1,
+                                                                ),
+                                                            ),
+                                                            Stmt(
+                                                                Decl,
+                                                            ),
+                                                            Decl(
+                                                                Fn,
+                                                            ),
+                                                            FnDecl(
+                                                                Function,
+                                                            ),
+                                                            Function(
+                                                                Body,
+                                                            ),
+                                                            FunctionBody(
+                                                                Stmts(
+                                                                    0,
+                                                                ),
+                                                            ),
+                                                            Stmt(
+                                                                Return,
+                                                            ),
+                                                            ReturnStmt(
+                                                                Arg,
+                                                            ),
+                                                            Expr(
+                                                                Call,
+                                                            ),
+                                                            CallExpr(
+                                                                Args(
+                                                                    0,
+                                                                ),
+                                                            ),
+                                                            ExprOrSpread(
+                                                                Expr,
+                                                            ),
+                                                            Expr(
+                                                                Call,
+                                                            ),
+                                                            CallExpr(
+                                                                Args(
+                                                                    0,
+                                                                ),
+                                                            ),
+                                                            ExprOrSpread(
+                                                                Expr,
+                                                            ),
+                                                            Expr(
+                                                                Call,
+                                                            ),
+                                                            CallExpr(
+                                                                Args(
+                                                                    1,
+                                                                ),
+                                                            ),
+                                                            ExprOrSpread(
+                                                                Expr,
+                                                            ),
+                                                            Expr(
+                                                                Call,
+                                                            ),
+                                                            CallExpr(
+                                                                Callee,
+                                                            ),
+                                                            Callee(
+                                                                Expr,
+                                                            ),
+                                                            Expr(
+                                                                Ident,
+                                                            ),
+                                                        ],
+                                                        span: 1504..1511,
+                                                    },
+                                                    Call {
+                                                        func: FreeVar(
+                                                            "safeAdd",
+                                                        ),
+                                                        args: [
+                                                            Value(
+                                                                Variable(
+                                                                    (
+                                                                        "x",
+                                                                        #5,
+                                                                    ),
+                                                                ),
+                                                                [],
+                                                            ),
+                                                            Value(
+                                                                Variable(
+                                                                    (
+                                                                        "t",
+                                                                        #5,
+                                                                    ),
+                                                                ),
+                                                                [],
+                                                            ),
+                                                        ],
+                                                        ast_path: [
+                                                            Program(
+                                                                Script,
+                                                            ),
+                                                            Script(
+                                                                Body(
+                                                                    1,
+                                                                ),
+                                                            ),
+                                                            Stmt(
+                                                                Decl,
+                                                            ),
+                                                            Decl(
+                                                                Fn,
+                                                            ),
+                                                            FnDecl(
+                                                                Function,
+                                                            ),
+                                                            Function(
+                                                                Body,
+                                                            ),
+                                                            FunctionBody(
+                                                                Stmts(
+                                                                    0,
+                                                                ),
+                                                            ),
+                                                            Stmt(
+                                                                Return,
+                                                            ),
+                                                            ReturnStmt(
+                                                                Arg,
+                                                            ),
+                                                            Expr(
+                                                                Call,
+                                                            ),
+                                                            CallExpr(
+                                                                Args(
+                                                                    0,
+                                                                ),
+                                                            ),
+                                                            ExprOrSpread(
+                                                                Expr,
+                                                            ),
+                                                            Expr(
+                                                                Call,
+                                                            ),
+                                                            CallExpr(
+                                                                Args(
+                                                                    0,
+                                                                ),
+                                                            ),
+                                                            ExprOrSpread(
+                                                                Expr,
+                                                            ),
+                                                            Expr(
+                                                                Call,
+                                                            ),
+                                                            CallExpr(
+                                                                Args(
+                                                                    1,
+                                                                ),
+                                                            ),
+                                                            ExprOrSpread(
+                                                                Expr,
+                                                            ),
+                                                            Expr(
+                                                                Call,
+                                                            ),
+                                                        ],
+                                                        span: 1504..1517,
+                                                        in_try: false,
+                                                        new: false,
+                                                    },
+                                                ],
+                                            ),
+                                        ],
+                                        ast_path: [
+                                            Program(
+                                                Script,
+                                            ),
+                                            Script(
+                                                Body(
+                                                    1,
+                                                ),
+                                            ),
+                                            Stmt(
+                                                Decl,
+                                            ),
+                                            Decl(
+                                                Fn,
+                                            ),
+                                            FnDecl(
+                                                Function,
+                                            ),
+                                            Function(
+                                                Body,
+                                            ),
+                                            FunctionBody(
+                                                Stmts(
+                                                    0,
+                                                ),
+                                            ),
+                                            Stmt(
+                                                Return,
+                                            ),
+                                            ReturnStmt(
+                                                Arg,
+                                            ),
+                                            Expr(
+                                                Call,
+                                            ),
+                                            CallExpr(
+                                                Args(
+                                                    0,
+                                                ),
+                                            ),
+                                            ExprOrSpread(
+                                                Expr,
+                                            ),
+                                            Expr(
+                                                Call,
+                                            ),
+                                            CallExpr(
+                                                Args(
+                                                    0,
+                                                ),
+                                            ),
+                                            ExprOrSpread(
+                                                Expr,
+                                            ),
+                                            Expr(
+                                                Call,
+                                            ),
+                                        ],
+                                        span: 1481..1518,
+                                        in_try: false,
+                                        new: false,
+                                    },
+                                ],
+                            ),
+                            Value(
+                                Variable(
+                                    (
+                                        "s",
+                                        #5,
+                                    ),
+                                ),
+                                [],
+                            ),
+                        ],
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    1,
+                                ),
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Fn,
+                            ),
+                            FnDecl(
+                                Function,
+                            ),
+                            Function(
+                                Body,
+                            ),
+                            FunctionBody(
+                                Stmts(
+                                    0,
+                                ),
+                            ),
+                            Stmt(
+                                Return,
+                            ),
+                            ReturnStmt(
+                                Arg,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                            CallExpr(
+                                Args(
+                                    0,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Call,
+                            ),
+                        ],
+                        span: 1467..1522,
+                        in_try: false,
+                        new: false,
+                    },
+                ],
             ),
             Value(
                 Variable(
@@ -5032,6 +5194,7 @@
                         #5,
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [
@@ -5120,6 +5283,7 @@
                     reason: "unsupported expression",
                     has_side_effects: true,
                 },
+                [],
             ),
             Value(
                 Variable(
@@ -5128,6 +5292,7 @@
                         #6,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -5136,6 +5301,7 @@
                         #6,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -5144,6 +5310,7 @@
                         #6,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -5152,6 +5319,7 @@
                         #6,
                     ),
                 ),
+                [],
             ),
             Value(
                 Variable(
@@ -5160,6 +5328,7 @@
                         #6,
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [

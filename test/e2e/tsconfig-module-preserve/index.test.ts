@@ -1,9 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { gate, retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
-
-const strictRouteTypes =
-  process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true'
 
 // Deploy mode exclusion: This suite reads local build artifacts that deployments do not expose.
 // This test is skipped because it relies on `next.readFile`
@@ -39,7 +36,7 @@ describe('tsconfig module: preserve', () => {
     expect(output).not.toContain('esModuleInterop')
     expect(output).not.toContain('resolveJsonModule')
 
-    if (strictRouteTypes) {
+    if (await gate('strictRouteTypes')) {
       expect(await next.readFile('tsconfig.json')).toMatchInlineSnapshot(`
        "{
          "compilerOptions": {

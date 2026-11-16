@@ -24,6 +24,7 @@ import FileSystemCache from './file-system-cache'
 
 import {
   CACHE_ONE_YEAR_SECONDS,
+  FETCH_CACHE_KEY_EXCLUDED_HEADERS,
   NEXT_CACHE_TAGS_HEADER,
   PRERENDER_REVALIDATE_HEADER,
 } from '../../../lib/constants'
@@ -471,10 +472,9 @@ export class IncrementalCache implements IncrementalCacheType {
         ? Object.fromEntries(init.headers as Headers)
         : Object.assign({} as Record<string, string>, init.headers)
 
-    // w3c trace context headers can break request caching and deduplication
-    // so we remove them from the cache key
-    if ('traceparent' in headers) delete headers['traceparent']
-    if ('tracestate' in headers) delete headers['tracestate']
+    for (const header of FETCH_CACHE_KEY_EXCLUDED_HEADERS) {
+      if (header in headers) delete headers[header]
+    }
 
     const cacheString = JSON.stringify([
       MAIN_KEY_PREFIX,
@@ -519,6 +519,9 @@ export class IncrementalCache implements IncrementalCacheType {
     // Unlike other caches if we have a resume data cache, we use it even if
     // testmode would normally disable it or if requestHeaders say 'no-cache'.
     if (ctx.kind === IncrementalCacheKind.FETCH) {
+      const workStore = workAsyncStorage.getStore()
+      const isOnDemandRevalidate =
+        this.isOnDemandRevalidate || workStore?.isOnDemandRevalidate
       const workUnitStore = workUnitAsyncStorage.getStore()
       const resumeDataCache = workUnitStore
         ? getResumeDataCache(workUnitStore)
@@ -529,7 +532,6 @@ export class IncrementalCache implements IncrementalCacheType {
           // Check if any tags were recently revalidated before returning RDC entry.
           // When a server action calls updateTag(), the re-render should see fresh
           // data instead of stale RDC data.
-          const workStore = workAsyncStorage.getStore()
           const combinedTags = [...(ctx.tags || []), ...(ctx.softTags || [])]
           const hasRevalidatedTag = combinedTags.some(
             (tag) =>
@@ -558,6 +560,13 @@ export class IncrementalCache implements IncrementalCacheType {
         if (IncrementalCache.debug) {
           console.log('IncrementalCache: rdc:no-resume-data')
         }
+      }
+
+      if (isOnDemandRevalidate) {
+        // On-demand revalidation reuses the current render's RDC, but
+        // recomputes persisted data even when its revalidate interval has not
+        // elapsed.
+        return null
       }
     }
 

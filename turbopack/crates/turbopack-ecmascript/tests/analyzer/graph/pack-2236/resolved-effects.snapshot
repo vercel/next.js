@@ -3,7 +3,7 @@
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 2 free var = FreeVar(EdgeRuntime)
+1 -> 2 free var = FreeVar(EdgeRuntime)
 
 0 -> 3 conditional = (???*0* === "undefined")
 - *0* typeof(???*1*)

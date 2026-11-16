@@ -103,6 +103,7 @@ import {
   type ReactDebugChannelForBrowser,
 } from './debug-channel'
 import {
+  getPendingVersionInfo,
   getVersionInfo,
   matchNextPageBundleRequest,
 } from './hot-reloader-shared-utils'
@@ -257,16 +258,16 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   protected appDir?: string
   private telemetry: Telemetry
   private resetFetch: () => void
-  private lockfile: Lockfile | undefined
-  private versionInfo: VersionInfo = {
-    staleness: 'unknown',
-    installed: '0.0.0',
-  }
+  // Resolves once the registry lookup settles, with the placeholder info if it
+  // fails. Never awaited during start-up so a slow registry cannot delay the
+  // dev server or the dev overlay.
+  private versionInfo!: Promise<VersionInfo>
   private devtoolsFrontendUrl: string | undefined
   private reloadAfterInvalidation: boolean = false
   private isSrcDir: boolean
   private cacheStatusesByRequestId = new Map<string, ServerCacheStatus>()
   private hasVulnerabilityInsight: Promise<boolean>
+  private hasInstrumentationInject: boolean
 
   public serverStats: webpack.Stats | null
   public edgeServerStats: webpack.Stats | null
@@ -292,6 +293,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       lockfile,
       onDevServerCleanup,
       hasVulnerabilityInsight,
+      hasInstrumentationInject,
     }: {
       config: NextConfigComplete
       isSrcDir: boolean
@@ -304,9 +306,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       appDir?: string
       telemetry: Telemetry
       resetFetch: () => void
-      lockfile: Lockfile | undefined
+      lockfile: Lockfile
       onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
       hasVulnerabilityInsight: Promise<boolean>
+      hasInstrumentationInject: boolean
     }
   ) {
     this.hasAppRouterEntrypoints = false
@@ -325,8 +328,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.serverPrevDocumentHash = null
     this.telemetry = telemetry
     this.resetFetch = resetFetch
-    this.lockfile = lockfile
     this.hasVulnerabilityInsight = hasVulnerabilityInsight
+    this.hasInstrumentationInject = hasInstrumentationInject
 
     this.config = config
     this.previewProps = previewProps
@@ -345,7 +348,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     fileLogger.initialize(this.distDir, mcpServerEnabled)
 
     onDevServerCleanup?.(async () => {
-      await lockfile?.unlock()
+      await lockfile.unlock()
     })
   }
 
@@ -877,7 +880,13 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     const startSpan = this.hotReloaderSpan.traceChild('start')
     startSpan.stop() // Stop immediately to create an artificial parent span
 
-    this.versionInfo = await this.tracedGetVersionInfo(startSpan)
+    // Not awaited, so a slow registry doesn't delay startup. The catch is
+    // attached right away: nothing subscribes to this promise until the hot
+    // middleware is created.
+    this.versionInfo = this.tracedGetVersionInfo(startSpan).catch((error) => {
+      console.error(error)
+      return getPendingVersionInfo()
+    })
 
     const inspectorURLRaw = inspector.url()
     if (inspectorURLRaw !== undefined) {
@@ -1677,6 +1686,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       appDir: this.appDir,
       rootDir: this.dir,
       nextConfig: this.config,
+      hasInstrumentationInject: this.hasInstrumentationInject,
       ...(this.config.onDemandEntries as {
         maxInactiveAge: number
         pagesBufferLength: number

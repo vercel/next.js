@@ -63,10 +63,13 @@ mod detail {
     use auto_hash_map::{AutoMap, AutoSet};
     use futures::future::BoxFuture;
     use smallvec::SmallVec;
+    use turbo_bitset::Bitset;
     use turbo_rcstr::RcStr;
 
     use super::ValueDebugFormat;
-    use crate::{FxIndexMap, FxIndexSet, debug::internal::PassthroughDebug};
+    use crate::{
+        FxIndexMap, FxIndexSet, OrderedAutoMap, OrderedAutoSet, debug::internal::PassthroughDebug,
+    };
 
     /// Output of `ValueDebugFormat::value_debug_format`.
     pub enum ValueDebugFormatString<'a> {
@@ -98,6 +101,12 @@ mod detail {
     }
 
     impl ValueDebugFormat for RcStr {
+        fn value_debug_format(&self, _depth: usize) -> ValueDebugFormatString<'_> {
+            ValueDebugFormatString::Sync(format!("{self:?}"))
+        }
+    }
+
+    impl ValueDebugFormat for Bitset {
         fn value_debug_format(&self, _depth: usize) -> ValueDebugFormatString<'_> {
             ValueDebugFormatString::Sync(format!("{self:?}"))
         }
@@ -315,74 +324,86 @@ mod detail {
         }
     }
 
-    impl<T> ValueDebugFormat for FxIndexSet<T>
-    where
-        T: ValueDebugFormat,
-    {
-        fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
-            if depth == 0 {
-                return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
-            }
+    /// Formats insertion ordered sets, keeping the order.
+    macro_rules! impl_ordered_set_debug_format {
+        ($($ty:ty),*) => {$(
+            impl<T> ValueDebugFormat for $ty
+            where
+                T: ValueDebugFormat,
+            {
+                fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
+                    if depth == 0 {
+                        return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
+                    }
 
-            let values = self
-                .iter()
-                .map(|value| value.value_debug_format(depth.saturating_sub(1)))
-                .collect::<Vec<_>>();
+                    let values = self
+                        .iter()
+                        .map(|value| value.value_debug_format(depth.saturating_sub(1)))
+                        .collect::<Vec<_>>();
 
-            ValueDebugFormatString::Async(Box::pin(async move {
-                let mut values_string = FxIndexSet::default();
-                for value in values {
-                    let value = match value {
-                        ValueDebugFormatString::Sync(string) => string,
-                        ValueDebugFormatString::Async(future) => future.await?,
-                    };
-                    values_string.insert(PassthroughDebug::new_string(value));
+                    ValueDebugFormatString::Async(Box::pin(async move {
+                        let mut values_string = FxIndexSet::default();
+                        for value in values {
+                            let value = match value {
+                                ValueDebugFormatString::Sync(string) => string,
+                                ValueDebugFormatString::Async(future) => future.await?,
+                            };
+                            values_string.insert(PassthroughDebug::new_string(value));
+                        }
+                        Ok(format!("{values_string:#?}"))
+                    }))
                 }
-                Ok(format!("{values_string:#?}"))
-            }))
-        }
-    }
-
-    impl<K, V> ValueDebugFormat for FxIndexMap<K, V>
-    where
-        K: ValueDebugFormat,
-        V: ValueDebugFormat,
-    {
-        fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
-            if depth == 0 {
-                return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
             }
-
-            let values = self
-                .iter()
-                .map(|(key, value)| {
-                    (
-                        key.value_debug_format(depth.saturating_sub(1)),
-                        value.value_debug_format(depth.saturating_sub(1)),
-                    )
-                })
-                .collect::<Vec<_>>();
-
-            ValueDebugFormatString::Async(Box::pin(async move {
-                let mut values_string = FxIndexMap::default();
-                for (key, value) in values {
-                    let key = match key {
-                        ValueDebugFormatString::Sync(string) => string,
-                        ValueDebugFormatString::Async(future) => future.await?,
-                    };
-                    let value = match value {
-                        ValueDebugFormatString::Sync(string) => string,
-                        ValueDebugFormatString::Async(future) => future.await?,
-                    };
-                    values_string.insert(
-                        PassthroughDebug::new_string(key),
-                        PassthroughDebug::new_string(value),
-                    );
-                }
-                Ok(format!("{values_string:#?}"))
-            }))
-        }
+        )*};
     }
+    impl_ordered_set_debug_format!(FxIndexSet<T>, OrderedAutoSet<T>);
+
+    /// Formats insertion ordered maps, keeping the order.
+    macro_rules! impl_ordered_map_debug_format {
+        ($($ty:ty),*) => {$(
+            impl<K, V> ValueDebugFormat for $ty
+            where
+                K: ValueDebugFormat,
+                V: ValueDebugFormat,
+            {
+                fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
+                    if depth == 0 {
+                        return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
+                    }
+
+                    let values = self
+                        .iter()
+                        .map(|(key, value)| {
+                            (
+                                key.value_debug_format(depth.saturating_sub(1)),
+                                value.value_debug_format(depth.saturating_sub(1)),
+                            )
+                        })
+                        .collect::<Vec<_>>();
+
+                    ValueDebugFormatString::Async(Box::pin(async move {
+                        let mut values_string = FxIndexMap::default();
+                        for (key, value) in values {
+                            let key = match key {
+                                ValueDebugFormatString::Sync(string) => string,
+                                ValueDebugFormatString::Async(future) => future.await?,
+                            };
+                            let value = match value {
+                                ValueDebugFormatString::Sync(string) => string,
+                                ValueDebugFormatString::Async(future) => future.await?,
+                            };
+                            values_string.insert(
+                                PassthroughDebug::new_string(key),
+                                PassthroughDebug::new_string(value),
+                            );
+                        }
+                        Ok(format!("{values_string:#?}"))
+                    }))
+                }
+            }
+        )*};
+    }
+    impl_ordered_map_debug_format!(FxIndexMap<K, V>, OrderedAutoMap<K, V>);
 
     macro_rules! tuple_impls {
         ( $( $name:ident )+ ) => {

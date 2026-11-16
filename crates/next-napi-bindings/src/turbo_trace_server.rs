@@ -135,10 +135,12 @@ pub struct TraceSpanInfo {
     /// fields instead.
     ///
     /// Each entry is `[ts_offset_from_span_start_in_ticks, bytes, pressure,
-    /// active_worker_threads]`: `bytes` is TurboMalloc memory usage,
+    /// footprint, active_worker_threads]`: `bytes` is TurboMalloc memory usage,
     /// `pressure` is the memory-pressure byte (0 = no pressure, higher = more
-    /// pressure), and `active_worker_threads` counts non-parked Tokio scheduler
-    /// workers. `100 ticks = 1 µs`. Capped and downsampled by the store.
+    /// pressure), `footprint` is the process memory footprint (RSS) in bytes
+    /// (0 = not reported by the platform), and `active_worker_threads` counts
+    /// non-parked Tokio scheduler workers. `100 ticks = 1 µs`. Capped and
+    /// downsampled by the store.
     pub memory_samples: Vec<Vec<i64>>,
     /// Summary of `memorySamples`; absent when the span's range holds none.
     /// Unlike the allocation counters these are absolute live-heap readings, so
@@ -163,6 +165,9 @@ pub struct TraceMemorySummary {
     pub peak: i64,
     /// Highest memory-pressure byte in the range (0 = no pressure).
     pub max_pressure: u8,
+    /// Largest process memory footprint (RSS) in bytes in the range (0 = not
+    /// reported by the platform).
+    pub max_footprint: i64,
 }
 
 /// The result of a `query_trace_spans` call.
@@ -215,8 +220,14 @@ fn convert_span(s: turbopack_trace_server::SpanInfo) -> TraceSpanInfo {
         memory_samples: s
             .memory_samples
             .into_iter()
-            .map(|(ts, mem, pressure, workers)| {
-                vec![ts, mem as i64, pressure as i64, workers as i64]
+            .map(|(ts, mem, pressure, footprint, workers)| {
+                vec![
+                    ts,
+                    mem as i64,
+                    pressure as i64,
+                    footprint as i64,
+                    workers as i64,
+                ]
             })
             .collect(),
         memory_summary: s.memory_summary.map(|m| TraceMemorySummary {
@@ -226,6 +237,7 @@ fn convert_span(s: turbopack_trace_server::SpanInfo) -> TraceSpanInfo {
             min: m.min as i64,
             peak: m.peak as i64,
             max_pressure: m.max_pressure,
+            max_footprint: m.max_footprint as i64,
         }),
         children: s.children.into_iter().map(convert_span).collect(),
     }

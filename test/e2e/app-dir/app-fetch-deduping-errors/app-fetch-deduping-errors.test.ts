@@ -10,4 +10,12 @@ describe('app-fetch-errors', () => {
 
     expect(await browser.elementByCss('body').text()).toBe('Hello World 1')
   })
+
+  it('should release the cache lock when a fetch URL cannot be parsed', async () => {
+    const firstPage = await next.browser('/a')
+    expect(await firstPage.elementByCss('body').text()).toBe('fallback')
+
+    const secondPage = await next.browser('/b')
+    expect(await secondPage.elementByCss('body').text()).toBe('fallback')
+  })
 })

@@ -36,7 +36,7 @@ const REST_CHARS: &[u8; 64] = b"_$0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij
 /// then emits the same `.f` / `.f()` byte sequences, which gzip's back-references pick up across
 /// the whole bundle. The cost is that going from one export to two renames this one; that churn is
 /// accepted deliberately in exchange for the compression.
-const SINGLE_ITEM_IDENTIFIER: RcStr = rcstr!("f");
+static SINGLE_ITEM_IDENTIFIER: RcStr = rcstr!("f");
 
 /// Keys that are never handed out, for two different reasons.
 ///
@@ -94,9 +94,9 @@ const fn reserved_in_table(len: u32) -> u64 {
 ///
 /// Precomputed rather than evaluated on the fly, because [`decode_js_identifier`] needs it for
 /// every name it decodes and the formula costs a `pow` and a multiply.
-/// [`capacity_for_len_matches_the_formula`] keeps the table honest. From `len == 11` the true value
-/// exceeds `u64::MAX` (`54 * 64^10` alone is ≈ 6.2e19 against `u64::MAX`'s ≈ 1.8e19), so it
-/// saturates there; no real export table comes anywhere near needing that many characters.
+/// The `capacity_for_len_matches_the_formula` test keeps the table honest. From `len == 11` the
+/// true value exceeds `u64::MAX` (`54 * 64^10` alone is ≈ 6.2e19 against `u64::MAX`'s ≈ 1.8e19), so
+/// it saturates there; no real export table comes anywhere near needing that many characters.
 fn capacity_for_len(len: u32) -> u64 {
     CAPACITY_FOR_LEN
         .get(len as usize)
@@ -227,7 +227,7 @@ pub fn shorten_to_unique_names<'a>(
         return if bucket_of(name, 1).is_some() {
             FrozenMap::default()
         } else {
-            FrozenMap::from_iter([((*name).clone(), SINGLE_ITEM_IDENTIFIER)])
+            FrozenMap::from_iter([((*name).clone(), SINGLE_ITEM_IDENTIFIER.clone())])
         };
     }
 

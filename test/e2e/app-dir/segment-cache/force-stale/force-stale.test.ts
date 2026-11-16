@@ -49,7 +49,7 @@ describe('force stale', () => {
         'no-requests'
       )
 
-      // The data succesfully streams in.
+      // The data successfully streams in.
       const content = await browser.elementById('dynamic-page-content')
       expect(await content.text()).toBe('Dynamic page content')
     }
@@ -146,6 +146,46 @@ describe('force stale', () => {
   )
 
   it(
+    'during a navigation, request the segments that a default prefetch ' +
+      'still in flight leaves out',
+    async () => {
+      let act: ReturnType<typeof createRouterAct>
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          act = createRouterAct(p)
+        },
+      })
+
+      await act(
+        async () => {
+          // Reveal a default link, and hold the prefetch response, so the
+          // navigation starts while it's still in flight. (Without Cache
+          // Components, this is a prefetch up to the loading boundary, so it
+          // leaves out the page below it.)
+          await act(
+            async () => {
+              const toggle = await browser.elementByCss(
+                'input[data-link-accordion="partially-static-default"]'
+              )
+              await toggle.click()
+            },
+            { includes: 'Static layout content', block: true }
+          )
+
+          const link = await browser.elementById('partially-static-default')
+          await link.click()
+        },
+        // The navigation requests the page, instead of waiting for a
+        // prefetch that won't have it.
+        { includes: 'Partially static page content' }
+      )
+      expect(await browser.elementById('partially-static-page').text()).toBe(
+        'Partially static page content'
+      )
+    }
+  )
+
+  it(
     'a default link does not re-request data already fetched by a ' +
       'prefetch={true} link to the same URL',
     async () => {
@@ -179,6 +219,41 @@ describe('force stale', () => {
       // Navigating from the default link makes no requests either.
       await act(async () => {
         const link = await browser.elementById('partially-static-default')
+        await link.click()
+      }, 'no-requests')
+      expect(await browser.elementById('partially-static-page').text()).toBe(
+        'Partially static page content'
+      )
+    }
+  )
+
+  it(
+    'a prefetch="navigation" link does a full prefetch, like ' +
+      'prefetch={true}',
+    async () => {
+      let act: ReturnType<typeof createRouterAct>
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          act = createRouterAct(p)
+        },
+      })
+
+      // This route doesn't opt into Partial Prefetching, so a link that asks
+      // for the navigation stage gets the whole page, including the dynamic
+      // content.
+      await act(async () => {
+        const toggle = await browser.elementByCss(
+          'input[data-link-accordion="partially-static-navigation"]'
+        )
+        await toggle.click()
+      }, [
+        { includes: 'Static layout content' },
+        { includes: 'Partially static page content' },
+      ])
+
+      // Everything was prefetched, so the navigation makes no requests.
+      await act(async () => {
+        const link = await browser.elementById('partially-static-navigation')
         await link.click()
       }, 'no-requests')
       expect(await browser.elementById('partially-static-page').text()).toBe(

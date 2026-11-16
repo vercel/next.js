@@ -228,8 +228,6 @@ export function unstable_cache<T extends Callback>(
           // we should bypass cache similar to fetches
           !isNestedUnstableCache &&
           workStore.fetchCache !== 'force-no-store' &&
-          !workStore.isOnDemandRevalidate &&
-          !incrementalCache.isOnDemandRevalidate &&
           !workStore.isDraftMode
         ) {
           // We attempt to get the current cache entry from the incremental cache.
@@ -357,33 +355,30 @@ export function unstable_cache<T extends Callback>(
         // If the entry is fresh we return it. If the entry is stale we return it but revalidate the entry in
         // the background. If the entry is missing or invalid we generate a new entry and return it.
 
-        if (!incrementalCache.isOnDemandRevalidate) {
-          // We aren't doing an on demand revalidation so we check use the cache if valid
-          const cacheEntry = await incrementalCache.get(cacheKey, {
-            kind: IncrementalCacheKind.FETCH,
-            revalidate,
-            tags,
-            fetchIdx,
-            fetchUrl,
-            softTags: implicitTags?.tags,
-          })
+        const cacheEntry = await incrementalCache.get(cacheKey, {
+          kind: IncrementalCacheKind.FETCH,
+          revalidate,
+          tags,
+          fetchIdx,
+          fetchUrl,
+          softTags: implicitTags?.tags,
+        })
 
-          if (cacheEntry && cacheEntry.value) {
-            // The entry exists and has a value
-            if (cacheEntry.value.kind !== CachedRouteKind.FETCH) {
-              // The entry is invalid and we need a special warning
-              // @TODO why do we warn this way? Should this just be an error? How are these errors surfaced
-              // so bugs can be reported
-              console.error(
-                `Invariant invalid cacheEntry returned for ${invocationKey}`
-              )
-              // will fall through to generating a new cache entry below
-            } else if (!cacheEntry.isStale) {
-              // We have a valid cache entry and it is fresh so we return it
-              return cacheEntry.value.data.body !== undefined
-                ? JSON.parse(cacheEntry.value.data.body)
-                : undefined
-            }
+        if (cacheEntry && cacheEntry.value) {
+          // The entry exists and has a value
+          if (cacheEntry.value.kind !== CachedRouteKind.FETCH) {
+            // The entry is invalid and we need a special warning
+            // @TODO why do we warn this way? Should this just be an error? How are these errors surfaced
+            // so bugs can be reported
+            console.error(
+              `Invariant invalid cacheEntry returned for ${invocationKey}`
+            )
+            // will fall through to generating a new cache entry below
+          } else if (!cacheEntry.isStale) {
+            // We have a valid cache entry and it is fresh so we return it
+            return cacheEntry.value.data.body !== undefined
+              ? JSON.parse(cacheEntry.value.data.body)
+              : undefined
           }
         }
 

@@ -8,7 +8,7 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
-    source_map::{GenerateSourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, SourceMapAsset, SourceMapType},
 };
 use turbopack_ecmascript::minify::minify;
 use turbopack_ecmascript_runtime::RuntimeType;
@@ -47,26 +47,29 @@ impl EcmascriptBrowserRuntimeChunk {
     pub(crate) async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
         let chunking_context = this.chunking_context;
+        let source_map_generation_options =
+            *chunking_context.source_map_generation_options().await?;
         let environment = chunking_context.environment();
 
         let output_root_to_root_path = chunking_context.output_root_to_root_path().owned().await?;
-        let source_maps = *chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
-            .await?;
-        let asset_context = turbopack::get_runtime_asset_context(environment);
+        let asset_context =
+            turbopack::get_runtime_asset_context(environment, source_map_generation_options);
         let runtime_type = *chunking_context.runtime_type().await?;
 
-        let mut code = CodeBuilder::new(source_maps, *chunking_context.debug_ids_enabled().await?);
+        let mut code = CodeBuilder::new(
+            *chunking_context.debug_ids_enabled().await?,
+            source_map_generation_options,
+        );
 
         match runtime_type {
             RuntimeType::Production | RuntimeType::Development => {
                 let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
                     asset_context,
+                    source_map_generation_options,
                     chunking_context.chunk_base_path(),
                     chunking_context.asset_suffix(),
                     runtime_type,
                     output_root_to_root_path,
-                    source_maps,
                     chunking_context.chunk_loading_global(),
                     chunking_context.cross_origin(),
                     chunking_context.chunk_load_retry(),
@@ -74,19 +77,23 @@ impl EcmascriptBrowserRuntimeChunk {
                     chunking_context.chunk_loading(),
                     *chunking_context.generate_component_chunks().await?,
                 );
-                code.push_code(&*runtime_code.await?);
+                code.push_code(&*runtime_code.await?)?;
             }
             #[cfg(feature = "test")]
             RuntimeType::Dummy => {
                 let runtime_code = turbopack_ecmascript_runtime::get_dummy_runtime_code();
-                code.push_code(&runtime_code);
+                code.push_code(&runtime_code)?;
             }
         }
 
         let mut code = code.build();
 
         if let MinifyType::Minify { mangle } = *chunking_context.minify_type().await? {
-            code = minify(code, source_maps, mangle)?;
+            code = minify(
+                code,
+                chunking_context.emitted_source_map_type().await?.is_some(),
+                mangle,
+            )?;
         }
 
         Ok(code.cell())
@@ -110,6 +117,7 @@ impl EcmascriptBrowserRuntimeChunk {
             Vc::upcast(*this.chunking_context),
             self.ident_for_path(),
             Vc::upcast(self),
+            rcstr!(".js"),
         ))
     }
 }
@@ -157,7 +165,14 @@ impl Asset for EcmascriptBrowserRuntimeChunk {
         Ok(AssetContent::file(
             FileContent::Content(File::from(
                 self.code()
-                    .to_rope_with_magic_comments(|| self.source_map())
+                    .to_rope_with_magic_comments(
+                        *self
+                            .await?
+                            .chunking_context
+                            .emitted_source_map_type()
+                            .await?,
+                        || self.source_map(),
+                    )
                     .await?,
             ))
             .cell(),
@@ -168,7 +183,7 @@ impl Asset for EcmascriptBrowserRuntimeChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBrowserRuntimeChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
-        self.code().generate_source_map()
+    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent> {
+        self.code().generate_source_map(ty)
     }
 }

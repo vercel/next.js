@@ -13,21 +13,28 @@ const nextConfigWithUseCache: NextConfig = {
   experimental: { useCache: true },
 }
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely expects a local build failure instead of a successful deployment.
-// @force-gate !deploy
 describe('use-cache-without-experimental-flag', () => {
-  const { next, isNextStart, isTurbopack, isRspack } = nextTestSetup({
-    files: __dirname,
-    skipStart: process.env.NEXT_TEST_MODE !== 'dev',
-  })
+  const { next, isNextDev, isNextDeploy, isTurbopack, isRspack } =
+    nextTestSetup({
+      files: __dirname,
+      skipStart: process.env.NEXT_TEST_MODE !== 'dev',
+    })
 
-  if (isNextStart) {
+  if (!isNextDev) {
     it('should fail the build with an error', async () => {
-      const { cliOutput } = await next.build()
-      const buildOutput = getBuildOutput(cliOutput)
+      await expect(next.start()).rejects.toThrow()
+      const buildOutput = getBuildOutput(next.cliOutput)
 
-      if (isTurbopack) {
+      if (isNextDeploy) {
+        expect(next.cliOutput).toContain(
+          'To use "use cache", please enable the feature flag `cacheComponents` in your Next.js config.'
+        )
+        expect(next.cliOutput).toContain(
+          'Read more: https://nextjs.org/docs/app/api-reference/directives/use-cache#usage'
+        )
+        expect(next.cliOutput).toContain('./app/page.tsx')
+        expect(next.cliOutput).toContain("'use cache'")
+      } else if (isTurbopack) {
         expect(buildOutput).toContain(
           'To use "use cache", please enable the feature flag `cacheComponents` in your Next.js config.'
         )
@@ -37,9 +44,9 @@ describe('use-cache-without-experimental-flag', () => {
         expect(buildOutput).toContain('Ecmascript file had an error')
         expect(buildOutput).toContain('./app/page.tsx:1:1')
         expect(buildOutput).toContain("> 1 | 'use cache'")
-        // The stack of a build error holds framework frames only, and the
-        // terminal collapses them.
-        expect(buildOutput).toContain('at ignore-listed frames')
+        // The stack of a build error holds framework frames only, printed
+        // unsourcemapped since the build process has no source maps.
+        expect(buildOutput).toContain('at printBuildErrors (<next-internal>)')
       } else if (isRspack) {
         expect(buildOutput).toMatchInlineSnapshot(`
          "
@@ -88,7 +95,7 @@ describe('use-cache-without-experimental-flag', () => {
          "
         `)
       }
-    })
+    }, 240_000)
   } else {
     it('should show a build error', async () => {
       const browser = await next.browser('/')
@@ -184,7 +191,15 @@ function getBuildOutput(cliOutput: string): string {
         break
       }
 
-      lines.push(stripAnsi(line))
+      lines.push(
+        // Framework frames are intentionally printed unsourcemapped (the build
+        // process has no source maps); their install-specific paths are not
+        // stable.
+        stripAnsi(line).replace(
+          /(at (?:async )?[\w$.]+) \([^)]*node_modules\/next\/dist[^)]*\)/,
+          '$1 (<next-internal>)'
+        )
+      )
     } else if (
       line.includes('Build error occurred') ||
       line.includes('Failed to compile')

@@ -80,7 +80,9 @@ export const instant = true
 
 Navigations from outside into a tab are allowed to block at the layout. Navigations between tabs are validated for instant UI.
 
-You don't need to add `false` to ancestors of an instant page just because they do something blocking — a higher-up `instant = true` doesn't force its descendants to validate, and leaving an ancestor unconfigured is fine. Reach for `false` only when you've configured a deeper page as instant and need to exempt navigations that pass through a blocking ancestor.
+You don't need to add `false` to ancestors of an instant page just because they do something blocking. A higher-up `instant = true` doesn't force its descendants to validate, and leaving an ancestor unconfigured is fine. Reach for `false` only when you've configured a deeper page as instant and need to exempt navigations that pass through a blocking ancestor.
+
+`instant = false` controls instant-navigation validation. The route still uses prerendering and streaming. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
 
 ### Disabling static shell validation
 

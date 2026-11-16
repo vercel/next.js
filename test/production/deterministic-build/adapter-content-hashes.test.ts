@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import path from 'path'
-import type { NextAdapter } from 'next'
+import type { AdapterOutput, NextAdapter } from 'next'
 
 import { FILES } from './files'
 
@@ -28,7 +28,7 @@ import { FILES } from './files'
         )
 
         function validateOutput(output: {
-          runtime?: 'edge' | 'nodejs'
+          runtime?: AdapterOutput['APP_ROUTE']['runtime']
           filePath: string
           assets?: Record<string, string>
           assetsHashes?: Record<string, string>
@@ -41,14 +41,22 @@ import { FILES } from './files'
 
             const { assets, assetsHashes, filePath } = output
             expect(assets).toBeObject()
-            expect(assets).not.toBeEmpty()
+            // A native executable can contain all its dependencies and embeds.
+            if (output.runtime !== 'go') expect(assets).not.toBeEmpty()
             expect(assetsHashes).toBeObject()
             for (const file in assets) {
               expect(assetsHashes[file]).toBeString()
             }
 
             expect(filePath).toBeString()
-            expect(assetsHashes[path.relative(repoRoot, filePath)]).toBeString()
+            const entryPath = path.relative(repoRoot, filePath)
+            expect(
+              assetsHashes[
+                output.runtime === 'go'
+                  ? entryPath.replace(/\\/g, '/')
+                  : entryPath
+              ]
+            ).toBeString()
           } catch (err) {
             console.error('Validation failed for output:', output)
             throw err

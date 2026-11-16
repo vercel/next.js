@@ -1,6 +1,7 @@
 import type { AppPageModule } from '../route-modules/app-page/module'
 import { renderToNodeFlightStream } from './stream-ops'
 import { getClientReferenceManifest } from './manifests-singleton'
+import { encodeTextChunk } from '../stream-utils/node-web-streams-helper'
 
 const filterStackFrame =
   process.env.NODE_ENV !== 'production'
@@ -30,7 +31,7 @@ export async function serializeValidationErrorsToFlight(
 
   const chunks: Uint8Array[] = []
   for await (const chunk of stream) {
-    chunks.push(chunk)
+    chunks.push(encodeTextChunk(chunk))
   }
   return chunks
 }

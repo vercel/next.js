@@ -10,6 +10,37 @@
                 ),
             ),
         ),
+        base_effects: [
+            FreeVar {
+                var: "A",
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            0,
+                        ),
+                    ),
+                    Stmt(
+                        Expr,
+                    ),
+                    ExprStmt(
+                        Expr,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Ident,
+                    ),
+                ],
+                span: 1..2,
+            },
+        ],
         ast_path: [
             Program(
                 Script,
@@ -32,15 +63,149 @@
         span: 1..4,
         in_truthiness_context: false,
     },
-    FreeVar {
-        var: "A",
+    Member {
+        obj: FreeVar(
+            "A",
+        ),
+        prop: Member(
+            3,
+            FreeVar(
+                "B",
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "C",
+                    ),
+                ),
+            ),
+        ),
+        base_effects: [
+            FreeVar {
+                var: "A",
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            1,
+                        ),
+                    ),
+                    Stmt(
+                        Expr,
+                    ),
+                    ExprStmt(
+                        Expr,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Obj,
+                    ),
+                    Expr(
+                        Ident,
+                    ),
+                ],
+                span: 6..7,
+            },
+            Member {
+                obj: FreeVar(
+                    "B",
+                ),
+                prop: Constant(
+                    Str(
+                        Atom(
+                            "C",
+                        ),
+                    ),
+                ),
+                base_effects: [
+                    FreeVar {
+                        var: "B",
+                        ast_path: [
+                            Program(
+                                Script,
+                            ),
+                            Script(
+                                Body(
+                                    1,
+                                ),
+                            ),
+                            Stmt(
+                                Expr,
+                            ),
+                            ExprStmt(
+                                Expr,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                            MemberExpr(
+                                Prop,
+                            ),
+                            MemberProp(
+                                Computed,
+                            ),
+                            ComputedPropName(
+                                Expr,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                            MemberExpr(
+                                Obj,
+                            ),
+                            Expr(
+                                Ident,
+                            ),
+                        ],
+                        span: 8..9,
+                    },
+                ],
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            1,
+                        ),
+                    ),
+                    Stmt(
+                        Expr,
+                    ),
+                    ExprStmt(
+                        Expr,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                    MemberExpr(
+                        Prop,
+                    ),
+                    MemberProp(
+                        Computed,
+                    ),
+                    ComputedPropName(
+                        Expr,
+                    ),
+                    Expr(
+                        Member,
+                    ),
+                ],
+                span: 8..11,
+                in_truthiness_context: false,
+            },
+        ],
         ast_path: [
             Program(
                 Script,
             ),
             Script(
                 Body(
-                    0,
+                    1,
                 ),
             ),
             Stmt(
@@ -52,13 +217,8 @@
             Expr(
                 Member,
             ),
-            MemberExpr(
-                Obj,
-            ),
-            Expr(
-                Ident,
-            ),
         ],
-        span: 1..2,
+        span: 6..12,
+        in_truthiness_context: false,
     },
 ]

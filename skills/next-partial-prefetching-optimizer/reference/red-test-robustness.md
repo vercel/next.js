@@ -60,9 +60,6 @@ regressed.
 - The target is URL-specific but the test user's record/query returns empty.
 - The target is behind a flag, role, plan, locale, or experiment absent in CI.
 - Auth redirects to a page where the shell selector happens to exist.
-- The source link points to a redirect URL, so its prefetch receives the
-  redirect instead of the destination route tree. Point the link at its
-  canonical destination.
 - A shared selector matches the source before the destination commits.
 - The test clicks a default link while the code change modified a different
   link to the same URL.

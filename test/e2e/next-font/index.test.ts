@@ -1,5 +1,5 @@
 import cheerio from 'cheerio'
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup, isNextDev } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 import { join } from 'path'
 
@@ -52,7 +52,7 @@ describe('next/font', () => {
     },
   })
 
-  if ((global as any).isNextDev) {
+  if (isNextDev) {
     it('should use production cache control for fonts', async () => {
       const $ = await next.render$('/')
       const link = $('[rel="preload"][as="font"]').attr('href')

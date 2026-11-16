@@ -95,7 +95,7 @@ describe('use-cache-segment-configs', () => {
          3 | export default function Page() {
          4 |   return <div>This page uses \`export const runtime\`.</div>
          Ecmascript file had an error
-         at ignore-listed frames"
+         at printBuildErrors (<next-internal>)"
         `)
       } else if (isTurbopack) {
         expect(buildOutput).toMatchInlineSnapshot(`
@@ -111,8 +111,7 @@ describe('use-cache-segment-configs', () => {
          Ecmascript file had an error
 
 
-             at ignore-listed frames
-         "
+             at printBuildErrors (<next-internal>)"
         `)
       } else if (isRspack) {
         expect(buildOutput).toMatchInlineSnapshot(`
@@ -196,12 +195,24 @@ function getBuildOutput(cliOutput: string, isNextDeploy: boolean): string {
       break
     }
     if (!skipLines) {
+      if (line.includes('at turbopackBuild')) {
+        break
+      }
+
       if (line.includes('__next_edge_ssr_entry__')) {
         lines.push(
           '// TODO(veil): Fix broken import trace for Webpack loader resource.'
         )
       } else {
-        lines.push(stripAnsi(line))
+        lines.push(
+          // Framework frames are intentionally printed unsourcemapped (the
+          // build process has no source maps); their install-specific paths
+          // are not stable.
+          stripAnsi(line).replace(
+            /(at (?:async )?[\w$.]+) \([^)]*node_modules\/next\/dist[^)]*\)/,
+            '$1 (<next-internal>)'
+          )
+        )
       }
     } else if (
       line.includes('Build error occurred') ||

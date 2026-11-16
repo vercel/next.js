@@ -2,8 +2,8 @@ import { nextTestSetup } from 'e2e-utils'
 import { findPort } from 'next-test-utils'
 import createTargetServer from './target-server'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely depends on a local server, proxy, process, or dynamically allocated port.
+// Deploy mode exclusion: This suite rewrites to a server on a local port and
+// asserts localhost host headers, which a deployment can't reach.
 // @force-gate !deploy
 describe('rewrites hostname', () => {
   const { next } = nextTestSetup({

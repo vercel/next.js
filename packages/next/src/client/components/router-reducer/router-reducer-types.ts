@@ -95,6 +95,41 @@ export interface NavigateAction {
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
   scrollBehavior: ScrollBehavior
+  // Set when this is the commit phase of `router.experimental_prepare()`.
+  preparation: PreparedNavigationRecord | null
+}
+
+/**
+ * State shared by the prepare and commit phases of a navigation started with
+ * `router.experimental_prepare()`. Both phases read and write it
+ * synchronously.
+ */
+export type PreparedNavigationRecord = {
+  // The time the prepare phase started. The commit only reuses BFCache entries
+  // written at or after this time.
+  preparedAt: number
+  // The BFCache version when the prepare phase started. If a refresh or server
+  // action invalidates the BFCache, the version changes, and the commit
+  // doesn't reuse the prepared request.
+  bfcacheVersion: number
+  // For a route that wasn't known when the prepare phase started, the request
+  // it's waiting on, and the tree it was made against. Null for a known route,
+  // and once the response comes back. A commit that starts before then takes
+  // over the request instead of issuing its own, and clears these fields.
+  inFlightRequest: Promise<FetchServerResponseResult> | null
+  inFlightRequestTree: FlightRouterState | null
+  // For a route that wasn't known when the prepare phase started, the
+  // processed response, once it comes back: the same arguments a regular
+  // navigation passes to navigateToKnownRoute after fetching an unknown route.
+  // A commit uses these instead of fetching the route again, because the route
+  // cache entry the prepare phase wrote may already be expired (see
+  // InliningHintsStale). Cleared by the commit.
+  completedNavigation: {
+    navigationSeed: NavigationSeed
+    canonicalUrl: string
+    debugInfo: Array<unknown> | null
+    requestTree: FlightRouterState
+  } | null
 }
 
 /**
@@ -141,11 +176,18 @@ export interface ServerPatchAction {
  * PrefetchKind defines the type of prefetching that should be done.
  * - `auto` - if the page is dynamic, prefetch the page data partially, if static prefetch the page data fully.
  * - `full` - prefetch the page data fully.
+ * - `shell` - the same as `auto`, named after the stage it prefetches.
+ * - `prefetch` - the same as `full`, named after the stage it prefetches.
+ * - `navigation` - prefetch up to where `navigation()` resolves. Without
+ *   Partial Prefetching, this is the same as `full`.
  */
 
 export enum PrefetchKind {
   AUTO = 'auto',
   FULL = 'full',
+  SHELL = 'shell',
+  PREFETCH = 'prefetch',
+  NAVIGATION = 'navigation',
 }
 
 export interface PushRef {

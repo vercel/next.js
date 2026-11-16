@@ -1248,8 +1248,8 @@ export async function ncc_ignore_loader(task, opts) {
 externals['is-animated'] = 'next/dist/compiled/is-animated'
 export async function ncc_is_animated(task, opts) {
   await task
-    .source(relative(__dirname, require.resolve('is-animated')))
-    .ncc({ packageName: 'is-animated', externals })
+    .source('src/bundles/is-animated/index.js')
+    .ncc({ packageName: 'is-animated', externals, esm: false })
     .target('src/compiled/is-animated')
 }
 externals['ipaddr.js'] = 'next/dist/compiled/ipaddr.js'
@@ -1280,18 +1280,15 @@ export async function ncc_json5(task, opts) {
     .ncc({ packageName: 'json5', externals })
     .target('src/compiled/json5')
 }
-externals['jsonwebtoken'] = 'next/dist/compiled/jsonwebtoken'
-export async function ncc_jsonwebtoken(task, opts) {
+externals['fast-jwt'] = 'next/dist/compiled/fast-jwt'
+export async function ncc_fast_jwt(task, opts) {
   await task
-    .source(relative(__dirname, require.resolve('jsonwebtoken')))
+    .source(relative(__dirname, require.resolve('fast-jwt')))
     .ncc({
-      packageName: 'jsonwebtoken',
-      externals: {
-        ...externals,
-        semver: 'next/dist/lib/semver-noop',
-      },
+      packageName: 'fast-jwt',
+      externals,
     })
-    .target('src/compiled/jsonwebtoken')
+    .target('src/compiled/fast-jwt')
 }
 externals['loader-runner'] = 'next/dist/compiled/loader-runner'
 export async function ncc_loader_runner(task, opts) {
@@ -1671,7 +1668,12 @@ export async function copy_vendor_react(task_) {
       'cjs/react-dom-server.bun.production.min.js',
       'cjs/react-dom-test-utils.development.js',
       'cjs/react-dom-test-utils.production.min.js',
-      'unstable_server-external-runtime.js',
+      // `unstable_server-external-runtime.js` is deliberately kept. It is the
+      // standalone browser runtime that applies Fizz's instruction set when
+      // `unstable_externalRuntimeSrc` is set, and it is served as a static
+      // asset rather than bundled. React only publishes it on the experimental
+      // channel, so it is absent from the `react-dom` copy and present in the
+      // `react-dom-experimental` one.
     ]
     for (const item of itemsToRemove) {
       yield rmrf(join(reactDomCompiledDir, item))
@@ -2345,7 +2347,7 @@ export async function ncc(task, opts) {
         'ncc_is_docker',
         'ncc_is_wsl',
         'ncc_json5',
-        'ncc_jsonwebtoken',
+        'ncc_fast_jwt',
         'ncc_loader_runner',
         'ncc_loader_utils2',
         'ncc_loader_utils3',

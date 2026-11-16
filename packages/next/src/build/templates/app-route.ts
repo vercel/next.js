@@ -15,7 +15,6 @@ import {
 import {
   getTracer,
   type Span,
-  SpanKind,
   SpanStatusCode,
 } from '../../server/lib/trace/tracer'
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
@@ -28,6 +27,7 @@ import {
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { getRevalidateReason } from '../../server/instrumentation/utils'
 import { sendResponse } from '../../server/send-response'
+import { isNullBodyStatus } from '../../server/web/http'
 import {
   fromNodeOutgoingHttpHeaders,
   toNodeOutgoingHttpHeaders,
@@ -131,6 +131,47 @@ export async function handler(
   const multiZoneDraftMode = process.env
     .__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
 
+  // Registering `instrumentation.ts` usually installs the tracer provider, so
+  // do it before starting the request span. The span is started before
+  // `prepare`, so route module preparation is part of the request's trace.
+  // When this request triggers registration, the lifecycle spans of
+  // `instrumentation.ts` are emitted inside the request span.
+  const { instrumentation } = await routeModule.ensureInstrumentation(req, {
+    deferSpans: true,
+  })
+  return routeModule.traceRequest(
+    req,
+    {
+      tracer: getTracer(),
+      spanName: `${req.method || 'GET'} ${srcPage}`,
+      httpTarget: req.url,
+      instrumentation,
+    },
+    (requestSpan, requestRootSpan) =>
+      handleRequest(
+        req,
+        res,
+        ctx,
+        srcPage,
+        multiZoneDraftMode,
+        requestSpan,
+        requestRootSpan
+      )
+  )
+}
+
+async function handleRequest(
+  req: IncomingMessage,
+  res: ServerResponse,
+  ctx: {
+    waitUntil?: (prom: Promise<void>) => void
+    requestMeta?: RequestMeta
+  },
+  srcPage: string,
+  multiZoneDraftMode: boolean,
+  requestSpan: Span | undefined,
+  requestRootSpan: Span | undefined
+) {
   const prepareResult = await routeModule.prepare(req, res, {
     srcPage,
     multiZoneDraftMode,
@@ -220,7 +261,6 @@ export async function handler(
 
   const method = req.method || 'GET'
   const tracer = getTracer()
-  const activeSpan = tracer.getActiveScopeSpan()
   const isWrappedByNextServer = Boolean(
     routerServerContext?.isWrappedByNextServer
   )
@@ -258,8 +298,12 @@ export async function handler(
       cacheLifeProfiles: nextConfig.cacheLife,
       staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
       waitUntil: ctx.waitUntil,
-      onClose: (cb) => {
-        res.on('close', cb)
+      onClose: (callback) => {
+        if (res.closed) {
+          callback()
+        } else {
+          res.once('close', callback)
+        }
       },
       onAfterTaskError: undefined,
     },
@@ -298,7 +342,7 @@ export async function handler(
           ? await routeModule.handle(nextReq, context)
           : await routeModule.prerender(nextReq, context)
 
-      ;(req as any).fetchMetrics = (context.renderOpts as any).fetchMetrics
+      ;(req as any).fetchMetrics = context.renderOpts.fetchMetrics
       let pendingWaitUntil = context.renderOpts.pendingWaitUntil
 
       // Attempt using provided waitUntil if available
@@ -391,10 +435,7 @@ export async function handler(
     }
   }
 
-  const handleResponse = async (
-    currentSpan: Span | undefined,
-    parentSpan: Span | undefined
-  ) => {
+  const handleResponse = async (currentSpan: Span | undefined) => {
     try {
       const cacheEntry = await routeModule.handleResponse({
         req,
@@ -467,14 +508,15 @@ export async function handler(
         )
       }
 
+      const status = cacheEntry.value.status || 200
+      // The cached body is an empty buffer for null body statuses, which the
+      // Response constructor rejects.
+      const body = isNullBodyStatus(status) ? null : cacheEntry.value.body
       await sendResponse(
         nodeNextReq,
         nodeNextRes,
         // @ts-expect-error - Argument of type 'Buffer<ArrayBufferLike>' is not assignable to parameter of type 'BodyInit | null | undefined'.
-        new Response(cacheEntry.value.body, {
-          headers,
-          status: cacheEntry.value.status || 200,
-        })
+        new Response(body, { headers, status })
       )
       return
     } catch (err) {
@@ -579,39 +621,22 @@ export async function handler(
         })
         currentSpan.updateName(name)
 
-        // Propagate http.route to the parent span if one exists (e.g.
-        // a platform-created HTTP span in adapter deployments).
-        if (parentSpan && parentSpan !== currentSpan) {
-          parentSpan.setAttribute('http.route', route)
-          parentSpan.updateName(name)
+        // Propagate http.route to the request's root span if it isn't the
+        // request span (e.g. a platform-created HTTP span in adapter
+        // deployments).
+        if (requestRootSpan && requestRootSpan !== currentSpan) {
+          requestRootSpan.setAttribute('http.route', route)
+          requestRootSpan.updateName(name)
         }
       })()
     }
   }
 
-  // TODO: activeSpan code path is for when wrapped by
-  // next-server can be removed when this is no longer used
-  if (isWrappedByNextServer && activeSpan) {
-    await handleResponse(activeSpan, undefined)
-  } else {
-    let parentSpan = tracer.getActiveScopeSpan()
-    await tracer.withPropagatedContext(
-      req.headers,
-      () =>
-        tracer.trace(
-          BaseServerSpan.handleRequest,
-          {
-            spanName: `${method} ${srcPage}`,
-            kind: SpanKind.SERVER,
-            attributes: {
-              'http.method': method,
-              'http.target': req.url,
-            },
-          },
-          (span) => handleResponse(span, parentSpan)
-        ),
-      undefined,
-      !isWrappedByNextServer
-    )
+  // When invoked directly, the request span was started before `prepare`;
+  // record the request target as normalized by it. next-server's request span
+  // already has it.
+  if (!isWrappedByNextServer && req.url !== undefined) {
+    requestSpan?.setAttribute('http.target', req.url)
   }
+  await handleResponse(requestSpan)
 }

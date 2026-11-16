@@ -18,12 +18,8 @@ describe('RequestCookiesAdapter', () => {
     expect(sealed.get('bar')).toEqual({ name: 'bar', value: 'foo' })
 
     // These methods are not available on the sealed instance
-    expect(() => (sealed as any).set('foo', 'bar2')).toThrow(
-      ReadonlyRequestCookiesError
-    )
-    expect(() => (sealed as any).delete('foo')).toThrow(
-      ReadonlyRequestCookiesError
-    )
+    expect(() => sealed.set('foo', 'bar2')).toThrow(ReadonlyRequestCookiesError)
+    expect(() => sealed.delete('foo')).toThrow(ReadonlyRequestCookiesError)
     expect(() => (sealed as any).clear()).toThrow(ReadonlyRequestCookiesError)
 
     // Ensure nothing was actually changed.
@@ -41,12 +37,8 @@ describe('RequestCookiesAdapter', () => {
     expect(sealed.get('bar')).toEqual(undefined)
 
     // These methods are not available on the sealed instance
-    expect(() => (sealed as any).set('foo', 'bar2')).toThrow(
-      ReadonlyRequestCookiesError
-    )
-    expect(() => (sealed as any).delete('foo')).toThrow(
-      ReadonlyRequestCookiesError
-    )
+    expect(() => sealed.set('foo', 'bar2')).toThrow(ReadonlyRequestCookiesError)
+    expect(() => sealed.delete('foo')).toThrow(ReadonlyRequestCookiesError)
     expect(() => (sealed as any).clear()).toThrow(ReadonlyRequestCookiesError)
 
     // Ensure nothing was actually changed.

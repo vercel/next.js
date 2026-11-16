@@ -13,6 +13,7 @@ use turbopack_core::{
     chunk::ChunkingContext,
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
+    source_map::SourceMapGenerationOptions,
     version::{Update, Version, VersionedContent},
 };
 use turbopack_ecmascript::{
@@ -120,7 +121,7 @@ impl EcmascriptDevChunkListContent {
             }
         };
 
-        let mut code = CodeBuilder::default();
+        let mut code = CodeBuilder::new(false, SourceMapGenerationOptions::NONE);
 
         // When loaded, JS chunks must register themselves with the `TURBOPACK` global
         // variable. Similarly, we register the chunk list with the

@@ -1,27 +1,42 @@
 use std::{
     fmt::Debug,
     hash::{BuildHasher, BuildHasherDefault, Hash},
+    iter::FusedIterator,
     marker::PhantomData,
 };
 
-use bincode::{Decode, Encode};
+use bincode::{
+    BorrowDecode, Decode, Encode,
+    de::{BorrowDecoder, Decoder},
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+};
+use indexmap::{IndexMap, IndexSet};
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use shrink_to_fit::ShrinkToFit;
 
-use crate::AutoMap;
+use crate::{
+    MAX_USEFUL_LINEAR_SCAN, RawAutoMap, TinyVec,
+    storage::{
+        BackingListStorage, BackingMapIter, BackingMapStorage, Equivalent, IndexedBackingMapStorage,
+    },
+};
 
-#[derive(Clone, Encode, Decode)]
-#[bincode(
-    encode_bounds = "K: Encode + Hash + Eq, H: BuildHasher + Default",
-    decode_bounds = "K: Decode<__Context> + Hash + Eq, H: BuildHasher + Default",
-    borrow_decode_bounds = "K: Decode<__Context> + Hash + Eq, H: BuildHasher + Default"
-)]
-pub struct AutoSet<K, H = BuildHasherDefault<FxHasher>, const I: usize = 0> {
-    map: AutoMap<K, (), H, I>,
+/// A set that stores small numbers of items in a linear list `L` and switches to a real map `M`
+/// when it grows. See [`RawAutoMap`].
+///
+/// Use the [`AutoSet`] (hash map based, unordered) or [`OrderedAutoSet`] (index map based,
+/// insertion ordered) aliases instead of naming this type directly.
+#[derive(Clone)]
+pub struct RawAutoSet<K, M, L> {
+    map: RawAutoMap<K, (), M, L>,
 }
 
-impl<K, H, const I: usize> Default for AutoSet<K, H, I> {
+// The aliases are defined in the crate root. Re-exported here to keep the `set::` paths working.
+pub use crate::{AutoSet, OrderedAutoSet};
+
+impl<K, M, L: BackingListStorage<(K, ())>> Default for RawAutoSet<K, M, L> {
     fn default() -> Self {
         Self {
             map: Default::default(),
@@ -29,40 +44,47 @@ impl<K, H, const I: usize> Default for AutoSet<K, H, I> {
     }
 }
 
-impl<K: Debug, H, const I: usize> Debug for AutoSet<K, H, I> {
+impl<K: Debug, M: BackingMapStorage<K, ()>, L: BackingListStorage<(K, ())>> Debug
+    for RawAutoSet<K, M, L>
+{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_set().entries(self.iter()).finish()
     }
 }
 
-impl<K> AutoSet<K, BuildHasherDefault<FxHasher>, 0> {
+/// The constructors with the default [`FxHasher`] based hasher and the default list storage, for
+/// any map storage. See [`RawAutoMap::new`].
+impl<K, M> RawAutoSet<K, M, TinyVec<(K, ()), 0, MAX_USEFUL_LINEAR_SCAN>>
+where
+    M: BackingMapStorage<K, (), Hasher = BuildHasherDefault<FxHasher>>,
+{
     /// see [HashSet::new](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.new)
     pub const fn new() -> Self {
         Self {
-            map: AutoMap::new(),
+            map: RawAutoMap::new(),
         }
     }
 
     /// see [HashSet::with_capacity](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.with_capacity)
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
-            map: AutoMap::with_capacity(capacity),
+            map: RawAutoMap::with_capacity(capacity),
         }
     }
 }
 
-impl<K, H: BuildHasher, const I: usize> AutoSet<K, H, I> {
+impl<K, M: BackingMapStorage<K, ()>, L: BackingListStorage<(K, ())>> RawAutoSet<K, M, L> {
     /// see [HashSet::with_hasher](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.with_hasher)
     pub const fn with_hasher() -> Self {
         Self {
-            map: AutoMap::with_hasher(),
+            map: RawAutoMap::with_hasher(),
         }
     }
 
     /// see [HashSet::with_capacity_and_hasher](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.with_capacity_and_hasher)
-    pub fn with_capacity_and_hasher(capacity: usize, hasher: H) -> Self {
+    pub fn with_capacity_and_hasher(capacity: usize, hasher: M::Hasher) -> Self {
         Self {
-            map: AutoMap::with_capacity_and_hasher(capacity, hasher),
+            map: RawAutoMap::with_capacity_and_hasher(capacity, hasher),
         }
     }
 
@@ -72,15 +94,48 @@ impl<K, H: BuildHasher, const I: usize> AutoSet<K, H, I> {
     }
 }
 
-impl<K: Hash + Eq, H: BuildHasher + Default, const I: usize> AutoSet<K, H, I> {
+impl<K: Hash + Eq, M, L> RawAutoSet<K, M, L>
+where
+    M: BackingMapStorage<K, ()>,
+    M::Hasher: BuildHasher + Default,
+    L: BackingListStorage<(K, ())>,
+{
+    /// Creates a set from items that are unique, e.g. the items of another set. See
+    /// [`RawAutoMap::from_unique_iterator`]: duplicate items are a logic error.
+    pub fn from_unique_iterator(iter: impl IntoIterator<Item = K>) -> Self {
+        Self {
+            map: RawAutoMap::from_unique_iterator(iter.into_iter().map(|item| (item, ()))),
+        }
+    }
+
     /// see [HashSet::insert](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.insert)
+    #[inline]
     pub fn insert(&mut self, key: K) -> bool {
         self.map.insert(key, ()).is_none()
     }
 
     /// see [HashSet::remove](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.remove)
-    pub fn remove(&mut self, key: &K) -> bool {
+    ///
+    /// Ordered storages preserve the order of the remaining items.
+    #[inline]
+    pub fn remove<Q>(&mut self, key: &Q) -> bool
+    where
+        Q: Hash + Equivalent<K> + ?Sized,
+    {
         self.map.remove(key).is_some()
+    }
+
+    /// Removes `key` by swapping the last item into its place, like
+    /// [IndexSet::swap_remove](https://docs.rs/indexmap/latest/indexmap/set/struct.IndexSet.html#method.swap_remove).
+    ///
+    /// This always swaps, also for ordered storages, so it's O(1) there but changes the order of
+    /// the remaining items. For unordered storages it's the same as [`Self::remove`].
+    #[inline]
+    pub fn swap_remove<Q>(&mut self, key: &Q) -> bool
+    where
+        Q: Hash + Equivalent<K> + ?Sized,
+    {
+        self.map.swap_remove(key).is_some()
     }
 
     /// see [HashSet::extend](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.extend)
@@ -93,12 +148,23 @@ impl<K: Hash + Eq, H: BuildHasher + Default, const I: usize> AutoSet<K, H, I> {
         self.map.shrink_to_fit();
     }
 
+    /// Cheaper alternative to [`Self::shrink_to_fit`], suitable to call after every removal: see
+    /// [`RawAutoMap::shrink_amortized`].
+    pub fn shrink_amortized(&mut self) {
+        self.map.shrink_amortized();
+    }
+
     /// see [HashSet::contains](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.contains)
-    pub fn contains(&self, key: &K) -> bool {
+    pub fn contains<Q>(&self, key: &Q) -> bool
+    where
+        Q: Hash + Equivalent<K> + ?Sized,
+    {
         self.map.contains_key(key)
     }
 
     /// see [HashSet::retain](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.retain)
+    ///
+    /// Ordered storages preserve the order of the retained items.
     pub fn retain<F>(&mut self, mut f: F)
     where
         F: FnMut(&K) -> bool,
@@ -107,7 +173,7 @@ impl<K: Hash + Eq, H: BuildHasher + Default, const I: usize> AutoSet<K, H, I> {
     }
 }
 
-impl<K, H, const I: usize> AutoSet<K, H, I> {
+impl<K, M: BackingMapStorage<K, ()>, L: BackingListStorage<(K, ())>> RawAutoSet<K, M, L> {
     /// see [HashSet::len](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.len)
     pub fn len(&self) -> usize {
         self.map.len()
@@ -119,52 +185,92 @@ impl<K, H, const I: usize> AutoSet<K, H, I> {
     }
 
     /// see [HashSet::iter](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.iter)
-    pub fn iter(&self) -> Iter<'_, K> {
+    pub fn iter(&self) -> Iter<M::Iter<'_>> {
         Iter(self.map.iter())
     }
 }
 
-impl<K, H, const I: usize> IntoIterator for AutoSet<K, H, I> {
+impl<K, M: BackingMapStorage<K, ()>, L: BackingListStorage<(K, ())>> IntoIterator
+    for RawAutoSet<K, M, L>
+{
     type Item = K;
-    type IntoIter = IntoIter<K, I>;
+    type IntoIter = IntoIter<L::IntoIter, M::IntoIter>;
 
     fn into_iter(self) -> Self::IntoIter {
         IntoIter(self.map.into_iter())
     }
 }
 
-impl<'a, K, H, const I: usize> IntoIterator for &'a AutoSet<K, H, I> {
+impl<'a, K, M: BackingMapStorage<K, ()>, L: BackingListStorage<(K, ())>> IntoIterator
+    for &'a RawAutoSet<K, M, L>
+{
     type Item = &'a K;
-    type IntoIter = Iter<'a, K>;
+    type IntoIter = Iter<M::Iter<'a>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
 }
 
-pub struct Iter<'a, K>(super::map::Iter<'a, K, ()>);
+/// A borrowed iterator of a [`RawAutoSet`]. `MI` is [`BackingMapStorage::Iter`] of the map
+/// storage.
+pub struct Iter<MI: BackingMapIter>(crate::map::Iter<MI>);
 
-impl<'a, K> Iterator for Iter<'a, K> {
-    type Item = &'a K;
+/// Extracts the key from a borrowed map entry. Like [`BackingMapIter`], the impl doesn't relate the
+/// lifetimes of key and value, so the set iterator's trait impls are free of such where clauses.
+pub trait SetEntry {
+    type Key;
+    fn key(self) -> Self::Key;
+}
+
+impl<'a, K> SetEntry for (&'a K, &()) {
+    type Key = &'a K;
+    fn key(self) -> Self::Key {
+        self.0
+    }
+}
+
+impl<MI: BackingMapIter<Item: SetEntry>> Iterator for Iter<MI> {
+    type Item = <MI::Item as SetEntry>::Key;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|(k, _)| k)
+        self.0.next().map(SetEntry::key)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.0.size_hint()
     }
+
+    #[inline]
+    fn fold<B, F>(self, init: B, mut f: F) -> B
+    where
+        F: FnMut(B, Self::Item) -> B,
+    {
+        self.0
+            .fold(init, move |acc, entry| f(acc, SetEntry::key(entry)))
+    }
 }
 
-impl<K> Clone for Iter<'_, K> {
+impl<MI> ExactSizeIterator for Iter<MI> where
+    MI: BackingMapIter<Item: SetEntry, List: ExactSizeIterator> + ExactSizeIterator
+{
+}
+
+impl<MI> FusedIterator for Iter<MI> where
+    MI: BackingMapIter<Item: SetEntry, List: FusedIterator> + FusedIterator
+{
+}
+
+impl<MI: BackingMapIter<List: Clone> + Clone> Clone for Iter<MI> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
 }
 
-pub struct IntoIter<K, const I: usize>(super::map::IntoIter<K, (), I>);
+// Parameterized by the storages' iterator types, see `crate::map::IntoIter`.
+pub struct IntoIter<LI, MI>(crate::map::IntoIter<LI, MI>);
 
-impl<K, const I: usize> Iterator for IntoIter<K, I> {
+impl<K, LI: Iterator<Item = (K, ())>, MI: Iterator<Item = (K, ())>> Iterator for IntoIter<LI, MI> {
     type Item = K;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -174,32 +280,59 @@ impl<K, const I: usize> Iterator for IntoIter<K, I> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.0.size_hint()
     }
+
+    #[inline]
+    fn fold<B, F>(self, init: B, mut f: F) -> B
+    where
+        F: FnMut(B, Self::Item) -> B,
+    {
+        self.0.fold(init, move |acc, (k, _)| f(acc, k))
+    }
 }
 
-impl<K, H, const I: usize> Serialize for AutoSet<K, H, I>
+impl<K, LI, MI> ExactSizeIterator for IntoIter<LI, MI>
+where
+    LI: ExactSizeIterator<Item = (K, ())>,
+    MI: ExactSizeIterator<Item = (K, ())>,
+{
+}
+
+impl<K, LI, MI> FusedIterator for IntoIter<LI, MI>
+where
+    LI: FusedIterator<Item = (K, ())>,
+    MI: FusedIterator<Item = (K, ())>,
+{
+}
+
+impl<K, M, L> Serialize for RawAutoSet<K, M, L>
 where
     K: Serialize,
-    H: BuildHasher,
+    M: BackingMapStorage<K, ()>,
+    L: BackingListStorage<(K, ())>,
 {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.collect_seq(self.iter())
     }
 }
 
-impl<'de, K, H, const I: usize> Deserialize<'de> for AutoSet<K, H, I>
+impl<'de, K, M, L> Deserialize<'de> for RawAutoSet<K, M, L>
 where
     K: Deserialize<'de> + Hash + Eq,
-    H: BuildHasher + Default,
+    M: BackingMapStorage<K, ()>,
+    M::Hasher: BuildHasher + Default,
+    L: BackingListStorage<(K, ())>,
 {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct AutoSetVisitor<K, H, const I: usize>(PhantomData<AutoSet<K, H, I>>);
+        struct AutoSetVisitor<K, M, L>(PhantomData<RawAutoSet<K, M, L>>);
 
-        impl<'de, K, H, const I: usize> serde::de::Visitor<'de> for AutoSetVisitor<K, H, I>
+        impl<'de, K, M, L> serde::de::Visitor<'de> for AutoSetVisitor<K, M, L>
         where
             K: Deserialize<'de> + Hash + Eq,
-            H: BuildHasher + Default,
+            M: BackingMapStorage<K, ()>,
+            M::Hasher: BuildHasher + Default,
+            L: BackingListStorage<(K, ())>,
         {
-            type Value = AutoSet<K, H, I>;
+            type Value = RawAutoSet<K, M, L>;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                 formatter.write_str("a set")
@@ -210,9 +343,9 @@ where
                 mut seq: A,
             ) -> Result<Self::Value, A::Error> {
                 let mut set = if let Some(size) = seq.size_hint() {
-                    AutoSet::with_capacity_and_hasher(size, H::default())
+                    RawAutoSet::with_capacity_and_hasher(size, M::Hasher::default())
                 } else {
-                    AutoSet::with_hasher()
+                    RawAutoSet::with_hasher()
                 };
                 while let Some(item) = seq.next_element()? {
                     set.insert(item);
@@ -225,46 +358,169 @@ where
     }
 }
 
-impl<K: Eq + Hash, H: BuildHasher, const I: usize> PartialEq for AutoSet<K, H, I> {
+impl<K, M, L> Encode for RawAutoSet<K, M, L>
+where
+    K: Encode,
+    M: BackingMapStorage<K, ()>,
+    L: BackingListStorage<(K, ())>,
+{
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        self.map.encode(encoder)
+    }
+}
+
+impl<Context, K, M, L> Decode<Context> for RawAutoSet<K, M, L>
+where
+    K: Decode<Context> + Hash + Eq,
+    M: BackingMapStorage<K, ()>,
+    M::Hasher: BuildHasher + Default,
+    L: BackingListStorage<(K, ())>,
+{
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        Ok(Self {
+            map: Decode::decode(decoder)?,
+        })
+    }
+}
+
+impl<'de, Context, K, M, L> BorrowDecode<'de, Context> for RawAutoSet<K, M, L>
+where
+    K: Decode<Context> + Hash + Eq,
+    M: BackingMapStorage<K, ()>,
+    M::Hasher: BuildHasher + Default,
+    L: BackingListStorage<(K, ())>,
+{
+    fn borrow_decode<D: BorrowDecoder<'de, Context = Context>>(
+        decoder: &mut D,
+    ) -> Result<Self, DecodeError> {
+        Decode::decode(decoder)
+    }
+}
+
+impl<K: Eq + Hash, M, L> PartialEq for RawAutoSet<K, M, L>
+where
+    M: BackingMapStorage<K, ()>,
+    M::Hasher: BuildHasher,
+    L: BackingListStorage<(K, ())>,
+{
+    /// Order insensitive for unordered storages, order sensitive for ordered ones (see
+    /// [`RawAutoMap`]'s `PartialEq`).
     fn eq(&self, other: &Self) -> bool {
         self.map == other.map
     }
 }
 
-impl<K: Eq + Hash, H: BuildHasher, const I: usize> Eq for AutoSet<K, H, I> {}
+impl<K: Eq + Hash, M, L> Eq for RawAutoSet<K, M, L>
+where
+    M: BackingMapStorage<K, ()>,
+    M::Hasher: BuildHasher,
+    L: BackingListStorage<(K, ())>,
+{
+}
 
-impl<K: Eq + Hash, SH: BuildHasher + Default, const I: usize> Hash for AutoSet<K, SH, I> {
+impl<K: Eq + Hash, M, L> Hash for RawAutoSet<K, M, L>
+where
+    M: BackingMapStorage<K, ()>,
+    M::Hasher: BuildHasher + Default,
+    L: BackingListStorage<(K, ())>,
+{
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.map.hash(state);
     }
 }
 
-impl<K, H, const I: usize> FromIterator<K> for AutoSet<K, H, I>
+/// Positional access for insertion ordered sets, like [`IndexSet`]'s. See
+/// [`RawAutoMap::get_index`].
+impl<K, M, L> RawAutoSet<K, M, L>
+where
+    M: IndexedBackingMapStorage<K, ()>,
+    L: BackingListStorage<(K, ())>,
+{
+    /// see [IndexSet::get_index](https://docs.rs/indexmap/latest/indexmap/set/struct.IndexSet.html#method.get_index)
+    pub fn get_index(&self, index: usize) -> Option<&K> {
+        self.map.get_index(index).map(|(k, _)| k)
+    }
+
+    /// see [IndexSet::get_index_of](https://docs.rs/indexmap/latest/indexmap/set/struct.IndexSet.html#method.get_index_of)
+    pub fn get_index_of<Q>(&self, key: &Q) -> Option<usize>
+    where
+        K: Eq + Hash,
+        Q: Hash + Equivalent<K> + ?Sized,
+        M::Hasher: BuildHasher,
+    {
+        self.map.get_index_of(key)
+    }
+}
+
+/// Converts an [`IndexSet`] keeping its order.
+impl<K, H, L> From<IndexSet<K, H>> for RawAutoSet<K, IndexMap<K, (), H>, L>
+where
+    K: Eq + Hash,
+    H: BuildHasher + Default,
+    L: BackingListStorage<(K, ())>,
+{
+    fn from(set: IndexSet<K, H>) -> Self {
+        Self::from_unique_iterator(set)
+    }
+}
+
+/// Converts a [`hashbrown::HashSet`].
+impl<K, H, L> From<hashbrown::HashSet<K, H>> for RawAutoSet<K, hashbrown::HashMap<K, (), H>, L>
+where
+    K: Eq + Hash,
+    H: BuildHasher + Default,
+    L: BackingListStorage<(K, ())>,
+{
+    fn from(set: hashbrown::HashSet<K, H>) -> Self {
+        Self::from_unique_iterator(set)
+    }
+}
+
+/// Converts a [`BTreeSet`](std::collections::BTreeSet). Ordered storages keep its order.
+impl<K, M, L> From<std::collections::BTreeSet<K>> for RawAutoSet<K, M, L>
+where
+    K: Eq + Hash,
+    M: BackingMapStorage<K, ()>,
+    M::Hasher: BuildHasher + Default,
+    L: BackingListStorage<(K, ())>,
+{
+    fn from(set: std::collections::BTreeSet<K>) -> Self {
+        Self::from_unique_iterator(set)
+    }
+}
+
+impl<K, M, L> FromIterator<K> for RawAutoSet<K, M, L>
 where
     K: Hash + Eq,
-    H: BuildHasher + Default,
+    M: BackingMapStorage<K, ()>,
+    M::Hasher: BuildHasher + Default,
+    L: BackingListStorage<(K, ())>,
 {
     fn from_iter<T: IntoIterator<Item = K>>(iter: T) -> Self {
         Self {
-            map: AutoMap::from_iter(iter.into_iter().map(|item| (item, ()))),
+            map: RawAutoMap::from_iter(iter.into_iter().map(|item| (item, ()))),
         }
     }
 }
 
-impl<K, H, const N: usize, const I: usize> From<[K; N]> for AutoSet<K, H, I>
+impl<K, M, L, const N: usize> From<[K; N]> for RawAutoSet<K, M, L>
 where
     K: Hash + Eq,
-    H: BuildHasher + Default,
+    M: BackingMapStorage<K, ()>,
+    M::Hasher: BuildHasher + Default,
+    L: BackingListStorage<(K, ())>,
 {
     fn from(array: [K; N]) -> Self {
         Self::from_iter(array)
     }
 }
 
-impl<K, H, const I: usize> ShrinkToFit for AutoSet<K, H, I>
+impl<K, M, L> ShrinkToFit for RawAutoSet<K, M, L>
 where
     K: Eq + Hash,
-    H: BuildHasher + Default,
+    M: BackingMapStorage<K, ()>,
+    M::Hasher: BuildHasher + Default,
+    L: BackingListStorage<(K, ())>,
 {
     fn shrink_to_fit(&mut self) {
         self.map.shrink_to_fit();
@@ -274,7 +530,33 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::MAX_USEFUL_LINEAR_SCAN;
+    use crate::{AutoSet, MIN_HASH_SIZE, OrderedAutoSet};
+
+    macro_rules! check_exact_size {
+        ($set:ty) => {
+            for n in [0, 5, 50] {
+                let set: $set = (0..n).collect();
+                fn check<I: ExactSizeIterator + FusedIterator>(mut iter: I, n: u32) {
+                    assert_eq!(iter.len(), n as usize);
+                    for remaining in (0..n as usize).rev() {
+                        assert!(iter.next().is_some());
+                        assert_eq!(iter.len(), remaining);
+                    }
+                    assert!(iter.next().is_none());
+                    assert!(iter.next().is_none());
+                }
+                check(set.iter(), n);
+                check((&set).into_iter(), n);
+                check(set.clone().into_iter(), n);
+            }
+        };
+    }
+
+    #[test]
+    fn iterators_exact_size_and_fused() {
+        check_exact_size!(AutoSet<u32>);
+        check_exact_size!(OrderedAutoSet<u32>);
+    }
 
     #[test]
     fn test_auto_set() {
@@ -291,5 +573,287 @@ mod tests {
             assert!(set.remove(&i));
         }
         assert!(!set.remove(&(MAX_USEFUL_LINEAR_SCAN * 2)));
+    }
+
+    fn hash_of<T: Hash>(value: &T) -> u64 {
+        BuildHasherDefault::<FxHasher>::default().hash_one(value)
+    }
+
+    #[test]
+    fn test_auto_set_eq_is_order_insensitive() {
+        let a = AutoSet::<_>::from(["a", "b"]);
+        let b = AutoSet::<_>::from(["b", "a"]);
+        assert_eq!(a, b);
+        assert_eq!(hash_of(&a), hash_of(&b));
+        let a: AutoSet<usize> = (0..MAX_USEFUL_LINEAR_SCAN * 2).collect();
+        let b: AutoSet<usize> = (0..MAX_USEFUL_LINEAR_SCAN * 2).rev().collect();
+        assert_eq!(a, b);
+        assert_eq!(hash_of(&a), hash_of(&b));
+    }
+
+    #[test]
+    fn test_ordered_auto_set_eq_is_order_sensitive() {
+        let a = OrderedAutoSet::<_>::from(["a", "b"]);
+        let a2 = OrderedAutoSet::<_>::from(["a", "b"]);
+        let b = OrderedAutoSet::<_>::from(["b", "a"]);
+        assert_eq!(a, a2);
+        assert_eq!(hash_of(&a), hash_of(&a2));
+        assert_ne!(a, b);
+
+        let a: OrderedAutoSet<usize> = (0..MAX_USEFUL_LINEAR_SCAN * 2).collect();
+        let a2: OrderedAutoSet<usize> = (0..MAX_USEFUL_LINEAR_SCAN * 2).collect();
+        let b: OrderedAutoSet<usize> = (0..MAX_USEFUL_LINEAR_SCAN * 2).rev().collect();
+        assert_eq!(a, a2);
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn test_ordered_auto_set_order() {
+        let n = MAX_USEFUL_LINEAR_SCAN * 2;
+        let mut set = OrderedAutoSet::new();
+        for i in (0..n).rev() {
+            assert!(set.insert(i));
+        }
+        assert!(!set.insert(0));
+        assert_eq!(
+            set.iter().copied().collect::<Vec<_>>(),
+            (0..n).rev().collect::<Vec<_>>()
+        );
+        set.remove(&(n - 1));
+        set.retain(|k| k % 2 == 0 && *k < 30);
+        set.shrink_to_fit();
+        let expected: Vec<usize> = (0..30).rev().filter(|k| k % 2 == 0).collect();
+        assert_eq!(set.iter().copied().collect::<Vec<_>>(), expected);
+        set.remove(&expected[0]);
+        assert_eq!(set.into_iter().collect::<Vec<_>>(), expected[1..]);
+    }
+
+    #[test]
+    fn test_shrink_amortized() {
+        fn check<M, L>(make: impl Fn(usize) -> RawAutoSet<usize, M, L>)
+        where
+            M: BackingMapStorage<usize, ()>,
+            M::Hasher: BuildHasher + Default,
+            L: BackingListStorage<(usize, ())>,
+        {
+            let list_capacity = |set: &RawAutoSet<usize, M, L>| match &set.map {
+                RawAutoMap::List(list, _) => Some(list.capacity()),
+                RawAutoMap::Map(_) => None,
+            };
+            // A map converts back to an exactly sized list below `MIN_HASH_SIZE` entries,
+            // keeping the order of ordered sets.
+            for (len, converts) in [(MIN_HASH_SIZE - 1, true), (MIN_HASH_SIZE, false)] {
+                let mut set = make(MAX_USEFUL_LINEAR_SCAN * 2);
+                set.retain(|k| *k < len);
+                assert!(list_capacity(&set).is_none());
+                set.shrink_amortized();
+                let expected_capacity = if converts { Some(len) } else { None };
+                assert_eq!(list_capacity(&set), expected_capacity, "{len} entries");
+                let mut keys: Vec<_> = set.iter().copied().collect();
+                // The sets are built in reverse order.
+                let mut expected: Vec<_> = (0..len).rev().collect();
+                if M::UNORDERED {
+                    keys.sort();
+                    expected.sort();
+                }
+                assert_eq!(keys, expected);
+            }
+            // A list shrinks once less than a third of its capacity is used.
+            let mut set = make(MAX_USEFUL_LINEAR_SCAN);
+            set.retain(|k| *k < 3);
+            assert_eq!(list_capacity(&set), Some(MAX_USEFUL_LINEAR_SCAN));
+            set.shrink_amortized();
+            assert!(list_capacity(&set).is_some_and(|c| c < MAX_USEFUL_LINEAR_SCAN));
+            assert_eq!(set.len(), 3);
+        }
+        check(|n| (0..n).rev().collect::<AutoSet<usize>>());
+        check(|n| (0..n).rev().collect::<OrderedAutoSet<usize>>());
+    }
+
+    #[test]
+    fn test_swap_remove() {
+        for n in [5, MAX_USEFUL_LINEAR_SCAN * 2] {
+            // Ordered: the last item moves into the removed slot, in list and map mode.
+            let mut set: OrderedAutoSet<usize> = (0..n).collect();
+            assert!(set.swap_remove(&1));
+            assert!(!set.swap_remove(&1));
+            assert!(!set.swap_remove(&(n + 7)));
+            let mut expected: Vec<usize> = (0..n).collect();
+            expected.swap_remove(1);
+            assert_eq!(set.iter().copied().collect::<Vec<_>>(), expected);
+
+            // Unordered: the same as `remove`.
+            let mut swapped: AutoSet<usize> = (0..n).collect();
+            let mut removed = swapped.clone();
+            for key in [1, 3, n - 1, n + 7] {
+                assert_eq!(swapped.swap_remove(&key), removed.remove(&key));
+            }
+            assert!(swapped.iter().eq(removed.iter()));
+        }
+    }
+
+    #[test]
+    fn test_fold_matches_next() {
+        // The iterators forward `fold` to the inner iterator; it must visit the same items in the
+        // same order as `next()`.
+        fn by_next<I: Iterator>(mut iter: I) -> Vec<I::Item> {
+            std::iter::from_fn(move || iter.next()).collect()
+        }
+        fn by_fold<I: Iterator>(iter: I) -> Vec<I::Item> {
+            iter.fold(Vec::new(), |mut items, item| {
+                items.push(item);
+                items
+            })
+        }
+        // Collects the rest after one `next()`, through `fold` and through `next()`.
+        fn rest_by_fold<I: Iterator>(mut iter: I) -> Vec<I::Item> {
+            iter.next();
+            by_fold(iter)
+        }
+        fn rest_by_next<I: Iterator>(mut iter: I) -> Vec<I::Item> {
+            iter.next();
+            by_next(iter)
+        }
+        // Empty, list variant, then map variant. Reverse insertion order, so that the order
+        // differs from the key order.
+        for n in [0, 5, MAX_USEFUL_LINEAR_SCAN * 2] {
+            let make = || (0..n).rev().collect::<AutoSet<usize>>();
+            assert_eq!(by_fold(make().iter()), by_next(make().iter()));
+            assert_eq!(by_fold(make().iter()).len(), n);
+            assert_eq!(by_fold(make().into_iter()), by_next(make().into_iter()));
+            assert_eq!(rest_by_fold(make().iter()), rest_by_next(make().iter()));
+            assert_eq!(
+                rest_by_fold(make().into_iter()),
+                rest_by_next(make().into_iter())
+            );
+            assert_eq!(rest_by_fold(make().iter()).len(), n.saturating_sub(1));
+
+            let make = || (0..n).rev().collect::<OrderedAutoSet<usize>>();
+            let expected: Vec<usize> = (0..n).rev().collect();
+            assert_eq!(by_fold(make().iter()), by_next(make().iter()));
+            assert_eq!(
+                by_fold(make().iter())
+                    .into_iter()
+                    .copied()
+                    .collect::<Vec<_>>(),
+                expected
+            );
+            assert_eq!(by_fold(make().into_iter()), expected);
+            assert_eq!(by_next(make().into_iter()), expected);
+            assert_eq!(rest_by_fold(make().into_iter()), expected[n.min(1)..]);
+            assert_eq!(
+                rest_by_fold(make().iter())
+                    .into_iter()
+                    .copied()
+                    .collect::<Vec<_>>(),
+                expected[n.min(1)..]
+            );
+        }
+    }
+
+    #[test]
+    fn test_ordered_auto_set_serialization_preserves_order() {
+        for n in [5, MAX_USEFUL_LINEAR_SCAN * 2] {
+            let set: OrderedAutoSet<usize> = (0..n).rev().collect();
+            let expected = (0..n).rev().collect::<Vec<_>>();
+
+            let config = bincode::config::standard();
+            let bytes = bincode::encode_to_vec(&set, config).unwrap();
+            let (decoded, _): (OrderedAutoSet<usize>, _) =
+                bincode::decode_from_slice(&bytes, config).unwrap();
+            assert_eq!(decoded, set);
+            assert_eq!(decoded.iter().copied().collect::<Vec<_>>(), expected);
+
+            let json = serde_json::to_string(&set).unwrap();
+            let decoded: OrderedAutoSet<usize> = serde_json::from_str(&json).unwrap();
+            assert_eq!(decoded, set);
+            assert_eq!(decoded.iter().copied().collect::<Vec<_>>(), expected);
+        }
+    }
+
+    #[test]
+    #[cfg(target_pointer_width = "64")]
+    fn test_sizes() {
+        use std::num::NonZeroU32;
+        type F = BuildHasherDefault<FxHasher>;
+        // Generalizing the storage must not change the size of the existing aliases.
+        assert_eq!(size_of::<AutoSet<NonZeroU32>>(), 16);
+        assert_eq!(size_of::<AutoSet<(NonZeroU32, u32), F, 3>>(), 32);
+        assert_eq!(size_of::<Option<AutoSet<NonZeroU32>>>(), 24);
+        assert_eq!(size_of::<OrderedAutoSet<NonZeroU32>>(), 16);
+    }
+
+    #[test]
+    fn test_ordered_auto_set_get_index() {
+        for n in [5usize, MAX_USEFUL_LINEAR_SCAN + 18] {
+            let mut set: OrderedAutoSet<usize> = (0..n).rev().collect();
+            for (index, key) in (0..n).rev().enumerate() {
+                assert_eq!(set.get_index(index), Some(&key));
+                assert_eq!(set.get_index_of(&key), Some(index));
+            }
+            assert_eq!(set.get_index(n), None);
+            assert_eq!(set.get_index_of(&n), None);
+            set.remove(&(n - 1));
+            assert_eq!(set.get_index(0), Some(&(n - 2)));
+            assert_eq!(set.get_index_of(&(n - 2)), Some(0));
+        }
+    }
+
+    #[test]
+    fn test_ordered_auto_set_from_index_set() {
+        type F = BuildHasherDefault<FxHasher>;
+        for n in [
+            0usize,
+            5,
+            MAX_USEFUL_LINEAR_SCAN,
+            MAX_USEFUL_LINEAR_SCAN + 1,
+            100,
+        ] {
+            let index_set: indexmap::IndexSet<usize, F> = (0..n).rev().collect();
+            let set: OrderedAutoSet<usize> = index_set.clone().into();
+            assert_eq!(set.len(), n);
+            assert_eq!(
+                set.iter().copied().collect::<Vec<_>>(),
+                (0..n).rev().collect::<Vec<_>>()
+            );
+            let collected: OrderedAutoSet<usize> = index_set.into_iter().collect();
+            assert_eq!(set, collected);
+        }
+    }
+
+    #[test]
+    fn test_from_unique_iterator_and_conversions() {
+        type F = BuildHasherDefault<FxHasher>;
+        for n in [
+            0usize,
+            5,
+            MAX_USEFUL_LINEAR_SCAN,
+            MAX_USEFUL_LINEAR_SCAN + 1,
+            100,
+        ] {
+            let ordered: OrderedAutoSet<usize> =
+                OrderedAutoSet::from_unique_iterator((0..n).rev().filter(|_| true));
+            assert_eq!(ordered.len(), n);
+            assert_eq!(
+                ordered.iter().copied().collect::<Vec<_>>(),
+                (0..n).rev().collect::<Vec<_>>()
+            );
+            let unordered: AutoSet<usize> = AutoSet::from_unique_iterator(0..n);
+            assert_eq!(unordered, (0..n).collect());
+
+            let hash_set: hashbrown::HashSet<usize, F> = (0..n).collect();
+            let from_hash_set: AutoSet<usize> = hash_set.into();
+            assert_eq!(from_hash_set, unordered);
+
+            let btree_set: std::collections::BTreeSet<usize> = (0..n).rev().collect();
+            let from_btree_ordered: OrderedAutoSet<usize> = btree_set.clone().into();
+            // The ordered set keeps the key order of the `BTreeSet`.
+            assert_eq!(
+                from_btree_ordered.iter().copied().collect::<Vec<_>>(),
+                (0..n).collect::<Vec<_>>()
+            );
+            let from_btree: AutoSet<usize> = btree_set.into();
+            assert_eq!(from_btree, unordered);
+        }
     }
 }

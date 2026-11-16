@@ -13,6 +13,7 @@ import { getProperError } from '../../lib/is-error'
 import { isReactLargeShellError } from './react-large-shell-error'
 import { isInstantValidationError } from './instant-validation/instant-validation-error'
 import { isNextBrowserBailoutError } from '../../shared/lib/lazy-dynamic/react-browser-bailout'
+import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 
 declare global {
   var __next_log_error__: undefined | ((err: unknown) => void)
@@ -57,7 +58,8 @@ export function createReactServerErrorHandler(
   isBuildTimePrerendering: boolean,
   reactServerErrors: Map<string, DigestedError>,
   onReactServerRenderError: (err: DigestedError, silenceLog: boolean) => void,
-  spanToRecordOn?: any
+  spanToRecordOn?: any,
+  renderErrorsByDigest?: Map<string, DigestedError>
 ): RSCErrorHandler {
   return (thrownValue: unknown) => {
     // If the response was closed, we don't need to log the error.
@@ -115,6 +117,8 @@ export function createReactServerErrorHandler(
       reactServerErrors.set(err.digest, err)
     }
 
+    renderErrorsByDigest?.set(err.digest, err)
+
     // Format server errors in development to add more helpful error messages
     if (shouldFormatError) {
       formatServerError(err)
@@ -140,7 +144,9 @@ export function createReactServerErrorHandler(
         })
       }
 
-      onReactServerRenderError(err, silenceLog)
+      // Error reporting is not rendering. Telemetry reads must not interrupt
+      // the render or opt it into dynamic rendering.
+      workUnitAsyncStorage.exit(onReactServerRenderError, err, silenceLog)
     }
 
     return err.digest
@@ -230,7 +236,8 @@ export function createHTMLErrorHandler(
           })
         }
 
-        onHTMLRenderSSRError(err, errorInfo)
+        // Keep SSR error reporting outside the render scope as well.
+        workUnitAsyncStorage.exit(onHTMLRenderSSRError, err, errorInfo)
       }
     }
 

@@ -37,7 +37,7 @@ describe('proxy-runtime', () => {
        4 |
        The exported configuration object in a source file needs to have a very specific format from which some properties can be statically parsed at compiled-time.
        https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config
-       at ignore-listed frames"
+       at printBuildErrors (<next-internal>)"
       `)
     } else {
       expect(cliOutput).toContain(
@@ -71,8 +71,20 @@ function getBuildError(cliOutput: string): string {
     }
 
     if (capturing) {
+      if (line.includes('at turbopackBuild')) {
+        break
+      }
+
       if (line) {
-        lines.push(line)
+        lines.push(
+          // Framework frames are intentionally printed unsourcemapped (the
+          // build process has no source maps); their install-specific paths
+          // are not stable.
+          line.replace(
+            /(at (?:async )?[\w$.]+) \([^)]*node_modules\/next\/dist[^)]*\)/,
+            '$1 (<next-internal>)'
+          )
+        )
       }
     } else if (line.includes('Build error occurred')) {
       capturing = true

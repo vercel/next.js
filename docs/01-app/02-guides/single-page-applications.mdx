@@ -268,18 +268,14 @@ If you are migrating from a strict SPA like [Create React App](/docs/app/guides/
 
 Next.js lets you use the native [`window.history.pushState`](https://developer.mozilla.org/en-US/docs/Web/API/History/pushState) and [`window.history.replaceState`](https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState) methods to update the browser's history stack without reloading the page.
 
-The `pushState` and `replaceState` calls integrate into the Next.js Router, allowing you to sync with [`usePathname`](/docs/app/api-reference/functions/use-pathname) and [`useSearchParams`](/docs/app/api-reference/functions/use-search-params).
+Next.js integrates `pushState` and `replaceState` calls into the router, so components that render with [`usePathname`](/docs/app/api-reference/functions/use-pathname) or [`useSearchParams`](/docs/app/api-reference/functions/use-search-params) update when the URL changes. When an event handler is the only place a component needs the URL, read `window.location` in the handler instead of calling `usePathname` or `useSearchParams`. Both hooks affect [prerendering](/docs/app/api-reference/functions/use-search-params#prerendering).
 
 ```tsx filename="app/ui/sort-products.tsx" switcher
 'use client'
 
-import { useSearchParams } from 'next/navigation'
-
 export default function SortProducts() {
-  const searchParams = useSearchParams()
-
   function updateSorting(sortOrder: string) {
-    const urlSearchParams = new URLSearchParams(searchParams.toString())
+    const urlSearchParams = new URLSearchParams(window.location.search)
     urlSearchParams.set('sort', sortOrder)
     window.history.pushState(null, '', `?${urlSearchParams.toString()}`)
   }
@@ -296,13 +292,9 @@ export default function SortProducts() {
 ```jsx filename="app/ui/sort-products.js" switcher
 'use client'
 
-import { useSearchParams } from 'next/navigation'
-
 export default function SortProducts() {
-  const searchParams = useSearchParams()
-
   function updateSorting(sortOrder) {
-    const urlSearchParams = new URLSearchParams(searchParams.toString())
+    const urlSearchParams = new URLSearchParams(window.location.search)
     urlSearchParams.set('sort', sortOrder)
     window.history.pushState(null, '', `?${urlSearchParams.toString()}`)
   }

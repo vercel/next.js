@@ -28,7 +28,7 @@ use auto_hash_map::AutoMap;
 use bincode::{Decode, Encode};
 use rustc_hash::FxBuildHasher;
 use swc_core::ecma::visit::AstParentKind;
-use turbo_tasks::NonLocalValue;
+use turbo_tasks::{FxIndexSet, NonLocalValue};
 
 /// A reference to a path interned in an [`AstPathTrie`].
 ///
@@ -54,11 +54,11 @@ impl AstPathId {
 // `AstPathId` is a plain index, so it holds no `Vc`s to trace and is trivially non-local.
 unsafe impl NonLocalValue for AstPathId {}
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Encode, Decode)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Encode, Decode)]
 struct Node {
     parent: AstPathId,
-    #[bincode(with_serde)]
-    kind: AstParentKind,
+    /// Index into the trie's `kinds`.
+    kind: u32,
 }
 
 /// Accumulates [`AstParentKind`] paths, sharing their common prefixes.
@@ -68,6 +68,8 @@ struct Node {
 #[derive(Debug)]
 pub struct AstPathTrieBuilder {
     nodes: Vec<Node>,
+    /// The distinct kinds the nodes refer to, by index.
+    kinds: FxIndexSet<AstParentKind>,
     /// The children of each node, keyed by the kind that reaches them, so interning the
     /// same path twice yields the same id. Effects are processed out of AST order, so there
     /// is no walk position to extend and children have to be looked up.
@@ -75,13 +77,14 @@ pub struct AstPathTrieBuilder {
     /// Indexed the same way as `nodes`, with slot 0 holding the root's children. Almost
     /// every node has one or two children, so `AutoMap` keeps those inline and only spills
     /// to a hash map for the occasional wide node (a module body, say).
-    children: Vec<AutoMap<AstParentKind, AstPathId, FxBuildHasher, 4>>,
+    children: Vec<AutoMap<u32, AstPathId, FxBuildHasher, 4>>,
 }
 
 impl Default for AstPathTrieBuilder {
     fn default() -> Self {
         Self {
             nodes: Vec::new(),
+            kinds: FxIndexSet::default(),
             // Slot 0 holds the root's children.
             children: vec![AutoMap::default()],
         }
@@ -108,6 +111,7 @@ impl AstPathTrieBuilder {
         // The root's children live in slot 0, so every node's children are one slot past
         // its id; that keeps the root from needing a case of its own.
         let slot = parent.0 as usize;
+        let kind = u32::try_from(self.kinds.insert_full(kind).0).expect("too many ast path kinds");
         if let Some(&existing) = self.children[slot].get(&kind) {
             return existing;
         }
@@ -132,6 +136,7 @@ impl AstPathTrieBuilder {
     pub fn build(self) -> AstPathTrie {
         AstPathTrie {
             nodes: self.nodes.into_boxed_slice(),
+            kinds: self.kinds.into_iter().collect(),
         }
     }
 
@@ -148,6 +153,9 @@ impl AstPathTrieBuilder {
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Encode, Decode)]
 pub struct AstPathTrie {
     nodes: Box<[Node]>,
+    /// The distinct kinds, indexed by [`Node::kind`].
+    #[bincode(with_serde)]
+    kinds: Box<[AstParentKind]>,
 }
 
 unsafe impl NonLocalValue for AstPathTrie {}
@@ -169,9 +177,13 @@ impl AstPathTrie {
         }))
     }
 
+    fn kind(&self, node: &Node) -> AstParentKind {
+        self.kinds[node.kind as usize]
+    }
+
     /// The last element of the path, or `None` for the root.
     pub fn get(&self, id: AstPathId) -> Option<AstParentKind> {
-        self.node(id).map(|n| n.kind)
+        self.node(id).map(|n| self.kind(n))
     }
 
     /// The path with its last element removed, or `None` for the root.
@@ -188,7 +200,7 @@ impl AstPathTrie {
     /// root. One node read where [`AstPathTrie::get`] plus [`AstPathTrie::get_parent`]
     /// would be two.
     pub fn split_last(&self, id: AstPathId) -> Option<(AstParentKind, AstPathId)> {
-        self.node(id).map(|n| (n.kind, n.parent))
+        self.node(id).map(|n| (self.kind(n), n.parent))
     }
 
     /// Walks from `id` towards the root, yielding each element in reverse order.
@@ -197,7 +209,7 @@ impl AstPathTrie {
         std::iter::from_fn(move || {
             let node = self.node(current)?;
             current = node.parent;
-            Some(node.kind)
+            Some(self.kind(node))
         })
     }
 
@@ -212,7 +224,7 @@ impl AstPathTrie {
     ) -> Option<AstPathId> {
         let mut current = id;
         while let Some(node) = self.node(current) {
-            if f(&node.kind) {
+            if f(&self.kind(node)) {
                 return Some(current);
             }
             current = node.parent;

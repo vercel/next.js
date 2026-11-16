@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextStart } from 'e2e-utils'
 import { fetchViaHTTP, normalizeRegEx } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { join } from 'path'
@@ -10,7 +10,7 @@ describe('edge-render-getserversideprops', () => {
     files: join(__dirname, 'app'),
   })
 
-  if ((global as any).isNextStart) {
+  if (isNextStart) {
     // Turbopack doesn't have entry chunks for edge routes like Webpack does, so there is no fixed
     // known path where the nft file would be written to.
     ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
@@ -150,7 +150,7 @@ describe('edge-render-getserversideprops', () => {
     expect(props.params).toEqual({ id: '321' })
   })
 
-  if ((global as any).isNextStart) {
+  if (isNextStart) {
     it('should have data routes in routes-manifest', async () => {
       const manifest = JSON.parse(
         await next.readFile('.next/routes-manifest.json')

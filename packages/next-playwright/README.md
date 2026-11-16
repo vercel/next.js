@@ -18,8 +18,8 @@ deferred until the callback returns. This lets you make deterministic assertions
 against the shell without race conditions.
 
 The tool assumes a warm cache: all prefetches have completed and all cacheable
-data is available. This way you're testing whether the route is *structured
-correctly* for instant navigation, independent of network timing. If content you
+data is available. This way you're testing whether the route is _structured
+correctly_ for instant navigation, independent of network timing. If content you
 expected to be cached is missing inside the callback, it points to a problem — a
 missing `use cache` directive, a misplaced Suspense boundary, or a similar gap.
 

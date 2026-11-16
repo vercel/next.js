@@ -61,4 +61,56 @@ describe('dynamic on hover', () => {
       await link.click()
     }, 'no-requests')
   })
+
+  it('with Partial Prefetching, prefetches the navigation stage on hover', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    // Reveal the link. It hasn't been hovered yet, so it only gets the shell.
+    await act(
+      async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/partial"]')
+          .click()
+        await browser.elementByCss('a[href="/partial"]')
+      },
+      { includes: 'Navigation content on partial page', block: 'reject' }
+    )
+
+    // Hover over the link. The route opts into Partial Prefetching, so
+    // instead of a full prefetch, the link sends a runtime prefetch of the
+    // navigation stage. It includes the content after navigation(), but not
+    // the dynamic content.
+    const link = await browser.elementByCss('a[href="/partial"]')
+    await act(async () => {
+      await link.hover()
+    }, [
+      { includes: 'Navigation content on partial page', kind: 'runtime' },
+      { includes: 'Dynamic content on partial page', block: 'reject' },
+    ])
+
+    // The navigation shows the prefetched content right away, and only
+    // fetches the dynamic content.
+    await act(
+      async () => {
+        await link.click()
+        // While the navigation response is blocked (we're still in the `act`
+        // scope), the prefetched content is already visible.
+        expect(await browser.elementById('navigation-content').text()).toBe(
+          'Navigation content on partial page'
+        )
+        expect(await browser.elementById('dynamic-loading').text()).toBe(
+          'Loading dynamic data...'
+        )
+      },
+      { includes: 'Dynamic content on partial page' }
+    )
+    expect(await browser.elementById('dynamic-content').text()).toBe(
+      'Dynamic content on partial page'
+    )
+  })
 })

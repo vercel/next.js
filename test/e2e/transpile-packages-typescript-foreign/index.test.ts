@@ -28,9 +28,12 @@ describe('transpile-packages-typescript-foreign', () => {
       }
 
       if (process.env.IS_TURBOPACK_TEST) {
-        expect(next.cliOutput).toContain(`pkg/index.ts
-Error: Unknown module type
-This module doesn't have an associated type`)
+        // Reported at the import that pulled the file in.
+        expect(next.cliOutput).toContain(`./app/page.js:1:1
+Error: Unknown module type`)
+        expect(next.cliOutput).toContain(
+          `pkg/index.ts doesn't have an associated module type`
+        )
         expect(
           next.cliOutput.match(/Unknown module type/g).length
         ).toBeLessThanOrEqual(1)

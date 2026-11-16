@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/named-import/input/index.js"],"sourcesContent":["import { used } from './lib.js'\n\nconsole.log(used)\n"],"names":["console","log"],"mappings":"AAAA;;AAEAA,QAAQC,GAAG,CAAC,yOAAI"}},
-    {"offset": {"line": 11, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/named-import/input/lib.js"],"sourcesContent":["exports.used = 'used-value'\nexports.unused = 'unused-value'\n"],"names":["exports","used"],"mappings":"AAAAA,QAAQC,IAAI,GAAG;AACE"}}]
-}
