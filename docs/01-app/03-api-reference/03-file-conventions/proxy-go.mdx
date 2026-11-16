@@ -17,7 +17,7 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-Enable `experimental.goRoutes` and follow the [Go setup requirements](/docs/app/api-reference/file-conventions/route-go#setup). Create `proxy.go` beside `app` or `pages`, including inside `src` when applicable. Export a `Proxy` function with the signature shown above. Next.js only detects `proxy.go` when `experimental.goRoutes` is enabled, and a project can have one Proxy file: using `proxy.go` together with a JavaScript or TypeScript Proxy file is an error.
+Enable `experimental.goRoutes` and follow the [Go setup requirements](/docs/app/api-reference/file-conventions/route-go#setup). Create `proxy.go` beside `app` or `pages`, including inside `src` when applicable. Export a `Proxy` function with the signature shown above from `proxy.go` itself; only that file is parsed to find it. Next.js only detects `proxy.go` when `experimental.goRoutes` is enabled, and a project can have one Proxy file: using `proxy.go` together with a JavaScript or TypeScript Proxy file is an error.
 
 ## Reference
 
