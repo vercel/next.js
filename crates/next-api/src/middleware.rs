@@ -6,7 +6,8 @@ use next_core::{
     middleware::get_middleware_module,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{EdgeFunctionDefinition, MiddlewaresManifestV2, ProxyMatcher, Regions},
-    segment_config::{NextSegmentConfig, NextSegmentRegion},
+    parse_segment_config_from_source,
+    segment_config::{NextSegmentConfig, NextSegmentRegion, ParseSegmentMode},
     util::NextRuntime,
 };
 use tracing::Instrument;
@@ -43,12 +44,64 @@ use crate::{
 #[turbo_tasks::value]
 pub struct MiddlewareEndpoint {
     project: ResolvedVc<Project>,
-    asset_context: ResolvedVc<Box<dyn AssetContext>>,
     source: ResolvedVc<Box<dyn Source>>,
+    /// Whether the file is `proxy.js` rather than `middleware.js`.
+    is_proxy: bool,
     app_dir: Option<FileSystemPath>,
     ecmascript_client_reference_transition_name: Option<RcStr>,
+}
+
+/// The settings of the middleware that depend on its segment config.
+///
+/// They're computed by the endpoint, not when the entrypoints are created: parsing the config of
+/// the middleware can fail, and the issue must be reported for the middleware, not for every route
+/// (the operations of the routes connect to the entrypoints).
+#[turbo_tasks::value]
+struct MiddlewareSettings {
     config: ResolvedVc<NextSegmentConfig>,
     runtime: NextRuntime,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
+}
+
+#[turbo_tasks::function]
+async fn middleware_settings(
+    project: ResolvedVc<Project>,
+    source: ResolvedVc<Box<dyn Source>>,
+    is_proxy: bool,
+) -> Result<Vc<MiddlewareSettings>> {
+    let config = parse_segment_config_from_source(
+        *source,
+        if is_proxy {
+            ParseSegmentMode::Proxy
+        } else {
+            ParseSegmentMode::Base
+        },
+    )
+    .to_resolved()
+    .await?;
+    let runtime = config.await?.runtime.unwrap_or(if is_proxy {
+        NextRuntime::NodeJs
+    } else {
+        NextRuntime::Edge
+    });
+    let asset_context = match runtime {
+        NextRuntime::NodeJs => project.node_middleware_context(),
+        NextRuntime::Edge => project.edge_middleware_context(),
+    }
+    .to_resolved()
+    .await?;
+    Ok(MiddlewareSettings {
+        config,
+        runtime,
+        asset_context,
+    }
+    .cell())
+}
+
+impl MiddlewareEndpoint {
+    fn settings(&self) -> Vc<MiddlewareSettings> {
+        middleware_settings(*self.project, *self.source, self.is_proxy)
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -56,28 +109,25 @@ impl MiddlewareEndpoint {
     #[turbo_tasks::function]
     pub fn new(
         project: ResolvedVc<Project>,
-        asset_context: ResolvedVc<Box<dyn AssetContext>>,
         source: ResolvedVc<Box<dyn Source>>,
+        is_proxy: bool,
         app_dir: Option<FileSystemPath>,
         ecmascript_client_reference_transition_name: Option<RcStr>,
-        config: ResolvedVc<NextSegmentConfig>,
-        runtime: NextRuntime,
     ) -> Vc<Self> {
         Self {
             project,
-            asset_context,
             source,
+            is_proxy,
             app_dir,
             ecmascript_client_reference_transition_name,
-            config,
-            runtime,
         }
         .cell()
     }
 
     #[turbo_tasks::function]
     async fn entry_module(&self) -> Result<Vc<Box<dyn Module>>> {
-        let userland_module = self
+        let settings = self.settings().await?;
+        let userland_module = settings
             .asset_context
             .process(
                 *self.source,
@@ -89,19 +139,19 @@ impl MiddlewareEndpoint {
             convention_file_base_name(userland_module.ident().await?.path.file_name()) == "proxy";
 
         let module = get_middleware_module(
-            *self.asset_context,
+            *settings.asset_context,
             self.project.project_path().owned().await?,
             userland_module,
             is_proxy,
             self.project.next_config(),
         );
 
-        if matches!(self.runtime, NextRuntime::NodeJs) {
+        if matches!(settings.runtime, NextRuntime::NodeJs) {
             return Ok(module);
         }
 
         Ok(wrap_edge_entry(
-            *self.asset_context,
+            *settings.asset_context,
             self.project.project_path().owned().await?,
             module,
             rcstr!("middleware"),
@@ -156,7 +206,8 @@ impl MiddlewareEndpoint {
     #[turbo_tasks::function]
     async fn output_assets(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
-        let config = this.config.await?;
+        let settings = this.settings().await?;
+        let config = settings.config.await?;
 
         let next_config = this.project.next_config();
         let i18n = next_config.i18n().await?;
@@ -174,7 +225,7 @@ impl MiddlewareEndpoint {
                 }]
             });
 
-        if matches!(this.runtime, NextRuntime::NodeJs) {
+        if matches!(settings.runtime, NextRuntime::NodeJs) {
             let chunk = self.node_chunk().to_resolved().await?;
             let mut output_assets = vec![chunk];
             if *this.project.should_write_nft_manifests().await? {
@@ -275,13 +326,16 @@ impl MiddlewareEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn userland_module(&self) -> Vc<Box<dyn Module>> {
-        self.asset_context
+    async fn userland_module(&self) -> Result<Vc<Box<dyn Module>>> {
+        Ok(self
+            .settings()
+            .await?
+            .asset_context
             .process(
                 *self.source,
                 ReferenceType::Entry(EntryReferenceSubType::default()),
             )
-            .module()
+            .module())
     }
 
     #[turbo_tasks::function]

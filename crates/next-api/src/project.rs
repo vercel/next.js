@@ -40,8 +40,6 @@ use next_core::{
         get_tracing_compile_time_info,
     },
     next_telemetry::ProjectFeatureUsageSummary,
-    parse_segment_config_from_source,
-    segment_config::ParseSegmentMode,
     util::{NextRuntime, OptionEnvMap},
 };
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -2421,7 +2419,9 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn edge_middleware_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
+    pub(crate) async fn edge_middleware_context(
+        self: Vc<Self>,
+    ) -> Result<Vc<Box<dyn AssetContext>>> {
         let mut transitions = vec![];
 
         let app_dir = find_app_dir(self.project_path().owned().await?)
@@ -2487,7 +2487,9 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn node_middleware_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
+    pub(crate) async fn node_middleware_context(
+        self: Vc<Self>,
+    ) -> Result<Vc<Box<dyn AssetContext>>> {
         let mut transitions = vec![];
 
         let app_dir = find_app_dir(self.project_path().owned().await?)
@@ -2580,34 +2582,14 @@ impl Project {
             .as_ref()
             .map(|_| CLIENT_TRANSITION_NAME.clone());
 
+        // The segment config is parsed by the endpoint, see `MiddlewareSettings`.
         let is_proxy = convention_file_base_name(fs_path.file_name()) == "proxy";
-        let config = parse_segment_config_from_source(
-            source,
-            if is_proxy {
-                ParseSegmentMode::Proxy
-            } else {
-                ParseSegmentMode::Base
-            },
-        );
-        let runtime = config.await?.runtime.unwrap_or(if is_proxy {
-            NextRuntime::NodeJs
-        } else {
-            NextRuntime::Edge
-        });
-
-        let middleware_asset_context = match runtime {
-            NextRuntime::NodeJs => self.node_middleware_context(),
-            NextRuntime::Edge => self.edge_middleware_context(),
-        };
-
         Ok(Vc::upcast(MiddlewareEndpoint::new(
             self,
-            middleware_asset_context,
             source,
+            is_proxy,
             app_dir.clone(),
             ecmascript_client_reference_transition_name,
-            config,
-            runtime,
         )))
     }
 
