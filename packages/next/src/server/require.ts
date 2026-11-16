@@ -115,9 +115,25 @@ export function getPagePath(
 export async function requirePage(
   page: string,
   distDir: string,
-  isAppPath: boolean
+  isAppPath: boolean,
+  serverPage?: string
 ): Promise<any> {
-  const pagePath = getPagePath(page, distDir, undefined, isAppPath)
+  let pagePath = getPagePath(page, distDir, undefined, isAppPath)
+  if (serverPage && pagePath.endsWith('.html')) {
+    const serverPagePath = path.join(
+      /* turbopackIgnore: true */ distDir,
+      SERVER_DIRECTORY,
+      `pages${normalizePagePath(serverPage)}.js`
+    )
+    try {
+      await promises.access(serverPagePath)
+      pagePath = serverPagePath
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw error
+      }
+    }
+  }
   if (pagePath.endsWith('.html')) {
     return promises
       .readFile(/* turbopackIgnore: true */ pagePath, 'utf8')

@@ -395,6 +395,7 @@ export default abstract class Server<
     query: NextParsedUrlQuery
     params: Params
     isAppPath: boolean
+    preferServerModule?: boolean
     // The following parameters are used in the development server's
     // implementation.
     sriEnabled?: boolean
@@ -3098,6 +3099,7 @@ export default abstract class Server<
       query,
       params: ctx.renderOpts.params || {},
       isAppPath,
+      preferServerModule: ctx.renderOpts.disableProgressiveLoading,
       sriEnabled: !!this.nextConfig.experimental.sri?.algorithm,
       appPaths,
       // Normal routed requests are ensured by the route match. Legacy custom
@@ -3418,6 +3420,7 @@ export default abstract class Server<
             query,
             params: {},
             isAppPath: false,
+            preferServerModule: ctx.renderOpts.disableProgressiveLoading,
             // Ensuring can't be done here because you never "match" a 404 route.
             shouldEnsure: true,
             url: ctx.req.url,
@@ -3456,6 +3459,7 @@ export default abstract class Server<
             query,
             params: {},
             isAppPath: false,
+            preferServerModule: ctx.renderOpts.disableProgressiveLoading,
             // Ensuring can't be done here because you never "match" a 500
             // route.
             shouldEnsure: true,

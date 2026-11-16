@@ -632,7 +632,7 @@ export const getHandler = ({
           return
         }
 
-        if (hasStaticProps && !isMinimalMode) {
+        if (hasStaticProps && !isMinimalMode && !disableProgressiveLoading) {
           res.setHeader(
             'x-nextjs-cache',
             isOnDemandRevalidate
@@ -647,7 +647,7 @@ export const getHandler = ({
 
         let cacheControl: CacheControl | undefined
 
-        if (!hasStaticProps || isIsrFallback) {
+        if (disableProgressiveLoading || !hasStaticProps || isIsrFallback) {
           if (!res.getHeader('Cache-Control')) {
             cacheControl = { revalidate: 0, expire: undefined }
           }

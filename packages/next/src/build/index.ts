@@ -3506,15 +3506,21 @@ export default async function build(
             exportResult.ssgNotFoundPaths
           )
 
-          // remove server bundles that were exported
-          for (const page of staticPages) {
-            if (page === '/404') {
-              // keep the pages 404 chunk as we might need it if we do want to runtime-render the
-              // 404 in the function later
-              continue
+          // Non-JS bots need server bundles to render otherwise static pages on demand.
+          const needsStaticPageServerBundles =
+            config.experimental.disableProgressiveLoadingForNonJsBots &&
+            config.output !== 'export'
+
+          if (!needsStaticPageServerBundles) {
+            for (const page of staticPages) {
+              if (page === '/404') {
+                // keep the pages 404 chunk as we might need it if we do want to runtime-render the
+                // 404 in the function later
+                continue
+              }
+              const serverBundle = getPagePath(page, distDir, undefined, false)
+              await fs.unlink(serverBundle)
             }
-            const serverBundle = getPagePath(page, distDir, undefined, false)
-            await fs.unlink(serverBundle)
           }
 
           sortedStaticPaths.forEach(([originalAppPath, prerenderedRoutes]) => {

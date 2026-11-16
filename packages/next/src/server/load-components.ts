@@ -172,11 +172,16 @@ export async function loadClientReferenceManifestForPage(
   }
 }
 
-function loadRouteModule(page: string, distDir: string, isAppPath: boolean) {
+function loadRouteModule(
+  page: string,
+  distDir: string,
+  isAppPath: boolean,
+  serverPage?: string
+) {
   return getTracer().trace(
     LoadComponentsSpan.loadRouteModule,
     { spanName: 'load route module' },
-    () => requirePage(page, distDir, isAppPath)
+    () => requirePage(page, distDir, isAppPath, serverPage)
   )
 }
 
@@ -188,6 +193,7 @@ async function loadComponentsImpl<
   isAppPath,
   isDev,
   sriEnabled,
+  serverPage,
   // When route modules are used, which is the case for the server calls to loadComponents, it no longer needs manifest to be loaded here.
   // Static generation still needs the manifests to be loaded here.
   // In the future static generation will also use route modules, and we will remove this flag.
@@ -198,6 +204,7 @@ async function loadComponentsImpl<
   isAppPath: boolean
   isDev: boolean
   sriEnabled: boolean
+  serverPage?: string
   needsManifestsForLegacyReasons: boolean
 }): Promise<LoadComponentsReturnType<N>> {
   let DocumentMod = {}
@@ -313,7 +320,12 @@ async function loadComponentsImpl<
       })
     }
 
-    const ComponentMod = await loadRouteModule(page, distDir, isAppPath)
+    const ComponentMod = await loadRouteModule(
+      page,
+      distDir,
+      isAppPath,
+      serverPage
+    )
 
     const Component = interopDefault(ComponentMod)
     const Document = interopDefault(DocumentMod)
@@ -342,7 +354,12 @@ async function loadComponentsImpl<
       routeModule,
     }
   } else {
-    const ComponentMod = await loadRouteModule(page, distDir, isAppPath)
+    const ComponentMod = await loadRouteModule(
+      page,
+      distDir,
+      isAppPath,
+      serverPage
+    )
 
     const Component = interopDefault(ComponentMod)
     const Document = interopDefault(DocumentMod)

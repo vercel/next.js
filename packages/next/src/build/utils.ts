@@ -1603,13 +1603,18 @@ export async function copyTracedFiles(
 
   await Promise.all(edgeFunctionHandlers)
 
+  // Non-JS bots need server bundles to render otherwise static pages on demand.
+  const needsStaticPageServerBundles =
+    serverConfig.experimental.disableProgressiveLoadingForNonJsBots &&
+    serverConfig.output !== 'export'
+
   for (const page of pageKeys) {
     if (middlewareManifest.functions.hasOwnProperty(page)) {
       continue
     }
     const route = normalizePagePath(page)
 
-    if (staticPages.has(route)) {
+    if (staticPages.has(route) && !needsStaticPageServerBundles) {
       continue
     }
 

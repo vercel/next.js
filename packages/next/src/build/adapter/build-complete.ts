@@ -1806,9 +1806,7 @@ export async function handleBuildComplete({
             allowHeader,
             renderingMode,
             bypassFor:
-              isAppPage && srcRoute !== '/_not-found'
-                ? experimentalBypassFor
-                : undefined,
+              srcRoute !== '/_not-found' ? experimentalBypassFor : undefined,
             bypassToken: previewProps.previewModeId,
           },
         }
@@ -2069,7 +2067,7 @@ export async function handleBuildComplete({
             allowHeader,
             renderingMode,
             partialFallback: canEmitPartialFallback || undefined,
-            bypassFor: isAppPage ? experimentalBypassFor : undefined,
+            bypassFor: experimentalBypassFor,
             bypassToken: previewProps.previewModeId,
           },
         }

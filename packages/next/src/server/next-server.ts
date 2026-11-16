@@ -767,6 +767,7 @@ export default class NextNodeServer extends BaseServer<
     query,
     params,
     isAppPath,
+    preferServerModule,
     url,
   }: {
     locale: string | undefined
@@ -774,6 +775,7 @@ export default class NextNodeServer extends BaseServer<
     query: NextParsedUrlQuery
     params: Params
     isAppPath: boolean
+    preferServerModule?: boolean
     // The following parameters are used in the development server's
     // implementation.
     sriEnabled?: boolean
@@ -796,6 +798,7 @@ export default class NextNodeServer extends BaseServer<
           query,
           params,
           isAppPath,
+          preferServerModule,
           url,
         })
     )
@@ -807,6 +810,7 @@ export default class NextNodeServer extends BaseServer<
     query,
     params,
     isAppPath,
+    preferServerModule,
     url: _url,
   }: {
     locale: string | undefined
@@ -814,6 +818,7 @@ export default class NextNodeServer extends BaseServer<
     query: NextParsedUrlQuery
     params: Params
     isAppPath: boolean
+    preferServerModule?: boolean
     url?: string
   }): Promise<FindComponentsResult | null> {
     const pagePaths: string[] = [page]
@@ -832,6 +837,7 @@ export default class NextNodeServer extends BaseServer<
           isAppPath,
           isDev: this.isDev,
           sriEnabled: this.sriEnabled,
+          serverPage: preferServerModule && !isAppPath ? page : undefined,
           needsManifestsForLegacyReasons: false,
         })
 

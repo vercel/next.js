@@ -119,6 +119,11 @@ export async function collectBuildTraces({
   const excludeGlobKeys = Object.keys(outputFileTracingExcludes)
   const includeGlobKeys = Object.keys(outputFileTracingIncludes)
 
+  // Non-JS bots need server bundles to render otherwise static pages on demand.
+  const needsStaticPageServerBundles =
+    config.experimental.disableProgressiveLoadingForNonJsBots &&
+    config.output !== 'export'
+
   await nextBuildSpan
     .traceChild('node-file-trace-build', {
       isTurbotrace: 'false', // TODO(arlyon): remove this
@@ -446,11 +451,7 @@ export async function collectBuildTraces({
               route = normalizePagePath(route.substring('pages'.length))
             }
 
-            // we don't need to trace for automatically statically optimized
-            // pages as they don't have server bundles, note there is
-            // the caveat with flying shuttle mode as it needs this for
-            // detecting changed entries
-            if (staticPages.includes(route)) {
+            if (staticPages.includes(route) && !needsStaticPageServerBundles) {
               return
             }
             const entryOutputPath = path.join(
@@ -600,7 +601,7 @@ export async function collectBuildTraces({
           route = normalizePagePath(entryName)
         }
 
-        if (staticPages.includes(route)) {
+        if (staticPages.includes(route) && !needsStaticPageServerBundles) {
           return
         }
 

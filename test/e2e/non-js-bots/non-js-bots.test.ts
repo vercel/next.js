@@ -126,9 +126,10 @@ describe('non-js-bots', () => {
         disableJavaScript: true,
         waitUntil: 'load',
       })
-      // FIXME: pages SSG routes on Vercel are served from the CDN without
-      // honoring the bypass rule, so crawlers still get the chunked artifact.
-      const expected = disableProgressiveLoadingForNonJsBots && !isNextDeploy
+      // TODO: support Pages bot cache bypass in non-adapter deployments.
+      const expected =
+        disableProgressiveLoadingForNonJsBots &&
+        (!isNextDeploy || process.env.NEXT_ENABLE_ADAPTER === '1')
       const start = await browser.waitForElementByCss(
         '[data-testid="marker-pages-start"]',
         { state: 'attached' }
@@ -157,9 +158,10 @@ describe('non-js-bots', () => {
         disableJavaScript: true,
         waitUntil: 'load',
       })
-      // FIXME: pages SSG routes on Vercel are served from the CDN without
-      // honoring the bypass rule, so crawlers still get the chunked artifact.
-      const expected = disableProgressiveLoadingForNonJsBots && !isNextDeploy
+      // TODO: support Pages bot cache bypass in non-adapter deployments.
+      const expected =
+        disableProgressiveLoadingForNonJsBots &&
+        (!isNextDeploy || process.env.NEXT_ENABLE_ADAPTER === '1')
       const start = await browser.waitForElementByCss(
         '[data-testid="marker-pages-start"]',
         { state: 'attached' }
