@@ -603,10 +603,31 @@ describe('native-route-go', () => {
         expect((await data()).id).toBe('example')
       })
     })
+    it('rejects package main and recovers after the package is renamed', async () => {
+      const path = 'app/package-main/route.go'
+      const source =
+        'package main\nimport "net/http"\nfunc GET(w http.ResponseWriter, r *http.Request) { w.Write([]byte("renamed")) }\n'
+      const outputStart = next.cliOutput.length
+      await next.patchFile(path, source)
+      await retry(async () => {
+        expect((await next.fetch('/package-main')).status).toBe(500)
+        expect(next.cliOutput.slice(outputStart)).toContain(
+          'route.go must not use `package main`'
+        )
+      }, 30_000)
+      await next.patchFile(
+        path,
+        source.replace('package main', 'package route')
+      )
+      await retry(async () => {
+        expect(await next.render('/package-main')).toBe('renamed')
+      })
+      await next.deleteFile(path)
+    })
     it('repairs a first compilation failure and survives a persistent cache restart', async () => {
       const path = 'app/first-error/route.go'
       const source =
-        'package main\nimport "net/http"\nfunc GET(w http.ResponseWriter, r *http.Request) { w.Write([]byte("first-repaired")) }\n'
+        'package route\nimport "net/http"\nfunc GET(w http.ResponseWriter, r *http.Request) { w.Write([]byte("first-repaired")) }\n'
       const outputStart = next.cliOutput.length
       await next.patchFile(path, source + '\ninvalid syntax\n')
       // A newly added route enters the polling route table asynchronously.
@@ -663,7 +684,7 @@ describe('native-route-go', () => {
     it('caches startup errors and repairs them after an edit', async () => {
       const path = 'app/startup/route.go'
       const source =
-        'package main\nimport "net/http"\nfunc init() { panic("startup-fixture-error") }\nfunc GET(w http.ResponseWriter, r *http.Request) { w.Write([]byte("recovered")) }\n'
+        'package route\nimport "net/http"\nfunc init() { panic("startup-fixture-error") }\nfunc GET(w http.ResponseWriter, r *http.Request) { w.Write([]byte("recovered")) }\n'
       await next.patchFile(path, source)
       // Route-table discovery can lag behind creation of the source file.
       await retry(async () => {

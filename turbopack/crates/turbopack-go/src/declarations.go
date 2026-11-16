@@ -29,6 +29,7 @@ func analyze() error {
 	}
 	sort.Strings(names)
 	functions := map[string]bool{}
+	packages := map[string]bool{}
 	errors := []string{}
 	for _, name := range names {
 		file, err := parser.ParseFile(token.NewFileSet(), name, sources[name], parser.SkipObjectResolution)
@@ -36,6 +37,7 @@ func analyze() error {
 			errors = append(errors, err.Error())
 			continue
 		}
+		packages[file.Name.Name] = true
 		// Include unexported package functions too; callers decide which names have meaning.
 		for _, declaration := range file.Decls {
 			if function, ok := declaration.(*ast.FuncDecl); ok && function.Recv == nil {
@@ -48,8 +50,14 @@ func analyze() error {
 		declared = append(declared, name)
 	}
 	sort.Strings(declared)
+	names = make([]string, 0, len(packages))
+	for name := range packages {
+		names = append(names, name)
+	}
+	sort.Strings(names)
 	return json.NewEncoder(os.Stdout).Encode(struct {
 		Functions    []string `json:"functions"`
+		Packages     []string `json:"packages"`
 		SyntaxErrors []string `json:"syntax_errors"`
-	}{declared, errors})
+	}{declared, names, errors})
 }

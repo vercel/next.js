@@ -1,5 +1,5 @@
 //! Tracked source selection shared by declaration analysis and compilation.
-use std::{collections::BTreeMap, io::Read};
+use std::{collections::BTreeMap, io::Read, path::Path};
 
 use anyhow::{Context, Result, ensure};
 use bincode::{Decode, Encode};
@@ -29,6 +29,8 @@ pub struct GoSourceSet {
     pub root: FileSystemPath,
     /// Source bytes keyed by module-relative names; generated sources are supplied separately.
     pub files: BTreeMap<RcStr, RcStr>,
+    /// The `module` directive of the selected go.mod, when one exists.
+    pub module_path: Option<RcStr>,
     inputs: Inputs,
     dirty: bool,
     boundary: FileSystemPath,
@@ -53,6 +55,7 @@ pub async fn go_source_set(
     let go_context = &session.await?.go_context;
     let mut tracker = Tracker::new(&boundary, &project, go_context);
     let mut root = directory.clone();
+    let mut module_path = None;
     loop {
         let module = root.join("go.mod")?;
         tracker
@@ -62,7 +65,10 @@ pub async fn go_source_set(
                     .context("Go module requires a disk filesystem")?,
             )
             .await?;
-        if module.read().await?.is_content() {
+        if let FileContent::Content(content) = &*module.read().await? {
+            let mut source = String::new();
+            content.read().read_to_string(&mut source)?;
+            module_path = module_directive(&source);
             break;
         }
         if root == boundary {
@@ -133,10 +139,34 @@ pub async fn go_source_set(
     Ok(source_generation(
         root,
         files,
+        module_path,
         tracker.inputs,
         tracker.dirty,
         boundary,
     ))
+}
+
+/// Read the module path from go.mod. Go validates the file again when it builds.
+fn module_directive(go_mod: &str) -> Option<RcStr> {
+    for line in go_mod.lines() {
+        let line = line.split("//").next().unwrap_or_default().trim();
+        let Some(rest) = line.strip_prefix("module") else {
+            continue;
+        };
+        if !rest.starts_with(|ch: char| ch.is_whitespace() || ch == '"' || ch == '`') {
+            continue;
+        }
+        let rest = rest.trim();
+        let path = if rest.starts_with('"') {
+            serde_json::from_str::<String>(rest).ok()?
+        } else if let Some(rest) = rest.strip_prefix('`') {
+            rest.strip_suffix('`')?.to_owned()
+        } else {
+            rest.to_owned()
+        };
+        return (!path.is_empty()).then(|| path.into());
+    }
+    None
 }
 
 // Discovery can rerun and redirect its output, but a captured generation must keep its
@@ -146,6 +176,7 @@ pub async fn go_source_set(
 fn source_generation(
     root: FileSystemPath,
     files: BTreeMap<RcStr, RcStr>,
+    module_path: Option<RcStr>,
     inputs: Inputs,
     dirty: bool,
     boundary: FileSystemPath,
@@ -153,6 +184,7 @@ fn source_generation(
     GoSourceSet {
         root,
         files,
+        module_path,
         inputs,
         dirty,
         boundary,
@@ -168,6 +200,31 @@ pub async fn go_bundle_from_sources(
     session: ResolvedVc<GoBuildSession>,
     generated: BTreeMap<RcStr, RcStr>,
 ) -> Result<Vc<GoBundleResult>> {
+    bundle_sources(sources, session, generated, None).await
+}
+
+/// Compile generated entry files that import the selected sources as an ordinary package.
+///
+/// The selected directory is overlaid at `alias`, a module-relative directory that must not
+/// exist. Its import path is the module path joined with `alias`, so source directory names
+/// do not need to be valid import paths. Generated files under `alias` join that package;
+/// the other generated Go files form the `main` package and must share one directory.
+#[turbo_tasks::function]
+pub async fn go_package_bundle_from_sources(
+    sources: ResolvedVc<GoSourceSet>,
+    session: ResolvedVc<GoBuildSession>,
+    alias: RcStr,
+    generated: BTreeMap<RcStr, RcStr>,
+) -> Result<Vc<GoBundleResult>> {
+    bundle_sources(sources, session, generated, Some(alias)).await
+}
+
+async fn bundle_sources(
+    sources: ResolvedVc<GoSourceSet>,
+    session: ResolvedVc<GoBuildSession>,
+    generated: BTreeMap<RcStr, RcStr>,
+    alias: Option<RcStr>,
+) -> Result<Vc<GoBundleResult>> {
     let sources = sources.await?;
     let go_context = &session.await?.go_context;
     let mut stale = sources.dirty || !sources.inputs.is_current().await?;
@@ -179,13 +236,29 @@ pub async fn go_bundle_from_sources(
             session,
         }
     } else {
-        let result = bundle(
-            sources.root.clone(),
-            sources.files.keys().cloned().collect(),
-            *session,
-            generated,
-        )
-        .await?;
+        let (files, aliases) = match alias {
+            None => (sources.files.keys().cloned().collect(), BTreeMap::new()),
+            Some(alias) => {
+                let first = sources
+                    .files
+                    .keys()
+                    .next()
+                    .context("Go package has no source files")?;
+                let directory = Path::new(first.as_str())
+                    .parent()
+                    .context("Go source has no directory")?
+                    .to_str()
+                    .context("non-UTF8 Go path")?;
+                ensure!(
+                    alias
+                        .split('/')
+                        .all(|part| !part.is_empty() && part != "." && part != ".."),
+                    "Go package alias must be a module-relative directory: {alias}"
+                );
+                (vec![], BTreeMap::from([(alias, RcStr::from(directory))]))
+            }
+        };
+        let result = bundle(sources.root.clone(), files, *session, generated, aliases).await?;
         stale = !result.is_current().await? || !sources.inputs.is_current().await?;
         (*result).clone()
     };
@@ -216,4 +289,28 @@ pub async fn go_bundle_from_sources(
     }
     result.root = sources.boundary.clone();
     Ok(result.cell())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn module_directive_reads_plain_quoted_and_commented_paths() {
+        for (go_mod, expected) in [
+            (
+                "module example.com/app\n\ngo 1.24\n",
+                Some("example.com/app"),
+            ),
+            (
+                "// comment\nmodule \"example.com/q\" // trailing\n",
+                Some("example.com/q"),
+            ),
+            ("module `example.com/raw`\n", Some("example.com/raw")),
+            ("modules example.com/no\n", None),
+            ("go 1.24\n", None),
+        ] {
+            assert_eq!(module_directive(go_mod).as_deref(), expected, "{go_mod}");
+        }
+    }
 }
