@@ -20,13 +20,13 @@ Await SDK initialization in `register()`. The application owns export configurat
 
 ## Coverage
 
-Selected spans cover build/compiler phases, static checks and generation, dev startup, compilation, HMR, rendering and browser hydration. Producers select external reporting with `reportToOtel: true`; names do not control selection. Per-module profiling, loader/plugin work and per-page static checks/renders remain local-only.
+Selected spans cover build/compiler phases, static checks and generation, dev startup, compilation, HMR, rendering and browser hydration. Producers select external reporting with `reportToOtel: true`; names do not control selection. Per-module profiling, loader/plugin work and per-page static checks/renders stay local-only.
 
-Memory samples become histograms; memory-threshold restarts also increment a counter. Turbopack persistence/compaction report spans and measurements. Metrics use finite operation/reason dimensions and remain independent of trace sampling.
+Memory samples become histograms; memory-threshold restarts also increment a counter. Turbopack persistence/compaction report spans and measurements. Metrics use finite operation/reason dimensions and are independent of trace sampling.
 
 Each dev-server child has a `dev-server-session` root that ends on normal shutdown or restart. Builds use `next-build`. Session metadata and `next.tooling.id` / `next.tooling.parent_id` correlate SDK spans with local traces.
 
-Local trace files and Request Insights remain independent of build registration and application sampling. The legacy upload flag still uses its existing format.
+Local trace files and Request Insights are independent of build registration and application sampling. The legacy upload flag still uses its existing format.
 
 ## Capture and replay
 
