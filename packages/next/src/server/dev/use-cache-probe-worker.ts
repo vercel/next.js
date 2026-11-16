@@ -12,7 +12,7 @@ import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { getServerModuleMap } from '../app-render/manifests-singleton'
-import { createSnapshot } from '../app-render/async-local-storage'
+import { createSnapshot } from '../app-render/async-context-snapshot'
 import { createRequestStore } from '../async-storage/request-store'
 /* eslint-disable import/no-extraneous-dependencies */
 import {

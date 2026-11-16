@@ -27,13 +27,9 @@ class FakeAsyncLocalStorage<Store extends {}>
   enterWith(): void {
     throw sharedAsyncLocalStorageNotAvailableError
   }
-
-  static bind<T>(fn: T): T {
-    return fn
-  }
 }
 
-const maybeGlobalAsyncLocalStorage =
+export const maybeGlobalAsyncLocalStorage =
   typeof globalThis !== 'undefined' && (globalThis as any).AsyncLocalStorage
 
 export function createAsyncLocalStorage<
@@ -43,6 +39,41 @@ export function createAsyncLocalStorage<
     return new maybeGlobalAsyncLocalStorage()
   }
   return new FakeAsyncLocalStorage()
+}
+
+export type Snapshot = <R, TArgs extends any[]>(
+  fn: (...args: TArgs) => R,
+  ...args: TArgs
+) => R
+
+/**
+ * Returns a function that runs a callback in the async context of this call.
+ *
+ * `source` takes the snapshot: `AsyncLocalStorage` by default. Server code
+ * calls `createSnapshot` of `./async-context-snapshot`, which passes the
+ * implementation for Node.js. That implementation needs `node:async_hooks`,
+ * which this module must not require, because it is also part of browser
+ * bundles.
+ *
+ * Keep the shape of this function: a function declaration with this name in
+ * this file, in which `if (source) { return source.snapshot() }` is the only
+ * way to capture a context. Adapters remove that statement from the compiled
+ * code, because on their platform a context must not be entered from another
+ * request. What is left calls the callback in the context of the caller.
+ * `@opennextjs/cloudflare` removes the `if` statements of the function
+ * declaration `createSnapshot` in `server/app-render/async-local-storage.js`.
+ * `@solcreek/adapter-creek` removes the statement by its text, also in the
+ * conditional expression that a minifier makes of it.
+ */
+export function createSnapshot(
+  source: { snapshot(): Snapshot } | undefined = maybeGlobalAsyncLocalStorage
+): Snapshot {
+  if (source) {
+    return source.snapshot()
+  }
+  return function (fn: any, ...args: any[]) {
+    return fn(...args)
+  }
 }
 
 /**
@@ -80,26 +111,4 @@ export function getOrCreateGlobalAsyncLocalStorage<Store extends {}>(
   }
 
   return (globalStore[key] ??= createAsyncLocalStorage<Store>())
-}
-
-export function bindSnapshot<T>(
-  // WARNING: Don't pass a named function to this argument! See: https://github.com/facebook/react/pull/34911
-  fn: T
-): T {
-  if (maybeGlobalAsyncLocalStorage) {
-    return maybeGlobalAsyncLocalStorage.bind(fn)
-  }
-  return FakeAsyncLocalStorage.bind(fn)
-}
-
-export function createSnapshot(): <R, TArgs extends any[]>(
-  fn: (...args: TArgs) => R,
-  ...args: TArgs
-) => R {
-  if (maybeGlobalAsyncLocalStorage) {
-    return maybeGlobalAsyncLocalStorage.snapshot()
-  }
-  return function (fn: any, ...args: any[]) {
-    return fn(...args)
-  }
 }
