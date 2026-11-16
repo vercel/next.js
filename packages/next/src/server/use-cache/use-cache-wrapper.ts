@@ -186,7 +186,11 @@ const nextVersion = process.env.__NEXT_VERSION as string
 
 // Try to keep the cache key JSON-parseable and the first two entries (id and args) consistent for
 // any downstream consumers that try to parse cache keys for introspection.
-export type CacheKeyParts = [id: string, args: unknown[], ...rest: unknown[]]
+export type CacheKeyParts = [
+  id: string,
+  args: unknown[],
+  implementationHash: unknown,
+]
 
 interface UseCachePageInnerProps {
   params: Promise<Params>
@@ -1863,12 +1867,11 @@ async function getNthCacheResult(
 }
 
 /**
- * Appends an element to a JSON-encoded `CacheKeyParts` tuple, producing a
- * `CacheHandlerKeyParts` tuple, without decoding and re-encoding the key.
+ * Appends an element to a JSON-encoded array, without decoding and re-encoding.
  *
- * When `encodeReply` returns a string (i.e. there are no outlined parts that
- * require multipart encoding), it is the JSON of the root model, which is the
- * cache key tuple. So the string must end with the tuple's closing bracket.
+ * When `encodeReply` returns a string (i.e. there are no outlined parts that require multipart
+ * encoding), it is the JSON of the root model, which is the cache key tuple. So the string must end
+ * with the tuple's closing bracket.
  */
 function appendToCacheKeyTuple(
   serializedCacheKey: string,
