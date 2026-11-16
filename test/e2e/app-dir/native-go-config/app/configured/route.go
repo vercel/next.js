@@ -1,15 +1,10 @@
 package main
 
-import (
-	"net/http"
+import "net/http"
 
-	framework "github.com/vercel/next.js/packages/next/go"
-)
+const MaxDuration = 17
 
-var Config = framework.RouteConfig{
-	MaxDuration:     17,
-	PreferredRegion: []string{"sfo1", "iad1"},
-}
+var PreferredRegion = []string{"sfo1", "iad1"}
 
 func GET(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("configured route"))

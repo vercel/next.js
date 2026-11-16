@@ -243,53 +243,71 @@ impl Reader {
     }
 }
 
-/// Returns the entry's static configuration as Next.js JSON (`maxDuration` and `preferredRegion`
-/// for routes; only `matcher` for proxies, like proxy.ts), or a located error. A missing
-/// `Config` is an empty object.
+fn parse(declaration: &str) -> Result<Declaration, String> {
+    serde_json::from_str(declaration).map_err(|error| error.to_string())
+}
+
+/// Returns the entry's static configuration as Next.js JSON, or a located error.
+///
+/// Like `route.ts` segment config, `route.go` declares separate values:
+/// `const MaxDuration = 30` and `var PreferredRegion = []string{"iad1"}`. Like `proxy.ts`'s
+/// `config` object, `proxy.go` declares `var Config = next.ProxyConfig{Matcher: ...}`.
+/// Absent values are omitted from the result.
 pub fn go_entry_config(
     functions: &[RcStr],
     values: &BTreeMap<RcStr, RcStr>,
     proxy: bool,
 ) -> Result<Value, String> {
-    let type_name = if proxy { "ProxyConfig" } else { "RouteConfig" };
-    if functions.iter().any(|name| name == "Config") {
-        return Err(format!(
-            "Config must be a var initialized with a static next.{type_name} literal"
-        ));
-    }
-    let Some(declaration) = values.get("Config") else {
-        return Ok(Value::Object(Map::new()));
-    };
-    let Declaration {
-        pos,
-        constant,
-        imports,
-        value,
-    } = serde_json::from_str(declaration).map_err(|error| error.to_string())?;
-    let reader = Reader { imports };
-    let elements = match &value {
-        Node::Composite {
-            type_name: Some(written),
-            elements,
-            ..
-        } if !constant && reader.sdk_type(written, type_name) => elements,
-        _ => {
-            return Err(format!(
-                "{pos}: Config must use a static next.{type_name} literal"
-            ));
-        }
-    };
-    if proxy {
-        reader.fields(elements, &[("Matcher", Reader::matchers)])
+    let names: &[&str] = if proxy {
+        &["Config"]
     } else {
-        reader.fields(
-            elements,
-            &[
-                ("MaxDuration", Reader::duration),
-                ("PreferredRegion", Reader::regions),
-            ],
-        )
+        &["MaxDuration", "PreferredRegion"]
+    };
+    if let Some(name) = names
+        .iter()
+        .find(|name| functions.iter().any(|f| f == *name))
+    {
+        return Err(format!("{name} must be a static literal, not a function"));
     }
+    if proxy {
+        let Some(declaration) = values.get("Config") else {
+            return Ok(Value::Object(Map::new()));
+        };
+        let Declaration {
+            pos,
+            constant,
+            imports,
+            value,
+        } = parse(declaration)?;
+        let reader = Reader { imports };
+        return match &value {
+            Node::Composite {
+                type_name: Some(written),
+                elements,
+                ..
+            } if !constant && reader.sdk_type(written, "ProxyConfig") => {
+                reader.fields(elements, &[("Matcher", Reader::matchers)])
+            }
+            _ => Err(format!(
+                "{pos}: Config must use a static next.ProxyConfig literal"
+            )),
+        };
+    }
+    let reader = Reader { imports: vec![] };
+    let mut config = Map::new();
+    if let Some(declaration) = values.get("MaxDuration") {
+        config.insert(
+            "maxDuration".into(),
+            reader.duration(&parse(declaration)?.value)?,
+        );
+    }
+    if let Some(declaration) = values.get("PreferredRegion") {
+        config.insert(
+            "preferredRegion".into(),
+            reader.regions(&parse(declaration)?.value)?,
+        );
+    }
+    Ok(Value::Object(config))
 }
 
 #[cfg(test)]
@@ -328,36 +346,97 @@ mod tests {
         )
     }
 
-    fn config(value: String, imports: &str) -> BTreeMap<RcStr, RcStr> {
-        BTreeMap::from([(
-            RcStr::from("Config"),
-            RcStr::from(format!(
-                r#"{{"pos":"p.go:1:5","constant":false,"imports":{imports},"value":{value}}}"#
-            )),
-        )])
+    fn declarations(entries: &[(&str, bool, String)], imports: &str) -> BTreeMap<RcStr, RcStr> {
+        entries
+            .iter()
+            .map(|(name, constant, value)| {
+                (
+                    RcStr::from(*name),
+                    RcStr::from(format!(
+                        r#"{{"pos":"p.go:1:5","constant":{constant},"imports":{imports},"value":{value}}}"#
+                    )),
+                )
+            })
+            .collect()
     }
 
-    fn route(fields: &[(Option<&str>, String)]) -> Result<Value, String> {
+    fn route(entries: &[(&str, bool, String)]) -> Result<Value, String> {
+        go_entry_config(&[], &declarations(entries, "[]"), false)
+    }
+
+    fn proxy(value: String, imports: &str) -> Result<Value, String> {
         go_entry_config(
             &[],
-            &config(composite(Some("framework.RouteConfig"), fields), IMPORT),
-            false,
+            &declarations(&[("Config", false, value)], imports),
+            true,
         )
     }
 
+    fn regions(elements: &[(Option<&str>, String)]) -> String {
+        composite(Some("[]string"), elements)
+    }
+
     #[test]
-    fn reads_static_config() {
-        let regions = composite(
-            Some("[]string"),
-            &[(None, string("iad1")), (None, string("sfo1"))],
-        );
+    fn reads_route_values() {
         assert_eq!(
             route(&[
-                (Some("MaxDuration"), int(30)),
-                (Some("PreferredRegion"), regions),
+                ("MaxDuration", true, int(30)),
+                (
+                    "PreferredRegion",
+                    false,
+                    regions(&[(None, string("iad1")), (None, string("sfo1"))]),
+                ),
+                // Other exported values have no meaning to Next.js.
+                ("Config", false, unsupported()),
             ]),
             Ok(json!({ "maxDuration": 30, "preferredRegion": ["iad1", "sfo1"] }))
         );
+        assert_eq!(route(&[]), Ok(json!({})));
+        assert_eq!(
+            route(&[("MaxDuration", false, int(5))]),
+            Ok(json!({ "maxDuration": 5 }))
+        );
+    }
+
+    #[test]
+    fn rejects_dynamic_route_values() {
+        for (entry, message) in [
+            (
+                ("MaxDuration", true, unsupported()),
+                "positive integer literal",
+            ),
+            (("MaxDuration", true, int(0)), "positive integer literal"),
+            (
+                ("MaxDuration", true, int(1 << 40)),
+                "positive integer literal",
+            ),
+            (
+                ("PreferredRegion", false, unsupported()),
+                "[]string literal",
+            ),
+            (("PreferredRegion", false, regions(&[])), "[]string literal"),
+            (
+                ("PreferredRegion", false, regions(&[(None, string(""))])),
+                "[]string literal",
+            ),
+            (
+                ("PreferredRegion", false, regions(&[(None, unsupported())])),
+                "static string literals",
+            ),
+        ] {
+            let error = route(&[entry]).unwrap_err();
+            assert!(error.contains(message), "{error} should contain {message}");
+            assert!(error.starts_with("p.go:"), "{error} should be located");
+        }
+        assert!(
+            go_entry_config(&[RcStr::from("MaxDuration")], &BTreeMap::new(), false)
+                .unwrap_err()
+                .contains("not a function")
+        );
+    }
+
+    #[test]
+    fn reads_proxy_matchers() {
         let has = composite(
             Some("[]framework.RouteHas"),
             &[(
@@ -385,12 +464,14 @@ mod tests {
                 ),
             )],
         );
-        let value = composite(
-            Some("framework.ProxyConfig"),
-            &[(Some("Matcher"), matchers)],
-        );
         assert_eq!(
-            go_entry_config(&[], &config(value, IMPORT), true),
+            proxy(
+                composite(
+                    Some("framework.ProxyConfig"),
+                    &[(Some("Matcher"), matchers)]
+                ),
+                IMPORT
+            ),
             Ok(json!({
                 "matcher": [{
                     "source": "/account/:path*",
@@ -399,123 +480,75 @@ mod tests {
                 }],
             }))
         );
-    }
-
-    #[test]
-    fn proxies_only_accept_matchers() {
-        for field in ["MaxDuration", "PreferredRegion"] {
-            let value = composite(Some("framework.ProxyConfig"), &[(Some(field), int(30))]);
-            let error = go_entry_config(&[], &config(value, IMPORT), true).unwrap_err();
-            assert!(
-                error.contains(&format!("unsupported Config field {field}")),
-                "{error}"
-            );
-        }
-    }
-
-    #[test]
-    fn defaults_and_unnamed_sdk_import() {
-        assert_eq!(go_entry_config(&[], &BTreeMap::new(), false), Ok(json!({})));
         let unnamed = r#"[{"name":"","path":"github.com/vercel/next.js/packages/next/go"}]"#;
         assert_eq!(
-            go_entry_config(
-                &[],
-                &config(composite(Some("next.RouteConfig"), &[]), unnamed),
-                false
-            ),
+            proxy(composite(Some("next.ProxyConfig"), &[]), unnamed),
             Ok(json!({}))
         );
+        assert_eq!(go_entry_config(&[], &BTreeMap::new(), true), Ok(json!({})));
     }
 
     #[test]
-    fn rejects_dynamic_and_invalid_config() {
-        let regions = |elements: &[(Option<&str>, String)]| composite(Some("[]string"), elements);
-        for (fields, message) in [
-            (
-                vec![(Some("MaxDuration"), unsupported())],
-                "positive integer literal",
-            ),
-            (
-                vec![(Some("MaxDuration"), int(0))],
-                "positive integer literal",
-            ),
-            (
-                vec![(Some("MaxDuration"), int(1 << 40))],
-                "positive integer literal",
-            ),
-            (vec![(None, int(30))], "named fields"),
-            (
-                vec![(Some("Runtime"), string("edge"))],
-                "unsupported Config field",
-            ),
-            (
-                vec![(Some("MaxDuration"), int(2)), (Some("MaxDuration"), int(3))],
-                "duplicate Config field",
-            ),
-            (
-                vec![(Some("PreferredRegion"), unsupported())],
-                "[]string literal",
-            ),
-            (
-                vec![(Some("PreferredRegion"), regions(&[]))],
-                "[]string literal",
-            ),
-            (
-                vec![(Some("PreferredRegion"), regions(&[(None, string(""))]))],
-                "[]string literal",
-            ),
-            (
-                vec![(Some("PreferredRegion"), regions(&[(None, unsupported())]))],
-                "static string literals",
-            ),
-            (
-                vec![(Some("Matcher"), unsupported())],
-                "unsupported Config field",
-            ),
-        ] {
-            let error = route(&fields).unwrap_err();
-            assert!(error.contains(message), "{error} should contain {message}");
-            assert!(error.starts_with("p.go:"), "{error} should be located");
-        }
-    }
-
-    #[test]
-    fn rejects_wrong_declarations() {
-        let rejected = |values: BTreeMap<RcStr, RcStr>, proxy| {
-            go_entry_config(&[], &values, proxy).unwrap_err()
+    fn rejects_invalid_proxy_config() {
+        let config = |fields: &[(Option<&str>, String)]| {
+            proxy(composite(Some("framework.ProxyConfig"), fields), IMPORT).unwrap_err()
         };
-        // A factory call, the wrong kind, and a lookalike type from another package.
-        assert!(rejected(config(unsupported(), IMPORT), false).contains("static next.RouteConfig"));
-        assert!(
-            rejected(
-                config(composite(Some("framework.ProxyConfig"), &[]), IMPORT),
-                false
+        // Like proxy.ts, a proxy only configures matchers.
+        for field in ["MaxDuration", "PreferredRegion"] {
+            assert!(
+                config(&[(Some(field), int(30))])
+                    .contains(&format!("unsupported Config field {field}"))
+            );
+        }
+        assert!(config(&[(None, int(30))]).contains("named fields"));
+        let matcher = |source: String| {
+            composite(
+                Some("[]framework.Matcher"),
+                &[(None, composite(None, &[(Some("Source"), source)]))],
             )
-            .contains("static next.RouteConfig")
+        };
+        assert!(
+            config(&[
+                (Some("Matcher"), matcher(string("/"))),
+                (Some("Matcher"), matcher(string("/")))
+            ])
+            .contains("duplicate Config field")
+        );
+        assert!(
+            config(&[(Some("Matcher"), matcher(unsupported()))]).contains("static string literals")
+        );
+        // A factory call, a constant, and a lookalike type from another package.
+        assert!(
+            proxy(unsupported(), IMPORT)
+                .unwrap_err()
+                .contains("static next.ProxyConfig")
         );
         let other = r#"[{"name":"framework","path":"example.com/other"}]"#;
         assert!(
-            rejected(
-                config(composite(Some("framework.RouteConfig"), &[]), other),
-                false
-            )
-            .contains("static next.RouteConfig")
+            proxy(composite(Some("framework.ProxyConfig"), &[]), other)
+                .unwrap_err()
+                .contains("static next.ProxyConfig")
         );
         assert!(
-            go_entry_config(&[RcStr::from("Config")], &BTreeMap::new(), false)
-                .unwrap_err()
-                .contains("must be a var")
-        );
-        let matcher = composite(
-            Some("framework.ProxyConfig"),
-            &[(
-                Some("Matcher"),
-                composite(
-                    Some("[]framework.Matcher"),
-                    &[(None, composite(None, &[(Some("Source"), unsupported())]))],
+            go_entry_config(
+                &[],
+                &declarations(
+                    &[(
+                        "Config",
+                        true,
+                        composite(Some("framework.ProxyConfig"), &[])
+                    )],
+                    IMPORT
                 ),
-            )],
+                true
+            )
+            .unwrap_err()
+            .contains("static next.ProxyConfig")
         );
-        assert!(rejected(config(matcher, IMPORT), true).contains("static string literals"));
+        assert!(
+            go_entry_config(&[RcStr::from("Config")], &BTreeMap::new(), true)
+                .unwrap_err()
+                .contains("not a function")
+        );
     }
 }

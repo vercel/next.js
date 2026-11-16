@@ -180,15 +180,15 @@ describe('static Go config diagnostics', () => {
     },
     {
       file: 'app/configured/route.go',
-      from: /MaxDuration:\s+17/,
-      to: 'MaxDuration: 10 + 7',
+      from: 'const MaxDuration = 17',
+      to: 'const MaxDuration = 10 + 7',
       error: 'positive integer literal',
     },
     {
       file: 'app/configured/route.go',
-      from: 'var Config = framework.RouteConfig{',
-      to: 'var Config = makeConfig(); var unused = framework.RouteConfig{',
-      error: 'static next.RouteConfig literal',
+      from: 'var PreferredRegion = []string{"sfo1", "iad1"}',
+      to: 'var PreferredRegion = regions()',
+      error: 'PreferredRegion must be',
     },
     {
       file: 'proxy.go',
@@ -205,9 +205,8 @@ describe('static Go config diagnostics', () => {
         expect(patched).not.toBe(source)
         if (to.includes('os.Getenv'))
           patched = patched.replace('"net/http"', '"net/http"\n"os"')
-        if (to.includes('makeConfig()'))
-          patched +=
-            '\nfunc makeConfig() framework.RouteConfig { return framework.RouteConfig{} }\n'
+        if (to.includes('regions()'))
+          patched += '\nfunc regions() []string { return []string{"iad1"} }\n'
         await next.patchFile(file, patched)
         const result = await next.build()
         expect(result.exitCode).not.toBe(0)
