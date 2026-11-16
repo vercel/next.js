@@ -1227,6 +1227,23 @@ async fn realpath_if_exists(
     }
 }
 
+/// Reads the field `field` of a `package.json` and projects it with `project`. `None` if the
+/// `package.json` can't be read or `project` returns `None`.
+///
+/// This reads the whole `package.json`, so it is intentionally not a task: call it from a task that
+/// returns only the projected value. That task then shields its readers from edits to unrelated
+/// fields.
+async fn project_package_json_field<T>(
+    package_json_path: FileSystemPath,
+    field: &str,
+    project: impl FnOnce(&serde_json::Value) -> Option<T>,
+) -> Result<Option<T>> {
+    let read = read_package_json(Vc::upcast(FileSource::new(package_json_path))).await?;
+    Ok(read
+        .as_ref()
+        .and_then(|package_json| project(&package_json[field])))
+}
+
 /// A string field of a `package.json`, such as a main field (`main`, `module`, ...).
 ///
 /// Reading a single field instead of the whole `package.json` keeps edits to unrelated fields from
@@ -1236,11 +1253,11 @@ async fn package_json_string_field(
     package_json_path: FileSystemPath,
     field: RcStr,
 ) -> Result<Vc<Option<RcStr>>> {
-    let read = read_package_json(Vc::upcast(FileSource::new(package_json_path))).await?;
     Ok(Vc::cell(
-        read.as_ref()
-            .and_then(|package_json| package_json[field.as_str()].as_str())
-            .map(RcStr::from),
+        project_package_json_field(package_json_path, &field, |value| {
+            value.as_str().map(RcStr::from)
+        })
+        .await?,
     ))
 }
 
@@ -1267,28 +1284,27 @@ async fn package_json_alias_field(
     package_json_path: FileSystemPath,
     field: RcStr,
 ) -> Result<Vc<OptionAliasField>> {
-    let read = read_package_json(Vc::upcast(FileSource::new(package_json_path))).await?;
-    let Some(entries) = read
-        .as_ref()
-        .and_then(|package_json| package_json[field.as_str()].as_object())
-    else {
-        return Ok(Vc::cell(None));
-    };
-    Ok(Vc::cell(Some(
-        entries
-            .iter()
-            .map(|(request, value)| {
-                let value = if value.as_bool() == Some(false) {
-                    AliasFieldValue::Ignore
-                } else if let Some(value) = value.as_str() {
-                    AliasFieldValue::Request(value.into())
-                } else {
-                    AliasFieldValue::Invalid(value.to_string().into())
-                };
-                (request.as_str().into(), value)
-            })
-            .collect(),
-    )))
+    Ok(Vc::cell(
+        project_package_json_field(package_json_path, &field, |value| {
+            Some(
+                value
+                    .as_object()?
+                    .iter()
+                    .map(|(request, value)| {
+                        let value = if value.as_bool() == Some(false) {
+                            AliasFieldValue::Ignore
+                        } else if let Some(value) = value.as_str() {
+                            AliasFieldValue::Request(value.into())
+                        } else {
+                            AliasFieldValue::Invalid(value.to_string().into())
+                        };
+                        (request.as_str().into(), value)
+                    })
+                    .collect(),
+            )
+        })
+        .await?,
+    ))
 }
 
 #[turbo_tasks::value(shared)]
@@ -3828,6 +3844,92 @@ mod tests {
             rewrite(r#"{ "main": "./b.js", "scripts": { "build": "b" } }"#).await?;
             assert_eq!(*read_main().await?, Some(rcstr!("./b.js")));
             assert_eq!(MAIN_FIELD_READS.load(Ordering::SeqCst), 2);
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    /// Editing an unrelated `package.json` field must not invalidate a reader of an alias field,
+    /// and changing the alias field must.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_package_json_alias_field_invalidation() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        static ALIAS_FIELD_READS: AtomicUsize = AtomicUsize::new(0);
+
+        let scratch = tempfile::tempdir().unwrap();
+        // The disk filesystem rejects paths behind a symlink, like the macOS temp dir.
+        let root = scratch.path().canonicalize().unwrap();
+        let package_json = root.join("package.json");
+        std::fs::write(
+            &package_json,
+            r#"{ "browser": { "./a.js": "./b.js" }, "scripts": { "build": "a" } }"#,
+        )
+        .unwrap();
+        let root: RcStr = root.to_str().unwrap().into();
+
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            #[turbo_tasks::function(operation, root)]
+            fn disk_fs_operation(root: RcStr) -> Vc<DiskFileSystem> {
+                DiskFileSystem::new(rcstr!("test"), Vc::cell(root))
+            }
+
+            #[turbo_tasks::function(operation, root)]
+            async fn alias_field_operation(
+                fs: ResolvedVc<DiskFileSystem>,
+            ) -> Result<Vc<OptionAliasField>> {
+                ALIAS_FIELD_READS.fetch_add(1, Ordering::SeqCst);
+                let package_json = fs.root().await?.join("package.json")?;
+                let browser = package_json_alias_field(package_json, rcstr!("browser"))
+                    .owned()
+                    .await?;
+                Ok(Vc::cell(browser))
+            }
+
+            let fs_operation = disk_fs_operation(root);
+            let fs = fs_operation.resolve().strongly_consistent().await?;
+            let read_browser = async || {
+                anyhow::Ok(
+                    alias_field_operation(fs)
+                        .read_strongly_consistent()
+                        .await?
+                        .clone(),
+                )
+            };
+            let rewrite = async |content: &str| {
+                std::fs::write(&package_json, content).unwrap();
+                fs_operation.read_strongly_consistent().await?.invalidate();
+                anyhow::Ok(())
+            };
+            let alias = |request: &str, value: AliasFieldValue| {
+                Some(FxHashMap::from_iter([(RcStr::from(request), value)]))
+            };
+
+            assert_eq!(
+                *read_browser().await?,
+                alias("./a.js", AliasFieldValue::Request(rcstr!("./b.js")))
+            );
+            assert_eq!(ALIAS_FIELD_READS.load(Ordering::SeqCst), 1);
+
+            rewrite(r#"{ "browser": { "./a.js": "./b.js" }, "scripts": { "build": "b" } }"#)
+                .await?;
+            assert_eq!(
+                *read_browser().await?,
+                alias("./a.js", AliasFieldValue::Request(rcstr!("./b.js")))
+            );
+            assert_eq!(ALIAS_FIELD_READS.load(Ordering::SeqCst), 1);
+
+            rewrite(r#"{ "browser": { "./a.js": false }, "scripts": { "build": "b" } }"#).await?;
+            assert_eq!(
+                *read_browser().await?,
+                alias("./a.js", AliasFieldValue::Ignore)
+            );
+            assert_eq!(ALIAS_FIELD_READS.load(Ordering::SeqCst), 2);
             Ok(())
         })
         .await
