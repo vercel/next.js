@@ -391,3 +391,28 @@ func TestClosesARequestWhoseBodyNeverFinishes(t *testing.T) {
 		})
 	}
 }
+
+func TestLimitsThreadsUnlessGOMAXPROCSIsSet(t *testing.T) {
+	cases := []struct {
+		env       string
+		goDefault int
+		want      int
+		set       bool
+	}{
+		{env: "", goDefault: 16, want: 2, set: true},
+		{env: "", goDefault: 2, set: false},
+		{env: "", goDefault: 1, set: false},
+		{env: "8", goDefault: 8, set: false},
+		{env: "1", goDefault: 1, set: false},
+		// Go ignores values that aren't a positive number, so the front's
+		// limit still applies.
+		{env: "0", goDefault: 16, want: 2, set: true},
+		{env: "many", goDefault: 16, want: 2, set: true},
+	}
+	for _, c := range cases {
+		got, set := threadLimit(c.env, c.goDefault)
+		if got != c.want || set != c.set {
+			t.Errorf("threadLimit(%q, %d) = %d, %v; want %d, %v", c.env, c.goDefault, got, set, c.want, c.set)
+		}
+	}
+}

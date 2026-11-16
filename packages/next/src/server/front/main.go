@@ -15,6 +15,8 @@
 //	    reports "Failed to start server".
 //	  - On stdin EOF (Node exited or asked it to stop), SIGINT or SIGTERM it
 //	    stops accepting, finishes in-flight requests and exits 0.
+//	  - It runs Go code on at most 2 threads at once; a GOMAXPROCS environment
+//	    variable overrides that.
 package main
 
 import (
@@ -29,6 +31,7 @@ import (
 	"net/http/httputil"
 	"os"
 	"os/signal"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -93,6 +96,10 @@ func parseConfig(args []string) (config, error) {
 }
 
 func main() {
+	if n, ok := threadLimit(os.Getenv("GOMAXPROCS"), runtime.GOMAXPROCS(0)); ok {
+		runtime.GOMAXPROCS(n)
+	}
+
 	cfg, err := parseConfig(os.Args[1:])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "next-front:", err)
@@ -129,6 +136,27 @@ func main() {
 		os.Exit(1)
 	}
 	<-stopped
+}
+
+// maxThreads is the front's default limit on threads running Go code at once.
+const maxThreads = 2
+
+// threadLimit returns the thread limit to set and true, or false to keep Go's.
+// Go runs Go code on as many threads at once as there are cores the process
+// may use (GOMAXPROCS). The front's work per request is small next to Node's,
+// and Node handles requests on one thread, so on a machine with many cores
+// those threads mostly spend CPU waking each other and in the scheduler. Two
+// keep that overhead low and still forward many times what Next.js serves.
+// env is the GOMAXPROCS environment variable: when it holds a number Go
+// accepts, the user chose the limit and Go has already applied it.
+func threadLimit(env string, goDefault int) (int, bool) {
+	if n, err := strconv.Atoi(env); err == nil && n > 0 {
+		return 0, false
+	}
+	if goDefault <= maxThreads {
+		return 0, false
+	}
+	return maxThreads, true
 }
 
 // newServer is the public server. It times out what Node times out: idle
