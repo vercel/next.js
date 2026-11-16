@@ -3,6 +3,11 @@ import { isPlainObject } from '../../../../shared/lib/is-plain-object'
 
 type MetadataEntry = { id: string | number }
 
+export type MetadataRouteStaticParams = {
+  parentParams: Params[]
+  routeParams: Params[]
+}
+
 type MetadataRouteExports = {
   generateStaticParams?: (options: {
     params: Params
@@ -17,7 +22,7 @@ export async function generateMetadataRouteStaticParams(
   userland: MetadataRouteExports,
   params: Params,
   kind: 'image' | 'sitemap'
-): Promise<Params[]> {
+): Promise<MetadataRouteStaticParams> {
   const parentParams =
     userland.generateStaticParams !== undefined
       ? await userland.generateStaticParams({ params })
@@ -30,7 +35,7 @@ export async function generateMetadataRouteStaticParams(
   }
 
   if (parentParams.length === 0) {
-    return []
+    return { parentParams: [], routeParams: [] }
   }
 
   // Validate the original entries before merging them into plain objects.
@@ -46,9 +51,14 @@ export async function generateMetadataRouteStaticParams(
   // the same list for every parent, as the runtime sitemap handler does.
   const sitemaps =
     kind === 'sitemap' ? await userland.generateSitemaps!() : null
-  const staticParams: Params[] = []
-  for (const parent of parentParams) {
-    const resolvedParams = { ...params, ...parent }
+  // A parent remains allowed even when its metadata generator has no IDs.
+  // Only complete tuples belong in the list of routes to prerender.
+  const resolvedParentParams = parentParams.map((parent) => ({
+    ...params,
+    ...parent,
+  }))
+  const routeParams: Params[] = []
+  for (const resolvedParams of resolvedParentParams) {
     const metadata =
       kind === 'sitemap'
         ? sitemaps!
@@ -62,12 +72,12 @@ export async function generateMetadataRouteStaticParams(
           `id property is required for every item returned from ${generator}`
         )
       }
-      staticParams.push({
+      routeParams.push({
         ...resolvedParams,
         __metadata_id__:
           item.id.toString() + (kind === 'sitemap' ? '.xml' : ''),
       })
     }
   }
-  return staticParams
+  return { parentParams: resolvedParentParams, routeParams }
 }

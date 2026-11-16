@@ -170,7 +170,7 @@ import * as userland from ${JSON.stringify(resourcePath)}
 import { generateMetadataRouteStaticParams } from 'next/dist/build/webpack/loaders/metadata/generate-route-params'
 
 ${errorOnBadHandler(resourcePath)}
-${await createReExportsCode(resourcePath, loaderContext, ['generateStaticParams'])}
+${await createReExportsCode(resourcePath, loaderContext, ['generateStaticParams', '__next_generateMetadataStaticParams'])}
 
 export async function GET(_, ctx) {
   const paramsPromise = ctx.params
@@ -201,8 +201,12 @@ export async function GET(_, ctx) {
   return handler({ params: restParamsPromise, id: idPromise })
 }
 
-export async function generateStaticParams({ params }) {
+export async function __next_generateMetadataStaticParams({ params }) {
   return generateMetadataRouteStaticParams(userland, params, 'image')
+}
+
+export async function generateStaticParams(options) {
+  return (await __next_generateMetadataStaticParams(options)).routeParams
 }
 `
 }
@@ -290,7 +294,7 @@ const contentType = ${JSON.stringify(getContentType(resourcePath))}
 const fileType = ${JSON.stringify(getFilenameAndExtension(resourcePath).name)}
 
 ${errorOnBadHandler(resourcePath)}
-${await createReExportsCode(resourcePath, loaderContext, ['generateStaticParams'])}
+${await createReExportsCode(resourcePath, loaderContext, ['generateStaticParams', '__next_generateMetadataStaticParams'])}
 
 export async function GET(_, ctx) {
   const paramsPromise = ctx.params
@@ -331,8 +335,12 @@ export async function GET(_, ctx) {
   })
 }
 
-export async function generateStaticParams({ params }) {
+export async function __next_generateMetadataStaticParams({ params }) {
   return generateMetadataRouteStaticParams(userland, params, 'sitemap')
+}
+
+export async function generateStaticParams(options) {
+  return (await __next_generateMetadataStaticParams(options)).routeParams
 }
 `
   return code

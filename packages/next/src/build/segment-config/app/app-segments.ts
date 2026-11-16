@@ -1,4 +1,5 @@
 import type { Params } from '../../../server/request/params'
+import type { MetadataRouteStaticParams } from '../../webpack/loaders/metadata/generate-route-params'
 import type { AppPageRouteModule } from '../../../server/route-modules/app-page/module.compiled'
 import type { AppRouteRouteModule } from '../../../server/route-modules/app-route/module.compiled'
 import {
@@ -164,6 +165,9 @@ export type AppSegment = {
   config: AppSegmentConfig | undefined
   paramMatching: ParamMatching | (() => Promise<ParamMatching>) | undefined
   generateStaticParams: GenerateStaticParams | undefined
+  generateMetadataStaticParams?: (options: {
+    params?: Params
+  }) => Promise<MetadataRouteStaticParams>
   createEmptyParamsError?: () => Error
 }
 
@@ -342,6 +346,22 @@ async function collectAppRouteSegments(routeModule: AppRouteRouteModule) {
     routeModule.definition.pathname,
     visibleParamNames
   )
+
+  // Only compiler-generated multi-metadata routes provide parent tuples
+  // separately from the concrete metadata IDs. A user-authored handler with
+  // the same export name must still use the ordinary generator contract.
+  if (
+    routeModule.isMetadataRoute &&
+    segment.paramName === '__metadata_id__' &&
+    '__next_generateMetadataStaticParams' in routeModule.userland &&
+    typeof routeModule.userland.__next_generateMetadataStaticParams ===
+      'function'
+  ) {
+    segment.generateMetadataStaticParams = routeModule.userland
+      .__next_generateMetadataStaticParams as NonNullable<
+      AppSegment['generateMetadataStaticParams']
+    >
+  }
 
   let segmentTree: AppSegmentTree[] = []
   for (let index = segments.length - 1; index >= 0; index--) {

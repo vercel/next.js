@@ -331,8 +331,12 @@ async fn dynamic_sitemap_route_with_generate_source(
 
             export * from {resource_path}
 
-            export async function generateStaticParams({{ params }}) {{
+            export async function __next_generateMetadataStaticParams({{ params }}) {{
                 return generateMetadataRouteStaticParams(userland, params, 'sitemap')
+            }}
+
+            export async function generateStaticParams(options) {{
+                return (await __next_generateMetadataStaticParams(options)).routeParams
             }}
         "#,
         resource_path = StringifyJs(&format!("./{}", path.file_name())),
@@ -460,8 +464,12 @@ async fn dynamic_image_route_with_metadata_source(
 
             export * from {resource_path}
 
-            export async function generateStaticParams({{ params }}) {{
+            export async function __next_generateMetadataStaticParams({{ params }}) {{
                 return generateMetadataRouteStaticParams(userland, params, 'image')
+            }}
+
+            export async function generateStaticParams(options) {{
+                return (await __next_generateMetadataStaticParams(options)).routeParams
             }}
         "#,
         resource_path = StringifyJs(&format!("./{}", path.file_name())),
