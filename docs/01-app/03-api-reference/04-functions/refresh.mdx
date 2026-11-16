@@ -6,11 +6,17 @@ related:
     - app/guides/server-actions
 ---
 
-`refresh` allows you to refresh the client router from within a [Server Action](/docs/app/guides/server-actions).
+`refresh` reruns dynamic work for the current route from a [Server Action](/docs/app/guides/server-actions) without invalidating server-side cached data.
 
 ## Usage
 
-`refresh` can **only** be called from within Server Actions. It cannot be used in Route Handlers, Client Components, or any other context.
+`refresh` can **only** be called from Server Actions. Use [`router.refresh()`](/docs/app/api-reference/functions/use-router#routerrefresh) in Client Components. It cannot be used in Route Handlers or other contexts.
+
+## Client cache behavior
+
+Calling `refresh` clears the pages kept for back/forward navigation, but it does not invalidate other prefetched routes. A route prefetched before the Server Action can be reused until its stale time expires.
+
+If a mutation changes cached data used by other routes, call [`updateTag`](/docs/app/api-reference/functions/updateTag) or [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) from the Server Action. These functions invalidate server-side cached data and currently clear prefetched routes from the client cache.
 
 ## Parameters
 

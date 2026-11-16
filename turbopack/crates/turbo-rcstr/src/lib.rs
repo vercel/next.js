@@ -183,7 +183,7 @@ impl RcStr {
                 })
             }
         } else {
-            inline_atom(s).unwrap()
+            inline_atom(s)
         }
     }
 }
@@ -496,7 +496,7 @@ impl Drop for RcStr {
 
 // Exports for our macro
 #[doc(hidden)]
-pub const fn inline_atom(s: &str) -> Option<RcStr> {
+pub const fn inline_atom(s: &str) -> RcStr {
     dynamic::inline_atom(s)
 }
 
@@ -561,7 +561,7 @@ macro_rules! __rcstr_static_submit {
 
 /// Read-only lookup table mapping precomputed hash -> static StaticPrehashedString.
 /// Built once on first access from all `rcstr!` constants gathered at link time into
-/// [`STATIC_RCSTRS`].
+/// `STATIC_RCSTRS`.
 ///
 /// Multiple `rcstr!` calls with the same string content will each scatter an entry, but we
 /// deduplicate by content here so only one entry per unique string is stored.
@@ -706,7 +706,7 @@ impl RcStrInterning {
         }
     }
 
-    /// Intern the [`Display`](std::fmt::Display) output of a value.
+    /// Intern the [`Display`] output of a value.
     pub fn intern_display(&mut self, v: &impl std::fmt::Display) -> RcStr {
         self.intern_owned(v.to_string())
     }
@@ -800,19 +800,16 @@ mod tests {
     #[test]
     fn test_inline_atom() {
         // This is a silly test, just asserts that we can evaluate this in a constant context.
-        const STR: RcStr = {
-            let inline = inline_atom("hello");
-            if inline.is_some() {
-                inline.unwrap()
-            } else {
-                unreachable!();
-            }
-        };
+        const STR: RcStr = inline_atom("hello");
         assert_eq!(STR, RcStr::from("hello"));
+    }
 
+    #[test]
+    #[should_panic]
+    fn test_inline_atom_too_long() {
         // A literal one byte past the capacity must not inline, on either width.
         let too_long = "x".repeat(MAX_INLINE_LEN + 1);
-        assert!(inline_atom(&too_long).is_none());
+        inline_atom(&too_long);
     }
 
     /// The inline capacity must be the same on every target. `turbo-rcstr-macros` runs on the

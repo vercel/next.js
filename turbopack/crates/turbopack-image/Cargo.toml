@@ -31,6 +31,8 @@ image = { workspace = true, default-features = false, features = [
   "tga",
   "webp",
 ] }
+# Reads dimensions from headers for formats we can't decode (see `ImageBuffer::Raw`)
+imagesize = { workspace = true, features = ["heif"] }
 mime = { workspace = true }
 phf = { workspace = true }
 regex = { workspace = true }

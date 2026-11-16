@@ -24,7 +24,7 @@ You can find the resources used in this example here:
 
 - [Video](https://youtu.be/F6romq71KtI)
 - [Demo](https://cache-components-public-pages.labs.vercel.dev/)
-- [Code](https://github.com/vercel-labs/cache-components-public-pages)
+- [Code](https://github.com/nextjs/cache-components-public-pages)
 
 ### Step 1: Add a simple header
 

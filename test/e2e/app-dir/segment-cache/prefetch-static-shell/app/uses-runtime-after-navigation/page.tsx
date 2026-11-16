@@ -25,16 +25,16 @@ export default async function Page() {
 
 async function Navigation() {
   // The runtime data tracking should end here, so the prerender
-  // shouldn't track the awaits of cookies/headers inside DynamicContent.
+  // shouldn't track the awaits of cookies/headers inside RuntimeContent.
   await navigation()
 
   return (
     <>
       <div id="navigation-content">Navigation content</div>
       <Suspense
-        fallback={<p id="dynamic-loading">Loading dynamic content...</p>}
+        fallback={<p id="runtime-loading">Loading runtime content...</p>}
       >
-        <DynamicContent />
+        <RuntimeContent />
       </Suspense>
     </>
   )
@@ -46,7 +46,7 @@ async function shortStaleCache() {
   return Date.now()
 }
 
-async function DynamicContent() {
+async function RuntimeContent() {
   await Promise.all([cookies(), headers(), shortStaleCache()])
-  return <p id="dynamic-content">Dynamic content</p>
+  return <p id="runtime-content">Runtime content</p>
 }

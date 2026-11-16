@@ -1,0 +1,29 @@
+error - [bindings] /turbopack/crates/turbopack-tests/tests/execution/turbopack/comptime/cross-module-strict/input/index.js:4:1  Export MISSING doesn't exist in target module
+  
+       1 | // `other.js` uses the `'use turbopack: constants'` directive, which requires
+       2 | // all of its exports to be constants. Non-constant exports and missing exports
+       3 | // are reported as issues (see `issues/`).
+         | v-------
+       4 + import {
+       5 +   SOME_VALUE,
+       6 +   NO_CONSTANT,
+       7 +   MISSING,
+       8 +   LONG_STRING,
+       9 +   LONG_NUMBER,
+      10 +   LONG_BIG_NUMBER,
+      11 +   LONG_REGEX,
+      12 + } from './other'
+         +----------------^
+      13 | 
+      14 | function someValue() {
+      15 |   if (SOME_VALUE === 'x') {
+      16 |     return SOME_VALUE
+  
+  The export MISSING was not found in module [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/comptime/cross-module-strict/input/other.js [test] (ecmascript).
+  
+  All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+  
+  
+  | These are the exports of the module:
+  | LONG_BIG_NUMBER, LONG_NUMBER, LONG_REGEX, LONG_STRING, NO_CONSTANT, SOME_VALUE
+  |

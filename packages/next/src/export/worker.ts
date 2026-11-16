@@ -59,7 +59,10 @@ import type { PagesRenderContext, PagesSharedContext } from '../server/render'
 import type { AppSharedContext } from '../server/app-render/app-render'
 import { MultiFileWriter } from '../lib/multi-file-writer'
 import { createRenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
+import { getExportPathPageKey } from './utils'
 import { installGlobalBehaviors } from '../server/node-environment-extensions/global-behaviors'
+// TODO(as-any): pre-existing cast, not yet reviewed
+// eslint-disable-next-line @next/internal/no-as-any
 ;(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,
 }
@@ -148,7 +151,7 @@ async function exportPageImpl(
   let updatedPath = exportPath._ssgPath || path
   let locale = exportPath._locale || commonRenderOpts.locale
 
-  if (commonRenderOpts.locale) {
+  if (commonRenderOpts.locale && !isAppDir) {
     const localePathResult = normalizeLocalePath(path, commonRenderOpts.locales)
 
     if (localePathResult.detectedLocale) {
@@ -175,7 +178,7 @@ async function exportPageImpl(
     params = getParams(normalizedPage, updatedPath)
   }
 
-  const { req, res } = createRequestResponseMocks({ url: updatedPath })
+  let initialStatusCode = 200
 
   // If this is a status code page, then set the response code.
   for (const statusCode of [404, 500]) {
@@ -186,27 +189,36 @@ async function exportPageImpl(
         `/${statusCode}/index.html`,
       ].some((p) => p === updatedPath || `/${locale}${p}` === updatedPath)
     ) {
-      res.statusCode = statusCode
+      initialStatusCode = statusCode
     }
   }
 
   // Ensure that the URL has a trailing slash if it's configured.
-  if (trailingSlash && !req.url?.endsWith('/')) {
-    req.url += '/'
-  }
+  const requestUrl =
+    trailingSlash && !updatedPath.endsWith('/')
+      ? updatedPath + '/'
+      : updatedPath
 
   // Resolve the pathname without a trailing slash for app page rendering.
   const resolvedPathname = removeTrailingSlash(updatedPath)
 
-  if (
-    locale &&
-    buildExport &&
-    commonRenderOpts.domainLocales &&
-    commonRenderOpts.domainLocales.some(
-      (dl) => dl.defaultLocale === locale || dl.locales?.includes(locale || '')
-    )
-  ) {
-    addRequestMeta(req, 'isLocaleDomain', true)
+  // Pages and Route Handlers retain their HTTP adapters. App Page prerenders
+  // consume parsed inputs and output metadata without constructing transport.
+  const createTransportMocks = () => {
+    const { req, res } = createRequestResponseMocks({ url: requestUrl })
+    res.statusCode = initialStatusCode
+    if (
+      locale &&
+      buildExport &&
+      commonRenderOpts.domainLocales &&
+      commonRenderOpts.domainLocales.some(
+        (dl) =>
+          dl.defaultLocale === locale || dl.locales?.includes(locale || '')
+      )
+    ) {
+      addRequestMeta(req, 'isLocaleDomain', true)
+    }
+    return { req, res }
   }
 
   const getHtmlFilename = (p: string) =>
@@ -273,6 +285,7 @@ async function exportPageImpl(
 
   // Handle App Routes.
   if (isAppDir && isAppRouteRoute(page)) {
+    const { req, res } = createTransportMocks()
     return exportAppRoute(
       req,
       res,
@@ -318,7 +331,11 @@ async function exportPageImpl(
 
   // Handle App Pages
   if (isAppDir) {
-    const routeMatch: RouteMatch = { resolvedPathname }
+    const routeMatch: RouteMatch = {
+      resolvedPathname,
+      // Build prerenders currently have no Vary header to mark interception.
+      couldBeIntercepted: false,
+    }
     const sharedContext: AppSharedContext = {
       buildId,
       deploymentId,
@@ -326,8 +343,8 @@ async function exportPageImpl(
     }
 
     return exportAppPage(
-      req,
-      res,
+      initialStatusCode,
+      requestUrl,
       page,
       path,
       pathname,
@@ -356,6 +373,7 @@ async function exportPageImpl(
       developmentNotFoundSourcePage: undefined,
     }
 
+    const { req, res } = createTransportMocks()
     return exportPagesPage(
       req,
       res,
@@ -438,7 +456,7 @@ export async function exportPages(
     maxAttempts: number
   ) => {
     const { page, path } = exportPath
-    const pageKey = page !== path ? `${page}: ${path}` : path
+    const pageKey = getExportPathPageKey(exportPath)
     let attempt = 0
     let result
 

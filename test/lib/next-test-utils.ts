@@ -534,6 +534,8 @@ export function runNextCommandDev(
         start: /✓ ready/i,
       }
 
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       const strippedMessage = stripAnsi(message) as any
 
       if (
@@ -1232,8 +1234,15 @@ export async function getRedboxTotalErrorCount(
   return parseInt(text || '-1')
 }
 
-export function getRedboxSource(browser: Playwright): Promise<string | null> {
-  return browser.eval(() => {
+// Editor controls are not part of the source code captured by error snapshots.
+function normalizeRedboxSource(source: string | null): string | null {
+  return source?.replace(/\nOpen in Editor(?=\n|$)/g, '') ?? null
+}
+
+export async function getRedboxSource(
+  browser: Playwright
+): Promise<string | null> {
+  const source = await browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) =>
@@ -1247,6 +1256,7 @@ export function getRedboxSource(browser: Playwright): Promise<string | null> {
         ?.innerText ?? null
     )
   })
+  return normalizeRedboxSource(source)
 }
 
 export function getRedboxTitle(browser: Playwright): Promise<string | null> {
@@ -1677,7 +1687,7 @@ export interface RedboxCauseEntry {
 export async function getRedboxCause(
   browser: Playwright
 ): Promise<RedboxCauseEntry[] | null> {
-  return browser.eval(() => {
+  const entries = await browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
@@ -1711,12 +1721,18 @@ export async function getRedboxCause(
     }
     return causes
   })
+  return (
+    entries?.map((entry) => ({
+      ...entry,
+      source: normalizeRedboxSource(entry.source),
+    })) ?? null
+  )
 }
 
 export async function getRedboxAggregateErrors(
   browser: Playwright
 ): Promise<RedboxCauseEntry[] | null> {
-  return browser.eval(() => {
+  const entries = await browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
@@ -1754,6 +1770,12 @@ export async function getRedboxAggregateErrors(
     }
     return entries
   })
+  return (
+    entries?.map((entry) => ({
+      ...entry,
+      source: normalizeRedboxSource(entry.source),
+    })) ?? null
+  )
 }
 
 export async function getRedboxCallStack(
@@ -2134,6 +2156,8 @@ export function normalizeManifest<T>(
 export function getDistDir(): '.next' | '.next/dev' {
   // global.isNextDev is set in e2e/development/production tests.
   // NEXT_TEST_MODE is set in CI or local test-* commands.
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   return (global as any).isNextDev || process.env.NEXT_TEST_MODE === 'dev'
     ? '.next/dev'
     : '.next'
@@ -2154,6 +2178,8 @@ export function getClientReferenceManifest(
   const modulePath = require.resolve(manifestPath)
 
   // Clear global
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   delete (globalThis as any).__RSC_MANIFEST
 
   // Need to use jest.isolateModules because Jest messes with require.cache and `delete
@@ -2163,6 +2189,8 @@ export function getClientReferenceManifest(
     require(modulePath)
   })
 
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   const manifest = (globalThis as any).__RSC_MANIFEST[
     route
   ] as ClientReferenceManifest

@@ -79,6 +79,11 @@ pub(crate) async fn collect_next_dynamic_chunks(
                     *availability_info
                 }
             };
+            // Only pass on what the dynamically imported chunk group can observe, so the loader
+            // isn't unique per parent chunk group.
+            let availability_info = availability_info
+                .canonicalize_for_async_loader(module_graph, ResolvedVc::upcast(module))
+                .await?;
 
             // The react-loadable manifest needs the final CSS and JavaScript files so
             // next/dynamic can preload them during SSR. Do not use a lazy manifest loader here.

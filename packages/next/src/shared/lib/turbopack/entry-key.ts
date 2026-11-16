@@ -9,7 +9,7 @@ export type EntryKeySide = 'client' | 'server'
 
 // custom type to make sure you can't accidentally use a "generic" string
 export type EntryKey =
-  `{"type":"${EntryKeyType}","side":"${EntryKeyType}","page":"${string}"}`
+  `{"type":"${EntryKeyType}","side":"${EntryKeySide}","page":"${string}"}`
 
 /**
  * Get a key that's unique across all entrypoints.

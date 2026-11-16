@@ -26,9 +26,9 @@ use turbo_tasks::{
 use crate::backend::storage_schema::{DropPartial, DropPartialOutcome, MergeRestore};
 
 /// The value is stored as [`SharedReference`] rather than
-/// [`TypedSharedReference`] because the `CellId` key already carries the
-/// [`ValueTypeId`] — duplicating it in each map entry would waste memory.
-/// Encode / decode recover the value type from the key.
+/// [`TypedSharedReference`](turbo_tasks::TypedSharedReference) because the `CellId` key already
+/// carries the [`ValueTypeId`](turbo_tasks::ValueTypeId) — duplicating it in each map entry would
+/// waste memory. Encode / decode recover the value type from the key.
 /// Default inline size is 1 because this optimizes storage layout and a non-trivial number of tasks
 /// have <=1 cells
 type InnerMap = AutoMap<CellId, SharedReference, BuildHasherDefault<FxHasher>, 1>;

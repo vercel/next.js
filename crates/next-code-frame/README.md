@@ -3,6 +3,7 @@
 Fast, scalable code frame rendering for Next.js error reporting, written in Rust.
 
 This crate provides functionality similar to `@babel/code-frame` but with several improvements:
+
 - **Scalability**: Handles arbitrarily large files efficiently
 - **Long line handling**: Gracefully scrolls long lines to keep error positions visible and avoid overwhelming the terminal with long lines
 - **Syntax highlighting**: Uses a language-agnostic regex tokenizer for best-effort syntax highlighting
@@ -10,6 +11,7 @@ This crate provides functionality similar to `@babel/code-frame` but with severa
 ## Design
 
 Following the `next-taskless` pattern, this crate:
+
 - Has no dependency on turbo-tasks, allowing use in webpack/rspack codepaths
 - Is compilable to WASM for environments without native bindings
 - Follows "sans-io" patterns - the library accepts file content as arguments rather than performing IO
@@ -53,7 +55,7 @@ may lose its expected coloring. For example:
 /** sneaky
 
 */
-const after = 1; // `*/` may lose comment highlighting
+const after = 1 // `*/` may lose comment highlighting
 ```
 
 This is a deliberate tradeoff — blank lines inside block comments or template

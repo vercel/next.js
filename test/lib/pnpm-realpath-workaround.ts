@@ -1,6 +1,6 @@
 const PNPM_HOISTED_CONFIG = `# Work around the Node.js realpath bug fixed in 24.21.0 and 26.8.0.
 # https://github.com/nodejs/node/pull/65113
-node-linker=hoisted
+nodeLinker: hoisted
 `
 
 function hasNodeRealpathFix(nodeVersion: string): boolean {
@@ -16,5 +16,5 @@ export function getPnpmRealpathWorkaround(
   if (hasNodeRealpathFix(nodeVersion)) {
     return undefined
   }
-  return { '.npmrc': PNPM_HOISTED_CONFIG }
+  return { 'pnpm-workspace.yaml': PNPM_HOISTED_CONFIG }
 }

@@ -5,7 +5,6 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use swc_core::{
     atoms::{Atom, atom},
-    base::SwcComments,
     common::{Mark, SourceMap, comments::Comments},
     ecma::{
         ast::{
@@ -35,7 +34,10 @@ use turbopack_core::{
     source::Source,
 };
 
-use crate::runtime_functions::{TURBOPACK_MODULE, TURBOPACK_REFRESH};
+use crate::{
+    runtime_functions::{TURBOPACK_MODULE, TURBOPACK_REFRESH},
+    swc_comments::MutableComments,
+};
 
 /// Additional options for SWC's preset-env, beyond the browserslist-derived
 /// targets that are already provided by the `Environment`.
@@ -189,7 +191,7 @@ impl EcmascriptInputTransforms {
 }
 
 pub struct TransformContext<'a> {
-    pub comments: &'a SwcComments,
+    pub comments: &'a MutableComments,
     pub top_level_mark: Mark,
     pub unresolved_mark: Mark,
     pub source_map: &'a Arc<SourceMap>,

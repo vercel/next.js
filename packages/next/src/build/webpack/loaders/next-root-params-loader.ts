@@ -3,6 +3,7 @@ import * as path from 'node:path'
 import * as fs from 'node:fs/promises'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
+import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { getSegmentParam } from '../../../shared/lib/router/utils/get-segment-param'
 
 export type RootParamsLoaderOpts = {
@@ -152,7 +153,9 @@ function getParamsFromLayoutFilePath({
   layoutFilePath: string
 }): string[] {
   const rootLayoutPath = normalizeAppPath(
-    ensureLeadingSlash(path.dirname(path.relative(appDir, layoutFilePath)))
+    ensureLeadingSlash(
+      normalizePathSep(path.dirname(path.relative(appDir, layoutFilePath)))
+    )
   )
   const segments = rootLayoutPath.split('/')
   const paramNames: string[] = []

@@ -15,7 +15,7 @@ module.exports = {
 }
 ```
 
-View an example of a [custom cache handler](/docs/app/guides/self-hosting#configuring-caching) and learn more about the implementation.
+See the [Redis `cacheHandler` example](https://github.com/vercel/next.js/tree/canary/examples/cache-handler-redis) for a working implementation, and [Configuring Caching](/docs/app/guides/self-hosting#configuring-caching) for what a handler backed by a shared store needs.
 
 ## API Reference
 

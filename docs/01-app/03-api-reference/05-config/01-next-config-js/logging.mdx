@@ -65,7 +65,7 @@ Since this is only logged in development, this option doesn't affect production 
 module.exports = {
   logging: {
     incomingRequests: {
-      ignore: [/\api\/v1\/health/],
+      ignore: [/\/api\/v1\/health/],
     },
   },
 }

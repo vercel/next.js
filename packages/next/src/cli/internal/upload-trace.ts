@@ -6,8 +6,10 @@ const UPLOAD_TRACE_URL = 'https://nextjs.org/api/upload-trace'
 // V8 CPU profiles are JSON objects starting with {"nodes":
 const CPUPROFILE_HEADER = Buffer.from('{"nodes":')
 
-// Turbopack trace files start with this magic header (written by trace_writer.rs)
-const TURBOPACK_TRACE_HEADER = Buffer.from('TRACEv0')
+// Turbopack trace files start with this magic header, including the trace format
+// version (written by trace_writer.rs, `TRACE_HEADER` in turbopack-trace-utils)
+const TURBOPACK_TRACE_HEADER = Buffer.from('TRACEv1')
+const TURBOPACK_TRACE_HEADER_PREFIX = Buffer.from('TRACEv')
 
 const PROGRESS_CHUNK_SIZE = 64 * 1024 // 64 KB
 
@@ -66,17 +68,24 @@ function validateCpuProfile(header: Buffer, file: string): void {
 }
 
 function validateTurbopackTrace(header: Buffer, file: string): void {
+  const actual = header.subarray(0, TURBOPACK_TRACE_HEADER.length)
+  if (actual.equals(TURBOPACK_TRACE_HEADER)) {
+    return
+  }
   if (
-    header.length < TURBOPACK_TRACE_HEADER.length ||
-    !header
-      .subarray(0, TURBOPACK_TRACE_HEADER.length)
-      .equals(TURBOPACK_TRACE_HEADER)
+    actual
+      .subarray(0, TURBOPACK_TRACE_HEADER_PREFIX.length)
+      .equals(TURBOPACK_TRACE_HEADER_PREFIX)
   ) {
     console.error(
-      `Error: ${file} does not appear to be a valid Turbopack trace (missing TRACEv0 header).`
+      `Error: ${file} has an unsupported Turbopack trace version (expected ${TURBOPACK_TRACE_HEADER}, found ${actual}). Capture the trace again with this version of Next.js.`
     )
-    process.exit(1)
+  } else {
+    console.error(
+      `Error: ${file} does not appear to be a valid Turbopack trace (missing ${TURBOPACK_TRACE_HEADER} header).`
+    )
   }
+  process.exit(1)
 }
 
 export async function uploadTraceToBlob(

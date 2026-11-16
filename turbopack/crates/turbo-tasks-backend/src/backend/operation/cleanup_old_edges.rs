@@ -3,19 +3,19 @@ use std::mem::take;
 
 use rustc_hash::FxHashSet;
 use smallvec::SmallVec;
-use turbo_tasks::TaskId;
+use turbo_tasks::{CellKey, TaskId};
 
 use crate::{
     backend::{
         TaskDataCategory,
         operation::{
-            AggregatedDataUpdate, ExecuteContext, TaskGuard,
+            AggregatedDataUpdate, CollectiblesUpdateVec, ExecuteContext, TaskGuard,
             aggregation_update::{
                 AggregationUpdateJob, AggregationUpdateQueue, InnerOfUppersLostFollowersJob,
                 get_aggregation_number, get_uppers, is_aggregating_node,
             },
         },
-        storage_schema::TaskStorageAccessors,
+        storage_schema::{ActivenessAccessors, TaskStorageAccessors},
     },
     data::{CellRef, CollectibleRef, CollectiblesRef},
 };
@@ -29,10 +29,12 @@ pub enum OutdatedEdge {
         dependent: TaskId,
         cell: CellRef,
     },
-    HashedCellDependency {
+    /// `dependent` reads `cell` with a [`CellKey`] (a hashed sub-value, or a `Vc::keyed_reader()`
+    /// or `Vc::lazy_reader()` read).
+    KeyedCellDependency {
         dependent: TaskId,
         cell: CellRef,
-        key: u64,
+        key: CellKey,
     },
     /// `dependent` reads the output of `output_task`.
     OutputDependency {
@@ -60,8 +62,8 @@ pub fn capture_all_edges(task: &TaskGuard<'_>) -> Vec<OutdatedEdge> {
                 cell,
             }),
     );
-    old_edges.extend(task.iter_cell_dependencies_hashed().map(|(cell, key)| {
-        OutdatedEdge::HashedCellDependency {
+    old_edges.extend(task.iter_cell_dependencies_keyed().map(|(cell, key)| {
+        OutdatedEdge::KeyedCellDependency {
             dependent: task_id,
             cell,
             key,
@@ -83,8 +85,8 @@ pub fn capture_all_edges(task: &TaskGuard<'_>) -> Vec<OutdatedEdge> {
                 },
             }),
     );
-    old_edges.extend(task.iter_cell_dependents_hashed().map(|(entry, key)| {
-        OutdatedEdge::HashedCellDependency {
+    old_edges.extend(task.iter_keyed_cell_dependents().map(|(entry, key)| {
+        OutdatedEdge::KeyedCellDependency {
             dependent: entry.task,
             cell: CellRef {
                 task: task_id,
@@ -202,12 +204,11 @@ fn cleanup_old_edges_inner(
                     queue.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
                         upper_id: task_id,
                         lost_follower_ids: children,
-                        retry: 0,
                     });
                 } else {
                     let upper_ids = get_uppers(&task);
-                    let has_active_count = ctx.should_track_activeness()
-                        && task.get_activeness().is_some_and(|a| a.active_counter > 0);
+                    let has_active_count =
+                        ctx.should_track_activeness() && task.has_positive_active_count();
                     drop(task);
                     if has_active_count {
                         // TODO combine both operations to avoid the clone
@@ -225,7 +226,7 @@ fn cleanup_old_edges_inner(
                 }
             }
             OutdatedEdge::Collectible(collectible, count) => {
-                let mut collectibles = Vec::new();
+                let mut collectibles = CollectiblesUpdateVec::new();
                 collectibles.push((collectible, -count));
                 outdated.retain(|e| match e {
                     OutdatedEdge::Collectible(collectible, count) => {
@@ -274,26 +275,47 @@ fn cleanup_old_edges_inner(
                     task.remove_outdated_cell_dependencies(&cell);
                 }
             }
-            OutdatedEdge::HashedCellDependency {
+            OutdatedEdge::KeyedCellDependency {
                 dependent,
                 cell,
                 key,
             } => {
-                // Same as above but in the `_hashed` sets.
-                {
-                    let mut task = ctx.task(cell.task, TaskDataCategory::Data);
-                    task.remove_cell_dependents_hashed(&(
-                        CellRef {
-                            task: dependent,
-                            cell: cell.cell,
-                        },
+                // Same as above but in the `_keyed` sets, for all keyed edges at once: a task often
+                // has many keyed dependencies on the same cell (or many keyed dependents), so each
+                // owner task and each dependent is locked once instead of once per edge. Like
+                // above, the owner sides are removed before the dependent sides.
+                let mut edges = vec![(dependent, cell, key)];
+                outdated.retain(|e| match *e {
+                    OutdatedEdge::KeyedCellDependency {
+                        dependent,
+                        cell,
                         key,
-                    ));
+                    } => {
+                        edges.push((dependent, cell, key));
+                        false
+                    }
+                    _ => true,
+                });
+                edges.sort_unstable_by_key(|&(_, cell, _)| cell.task);
+                for owner_edges in edges.chunk_by(|a, b| a.1.task == b.1.task) {
+                    let mut task = ctx.task(owner_edges[0].1.task, TaskDataCategory::Data);
+                    for &(dependent, cell, key) in owner_edges {
+                        task.remove_keyed_cell_dependent(&(
+                            CellRef {
+                                task: dependent,
+                                cell: cell.cell,
+                            },
+                            key,
+                        ));
+                    }
                 }
-                {
-                    let mut task = ctx.task(dependent, TaskDataCategory::Data);
-                    task.remove_cell_dependencies_hashed(&(cell, key));
-                    task.remove_outdated_cell_dependencies_hashed(&(cell, key));
+                edges.sort_unstable_by_key(|&(dependent, _, _)| dependent);
+                for dependent_edges in edges.chunk_by(|a, b| a.0 == b.0) {
+                    let mut task = ctx.task(dependent_edges[0].0, TaskDataCategory::Data);
+                    for &(_, cell, key) in dependent_edges {
+                        task.remove_cell_dependencies_keyed(&(cell, key));
+                        task.remove_outdated_cell_dependencies_keyed(&(cell, key));
+                    }
                 }
             }
             OutdatedEdge::OutputDependency {
@@ -336,22 +358,17 @@ fn cleanup_old_edges_inner(
         }
     }
 
-    while !stop_when_only_rebalance_remains || !queue.only_rebalance_remains() {
-        if queue.process(ctx) {
-            #[cfg(feature = "trace_aggregation_update_stats")]
-            let stats = take(&mut queue.stats);
-            #[cfg(not(feature = "trace_aggregation_update_stats"))]
-            let stats = ();
-            return (stats, None);
-        }
+    if stop_when_only_rebalance_remains {
+        // Edge removal is done; hand the rebalance back to the caller. Any
+        // other pending work would be dropped here, so `execute_until_rebalance`
+        // asserts that nothing else is left.
+        let balance_edges = queue.execute_until_rebalance(ctx);
+        return (Default::default(), Some(DeferredCleanup { balance_edges }));
     }
-    // Edge removal is done; hand the rebalance back to the caller. Any
-    // other pending work would be dropped here, so `only_rebalance_remains`
-    // asserts that nothing else is left.
-    (
-        Default::default(),
-        Some(DeferredCleanup {
-            balance_edges: queue.take_deferred_balance_edges().collect(),
-        }),
-    )
+    queue.execute(ctx);
+    #[cfg(feature = "trace_aggregation_update_stats")]
+    let stats = take(&mut queue.stats);
+    #[cfg(not(feature = "trace_aggregation_update_stats"))]
+    let stats = ();
+    (stats, None)
 }

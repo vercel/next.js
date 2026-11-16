@@ -77,14 +77,6 @@ function mergeSettingsIntoYaml(yamlText, settings) {
 }
 
 /**
- * @param {string} yamlText text of an existing `pnpm-workspace.yaml`
- * @returns {string}
- */
-function mergePnpmSecuritySettingsIntoYaml(yamlText) {
-  return mergeSettingsIntoYaml(yamlText, getPnpmSecuritySettings())
-}
-
-/**
  * @param {string} yamlText text of an existing `.yarnrc.yml`
  * @returns {string}
  */
@@ -96,6 +88,6 @@ module.exports = {
   SECURITY_SETTING_KEYS,
   getPnpmSecuritySettings,
   getYarnSecuritySettings,
-  mergePnpmSecuritySettingsIntoYaml,
+  mergeSettingsIntoYaml,
   mergeYarnSecuritySettingsIntoYaml,
 }

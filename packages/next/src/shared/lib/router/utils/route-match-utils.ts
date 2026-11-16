@@ -121,7 +121,7 @@ export function safeRegexpToFunction<
     // Clean parameters before returning
     return {
       ...result,
-      params: stripParameterSeparators(result.params as any) as T,
+      params: stripParameterSeparators(result.params) as T,
     }
   }
 }

@@ -1,4 +1,4 @@
-error - [code gen] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-escape-root/input/index.js:24:27  import.meta.glob() cannot look outside of the project root
+error - [code gen] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-escape-root/input/index.js:24:28  import.meta.glob() cannot look outside of the project root
       20 | 
       21 | // A positive pattern that escapes is reported and then skipped, so the patterns
       22 | // around it still resolve: fewer matches is easier to work with while editing

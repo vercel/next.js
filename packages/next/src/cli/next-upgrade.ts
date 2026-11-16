@@ -19,6 +19,7 @@ import { dim } from '../lib/picocolors'
 import type { UpgradeDocument } from '../lib/upgrade/future-defaults'
 import { getInstalledNextVersion } from '../lib/upgrade/prepare-upgrade'
 import { runChildProcess } from '../lib/upgrade/run-child-process'
+import { resolveCanaryVersion } from '../lib/upgrade/resolve-canary-version'
 import { getAgentName } from '../telemetry/agent-name'
 import {
   eventAgentUpgradeAgentResult,
@@ -147,31 +148,6 @@ async function loadAgentUpgradeConfig(directory: string) {
     rawConfig: true,
   })
   return normalizeConfig(PHASE_PRODUCTION_BUILD, interopDefault(rawConfig))
-}
-
-async function resolveCanaryVersion(): Promise<string> {
-  try {
-    const response = await fetch('https://registry.npmjs.org/next/canary', {
-      signal: AbortSignal.timeout(10_000),
-      cache: 'no-store',
-      redirect: 'error',
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`)
-    }
-
-    const { version } = await response.json()
-    if (typeof version !== 'string' || valid(version) !== version) {
-      throw new Error('Invalid canary version')
-    }
-
-    return version
-  } catch (error) {
-    throw new Error('Could not fetch the latest Next.js canary from npm.', {
-      cause: error,
-    })
-  }
 }
 
 export async function spawnNextUpgrade(
@@ -320,7 +296,10 @@ export async function spawnNextUpgrade(
       } else {
         Log.info(dim('Preparing upgrade...'))
         failureStage = 'metadata'
-        const canaryVersion = await resolveCanaryVersion()
+        const canaryVersion = await resolveCanaryVersion({
+          directory: baseDir,
+          packageManager: packageManager ?? getPkgManager(baseDir),
+        })
         failureStage = 'cli'
         if (process.env.__NEXT_VERSION !== canaryVersion) {
           const [command, ...runnerArgs] = getNpxCommand(baseDir).split(' ')

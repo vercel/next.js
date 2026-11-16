@@ -60,6 +60,16 @@ describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
     })
   })
 
+  it('runs when route response validation fails', async () => {
+    const response = await next.fetch(pathPrefix + '/route-error')
+    expect(response.status).toBe(500)
+    await retry(() => {
+      expect(getLogs()).toContainEqual({
+        source: '[route handler] /route-error',
+      })
+    })
+  })
+
   it('runs in server actions', async () => {
     const browser = await next.browser(pathPrefix + '/123/with-action')
     expect(getLogs()).toContainEqual({

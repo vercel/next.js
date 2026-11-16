@@ -1,4 +1,4 @@
-import { isReact18, nextTestSetup, FileRef } from 'e2e-utils'
+import { isReact18, nextTestSetup, FileRef, isNextDeploy } from 'e2e-utils'
 import { waitForRedbox, shouldUseTurbopack } from 'next-test-utils'
 import { join } from 'path'
 import stripAnsi from 'strip-ansi'
@@ -26,7 +26,7 @@ describe.each(['default', 'babelrc', 'rust'] as const)(
       return
     }
 
-    const dependencies = (global as any).isNextDeploy
+    const dependencies = isNextDeploy
       ? // `link` is incompatible with the npm version used when this test is deployed
         {
           'reference-library': 'file:./reference-library',

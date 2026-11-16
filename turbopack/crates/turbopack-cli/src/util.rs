@@ -1,12 +1,23 @@
-use std::{env::current_dir, path::PathBuf};
+use std::{
+    env::current_dir,
+    path::PathBuf,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+};
 
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::Vc;
+use turbo_tasks::{TaskId, TurboTasks, Vc};
+use turbo_tasks_backend::TurboTasksBackend;
 use turbo_tasks_fs::{
     DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, FileSystem, canonicalize_to_rcstr,
 };
+use turbopack_trace_utils::exit::ExitHandler;
+
+use crate::go::GoBuild;
 
 #[turbo_tasks::task_input]
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Encode, Decode)]
@@ -75,4 +86,67 @@ pub async fn project_fs(
 pub fn output_fs(project_dir: RcStr) -> Result<Vc<Box<dyn FileSystem>>> {
     let disk_fs = DiskFileSystem::new(rcstr!("output"), Vc::cell(project_dir));
     Ok(Vc::upcast(disk_fs))
+}
+
+/// Own compiler cancellation and cache persistence during command shutdown.
+pub(crate) struct CompilerShutdown {
+    tasks: Arc<TurboTasks<TurboTasksBackend>>,
+    go_entries: Option<Arc<GoBuild>>,
+    compilation: Option<TaskId>,
+    cleaned_up: AtomicBool,
+    persist_on_exit: AtomicBool,
+}
+
+impl CompilerShutdown {
+    /// Errors should exit promptly; successful one-shot builds persist explicitly instead.
+    pub(crate) fn skip_persistence(&self) {
+        self.persist_on_exit.store(false, Ordering::Release);
+    }
+
+    pub(crate) async fn cleanup(&self) {
+        // A successful build cleans up before stopping the engine. Its exit callback must
+        // not enqueue another run_once after stop_and_wait has stopped accepting work.
+        if self.cleaned_up.load(Ordering::Acquire) {
+            return;
+        }
+        if let Some(entries) = &self.go_entries {
+            entries.go_context.cancel();
+            let entries = entries.clone();
+            if let Err(error) = self
+                .tasks
+                .run_once(async move { entries.stop_watching().await })
+                .await
+            {
+                eprintln!("error during compiler shutdown: {error:#}");
+            }
+        }
+        if let Some(task) = self.compilation {
+            self.tasks.dispose_root_task(task);
+        }
+        self.cleaned_up.store(true, Ordering::Release);
+    }
+}
+
+/// Register cancellation before the command awaits its compilation root.
+pub(crate) fn register_shutdown(
+    exit: &ExitHandler,
+    tasks: Arc<TurboTasks<TurboTasksBackend>>,
+    go_entries: Option<Arc<GoBuild>>,
+    compilation: Option<TaskId>,
+) -> Arc<CompilerShutdown> {
+    let shutdown = Arc::new(CompilerShutdown {
+        tasks,
+        go_entries,
+        compilation,
+        cleaned_up: AtomicBool::new(false),
+        persist_on_exit: AtomicBool::new(true),
+    });
+    let on_exit = shutdown.clone();
+    exit.on_exit(async move {
+        on_exit.cleanup().await;
+        if on_exit.persist_on_exit.load(Ordering::Acquire) {
+            on_exit.tasks.stop_and_wait().await;
+        }
+    });
+    shutdown
 }

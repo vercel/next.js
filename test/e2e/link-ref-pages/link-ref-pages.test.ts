@@ -1,4 +1,4 @@
-import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import {
   getClientBuildManifestLoaderChunkUrlPath,
   retry,
@@ -45,17 +45,13 @@ describe('Link ref forwarding', () => {
     await browser.close()
   }
 
-  function runCommonTests() {
-    it('should not have a race condition with a click handler', async () => {
-      const browser = await next.browser('/click-away-race-condition')
-      await browser.elementByCss('#click-me').click()
-      await browser.waitForElementByCss('#the-menu')
-    })
-  }
+  it('should not have a race condition with a click handler', async () => {
+    const browser = await next.browser('/click-away-race-condition')
+    await browser.elementByCss('#click-me').click()
+    await browser.waitForElementByCss('#the-menu')
+  })
 
-  ;(isNextDev ? describe : describe.skip)('development mode', () => {
-    runCommonTests()
-
+  describe('ref forwarding', () => {
     it('should not show error for function component with forwardRef', async () => {
       await noError('/function')
     })
@@ -76,9 +72,10 @@ describe('Link ref forwarding', () => {
       await noError('/child-ref-func-cleanup')
     })
   })
-  ;(isNextStart ? describe : describe.skip)('production mode', () => {
-    runCommonTests()
 
+  // Prefetching is disabled in dev, and these checks read the local build manifest.
+  // @force-gate start
+  describe('production mode', () => {
     it('should preload with forwardRef', async () => {
       await didPrefetch('/function')
     })

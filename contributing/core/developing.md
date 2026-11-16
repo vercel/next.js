@@ -25,9 +25,8 @@ _You'll need a working node.js environment with pnpm._
   `npm install -g corepack@latest`.
 
   `pnpm` [respects the `packageManager` field in `package.json` by
-  default](https://pnpm.io/settings#managepackagemanagerversions), even when
-  installed without Corepack. This ensures that pnpm behaves the same locally as
-  it does in CI.
+  default](https://pnpm.io/settings/cli#pmonfail), even when installed without
+  Corepack. This ensures that pnpm behaves the same locally as it does in CI.
 
 - _(Optional)_ Install [fnm](https://github.com/Schniz/fnm) or
   [nvm](https://github.com/nvm-sh/nvm). This will ensure you use the same

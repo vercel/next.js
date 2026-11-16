@@ -511,6 +511,7 @@ In addition, the new `useRouter` hook has the following changes:
 - `asPath` has been removed because the concept of `as` has been removed from the new router.
 - `isReady` has been removed because it is no longer necessary. During [prerendering](/docs/app/glossary#prerendering), any component that uses the [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) hook will skip the prerendering step and instead be rendered on the client at runtime.
 - `route` has been removed. `usePathname` or `useSelectedLayoutSegments()` provide an alternative.
+- `router.push()` and `router.replace()` no longer return a Promise. They queue the route change as a React Transition and return right away. To show a pending state, call them inside the `startTransition` returned by [`useTransition`](https://react.dev/reference/react/useTransition) and read `isPending`. See [Filter with pending feedback](/docs/app/guides/interactive-apps#step-3-filter-with-pending-feedback) for an example.
 
 [View the `useRouter()` API reference](/docs/app/api-reference/functions/use-router).
 

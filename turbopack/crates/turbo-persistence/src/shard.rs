@@ -59,8 +59,8 @@ impl ShardBits {
         start..=end
     }
 
-    /// Computes the shard bits for a family with size [`bytes`], targeting a shard size and using
-    /// `[self]` bits already.
+    /// Computes the shard bits for a family with size `bytes`, targeting a shard size and using
+    /// `self` bits already.
     ///
     /// The shard count only doubles once shards hold more than 1.5 times `target_shard_size`, and
     /// only halves once they hold less than half of it to prevent resharding around a threshold.
@@ -77,6 +77,11 @@ impl ShardBits {
             bits.0 -= 1;
         }
         bits
+    }
+
+    /// Like [`Self::maybe_reshard`], but never shrinks.
+    pub fn maybe_grow(self, bytes: u64, target_shard_size: u64) -> Self {
+        self.maybe_reshard(bytes, target_shard_size).max(self)
     }
 }
 
@@ -179,6 +184,21 @@ mod tests {
             }
             assert_eq!(next, 0, "the last shard ends at u64::MAX");
         }
+    }
+
+    #[test]
+    fn test_maybe_grow_never_shrinks() {
+        const MB: u64 = 1024 * 1024;
+        let bits = ShardBits::new(3);
+        // 8 shards of 10 MB each would shrink, but don't when only growing.
+        assert!(bits.maybe_reshard(80 * MB, 256 * MB) < bits);
+        assert_eq!(bits.maybe_grow(80 * MB, 256 * MB), bits);
+        // 8 shards of 1 GB each grow either way.
+        assert_eq!(
+            bits.maybe_grow(8 * 1024 * MB, 256 * MB),
+            bits.maybe_reshard(8 * 1024 * MB, 256 * MB)
+        );
+        assert!(bits.maybe_grow(8 * 1024 * MB, 256 * MB) > bits);
     }
 
     #[test]

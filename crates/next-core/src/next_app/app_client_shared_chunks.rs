@@ -6,7 +6,7 @@ use turbopack_core::{
         ChunkGroupResult, ChunkingContext, EvaluatableAssets, availability_info::AvailabilityInfo,
     },
     ident::AssetIdent,
-    module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
+    module_graph::{ModuleGraph, chunk_group_info::ChunkGroupKey},
     output::OutputAssets,
 };
 
@@ -26,7 +26,7 @@ pub async fn get_app_client_shared_chunk_group(
         client_chunking_context
             .evaluated_chunk_group(
                 ident,
-                ChunkGroup::Entry(
+                ChunkGroupKey::Entry(
                     app_client_runtime_entries
                         .await?
                         .iter()

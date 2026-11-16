@@ -1,6 +1,30 @@
 // `require.cache` is exposed through the `@turbopack/module-cache` helper,
 // which wraps the runtime's `Map` in a `Proxy` with object semantics.
 
+it('should replace cache access and membership without replacing separate require uses', () => {
+  expect('cache' in require).toBe(true)
+  expect(typeof require.cache).toBe('object')
+  expect(require('./dep')).toBeDefined()
+})
+
+it('should retain child effects when member, in, and typeof expressions survive', () => {
+  const events = []
+  const object = { value: 42 }
+  function key() {
+    events.push('key')
+    return 'value'
+  }
+  function getObject() {
+    events.push('object')
+    return object
+  }
+
+  expect(getObject()[key()]).toBe(42)
+  expect(key() in getObject()).toBe(true)
+  expect(typeof getObject()[key()]).toBe('number')
+  expect(events).toEqual(['object', 'key', 'key', 'object', 'object', 'key'])
+})
+
 it('should read entries with bracket access', () => {
   const dep = require('./dep')
   const id = require.resolve('./dep')

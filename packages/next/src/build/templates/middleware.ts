@@ -75,12 +75,15 @@ function errorHandledHandler(fn: AdapterOptions['handler']) {
 }
 
 const internalHandler: EdgeHandler = async (opts) => {
+  let emitInstrumentationSpans: (() => void) | undefined
+  let requestStartTime: number | undefined
   if (process.env.NEXT_RUNTIME !== 'edge') {
     // This mirrors what `RouteModule#prepare` does for routes
     // edge runtime handles loading instrumentation at the edge adapter level
+    requestStartTime = performance.timeOrigin + performance.now()
     const { join, relative } =
       require('node:path') as typeof import('node:path')
-    const { ensureInstrumentationRegistered } =
+    const { ensureInstrumentationRegisteredWithDeferredSpans } =
       require('../../server/lib/router-utils/instrumentation-globals.external') as typeof import('../../server/lib/router-utils/instrumentation-globals.external')
     const absoluteProjectDir = join(
       /* turbopackIgnore: true */
@@ -92,16 +95,35 @@ const internalHandler: EdgeHandler = async (opts) => {
       ? relative(absoluteProjectDir, absoluteDistDir)
       : '.next'
 
-    await ensureInstrumentationRegistered(absoluteProjectDir, distDir)
+    // When this request registers `instrumentation.ts`, the adapter emits its
+    // lifecycle spans inside the middleware span.
+    emitInstrumentationSpans =
+      await ensureInstrumentationRegisteredWithDeferredSpans(
+        absoluteProjectDir,
+        distDir
+      )
   }
 
-  return adapter({
-    ...opts,
-    IncrementalCache,
-    incrementalCacheHandler,
-    page,
-    handler: errorHandledHandler(handlerUserland),
-  })
+  try {
+    return await adapter({
+      ...opts,
+      IncrementalCache,
+      incrementalCacheHandler,
+      page,
+      handler: errorHandledHandler(handlerUserland),
+      emitInstrumentationSpans,
+      requestStartTime,
+    })
+  } catch (err) {
+    // The adapter can throw before it runs the middleware and emits the
+    // lifecycle spans (e.g. when the configured cache handler throws). Later
+    // requests won't emit them, so emit them here instead (a no-op if they were
+    // emitted). Tracing must not replace the adapter's error.
+    try {
+      emitInstrumentationSpans?.()
+    } catch {}
+    throw err
+  }
 }
 
 export async function handler(
@@ -119,15 +141,21 @@ export async function handler(
       headers: toNodeOutgoingHttpHeaders(request.headers),
       nextConfig: {
         basePath: process.env.__NEXT_BASE_PATH,
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         i18n: process.env.__NEXT_I18N_CONFIG as any,
         trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
         experimental: {
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           cacheLife: process.env.__NEXT_CACHE_LIFE as any,
           authInterrupts: Boolean(
             process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS
           ),
-          clientParamParsingOrigins: process.env
-            .__NEXT_CLIENT_PARAM_PARSING_ORIGINS as any,
+          clientParamParsingOrigins:
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
+            process.env.__NEXT_CLIENT_PARAM_PARSING_ORIGINS as any,
         },
       },
       page: {

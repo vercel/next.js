@@ -28,6 +28,18 @@ describe('global-not-found - basic', () => {
     expect(notFoundHtmlProp).toBe('true')
   })
 
+  it('should navigate from global-not-found to the app root layout', async () => {
+    const browser = await next.browser('/does-not-exist')
+
+    await browser.elementByCss('a[href="/"]').click()
+
+    expect(await browser.elementByCss('p').text()).toBe('hello world')
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
+    expect(
+      await browser.elementByCss('html').getAttribute('data-global-not-found')
+    ).toBeNull()
+  })
+
   it('should render not-found boundary when calling notFound() in a page', async () => {
     const browser = await next.browser('/call-not-found')
     // Still using the root layout

@@ -423,13 +423,13 @@ impl Display for LogicalProperty {
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ObjectMutability {
     // Don't reorder these variants, as their order is used in `merge_with`.
-    /// Known properties: frozen (= <value>)
+    /// Known properties: frozen (= `<value>`)
     /// Missing properties: frozen (= Undefined)
     Frozen,
-    /// Known properties: frozen (= <value>)
+    /// Known properties: frozen (= `<value>`)
     /// Missing properties: mutable (= Unknown)
     FrozenSubset,
-    /// Known properties: mutable (= <value> | Unknown)
+    /// Known properties: mutable (= `<value> | Unknown`)
     /// Missing properties: mutable (= Unknown)
     Mutable,
 }

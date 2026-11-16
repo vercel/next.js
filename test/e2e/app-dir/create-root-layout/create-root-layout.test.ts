@@ -1,5 +1,5 @@
 import path from 'path'
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup, isNextDev, isNextDeploy } from 'e2e-utils'
 import { check, retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
@@ -7,9 +7,9 @@ import stripAnsi from 'strip-ansi'
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'app-dir create root layout',
   () => {
-    const isDev = (global as any).isNextDev
+    const isDev = isNextDev
 
-    if ((global as any).isNextDeploy) {
+    if (isNextDeploy) {
       it('should skip next deploy for now', () => {})
       return
     }

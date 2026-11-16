@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { listClientChunks } from 'next-test-utils'
-import { join } from 'path'
+import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
+import { join, relative } from 'path'
 
 // `experimental.turbopackChunking` only affects Turbopack production builds, so
 // this suite is Turbopack-only. Webpack uses a different chunker and ignores it.
@@ -12,7 +13,7 @@ import { join } from 'path'
       skipStart: true,
     })
 
-    async function buildWith(turbopackChunking: object | undefined) {
+    async function build(turbopackChunking: object | undefined) {
       const experimental = turbopackChunking ? { turbopackChunking } : {}
       await next.patchFile(
         'next.config.js',
@@ -20,10 +21,23 @@ import { join } from 'path'
       )
       const { exitCode } = await next.build()
       expect(exitCode).toBe(0)
+    }
+
+    async function buildWith(turbopackChunking: object | undefined) {
+      await build(turbopackChunking)
       const chunks = await listClientChunks(join(next.testDir, '.next'))
       return chunks.filter(
         (name) => name.includes('chunks') && name.endsWith('.js')
       )
+    }
+
+    // Lists the Node.js server JS chunks of the last build. The server size
+    // thresholds don't apply to edge chunks.
+    async function listServerChunks() {
+      const serverDir = join(next.testDir, '.next', 'server')
+      return (await recursiveReadDir(serverDir, { relativePathnames: false }))
+        .map((f) => relative(serverDir, f).replace(/\\/g, '/'))
+        .filter((name) => name.startsWith('chunks/') && name.endsWith('.js'))
     }
 
     // Force the chunker to merge as much as possible into as few chunks as
@@ -39,6 +53,12 @@ import { join } from 'path'
       minChunkSize: 0,
       maxChunkCountPerGroup: 0,
       maxMergeChunkSize: 0,
+    }
+
+    // Server-side equivalent of `mergeAll`.
+    const serverMergeAll = {
+      minServerChunkSize: 100_000_000,
+      maxMergeServerChunkSize: 100_000_000,
     }
 
     let mergeAllChunks: string[]
@@ -61,6 +81,46 @@ import { join } from 'path'
       expect(noMergeChunks.length).toBeGreaterThan(mergeAllChunks.length)
     })
 
+    describe('server size thresholds', () => {
+      let serverMergeAllChunks: string[]
+
+      beforeAll(async () => {
+        await build(serverMergeAll)
+        serverMergeAllChunks = await listServerChunks()
+      })
+
+      // Each comparison changes a single option relative to `serverMergeAll`,
+      // so it proves that specific option reaches the Node.js server chunking
+      // context.
+      describe('minServerChunkSize', () => {
+        let chunks: string[]
+
+        beforeAll(async () => {
+          // A minimum of `0` disables merging entirely.
+          await build({ ...serverMergeAll, minServerChunkSize: 0 })
+          chunks = await listServerChunks()
+        })
+
+        it('changes the Node.js server chunk output', () => {
+          expect(chunks.length).toBeGreaterThan(serverMergeAllChunks.length)
+        })
+      })
+
+      describe('maxMergeServerChunkSize', () => {
+        let chunks: string[]
+
+        beforeAll(async () => {
+          // Every chunk is bigger than 1 byte, so none of them can be merged.
+          await build({ ...serverMergeAll, maxMergeServerChunkSize: 1 })
+          chunks = await listServerChunks()
+        })
+
+        it('changes the Node.js server chunk output', () => {
+          expect(chunks.length).toBeGreaterThan(serverMergeAllChunks.length)
+        })
+      })
+    })
+
     it('emits additional component chunks when generateComponentChunks is enabled', () => {
       // With the same merge settings, enabling component chunks emits extra
       // per-component chunks alongside the merged chunks.
@@ -70,15 +130,7 @@ import { join } from 'path'
     })
 
     it('renders and navigates correctly with custom chunking', async () => {
-      await next.patchFile(
-        'next.config.js',
-        `module.exports = ${JSON.stringify(
-          { experimental: { turbopackChunking: mergeAll } },
-          null,
-          2
-        )}`
-      )
-      await next.build()
+      await build({ ...mergeAll, ...serverMergeAll })
       await next.start()
       try {
         const browser = await next.browser('/')

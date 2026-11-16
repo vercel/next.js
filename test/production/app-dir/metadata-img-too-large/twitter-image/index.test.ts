@@ -10,6 +10,8 @@ describe('app-dir - metadata-img-too-large twitter-image', () => {
   const pngFile = generatePNG(5)
 
   it('should throw when twitter-image file size exceeds 5MB', async () => {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     await next.patchFile('app/twitter-image.png', pngFile as any)
     await next.build()
 

@@ -1,4 +1,4 @@
-async function deliverOneVerifiedClose({ core, github }) {
+async function deliverVerifiedCloses({ core, github }) {
   const queue =
     'https://next-maintainer-agent.vercel.tools/eve/agents/close-verifier/eve/v1/auto-close'
   const repository = 'vercel/next.js'
@@ -58,98 +58,109 @@ async function deliverOneVerifiedClose({ core, github }) {
     }
   }
 
-  const claimed = await queueRequest('/claim')
-  if (claimed === null) return
-  const claim = claimed
-  const marker = `<!-- next-maintainer-auto-close:${claim.approvalId} -->`
+  async function deliver(claim) {
+    const marker = `<!-- next-maintainer-auto-close:${claim.approvalId} -->`
 
-  try {
-    const issue = await readIssue(claim.issueNumber)
-    if (issue === null) {
-      await reportStale(claim, 'Issue no longer exists in this repository.')
-      return
-    }
-    if (issue.pull_request !== undefined) {
-      await reportStale(claim, 'Target is a pull request.')
-      return
-    }
-
-    const comments = await github.paginate(github.rest.issues.listComments, {
-      owner,
-      repo,
-      issue_number: claim.issueNumber,
-      per_page: 100,
-    })
-    const markerComment = comments.find((comment) =>
-      (comment.body ?? '').includes(marker)
-    )
-
-    if (issue.state === 'closed') {
-      if (markerComment === undefined) {
-        await reportStale(claim, 'Issue was closed independently.')
-      } else {
-        await report(claim, 'closed')
-      }
-      return
-    }
-    if (markerComment !== undefined) {
-      // This is either a partial prior run or a human reopen. Leave it open.
-      await reportStale(claim, 'Issue is open after a prior delivery comment.')
-      return
-    }
-
-    let duplicateIssueId
-    if (claim.stateReason === 'duplicate') {
-      if (claim.duplicateIssueNumber === claim.issueNumber) {
-        await reportStale(claim, 'Issue cannot be a duplicate of itself.')
+    try {
+      const issue = await readIssue(claim.issueNumber)
+      if (issue === null) {
+        await reportStale(claim, 'Issue no longer exists in this repository.')
         return
       }
-      const canonical = await readIssue(claim.duplicateIssueNumber)
-      if (canonical === null || canonical.pull_request !== undefined) {
-        await reportStale(
-          claim,
-          'Duplicate target is not an issue in this repository.'
-        )
+      if (issue.pull_request !== undefined) {
+        await reportStale(claim, 'Target is a pull request.')
         return
       }
-      duplicateIssueId = canonical.id
-    }
 
-    await github.rest.issues.createComment({
-      owner,
-      repo,
-      issue_number: claim.issueNumber,
-      body: `${claim.closeComment}\n\n${marker}`,
-    })
-
-    const updated = (
-      await github.rest.issues.update({
+      const comments = await github.paginate(github.rest.issues.listComments, {
         owner,
         repo,
         issue_number: claim.issueNumber,
-        state: 'closed',
-        state_reason: claim.stateReason,
-        ...(duplicateIssueId === undefined
-          ? {}
-          : { duplicate_issue_id: duplicateIssueId }),
+        per_page: 100,
       })
-    ).data
-    if (
-      updated.state !== 'closed' ||
-      updated.state_reason !== claim.stateReason
-    ) {
-      throw new Error('GitHub did not apply the requested close reason.')
+      const markerComment = comments.find((comment) =>
+        (comment.body ?? '').includes(marker)
+      )
+
+      if (issue.state === 'closed') {
+        if (markerComment === undefined) {
+          await reportStale(claim, 'Issue was closed independently.')
+        } else {
+          await report(claim, 'closed')
+        }
+        return
+      }
+      if (markerComment !== undefined) {
+        // This is either a partial prior run or a human reopen. Leave it open.
+        await reportStale(
+          claim,
+          'Issue is open after a prior delivery comment.'
+        )
+        return
+      }
+
+      let duplicateIssueId
+      if (claim.stateReason === 'duplicate') {
+        if (claim.duplicateIssueNumber === claim.issueNumber) {
+          await reportStale(claim, 'Issue cannot be a duplicate of itself.')
+          return
+        }
+        const canonical = await readIssue(claim.duplicateIssueNumber)
+        if (canonical === null || canonical.pull_request !== undefined) {
+          await reportStale(
+            claim,
+            'Duplicate target is not an issue in this repository.'
+          )
+          return
+        }
+        duplicateIssueId = canonical.id
+      }
+
+      await github.rest.issues.createComment({
+        owner,
+        repo,
+        issue_number: claim.issueNumber,
+        body: `${claim.closeComment}\n\n${marker}`,
+      })
+
+      const updated = (
+        await github.rest.issues.update({
+          owner,
+          repo,
+          issue_number: claim.issueNumber,
+          state: 'closed',
+          state_reason: claim.stateReason,
+          ...(duplicateIssueId === undefined
+            ? {}
+            : { duplicate_issue_id: duplicateIssueId }),
+        })
+      ).data
+      if (
+        updated.state !== 'closed' ||
+        updated.state_reason !== claim.stateReason
+      ) {
+        throw new Error('GitHub did not apply the requested close reason.')
+      }
+      await report(claim, 'closed')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      try {
+        await report(claim, 'retry', message)
+      } catch (callbackError) {
+        core.warning(`Could not report retry: ${callbackError}`)
+      }
+      throw error
     }
-    await report(claim, 'closed')
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    try {
-      await report(claim, 'retry', message)
-    } catch (callbackError) {
-      core.warning(`Could not report retry: ${callbackError}`)
-    }
-    throw error
+  }
+
+  // The queue releases each cycle's verified closes together and enforces the
+  // daily limit, so take claims until it has nothing left. A failed close
+  // stops the run after reporting a retry.
+  for (;;) {
+    const claim = await queueRequest('/claim')
+    if (claim === null) return
+    await deliver(claim)
   }
 }
 
-module.exports = { deliverOneVerifiedClose }
+module.exports = { deliverVerifiedCloses }

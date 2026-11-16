@@ -188,6 +188,7 @@ export function useRouter(): AppRouterInstance {
       replace: router.replace,
       prefetch: router.prefetch,
       experimental_gesturePush: router.experimental_gesturePush,
+      experimental_prepare: router.experimental_prepare,
       bfcacheId: '_b_' + bfcacheIdNumber + '_',
     }),
     [router, bfcacheIdNumber]

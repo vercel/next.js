@@ -41,10 +41,12 @@ import {
   analyzeDataUrl,
   fetchAnalyzeData,
   fetchModulesData,
+  routesFromSummaries,
   useHistoryIndex,
   useSuspenseJsonData,
+  useSuspenseRouteSummaries,
 } from '@/lib/analyzer-data'
-import { diffRoutesWithSizes, diffSources, type RouteSummary } from '@/lib/diff'
+import { diffRoutesWithSizes, diffSources } from '@/lib/diff'
 import { useSidebarResize } from '@/lib/use-sidebar-resize'
 import { useAnalyzerRoute } from '@/lib/use-analyzer-route'
 import {
@@ -169,12 +171,10 @@ function useAnalyzerModel(compare: boolean) {
   )
 
   // Routes for the active build, which is also comparison side B.
-  const currentRoutes = useSuspenseJsonData<string[]>(
-    `${comparisonBaseDir}/routes.json`,
-    { revalidateOnFocus: false, revalidateOnReconnect: false }
-  )
+  const routeSummaries = useSuspenseRouteSummaries(comparisonBaseDir)
+  const currentRoutes = routesFromSummaries(routeSummaries)
 
-  // Whether the selected route exists on comparison side B. routes.json is
+  // Whether the selected route exists on comparison side B. The summaries are
   // the source of truth because output directories can retain stale routes.
   const currentAnalyzeRouteExists =
     selectedRoute != null && currentRoutes.includes(selectedRoute)
@@ -310,10 +310,6 @@ function useAnalyzerModel(compare: boolean) {
     })
   }, [analyzeData, baselineSnapshot, filterSource])
 
-  const routeSummaries = useSuspenseJsonData<RouteSummary[]>(
-    `${comparisonBaseDir}/route-summaries.json`,
-    { revalidateOnFocus: false, revalidateOnReconnect: false }
-  )
   const clientRouteTotals = new Map(
     routeSummaries.map(({ route, client }) => [
       route,
@@ -517,14 +513,8 @@ function ValidComparisonContent({
       suspense: true,
     }
   )
-  const baselineRoutes = useSuspenseJsonData<string[]>(
-    `${baselineBaseDir}/routes.json`,
-    { revalidateOnFocus: false, revalidateOnReconnect: false }
-  )
-  const baselineRouteSummaries = useSuspenseJsonData<RouteSummary[]>(
-    `${baselineBaseDir}/route-summaries.json`,
-    { revalidateOnFocus: false, revalidateOnReconnect: false }
-  )
+  const baselineRouteSummaries = useSuspenseRouteSummaries(baselineBaseDir)
+  const baselineRoutes = routesFromSummaries(baselineRouteSummaries)
   const baselineRouteTotals = new Map(
     baselineRouteSummaries.map(({ route, size, compressed_size }) => [
       route,
@@ -541,6 +531,7 @@ function ValidComparisonContent({
     baselineSnapshot,
     baselineIsLatest: model.baselineIsLatest,
     comparisonSnapshot: model.comparisonSnapshot,
+    baselineRouteCount: baselineRoutes.length,
     comparisonRouteCount: model.currentRoutes.length,
     routeDiff,
     baselineModulesData,
@@ -606,6 +597,7 @@ type ComparisonLayoutProps = Pick<
   | 'baselineSnapshot'
   | 'baselineIsLatest'
   | 'comparisonSnapshot'
+  | 'baselineRouteCount'
   | 'comparisonRouteCount'
   | 'routeDiff'
 > & { baselineModulesData: ModulesData }

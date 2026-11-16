@@ -16,6 +16,8 @@ const babel = (code, esm = false, presetOptions = {}, filename = 'noop.js') =>
       supportsStaticESM: esm,
       isDev: false,
     },
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
   } as any).code
 
 describe('next/babel', () => {

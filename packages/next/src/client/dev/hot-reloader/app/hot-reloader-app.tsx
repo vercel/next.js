@@ -145,11 +145,34 @@ export function performFullReload(
 }
 
 // Attempt to update code on the fly, fall back to a hard reload.
-function tryApplyUpdatesWebpack(sendMessage: (message: string) => void) {
-  if (!isUpdateAvailable() || !canApplyUpdates()) {
+function tryApplyUpdatesWebpack(
+  sendMessage: (message: string) => void,
+  // Whether an update in this chain dispatched `onBeforeRefresh` and still
+  // owes the matching `onRefresh`.
+  isRefreshPending = false
+) {
+  const updateAvailable = isUpdateAvailable()
+  const canApply = canApplyUpdates()
+  if (!updateAvailable || !canApply) {
+    if (isRefreshPending) {
+      dispatcher.onRefresh()
+    }
     resolvePendingHotUpdateWebpack()
     dispatcher.onBuildOk()
     reportHmrLatency(sendMessage, [], webpackStartMsSinceEpoch!, Date.now())
+
+    // A successful build can restore the running client hash, e.g. after a
+    // build error is fixed. Resolve the test callback when nothing is pending;
+    // otherwise, the active apply resolves it after it finishes.
+    if (
+      process.env.__NEXT_TEST_MODE &&
+      !updateAvailable &&
+      canApply &&
+      self.__NEXT_HMR_CB
+    ) {
+      self.__NEXT_HMR_CB()
+      self.__NEXT_HMR_CB = null
+    }
     return
   }
 
@@ -171,11 +194,13 @@ function tryApplyUpdatesWebpack(sendMessage: (message: string) => void) {
 
     if (isUpdateAvailable()) {
       // While we were updating, there was a new update! Do it again.
-      tryApplyUpdatesWebpack(sendMessage)
+      tryApplyUpdatesWebpack(sendMessage, isRefreshPending)
       return
     }
 
-    dispatcher.onRefresh()
+    if (isRefreshPending) {
+      dispatcher.onRefresh()
+    }
     resolvePendingHotUpdateWebpack()
     reportHmrLatency(
       sendMessage,
@@ -205,7 +230,17 @@ function tryApplyUpdatesWebpack(sendMessage: (message: string) => void) {
       // We should always handle an update, even if updatedModules is empty (but
       // non-null) for any reason. That's what webpack would normally do:
       // https://github.com/webpack/webpack/blob/3aa6b6bc3a64/lib/hmr/HotModuleReplacement.runtime.js#L296-L298
-      dispatcher.onBeforeRefresh()
+      //
+      // A Fast Refresh clears the errors in the dev overlay that were reported
+      // before it started, since a code change may have fixed them. Only start
+      // one when modules actually change. An empty update happens e.g. when
+      // navigating to a route that webpack compiles on demand. Starting a
+      // refresh for it would discard errors that the server sent for that
+      // navigation while the update was being checked.
+      if (updatedModules.length > 0) {
+        isRefreshPending = true
+        dispatcher.onBeforeRefresh()
+      }
       // https://webpack.js.org/api/hot-module-replacement/#apply
       return module.hot.apply()
     })
@@ -311,6 +346,10 @@ export function processMessage(
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.VULNERABILITY_INSIGHT: {
       dispatcher.onVulnerabilityInsight(message.hasVulnerabilityInsight)
+      break
+    }
+    case HMR_MESSAGE_SENT_TO_BROWSER.VERSION_INFO: {
+      dispatcher.onVersionInfo(message.versionInfo)
       break
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.BUILT:

@@ -5,7 +5,10 @@ import type {
 } from '../../shared/lib/app-router-types'
 import type { CacheNode } from '../../shared/lib/app-router-types'
 import { PrefetchHint } from '../../shared/lib/app-router-types'
-import { fetchServerResponse } from './router-reducer/fetch-server-response'
+import {
+  fetchServerResponse,
+  type FetchServerResponseResult,
+} from './router-reducer/fetch-server-response'
 import {
   startPPRNavigation,
   spawnDynamicRequests,
@@ -22,8 +25,7 @@ import {
   type SegmentCacheEntry,
   readRouteCacheEntry,
   deprecated_requestOptimisticRouteCacheEntry,
-  spawnStaticStageCacheWrite,
-  writeRuntimePrefetchStreamIntoCache,
+  bufferAndWriteNavigationResponse,
   type FulfilledRouteCacheEntry,
   createRootRouteTree,
 } from './segment-cache/cache'
@@ -34,15 +36,19 @@ import {
 } from './segment-cache/cache-key'
 import type { CacheMap } from './segment-cache/cache-map'
 import { schedulePrefetchTask } from './segment-cache/scheduler'
-import { PrefetchPriority, FetchStrategy } from './segment-cache/types'
+import { PrefetchPriority, AppStage } from './segment-cache/types'
 import { getLinkForCurrentNavigation } from './links'
-import type { AppRouterState } from './router-reducer/router-reducer-types'
+import type {
+  AppRouterState,
+  PreparedNavigationRecord,
+} from './router-reducer/router-reducer-types'
 import { ScrollBehavior } from './router-reducer/router-reducer-types'
 import { computeChangedPath } from './router-reducer/compute-changed-path'
 import { isJavaScriptURLString } from '../lib/javascript-url'
 import {
   UnknownDynamicStaleTime,
   computeDynamicStaleAt,
+  getBFCacheVersion,
 } from './segment-cache/bfcache'
 import { createLinkPrefetchPartialError } from '../../shared/lib/instant-messages'
 import {
@@ -68,7 +74,10 @@ export function navigate(
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
-  navigateType: 'push' | 'replace'
+  navigateType: 'push' | 'replace',
+  // Set during both phases of a prepared navigation (freshnessPolicy Prepare
+  // or CommitPrepared). Null for all other navigations.
+  preparation: PreparedNavigationRecord | null
 ): AppRouterState | Promise<AppRouterState> {
   let navigationLock: NavigationLock | null = null
 
@@ -81,7 +90,9 @@ export function navigate(
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
     const { isNavigationLocked } =
       require('./segment-cache/navigation-testing-lock') as typeof import('./segment-cache/navigation-testing-lock')
-    if (isNavigationLocked()) {
+    // The prepare phase is not a navigation from the lock's perspective; only
+    // the commit is.
+    if (isNavigationLocked() && freshnessPolicy !== FreshnessPolicy.Prepare) {
       // Signal that a new locked navigation is starting. This force-resolves the
       // previous locked navigation's withheld data (so a reused shared segment
       // no longer carries a pending deferred rsc) and returns this navigation's
@@ -98,7 +109,8 @@ export function navigate(
         freshnessPolicy,
         scrollBehavior,
         navigateType,
-        navigationLock
+        navigationLock,
+        preparation
       )
     }
   }
@@ -116,7 +128,8 @@ export function navigate(
     navigateType,
     navigationLock,
     // An unlocked navigation is bound to the shared map.
-    segmentCacheMap
+    segmentCacheMap,
+    preparation
   )
 }
 
@@ -134,7 +147,8 @@ function navigateImpl(
   navigationLock: NavigationLock | null,
   // The segment cache map this navigation is bound to: a locked navigation's
   // driving-task map, or the shared map. See `segmentCacheMap` in cache.ts.
-  map: CacheMap<SegmentCacheEntry>
+  map: CacheMap<SegmentCacheEntry>,
+  preparation: PreparedNavigationRecord | null
 ): AppRouterState | Promise<AppRouterState> {
   const now = Date.now()
   const href = url.href
@@ -156,7 +170,8 @@ function navigateImpl(
       navigateType,
       route,
       navigationLock,
-      map
+      map,
+      preparation
     )
   }
 
@@ -193,7 +208,8 @@ function navigateImpl(
           navigateType,
           optimisticRoute,
           navigationLock,
-          map
+          map,
+          preparation
         )
       }
     }
@@ -217,7 +233,8 @@ function navigateImpl(
     scrollBehavior,
     navigateType,
     navigationLock,
-    map
+    map,
+    preparation
   ).catch(() => {
     // If the navigation fails, return the current state
     return state
@@ -254,18 +271,25 @@ export function navigateToKnownRoute(
   // dynamic rewrite by traversing the known route tree (see
   // dispatchRetryDueToTreeMismatch).
   routeCacheEntry: FulfilledRouteCacheEntry | null,
-  signal: AbortSignal | undefined
+  signal: AbortSignal | undefined,
+  // Set during both phases of a prepared navigation (freshnessPolicy Prepare
+  // or CommitPrepared). Null for all other navigations.
+  preparation: PreparedNavigationRecord | null
 ): AppRouterState {
   // A version of navigate() that accepts the target route tree as an argument
   // rather than reading it from the prefetch cache.
   if (
     process.env.NODE_ENV !== 'production' &&
-    process.env.__NEXT_CACHE_COMPONENTS
+    process.env.__NEXT_CACHE_COMPONENTS &&
+    // The prepare phase isn't associated with a link. The link tracked for
+    // the current navigation belongs to an earlier navigation.
+    freshnessPolicy !== FreshnessPolicy.Prepare
   ) {
-    // Warn when navigating via a `<Link prefetch={true}>` to a route that has
-    // not opted into Partial Prefetching. Such a link does a legacy "full"
-    // prefetch that includes the route's dynamic data, defeating the
-    // static/dynamic split that Cache Components provides.
+    // Warn when navigating via a link that asks for more than the shell, like
+    // `<Link prefetch={true}>`, to a route that has not opted into Partial
+    // Prefetching. Such a link does a legacy "full" prefetch that includes the
+    // route's dynamic data, defeating the static/dynamic split that Cache
+    // Components provides.
     //
     // This runs at navigation time (rather than prefetch time) so that, in dev
     // where we don't prefetch, the warning only appears when you actually
@@ -278,7 +302,7 @@ export function navigateToKnownRoute(
     const link = getLinkForCurrentNavigation()
     if (
       link !== null &&
-      link.fetchStrategy === FetchStrategy.Full &&
+      link.prefetchStage !== AppStage.Shell &&
       (navigationSeed.root.tree.prefetchHints &
         (PrefetchHint.SubtreeHasPartialPrefetching |
           PrefetchHint.SubtreeHasInstantFalse)) ===
@@ -289,7 +313,7 @@ export function navigateToKnownRoute(
       if (ownerStack === undefined) {
         console.error(
           '' +
-            'Cannot associate the "prefetch={true}" warning with a specific <Link> making it harder to find the cause of the following warning. ' +
+            'Cannot associate the prefetch warning with a specific <Link> making it harder to find the cause of the following warning. ' +
             'This is a bug in Next.js.'
         )
       } else if (ownerStack !== null) {
@@ -314,7 +338,7 @@ export function navigateToKnownRoute(
     const link = getLinkForCurrentNavigation()
     restrictToShell = shouldRestrictNavigationToShell(
       navigationSeed.root.tree.prefetchHints,
-      link !== null ? link.fetchStrategy : FetchStrategy.PPR
+      link !== null ? link.prefetchStage : AppStage.Shell
     )
   }
 
@@ -352,7 +376,8 @@ export function navigateToKnownRoute(
     isSamePageNavigation,
     accumulation,
     map,
-    restrictToShell
+    restrictToShell,
+    preparation !== null ? preparation.preparedAt : null
   )
   if (navigation !== null) {
     if (freshnessPolicy !== FreshnessPolicy.Gesture) {
@@ -399,7 +424,8 @@ function navigateUsingPrefetchedRouteTree(
   navigateType: 'push' | 'replace',
   route: FulfilledRouteCacheEntry,
   navigationLock: NavigationLock | null,
-  map: CacheMap<SegmentCacheEntry>
+  map: CacheMap<SegmentCacheEntry>,
+  preparation: PreparedNavigationRecord | null
 ): AppRouterState {
   const canonicalUrl = route.canonicalUrl + url.hash
   const renderedSearch = route.renderedSearch
@@ -428,7 +454,8 @@ function navigateUsingPrefetchedRouteTree(
     null,
     route,
     // Not an HMR refresh, so there's no request generation to cancel.
-    undefined
+    undefined,
+    preparation
   )
 }
 
@@ -457,7 +484,8 @@ async function navigateToUnknownRoute(
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
   navigationLock: NavigationLock | null,
-  map: CacheMap<SegmentCacheEntry>
+  map: CacheMap<SegmentCacheEntry>,
+  preparation: PreparedNavigationRecord | null
 ): Promise<AppRouterState> {
   // Runs when a navigation happens but there's no cached prefetch we can use.
   // Don't bother to wait for a prefetch response; go straight to a full
@@ -474,6 +502,8 @@ async function navigateToUnknownRoute(
   let dynamicRequestTree: FlightRouterState
   switch (freshnessPolicy) {
     case FreshnessPolicy.Default:
+    case FreshnessPolicy.Prepare:
+    case FreshnessPolicy.CommitPrepared:
     case FreshnessPolicy.HistoryTraversal:
     case FreshnessPolicy.Gesture:
       dynamicRequestTree = currentFlightRouterState
@@ -489,11 +519,109 @@ async function navigateToUnknownRoute(
       break
   }
 
-  const promiseForDynamicServerResponse = fetchServerResponse(url, {
-    flightRouterState: dynamicRequestTree,
-    nextUrl,
-  })
-  const result = await promiseForDynamicServerResponse
+  if (
+    process.env.__NEXT_PREPARE_NAVIGATION &&
+    preparation !== null &&
+    freshnessPolicy === FreshnessPolicy.CommitPrepared
+  ) {
+    // This is a prepared navigation, but we didn't find a matching route in
+    // the route cache. This can sometimes happen if the previous route was
+    // evicted since the preparation began, but there's only one place where
+    // it happens in practice: the InliningHintsStale case, which the server
+    // sends to indicate that the prefetching hints cannot be trusted. A
+    // proper fix would allow the route to be marked invalid for a prefetch
+    // without marking it invalid for a regular navigation.
+    //
+    // For now, we allow whichever route was fetched during prepare to be
+    // passed straight through to the rest of the navigation algorithm. This
+    // is essentially what would happen during a regular navigation anyway; in
+    // this case it's just been decomposed into two separate stages.
+    //
+    // TODO: Remove this whole branch once we get rid of the InliningHintsStale
+    // mechanism. Refer to that code for more background.
+    const completed = preparation.completedNavigation
+    preparation.completedNavigation = null
+    if (
+      completed !== null &&
+      // Same conditions as taking over an in-flight request: the response was
+      // made against the current tree, and the BFCache wasn't invalidated.
+      completed.requestTree === dynamicRequestTree &&
+      preparation.bfcacheVersion === getBFCacheVersion()
+    ) {
+      return navigateToKnownRoute(
+        now,
+        state,
+        url,
+        completed.canonicalUrl,
+        completed.navigationSeed,
+        currentUrl,
+        currentRenderedSearch,
+        currentRoot,
+        freshnessPolicy,
+        nextUrl,
+        scrollBehavior,
+        navigateType,
+        navigationLock,
+        map,
+        completed.debugInfo,
+        null,
+        undefined,
+        preparation
+      )
+    }
+  }
+
+  let result: FetchServerResponseResult
+  if (!process.env.__NEXT_PREPARE_NAVIGATION || preparation === null) {
+    result = await fetchServerResponse(url, {
+      flightRouterState: dynamicRequestTree,
+      nextUrl,
+    })
+  } else {
+    // This is a prepared navigation (`router.experimental_prepare()`). The
+    // prepare phase exposes its request on the record, so that a commit that
+    // starts before the response arrives can take it over instead of fetching
+    // again. Only one of the two phases processes the response.
+    if (freshnessPolicy === FreshnessPolicy.Prepare) {
+      const request = fetchServerResponse(url, {
+        flightRouterState: dynamicRequestTree,
+        nextUrl,
+      })
+      preparation.inFlightRequest = request
+      preparation.inFlightRequestTree = dynamicRequestTree
+      result = await request
+      if (preparation.inFlightRequest !== request) {
+        // Only a commit clears the request before its response arrives, so
+        // the commit took it over and processes the response itself. The
+        // result of the prepare phase is discarded, so it doesn't matter what
+        // state is returned.
+        return state
+      }
+      preparation.inFlightRequest = null
+      preparation.inFlightRequestTree = null
+    } else if (
+      preparation.inFlightRequest !== null &&
+      // The prepared request was made against the tree at the time it
+      // started. If the tree has changed since, or the BFCache was
+      // invalidated, the response is no longer usable.
+      preparation.inFlightRequestTree === dynamicRequestTree &&
+      preparation.bfcacheVersion === getBFCacheVersion()
+    ) {
+      // This is the commit, and the prepare phase is still waiting on its
+      // response. Take over its request instead of issuing another one.
+      const request = preparation.inFlightRequest
+      preparation.inFlightRequest = null
+      preparation.inFlightRequestTree = null
+      result = await request
+    } else {
+      // This is the commit, and there's no usable prepared request to take
+      // over.
+      result = await fetchServerResponse(url, {
+        flightRouterState: dynamicRequestTree,
+        nextUrl,
+      })
+    }
+  }
   if (typeof result === 'string') {
     // This is an MPA navigation.
     const redirectUrl = new URL(result, location.origin)
@@ -508,9 +636,8 @@ async function navigateToUnknownRoute(
     supportsPerSegmentPrefetching,
     dynamicStaleTime,
     isResponsePartial,
-    staticStageResponse,
-    runtimePrefetchStream,
-    responseHeaders,
+    flightResponse,
+    responseChunks,
     debugInfo,
   } = result
 
@@ -556,30 +683,18 @@ async function navigateToUnknownRoute(
     false // hasDynamicRewrite - not a retry, rewrite detection happens during traversal
   )
 
-  if (staticStageResponse !== null) {
-    spawnStaticStageCacheWrite(
-      now,
-      staticStageResponse,
-      isResponsePartial,
-      responseHeaders,
-      currentFlightRouterState,
-      renderedSearch,
-      map
-    )
-  }
-
-  if (runtimePrefetchStream !== null) {
-    writeRuntimePrefetchStreamIntoCache(
-      now,
-      runtimePrefetchStream,
-      currentFlightRouterState,
-      renderedSearch,
-      map
-    ).catch(() => {
-      // The runtime prefetch cache write failed. Not fatal — the
-      // navigation completed normally, we just won't cache runtime data.
-    })
-  }
+  bufferAndWriteNavigationResponse(
+    now,
+    flightResponse,
+    isResponsePartial,
+    responseChunks,
+    currentFlightRouterState,
+    renderedSearch,
+    map
+  ).catch(() => {
+    // The cache write failed. Not fatal — the navigation completed normally,
+    // we just won't write into the cache.
+  })
 
   // In the streaming dev render, this single response's seed content may still
   // be streaming when we build the tree below. An unknown-route navigation
@@ -594,6 +709,34 @@ async function navigateToUnknownRoute(
   // miss it resolves early, so the cold-cache fallback is still shown.
   if (result.revealAfter !== null) {
     await result.revealAfter
+  }
+
+  if (
+    process.env.__NEXT_PREPARE_NAVIGATION &&
+    preparation !== null &&
+    freshnessPolicy === FreshnessPolicy.Prepare &&
+    getBFCacheVersion() !== preparation.bfcacheVersion
+  ) {
+    // A refresh or server action invalidated the BFCache since the prepare
+    // phase started. Don't write the response into the BFCache, where the
+    // commit would reuse it. This check comes after the last await, right
+    // before the write. The result of the prepare phase is discarded, so it
+    // doesn't matter what state is returned.
+    return state
+  }
+
+  if (
+    process.env.__NEXT_PREPARE_NAVIGATION &&
+    preparation !== null &&
+    freshnessPolicy === FreshnessPolicy.Prepare
+  ) {
+    // Save the processed response for the commit. See completedNavigation.
+    preparation.completedNavigation = {
+      navigationSeed,
+      canonicalUrl: createHrefFromUrl(canonicalUrl),
+      debugInfo,
+      requestTree: dynamicRequestTree,
+    }
   }
 
   return navigateToKnownRoute(
@@ -618,7 +761,8 @@ async function navigateToUnknownRoute(
     // entry as having a dynamic rewrite.
     null,
     // Not an HMR refresh, so there's no request generation to cancel.
-    undefined
+    undefined,
+    preparation
   )
 }
 
@@ -844,10 +988,11 @@ async function ensurePrefetchThenNavigate(
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
-  navigationLock: NavigationLock | null
+  navigationLock: NavigationLock | null,
+  preparation: PreparedNavigationRecord | null
 ): Promise<AppRouterState> {
   const link = getLinkForCurrentNavigation()
-  const fetchStrategy = link !== null ? link.fetchStrategy : FetchStrategy.PPR
+  const prefetchStage = link !== null ? link.prefetchStage : AppStage.Shell
 
   const cacheKey = createCacheKey(url.href, nextUrl)
 
@@ -862,7 +1007,7 @@ async function ensurePrefetchThenNavigate(
   const prefetchTask = schedulePrefetchTask(
     cacheKey,
     currentRoot,
-    fetchStrategy,
+    prefetchStage,
     PrefetchPriority.Default,
     null, // onInvalidate
     navigationLockPrefetch
@@ -888,7 +1033,8 @@ async function ensurePrefetchThenNavigate(
     scrollBehavior,
     navigateType,
     navigationLock,
-    prefetchTask.segmentCacheMap
+    prefetchTask.segmentCacheMap,
+    preparation
   )
 
   // Only transition to captured-SPA once the navigation is known to be an SPA.

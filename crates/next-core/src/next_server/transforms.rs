@@ -3,13 +3,12 @@ use next_custom_transforms::transforms::strip_page_exports::ExportFilter;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, RuleCondition};
-use turbopack_core::reference_type::{
-    CssReferenceSubType, EntryReferenceSubType, ReferenceTypeCondition,
-};
+use turbopack_core::reference_type::{CssReferenceSubType, ReferenceTypeCondition};
 
 use crate::{
     mode::NextMode,
     next_config::NextConfig,
+    next_pages::PAGE_DATA_ENTRY_TAG,
     next_server::context::ServerContextType,
     next_shared::transforms::{
         get_next_debug_instant_stack_rule, get_next_dynamic_transform_rule,
@@ -84,7 +83,7 @@ pub async fn get_next_server_transforms_rules(
                         ExportFilter::StripDefaultExport,
                         mdx_rs,
                         vec![RuleCondition::ReferenceType(ReferenceTypeCondition::Entry(
-                            Some(EntryReferenceSubType::PageData),
+                            Some(PAGE_DATA_ENTRY_TAG.clone()),
                         ))],
                         &next_config.page_extensions().await?,
                     )

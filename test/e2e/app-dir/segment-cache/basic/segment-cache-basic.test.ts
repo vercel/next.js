@@ -26,12 +26,16 @@ describe('segment cache (basic tests)', () => {
       includes: 'Dynamic page',
     })
 
-    // The target does not read search params, so this should reuse the cached
-    // segments instead of issuing a loading-boundary prefetch.
+    // The route still supports per-segment prefetching after a dynamic
+    // navigation, so this issues a per-segment prefetch instead of a
+    // loading-boundary prefetch.
     const prefetchButton = await browser.elementByCss(
       'button[data-router-prefetch="/partially-static/target-page?query=1"]'
     )
-    await act(async () => prefetchButton.click(), 'no-requests')
+    await act(async () => prefetchButton.click(), {
+      includes: 'Static layout',
+      kind: 'static',
+    })
   })
 
   it('navigate before any data has loaded into the prefetch cache', async () => {

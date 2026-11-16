@@ -1,6 +1,6 @@
 /// The parsing and construction algorithms here are based on the the `globset` crate.
 /// After discussing upstreaming our usecase with the authors of `globset`, we decided that a
-/// fork was appropriate given our divergent usecases. See discussion https://github.com/BurntSushi/ripgrep/issues/3049
+/// fork was appropriate given our divergent usecases. See discussion <https://github.com/BurntSushi/ripgrep/issues/3049>
 /// The original code had the following license:
 ///
 /// > The MIT License (MIT)
@@ -21,7 +21,7 @@
 ///   optimizations that come with that.
 /// - Add the can_match_directory regex (this is what was rejected by upstream), this allows us
 ///   to check if a directory is a valid prefix of a path that would match the glob.
-/// - Add support for nested alternations, a minor detail (this was also sent upstream in https://github.com/BurntSushi/ripgrep/pull/3048)
+/// - Add support for nested alternations, a minor detail (this was also sent upstream in <https://github.com/BurntSushi/ripgrep/pull/3048>)
 /// - Add a number of comments to clarify the code.
 ///
 /// Still some of the cleverest ideas in the original code were in the parsing and construction

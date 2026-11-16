@@ -1,5 +1,5 @@
 import { join } from 'path'
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextDev, isNextDeploy } from 'e2e-utils'
 import {
   check,
   fetchViaHTTP,
@@ -9,7 +9,7 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 
-const isNextProd = !(global as any).isNextDev && !(global as any).isNextDeploy
+const isNextProd = !isNextDev && !isNextDeploy
 
 describe('streaming SSR with custom next configs', () => {
   const { next } = nextTestSetup({
@@ -55,7 +55,7 @@ describe('streaming SSR with custom next configs', () => {
     expect(html).toContain('マルチバイト'.repeat(28))
   })
 
-  if ((global as any).isNextDev) {
+  if (isNextDev) {
     it('should work with custom document', async () => {
       await next.patchFile(
         'pages/_document.js',

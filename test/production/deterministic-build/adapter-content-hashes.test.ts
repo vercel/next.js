@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
+import fs from 'fs/promises'
 import path from 'path'
-import type { NextAdapter } from 'next'
+import type { AdapterOutput, NextAdapter } from 'next'
 
 import { FILES } from './files'
 
@@ -9,9 +10,13 @@ import { FILES } from './files'
   'adapter-content-hashes',
   () => {
     describe.each([
-      { name: 'standard', files: FILES.standard },
-      { name: 'cache components', files: FILES.cacheComponents },
-    ])('for $name', ({ name, files }) => {
+      { name: 'standard', files: FILES.standard, nodeProxy: false },
+      {
+        name: 'cache components',
+        files: FILES.cacheComponents,
+        nodeProxy: true,
+      },
+    ])('for $name', ({ name, files, nodeProxy }) => {
       const { next } = nextTestSetup({
         files,
         env: {
@@ -28,7 +33,7 @@ import { FILES } from './files'
         )
 
         function validateOutput(output: {
-          runtime?: 'edge' | 'nodejs'
+          runtime?: AdapterOutput['APP_ROUTE']['runtime']
           filePath: string
           assets?: Record<string, string>
           assetsHashes?: Record<string, string>
@@ -41,14 +46,22 @@ import { FILES } from './files'
 
             const { assets, assetsHashes, filePath } = output
             expect(assets).toBeObject()
-            expect(assets).not.toBeEmpty()
+            // A native executable can contain all its dependencies and embeds.
+            if (output.runtime !== 'go') expect(assets).not.toBeEmpty()
             expect(assetsHashes).toBeObject()
             for (const file in assets) {
               expect(assetsHashes[file]).toBeString()
             }
 
             expect(filePath).toBeString()
-            expect(assetsHashes[path.relative(repoRoot, filePath)]).toBeString()
+            const entryPath = path.relative(repoRoot, filePath)
+            expect(
+              assetsHashes[
+                output.runtime === 'go'
+                  ? entryPath.replace(/\\/g, '/')
+                  : entryPath
+              ]
+            ).toBeString()
           } catch (err) {
             console.error('Validation failed for output:', output)
             throw err
@@ -61,6 +74,37 @@ import { FILES } from './files'
         outputs.pagesApi.forEach(validateOutput)
         outputs.appRoutes.forEach(validateOutput)
       })
+
+      if (nodeProxy) {
+        it('Node.js proxy hashes are stable across builds', async () => {
+          const {
+            outputs: outputs1,
+          }: Parameters<NextAdapter['onBuildComplete']>[0] =
+            await next.readJSON('build-complete.json')
+
+          await next.stop()
+          // A fresh build (no `.next/cache`) generates new preview mode keys,
+          // which end up in route handler manifests but must not change the
+          // proxy's hashes.
+          await fs.rm(path.join(next.testDir, '.next'), {
+            recursive: true,
+            force: true,
+          })
+          await next.build()
+
+          const {
+            outputs: outputs2,
+          }: Parameters<NextAdapter['onBuildComplete']>[0] =
+            await next.readJSON('build-complete.json')
+
+          expect(outputs1.middleware?.runtime).toBe('nodejs')
+          expect(outputs2.middleware?.runtime).toBe('nodejs')
+          expect(outputs1.middleware!.assetsHashes).not.toBeEmpty()
+          expect(outputs2.middleware!.assetsHashes).toEqual(
+            outputs1.middleware!.assetsHashes
+          )
+        })
+      }
 
       it('hashes respect NEXT_HASH_SALT', async () => {
         const {

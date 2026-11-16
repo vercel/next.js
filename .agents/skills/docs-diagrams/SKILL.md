@@ -8,6 +8,8 @@ description: >
   needs a change. Hand-written SVG from a primitives library, rendered by
   headless Chrome at 2x. No AI image generation.
 disable-model-invocation: true
+metadata:
+  internal: true
 ---
 
 # Docs diagrams

@@ -23,10 +23,11 @@ export interface StaticRequire {
 
 export type StaticImport = StaticRequire | StaticImageData
 
-export type ImageProps = Omit<
-  JSX.IntrinsicElements['img'],
-  'src' | 'srcSet' | 'ref' | 'alt' | 'width' | 'height' | 'loading'
-> & {
+export interface ImageProps
+  extends Omit<
+    JSX.IntrinsicElements['img'],
+    'src' | 'srcSet' | 'ref' | 'alt' | 'width' | 'height' | 'loading'
+  > {
   src: string | StaticImport
   alt: string
   width?: number | `${number}`
@@ -140,7 +141,7 @@ function isStaticImport(src: string | StaticImport): src is StaticImport {
 
 const allImgs = new Map<
   string,
-  { src: string; loading: LoadingValue; placeholder: PlaceholderValue }
+  { src: string; placeholder: PlaceholderValue }
 >()
 let perfObserver: PerformanceObserver | undefined
 
@@ -333,6 +334,8 @@ export function getImgProps(
 
   // Remove property so it's not spread on <img> element
   delete rest.loader
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   delete (rest as any).srcSet
 
   // This special value indicates that the user
@@ -639,11 +642,13 @@ export function getImgProps(
       perfObserver = new PerformanceObserver((entryList) => {
         for (const entry of entryList.getEntries()) {
           // @ts-ignore - missing "LargestContentfulPaint" class with "element" prop
-          const imgSrc = entry?.element?.src || ''
+          const imgElement = entry?.element
+          const imgSrc = imgElement?.src || ''
           const lcpImage = allImgs.get(imgSrc)
           if (
             lcpImage &&
-            lcpImage.loading === 'lazy' &&
+            // Images sharing a URL can have different loading attributes.
+            imgElement?.getAttribute('loading') === 'lazy' &&
             lcpImage.placeholder === 'empty' &&
             !lcpImage.src.startsWith('data:') &&
             !lcpImage.src.startsWith('blob:')
@@ -749,7 +754,7 @@ export function getImgProps(
       } catch (e) {
         fullUrl = new URL(imgAttributes.src, window.location.href)
       }
-      allImgs.set(fullUrl.href, { src, loading: loadingFinal, placeholder })
+      allImgs.set(fullUrl.href, { src, placeholder })
     }
   }
 

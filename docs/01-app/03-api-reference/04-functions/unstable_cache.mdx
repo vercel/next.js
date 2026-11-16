@@ -3,9 +3,12 @@ title: unstable_cache
 description: API Reference for the unstable_cache function.
 ---
 
+{/* TODO: Remove the cross-deployment persistence guidance once `use cache: remote` entries persist across deployments. */}
+
 > **Note:**
-> This API has been replaced by [`use cache`](/docs/app/api-reference/directives/use-cache) in Next.js 16.
-> We recommend opting into [Cache Components](/docs/app/getting-started/caching) and replacing `unstable_cache` with the `use cache` directive.
+> For most use cases, [`use cache`](/docs/app/api-reference/directives/use-cache) replaces this API in Next.js 16. We recommend opting into [Cache Components](/docs/app/getting-started/caching) and migrating to the `use cache` directive.
+>
+> Continue using `unstable_cache` for non-`fetch` data that must persist across deployments. Cached entries from `use cache` and [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote) do not carry over to a new deployment because their cache keys include the build ID or `deploymentId`.
 
 `unstable_cache` allows you to cache the results of expensive operations, like database queries, and reuse them across multiple requests.
 

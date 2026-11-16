@@ -28,14 +28,22 @@ async function getCodeHashes(
   }[] = []
   for (const [actionId, entry] of Object.entries<any>(manifest.node)) {
     for (const [workerKey, worker] of Object.entries<any>(entry.workers)) {
+      // Durability values are keyed per action by a hash of the value.
+      const durability =
+        worker.durability !== undefined
+          ? entry.durability[worker.durability]
+          : undefined
+      if (worker.durability !== undefined) {
+        expect(durability).toBeDefined()
+      }
       if (!pages || pages.includes(workerKey)) {
         hashes.push({
           id: actionId,
           page: workerKey,
-          codeHash: worker?.durability?.codeHash,
+          codeHash: durability?.codeHash,
           rootParamDependencies: worker.rootParamDependencies,
-          runtimeEnvVarsRead: worker?.durability?.runtimeEnvVarsRead,
-          runtimeEnvVarsExistence: worker?.durability?.runtimeEnvVarsExistence,
+          runtimeEnvVarsRead: durability?.runtimeEnvVarsRead,
+          runtimeEnvVarsExistence: durability?.runtimeEnvVarsExistence,
         })
       }
     }
@@ -72,7 +80,7 @@ async function getCodeHashes(
         let cacheWorkers = 0
         for (const entry of Object.values<any>(manifest.node)) {
           for (const worker of Object.values<any>(entry.workers)) {
-            if (worker.durability) {
+            if (worker.durability !== undefined) {
               cacheWorkers++
               expect(worker.rootParamDependencies).toBeDefined()
             } else {
@@ -81,6 +89,30 @@ async function getCodeHashes(
           }
         }
         expect(cacheWorkers).toBeGreaterThan(0)
+      })
+
+      it('hashes and renders a cached function that uses a bundled Node.js worker', async () => {
+        const hashes = await getCodeHashes(next, [
+          'app/use-cache-node-worker/page',
+        ])
+        expect(hashes).toHaveLength(1)
+        expect(hashes[0].codeHash).toEqual(expect.any(String))
+
+        const $ = await next.render$('/use-cache-node-worker')
+        expect($('p').text()).toBe('node-worker-v1')
+      })
+
+      it('tracks both branches when an env var condition is only known at runtime', async () => {
+        const hashes = await getCodeHashes(next, ['app/env-conditional/page'])
+        expect(hashes).toHaveLength(1)
+        expect(hashes[0].codeHash).toEqual(expect.any(String))
+        expect(hashes[0].runtimeEnvVarsRead).toEqual(
+          expect.arrayContaining([
+            'TEST_CONDITIONAL',
+            'TEST_OTHER_VALUE',
+            'TEST_VALUE',
+          ])
+        )
       })
 
       it('lists non-inlined runtime env vars', async () => {
@@ -99,6 +131,18 @@ async function getCodeHashes(
           )
         ).toMatchInlineSnapshot(`
          {
+           "app/env-conditional/page": [
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "TEST_CONDITIONAL",
+             "TEST_OTHER_VALUE",
+             "TEST_VALUE",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+             "exist __NEXT_DEV_SERVER",
+           ],
            "app/env-dynamic/page": [
              "NEXT_OTEL_PERFORMANCE_PREFIX",
              "NEXT_OTEL_VERBOSE",
@@ -139,6 +183,43 @@ async function getCodeHashes(
              "exist __NEXT_DEV_SERVER",
            ],
            "app/use-cache-client/page": [
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+             "exist __NEXT_DEV_SERVER",
+           ],
+           "app/use-cache-import/page": [
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_RUNTIME",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+             "exist __NEXT_DEV_SERVER",
+           ],
+           "app/use-cache-node-worker/page": [
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+             "exist __NEXT_DEV_SERVER",
+           ],
+           "app/use-cache-url/page": [
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+             "exist __NEXT_DEV_SERVER",
+           ],
+           "app/use-cache-worker/page": [
              "NEXT_OTEL_PERFORMANCE_PREFIX",
              "NEXT_OTEL_VERBOSE",
              "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
@@ -234,6 +315,29 @@ export function generateStaticParams() {
         skipStart: true,
       })
 
+      it.each(['disabled', 'enabled'])(
+        'tracks both branches when TEST_CONDITIONAL is %s at runtime',
+        async (conditional) => {
+          next.env.TEST_CONDITIONAL = conditional
+          try {
+            expect((await next.build()).exitCode).toBe(0)
+            const hashes = await getCodeHashes(next, [
+              'app/env-conditional/page',
+            ])
+            expect(hashes).toHaveLength(1)
+            expect(hashes[0].runtimeEnvVarsRead).toEqual(
+              expect.arrayContaining([
+                'TEST_CONDITIONAL',
+                'TEST_OTHER_VALUE',
+                'TEST_VALUE',
+              ])
+            )
+          } finally {
+            delete next.env.TEST_CONDITIONAL
+          }
+        }
+      )
+
       it('codeHash stays stable across identical rebuilds', async () => {
         await next.build()
         const first = await getCodeHashes(next)
@@ -287,6 +391,64 @@ export async function logic() {
             expect(after).not.toEqual(before)
           }
         )
+      })
+
+      it('codeHash changes when dependencies referenced by new URL(), import(), and new Worker() inside use cache scopes change', async () => {
+        const dependencies = [
+          {
+            route: 'use-cache-url',
+            file: 'asset.txt',
+            content: 'asset-v2\n',
+          },
+          {
+            route: 'use-cache-import',
+            file: 'dependency.ts',
+            content: "export const value = 'import-v2'\n",
+          },
+          {
+            route: 'use-cache-worker',
+            file: 'worker.ts',
+            content: "console.log('worker-v2')\n",
+          },
+          {
+            route: 'use-cache-node-worker',
+            file: 'worker.ts',
+            content:
+              "import { parentPort } from 'node:worker_threads'\nparentPort.postMessage('node-worker-v2')\n",
+          },
+        ]
+        const pages = dependencies.map(({ route }) => `app/${route}/page`)
+        expect((await next.build()).exitCode).toBe(0)
+        const before = await getCodeHashes(next, pages)
+        expect(before.map(({ page }) => page)).toEqual([...pages].sort())
+        for (const entry of before) {
+          expect(entry.codeHash).toEqual(expect.any(String))
+        }
+
+        const originals = await Promise.all(
+          dependencies.map(({ route, file }) =>
+            next.readFile(`app/${route}/${file}`)
+          )
+        )
+        try {
+          for (const { route, file, content } of dependencies) {
+            await next.patchFile(`app/${route}/${file}`, content)
+          }
+          expect((await next.build()).exitCode).toBe(0)
+          const after = await getCodeHashes(next, pages)
+          expect(after.map(({ page }) => page)).toEqual(
+            before.map(({ page }) => page)
+          )
+          for (let i = 0; i < before.length; i++) {
+            expect(after[i].id).toBe(before[i].id)
+            expect(after[i].codeHash).toEqual(expect.any(String))
+            expect(after[i].codeHash).not.toBe(before[i].codeHash)
+          }
+        } finally {
+          for (const [i, { route, file }] of dependencies.entries()) {
+            await next.patchFile(`app/${route}/${file}`, originals[i])
+          }
+        }
       })
 
       it('codeHash changes when an external (node_modules) dependency changes', async () => {

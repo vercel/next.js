@@ -1,7 +1,8 @@
 import type { OriginalStackFrame } from '../../../shared/stack-frame'
 
 import { HotlinkedText } from '../hot-linked-text'
-import { ExternalIcon, SourceMappingErrorIcon } from '../../icons/external'
+import { SourceMappingErrorIcon } from '../../icons/external'
+import { CodeIcon } from '../../icons/code'
 import { getStackFrameFile } from '../../../shared/stack-frame'
 import { useOpenInEditor } from '../../utils/use-open-in-editor'
 
@@ -40,11 +41,12 @@ export const CallStackFrame: React.FC<{
         <HotlinkedText text={f.methodName} />
         {hasOriginalCodeFrame && (
           <button
+            type="button"
             onClick={open}
-            className="open-in-editor-button"
+            className="call-stack-frame-editor-button"
             aria-label={`Open ${f.methodName} in editor`}
           >
-            <ExternalIcon width={16} height={16} />
+            <CodeIcon width={16} height={16} aria-hidden="true" />
           </button>
         )}
         {frame.error ? (
@@ -112,7 +114,7 @@ export const CALL_STACK_FRAME_STYLES = `
     }
   }
 
-  .open-in-editor-button, .source-mapping-error-button {
+  .call-stack-frame-editor-button, .source-mapping-error-button {
     display: flex;
     align-items: center;
     justify-content: center;

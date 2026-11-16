@@ -1,10 +1,11 @@
 import React, { Suspense } from 'react'
 import { cacheTag } from 'next/cache'
 import { refreshAction } from '../actions'
+import { getCacheTag } from '../../utils'
 
 async function getCachedRandomNumber() {
   'use cache'
-  cacheTag('server-action-test')
+  cacheTag(getCacheTag('server-action-test'))
 
   await new Promise((resolve) => setTimeout(resolve, 100))
 

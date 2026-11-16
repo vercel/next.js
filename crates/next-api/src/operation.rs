@@ -37,10 +37,23 @@ pub struct EntrypointsOperation {
 async fn entrypoints_without_collectibles_operation(
     entrypoints: OperationVc<Entrypoints>,
 ) -> Result<Vc<Entrypoints>> {
-    let _ = entrypoints.resolve().strongly_consistent().await?;
-    entrypoints.drop_issues();
-    let _ = take_effects(entrypoints).await?;
-    Ok(entrypoints.connect())
+    // Dropping and taking the collectibles leaves the task that does it with a negative count for
+    // each of them. Many `pick_*` root operations connect to this operation, so doing it in this
+    // task would copy all of those collectibles into each of them. Doing it in an inner operation
+    // isolates the dropped collectibles, so this task has no (or very few) collectibles.
+    //
+    // The inner operation keeps its long name so it is easy to identify in traces.
+    #[turbo_tasks::function(operation, root)]
+    async fn inner_entrypoints_without_collectibles_operation(
+        entrypoints: OperationVc<Entrypoints>,
+    ) -> Result<Vc<Entrypoints>> {
+        let _ = entrypoints.resolve().strongly_consistent().await?;
+        entrypoints.drop_issues();
+        let _ = take_effects(entrypoints).await?;
+        Ok(entrypoints.connect())
+    }
+
+    Ok(inner_entrypoints_without_collectibles_operation(entrypoints).connect())
 }
 
 #[turbo_tasks::value_impl]
@@ -100,6 +113,10 @@ fn pick_route(entrypoints: OperationVc<Entrypoints>, key: RcStr, route: &Route) 
                 })
                 .collect(),
         ),
+        Route::AppGoRoute { original_name, .. } => RouteOperation::AppGoRoute {
+            original_name: original_name.clone(),
+            endpoint: pick_endpoint(entrypoints, EndpointSelector::RouteAppRoute(key)),
+        },
         Route::AppRoute {
             original_name,
             has_action_manifest,
@@ -187,7 +204,9 @@ async fn pick_endpoint(
             }
         }
         EndpointSelector::RouteAppRoute(name) => {
-            if let Some(Route::AppRoute { endpoint, .. }) = endpoints.routes.get(&name) {
+            if let Some(Route::AppRoute { endpoint, .. } | Route::AppGoRoute { endpoint, .. }) =
+                endpoints.routes.get(&name)
+            {
                 Some(*endpoint)
             } else {
                 None
@@ -220,6 +239,10 @@ pub enum RouteOperation {
         endpoint: OperationVc<OptionEndpoint>,
     },
     AppPage(Vec<AppPageRouteOperation>),
+    AppGoRoute {
+        original_name: RcStr,
+        endpoint: OperationVc<OptionEndpoint>,
+    },
     AppRoute {
         original_name: RcStr,
         endpoint: OperationVc<OptionEndpoint>,

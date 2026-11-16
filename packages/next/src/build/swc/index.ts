@@ -550,7 +550,7 @@ function bindingToApi(
         }[]
       }
     | {
-        type: 'app-route'
+        type: 'app-route' | 'app-route-go'
         originalName: string
         hasActionManifest: boolean
         endpoint: NapiEndpoint
@@ -989,6 +989,17 @@ function bindingToApi(
       )
     }
 
+    // Turbopack resolves a leading `/` from the project root, so make absolute
+    // instrumentationInject entries relative. Package names stay as they are.
+    if (nextConfigSerializable.instrumentationInject?.length) {
+      nextConfigSerializable.instrumentationInject =
+        nextConfigSerializable.instrumentationInject.map((entry: string) =>
+          path.isAbsolute(entry)
+            ? './' + normalizePathOnWindows(path.relative(projectPath, entry))
+            : entry
+        )
+    }
+
     if (nextConfigSerializable.turbopack != null) {
       // clone to allow in-place mutations
       const turbopack = { ...nextConfigSerializable.turbopack }
@@ -1243,8 +1254,9 @@ function bindingToApi(
           }
           break
         case 'app-route':
+        case 'app-route-go':
           route = {
-            type: 'app-route',
+            type: nativeRoute.type,
             originalName: nativeRoute.originalName,
             hasActionManifest: nativeRoute.hasActionManifest,
             endpoint: new EndpointImpl(nativeRoute.endpoint),

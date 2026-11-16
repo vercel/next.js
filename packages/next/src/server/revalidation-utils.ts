@@ -25,14 +25,14 @@ export async function withExecuteRevalidates<T>(
   }
 }
 
-type RevalidationState = Required<
+export type RevalidationState = Required<
   Pick<
     WorkStore,
     'pendingRevalidatedTags' | 'pendingRevalidates' | 'pendingRevalidateWrites'
   >
 >
 
-function cloneRevalidationState(store: WorkStore): RevalidationState {
+export function cloneRevalidationState(store: WorkStore): RevalidationState {
   return {
     // revalidateTag updates revalidatedAt in place when the tag/profile already
     // exists, so snapshot the items as well as the array.
@@ -46,28 +46,27 @@ function cloneRevalidationState(store: WorkStore): RevalidationState {
   }
 }
 
-function diffRevalidationState(
+function getRevalidatedTagKey({
+  tag,
+  profile,
+}: RevalidationState['pendingRevalidatedTags'][number]): string {
+  return JSON.stringify([tag, typeof profile, profile])
+}
+
+export function diffRevalidationState(
   prev: RevalidationState,
   curr: RevalidationState
 ): RevalidationState {
   const prevTagsWithProfile = new Map(
-    prev.pendingRevalidatedTags.map((item) => {
-      const profileKey =
-        typeof item.profile === 'object'
-          ? JSON.stringify(item.profile)
-          : item.profile || ''
-      return [`${item.tag}:${profileKey}`, item.revalidatedAt] as const
-    })
+    prev.pendingRevalidatedTags.map(
+      (item) => [getRevalidatedTagKey(item), item.revalidatedAt] as const
+    )
   )
   const prevRevalidateWrites = new Set(prev.pendingRevalidateWrites)
   return {
     pendingRevalidatedTags: curr.pendingRevalidatedTags.filter((item) => {
-      const profileKey =
-        typeof item.profile === 'object'
-          ? JSON.stringify(item.profile)
-          : item.profile || ''
       const previousRevalidatedAt = prevTagsWithProfile.get(
-        `${item.tag}:${profileKey}`
+        getRevalidatedTagKey(item)
       )
       return (
         previousRevalidatedAt === undefined ||
@@ -76,7 +75,7 @@ function diffRevalidationState(
     }),
     pendingRevalidates: Object.fromEntries(
       Object.entries(curr.pendingRevalidates).filter(
-        ([key]) => !(key in prev.pendingRevalidates)
+        ([key, promise]) => prev.pendingRevalidates[key] !== promise
       )
     ),
     pendingRevalidateWrites: curr.pendingRevalidateWrites.filter(

@@ -28,7 +28,7 @@ export default nextConfig
 
 Set `partialPrefetching` explicitly. Leaving it unset logs a warning, because the first release of Cache Components did not include Partial Prefetching. Set it to `false` only while [migrating an app that adopted Cache Components before Partial Prefetching](/docs/app/guides/adopting-partial-prefetching). Both features will be enabled everywhere in the next major release, and the options will be removed.
 
-> **Good to know**: Cache Components requires the Node.js runtime. Migrate any routes that set the deprecated `runtime = 'edge'` export, and note that other server-side JavaScript runtimes are not guaranteed to work. See [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components#runtime--edge).
+> **Good to know**: Cache Components requires the Node.js runtime and does not support the [`runtime` route segment config](/docs/app/api-reference/file-conventions/route-segment-config/runtime). Remove any `runtime` export, including `runtime = 'nodejs'` and the deprecated `runtime = 'edge'`. Other server-side JavaScript runtimes are not guaranteed to work. See [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components#runtime--edge).
 
 When `cacheComponents` is enabled, you can use the following cache functions and configurations:
 

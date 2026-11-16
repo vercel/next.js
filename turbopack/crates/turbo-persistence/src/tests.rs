@@ -1,10 +1,15 @@
 #[cfg(not(miri))]
 use std::time::Instant;
-use std::{fs, path::Path};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs,
+    path::Path,
+    sync::OnceLock,
+};
 
 use anyhow::Result;
 #[cfg(not(miri))]
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use rstest::rstest;
 
 // Miri rejects a process that exits while rayon's global worker threads are still parked, so
@@ -12,10 +17,11 @@ use rstest::rstest;
 #[cfg(miri)]
 use crate::parallel_scheduler::SerialScheduler as RayonParallelScheduler;
 use crate::{
-    AccessMode, Compression, DbConfig, FamilyConfig, FamilyKind,
+    AccessMode, ArcBytes, Compression, DbConfig, FamilyConfig, FamilyKind, QueryKey,
     constants::MAX_INLINE_VALUE_SIZE,
     db::{CompactConfig, TurboPersistence, read_current_version},
     lookup_entry::IterValue,
+    parallel_scheduler::ParallelScheduler as ParallelSchedulerTrait,
     static_sorted_file::{StaticSortedFileIter, StaticSortedFileMetaData},
 };
 #[cfg(not(miri))]
@@ -31,11 +37,12 @@ struct RayonParallelScheduler;
 
 #[cfg(not(miri))]
 impl ParallelScheduler for RayonParallelScheduler {
-    fn block_in_place<R>(&self, f: impl FnOnce() -> R + Send) -> R
-    where
-        R: Send,
-    {
-        f()
+    fn parallelism(&self) -> usize {
+        rayon::current_num_threads()
+    }
+
+    fn spawn_blocking(&self, f: impl FnOnce() + Send + 'static) {
+        rayon::spawn(f);
     }
 
     fn parallel_for_each<T>(&self, items: &[T], f: impl Fn(&T) + Send + Sync)
@@ -67,6 +74,18 @@ impl ParallelScheduler for RayonParallelScheduler {
         E: Send,
     {
         items.into_par_iter().try_for_each(f)
+    }
+
+    fn try_parallel_for_each_task_mut<T, E>(
+        &self,
+        items: &mut [T],
+        f: impl (Fn(&mut T) -> Result<(), E>) + Send + Sync,
+    ) -> Result<(), E>
+    where
+        T: Send + Sync,
+        E: Send,
+    {
+        items.into_par_iter().with_max_len(1).try_for_each(f)
     }
 
     fn try_parallel_for_each_owned<T, E>(
@@ -155,6 +174,32 @@ fn open_db_with_config<const F: usize>(
         config,
         RayonParallelScheduler,
     )
+}
+
+/// Collects the results of [`TurboPersistence::batch_get`] in the order of `keys`, asserting that
+/// every index is reported exactly once.
+fn batch_get_vec<S: ParallelSchedulerTrait, const F: usize, K: QueryKey + Sync>(
+    db: &TurboPersistence<S, F>,
+    family: usize,
+    keys: &[K],
+) -> Result<Vec<Option<ArcBytes>>> {
+    let results: Vec<OnceLock<Option<ArcBytes>>> = keys.iter().map(|_| OnceLock::new()).collect();
+    db.batch_get(family, keys, |index, value| {
+        assert!(
+            results[index].set(value).is_ok(),
+            "index {index} was reported more than once"
+        );
+        Ok(())
+    })?;
+    Ok(results
+        .into_iter()
+        .enumerate()
+        .map(|(index, result)| {
+            result
+                .into_inner()
+                .unwrap_or_else(|| panic!("index {index} was never reported"))
+        })
+        .collect())
 }
 
 fn multi_value_config_with_mmap(mmap: bool) -> DbConfig<1> {
@@ -886,7 +931,7 @@ fn batch_get_basic(#[case] mmap: bool) -> Result<()> {
 
     // Test batch_get with mixed existing and non-existing keys
     let keys_to_fetch = vec![vec![10u8], vec![20u8], vec![200u8], vec![50u8], vec![255u8]];
-    let results = db.batch_get(0, &keys_to_fetch)?;
+    let results = batch_get_vec(&db, 0, &keys_to_fetch)?;
 
     assert_eq!(results.len(), 5);
     assert_eq!(results[0].as_deref(), Some(&[10u8][..]));
@@ -917,7 +962,7 @@ fn batch_get_all_existing(#[case] mmap: bool) -> Result<()> {
 
     // Fetch all existing keys
     let keys_to_fetch: Vec<Vec<u8>> = (0..50u8).map(|i| vec![i]).collect();
-    let results = db.batch_get(0, &keys_to_fetch)?;
+    let results = batch_get_vec(&db, 0, &keys_to_fetch)?;
 
     assert_eq!(results.len(), 50);
     for (i, result) in results.iter().enumerate() {
@@ -946,7 +991,7 @@ fn batch_get_none_existing(#[case] mmap: bool) -> Result<()> {
 
     // Fetch non-existing keys
     let keys_to_fetch: Vec<Vec<u8>> = (100..110u8).map(|i| vec![i]).collect();
-    let results = db.batch_get(0, &keys_to_fetch)?;
+    let results = batch_get_vec(&db, 0, &keys_to_fetch)?;
 
     assert_eq!(results.len(), 10);
     for result in results.iter() {
@@ -973,7 +1018,7 @@ fn batch_get_empty(#[case] mmap: bool) -> Result<()> {
 
     // Fetch with empty key list
     let keys_to_fetch: Vec<Vec<u8>> = vec![];
-    let results = db.batch_get(0, &keys_to_fetch)?;
+    let results = batch_get_vec(&db, 0, &keys_to_fetch)?;
 
     assert_eq!(results.len(), 0);
 
@@ -1004,7 +1049,7 @@ fn batch_get_duplicate_keys(#[case] mmap: bool) -> Result<()> {
         vec![99u8], // non-existing
         vec![42u8],
     ];
-    let results = db.batch_get(0, &keys_to_fetch)?;
+    let results = batch_get_vec(&db, 0, &keys_to_fetch)?;
 
     assert_eq!(results.len(), 5);
     assert_eq!(results[0].as_deref(), Some(&[100u8][..]));
@@ -1042,7 +1087,7 @@ fn batch_get_large_batch(#[case] mmap: bool) -> Result<()> {
         .filter(|i| i % 10 == 0)
         .map(|i| i.to_be_bytes().to_vec())
         .collect();
-    let results = db.batch_get(0, &keys_to_fetch)?;
+    let results = batch_get_vec(&db, 0, &keys_to_fetch)?;
 
     assert_eq!(results.len(), 100);
     for (idx, i) in (0..1000u32).filter(|i| i % 10 == 0).enumerate() {
@@ -1090,7 +1135,7 @@ fn batch_get_different_sizes(#[case] mmap: bool) -> Result<()> {
         vec![5u8],
         vec![6u8], // non-existing
     ];
-    let results = db.batch_get(0, &keys_to_fetch)?;
+    let results = batch_get_vec(&db, 0, &keys_to_fetch)?;
 
     assert_eq!(results.len(), 7);
     assert_eq!(results[0].as_deref(), Some(&[][..]));
@@ -1140,7 +1185,7 @@ fn batch_get_across_families(#[case] mmap: bool) -> Result<()> {
     // Fetch from each family separately
     for family in 0..4usize {
         let keys_to_fetch: Vec<Vec<u8>> = (0..20u8).map(|i| vec![i]).collect();
-        let results = db.batch_get(family, &keys_to_fetch)?;
+        let results = batch_get_vec(&db, family, &keys_to_fetch)?;
 
         assert_eq!(results.len(), 20);
         for (i, result) in results.iter().enumerate() {
@@ -1160,8 +1205,8 @@ fn batch_get_across_families(#[case] mmap: bool) -> Result<()> {
 
     // Verify family isolation - keys from family 0 shouldn't be in family 1
     let keys_to_fetch: Vec<Vec<u8>> = (0..20u8).map(|i| vec![i]).collect();
-    let results_f0 = db.batch_get(0, &keys_to_fetch)?;
-    let results_f1 = db.batch_get(1, &keys_to_fetch)?;
+    let results_f0 = batch_get_vec(&db, 0, &keys_to_fetch)?;
+    let results_f1 = batch_get_vec(&db, 1, &keys_to_fetch)?;
 
     // Same keys, but different values per family
     assert_ne!(results_f0[0].as_deref(), results_f1[0].as_deref());
@@ -1216,13 +1261,13 @@ fn batch_get_after_compaction(#[case] mmap: bool) -> Result<()> {
 
     // Fetch before compaction
     let keys_to_fetch: Vec<Vec<u8>> = (0..100u8).map(|i| vec![i]).collect();
-    let results_before = db.batch_get(0, &keys_to_fetch)?;
+    let results_before = batch_get_vec(&db, 0, &keys_to_fetch)?;
 
     // Compact database using zstd to cover recompression with a non-default codec.
     db.full_compact()?;
 
     // Fetch after compaction
-    let results_after = db.batch_get(0, &keys_to_fetch)?;
+    let results_after = batch_get_vec(&db, 0, &keys_to_fetch)?;
 
     // Results should be identical
     assert_eq!(results_before.len(), results_after.len());
@@ -1264,7 +1309,7 @@ fn batch_get_with_overwrites(#[case] mmap: bool) -> Result<()> {
 
     // Fetch all keys
     let keys_to_fetch: Vec<Vec<u8>> = (0..50u8).map(|i| vec![i]).collect();
-    let results = db.batch_get(0, &keys_to_fetch)?;
+    let results = batch_get_vec(&db, 0, &keys_to_fetch)?;
 
     assert_eq!(results.len(), 50);
     // First 25 should have new values
@@ -1281,6 +1326,75 @@ fn batch_get_with_overwrites(#[case] mmap: bool) -> Result<()> {
             result.as_deref(),
             Some(&[i as u8][..]),
             "Failed at index {i}"
+        );
+    }
+
+    db.shutdown();
+    Ok(())
+}
+
+/// The oldest SST file holds a single key, so its hash range is a single hash. Missing keys of
+/// that shard are then outside the range of the last file to check, which must still report them.
+/// Before the first commit, no shard has an SST file at all, so every key is reported as missing.
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn batch_get_misses_outside_last_sst_range(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    let db = open_db::<16>(path, mmap)?;
+
+    // No SST files: below and above the parallel threshold of `batch_get`.
+    for count in [50u32, 5000] {
+        let keys_to_fetch: Vec<Vec<u8>> = (0..count).map(|i| i.to_be_bytes().to_vec()).collect();
+        let results = batch_get_vec(&db, 0, &keys_to_fetch)?;
+        assert_eq!(results.len(), keys_to_fetch.len());
+        assert!(results.iter().all(Option::is_none));
+        // An error from the callback for a missing key is returned.
+        let failing = keys_to_fetch.len() - 1;
+        let error = db
+            .batch_get(0, &keys_to_fetch, |index, _| {
+                if index == failing {
+                    anyhow::bail!("injected failure at index {index}");
+                }
+                Ok(())
+            })
+            .expect_err("the callback error must be returned");
+        assert!(
+            format!("{error:#}").contains(&format!("injected failure at index {failing}")),
+            "unexpected error: {error:#}"
+        );
+    }
+
+    let batch = db.write_batch()?;
+    batch.put(0, 0u32.to_be_bytes().to_vec(), vec![0].into())?;
+    db.commit_write_batch(batch)?;
+
+    let batch = db.write_batch()?;
+    for i in 1..100u32 {
+        batch.put(0, i.to_be_bytes().to_vec(), vec![1].into())?;
+    }
+    db.commit_write_batch(batch)?;
+
+    // Below and above the parallel threshold of `batch_get`, with duplicate keys.
+    for missing in [50u32, 5000] {
+        let keys_to_fetch: Vec<Vec<u8>> = (0..100 + missing)
+            .chain([0, 1, 100])
+            .map(|i| i.to_be_bytes().to_vec())
+            .collect();
+        let results = batch_get_vec(&db, 0, &keys_to_fetch)?;
+        assert_eq!(results.len(), keys_to_fetch.len());
+        for (key, result) in keys_to_fetch.iter().zip(&results) {
+            assert_eq!(
+                result.as_deref(),
+                db.get(0, key)?.as_deref(),
+                "Mismatch for key {key:?}"
+            );
+        }
+        assert_eq!(
+            results.iter().filter(|r| r.is_none()).count() as u32,
+            missing + 1
         );
     }
 
@@ -1315,7 +1429,7 @@ fn batch_get_comparison_with_get(#[case] mmap: bool) -> Result<()> {
         .collect();
 
     // Get results using batch_get
-    let batch_results = db.batch_get(0, &keys_to_fetch)?;
+    let batch_results = batch_get_vec(&db, 0, &keys_to_fetch)?;
 
     // Get results using individual get calls
     let mut individual_results = Vec::new();
@@ -1365,7 +1479,7 @@ fn batch_get_after_restore(#[case] mmap: bool) -> Result<()> {
         let db = open_db::<16>(path, mmap)?;
 
         let keys_to_fetch: Vec<Vec<u8>> = (0..100u8).step_by(5).map(|i| vec![i]).collect();
-        let results = db.batch_get(0, &keys_to_fetch)?;
+        let results = batch_get_vec(&db, 0, &keys_to_fetch)?;
 
         assert_eq!(results.len(), 20);
         for (idx, i) in (0..100u8).step_by(5).enumerate() {
@@ -2012,6 +2126,53 @@ fn count_blob_files(dir: &Path) -> usize {
         .count()
 }
 
+/// The blob CRC covers the header's uncompressed length, so corrupting only the length is reported
+/// as a checksum mismatch before it is used to size the decompression buffer.
+// Writes a production-size blob, which is too slow under Miri.
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn corrupt_blob_length_is_detected(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let blob_value = vec![42u8; MAX_MEDIUM_VALUE_SIZE + 1];
+    {
+        let db = open_db::<1>(path, mmap)?;
+        let batch = db.write_batch()?;
+        batch.put(0, vec![1u8], blob_value.clone().into())?;
+        db.commit_write_batch(batch)?;
+        db.shutdown();
+    }
+    let blob_path = fs::read_dir(path)?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .find(|p| p.extension().is_some_and(|ext| ext == "blob"))
+        .expect("a blob file");
+    let original = fs::read(&blob_path)?;
+    let length = u32::from_be_bytes(original[..4].try_into()?);
+    assert_eq!(length as usize, blob_value.len());
+
+    for corrupt_length in [length + 1, length - 1, 0, u32::MAX] {
+        let mut bytes = original.clone();
+        bytes[..4].copy_from_slice(&corrupt_length.to_be_bytes());
+        fs::write(&blob_path, &bytes)?;
+        let db = open_db::<1>(path, mmap)?;
+        let message = match db.get(0, &vec![1u8]) {
+            Ok(value) => panic!(
+                "length {corrupt_length}: read succeeded ({:?} bytes)",
+                value.map(|v| v.len())
+            ),
+            Err(err) => format!("{err:#}"),
+        };
+        assert!(
+            message.contains("checksum mismatch"),
+            "length {corrupt_length}: unexpected error: {message}"
+        );
+    }
+    Ok(())
+}
+
 /// Test that compaction deletes blob files when their entries are superseded
 /// by newer values (SingleValue family).
 // The first access-mode variant exceeded 20 minutes under Miri while processing the production-size
@@ -2497,9 +2658,7 @@ fn count_tombstones(
                 sequence_number: entry.sequence_number,
                 block_count: entry.block_count,
             };
-            for item in
-                StaticSortedFileIter::open(path, sst, Compression::Lz4, crate::mmap_access_mode())?
-            {
+            for item in StaticSortedFileIter::open(path, sst, Compression::Lz4)? {
                 if matches!(
                     item?.value,
                     IterValue::KeyDeleted | IterValue::KeyValueDeleted { .. }
@@ -3084,6 +3243,138 @@ fn used_keys_live_as_long_as_the_meta_file_that_recorded_them(#[case] mmap: bool
     Ok(())
 }
 
+/// How [`used_keys_survive_intermediate_merges`] leaves the bottom merge of a shard for later.
+#[cfg(not(miri))]
+#[derive(Clone, Copy, Debug)]
+enum PartialCompaction {
+    /// One pass bottom merges one shard and intermediate merges the other.
+    SamePass,
+    /// One pass bottom merges one shard, a later one intermediate merges the other.
+    BottomFirst,
+    /// One pass intermediate merges one shard, while the meta file that recorded the used keys is
+    /// kept alive by the other shard's files. A later pass bottom merges that other shard, which
+    /// retires it.
+    IntermediateFirst,
+}
+
+/// An intermediate merge can retire the meta file that recorded the used keys before every shard
+/// had its bottom merge, e.g. when the rewrite quota or `max_merge_jobs` leaves a shard's bottom
+/// merge for later. The used keys then have to live on in the meta file written by the compaction,
+/// until the merged entries are bottom merged.
+#[cfg(not(miri))]
+#[rstest]
+fn used_keys_survive_intermediate_merges(
+    #[values(true, false)] mmap: bool,
+    #[values(
+        PartialCompaction::SamePass,
+        PartialCompaction::BottomFirst,
+        PartialCompaction::IntermediateFirst
+    )]
+    partial: PartialCompaction,
+) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let config = two_shard_config(mmap)?;
+    let db = open_db_with_config::<1>(path, config.clone())?;
+    const KEYS: u32 = TWO_SHARD_KEYS;
+    let put_all =
+        |db: &TurboPersistence<RayonParallelScheduler, 1>, generation: u32| -> Result<()> {
+            let batch = db.write_batch()?;
+            for key in 0..KEYS {
+                batch.put(
+                    0,
+                    key.to_be_bytes().to_vec(),
+                    generation.to_be_bytes().to_vec().into(),
+                )?;
+            }
+            db.commit_write_batch(batch)?;
+            Ok(())
+        };
+    put_all(&db, 0)?;
+    db.full_compact()?;
+    for key in 0..KEYS {
+        db.get(0, &key.to_be_bytes())?.unwrap();
+    }
+    // The first commit records the reads, the second one none. Each shard has two files above its
+    // bottom run then.
+    put_all(&db, 1)?;
+    put_all(&db, 2)?;
+    let intermediate_only = CompactConfig {
+        max_space_amplification_percent: u16::MAX,
+        max_files_above_bottom: 1,
+        ..CompactConfig::full()
+    };
+    match partial {
+        PartialCompaction::BottomFirst => {
+            // Bottom merge only one shard. The other shard keeps the files of the commit that
+            // recorded the used keys.
+            db.compact(&CompactConfig {
+                max_merge_jobs: 1,
+                ..CompactConfig::full()
+            })?;
+            // Then the other shard gets an intermediate merge instead of a bottom merge, which
+            // merges the last file of that commit.
+            db.compact(&intermediate_only)?;
+        }
+        PartialCompaction::SamePass => {
+            // The rewrite quota of 0 bottom merges only one shard, and the other one gets an
+            // intermediate merge in the same pass, which merges the last file of that commit.
+            db.compact(&CompactConfig {
+                max_files_above_bottom: 1,
+                rewrite_per_fresh_byte: 0.0,
+                ..CompactConfig::full()
+            })?;
+        }
+        PartialCompaction::IntermediateFirst => {
+            // Intermediate merge only one shard. The commit that recorded the used keys still has
+            // a file in the other shard.
+            db.compact(&CompactConfig {
+                max_merge_jobs: 1,
+                ..intermediate_only
+            })?;
+            // Bottom merge only the other shard, which merges the last file of that commit. It
+            // has two rewrites of all its keys above its bottom run, the merged shard only one.
+            db.compact(&CompactConfig {
+                max_space_amplification_percent: 150,
+                max_files_above_bottom: 6,
+                ..CompactConfig::full()
+            })?;
+        }
+    }
+    let (hot, _) = bottom_entry_counts(&db)?;
+    assert!(hot > 0 && hot < KEYS as usize);
+    // The carried used keys are persisted.
+    db.shutdown();
+    let db = open_db_with_config::<1>(path, config)?;
+    // The bottom merge of the other shard still knows the read keys.
+    db.full_compact()?;
+    assert_eq!(bottom_entry_counts(&db)?, (KEYS as usize, 0));
+
+    // Every file with entries of the read keys was bottom merged now, so the used keys expire. (No
+    // key was read since, which the next commit would record again.)
+    let mut generation = 3;
+    if matches!(partial, PartialCompaction::SamePass) {
+        // Except that the meta file carrying the used keys also describes the bottom run written
+        // by the same pass for the first shard, which the full compaction above didn't merge, as
+        // nothing was written into that shard since. So the next bottom merge still uses them,
+        // which merges that bottom run and retires the meta file.
+        put_all(&db, generation)?;
+        db.full_compact()?;
+        assert_eq!(bottom_entry_counts(&db)?, (KEYS as usize, 0));
+        generation += 1;
+    }
+    put_all(&db, generation)?;
+    db.full_compact()?;
+    assert_eq!(bottom_entry_counts(&db)?, (0, KEYS as usize));
+    for key in 0..KEYS {
+        assert_eq!(
+            &*db.get(0, &key.to_be_bytes())?.unwrap(),
+            &generation.to_be_bytes()
+        );
+    }
+    Ok(())
+}
+
 #[cfg(not(miri))]
 #[rstest]
 #[case(true)]
@@ -3178,12 +3469,21 @@ fn initial_shard_bits_are_a_starting_value(#[case] mmap: bool) -> Result<()> {
     // The first commit has nothing to size the shards by, so it uses the initial count.
     commit()?;
     assert_eq!(newest_shard_bits()?, 2);
-    // Without a bottom run yet, the next commit sizes the shards by all files: the tiny family
-    // shrinks to a single shard, far below the initial count.
+    // Without a bottom run yet, the count doesn't shrink, so that the first bottom merges are one
+    // per shard instead of a single large one, even though the tiny family fits in one shard.
     commit()?;
-    assert_eq!(newest_shard_bits()?, 0);
-    // Once compacted, the bottom run is as tiny, so the count stays.
+    assert_eq!(newest_shard_bits()?, 2);
+    // The first bottom merges are split at the initial count.
     db.full_compact()?;
+    let bottom_files = db
+        .meta_info()?
+        .iter()
+        .flat_map(|meta| &meta.entries)
+        .filter(|entry| entry.flags.bottom())
+        .count();
+    assert_eq!(bottom_files, 4);
+    // With bottom runs, the tiny family shrinks to a single shard. That doesn't rewrite anything:
+    // the four bottom runs together are its bottom run.
     commit()?;
     assert_eq!(newest_shard_bits()?, 0);
     for key in 0..1000u32 {
@@ -3280,5 +3580,370 @@ fn commits_with_more_shards_than_collectors_split_files_at_shard_boundaries(
             &key.to_le_bytes()
         );
     }
+    Ok(())
+}
+
+// Writes 10K keys and runs the parallel `batch_get` path on Rayon, which is too slow under Miri.
+#[cfg(not(miri))]
+#[rstest]
+#[case::mmap(true)]
+#[case::file(false)]
+fn batch_get_large_batches(#[case] mmap: bool) -> Result<()> {
+    const KEYS: u32 = 10_000;
+    let value_of = |key: u32, version: u8| -> Vec<u8> {
+        let mut value = vec![version; 8];
+        value[..4].copy_from_slice(&key.to_le_bytes());
+        value
+    };
+    let expected = |key: u32| -> Option<Vec<u8>> {
+        if key >= KEYS || key.is_multiple_of(11) {
+            None
+        } else if key.is_multiple_of(7) {
+            Some(value_of(key, 2))
+        } else {
+            Some(value_of(key, 1))
+        }
+    };
+
+    let tempdir = tempfile::tempdir()?;
+    let db = open_db_with_config::<1>(tempdir.path(), config_with_mmap::<1>(mmap))?;
+
+    let batch = db.write_batch()?;
+    for key in 0..KEYS {
+        batch.put(0, key.to_be_bytes().to_vec(), value_of(key, 1).into())?;
+    }
+    db.commit_write_batch(batch)?;
+    // A second commit adds a newer layer of SST files with overwrites and tombstones.
+    let batch = db.write_batch()?;
+    for key in 0..KEYS {
+        if key.is_multiple_of(11) {
+            batch.delete(0, key.to_be_bytes().to_vec())?;
+        } else if key.is_multiple_of(7) {
+            batch.put(0, key.to_be_bytes().to_vec(), value_of(key, 2).into())?;
+        }
+    }
+    db.commit_write_batch(batch)?;
+
+    // Batches at and around the parallel threshold, and well above it. Keys are spread over the
+    // key space in a scrambled order, include misses (keys >= KEYS) and duplicates.
+    for batch_size in [2048usize, 2049, 6000] {
+        let extra_keys = [0u32, 0, 1000, KEYS];
+        let keys: Vec<Vec<u8>> = (0..(batch_size - extra_keys.len()) as u32)
+            .map(|i| {
+                (i.wrapping_mul(7919) % (KEYS + KEYS / 10))
+                    .to_be_bytes()
+                    .to_vec()
+            })
+            .chain(extra_keys.map(|key| key.to_be_bytes().to_vec()))
+            .collect();
+        assert_eq!(keys.len(), batch_size);
+        #[cfg(feature = "stats")]
+        let before = db.statistics();
+        let results = batch_get_vec(&db, 0, &keys)?;
+        assert_eq!(results.len(), batch_size);
+        #[cfg(feature = "stats")]
+        {
+            let after = db.statistics();
+            assert_eq!(
+                (after.hits + after.misses) - (before.hits + before.misses),
+                batch_size as u64,
+                "every key of the batch is counted as exactly one hit or miss"
+            );
+        }
+        for (key, result) in keys.iter().zip(&results) {
+            let key_num = u32::from_be_bytes(key[..].try_into().unwrap());
+            assert_eq!(
+                result.as_deref(),
+                expected(key_num).as_deref(),
+                "batch_get mismatch for key {key_num} in a batch of {batch_size}"
+            );
+            assert_eq!(result.as_deref(), db.get(0, key)?.as_deref());
+        }
+    }
+
+    // Duplicates of a key have the same hash, so they are adjacent and span several chunks.
+    let mut keys = vec![3u32.to_be_bytes().to_vec(); 3000];
+    keys.extend(vec![11u32.to_be_bytes().to_vec(); 600]);
+    let results = batch_get_vec(&db, 0, &keys)?;
+    assert_eq!(results.len(), keys.len());
+    let (hits, deleted) = results.split_at(3000);
+    assert!(
+        hits.iter()
+            .all(|r| r.as_deref() == Some(&value_of(3, 1)[..]))
+    );
+    assert!(deleted.iter().all(Option::is_none));
+
+    db.shutdown();
+    Ok(())
+}
+
+/// Opens a database with `KEYS` keys of 4 bytes over two commits: values of 8 bytes, overwrites of
+/// every 7th key and tombstones for every 11th key.
+fn open_callback_test_db(
+    path: &std::path::Path,
+    mmap: bool,
+) -> Result<TurboPersistence<RayonParallelScheduler, 1>> {
+    let db = open_db::<1>(path, mmap)?;
+    let batch = db.write_batch()?;
+    for key in 0..CALLBACK_TEST_KEYS {
+        batch.put(
+            0,
+            key.to_be_bytes().to_vec(),
+            callback_test_value(key, 1).into(),
+        )?;
+    }
+    db.commit_write_batch(batch)?;
+    let batch = db.write_batch()?;
+    for key in 0..CALLBACK_TEST_KEYS {
+        if key.is_multiple_of(11) {
+            batch.delete(0, key.to_be_bytes().to_vec())?;
+        } else if key.is_multiple_of(7) {
+            batch.put(
+                0,
+                key.to_be_bytes().to_vec(),
+                callback_test_value(key, 2).into(),
+            )?;
+        }
+    }
+    db.commit_write_batch(batch)?;
+    Ok(db)
+}
+
+const CALLBACK_TEST_KEYS: u32 = 3_000;
+
+fn callback_test_value(key: u32, version: u8) -> Vec<u8> {
+    let mut value = vec![version; 8];
+    value[..4].copy_from_slice(&key.to_le_bytes());
+    value
+}
+
+/// Batch sizes below and above the parallel threshold. Miri runs only the small one.
+fn callback_test_batch_sizes() -> &'static [u32] {
+    if cfg!(miri) { &[100] } else { &[100, 2_500] }
+}
+
+/// Keys spread over the key space, with misses (keys >= `CALLBACK_TEST_KEYS`) and duplicates.
+fn callback_test_keys(batch_size: u32) -> Vec<[u8; 4]> {
+    (0..batch_size)
+        .map(|i| {
+            (i.wrapping_mul(7919) % (CALLBACK_TEST_KEYS + CALLBACK_TEST_KEYS / 10)).to_be_bytes()
+        })
+        .chain([0u32, 0, 7, 7, CALLBACK_TEST_KEYS].map(u32::to_be_bytes))
+        .collect()
+}
+
+#[rstest]
+#[case::mmap(true)]
+#[case::file(false)]
+fn batch_get_callback_once_per_index(#[case] mmap: bool) -> Result<()> {
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    let tempdir = tempfile::tempdir()?;
+    let db = open_callback_test_db(tempdir.path(), mmap)?;
+    for &batch_size in callback_test_batch_sizes() {
+        let keys = callback_test_keys(batch_size);
+        let calls: Vec<AtomicU32> = keys.iter().map(|_| AtomicU32::new(0)).collect();
+        let values: Vec<OnceLock<Option<ArcBytes>>> =
+            keys.iter().map(|_| OnceLock::new()).collect();
+        db.batch_get(0, &keys, |index, value| {
+            calls[index].fetch_add(1, Ordering::Relaxed);
+            let _ = values[index].set(value);
+            Ok(())
+        })?;
+        for (index, key) in keys.iter().enumerate() {
+            assert_eq!(
+                calls[index].load(Ordering::Relaxed),
+                1,
+                "index {index} of a batch of {} keys",
+                keys.len()
+            );
+            assert_eq!(
+                values[index].get().unwrap().as_deref(),
+                db.get(0, key)?.as_deref(),
+                "index {index} of a batch of {} keys",
+                keys.len()
+            );
+        }
+    }
+    db.shutdown();
+    Ok(())
+}
+
+#[rstest]
+#[case::mmap(true)]
+#[case::file(false)]
+fn batch_get_callback_error_propagates(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let db = open_callback_test_db(tempdir.path(), mmap)?;
+    for &batch_size in callback_test_batch_sizes() {
+        let keys = callback_test_keys(batch_size);
+        // Fail on a found key and, separately, on a missing key (the last key is out of range).
+        let found = keys
+            .iter()
+            .position(|key| db.get(0, key).unwrap().is_some())
+            .unwrap();
+        let missing = keys.len() - 1;
+        for failing in [found, missing] {
+            let result = db.batch_get(0, &keys, |index, _| {
+                if index == failing {
+                    anyhow::bail!("injected failure at index {index}");
+                }
+                Ok(())
+            });
+            let error = result.expect_err("the callback error must be returned");
+            assert!(
+                format!("{error:#}").contains(&format!("injected failure at index {failing}")),
+                "unexpected error: {error:#}"
+            );
+        }
+    }
+    db.shutdown();
+    Ok(())
+}
+
+/// Snapshot of every entry in a persistence directory: file name to file content. Used to check
+/// that read-only opens leave the directory exactly as they found it.
+fn dir_snapshot(path: &Path) -> Result<BTreeMap<String, Vec<u8>>> {
+    let mut snapshot = BTreeMap::new();
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        let name = entry.file_name().into_string().expect("utf-8 file name");
+        snapshot.insert(name, fs::read(entry.path())?);
+    }
+    Ok(snapshot)
+}
+
+/// Names of the `.sst` / `.meta` / `.blob` files currently in `path`, keyed by sequence number.
+fn data_file_seqs(path: &Path) -> Result<BTreeSet<u32>> {
+    let mut seqs = BTreeSet::new();
+    for entry in fs::read_dir(path)? {
+        let path = entry?.path();
+        if matches!(
+            path.extension().and_then(|ext| ext.to_str()),
+            Some("sst" | "meta" | "blob")
+        ) {
+            seqs.insert(path.file_stem().unwrap().to_str().unwrap().parse()?);
+        }
+    }
+    Ok(seqs)
+}
+
+/// A database on the serial scheduler, for the read-only open tests.
+type SerialDb = TurboPersistence<crate::parallel_scheduler::SerialScheduler, 1>;
+
+fn open_read_only(path: &Path) -> Result<SerialDb> {
+    TurboPersistence::open_read_only_with_config(path.to_path_buf(), DbConfig::new())
+}
+
+/// Builds a directory in the state a crash can leave behind: a pending deletion record for the
+/// files of an older commit, orphaned files newer than `CURRENT`, and a stale `CURRENT.next`.
+/// Returns the sequence numbers listed in the deletion record and the orphaned sequence numbers.
+fn crashed_db_dir(path: &Path) -> Result<(Vec<u32>, Vec<u32>)> {
+    let db = SerialDb::open(path.to_path_buf())?;
+    let batch = db.write_batch()?;
+    batch.put(0, vec![1u8], vec![10u8].into())?;
+    db.commit_write_batch(batch)?;
+    let first_commit: Vec<u32> = data_file_seqs(path)?.into_iter().collect();
+    let batch = db.write_batch()?;
+    batch.put(0, vec![2u8], vec![20u8].into())?;
+    db.commit_write_batch(batch)?;
+    db.shutdown();
+    drop(db);
+
+    let current = read_current_version(path)?
+        .expect("CURRENT should exist")
+        .max_sequence_number;
+    // A deletion record (as written by compaction) for the first commit's files, whose deletion
+    // was interrupted.
+    let del_content: Vec<u8> = first_commit
+        .iter()
+        .flat_map(|seq| seq.to_be_bytes())
+        .collect();
+    fs::write(path.join(format!("{current:08}.del")), del_content)?;
+    // Files of a commit that crashed before `CURRENT` was updated.
+    let orphans = vec![current + 1, current + 2];
+    fs::write(path.join(format!("{:08}.sst", orphans[0])), b"orphan sst")?;
+    fs::write(path.join(format!("{:08}.meta", orphans[1])), b"orphan meta")?;
+    fs::write(path.join("CURRENT.next"), b"\xAA")?;
+    Ok((first_commit, orphans))
+}
+
+/// Opening read-only must not perform crash cleanup: orphaned files, pending deletion records
+/// and a stale `CURRENT.next` all stay on disk untouched, while reads still see the committed
+/// state. A writable open afterwards still performs the cleanup.
+#[test]
+fn read_only_open_does_not_clean_up_directory() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let (deleted, orphans) = crashed_db_dir(path)?;
+    let before = dir_snapshot(path)?;
+
+    {
+        let db = open_read_only(path)?;
+        // Files listed in the deletion record are no longer part of the database.
+        assert_eq!(db.get(0, &vec![1u8])?, None);
+        assert_eq!(db.get(0, &vec![2u8])?.as_deref(), Some(&[20u8][..]));
+        assert!(
+            db.write_batch::<Vec<u8>>().is_err(),
+            "a read-only database must refuse writes"
+        );
+        db.shutdown();
+    }
+    assert_eq!(
+        dir_snapshot(path)?,
+        before,
+        "a read-only open must not create, modify or delete files"
+    );
+
+    // A writable open still recovers the directory.
+    {
+        let db = SerialDb::open(path.to_path_buf())?;
+        assert_eq!(db.get(0, &vec![2u8])?.as_deref(), Some(&[20u8][..]));
+        db.shutdown();
+    }
+    let seqs = data_file_seqs(path)?;
+    for seq in deleted.iter().chain(&orphans) {
+        assert!(
+            !seqs.contains(seq),
+            "file {seq} should have been cleaned up"
+        );
+    }
+    assert!(!path.join("CURRENT.next").exists());
+    Ok(())
+}
+
+/// Opening read-only without a `CURRENT` file fails instead of initializing the directory, and
+/// leaves every file in place.
+#[test]
+fn read_only_open_without_current_fails_without_writing() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    crashed_db_dir(path)?;
+    fs::remove_file(path.join("CURRENT"))?;
+    let before = dir_snapshot(path)?;
+
+    assert!(open_read_only(path).is_err());
+    assert_eq!(
+        dir_snapshot(path)?,
+        before,
+        "a failed read-only open must not create, modify or delete files"
+    );
+
+    // A writable open of an empty directory still initializes it.
+    let empty = tempfile::tempdir()?;
+    assert!(open_read_only(empty.path()).is_err());
+    assert!(dir_snapshot(empty.path())?.is_empty());
+    SerialDb::open(empty.path().to_path_buf())?.shutdown();
+    assert!(read_current_version(empty.path())?.is_some());
+    Ok(())
+}
+
+/// Opening read-only at a path that doesn't exist fails without creating it.
+#[test]
+fn read_only_open_of_missing_directory_does_not_create_it() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path().join("missing");
+    assert!(open_read_only(&path).is_err());
+    assert!(!path.exists());
     Ok(())
 }

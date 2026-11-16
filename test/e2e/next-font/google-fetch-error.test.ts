@@ -1,4 +1,4 @@
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup, isNextDev } from 'e2e-utils'
 import { join } from 'path'
 
 const mockedGoogleFontResponses = require.resolve(
@@ -8,7 +8,7 @@ const mockedGoogleFontResponses = require.resolve(
 // Deploy mode exclusion: This suite intentionally fails the build, so there is no successful deployment to exercise.
 // @force-gate !deploy
 describe('next/font/google fetch error', () => {
-  const isDev = (global as any).isNextDev
+  const isDev = isNextDev
   const isTurbopack = !!process.env.IS_TURBOPACK_TEST
 
   const { next } = nextTestSetup({

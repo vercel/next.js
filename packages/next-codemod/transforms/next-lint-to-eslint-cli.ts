@@ -141,9 +141,17 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
     // Detect compat.extends() calls and identify which configs are being used
     if (
       node.callee.type === 'MemberExpression' &&
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       (node.callee as any).object.type === 'Identifier' &&
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       (node.callee as any).object.name === 'compat' &&
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       (node.callee as any).property.type === 'Identifier' &&
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       (node.callee as any).property.name === 'extends'
     ) {
       // Check arguments for all configs
@@ -166,9 +174,17 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
     // Detect compat.config({ extends: [...] }) calls and identify which configs are being used
     if (
       node.callee.type === 'MemberExpression' &&
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       (node.callee as any).object.type === 'Identifier' &&
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       (node.callee as any).object.name === 'compat' &&
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       (node.callee as any).property.type === 'Identifier' &&
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       (node.callee as any).property.name === 'config'
     ) {
       // Look for extends property in the object argument

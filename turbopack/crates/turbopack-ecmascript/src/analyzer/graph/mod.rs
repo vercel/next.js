@@ -48,6 +48,11 @@ pub struct VarGraph<'a> {
     /// Present when the module is a statically-analyzable CommonJS module (no
     /// dynamic exports); carries its named exports for scope hoisting.
     pub cjs_static_exports: Option<CjsStaticExports>,
+
+    /// `true` when the module contains a direct `eval(...)` call (a call to the unshadowed
+    /// global `eval`). A direct eval can access bindings in its lexical scope by name, so the
+    /// module must not be merged with others (merging may rename those bindings).
+    pub has_direct_eval: bool,
 }
 
 impl<'a> VarGraph<'a> {
@@ -66,7 +71,6 @@ pub fn create_graph<'a>(
     m: &Program,
     eval_context: &EvalContext,
     analyze_mode: AnalyzeMode,
-    supports_block_scoping: bool,
     specified_module_type: SpecifiedModuleType,
     cjs_tree_shaking: bool,
     cjs_scope_hoisting: bool,
@@ -82,6 +86,7 @@ pub fn create_graph<'a>(
             ast_paths: Default::default(),
             require_usage: Default::default(),
             cjs_static_exports: Default::default(),
+            has_direct_eval: false,
         },
         eval_context,
         state: Default::default(),
@@ -89,7 +94,6 @@ pub fn create_graph<'a>(
         hoisted_effects: Default::default(),
         code_gens: Default::default(),
         ast_paths: Default::default(),
-        supports_block_scoping,
     };
 
     // CommonJS export recognition runs for a CommonJS module that emits code when either CJS

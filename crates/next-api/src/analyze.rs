@@ -1,36 +1,36 @@
 mod groups;
 mod membership;
+mod output_file;
 
-use std::{borrow::Cow, io::Write};
+use std::io::Write;
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use byteorder::{BE, WriteBytesExt};
-use either::Either;
-use membership::output_chunk_modules;
 use next_core::app_structure::FileSystemPathVec;
+use output_file::{
+    AnalyzedChunkPart, OptionAnalyzedOutputFile, analyze_output_file, analyze_traced_file,
+};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Serialize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, JoinIterExt, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, ValueToString,
-    ValueToStringRef, Vc,
+    FxIndexSet, JoinIterExt, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt,
+    TryJoinIterExt, ValueToString, ValueToStringRef, Vc,
+    debug::ValueDebugFormat,
+    graph::{AdjacencyMap, GraphTraversal},
 };
 use turbo_tasks_fs::{
     File, FileContent, FileSystemPath,
     rope::{Rope, RopeBuilder},
 };
 use turbo_tasks_hash::hash_xxh3_hash64;
-use turbopack_analyze::split_chunk::{split_output_asset_into_parts, split_traced_file_into_parts};
-use turbopack_browser::ecmascript::EcmascriptBrowserChunk;
 use turbopack_core::{
-    SOURCE_URL_PROTOCOL,
     asset::{Asset, AssetContent},
     chunk::{ChunkingType, TracedMode},
     module::Module,
     module_graph::{GraphTraversalAction, ModuleGraph},
-    output::{OutputAsset, OutputAssets, OutputAssetsReference},
-    reference::all_assets_from_entries,
+    output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, OutputAssetsReference},
 };
 use turbopack_ecmascript::references::service_worker::ServiceWorkerEntryModule;
 
@@ -151,6 +151,7 @@ pub async fn analyze_module_index(module_graph: Vc<ModuleGraph>) -> Result<Vc<An
         },
         |_, _, _| Ok(()),
         true,
+        false,
     )?;
     let mut modules = Vec::with_capacity(all_modules.len());
     let mut by_ident = FxHashMap::default();
@@ -253,11 +254,12 @@ struct ModulesDataHeader {
     pub traced_module_dependencies: EdgesDataReference,
 }
 
-#[derive(Clone, Copy, Serialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, NonLocalValue, Encode, Decode, Serialize)]
 #[serde(rename_all = "snake_case")]
 enum AnalyzeOutputFileCoverage {
     Exact,
     Unsupported,
+    #[default]
     NotAChunk,
 }
 
@@ -668,15 +670,135 @@ impl AnalyzedRoute {
     }
 }
 
+#[turbo_tasks::value]
+pub struct AnalyzeRouteInput {
+    pub output_assets: ResolvedVc<OutputAssets>,
+    pub traced_files: ResolvedVc<FileSystemPathVec>,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct AnalyzeRouteInputs(FxHashMap<RcStr, AnalyzeRouteInput>);
+
+#[derive(PartialEq, Eq, NonLocalValue, ValueDebugFormat)]
+pub struct AnalyzedRouteFiles {
+    output_files: Vec<ReadRef<OptionAnalyzedOutputFile>>,
+}
+
+// Route slices share file results in memory; persisting them would duplicate the per-file cache.
+#[turbo_tasks::value(transparent, cell = "keyed", serialization = "skip")]
+pub struct AnalyzeRoutesFiles(FxHashMap<RcStr, AnalyzedRouteFiles>);
+
+#[turbo_tasks::function]
+pub async fn analyze_route_files(
+    inputs: Vc<AnalyzeRouteInputs>,
+    module_graph: Vc<ModuleGraph>,
+) -> Result<Vc<AnalyzeRoutesFiles>> {
+    let inputs = inputs.await?;
+    let routes = inputs
+        .iter()
+        .map(async |(key, input)| {
+            Ok((
+                key.clone(),
+                input.output_assets.await?,
+                input.traced_files.await?,
+            ))
+        })
+        .try_join()
+        .await?;
+    let graph = AdjacencyMap::new()
+        .visit(
+            routes
+                .iter()
+                .flat_map(|(_, assets, _)| assets.iter().copied())
+                .map(ExpandOutputAssetsInput::Asset),
+            |input| async move {
+                let reference = match input {
+                    ExpandOutputAssetsInput::Asset(asset) => ResolvedVc::upcast(asset),
+                    ExpandOutputAssetsInput::Reference(reference) => reference,
+                };
+                let references = reference.references().await?;
+                anyhow::Ok(
+                    references
+                        .assets
+                        .await?
+                        .iter()
+                        .chain(references.referenced_assets.await?.iter())
+                        .copied()
+                        .map(ExpandOutputAssetsInput::Asset)
+                        .chain(
+                            references
+                                .references
+                                .await?
+                                .iter()
+                                .copied()
+                                .map(ExpandOutputAssetsInput::Reference),
+                        )
+                        .collect::<Vec<_>>(),
+                )
+            },
+        )
+        .await
+        .completed()?;
+    let module_index = analyze_module_index(module_graph).resolve().await?;
+    let traced: FxIndexSet<_> = routes
+        .iter()
+        .flat_map(|(_, _, paths)| paths.iter().cloned())
+        .collect();
+    let traced = traced
+        .into_iter()
+        .map(|path| {
+            let file = analyze_traced_file(path.clone());
+            async move { anyhow::Ok((path, file.await?)) }
+        })
+        .try_join();
+    let files = graph
+        .postorder_topological()
+        .filter_map(|input| match *input {
+            ExpandOutputAssetsInput::Asset(asset) => Some(asset),
+            ExpandOutputAssetsInput::Reference(_) => None,
+        })
+        .map(|asset| {
+            let file = analyze_output_file(*asset, module_index);
+            async move { anyhow::Ok((asset, file.await?)) }
+        })
+        .try_join();
+    let (files, traced) = futures::join!(files, traced);
+    let files: FxHashMap<_, _> = files?.into_iter().collect();
+    let traced: FxHashMap<_, _> = traced?.into_iter().collect();
+
+    let mut prepared = FxHashMap::default();
+    for (key, assets, paths) in routes {
+        let roots: Vec<_> = assets
+            .iter()
+            .copied()
+            .map(ExpandOutputAssetsInput::Asset)
+            .collect();
+        let mut route_files: Vec<_> = graph
+            .postorder_topological_from(&roots)
+            .filter_map(|input| match input {
+                ExpandOutputAssetsInput::Asset(asset) => Some(files[asset].clone()),
+                ExpandOutputAssetsInput::Reference(_) => None,
+            })
+            .collect();
+        route_files.extend(paths.iter().map(|path| traced[path].clone()));
+        prepared.insert(
+            key,
+            AnalyzedRouteFiles {
+                output_files: route_files,
+            },
+        );
+    }
+    Ok(Vc::cell(prepared))
+}
+
 #[turbo_tasks::function]
 pub async fn analyze_output_assets(
-    output_assets: Vc<OutputAssets>,
-    traced_files: Vc<FileSystemPathVec>,
+    route: RcStr,
+    files: Vc<AnalyzeRoutesFiles>,
     route_entries: Vc<AnalyzeRouteEntries>,
     chunk_groups: Vc<AnalyzeChunkGroups>,
     module_graph: Vc<ModuleGraph>,
 ) -> Result<Vc<AnalyzedRoute>> {
-    let output_assets = all_assets_from_entries(output_assets);
     let mut summary = RouteBundleSummary {
         size: 0,
         compressed_size: 0,
@@ -686,7 +808,8 @@ pub async fn analyze_output_assets(
         },
     };
     let route_entries = route_entries.await?.iter().cloned().collect();
-    let module_index = analyze_module_index(module_graph).await?;
+    let module_index_vc = analyze_module_index(module_graph);
+    let module_index = module_index_vc.await?;
 
     let mut builder =
         AnalyzeDataBuilder::new(route_entries, module_index.module_index_hash.clone());
@@ -695,78 +818,54 @@ pub async fn analyze_output_assets(
     let mut candidates = Vec::new();
     let mut browser_chunks = FxHashSet::default();
 
-    let prefix = format!("{SOURCE_URL_PROTOCOL}///");
+    let files = files.get(&route).await?.expect("prepared analyzer route");
 
-    // Process the output assets and extract chunk parts.
-    // Also creates sources for the chunk parts.
-    for asset in output_assets
-        .await?
+    for file in files
+        .output_files
         .iter()
-        .copied()
-        .map(Either::Left)
-        .chain(traced_files.await?.iter().cloned().map(Either::Right))
+        .filter_map(|file| (**file).as_ref())
     {
-        let file_system_path = match &asset {
-            Either::Left(asset) => Either::Left(asset.path().await?),
-            Either::Right(path) => Either::Right(path),
-        };
-        let path = match &file_system_path {
-            Either::Left(path) => &path.path,
-            Either::Right(path) => &path.path,
-        };
-        if path.ends_with(".map") || path.ends_with(".nft.json") {
-            // Skip source maps.
-            continue;
-        }
-
-        let filename = match &file_system_path {
-            Either::Left(path) => path.to_string_ref().await?,
-            Either::Right(path) => path.to_string_ref().await?,
-        };
-
-        let is_client = filename.starts_with("[client-fs]/");
+        let is_client = file.filename.starts_with("[client-fs]/");
         let output_file_index = builder.add_output_file(AnalyzeOutputFile {
-            filename: filename.clone(),
+            filename: file.filename.clone(),
         });
-        if let Either::Left(asset) = &asset {
+        if let Some(emitted) = &file.emitted {
+            let membership = &emitted.membership;
             asset_indices
-                .entry(*asset)
+                .entry(emitted.asset)
                 .or_default()
                 .push(output_file_index);
-            if ResolvedVc::try_downcast_type::<EcmascriptBrowserChunk>(*asset).is_some() {
+            if emitted.is_browser_chunk {
                 browser_chunks.insert(output_file_index);
             }
-            let (indices, coverage, loads, async_loaders) =
-                output_chunk_modules(*asset, &filename, &module_index, output_file_index).await?;
-            candidates.extend(loads);
-            let file = &mut builder.output_files[output_file_index as usize];
-            file.module_indices.extend(indices);
-            file.module_indices.sort_unstable();
-            file.module_indices.dedup();
-            file.async_loader_indices.extend(async_loaders);
-            file.async_loader_indices.sort_unstable();
-            file.async_loader_indices.dedup();
-            file.module_coverage = coverage;
+            candidates.extend(
+                membership
+                    .load_targets
+                    .iter()
+                    .map(|load| ChunkLoadCandidate {
+                        source: output_file_index,
+                        target: load.target,
+                        trigger_module_index: load.trigger_module_index,
+                    }),
+            );
+            let output = &mut builder.output_files[output_file_index as usize];
+            output.module_indices.extend(&membership.module_indices);
+            output.module_indices.sort_unstable();
+            output.module_indices.dedup();
+            output
+                .async_loader_indices
+                .extend(&membership.async_loader_indices);
+            output.async_loader_indices.sort_unstable();
+            output.async_loader_indices.dedup();
+            output.module_coverage = membership.coverage;
         }
-        let chunk_parts = match asset {
-            Either::Left(asset) => split_output_asset_into_parts(*asset).await?,
-            Either::Right(path) => split_traced_file_into_parts(path).await?,
-        };
-        for chunk_part in &chunk_parts {
-            let decoded_source = urlencoding::decode(&chunk_part.source)?;
-            let source = if let Some(stripped) = decoded_source.strip_prefix(&prefix) {
-                Cow::Borrowed(stripped)
-            } else if decoded_source.starts_with('[') && decoded_source.contains("]/") {
-                decoded_source
-            } else {
-                Cow::Owned(format!(
-                    "[project]/{}",
-                    decoded_source.trim_start_matches("../")
-                ))
-            };
-            let source_index = builder.ensure_source(&source).1;
-            let size = chunk_part.real_size + chunk_part.unaccounted_size;
-            let compressed_size = chunk_part.get_compressed_size().await?.unwrap_or(size);
+        for &AnalyzedChunkPart {
+            ref source,
+            size,
+            compressed_size,
+        } in &file.chunk_parts
+        {
+            let source_index = builder.ensure_source(source).1;
             summary.size += u64::from(size);
             summary.compressed_size += u64::from(compressed_size);
             if is_client {
@@ -853,6 +952,7 @@ pub async fn analyze_module_graphs(module_graph: Vc<ModuleGraph>) -> Result<Vc<F
         },
         |_, _, _| Ok(()),
         true,
+        false,
     )?;
 
     type ModulePair = (ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>);
@@ -934,8 +1034,8 @@ pub async fn analyze_module_graphs(module_graph: Vc<ModuleGraph>) -> Result<Vc<F
 #[turbo_tasks::value]
 pub struct AnalyzeDataOutputAsset {
     pub path: FileSystemPath,
-    pub output_assets: ResolvedVc<OutputAssets>,
-    pub traced_files: ResolvedVc<FileSystemPathVec>,
+    pub route: RcStr,
+    pub files: ResolvedVc<AnalyzeRoutesFiles>,
     pub route_entries: ResolvedVc<AnalyzeRouteEntries>,
     pub chunk_groups: ResolvedVc<AnalyzeChunkGroups>,
     pub module_graph: ResolvedVc<ModuleGraph>,
@@ -946,16 +1046,16 @@ impl AnalyzeDataOutputAsset {
     #[turbo_tasks::function]
     pub async fn new(
         path: FileSystemPath,
-        output_assets: ResolvedVc<OutputAssets>,
-        traced_files: ResolvedVc<FileSystemPathVec>,
+        route: RcStr,
+        files: ResolvedVc<AnalyzeRoutesFiles>,
         route_entries: ResolvedVc<AnalyzeRouteEntries>,
         chunk_groups: ResolvedVc<AnalyzeChunkGroups>,
         module_graph: ResolvedVc<ModuleGraph>,
     ) -> Result<Vc<Self>> {
         Ok(Self {
             path,
-            output_assets,
-            traced_files,
+            route,
+            files,
             route_entries,
             chunk_groups,
             module_graph,
@@ -969,8 +1069,8 @@ impl Asset for AnalyzeDataOutputAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
         let file_content = analyze_output_assets(
-            *self.output_assets,
-            *self.traced_files,
+            self.route.clone(),
+            *self.files,
             *self.route_entries,
             *self.chunk_groups,
             *self.module_graph,

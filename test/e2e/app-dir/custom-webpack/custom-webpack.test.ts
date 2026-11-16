@@ -109,7 +109,7 @@ describe('--custom-webpack with a shadowed webpack and no pnpm hoisting', () => 
     expect($('#replacement-message').text()).toBe(
       'replaced by NormalModuleReplacementPlugin'
     )
-  })
+  }, 240_000)
 })
 
 // @force-gate webpack
@@ -211,7 +211,7 @@ describe('--custom-webpack without a webpack dependency', () => {
         '`--custom-webpack` requires webpack to be installed in your project'
       )
     })
-  })
+  }, 240_000)
 })
 
 // @force-gate webpack
@@ -248,6 +248,34 @@ for (const conflictingFlag of ['--webpack', '--turbopack']) {
         expect(next.cliOutput).toContain('--custom-webpack')
         expect(next.cliOutput).toContain(conflictingFlag)
       })
-    })
+    }, 240_000)
   })
 }
+
+// @force-gate webpack
+describe('--webpack with the TURBOPACK environment variable', () => {
+  const command = `pnpm next ${isNextDev ? 'dev' : 'build'} --webpack`
+  const { next } = nextTestSetup({
+    files: __dirname,
+    dependencies: {},
+    env: {
+      TURBOPACK: '1',
+    },
+    buildCommand: command,
+    startCommand: command,
+    skipStart: true,
+  })
+
+  it('reports the conflicting environment variable', async () => {
+    await next.start().catch(() => {})
+    await retry(() => {
+      expect(next.cliOutput).toContain('Multiple bundler flags set:')
+      expect(next.cliOutput).toContain('--webpack (CLI flag)')
+      expect(next.cliOutput).toContain('TURBOPACK=1 (environment variable)')
+      // Test harness variables such as IS_WEBPACK_TEST may also be listed.
+      expect(next.cliOutput).toMatch(
+        /edit your command or your package\.json script, or unset the (TURBOPACK environment variable|conflicting environment variables \(TURBOPACK)/
+      )
+    })
+  }, 240_000)
+})

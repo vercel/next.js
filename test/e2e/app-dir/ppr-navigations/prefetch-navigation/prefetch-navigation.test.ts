@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 // TODO(NAR-423): Migrate to Cache Components.
-describe.skip('prefetch-navigation', () => {
+describe('prefetch-navigation', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })

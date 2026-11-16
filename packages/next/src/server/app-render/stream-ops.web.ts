@@ -99,6 +99,8 @@ export function continueFizzStream(
   opts: ContinueFizzStreamOptions
 ): Promise<AnyStream> {
   return webContinueFizzStream(
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     renderStream as ReadableStream<Uint8Array> as any,
     {
       ...opts,
@@ -194,19 +196,22 @@ export async function processPrelude(
 export function createWebInlinedDataStream(
   source: AnyStream,
   nonce: string | undefined,
-  formState: unknown | null
+  formState: unknown | null,
+  externalBrowserRuntime = false
 ): AnyStream {
   return createInlinedDataReadableStream(
     source as ReadableStream<Uint8Array>,
     nonce,
-    formState
+    formState,
+    externalBrowserRuntime
   )
 }
 
 export function createNodeInlinedDataStream(
   _source: AnyStream,
   _nonce: string | undefined,
-  _formState: unknown | null
+  _formState: unknown | null,
+  _externalBrowserRuntime = false
 ): AnyStream {
   throw new Error('not implemented')
 }

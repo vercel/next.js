@@ -23,16 +23,22 @@ describe('config', () => {
   })
   it('Should get the configuration', async () => {
     const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfig)
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect((config as any).customConfig).toBe(true)
   })
 
   it('Should pass the phase correctly', async () => {
     const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfigFn)
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect((config as any).phase).toBe(PHASE_DEVELOPMENT_SERVER)
   })
 
   it('Should pass the defaultConfig correctly', async () => {
     const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfigFn)
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect((config as any).defaultConfig).toBeDefined()
   })
 
@@ -48,6 +54,8 @@ describe('config', () => {
         customConfigKey: 'customConfigValue',
       },
     })
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect((config as any).customConfigKey).toBe('customConfigValue')
   })
 
@@ -58,8 +66,94 @@ describe('config', () => {
         onDemandEntries: { custom: true },
       },
     })
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect((config as any).customConfig).toBe(true)
     expect(config.onDemandEntries.maxInactiveAge).toBeDefined()
+  })
+
+  it('Should not share image defaults between configs loaded in one process', async () => {
+    const { imageConfigDefault } = await import(
+      'next/dist/shared/lib/image-config'
+    )
+    const defaultPath = imageConfigDefault.path
+
+    // Different directories, so the second load is not served from the config
+    // cache.
+    const docs = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>/docs', {
+      customConfig: { basePath: '/docs' },
+    })
+    const blog = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>/blog', {
+      customConfig: { basePath: '/blog' },
+    })
+
+    expect(docs.images.path).toBe('/docs/_next/image')
+    expect(blog.images.path).toBe('/blog/_next/image')
+    expect(docs.images).not.toBe(blog.images)
+    expect(imageConfigDefault.path).toBe(defaultPath)
+    expect(imageConfigDefault.localPatterns).toBeUndefined()
+  })
+
+  it('Should not modify the customConfig object passed in', async () => {
+    const localPatterns = [{ pathname: '/assets/**', search: '' }]
+    const staleTimes = { static: 300 }
+    await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
+      customConfig: {
+        images: { localPatterns },
+        experimental: { staleTimes },
+      },
+    })
+
+    expect(localPatterns).toEqual([{ pathname: '/assets/**', search: '' }])
+    expect(staleTimes).toEqual({ static: 300 })
+  })
+
+  it('Should deeply freeze the loaded config in test mode', async () => {
+    const ignore = /\/healthz/g
+    const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
+      customConfig: {
+        logging: { incomingRequests: { ignore: [ignore] } },
+      },
+    })
+
+    expect(Object.isFrozen(config)).toBe(true)
+    expect(Object.isFrozen(config.images)).toBe(true)
+    expect(Object.isFrozen(config.images.deviceSizes)).toBe(true)
+    expect(Object.isFrozen(config.experimental)).toBe(true)
+    expect(() => {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
+      ;(config.images as any).path = '/changed'
+    }).toThrow(TypeError)
+
+    // The shared defaults are frozen too.
+    const { defaultConfig } = await import('next/dist/server/config-shared')
+    const { imageConfigDefault } = await import(
+      'next/dist/shared/lib/image-config'
+    )
+    expect(Object.isFrozen(defaultConfig.experimental)).toBe(true)
+    expect(Object.isFrozen(imageConfigDefault)).toBe(true)
+    expect(Object.isFrozen(imageConfigDefault.deviceSizes)).toBe(true)
+
+    // Class instances are left alone, so a global RegExp keeps working.
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
+    const [loadedIgnore] = (config.logging as any).incomingRequests.ignore
+    expect(Object.isFrozen(loadedIgnore)).toBe(false)
+    expect(loadedIgnore.test('/healthz')).toBe(true)
+  })
+
+  it('Should deeply freeze the shared defaults in test mode without loading config', async () => {
+    // `beforeEach` imports `config.ts`; reset so only `config-shared.ts` loads.
+    jest.resetModules()
+    const { defaultConfig } = await import('next/dist/server/config-shared')
+    const { imageConfigDefault } = await import(
+      'next/dist/shared/lib/image-config'
+    )
+
+    expect(Object.isFrozen(defaultConfig.experimental)).toBe(true)
+    expect(Object.isFrozen(imageConfigDefault)).toBe(true)
+    expect(Object.isFrozen(imageConfigDefault.deviceSizes)).toBe(true)
   })
 
   it('Should enable the TypeScript CLI by default and allow opting out', async () => {
@@ -150,7 +244,11 @@ describe('config', () => {
         bogusSetting: { custom: true },
       },
     })
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect((config as any).bogusSetting).toBeDefined()
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect((config as any).bogusSetting.custom).toBe(true)
   })
 
@@ -230,6 +328,8 @@ describe('config', () => {
           },
         },
       })
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       expect((config as any).sassOptions.functions).toBeDefined()
     } finally {
       if (originalTurbopack !== undefined) {
@@ -243,6 +343,8 @@ describe('config', () => {
       PHASE_DEVELOPMENT_SERVER,
       join(__dirname, '_resolvedata', 'js-ts-config')
     )
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect((config as any).__test__ext).toBe('js')
   })
 
@@ -251,6 +353,8 @@ describe('config', () => {
       PHASE_DEVELOPMENT_SERVER,
       join(__dirname, '_resolvedata', 'typescript-config')
     )
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect((config as any).__test__ext).toBe('ts')
   })
 

@@ -3,6 +3,9 @@ import { cookies, headers } from 'next/headers'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
 
+// Partial Prefetching embeds a runtime prefetch in navigations to this route.
+export const prefetch = 'partial'
+
 export default async function Page({
   searchParams,
 }: {
@@ -47,11 +50,7 @@ async function SearchParamsContent({
   searchParams: Promise<{ q?: string }>
 }) {
   const { q } = await searchParams
-  return (
-    <p>
-      Search params: {q ?? 'none'} ({new Date().toISOString()})
-    </p>
-  )
+  return <p>Search params: {q ?? 'none'}</p>
 }
 
 async function CookiesContent() {
@@ -74,11 +73,7 @@ async function getShortLivedCachedDate() {
 async function HeadersContent() {
   const headerStore = await headers()
   const value = headerStore.get('x-test-header') ?? 'none'
-  return (
-    <p>
-      Header: {value} ({new Date().toISOString()})
-    </p>
-  )
+  return <p>Header: {value}</p>
 }
 
 async function ConnectionContent() {

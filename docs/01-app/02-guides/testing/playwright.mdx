@@ -2,6 +2,10 @@
 title: How to set up Playwright with Next.js
 nav_title: Playwright
 description: Learn how to set up Playwright with Next.js for End-to-End (E2E) Testing.
+related:
+  description: Learn more about testing instant navigations.
+  links:
+    - app/guides/instant-navigation
 ---
 
 Playwright is a testing framework that lets you automate Chromium, Firefox, and WebKit with a single API. You can use it to write **End-to-End (E2E)** testing. This guide will show you how to set up Playwright with Next.js and write your first tests.
@@ -121,15 +125,27 @@ test('should navigate to the about page', async ({ page }) => {
   // Start from the index page (the baseURL is set via the webServer in the playwright.config.ts)
   await page.goto('http://localhost:3000/')
   // Find an element with the text 'About' and click on it
-  await page.click('text=About')
+  await page.getByRole('link', { name: 'About' }).click()
   // The new URL should be "/about" (baseURL is used there)
   await expect(page).toHaveURL('http://localhost:3000/about')
   // The new page should contain an h1 with "About"
-  await expect(page.locator('h1')).toContainText('About')
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('About')
 })
 ```
 
 > **Good to know**: You can use `page.goto("/")` instead of `page.goto("http://localhost:3000/")`, if you add [`"baseURL": "http://localhost:3000"`](https://playwright.dev/docs/api/class-testoptions#test-options-base-url) to the `playwright.config.ts` [configuration file](https://playwright.dev/docs/test-configuration).
+
+<AppOnly>
+
+### Testing instant navigations
+
+If you're using Cache Components, the `instant()` helper from `@next/playwright` lets you assert what is visible immediately after a navigation, before any dynamic content streams in. See the [Instant navigation guide](/docs/app/guides/instant-navigation) and the [`instant` API reference](/docs/app/api-reference/file-conventions/route-segment-config/instant) for setup and examples.
+
+### Testing routes preserved by Cache Components
+
+With Cache Components, previous pages remain hidden in the DOM after client-side navigation. Test locators can match elements in both visible and hidden routes. Use visibility-aware locators. See [Testing preserved UI](/docs/app/guides/preserving-ui-state#testing) for examples and locator behavior.
+
+</AppOnly>
 
 ### Running your Playwright tests
 

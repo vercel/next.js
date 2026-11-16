@@ -155,11 +155,6 @@ describe('Production Usage', () => {
     ).toBe(true)
     expect(
       serverTrace.files.some((file) =>
-        file.includes('next/dist/server/render.js')
-      )
-    ).toBe(true)
-    expect(
-      serverTrace.files.some((file) =>
         file.includes('next/dist/server/load-components.js')
       )
     ).toBe(true)

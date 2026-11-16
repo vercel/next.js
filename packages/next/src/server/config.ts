@@ -46,6 +46,8 @@ import type { ZodError } from 'next/dist/compiled/zod'
 import { hasNextSupport } from '../server/ci-info'
 import { transpileConfig } from '../build/next-config-ts/transpile-config'
 import { dset } from '../shared/lib/dset'
+import { cloneObject } from './lib/clone-object'
+import { deepFreeze, deepFreezePlainValues } from '../shared/lib/deep-freeze'
 import { normalizeZodErrors } from '../shared/lib/zod'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import { findDir } from '../lib/find-pages-dir'
@@ -136,7 +138,7 @@ function normalizeNextConfigZodErrors(
         message +=
           '\n`experimental.dynamicIO` has been replaced by `cacheComponents`. Please update your next.config file accordingly.'
         message +=
-          '\nLearn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents'
+          '\nLearn more: https://nextjs.org/docs/app/guides/migrating-to-cache-components'
       }
     }
 
@@ -179,7 +181,11 @@ export function warnOptionHasBeenDeprecated(
     let found = true
     const nestedPropertyKeys = nestedPropertyKey.split('.')
     for (const key of nestedPropertyKeys) {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       if ((current as any)[key] !== undefined) {
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         current = (current as any)[key]
       } else {
         found = false
@@ -305,9 +311,15 @@ export function warnOptionHasBeenMovedOutOfExperimental(
     const newKeys = newKey.split('.')
     while (newKeys.length > 1) {
       const key = newKeys.shift()!
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       ;(current as any)[key] = (current as any)[key] || {}
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       current = (current as any)[key]
     }
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     ;(current as any)[newKeys.shift()!] = (config.experimental as any)[
       oldExperimentalKey
     ]
@@ -332,6 +344,8 @@ function warnCustomizedOption(
     if (!(seg in current)) {
       return
     }
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     current = (current as any)[seg]
   }
 
@@ -357,6 +371,8 @@ function assignDefaultsAndValidate(
   phase: PHASE_TYPE
 ): NextConfigComplete {
   const configFileName = userConfig.configFileName
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   if (typeof (userConfig as any).exportTrailingSlash !== 'undefined') {
     if (!silent) {
       Log.warn(
@@ -364,13 +380,23 @@ function assignDefaultsAndValidate(
       )
     }
     if (typeof userConfig.trailingSlash === 'undefined') {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       userConfig.trailingSlash = (userConfig as any).exportTrailingSlash
     }
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     delete (userConfig as any).exportTrailingSlash
   }
 
+  // Normalization below writes into nested objects such as `images`. Merge from
+  // a copy so those writes never reach the shared module-level defaults.
+  const defaults = cloneObject(defaultConfig)
+
   const config = Object.keys(userConfig).reduce<{ [key: string]: any }>(
     (currentConfig, key) => {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       const value = (userConfig as any)[key]
 
       if (value === undefined || value === null) {
@@ -423,7 +449,7 @@ function assignDefaultsAndValidate(
         })
       }
 
-      const defaultValue = (defaultConfig as Record<string, unknown>)[key]
+      const defaultValue = (defaults as Record<string, unknown>)[key]
 
       if (
         !!value &&
@@ -450,13 +476,20 @@ function assignDefaultsAndValidate(
   ) as NextConfig & { configFileName: string }
 
   const result = {
-    ...defaultConfig,
+    ...defaults,
     ...config,
     experimental: {
-      ...defaultConfig.experimental,
+      ...defaults.experimental,
       ...config.experimental,
     },
   }
+
+  // Copy so a push in `modifyConfig` can't change the shared default or a
+  // cached user config.
+  result.instrumentationInject = [...(result.instrumentationInject ?? [])]
+  result.instrumentationClientInject = [
+    ...(result.instrumentationClientInject ?? []),
+  ]
 
   result.experimental.strictRouteMatching =
     !result.deprecated.looseRouteMatching
@@ -466,6 +499,14 @@ function assignDefaultsAndValidate(
   // therefore also restore the legacy matcher behavior.
   if (!result.experimental.explicitParallelRouteChildren) {
     result.experimental.strictRouteMatching = false
+  }
+
+  if (result.experimental.goRoutes) {
+    if (result.output) {
+      throw new Error(
+        '`route.go` and `proxy.go` do not support standalone or static export output'
+      )
+    }
   }
 
   // Normalize prefetchInlining: true | { maxSize?, maxBundleSize? } into a
@@ -516,19 +557,22 @@ function assignDefaultsAndValidate(
   // rootTtlMs? } | undefined`) into the object napi expects
   const turbopackGc = result.experimental.turbopackGc
   let turbopackGcOptions: TurbopackGcOptions | undefined
-  if (turbopackGc === true) {
-    turbopackGcOptions = {}
+  if (typeof turbopackGc === 'boolean') {
+    turbopackGcOptions = turbopackGc ? {} : undefined
   } else if (typeof turbopackGc === 'object' && turbopackGc !== null) {
     turbopackGcOptions = {
       minProgressMs: turbopackGc.minProgressMs,
       rootTtlMs: turbopackGc.rootTtlMs,
     }
   } else {
-    // Enable by default on canary releases.
-    turbopackGcOptions = isStableBuild() ? undefined : {}
+    // Not set by the user: enabled by default with the default timings.
+    turbopackGcOptions = {}
   }
   ;(result as NextConfigComplete).experimental.turbopackGcOptions =
     turbopackGcOptions
+
+  // Enable per-module minification by default on canary releases.
+  result.experimental.turbopackMinifyBeforeChunking ??= !isStableBuild()
 
   // Normalize experimental.browserDebugInfoInTerminal to logging.browserToTerminal
   if (
@@ -1040,6 +1084,8 @@ function assignDefaultsAndValidate(
     silent
   )
 
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   if ((result.experimental as any).outputStandalone) {
     if (!silent) {
       Log.warn(
@@ -1858,6 +1904,12 @@ function finalizeConfig(
       (config.outputHashSalt ?? '') + config.experimental.outputHashSalt
   }
 
+  // In tests, freeze the loaded config so that any later write throws where it
+  // happens instead of silently changing the config other code reads.
+  if (process.env.__NEXT_TEST_MODE) {
+    deepFreezePlainValues(config)
+  }
+
   return config
 }
 
@@ -1879,11 +1931,15 @@ async function applyModifyConfig(
         Log.info(`Applying modifyConfig from ${adapterMod.name}`)
       }
 
-      config = await adapterMod.modifyConfig(config, {
-        phase,
-        nextVersion: process.env.__NEXT_VERSION as string,
-        projectDir: dir,
-      })
+      // Copy the result so finalizeConfig never writes into objects the
+      // adapter still holds a reference to.
+      config = cloneObject(
+        await adapterMod.modifyConfig(config, {
+          phase,
+          nextVersion: process.env.__NEXT_VERSION as string,
+          projectDir: dir,
+        })
+      )
     }
   }
   return config
@@ -2043,6 +2099,10 @@ async function loadConfigImpl(
     const standaloneConfig = JSON.parse(
       process.env.__NEXT_PRIVATE_STANDALONE_CONFIG
     )
+    // The standalone config is JSON written at build time, like the manifests.
+    if (process.env.__NEXT_TEST_MODE) {
+      deepFreeze(standaloneConfig)
+    }
 
     // Cache the standalone config
     configCache.set(cacheKey, {
@@ -2078,7 +2138,8 @@ async function loadConfigImpl(
           {
             configOrigin: 'server',
             configFileName,
-            ...customConfig,
+            // Copy so normalization never writes into the caller's objects.
+            ...cloneObject(customConfig),
           },
           silent,
           phase
@@ -2130,6 +2191,8 @@ async function loadConfigImpl(
       } else {
         userConfigModule = await import(pathToFileURL(path).href)
       }
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       const newEnv: typeof process.env = {} as any
 
       for (const key of Object.keys(process.env)) {
@@ -2194,7 +2257,7 @@ async function loadConfigImpl(
     }
 
     // Clone a new userConfig each time to avoid mutating the original
-    const userConfig = cloneObject(loadedConfig) as NextConfig
+    const userConfig = cloneObject(loadedConfig)
 
     // Check deprecation warnings on the actual user config before merging with defaults
     checkDeprecations(userConfig, configFileName, silent, dir)
@@ -2210,6 +2273,8 @@ async function loadConfigImpl(
     // `experimental.turbopackGenerateComponentChunks` has moved into
     // `experimental.turbopackChunking.generateComponentChunks`.
     if (
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       (userConfig.experimental as any)?.turbopackGenerateComponentChunks !==
       undefined
     ) {
@@ -2221,6 +2286,8 @@ async function loadConfigImpl(
     // `experimental.turbopackChunkingHeuristics` has been renamed to
     // `experimental.turbopackChunking`.
     if (
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       (userConfig.experimental as any)?.turbopackChunkingHeuristics !==
       undefined
     ) {
@@ -2245,6 +2312,8 @@ async function loadConfigImpl(
       )
     }
 
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     if ((userConfig as any).target && (userConfig as any).target !== 'server') {
       throw new Error(
         `The "target" property is no longer supported in ${configFileName}.\n` +
@@ -2347,6 +2416,8 @@ async function loadConfigImpl(
         `${configBaseName}.cjs`,
         `${configBaseName}.cts`,
         // TODO: Remove `as any` once we bump @types/node to v22.10.0+
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ...((process.features as any).typescript ? [] : ['next.config.mts']),
         `${configBaseName}.json`,
         `${configBaseName}.jsx`,
@@ -2363,7 +2434,7 @@ async function loadConfigImpl(
     }
   }
 
-  const clonedDefaultConfig = cloneObject(defaultConfig) as NextConfig
+  const clonedDefaultConfig = cloneObject(defaultConfig)
 
   enforceExperimentalFeatures(clonedDefaultConfig, {
     isDefaultConfig: true,
@@ -2615,55 +2686,6 @@ function setExperimentalFeatureForDebugPrerender<
       )
     }
   }
-}
-
-function cloneObject(obj: any): any {
-  // Primitives & null
-  if (obj === null || typeof obj !== 'object') {
-    return obj
-  }
-
-  // RegExp → clone via constructor
-  if (obj instanceof RegExp) {
-    return new RegExp(obj.source, obj.flags)
-  }
-
-  // Function → just reuse the function reference
-  if (typeof obj === 'function') {
-    return obj
-  }
-
-  // Arrays → map each element
-  if (Array.isArray(obj)) {
-    return obj.map(cloneObject)
-  }
-
-  // Detect non‑plain objects (class instances)
-  const proto = Object.getPrototypeOf(obj)
-  const isPlainObject = proto === Object.prototype || proto === null
-
-  // If it's not a plain object, just return the original
-  if (!isPlainObject) {
-    return obj
-  }
-
-  // Plain object → create a new object with the same prototype
-  // and copy all properties, cloning data properties and keeping
-  // accessor properties (getters/setters) as‑is.
-  const result = Object.create(proto)
-  for (const key of Reflect.ownKeys(obj)) {
-    const descriptor = Object.getOwnPropertyDescriptor(obj, key)
-
-    if (descriptor && (descriptor.get || descriptor.set)) {
-      // Accessor property → copy descriptor as‑is (get/set functions)
-      Object.defineProperty(result, key, descriptor)
-    } else {
-      // Data property → clone the value
-      result[key] = cloneObject(obj[key])
-    }
-  }
-
-  return result
 }
 
 async function validateConfigSchema(

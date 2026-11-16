@@ -47,7 +47,7 @@ const createLazyPostCssPlugin = (
 ): import('postcss').AcceptedPlugin => {
   let result: any = undefined
   const plugin = (...args: any[]) => {
-    if (result === undefined) result = fn() as any
+    if (result === undefined) result = fn()
     if (result.postcss === true) {
       return result(...args)
     } else if (result.postcss) {

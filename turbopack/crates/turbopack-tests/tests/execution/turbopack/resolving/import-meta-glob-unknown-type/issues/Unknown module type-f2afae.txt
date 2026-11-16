@@ -1,5 +1,0 @@
-error - [process module] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-unknown-type/input/content/gamma.txt  Unknown module type
-  
-  This module doesn't have an associated type. Use a known file extension, or register a loader for it.
-  
-  Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders

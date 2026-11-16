@@ -4,7 +4,6 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::{
     atoms::Atom,
-    base::SwcComments,
     common::{
         DUMMY_SP, Span, Spanned,
         comments::{Comment, CommentKind, Comments},
@@ -31,6 +30,7 @@ use turbopack_core::chunk::ChunkingContext;
 use crate::{
     ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::{AstModifier, CodeGen, CodeGeneration},
+    swc_comments::MutableComments,
     utils::AstPathRange,
 };
 
@@ -42,7 +42,7 @@ pub struct RemovalCodeGen {
 
 struct UnreachableModifier {
     comment_replacement: Atom,
-    comments: SwcComments,
+    comments: MutableComments,
 }
 
 impl AstModifier for UnreachableModifier {
@@ -92,7 +92,7 @@ impl AstModifier for UnreachableModifier {
 
 struct UnreachableRangeModifier {
     comment_replacement: Atom,
-    comments: SwcComments,
+    comments: MutableComments,
     start_index: usize,
 }
 
@@ -153,7 +153,7 @@ impl RemovalCodeGen {
         trie: &AstPathTrie,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
-        let comments = SwcComments::default();
+        let comments = MutableComments::new();
 
         let comment_replacement = Atom::from(self.comment_replacement.as_str());
 

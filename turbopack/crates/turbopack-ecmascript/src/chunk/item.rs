@@ -12,15 +12,16 @@ use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
-        ChunkingContextExt, ModuleId, SourceMapSourceType,
+        ChunkingContextExt, MinifyType, ModuleId, SourceMapSourceType,
     },
-    code_builder::{CodeBuilder, PersistedCode},
+    code_builder::{Code, CodeBuilder, PersistedCode},
     ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue},
     module::Module,
     module_graph::ModuleGraph,
     output::OutputAssetsReference,
     source_map::{
+        SourceMapGenerationOptions, SourceMaps,
         structured::StructuredSourceMap,
         utils::{absolute_fileify_source_map, relative_fileify_source_map},
     },
@@ -28,7 +29,10 @@ use turbopack_core::{
 
 use crate::{
     EcmascriptModuleContent,
-    chunk::{chunk_type::EcmascriptChunkType, placeable::EcmascriptChunkPlaceable},
+    chunk::{
+        chunk_type::EcmascriptChunkType, minified_module_factory,
+        placeable::EcmascriptChunkPlaceable,
+    },
     references::async_module::{AsyncModuleOptions, OptionAsyncModuleOptions},
     runtime_functions::TURBOPACK_ASYNC_MODULE,
     utils::StringifyJs,
@@ -49,7 +53,7 @@ pub enum RewriteSourcePath {
 #[derive(Default, Clone)]
 pub struct EcmascriptChunkItemContent {
     pub inner_code: Rope,
-    pub source_map: Option<StructuredSourceMap>,
+    pub source_maps: SourceMaps<StructuredSourceMap>,
     pub additional_ids: SmallVec<[ModuleId; 1]>,
     pub options: EcmascriptChunkItemOptions,
     pub rewrite_source_path: RewriteSourcePath,
@@ -93,7 +97,7 @@ impl EcmascriptChunkItemContent {
                 SourceMapSourceType::TurbopackUri => RewriteSourcePath::None,
             },
             inner_code: content.inner_code.clone(),
-            source_map: content.source_map.clone(),
+            source_maps: content.source_maps.clone(),
             additional_ids: content.additional_ids.clone(),
             options: if content.is_esm {
                 EcmascriptChunkItemOptions {
@@ -124,8 +128,10 @@ impl EcmascriptChunkItemContent {
 }
 
 impl EcmascriptChunkItemContent {
-    async fn module_factory(&self) -> Result<ResolvedVc<PersistedCode>> {
-        let mut code = CodeBuilder::default();
+    /// Builds the module factory without storing it in a cell, so a caller that only needs a
+    /// derived form (e.g. the minified factory) doesn't persist a second copy of it.
+    pub(crate) async fn module_factory(&self) -> Result<Code> {
+        let mut code = CodeBuilder::new(false, self.source_maps.generation_options());
         for additional_id in self.additional_ids.iter() {
             writeln!(code, "{}, ", StringifyJs(&additional_id))?;
         }
@@ -147,7 +153,10 @@ impl EcmascriptChunkItemContent {
         }
 
         if self.options.strict {
-            code += "\"use strict\";\n\n";
+            // Recorded so that a chunk placing this factory in a strict context anyway can drop
+            // it again (see `write_module_factories`).
+            code.push_strict_directive();
+            code += "\n\n";
         } else {
             code += "\n";
         }
@@ -168,17 +177,22 @@ impl EcmascriptChunkItemContent {
             code += " try {\n";
         }
 
-        let source_map = match (&self.rewrite_source_path, &self.source_map) {
-            (RewriteSourcePath::AbsoluteFilePath(path), Some(map)) => {
-                Some(absolute_fileify_source_map(map, path.clone()).await?)
-            }
-            (RewriteSourcePath::RelativeFilePath(path, relative_path), Some(map)) => {
-                Some(relative_fileify_source_map(map, path.clone(), relative_path.clone()).await?)
-            }
-            (_, map) => map.clone(),
-        };
-
-        code.push_source(&self.inner_code, source_map);
+        let source_maps = self
+            .source_maps
+            .clone()
+            .try_map_async(|map| async move {
+                match &self.rewrite_source_path {
+                    RewriteSourcePath::AbsoluteFilePath(path) => {
+                        absolute_fileify_source_map(&map, path.clone()).await
+                    }
+                    RewriteSourcePath::RelativeFilePath(path, relative_path) => {
+                        relative_fileify_source_map(&map, path.clone(), relative_path.clone()).await
+                    }
+                    RewriteSourcePath::None => Ok(map),
+                }
+            })
+            .await?;
+        code.push_source(&self.inner_code, source_maps)?;
 
         if let Some(opts) = &self.options.async_module {
             write!(
@@ -191,7 +205,7 @@ impl EcmascriptChunkItemContent {
 
         code += "})";
 
-        Ok(code.build().cell_persisted())
+        Ok(code.build())
     }
 }
 
@@ -256,6 +270,46 @@ pub trait EcmascriptChunkItem: ChunkItem + OutputAssetsReference {
     ) -> Result<Vc<EcmascriptChunkItemContent>>;
 }
 
+/// A chunk item's content in the form a chunk is made of, see [`chunk_item_factory_content`].
+pub(crate) enum ChunkItemFactoryContent {
+    /// Not minified per item: the content as the module produced it. Its factory is built (and
+    /// cached) by [`EcmascriptChunkItemExt::code`], or the whole chunk is minified later.
+    Unminified(Vc<EcmascriptChunkItemContent>),
+    /// Minified per item: the minified module factory and whether it must run in strict mode.
+    Minified { factory: Vc<Code>, strict: bool },
+}
+
+/// The content of a chunk item as it goes into a chunk, so that chunk size estimation and code
+/// generation agree on what a chunk item is: minified per item when `minify` asks for it
+/// (see [`ChunkMinification::per_item`](crate::chunk::ChunkMinification)), the raw content
+/// otherwise.
+///
+/// Fails if the content failed to generate. Callers decide what that means: sizing counts the item
+/// as empty, code generation falls back to [`EcmascriptChunkItemExt::code`], which reports the
+/// error.
+pub(crate) async fn chunk_item_factory_content(
+    chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
+    async_module_info: Option<Vc<AsyncModuleInfo>>,
+    estimated: bool,
+    minify: MinifyType,
+    source_maps: bool,
+) -> Result<ChunkItemFactoryContent> {
+    let content = chunk_item
+        .into_trait_ref()
+        .await?
+        .content_with_async_module_info(async_module_info, estimated)
+        .await?;
+    Ok(match minify {
+        MinifyType::Minify { mangle } => ChunkItemFactoryContent::Minified {
+            // Reading the content here surfaces a generation error before minifying rather than
+            // inside it.
+            strict: content.await?.options.strict,
+            factory: minified_module_factory(content, source_maps, mangle.is_some()),
+        },
+        MinifyType::NoMinify => ChunkItemFactoryContent::Unminified(content),
+    })
+}
+
 #[turbo_tasks::value]
 pub struct EcmascriptChunkItemCode {
     pub code: ResolvedVc<PersistedCode>,
@@ -301,14 +355,20 @@ async fn module_factory_with_code_generation_issue(
     }
 
     let (code, strict) = match get_content(chunk_item, async_module_info).await {
-        Ok(content) => (content.module_factory().await, content.options.strict),
+        Ok(content) => (
+            content
+                .module_factory()
+                .await
+                .map(|factory| factory.cell_persisted()),
+            content.options.strict,
+        ),
         Err(error) => (Err(error), false),
     };
     let code = match code {
         Ok(factory) => factory,
         Err(error) => {
             let id = chunk_item.asset_ident().to_string().await;
-            let id = id.as_ref().map_or_else(|_| "unknown", |id| &**id);
+            let id = id.as_ref().map_or("unknown", |id| &**id);
 
             // ast-grep-ignore: no-context-format
             let error = error.context(format!(
@@ -326,7 +386,7 @@ async fn module_factory_with_code_generation_issue(
             }
             .resolved_cell()
             .emit();
-            let mut code = CodeBuilder::default();
+            let mut code = CodeBuilder::new(false, SourceMapGenerationOptions::NONE);
             code += "(() => {{\n\n";
             writeln!(code, "throw new Error({error});", error = js_error_message)?;
             code += "\n}})";

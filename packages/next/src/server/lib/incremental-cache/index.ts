@@ -24,6 +24,7 @@ import FileSystemCache from './file-system-cache'
 
 import {
   CACHE_ONE_YEAR_SECONDS,
+  FETCH_CACHE_KEY_EXCLUDED_HEADERS,
   NEXT_CACHE_TAGS_HEADER,
   PRERENDER_REVALIDATE_HEADER,
 } from '../../../lib/constants'
@@ -97,21 +98,27 @@ function isBodyByteSequence(
 }
 
 function isBodyReadableStream(body: Body): body is ReadableStream {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   return typeof (body as any).getReader === 'function'
 }
 
 function isBodyFormDataOrURLSearchParams(
   body: Body
 ): body is FormData | URLSearchParams {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   return typeof (body as any).keys === 'function'
 }
 
 function isBodyBlob(body: Body): body is Blob {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   return typeof (body as any).arrayBuffer === 'function'
 }
 
 export class CacheHandler {
-  // eslint-disable-next-line
+  // eslint-disable-next-line @typescript-eslint/no-useless-constructor
   constructor(_ctx: CacheHandlerContext) {}
 
   public async get(
@@ -121,6 +128,8 @@ export class CacheHandler {
       | GetIncrementalResponseCacheHandlerContext
       | GetIncrementalImageCacheContext
   ): Promise<CacheHandlerValue | null> {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     return {} as any
   }
 
@@ -394,6 +403,8 @@ export class IncrementalCache implements IncrementalCacheType {
     if (body) {
       if (isBodyByteSequence(body)) {
         bodyChunks.push(`bytes:${toHex(body)}`)
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(init as any)._ogBody = body
       } else if (isBodyReadableStream(body)) {
         const readableBody = body
@@ -423,6 +434,8 @@ export class IncrementalCache implements IncrementalCacheType {
           }
 
           bodyChunks.push(`bytes:${toHex(arrayBuffer)}`)
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           ;(init as any)._ogBody = arrayBuffer
         } catch (err) {
           console.error('Problem reading body', err)
@@ -434,6 +447,8 @@ export class IncrementalCache implements IncrementalCacheType {
               'multipart/form-data; boundary='
             : 'application/x-www-form-urlencoded;charset=UTF-8'
         const iterable = body
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(init as any)._ogBody = body
         // Separate, tagged chunks so `["a","b"]` can't collide with `["a,b"]`.
         for (const [key, val] of iterable.entries()) {
@@ -454,10 +469,14 @@ export class IncrementalCache implements IncrementalCacheType {
         const blob = body
         const arrayBuffer = await blob.arrayBuffer()
         bodyChunks.push('blob', blob.type, `bytes:${toHex(arrayBuffer)}`)
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(init as any)._ogBody = new Blob([arrayBuffer], { type: blob.type })
         bodyType = blob.type
       } else if (typeof body === 'string') {
         bodyChunks.push(`str:${body}`)
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(init as any)._ogBody = body
         bodyType = 'text/plain;charset=UTF-8'
       } else {
@@ -471,10 +490,9 @@ export class IncrementalCache implements IncrementalCacheType {
         ? Object.fromEntries(init.headers as Headers)
         : Object.assign({} as Record<string, string>, init.headers)
 
-    // w3c trace context headers can break request caching and deduplication
-    // so we remove them from the cache key
-    if ('traceparent' in headers) delete headers['traceparent']
-    if ('tracestate' in headers) delete headers['tracestate']
+    for (const header of FETCH_CACHE_KEY_EXCLUDED_HEADERS) {
+      if (header in headers) delete headers[header]
+    }
 
     const cacheString = JSON.stringify([
       MAIN_KEY_PREFIX,
@@ -519,6 +537,9 @@ export class IncrementalCache implements IncrementalCacheType {
     // Unlike other caches if we have a resume data cache, we use it even if
     // testmode would normally disable it or if requestHeaders say 'no-cache'.
     if (ctx.kind === IncrementalCacheKind.FETCH) {
+      const workStore = workAsyncStorage.getStore()
+      const isOnDemandRevalidate =
+        this.isOnDemandRevalidate || workStore?.isOnDemandRevalidate
       const workUnitStore = workUnitAsyncStorage.getStore()
       const resumeDataCache = workUnitStore
         ? getResumeDataCache(workUnitStore)
@@ -529,7 +550,6 @@ export class IncrementalCache implements IncrementalCacheType {
           // Check if any tags were recently revalidated before returning RDC entry.
           // When a server action calls updateTag(), the re-render should see fresh
           // data instead of stale RDC data.
-          const workStore = workAsyncStorage.getStore()
           const combinedTags = [...(ctx.tags || []), ...(ctx.softTags || [])]
           const hasRevalidatedTag = combinedTags.some(
             (tag) =>
@@ -558,6 +578,13 @@ export class IncrementalCache implements IncrementalCacheType {
         if (IncrementalCache.debug) {
           console.log('IncrementalCache: rdc:no-resume-data')
         }
+      }
+
+      if (isOnDemandRevalidate) {
+        // On-demand revalidation reuses the current render's RDC, but
+        // recomputes persisted data even when its revalidate interval has not
+        // elapsed.
+        return null
       }
     }
 

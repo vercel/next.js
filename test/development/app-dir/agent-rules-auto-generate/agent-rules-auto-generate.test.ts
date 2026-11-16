@@ -6,6 +6,7 @@ import { writeAgentFiles } from 'next/dist/server/lib/generate-agent-files'
 
 const AGENT_RULES_MARKER = '<!-- BEGIN:nextjs-agent-rules -->'
 const AGENT_FEEDBACK_MARKER = '<!-- BEGIN:nextjs-agent-feedback -->'
+const AGENT_UPGRADE_MARKER = '<!-- BEGIN:nextjs-agent-upgrade -->'
 
 /** Clears every variable `@vercel/detect-agent` inspects so no agent is detected. */
 const NO_AGENT_ENV = {
@@ -83,36 +84,46 @@ describe('agent-rules auto-generate on next dev (no agent)', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     // Explicitly clear every env var the agent detector inspects so the
-    // test doesn't inherit one from the host shell (e.g. running it
-    // inside Claude Code would otherwise trigger generation).
+    // test doesn't inherit a detected agent from the host shell.
     env: NO_AGENT_ENV,
   })
 
-  it('does not create AGENTS.md when no agent is detected', async () => {
+  it('creates AGENTS.md when no agent is detected', async () => {
     await next.fetch('/')
-    expect(fs.existsSync(path.join(next.testDir, 'AGENTS.md'))).toBe(false)
+    const content = fs.readFileSync(
+      path.join(next.testDir, 'AGENTS.md'),
+      'utf-8'
+    )
+    expect(content).toContain(currentAgentRulesBlock())
+    expect(content).toContain(AGENT_UPGRADE_MARKER)
+    expect(content).not.toContain(AGENT_FEEDBACK_MARKER)
   })
 })
 
 describe('agent-rules auto-generate on next dev (agentRules: false)', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    env: { CLAUDECODE: '1' },
+    env: NO_AGENT_ENV,
     nextConfig: {
       agentRules: false,
     },
   })
 
-  it('does not generate files when agentRules is disabled in next.config', async () => {
+  it('creates upgrade instructions independently from disabled agent rules', async () => {
     await next.fetch('/')
-    expect(fs.existsSync(path.join(next.testDir, 'AGENTS.md'))).toBe(false)
+    const content = fs.readFileSync(
+      path.join(next.testDir, 'AGENTS.md'),
+      'utf-8'
+    )
+    expect(content).toContain(AGENT_UPGRADE_MARKER)
+    expect(content).not.toContain(AGENT_RULES_MARKER)
   })
 })
 
 describe('agent-rules auto-generate on next dev (AGENTS.md has an outdated managed block)', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    env: { CLAUDECODE: '1' },
+    env: NO_AGENT_ENV,
     skipStart: true,
   })
 
@@ -129,7 +140,7 @@ Stale body from an older Next.js.
   beforeAll(async () => {
     await next.patchFile(
       'AGENTS.md',
-      `# Team rules\n\nUse tabs, not spaces.\n\n${OUTDATED_BLOCK}\n`
+      `# Team rules\n\nUse tabs, not spaces.\n\n${OUTDATED_BLOCK}\n\n${AGENT_UPGRADE_MARKER}\nStale upgrade instructions.\n<!-- END:nextjs-agent-upgrade -->\n`
     )
     await next.start()
   })
@@ -143,6 +154,8 @@ Stale body from an older Next.js.
     expect(content).toContain('Use tabs, not spaces.')
     expect(content).not.toContain('Stale body from an older Next.js.')
     expect(content).toContain(currentAgentRulesBlock())
+    expect(content).not.toContain('Stale upgrade instructions.')
+    expect(content.split(AGENT_UPGRADE_MARKER).length - 1).toBe(1)
     // Exactly one managed block — upgraded, not duplicated.
     expect(content.split(AGENT_RULES_MARKER).length - 1).toBe(1)
   })
@@ -164,7 +177,7 @@ Stale body from an older Next.js.
 describe('agent-rules auto-generate on next dev (AGENTS.md exists without marker)', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    env: { CLAUDECODE: '1' },
+    env: NO_AGENT_ENV,
     skipStart: true,
   })
 
@@ -183,13 +196,14 @@ describe('agent-rules auto-generate on next dev (AGENTS.md exists without marker
     )
     expect(content).toContain('Use tabs, not spaces.')
     expect(content).toContain(AGENT_RULES_MARKER)
+    expect(content).toContain(AGENT_UPGRADE_MARKER)
   })
 })
 
 describe('agent-feedback auto-generate on next dev (enabled)', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    env: { ...NON_CI_ENV, CLAUDECODE: '1' },
+    env: { ...NO_AGENT_ENV, ...NON_CI_ENV },
     nextConfig: {
       experimental: {
         agentFeedback: true,
@@ -220,14 +234,12 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
     )
     expect(content).toContain('- Unexpected CLI, codemod, Skill')
     expect(content).toContain(
-      'Keep a qualifying candidate through the reporting pass even if you resolve or work around it.'
+      'Retain qualifying friction even if it is later fixed or worked around; record the final outcome during the reporting pass.'
     )
     expect(content).toContain(
-      'A successful fix changes the report outcome; it does not erase the friction that qualified it.'
+      'npx --no-install next internal agent-feedback-instructions'
     )
-    expect(content).toContain(
-      'node node_modules/next/dist/bin/next internal agent-feedback-instructions'
-    )
+    expect(content).not.toContain('node node_modules/next/dist/bin/next')
     expect(content).toContain('without piping or truncating its output')
     expect(content).toContain(
       'Before the final response, run one reporting pass'
@@ -289,16 +301,21 @@ describe('agent-feedback auto-generate on next dev (no agent)', () => {
     },
   })
 
-  it('does not create feedback instructions without a detected agent', async () => {
+  it('creates feedback instructions without a detected agent', async () => {
     await next.fetch('/')
-    expect(fs.existsSync(path.join(next.testDir, 'AGENTS.md'))).toBe(false)
+    const content = fs.readFileSync(
+      path.join(next.testDir, 'AGENTS.md'),
+      'utf-8'
+    )
+    expect(content).toContain(AGENT_FEEDBACK_MARKER)
+    expect(content).not.toContain(AGENT_RULES_MARKER)
   })
 })
 
 describe('agent-feedback auto-generate on next dev (disabled)', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    env: { ...NON_CI_ENV, CLAUDECODE: '1' },
+    env: { ...NO_AGENT_ENV, ...NON_CI_ENV },
     skipStart: true,
   })
 
@@ -352,6 +369,7 @@ describe('agent-rules auto-generate on next dev (disabled with existing blocks)'
     expect(content).toContain('Keep this content.')
     expect(content).not.toContain(AGENT_RULES_MARKER)
     expect(content).toContain(AGENT_FEEDBACK_MARKER)
+    expect(content).not.toContain('stale feedback instructions')
   })
 })
 
@@ -371,9 +389,14 @@ describe('agent-feedback auto-generate on next dev (telemetry disabled)', () => 
     },
   })
 
-  it('does not create feedback instructions', async () => {
+  it('creates upgrade instructions without feedback instructions', async () => {
     await next.fetch('/')
-    expect(fs.existsSync(path.join(next.testDir, 'AGENTS.md'))).toBe(false)
+    const content = fs.readFileSync(
+      path.join(next.testDir, 'AGENTS.md'),
+      'utf-8'
+    )
+    expect(content).toContain(AGENT_UPGRADE_MARKER)
+    expect(content).not.toContain(AGENT_FEEDBACK_MARKER)
   })
 })
 
@@ -389,8 +412,51 @@ describe('agent-feedback auto-generate on next dev (CI)', () => {
     },
   })
 
-  it('does not create feedback instructions', async () => {
+  it('creates upgrade instructions without feedback instructions', async () => {
     await next.fetch('/')
-    expect(fs.existsSync(path.join(next.testDir, 'AGENTS.md'))).toBe(false)
+    const content = fs.readFileSync(
+      path.join(next.testDir, 'AGENTS.md'),
+      'utf-8'
+    )
+    expect(content).toContain(AGENT_UPGRADE_MARKER)
+    expect(content).not.toContain(AGENT_FEEDBACK_MARKER)
+  })
+})
+
+// Disabling upgrade reminders must remove only their block, including without an agent.
+describe.each([
+  ['agent detected', { ...NO_AGENT_ENV, CLAUDECODE: '1' }],
+  ['no agent', NO_AGENT_ENV],
+])('agent-upgrade disabled on next dev (%s)', (_name, agentEnv) => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    env: { ...NON_CI_ENV, ...agentEnv },
+    nextConfig: {
+      experimental: {
+        agentUpgrade: false,
+        agentFeedback: true,
+      },
+    },
+    skipStart: true,
+  })
+
+  beforeAll(async () => {
+    await next.patchFile(
+      'AGENTS.md',
+      `# Team rules\n\n${currentAgentRulesBlock()}\n\n${staleAgentFeedbackBlock()}\n\n${AGENT_UPGRADE_MARKER}\nstale upgrade instructions\n<!-- END:nextjs-agent-upgrade -->\n`
+    )
+    await next.start()
+  })
+
+  it('removes upgrade instructions and preserves user, documentation and feedback rules', async () => {
+    await next.fetch('/')
+    const content = fs.readFileSync(
+      path.join(next.testDir, 'AGENTS.md'),
+      'utf-8'
+    )
+    expect(content).toContain('# Team rules')
+    expect(content).toContain(AGENT_RULES_MARKER)
+    expect(content).toContain(AGENT_FEEDBACK_MARKER)
+    expect(content).not.toContain(AGENT_UPGRADE_MARKER)
   })
 })

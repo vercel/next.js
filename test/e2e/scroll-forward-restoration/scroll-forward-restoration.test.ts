@@ -37,10 +37,14 @@ describe('Scroll Forward Restoration Support', () => {
       expect(html).toContain('hi from another')
     })
 
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     await browser.eval(() => ((window as any).didHydrate = false))
     await browser.eval(() => window.history.forward())
 
     await retry(async () => {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       expect(await browser.eval(() => (window as any).didHydrate)).toBe(true)
     })
 

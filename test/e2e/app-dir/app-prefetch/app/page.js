@@ -22,6 +22,12 @@ export default function HomePage() {
       <LinkAccordion href="/prefetch-auto/foobar" id="to-dynamic-page">
         To Dynamic Slug Page
       </LinkAccordion>
+      <LinkAccordion
+        href="/loading-boundary/target"
+        id="to-loading-boundary-target"
+      >
+        To Loading Boundary Target
+      </LinkAccordion>
       <a href="/static-page" id="to-static-page-hard">
         Hard Nav to Static Page
       </a>

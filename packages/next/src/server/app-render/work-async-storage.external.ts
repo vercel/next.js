@@ -22,8 +22,8 @@ export interface WorkStore {
   readonly page: string
 
   /**
-   * The route that is being rendered. This is the page property without the
-   * trailing `/page` or `/route` suffix.
+   * The route that is being rendered. This is the page property without the trailing `/page` or
+   * `/route` suffix and without route groups (i.e. after normalizeAppPath)
    */
   readonly route: string
 

@@ -310,9 +310,6 @@ export default defineConfig([
             'itSkipDeploy',
             'itCI',
             'itHeaded',
-            'itTurbopack',
-            'itTurbopackDev',
-            'itOnlyTurbopack',
           ],
         },
       ],
@@ -444,6 +441,26 @@ export default defineConfig([
     },
   },
   {
+    // Test fixture apps are left out: their casts are often deliberate misuse
+    // of an API, and tests snapshot the fixture's source lines in error
+    // output, so a disable comment would shift them.
+    files: [
+      'packages/**/*.{ts,tsx,mts}',
+      'test/**/*.test.{ts,tsx}',
+      'test/lib/**/*.{ts,tsx}',
+    ],
+    plugins: {
+      '@next/internal': nextEslintPluginInternal,
+    },
+    rules: {
+      '@next/internal/no-as-any': 'error',
+      '@next/internal/require-disable-reason': [
+        'error',
+        { rules: ['@next/internal/no-as-any'] },
+      ],
+    },
+  },
+  {
     files: [
       'packages/next/src/server/**/*.js',
       'packages/next/src/server/**/*.jsx',
@@ -455,6 +472,56 @@ export default defineConfig([
     },
     rules: {
       '@next/internal/no-ambiguous-jsx': 'error',
+    },
+  },
+  {
+    files: ['packages/next/src/server/app-render/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'req',
+          property: 'url',
+          message: 'Use the explicit `requestUrl` input instead.',
+        },
+      ],
+    },
+  },
+  {
+    files: ['packages/next/src/server/app-render/app-render.tsx'],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'req',
+          property: 'url',
+          message: 'Use the explicit `requestUrl` input instead.',
+        },
+        {
+          object: 'req',
+          property: 'headers',
+          message: 'Use the explicit `requestHeaders` input instead.',
+        },
+      ],
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '../../client/components/app-router-headers',
+              importNames: ['NEXT_URL'],
+              message: 'Use the explicit route interception input instead.',
+            },
+          ],
+          patterns: [
+            {
+              group: ['**/request-meta'],
+              allowTypeImports: true,
+              message: 'Pass request metadata through explicit render inputs.',
+            },
+          ],
+        },
+      ],
     },
   },
   {

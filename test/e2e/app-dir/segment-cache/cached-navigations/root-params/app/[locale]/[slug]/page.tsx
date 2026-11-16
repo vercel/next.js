@@ -2,6 +2,9 @@ import { locale } from 'next/root-params'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
 
+// Partial Prefetching embeds a runtime prefetch in navigations to this route.
+export const prefetch = 'partial'
+
 async function getLocale() {
   'use cache'
   return locale()

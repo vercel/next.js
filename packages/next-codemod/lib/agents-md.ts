@@ -88,37 +88,121 @@ export function getNextjsVersion(cwd: string): NextjsVersionResult {
 interface BundledDocsInfo {
   docsPath: string
   version: string
+  /** Directory `next` was resolved from. */
+  resolvedFrom: string
 }
 
 /**
  * Next.js ships its documentation inside the published package (at
- * `dist/docs`) since 16.2.0. When the install resolved from `cwd` has
- * bundled docs, the index can point at them directly instead of
- * downloading a copy into `.next-docs`.
+ * `dist/docs`) since 16.2.0. When an installed `next` of the requested
+ * `version` has bundled docs, the index can point at them directly instead
+ * of downloading a copy into `.next-docs`.
+ *
+ * The install resolved from `cwd` wins; otherwise the workspace packages are
+ * searched.
  */
-export function getBundledDocsInfo(cwd: string): BundledDocsInfo | null {
+export function getBundledDocsInfo(
+  cwd: string,
+  version: string
+): BundledDocsInfo | null {
+  const fromCwd = getBundledDocsInfoFrom(cwd)
+  if (fromCwd?.version === version) {
+    return fromCwd
+  }
+
+  // Mirror getNextjsVersion: with isolated installs (pnpm), `next` is often
+  // only resolvable from the workspace package that depends on it, not from
+  // the repo root. Use the first package, in workspace order, that ships
+  // bundled docs for the requested version.
+  const workspace = detectWorkspace(cwd)
+  if (workspace.isMonorepo) {
+    for (const pkgPath of expandWorkspacePatterns(cwd, workspace.packages)) {
+      const info = getBundledDocsInfoFrom(pkgPath)
+      if (info?.version === version) {
+        return info
+      }
+    }
+  }
+
+  return null
+}
+
+function getBundledDocsInfoFrom(dir: string): BundledDocsInfo | null {
   try {
-    const nextPkgPath = require.resolve('next/package.json', { paths: [cwd] })
+    const nextPkgPath = require.resolve('next/package.json', { paths: [dir] })
     const pkg = JSON.parse(fs.readFileSync(nextPkgPath, 'utf-8'))
     const docsPath = path.join(path.dirname(nextPkgPath), 'dist', 'docs')
     if (!pkg.version || collectDocFiles(docsPath).length === 0) {
       return null
     }
-    return { docsPath, version: pkg.version }
+    return { docsPath, version: pkg.version, resolvedFrom: dir }
   } catch {
     return null
   }
 }
 
-export function getBundledDocsLinkPath(cwd: string, docsPath: string): string {
-  // Prefer the conventional path when it resolves from the project
-  // (covers hoisted installs; pnpm exposes next via a node_modules symlink).
-  const conventional = path.join(cwd, 'node_modules', 'next', 'dist', 'docs')
-  if (fs.existsSync(conventional)) {
-    return './node_modules/next/dist/docs'
+/**
+ * Returns `target` as a `./`- or `../`-prefixed, forward-slash path relative
+ * to `fromDir`. Agents resolve paths in the index from the directory of the
+ * output file, so `fromDir` must be that directory, not the cwd.
+ */
+export function getRelativeLinkPath(fromDir: string, target: string): string {
+  const relative = path.relative(fromDir, target).replace(/\\/g, '/')
+  if (relative === '') return './'
+  if (relative === '..') return '../'
+  // A dot-directory such as `.next-docs` still needs the `./` prefix.
+  return relative.startsWith('../') ? relative : `./${relative}`
+}
+
+/**
+ * Canonical spelling of `p`: symlinks resolved and, on Windows, 8.3 short
+ * names (e.g. `C:\Users\RUNNER~1`) expanded. `process.cwd()` can keep a
+ * non-canonical spelling while module resolution returns the canonical one,
+ * so compare and relate paths only in this form. Falls back to the resolved
+ * path when `p` cannot be canonicalized (e.g. it does not exist).
+ */
+function canonicalPath(p: string): string {
+  try {
+    return fs.realpathSync.native(p)
+  } catch {
+    return path.resolve(p)
   }
-  const relative = path.relative(cwd, docsPath).replace(/\\/g, '/')
-  return relative.startsWith('.') ? relative : `./${relative}`
+}
+
+/**
+ * Link to the bundled docs of the install resolved from `resolvedFrom`,
+ * relative to `fromDir` (the directory of the output file).
+ */
+export function getBundledDocsLinkPath(
+  fromDir: string,
+  docsPath: string,
+  resolvedFrom: string
+): string {
+  // Prefer the conventional path of the resolved install over its realpath:
+  // pnpm's `.pnpm/next@x.y.z/...` realpath changes on every upgrade, while
+  // the `node_modules/next` symlink stays stable. Check it under the
+  // directory `next` was resolved from, not under `fromDir`, which may see a
+  // different `next` install.
+  //
+  // Paths are related in canonical form (see canonicalPath) so a cwd or
+  // --output spelled differently than the resolved install still produces a
+  // clean link. Only the parent of the `node_modules/next` symlink is
+  // canonicalized, never the symlink itself, so the stable path is kept.
+  const outputDir = canonicalPath(fromDir)
+  const conventional = path.join(
+    canonicalPath(resolvedFrom),
+    'node_modules',
+    'next',
+    'dist',
+    'docs'
+  )
+  if (
+    fs.existsSync(conventional) &&
+    canonicalPath(conventional) === canonicalPath(docsPath)
+  ) {
+    return getRelativeLinkPath(outputDir, conventional)
+  }
+  return getRelativeLinkPath(outputDir, canonicalPath(docsPath))
 }
 
 function versionToGitHubTag(version: string): string {
@@ -337,7 +421,7 @@ export function generateAgentsMdIndex(data: AgentsMdIndexData): string {
   )
   const targetFile = outputFile || 'AGENTS.md'
   parts.push(
-    `If docs missing, run this command first: npx @next/codemod agents-md --output ${targetFile}`
+    `If docs missing, run this command from this file's directory: npx @next/codemod agents-md --output ${targetFile}`
   )
 
   const allFiles = collectAllFilesFromSections(sections)

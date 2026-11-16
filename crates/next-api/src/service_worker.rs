@@ -10,8 +10,8 @@ use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     module::Module,
     module_graph::{
-        ModuleGraph, SingleModuleGraph,
-        chunk_group_info::{ChunkGroup, ChunkGroupEntry, EntryHeuristics},
+        ModuleGraph, ModuleGraphOptions, SingleModuleGraph,
+        chunk_group_info::{ChunkGroupEntry, ChunkGroupKey, EntryHeuristics},
     },
     output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -102,7 +102,10 @@ async fn service_worker_chunk(
 
     let source: Vc<Box<dyn Source>> = Vc::upcast(FileSource::new(source_path));
     let module = asset_context
-        .process(source, ReferenceType::Entry(EntryReferenceSubType::Web))
+        .process(
+            source,
+            ReferenceType::Entry(EntryReferenceSubType::default()),
+        )
         .module()
         .to_resolved()
         .await?;
@@ -113,8 +116,16 @@ async fn service_worker_chunk(
                 modules: vec![module],
                 heuristics: EntryHeuristics::default(),
             },
-            /* include_traced */ *project.should_write_nft_manifests().await?,
-            /* include_binding_usage */ is_production,
+            ModuleGraphOptions {
+                // The module-id strategy isn't computed on this isolated service-worker graph.
+                include_ident_strings: false,
+                include_side_effects: is_production,
+                // The service-worker chunking context doesn't enable module merging (scope
+                // hoisting), so `compute_merged_modules` never runs on this graph.
+                include_mergeable: false,
+                include_traced: *project.should_write_nft_manifests().await?,
+                include_binding_usage: is_production,
+            },
         )],
         /* binding_usage */ None,
     )
@@ -126,7 +137,7 @@ async fn service_worker_chunk(
                 .join("static")?
                 .join("service-worker")?
                 .join(&filename)?,
-            ChunkGroup::Entry(vec![module]),
+            ChunkGroupKey::Entry(vec![module]),
             own_graph,
             /* extra_chunks */ OutputAssets::empty(),
             /* extra_referenced_chunks */ OutputAssets::empty(),

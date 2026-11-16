@@ -504,7 +504,7 @@ function processRoutes<T>(
   config: NextConfig,
   type: 'redirect' | 'rewrite' | 'header'
 ): T {
-  const _routes = routes as any as Array<{
+  const _routes = routes as Array<{
     source: string
     locale?: false
     basePath?: false
@@ -580,7 +580,7 @@ function processRoutes<T>(
     }
     newRoutes.push(r)
   }
-  return newRoutes as any as T
+  return newRoutes as T
 }
 
 async function loadRedirects(config: NextConfig): Promise<{
@@ -655,6 +655,8 @@ async function loadRewrites(config: NextConfig) {
     afterFiles = _rewrites.afterFiles || []
     fallback = _rewrites.fallback || []
   } else {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     afterFiles = _rewrites as any
   }
   // check before we process the routes and after to ensure

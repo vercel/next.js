@@ -22,6 +22,10 @@ export type RouteMetadata = {
   cacheControl?: CacheControl
   /** Identifies the response-cache entry represented by this build artifact. */
   routeCache?: RouteCacheMetadata
-  /** Original payload mtime retained when a build seed is promoted. */
+  /**
+   * When the incremental cache wrote the entry, on the clock that tag
+   * revalidations are stamped with. A promoted build seed keeps the mtime of
+   * its payload instead.
+   */
   routeCacheLastModified?: number
 }

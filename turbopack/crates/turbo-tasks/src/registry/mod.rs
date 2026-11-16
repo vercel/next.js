@@ -115,7 +115,7 @@ pub trait RegistryDef<T: 'static> {
 /// while maintaining their specific requirements.
 trait Registerable: 'static + Eq + std::hash::Hash {
     /// The ID type used for this registry item
-    type Id: Copy + From<NonZeroU16> + std::ops::Deref<Target = u16> + std::fmt::Display;
+    type Id: Copy + std::ops::Deref<Target: Copy + Into<usize>> + std::fmt::Display;
     const TYPE_NAME: &'static str;
 
     /// The largest id that may be assigned to this registry item.
@@ -123,6 +123,13 @@ trait Registerable: 'static + Eq + std::hash::Hash {
 
     /// Get the global registry type used for sorting and uniqueness validation
     fn ty(&self) -> &RegistryType;
+
+    /// Converts an id assigned by [`init_registry`] into [`Self::Id`].
+    ///
+    /// # Safety
+    ///
+    /// `id` must be at most [`Self::MAX_ID`].
+    unsafe fn id_from_raw(id: NonZeroU16) -> Self::Id;
 }
 
 impl Registerable for NativeFunction {
@@ -131,6 +138,10 @@ impl Registerable for NativeFunction {
 
     fn ty(&self) -> &RegistryType {
         &self.ty
+    }
+
+    unsafe fn id_from_raw(id: NonZeroU16) -> FunctionId {
+        FunctionId::from(id)
     }
 }
 
@@ -141,13 +152,23 @@ impl Registerable for ValueType {
     fn ty(&self) -> &RegistryType {
         &self.ty
     }
+
+    unsafe fn id_from_raw(id: NonZeroU16) -> ValueTypeId {
+        ValueTypeId::from(id)
+    }
 }
 
 impl Registerable for TraitType {
     type Id = TraitTypeId;
     const TYPE_NAME: &'static str = "Trait";
+    const MAX_ID: u16 = TraitTypeId::MAX.to_primitive() as u16;
     fn ty(&self) -> &RegistryType {
         &self.ty
+    }
+
+    unsafe fn id_from_raw(id: NonZeroU16) -> TraitTypeId {
+        // SAFETY: the caller guarantees `id <= MAX_ID`, which is `u8::MAX`.
+        unsafe { TraitTypeId::new_unchecked(id.get() as u8) }
     }
 }
 
@@ -185,7 +206,7 @@ fn init_registry<T: Registerable>(mut items: Vec<&'static T>) -> Box<[&'static T
 /// Get an item by its ID from a registry slice
 #[inline]
 fn get_item<T: Registerable>(registry: &LazyLock<Box<[&'static T]>>, id: T::Id) -> &'static T {
-    registry[*id as usize - 1]
+    registry[(*id).into() - 1]
 }
 
 /// Read an item's assigned id directly, without touching `LazyLock`.
@@ -205,7 +226,8 @@ unsafe fn get_id_unchecked<T: Registerable>(item: &'static T) -> T::Id {
             item = item.ty().global_name
         );
     };
-    T::Id::from(id)
+    // SAFETY: `init_registry` only writes ids up to `T::MAX_ID`.
+    unsafe { T::id_from_raw(id) }
 }
 
 /// Get the ID for a registered item. Forces registry init if needed, which
@@ -223,7 +245,7 @@ fn validate_id<T: Registerable>(
     id: T::Id,
 ) -> Option<Error> {
     let len = registry.len();
-    if *id as usize <= len {
+    if (*id).into() <= len {
         None
     } else {
         Some(anyhow::anyhow!(

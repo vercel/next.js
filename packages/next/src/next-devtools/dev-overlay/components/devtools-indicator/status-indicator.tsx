@@ -35,10 +35,15 @@ export function getCurrentStatus(
 
 interface StatusIndicatorProps {
   status: Status
+  isError?: boolean
   onClick?: () => void
 }
 
-export function StatusIndicator({ status, onClick }: StatusIndicatorProps) {
+export function StatusIndicator({
+  status,
+  isError = false,
+  onClick,
+}: StatusIndicatorProps) {
   const statusText: Record<Status, string> = {
     [Status.None]: '',
     [Status.Compiling]: 'Compiling',
@@ -170,7 +175,7 @@ export function StatusIndicator({ status, onClick }: StatusIndicatorProps) {
           <div
             data-status-dot
             style={{
-              backgroundColor: statusDotColor[status],
+              backgroundColor: isError ? '#fff' : statusDotColor[status],
             }}
           />
         )}

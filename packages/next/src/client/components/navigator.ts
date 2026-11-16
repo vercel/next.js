@@ -25,6 +25,7 @@ export {
   navigate,
   push,
   replace,
+  prepare,
   traverse,
   restore,
   refresh,

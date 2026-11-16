@@ -397,6 +397,6 @@ export function getMaxOldSpaceSize() {
 // does this for terminals.
 export function blockOnOutputWrites() {
   for (const stream of [process.stdout, process.stderr]) {
-    ;(stream as any)._handle?.setBlocking?.(true)
+    stream._handle?.setBlocking?.(true)
   }
 }

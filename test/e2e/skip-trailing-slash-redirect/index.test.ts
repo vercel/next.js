@@ -1,4 +1,4 @@
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup, isNextDeploy, isNextStart } from 'e2e-utils'
 import { check, fetchViaHTTP } from 'next-test-utils'
 import {
   NEXT_HMR_REFRESH_HEADER,
@@ -225,7 +225,7 @@ describe('skip-trailing-slash-redirect', () => {
     expect(res.status).toBe(200)
     expect(await res.text()).toContain('Example Domain')
 
-    if (!(global as any).isNextDeploy) {
+    if (!isNextDeploy) {
       await check(() => next.cliOutput, /missing-id rewrite/)
       expect(next.cliOutput).toContain('/_next/data/missing-id/hello.json')
     }
@@ -310,7 +310,7 @@ describe('skip-trailing-slash-redirect', () => {
     )
   })
 
-  if ((global as any).isNextStart) {
+  if (isNextStart) {
     it('should not have trailing slash redirects in manifest', async () => {
       const routesManifest = JSON.parse(
         await next.readFile('.next/routes-manifest.json')
