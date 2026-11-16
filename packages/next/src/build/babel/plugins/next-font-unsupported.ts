@@ -16,7 +16,11 @@ export default function NextPageDisallowReExportAllExports(): PluginObj<any> {
           const err = new SyntaxError(
             `"next/font" requires SWC although Babel is being used due to a custom babel config being present.\nRead more: https://nextjs.org/docs/messages/babel-font-loader-conflict`
           )
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           ;(err as any).code = 'BABEL_PARSE_ERROR'
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           ;(err as any).loc =
             path.node.loc?.start ?? path.node.loc?.end ?? path.node.loc
           throw err

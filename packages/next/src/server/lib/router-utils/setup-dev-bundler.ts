@@ -719,6 +719,8 @@ async function startWatcher(
           )
           middlewareEntry = {
             page: '/',
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             match: null as any,
             matchers: staticInfo.middleware?.matchers || [
               { regexp: '^/.*$', originalSource: '/:path*' },

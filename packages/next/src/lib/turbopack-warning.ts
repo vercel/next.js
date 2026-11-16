@@ -68,6 +68,8 @@ export async function validateTurboNextConfig({
     )
 
     if (typeof rawNextConfig === 'function') {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       rawNextConfig = (rawNextConfig as any)(configPhase, {
         defaultConfig,
       })

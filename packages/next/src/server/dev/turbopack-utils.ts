@@ -491,6 +491,8 @@ export async function handleRouteType({
       break
     }
     default: {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       throw new Error(`unknown route type ${(route as any).type} for ${page}`)
     }
   }
@@ -803,6 +805,8 @@ export async function handleEntrypoints({
           // A proxy.go compiles to a native worker described by this entry,
           // the same name the build and the Webpack watcher use.
           dev.serverFields.middleware = {
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             match: null as any,
             page: '/',
             matchers: currentMiddleware.matchers,
@@ -815,6 +819,8 @@ export async function handleEntrypoints({
           const isEdge =
             !!manifestLoader.getMiddlewareManifest(key)?.middleware['/']
           dev.serverFields.middleware = {
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             match: null as any,
             page: '/',
             matchers: currentMiddleware.matchers,

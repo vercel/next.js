@@ -364,6 +364,8 @@ describe('instant-navigation-testing-api', () => {
       // client-side. Releasing before hydration completes intentionally falls
       // back to a hard reload (see refreshOnInstantNavigationUnlock).
       await page.waitForFunction(
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         () => (globalThis as any).__NEXT_HYDRATED === true
       )
     })
