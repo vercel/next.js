@@ -29,7 +29,7 @@ The profile sets the point past which data correctness is more important than be
 
 > **Good to know**: A revalidation is triggered by a request, not by the `revalidateTag` call, so pages using the tag revalidate as they are visited rather than all at once.
 
-With the default in-memory `use cache` handler, `revalidateTag` only invalidates entries on the instance receiving the call. See [distributed tag coordination](/docs/app/api-reference/config/next-config-js/cacheHandlers#distributed-tag-coordination) for multi-instance deployments.
+For deployments with multiple server instances, see [Distributed Tag Coordination](/docs/app/api-reference/config/next-config-js/cacheHandlers#distributed-tag-coordination).
 
 ### Client cache behavior
 

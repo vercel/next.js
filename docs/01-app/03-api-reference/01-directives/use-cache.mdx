@@ -253,7 +253,7 @@ With the default in-memory handler, runtime cache behavior depends on your hosti
 
 For example, in a serverless environment, a cached function shared by two pages executes on each static shell revalidation, whereas in self-hosted or environments with persistent memory, the cached output is reused if it's still fresh.
 
-With the default in-memory handler, [tag invalidation is local to each server instance](/docs/app/api-reference/config/next-config-js/cacheHandlers#distributed-tag-coordination).
+For tag invalidation across server instances, see [Distributed Tag Coordination](/docs/app/api-reference/config/next-config-js/cacheHandlers#distributed-tag-coordination).
 
 Hosting providers can replace the default cache handler, and some do not store `use cache` output at runtime. Values computed during prerendering are still reused by later requests, but values computed at request time are not. Check your hosting provider's documentation for its runtime caching behavior.
 
