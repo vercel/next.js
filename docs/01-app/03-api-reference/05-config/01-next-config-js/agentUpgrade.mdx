@@ -53,7 +53,7 @@ In an interactive terminal, an eligible reminder during `next dev` or `next buil
 - **Skip** returns to the running command and replays its buffered output.
 - **Skip until next version** saves the dismissal for the installed version and policy.
 
-If you don't choose within ten seconds, or the buffered output grows past about 10 MiB, the reminder skips automatically.
+The reminder stays open until you choose an action or press Ctrl+C. If `next build` finishes first, it waits for your answer before exiting. While the reminder is open, up to about 10 MiB of output is buffered. Past that, the oldest output is dropped and a warning shows how many bytes were lost.
 
 When a coding agent runs `next dev` or `next build`, the first eligible reminder stops the command with instructions to report the upgrade. Retrying the same command promptly continues the original task with a warning.
 
