@@ -215,6 +215,20 @@ function defineProp(obj, name, options) {
     }
     return module;
 }
+/**
+ * Drops the modules that failed with `error` from the cache, so the next load evaluates them again.
+ *
+ * Called when a `require()` throws. An `import` keeps a module's evaluation error, as ESM requires, and every
+ * importer within the failed load sees the same error. `require()` follows CommonJS instead: Node.js removes a
+ * module that throws from `require.cache`, and Next.js's webpack config does the same with
+ * `output.strictModuleExceptionHandling`. Each module that failed with this error had it stored as its
+ * `module.error` before the error reached the caller, so a module is always either cached with its error or gone.
+ */ function forgetModulesFailedWith(moduleCache, error) {
+    if (error === undefined) return;
+    moduleCache.forEach(function(module, id) {
+        if (module.error === error) moduleCache.delete(id);
+    });
+}
 function getOverwrittenModule(moduleCache, id) {
     var module = moduleCache.get(id);
     if (module === undefined) {
@@ -712,7 +726,12 @@ typeof require === 'function' ? require : function require1() {
 };
 contextPrototype.t = runtimeRequire;
 function commonJsRequire(id) {
-    return getOrInstantiateModuleFromParent(id, this.m).exports;
+    try {
+        return getOrInstantiateModuleFromParent(id, this.m).exports;
+    } catch (error) {
+        forgetModulesFailedWith(this.c, error);
+        throw error;
+    }
 }
 contextPrototype.r = commonJsRequire;
 /**
@@ -754,7 +773,7 @@ contextPrototype.r = commonJsRequire;
             if (mode === 0) {
                 // inlined require implementation, which gives an ignored module empty exports
                 module = function module() {
-                    return entry === undefined ? {} : getOrInstantiateModuleFromParent(entry, parentModule).exports;
+                    return entry === undefined ? {} : commonJsRequire.call(context, entry);
                 };
             } else if (entry === undefined) {
                 module = function module() {
@@ -780,7 +799,6 @@ contextPrototype.r = commonJsRequire;
     };
     var mode = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : 0;
     var context = this;
-    var parentModule = this.m;
     var map = {};
     for(var i = 0; i < ids.length; i += 2)_loop(i);
     function moduleContext(id) {
