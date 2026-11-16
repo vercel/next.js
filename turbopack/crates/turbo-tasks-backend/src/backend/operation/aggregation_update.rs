@@ -4305,7 +4305,7 @@ mod follower_debt_tests {
                 .set_restored(TaskDataCategory::All);
         }
         {
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut ctx = ExecuteContext::new(&tt);
             for &(task_id, aggregation_number) in tasks {
                 let mut task = ctx.task(id(task_id), TaskDataCategory::All);
                 task.set_aggregation_number(AggregationNumber {
@@ -4325,14 +4325,14 @@ mod follower_debt_tests {
         tt: &TurboTasks<TurboTasksBackend>,
         jobs: impl IntoIterator<Item = AggregationUpdateJob>,
     ) {
-        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let mut ctx = ExecuteContext::new(tt);
         let mut queue = AggregationUpdateQueue::new_without_optimizations();
         queue.extend(jobs);
         queue.execute(&mut ctx);
     }
 
     pub(super) fn followers(tt: &TurboTasks<TurboTasksBackend>, upper: u32) -> Vec<(TaskId, i32)> {
-        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let mut ctx = ExecuteContext::new(tt);
         let task = ctx.task(id(upper), TaskDataCategory::Meta);
         let mut followers: Vec<_> = task.iter_followers().map(|(&id, &c)| (id, c)).collect();
         followers.sort();
@@ -4340,7 +4340,7 @@ mod follower_debt_tests {
     }
 
     pub(super) fn uppers(tt: &TurboTasks<TurboTasksBackend>, task: u32) -> Vec<(TaskId, u32)> {
-        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let mut ctx = ExecuteContext::new(tt);
         let task = ctx.task(id(task), TaskDataCategory::Meta);
         let mut uppers: Vec<_> = task.iter_upper().map(|(&id, &c)| (id, c)).collect();
         uppers.sort();
@@ -4349,7 +4349,7 @@ mod follower_debt_tests {
 
     /// The aggregated collectible count of `upper`, i.e. how many inner tasks it aggregates.
     pub(super) fn aggregated(tt: &TurboTasks<TurboTasksBackend>, upper: u32) -> i32 {
-        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let mut ctx = ExecuteContext::new(tt);
         let task = ctx.task(id(upper), TaskDataCategory::Meta);
         task.get_aggregated_collectibles(&collectible())
             .copied()
@@ -4531,7 +4531,7 @@ mod follower_debt_tests {
             run(&tt, (3..3 + count).map(|task| add(1, task)));
             assert_eq!(aggregated(&tt, 2), 1 + count as i32);
             {
-                let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+                let mut ctx = ExecuteContext::new(&tt);
                 let mut queue = AggregationUpdateQueue::new_without_optimizations();
                 if count == 1 {
                     queue.inner_of_upper_lost_follower(&mut ctx, id(3), id(1));
@@ -4570,7 +4570,7 @@ mod follower_debt_tests {
         run(&tt, [add(2, 1), add_count(1, 3, 2), add_count(1, 4, 2)]);
         assert_eq!(aggregated(&tt, 2), 3);
         {
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut ctx = ExecuteContext::new(&tt);
             let mut queue = AggregationUpdateQueue::new_without_optimizations();
             queue.inner_of_upper_lost_followers(&mut ctx, smallvec![id(3), id(4)], id(1));
             assert!(queue.is_empty(), "2→1 must not emit disappearance effects");
@@ -4609,7 +4609,7 @@ mod follower_debt_tests {
         assert_eq!(aggregated(&tt, 1), 1);
         assert_eq!(aggregated(&tt, 2), 4);
         {
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut ctx = ExecuteContext::new(&tt);
             let mut queue = AggregationUpdateQueue::new_without_optimizations();
             queue.inner_of_upper_lost_followers(
                 &mut ctx,
@@ -4683,7 +4683,7 @@ mod follower_debt_tests {
         run(&tt, [add_count(1, 2, 2)]);
         assert_eq!(uppers(&tt, 2), vec![(id(1), 2)]);
         {
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut ctx = ExecuteContext::new(&tt);
             let mut queue = AggregationUpdateQueue::new_without_optimizations();
             // Removal steps 2 and 3, as if step 1 ran before the addition.
             queue.remove_follower_edges(&mut ctx, id(1), Some(id(2)));
@@ -4714,7 +4714,7 @@ mod follower_debt_tests {
                 remove(1, 4),
             ],
         );
-        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let mut ctx = ExecuteContext::new(&tt);
         let mut queue = AggregationUpdateQueue::new_without_optimizations();
         let assert_paid = |queue: &AggregationUpdateQueue| {
             assert!(queue.is_empty(), "paying debt must not need follow-up jobs");
@@ -4751,7 +4751,7 @@ mod follower_debt_tests {
         assert_eq!(aggregated(&tt, 1), 1);
         // Removal steps 2 and 3, as if step 1 ran before the addition.
         {
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut ctx = ExecuteContext::new(&tt);
             let mut queue = AggregationUpdateQueue::new_without_optimizations();
             queue.remove_follower_edges(&mut ctx, id(1), Some(id(2)));
             assert_eq!(followers(&tt, 1), vec![(id(2), -1)]);
@@ -4781,7 +4781,7 @@ mod follower_debt_tests {
             let (entry, panic) = mode.split_once('/').unwrap();
             let panic = panic == "panic";
             let tt = setup(&[(1, UPPER), (2, INNER), (3, INNER)]);
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut ctx = ExecuteContext::new(&tt);
             let mut queue = AggregationUpdateQueue::new_without_optimizations();
             queue.extend([add(1, 2), add(1, 3)]);
             queue.before_inner_write = Some(Box::new(move |ctx| {
@@ -4903,7 +4903,7 @@ mod follower_debt_tests {
     fn addition_after_concurrent_debt(shape: AddShape, emit: bool) {
         let tt = setup_with_data(&[(1, UPPER), (2, UPPER), (3, INNER), (4, INNER)], emit);
         let edges = shape.edges();
-        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let mut ctx = ExecuteContext::new(&tt);
         let mut queue = AggregationUpdateQueue::new_without_optimizations();
         queue.before_inner_write = Some(Box::new(move |ctx| {
             let mut removal = AggregationUpdateQueue::new_without_optimizations();
@@ -5002,7 +5002,7 @@ mod follower_debt_tests {
     async fn optimization_thresholds_keep_single_and_batch_distinct() {
         let tt = setup(&[(1, UPPER)]);
         {
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut ctx = ExecuteContext::new(&tt);
             let mut task = ctx.task(id(1), TaskDataCategory::Meta);
             for (before, after, single, batch) in [
                 (0, 0, false, false),
@@ -5056,7 +5056,7 @@ mod follower_debt_tests {
             (5, FOLLOWER),
         ]);
         {
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut ctx = ExecuteContext::new(&tt);
             {
                 let mut upper = ctx.task(id(1), TaskDataCategory::Meta);
                 for follower in 2..5 {
@@ -5104,8 +5104,7 @@ mod follower_debt_tests {
         let noted = RefCell::new(Vec::new());
         let collector = |task_id: TaskId| noted.borrow_mut().push(task_id);
         {
-            let mut ctx =
-                ExecuteContext::new_with_gc_collectible_for_testing(tt.backend(), &tt, &collector);
+            let mut ctx = ExecuteContext::new_with_gc_collectible_for_testing(&tt, &collector);
             let mut queue = AggregationUpdateQueue::new_without_optimizations();
             queue.push(add(1, 2));
             queue.execute(&mut ctx);
@@ -5121,7 +5120,7 @@ mod follower_debt_tests {
     /// Give fixtures output and session-clean dirty state so active traversal observes data without
     /// scheduling synthetic task IDs. Seeding before edges exist avoids missing propagation jobs.
     fn seed_effects(tt: &TurboTasks<TurboTasksBackend>, dirty_tasks: &[u32], active_tasks: &[u32]) {
-        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let mut ctx = ExecuteContext::new(tt);
         for &task_id in dirty_tasks {
             let mut task = ctx.task(id(task_id), TaskDataCategory::All);
             task.set_output(OutputValue::Cell(collectible().cell));
@@ -5141,7 +5140,7 @@ mod follower_debt_tests {
 
     /// (dirty containers, current-session-clean containers, active counter).
     fn effects(tt: &TurboTasks<TurboTasksBackend>, task_id: u32) -> (i32, i32, i32) {
-        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let mut ctx = ExecuteContext::new(tt);
         let task = ctx.task(id(task_id), TaskDataCategory::Meta);
         (
             task.get_aggregated_dirty_container_count()
@@ -5180,7 +5179,7 @@ mod follower_debt_tests {
                     before
                 );
                 {
-                    let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+                    let mut ctx = ExecuteContext::new(&tt);
                     let mut queue = AggregationUpdateQueue::new_without_optimizations();
                     shape.apply(&mut queue, &mut ctx);
                     assert!(
@@ -5210,7 +5209,7 @@ mod follower_debt_tests {
             run(&tt, edges.iter().map(|&(u, f)| remove(u, f)));
             // First addition pays debt, second creates exactly one real edge per pair.
             for _ in 0..2 {
-                let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+                let mut ctx = ExecuteContext::new(&tt);
                 let mut queue = AggregationUpdateQueue::new_without_optimizations();
                 shape.apply(&mut queue, &mut ctx);
                 queue.execute(&mut ctx);
@@ -5249,7 +5248,7 @@ mod follower_debt_tests {
     async fn split_cancellation_reverses_dirty_snapshot_once() {
         for shape in [AddShape::Single, AddShape::Uppers, AddShape::Followers] {
             let tt = propagation_fixture(INNER);
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut ctx = ExecuteContext::new(&tt);
             let mut queue = AggregationUpdateQueue::new_without_optimizations();
             shape.apply(&mut queue, &mut ctx);
             queue.execute(&mut ctx);
@@ -5281,7 +5280,7 @@ mod follower_debt_tests {
         let tt = setup(&[(1, UPPER), (2, INNER), (3, FOLLOWER), (4, 5), (9, ROOT)]);
         seed_effects(&tt, &[2, 3, 4], &[1]);
         {
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut ctx = ExecuteContext::new(&tt);
             ctx.task(id(2), TaskDataCategory::Meta)
                 .extend_children([id(3), id(4)]);
         }
@@ -5320,7 +5319,7 @@ mod follower_debt_tests {
         for (upper_number, valid) in [(ROOT, false), (UPPER, false), (1, true)] {
             let tt = setup(&[(1, upper_number), (2, INNER)]);
             {
-                let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+                let mut ctx = ExecuteContext::new(&tt);
                 update_follower_count(&mut ctx.task(id(1), TaskDataCategory::Meta), id(2), 1);
             }
             let edges = tt.backend().storage.aggregation_edges_for_verification();
@@ -5337,7 +5336,7 @@ mod follower_debt_tests {
         // must not be mistaken for a real zero (which would imply the wrong placement).
         drop(tt.backend().storage.access_mut(id(2)));
         {
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut ctx = ExecuteContext::new(&tt);
             update_follower_count(&mut ctx.task(id(1), TaskDataCategory::Meta), id(2), 1);
         }
         let edges = tt.backend().storage.aggregation_edges_for_verification();
@@ -5350,7 +5349,7 @@ mod follower_debt_tests {
         let tt = setup(&[(1, UPPER), (2, FOLLOWER)]);
         run(&tt, [remove(1, 2)]);
         {
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut ctx = ExecuteContext::new(&tt);
             let upper = ctx.task(id(1), TaskDataCategory::Meta);
             assert_eq!(upper.get_followers(&id(2)), Some(&-1));
             assert!(
@@ -5369,7 +5368,7 @@ mod follower_debt_tests {
             true,
             StorageMode::ReadWriteOnShutdown,
         );
-        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let mut ctx = ExecuteContext::new(&tt);
         let mut queue = AggregationUpdateQueue::new_without_optimizations();
         queue.push(remove(1, 2));
         queue.execute(&mut ctx);
@@ -5437,7 +5436,7 @@ mod follower_debt_tests {
             .collect::<Vec<_>>();
         let tt = setup_with_data(&tasks, false);
         let result = {
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut ctx = ExecuteContext::new(&tt);
             {
                 let mut task = ctx.task(id(TASK), TaskDataCategory::Meta);
                 for &(upper, _) in uppers {
@@ -5562,21 +5561,21 @@ mod deferred_removal_tests {
 
     /// Lets `task` emit the test collectible.
     fn emit(tt: &TurboTasks<TurboTasksBackend>, task: u32) {
-        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let mut ctx = ExecuteContext::new(tt);
         let mut task = ctx.task(id(task), TaskDataCategory::All);
         let _ = task.update_collectibles_positive_crossing(collectible(), 1);
     }
 
     /// Registers `READER` as a dependent of the collectibles of `upper`.
     fn add_reader(tt: &TurboTasks<TurboTasksBackend>, upper: u32) {
-        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let mut ctx = ExecuteContext::new(tt);
         let mut task = ctx.task(id(upper), TaskDataCategory::All);
         let _ = task.add_collectibles_dependents((collectible().collectible_type, id(READER)));
     }
 
     /// Whether `READER` was invalidated.
     fn reader_is_dirty(tt: &TurboTasks<TurboTasksBackend>) -> bool {
-        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let mut ctx = ExecuteContext::new(tt);
         let task = ctx.task(id(READER), TaskDataCategory::All);
         task.get_dirty().is_some()
     }
@@ -5587,7 +5586,7 @@ mod deferred_removal_tests {
         jobs: impl IntoIterator<Item = AggregationUpdateJob>,
         mut check: impl FnMut(&AggregationUpdateQueue),
     ) {
-        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let mut ctx = ExecuteContext::new(tt);
         let mut queue = AggregationUpdateQueue::new_without_optimizations();
         queue.extend(jobs);
         while !queue.process(&mut ctx) {
@@ -5673,7 +5672,7 @@ mod deferred_removal_tests {
         let tt = setup_with_data(&[(1, UPPER), (2, INNER), (3, INNER)], true);
         run(&tt, [add(1, 2)]);
 
-        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let mut ctx = ExecuteContext::new(&tt);
         let mut queue = AggregationUpdateQueue::new_without_optimizations();
         queue.extend([remove(1, 2), add(1, 3), balance(1, 3)]);
         queue.push(AggregationUpdateJob::UpdateAggregationNumber {
@@ -5721,7 +5720,7 @@ mod deferred_removal_tests {
         assert_eq!(followers(&tt, 2), vec![(id(3), 1)]);
         assert_eq!(uppers(&tt, 3), vec![(id(1), 1)]);
 
-        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let mut ctx = ExecuteContext::new(&tt);
         let mut queue = AggregationUpdateQueue::new_without_optimizations();
         queue.extend([remove(1, 2), remove(1, 4)]);
         assert!(!queue.process(&mut ctx));
@@ -5754,7 +5753,7 @@ mod deferred_removal_tests {
         let tt = setup_with_data(&[(1, UPPER), (2, INNER), (3, FOLLOWER)], false);
         run(&tt, [add(1, 2)]);
 
-        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let mut ctx = ExecuteContext::new(&tt);
         let mut queue = AggregationUpdateQueue::new_without_optimizations();
         // As if a concurrent addition added the inner edge after the removal recorded debt.
         queue.before_debt_recheck = Some(Box::new(|ctx| {
@@ -5773,7 +5772,7 @@ mod deferred_removal_tests {
         assert_eq!(followers(&tt, 1), vec![(id(3), -1)]);
         assert_eq!(uppers(&tt, 3), vec![(id(1), 1)]);
 
-        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let mut ctx = ExecuteContext::new(&tt);
         let mut queue = AggregationUpdateQueue::new_without_optimizations();
         queue.extend_balance_edges(balance_edges, &mut ctx);
         queue.execute(&mut ctx);
@@ -5907,7 +5906,7 @@ mod overtake_benchmark {
             .collect();
         let tt = super::follower_debt_tests::setup_with_data(&tasks, false);
         {
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut ctx = ExecuteContext::new(&tt);
             for i in 0..EDGES {
                 let mut task =
                     ctx.task(super::follower_debt_tests::id(i + 2), TaskDataCategory::All);
@@ -5919,14 +5918,14 @@ mod overtake_benchmark {
         }
         run(&tt, (0..EDGES).map(|i| add(1, i + 2)));
         {
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut ctx = ExecuteContext::new(&tt);
             let mut task = ctx.task(super::follower_debt_tests::id(1), TaskDataCategory::All);
             let _ = task.add_collectibles_dependents((
                 super::follower_debt_tests::collectible().collectible_type,
                 super::follower_debt_tests::id(READER),
             ));
         }
-        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let mut ctx = ExecuteContext::new(&tt);
         let mut queue = AggregationUpdateQueue::new_without_optimizations();
         queue.extend((0..EDGES).map(|i| remove(1, i + 2)));
         queue.extend((0..EDGES).map(|i| add(1, i + 2)));
