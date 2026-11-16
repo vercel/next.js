@@ -33553,11 +33553,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-experimental-df6aa4ec-20261112" !== isomorphicReactPackageVersion)
+      if ("19.3.0" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-experimental-df6aa4ec-20261112\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -33594,10 +33594,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.3.0-experimental-df6aa4ec-20261112",
+          version: "19.3.0",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.3.0-experimental-df6aa4ec-20261112"
+          reconcilerVersion: "19.3.0"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -33861,12 +33861,19 @@
               "ReactDOM.preinit(): Expected the `options` argument (second) to be an object with an `as` property describing the type of resource to be preinitialized but encountered %s instead.",
               getValueDescriptorExpectingEnumForWarning(options)
             )
-          : "style" !== options.as &&
-            "script" !== options.as &&
-            console.error(
-              'ReactDOM.preinit(): Expected the `as` property in the `options` argument (second) to contain a valid value describing the type of resource to be preinitialized but encountered %s instead. Valid values for `as` are "style" and "script".',
-              getValueDescriptorExpectingEnumForWarning(options.as)
-            )
+          : "style" !== options.as && "script" !== options.as
+            ? console.error(
+                'ReactDOM.preinit(): Expected the `as` property in the `options` argument (second) to contain a valid value describing the type of resource to be preinitialized but encountered %s instead. Valid values for `as` are "style" and "script".',
+                getValueDescriptorExpectingEnumForWarning(options.as)
+              )
+            : "script" !== options.as &&
+              "dataAttributes" in options &&
+              null != options.dataAttributes &&
+              console.error(
+                'ReactDOM.preinit(): The `dataAttributes` option is only supported when `as` is "script" but it was passed with `as` %s for `href` "%s". The `dataAttributes` option will be ignored.',
+                getValueDescriptorExpectingEnumForWarning(options.as),
+                href
+              )
         : console.error(
             "ReactDOM.preinit(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.",
             getValueDescriptorExpectingObjectForWarning(href)
@@ -33884,25 +33891,57 @@
             "string" === typeof options.fetchPriority
               ? options.fetchPriority
               : void 0;
-        "style" === as
-          ? ReactDOMSharedInternals.d.S(
-              href,
-              "string" === typeof options.precedence
-                ? options.precedence
-                : void 0,
-              {
-                crossOrigin: crossOrigin,
-                integrity: integrity,
-                fetchPriority: fetchPriority
-              }
-            )
-          : "script" === as &&
-            ReactDOMSharedInternals.d.X(href, {
+        if ("style" === as)
+          ReactDOMSharedInternals.d.S(
+            href,
+            "string" === typeof options.precedence
+              ? options.precedence
+              : void 0,
+            {
               crossOrigin: crossOrigin,
               integrity: integrity,
-              fetchPriority: fetchPriority,
-              nonce: "string" === typeof options.nonce ? options.nonce : void 0
-            });
+              fetchPriority: fetchPriority
+            }
+          );
+        else if ("script" === as) {
+          as = {
+            crossOrigin: crossOrigin,
+            integrity: integrity,
+            fetchPriority: fetchPriority,
+            nonce: "string" === typeof options.nonce ? options.nonce : void 0
+          };
+          if (null != options.dataAttributes)
+            if (
+              ((options = options.dataAttributes), "object" !== typeof options)
+            )
+              console.error(
+                'ReactDOM.preinit(): Expected the `dataAttributes` option to be an object mapping `data-*` attribute names to string values but encountered %s instead. This was passed for `href` "%s".',
+                getValueDescriptorExpectingObjectForWarning(options),
+                href
+              );
+            else
+              for (var name in options)
+                hasOwnProperty.call(options, name) &&
+                  ((crossOrigin = options[name]),
+                  5 >= name.length || !name.startsWith("data-")
+                    ? console.error(
+                        'ReactDOM.preinit(): Expected the keys of the `dataAttributes` option to be `data-*` attribute names but encountered "%s" instead for `href` "%s". This attribute will be omitted.',
+                        name,
+                        href
+                      )
+                    : isAttributeNameSafe(name) &&
+                      ("string" !== typeof crossOrigin
+                        ? console.error(
+                            'ReactDOM.preinit(): Expected the `dataAttributes` option to map "%s" to a string but encountered %s instead for `href` "%s". This attribute will be omitted.',
+                            name,
+                            getValueDescriptorExpectingEnumForWarning(
+                              crossOrigin
+                            ),
+                            href
+                          )
+                        : (as[name] = crossOrigin)));
+          ReactDOMSharedInternals.d.X(href, as);
+        }
       }
     };
     exports.preinitModule = function (href, options) {
@@ -34087,7 +34126,7 @@
     exports.useFormStatus = function () {
       return resolveDispatcher().useHostTransitionStatus();
     };
-    exports.version = "19.3.0-experimental-df6aa4ec-20261112";
+    exports.version = "19.3.0";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

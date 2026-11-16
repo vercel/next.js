@@ -47,6 +47,17 @@
         implementation: implementation
       };
     }
+    function isAttributeNameSafe(attributeName) {
+      if (hasOwnProperty.call(validatedAttributeNameCache, attributeName))
+        return !0;
+      if (hasOwnProperty.call(illegalAttributeNameCache, attributeName))
+        return !1;
+      if (VALID_ATTRIBUTE_NAME_REGEX.test(attributeName))
+        return (validatedAttributeNameCache[attributeName] = !0);
+      illegalAttributeNameCache[attributeName] = !0;
+      console.error("Invalid attribute name: `%s`", attributeName);
+      return !1;
+    }
     function getCrossOriginStringAs(as, input) {
       if ("font" === as) return "";
       if ("string" === typeof input)
@@ -110,7 +121,13 @@
       REACT_RECOVERABLE_TYPE = Symbol.for("react.recoverable"),
       REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key"),
       ReactSharedInternals =
-        React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+        React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
+      hasOwnProperty = Object.prototype.hasOwnProperty,
+      VALID_ATTRIBUTE_NAME_REGEX = RegExp(
+        "^[:A-Z_a-z\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFFD][:A-Z_a-z\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u02FF\\u0370-\\u037D\\u037F-\\u1FFF\\u200C-\\u200D\\u2070-\\u218F\\u2C00-\\u2FEF\\u3001-\\uD7FF\\uF900-\\uFDCF\\uFDF0-\\uFFFD\\-.0-9\\u00B7\\u0300-\\u036F\\u203F-\\u2040]*$"
+      ),
+      illegalAttributeNameCache = {},
+      validatedAttributeNameCache = {};
     ("function" === typeof Map &&
       null != Map.prototype &&
       "function" === typeof Map.prototype.forEach &&
@@ -209,12 +226,19 @@
               "ReactDOM.preinit(): Expected the `options` argument (second) to be an object with an `as` property describing the type of resource to be preinitialized but encountered %s instead.",
               getValueDescriptorExpectingEnumForWarning(options)
             )
-          : "style" !== options.as &&
-            "script" !== options.as &&
-            console.error(
-              'ReactDOM.preinit(): Expected the `as` property in the `options` argument (second) to contain a valid value describing the type of resource to be preinitialized but encountered %s instead. Valid values for `as` are "style" and "script".',
-              getValueDescriptorExpectingEnumForWarning(options.as)
-            )
+          : "style" !== options.as && "script" !== options.as
+            ? console.error(
+                'ReactDOM.preinit(): Expected the `as` property in the `options` argument (second) to contain a valid value describing the type of resource to be preinitialized but encountered %s instead. Valid values for `as` are "style" and "script".',
+                getValueDescriptorExpectingEnumForWarning(options.as)
+              )
+            : "script" !== options.as &&
+              "dataAttributes" in options &&
+              null != options.dataAttributes &&
+              console.error(
+                'ReactDOM.preinit(): The `dataAttributes` option is only supported when `as` is "script" but it was passed with `as` %s for `href` "%s". The `dataAttributes` option will be ignored.',
+                getValueDescriptorExpectingEnumForWarning(options.as),
+                href
+              )
         : console.error(
             "ReactDOM.preinit(): Expected the `href` argument (first) to be a non-empty string but encountered %s instead.",
             getValueDescriptorExpectingObjectForWarning(href)
@@ -232,25 +256,57 @@
             "string" === typeof options.fetchPriority
               ? options.fetchPriority
               : void 0;
-        "style" === as
-          ? Internals.d.S(
-              href,
-              "string" === typeof options.precedence
-                ? options.precedence
-                : void 0,
-              {
-                crossOrigin: crossOrigin,
-                integrity: integrity,
-                fetchPriority: fetchPriority
-              }
-            )
-          : "script" === as &&
-            Internals.d.X(href, {
+        if ("style" === as)
+          Internals.d.S(
+            href,
+            "string" === typeof options.precedence
+              ? options.precedence
+              : void 0,
+            {
               crossOrigin: crossOrigin,
               integrity: integrity,
-              fetchPriority: fetchPriority,
-              nonce: "string" === typeof options.nonce ? options.nonce : void 0
-            });
+              fetchPriority: fetchPriority
+            }
+          );
+        else if ("script" === as) {
+          as = {
+            crossOrigin: crossOrigin,
+            integrity: integrity,
+            fetchPriority: fetchPriority,
+            nonce: "string" === typeof options.nonce ? options.nonce : void 0
+          };
+          if (null != options.dataAttributes)
+            if (
+              ((options = options.dataAttributes), "object" !== typeof options)
+            )
+              console.error(
+                'ReactDOM.preinit(): Expected the `dataAttributes` option to be an object mapping `data-*` attribute names to string values but encountered %s instead. This was passed for `href` "%s".',
+                getValueDescriptorExpectingObjectForWarning(options),
+                href
+              );
+            else
+              for (var name in options)
+                hasOwnProperty.call(options, name) &&
+                  ((crossOrigin = options[name]),
+                  5 >= name.length || !name.startsWith("data-")
+                    ? console.error(
+                        'ReactDOM.preinit(): Expected the keys of the `dataAttributes` option to be `data-*` attribute names but encountered "%s" instead for `href` "%s". This attribute will be omitted.',
+                        name,
+                        href
+                      )
+                    : isAttributeNameSafe(name) &&
+                      ("string" !== typeof crossOrigin
+                        ? console.error(
+                            'ReactDOM.preinit(): Expected the `dataAttributes` option to map "%s" to a string but encountered %s instead for `href` "%s". This attribute will be omitted.',
+                            name,
+                            getValueDescriptorExpectingEnumForWarning(
+                              crossOrigin
+                            ),
+                            href
+                          )
+                        : (as[name] = crossOrigin)));
+          Internals.d.X(href, as);
+        }
       }
     };
     exports.preinitModule = function (href, options) {
@@ -435,7 +491,7 @@
     exports.useFormStatus = function () {
       return resolveDispatcher().useHostTransitionStatus();
     };
-    exports.version = "19.3.0-experimental-df6aa4ec-20261112";
+    exports.version = "19.3.0";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
