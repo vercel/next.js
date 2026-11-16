@@ -16,7 +16,12 @@ use next_core::{
     instrumentation::instrumentation_files,
     middleware::middleware_files,
     mode::NextMode,
-    next_app::{AppPage, AppPath},
+    next_app::{
+        AppPage, AppPath,
+        metadata::{
+            match_global_metadata_file, match_local_metadata_file, normalize_metadata_route,
+        },
+    },
     next_client::{
         ClientChunkingContextOptions, ClientContextType, ServiceWorkerChunkingContextOptions,
         get_client_chunking_context, get_client_compile_time_info,
@@ -45,8 +50,9 @@ use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Completions, FxIndexMap, InvalidationReason, NonLocalValue, OperationValue,
-    OperationVc, ReadRef, ResolvedVc, State, TransientInstance, TryFlatJoinIterExt, TryJoinIterExt,
-    Vc, debug::ValueDebugFormat, fxindexmap, message_queue::TraceEvent, turbo_tasks,
+    OperationVc, OrderedAutoMap, ReadRef, ResolvedVc, State, TransientInstance, TryFlatJoinIterExt,
+    TryJoinIterExt, Vc, debug::ValueDebugFormat, fxindexmap, message_queue::TraceEvent,
+    turbo_tasks,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
@@ -63,7 +69,7 @@ use turbopack_core::{
     asset::AssetContent,
     changed::content_changed,
     chunk::{
-        ChunkingContext, EvaluatableAssets, UnusedReferences,
+        ChunkType, ChunkingContext, EvaluatableAssets, UnusedReferences,
         chunk_id_strategy::{ModuleIdFallback, ModuleIdStrategy},
     },
     compile_time_info::CompileTimeInfo,
@@ -75,13 +81,15 @@ use turbopack_core::{
         CollectibleIssuesExt, Issue, IssueExt, IssueFilter, IssueSeverity, IssueStage, PlainIssue,
         StyledString,
     },
-    module::{Module, Modules},
+    module::{Module, Modules, StyleModule},
     module_graph::{
-        GraphEntries, ModuleGraph, ModuleGraphOptions, SingleModuleGraph, VisitedModules,
+        GraphEntries, ModuleGraph, ModuleGraphOptions, SingleModuleGraph, SingleModuleGraphNode,
+        VisitedModules,
         binding_usage_info::{
             BindingUsageInfo, OptionBindingUsageInfo, compute_binding_usage_info,
         },
         chunk_group_info::{ChunkGroupEntry, EntryHeuristics},
+        style_groups::StyleGroupsConfig,
     },
     output::{
         ExpandOutputAssetsInput, ExpandedOutputAssets, OutputAsset, OutputAssets,
@@ -113,7 +121,7 @@ use crate::{
         AdditionalDiskFileSystem, BuiltinRootsConfig, create_additional_root_file_systems,
     },
     aggregate_hmr::ServerHmrChunkLists,
-    app::{AppProject, OptionAppProject},
+    app::{AppProject, CLIENT_TRANSITION_NAME, OptionAppProject},
     empty::EmptyEndpoint,
     entrypoints::Entrypoints,
     instrumentation::InstrumentationEndpoint,
@@ -195,12 +203,32 @@ struct DebugBuildPathsRouteKeys {
 }
 
 impl DebugBuildPathsRouteKeys {
-    fn app_route_key_from_debug_path(path: &str) -> Result<RcStr> {
+    fn app_route_key_from_debug_path(path: &str, page_extensions: &[RcStr]) -> Result<RcStr> {
         let mut segments = path
             .trim_start_matches('/')
             .split('/')
             .filter(|segment| !segment.is_empty())
             .collect::<Vec<_>>();
+
+        if let Some(filename) = segments.last().copied()
+            && let Some(dynamic) = match_local_metadata_file(filename, page_extensions)
+                .map(|metadata| metadata.dynamic)
+                .or_else(|| {
+                    match_global_metadata_file(filename, page_extensions)
+                        .map(|metadata| metadata.dynamic)
+                })
+        {
+            if dynamic {
+                let (stem, _) = filename
+                    .rsplit_once('.')
+                    .context("metadata file must have an extension")?;
+                segments.pop();
+                segments.push(stem);
+            }
+
+            let page = normalize_metadata_route(AppPage::parse(&segments.join("/"))?)?;
+            return Ok(AppPath::from(page).to_string().into());
+        }
 
         if let Some(last_segment) = segments.last()
             && (*last_segment == "page"
@@ -246,12 +274,12 @@ impl DebugBuildPathsRouteKeys {
         })
     }
 
-    fn from_debug_build_paths(paths: &DebugBuildPaths) -> Result<Self> {
+    fn from_debug_build_paths(paths: &DebugBuildPaths, page_extensions: &[RcStr]) -> Result<Self> {
         Ok(Self {
             app: paths
                 .app
                 .iter()
-                .map(|path| Self::app_route_key_from_debug_path(path))
+                .map(|path| Self::app_route_key_from_debug_path(path, page_extensions))
                 .collect::<Result<_>>()?,
             pages: paths
                 .pages
@@ -545,7 +573,7 @@ async fn prepare_project_container_state(
     let root_path_op = project_root_path_operation(container_vc);
 
     let project_fs_op = disk_file_system_operation(
-        PROJECT_FILESYSTEM_NAME,
+        PROJECT_FILESYSTEM_NAME.clone(),
         root_path_op,
         denied_paths,
         watcher_config,
@@ -1157,8 +1185,7 @@ pub struct Project {
 
     project_file_system: OperationVc<DiskFileSystem>,
     output_file_system: OperationVc<DiskFileSystem>,
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub(crate) additional_roots: FxIndexMap<RcStr, AdditionalDiskFileSystem>,
+    pub(crate) additional_roots: OrderedAutoMap<RcStr, AdditionalDiskFileSystem>,
 }
 
 #[turbo_tasks::value]
@@ -1828,7 +1855,7 @@ impl Project {
             rcstr!("__NEXT_PREVIEW_MODE_ENCRYPTION_KEY") => preview_props.preview_mode_encryption_key.clone(),
             rcstr!("__NEXT_PREVIEW_MODE_SIGNING_KEY") => preview_props.preview_mode_signing_key.clone(),
         };
-        Ok(Vc::cell(edge_env))
+        Ok(Vc::cell(edge_env.into()))
     }
 
     #[turbo_tasks::function]
@@ -2266,11 +2293,14 @@ impl Project {
         let pages_project = self.pages_project();
 
         // Convert debug build paths to route keys once for O(1) lookups
-        let debug_build_paths_route_keys = this
-            .debug_build_paths
-            .as_ref()
-            .map(DebugBuildPathsRouteKeys::from_debug_build_paths)
-            .transpose()?;
+        let debug_build_paths_route_keys = if let Some(paths) = &this.debug_build_paths {
+            Some(DebugBuildPathsRouteKeys::from_debug_build_paths(
+                paths,
+                &self.next_config().page_extensions().await?,
+            )?)
+        } else {
+            None
+        };
 
         if let Some(app_project) = &*app_project.await? {
             let app_routes = app_project.routes_with_filter(app_route_filter);
@@ -2372,11 +2402,11 @@ impl Project {
         let app_project = *self.app_project().await?;
 
         let ecmascript_client_reference_transition_name =
-            app_project.map(|_| AppProject::client_transition_name());
+            app_project.map(|_| CLIENT_TRANSITION_NAME.clone());
 
         if let Some(app_project) = app_project {
             transitions.push((
-                AppProject::client_transition_name(),
+                CLIENT_TRANSITION_NAME.clone(),
                 app_project
                     .edge_ecmascript_client_reference_transition()
                     .to_resolved()
@@ -2438,11 +2468,11 @@ impl Project {
         let app_project = *self.app_project().await?;
 
         let ecmascript_client_reference_transition_name =
-            app_project.map(|_| AppProject::client_transition_name());
+            app_project.map(|_| CLIENT_TRANSITION_NAME.clone());
 
         if let Some(app_project) = app_project {
             transitions.push((
-                AppProject::client_transition_name(),
+                CLIENT_TRANSITION_NAME.clone(),
                 app_project
                     .edge_ecmascript_client_reference_transition()
                     .to_resolved()
@@ -2511,7 +2541,7 @@ impl Project {
             .await?;
         let ecmascript_client_reference_transition_name = (*self.app_project().await?)
             .as_ref()
-            .map(|_| AppProject::client_transition_name());
+            .map(|_| CLIENT_TRANSITION_NAME.clone());
 
         let is_proxy = convention_file_base_name(fs_path.file_name()) == "proxy";
         let config = parse_segment_config_from_source(
@@ -2553,13 +2583,12 @@ impl Project {
             .await?;
         let app_project = &*self.app_project().await?;
 
-        let ecmascript_client_reference_transition_name = app_project
-            .as_ref()
-            .map(|_| AppProject::client_transition_name());
+        let ecmascript_client_reference_transition_name =
+            app_project.as_ref().map(|_| CLIENT_TRANSITION_NAME.clone());
 
         if let Some(app_project) = app_project {
             transitions.push((
-                AppProject::client_transition_name(),
+                CLIENT_TRANSITION_NAME.clone(),
                 app_project
                     .ecmascript_client_reference_transition()
                     .to_resolved()
@@ -2618,13 +2647,12 @@ impl Project {
             .await?;
         let app_project = &*self.app_project().await?;
 
-        let ecmascript_client_reference_transition_name = app_project
-            .as_ref()
-            .map(|_| AppProject::client_transition_name());
+        let ecmascript_client_reference_transition_name =
+            app_project.as_ref().map(|_| CLIENT_TRANSITION_NAME.clone());
 
         if let Some(app_project) = app_project {
             transitions.push((
-                AppProject::client_transition_name(),
+                CLIENT_TRANSITION_NAME.clone(),
                 app_project
                     .edge_ecmascript_client_reference_transition()
                     .to_resolved()
@@ -2752,7 +2780,7 @@ impl Project {
             .await?;
         let ecmascript_client_reference_transition_name = (*self.app_project().await?)
             .as_ref()
-            .map(|_| AppProject::client_transition_name());
+            .map(|_| CLIENT_TRANSITION_NAME.clone());
 
         let instrumentation_asset_context = if is_edge {
             self.edge_instrumentation_context()
@@ -3112,6 +3140,63 @@ async fn scale_down_node_pool(project: ResolvedVc<Project>) -> Result<()> {
     } else {
         node_backend.scale_zero()?;
     }
+    Ok(())
+}
+
+/// Computes the client style groups of the whole-app module graph, so that they are ready by the
+/// time chunking first needs them.
+///
+/// Chunking computes the style groups lazily: the first client chunk group that contains CSS
+/// requests them, which happens only after the merged modules and the server-side rendering chunk
+/// groups of an endpoint are done. The style groups are a single, mostly sequential task over all
+/// chunk groups, but they only depend on the chunk group info and the module batches. Requesting
+/// them here, concurrently with the endpoints, lets them run alongside that other work instead of
+/// after it.
+///
+/// This must request exactly the task `make_style_production_chunks` requests (same module graph,
+/// chunking context and config), so it doesn't compute anything extra. Apps without CSS never
+/// compute style groups, so this does nothing when the graph has no style modules.
+pub async fn compute_whole_app_client_style_groups_early(project: Vc<Project>) -> Result<()> {
+    if !project.next_mode().await?.is_production() || *project.per_page_module_graph().await? {
+        return Ok(());
+    }
+
+    let module_graph = project.whole_app_module_graphs().await?.full;
+    let has_style_modules =
+        module_graph
+            .await?
+            .iter_reachable_nodes()?
+            .any(|(_, node)| match node {
+                SingleModuleGraphNode::Module(module) => {
+                    ResolvedVc::try_sidecast::<Box<dyn StyleModule>>(*module).is_some()
+                }
+                SingleModuleGraphNode::VisitedModule { .. } => false,
+            });
+    if !has_style_modules {
+        return Ok(());
+    }
+
+    let chunking_context = project.client_chunking_context().to_resolved().await?;
+    let chunking_configs = chunking_context.chunking_configs().await?;
+    chunking_configs
+        .iter()
+        .map(async |(ty, chunking_config)| {
+            if !*ty.is_style().await? {
+                return Ok(());
+            }
+            module_graph
+                .style_groups(
+                    *chunking_context,
+                    StyleGroupsConfig {
+                        max_chunk_size: chunking_config.max_merge_chunk_size,
+                        algorithm: chunking_config.style_groups_algorithm.clone(),
+                    },
+                )
+                .as_side_effect()
+                .await
+        })
+        .try_join()
+        .await?;
     Ok(())
 }
 

@@ -771,10 +771,10 @@ describe('Image Component Default Tests', () => {
         .map((log) => log.message)
         .join('\n')
       expect(warnings).toMatch(
-        /Image with src "\/wide.png" has either width or height modified, but not the other./gm
+        /Image with src "\/wide.png" is rendered with a different aspect ratio than its intrinsic dimensions./gm
       )
       expect(warnings).not.toMatch(
-        /Image with src "\/test.png" has either width or height modified, but not the other./gm
+        /Image with src "\/test.png" is rendered with a different aspect ratio than its intrinsic dimensions./gm
       )
     }
   })

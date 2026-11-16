@@ -917,7 +917,7 @@ internal
 internal
   .command('static-routes-info')
   .description(
-    'Analyze a built Next.js app and report per-route bundle sizes across server bundled JS, server source maps, server unbundled, client JS, client source maps, and client CSS categories.'
+    'Analyze a built Next.js app and report per-route bundle sizes across server bundled JS, server source maps, server unbundled, client JS, client source maps, and client CSS categories. Loads executable build manifests. Only analyze builds you trust.'
   )
   .argument(
     '[directory]',

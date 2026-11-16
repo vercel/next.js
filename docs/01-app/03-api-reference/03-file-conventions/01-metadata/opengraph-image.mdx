@@ -546,6 +546,71 @@ If a page uses a different image from its colocated `opengraph-image` or `twitte
 
 When a child route defines `openGraph` or `twitter` without `images` and has no colocated image file, it can lose inherited images. See [metadata merging](/docs/app/api-reference/functions/generate-metadata#merging) for how to retain inherited fields.
 
+### Using an image in a catch-all segment
+
+`opengraph-image` and `twitter-image` files can't be placed inside a [catch-all](/docs/app/api-reference/file-conventions/dynamic-routes#catch-all-segments) (`[...slug]`) or [optional catch-all](/docs/app/api-reference/file-conventions/dynamic-routes#optional-catch-all-segments) (`[[...slug]]`) segment. A catch-all segment must be the last segment of a route, so an image route such as `/blog/[...slug]/opengraph-image` can never be matched. Next.js reports an error for these files.
+
+Instead, serve the image from a [Route Handler](/docs/app/api-reference/file-conventions/route) outside of the catch-all segment, and reference it from [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata):
+
+```tsx filename="app/og/[...slug]/route.tsx" switcher
+import { ImageResponse } from 'next/og'
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ slug: string[] }> }
+) {
+  const { slug } = await params
+
+  return new ImageResponse(
+    <div style={{ fontSize: 64, display: 'flex' }}>{slug.join(' / ')}</div>,
+    { width: 1200, height: 630 }
+  )
+}
+```
+
+```jsx filename="app/og/[...slug]/route.js" switcher
+import { ImageResponse } from 'next/og'
+
+export async function GET(request, { params }) {
+  const { slug } = await params
+
+  return new ImageResponse(
+    <div style={{ fontSize: 64, display: 'flex' }}>{slug.join(' / ')}</div>,
+    { width: 1200, height: 630 }
+  )
+}
+```
+
+```tsx filename="app/blog/[...slug]/page.tsx" switcher
+import type { Metadata } from 'next'
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string[] }>
+}): Promise<Metadata> {
+  const { slug } = await params
+  const image = `/og/${slug.map(encodeURIComponent).join('/')}`
+
+  return {
+    openGraph: { images: [image] },
+    twitter: { images: [image] },
+  }
+}
+```
+
+```jsx filename="app/blog/[...slug]/page.js" switcher
+export async function generateMetadata({ params }) {
+  const { slug } = await params
+  const image = `/og/${slug.map(encodeURIComponent).join('/')}`
+
+  return {
+    openGraph: { images: [image] },
+    twitter: { images: [image] },
+  }
+}
+```
+
 ## Version History
 
 | Version   | Changes                                              |

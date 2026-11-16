@@ -555,8 +555,11 @@ fn bench_read_batch_get(c: &mut Criterion) {
                                 .collect::<Vec<_>>()
                         },
                         |keys| {
-                            let result = db.batch_get(0, &keys).unwrap();
-                            black_box(result)
+                            db.batch_get(0, &keys, |index, value| {
+                                black_box((index, value));
+                                Ok(())
+                            })
+                            .unwrap()
                         },
                         BatchSize::NumBatches(1),
                     );
@@ -585,8 +588,11 @@ fn bench_read_batch_get(c: &mut Criterion) {
                                 .collect::<Vec<_>>()
                         },
                         |keys| {
-                            let result = db.batch_get(0, &keys).unwrap();
-                            black_box(result)
+                            db.batch_get(0, &keys, |index, value| {
+                                black_box((index, value));
+                                Ok(())
+                            })
+                            .unwrap()
                         },
                         BatchSize::NumBatches(1),
                     );
@@ -914,11 +920,23 @@ fn bench_family_sharding(c: &mut Criterion) {
     });
     group.bench_function("batch_get/hit_64", |b| {
         let (_, db) = &*db;
-        b.iter(|| black_box(db.batch_get(2, black_box(&batch_hits)).unwrap()))
+        b.iter(|| {
+            db.batch_get(2, black_box(&batch_hits), |index, value| {
+                black_box((index, value));
+                Ok(())
+            })
+            .unwrap()
+        })
     });
     group.bench_function("batch_get/miss_64", |b| {
         let (_, db) = &*db;
-        b.iter(|| black_box(db.batch_get(2, black_box(&batch_misses)).unwrap()))
+        b.iter(|| {
+            db.batch_get(2, black_box(&batch_misses), |index, value| {
+                black_box((index, value));
+                Ok(())
+            })
+            .unwrap()
+        })
     });
     group.finish();
 }

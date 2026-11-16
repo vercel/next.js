@@ -44,6 +44,10 @@ import {
   applyAppPageRscRequestMetaFromHeaders,
   normalizeAppPageRequestUrl,
 } from './normalize-request-url'
+import {
+  UNDERSCORE_GLOBAL_ERROR_ROUTE,
+  UNDERSCORE_NOT_FOUND_ROUTE,
+} from '../../../shared/lib/entry-constants'
 
 let vendoredReactRSC
 let vendoredReactSSR
@@ -214,11 +218,19 @@ export class AppPageRouteModule extends RouteModule<
   }
 
   public prerender(
-    res: BaseNextResponse,
     context: AppPageRouteHandlerContext
   ): Promise<PrerenderResult> {
+    // Error-page routes establish their own status. A background prerender must
+    // not inherit the status of the served cache entry.
+    const initialStatusCode =
+      context.page === UNDERSCORE_NOT_FOUND_ROUTE
+        ? 404
+        : context.page === UNDERSCORE_GLOBAL_ERROR_ROUTE ||
+            context.page === '/500'
+          ? 500
+          : 200
     return prerenderToHTMLOrFlight(
-      res,
+      initialStatusCode,
       context.requestUrl,
       context.page,
       context.query,

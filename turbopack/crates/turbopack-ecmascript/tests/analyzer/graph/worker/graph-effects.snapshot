@@ -39,113 +39,6 @@
         ],
         span: 21..24,
     },
-    Member {
-        obj: WellKnownObject(
-            ImportMeta,
-        ),
-        prop: Constant(
-            Str(
-                Atom(
-                    "url",
-                ),
-            ),
-        ),
-        base_effects: [
-            ImportMeta {
-                ast_path: [
-                    Program(
-                        Module,
-                    ),
-                    Module(
-                        Body(
-                            0,
-                        ),
-                    ),
-                    ModuleItem(
-                        Stmt,
-                    ),
-                    Stmt(
-                        Decl,
-                    ),
-                    Decl(
-                        Var,
-                    ),
-                    VarDecl(
-                        Decls(
-                            0,
-                        ),
-                    ),
-                    VarDeclarator(
-                        Init,
-                    ),
-                    Expr(
-                        New,
-                    ),
-                    NewExpr(
-                        Args(
-                            1,
-                        ),
-                    ),
-                    ExprOrSpread(
-                        Expr,
-                    ),
-                    Expr(
-                        Member,
-                    ),
-                    MemberExpr(
-                        Obj,
-                    ),
-                    Expr(
-                        MetaProp,
-                    ),
-                ],
-                span: 40..51,
-            },
-        ],
-        ast_path: [
-            Program(
-                Module,
-            ),
-            Module(
-                Body(
-                    0,
-                ),
-            ),
-            ModuleItem(
-                Stmt,
-            ),
-            Stmt(
-                Decl,
-            ),
-            Decl(
-                Var,
-            ),
-            VarDecl(
-                Decls(
-                    0,
-                ),
-            ),
-            VarDeclarator(
-                Init,
-            ),
-            Expr(
-                New,
-            ),
-            NewExpr(
-                Args(
-                    1,
-                ),
-            ),
-            ExprOrSpread(
-                Expr,
-            ),
-            Expr(
-                Member,
-            ),
-        ],
-        span: 40..55,
-        in_truthiness_context: false,
-    },
     Call {
         func: FreeVar(
             "URL",
@@ -159,6 +52,7 @@
                         ),
                     ),
                 ),
+                [],
             ),
             Value(
                 Member(
@@ -174,6 +68,115 @@
                         ),
                     ),
                 ),
+                [
+                    Member {
+                        obj: WellKnownObject(
+                            ImportMeta,
+                        ),
+                        prop: Constant(
+                            Str(
+                                Atom(
+                                    "url",
+                                ),
+                            ),
+                        ),
+                        base_effects: [
+                            ImportMeta {
+                                ast_path: [
+                                    Program(
+                                        Module,
+                                    ),
+                                    Module(
+                                        Body(
+                                            0,
+                                        ),
+                                    ),
+                                    ModuleItem(
+                                        Stmt,
+                                    ),
+                                    Stmt(
+                                        Decl,
+                                    ),
+                                    Decl(
+                                        Var,
+                                    ),
+                                    VarDecl(
+                                        Decls(
+                                            0,
+                                        ),
+                                    ),
+                                    VarDeclarator(
+                                        Init,
+                                    ),
+                                    Expr(
+                                        New,
+                                    ),
+                                    NewExpr(
+                                        Args(
+                                            1,
+                                        ),
+                                    ),
+                                    ExprOrSpread(
+                                        Expr,
+                                    ),
+                                    Expr(
+                                        Member,
+                                    ),
+                                    MemberExpr(
+                                        Obj,
+                                    ),
+                                    Expr(
+                                        MetaProp,
+                                    ),
+                                ],
+                                span: 40..51,
+                            },
+                        ],
+                        ast_path: [
+                            Program(
+                                Module,
+                            ),
+                            Module(
+                                Body(
+                                    0,
+                                ),
+                            ),
+                            ModuleItem(
+                                Stmt,
+                            ),
+                            Stmt(
+                                Decl,
+                            ),
+                            Decl(
+                                Var,
+                            ),
+                            VarDecl(
+                                Decls(
+                                    0,
+                                ),
+                            ),
+                            VarDeclarator(
+                                Init,
+                            ),
+                            Expr(
+                                New,
+                            ),
+                            NewExpr(
+                                Args(
+                                    1,
+                                ),
+                            ),
+                            ExprOrSpread(
+                                Expr,
+                            ),
+                            Expr(
+                                Member,
+                            ),
+                        ],
+                        span: 40..55,
+                        in_truthiness_context: false,
+                    },
+                ],
             ),
         ],
         ast_path: [
@@ -254,6 +257,7 @@
                         #2,
                     ),
                 ),
+                [],
             ),
         ],
         ast_path: [

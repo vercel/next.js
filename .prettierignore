@@ -70,10 +70,10 @@ test/development/mcp-server/fixtures/compilation-errors-app/app/syntax-error/pag
 /turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/error/input/broken.js
 /turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export-parse-error/input/invalid-export/broken.js
 /turbopack/crates/turbopack-tests/tests/execution/turbopack/**/not-compiled.js
-/turbopack/crates/turbopack-tests/tests/snapshot/basic/ts-parse-error/input/other.ts
-/turbopack/crates/turbopack-tests/tests/snapshot/css/css-parse-error/input/style.css
+/turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/ts-parse-error/input/other.ts
+/turbopack/crates/turbopack-tests/tests/execution/turbopack/css/css-parse-error/input/style.css
 /test/development/app-dir/css-parse-error-recovery/app/css-error/style.css
-/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/cjs/input/mod.cjs
+/turbopack/crates/turbopack-tests/tests/execution/turbopack/import-meta/cjs/input/mod.cjs
 # prettier removes the parentheses that scope the PURE annotation to the inner call
 /turbopack/crates/turbopack-tests/tests/execution/turbopack/minification/pure-annotated-callee*/input/index.js
 /turbopack/crates/turbopack-tests/tests/snapshot/source_maps/*

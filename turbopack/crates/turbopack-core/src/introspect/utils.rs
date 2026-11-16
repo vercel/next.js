@@ -13,45 +13,7 @@ use crate::{
     reference::{ModuleReference, ModuleReferences},
 };
 
-fn reference_ty() -> RcStr {
-    rcstr!("reference")
-}
-
-fn parallel_reference_ty() -> RcStr {
-    rcstr!("parallel reference")
-}
-
-fn parallel_inherit_async_reference_ty() -> RcStr {
-    rcstr!("parallel reference (inherit async module)")
-}
-
-fn async_reference_ty() -> RcStr {
-    rcstr!("async reference")
-}
-
-fn isolated_reference_ty() -> RcStr {
-    rcstr!("isolated reference")
-}
-
-fn shared_reference_ty() -> RcStr {
-    rcstr!("shared reference")
-}
-
-fn traced_reference_ty() -> RcStr {
-    rcstr!("traced reference")
-}
-
-fn per_entry_reference_ty() -> RcStr {
-    rcstr!("per entry reference")
-}
-
-fn emitted_reference_ty() -> RcStr {
-    rcstr!("emitted reference")
-}
-
-fn collected_reference_ty() -> RcStr {
-    rcstr!("collected reference")
-}
+static REFERENCE_TY: RcStr = rcstr!("reference");
 
 #[turbo_tasks::function]
 pub async fn content_to_details(content: Vc<AssetContent>) -> Result<Vc<RcStr>> {
@@ -74,7 +36,7 @@ pub async fn content_to_details(content: Vc<AssetContent>) -> Result<Vc<RcStr>> 
 pub async fn children_from_module_references(
     references: Vc<ModuleReferences>,
 ) -> Result<Vc<IntrospectableChildren>> {
-    let key = reference_ty();
+    let key = REFERENCE_TY.clone();
     let mut children = FxIndexSet::default();
     let references = references.await?;
     for &reference in &*references {
@@ -83,18 +45,18 @@ pub async fn children_from_module_references(
             None => key.clone(),
             Some(ChunkingType::Parallel { inherit_async, .. }) => {
                 if *inherit_async {
-                    parallel_inherit_async_reference_ty()
+                    rcstr!("parallel reference (inherit async module)")
                 } else {
-                    parallel_reference_ty()
+                    rcstr!("parallel reference")
                 }
             }
-            Some(ChunkingType::Async) => async_reference_ty(),
-            Some(ChunkingType::Isolated { .. }) => isolated_reference_ty(),
-            Some(ChunkingType::Shared { .. }) => shared_reference_ty(),
-            Some(ChunkingType::Traced { .. }) => traced_reference_ty(),
-            Some(ChunkingType::Emitted { .. }) => emitted_reference_ty(),
-            Some(ChunkingType::Collected { .. }) => collected_reference_ty(),
-            Some(ChunkingType::PerEntry) => per_entry_reference_ty(),
+            Some(ChunkingType::Async) => rcstr!("async reference"),
+            Some(ChunkingType::Isolated { .. }) => rcstr!("isolated reference"),
+            Some(ChunkingType::Shared { .. }) => rcstr!("shared reference"),
+            Some(ChunkingType::Traced { .. }) => rcstr!("traced reference"),
+            Some(ChunkingType::Emitted { .. }) => rcstr!("emitted reference"),
+            Some(ChunkingType::Collected { .. }) => rcstr!("collected reference"),
+            Some(ChunkingType::PerEntry) => rcstr!("per entry reference"),
         };
 
         for &module in reference
@@ -117,7 +79,7 @@ pub async fn children_from_module_references(
 pub async fn children_from_output_assets(
     references: Vc<OutputAssetsWithReferenced>,
 ) -> Result<Vc<IntrospectableChildren>> {
-    let key = reference_ty();
+    let key = REFERENCE_TY.clone();
     let mut children = FxIndexSet::default();
     let references = references.expand_all_assets().await?;
     for &reference in &*references {

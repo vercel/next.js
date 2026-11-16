@@ -64,7 +64,7 @@ pub enum TtlCounter {
     /// Pinned, or found as a root, by the most recent pass.
     MostRecent,
     /// System time millis at which a pass first found this root without a session-only pin.
-    FirstStale(u64),
+    FirstStale(#[bincode(fixint)] u64),
 }
 
 /// One unit of GC work.
