@@ -779,6 +779,7 @@ export async function handleBuildComplete({
         pagesSharedNodeAssetsHashes,
         appPagesSharedNodeAssets,
         appPagesSharedNodeAssetsHashes,
+        proxyOmittedSharedNodeAssets,
       } = await getSharedNodeAssets({
         distDir,
         requiredServerFiles,
@@ -793,7 +794,7 @@ export async function handleBuildComplete({
 
       async function handleTraceFiles(
         entryFilePath: string,
-        type: 'pages' | 'app' | 'neutral'
+        type: 'pages' | 'app' | 'proxy'
       ) {
         const assets: Record<string, string> = {}
         const assetsHashes: Record<string, string> = {}
@@ -805,6 +806,14 @@ export async function handleBuildComplete({
           syntheticSymlinks,
           config.outputHashSalt || ''
         )
+        // The proxy doesn't need the required server files, but keep any that
+        // its own trace lists.
+        const omittedKeys =
+          type === 'proxy'
+            ? [...proxyOmittedSharedNodeAssets].filter(
+                (key) => !(key in assets)
+              )
+            : []
         Object.assign(
           assets,
           sharedNodeAssets,
@@ -817,6 +826,10 @@ export async function handleBuildComplete({
           type === 'pages' ? pagesSharedNodeAssetsHashes : {},
           type === 'app' ? appPagesSharedNodeAssetsHashes : {}
         )
+        for (const key of omittedKeys) {
+          delete assets[key]
+          delete assetsHashes[key]
+        }
         if (entryHash) {
           assetsHashes[path.relative(repoRoot, entryFilePath)] = entryHash
         }
@@ -1158,7 +1171,7 @@ export async function handleBuildComplete({
         const middlewareFile = path.join(distDir, 'server', 'middleware.js')
         const { assets, assetsHashes } = await handleTraceFiles(
           middlewareFile,
-          'neutral'
+          'proxy'
         )
         const functionConfig =
           functionsConfigManifest.functions['/_middleware'] || {}
@@ -2976,11 +2989,25 @@ async function getSharedNodeAssets({
     )
   }
 
+  // Required server files are read by the Node route handlers (via
+  // `RouteModule#prepare` / `NextNodeServer`), not by the proxy (middleware)
+  // runtime, so the proxy output omits them. Files that something else (e.g.
+  // the instrumentation trace) already added are kept, as is the distDir
+  // `package.json` (the `{"type":"commonjs"}` boundary for `.next/server/**`).
+  const proxyOmittedSharedNodeAssets = new Set<string>()
+  const distDirPackageJsonPath = path.join(distDir, 'package.json')
+
   // Run after hasInstrumentationHook, which inserts the NFT-provided file hash for .next/server/instrumentation.js
   for (const file of requiredServerFiles) {
     // add to shared node assets
     const filePath = path.join(dir, file)
     const fileOutputPath = path.relative(repoRoot, filePath)
+    if (
+      path.resolve(filePath) !== path.resolve(distDirPackageJsonPath) &&
+      !(fileOutputPath in sharedNodeAssets)
+    ) {
+      proxyOmittedSharedNodeAssets.add(fileOutputPath)
+    }
     await pushAsset(
       sharedNodeAssets,
       sharedNodeAssetsHashes,
@@ -2998,6 +3025,7 @@ async function getSharedNodeAssets({
     pagesSharedNodeAssetsHashes,
     appPagesSharedNodeAssets,
     appPagesSharedNodeAssetsHashes,
+    proxyOmittedSharedNodeAssets,
   }
 }
 
