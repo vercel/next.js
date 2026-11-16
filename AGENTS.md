@@ -261,6 +261,15 @@ pnpm types             # TypeScript type checking
 
 Type-check with the repo's own commands. `pnpm typescript` runs `tsc --noEmit` against the root `tsconfig.json`, which includes `scripts/**/*.js` and loads this repo's type augmentations. A hand-rolled `tsconfig` pointed at a single file misses those augmentations and will report clean while CI fails. For example `NodeJS.ProcessEnv` is declared in `packages/next/types/global.d.ts` with `NODE_ENV` required, so a plain `Record<string, string>` is not a valid `env` for an `execa` call.
 
+Don't add `as any` casts; `@next/internal/no-as-any` rejects them. Fix the type, narrow the value with a runtime check, or use `satisfies`. Switching to `as unknown as T` or `@ts-expect-error` hides the same problem. If a cast is truly unavoidable, disable the rule for that line, with one or more comment lines directly above saying why:
+
+```ts
+// React's Flight client exports this as `any`.
+// eslint-disable-next-line @next/internal/no-as-any
+```
+
+A trailing `// eslint-disable-line` takes the reason after `--` instead. `@next/internal/require-disable-reason` rejects a missing or vague reason. Existing casts carry a `// TODO(as-any): pre-existing cast, not yet reviewed` line; don't copy that marker onto new code. When you fix a cast, delete both the disable comment and its reason (unused disable comments fail lint; the reason line does not, so it's on you).
+
 ## PR Status (CI Failures and Reviews)
 
 Use `$pr-status-triage` whenever the user asks about CI failures, PR reviews, or

@@ -128,8 +128,10 @@ export async function handler(
     // we always normalize /index specifically
     srcPage = '/'
   }
-  const multiZoneDraftMode = process.env
-    .__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
+  const multiZoneDraftMode =
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
+    process.env.__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
 
   // Registering `instrumentation.ts` usually installs the tracer provider, so
   // do it before starting the request span. The span is started before
@@ -277,6 +279,8 @@ async function handleRequest(
     ))
 
   incrementalCache?.resetRequestCache()
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(globalThis as any).__incrementalCache = incrementalCache
 
   const context: AppRouteRouteHandlerContext = {
@@ -342,6 +346,8 @@ async function handleRequest(
           ? await routeModule.handle(nextReq, context)
           : await routeModule.prerender(nextReq, context)
 
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       ;(req as any).fetchMetrics = context.renderOpts.fetchMetrics
       let pendingWaitUntil = context.renderOpts.pendingWaitUntil
 

@@ -122,6 +122,8 @@ function createLoadableComponent(loadFn: any, options: any) {
   function LoadableComponent(props: any, ref: any) {
     useLoadableModule()
 
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const state = (React as any).useSyncExternalStore(
       subscription.subscribe,
       subscription.getCurrentValue,

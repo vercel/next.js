@@ -97,8 +97,14 @@ describe('applyAppPageRscRequestMetaFromHeaders', () => {
 
     applyAppPageRscRequestMetaFromHeaders(req)
 
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(getRequestMeta(req as any, 'isRSCRequest')).toBe(true)
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(getRequestMeta(req as any, 'isPrefetchRSCRequest')).toBe(true)
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(getRequestMeta(req as any, 'segmentPrefetchRSCRequest')).toBe(
       '/_tree'
     )
@@ -116,6 +122,8 @@ describe('applyAppPageRscRequestMetaFromHeaders', () => {
 
     applyAppPageRscRequestMetaFromHeaders(req)
 
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(getRequestMeta(req as any, 'segmentPrefetchRSCRequest')).toBe(
       '/_tree'
     )
