@@ -179,7 +179,7 @@ Go's build and module caches are separate from the Turbo Tasks cache.
   are unsupported.
 - Go inputs are filenames, not package paths or patterns. All Go entries in one
   invocation must have the same parent directory and form one executable.
-- Module replacements (all `replace` directives), project Go workspaces, vendoring,
+- Versioned module replacements, directory replacements outside the module, project Go workspaces, vendoring,
   source symlinks and cross-compilation are unsupported. Symlink checks cover files
   and directory components in consumed inputs.
 
