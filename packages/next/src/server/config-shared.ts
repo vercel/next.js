@@ -511,7 +511,7 @@ export interface DeprecatedConfig {
 }
 
 export interface ExperimentalConfig {
-  /** Native Go App Router handlers. Turbopack and self-hosted next start only. */
+  /** Enable native Go route handlers and proxies. Requires Turbopack. */
   goRoutes?: boolean
   /**
    * Nudge coding agents about security upgrades, stable releases, or Future Defaults.
