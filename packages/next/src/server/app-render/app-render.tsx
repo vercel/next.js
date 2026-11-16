@@ -9479,6 +9479,9 @@ async function prerenderToStream(
         const initialClientPrerenderController = new AbortController()
         const initialClientReactController = new AbortController()
         const initialClientRenderController = new AbortController()
+        const {
+          ServerInsertedHTMLProvider: InitialServerInsertedHTMLProvider,
+        } = createServerInsertedHTML()
 
         const initialClientPrerenderStore: PrerenderStore = {
           type: 'prerender-client',
@@ -9511,7 +9514,7 @@ async function prerenderToStream(
             reactDebugStream={undefined}
             debugEndTime={undefined}
             preinitScripts={preinitScripts}
-            ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+            ServerInsertedHTMLProvider={InitialServerInsertedHTMLProvider}
             nonce={nonce}
             images={ctx.renderOpts.images}
           />,
