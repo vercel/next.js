@@ -5,7 +5,7 @@ import path from 'path'
 const envFile = '.env.development.local'
 
 describe(`app-dir-hmr`, () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     patchFileDelay: 1000,
   })
@@ -191,14 +191,18 @@ describe(`app-dir-hmr`, () => {
 
       const logs = await browser.log()
       // TODO: Should assert on all logs but these are cluttered with logs from our test utils (e.g. playwright tracing or webdriver)
-      expect(logs).toEqual(
-        expect.arrayContaining([
-          {
-            message: expect.stringContaining('[Fast Refresh] done in'),
-            source: 'log',
-          },
-        ])
-      )
+      // Turbopack sends no client update for this navigation, and only logs a no-op rebuild when
+      // compiling the page takes longer than its suppression delay.
+      if (!isTurbopack) {
+        expect(logs).toEqual(
+          expect.arrayContaining([
+            {
+              message: expect.stringContaining('[Fast Refresh] done in'),
+              source: 'log',
+            },
+          ])
+        )
+      }
       expect(logs).not.toEqual(
         expect.arrayContaining([
           expect.objectContaining({
