@@ -1,7 +1,22 @@
 import { encodeURIPath } from '../../shared/lib/encode-uri-path'
 import type { BuildManifest } from '../get-page-files'
+import { getTurbopackBootstrap } from './turbopack-bootstrap-script'
 
 import ReactDOM from 'react-dom'
+
+/**
+ * The Turbopack runtime reads its chunk-group bootstrap from this attribute on
+ * its own `<script>` tag (`document.currentScript`), so no inline bootstrap
+ * script is needed. Must match the attribute configured for the client
+ * chunking context in `next-core`.
+ */
+const TURBOPACK_BOOTSTRAP_ATTRIBUTE = 'data-turbopack-bootstrap'
+
+type BootstrapScript = {
+  src: string
+  integrity?: string
+  crossOrigin?: string | undefined
+}
 
 export function getRequiredScripts(
   buildManifest: BuildManifest,
@@ -10,22 +25,9 @@ export function getRequiredScripts(
   SRIManifest: undefined | Record<string, string>,
   qs: string,
   nonce: string | undefined,
-  pagePath: string
-): [
-  () => void,
-  { src: string; integrity?: string; crossOrigin?: string | undefined },
-] {
-  let preinitScripts: () => void
-  let preinitScriptCommands: string[] = []
-  const bootstrapScript: {
-    src: string
-    integrity?: string
-    crossOrigin?: string | undefined
-  } = {
-    src: '',
-    crossOrigin,
-  }
-
+  pagePath: string,
+  externalBrowserRuntime: boolean
+): [() => void, BootstrapScript[]] {
   const files = (
     buildManifest.rootMainFilesTree?.[pagePath] || buildManifest.rootMainFiles
   ).map(encodeURIPath)
@@ -34,44 +36,46 @@ export function getRequiredScripts(
       'Invariant: missing bootstrap script. This is a bug in Next.js'
     )
   }
-  if (SRIManifest) {
-    bootstrapScript.src = `${assetPrefix}/_next/` + files[0] + qs
-    bootstrapScript.integrity = SRIManifest[files[0]]
 
-    for (let i = 1; i < files.length; i++) {
-      const src = `${assetPrefix}/_next/` + files[i] + qs
-      const integrity = SRIManifest[files[i]]
-      preinitScriptCommands.push(src, integrity)
-    }
-    preinitScripts = () => {
-      // preinitScriptCommands is a double indexed array of src/integrity pairs
-      for (let i = 0; i < preinitScriptCommands.length; i += 2) {
-        ReactDOM.preinit(preinitScriptCommands[i], {
-          as: 'script',
-          integrity: preinitScriptCommands[i + 1],
-          crossOrigin,
-          nonce,
-        })
-      }
-    }
-  } else {
-    bootstrapScript.src = `${assetPrefix}/_next/` + files[0] + qs
+  // With the shared runtime, Turbopack always emits the runtime chunk as the
+  // last asset of the entry chunk group, so it's the last root main file.
+  const turbopackBootstrapData =
+    externalBrowserRuntime && !process.env.__NEXT_DEV_SERVER
+      ? getTurbopackBootstrap(buildManifest, [pagePath], true)?.data
+      : undefined
 
-    for (let i = 1; i < files.length; i++) {
-      const src = `${assetPrefix}/_next/` + files[i] + qs
-      preinitScriptCommands.push(src)
-    }
-    preinitScripts = () => {
-      // preinitScriptCommands is a singled indexed array of src values
-      for (let i = 0; i < preinitScriptCommands.length; i++) {
-        ReactDOM.preinit(preinitScriptCommands[i], {
-          as: 'script',
-          nonce,
-          crossOrigin,
-        })
-      }
+  const scripts = files.map((file) => ({
+    src: `${assetPrefix}/_next/` + file + qs,
+    integrity: SRIManifest ? SRIManifest[file] : undefined,
+  }))
+
+  // React can only attach data attributes to preinitialized scripts, not to
+  // `bootstrapScripts`. If the runtime would be the only (bootstrap) script,
+  // preinitialize it as well and pass no bootstrap script: React then emits
+  // its own completed-shell marker instead.
+  const bootstrapScripts: BootstrapScript[] = []
+  if (turbopackBootstrapData === undefined || scripts.length > 1) {
+    const { src, integrity } = scripts.shift()!
+    bootstrapScripts.push(
+      SRIManifest ? { src, integrity, crossOrigin } : { src, crossOrigin }
+    )
+  }
+
+  const preinitScripts = () => {
+    for (let i = 0; i < scripts.length; i++) {
+      const isTurbopackRuntime =
+        turbopackBootstrapData !== undefined && i === scripts.length - 1
+      ReactDOM.preinit(scripts[i].src, {
+        as: 'script',
+        integrity: scripts[i].integrity,
+        nonce,
+        crossOrigin,
+        dataAttributes: isTurbopackRuntime
+          ? { [TURBOPACK_BOOTSTRAP_ATTRIBUTE]: turbopackBootstrapData }
+          : undefined,
+      })
     }
   }
 
-  return [preinitScripts, bootstrapScript]
+  return [preinitScripts, bootstrapScripts]
 }

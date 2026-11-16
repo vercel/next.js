@@ -673,7 +673,7 @@ pub async fn get_client_chunking_context(
             .minify_before_chunking(*minify_before_chunking.await?)
             .shared_runtime(*shared_runtime.await?)
             .bootstrap_metadata_attribute(
-                (*external_browser_runtime.await?).then(|| rcstr!("data-next-turbopack")),
+                (*external_browser_runtime.await?).then(|| rcstr!("data-turbopack-bootstrap")),
             );
     }
 
