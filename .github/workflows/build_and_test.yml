@@ -1210,14 +1210,26 @@ jobs:
         export __NEXT_EXPERIMENTAL_FRONT_SERVER_BINARY="$RUNNER_TEMP/next-front"
         export __NEXT_EXPERIMENTAL_FRONT_SERVER=1
 
-        node scripts/test-routing.mjs --mode=start -g ${{ matrix.group }}
+        # Every run below goes ahead after a failure, and the job fails at the
+        # end, so all results show.
+        failed=0
+
+        node scripts/test-routing.mjs --mode=start -g ${{ matrix.group }} || failed=1
 
         if [ "${{ matrix.group }}" = "1/2" ]; then
           NEXT_TEST_MODE=start IS_TURBOPACK_TEST=1 TURBOPACK_BUILD=1 \
             node run-tests.js \
               test/production/app-dir/front-server/front-server.test.ts \
-              test/production/app-dir/front-server/front-server-process.test.ts
+              test/production/app-dir/front-server/front-server-process.test.ts || failed=1
+          # The same suites with the reactor on.
+          __NEXT_EXPERIMENTAL_FRONT_SERVER_REACTOR=1 \
+            NEXT_TEST_MODE=start IS_TURBOPACK_TEST=1 TURBOPACK_BUILD=1 \
+            node run-tests.js \
+              test/production/app-dir/front-server/front-server.test.ts \
+              test/production/app-dir/front-server/front-server-process.test.ts || failed=1
         fi
+
+        exit $failed
       stepName: 'test-front-server-prod-${{ matrix.group }}'
     secrets: inherit
 
