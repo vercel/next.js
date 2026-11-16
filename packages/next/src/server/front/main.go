@@ -235,6 +235,11 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) 
 			DisableCompression:    true,
 			ExpectContinueTimeout: 1 * time.Second,
 		},
+		// The proxy copies each response body through a buffer. Without a
+		// pool it allocates a new 32 KB buffer per response, most of what the
+		// front allocates, and Go's garbage collector then spends CPU freeing
+		// them. The pool hands finished buffers to later responses.
+		BufferPool: &bufferPool{},
 		// Go writes its own text after the status code; writeCustomStatusLine
 		// sends Node's instead when they differ.
 		ModifyResponse: writeCustomStatusLine,
@@ -258,6 +263,20 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) 
 		proxy.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), responseWriterKey{}, w)))
 	})
 }
+
+// bufferPool reuses the proxy's 32 KB copy buffers (the size the proxy
+// allocates without a pool). sync.Pool lets the garbage collector free
+// buffers that sit unused, so an idle front doesn't keep them.
+type bufferPool struct{ pool sync.Pool }
+
+func (b *bufferPool) Get() []byte {
+	if buf, ok := b.pool.Get().(*[]byte); ok {
+		return *buf
+	}
+	return make([]byte, 32*1024)
+}
+
+func (b *bufferPool) Put(buf []byte) { b.pool.Put(&buf) }
 
 var proxyErrorLog = log.New(os.Stderr, "next-front: ", 0)
 

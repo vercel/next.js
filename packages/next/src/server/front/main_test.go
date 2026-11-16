@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -390,4 +392,45 @@ func TestClosesARequestWhoseBodyNeverFinishes(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Response bodies go through pooled buffers; concurrent responses larger than
+// one buffer must each arrive whole and unmixed.
+func TestKeepsConcurrentLargeBodiesIntact(t *testing.T) {
+	body := func(id string) []byte {
+		return bytes.Repeat([]byte(id), 100*1024/len(id))
+	}
+	addr, seen := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Write(body(r.URL.Query().Get("id")))
+	})
+	// startProxy's upstream records every request; keep its queue drained.
+	go func() {
+		for range seen {
+		}
+	}()
+	var wg sync.WaitGroup
+	for i := 0; i < 16; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			for j := 0; j < 8; j++ {
+				id := fmt.Sprintf("<%02d-%d>", i, j)
+				res, err := http.Get("http://" + addr + "/?id=" + id)
+				if err != nil {
+					t.Error(err)
+					return
+				}
+				got, err := io.ReadAll(res.Body)
+				res.Body.Close()
+				if err != nil {
+					t.Error(err)
+					return
+				}
+				if !bytes.Equal(got, body(id)) {
+					t.Errorf("response %s: got %d bytes that differ from what Node sent", id, len(got))
+				}
+			}
+		}(i)
+	}
+	wg.Wait()
 }
