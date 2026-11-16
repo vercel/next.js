@@ -15,5 +15,5 @@ var Config = next.ProxyConfig{
 
 func Proxy(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("x-static-go-config", "matched")
-	Next(w)
+	next.Next(w)
 }

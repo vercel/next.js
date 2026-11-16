@@ -13,7 +13,9 @@ use turbo_tasks_fs::{
     DirectoryEntry, FileSystemEntryType, FileSystemPath,
     glob::{Glob, GlobOptions},
 };
+use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
+    asset::Asset,
     chunk::{ChunkingType, TracedMode},
     file_source::FileSource,
     ident::AssetIdent,
@@ -30,14 +32,15 @@ use crate::project::Project;
 pub struct EndpointTraceResult {
     pub modules: Vec<ResolvedVc<Box<dyn Module>>>,
     pub includes: Vec<FileSystemPath>,
-    pub module_idents: ResolvedVc<TracedModuleDataIdents>,
+    pub module_data: ResolvedVc<TracedModuleData>,
 }
 
 #[turbo_tasks::value_impl]
 impl EndpointTraceResult {
     #[turbo_tasks::function]
     pub async fn all_files(&self) -> Result<Vc<FileSystemPathVec>> {
-        let idents = self.module_idents.keyed_reader().await?;
+        let module_data = self.module_data.await?;
+        let idents = module_data.idents.keyed_reader().await?;
         Ok(Vc::cell(
             self.includes
                 .iter()
@@ -73,6 +76,7 @@ pub async fn trace_endpoint(
     async {
         let project_path = project.project_path().owned().await?;
         let next_config = project.next_config();
+        let hash_salt = next_config.output_hash_salt();
 
         let output_file_tracing_includes = next_config
             .output_file_tracing_includes(project_path.clone())
@@ -90,10 +94,10 @@ pub async fn trace_endpoint(
         )
         .await?;
 
-        let module_idents = traced_module_idents_for_graph(*module_graph, traced_entries)
+        let module_data = traced_module_data_for_graph(*module_graph, traced_entries, hash_salt)
             .to_resolved()
             .await?;
-        let module_paths = module_idents.keyed_reader().await?;
+        let module_paths = module_data.await?.idents.keyed_reader().await?;
 
         let modules = all_modules
             .iter()
@@ -166,7 +170,7 @@ pub async fn trace_endpoint(
         Ok(EndpointTraceResult {
             modules,
             includes,
-            module_idents,
+            module_data,
         }
         .cell())
     }
@@ -407,12 +411,16 @@ fn should_visit_for_tracing(chunking_type: &ChunkingType, parent_traced: bool) -
 #[turbo_tasks::value(transparent, cell = "keyed")]
 pub struct TracedModuleDataIdents(FxHashMap<ResolvedVc<Box<dyn Module>>, ReadRef<AssetIdent>>);
 
-/// This caches the paths for all traced modules in the graph so that they don't have to be computed
-/// once per page.
-///
-/// Content hashes are intentionally not computed here: the graph also contains modules that the
-/// endpoints exclude from their traces (`outputFileTracingExcludes`). Those must never be read, so
-/// hashes are computed per emitted module when writing the NFT file instead.
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct TracedModuleDataHashes(FxHashMap<ResolvedVc<Box<dyn Module>>, ReadRef<RcStr>>);
+
+#[turbo_tasks::value]
+pub struct TracedModuleData {
+    pub idents: ResolvedVc<TracedModuleDataIdents>,
+    pub hashes: ResolvedVc<TracedModuleDataHashes>,
+}
+
+/// This caches the paths for all modules in the graph without eagerly hashing their contents.
 #[turbo_tasks::function]
 async fn traced_module_idents_for_graph(
     module_graph: Vc<ModuleGraph>,
@@ -456,6 +464,45 @@ async fn traced_module_idents_for_graph(
             .into_iter()
             .collect(),
     ))
+}
+
+/// This caches the paths and content hashes for all modules in the graph so that we don't have to
+/// compute them once per page.
+#[turbo_tasks::function]
+pub async fn traced_module_data_for_graph(
+    module_graph: Vc<ModuleGraph>,
+    traced_entries: Vc<Modules>,
+    hash_salt: Vc<RcStr>,
+) -> Result<Vc<TracedModuleData>> {
+    let idents = traced_module_idents_for_graph(module_graph, traced_entries)
+        .to_resolved()
+        .await?;
+    let hashes = idents
+        .await?
+        .keys()
+        .copied()
+        .map(async |module| {
+            Ok((
+                module,
+                module
+                    .source()
+                    .await?
+                    .context("NFT module has no content")?
+                    .content()
+                    .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
+                    .await?,
+            ))
+        })
+        .try_join()
+        .await?
+        .into_iter()
+        .collect();
+
+    Ok(TracedModuleData {
+        idents,
+        hashes: ResolvedVc::cell(hashes),
+    }
+    .cell())
 }
 
 #[turbo_tasks::value(shared)]

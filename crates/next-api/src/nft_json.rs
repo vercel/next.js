@@ -94,9 +94,7 @@ impl Asset for NftJsonAsset {
             let project_path = this.project.project_path().owned().await?;
 
             let next_config = this.project.next_config();
-            // Resolve once: passing an unresolved `Vc` to a task function resolves it again on
-            // every call, and this is called for every traced module of every NFT file.
-            let hash_salt = *next_config.output_hash_salt().to_resolved().await?;
+            let hash_salt = next_config.output_hash_salt();
 
             let client_root = this.project.client_fs().root();
             let client_root = client_root.owned().await?;
@@ -129,7 +127,9 @@ impl Asset for NftJsonAsset {
             .await?;
 
             let traced_files = this.traced_files.await?;
-            let module_idents = traced_files.module_idents.keyed_reader().await?;
+            let module_data = traced_files.module_data.await?;
+            let module_idents = module_data.idents.keyed_reader().await?;
+            let module_hashes = module_data.hashes.keyed_reader().await?;
 
             let result = all_assets
                 .iter()
@@ -144,7 +144,7 @@ impl Asset for NftJsonAsset {
                         .map(AssetOrModule::Module),
                 )
                 .map(async |referenced| {
-                    let (referenced_chunk_path, hash, symlink_target) = match referenced {
+                    let (referenced_chunk_path, hash, content) = match referenced {
                         AssetOrModule::Asset(v) => {
                             let content = v.content().to_resolved().await?;
                             (
@@ -153,18 +153,17 @@ impl Asset for NftJsonAsset {
                                     .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
                                     .owned()
                                     .await?,
-                                symlink_target(&*content.await?),
+                                content.await?,
                             )
                         }
                         AssetOrModule::Module(v) => {
                             let ident = module_idents.get(&v).context("missing path for module")?;
-                            // Only modules that are part of this trace (after excludes) are hashed,
-                            // so excluded files are never read.
-                            let entry = traced_module_nft_entry(*v, hash_salt).await?;
+                            let hash = module_hashes.get(&v).context("missing hash for module")?;
+                            let source = v.source().await?.context("NFT module has no content")?;
                             (
                                 ident.path.clone(),
-                                entry.hash.clone(),
-                                entry.symlink_target.clone(),
+                                (**hash).clone(),
+                                source.content().await?,
                             )
                         }
                     };
@@ -173,13 +172,13 @@ impl Asset for NftJsonAsset {
                         return Ok(None);
                     }
 
-                    Ok(Some((referenced_chunk_path, hash, symlink_target)))
+                    Ok(Some((referenced_chunk_path, hash, content)))
                 })
                 .try_flat_join()
                 .await?;
 
-            for (path, hash, symlink_target) in result {
-                nft_json.add_with_symlink_target(path, hash, symlink_target.as_ref())?;
+            for (path, hash, content) in result {
+                nft_json.add(path, hash, &content)?;
             }
 
             for file_path in &traced_files.includes {
@@ -210,48 +209,6 @@ impl Asset for NftJsonAsset {
         }
         .instrument(span)
         .await
-    }
-}
-
-/// What an NFT file needs to know about a traced module.
-#[turbo_tasks::value(shared)]
-struct TracedModuleNftEntry {
-    /// The hash of the module's source content.
-    hash: RcStr,
-    /// The target, if the module's source is a symlink.
-    symlink_target: Option<FileSystemPath>,
-}
-
-/// Reads and hashes the source of a traced module.
-///
-/// This is one task per module, so that every NFT file that includes the module depends on it
-/// through a single call. The module's content is only read when an NFT file actually includes the
-/// module, so modules excluded from every trace are never read.
-#[turbo_tasks::function]
-async fn traced_module_nft_entry(
-    module: ResolvedVc<Box<dyn Module>>,
-    hash_salt: Vc<RcStr>,
-) -> Result<Vc<TracedModuleNftEntry>> {
-    let source = module
-        .source()
-        .await?
-        .context("NFT module has no content")?;
-    let content = source.content();
-    let hash = content
-        .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
-        .owned()
-        .await?;
-    Ok(TracedModuleNftEntry {
-        hash,
-        symlink_target: symlink_target(&*content.await?),
-    }
-    .cell())
-}
-
-fn symlink_target(content: &AssetContent) -> Option<FileSystemPath> {
-    match content {
-        AssetContent::File(_) => None,
-        AssetContent::Redirect(content) => Some(content.target.clone()),
     }
 }
 
