@@ -554,6 +554,9 @@ function assignDefaultsAndValidate(
   // Enable per-module minification by default on canary releases.
   result.experimental.turbopackMinifyBeforeChunking ??= !isStableBuild()
 
+  // Enable cross-module constant inlining by default on canary releases.
+  result.experimental.turbopackCrossModuleConstants ??= !isStableBuild()
+
   // Normalize experimental.browserDebugInfoInTerminal to logging.browserToTerminal
   if (
     result.logging !== false &&

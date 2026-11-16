@@ -1169,7 +1169,7 @@ export interface ExperimentalConfig {
    * Enable cross-module constant inlining in Turbopack. Constants exported from other
    * modules are inlined at their use sites, which enables dead code elimination.
    *
-   * Defaults to `false`
+   * Defaults to `true` on canary releases and `false` on stable releases.
    */
   turbopackCrossModuleConstants?: boolean
 
