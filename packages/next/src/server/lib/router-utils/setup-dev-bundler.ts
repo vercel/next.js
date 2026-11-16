@@ -59,7 +59,7 @@ import {
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
-import { ensureGoSdkReplacement } from '../../../lib/go-sdk'
+import { ensureGoSdkQueued } from '../../../lib/go-sdk'
 
 import {
   isMiddlewareFile,
@@ -240,8 +240,14 @@ async function startWatcher(
 
   fs.mkdirSync(distDir, { recursive: true })
 
+  const goSdkOptions = {
+    dir,
+    rootDir:
+      nextConfig.turbopack?.root || nextConfig.outputFileTracingRoot || dir,
+    distDir,
+  }
   if (nextConfig.experimental.goRoutes) {
-    await ensureGoSdkReplacement(dir)
+    await ensureGoSdkQueued(goSdkOptions)
   }
 
   // Create server info to store in the lockfile itself
@@ -552,6 +558,7 @@ async function startWatcher(
       const slots: SlotInfo[] = []
 
       let envFileChange = false
+      let goFileChange = false
       let clientRouterFiltersChange = false
       let tsconfigChange = false
       let conflictingPageChange = 0
@@ -632,6 +639,10 @@ async function startWatcher(
               nextWatchTime >= initialWatchTime)) ||
           (watchTime && watchTime !== nextWatchTime)
         fileWatchTimes.set(fileName, nextWatchTime)
+
+        if (fileChanged && fileName.endsWith('.go')) {
+          goFileChange = true
+        }
 
         if (envFiles.includes(fileName)) {
           if (fileChanged) {
@@ -981,6 +992,12 @@ async function startWatcher(
           clientRouterFiltersChange = true
           previousClientRouterFilters = clientRouterFilters
         }
+      }
+
+      // A Go source can start importing next/go after startup. Add the go.mod
+      // requirement then; Turbopack tracks go.mod and recompiles the handler.
+      if (goFileChange && nextConfig.experimental.goRoutes) {
+        void ensureGoSdkQueued(goSdkOptions)
       }
 
       // Also set on the initial scan, so that typed env definitions exist

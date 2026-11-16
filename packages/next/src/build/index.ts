@@ -125,7 +125,7 @@ import { discoverRoutes, createPagesMapping } from './route-discovery'
 import { sortByPageExts } from './sort-by-page-exts'
 import { getConventionFileBaseName } from './get-convention-file-base-name'
 import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
-import { ensureGoSdkReplacement } from '../lib/go-sdk'
+import { ensureGoSdk } from '../lib/go-sdk'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
@@ -1938,7 +1938,12 @@ export default async function build(
       if (!isGenerateMode) {
         if (bundler === Bundler.Turbopack) {
           if (config.experimental.goRoutes) {
-            await ensureGoSdkReplacement(dir)
+            await ensureGoSdk({
+              dir,
+              rootDir:
+                config.turbopack?.root || config.outputFileTracingRoot || dir,
+              distDir,
+            })
           }
           const {
             duration: compilerDuration,

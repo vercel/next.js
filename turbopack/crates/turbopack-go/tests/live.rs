@@ -657,7 +657,7 @@ async fn directory_replacements_inside_the_module_are_tracked_sources() -> Resul
     assert_eq!(session.run(&["main.go"]).await?.trim(), "extra");
     for (replacement, message) in [
         ("example.com/sdk v1.0.0", "versioned Go module replacements"),
-        ("../outside", "inside the module"),
+        ("../outside", "inside the project root"),
     ] {
         session
             .write(
@@ -668,6 +668,103 @@ async fn directory_replacements_inside_the_module_are_tracked_sources() -> Resul
         let error = session.fetch(&["main.go"]).await.unwrap_err().to_string();
         assert!(error.contains(message), "{error}");
     }
+    session.stop().await;
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn directory_replacements_outside_the_module_resolve_within_the_boundary() -> Result<()> {
+    let session = Session::new().await?;
+    // In a monorepo the application has its own module, while the package manager installs
+    // the SDK at the workspace root, which is the source boundary.
+    session
+        .write("node_modules/sdk/go.mod", "module next/go\ngo 1.24\n")
+        .await?;
+    session
+        .write(
+            "node_modules/sdk/sdk.go",
+            "package next\nconst Message = \"sdk-v1\"\n",
+        )
+        .await?;
+    let module = "module example.com/web\ngo 1.24\nrequire next/go v0.0.0\n";
+    session
+        .write(
+            "apps/web/go.mod",
+            &format!("{module}replace next/go => ../../node_modules/sdk\n"),
+        )
+        .await?;
+    let directory = "apps/web/app/api";
+    session
+        .write(
+            &format!("{directory}/main.go"),
+            "package main\nimport (\n\t\"fmt\"\n\tnext \"next/go\"\n)\nfunc main() { \
+             fmt.Println(next.Message) }\n",
+        )
+        .await?;
+    let root = FileSystemPath {
+        fs: ResolvedVc::upcast(session.fs),
+        path: rcstr!(""),
+    };
+    let options = session.go_context.options.clone();
+    let build = || {
+        let root = root.clone();
+        let options = options.clone();
+        let tt = session.tt.clone();
+        async move {
+            tt.run_once(async move {
+                let result = read_with_validated_inputs(
+                    || {
+                        let root = root.clone();
+                        let options = options.clone();
+                        async move {
+                            let sources = selected_sources(
+                                root.clone(),
+                                root.join(directory)?,
+                                GoSourceSelection::Directory,
+                                options.clone(),
+                            )
+                            .resolve()
+                            .strongly_consistent()
+                            .await?;
+                            selected_bundle(sources, options, BTreeMap::new())
+                                .read_strongly_consistent()
+                                .await
+                        }
+                    },
+                    |value| Some(&**value),
+                )
+                .await?;
+                let file = match &result.outcome {
+                    GoBuildOutcome::Success(file) => *file,
+                    GoBuildOutcome::Failed(message) => anyhow::bail!("{message}"),
+                    outcome => anyhow::bail!("unexpected result: {outcome:?}"),
+                }
+                .await?;
+                let FileContent::Content(file) = &*file else {
+                    anyhow::bail!("missing executable");
+                };
+                let mut bytes = vec![];
+                file.read().read_to_end(&mut bytes)?;
+                anyhow::Ok(bytes)
+            })
+            .await
+        }
+    };
+    assert_eq!(session.run_bytes(build().await?).await?.trim(), "sdk-v1");
+    // The replaced sources outside the module are tracked inputs.
+    session
+        .replace("node_modules/sdk/sdk.go", "sdk-v1", "sdk-v2")
+        .await?;
+    assert_eq!(session.run_bytes(build().await?).await?.trim(), "sdk-v2");
+    // The boundary still applies: a replacement leaving the project root is rejected.
+    session
+        .write(
+            "apps/web/go.mod",
+            &format!("{module}replace next/go => ../../../outside\n"),
+        )
+        .await?;
+    let error = build().await.unwrap_err().to_string();
+    assert!(error.contains("inside the project root"), "{error}");
     session.stop().await;
     Ok(())
 }
