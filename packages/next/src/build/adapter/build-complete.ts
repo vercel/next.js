@@ -12,6 +12,7 @@ import { isDynamicRoute } from '../../shared/lib/router/utils'
 import type { Revalidate } from '../../server/lib/cache-control'
 import type { NextConfigComplete } from '../../server/config-shared'
 import {
+  createAppPageEntryLookup,
   normalizeAppPath,
   selectAppPageEntry,
 } from '../../shared/lib/router/utils/app-paths'
@@ -1484,7 +1485,9 @@ export async function handleBuildComplete({
         contentTypeHeader: rscContentTypeHeader,
       } = routesManifest.rsc
 
-      const appSourcePages = new Map<string, string>()
+      // Normalize every app page key once, rather than once per prerendered
+      // route, so matching routes to their entries stays linear.
+      let selectAppSourcePage: ((pathname: string) => string) | undefined
       const getPrerenderFilePath = (
         route: string,
         isAppPage: boolean,
@@ -1514,10 +1517,8 @@ export async function handleBuildComplete({
           let page = source
           let kind = RouteKind.PAGES
           if (isAppPage) {
-            page =
-              appSourcePages.get(source) ??
-              selectAppPageEntry(source, appPageKeys ?? [])
-            appSourcePages.set(source, page)
+            selectAppSourcePage ??= createAppPageEntryLookup(appPageKeys ?? [])
+            page = selectAppSourcePage(source)
             kind = page.endsWith('/route')
               ? RouteKind.APP_ROUTE
               : RouteKind.APP_PAGE

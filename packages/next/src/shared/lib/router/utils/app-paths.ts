@@ -103,6 +103,40 @@ export function selectAppPageEntry(
 }
 
 /**
+ * Builds a reusable lookup with the same semantics as `selectAppPageEntry`.
+ * Use this when resolving many pathnames against the same app paths: each app
+ * path is normalized once up front instead of once per lookup, which turns
+ * resolving every route from O(routes * appPaths) into O(routes + appPaths).
+ */
+export function createAppPageEntryLookup(
+  appPaths: readonly string[],
+  normalizePathname: (appPath: string) => string = normalizeAppPageEntryPathname
+): (pathname: string) => string {
+  const entries = new Map<string, string>()
+
+  for (const appPath of appPaths) {
+    const pathname = normalizePathname(appPath)
+    const entry = entries.get(pathname)
+
+    if (entry === undefined || compareAppPaths(entry, appPath) < 0) {
+      entries.set(pathname, appPath)
+    }
+  }
+
+  return (pathname) => {
+    const entry = entries.get(pathname)
+
+    if (entry === undefined) {
+      throw new Error(
+        `Invariant: no direct app page entry found for ${pathname}`
+      )
+    }
+
+    return entry
+  }
+}
+
+/**
  * Strips the `.rsc` extension if it's in the pathname.
  * Since this function is used on full urls it checks `?` for searchParams handling.
  */
