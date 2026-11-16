@@ -132,10 +132,10 @@ pub struct ManifestNode {
 
 /// Factories for [`ManifestNodeEntry`]s and for [`ManifestNode`]s whose only export is `*`.
 /// Besides being smaller than object literals, every object they build has the same shape, which
-/// V8 handles better than many literals. `async` is only passed (as `!0`) when it is `true`.
-const MANIFEST_NODE_FACTORIES: &str = "function e(i, c, a) { return { id: i, name: \"*\", chunks: \
-                                       c, async: a === true }; }\nfunction n(i, c, a) { return { \
-                                       \"*\": e(i, c, a) }; }\n";
+/// V8 handles better than many literals.
+const MANIFEST_NODE_FACTORIES: &str = "const e = (id, chunks, async = false) => ({ id, name: \
+                                       \"*\", chunks, async }), n = (id, chunks, async) => ({ \
+                                       \"*\": e(id, chunks, async) });\n";
 
 /// Appends `?dpl=<deployment id>` to the client chunk URLs of the manifest `m`, for when the
 /// deployment id is only known at runtime. Only the URL of a merged chunk gets the suffix, not its

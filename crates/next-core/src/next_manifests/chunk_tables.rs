@@ -279,25 +279,27 @@ impl EncodedChunkTables {
 /// Whether [`write_items`] writes `items` with a call to `r`.
 fn uses_runs(items: &[Item]) -> bool {
     if let Some(paths) = all_paths(items) {
-        return paths_use_runs(&paths);
+        return paths_use_runs(paths);
     }
     items.iter().any(|item| match item {
         Item::Path(_) | Item::Css { .. } => false,
         Item::Merged {
             component_paths, ..
-        } => paths_use_runs(component_paths),
+        } => paths_use_runs(component_paths.iter().copied()),
     })
 }
 
 /// The string indices of `items`, if they are all plain paths.
-fn all_paths(items: &[Item]) -> Option<Vec<u32>> {
+fn all_paths(items: &[Item]) -> Option<impl Iterator<Item = u32> + Clone + '_> {
     items
         .iter()
-        .map(|item| match item {
-            Item::Path(path) => Some(*path),
-            Item::Merged { .. } | Item::Css { .. } => None,
+        .all(|item| matches!(item, Item::Path(_)))
+        .then(|| {
+            items.iter().map(|item| match item {
+                Item::Path(path) => *path,
+                Item::Merged { .. } | Item::Css { .. } => unreachable!(),
+            })
         })
-        .collect()
 }
 
 fn write_items(out: &mut String, items: &[Item]) {
@@ -305,7 +307,7 @@ fn write_items(out: &mut String, items: &[Item]) {
     // chunks are written as array literals, with each merged chunk's component paths written by
     // `write_paths`.
     if let Some(paths) = all_paths(items) {
-        write_paths(out, &paths);
+        write_paths(out, paths);
         return;
     }
     out.push('[');
@@ -321,7 +323,7 @@ fn write_items(out: &mut String, items: &[Item]) {
                 component_sizes,
             } => {
                 write!(out, "[s[{url}],").unwrap();
-                write_paths(out, component_paths);
+                write_paths(out, component_paths.iter().copied());
                 out.push_str(",[");
                 for (index, size) in component_sizes.iter().enumerate() {
                     if index > 0 {
@@ -348,10 +350,10 @@ fn write_items(out: &mut String, items: &[Item]) {
 }
 
 /// Writes `paths` as `r(start,length,...)` if [`paths_use_runs`], otherwise as `[s[i],...]`.
-fn write_paths(out: &mut String, paths: &[u32]) {
-    if !paths_use_runs(paths) {
+fn write_paths(out: &mut String, paths: impl Iterator<Item = u32> + Clone) {
+    if !paths_use_runs(paths.clone()) {
         out.push('[');
-        for (index, path) in paths.iter().enumerate() {
+        for (index, path) in paths.enumerate() {
             if index > 0 {
                 out.push(',');
             }
@@ -372,13 +374,15 @@ fn write_paths(out: &mut String, paths: &[u32]) {
 
 /// Whether writing `paths` as runs, `r(start,length,...)`, is at least [`RUN_MIN_SAVING`] bytes
 /// shorter than writing them as `[s[i],...]`.
-fn paths_use_runs(paths: &[u32]) -> bool {
-    if paths.is_empty() {
+fn paths_use_runs(paths: impl Iterator<Item = u32> + Clone) -> bool {
+    // `[` + `s[i]` per path, comma-separated + `]`
+    let (count, digit_count) = paths.clone().fold((0, 0), |(count, digit_count), i| {
+        (count + 1, digit_count + digits(i))
+    });
+    if count == 0 {
         return false;
     }
-    // `[` + `s[i]` per path, comma-separated + `]`
-    let literal: usize =
-        2 + (paths.len() - 1) + paths.iter().map(|&i| 3 + digits(i)).sum::<usize>();
+    let literal: usize = 2 + (count - 1) + 3 * count + digit_count;
     // `r(` + `start,length` per run, comma-separated + `)`
     let (count, numbers) = runs(paths).fold((0, 0), |(count, numbers), (start, length)| {
         (count + 1, numbers + digits(start) + digits(length))
@@ -388,15 +392,14 @@ fn paths_use_runs(paths: &[u32]) -> bool {
 }
 
 /// The runs of consecutive indices in `paths`, as `(start, length)`.
-fn runs(paths: &[u32]) -> impl Iterator<Item = (u32, u32)> + '_ {
-    let mut index = 0;
+fn runs(paths: impl Iterator<Item = u32>) -> impl Iterator<Item = (u32, u32)> {
+    let mut paths = paths.peekable();
     std::iter::from_fn(move || {
-        let start = *paths.get(index)?;
+        let start = paths.next()?;
         let mut length = 1;
-        while paths.get(index + length as usize) == Some(&(start + length)) {
+        while paths.next_if_eq(&(start + length)).is_some() {
             length += 1;
         }
-        index += length as usize;
         Some((start, length))
     })
 }
@@ -514,15 +517,15 @@ mod tests {
     fn chooses_runs_by_saved_bytes() {
         use super::paths_use_runs;
 
-        assert!(!paths_use_runs(&[]));
+        assert!(!paths_use_runs([].into_iter()));
         // `[s[0],...,s[15]]` (87 bytes) vs `r(0,16)` (7 bytes).
-        assert!(paths_use_runs(&(0..16).collect::<Vec<_>>()));
+        assert!(paths_use_runs(0..16));
         // `[s[0],s[1],s[2]]` (16 bytes) vs `r(0,3)` (6 bytes): saves 10 bytes.
-        assert!(!paths_use_runs(&[0, 1, 2]));
+        assert!(!paths_use_runs([0, 1, 2].into_iter()));
         // `[s[0],...,s[4]]` (26 bytes) vs `r(0,5)` (6 bytes): saves 20 bytes.
-        assert!(paths_use_runs(&[0, 1, 2, 3, 4]));
+        assert!(paths_use_runs([0, 1, 2, 3, 4].into_iter()));
         // Non-consecutive indices: `[s[9],s[7],s[5]]` (16 bytes) vs `r(9,1,7,1,5,1)` (14 bytes).
-        assert!(!paths_use_runs(&[9, 7, 5]));
+        assert!(!paths_use_runs([9, 7, 5].into_iter()));
     }
 
     #[test]
