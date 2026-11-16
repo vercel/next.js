@@ -67,9 +67,9 @@ Suppression only applies one level deep, and React will not patch mismatched tex
 
 <span id="solution-1-using-useeffect-to-run-on-the-client-only" />
 
-### Why not `useEffect`?
+### Why not use `useEffect` for the initial value?
 
-A mount effect can avoid a mismatch, but a synchronous state update adds a render and triggers `react-hooks/set-state-in-effect` in `eslint-config-next`. See [Why not `useEffect`?](/docs/app/guides/preventing-flash-before-hydration#why-not-useeffect) for the original pattern and its tradeoffs.
+A mount effect can avoid a mismatch, but a synchronous state update adds a render and triggers `react-hooks/set-state-in-effect` in `eslint-config-next`. See [Why not use `useEffect` for the initial value?](/docs/app/guides/preventing-flash-before-hydration#why-not-useeffect) for the original pattern and its tradeoffs.
 
 ## Common iOS issues
 

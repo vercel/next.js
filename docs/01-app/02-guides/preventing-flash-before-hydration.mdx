@@ -569,7 +569,9 @@ For server rendering, provide a `getServerSnapshot` that returns the same value 
 
 For `localStorage`, notify subscribers when your page writes to storage as well as listening for `storage` events from other documents. If the value is owned by one component, keep it in React state instead; a browser-only component can initialize that state directly, as in the linked editor example above.
 
-### Why not `useEffect`?
+<span id="why-not-useeffect" />
+
+### Why not use `useEffect` for the initial value?
 
 You can render the same placeholder on the server and client, then update state in `useEffect` after hydration:
 
@@ -592,6 +594,8 @@ export default function App() {
 This avoids a hydration mismatch, but the user can see the placeholder before the effect runs. The synchronous `setIsClient(true)` update also adds an extra render and is reported as an error by `eslint-config-next`'s [`react-hooks/set-state-in-effect`](https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect) rule. If the update suspends, it can reactivate a parent Suspense fallback.
 
 Use [`use(browser())`](#rendering-client-specific-content) when a fallback is acceptable, or an inline script when the client-specific value needs to be visible on the first paint. Use [`useSyncExternalStore`](#subscribing-to-browser-values) for external-store subscriptions.
+
+[`useEffect`](https://react.dev/reference/react/useEffect) still handles ongoing synchronization with external systems, such as starting and cleaning up a timer. `use(browser())` only defers rendering until the browser.
 
 `useLayoutEffect` runs before paint but after hydration. It prevents the flash between hydration and paint, but not the flash between the HTML arriving and React hydrating. On slow connections, the browser paints the server HTML before React has loaded. The inline script runs during HTML **parsing**, before React is involved.
 
