@@ -454,15 +454,13 @@ func writeUser(w http.ResponseWriter, r *http.Request, status int) {
 
 ### Segment Config Options
 
-Like [`maxDuration`](/docs/app/api-reference/file-conventions/route-segment-config/maxDuration) and [`preferredRegion`](/docs/app/api-reference/file-conventions/route-segment-config/preferredRegion) exports in `route.ts`, `route.go` can declare package-level values:
+Like the [`maxDuration`](/docs/app/api-reference/file-conventions/route-segment-config/maxDuration) export in `route.ts`, `route.go` can declare a package-level `MaxDuration`:
 
 ```go filename="app/api/route.go"
 const MaxDuration = 30
-
-var PreferredRegion = []string{"iad1"}
 ```
 
-`MaxDuration` is a positive integer literal in seconds. `PreferredRegion` is a nonempty `[]string` literal. Only `route.go` itself is read, statically: calls, references to other values, arithmetic, and environment reads are build errors.
+`MaxDuration` is a positive integer literal in seconds. Only `route.go` itself is read, statically: calls, references to other values, arithmetic, and environment reads are build errors. The deprecated `preferredRegion` option is not supported.
 
 Go Route Handlers always execute dynamically. JavaScript exports such as `dynamic`, `revalidate`, `fetchCache`, and `runtime` do not configure Go handlers. ISR, `generateStaticParams`, Server Actions, and React execution are unsupported for Go routes.
 

@@ -13,13 +13,11 @@ values. No SDK import is needed:
 package main
 
 const MaxDuration = 30
-
-var PreferredRegion = []string{"iad1"}
 ```
 
 `MaxDuration` is a positive integer literal in seconds, as a `const` or `var`.
-`PreferredRegion` is a nonempty `[]string` literal of nonempty strings. Omitted
-values use framework/platform defaults.
+When omitted, the deployment platform default applies. `preferredRegion` is
+deprecated for `route.ts` and not supported for `route.go`.
 
 ## `proxy.go`
 

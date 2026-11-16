@@ -7,7 +7,6 @@ import { getMiddlewareMatchers } from './get-page-static-info'
 const routeSchema = z
   .object({
     maxDuration: z.number().int().positive().optional(),
-    preferredRegion: z.array(z.string().min(1)).min(1).optional(),
   })
   .strict()
 // Like proxy.ts, a Go proxy only configures matchers.

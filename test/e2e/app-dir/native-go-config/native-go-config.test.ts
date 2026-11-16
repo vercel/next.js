@@ -107,14 +107,11 @@ describe('static Go config', () => {
   }
 
   if (isNextStart) {
-    it('emits route duration and regions and proxy matchers into manifests and adapter output', async () => {
+    it('emits route duration and proxy matchers into manifests and adapter output', async () => {
       const manifest = await next.readJSON(
         '.next/server/functions-config-manifest.json'
       )
-      expect(manifest.functions['/configured']).toMatchObject({
-        maxDuration: 17,
-        regions: ['sfo1', 'iad1'],
-      })
+      expect(manifest.functions['/configured']).toEqual({ maxDuration: 17 })
       // Like proxy.ts, a Go proxy only configures matchers.
       expect(manifest.functions['/_middleware']).not.toHaveProperty(
         'maxDuration'
@@ -154,7 +151,7 @@ describe('static Go config', () => {
         )
       ).toMatchObject({
         runtime: 'go',
-        config: { maxDuration: 17, preferredRegion: ['sfo1', 'iad1'] },
+        config: { maxDuration: 17 },
       })
     })
   }
@@ -186,9 +183,9 @@ describe('static Go config diagnostics', () => {
     },
     {
       file: 'app/configured/route.go',
-      from: 'var PreferredRegion = []string{"sfo1", "iad1"}',
-      to: 'var PreferredRegion = regions()',
-      error: 'PreferredRegion must be',
+      from: 'const MaxDuration = 17',
+      to: 'var MaxDuration = duration()',
+      error: 'positive integer literal',
     },
     {
       file: 'proxy.go',
@@ -205,8 +202,8 @@ describe('static Go config diagnostics', () => {
         expect(patched).not.toBe(source)
         if (to.includes('os.Getenv'))
           patched = patched.replace('"net/http"', '"net/http"\n"os"')
-        if (to.includes('regions()'))
-          patched += '\nfunc regions() []string { return []string{"iad1"} }\n'
+        if (to.includes('duration()'))
+          patched += '\nfunc duration() int { return 17 }\n'
         await next.patchFile(file, patched)
         const result = await next.build()
         expect(result.exitCode).not.toBe(0)

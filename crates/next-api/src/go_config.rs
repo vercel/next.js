@@ -141,36 +141,6 @@ impl Reader {
         }
     }
 
-    fn regions(&self, node: &Node) -> Result<Value, String> {
-        let error = || {
-            format!(
-                "{}: PreferredRegion must be a nonempty []string literal of nonempty strings",
-                node.pos()
-            )
-        };
-        let Node::Composite {
-            type_name: Some(type_name),
-            elements,
-            ..
-        } = node
-        else {
-            return Err(error());
-        };
-        if type_name != "[]string" || elements.is_empty() {
-            return Err(error());
-        }
-        elements
-            .iter()
-            .map(|element| match (&element.key, &element.value) {
-                (None, Node::String { value, .. }) if !value.is_empty() => {
-                    Ok(Value::String(value.clone()))
-                }
-                (None, Node::String { .. }) => Err(error()),
-                (_, value) => self.text(value),
-            })
-            .collect()
-    }
-
     fn locale(&self, node: &Node) -> Result<Value, String> {
         match node {
             Node::Bool { value: false, .. } => Ok(Value::Bool(false)),
@@ -249,8 +219,8 @@ fn parse(declaration: &str) -> Result<Declaration, String> {
 
 /// Returns the entry's static configuration as Next.js JSON, or a located error.
 ///
-/// Like `route.ts` segment config, `route.go` declares separate values:
-/// `const MaxDuration = 30` and `var PreferredRegion = []string{"iad1"}`. Like `proxy.ts`'s
+/// Like `route.ts` segment config, `route.go` declares separate values; only
+/// `const MaxDuration = 30` is supported (`preferredRegion` is deprecated). Like `proxy.ts`'s
 /// `config` object, `proxy.go` declares `var Config = next.ProxyConfig{Matcher: ...}`.
 /// Absent values are omitted from the result.
 pub fn go_entry_config(
@@ -258,11 +228,7 @@ pub fn go_entry_config(
     values: &BTreeMap<RcStr, RcStr>,
     proxy: bool,
 ) -> Result<Value, String> {
-    let names: &[&str] = if proxy {
-        &["Config"]
-    } else {
-        &["MaxDuration", "PreferredRegion"]
-    };
+    let names: &[&str] = if proxy { &["Config"] } else { &["MaxDuration"] };
     if let Some(name) = names
         .iter()
         .find(|name| functions.iter().any(|f| f == *name))
@@ -299,12 +265,6 @@ pub fn go_entry_config(
         config.insert(
             "maxDuration".into(),
             reader.duration(&parse(declaration)?.value)?,
-        );
-    }
-    if let Some(declaration) = values.get("PreferredRegion") {
-        config.insert(
-            "preferredRegion".into(),
-            reader.regions(&parse(declaration)?.value)?,
         );
     }
     Ok(Value::Object(config))
@@ -372,24 +332,17 @@ mod tests {
         )
     }
 
-    fn regions(elements: &[(Option<&str>, String)]) -> String {
-        composite(Some("[]string"), elements)
-    }
-
     #[test]
     fn reads_route_values() {
         assert_eq!(
             route(&[
                 ("MaxDuration", true, int(30)),
-                (
-                    "PreferredRegion",
-                    false,
-                    regions(&[(None, string("iad1")), (None, string("sfo1"))]),
-                ),
-                // Other exported values have no meaning to Next.js.
+                // Other exported values have no meaning to Next.js, including the
+                // deprecated PreferredRegion.
+                ("PreferredRegion", false, unsupported()),
                 ("Config", false, unsupported()),
             ]),
-            Ok(json!({ "maxDuration": 30, "preferredRegion": ["iad1", "sfo1"] }))
+            Ok(json!({ "maxDuration": 30 }))
         );
         assert_eq!(route(&[]), Ok(json!({})));
         assert_eq!(
@@ -409,19 +362,6 @@ mod tests {
             (
                 ("MaxDuration", true, int(1 << 40)),
                 "positive integer literal",
-            ),
-            (
-                ("PreferredRegion", false, unsupported()),
-                "[]string literal",
-            ),
-            (("PreferredRegion", false, regions(&[])), "[]string literal"),
-            (
-                ("PreferredRegion", false, regions(&[(None, string(""))])),
-                "[]string literal",
-            ),
-            (
-                ("PreferredRegion", false, regions(&[(None, unsupported())])),
-                "static string literals",
             ),
         ] {
             let error = route(&[entry]).unwrap_err();

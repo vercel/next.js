@@ -2619,9 +2619,7 @@ export default async function build(
                 const maxDuration = goConfig
                   ? goConfig.maxDuration
                   : staticInfo?.maxDuration
-                const preferredRegion = goConfig
-                  ? goConfig.preferredRegion
-                  : staticInfo?.preferredRegion
+                const preferredRegion = staticInfo?.preferredRegion
 
                 // If there's any thing that would contribute to the functions
                 // configuration, we need to add it to the manifest.

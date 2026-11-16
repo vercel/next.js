@@ -1,6 +1,6 @@
 // Package next defines statically analyzed configuration for Next.js proxy.go.
 // Config initializers must use literals; calls and computed values are unsupported.
-// route.go needs no types: like route.ts, it declares MaxDuration and PreferredRegion.
+// route.go needs no types: like route.ts, it declares a separate MaxDuration value.
 package next
 
 // ProxyConfig configures proxy.go like proxy.ts: only matchers are supported.
