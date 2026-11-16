@@ -107,7 +107,7 @@ describe('static Go config', () => {
   }
 
   if (isNextStart) {
-    it('emits per-entry duration, regions and matchers into manifests and adapter output', async () => {
+    it('emits route duration and regions and proxy matchers into manifests and adapter output', async () => {
       const manifest = await next.readJSON(
         '.next/server/functions-config-manifest.json'
       )
@@ -115,9 +115,12 @@ describe('static Go config', () => {
         maxDuration: 17,
         regions: ['sfo1', 'iad1'],
       })
+      // Like proxy.ts, a Go proxy only configures matchers.
+      expect(manifest.functions['/_middleware']).not.toHaveProperty(
+        'maxDuration'
+      )
+      expect(manifest.functions['/_middleware']).not.toHaveProperty('regions')
       expect(manifest.functions['/_middleware']).toMatchObject({
-        maxDuration: 11,
-        regions: ['iad1'],
         matchers: [
           expect.objectContaining({ originalSource: '/configured' }),
           expect.anything(),
@@ -138,8 +141,6 @@ describe('static Go config', () => {
       expect(output.middleware).toMatchObject({
         runtime: 'go',
         config: {
-          maxDuration: 11,
-          preferredRegion: ['iad1'],
           matchers: [
             expect.objectContaining({ source: '/configured' }),
             expect.anything(),
@@ -167,9 +168,9 @@ describe('static Go config diagnostics', () => {
   const cases = [
     {
       file: 'proxy.go',
-      from: /MaxDuration:\s+11/,
-      to: 'MaxDuration: duration()',
-      error: 'positive integer literal',
+      from: 'var Config = next.ProxyConfig{',
+      to: 'var Config = next.ProxyConfig{MaxDuration: 11,',
+      error: 'unsupported Config field MaxDuration',
     },
     {
       file: 'proxy.go',
@@ -202,8 +203,6 @@ describe('static Go config diagnostics', () => {
       try {
         let patched = source.replace(from, to)
         expect(patched).not.toBe(source)
-        if (to.includes('duration()'))
-          patched += '\nfunc duration() int { return 11 }\n'
         if (to.includes('os.Getenv'))
           patched = patched.replace('"net/http"', '"net/http"\n"os"')
         if (to.includes('makeConfig()'))

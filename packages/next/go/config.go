@@ -9,11 +9,10 @@ type RouteConfig struct {
 	PreferredRegion []string
 }
 
-// ProxyConfig configures proxy.go. An omitted Matcher matches every path.
+// ProxyConfig configures proxy.go like proxy.ts: only matchers are supported.
+// An omitted Matcher matches every path.
 type ProxyConfig struct {
-	Matcher         []Matcher
-	MaxDuration     int
-	PreferredRegion []string
+	Matcher []Matcher
 }
 
 // Matcher selects proxy requests using the Next.js matcher syntax.

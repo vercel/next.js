@@ -10,8 +10,9 @@ const routeSchema = z
     preferredRegion: z.array(z.string().min(1)).min(1).optional(),
   })
   .strict()
-const proxySchema = routeSchema
-  .extend({
+// Like proxy.ts, a Go proxy only configures matchers.
+const proxySchema = z
+  .object({
     matcher: MiddlewareConfigInputSchema.shape.matcher,
   })
   .strict()
@@ -47,14 +48,13 @@ export async function readGoProxyConfig(
   sourcePath: string,
   nextConfig: Pick<NextConfig, 'basePath' | 'i18n'>
 ) {
-  const { matcher, ...config } = await readDescriptorConfig(
+  const { matcher } = await readDescriptorConfig(
     descriptorPath,
     sourcePath,
     proxySchema
   )
   try {
     return {
-      ...config,
       // An omitted matcher matches every path.
       matchers: getMiddlewareMatchers(matcher ?? '/:path*', nextConfig),
     }

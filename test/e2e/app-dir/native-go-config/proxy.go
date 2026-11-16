@@ -11,8 +11,6 @@ var Config = next.ProxyConfig{
 		{Source: "/conditional", Has: []next.RouteHas{{Type: "header", Key: "x-config-match", Value: "yes"}}},
 		{Source: "/missing", Missing: []next.RouteHas{{Type: "cookie", Key: "skip"}}},
 	},
-	MaxDuration:     11,
-	PreferredRegion: []string{"iad1"},
 }
 
 func Proxy(w http.ResponseWriter, r *http.Request) {

@@ -243,8 +243,9 @@ impl Reader {
     }
 }
 
-/// Returns the entry's static configuration as Next.js JSON (`maxDuration`, `preferredRegion`
-/// and, for proxies, `matcher`), or a located error. A missing `Config` is an empty object.
+/// Returns the entry's static configuration as Next.js JSON (`maxDuration` and `preferredRegion`
+/// for routes; only `matcher` for proxies, like proxy.ts), or a located error. A missing
+/// `Config` is an empty object.
 pub fn go_entry_config(
     functions: &[RcStr],
     values: &BTreeMap<RcStr, RcStr>,
@@ -279,14 +280,7 @@ pub fn go_entry_config(
         }
     };
     if proxy {
-        reader.fields(
-            elements,
-            &[
-                ("MaxDuration", Reader::duration),
-                ("PreferredRegion", Reader::regions),
-                ("Matcher", Reader::matchers),
-            ],
-        )
+        reader.fields(elements, &[("Matcher", Reader::matchers)])
     } else {
         reader.fields(
             elements,
@@ -357,6 +351,13 @@ mod tests {
             Some("[]string"),
             &[(None, string("iad1")), (None, string("sfo1"))],
         );
+        assert_eq!(
+            route(&[
+                (Some("MaxDuration"), int(30)),
+                (Some("PreferredRegion"), regions),
+            ]),
+            Ok(json!({ "maxDuration": 30, "preferredRegion": ["iad1", "sfo1"] }))
+        );
         let has = composite(
             Some("[]framework.RouteHas"),
             &[(
@@ -386,17 +387,11 @@ mod tests {
         );
         let value = composite(
             Some("framework.ProxyConfig"),
-            &[
-                (Some("MaxDuration"), int(30)),
-                (Some("PreferredRegion"), regions),
-                (Some("Matcher"), matchers),
-            ],
+            &[(Some("Matcher"), matchers)],
         );
         assert_eq!(
             go_entry_config(&[], &config(value, IMPORT), true),
             Ok(json!({
-                "maxDuration": 30,
-                "preferredRegion": ["iad1", "sfo1"],
                 "matcher": [{
                     "source": "/account/:path*",
                     "locale": false,
@@ -404,6 +399,18 @@ mod tests {
                 }],
             }))
         );
+    }
+
+    #[test]
+    fn proxies_only_accept_matchers() {
+        for field in ["MaxDuration", "PreferredRegion"] {
+            let value = composite(Some("framework.ProxyConfig"), &[(Some(field), int(30))]);
+            let error = go_entry_config(&[], &config(value, IMPORT), true).unwrap_err();
+            assert!(
+                error.contains(&format!("unsupported Config field {field}")),
+                "{error}"
+            );
+        }
     }
 
     #[test]

@@ -3042,12 +3042,6 @@ export default async function build(
                   nativeEntry: 'middleware.native.json',
                 }
               : { runtime: 'nodejs' as const }),
-            maxDuration: goConfig
-              ? goConfig.maxDuration
-              : staticInfo.maxDuration,
-            regions: goConfig
-              ? goConfig.preferredRegion
-              : staticInfo.preferredRegion,
             matchers: goConfig?.matchers ??
               staticInfo.middleware?.matchers ?? [
                 {

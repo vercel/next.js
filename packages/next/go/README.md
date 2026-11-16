@@ -39,8 +39,6 @@ var Config = next.ProxyConfig{
         {Source: "/account/:path*"},
         {Source: "/special", Has: []next.RouteHas{{Type: "header", Key: "x-special"}}},
     },
-    MaxDuration: 30,
-    PreferredRegion: []string{"iad1"},
 }
 ```
 
@@ -56,4 +54,5 @@ to discover configuration. Runtime changes to `Config` do not configure Next.js.
 `MaxDuration` is a positive integer in seconds. `PreferredRegion` is a nonempty
 slice of nonempty strings. Omitted duration and regions use framework/platform
 defaults. An omitted matcher matches all paths. Matcher conditions and paths use
-the existing Next.js validation. `Matcher` is supported only on `ProxyConfig`.
+the existing Next.js validation. Like `proxy.ts`, `ProxyConfig` supports only
+`Matcher`; `MaxDuration` and `PreferredRegion` are route-only.
