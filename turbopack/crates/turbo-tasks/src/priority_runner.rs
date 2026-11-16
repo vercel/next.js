@@ -22,6 +22,121 @@ use pin_project_lite::pin_project;
 
 use crate::FxDashMap;
 
+/// Benchmark-only, approximate diagnostics of the queue ordering (see the
+/// `priority_runner_diagnostics` feature). Every count is an observation at a racy sample point,
+/// not an exact property of the schedule.
+#[cfg(feature = "priority_runner_diagnostics")]
+mod diagnostics {
+    use std::{
+        collections::BTreeMap,
+        sync::atomic::{AtomicU64, Ordering::Relaxed},
+    };
+
+    use parking_lot::Mutex;
+
+    /// Counters of one queue. They are also added to the process-wide totals that are printed at
+    /// exit.
+    #[derive(Default)]
+    pub(super) struct Counters {
+        /// Successful pops.
+        pub pops: AtomicU64,
+        /// Pops whose item had a lower priority than the highest queued live priority.
+        pub inversions: AtomicU64,
+        /// The largest number of live, lower-priority items that a label-raising push was queued
+        /// behind in `current`: the length of `current` before the push, capped by the number of
+        /// live items with a lower priority.
+        pub max_skipped_backlog: AtomicU64,
+        /// Pops from `current` of an item whose priority is above the label at that time.
+        pub label_below_live: AtomicU64,
+        /// Instrumented events (pushes, pops, claims and replacements).
+        pub events: AtomicU64,
+    }
+
+    static TOTAL: Counters = Counters {
+        pops: AtomicU64::new(0),
+        inversions: AtomicU64::new(0),
+        max_skipped_backlog: AtomicU64::new(0),
+        label_below_live: AtomicU64::new(0),
+        events: AtomicU64::new(0),
+    };
+
+    impl Counters {
+        pub fn add(&self, counter: impl Fn(&Counters) -> &AtomicU64, value: u64) {
+            counter(self).fetch_add(value, Relaxed);
+            counter(&TOTAL).fetch_add(value, Relaxed);
+        }
+
+        pub fn max_skipped(&self, value: u64) {
+            self.max_skipped_backlog.fetch_max(value, Relaxed);
+            TOTAL.max_skipped_backlog.fetch_max(value, Relaxed);
+        }
+    }
+
+    /// The number of live (queued, not claimed or replaced) items per priority of one queue.
+    pub(super) struct Live<P>(Mutex<BTreeMap<P, u64>>);
+
+    impl<P: Ord + Clone> Live<P> {
+        pub fn new() -> Self {
+            register();
+            Self(Mutex::new(BTreeMap::new()))
+        }
+
+        pub fn insert(&self, priority: &P) {
+            *self.0.lock().entry(priority.clone()).or_default() += 1;
+        }
+
+        /// Removes a live item. Returns whether a higher priority was still live.
+        pub fn remove(&self, priority: &P) -> bool {
+            let mut live = self.0.lock();
+            let inverted = live.last_key_value().is_some_and(|(max, _)| max > priority);
+            if let Some(count) = live.get_mut(priority) {
+                *count -= 1;
+                if *count == 0 {
+                    live.remove(priority);
+                }
+            }
+            inverted
+        }
+
+        /// The number of live items with a lower priority.
+        pub fn below(&self, priority: &P) -> u64 {
+            self.0
+                .lock()
+                .range(..priority.clone())
+                .map(|(_, count)| count)
+                .sum()
+        }
+    }
+
+    extern "C" fn print() {
+        eprintln!(
+            "PRIO_DIAG pid={} pops={} inversions={} max_skipped_backlog={} label_below_live={} \
+             events={}",
+            std::process::id(),
+            TOTAL.pops.load(Relaxed),
+            TOTAL.inversions.load(Relaxed),
+            TOTAL.max_skipped_backlog.load(Relaxed),
+            TOTAL.label_below_live.load(Relaxed),
+            TOTAL.events.load(Relaxed),
+        );
+    }
+
+    /// Registers the exit footer once per process.
+    fn register() {
+        unsafe extern "C" {
+            fn atexit(callback: extern "C" fn()) -> std::os::raw::c_int;
+        }
+        static ONCE: std::sync::Once = std::sync::Once::new();
+        ONCE.call_once(|| {
+            eprintln!("PRIO_DIAG_REGISTER pid={}", std::process::id());
+            // SAFETY: `print` is a plain `extern "C"` fn without captured state.
+            unsafe {
+                atexit(print);
+            }
+        });
+    }
+}
+
 pub trait Executor<C, T, P>: Send + Sync {
     type Future: Future<Output = ()> + Send;
 
@@ -270,6 +385,10 @@ struct Queue<P, T: Claimable> {
     /// How often the `heap` mutex was locked. Tests only.
     #[cfg(test)]
     heap_locks: AtomicUsize,
+    #[cfg(feature = "priority_runner_diagnostics")]
+    diag: diagnostics::Counters,
+    #[cfg(feature = "priority_runner_diagnostics")]
+    live: diagnostics::Live<P>,
 }
 
 impl<P: Clone + Ord + Hash + Default, T: Claimable> Queue<P, T> {
@@ -283,7 +402,18 @@ impl<P: Clone + Ord + Hash + Default, T: Claimable> Queue<P, T> {
             pushes: std::sync::atomic::AtomicU64::new(0),
             #[cfg(test)]
             heap_locks: AtomicUsize::new(0),
+            #[cfg(feature = "priority_runner_diagnostics")]
+            diag: Default::default(),
+            #[cfg(feature = "priority_runner_diagnostics")]
+            live: diagnostics::Live::new(),
         }
+    }
+
+    /// Diagnostics: a label-raising push of `priority` is about to be queued in `current`.
+    #[cfg(feature = "priority_runner_diagnostics")]
+    fn diag_raising_push(&self, priority: &P) {
+        let backlog = (self.current.items.len() as u64).min(self.live.below(priority));
+        self.diag.max_skipped(backlog);
     }
 
     fn lock_heap(&self) -> MutexGuard<'_, BinaryHeap<P>> {
@@ -320,8 +450,18 @@ impl<P: Clone + Ord + Hash + Default, T: Claimable> Queue<P, T> {
         #[cfg(feature = "inline_execution_stats")]
         self.pushes.fetch_add(1, Ordering::Relaxed);
         let key = task.claim_key();
+        #[cfg(feature = "priority_runner_diagnostics")]
+        {
+            self.diag.add(|c| &c.events, 1);
+            self.live.insert(priority);
+        }
         // Stored before the key is queued, so a pop can't find the key before the item.
         let replaced = self.claimable.insert(key, (priority.clone(), task));
+        #[cfg(feature = "priority_runner_diagnostics")]
+        if let Some((replaced_priority, _)) = &replaced {
+            self.diag.add(|c| &c.events, 1);
+            self.live.remove(replaced_priority);
+        }
         (key, replaced)
     }
 
@@ -334,6 +474,10 @@ impl<P: Clone + Ord + Hash + Default, T: Claimable> Queue<P, T> {
         }
         let raises = *priority > **label;
         drop(label);
+        #[cfg(feature = "priority_runner_diagnostics")]
+        if raises {
+            self.diag_raising_push(priority);
+        }
         push_unclosed(&self.current.items, (priority.clone(), key));
         if raises {
             self.current.raise_label(priority);
@@ -424,6 +568,10 @@ impl<P: Clone + Ord + Hash + Default, T: Claimable> Queue<P, T> {
                     if priority > **label && raise_to.as_ref().is_none_or(|max| priority > *max) {
                         raise_to = Some(priority.clone());
                     }
+                    #[cfg(feature = "priority_runner_diagnostics")]
+                    if priority > **label {
+                        self.diag_raising_push(&priority);
+                    }
                     push_unclosed(&self.current.items, (priority, key));
                 }
                 if let Some((priority, task)) = replaced {
@@ -470,6 +618,17 @@ impl<P: Clone + Ord + Hash + Default, T: Claimable> Queue<P, T> {
     fn pop_current(&self) -> Option<(P, T)> {
         while let Ok((priority, key)) = self.current.items.pop() {
             if let Some(task) = self.take(&priority, &key) {
+                #[cfg(feature = "priority_runner_diagnostics")]
+                {
+                    self.diag.add(|c| &c.events, 1);
+                    self.diag.add(|c| &c.pops, 1);
+                    if self.live.remove(&priority) {
+                        self.diag.add(|c| &c.inversions, 1);
+                    }
+                    if priority > **self.current.label.load() {
+                        self.diag.add(|c| &c.label_below_live, 1);
+                    }
+                }
                 return Some((priority, task));
             }
         }
@@ -522,7 +681,13 @@ impl<P: Clone + Ord + Hash + Default, T: Claimable> Queue<P, T> {
     /// Removes the queued item with the given key, if it is still queued. Its queue entry stays
     /// behind as a tombstone.
     fn claim(&self, key: &T::Key) -> Option<(P, T)> {
-        self.claimable.remove(key).map(|(_, item)| item)
+        let claimed = self.claimable.remove(key).map(|(_, item)| item);
+        #[cfg(feature = "priority_runner_diagnostics")]
+        if let Some((priority, _)) = &claimed {
+            self.diag.add(|c| &c.events, 1);
+            self.live.remove(priority);
+        }
+        claimed
     }
 }
 
@@ -2235,6 +2400,55 @@ mod tests {
         assert!(q.claimable.is_empty());
         assert!(q.is_empty());
         assert_eq!(q.queue_count(), 0);
+    }
+
+    /// The diagnostic counters of a deterministic sequence: two lower-priority items are popped
+    /// before the higher-priority one that was queued behind them (2 inversions, a backlog of 2),
+    /// and a stale producer leaves the label below a live element (1 such pop). Pushing the higher
+    /// priority first keeps strict order (0 inversions, no backlog).
+    #[cfg(feature = "priority_runner_diagnostics")]
+    #[test]
+    fn test_diagnostic_counters() {
+        let get = |q: &Queue<u32, u32>| {
+            let d = &q.diag;
+            (
+                d.pops.load(Ordering::Relaxed),
+                d.inversions.load(Ordering::Relaxed),
+                d.max_skipped_backlog.load(Ordering::Relaxed),
+                d.label_below_live.load(Ordering::Relaxed),
+            )
+        };
+
+        let q: Queue<u32, u32> = Queue::new();
+        assert!(q.push(0, 1).is_none());
+        assert!(q.push(0, 2).is_none());
+        assert!(q.push(5, 3).is_none());
+        assert_eq!(q.pop(), Some((0, 1)));
+        assert_eq!(q.pop(), Some((0, 2)));
+        assert_eq!(q.pop(), Some((5, 3)));
+        assert_eq!(get(&q), (3, 2, 2, 0));
+
+        let q: Queue<u32, u32> = Queue::new();
+        assert!(q.push(5, 3).is_none());
+        assert!(q.push(0, 1).is_none());
+        assert!(q.push(0, 2).is_none());
+        while q.pop().is_some() {}
+        assert_eq!(get(&q), (3, 0, 0, 0));
+
+        // The stale producer of `test_refill_races_with_pushes`.
+        let q: Queue<u32, u32> = Queue::new();
+        assert!(q.push(5, 1).is_none());
+        assert!(q.push(2, 2).is_none());
+        assert_eq!(q.pop(), Some((5, 1)));
+        let mut heap = q.heap.lock();
+        let seen = q.current.label.load_full();
+        let (key, _) = q.insert_claimable(&5, 3);
+        push_unclosed(&q.current.items, (5, key));
+        assert!(q.refill(&mut heap, &seen));
+        drop(heap);
+        assert_eq!(q.pop(), Some((5, 3)));
+        assert_eq!(q.pop(), Some((2, 2)));
+        assert_eq!(get(&q), (3, 0, 0, 1));
     }
 
     /// Claimed items leave tombstones in `current` and in the map; pops skip both, and the queue

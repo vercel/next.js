@@ -24,6 +24,13 @@ verify_determinism = []
 # shouldn't pay for them. With the feature off there are no counters and no atomics at all.
 inline_execution_stats = []
 
+# Benchmark-only diagnostics of the priority runner's queue ordering (not for production builds):
+# approximate counts of pops that returned a lower priority than the highest queued one, of the
+# backlog a higher-priority push queued behind, and of pops of an element above the label. They
+# track the queued priorities under a mutex, so they perturb timing. Printed once per process at
+# exit as a `PRIO_DIAG` line.
+priority_runner_diagnostics = []
+
 # TODO(bgw): This feature is here to unblock turning on local tasks by default. It's only turned on
 # in unit tests. This will be removed very soon.
 non_operation_vc_strongly_consistent = []
