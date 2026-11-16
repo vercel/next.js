@@ -824,6 +824,8 @@ type PageIsStaticResult = {
   traceIncludes?: string[]
   traceExcludes?: string[]
   appConfig?: AppSegmentConfig
+  /** Whether the app page exports `markdown` (`experimental.acceptMarkdown`). */
+  hasMarkdownExport?: boolean
 }
 
 export async function isPageStatic({
@@ -856,6 +858,7 @@ export async function isPageStatic({
   clientAssetToken,
   sriEnabled,
   isNativeRoute = false,
+  acceptMarkdown = false,
 }: {
   dir: string
   page: string
@@ -886,6 +889,8 @@ export async function isPageStatic({
   clientAssetToken: string
   sriEnabled: boolean
   isNativeRoute?: boolean
+  /** Whether `experimental.acceptMarkdown` alternates are generated for this page. */
+  acceptMarkdown?: boolean
 }): Promise<PageIsStaticResult> {
   // Skip page data collection for synthetic _global-error routes
   if (page === UNDERSCORE_GLOBAL_ERROR_ROUTE) {
@@ -999,6 +1004,7 @@ export async function isPageStatic({
       const Comp = Component as NextComponentType | undefined
 
       let isRoutePPREnabled: boolean = false
+      let hasMarkdownExport = false
 
       if (pageType === 'app') {
         // @ts-expect-error pageType is app, so we can assume AppPageModule | AppRouteModule
@@ -1034,6 +1040,19 @@ export async function isPageStatic({
         }
 
         rootParamKeys = collectRootParamKeys(routeModule)
+
+        if (
+          acceptMarkdown &&
+          routeModule.definition.kind === RouteKind.APP_PAGE
+        ) {
+          const { getPageMarkdownExport } =
+            require('../server/lib/accept-markdown') as typeof import('../server/lib/accept-markdown')
+          hasMarkdownExport =
+            (await getPageMarkdownExport(
+              (routeModule as AppPageRouteModule).userland.loaderTree,
+              normalizeAppPath(page)
+            )) !== undefined
+        }
 
         // A page supports partial prerendering when it is an app page and
         // Cache Components is enabled.
@@ -1182,6 +1201,7 @@ export async function isPageStatic({
         hasServerProps,
         isNextImageImported,
         appConfig,
+        hasMarkdownExport,
       }
     })
     .catch((err) => {

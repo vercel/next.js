@@ -5,6 +5,10 @@ module.exports =
     const userProvidedMdxOptions = pluginOptions.options
 
     const mdxRsOptions = inputConfig?.experimental?.mdxRs
+    // `experimental.acceptMarkdown`: export each MDX page's source as its
+    // `markdown` alternate. Not supported by the Rust compiler (`mdxRs`).
+    const acceptMarkdown =
+      inputConfig?.experimental?.acceptMarkdown === true && !mdxRsOptions
     const loader = mdxRsOptions
       ? {
           loader: require.resolve('./mdx-rs-loader'),
@@ -20,6 +24,7 @@ module.exports =
           options: {
             providerImportSource: 'next-mdx-import-source-file',
             ...userProvidedMdxOptions,
+            ...(acceptMarkdown ? { nextAcceptMarkdown: true } : {}),
           },
         }
 

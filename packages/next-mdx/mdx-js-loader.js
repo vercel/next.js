@@ -30,6 +30,8 @@ async function getOptions(options, projectRoot) {
     recmaPlugins = [],
     rehypePlugins = [],
     remarkPlugins = [],
+    // Set by `@next/mdx` when `experimental.acceptMarkdown` is enabled.
+    nextAcceptMarkdown = false,
     ...rest
   } = options
 
@@ -49,7 +51,9 @@ async function getOptions(options, projectRoot) {
     ...rest,
     recmaPlugins: updatedRecma,
     rehypePlugins: updatedRehype,
-    remarkPlugins: updatedRemark,
+    remarkPlugins: nextAcceptMarkdown
+      ? [require('./remark-export-markdown'), ...updatedRemark]
+      : updatedRemark,
   }
 }
 

@@ -22,6 +22,7 @@ import { InvariantError } from '../shared/lib/invariant-error'
 import type {
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
+  MARKDOWN_CONTENT_TYPE_HEADER,
   TEXT_PLAIN_CONTENT_TYPE_HEADER,
 } from '../lib/constants'
 import type { RSC_CONTENT_TYPE_HEADER } from '../client/components/app-router-headers'
@@ -31,6 +32,7 @@ type ContentTypeOption =
   | typeof HTML_CONTENT_TYPE_HEADER // For App Page, Pages HTML responses
   | typeof JSON_CONTENT_TYPE_HEADER // For API routes, Next.js data requests
   | typeof TEXT_PLAIN_CONTENT_TYPE_HEADER // For simplified errors
+  | typeof MARKDOWN_CONTENT_TYPE_HEADER // For experimental.acceptMarkdown alternates
 
 export type AppPageRenderResultMetadata = {
   /** Request-local metrics for the first response write. Never cache this. */

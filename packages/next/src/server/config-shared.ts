@@ -1366,6 +1366,14 @@ export interface ExperimentalConfig {
   externalBrowserRuntime?: boolean
 
   /**
+   * Serve a page's `markdown` export to requests that prefer
+   * `Accept: text/markdown`. Only fully static App Router pages are supported:
+   * the alternate is prerendered at build time. Not supported with
+   * `output: 'export'`, `cacheComponents`, or the Edge runtime.
+   */
+  acceptMarkdown?: boolean
+
+  /**
    * Uninstalls all "unhandledRejection" and "uncaughtException" listeners from
    * the global process so that we can override the behavior, which in some
    * runtimes is to exit the process.
@@ -2699,6 +2707,7 @@ export interface NextConfigRuntime {
     | 'instantInsights'
     | 'requestInsights'
     | 'externalBrowserRuntime'
+    | 'acceptMarkdown'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -2773,6 +2782,7 @@ export function getNextConfigRuntime(
     instantInsights: ex.instantInsights,
     requestInsights: ex.requestInsights,
     externalBrowserRuntime: ex.externalBrowserRuntime,
+    acceptMarkdown: ex.acceptMarkdown,
 
     goRoutes: ex.goRoutes,
     trustHostHeader: ex.trustHostHeader,

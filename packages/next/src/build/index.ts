@@ -1210,6 +1210,27 @@ export default async function build(
         )
       loadedConfig = config
 
+      // `experimental.acceptMarkdown` only generates alternates for static
+      // pages served by `next start`/`next dev`. Other modes build normally
+      // and serve HTML only.
+      if (config.experimental.acceptMarkdown) {
+        if (config.output === 'export') {
+          Log.warn(
+            "`experimental.acceptMarkdown` will not generate content for `output: 'export'`"
+          )
+        }
+        if (config.cacheComponents) {
+          Log.warn(
+            '`experimental.acceptMarkdown` will not generate content for `cacheComponents`'
+          )
+        }
+        if (config.experimental.mdxRs) {
+          Log.warn(
+            '`experimental.acceptMarkdown` will not generate content for MDX pages compiled with `experimental.mdxRs`'
+          )
+        }
+      }
+
       // Resolve selective build paths now that the page extensions are known.
       const debugBuildPaths = debugBuildPathsPatterns
         ? await (async () => {
@@ -2631,6 +2652,16 @@ export default async function build(
                   ? 'edge'
                   : staticInfo?.runtime
 
+                if (
+                  config.experimental.acceptMarkdown &&
+                  pageType === 'app' &&
+                  isEdgeRuntime(pageRuntime) &&
+                  !isAppRouteRoute(originalAppPath || page)
+                ) {
+                  Log.warn(
+                    `\`experimental.acceptMarkdown\` will not generate content for "${page}": the Edge runtime is not supported`
+                  )
+                }
                 if (!isCompileMode) {
                   if (pageType === 'app' || !isReservedPage(page)) {
                     try {
@@ -2693,6 +2724,11 @@ export default async function build(
                               ? ''
                               : config.deploymentId,
                             sriEnabled,
+                            acceptMarkdown:
+                              config.experimental.acceptMarkdown === true &&
+                              config.output !== 'export' &&
+                              !isAppCacheComponentsEnabled &&
+                              !isEdgeRuntime(pageRuntime),
                           })
                         }
                       )
@@ -2767,6 +2803,21 @@ export default async function build(
                           }
 
                           const appConfig = workerResult.appConfig || {}
+
+                          // Markdown alternates require a fully static,
+                          // non-revalidating page. Pages that are only found
+                          // to be dynamic while prerendering fail in the
+                          // export worker instead.
+                          if (
+                            workerResult.hasMarkdownExport &&
+                            (appConfig.revalidate === 0 ||
+                              typeof appConfig.revalidate === 'number')
+                          ) {
+                            throw new Error(
+                              `\`experimental.acceptMarkdown\`: page "${normalizeAppPath(page)}" exports \`markdown\` but ${appConfig.revalidate === 0 ? 'is rendered dynamically' : `revalidates (revalidate: ${appConfig.revalidate})`}. Markdown alternates are only supported on fully static, non-revalidating pages.`
+                            )
+                          }
+
                           if (appConfig.revalidate !== 0) {
                             const hasGenerateStaticParams =
                               workerResult.prerenderedRoutes &&
@@ -2781,6 +2832,11 @@ export default async function build(
                                   !isEmptyParams(route.params)
                               )
                             if (isDynamic && !hasGenerateStaticParams) {
+                              if (workerResult.hasMarkdownExport) {
+                                throw new Error(
+                                  `\`experimental.acceptMarkdown\`: page "${normalizeAppPath(page)}" exports \`markdown\` but has no paths from \`generateStaticParams()\`. Markdown alternates are only generated for prerendered paths.`
+                                )
+                              }
                               if (config.output === 'export') {
                                 throw new Error(
                                   `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config. See more info here: https://nextjs.org/docs/messages/generate-static-params`

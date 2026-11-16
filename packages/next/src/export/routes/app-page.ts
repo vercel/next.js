@@ -37,6 +37,36 @@ import {
   UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../shared/lib/entry-constants'
+import {
+  AcceptMarkdownError,
+  getPageMarkdownExport,
+  MARKDOWN_SUFFIX,
+  resolveMarkdown,
+  type MarkdownExport,
+} from '../../server/lib/accept-markdown'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+
+/**
+ * Returns the page's `markdown` export when `experimental.acceptMarkdown`
+ * alternates are generated for this build.
+ */
+async function getMarkdownExport(
+  renderOpts: RenderOpts,
+  page: string
+): Promise<MarkdownExport | undefined> {
+  if (!renderOpts.experimental.acceptMarkdown) return undefined
+  const loaderTree = (renderOpts as any).ComponentMod?.routeModule?.userland
+    ?.loaderTree
+  if (!loaderTree) return undefined
+  return getPageMarkdownExport(loaderTree, normalizeAppPath(page))
+}
+
+function dynamicPageWithMarkdownError(page: string) {
+  return new AcceptMarkdownError(
+    normalizeAppPath(page),
+    `exports \`markdown\` but its HTML is rendered dynamically. Markdown alternates are only supported on fully static, non-revalidating pages.`
+  )
+}
 
 /**
  * Renders & exports a page associated with the /app directory
@@ -131,6 +161,9 @@ export async function exportAppPage(
     }
 
     if (cacheControl.revalidate === 0) {
+      if ((await getMarkdownExport(renderOpts, page)) !== undefined) {
+        throw dynamicPageWithMarkdownError(page)
+      }
       if (isDynamicError) {
         throw new Error(
           `Page with dynamic = "error" encountered dynamic data method on ${path}.`
@@ -213,6 +246,29 @@ export async function exportAppPage(
     // Writing static HTML to a file.
     fileWriter.append(htmlFilepath, html)
 
+    // Generate the `experimental.acceptMarkdown` alternate next to the HTML.
+    // Only successful renders get one: a page that prerenders as a 404,
+    // redirect or error keeps that status for every representation.
+    const markdownExport = await getMarkdownExport(renderOpts, page)
+    const renderStatusCode = metadata.statusCode ?? initialStatusCode
+    if (markdownExport !== undefined && renderStatusCode === 200) {
+      if (cacheControl.revalidate !== false) {
+        throw new AcceptMarkdownError(
+          normalizeAppPath(page),
+          `exports \`markdown\` but revalidates (revalidate: ${cacheControl.revalidate}). Markdown alternates are only supported on fully static, non-revalidating pages.`
+        )
+      }
+      const markdown = await resolveMarkdown(
+        markdownExport,
+        normalizeAppPath(page),
+        (renderOpts as any).params ?? {}
+      )
+      fileWriter.append(
+        htmlFilepath.replace(/\.html$/, MARKDOWN_SUFFIX),
+        markdown
+      )
+    }
+
     const isParallelRoute = /\/@\w+/.test(page)
     const statusCode = metadata.statusCode ?? initialStatusCode
     const isNonSuccessfulStatusCode = statusCode > 300
@@ -280,6 +336,9 @@ export async function exportAppPage(
       renderResumeDataCache: serializedRenderResumeDataCache,
     }
   } catch (err) {
+    if (err instanceof AcceptMarkdownError) {
+      throw err
+    }
     if (!isDynamicUsageError(err)) {
       throw err
     }
@@ -288,6 +347,10 @@ export async function exportAppPage(
     // occurred at the page level.
     if (isBailoutToCSRError(err)) {
       throw err
+    }
+
+    if ((await getMarkdownExport(renderOpts, page)) !== undefined) {
+      throw dynamicPageWithMarkdownError(page)
     }
 
     let fetchMetrics: FetchMetrics | undefined

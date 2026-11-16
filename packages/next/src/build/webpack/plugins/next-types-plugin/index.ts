@@ -82,6 +82,7 @@ checkFields<Diff<{
   generateMetadata?: Function
   viewport?: any
   generateViewport?: Function
+  ${options.type === 'page' ? 'markdown?: string | Function' : ''}
   `
   }
 }, TEntry, ''>>()

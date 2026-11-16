@@ -333,6 +333,7 @@ export const experimentalSchema = {
   taint: z.boolean().optional(),
   blockingSSR: z.boolean().optional(),
   externalBrowserRuntime: z.boolean().optional(),
+  acceptMarkdown: z.boolean().optional(),
   prerenderEarlyExit: z.boolean().optional(),
   proxyTimeout: z.number().gte(0).optional(),
   rootParams: z.boolean().optional(),

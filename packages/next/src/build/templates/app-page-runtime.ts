@@ -59,6 +59,7 @@ import {
   NEXT_IS_PRERENDER_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   RSC_CONTENT_TYPE_HEADER,
+  NEXT_RSC_UNION_QUERY,
 } from '../../client/components/app-router-headers' with { 'turbopack-transition': 'next-server-utility' }
 import { getBotType } from '../../shared/lib/router/utils/is-bot' with { 'turbopack-transition': 'next-server-utility' }
 import {
@@ -105,6 +106,14 @@ import { scheduleOnNextTick } from '../../lib/scheduler' with { 'turbopack-trans
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param' with { 'turbopack-transition': 'next-server-utility' }
 import { createTurbopackBootstrapScriptStreamForPage } from '../../server/app-render/turbopack-bootstrap-script' with { 'turbopack-transition': 'next-server-utility' }
 import { getScriptNonceFromHeaders } from '../../server/app-render/get-script-nonce-from-header' with { 'turbopack-transition': 'next-server-utility' }
+import {
+  getPageMarkdownExport,
+  isGeneratedParams,
+  MARKDOWN_CONTENT_TYPE,
+  prefersMarkdown,
+  readPrerenderedMarkdown,
+  resolveMarkdown,
+} from '../../server/lib/accept-markdown' with { 'turbopack-transition': 'next-server-utility' }
 
 type AppPageRenderOperation = 'render' | 'prerender'
 
@@ -369,6 +378,17 @@ export function createAppPageEntrypoint({
     const isRSCRequest =
       getRequestMeta(req, 'isRSCRequest') ??
       isRSCRequestHeader(req.headers[RSC_HEADER])
+
+    // Captured before Flight headers are stripped below: router requests of
+    // any kind never receive an `experimental.acceptMarkdown` alternate.
+    const isRouterRequest =
+      isRSCRequest ||
+      isStaticPrefetchRequest ||
+      req.headers[NEXT_ROUTER_PREFETCH_HEADER] !== undefined ||
+      req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] !== undefined ||
+      // `_rsc` is removed from `query` before it reaches the route module.
+      getRequestMeta(req, 'cacheBustingSearchParam') !== undefined ||
+      Boolean(parseUrl(req.url || '')?.searchParams.has(NEXT_RSC_UNION_QUERY))
 
     const serverActionRequestMetadata = getServerActionRequestMetadata(req)
     const { isPossibleServerAction } = serverActionRequestMetadata
@@ -843,6 +863,78 @@ export function createAppPageEntrypoint({
         interceptionRoutePatterns
       )
       res.setHeader('Vary', varyHeader)
+
+      // `experimental.acceptMarkdown`: pages that export `markdown` vary on
+      // `Accept`, and answer requests preferring Markdown with the alternate
+      // prerendered at build (computed on request in dev). Layouts and the
+      // page component don't render for these responses.
+      if (
+        nextConfig.experimental.acceptMarkdown &&
+        !nextConfig.cacheComponents &&
+        process.env.NEXT_RUNTIME !== 'edge'
+      ) {
+        const markdownExport = await getPageMarkdownExport(
+          tree,
+          normalizedSrcPage
+        )
+        if (markdownExport !== undefined) {
+          res.setHeader('Vary', `${varyHeader}, Accept`)
+
+          if (
+            (method === 'GET' || method === 'HEAD') &&
+            !isRouterRequest &&
+            !isPossibleServerAction &&
+            !isDraftMode &&
+            prefersMarkdown(req.headers.accept)
+          ) {
+            let markdown: string | undefined
+            if (routeModule.isDev) {
+              // Match production: only `generateStaticParams` paths have an
+              // alternate.
+              if (
+                !pageIsDynamic ||
+                (await isGeneratedParams(tree, params ?? {}))
+              ) {
+                markdown = await resolveMarkdown(
+                  markdownExport,
+                  normalizedSrcPage,
+                  (params ?? {}) as Record<string, string | string[]>
+                )
+              }
+            } else if (isPrerendered) {
+              // Only this route's own prerendered artifact can be served.
+              markdown = await readPrerenderedMarkdown(
+                getRequestMeta(req, 'relativeProjectDir') ||
+                  routeModule.relativeProjectDir,
+                routeModule.distDir,
+                resolvedPathname
+              )
+            }
+
+            if (markdown !== undefined) {
+              res.statusCode = 200
+              if (routeModule.isDev) {
+                res.setHeader('Cache-Control', 'no-store')
+              }
+              await sendRenderResult({
+                req,
+                res,
+                result: RenderResult.fromStatic(
+                  markdown,
+                  MARKDOWN_CONTENT_TYPE
+                ),
+                generateEtags: false,
+                poweredByHeader: nextConfig.poweredByHeader,
+                cacheControl: routeModule.isDev
+                  ? undefined
+                  : { revalidate: false, expire: nextConfig.expireTime },
+              })
+              ctx.waitUntil?.(Promise.resolve())
+              return null
+            }
+          }
+        }
+      }
       const invokeRouteModule = async (
         span: Span | undefined,
         context: AppPageRouteHandlerContext,

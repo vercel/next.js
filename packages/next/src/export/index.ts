@@ -534,6 +534,12 @@ async function exportAppImpl(
         nextConfig.experimental.exposeTestingApiInProductionBuild === true,
       externalBrowserRuntime:
         nextConfig.experimental.externalBrowserRuntime === true,
+      // Alternates aren't generated for static exports or Cache Components;
+      // the build warns about both.
+      acceptMarkdown:
+        nextConfig.experimental.acceptMarkdown === true &&
+        !nextConfig.cacheComponents &&
+        nextConfig.output !== 'export',
     },
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
   }

@@ -572,6 +572,8 @@ export function generateValidatorFile(
   ) => Promise<any> | any
   metadata?: any
   viewport?: any
+  // experimental.acceptMarkdown
+  markdown?: string | ((props: { params: Promise<ParamMap[Route]>; searchParams: Promise<any> }) => string | Promise<string>)
 } & ParamMatchingExports<Route>
 
 `
@@ -821,6 +823,8 @@ export function generateValidatorFileStrict(
   ) => Promise<any> | any
   metadata?: any
   viewport?: any
+  // experimental.acceptMarkdown
+  markdown?: string | ((props: PageProps<Route>) => string | Promise<string>)
 } & ParamMatchingExports<Route>
 
 `

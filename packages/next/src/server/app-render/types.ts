@@ -201,6 +201,12 @@ export interface RenderOptsPartial {
      * standalone browser runtime asset, instead of as inline `<script>` tags.
      */
     externalBrowserRuntime: boolean
+
+    /**
+     * Whether `experimental.acceptMarkdown` alternates are generated for this
+     * render. Only set by build-time prerendering.
+     */
+    acceptMarkdown?: boolean
   }
   postponed?: string
 

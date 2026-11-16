@@ -21,6 +21,8 @@ export const ALLOWED_EXPORTS = [
   'generateMetadata',
   'viewport',
   'generateViewport',
+  // experimental.acceptMarkdown
+  'markdown',
 ]
 
 export const LEGACY_CONFIG_EXPORT = 'config'
