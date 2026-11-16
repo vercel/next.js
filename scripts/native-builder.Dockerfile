@@ -11,7 +11,7 @@
 #   - Clang/LLD for all compilation and linking via --target
 #   - GNU cross-sysroots via crossbuild-essential (Ubuntu multiarch)
 #   - musl sysroots from GHCR-hosted rust-musl-cross images
-#   - Node.js 20 (glibc-linked, used as build tool for all targets)
+#   - Node.js 22 (glibc-linked, used as build tool for all targets)
 #   - Rust nightly toolchain (pinned to match rust-toolchain.toml)
 #   - @napi-rs/cli for building native Node.js addons
 
@@ -55,14 +55,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     crossbuild-essential-amd64 crossbuild-essential-arm64 \
     && rm -rf /var/lib/apt/lists/*
 
-# Node.js 20 (glibc-linked, used as a build tool for all targets).
+# Node.js 22 (glibc-linked, used as a build tool for all targets).
 # Installed from the official nodejs.org static tarball rather than via
 # NodeSource: the tarball bundles npm and corepack and does not depend on
 # NodeSource's apt repo or GPG key server, which has intermittently returned
 # HTTP 403 from CI runners. When the key import failed, the NodeSource setup
 # script exited 0, so `apt-get install nodejs` silently fell back to Ubuntu's
 # stock nodejs package (which does not bundle npm), breaking later npm steps.
-ARG NODE_VERSION=20.20.2
+ARG NODE_VERSION=22.23.4
 RUN case "$(dpkg --print-architecture)" in \
       amd64) NODE_ARCH=x64 ;; \
       arm64) NODE_ARCH=arm64 ;; \

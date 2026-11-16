@@ -751,12 +751,25 @@ describe('app-dir - server source maps', () => {
             '\n'
         )
       } else {
-        expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
+        // Node.js 20 prints a warning for invalid source map sources and
+        // leaves webpack-internal URLs unresolved. Node.js 21+ skips the
+        // warning silently and resolves the URLs relative to the module.
+        const hasSourceMapWarning =
+          Number(process.versions.node.split('.')[0]) < 21
+        const output = normalizeCliOutput(next.cliOutput.slice(outputIndex))
+          // Undo the Node.js 21+ relative resolution of webpack-internal URLs.
+          .replace(
+            /webpack-internal:\/\/\/\(rsc\)(?:\.\.\/)+/g,
+            'webpack-internal:///(rsc)/./'
+          )
+        expect(output).toContain(
           // Node.js is not fine with invalid URLs in vanilla source maps.
           // Feel free to adjust these locations. They're just here to showcase
           // sourcemapping is broken on invalid sources.
           '' +
-            `\nwebpack-internal:///(rsc)/./app/bad-sourcemap/page.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: TypeError [ERR_INVALID_ARG_TYPE]: The "payload" argument must be of type object. Received null` +
+            (hasSourceMapWarning
+              ? `\nwebpack-internal:///(rsc)/./app/bad-sourcemap/page.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: TypeError [ERR_INVALID_ARG_TYPE]: The "payload" argument must be of type object. Received null`
+              : '') +
             '\nError: bad-sourcemap' +
             '\n    at logError (webpack-internal:///(rsc)/./app/bad-sourcemap/page.js:12:19)' +
             '\n    at Page (webpack-internal:///(rsc)/./app/bad-sourcemap/page.js:15:5)'
@@ -765,11 +778,9 @@ describe('app-dir - server source maps', () => {
         // Dynamic I/O renders three times.
         // One from filterStackFrameDEV.
         // One from findSourceMapURLDEV.
-        expect(
-          normalizeCliOutput(next.cliOutput.slice(outputIndex)).split(
-            'Invalid source map.'
-          ).length - 1
-        ).toEqual(3)
+        expect(output.split('Invalid source map.').length - 1).toEqual(
+          hasSourceMapWarning ? 3 : 0
+        )
       }
     } else {
       // Bundlers silently drop invalid sourcemaps.

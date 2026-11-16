@@ -14,8 +14,8 @@ function expectTurbopackTailwindSetup(cwd: string, projectName: string) {
   const projectRoot = join(cwd, projectName)
   const pkg = require(join(projectRoot, 'package.json'))
   expect(pkg.devDependencies).toMatchObject({
-    '@tailwindcss/turbopack': '4.3.3',
-    tailwindcss: '4.3.3',
+    '@tailwindcss/turbopack': '^4',
+    tailwindcss: '^4',
   })
   expect(pkg.devDependencies).not.toHaveProperty('@tailwindcss/postcss')
   expect(readFileSync(join(projectRoot, 'next.config.ts'), 'utf8')).toContain(

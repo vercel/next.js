@@ -39,7 +39,7 @@ on:
       nodeVersion:
         description: 'version of Node.js to use'
         type: string
-        default: 20.9.0
+        default: 22.23.4
 
 jobs:
   # First, build Next.js to execute across tests.

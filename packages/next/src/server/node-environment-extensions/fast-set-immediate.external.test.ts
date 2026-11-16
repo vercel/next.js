@@ -1662,9 +1662,9 @@ describe('uncaught errors in setImmediate do not affect surrounding tasks or oth
       'timeout 1 -> immediate 1',
       'timeout 1 -> immediate 1 -> nextTick', // undesirable (too early) but acceptable
 
-      // FIXME: no async context in uncaughtException
-      // `uncaughtException - ${contextValue}`,
-      `uncaughtException - undefined`,
+      // Node 20-22 lose the async context in uncaughtException here.
+      // Node 24's AsyncContextFrame preserves it.
+      `uncaughtException - ${Number(process.versions.node.split('.')[0]) >= 24 ? contextValue : 'undefined'}`,
 
       // ======================
       'timeout 1 -> immediate 2',
@@ -1728,9 +1728,9 @@ describe('uncaught errors in setImmediate do not affect surrounding tasks or oth
       'timeout 1 -> immediate 1',
       `timeout 1 -> immediate 1 -> nextTick - ${contextValue}`,
 
-      // FIXME: no async context in uncaughtException
-      // `uncaughtException - ${contextValue}`,
-      `uncaughtException - undefined`,
+      // Node 20-22 lose the async context in uncaughtException here.
+      // Node 24's AsyncContextFrame preserves it.
+      `uncaughtException - ${Number(process.versions.node.split('.')[0]) >= 24 ? contextValue : 'undefined'}`,
 
       // ======================
       'timeout 1 -> immediate 2',

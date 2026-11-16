@@ -155,14 +155,22 @@ describe('log-file', () => {
     if (isNextDev) {
       await retry(async () => {
         const newLogContent = getNewLogContent()
-        expect(newLogContent).toMatchInlineSnapshot(`
-         "{"timestamp":"xx:xx:xx.xxx","source":"Server","level":"LOG","message":"Pages Router SSR: This is a log message from getServerSideProps"}
-         {"timestamp":"xx:xx:xx.xxx","source":"Server","level":"ERROR","message":"Pages Router SSR: This is an error message from getServerSideProps"}
-         {"timestamp":"xx:xx:xx.xxx","source":"Server","level":"WARN","message":"Pages Router SSR: This is a warning message from getServerSideProps"}
-         {"timestamp":"xx:xx:xx.xxx","source":"Server","level":"LOG","message":"Pages Router isomorphic: This is a log message from render"}
-         {"timestamp":"xx:xx:xx.xxx","source":"Server","level":"ERROR","message":"React encountered an empty buffer when writing in an environment that does not support ArrayBuffer.prototype.detached. This could be a security issue if the buffer was not actually empty. Please use a modern Edge runtime that supports ArrayBuffer.prototype.detached."}
-         {"timestamp":"xx:xx:xx.xxx","source":"Browser","level":"LOG","message":"Pages Router isomorphic: This is a log message from render"}"
-        `)
+        expect(newLogContent).toBe(
+          [
+            `{"timestamp":"xx:xx:xx.xxx","source":"Server","level":"LOG","message":"Pages Router SSR: This is a log message from getServerSideProps"}`,
+            `{"timestamp":"xx:xx:xx.xxx","source":"Server","level":"ERROR","message":"Pages Router SSR: This is an error message from getServerSideProps"}`,
+            `{"timestamp":"xx:xx:xx.xxx","source":"Server","level":"WARN","message":"Pages Router SSR: This is a warning message from getServerSideProps"}`,
+            `{"timestamp":"xx:xx:xx.xxx","source":"Server","level":"LOG","message":"Pages Router isomorphic: This is a log message from render"}`,
+            // React only logs this on runtimes without
+            // ArrayBuffer.prototype.detached (Node.js < 21).
+            ...(!('detached' in ArrayBuffer.prototype)
+              ? [
+                  `{"timestamp":"xx:xx:xx.xxx","source":"Server","level":"ERROR","message":"React encountered an empty buffer when writing in an environment that does not support ArrayBuffer.prototype.detached. This could be a security issue if the buffer was not actually empty. Please use a modern Edge runtime that supports ArrayBuffer.prototype.detached."}`,
+                ]
+              : []),
+            `{"timestamp":"xx:xx:xx.xxx","source":"Browser","level":"LOG","message":"Pages Router isomorphic: This is a log message from render"}`,
+          ].join('\n')
+        )
       })
     } else {
       expect(hasLogFile()).toBe(false)

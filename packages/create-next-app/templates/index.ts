@@ -343,13 +343,10 @@ export const installTemplate = async ({
       bundler === Bundler.Turbopack
         ? "@tailwindcss/turbopack"
         : "@tailwindcss/postcss";
-    // TODO: Restore "^4" once Tailwind fixes 4.3.4, whose CommonJS build
-    // require()s the ESM-only magic-string 1.x. That fails on Node.js versions
-    // without require(esm) support (before 20.19 and 22.12).
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      [tailwindPlugin]: "4.3.3",
-      tailwindcss: "4.3.3",
+      [tailwindPlugin]: "^4",
+      tailwindcss: "^4",
     };
   }
 
