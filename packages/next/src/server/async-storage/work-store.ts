@@ -69,6 +69,7 @@ export type WorkStoreContext = {
     | 'isBuildTimePrerendering'
     | 'isDraftMode'
     | 'isDebugDynamicAccesses'
+    | 'nextConfigOutput'
   > &
     RequestLifecycleOpts &
     Partial<Pick<RenderOpts, 'reactLoadableManifest'>>
@@ -125,6 +126,7 @@ function createWorkStoreImpl(
     durableUseCacheEntries: renderOpts.experimental.durableUseCacheEntries,
     staticPageGenerationTimeout: renderOpts.staticPageGenerationTimeout,
     isBuildTimePrerendering: renderOpts.isBuildTimePrerendering,
+    isStaticExport: renderOpts.nextConfigOutput === 'export',
     fetchCache: renderOpts.fetchCache,
     isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
     requestId: undefined,

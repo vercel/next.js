@@ -846,7 +846,9 @@ export default class DevServer extends Server {
               )
             }
 
+            // Cache Components applies its resolved matching policy to the request.
             if (
+              !this.nextConfig.cacheComponents &&
               !prerenderedRoutes.some((item) => item.pathname === urlPathname)
             ) {
               throw new Error(

@@ -2669,7 +2669,13 @@ export async function fetchSegmentPrefetchesUsingRuntimeRequest(
   }
 
   try {
-    const response = await fetchPrefetchResponse(url, headers)
+    // A static host cannot distinguish a full prefetch from a document request
+    // using headers. Request the exported full payload, just as per-segment
+    // prefetches request their exported segment files.
+    const response = await fetchPrefetchResponse(
+      addSegmentPathToUrlInOutputExportMode(url, '/_full' as SegmentRequestKey),
+      headers
+    )
     if (!response || !response.ok || !response.body) {
       // Server responded with an error, or with a miss. We should still cache
       // the response, but we can try again after 10 seconds.

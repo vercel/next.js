@@ -66,6 +66,7 @@ export async function exportAppRoute(
   )
 
   const afterRunner = new AfterRunner()
+  const isStaticExport = cacheComponents && module.nextConfigOutput === 'export'
 
   // Create the context for the handler. This contains the params from
   // the route and the context for the request.
@@ -78,6 +79,7 @@ export async function exportAppRoute(
     },
     renderOpts: {
       cacheComponents,
+      nextConfigOutput: module.nextConfigOutput,
       // app-route handlers don't run instant validation, so the level
       // value is irrelevant here.
       // TODO: move validationLevel and other global config out of renderOpts
@@ -123,6 +125,11 @@ export async function exportAppRoute(
 
     const isValidStatus = response.status < 400 || response.status === 404
     if (!isValidStatus) {
+      if (isStaticExport) {
+        throw new Error(
+          `Route "${normalizeAppPath(page)}" could not be statically exported with "output: export" because it returned status ${response.status}.`
+        )
+      }
       return { cacheControl: { revalidate: 0, expire: undefined } }
     }
 
@@ -173,6 +180,13 @@ export async function exportAppRoute(
   } catch (err) {
     if (!isDynamicUsageError(err)) {
       throw err
+    }
+
+    if (isStaticExport) {
+      throw new Error(
+        `Route "${normalizeAppPath(page)}" could not be statically exported with "output: export".`,
+        { cause: err }
+      )
     }
 
     return { cacheControl: { revalidate: 0, expire: undefined } }

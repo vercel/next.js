@@ -303,7 +303,7 @@ async function createComponentTreeInternal(
 
   let dynamic = layoutOrPageMod?.dynamic
 
-  if (nextConfigOutput === 'export') {
+  if (nextConfigOutput === 'export' && !ctx.renderOpts.cacheComponents) {
     if (!dynamic || dynamic === 'auto') {
       dynamic = 'error'
     } else if (dynamic === 'force-dynamic') {

@@ -200,7 +200,11 @@ export function trackDynamicAccessInStaticRoute(
   if (hasMetadataRegex.test(componentStack)) {
     dynamicValidation.dynamicErrors.push(
       addErrorContext(
-        createMetadataErrorInStaticRoute(kind, workStore.route),
+        createMetadataErrorInStaticRoute(
+          kind,
+          workStore.route,
+          workStore.isStaticExport
+        ),
         componentStack,
         null
       )
@@ -210,7 +214,11 @@ export function trackDynamicAccessInStaticRoute(
   if (hasViewportRegex.test(componentStack)) {
     dynamicValidation.dynamicErrors.push(
       addErrorContext(
-        createViewportErrorInStaticRoute(kind, workStore.route),
+        createViewportErrorInStaticRoute(
+          kind,
+          workStore.route,
+          workStore.isStaticExport
+        ),
         componentStack,
         null
       )
@@ -253,7 +261,11 @@ export function trackDynamicAccessInStaticRoute(
     // (NOTE: this may misreport valid client dynamic holes as server holes)
     dynamicValidation.dynamicErrors.push(
       addErrorContext(
-        createBodyErrorInStaticRoute(kind, workStore.route),
+        createBodyErrorInStaticRoute(
+          kind,
+          workStore.route,
+          workStore.isStaticExport
+        ),
         componentStack,
         null
       )
@@ -277,7 +289,11 @@ export function trackDynamicAccessInStaticRoute(
     isServerPartial
       ? // This hole may be caused by server data.
         // (NOTE: this may misreport client dynamic holes as server holes)
-        createBodyErrorInStaticRoute(kind, workStore.route)
+        createBodyErrorInStaticRoute(
+          kind,
+          workStore.route,
+          workStore.isStaticExport
+        )
       : // TODO(ensure-static): this could be something client-specific because we know
         // that server data is complete
         createBodyError(kind, workStore.route),
@@ -602,43 +618,52 @@ function createViewportError(kind: DynamicHoleKind, route: string): Error {
 
 function createBodyErrorInStaticRoute(
   kind: StaticValidationHoleKind,
-  route: string
+  route: string,
+  isStaticExport = false
 ): Error {
   switch (kind) {
     case DynamicHoleKind.Runtime:
-      return createRuntimeBodyErrorInStaticRoute(route)
+      return createRuntimeBodyErrorInStaticRoute(route, isStaticExport)
     case DynamicHoleKind.Dynamic:
-      return createDynamicBodyErrorInStaticRoute(route)
+      return createDynamicBodyErrorInStaticRoute(route, isStaticExport)
     case DynamicHoleKind.RuntimeOrDynamic:
-      return createNonPrerenderableBodyErrorInStaticRoute(route)
+      return createNonPrerenderableBodyErrorInStaticRoute(route, isStaticExport)
   }
 }
 
 function createMetadataErrorInStaticRoute(
   kind: StaticValidationHoleKind,
-  route: string
+  route: string,
+  isStaticExport = false
 ) {
   switch (kind) {
     case DynamicHoleKind.Runtime:
-      return createRuntimeMetadataErrorInStaticRoute(route)
+      return createRuntimeMetadataErrorInStaticRoute(route, isStaticExport)
     case DynamicHoleKind.Dynamic:
-      return createDynamicMetadataErrorInStaticRoute(route)
+      return createDynamicMetadataErrorInStaticRoute(route, isStaticExport)
     case DynamicHoleKind.RuntimeOrDynamic:
-      return createNonPrerenderableMetadataErrorInStaticRoute(route)
+      return createNonPrerenderableMetadataErrorInStaticRoute(
+        route,
+        isStaticExport
+      )
   }
 }
 
 function createViewportErrorInStaticRoute(
   kind: StaticValidationHoleKind,
-  route: string
+  route: string,
+  isStaticExport = false
 ) {
   switch (kind) {
     case DynamicHoleKind.Runtime:
-      return createRuntimeViewportErrorInStaticRoute(route)
+      return createRuntimeViewportErrorInStaticRoute(route, isStaticExport)
     case DynamicHoleKind.Dynamic:
-      return createDynamicViewportErrorInStaticRoute(route)
+      return createDynamicViewportErrorInStaticRoute(route, isStaticExport)
     case DynamicHoleKind.RuntimeOrDynamic:
-      return createNonPrerenderableViewportErrorInStaticRoute(route)
+      return createNonPrerenderableViewportErrorInStaticRoute(
+        route,
+        isStaticExport
+      )
   }
 }
 
@@ -947,7 +972,7 @@ export function getDisallowedReasonsInStaticRoute(
 
   // We do a fallback shell prerender, but it's not meant to be validated --
   // we just need it to create the relevant prerender outputs.
-  if (isFallbackShell) {
+  if (isFallbackShell && !workStore.isStaticExport) {
     return []
   }
 
@@ -972,7 +997,10 @@ export function getDisallowedReasonsInStaticRoute(
   if (isServerPartial) {
     return [
       new Error(
-        `Route "${workStore.route}": Next.js encountered data that is not available during a static prerender, but is unable to provide a location.`
+        `Route "${workStore.route}": Next.js encountered data that is not available during a static prerender, but is unable to provide a location.` +
+          (workStore.isStaticExport
+            ? '\n\nThis route uses `output: "export"`, which requires all server data to be available during the build.\n\nLearn more: https://nextjs.org/docs/messages/static-route-dynamic'
+            : '')
       ),
     ]
   }

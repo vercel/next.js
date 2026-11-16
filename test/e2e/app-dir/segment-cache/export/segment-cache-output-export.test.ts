@@ -36,6 +36,44 @@ describe('segment cache (output: "export")', () => {
     server?.close()
   })
 
+  it('fully prefetches an exported route without a runtime server', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const requests: string[] = []
+    const browser = await next.browser('/', {
+      baseUrl: port,
+      beforePageLoad(page: Playwright.Page) {
+        act = createRouterAct(page)
+        page.on('request', (request) => {
+          if (request.headers()['rsc']) {
+            requests.push(new URL(request.url()).pathname)
+          }
+        })
+      },
+    })
+
+    await browser.eval('window.__navigationMarker = "preserved"')
+
+    await act(
+      async () => {
+        await browser
+          .elementByCss('[data-link-accordion="/full-prefetch-target"]')
+          .click()
+      },
+      { includes: 'Fully prefetched target page' }
+    )
+
+    await act(async () => {
+      await browser.elementByCss('a[href="/full-prefetch-target"]').click()
+    }, 'no-requests')
+
+    expect(await browser.elementById('full-prefetch-target').text()).toBe(
+      'Fully prefetched target page'
+    )
+    expect(await browser.eval('window.__navigationMarker')).toBe('preserved')
+    expect(requests).toContain('/full-prefetch-target/__next._full.txt')
+    expect(requests).not.toContain('/full-prefetch-target')
+  })
+
   it('basic prefetch in output: "export" mode', async () => {
     let act
     const browser = await next.browser('/', {

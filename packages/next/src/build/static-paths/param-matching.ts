@@ -225,8 +225,7 @@ export function validateParamMatchingParams(
   paramMatching: Readonly<ParamMatching>,
   generatedParamNames: ReadonlySet<string>,
   missingParamNames: ReadonlySet<string>,
-  pathnameSegments: ReadonlyArray<{ readonly paramName: string }>,
-  output: 'export' | 'standalone' | undefined
+  pathnameSegments: ReadonlyArray<{ readonly paramName: string }>
 ): void {
   let dynamicParamName: string | undefined
   for (const { paramName } of pathnameSegments) {
@@ -242,9 +241,19 @@ export function validateParamMatchingParams(
         `Route "${page}" configures parameter "${paramName}" as "not-found", but generateStaticParams returned a result without that parameter.`
       )
     }
-    if (output === 'export' && mode !== 'not-found') {
+  }
+}
+
+/** Qualify authored URL parameters for the current concrete-file export. */
+export function validateStaticExportParamMatching(
+  page: string,
+  paramMatching: Readonly<ParamMatching> | undefined,
+  pathnameSegments: ReadonlyArray<{ readonly paramName: string }>
+): void {
+  for (const { paramName } of pathnameSegments) {
+    if (paramMatching?.[paramName] !== 'not-found') {
       throw new Error(
-        `Route "${page}" must configure parameter "${paramName}" as "not-found" when using parameter matching with "output: export".`
+        `Route "${page}" must configure parameter "${paramName}" as "not-found" when using "output: export". Set this parameter to "not-found" in \`unstable_paramMatching\` or in the object returned by \`unstable_generateParamMatching\`.`
       )
     }
   }
