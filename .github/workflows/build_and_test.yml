@@ -799,6 +799,9 @@ jobs:
           --group ${{ matrix.group }}
       stepName: 'test-new-tests-dev-${{matrix.group}}'
       timeout_minutes: 120 # Increase the default timeout as tests are intentionally run multiple times to detect flakes
+      # Each changed suite runs three times concurrently; share one warm Go build cache.
+      goBuildCacheTestMode: dev
+      goBuildCacheTestGroup: ${{ matrix.group }}
 
     secrets: inherit
 
@@ -825,6 +828,9 @@ jobs:
           --group ${{ matrix.group }}
       stepName: 'test-new-tests-start-${{matrix.group}}'
       timeout_minutes: 120 # Increase the default timeout as tests are intentionally run multiple times to detect flakes
+      # Each changed suite runs three times concurrently; share one warm Go build cache.
+      goBuildCacheTestMode: start
+      goBuildCacheTestGroup: ${{ matrix.group }}
     secrets: inherit
 
   # The deploy tests install Next.js from the preview tarballs for this commit.

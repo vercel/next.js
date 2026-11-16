@@ -109,6 +109,20 @@ on:
         required: false
         type: string
         default: 'yes'
+      goBuildCacheTestMode:
+        description: >
+          Mode (dev or start) of the scripts/test-new-tests.mjs run in this
+          job. When set, together with goBuildCacheTestGroup, the Go build
+          cache is restored (or created) if that test group has a test suite
+          with Go sources.
+        required: false
+        type: string
+        default: ''
+      goBuildCacheTestGroup:
+        description: 'Group (e.g. 1/5) of the scripts/test-new-tests.mjs run in this job'
+        required: false
+        type: string
+        default: ''
 env:
   # Also applies to Rust builds in jobs that skip the shared Rust setup.
   CARGO_BUILD_WARNINGS: deny
@@ -500,6 +514,16 @@ jobs:
 
       - name: Wait for background setup steps
         wait-all:
+
+      # Tests with native Go routes compile the Go standard library on their
+      # first request. Concurrent test processes each repeat most of that work
+      # from a cold cache, which can take minutes on a loaded runner.
+      - name: Warm Go build cache
+        if: ${{ inputs.goBuildCacheTestMode != '' && inputs.goBuildCacheTestGroup != '' }}
+        uses: ./.github/actions/warm-go-build-cache
+        with:
+          mode: ${{ inputs.goBuildCacheTestMode }}
+          group: ${{ inputs.goBuildCacheTestGroup }}
 
       - run: ${{ inputs.afterBuild }}
         id: after-build
