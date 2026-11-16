@@ -31,9 +31,9 @@ Ensure that the component renders the same content on the server and during the 
 
 ### Solution 1: Rendering client-specific values with Suspense
 
-Values such as locale-formatted dates can differ on the server and client. With React 19.3, call `use(browser())` in a Client Component inside `<Suspense>` to defer browser-specific rendering. The fallback can show a useful server-rendered value or a placeholder.
+When content depends on browser-only APIs or settings, defer that rendering to the browser. With React 19.3, call `use(browser())` in a Client Component inside `<Suspense>`. The fallback can show useful server-rendered content or a placeholder.
 
-See the [date example and tradeoffs](/docs/app/guides/preventing-flash-before-hydration#updating-the-date-with-suspense).
+See the [client-specific rendering and fallback choices](/docs/app/guides/preventing-flash-before-hydration#rendering-client-specific-content).
 
 ### Solution 2: Disabling SSR on specific components
 
