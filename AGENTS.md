@@ -299,8 +299,6 @@ In addition to the template, agents must **always add a `### Verification` secti
 - Anything that was not run, with the reason (e.g. ``Not run: `pnpm test-start-turbo test/...` (needs deploy credentials)``).
 - Omit trivial commands that CI already covers (e.g. `pnpm build`). If the PR changes a test, don't repeat the command that runs it, but do list existing tests you used to confirm behavior didn't change.
 
-End the description with `<!-- NEXT_JS_LLM -->` (see the note under [GitHub Issues, Comments, and Discussions](#github-issues-comments-and-discussions)).
-
 Example:
 
 ```markdown
@@ -322,8 +320,6 @@ Fixes #<number>
 
 - `pnpm test-dev-turbo test/e2e/...` (existing test, confirms behavior is unchanged)
 - Not run: `<command>` (<reason>)
-
-<!-- NEXT_JS_LLM -->
 ```
 
 ### Adopting a Fork PR
