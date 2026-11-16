@@ -1,4 +1,4 @@
-package main
+package __NEXT_GO_PACKAGE__
 
 import (
 	"net/http"
@@ -419,7 +419,13 @@ func nextGoFormEncode(value string) string {
 	return strings.ReplaceAll(value, " ", "+")
 }
 
-func nextGoHandler() http.HandlerFunc {
+// NextInternalGoHandler is called by the entrypoint that Next.js generates. It is
+// not part of the proxy API.
+func NextInternalGoHandler(trustInternalHeaders bool) http.HandlerFunc {
+	return nextGoHandler(trustInternalHeaders)
+}
+
+func nextGoHandler(nextGoTrustInternalHeaders bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Bound normalization work before decoding or allocating query values.
 		// Count separators directly, including empty parameters.

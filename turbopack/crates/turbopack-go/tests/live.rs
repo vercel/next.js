@@ -19,7 +19,7 @@ use turbopack_go::{
     GoBuildContext, GoBuildOptions, GoBuildOutcome, GoBuildSession, GoBundleResult, GoDeclarations,
     GoSessionPool, GoSourceSelection, GoSourceSet, GoTarget, GoToolchainOptions, filesystem,
     filesystem_with_poll_interval, go_bundle_from_sources, go_bundle_with_generated_files,
-    go_declarations, go_source_set, read_with_validated_inputs,
+    go_declarations, go_package_bundle_from_sources, go_source_set, read_with_validated_inputs,
 };
 
 fn copy_tree(source: &Path, target: &Path) -> Result<()> {
@@ -1249,6 +1249,175 @@ fn selected_bundle(
         GoBuildSession::persistent("source-set-test".into(), options),
         generated,
     )
+}
+
+#[turbo_tasks::function(operation, root)]
+fn selected_package_bundle(
+    sources: ResolvedVc<GoSourceSet>,
+    options: GoBuildOptions,
+    alias: RcStr,
+    generated: BTreeMap<RcStr, RcStr>,
+) -> Vc<GoBundleResult> {
+    go_package_bundle_from_sources(
+        *sources,
+        GoBuildSession::persistent("source-set-test".into(), options),
+        alias,
+        generated,
+    )
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn generated_entry_imports_source_directory_as_package() -> Result<()> {
+    let session = Session::new().await?;
+    // Neither `(group)` nor `[id]` may appear in a Go import path.
+    let directory = "app/(group)/[id]";
+    session
+        .write(
+            &format!("{directory}/handler.go"),
+            "package route\n\nimport \
+             (\n\t\"embed\"\n\n\t\"example.com/native-fixture/internal/message\"\n)\n\n//go:embed \
+             assets/*\nvar assets embed.FS\n\nfunc Message() string {\n\tasset, _ := \
+             assets.ReadFile(\"assets/message.txt\")\n\treturn sibling() + \":\" + string(asset) \
+             + \":\" + message.Text() + \":\" + Generated()\n}\n",
+        )
+        .await?;
+    session
+        .write(
+            &format!("{directory}/sibling.go"),
+            "package route\n\nfunc sibling() string { return \"sibling-v1\" }\n",
+        )
+        .await?;
+    session
+        .write(&format!("{directory}/assets/message.txt"), "asset-v1")
+        .await?;
+    let root = FileSystemPath {
+        fs: ResolvedVc::upcast(session.fs),
+        path: rcstr!(""),
+    };
+    let options = session.go_context.options.clone();
+    let alias = rcstr!("_next_go/route_example");
+    let generated = BTreeMap::from([
+        (
+            rcstr!("_next_go/main/main.go"),
+            rcstr!(
+                "package main\n\nimport (\n\t\"fmt\"\n\n\troute \
+                 \"example.com/native-fixture/_next_go/route_example\"\n)\n\nfunc main() { \
+                 fmt.Print(route.Message()) }\n"
+            ),
+        ),
+        (
+            rcstr!("_next_go/route_example/zz_generated.go"),
+            rcstr!("package route\n\nfunc Generated() string { return \"generated\" }\n"),
+        ),
+    ]);
+    let build = || {
+        let root = root.clone();
+        let options = options.clone();
+        let alias = alias.clone();
+        let generated = generated.clone();
+        let tt = session.tt.clone();
+        async move {
+            tt.run_once(async move {
+                read_with_validated_inputs(
+                    || {
+                        let root = root.clone();
+                        let options = options.clone();
+                        let alias = alias.clone();
+                        let generated = generated.clone();
+                        async move {
+                            let sources = selected_sources(
+                                root.clone(),
+                                root.join(directory)?,
+                                GoSourceSelection::Directory,
+                                options.clone(),
+                            )
+                            .resolve()
+                            .strongly_consistent()
+                            .await?;
+                            assert_eq!(
+                                sources.await?.module_path.as_deref(),
+                                Some("example.com/native-fixture")
+                            );
+                            selected_package_bundle(sources, options, alias, generated)
+                                .read_strongly_consistent()
+                                .await
+                        }
+                    },
+                    |value| Some(&**value),
+                )
+                .await
+            })
+            .await
+        }
+    };
+    let session_ref = &session;
+    let output = move |result: turbo_tasks::ReadRef<GoBundleResult>| {
+        let tt = session_ref.tt.clone();
+        async move {
+            let bytes = tt
+                .run_once(async move {
+                    let GoBuildOutcome::Success(file) = &result.outcome else {
+                        anyhow::bail!("unexpected result: {:?}", result.outcome);
+                    };
+                    let file = file.await?;
+                    let FileContent::Content(file) = &*file else {
+                        anyhow::bail!("missing executable");
+                    };
+                    let mut bytes = vec![];
+                    file.read().read_to_end(&mut bytes)?;
+                    anyhow::Ok(bytes)
+                })
+                .await?;
+            session_ref.run_bytes(bytes).await
+        }
+    };
+    let first = output(build().await?).await?;
+    assert!(
+        first.starts_with("sibling-v1:asset-v1:") && first.ends_with(":generated"),
+        "{first}"
+    );
+    assert!(
+        !session.project.join("_next_go").exists(),
+        "virtual package directories must not be written to the project"
+    );
+    // Sources, embedded files, and their directory inventories remain compiler inputs.
+    session
+        .write(
+            &format!("{directory}/sibling.go"),
+            "package route\n\nfunc sibling() string { return \"sibling-v2\" }\n",
+        )
+        .await?;
+    assert!(
+        output(build().await?)
+            .await?
+            .starts_with("sibling-v2:asset-v1:")
+    );
+    session
+        .write(&format!("{directory}/assets/message.txt"), "asset-v2")
+        .await?;
+    assert!(
+        output(build().await?)
+            .await?
+            .starts_with("sibling-v2:asset-v2:")
+    );
+    // Diagnostics name the source files, not the virtual package directory.
+    session
+        .write(
+            &format!("{directory}/sibling.go"),
+            "package route\n\nfunc sibling() string { return missing() }\n",
+        )
+        .await?;
+    let result = build().await?;
+    let GoBuildOutcome::Failed(message) = &result.outcome else {
+        anyhow::bail!("unexpected result: {:?}", result.outcome);
+    };
+    let expected = session.project.join(directory).join("sibling.go:3");
+    assert!(
+        message.contains(expected.to_str().unwrap()) && !message.contains("_next_go"),
+        "{message}"
+    );
+    session.stop().await;
+    Ok(())
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

@@ -113,6 +113,20 @@ and transitive compiler inputs. Source names, bytes and directory membership mus
 with analysis before the resulting executable is published. This remains best effort
 against concurrent writers, not a transactional filesystem snapshot.
 
+`go_package_bundle_from_sources(*sources, target_session, alias, generated)` compiles the
+selected directory as an ordinary, importable package instead of as `package main`. The
+directory is overlaid at `alias`, a module-relative virtual directory, so its import path
+is the module path (`GoSourceSet::module_path`) joined with `alias`. Source directory names
+therefore do not need to be valid import paths, such as `app/[id]`. Generated files under
+`alias` join that package; the remaining generated Go files form the importing `main`
+package and must share one directory. Source directories without a `go.mod` can supply one
+as a generated file. The package uses Go's normal file selection, including build tags.
+Mirrored Go files start with a `//line` directive, so compiler diagnostics and stack traces
+name the source files; other diagnostics are mapped back to the source directory.
+Discovery mirrors the directory's regular files, plus the subtree below each embed
+pattern's fixed prefix, and tracks the source files Go reads. Nothing is written to the
+project.
+
 `GoSessionPool` lazily probes `GoToolchainOptions`, constructs persistent host or target
 sessions, retains their restored cancellation handles, and leases module-cache watchers.
 Acquire sessions from a session-dependent task. Pass `None` for a host analysis tool,
