@@ -28,6 +28,95 @@ Both accept at most one `next.ProxyOptions` value, whose `Request.Headers`
 replaces the downstream request headers. They only set control headers on the
 response; Next.js turns them into the proxy result.
 
+## Browser assets: `next/go/assets`
+
+A `route.go` handler can render Turbopack-built JavaScript, TypeScript and CSS.
+Import `next/go/assets`; it uses the same module mapping as the rest of the SDK.
+
+### Declare and render an entrypoint
+
+```go
+// app/dashboard/route.go
+package main
+
+import (
+  "fmt"
+  "net/http"
+
+  "next/go/assets"
+)
+
+var dashboard = assets.Browser("app/dashboard/client.ts")
+
+func GET(w http.ResponseWriter, r *http.Request) {
+  w.Header().Set("Content-Type", "text/html")
+  fmt.Fprint(w, "<!doctype html><html><head>")
+  if err := assets.RenderTags(w, dashboard); err != nil {
+    panic(err)
+  }
+  fmt.Fprint(w, "</head><body><main id=\"dashboard\"></main></body></html>")
+}
+```
+
+```ts
+// app/dashboard/client.ts
+import './styles.css'
+
+document.querySelector('#dashboard')!.textContent = 'Hello from the browser'
+```
+
+`Browser` constructs an ordinary Go handle without I/O. Declare it in a direct
+package-level variable initializer in `route.go` with one string literal relative
+to the Next application root. The package name is `assets`. Named import aliases also work. Turbopack discovers these
+declarations without evaluating Go expressions or executing application code.
+Sibling files and transitive Go packages are outside discovery; they can receive
+and render handles declared in `route.go`.
+
+Turbopack builds every declared entrypoint for production, including handles that
+a handler renders conditionally. JS/TS imports include CSS and lazy chunks from
+dynamic imports. Imported CSS needs no separate Go declaration.
+
+Pass multiple handles together to deduplicate shared initial resources:
+
+```go
+err := assets.RenderTags(w, dashboard, navigation)
+```
+
+Stylesheets precede ordered deferred scripts. Dynamic imports remain lazy. The
+browser chunk group's runtime and bootstrap are included automatically.
+
+### Use html/template
+
+Register a function for each request:
+
+```go
+functions := template.FuncMap{
+  "assetTags": func() (template.HTML, error) {
+    return assets.Tags(w, dashboard, navigation)
+  },
+}
+```
+
+Use `{{ assetTags }}` in the template. `Tags` resolves all requested handles before
+returning trusted HTML and an error. URLs are HTML-escaped. `RenderTags` similarly
+resolves all handles before writing, and propagates output errors.
+
+Both helpers need the route response writer. Response-writer middleware can
+preserve the manifest binding through `Unwrap() http.ResponseWriter`. Template
+output may go to another writer; capture the original response writer in the
+registered function.
+
+### Asset generations
+
+The generated adapter supplies an immutable manifest snapshot to each request.
+JS/CSS dependency edits reload the document in development without recompiling or
+restarting its Go worker. Browser assets are served by Next's asset pipeline;
+bundle bytes are not embedded in Go executables. Native deployment adapter outputs
+carry the manifest beside the executable.
+
+Go continues to own package resolution, compilation and linking. The SDK does not
+execute JavaScript on the server or create Go-to-JavaScript function bindings.
+
 ## Module mapping
 
 The SDK is the `next/go` module shipped inside the installed `next` package.
@@ -98,3 +187,5 @@ discovers the handler functions. Calls, environment reads, references to other
 variables or constants, arithmetic, and other computed expressions are build
 errors. No application code is executed to discover configuration, and runtime
 changes to these values do not configure Next.js.
+
+Run SDK checks with `go test ./...` from this directory.
