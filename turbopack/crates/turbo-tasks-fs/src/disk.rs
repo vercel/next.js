@@ -40,6 +40,7 @@ use crate::{
     PersistedFileContent, RawDirectoryContent, RawDirectoryEntry, WriteLinkContent,
     WriteLinkTargetType,
     canonicalized_path_cache::CanonicalizedPathWalkCache,
+    created_dirs::CreatedDirs,
     invalidation::Write,
     invalidator_map::InvalidatorMap,
     mutex_map::MutexMap,
@@ -191,15 +192,59 @@ fn create_read_semaphore() -> tokio::sync::Semaphore {
     tokio::sync::Semaphore::new(*TURBO_ENGINE_READ_CONCURRENCY)
 }
 
-fn create_write_semaphore() -> tokio::sync::Semaphore {
-    // the semaphore isn't serialized, and we assume the environment variable doesn't change during
-    // runtime, so it's okay to access it in this untracked way.
-    static TURBO_ENGINE_WRITE_CONCURRENCY: LazyLock<usize> = LazyLock::new(|| {
-        number_env_var("TURBO_ENGINE_WRITE_CONCURRENCY").unwrap_or(
-            // We write a lot of smallish files where high concurrency will cause metadata
-            // thrashing. So 4 threads is a safe cross platform suitable value.
-            4,
+/// The default number of concurrent write operations (file writes, file removals and symlink
+/// creations) on platforms other than Linux. On Linux, it's the lower bound of the default, see
+/// `linux_default_write_concurrency`.
+///
+/// Limits on other platforms (e.g. open file limits on macOS, file system metadata contention on
+/// NTFS) differ from Linux, so they keep this conservative value until a higher one has been
+/// measured there.
+const DEFAULT_WRITE_CONCURRENCY: usize = 4;
+/// Upper bound of the default write concurrency on Linux.
+#[cfg(target_os = "linux")]
+const MAX_LINUX_DEFAULT_WRITE_CONCURRENCY: usize = 16;
+
+/// Computes the default number of concurrent write operations on Linux from the available
+/// parallelism. Falls back to [`DEFAULT_WRITE_CONCURRENCY`] if the available parallelism can't be
+/// determined.
+///
+/// Write operations run blocking on the calling tokio worker thread (see
+/// [`retry_blocking`]), so each permit can keep one worker thread (and one file handle) busy in a
+/// syscall. Scaling with the available parallelism lets machines with more cores write the many
+/// small output files of a build in parallel, while staying at a small, fixed number of permits on
+/// smaller machines.
+///
+/// The cap bounds the number of file handles and blocked worker threads that writes add. In
+/// benchmarks on a 32-thread Linux machine, raising the limit beyond 16 did not make builds faster.
+#[cfg(target_os = "linux")]
+fn linux_default_write_concurrency(available_parallelism: Option<usize>) -> usize {
+    available_parallelism.map_or(DEFAULT_WRITE_CONCURRENCY, |parallelism| {
+        parallelism.clamp(
+            DEFAULT_WRITE_CONCURRENCY,
+            MAX_LINUX_DEFAULT_WRITE_CONCURRENCY,
         )
+    })
+}
+
+#[cfg(target_os = "linux")]
+fn default_write_concurrency() -> usize {
+    linux_default_write_concurrency(
+        turbo_tasks::parallel::available_parallelism()
+            .ok()
+            .map(|n| n.get()),
+    )
+}
+
+#[cfg(not(target_os = "linux"))]
+fn default_write_concurrency() -> usize {
+    DEFAULT_WRITE_CONCURRENCY
+}
+
+fn create_write_semaphore() -> tokio::sync::Semaphore {
+    // the semaphore isn't serialized, and we assume the environment variables don't change during
+    // runtime, so it's okay to access them in this untracked way.
+    static TURBO_ENGINE_WRITE_CONCURRENCY: LazyLock<usize> = LazyLock::new(|| {
+        number_env_var("TURBO_ENGINE_WRITE_CONCURRENCY").unwrap_or_else(default_write_concurrency)
     });
     tokio::sync::Semaphore::new(*TURBO_ENGINE_WRITE_CONCURRENCY)
 }
@@ -262,6 +307,11 @@ pub(crate) struct DiskFileSystemInner {
     #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip)]
     effect_state_storage: EffectStateStorage,
+    /// Directories created by write effects of this filesystem in the current session. Writes into
+    /// them skip comparing with the existing file, see [`CreatedDirs`].
+    #[turbo_tasks(debug_ignore, unsafe_ignore)]
+    #[bincode(skip)]
+    created_dirs: CreatedDirs,
     map: OperationVc<DiskFileSystemMap>,
 }
 
@@ -338,6 +388,7 @@ impl DiskFileSystemInner {
 
     pub(crate) fn invalidate(&self) {
         let _span = tracing::info_span!("invalidate filesystem", name = &*self.root).entered();
+        self.created_dirs.clear();
         let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
             return;
         };
@@ -362,6 +413,7 @@ impl DiskFileSystemInner {
         reason: impl Fn(&Path) -> R,
     ) {
         let _span = tracing::info_span!("invalidate filesystem", name = &*self.root).entered();
+        self.created_dirs.clear();
         let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
             return;
         };
@@ -546,6 +598,11 @@ impl DiskFileSystem {
 
     pub async fn stop_watching(&self) {
         self.inner.watcher.stop_watching().await;
+    }
+
+    /// Whether this filesystem treats a path as nonexistent under its read policy.
+    pub fn is_path_denied(&self, path: &FileSystemPath) -> bool {
+        self.inner.is_path_denied(path)
     }
 
     /// Try to convert [`Path`] to [`FileSystemPath`]. Return `None` if the file path leaves the
@@ -892,6 +949,7 @@ impl DiskFileSystem {
                 turbo_tasks: turbo_tasks_weak(),
                 tokio_handle: Handle::current(),
                 effect_state_storage: EffectStateStorage::default(),
+                created_dirs: CreatedDirs::default(),
                 map,
             }),
         };
@@ -1274,6 +1332,7 @@ impl FileSystem for DiskFileSystem {
             full_path: Arc<PathBuf>,
             fs: ResolvedVc<DiskFileSystem>,
             content: ResolvedVc<PersistedFileContent>,
+            #[bincode(fixint)]
             content_hash: u128,
         }
 
@@ -1350,21 +1409,32 @@ impl FileSystem for DiskFileSystem {
 
                 let _lock = self.inner.lock_path(full_path.clone()).await;
 
+                // Files in a directory that this filesystem created in the current session are
+                // normally only written by this filesystem, and then their content differs from
+                // `content` (identical writes are deduplicated by the effect state). Skip the
+                // comparison there: reading a missing file contends with concurrent file creations
+                // in the same directory. See `CreatedDirs`.
+                let parent_created_in_session = full_path
+                    .parent()
+                    .is_some_and(|parent| self.inner.created_dirs.contains(parent));
+
                 // We perform an untracked comparison here, so that this write is not dependent
                 // on a read's Vc<FileContent> (and the memory it holds). Our untracked read can
                 // be freed immediately. Given this is an output file, it's unlikely any Turbo
                 // code will need to read the file from disk into a Vc<FileContent>, so we're
                 // not wasting cycles.
-                let compare = content
-                    .streaming_compare(full_path)
-                    .instrument(tracing::info_span!(
-                        "read file before write",
-                        name = ?full_path,
-                    ))
-                    .concurrency_limited(&self.inner.read_semaphore)
-                    .await?;
-                if compare == FileComparison::Equal {
-                    return Ok(());
+                if !parent_created_in_session {
+                    let compare = content
+                        .streaming_compare(full_path)
+                        .instrument(tracing::info_span!(
+                            "read file before write",
+                            name = ?full_path,
+                        ))
+                        .concurrency_limited(&self.inner.read_semaphore)
+                        .await?;
+                    if compare == FileComparison::Equal {
+                        return Ok(());
+                    }
                 }
 
                 match &**content {
@@ -1380,9 +1450,13 @@ impl FileSystem for DiskFileSystem {
                             };
 
                             #[cfg(any(unix, windows))]
-                            if file.meta.permissions == crate::Permissions::Executable {
-                                // Replace the executable instead of truncating it, so a running
-                                // Unix binary can keep using the previous file.
+                            if file.meta.atomic_write
+                                || file.meta.permissions == crate::Permissions::Executable
+                            {
+                                // Replace the file instead of truncating it, so a concurrent
+                                // reader sees the previous or the new content but never a partial
+                                // file, and a running Unix binary can keep using the previous
+                                // file.
                                 let mut temporary = tempfile::NamedTempFile::new_in(
                                     path.parent().ok_or(ErrorKind::InvalidInput)?,
                                 )?;
@@ -1397,9 +1471,10 @@ impl FileSystem for DiskFileSystem {
                         }
 
                         let mut missing_parent_dir = false;
+                        let created_dirs = &self.inner.created_dirs;
                         let do_write = || {
                             if missing_parent_dir && let Some(parent) = full_path.parent() {
-                                std::fs::create_dir_all(parent)?;
+                                created_dirs.create_dir_all(parent)?;
                                 missing_parent_dir = false;
                             }
                             let PersistedFileContent::Content(file) = &*content else {
@@ -1528,6 +1603,7 @@ impl FileSystem for DiskFileSystem {
             full_path: Arc<PathBuf>,
             target_sys_path: Arc<PathBuf>,
             target_type: WriteLinkTargetType,
+            #[bincode(fixint)]
             content_hash: u128,
         }
 
@@ -1973,6 +2049,183 @@ mod tests {
         );
 
         Ok(())
+    }
+
+    #[cfg(test)]
+    mod created_dirs_tests {
+        use std::{
+            fs::{FileTimes, create_dir_all, read_to_string},
+            path::Path,
+            time::{Duration, SystemTime},
+        };
+
+        use turbo_rcstr::{RcStr, rcstr};
+        use turbo_tasks::{
+            Effects, ResolvedVc, Vc, read_strongly_consistent_and_apply_effects, take_effects,
+        };
+        use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+
+        use crate::{DiskFileSystem, File, FileContent, FileSystem};
+
+        #[turbo_tasks::function(operation, root)]
+        fn disk_file_system_operation(root: RcStr) -> Vc<DiskFileSystem> {
+            DiskFileSystem::new(rcstr!("test"), Vc::cell(root))
+        }
+
+        #[turbo_tasks::function(operation, root)]
+        async fn write_operation(
+            fs: ResolvedVc<DiskFileSystem>,
+            path: RcStr,
+            contents: RcStr,
+        ) -> anyhow::Result<()> {
+            fs.root()
+                .await?
+                .join(&path)?
+                .write(
+                    FileContent::Content(File::from_bytes(contents.to_string().into_bytes()))
+                        .cell(),
+                )
+                .await?;
+            Ok(())
+        }
+
+        #[turbo_tasks::function(operation, root)]
+        async fn write_effects_operation(
+            fs: ResolvedVc<DiskFileSystem>,
+            path: RcStr,
+            contents: RcStr,
+        ) -> anyhow::Result<Vc<Effects>> {
+            let write_op = write_operation(fs, path, contents);
+            write_op.read_strongly_consistent().await?;
+            Ok(take_effects(write_op).await?.cell())
+        }
+
+        async fn write(
+            fs: ResolvedVc<DiskFileSystem>,
+            path: &str,
+            contents: &str,
+        ) -> anyhow::Result<()> {
+            read_strongly_consistent_and_apply_effects(
+                write_effects_operation(fs, RcStr::from(path), RcStr::from(contents)),
+                |e| e,
+            )
+            .await?;
+            Ok(())
+        }
+
+        fn set_old_mtime(path: &Path) -> SystemTime {
+            let old = SystemTime::UNIX_EPOCH + Duration::from_secs(1_000_000);
+            std::fs::File::options()
+                .write(true)
+                .open(path)
+                .unwrap()
+                .set_times(FileTimes::new().set_modified(old))
+                .unwrap();
+            old
+        }
+
+        fn mtime(path: &Path) -> SystemTime {
+            std::fs::metadata(path).unwrap().modified().unwrap()
+        }
+
+        /// Runs `test` with a [`DiskFileSystem`] for a new temporary directory.
+        macro_rules! run {
+            (async |$fs:ident, $root:ident| $body:block) => {{
+                let scratch = tempfile::tempdir().unwrap();
+                let root_buf = scratch.path().to_owned();
+                let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                    BackendOptions::default(),
+                    noop_backing_storage(),
+                ));
+                tt.run_once(async move {
+                    let $root: &Path = &root_buf;
+                    let $fs = disk_file_system_operation(RcStr::from($root.to_str().unwrap()))
+                        .resolve()
+                        .strongly_consistent()
+                        .await?;
+                    $body
+                })
+                .await
+                .unwrap();
+            }};
+        }
+
+        /// Directories created by writes are recorded, and later writes into them write the new
+        /// content.
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn writes_into_created_directories() {
+            run!(async |fs, root| {
+                write(fs, "out/a/file.txt", "one").await?;
+                assert_eq!(read_to_string(root.join("out/a/file.txt"))?, "one");
+                let inner = fs.await?.inner.clone();
+                assert!(inner.created_dirs.contains(&root.join("out")));
+                assert!(inner.created_dirs.contains(&root.join("out/a")));
+                assert!(!inner.created_dirs.contains(root));
+
+                write(fs, "out/a/file.txt", "two").await?;
+                assert_eq!(read_to_string(root.join("out/a/file.txt"))?, "two");
+                write(fs, "out/a/other.txt", "three").await?;
+                assert_eq!(read_to_string(root.join("out/a/other.txt"))?, "three");
+                Ok(())
+            });
+        }
+
+        /// Writes into directories that existed before still compare with the existing file and
+        /// don't rewrite it when the content is the same.
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn skips_identical_writes_in_existing_directories() {
+            run!(async |fs, root| {
+                create_dir_all(root.join("existing"))?;
+                std::fs::write(root.join("existing/file.txt"), "same")?;
+                let old = set_old_mtime(&root.join("existing/file.txt"));
+
+                write(fs, "existing/file.txt", "same").await?;
+                assert_eq!(mtime(&root.join("existing/file.txt")), old);
+                assert!(
+                    !fs.await?
+                        .inner
+                        .created_dirs
+                        .contains(&root.join("existing"))
+                );
+
+                write(fs, "existing/file.txt", "changed").await?;
+                assert_eq!(read_to_string(root.join("existing/file.txt"))?, "changed");
+                Ok(())
+            });
+        }
+
+        /// A created directory that is removed during the session is created again by the next
+        /// write into it.
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn recreates_removed_directories() {
+            run!(async |fs, root| {
+                write(fs, "out/a/file.txt", "one").await?;
+                std::fs::remove_dir_all(root.join("out"))?;
+
+                write(fs, "out/a/file.txt", "two").await?;
+                assert_eq!(read_to_string(root.join("out/a/file.txt"))?, "two");
+                write(fs, "out/a/other.txt", "three").await?;
+                assert_eq!(read_to_string(root.join("out/a/other.txt"))?, "three");
+                let inner = fs.await?.inner.clone();
+                // The directories were created by this filesystem again.
+                assert!(inner.created_dirs.contains(&root.join("out")));
+                assert!(inner.created_dirs.contains(&root.join("out/a")));
+                Ok(())
+            });
+        }
+
+        /// Invalidating the filesystem forgets all created directories.
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn invalidate_forgets_created_directories() {
+            run!(async |fs, root| {
+                write(fs, "out/file.txt", "one").await?;
+                let fs = fs.await?;
+                assert!(fs.inner.created_dirs.contains(&root.join("out")));
+                fs.invalidate();
+                assert!(!fs.inner.created_dirs.contains(&root.join("out")));
+                Ok(())
+            });
+        }
     }
 
     #[cfg(test)]
@@ -3121,6 +3374,98 @@ mod tests {
                 )
                 .read_strongly_consistent()
                 .await?;
+
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+        }
+    }
+
+    #[cfg(unix)]
+    mod atomic_write_tests {
+        use std::{
+            fs::{metadata, read_to_string},
+            io::{Read, Seek},
+            os::unix::fs::MetadataExt,
+        };
+
+        use turbo_rcstr::{RcStr, rcstr};
+        use turbo_tasks::{Effects, Vc, read_strongly_consistent_and_apply_effects, take_effects};
+        use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+
+        use crate::{DiskFileSystem, File as TurboFile, FileContent, FileSystem, FileSystemPath};
+
+        #[turbo_tasks::function(operation, root)]
+        async fn write_file_operation(
+            path: FileSystemPath,
+            contents: RcStr,
+            atomic: bool,
+        ) -> anyhow::Result<()> {
+            let mut file = TurboFile::from_bytes(contents.to_string().into_bytes());
+            if atomic {
+                file = file.with_atomic_write();
+            }
+            path.write(FileContent::Content(file).cell()).await?;
+            Ok(())
+        }
+
+        #[turbo_tasks::function(operation, root)]
+        async fn write_effects_operation(
+            root: RcStr,
+            contents: RcStr,
+            atomic: bool,
+        ) -> anyhow::Result<Vc<Effects>> {
+            let fs = DiskFileSystem::new(rcstr!("test"), Vc::cell(root));
+            let path = fs.root().await?.join("file.txt")?;
+            let write_op = write_file_operation(path, contents, atomic);
+            write_op.read_strongly_consistent().await?;
+            Ok(take_effects(write_op).await?.cell())
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn test_atomic_write_replaces_file() {
+            let scratch = tempfile::tempdir().unwrap();
+            let root_path = std::fs::canonicalize(scratch.path()).unwrap();
+            let file_path = root_path.join("file.txt");
+            let root = RcStr::from(root_path.to_str().unwrap());
+
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+            tt.run_once(async move {
+                let write = async |contents: &str, atomic: bool| {
+                    read_strongly_consistent_and_apply_effects(
+                        write_effects_operation(root.clone(), RcStr::from(contents), atomic),
+                        |e| e,
+                    )
+                    .await
+                };
+
+                write("v1", false).await?;
+                let inode = metadata(&file_path)?.ino();
+
+                // A plain write truncates the file in place.
+                write("v2", false).await?;
+                assert_eq!(metadata(&file_path)?.ino(), inode);
+
+                // An atomic write replaces the file, so a reader that opened the previous file
+                // keeps reading the previous content.
+                let mut reader = std::fs::File::open(&file_path)?;
+                write("v3", true).await?;
+                let replaced_inode = metadata(&file_path)?.ino();
+                assert_ne!(replaced_inode, inode);
+                assert_eq!(read_to_string(&file_path)?, "v3");
+                let mut previous = String::new();
+                reader.rewind()?;
+                reader.read_to_string(&mut previous)?;
+                assert_eq!(previous, "v2");
+
+                // Unchanged content is not rewritten, even though the atomic write flag is not
+                // stored on disk.
+                write("v3", true).await?;
+                assert_eq!(metadata(&file_path)?.ino(), replaced_inode);
 
                 anyhow::Ok(())
             })

@@ -1157,6 +1157,8 @@ export async function isPageStatic({
         }))
       }
 
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       const isNextImageImported = (globalThis as any).__NEXT_IMAGE_IMPORTED
 
       let isStatic = false
@@ -1430,7 +1432,7 @@ export async function copyTracedFiles(
   tracingRoot: string,
   serverConfig: NextConfigRuntime,
   middlewareManifest: MiddlewareManifest,
-  hasNodeMiddleware: boolean,
+  middlewareConfig: FunctionsConfigManifest['functions'][string] | undefined,
   hasInstrumentationHook: boolean,
   staticPages: Set<string>
 ) {
@@ -1627,8 +1629,14 @@ export async function copyTracedFiles(
     })
   }
 
-  if (hasNodeMiddleware) {
-    const middlewareFile = path.join(distDir, 'server', 'middleware.js')
+  if (middlewareConfig) {
+    const middlewareFile = path.join(
+      distDir,
+      'server',
+      middlewareConfig.runtime === 'go'
+        ? middlewareConfig.nativeEntry
+        : 'middleware.js'
+    )
     const middlewareTrace = `${middlewareFile}.nft.json`
     await handleTraceFiles(middlewareTrace)
   }
@@ -1781,12 +1789,17 @@ export function getPossibleInstrumentationHookFilenames(
 
 export function getPossibleMiddlewareFilenames(
   folder: string,
-  extensions: string[]
+  extensions: string[],
+  goRoutes = false
 ) {
-  return extensions.flatMap((extension) => [
-    path.join(folder, `${MIDDLEWARE_FILENAME}.${extension}`),
-    path.join(folder, `${PROXY_FILENAME}.${extension}`),
-  ])
+  return [
+    ...extensions.flatMap((extension) => [
+      path.join(folder, `${MIDDLEWARE_FILENAME}.${extension}`),
+      path.join(folder, `${PROXY_FILENAME}.${extension}`),
+    ]),
+    // proxy.go is only a convention file when Go routes are enabled.
+    ...(goRoutes ? [path.join(folder, `${PROXY_FILENAME}.go`)] : []),
+  ]
 }
 
 export class NestedMiddlewareError extends Error {
@@ -1814,6 +1827,8 @@ export function shouldUseReactServerCondition(
   layer: WebpackLayerName | null | undefined
 ): boolean {
   return Boolean(
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     layer && WEBPACK_LAYERS.GROUP.serverOnly.includes(layer as any)
   )
 }
@@ -1822,6 +1837,8 @@ export function isWebpackClientOnlyLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
   return Boolean(
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     layer && WEBPACK_LAYERS.GROUP.clientOnly.includes(layer as any)
   )
 }
@@ -1841,12 +1858,16 @@ export function isWebpackDefaultLayer(
 export function isWebpackBundledLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   return Boolean(layer && WEBPACK_LAYERS.GROUP.bundled.includes(layer as any))
 }
 
 export function isWebpackAppPagesLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   return Boolean(layer && WEBPACK_LAYERS.GROUP.appPages.includes(layer as any))
 }
 

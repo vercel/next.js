@@ -43,6 +43,7 @@ Your application code does not need a follow-up fetch to see the updated UI for 
 A re-render is included in the same response when the action does any of these:
 
 - Calls [`updateTag`](/docs/app/api-reference/functions/updateTag) or [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) to immediately invalidate cached data.
+- Calls [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag#client-cache-behavior) with a profile that resolves to `expire: 0`, including `{ expire: 0 }`.
 - Calls [`refresh`](/docs/app/api-reference/functions/refresh) to refetch the current route's RSC Payload.
 - Mutates cookies through [`cookies()`](/docs/app/api-reference/functions/cookies#understanding-cookie-behavior-in-server-functions). Setting or deleting a cookie automatically re-renders the current page so the UI reflects the new value.
 - Calls [`redirect`](/docs/app/api-reference/functions/redirect). The response navigates the router and streams the destination's RSC Payload.
@@ -79,8 +80,8 @@ A Server Action runs as a POST request against the page that invokes it. At buil
 
 Next.js enforces a few framework-level protections:
 
-- **CSRF check.** The request's `Origin` is compared to the `Host` (or `X-Forwarded-Host`). Mismatches are rejected. Configure [`serverActions.allowedOrigins`](/docs/app/api-reference/config/next-config-js/serverActions#allowedorigins) for proxy or CDN domains.
-- **Body size limit.** Action requests are capped at 1MB by default. Configure [`serverActions.bodySizeLimit`](/docs/app/api-reference/config/next-config-js/serverActions#bodysizelimit) when accepting larger payloads.
+- **CSRF check.** The request's `Origin` is compared to the `Host` (or `X-Forwarded-Host`). Mismatches are rejected. Configure [`experimental.serverActions.allowedOrigins`](/docs/app/api-reference/config/next-config-js/serverActions#allowedorigins) for proxy or CDN domains.
+- **Body size limit.** Action requests are capped at 1MB by default. Configure [`experimental.serverActions.bodySizeLimit`](/docs/app/api-reference/config/next-config-js/serverActions#bodysizelimit) when accepting larger payloads.
 - **Encrypted action IDs and dead code elimination.** Action references are encrypted at build time, and unused Server Functions are stripped from client bundles so they have no public endpoint. See [Built-in Server Actions security features](/docs/app/guides/data-security#built-in-server-actions-security-features).
 - **Closure variable encryption.** Variables captured by an inline action are encrypted before being sent to the client. For multi-instance and self-hosted deployments, set `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` to a stable key shared across instances. See [Closures and encryption](/docs/app/guides/data-security#closures-and-encryption).
 
@@ -143,7 +144,7 @@ export async function completeItem(itemId: string) {
 After mutating data, on-demand revalidation updates the server cache, the client router, or both. Choose based on what needs to change:
 
 - [`updateTag`](/docs/app/api-reference/functions/updateTag): immediate expiration of a tag. The next read (including the route re-render that ships with the action's response) waits for fresh data. Use when the action needs **read-your-own-writes** so the user immediately sees their change. Server Actions only.
-- [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag): stale-while-revalidate refresh of a tag with a cache-life profile. Subsequent reads get the stale value while a fresh fetch happens in the background, so the action's own re-render does **not** wait for the new data.
+- [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag): stale-while-revalidate refresh of a tag with a cache-life profile such as `'max'`. Subsequent reads get the stale value while a fresh fetch happens in the background. The call does **not** trigger an immediate re-render. See [client cache behavior](/docs/app/api-reference/functions/updateTag#client-cache-behavior) for immediate-expiry profiles.
 - [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath): invalidate by URL path. Use when one route is affected and tagging is overkill.
 - [`refresh`](/docs/app/api-reference/functions/refresh): refetch the current route's RSC Payload without invalidating cached data. Use when the view depends on state outside the cache that the action just changed.
 
@@ -153,7 +154,7 @@ Unlike [`redirect`](/docs/app/api-reference/functions/redirect), none of these t
 
 ## Configuration
 
-The [`serverActions`](/docs/app/api-reference/config/next-config-js/serverActions) option in `next.config.js` controls framework-level behavior:
+The [`experimental.serverActions`](/docs/app/api-reference/config/next-config-js/serverActions) option in `next.config.js` controls framework-level behavior:
 
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */
@@ -166,6 +167,8 @@ module.exports = {
   },
 }
 ```
+
+> **Good to know**: Server Actions are stable and enabled by default in Next.js 14 and later. The configuration API under `experimental.serverActions` remains experimental.
 
 For the closure encryption key, set `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` in the deployment environment. See [Self-hosting: Server Functions encryption key](/docs/app/guides/self-hosting#server-functions-encryption-key) for deployment-specific guidance.
 

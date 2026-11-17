@@ -30,7 +30,9 @@ describe('route-bundle-stats', () => {
       expect(entry.firstLoadChunkPaths.length).toBeGreaterThan(0)
 
       for (const chunkPath of entry.firstLoadChunkPaths) {
-        expect(chunkPath).toMatch(/^\.next[\\/]/)
+        // Paths use forward slashes on all platforms.
+        expect(chunkPath).toMatch(/^\.next\//)
+        expect(chunkPath).not.toContain('\\')
       }
     }
 

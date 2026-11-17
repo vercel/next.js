@@ -14,7 +14,7 @@ use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Effects, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TurboTasks, Vc,
-    debug::ValueDebugFormat, fxindexmap, read_strongly_consistent_and_apply_effects, take_effects,
+    debug::ValueDebugFormat, read_strongly_consistent_and_apply_effects, take_effects,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::CommandLineProcessEnv;
@@ -254,7 +254,8 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
         snapshot_mode: IssueSnapshotMode,
     ) -> Result<Vc<JsResultWithEffects>> {
         let op = run_inner_operation(resource, snapshot_mode);
-        let result = op.connect().await?.clone();
+        // Collectibles are only stable after a strongly consistent read of their source.
+        let result = op.read_strongly_consistent().await?.clone();
         let effects = take_effects(op).await?;
         Ok(JsResultWithEffects { result, effects }.cell())
     }
@@ -420,7 +421,9 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     let test_path = project_path.join("input/index.js")?;
 
     let chunk_root_path = path.join("output")?;
-    let static_root_path = path.join("static")?;
+    // Static assets live inside the output root so that they are emitted together with the
+    // chunks, which lets tests check that a referenced asset was actually written.
+    let static_root_path = chunk_root_path.join("static")?;
 
     let chunk_root_path_in_root_path_offset = project_path
         .join("output")?
@@ -583,9 +586,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     let jest_entry_asset = asset_context
         .process(
             Vc::upcast(jest_entry_source),
-            ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
-                rcstr!("TESTS") => test_asset,
-            })),
+            ReferenceType::Internal(ResolvedVc::cell([(rcstr!("TESTS"), test_asset)].into())),
         )
         .module();
 
