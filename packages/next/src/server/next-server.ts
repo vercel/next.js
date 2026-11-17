@@ -1842,6 +1842,7 @@ export default class NextNodeServer extends BaseServer<
               : undefined,
           },
           page: nativeEntry ? '/proxy' : 'middleware',
+          previewProps: this.getPreviewProps(),
         })
       } finally {
         if (hasRequestBody) {

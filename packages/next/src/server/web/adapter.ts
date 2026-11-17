@@ -44,6 +44,7 @@ import {
   getSharedParentTraceContext,
 } from './forward-trace-context'
 import { getEdgePreviewProps } from './get-edge-preview-props'
+import type { __ApiPreviewProps } from '../api-utils'
 import { getBuiltinRequestContext } from '../after/builtin-request-context'
 import { getImplicitTags } from '../lib/implicit-tags'
 import { isRSCRequestHeader } from '../lib/is-rsc-request'
@@ -114,12 +115,15 @@ export type AdapterOptions = {
    * adapter ran (e.g. while registering `instrumentation.ts`).
    */
   requestStartTime?: number
+  /** Node.js runtime only. Edge reads preview props from env. */
+  previewProps?: __ApiPreviewProps
 }
 
 // This has to be compatible with what the Vercel builder does as well:
 // https://github.com/vercel/vercel/blob/0e0a6eb9f12216202ae2f5ee37e4ada1796361fd/packages/next/src/edge-function-source/get-edge-function.ts#L112-L136
 export type EdgeHandler = (opts: {
   request: AdapterOptions['request']
+  previewProps?: AdapterOptions['previewProps']
 }) => Promise<FetchEventResult>
 
 function isMiddlewarePage(page: string) {
@@ -270,6 +274,8 @@ export async function adapter(
     })
   }
 
+  const previewProps = params.previewProps ?? getEdgePreviewProps()
+
   if (
     // If we are inside of the next start sandbox
     // leverage the shared instance if not we need
@@ -294,7 +300,7 @@ export async function adapter(
       // eslint-disable-next-line @next/internal/no-as-any
       requestHeaders: params.request.headers as any,
 
-      previewProps: getEdgePreviewProps(),
+      previewProps,
       prerenderManifest: {
         // TODO(as-any): pre-existing cast, not yet reviewed
         // eslint-disable-next-line @next/internal/no-as-any
@@ -302,7 +308,7 @@ export async function adapter(
         routes: {},
         dynamicRoutes: {},
         notFoundRoutes: [],
-        preview: getEdgePreviewProps(),
+        preview: previewProps,
       },
     })
   }
@@ -374,7 +380,6 @@ export async function adapter(
               const onUpdateCookies = (cookies: Array<string>) => {
                 cookiesFromResponse = cookies
               }
-              const previewProps = getEdgePreviewProps()
               const page = '/' // Fake Work
               const fallbackRouteParams = null
 
