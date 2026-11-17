@@ -80,9 +80,37 @@ export const instant = true
 
 Navigations from outside into a tab are allowed to block at the layout. Navigations between tabs are validated for instant UI.
 
+Setting `instant = false` on a layout does not disable navigation validation for all child pages. Navigations between pages beneath that shared layout are still validated, including pages validated by default. To opt out a child page, export `instant = false` from that page.
+
 You don't need to add `false` to ancestors of an instant page just because they do something blocking. A higher-up `instant = true` doesn't force its descendants to validate, and leaving an ancestor unconfigured is fine. Reach for `false` only when you've configured a deeper page as instant and need to exempt navigations that pass through a blocking ancestor.
 
 `instant = false` controls instant-navigation validation. The route still uses prerendering and streaming. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
+
+#### Client Component pages
+
+The `instant` export cannot be used in a [Client Component](/docs/app/api-reference/directives/use-client) module. If your page has a `'use client'` directive, move its existing component into a separate file, such as `app/dashboard/dashboard.tsx` (or `dashboard.js`), and keep `'use client'` in that file. Then render it from a Server Component page that exports `instant = false`:
+
+```tsx filename="app/dashboard/page.tsx" switcher
+import Dashboard from './dashboard'
+
+export const instant = false
+
+export default function Page() {
+  return <Dashboard />
+}
+```
+
+```jsx filename="app/dashboard/page.js" switcher
+import Dashboard from './dashboard'
+
+export const instant = false
+
+export default function Page() {
+  return <Dashboard />
+}
+```
+
+The page owns the validation config, and `Dashboard` remains a Client Component. Pass through any page props that `Dashboard` uses.
 
 ### Disabling static shell validation
 
