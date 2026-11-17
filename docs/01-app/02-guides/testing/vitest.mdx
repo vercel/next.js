@@ -164,6 +164,8 @@ test('Page', () => {
 
 > **Good to know**: The example above uses the common `__tests__` convention, but test files can also be colocated inside the `app` router.
 
+Vitest's jsdom setup does not run the App Router navigation runtime. Use explicit mocks to test your own `onNavigate` logic or UI that uses `useLinkStatus`. To verify navigation and pending state, use [Playwright E2E tests](/docs/app/guides/testing/playwright#creating-your-first-playwright-e2e-test) against a running Next.js application.
+
 </AppOnly>
 
 <PagesOnly>
