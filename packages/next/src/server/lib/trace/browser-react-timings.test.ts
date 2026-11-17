@@ -1,5 +1,11 @@
 import {
-  createReactDebugPerformanceId,
+  DecoderPromise,
+  decoderConsole,
+  decoderPerformance,
+  decoderSetTimeout,
+} from '../../../client/dev/react-decoder-host'
+import {
+  createBrowserReactTiming,
   setReactTimingSender,
 } from '../../../client/dev/react-render-timing'
 import { createBrowserReactTimingReceiver } from './browser-react-timings'
@@ -16,6 +22,7 @@ import {
   setSpanRecorderForTest,
   type SpanStoreRecord,
 } from './span-store'
+import { NEXT_REQUEST_ID_HEADER } from '../../../client/components/app-router-headers'
 import { HMR_MESSAGE_SENT_TO_SERVER } from '../../dev/hot-reloader-types'
 import { MAX_LIVE_COMPLETED_REQUEST_INSIGHTS } from '../../../shared/lib/request-insights'
 
@@ -67,80 +74,15 @@ function message(overrides = {}) {
   }
 }
 
-let deliverMeasures: (entries: PerformanceMeasure[]) => void
-
-function measure(
-  debugPerformanceId: ReturnType<typeof createReactDebugPerformanceId>,
-  name = 'Page',
-  metadata: Record<string, unknown> = {}
-): PerformanceMeasure {
-  return {
-    entryType: 'measure',
-    name,
-    startTime: 1,
-    duration: 2,
-    detail: {
-      react: {
-        version: 1,
-        debugPerformanceId,
-        kind: 'component',
-        outcome: 'completed',
-        environment: 'Server',
-        ...metadata,
-      },
-      devtools: { properties: [['private', 'value']] },
-    },
-  } as PerformanceMeasure
-}
-
 describe('browser React timing transport', () => {
   const spans: SpanStoreRecord[] = []
   const receivers: ReturnType<typeof createBrowserReactTimingReceiver>[] = []
-
-  function completedRequest() {
-    start()
-    finish()
-    spans.length = 0
-  }
-
-  function reactSpans(kind = 'component') {
-    return spans.filter((span) => span.name === `ReactServerComponents.${kind}`)
-  }
 
   function receiver(documentId = 'document', enabled = true) {
     const instance = createBrowserReactTimingReceiver(documentId, enabled)
     receivers.push(instance)
     return instance
   }
-
-  const observerDescriptor = Object.getOwnPropertyDescriptor(
-    globalThis,
-    'PerformanceObserver'
-  )
-  beforeAll(() => {
-    Object.defineProperty(globalThis, 'PerformanceObserver', {
-      configurable: true,
-      value: jest.fn((callback: PerformanceObserverCallback) => {
-        deliverMeasures = (entries) =>
-          callback(
-            {
-              getEntries: () => entries,
-            } as unknown as PerformanceObserverEntryList,
-            {} as PerformanceObserver
-          )
-        return { observe: jest.fn(), disconnect: jest.fn() }
-      }),
-    })
-  })
-  afterAll(() => {
-    if (observerDescriptor)
-      Object.defineProperty(
-        globalThis,
-        'PerformanceObserver',
-        observerDescriptor
-      )
-    else Reflect.deleteProperty(globalThis, 'PerformanceObserver')
-  })
 
   beforeEach(() => {
     process.env.__NEXT_DEV_SERVER = '1'
@@ -159,7 +101,6 @@ describe('browser React timing transport', () => {
     if (originalRequestInsights === undefined) {
       delete process.env.__NEXT_REQUEST_INSIGHTS
     } else process.env.__NEXT_REQUEST_INSIGHTS = originalRequestInsights
-    setReactTimingSender(undefined)
     jest.useRealTimers()
   })
 
@@ -175,7 +116,9 @@ describe('browser React timing transport', () => {
     ingest.receive(payload, JSON.stringify(payload).length)
     expect(spans).toEqual([])
     finish()
-    expect(reactSpans()).toEqual([])
+    expect(
+      spans.filter((span) => span.name === 'ReactServerComponents.component')
+    ).toEqual([])
     ingest.receive(payload, JSON.stringify(payload).length)
     const timing = spans.find(
       (span) => span.name === 'ReactServerComponents.component'
@@ -192,7 +135,9 @@ describe('browser React timing transport', () => {
   })
 
   it('accepts later batches from the same decoder', () => {
-    completedRequest()
+    start()
+    finish()
+    spans.length = 0
     const ingest = receiver()
     ingest.receive(message(), 1000)
     ingest.receive(message({ id: 'decoded:1', name: 'Later' }), 1000)
@@ -220,7 +165,9 @@ describe('browser React timing transport', () => {
 
   it('limits browser records for the whole request, across reconnects and time windows', () => {
     jest.useFakeTimers({ doNotFake: ['performance'] })
-    completedRequest()
+    start()
+    finish()
+    spans.length = 0
     const first = receiver()
     for (let batch = 0; batch < 257; batch++) {
       const records = Array.from(
@@ -229,8 +176,12 @@ describe('browser React timing transport', () => {
       )
       first.receive({ ...message(), records }, 32_000)
     }
-    expect(reactSpans()).toHaveLength(8192)
-    expect(reactSpans('incomplete')).toHaveLength(1)
+    expect(
+      spans.filter((span) => span.name === 'ReactServerComponents.component')
+    ).toHaveLength(8192)
+    expect(
+      spans.filter((span) => span.name === 'ReactServerComponents.incomplete')
+    ).toHaveLength(1)
     first.dispose()
     jest.advanceTimersByTime(60_001)
     const second = receiver()
@@ -241,7 +192,9 @@ describe('browser React timing transport', () => {
   })
 
   it('bounds retained UTF-8 bytes as well as the number of records', () => {
-    completedRequest()
+    start()
+    finish()
+    spans.length = 0
     const ingest = receiver()
     for (let i = 0; i < 1000; i++) {
       ingest.receive(
@@ -270,7 +223,9 @@ describe('browser React timing transport', () => {
         0
       )
     ).toBeLessThanOrEqual(8 * 1024 * 1024)
-    expect(reactSpans('incomplete')).toHaveLength(1)
+    expect(
+      spans.filter((span) => span.name === 'ReactServerComponents.incomplete')
+    ).toHaveLength(1)
     const count = spans.length
     receiver().receive({ ...message(), decoderId: '1' }, 1000)
     expect(spans).toHaveLength(count)
@@ -344,32 +299,50 @@ describe('browser React timing transport', () => {
   })
 
   it('bounds decoder state without evicting replay protection', () => {
-    completedRequest()
+    start()
+    finish()
+    spans.length = 0
     const ingest = receiver()
     for (let i = 0; i < 130; i++) {
       ingest.receive({ ...message(), decoderId: String(i) }, 1000)
     }
-    expect(reactSpans()).toHaveLength(128)
-    expect(reactSpans('incomplete')).toHaveLength(1)
+    expect(
+      spans.filter((span) => span.name === 'ReactServerComponents.component')
+    ).toHaveLength(128)
+    expect(
+      spans.filter((span) => span.name === 'ReactServerComponents.incomplete')
+    ).toHaveLength(1)
     receiver().receive(message(), 1000)
     expect(spans).toHaveLength(129)
   })
 
   it('marks bounded client transport loss as partial observation', () => {
     jest.useFakeTimers({ doNotFake: ['performance'] })
-    completedRequest()
+    start()
+    finish()
+    spans.length = 0
     const ingest = receiver()
     setReactTimingSender((payload) => {
       expect(payload.length).toBeLessThanOrEqual(64 * 1024)
       ingest.receive(JSON.parse(payload), payload.length)
     })
-    const timing = createReactDebugPerformanceId('abc')
-    deliverMeasures(
-      Array.from({ length: 257 }, (_, index) => measure(timing, `Page${index}`))
-    )
+    const timing = createBrowserReactTiming({ [NEXT_REQUEST_ID_HEADER]: 'abc' })
+    timing.run(() => {
+      for (let index = 0; index < 257; index++) {
+        decoderPerformance.measure(`Page${index}`, {
+          start: index,
+          end: index + 1,
+          detail: { devtools: { trackGroup: 'Server Components ⚛' } },
+        })
+      }
+    })
     jest.runOnlyPendingTimers()
-    expect(reactSpans()).toHaveLength(256)
-    expect(reactSpans('incomplete')[0]).toMatchObject({
+    expect(
+      spans.filter((span) => span.name === 'ReactServerComponents.component')
+    ).toHaveLength(256)
+    expect(
+      spans.find((span) => span.name === 'ReactServerComponents.incomplete')
+    ).toMatchObject({
       parentSpanId: 'server-parent',
       attributes: {
         'next.rsc.observation_partial': true,
@@ -381,7 +354,9 @@ describe('browser React timing transport', () => {
   it('rejects unknown requests, wrong documents and ambiguous reused IDs', () => {
     const ingest = receiver()
     ingest.receive(message(), 1000)
-    completedRequest()
+    start()
+    finish()
+    spans.length = 0
     receiver('another-document').receive(message(), 1000)
     start('other-server-request')
     ingest.receive(message(), 1000)
@@ -390,7 +365,9 @@ describe('browser React timing transport', () => {
   })
 
   it('reports transport loss only once per request, including across reconnects', () => {
-    completedRequest()
+    start()
+    finish()
+    spans.length = 0
     const ingest = receiver()
     const payload = message()
     ingest.receive(payload, 1000)
@@ -429,13 +406,17 @@ describe('browser React timing transport', () => {
     { kind: 'request' },
     { source: { file: 'app.tsx', methodName: 'Page', line: -1, column: 1 } },
   ])('rejects malformed timing records %p', (record) => {
-    completedRequest()
+    start()
+    finish()
+    spans.length = 0
     receiver().receive(message(record), 1000)
     expect(spans).toEqual([])
   })
 
   it('rejects oversized messages and batches and disabled recording', () => {
-    completedRequest()
+    start()
+    finish()
+    spans.length = 0
     const payload = message()
     const ingest = receiver()
     ingest.receive(payload, 64 * 1024 + 1)
@@ -452,133 +433,313 @@ describe('browser React timing transport', () => {
     expect(spans).toEqual([])
   })
 
-  it('queues observed timings before HMR connects and accepts delayed entries', () => {
-    const timing = createReactDebugPerformanceId('abc')
-    const send = jest.fn()
-    deliverMeasures([measure(timing)])
-    expect(send).not.toHaveBeenCalled()
-    setReactTimingSender(send)
-    expect(JSON.parse(send.mock.calls[0][0])).toMatchObject({
-      requestId: 'abc',
-      records: [{ name: 'Page', durationMs: 2 }],
-    })
-    deliverMeasures([measure(timing, 'Late')])
-    expect(JSON.parse(send.mock.calls[1][0]).records[0].name).toBe('Late')
-    expect(JSON.parse(send.mock.calls[1][0]).records[0].id).not.toBe(
-      JSON.parse(send.mock.calls[0][0]).records[0].id
+  it('does not prefetch or drain the source and forwards cancellation', async () => {
+    const pull = jest.fn((controller) =>
+      controller.enqueue(new Uint8Array([1]))
     )
+    const cancel = jest.fn()
+    const source = new ReadableStream({ pull, cancel }, { highWaterMark: 0 })
+    const timing = createBrowserReactTiming({ [NEXT_REQUEST_ID_HEADER]: 'abc' })
+    const stream = timing.wrapStream(source)
+    await Promise.resolve()
+    expect(pull).not.toHaveBeenCalled()
+    const reader = stream.getReader()
+    expect((await reader.read()).value).toEqual(new Uint8Array([1]))
+    expect(pull).toHaveBeenCalledTimes(1)
+    await reader.cancel('stop')
+    expect(cancel).toHaveBeenCalledWith('stop')
   })
 
-  it('attributes interleaved entries to their decoders and requests', () => {
-    const first = createReactDebugPerformanceId('a')
-    const second = createReactDebugPerformanceId('b')
+  it('preserves stream error identity', async () => {
+    const error = new Error('source failed')
+    const timing = createBrowserReactTiming({ [NEXT_REQUEST_ID_HEADER]: 'abc' })
+    const stream = timing.wrapStream(
+      new ReadableStream({ pull: (controller) => controller.error(error) })
+    )
+    await expect(stream.getReader().read()).rejects.toBe(error)
+  })
+
+  it('queues native timings before HMR connects and sends late callbacks after EOF', async () => {
+    jest.useFakeTimers({ doNotFake: ['performance'] })
+    setReactTimingSender(undefined)
+    const send = jest.fn()
+    const timing = createBrowserReactTiming({ [NEXT_REQUEST_ID_HEADER]: 'abc' })
+    const reader = timing
+      .wrapStream(
+        new ReadableStream({
+          start(controller) {
+            controller.close()
+          },
+        })
+      )
+      .getReader()
+    await reader.read()
+    timing.run(() => {
+      decoderSetTimeout(() => {
+        decoderPerformance.measure('Page', {
+          start: 1,
+          end: 2,
+          detail: { devtools: { trackGroup: 'Server Components ⚛' } },
+        })
+      }, 0)
+    })
+    jest.runAllTimers()
+    expect(send).not.toHaveBeenCalled()
+    setReactTimingSender(send)
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(send.mock.calls[0][0])).toMatchObject({
+      requestId: 'abc',
+      records: [{ name: 'Page', durationMs: 1 }],
+    })
+    expect(jest.getTimerCount()).toBe(0)
+  })
+
+  it('keeps overlapping Promise.all continuations in their original requests', async () => {
     const send = jest.fn()
     setReactTimingSender(send)
-    deliverMeasures([
-      measure(second, 'Shared'),
-      measure(first, 'Shared'),
-      measure(second, 'Late'),
-    ])
+    const globalPromise = Promise
+    let release!: () => void
+    const sharedChunk = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const first = createBrowserReactTiming({ [NEXT_REQUEST_ID_HEADER]: 'a' })
+    const second = createBrowserReactTiming({ [NEXT_REQUEST_ID_HEADER]: 'b' })
+    function render(timing: typeof first, name: string) {
+      return timing.run(() =>
+        DecoderPromise.all([sharedChunk]).then(() => {
+          decoderPerformance.measure(name, {
+            start: 1,
+            end: 3,
+            detail: { devtools: { trackGroup: 'Server Components ⚛' } },
+          })
+        })
+      )
+    }
+    const a = render(first, 'First')
+    const b = render(second, 'Second')
+    release()
+    await Promise.all([a, b])
+    await new Promise<void>((resolve) => setTimeout(resolve, 0))
     expect(
       send.mock.calls.map(([payload]) => {
         const parsed = JSON.parse(payload)
-        return [
-          parsed.requestId,
-          parsed.records.map((record: { name: string }) => record.name),
-        ]
+        return [parsed.requestId, parsed.records[0].name]
       })
     ).toEqual([
-      ['b', ['Shared', 'Late']],
-      ['a', ['Shared']],
+      ['a', 'First'],
+      ['b', 'Second'],
     ])
-  })
-
-  it('flushes bounded groups without dropping concurrent decoders', () => {
-    const send = jest.fn()
-    setReactTimingSender(send)
-    const timings = Array.from({ length: 40 }, (_, index) =>
-      createReactDebugPerformanceId(`request-${index}`)
-    )
-    deliverMeasures(timings.map((timing) => measure(timing)))
-    expect(send).toHaveBeenCalledTimes(40)
-    expect(
-      new Set(send.mock.calls.map(([payload]) => JSON.parse(payload).requestId))
-        .size
-    ).toBe(40)
-  })
-
-  it('does not opt in when PerformanceObserver is unavailable', () => {
-    const descriptor = Object.getOwnPropertyDescriptor(
-      globalThis,
-      'PerformanceObserver'
-    )!
-    Object.defineProperty(globalThis, 'PerformanceObserver', {
-      configurable: true,
-      value: undefined,
-    })
-    try {
-      expect(createReactDebugPerformanceId('abc')).toBeUndefined()
-    } finally {
-      Object.defineProperty(globalThis, 'PerformanceObserver', descriptor)
-    }
+    expect(Promise).toBe(globalPromise)
   })
 
   it('retains an unsent batch across a closing socket and reconnect', () => {
-    const timing = createReactDebugPerformanceId('abc')
+    jest.useFakeTimers({ doNotFake: ['performance'] })
     const disconnected = jest.fn(() => false)
     setReactTimingSender(disconnected)
-    deliverMeasures([measure(timing)])
+    const timing = createBrowserReactTiming({ [NEXT_REQUEST_ID_HEADER]: 'abc' })
+    timing.run(() =>
+      decoderPerformance.measure('Page', {
+        start: 1,
+        end: 2,
+        detail: { devtools: { trackGroup: 'Server Components ⚛' } },
+      })
+    )
+    jest.runAllTimers()
     expect(disconnected).toHaveBeenCalledTimes(1)
     const reconnected = jest.fn()
     setReactTimingSender(reconnected)
     expect(reconnected).toHaveBeenCalledTimes(1)
     expect(JSON.parse(reconnected.mock.calls[0][0])).toMatchObject({
       requestId: 'abc',
-      records: [{ name: 'Page' }],
+      records: [{ id: 'decoded:0', name: 'Page' }],
+    })
+    expect(jest.getTimerCount()).toBe(0)
+  })
+
+  it('forwards timestamp-only events without forwarding IO descriptions or props', async () => {
+    jest.useFakeTimers({ doNotFake: ['performance'] })
+    const send = jest.fn()
+    setReactTimingSender(send)
+    const timing = createBrowserReactTiming({ [NEXT_REQUEST_ID_HEADER]: 'a' })
+    const timeStamp = console.timeStamp
+    console.timeStamp = jest.fn()
+    timing.run(() => {
+      Reflect.apply(decoderConsole.timeStamp, decoderConsole, [
+        'Component',
+        1,
+        2,
+        'Primary',
+        'Server Components ⚛',
+      ])
+      decoderPerformance.measure(
+        'await fetch (https://example.test/?secret=1)',
+        {
+          start: 2,
+          end: 3,
+          detail: {
+            devtools: {
+              trackGroup: 'Server Components ⚛',
+              properties: [['password', 'secret']],
+            },
+          },
+        }
+      )
+    })
+    jest.runAllTimers()
+    const payload = send.mock.calls[0][0]
+    expect(
+      JSON.parse(payload).records.map((record: { name: string }) => record.name)
+    ).toEqual(['Component', 'async work'])
+    expect(payload).not.toContain('secret')
+    expect(payload).not.toContain('password')
+    console.timeStamp = timeStamp
+  })
+
+  it('preserves fetch response metadata and consumes its body once', async () => {
+    const timing = createBrowserReactTiming({ [NEXT_REQUEST_ID_HEADER]: 'abc' })
+    const source = new Response('flight', {
+      status: 201,
+      statusText: 'Created',
+      headers: { 'x-test': 'value' },
+    })
+    Object.defineProperty(source, 'url', {
+      value: 'http://localhost/navigation',
+    })
+    Object.defineProperty(source, 'redirected', { value: true })
+    const response = await timing.wrapResponse(Promise.resolve(source))
+    expect(response.url).toBe(source.url)
+    expect(response.redirected).toBe(true)
+    expect(response.status).toBe(201)
+    expect(response.statusText).toBe('Created')
+    expect(response.headers.get('x-test')).toBe('value')
+    expect(source.bodyUsed).toBe(false)
+    expect(await response.text()).toBe('flight')
+    expect(source.bodyUsed).toBe(true)
+  })
+
+  it('does not invent unsupported browser timing APIs', () => {
+    const descriptor = Object.getOwnPropertyDescriptor(performance, 'measure')
+    Object.defineProperty(performance, 'measure', {
+      value: undefined,
+      configurable: true,
+    })
+    try {
+      expect(decoderPerformance.measure).toBeUndefined()
+      expect(decoderConsole.createTask).toBe(Reflect.get(console, 'createTask'))
+    } finally {
+      if (descriptor) Object.defineProperty(performance, 'measure', descriptor)
+      else Reflect.deleteProperty(performance, 'measure')
+    }
+  })
+
+  it('keeps native deduplication labels instead of treating them as environments', () => {
+    jest.useFakeTimers({ doNotFake: ['performance'] })
+    const send = jest.fn()
+    setReactTimingSender(send)
+    const timing = createBrowserReactTiming({ [NEXT_REQUEST_ID_HEADER]: 'a' })
+    timing.run(() => {
+      decoderPerformance.measure('CachedChild [deduped]', {
+        start: 1,
+        end: 3,
+        detail: { devtools: { trackGroup: 'Server Components ⚛' } },
+      })
+    })
+    jest.runAllTimers()
+    expect(JSON.parse(send.mock.calls[0][0]).records[0]).toMatchObject({
+      name: 'CachedChild [deduped]',
+      environment: 'Unknown',
     })
   })
 
-  it('ignores older React and malformed entries without losing subsequent timings', () => {
-    const timing = createReactDebugPerformanceId('a')
+  it('does not include await task labels in owner paths', () => {
+    jest.useFakeTimers({ doNotFake: ['performance'] })
+    const descriptor = Object.getOwnPropertyDescriptor(console, 'createTask')
+    Object.defineProperty(console, 'createTask', {
+      configurable: true,
+      value: () => ({ run: (callback: () => void) => callback() }),
+    })
     const send = jest.fn()
     setReactTimingSender(send)
-    deliverMeasures([
-      measure(undefined, 'Older React'),
-      measure(timing, 'Unrelated', { version: 2 }),
-      measure(timing, 'Unattributed', { debugPerformanceId: 'other-consumer' }),
-      measure(timing, 'Malformed', {
-        debugPerformanceId: 'next-request-insights:{',
-      }),
-      measure(timing, 'Invalid', { outcome: 'unknown' }),
-      measure(timing, 'Valid'),
-    ])
-    expect(send).toHaveBeenCalledTimes(1)
-    expect(
-      JSON.parse(send.mock.calls[0][0]).records.map(
-        (record: { name: string }) => record.name
-      )
-    ).toEqual(['Valid'])
+    try {
+      const timing = createBrowserReactTiming({ [NEXT_REQUEST_ID_HEADER]: 'a' })
+      timing.run(() => {
+        decoderConsole.createTask!('await fetch (private URL)').run(() => {
+          decoderPerformance.measure('await fetch (private URL)', {
+            start: 1,
+            end: 3,
+            detail: { devtools: { trackGroup: 'Server Components ⚛' } },
+          })
+          decoderConsole.createTask!('<Child>').run(() => {
+            decoderPerformance.measure('Child', {
+              start: 3,
+              end: 4,
+              detail: { devtools: { trackGroup: 'Server Components ⚛' } },
+            })
+          })
+        })
+      })
+      jest.runAllTimers()
+      const records = JSON.parse(send.mock.calls[0][0]).records
+      expect(records[0]).toMatchObject({
+        name: 'async work',
+        componentPath: '… › async work',
+      })
+      expect(records[1]).toMatchObject({
+        name: 'Child',
+        componentPath: '… › async work › Child',
+        ownerName: 'async work',
+      })
+      expect(send.mock.calls[0][0]).not.toContain('private')
+    } finally {
+      if (descriptor) Object.defineProperty(console, 'createTask', descriptor)
+      else Reflect.deleteProperty(console, 'createTask')
+    }
   })
 
-  it('uses explicit outcomes and environment without forwarding private details', () => {
-    completedRequest()
+  it('preserves native outcomes without treating slow renders as errors or copying values', () => {
+    jest.useFakeTimers({ doNotFake: ['performance'] })
+    start()
+    finish()
+    spans.length = 0
     const ingest = receiver()
     const sent: string[] = []
     setReactTimingSender((payload) => {
       sent.push(payload)
       ingest.receive(JSON.parse(payload), payload.length)
     })
-    const timing = createReactDebugPerformanceId('abc')
-    deliverMeasures([
-      measure(timing, '\u200bSlow'),
-      measure(timing, '\u200bFailed', { outcome: 'errored' }),
-      measure(timing, '\u200bStopped', { outcome: 'aborted' }),
-      measure(timing, 'await fetch (private URL)', {
-        kind: 'await',
-        outcome: 'errored',
-      }),
-      measure(timing, 'CachedChild [deduped]', { environment: 'Cache' }),
-    ])
+    const timing = createBrowserReactTiming({ [NEXT_REQUEST_ID_HEADER]: 'abc' })
+    timing.run(() => {
+      for (const [name, properties, tooltipText, color] of [
+        ['Slow', [], undefined, 'error'],
+        ['Failed', [['Error', 'private error']], 'Failed Errored', 'error'],
+        [
+          'Stopped',
+          [['Aborted', 'private value']],
+          'Stopped Aborted',
+          'warning',
+        ],
+        [
+          'await fetch (private url)',
+          [['Rejected', 'private error']],
+          'fetch Rejected',
+          'error',
+        ],
+      ] as const) {
+        decoderPerformance.measure(name, {
+          start: 1,
+          end: 601,
+          detail: {
+            devtools: {
+              trackGroup: 'Server Components ⚛',
+              color,
+              properties,
+              tooltipText,
+            },
+          },
+        })
+      }
+    })
+    jest.runAllTimers()
     expect(
       spans.map((span) => [
         span.attributes?.['next.span_name'],
@@ -590,9 +751,7 @@ describe('browser React timing transport', () => {
       ['render Failed', 'error', 'errored'],
       ['render Stopped', undefined, 'aborted'],
       ['await async work', 'error', 'errored'],
-      ['render CachedChild [deduped]', 'ok', 'completed'],
     ])
-    expect(spans[4].attributes?.['next.rsc.environment']).toBe('Cache')
     expect(sent.join('')).not.toContain('private')
   })
 })
