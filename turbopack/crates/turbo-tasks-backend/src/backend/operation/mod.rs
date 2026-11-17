@@ -29,6 +29,8 @@ use turbo_tasks::{
 pub use self::aggregation_edge::{TaskAggregationEdges, verify_aggregation_edges};
 #[cfg(not(target_family = "wasm"))]
 pub use self::aggregation_update::aggregation_queue;
+#[cfg(feature = "verify_aggregation_graph")]
+pub use self::aggregation_update::check_pending_collectibles_invariant;
 pub use self::aggregation_update::{AggregationUpdateQueue, ComputeDirtyAndCleanUpdate};
 use crate::{
     backend::{
@@ -1621,7 +1623,9 @@ impl<'a> TaskGuard<'a> {
         }
         result
             .aggregated_update(task_id)
-            .and_then(|aggregated_update| {
+            .and_then(|mut aggregated_update| {
+                // Becoming clean sends the pending collectible changes.
+                stage_outgoing_collectibles(self, &mut aggregated_update);
                 AggregationUpdateJob::data_update(self, aggregated_update)
             })
     }
@@ -1922,7 +1926,7 @@ impl TaskStorageAccessors for TaskGuard<'_> {
 pub use self::{
     aggregation_update::{
         AggregatedDataUpdate, AggregationUpdateJob, CollectiblesUpdateVec, get_aggregation_number,
-        get_uppers, is_aggregating_node, is_root_node,
+        get_uppers, is_aggregating_node, is_root_node, stage_outgoing_collectibles,
     },
     cleanup_old_edges::{
         OutdatedEdge, capture_all_edges, cleanup_old_edges, cleanup_old_edges_deletions_only,

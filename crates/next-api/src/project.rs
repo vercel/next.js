@@ -1283,7 +1283,7 @@ impl Project {
                 .turbopack_remove_unused_imports(next_mode)
                 .await?,
             include_mergeable: *self.next_config().turbo_scope_hoisting(next_mode).await?,
-            include_traced: *self.should_write_nft_manifests().await?,
+            include_traced: *self.should_trace().await?,
             include_binding_usage: self.next_mode().await?.is_production(),
         })
     }
@@ -1444,11 +1444,36 @@ impl Project {
         Ok(Vc::cell(self.write_routes_hashes_manifest))
     }
 
+    /// Whether `.nft.json` file-trace manifests should be emitted for server entrypoints.
+    ///
+    /// This only controls writing the manifests; whether the tracing work itself is performed is
+    /// controlled by [`Project::should_trace`].
     #[turbo_tasks::function]
     pub(super) async fn should_write_nft_manifests(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(
             self.mode.await?.is_production()
                 && *self.next_config.output().await? != Some(OutputType::Export),
+        ))
+    }
+
+    /// Whether file tracing should be performed: server code analysis creates `Traced` references
+    /// for file accesses (`trace_file_references`), externals are traced
+    /// (`enable_externals_tracing`), and module graphs follow `Traced` edges (`include_traced`).
+    ///
+    /// This is separate from [`Project::should_write_nft_manifests`] so that tracing can be enabled
+    /// without emitting `.nft.json` files: tracing is performed in production builds, and in
+    /// development when `experimental.turbopackFileTracingForDev` is enabled (never with
+    /// `output: 'export'`).
+    #[turbo_tasks::function]
+    pub(super) async fn should_trace(&self) -> Result<Vc<bool>> {
+        if *self.next_config.output().await? == Some(OutputType::Export) {
+            return Ok(Vc::cell(false));
+        }
+        let mode = self.mode.await?;
+        Ok(Vc::cell(
+            mode.is_production()
+                || (mode.is_development()
+                    && *self.next_config.turbopack_file_tracing_for_dev().await?),
         ))
     }
 
@@ -2502,7 +2527,7 @@ impl Project {
                 self.encryption_key(),
                 self.server_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
-                *self.should_write_nft_manifests().await?,
+                *self.should_trace().await?,
                 self.server_source_map_generation_options(),
             ),
             get_server_resolve_options_context(
@@ -2627,7 +2652,7 @@ impl Project {
                 self.encryption_key(),
                 self.server_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
-                *self.should_write_nft_manifests().await?,
+                *self.should_trace().await?,
                 self.server_source_map_generation_options(),
             ),
             get_server_resolve_options_context(
