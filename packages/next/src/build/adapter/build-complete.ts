@@ -1487,7 +1487,7 @@ export async function handleBuildComplete({
 
       // Normalize every app page key once, rather than once per prerendered
       // route, so matching routes to their entries stays linear.
-      let selectAppSourcePage: ((pathname: string) => string) | undefined
+      const selectAppSourcePage = createAppPageEntryLookup(appPageKeys ?? [])
       const getPrerenderFilePath = (
         route: string,
         isAppPage: boolean,
@@ -1517,7 +1517,6 @@ export async function handleBuildComplete({
           let page = source
           let kind = RouteKind.PAGES
           if (isAppPage) {
-            selectAppSourcePage ??= createAppPageEntryLookup(appPageKeys ?? [])
             page = selectAppSourcePage(source)
             kind = page.endsWith('/route')
               ? RouteKind.APP_ROUTE
