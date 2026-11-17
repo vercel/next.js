@@ -1461,19 +1461,19 @@ impl Project {
     /// (`enable_externals_tracing`), and module graphs follow `Traced` edges (`include_traced`).
     ///
     /// This is separate from [`Project::should_write_nft_manifests`] so that tracing can be enabled
-    /// without emitting `.nft.json` files: tracing is always performed when the manifests are
-    /// written, and additionally in development when `experimental.turbopackFileTracingForDev`
-    /// is enabled.
+    /// without emitting `.nft.json` files: tracing is performed in production builds, and in
+    /// development when `experimental.turbopackFileTracingForDev` is enabled (never with
+    /// `output: 'export'`).
     #[turbo_tasks::function]
-    pub(super) async fn should_trace(self: Vc<Self>) -> Result<Vc<bool>> {
-        if *self.should_write_nft_manifests().await? {
-            return Ok(Vc::cell(true));
+    pub(super) async fn should_trace(&self) -> Result<Vc<bool>> {
+        if *self.next_config.output().await? == Some(OutputType::Export) {
+            return Ok(Vc::cell(false));
         }
-        let this = self.await?;
+        let mode = self.mode.await?;
         Ok(Vc::cell(
-            this.mode.await?.is_development()
-                && *this.next_config.output().await? != Some(OutputType::Export)
-                && *this.next_config.turbopack_file_tracing_for_dev().await?,
+            mode.is_production()
+                || (mode.is_development()
+                    && *self.next_config.turbopack_file_tracing_for_dev().await?),
         ))
     }
 
