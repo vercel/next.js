@@ -5681,7 +5681,7 @@ mod delayed_collectibles_tests {
     };
 
     fn set_dirty(tt: &TurboTasks<TurboTasksBackend>, task: u32, dirty: bool) {
-        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let mut ctx = ExecuteContext::new(tt);
         let job = {
             let mut task = ctx.task(id(task), TaskDataCategory::All);
             task.update_dirty_state(dirty.then_some(Dirtyness::Dirty {
@@ -5698,16 +5698,11 @@ mod delayed_collectibles_tests {
     }
 
     fn emit(tt: &TurboTasks<TurboTasksBackend>, task: u32, count: i32) {
-        UpdateCollectibleOperation::run(
-            id(task),
-            collectible(),
-            count,
-            ExecuteContext::new(tt.backend(), tt),
-        );
+        UpdateCollectibleOperation::run(id(task), collectible(), count, ExecuteContext::new(tt));
     }
 
     fn pending(tt: &TurboTasks<TurboTasksBackend>, task: u32) -> i32 {
-        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let mut ctx = ExecuteContext::new(tt);
         let task = ctx.task(id(task), TaskDataCategory::Meta);
         task.get_pending_collectibles(&collectible())
             .copied()
@@ -5715,7 +5710,7 @@ mod delayed_collectibles_tests {
     }
 
     fn has_dirty_containers(tt: &TurboTasks<TurboTasksBackend>, task: u32) -> bool {
-        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let mut ctx = ExecuteContext::new(tt);
         let task = ctx.task(id(task), TaskDataCategory::Meta);
         task.has_dirty_containers()
     }
@@ -5778,20 +5773,20 @@ mod delayed_collectibles_tests {
 
     /// Registers `READER` as a dependent of the collectibles of `upper`.
     fn add_reader(tt: &TurboTasks<TurboTasksBackend>, upper: u32) {
-        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let mut ctx = ExecuteContext::new(tt);
         let mut task = ctx.task(id(upper), TaskDataCategory::All);
         let _ = task.add_collectibles_dependents((collectible().collectible_type, id(READER)));
     }
 
     /// Whether `READER` was invalidated.
     fn reader_is_dirty(tt: &TurboTasks<TurboTasksBackend>) -> bool {
-        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let mut ctx = ExecuteContext::new(tt);
         let task = ctx.task(id(READER), TaskDataCategory::All);
         task.get_dirty().is_some()
     }
 
     fn set_aggregation_number(tt: &TurboTasks<TurboTasksBackend>, task: u32, number: u32) {
-        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let mut ctx = ExecuteContext::new(tt);
         let mut task = ctx.task(id(task), TaskDataCategory::All);
         task.set_aggregation_number(AggregationNumber {
             base: number,
@@ -5870,7 +5865,7 @@ mod delayed_collectibles_tests {
     async fn from_task_nets_pending_changes() {
         let tt = setup_with_data(&[(2, UPPER)], false);
         let other = other_collectible();
-        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let mut ctx = ExecuteContext::new(&tt);
         let mut task = ctx.task(id(2), TaskDataCategory::All);
         let _ = task.update_collectibles_positive_crossing(collectible(), 1);
         task.update_aggregated_collectibles(collectible(), |_| Some(1));
@@ -5886,7 +5881,7 @@ mod delayed_collectibles_tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn from_task_combines_own_and_aggregated_entries() {
         let tt = setup_with_data(&[(2, UPPER)], false);
-        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let mut ctx = ExecuteContext::new(&tt);
         let mut task = ctx.task(id(2), TaskDataCategory::All);
         let _ = task.update_collectibles_positive_crossing(collectible(), 1);
         task.update_aggregated_collectibles(collectible(), |_| Some(1));
@@ -5907,7 +5902,7 @@ mod delayed_collectibles_tests {
         run(&tt, [add(1, 2), add(3, 2)]);
         set_dirty(&tt, 2, true);
         {
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut ctx = ExecuteContext::new(&tt);
             let mut task = ctx.task(id(2), TaskDataCategory::All);
             let _ = task.update_collectibles_positive_crossing(collectible(), 1);
             task.update_aggregated_collectibles(collectible(), |_| Some(1));
@@ -5915,7 +5910,7 @@ mod delayed_collectibles_tests {
         }
         {
             // Another inner task of 1 contributes the collectible already.
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut ctx = ExecuteContext::new(&tt);
             let mut task = ctx.task(id(1), TaskDataCategory::All);
             task.update_aggregated_collectibles(collectible(), |_| Some(1));
         }
@@ -5946,7 +5941,7 @@ mod delayed_collectibles_tests {
             },
             ..collectible()
         };
-        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let mut ctx = ExecuteContext::new(&tt);
         let mut task = ctx.task(id(2), TaskDataCategory::All);
         let _ = task.update_pending_collectibles_count(collectible(), 1);
         let _ = task.update_pending_collectibles_count(other, 1);
@@ -5970,7 +5965,7 @@ mod delayed_collectibles_tests {
     }
 
     fn check(tt: &TurboTasks<TurboTasksBackend>, task: u32) -> Result<(), String> {
-        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let mut ctx = ExecuteContext::new(tt);
         check_pending_collectibles_invariant(&mut ctx, id(task))
     }
 
@@ -5991,7 +5986,7 @@ mod delayed_collectibles_tests {
         let tt = setup_with_data(&[(1, UPPER), (2, INNER)], false);
         run(&tt, [add(1, 2)]);
         {
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut ctx = ExecuteContext::new(&tt);
             let mut task = ctx.task(id(2), TaskDataCategory::Meta);
             let _ = task.update_pending_collectibles_count(collectible(), 1);
         }
@@ -6005,7 +6000,7 @@ mod delayed_collectibles_tests {
         run(&tt, [add(1, 2)]);
         {
             // Dirty and pending, but the dirty state was never sent to the upper.
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut ctx = ExecuteContext::new(&tt);
             let mut task = ctx.task(id(2), TaskDataCategory::All);
             task.set_dirty(Dirtyness::Dirty {
                 parent_priority: TaskPriority::leaf(),
