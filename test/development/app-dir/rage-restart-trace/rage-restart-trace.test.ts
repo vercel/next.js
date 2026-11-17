@@ -2,10 +2,12 @@ import {
   rmSync,
   writeFileSync,
   mkdirSync,
+  mkdtempSync,
   readFileSync,
   existsSync,
 } from 'node:fs'
 import { join, dirname } from 'node:path'
+import { tmpdir } from 'node:os'
 import { execSync } from 'node:child_process'
 import { getCacheDirectory } from 'next/dist/lib/helpers/get-cache-directory'
 import { FileRef, nextTestSetup } from 'e2e-utils'
@@ -17,6 +19,8 @@ import {
 describe.each([true, false])(
   'rage restart trace attributes (otelInBuild %s)',
   (otelInBuild) => {
+    const cacheRoot = mkdtempSync(join(tmpdir(), 'next-rage-restart-'))
+    const originalCacheHome = process.env.XDG_CACHE_HOME
     const instrumentationDir = join(
       __dirname,
       '../../../e2e/app-dir/otel-tooling'
@@ -40,6 +44,7 @@ describe.each([true, false])(
         '@opentelemetry/sdk-metrics': '2.12.0',
       },
       env: {
+        XDG_CACHE_HOME: cacheRoot,
         NEXT_EXIT_TIMEOUT_MS: '30000',
         TOOLING_TRACE_FILE: join('.next', 'dev', 'trace'),
       },
@@ -50,9 +55,13 @@ describe.each([true, false])(
 
     afterAll(async () => {
       await next.stop('SIGTERM')
+      rmSync(cacheRoot, { recursive: true, force: true })
+      if (originalCacheHome === undefined) delete process.env.XDG_CACHE_HOME
+      else process.env.XDG_CACHE_HOME = originalCacheHome
     })
 
     beforeEach(async () => {
+      process.env.XDG_CACHE_HOME = cacheRoot
       await next.stop('SIGTERM').catch(() => {})
     })
 
