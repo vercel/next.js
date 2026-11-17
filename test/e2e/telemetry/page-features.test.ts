@@ -11,6 +11,10 @@ describe('page features telemetry', () => {
   const { next, isTurbopack, isRspack, isNextStart } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    env: {
+      CI: '1',
+      NEXT_TELEMETRY_DISABLED: '',
+    },
   })
 
   async function launchDevServer(

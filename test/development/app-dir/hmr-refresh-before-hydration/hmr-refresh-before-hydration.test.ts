@@ -79,6 +79,8 @@ describe('hmr-refresh-before-hydration', () => {
   function countServerComponentChanges(page: Playwright.Page) {
     return page.evaluate(
       () =>
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         (window as any).__hmrMessages.filter((data: string) =>
           data.includes('"serverComponentChanges"')
         ).length as number
@@ -106,10 +108,14 @@ describe('hmr-refresh-before-hydration', () => {
       const p = page!
       const g = gate!
 
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       await p.waitForFunction(() => (window as any).__hmrOpen === true)
       await retry(() => expect(g.state.stalled).toBe(true))
       // Detects a full reload, which would also show the new content.
       await p.evaluate(() => {
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(window as any).__stayed = true
       })
 

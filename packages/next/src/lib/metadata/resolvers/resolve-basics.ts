@@ -129,6 +129,10 @@ async function resolveCanonicalUrl(
       pathnameForUrl,
       metadataContext
     ),
+    title:
+      typeof urlOrDescriptor === 'string' || urlOrDescriptor instanceof URL
+        ? undefined
+        : urlOrDescriptor.title,
   }
 }
 

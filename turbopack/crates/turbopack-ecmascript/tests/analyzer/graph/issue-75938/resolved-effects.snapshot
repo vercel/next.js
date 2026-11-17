@@ -4,14 +4,14 @@
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-0 -> 6 member call = module<react, {}>["useMemo"]((...) => ???*0*, [])["hi"]()
-- *0* new HelloWorld()
-  ⚠️  nested operation
-
-0 -> 7 call = module<https://esm.sh/preact/jsx-runtime, {}>["jsx"](
+0 -> 5 call = module<https://esm.sh/preact/jsx-runtime, {}>["jsx"](
     "button",
     {"onClick": (...) => helloWorld["hi"](), "children": "Click me"}
 )
+
+5 -> 7 member call = module<react, {}>["useMemo"]((...) => ???*0*, [])["hi"]()
+- *0* new HelloWorld()
+  ⚠️  nested operation
 
 0 -> 8 unreachable = ???*0*
 - *0* unreachable
@@ -24,12 +24,12 @@
 
 9 -> 10 free var = FreeVar(alert)
 
-9 -> 12 call = module<./external, {}>["fooBar"]()
-
-9 -> 13 call = ???*0*(module<./external, {}>["fooBar"]())
+9 -> 11 call = ???*0*(module<./external, {}>["fooBar"]())
 - *0* FreeVar(alert)
   ⚠️  unknown global
   ⚠️  This value might have side effects
+
+11 -> 13 call = module<./external, {}>["fooBar"]()
 
 0 -> 14 call = ???*0*()
 - *0* arguments[0]

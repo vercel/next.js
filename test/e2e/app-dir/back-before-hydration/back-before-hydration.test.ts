@@ -288,6 +288,16 @@ describe('back navigation before hydration after reload', () => {
         await page.evaluate('window.__injectThirdPartyPush = true')
         releaseScripts()
 
+        // The third-party push only lands during hydration, so wait until
+        // it's done before asserting. `__NEXT_HYDRATED` is set by the root's
+        // effect, which runs after every descendant effect, including the
+        // fixture's push and the router's replay check. Without this wait, the
+        // `browser.*` helpers below block on the `load` event and use up the
+        // `retry()` budget, then read the URL before the push has landed.
+        await page.waitForFunction('window.__NEXT_HYDRATED === true', null, {
+          timeout: 10_000,
+        })
+
         await retry(async () => {
           // The traversal cannot be replayed onto the third-party entry. The
           // content stays on the reloaded page, like before the fix — and in

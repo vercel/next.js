@@ -133,6 +133,8 @@ describe('next/font/google loader', () => {
           ],
           emitFontFile: jest.fn(),
           resolve: jest.fn(),
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           loaderContext: {} as any,
           isDev: false,
           isServer: true,

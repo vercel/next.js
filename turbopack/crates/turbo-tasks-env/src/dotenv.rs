@@ -2,7 +2,7 @@ use std::{env, sync::MutexGuard};
 
 use anyhow::{Context, Result};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, Vc, turbofmt};
+use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, Vc, keyed::KeyedAccess, turbofmt};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 
 use crate::{GLOBAL_ENV_LOCK, ProcessEnv, TransientEnvMap, sorted_env_vars};
@@ -50,7 +50,7 @@ impl DotenvProcessEnv {
                 // state.
                 let initial = sorted_env_vars();
 
-                restore_env(&initial, &prior, &lock);
+                restore_env(&initial, &*prior, &lock);
 
                 // from_read will load parse and evaluate the Read, and set variables
                 // into the global env. If a later dotenv defines an already defined
@@ -67,7 +67,7 @@ impl DotenvProcessEnv {
                     .context(turbofmt!("unable to read {} for env vars", self.path).await?);
             }
 
-            Ok(Vc::cell(vars))
+            Ok(Vc::cell(vars.into()))
         } else {
             // We want to cell the value here and not just return the Vc.
             // This is important to avoid Vc changes when adding/removing the env file.
@@ -86,11 +86,11 @@ impl ProcessEnv for DotenvProcessEnv {
 }
 
 /// Restores the global env variables to mirror `to`.
-fn restore_env(
-    from: &FxIndexMap<RcStr, RcStr>,
-    to: &FxIndexMap<RcStr, RcStr>,
-    _lock: &MutexGuard<()>,
-) {
+fn restore_env<'a, T>(from: &FxIndexMap<RcStr, RcStr>, to: &'a T, _lock: &MutexGuard<()>)
+where
+    T: KeyedAccess<RcStr>,
+    &'a T: IntoIterator<Item = (&'a RcStr, &'a RcStr)>,
+{
     for key in from.keys() {
         if !to.contains_key(key) {
             unsafe { env::remove_var(key) };
