@@ -1030,6 +1030,12 @@ export function createStaticWorker(
   return new Worker(staticWorkerPath, {
     logger: Log,
     numWorkers: numberOfWorkers,
+    // Reuse idle workers before touching another process. Round-robin would
+    // spread successive chunks across the full pool even when the adaptive
+    // scheduler limits the number of workers to preserve their shared caches.
+    workerSchedulingPolicy: config.experimental.staticGenerationAdaptive
+      ? 'in-order'
+      : undefined,
     onActivity: () => {
       progress?.run()
     },
