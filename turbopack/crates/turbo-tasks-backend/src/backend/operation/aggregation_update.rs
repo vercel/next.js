@@ -650,9 +650,19 @@ impl AggregatedDataUpdate {
         } else {
             task.iter_collectibles().map(|(&k, &v)| (k, v)).collect()
         };
-        // The uppers haven't seen the pending changes yet (see `stage_outgoing_collectibles`).
-        let mut collectibles_update = collectibles_update;
-        collectibles_update.extend(task.iter_pending_collectibles().map(|(&k, &v)| (k, -v)));
+        // The uppers haven't seen the pending changes yet (see `stage_outgoing_collectibles`), so
+        // subtract them. They must net out with the entries above before the update is applied:
+        // otherwise an unpublished collectible would appear and disappear again in the upper,
+        // which invalidates its readers. Not all callers optimize the update (`balance_edge`
+        // applies it while holding both locks), so this nets them here. Pending changes are rare
+        // (only dirty tasks with collectible changes), so this costs nothing in the common case.
+        let collectibles_update = if task.is_pending_collectibles_empty() {
+            collectibles_update
+        } else {
+            let mut collectibles_update = collectibles_update;
+            collectibles_update.extend(task.iter_pending_collectibles().map(|(&k, &v)| (k, -v)));
+            sum_collectibles_update(collectibles_update)
+        };
         let (dirty, current_session_clean) = task.dirty_state();
         if dirty {
             dirty_count += 1;
@@ -5658,7 +5668,8 @@ mod delayed_collectibles_tests {
     use super::{
         AggregationUpdateQueue, check_pending_collectibles_invariant,
         follower_debt_tests::{
-            INNER, UPPER, add, aggregated, collectible, id, remove, run, setup_with_data,
+            FOLLOWER, INNER, UPPER, add, aggregated, balance, collectible, id, remove, run,
+            setup_with_data, uppers,
         },
     };
     use crate::{
@@ -5667,7 +5678,7 @@ mod delayed_collectibles_tests {
             operation::{ExecuteContext, UpdateCollectibleOperation},
             storage_schema::TaskStorageAccessors,
         },
-        data::Dirtyness,
+        data::{AggregationNumber, Dirtyness},
     };
 
     fn set_dirty(tt: &TurboTasks<TurboTasksBackend>, task: u32, dirty: bool) {
@@ -5761,6 +5772,65 @@ mod delayed_collectibles_tests {
         set_dirty(&tt, 3, false);
         assert!(!has_dirty_containers(&tt, 1));
         assert_eq!((aggregated(&tt, 1), pending(&tt, 2)), (1, 0));
+    }
+
+    /// A task that read the collectibles of an upper, so it is invalidated when they change.
+    const READER: u32 = 999;
+
+    /// Registers `READER` as a dependent of the collectibles of `upper`.
+    fn add_reader(tt: &TurboTasks<TurboTasksBackend>, upper: u32) {
+        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let mut task = ctx.task(id(upper), TaskDataCategory::All);
+        let _ = task.add_collectibles_dependents((collectible().collectible_type, id(READER)));
+    }
+
+    /// Whether `READER` was invalidated.
+    fn reader_is_dirty(tt: &TurboTasks<TurboTasksBackend>) -> bool {
+        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let task = ctx.task(id(READER), TaskDataCategory::All);
+        task.get_dirty().is_some()
+    }
+
+    fn set_aggregation_number(tt: &TurboTasks<TurboTasksBackend>, task: u32, number: u32) {
+        let mut ctx = ExecuteContext::new(tt.backend(), tt);
+        let mut task = ctx.task(id(task), TaskDataCategory::All);
+        task.set_aggregation_number(AggregationNumber {
+            base: number,
+            distance: 0,
+            effective: number,
+        });
+    }
+
+    /// A task that becomes an inner task of a new upper while it has pending changes contributes
+    /// only its published collectibles. Its own collectibles and the subtracted pending changes
+    /// must net out before they are applied, so the new upper never sees the unpublished
+    /// collectible appear and disappear again, which would invalidate its readers.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn new_inner_edge_nets_out_pending_changes() {
+        // 2 is a follower of 1, and an inner task of 3, so changes of 2 are staged for 3.
+        let tt = setup_with_data(
+            &[(1, UPPER), (2, FOLLOWER), (3, FOLLOWER + 1), (READER, 0)],
+            false,
+        );
+        run(&tt, [add(1, 2), add(3, 2)]);
+        set_dirty(&tt, 2, true);
+        emit(&tt, 2, 1);
+        assert_eq!(pending(&tt, 2), 1);
+        add_reader(&tt, 1);
+
+        // Lowering the aggregation number of 2 turns the follower edge into an inner edge.
+        set_aggregation_number(&tt, 2, INNER);
+        run(&tt, [balance(1, 2)]);
+        assert_eq!(uppers(&tt, 2), vec![(id(1), 1), (id(3), 1)]);
+        assert_eq!((aggregated(&tt, 1), aggregated(&tt, 3)), (0, 0));
+        assert!(
+            !reader_is_dirty(&tt),
+            "the unpublished collectible must not invalidate the reader"
+        );
+
+        set_dirty(&tt, 2, false);
+        assert_eq!((aggregated(&tt, 1), aggregated(&tt, 3)), (1, 1));
+        assert!(reader_is_dirty(&tt), "publishing invalidates the reader");
     }
 
     fn check(tt: &TurboTasks<TurboTasksBackend>, task: u32) -> Result<(), String> {
