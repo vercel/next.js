@@ -187,9 +187,9 @@ export function installUseCacheProbe(options: InstallOptions): void {
         httpAgentOptions: nextConfig.httpAgentOptions,
         cacheLifeProfiles: nextConfig.cacheLife,
         useCacheTimeout: nextConfig.experimental.useCacheTimeout,
-        // Durability metadata is not generated in development. Keep this in
-        // sync with createWorkStore, including for hand-built worker stores.
-        durableUseCacheEntries: false,
+        durableUseCacheEntries: Boolean(
+          nextConfig.experimental.durableUseCacheEntries
+        ),
         staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
       },
       timeoutMs: args.timeoutMs,
