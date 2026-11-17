@@ -1,6 +1,6 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
-import { assertNoConsoleErrors, retry } from 'next-test-utils'
+import { assertNoConsoleErrors, gate, retry } from 'next-test-utils'
 
 function countSubstring(str: string, substr: string): number {
   return str.split(substr).length - 1
@@ -41,9 +41,6 @@ function expectOptionalCatchallParams(html: string) {
       },
     })
 
-    const isVercelDeploy =
-      isNextDeploy && process.env.NEXT_TEST_DEPLOY_TARGET_VERCEL === '1'
-
     function supportsHtmlLimitedBotPrerenders() {
       const declarations = [
         ...next.cliOutput.matchAll(
@@ -77,7 +74,7 @@ function expectOptionalCatchallParams(html: string) {
         expect($('head title').text()).toBe(title)
         expect($('body title').length).toBe(0)
 
-        if (isVercelDeploy) {
+        if (await gate((conditions) => conditions.vercel)) {
           expect(response.headers.get('x-vercel-cache')).toBe(
             supportsHtmlLimitedBotPrerenders() ? 'HIT' : 'BYPASS'
           )
@@ -101,7 +98,7 @@ function expectOptionalCatchallParams(html: string) {
           const $ = cheerio.load(await response.text())
           expect($('head title').text()).toBe('dynamic-metadata - partial')
           expect($('body title').length).toBe(0)
-          if (isVercelDeploy) {
+          if (await gate((conditions) => conditions.vercel)) {
             expect(response.headers.get('x-vercel-cache')).toBe('BYPASS')
           }
         }
@@ -114,7 +111,7 @@ function expectOptionalCatchallParams(html: string) {
         const $ = cheerio.load(await response.text())
         expect($('head title').length).toBe(0)
         expect($('body title').text()).toBe('dynamic-metadata - partial')
-        if (isVercelDeploy) {
+        if (await gate((conditions) => conditions.vercel)) {
           expect(response.headers.get('x-vercel-cache')).toBe('HIT')
         }
       })
