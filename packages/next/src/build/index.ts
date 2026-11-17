@@ -125,8 +125,7 @@ import { discoverRoutes, createPagesMapping } from './route-discovery'
 import { sortByPageExts } from './sort-by-page-exts'
 import { getConventionFileBaseName } from './get-convention-file-base-name'
 import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
-import { readGoProxyConfig, readGoRouteConfig } from './analysis/go-config'
-import { ensureGoSdkReplacement } from '../lib/go-sdk'
+import { ensureGoSdk } from '../lib/go-sdk'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
@@ -830,6 +829,8 @@ async function writeImagesManifest(
 ): Promise<void> {
   const images = { ...config.images }
   const { deviceSizes, imageSizes } = images
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(images as any).sizes = [...deviceSizes, ...imageSizes]
 
   // By default, remotePatterns will allow no remote images ([])
@@ -1939,7 +1940,12 @@ export default async function build(
       if (!isGenerateMode) {
         if (bundler === Bundler.Turbopack) {
           if (config.experimental.goRoutes) {
-            await ensureGoSdkReplacement(dir)
+            await ensureGoSdk({
+              dir,
+              rootDir:
+                config.turbopack?.root || config.outputFileTracingRoot || dir,
+              distDir,
+            })
           }
           const {
             duration: compilerDuration,
@@ -2337,7 +2343,6 @@ export default async function build(
 
       const appPathRoutes: Record<string, string> = {}
       const nativeAppPaths = new Set<string>()
-      const nativeAppEntries = new Map<string, string>()
 
       if (appDir) {
         const appPathsManifest = await readManifest<Record<string, string>>(
@@ -2359,7 +2364,6 @@ export default async function build(
             appPathsManifest[key].endsWith('.native.json')
           ) {
             nativeAppPaths.add(key)
-            nativeAppEntries.set(key, appPathsManifest[key])
           }
           const pathname = normalizeAppPath(key)
           const routeAppPaths = appPathsByPathname.get(pathname)
@@ -2633,37 +2637,21 @@ export default async function build(
                   errorFromUnsupportedSegmentConfig()
                 }
 
-                // Go routes carry their static config in the native descriptor
-                // Turbopack emitted, instead of in source-level static info.
-                const nativeEntry = nativeAppEntries.get(
-                  originalAppPath || page
-                )
-                const goConfig = nativeEntry
-                  ? await readGoRouteConfig(
-                      path.join(distDir, SERVER_DIRECTORY, nativeEntry),
-                      pageFilePath
-                    )
-                  : undefined
-                const maxDuration = goConfig
-                  ? goConfig.maxDuration
-                  : staticInfo?.maxDuration
-                const preferredRegion = staticInfo?.preferredRegion
-
                 // If there's any thing that would contribute to the functions
                 // configuration, we need to add it to the manifest.
                 if (
                   typeof staticInfo?.runtime !== 'undefined' ||
-                  typeof maxDuration !== 'undefined' ||
-                  typeof preferredRegion !== 'undefined'
+                  typeof staticInfo?.maxDuration !== 'undefined' ||
+                  typeof staticInfo?.preferredRegion !== 'undefined'
                 ) {
-                  const regions = preferredRegion
-                    ? typeof preferredRegion === 'string'
-                      ? [preferredRegion]
-                      : preferredRegion
+                  const regions = staticInfo?.preferredRegion
+                    ? typeof staticInfo.preferredRegion === 'string'
+                      ? [staticInfo.preferredRegion]
+                      : staticInfo.preferredRegion
                     : undefined
 
                   functionsConfigManifest.functions[page] = {
-                    maxDuration,
+                    maxDuration: staticInfo?.maxDuration,
                     ...(regions && { regions }),
                   }
                 }
@@ -3052,29 +3040,19 @@ export default async function build(
         }
 
         if (staticInfo.runtime === 'nodejs' || isProxyFile(page)) {
-          // Go proxies carry their static config in the native descriptor
-          // Turbopack emitted, instead of in source-level static info.
-          const goConfig = middlewareFile.endsWith('.go')
-            ? await readGoProxyConfig(
-                path.join(distDir, SERVER_DIRECTORY, 'middleware.native.json'),
-                path.join(dir, middlewareFile),
-                config
-              )
-            : undefined
           functionsConfigManifest.functions['/_middleware'] = {
-            ...(goConfig
+            ...(middlewareFile.endsWith('.go')
               ? {
                   runtime: 'go' as const,
                   nativeEntry: 'middleware.native.json',
                 }
               : { runtime: 'nodejs' as const }),
-            matchers: goConfig?.matchers ??
-              staticInfo.middleware?.matchers ?? [
-                {
-                  regexp: '^.*$',
-                  originalSource: '/:path*',
-                },
-              ],
+            matchers: staticInfo.middleware?.matchers ?? [
+              {
+                regexp: '^.*$',
+                originalSource: '/:path*',
+              },
+            ],
           }
 
           if (bundler === Bundler.Turbopack) {

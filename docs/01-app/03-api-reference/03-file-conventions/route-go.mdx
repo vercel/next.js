@@ -48,7 +48,7 @@ module.exports = {
 
 Install Go 1.24 or newer on `PATH`, or set `TURBOPACK_GO` to its executable path. Go is required for `next dev` and `next build`. `next start` runs the compiled executables without the Go compiler. Applications without Go handlers do not require Go.
 
-The `next/go` SDK, which `proxy.go` uses for `next.Next`, `next.Rewrite`, and its configuration, ships inside the installed `next` package. When `go.mod` exists, `next dev` and `next build` add the `next/go` requirement and a directory replacement that maps it there (for example `replace next/go => ./node_modules/next/go`), and log the change, like they reconfigure `tsconfig.json`, so Go editors and linters resolve the SDK too. Commit the updated `go.mod`.
+The `next/go` SDK, which `proxy.go` uses for `next.Next` and `next.Rewrite`, ships inside the installed `next` package. When your Go handlers are in a Go module, `next dev` and `next build` add a directory replacement that maps `next/go` there (for example `replace next/go => ./node_modules/next/go`) and, once your Go code imports it, the `require next/go v0.0.0` requirement. They log the change, like they reconfigure `tsconfig.json`, so Go editors and linters resolve the SDK too. Commit the updated `go.mod`. In a monorepo, `go.mod` can be in the application or at the workspace root, and `next` can be installed anywhere inside [`turbopack.root`](/docs/app/api-reference/config/next-config-js/turbopack#root-directory).
 
 ## Reference
 
@@ -125,7 +125,7 @@ Use `ParamValues` when you need to distinguish an encoded slash within a segment
 
 ### Handler Convention
 
-Each route directory is an executable `package main`. Method functions must be declared in `route.go`; only that file is parsed to find them. Sibling `.go` files compile with it but are not scanned for handlers. Next.js generates method dispatch and the `main` function. Do not define `main` yourself or create `zz_next_route_*.go` files, which are reserved for generated code.
+Each route directory is an executable `package main`. Method functions can be declared in `route.go` or a compiled sibling `.go` file. Next.js generates method dispatch and the `main` function. Do not define `main` yourself or create `zz_next_route_*.go` files, which are reserved for generated code.
 
 All sibling `.go` files except `_test.go` compile together with `route.go` and must use `package main`. Platform filename suffixes and build constraints do not select these sibling files. Put platform-dependent implementations in imported packages, where Go applies its normal selection rules. Shared packages can use ordinary module imports, including `internal` packages.
 
@@ -456,14 +456,6 @@ func writeUser(w http.ResponseWriter, r *http.Request, status int) {
 
 ### Segment Config Options
 
-Like the [`maxDuration`](/docs/app/api-reference/file-conventions/route-segment-config/maxDuration) export in `route.ts`, `route.go` can declare a package-level `MaxDuration`:
-
-```go filename="app/api/route.go"
-const MaxDuration = 30
-```
-
-`MaxDuration` is a positive integer literal in seconds. Only `route.go` itself is read, statically: calls, references to other values, arithmetic, and environment reads are build errors. The deprecated `preferredRegion` option is not supported.
-
 Go Route Handlers always execute dynamically. JavaScript exports such as `dynamic`, `revalidate`, `fetchCache`, and `runtime` do not configure Go handlers. ISR, `generateStaticParams`, Server Actions, and React execution are unsupported for Go routes.
 
 ## Deployment
@@ -480,8 +472,8 @@ Adapter deployments require an adapter that supports `runtime: 'go'`. See [Go ad
 - Runtime file reads are not traced. Use `go:embed` for assets shipped with Go handlers.
 - Go handlers read the process environment. `next.config` environment inlining does not apply.
 - Go builds target the build host operating system and architecture with CGO disabled. The build environment must match the deployment runtime.
-- Dependencies must build with CGO disabled and already be downloaded into the selected toolchain's module cache. Builds do not download dependencies, add requirements, or modify `go.sum`; the only `go.mod` change Next.js makes is the `next/go` replacement.
-- Go workspaces, versioned module replacements, directory replacements outside the module, vendoring, source symlinks, and cross-compilation are unsupported. Directory replacements inside the module, such as the `next/go` mapping, are supported.
+- Dependencies must build with CGO disabled and already be downloaded into the selected toolchain's module cache. Builds do not download dependencies or modify `go.sum`; the only `go.mod` changes Next.js makes are the `next/go` requirement and replacement.
+- Go workspaces, versioned module replacements, directory replacements outside `turbopack.root`, vendoring, source symlinks, and cross-compilation are unsupported. Directory replacements inside it, such as the `next/go` mapping, are supported.
 - The same experiment enables [`proxy.go`](/docs/app/api-reference/file-conventions/proxy-go). Go Pages API routes, `page.go`, and `layout.go` are unsupported.
 
 Go routes support Turbopack's filesystem cache and Go's build cache. Unchanged executables can be reused across server or build processes. Source files, dependencies, embedded assets, generated wrappers, toolchain settings, and compilation targets participate in invalidation.
