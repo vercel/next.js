@@ -1258,7 +1258,6 @@ describe('tooling request insights', () => {
   it('keeps background HMR separate from its completed startup parent', () => {
     const startup = createTraceSpan({
       name: 'start-dev-server',
-      reportToOtel: true,
       recordToInsights: true,
       parent: getActiveLocalSpan(),
     })

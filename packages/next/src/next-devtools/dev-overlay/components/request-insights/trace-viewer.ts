@@ -285,21 +285,15 @@ function getSpanTraceItem(
       : '')
   let reactTiming: string | undefined
   let reactTimingKind: NonNullable<TraceItem['reactTiming']>['kind'] | undefined
-  switch (type) {
-    case REACT_COMPONENT_SPAN_TYPE:
-      reactTiming = 'React render interval'
-      reactTimingKind = 'component'
-      break
-    case REACT_AWAIT_SPAN_TYPE:
-      reactTiming = 'React await interval'
-      reactTimingKind = 'await'
-      break
-    case REACT_INCOMPLETE_SPAN_TYPE:
-      reactTiming = 'Incomplete React timing recording'
-      reactTimingKind = 'incomplete'
-      break
-    default:
-      break
+  if (type === REACT_COMPONENT_SPAN_TYPE) {
+    reactTiming = 'React render interval'
+    reactTimingKind = 'component'
+  } else if (type === REACT_AWAIT_SPAN_TYPE) {
+    reactTiming = 'React await interval'
+    reactTimingKind = 'await'
+  } else if (type === REACT_INCOMPLETE_SPAN_TYPE) {
+    reactTiming = 'Incomplete React timing recording'
+    reactTimingKind = 'incomplete'
   }
   const environment = span.attributes?.['next.rsc.environment']
   const renderId = span.attributes?.['next.rsc.render_id']
