@@ -30,7 +30,10 @@
 //!
 //! Additionally, once per configuration, the memory held by the graph is measured (mimalloc
 //! committed bytes and RSS, deltas from before the readers ran), and printed as a line starting
-//! with `KEYED_DEPS_MEM` (and appended to the file in `KEYED_DEPS_STATS_FILE`, if set).
+//! with `KEYED_DEPS_MEM` (and appended to the file in `KEYED_DEPS_STATS_FILE`, if set). This (and
+//! every other untimed per-configuration setup) only runs for configurations with at least one
+//! benchmark selected by the criterion name filter, so filtering for another bench group does no
+//! keyed_deps work.
 //!
 //! `KEYED_DEPS_MEMORY_ONLY=1` skips the timed benchmarks (use one process per configuration so the
 //! reported peak RSS is meaningful). `KEYED_DEPS_PERSIST=1` additionally snapshots the graph to a
@@ -748,6 +751,40 @@ fn run_profile(rt: &tokio::runtime::Runtime, config: Config) {
     rt.block_on(async { tt.stop_and_wait().await });
 }
 
+/// The lazily created runtime of one configuration. Creating it also runs the untimed
+/// once-per-configuration measurements (memory and, with `KEYED_DEPS_PERSIST`, persistence).
+struct ConfigState {
+    config: Config,
+    persistence: bool,
+    rt: std::cell::OnceCell<tokio::runtime::Runtime>,
+}
+
+impl ConfigState {
+    fn new(config: Config, persistence: bool) -> Self {
+        Self {
+            config,
+            persistence,
+            rt: std::cell::OnceCell::new(),
+        }
+    }
+
+    fn runtime(&self) -> &tokio::runtime::Runtime {
+        self.rt.get_or_init(|| {
+            let rt = runtime();
+            // Memory, once per configuration.
+            {
+                let (_, tt) = run_initial(&rt, self.config, true);
+                rt.block_on(async { tt.stop_and_wait().await });
+                drop(tt);
+            }
+            if self.persistence {
+                run_persistence(&rt, self.config);
+            }
+            rt
+        })
+    }
+}
+
 pub fn keyed_deps(c: &mut Criterion) {
     let ns = env_list("KEYED_DEPS_N", &[1u32, 10, 100, 1_000]);
     let ms = env_list("KEYED_DEPS_M", &[1u32, 10, 100, 1_000, 10_000]);
@@ -797,17 +834,14 @@ pub fn keyed_deps(c: &mut Criterion) {
             for &n in &ns {
                 for &m in &ms {
                     let config = Config { n, m, mode, layout };
-                    let rt = runtime();
-                    // Memory, once per configuration.
-                    {
-                        let (_, tt) = run_initial(&rt, config, true);
-                        rt.block_on(async { tt.stop_and_wait().await });
-                        drop(tt);
-                    }
-                    if persistence {
-                        run_persistence(&rt, config);
-                    }
+                    // All untimed per-configuration work (runtime, memory measurement,
+                    // persistence, building the graph) happens lazily inside the
+                    // `bench_function` closures, which criterion only calls for benchmarks
+                    // selected by its name filter. So `--bench mod -- <other group>` does no
+                    // keyed_deps work at all.
+                    let state = ConfigState::new(config, persistence);
                     if memory_only {
+                        state.runtime();
                         continue;
                     }
                     for &scenario in &scenarios {
@@ -823,10 +857,11 @@ pub fn keyed_deps(c: &mut Criterion) {
                         );
                         if scenario == Scenario::Initial {
                             group.bench_function(id, |b| {
+                                let rt = state.runtime();
                                 b.iter_custom(|iters| {
                                     let mut total = Duration::ZERO;
                                     for _ in 0..iters {
-                                        let (elapsed, tt) = run_initial(&rt, config, false);
+                                        let (elapsed, tt) = run_initial(rt, config, false);
                                         total += elapsed;
                                         rt.block_on(async { tt.stop_and_wait().await });
                                     }
@@ -835,20 +870,28 @@ pub fn keyed_deps(c: &mut Criterion) {
                             });
                             continue;
                         }
-                        // Build the graph once (not timed), then change the input repeatedly.
-                        let tt = rt.block_on(async { create_tt() });
-                        let input_op = rt
-                            .block_on(tt.run_once(async move {
-                                let input_op = create_input();
-                                let input = input_op.resolve().strongly_consistent().await?;
-                                config.root(input).read_strongly_consistent().await?;
-                                Ok(input_op)
-                            }))
-                            .unwrap();
+                        // Build the graph once (not timed, on the first call of the closure),
+                        // then change the input repeatedly.
+                        let mut graph = None;
                         let mut generation = 0u32;
                         let mut executions = 0u64;
                         let mut changes = 0u64;
                         group.bench_function(id, |b| {
+                            let rt = state.runtime();
+                            let (tt, input_op) = &*graph.get_or_insert_with(|| {
+                                let tt = rt.block_on(async { create_tt() });
+                                let input_op = rt
+                                    .block_on(tt.run_once(async move {
+                                        let input_op = create_input();
+                                        let input =
+                                            input_op.resolve().strongly_consistent().await?;
+                                        config.root(input).read_strongly_consistent().await?;
+                                        Ok(input_op)
+                                    }))
+                                    .unwrap();
+                                (tt, input_op)
+                            });
+                            let input_op = *input_op;
                             b.iter_custom(|iters| {
                                 let mut total = Duration::ZERO;
                                 for _ in 0..iters {
@@ -879,6 +922,10 @@ pub fn keyed_deps(c: &mut Criterion) {
                                 total
                             })
                         });
+                        // Not selected by the criterion filter: nothing was run.
+                        let Some((tt, _)) = graph else {
+                            continue;
+                        };
                         report(format!(
                             "KEYED_DEPS_RERUN threads={threads} scenario={} mode={} layout={} \
                              n={n} m={m} reruns_per_change={:.2}",
@@ -887,7 +934,7 @@ pub fn keyed_deps(c: &mut Criterion) {
                             layout.name(),
                             executions as f64 / changes.max(1) as f64,
                         ));
-                        rt.block_on(async { tt.stop_and_wait().await });
+                        state.runtime().block_on(async { tt.stop_and_wait().await });
                     }
                 }
             }
