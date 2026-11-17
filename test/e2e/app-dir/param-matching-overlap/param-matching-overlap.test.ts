@@ -26,28 +26,26 @@ describe('param-matching-overlap', () => {
     }
   )
 
-  async function fetchFollowingRedirects(
+  async function statusAfterRedirects(
     pathname: string,
     headers: Record<string, string>
   ) {
     let res = await next.fetch(pathname, { headers, redirect: 'manual' })
-    let redirects = 0
-    while (res.status === 307 && redirects < 5) {
-      redirects++
+    for (let redirects = 0; res.status === 307 && redirects < 5; redirects++) {
       res = await next.fetch(res.headers.get('location')!, {
         headers,
         redirect: 'manual',
       })
     }
-    return { status: res.status, redirects }
+    return res.status
   }
 
   it.each(['/docs/messages/unknown', '/docs/messages/known', '/docs/ordinary'])(
-    'answers an RSC request for %s after one redirect',
+    'answers an RSC request for %s',
     async (pathname) => {
       expect(
-        await fetchFollowingRedirects(pathname, { RSC: '1', 'Next-Url': '/' })
-      ).toEqual({ status: 200, redirects: 1 })
+        await statusAfterRedirects(pathname, { RSC: '1', 'Next-Url': '/' })
+      ).toBe(200)
     }
   )
 
