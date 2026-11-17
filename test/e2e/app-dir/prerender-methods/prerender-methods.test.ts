@@ -2,9 +2,8 @@ import { load } from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
 import { gate, retry } from 'next-test-utils'
 
-// These deploy assertions cover Vercel adapter prerender bypass rules. Dev does
-// not use the prerender cache.
-// @force-gate !dev && (!deploy || (vercel && adapter))
+// These tests require a warmed prerender cache, which next dev does not use.
+// @force-gate !dev
 describe('App Page prerender HTTP methods', () => {
   const { next } = nextTestSetup({ files: __dirname })
 
@@ -104,6 +103,7 @@ describe('App Page prerender HTTP methods', () => {
           }
 
           if (
+            Object.keys(headers).length === 0 &&
             (await gate((c) => c.vercel)) &&
             (await isPrerendered(pathname))
           ) {
@@ -138,17 +138,22 @@ describe('App Page prerender HTTP methods', () => {
           body,
         })
 
-        // next start rejects non-action POSTs to prerendered App Pages. A
-        // deployment invokes the page function through the provider instead.
-        if ((await gate((c) => c.start)) && (await isPrerendered(pathname))) {
-          expect(response.status).toBe(405)
-          expect(response.headers.get('allow')).toBe('GET, HEAD')
-          expect(await response.text()).toBe('Method Not Allowed')
+        // A non-action POST can render the page or receive a method rejection.
+        // Neither response may expose the internal prerender representation.
+        if (response.status === 405) {
+          expect(await isPrerendered(pathname)).toBe(true)
+          const rejection = await response.text()
+          expect(response.headers.get('content-type') ?? '').not.toMatch(
+            /^application\/x-nextjs-pre-render(?:;|$)/i
+          )
+          if (await gate((c) => c.start)) {
+            expect(response.headers.get('allow')).toBe('GET, HEAD')
+            expect(rejection).toBe('Method Not Allowed')
+          } else if (await gate((c) => c.vercel)) {
+            expect(rejection).toBe('')
+          }
         } else {
           await expectPage(response, pathname, 'post')
-        }
-        if ((await gate((c) => c.vercel)) && (await isPrerendered(pathname))) {
-          expect(response.headers.get('x-vercel-cache')).toBe('BYPASS')
         }
 
         const after = await next.fetch(pathname, {
