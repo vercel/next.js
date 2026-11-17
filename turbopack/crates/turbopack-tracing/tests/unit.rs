@@ -48,6 +48,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::amd_disable("amd-disable")]
 #[case::array_emission("array-emission")]
 #[case::array_holes("array-holes")]
+#[case::asset_cjs_dependency("asset-cjs-dependency")]
 // Ternary currently becomes Unknown as opposed to Alternatives when the condition isn't static
 // #[case::asset_conditional("asset-conditional")]
 #[case::asset_fs_array_expr("asset-fs-array-expr")]
@@ -127,9 +128,17 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::import_assertions("import-assertions")]
 #[case::import_attributes("import-attributes")]
 // #[case::import_meta_bad_url("import-meta-bad-url")]
+// `import.meta.dirname` isn't resolved inside a template literal (`${import.meta.dirname}/...`) or
+// with computed member access (`import.meta['dirname']`), so two of the assets are missed.
+// #[case::import_meta_dirname("import-meta-dirname")]
+#[case::import_meta_dirname_deps("import-meta-dirname-deps")]
+// `readFileSync(new URL(import.meta.resolve('dep/asset.wasm')))` misses the package's `exports`
+// target and `package.json`; the trace includes this case's `output.js` instead.
+// #[case::import_meta_resolve("import-meta-resolve")]
 // #[case::import_meta_tpl_cnd("import-meta-tpl-cnd")]
 #[case::import_meta_url("import-meta-url")]
 #[case::imports("imports")]
+#[case::imports_hash_slash("imports-hash-slash")]
 #[case::imports_module_sync("imports-module-sync")]
 #[case::imports_module_sync_cjs("imports-module-sync-cjs")]
 #[case::imports_wildcard("imports-wildcard")]
@@ -146,6 +155,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::module_create_require_no_mixed("module-create-require-no-mixed")]
 // #[case::module_register("module-register")]
 // #[case::module_require("module-require")]
+#[case::module_sync_catchall("module-sync-catchall")]
 #[case::module_sync_condition_cjs("module-sync-condition-cjs")]
 // Turbopack always includes the module-sync version, regardless of the current Node version
 // #[case::module_sync_condition_cjs_node20("module-sync-condition-cjs-node20")]
@@ -156,6 +166,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 // install: merging the results of both must not drop either target.
 #[case::module_sync_condition_cjs_nested_symlink("module-sync-condition-cjs-nested-symlink")]
 #[case::module_sync_condition_es("module-sync-condition-es")]
+#[case::module_sync_condition_es_default("module-sync-condition-es-default")]
 #[case::module_sync_condition_es_nested("module-sync-condition-es-nested")]
 // Turbopack always includes the module-sync version, regardless of the current Node version
 // #[case::module_sync_condition_es_node20("module-sync-condition-es-node20")]
