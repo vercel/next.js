@@ -298,6 +298,8 @@ function getSpanTraceItem(
       reactTiming = 'Incomplete React timing recording'
       reactTimingKind = 'incomplete'
       break
+    default:
+      break
   }
   const environment = span.attributes?.['next.rsc.environment']
   const renderId = span.attributes?.['next.rsc.render_id']

@@ -82,6 +82,8 @@ export async function nextRequestInsights(
     const duration = formatDuration(request.durationMs)
     let displayRoute = route
     switch (kind) {
+      case 'request':
+        break
       case 'instant-insights':
         displayRoute = `Instant Insights · ${route}`
         break
