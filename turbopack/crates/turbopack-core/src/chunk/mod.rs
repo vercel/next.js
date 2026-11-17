@@ -16,7 +16,7 @@ use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, Upcast, ValueToString, Vc,
+    NonLocalValue, OrderedAutoSet, ReadRef, ResolvedVc, Upcast, ValueToString, Vc,
     debug::ValueDebugFormat,
 };
 use turbo_tasks_hash::DeterministicHash;
@@ -515,18 +515,21 @@ impl ChunkingType {
 }
 
 /// The modules (soon to be chunk items) that were discovered after traversing a given chunk group.
-#[turbo_tasks::value(cell = "new")]
+///
+/// Compared on update, so a recomputation that finds the same content (e.g. after an unrelated
+/// module graph change) doesn't invalidate the chunking of the chunk group. The comparison is
+/// order-sensitive (the sets are [`OrderedAutoSet`]s): the order of all collections is the order
+/// of the chunk items.
+#[turbo_tasks::value]
 pub struct ChunkGroupContentInner {
     /// Regular chunkable modules/module batches
     pub chunkable_items: Vec<ChunkableModuleOrBatch>,
     /// As an optimization, we also keep track of the batch groups that were discovered.
     pub batch_groups: Vec<ResolvedVc<ModuleBatchGroup>>,
     /// The modules that were imported with ChunkingType::Async
-    #[bincode(with = "turbo_bincode::indexset")]
-    pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
+    pub async_modules: OrderedAutoSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     /// All modules that implement CollectingModule
-    #[bincode(with = "turbo_bincode::indexset")]
-    pub collecting_modules: FxIndexSet<ResolvedVc<Box<dyn CollectingModule>>>,
+    pub collecting_modules: OrderedAutoSet<ResolvedVc<Box<dyn CollectingModule>>>,
 }
 
 pub struct ChunkGroupContent {
