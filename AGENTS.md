@@ -449,6 +449,7 @@ Use skills for conditional, deep workflows. Keep baseline iteration/build/test p
 - `$next-rspack` - @next/rspack-core and @next/rspack-binding maintenance (rspack/ directory)
 - `$gate-tests` - `@gate`/`@force-gate` test directives: replacing `it.skip`/fake-green skips, conditions, variant-shard fixtures
 - `$authoring-skills` - how to create and maintain skills in `.agents/skills/`
+- `$prepare-team-meeting` - summarize a team's recently merged and open PRs by category, owner and benchmark numbers
 
 ## Context-Efficient Workflows
 
