@@ -4,13 +4,34 @@ title: Conflicting SSG Paths
 
 ## Why This Error Occurred
 
-You returned **conflicting paths** in your `getStaticPaths` function for one of your pages. All page paths must be unique and duplicates are not allowed.
+You returned **conflicting paths** in your `getStaticPaths` or `generateStaticParams` function for one of your pages or routes. All page paths must be unique and duplicates are not allowed.
 
 ## Possible Ways to Fix It
 
-Remove any conflicting paths shown in the error message and only return them from one `getStaticPaths`.
+Remove any conflicting paths shown in the error message and only return them from one `getStaticPaths` or `generateStaticParams`.
 
-Example conflicting paths:
+Example conflicting paths in App Router:
+
+```jsx filename="app/blog/page.js"
+export default function Blog() {
+  return 'Blog!'
+}
+```
+
+```jsx filename="app/[[...path]]/page.js"
+export async function generateStaticParams() {
+  return [
+    { path: ['blog'] }, // <-- this conflicts with the app/blog/page.js route, remove to resolve error
+    { path: ['other'] },
+  ]
+}
+
+export default function CatchAll() {
+  return 'Catch-all page'
+}
+```
+
+Example conflicting paths in Pages Router:
 
 ```jsx filename="pages/hello/world.js"
 export default function Hello() {
@@ -34,7 +55,7 @@ export default function CatchAllPage() {
 }
 ```
 
-Example conflicting paths:
+Example conflicting paths between dynamic routes:
 
 ```jsx filename="pages/blog/[slug].js"
 export const getStaticPaths = () => ({
@@ -66,4 +87,5 @@ export default function CatchAll() {
 
 ## Useful Links
 
+- [`generateStaticParams` Documentation](/docs/app/building-your-application/routing/defining-routes#generatestaticparams)
 - [`getStaticPaths` Documentation](/docs/pages/building-your-application/data-fetching/get-static-paths)
