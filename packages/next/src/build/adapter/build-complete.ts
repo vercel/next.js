@@ -936,15 +936,8 @@ export async function handleBuildComplete({
           currentOutputs.push(output)
         }
 
-        // need to add matching .rsc output
-        if (isAppPage) {
-          const rscPathname = normalizePagePath(output.pathname) + '.rsc'
-          outputs.appPages.push({
-            ...output,
-            pathname: rscPathname,
-            id: page.name + '.rsc',
-          })
-        } else if (
+        if (
+          !isAppPage &&
           type !== AdapterOutputType.MIDDLEWARE &&
           serverPropsPages.has(pathname)
         ) {
@@ -1427,19 +1420,9 @@ export async function handleBuildComplete({
           appOutputMap[normalizedPage] = output
 
           if (output.type === AdapterOutputType.APP_PAGE) {
-            outputs.appPages.push({
-              ...output,
-              pathname: normalizePagePath(output.pathname) + '.rsc',
-              id: normalizePagePath(output.pathname) + '.rsc',
-            })
             outputs.appPages.push(output)
           } else {
             outputs.appRoutes.push(output)
-            outputs.appRoutes.push({
-              ...output,
-              pathname: normalizePagePath(output.pathname) + '.rsc',
-              id: normalizePagePath(output.pathname) + '.rsc',
-            })
           }
         }
       }
@@ -2373,11 +2356,22 @@ export async function handleBuildComplete({
       }
     }
 
+    // App Router functions also serve the `.rsc` form of their request. No
+    // separate `.rsc` function is emitted: routing sends an `X.rsc` request
+    // that no prerendered output serves to the function `X`. Collect the
+    // pathnames before the base path is added to them.
+    const rscFunctionPathnames = new Set(
+      [...outputs.appPages, ...outputs.appRoutes].map(
+        (output) => output.pathname
+      )
+    )
+
     normalizePathnames(config, outputs)
 
     const dynamicRoutes: DynamicRouteItem[] = []
     const dynamicDataRoutes: DynamicRouteItem[] = []
     const dynamicSegmentRoutes: DynamicRouteItem[] = []
+    const staticRscRoutes: DynamicRouteItem[] = []
 
     const getDestinationQuery = (routeKeys: Record<string, string>) => {
       const items = Object.entries(routeKeys ?? {})
@@ -2496,6 +2490,24 @@ export async function handleBuildComplete({
         hasAppPages &&
         suffixedHas === plainHas
 
+      // No `.rsc` function exists for an App Router page. When the suffixed
+      // entry doesn't resolve a `.rsc` request to a prerendered output, this
+      // entry routes it to the function for the page. It must precede the
+      // plain entry, whose last parameter would otherwise capture the suffix.
+      const rscFunctionRoute: DynamicRouteItem | undefined =
+        rscFunctionPathnames.has(route.page)
+          ? {
+              source: pagePath + '.rsc',
+              sourceRegex: sourceRegex.replace(
+                new RegExp(escapeStringRegexp('(?:/)?$')),
+                '\\.rsc(?:/)?$'
+              ),
+              destination,
+              has: suffixedHas,
+              missing: undefined,
+            }
+          : undefined
+
       if (canMergeSuffixedAndPlain) {
         // One entry serves every form of a request for this page:
         //
@@ -2525,6 +2537,9 @@ export async function handleBuildComplete({
           has: plainHas,
           missing: undefined,
         })
+        if (rscFunctionRoute) {
+          dynamicRoutes.push(rscFunctionRoute)
+        }
       } else {
         // This route serves two kinds of request for the page: a request for
         // the `.rsc` payload, and a per-segment prefetch request. The suffix
@@ -2544,6 +2559,9 @@ export async function handleBuildComplete({
             has: suffixedHas,
             missing: undefined,
           })
+        }
+        if (rscFunctionRoute) {
+          dynamicRoutes.push(rscFunctionRoute)
         }
 
         // needs basePath and locale handling if pages router
@@ -2579,6 +2597,24 @@ export async function handleBuildComplete({
           })
         }
       }
+    }
+
+    // A request for `X.rsc` that no prerendered output serves goes to the
+    // function `X` of a static App Router page or route.
+    for (const pathname of rscFunctionPathnames) {
+      if (isDynamicRoute(pathname)) {
+        continue
+      }
+      const rscPathname = normalizePagePath(pathname) + '.rsc'
+      staticRscRoutes.push({
+        source: rscPathname,
+        sourceRegex: `^${escapedBasePath}${escapeStringRegexp(rscPathname)}(?:/)?$`,
+        destination:
+          path.posix.join('/', config.basePath, pathname).replace(/\/$/, '') ||
+          '/',
+        has: undefined,
+        missing: undefined,
+      })
     }
 
     const needsMiddlewareResolveRoutes =
@@ -2682,6 +2718,7 @@ export async function handleBuildComplete({
 
       const combinedDynamicRoutes = [
         ...dynamicDataRoutes,
+        ...staticRscRoutes,
         ...dynamicSegmentRoutes,
         ...dynamicRoutes,
       ] satisfies Route[]

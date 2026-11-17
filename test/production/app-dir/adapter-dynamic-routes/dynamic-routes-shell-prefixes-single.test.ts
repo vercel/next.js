@@ -26,7 +26,15 @@ describe('adapter dynamic routes (shell prefixes, one combination)', () => {
 
     expect(serializeDynamicRoutes(routing.dynamicRoutes))
       .toMatchInlineSnapshot(`
-     "2 entries
+     "5 entries
+
+     /_not-found.rsc
+       ^/_not\\-found\\.rsc(?:/)?$
+       -> /_not-found
+
+     /_global-error.rsc
+       ^/_global\\-error\\.rsc(?:/)?$
+       -> /_global-error
 
      /acme.one-two,three/en/posts/[id]
        ^[/]?/acme\\.one\\-two,three/en/posts/(?<nxtPid>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
@@ -34,7 +42,11 @@ describe('adapter dynamic routes (shell prefixes, one combination)', () => {
 
      /[team]/[locale]/posts/[id]
        ^[/]?/(?<nxtPteam>[^/]+?)/(?<nxtPlocale>[^/]+?)/posts/(?<nxtPid>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /[team]/[locale]/posts/[id]$4?nxtPteam=$nxtPteam&nxtPlocale=$nxtPlocale&nxtPid=$nxtPid"
+       -> /[team]/[locale]/posts/[id]$4?nxtPteam=$nxtPteam&nxtPlocale=$nxtPlocale&nxtPid=$nxtPid
+
+     /[team]/[locale]/posts/[id].rsc
+       ^[/]?/(?<nxtPteam>[^/]+?)/(?<nxtPlocale>[^/]+?)/posts/(?<nxtPid>[^/]+?)\\.rsc(?:/)?$
+       -> /[team]/[locale]/posts/[id]?nxtPteam=$nxtPteam&nxtPlocale=$nxtPlocale&nxtPid=$nxtPid"
     `)
   })
 })
