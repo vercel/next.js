@@ -13,13 +13,18 @@
 //! ```js
 //! const p0 = "server/chunks/ssr/";
 //! const s = [p0+"a.js",p0+"b.js",p0+"c.js"];
-//! const r = (...a) => { /* s[a[0]..a[0]+a[1]], s[a[2]..a[2]+a[3]], ... */ };
-//! const l = [r(0,3)];
-//! ({"x": {"chunks": l[0]}, "y": {"chunks": l[0]}, "z": {"chunks": r(1,1)}})
+//! const l = [[s[0],s[1],s[2]]];
+//! ({"x": {"chunks": l[0]}, "y": {"chunks": l[0]}, "z": {"chunks": [s[1]]}})
 //! ```
 //!
-//! Besides being smaller, this evaluates faster and retains less memory in V8 than array
-//! literals (measured on a large app: 1.6x faster, 37% less retained heap).
+//! Besides being smaller, this evaluates faster and retains less memory in V8 than a JSON-like
+//! object literal.
+//!
+//! Lists of paths are written as `[s[i],...]` array literals. Only when a list contains long runs
+//! of consecutive string indices, and writing them as runs saves at least [`RUN_MIN_SAVING`]
+//! bytes, is it written as `r(start,length,...)` instead, see [`ChunkTables::finish`]. Most lists
+//! are short, so most manifests don't declare `r` at all, which makes small manifests faster to
+//! compile and run.
 //!
 //! Lists used several times evaluate to the *same* array object rather than equal copies, so
 //! consumers must not mutate them.
@@ -56,7 +61,12 @@ pub struct CssResource {
     pub content: Option<RcStr>,
 }
 
-/// Declares `r`, see [`ChunkTables::finish`].
+/// The minimum number of bytes writing a list of paths as runs (`r(...)`) must save over an array
+/// literal (`[s[i],...]`) for the runs to be used. Calling `r` is slower than evaluating a short
+/// array literal, so runs are only worth it for long lists.
+const RUN_MIN_SAVING: usize = 16;
+
+/// Declares `r`, see [`ChunkTables::finish`]. Only emitted when a list is written as runs.
 const R_DECLARATION: &str = "const r = (...a) => { const parts = []; for (let i = 0; i < \
                              a.length; i += 2) parts.push(s.slice(a[i], a[i] + a[i + 1])); return \
                              parts.length === 1 ? parts[0] : [].concat(...parts); };\n";
@@ -206,9 +216,9 @@ impl ChunkTables {
 
         if self.lists.keys().any(|items| uses_runs(items)) {
             // `r(start, length, start, length, ...)` concatenates the runs
-            // `s[start..start + length]` into a new array. Most lists are a single run, which is
-            // returned as one `slice`. Measured on a large app's manifests, `slice` + `concat`
-            // evaluates ~12% faster and retains ~7% less memory than pushing elements one by one.
+            // `s[start..start + length]` into a new array. A list that is a single run is
+            // returned as one `slice`. `slice` + `concat` evaluates faster and retains less memory
+            // than pushing elements one by one.
             declarations.push_str(R_DECLARATION);
         }
 
@@ -268,26 +278,36 @@ impl EncodedChunkTables {
 
 /// Whether [`write_items`] writes `items` with a call to `r`.
 fn uses_runs(items: &[Item]) -> bool {
+    if let Some(paths) = all_paths(items) {
+        return paths_use_runs(paths);
+    }
     items.iter().any(|item| match item {
-        Item::Path(_) => true,
+        Item::Path(_) | Item::Css { .. } => false,
         Item::Merged {
             component_paths, ..
-        } => !component_paths.is_empty(),
-        Item::Css { .. } => false,
+        } => paths_use_runs(component_paths.iter().copied()),
     })
 }
 
-fn write_items(out: &mut String, items: &[Item]) {
-    // Lists of plain paths, the common case, are written as runs. Lists with merged chunks are
-    // written as array literals, with each merged chunk's component paths as runs.
-    if items.iter().all(|item| matches!(item, Item::Path(_))) {
-        write_paths(
-            out,
+/// The string indices of `items`, if they are all plain paths.
+fn all_paths(items: &[Item]) -> Option<impl Iterator<Item = u32> + Clone + '_> {
+    items
+        .iter()
+        .all(|item| matches!(item, Item::Path(_)))
+        .then(|| {
             items.iter().map(|item| match item {
                 Item::Path(path) => *path,
                 Item::Merged { .. } | Item::Css { .. } => unreachable!(),
-            }),
-        );
+            })
+        })
+}
+
+fn write_items(out: &mut String, items: &[Item]) {
+    // Lists of plain paths, the common case, are written by `write_paths`. Lists with merged
+    // chunks are written as array literals, with each merged chunk's component paths written by
+    // `write_paths`.
+    if let Some(paths) = all_paths(items) {
+        write_paths(out, paths);
         return;
     }
     out.push('[');
@@ -329,23 +349,64 @@ fn write_items(out: &mut String, items: &[Item]) {
     out.push(']');
 }
 
-/// Writes `r(start,length,...)` for the runs of consecutive indices in `paths`, or `[]`.
-fn write_paths(out: &mut String, mut paths: impl Iterator<Item = u32>) {
-    let Some(first) = paths.next() else {
-        out.push_str("[]");
-        return;
-    };
-    let (mut start, mut length) = (first, 1);
-    write!(out, "r(").unwrap();
-    for path in paths {
-        if path == start + length {
-            length += 1;
-        } else {
-            write!(out, "{start},{length},").unwrap();
-            (start, length) = (path, 1);
+/// Writes `paths` as `r(start,length,...)` if [`paths_use_runs`], otherwise as `[s[i],...]`.
+fn write_paths(out: &mut String, paths: impl Iterator<Item = u32> + Clone) {
+    if !paths_use_runs(paths.clone()) {
+        out.push('[');
+        for (index, path) in paths.enumerate() {
+            if index > 0 {
+                out.push(',');
+            }
+            write!(out, "s[{path}]").unwrap();
         }
+        out.push(']');
+        return;
     }
-    write!(out, "{start},{length})").unwrap();
+    out.push_str("r(");
+    for (index, (start, length)) in runs(paths).enumerate() {
+        if index > 0 {
+            out.push(',');
+        }
+        write!(out, "{start},{length}").unwrap();
+    }
+    out.push(')');
+}
+
+/// Whether writing `paths` as runs, `r(start,length,...)`, is at least [`RUN_MIN_SAVING`] bytes
+/// shorter than writing them as `[s[i],...]`.
+fn paths_use_runs(paths: impl Iterator<Item = u32> + Clone) -> bool {
+    // `[` + `s[i]` per path, comma-separated + `]`
+    let (count, digit_count) = paths.clone().fold((0, 0), |(count, digit_count), i| {
+        (count + 1, digit_count + digits(i))
+    });
+    if count == 0 {
+        return false;
+    }
+    let literal: usize = 2 + (count - 1) + 3 * count + digit_count;
+    // `r(` + `start,length` per run, comma-separated + `)`
+    let (count, numbers) = runs(paths).fold((0, 0), |(count, numbers), (start, length)| {
+        (count + 1, numbers + digits(start) + digits(length))
+    });
+    let runs = 3 + (2 * count - 1) + numbers;
+    literal >= runs + RUN_MIN_SAVING
+}
+
+/// The runs of consecutive indices in `paths`, as `(start, length)`.
+fn runs(paths: impl Iterator<Item = u32>) -> impl Iterator<Item = (u32, u32)> {
+    let mut paths = paths.peekable();
+    std::iter::from_fn(move || {
+        let start = paths.next()?;
+        let mut length = 1;
+        while paths.next_if_eq(&(start + length)).is_some() {
+            length += 1;
+        }
+        Some((start, length))
+    })
+}
+
+/// The number of decimal digits of `n`.
+fn digits(n: u32) -> usize {
+    n.checked_ilog10().unwrap_or(0) as usize + 1
 }
 
 /// Splits `"a/b/c.js"` into `("a/b/", "c.js")`.
@@ -375,7 +436,7 @@ pub fn json_string(string: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use turbo_rcstr::rcstr;
+    use turbo_rcstr::{RcStr, rcstr};
 
     use super::{ChunkTables, ClientChunk, CssResource};
 
@@ -384,7 +445,6 @@ mod tests {
         let mut tables = ChunkTables::default();
         let a = tables.chunk_paths([rcstr!("dir/x.js"), rcstr!("dir/y.js")]);
         let b = tables.chunk_paths([rcstr!("dir/x.js"), rcstr!("dir/y.js")]);
-        // Two runs: 1..2 and 0..1.
         let d = tables.chunk_paths([rcstr!("dir/y.js"), rcstr!("dir/x.js")]);
         let c = tables.chunks_urls([
             ClientChunk::Path(rcstr!("dir/y.js")),
@@ -398,14 +458,16 @@ mod tests {
         let empty2 = tables.chunk_paths([]);
         let tables = tables.finish();
 
+        // Short lists are array literals, so `r` is not declared.
         assert_eq!(
             tables.declarations(),
-            format!(
-                "{}\n{}\n{}{}\n",
+            concat!(
                 r#"const p0 = "dir/";"#,
+                "\n",
                 r#"const s = [p0+"x.js",p0+"y.js","m.js"];"#,
-                super::R_DECLARATION,
-                r#"const l = [r(0,2),[]];"#,
+                "\n",
+                r#"const l = [[s[0],s[1]],[]];"#,
+                "\n",
             )
         );
         let mut out = String::new();
@@ -415,8 +477,55 @@ mod tests {
         }
         assert_eq!(
             out,
-            "l[0] l[0] [s[1],[s[2],r(0,1),[42]]] r(1,1,0,1) l[1] l[1] "
+            "l[0] l[0] [s[1],[s[2],[s[0]],[42]]] [s[1],s[0]] l[1] l[1] "
         );
+    }
+
+    #[test]
+    fn writes_long_lists_as_runs() {
+        let paths = |range: std::ops::Range<u32>| {
+            range
+                .map(|i| RcStr::from(format!("d/{i}.js")))
+                .collect::<Vec<_>>()
+        };
+        let mut tables = ChunkTables::default();
+        // `r(0,20)` is much shorter than `[s[0],...,s[19]]`.
+        let long = tables.chunk_paths(paths(0..20));
+        // `r(0,3)` saves only 10 bytes over `[s[0],s[1],s[2]]`.
+        let short = tables.chunk_paths(paths(0..3));
+        let merged = tables.chunks_urls([ClientChunk::Merged {
+            url: rcstr!("m.js"),
+            component_paths: paths(0..20),
+            component_sizes: vec![1],
+        }]);
+        let tables = tables.finish();
+
+        assert!(
+            tables
+                .declarations()
+                .ends_with(&format!("];\n{}", super::R_DECLARATION))
+        );
+        let mut out = String::new();
+        for list in [long, short, merged] {
+            tables.write(&mut out, list);
+            out.push(' ');
+        }
+        assert_eq!(out, "r(0,20) [s[0],s[1],s[2]] [[s[20],r(0,20),[1]]] ");
+    }
+
+    #[test]
+    fn chooses_runs_by_saved_bytes() {
+        use super::paths_use_runs;
+
+        assert!(!paths_use_runs([].into_iter()));
+        // `[s[0],...,s[15]]` (87 bytes) vs `r(0,16)` (7 bytes).
+        assert!(paths_use_runs(0..16));
+        // `[s[0],s[1],s[2]]` (16 bytes) vs `r(0,3)` (6 bytes): saves 10 bytes.
+        assert!(!paths_use_runs([0, 1, 2].into_iter()));
+        // `[s[0],...,s[4]]` (26 bytes) vs `r(0,5)` (6 bytes): saves 20 bytes.
+        assert!(paths_use_runs([0, 1, 2, 3, 4].into_iter()));
+        // Non-consecutive indices: `[s[9],s[7],s[5]]` (16 bytes) vs `r(9,1,7,1,5,1)` (14 bytes).
+        assert!(!paths_use_runs([9, 7, 5].into_iter()));
     }
 
     #[test]
