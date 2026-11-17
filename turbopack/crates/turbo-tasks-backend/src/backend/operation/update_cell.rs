@@ -250,7 +250,7 @@ fn update_cell_data_hash(task: &mut TaskGuard<'_>, cell: &CellId, content_hash: 
     }
 }
 
-fn invalidate_cell_dependents(
+pub(in crate::backend) fn invalidate_cell_dependents(
     cell_ref: CellRef,
     mut dependent_tasks: FxIndexMap<TaskId, SmallVec<[Option<CellKey>; 2]>>,
     #[cfg(feature = "task_dirty_cause")] has_updated_key_hashes: bool,
