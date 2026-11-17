@@ -35,6 +35,10 @@ When content depends on browser-only APIs or settings, defer that rendering to t
 
 See the [client-specific rendering and fallback choices](/docs/app/guides/preventing-flash-before-hydration#rendering-client-specific-content).
 
+<span id="solution-1-using-useeffect-to-run-on-the-client-only" />
+
+For the `useEffect` workaround and its tradeoffs, see [Why not `useEffect`?](/docs/app/guides/preventing-flash-before-hydration#why-not-useeffect).
+
 ### Solution 2: Disabling SSR on specific components
 
 Next.js allows you to [disable prerendering](/docs/app/guides/lazy-loading#skipping-ssr) on specific components, which can prevent hydration mismatches.
@@ -64,12 +68,6 @@ Sometimes content will inevitably differ between the server and client, such as 
 ```
 
 Suppression only applies one level deep, and React will not patch mismatched text content on that element. Use this escape hatch sparingly.
-
-<span id="solution-1-using-useeffect-to-run-on-the-client-only" />
-
-### Why not use `useEffect` for the initial value?
-
-A mount effect can avoid a mismatch, but a synchronous state update adds a render and triggers `react-hooks/set-state-in-effect` in `eslint-config-next`. See [Why not `useEffect`?](/docs/app/guides/preventing-flash-before-hydration#why-not-useeffect) for the original pattern and its tradeoffs.
 
 ## Common iOS issues
 

@@ -9,7 +9,7 @@ User preferences, browser settings, and client-side storage aren't available dur
 Some common approaches to this problem:
 
 - A Client Component that initially renders different server and client values causes a hydration error.
-- Deferring to `useEffect` avoids the error but can introduce a visible flash and adds a render.
+- Updating state in `useEffect` after hydration avoids the error but can introduce a visible flash and adds a render.
 - Rendering only on the server means giving up on client-specific formatting entirely.
 
 Using an **inline script** that runs synchronously as the browser parses the HTML, you can update the DOM **before the first paint**. This guide covers dates, themes, and persisted UI state. If a shared value or placeholder is acceptable until React loads, use [`use(browser())` with Suspense](#rendering-client-specific-content).

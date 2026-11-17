@@ -214,7 +214,7 @@ const ClientOnlyComponent = dynamic(() => import('./component'), {
 })
 ```
 
-This can be useful for third-party libraries that rely on browser APIs like `window` or `document`. You can also add a `useEffect` that checks for the existence of these APIs, and if they do not exist, return `null` or a loading state which would be prerendered.
+This can be useful for third-party libraries that rely on browser APIs like `window` or `document`.
 
 React 19.3 includes the [`browser`](https://react.dev/reference/react-dom/browser) API. Use `use(browser())` only when a Client Component's first browser render cannot match server-rendered HTML.
 
