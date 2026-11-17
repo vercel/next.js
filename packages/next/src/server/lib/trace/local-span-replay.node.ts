@@ -339,7 +339,7 @@ function replayWorkerBatch(
     const record: ReportingSpan = {
       id,
       parentId,
-      parent: parent?.reference,
+      parent: parent?.reference ?? target.contexts.get(parentId!),
       reference: { id, sessionId: target.id },
       name: event.name,
       start: epochTime(BigInt(event.timestamp) * BigInt(1_000)),

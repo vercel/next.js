@@ -254,7 +254,9 @@ export function createTraceSpan(
     ancestor
   )
   const offset = BigInt(replay!.getClockOffset())
-  source.selectedId = options.reportToOtel ? source.id : ancestor?.selectedId
+  source.selectedId = options.reportToOtel
+    ? source.id
+    : (ancestor?.selectedId ?? source.parentId)
   if (options.reportToOtel) selectTraceSpanSource(source, ancestor?.selectedId)
   const span = createRecordingSpan(
     {
