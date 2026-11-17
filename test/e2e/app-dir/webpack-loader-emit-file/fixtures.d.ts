@@ -6,6 +6,10 @@ declare module '*.pitch' {
   const url: string
   export default url
 }
+declare module '*.file' {
+  const url: string
+  export default url
+}
 declare module '*.pure' {
   export const value: string
 }
