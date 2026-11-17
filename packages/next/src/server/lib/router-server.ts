@@ -155,6 +155,7 @@ export async function initialize(opts: {
   port: number
   dev: boolean
   onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
+  onDevServerLockAcquired?: () => void
   server?: import('http').Server
   minimalMode?: boolean
   hostname?: string
@@ -350,6 +351,7 @@ export async function initialize(opts: {
         turbo: !!process.env.TURBOPACK,
         port: opts.port,
         onDevServerCleanup: opts.onDevServerCleanup,
+        onDevServerLockAcquired: opts.onDevServerLockAcquired,
         resetFetch,
         serverFastRefresh: effectiveServerFastRefresh,
         hasVulnerabilityInsight,

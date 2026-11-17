@@ -149,6 +149,7 @@ export async function getRequestHandlers({
   port,
   isDev,
   onDevServerCleanup,
+  onDevServerLockAcquired,
   server,
   hostname,
   minimalMode,
@@ -161,6 +162,7 @@ export async function getRequestHandlers({
   port: number
   isDev: boolean
   onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
+  onDevServerLockAcquired?: () => void
   server?: import('http').Server
   hostname?: string
   minimalMode?: boolean
@@ -174,6 +176,7 @@ export async function getRequestHandlers({
     port,
     hostname,
     onDevServerCleanup,
+    onDevServerLockAcquired,
     dev: isDev,
     minimalMode,
     server,
@@ -341,18 +344,9 @@ export async function startServer(
 
       port = typeof addr === 'object' ? addr?.port || port : port
 
-      if (portRetryCount) {
-        const pid = await getProcessIdUsingPort(originalPort)
-        if (pid) {
-          Log.warn(
-            `Port ${originalPort} is in use by process ${pid}, using available port ${port} instead.`
-          )
-        } else {
-          Log.warn(
-            `Port ${originalPort} is in use by an unknown process, using available port ${port} instead.`
-          )
-        }
-      }
+      const pid = portRetryCount
+        ? await getProcessIdUsingPort(originalPort)
+        : null
 
       const networkHostname =
         hostname ?? getNetworkHost(isIPv6(actualHostname) ? 'IPv6' : 'IPv4')
@@ -380,16 +374,8 @@ export async function startServer(
       // Get env info first (fast, doesn't require config)
       const envInfo = isDev ? getEnvInfo(dir) : undefined
 
-      // Log basic startup info immediately (before loading config)
-      logStartInfo({
-        networkUrl,
-        appUrl,
-        envInfo,
-        logBundler: isDev,
-      })
-
-      // Calculate and log "Ready in X" before loading config
-      // so it reflects actual framework startup time.
+      // Measure framework startup before loading the user config. Defer the
+      // announcement until the dev server has acquired its build directory lock.
       // NEXT_PRIVATE_START_TIME is set by bin/next.ts or cli/next-start.ts.
       const startTime = parseInt(process.env.NEXT_PRIVATE_START_TIME || '0', 10)
       const endTime = Date.now()
@@ -399,9 +385,33 @@ export async function startServer(
         startServerProcessDurationMs / 1000
       )
 
-      Log.event(`Ready in ${formattedStartDuration}`)
+      const logStartup = () => {
+        if (portRetryCount) {
+          if (pid) {
+            Log.warn(
+              `Port ${originalPort} is in use by process ${pid}, using available port ${port} instead.`
+            )
+          } else {
+            Log.warn(
+              `Port ${originalPort} is in use by an unknown process, using available port ${port} instead.`
+            )
+          }
+        }
+
+        logStartInfo({
+          networkUrl,
+          appUrl,
+          envInfo,
+          logBundler: isDev,
+        })
+
+        Log.event(`Ready in ${formattedStartDuration}`)
+      }
 
       try {
+        if (!isDev) {
+          logStartup()
+        }
         let cleanupStarted = false
         let closeUpgraded: (() => void) | null = null
         const cleanup = (signal: 'SIGINT' | 'SIGTERM') => {
@@ -496,6 +506,7 @@ export async function startServer(
           dir,
           port,
           isDev,
+          onDevServerLockAcquired: isDev ? logStartup : undefined,
           onDevServerCleanup: cleanupListeners
             ? cleanupListeners.add.bind(cleanupListeners)
             : undefined,

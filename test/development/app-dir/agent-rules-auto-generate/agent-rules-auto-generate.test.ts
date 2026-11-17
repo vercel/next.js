@@ -65,8 +65,8 @@ describe('agent-rules auto-generate on next dev (agent detected)', () => {
 
   it('creates only AGENTS.md at the project root when neither exists', async () => {
     // A request is required to synchronize the test with the auto-gen
-    // hook — `✓ Ready in X` is logged before the config load that runs
-    // the hook, so `next.start()` resolves too early. `next.fetch` blocks
+    // hook — `✓ Ready in X` is logged after acquiring the dev server lock,
+    // before the hook runs. `next.fetch` blocks
     // on the request handler, which only becomes ready after the hook.
     await next.fetch('/')
 

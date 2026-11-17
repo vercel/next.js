@@ -142,6 +142,7 @@ export type SetupOpts = {
   nextConfig: NextConfigComplete
   port: number
   onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
+  onDevServerLockAcquired?: () => void
   resetFetch: () => void
   serverFastRefresh?: boolean
   hasVulnerabilityInsight: Promise<boolean>
@@ -260,6 +261,8 @@ async function startWatcher(
       relativeDistDir: opts.nextConfig.distDir,
     }
   )
+
+  opts.onDevServerLockAcquired?.()
 
   if (nextConfig.experimental.requestInsights) {
     await initializeRequestInsightsJournal(distDir)
