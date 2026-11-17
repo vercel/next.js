@@ -7,13 +7,7 @@
 
 5 -> 6 free var = FreeVar(JSON)
 
-0 -> 7 conditional = ((???*0* | "true") === "true")
-- *0* ???*1*["variable"]
-  ⚠️  unknown object
-- *1* arguments[0]
-  ⚠️  function calls are not analyzed yet
-
-0 -> 8 member call = ???*0*["stringify"](
+0 -> 7 member call = ???*0*["stringify"](
     {
         "condition": ((???*1* | "true") === "true"),
         "buggedConditionalCheck": (???*3* ? "true" : "false")
@@ -31,6 +25,12 @@
 - *4* ???*5*["variable"]
   ⚠️  unknown object
 - *5* arguments[0]
+  ⚠️  function calls are not analyzed yet
+
+7 -> 8 conditional = ((???*0* | "true") === "true")
+- *0* ???*1*["variable"]
+  ⚠️  unknown object
+- *1* arguments[0]
   ⚠️  function calls are not analyzed yet
 
 0 -> 9 unreachable = ???*0*

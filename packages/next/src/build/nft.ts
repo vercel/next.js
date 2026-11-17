@@ -148,7 +148,13 @@ function mapBasePath(
   relativePath: string
 ): { source: string; destination: string } {
   const source = path.resolve(traceFileDirectory, relativePath)
-  return { source, destination: path.relative(baseRoot, source) }
+  // Both paths are resolved. Avoid resolving them again in path.relative for
+  // the common case, checking the separator so sibling prefixes do not match.
+  const destination =
+    source.startsWith(baseRoot) && source[baseRoot.length] === path.sep
+      ? source.slice(baseRoot.length + 1)
+      : path.relative(baseRoot, source)
+  return { source, destination }
 }
 
 function mapBasePathInsideRoot(
@@ -191,6 +197,7 @@ export function mapNftFileEntries(
   }
 ): MappedNftFileEntry[] {
   const traceFileDirectory = path.dirname(traceFilePath)
+  baseRoot = path.resolve(baseRoot)
   const roots = nft.additionalRoots ?? []
   const result: MappedNftFileEntry[] = []
 

@@ -6,3 +6,6 @@ services:
     image: with-docker-multi-env-production
     ports:
       - "3003:3000"
+    environment:
+      # Read from your shell, for example `API_SECRET=... make start-production`.
+      API_SECRET: ${API_SECRET:-}

@@ -2,7 +2,6 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::{
     atoms::atom,
-    base::SwcComments,
     common::{
         DUMMY_SP, Span,
         comments::{Comment, CommentKind, Comments},
@@ -18,6 +17,7 @@ use crate::{
     ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
+    swc_comments::MutableComments,
 };
 
 #[derive(PartialEq, Eq, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode)]
@@ -37,7 +37,7 @@ impl MemberReplacement {
         trie: &AstPathTrie,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
-        let comments = SwcComments::default();
+        let comments = MutableComments::new();
 
         let key = self.key.clone();
         let value = self.value.clone();

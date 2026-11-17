@@ -205,9 +205,11 @@ fn is_empty_dir_tree(dir_entries: impl IntoIterator<Item = io::Result<fs::DirEnt
     true
 }
 
-#[testing::fixture("tests/snapshot/*/*/input/index.js", exclude("node_modules"))]
+// Match each fixture's `input` directory rather than a specific entry file, so that fixtures
+// configuring a custom `entry` in `options.json` are discovered too.
+#[testing::fixture("tests/snapshot/*/*/input", exclude("node_modules"))]
 fn test(resource: PathBuf) {
-    let resource = resource.parent().unwrap().parent().unwrap().to_path_buf();
+    let resource = resource.parent().unwrap().to_path_buf();
     let resource = canonicalize(resource).unwrap();
 
     let mut has_output_dir = false;

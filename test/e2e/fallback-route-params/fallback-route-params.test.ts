@@ -15,6 +15,8 @@ describe('Fallback Dynamic Route Params', () => {
 
   it('should have correct fallback query (hydration)', async () => {
     const browser = await next.browser('/second')
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const initialSlug = await browser.eval(() => (window as any).initialSlug)
     expect(initialSlug).toBeFalsy()
 

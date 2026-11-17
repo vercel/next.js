@@ -35,6 +35,8 @@ const overrideBooleanDescriptor = (
     if (descriptor) {
       Object.defineProperty(target, property, descriptor)
     } else {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       delete (target as any)[property]
     }
   })

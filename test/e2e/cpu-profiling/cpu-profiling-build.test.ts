@@ -38,13 +38,27 @@ describe('CPU Profiling - next build', () => {
     // Main profile should always exist
     expect(cpuProfiles.some((f) => f.startsWith('build-main-'))).toBe(true)
 
+    // `next.config.js` pins `experimental.cpus` to 2, so the build starts
+    // exactly two static workers. Each must write its own profile; the PID in
+    // the filename keeps workers that exit in the same second from colliding.
+    const staticWorkerProfiles = cpuProfiles.filter((f) =>
+      f.startsWith('build-static-worker-')
+    )
+    expect(staticWorkerProfiles).toHaveLength(2)
+    const staticWorkerPids = staticWorkerProfiles.map(
+      (f) => /-(\d+)\.cpuprofile$/.exec(f)?.[1]
+    )
+    expect(staticWorkerPids).not.toContain(undefined)
+    expect(new Set(staticWorkerPids).size).toBe(2)
+
     if (isTurbopack) {
-      // Turbopack builds in the main build process, so `build-main` is the only
-      // profile.
-      expect(cpuProfiles.length).toBe(1)
+      // Turbopack builds in the main build process, so the profiles are
+      // build-main plus the two static workers.
+      expect(cpuProfiles.length).toBe(3)
     } else {
-      // Webpack mode generates: build-main, build-webpack-client, build-webpack-server, build-webpack-edge-server
-      expect(cpuProfiles.length).toBe(4)
+      // Webpack mode additionally generates build-webpack-client,
+      // build-webpack-server and build-webpack-edge-server.
+      expect(cpuProfiles.length).toBe(6)
       expect(
         cpuProfiles.some((f) => f.startsWith('build-webpack-client-'))
       ).toBe(true)
@@ -54,6 +68,12 @@ describe('CPU Profiling - next build', () => {
       expect(
         cpuProfiles.some((f) => f.startsWith('build-webpack-edge-server-'))
       ).toBe(true)
+    }
+
+    for (const file of cpuProfiles) {
+      const profile = JSON.parse(await readFile(join(profileDir, file), 'utf8'))
+      expect(Array.isArray(profile.nodes)).toBe(true)
+      expect(profile.nodes.length).toBeGreaterThan(0)
     }
   })
 })
