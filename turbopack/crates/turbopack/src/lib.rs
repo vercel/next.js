@@ -157,9 +157,8 @@ async fn apply_module_type(
             let mut builder = EcmascriptModuleAsset::builder(
                 source,
                 ResolvedVc::upcast(context_for_module),
-                preprocess
-                    .extend(**main)
-                    .extend(**postprocess)
+                concat_transforms([*preprocess, *main, *postprocess])
+                    .await?
                     .to_resolved()
                     .await?,
                 *options,
@@ -478,6 +477,18 @@ async fn process_default(
     .await
 }
 
+/// Concatenates the given transform lists (in order) into a single interned
+/// [`EcmascriptInputTransforms`] cell.
+async fn concat_transforms(
+    parts: impl IntoIterator<Item = ResolvedVc<EcmascriptInputTransforms>>,
+) -> Result<Vc<EcmascriptInputTransforms>> {
+    let mut transforms = Vec::new();
+    for part in parts {
+        transforms.extend(part.await?.iter().cloned());
+    }
+    Ok(EcmascriptInputTransforms::new(transforms))
+}
+
 /// Apply collected transforms to a module type.
 /// For Ecmascript/Typescript variants: merge collected transforms into the module type.
 /// For Custom: call extend_ecmascript_transforms() if any transforms exist.
@@ -525,42 +536,39 @@ async fn apply_module_rule_transforms(
             ..
         } => {
             // Apply collected preprocess/main in order, then module type's transforms
-            let mut final_preprocess = EcmascriptInputTransforms::empty();
-            for vc in collected_preprocess.drain(..) {
-                final_preprocess = final_preprocess.extend(*vc);
+            if !collected_preprocess.is_empty() {
+                collected_preprocess.push(*preprocess);
+                *preprocess = concat_transforms(collected_preprocess.drain(..))
+                    .await?
+                    .to_resolved()
+                    .await?;
             }
-            final_preprocess = final_preprocess.extend(**preprocess);
-            *preprocess = final_preprocess.to_resolved().await?;
 
-            let mut final_main = EcmascriptInputTransforms::empty();
-            for vc in collected_main.drain(..) {
-                final_main = final_main.extend(*vc);
+            if !collected_main.is_empty() {
+                collected_main.push(*main);
+                *main = concat_transforms(collected_main.drain(..))
+                    .await?
+                    .to_resolved()
+                    .await?;
             }
-            final_main = final_main.extend(**main);
-            *main = final_main.to_resolved().await?;
 
             // Apply module type's postprocess first, then collected postprocess
-            let mut final_postprocess = **postprocess;
-            for vc in collected_postprocess.drain(..) {
-                final_postprocess = final_postprocess.extend(*vc);
+            if !collected_postprocess.is_empty() {
+                *postprocess = concat_transforms(
+                    std::iter::once(*postprocess).chain(collected_postprocess.drain(..)),
+                )
+                .await?
+                .to_resolved()
+                .await?;
             }
-            *postprocess = final_postprocess.to_resolved().await?;
         }
         ModuleType::Custom(custom_module_type) => {
             if has_transforms {
                 // Combine collected transforms into single Vcs
-                let mut combined_preprocess = EcmascriptInputTransforms::empty();
-                for vc in collected_preprocess.drain(..) {
-                    combined_preprocess = combined_preprocess.extend(*vc);
-                }
-                let mut combined_main = EcmascriptInputTransforms::empty();
-                for vc in collected_main.drain(..) {
-                    combined_main = combined_main.extend(*vc);
-                }
-                let mut combined_postprocess = EcmascriptInputTransforms::empty();
-                for vc in collected_postprocess.drain(..) {
-                    combined_postprocess = combined_postprocess.extend(*vc);
-                }
+                let combined_preprocess = concat_transforms(collected_preprocess.drain(..)).await?;
+                let combined_main = concat_transforms(collected_main.drain(..)).await?;
+                let combined_postprocess =
+                    concat_transforms(collected_postprocess.drain(..)).await?;
 
                 match custom_module_type
                     .extend_ecmascript_transforms(
