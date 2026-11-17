@@ -1593,15 +1593,17 @@ pub async fn resolve_raw(
         request: RcStr,
         path: &FileSystemPath,
         collect_affecting_sources: bool,
-    ) -> Result<ResolveResult> {
+    ) -> Result<Option<ResolveResult>> {
         let result = &*path.realpath_with_links().await?;
         let path = match &result.path_result {
             Ok(path) => path,
-            Err(error) => bail!(error.clone()),
+            // Treat matches whose symlinks cannot be resolved (e.g. a dangling symlink) as
+            // missing files instead of failing.
+            Err(_) => return Ok(None),
         };
         let request_key = RequestKey::new(request);
         let source = ResolvedVc::upcast(FileSource::new(path.clone()).to_resolved().await?);
-        Ok(if collect_affecting_sources {
+        Ok(Some(if collect_affecting_sources {
             ResolveResult::source_with_affecting_sources(
                 request_key,
                 source,
@@ -1617,7 +1619,7 @@ pub async fn resolve_raw(
             )
         } else {
             ResolveResult::source_with_key(request_key, source)
-        })
+        }))
     }
 
     async fn collect_matches(
@@ -1628,7 +1630,7 @@ pub async fn resolve_raw(
             .iter()
             .map(async |m| {
                 Ok(if let PatternMatch::File(request, path) = m {
-                    Some(to_result(request.clone(), path, collect_affecting_sources).await?)
+                    to_result(request.clone(), path, collect_affecting_sources).await?
                 } else {
                     None
                 })
@@ -4289,7 +4291,10 @@ mod tests {
 
     #[turbo_tasks::function]
     fn fs() -> Vc<Box<dyn FileSystem>> {
-        Vc::upcast(DiskFileSystem::new(rcstr!("temp"), Vc::cell(fs_path())))
+        Vc::upcast(DiskFileSystem::new(
+            rcstr!("temp"),
+            Vc::cell(rcstr!("/tmp/_mdt")),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -4301,10 +4306,6 @@ mod tests {
         let source = VirtualSource::new(path, *content);
         let module = RawModule::new(Vc::upcast(source)).to_resolved().await?;
         Ok(Vc::upcast(*module))
-    }
-
-    fn fs_path() -> RcStr {
-        rcstr!("/tmp/_mdt")
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

@@ -34,7 +34,7 @@ use crate::{
 /// so the two cannot drift apart. Today that always resolves back to this name — see
 /// `get_exports` for why — but wiring it through means mangling starts applying to both sides
 /// together the moment it becomes possible, with no further change here.
-pub const COLLECT_LIST_EXPORT: RcStr = rcstr!("getList");
+pub static COLLECT_LIST_EXPORT: RcStr = rcstr!("getList");
 
 #[turbo_tasks::value]
 pub struct EcmascriptCollectModule {
@@ -174,8 +174,8 @@ impl EcmascriptChunkPlaceable for EcmascriptCollectModuleWithChunkGroup {
         EcmascriptExports::EsmExports(
             EsmExports {
                 exports: [(
-                    COLLECT_LIST_EXPORT,
-                    EsmExport::LocalBinding(COLLECT_LIST_EXPORT, Liveness::Constant),
+                    COLLECT_LIST_EXPORT.clone(),
+                    EsmExport::LocalBinding(COLLECT_LIST_EXPORT.clone(), Liveness::Constant),
                 )]
                 .into(),
                 star_exports: vec![],

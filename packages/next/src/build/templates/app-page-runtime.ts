@@ -89,6 +89,7 @@ import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags' with { 'tu
 import { sendRenderResult } from '../../server/send-payload' with { 'turbopack-transition': 'next-server-utility' }
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external' with { 'turbopack-transition': 'next-server-utility' }
 import { isRouteCacheOwner } from '../../server/lib/route-cache-key' with { 'turbopack-transition': 'next-server-utility' }
+import { getRscPrerenderCompleteness } from '../../server/lib/prerender-rsc-completeness' with { 'turbopack-transition': 'next-server-utility' }
 import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit' with { 'turbopack-transition': 'next-server-utility' }
 import {
   getMaxPostponedStateSize,
@@ -102,7 +103,7 @@ import { RedirectStatusCode } from '../../client/components/redirect-status-code
 import { InvariantError } from '../../shared/lib/invariant-error' with { 'turbopack-transition': 'next-server-utility' }
 import { scheduleOnNextTick } from '../../lib/scheduler' with { 'turbopack-transition': 'next-server-utility' }
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param' with { 'turbopack-transition': 'next-server-utility' }
-import { createTurbopackBootstrapScriptStreamForPage } from '../../server/app-render/turbopack-bootstrap-script' with { 'turbopack-transition': 'next-server-utility' }
+import { createTurbopackBootstrapStreamForPage } from '../../server/app-render/turbopack-bootstrap-script' with { 'turbopack-transition': 'next-server-utility' }
 import { getScriptNonceFromHeaders } from '../../server/app-render/get-script-nonce-from-header' with { 'turbopack-transition': 'next-server-utility' }
 
 type AppPageRenderOperation = 'render' | 'prerender'
@@ -242,8 +243,10 @@ export function createAppPageEntrypoint({
     // `BaseServer.handleRequest`, which records the target before normalization.
     const httpTarget = req.url
 
-    const multiZoneDraftMode = process.env
-      .__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
+    const multiZoneDraftMode =
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
+      process.env.__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
 
     // Registering `instrumentation.ts` usually installs the tracer provider, so
     // do it before starting the request span. The span is started before
@@ -356,11 +359,9 @@ export function createAppPageEntrypoint({
     const userAgent = req.headers['user-agent'] || ''
     const botType = getBotType(userAgent)
 
-    /**
-     * If true, this indicates that the request being made is for an app
-     * prefetch request.
-     */
-    const isPrefetchRSCRequest =
+    // Static prefetches include segment requests and legacy loading-boundary
+    // prefetches.
+    const isStaticPrefetchRequest =
       getRequestMeta(req, 'isPrefetchRSCRequest') ??
       // Runtime prefetches use the other values, so they're excluded.
       req.headers[NEXT_ROUTER_PREFETCH_HEADER] === NEXT_ROUTER_PREFETCH_STATIC
@@ -393,11 +394,7 @@ export function createAppPageEntrypoint({
       return null
     }
 
-    /**
-     * If the route being rendered is an app page, and the ppr feature has been
-     * enabled, then the given route _could_ support PPR.
-     */
-    const couldSupportPPR: boolean = Boolean(nextConfig.cacheComponents)
+    const isPPREnabled: boolean = Boolean(nextConfig.cacheComponents)
 
     // Stash postponed state for server actions when in minimal mode.
     // We extract it here so the RDC is available for the re-render after the action completes.
@@ -405,7 +402,7 @@ export function createAppPageEntrypoint({
     if (
       !getRequestMeta(req, 'postponed') &&
       isMinimalMode &&
-      couldSupportPPR &&
+      isPPREnabled &&
       isPossibleServerAction &&
       resumeStateLengthHeader &&
       typeof resumeStateLengthHeader === 'string'
@@ -469,7 +466,7 @@ export function createAppPageEntrypoint({
 
     if (
       typeof getRequestMeta(req, 'postponed') !== 'string' &&
-      couldSupportPPR &&
+      isPPREnabled &&
       req.headers[NEXT_RESUME_HEADER] === '1' &&
       req.method === 'POST'
     ) {
@@ -496,7 +493,7 @@ export function createAppPageEntrypoint({
     const hasDebugStaticShellQuery =
       process.env.__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING === '1' &&
       typeof query.__nextppronly !== 'undefined' &&
-      couldSupportPPR
+      isPPREnabled
 
     // When enabled, this will allow the use of the `?__nextppronly` query
     // to enable debugging of the fallback shell.
@@ -528,50 +525,44 @@ export function createAppPageEntrypoint({
         req.headers[NEXT_ROUTER_PREFETCH_HEADER] ===
           NEXT_ROUTER_PREFETCH_STATIC)
 
-    // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
-    // prerender manifest and this is an app page.
-    const isRoutePPREnabled: boolean =
-      couldSupportPPR &&
-      ((
-        prerenderManifest.routes[normalizedSrcPage] ??
-        prerenderManifest.dynamicRoutes[normalizedSrcPage]
-      )?.renderingMode === 'PARTIALLY_STATIC' ||
-        // Ideally we'd want to check the appConfig to see if this page has PPR
-        // enabled or not, but that would require plumbing the appConfig through
-        // to the server during development. We assume that the page supports it
-        // but only during development or when the testing API is exposed.
-        ((hasDebugStaticShellQuery || isInstantNavigationTest) &&
-          (exposeTestingApi ||
-            routerServerContext?.experimentalTestProxy === true)))
-
     const isDebugStaticShell: boolean =
-      (hasDebugStaticShellQuery || isInstantNavigationTest) && isRoutePPREnabled
+      (hasDebugStaticShellQuery || isInstantNavigationTest) && isPPREnabled
 
     // We should enable debugging dynamic accesses when the static shell
     // debugging has been enabled and we're also in development mode.
     const isDebugDynamicAccesses =
       isDebugStaticShell && routeModule.isDev === true
 
-    const isDebugFallbackShell = hasDebugFallbackShellQuery && isRoutePPREnabled
+    const isDebugFallbackShell = hasDebugFallbackShellQuery && isPPREnabled
     const isDebugPrerender =
       isDebugStaticShell || isDebugDynamicAccesses || isDebugFallbackShell
 
     // If we're in minimal mode, then try to get the postponed information from
     // the request metadata. If available, use it for resuming the postponed
     // render.
-    const minimalPostponed = isRoutePPREnabled
+    const minimalPostponed = isPPREnabled
       ? getRequestMeta(req, 'postponed')
       : undefined
     // An empty string requests a dynamic render without cached postponed state.
     const hasPostponedState = typeof minimalPostponed === 'string'
 
     const staticPrefetchDataRoute = prerenderedRoute?.prefetchDataRoute
-    const isEnsureStaticPage = prerenderInfo?._isEnsureStaticPage === true
+    const prerenderManifestEntry =
+      prerenderedRoute ?? prerenderInfo ?? undefined
+    const isEnsureStaticPage =
+      prerenderManifestEntry?._isEnsureStaticPage === true
+    const rscPrerenderCompleteness = getRscPrerenderCompleteness(
+      prerenderManifestEntry
+    )
+    const shouldBlockOnPrerender =
+      rscPrerenderCompleteness === 'complete' ||
+      isEnsureStaticPage ||
+      prerenderManifestEntry?.compute === 'blocking'
 
     const isDynamicRSCRequest =
-      isRoutePPREnabled &&
+      isPPREnabled &&
       isRSCRequest &&
-      !isPrefetchRSCRequest &&
+      !isStaticPrefetchRequest &&
       // In minimal mode, supplied postponed state takes precedence over
       // `staticPrefetchDataRoute`. The build sets that value when it emits a
       // complete RSC file. Revalidation can produce a partial result for the
@@ -591,7 +582,7 @@ export function createAppPageEntrypoint({
       req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]
     const segmentPrefetchHeader =
       getRequestMeta(req, 'segmentPrefetchRSCRequest') ??
-      (isPrefetchRSCRequest
+      (isStaticPrefetchRequest
         ? typeof rawSegmentPrefetchHeader === 'string'
           ? rawSegmentPrefetchHeader
           : Array.isArray(rawSegmentPrefetchHeader)
@@ -611,8 +602,7 @@ export function createAppPageEntrypoint({
     // Blocking metadata resolved during the resume would therefore be emitted
     // after the head, where HTML-limited bots cannot observe it. Bypass the
     // shell so blocking metadata is included in the initial document head.
-    const shouldForceDynamicPPRRender =
-      isRoutePPREnabled && !serveStreamingMetadata
+    const shouldForceDynamicPPRRender = isPPREnabled && !serveStreamingMetadata
 
     const isSSG = Boolean(
       (prerenderInfo ||
@@ -637,7 +627,7 @@ export function createAppPageEntrypoint({
       // If this handler supports onCacheEntryV2, then we can only support
       // dynamic responses if it's a dynamic RSC request and not in minimal mode. If it
       // doesn't support it we must fallback to the default behavior.
-      (isRoutePPREnabled && getRequestMeta(req, 'onCacheEntryV2')
+      (isPPREnabled && getRequestMeta(req, 'onCacheEntryV2')
         ? // In minimal mode, we'll always want to generate a static response
           // which will generate the RDC for the route. When resuming a Dynamic
           // RSC request, we'll pass the minimal postponed data to the render
@@ -645,6 +635,22 @@ export function createAppPageEntrypoint({
           isDynamicRSCRequest && !isMinimalMode
         : // Otherwise, we can support dynamic responses if it's a dynamic RSC request.
           isDynamicRSCRequest)
+
+    const canRenderDynamicRSCForPPRRoute =
+      // Prerendered PPR routes served by next start.
+      isPPREnabled &&
+      isSSG &&
+      !routeModule.isDev &&
+      !isDraftMode &&
+      !isMinimalMode &&
+      // Navigations and runtime prefetches.
+      req.method === 'GET' &&
+      isRSCRequest &&
+      !isStaticPrefetchRequest &&
+      // Explicit prerender policies keep their existing rendering paths.
+      !isEnsureStaticPage &&
+      !isOnDemandRevalidate &&
+      !isDebugPrerender
 
     const remainingPrerenderableParams =
       prerenderInfo?.remainingPrerenderableParams ?? []
@@ -726,10 +732,16 @@ export function createAppPageEntrypoint({
       !isDynamicRSCRequest
     ) {
       if (shellCacheKey !== null) {
-        // Normal fallback serving uses the source shell's separate cache
-        // lookup. Explicit revalidation skips that path, so it must write the
-        // source key here even when no params can be completed.
-        if (shellCacheKey !== fallbackPathname || isOnDemandRevalidate) {
+        if (
+          shellCacheKey !== fallbackPathname ||
+          // Explicit revalidation uses the source key because it bypasses the
+          // separate fallback lookup below.
+          isOnDemandRevalidate ||
+          // Requests for the source shell need a key in minimal mode so output
+          // handlers can reuse one prerender. Minimal mode bypasses the
+          // separate fallback lookup below.
+          (isMinimalMode && resolvedPathname === fallbackPathname)
+        ) {
           ssgCacheKey = shellCacheKey
           usesShellCacheKey = true
         }
@@ -759,15 +771,17 @@ export function createAppPageEntrypoint({
       staticPathKey = resolvedPathname
     }
 
-    // If this is a request for an app path that should be statically generated
-    // and we aren't in the edge runtime, strip the flight headers so it will
-    // generate the static response.
+    // The shared prerender produces both HTML and RSC. Requests eligible for a
+    // dynamic RSC render keep their original Flight headers here. doRender
+    // strips a copy for their prerenders so the dynamic render can use the
+    // caller's router state and prefetch stage.
     if (
       !routeModule.isDev &&
       !isDraftMode &&
       isSSG &&
       isRSCRequest &&
-      !isDynamicRSCRequest
+      !isDynamicRSCRequest &&
+      !canRenderDynamicRSCForPPRRoute
     ) {
       stripFlightHeaders(req.headers)
     }
@@ -894,6 +908,8 @@ export function createAppPageEntrypoint({
         ))
 
       incrementalCache?.resetRequestCache()
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       ;(globalThis as any).__incrementalCache = incrementalCache
 
       const doRender = async ({
@@ -903,13 +919,16 @@ export function createAppPageEntrypoint({
         stagedFallbackParams,
         renderOperation,
         allowEmptyStaticShell,
+        supportsDynamicResponse:
+          supportsDynamicResponseForRender = supportsDynamicResponse,
       }: {
         span?: Span
         allowEmptyStaticShell?: boolean
+        supportsDynamicResponse?: boolean
 
         /**
-         * The postponed data for this render. This is only provided when resuming
-         * a render that has been postponed.
+         * The serialized postponed data includes the Resume Data Cache and,
+         * when present, React's postponed state for resuming HTML.
          */
         postponed: string | undefined
 
@@ -925,12 +944,17 @@ export function createAppPageEntrypoint({
 
         renderOperation: AppPageRenderOperation
       }): Promise<ResponseCacheEntry | PrerenderFailure> => {
-        // A static page may have stripped Flight headers before reaching this
-        // render. Parse only when the response cache invokes the render.
+        let renderHeaders = req.headers
+        if (renderOperation === 'prerender') {
+          // Prerenders parse a copy without Flight headers. Request-specific
+          // renders retain the caller's router state and prefetch stage.
+          renderHeaders = { ...renderHeaders }
+          stripFlightHeaders(renderHeaders)
+        }
         const parsedRequestHeaders: ParsedRequestHeaders = parseRequestHeaders(
-          req.headers,
+          renderHeaders,
           {
-            isRoutePPREnabled,
+            isRoutePPREnabled: isPPREnabled,
             previewModeId: previewProps?.previewModeId,
           }
         )
@@ -974,7 +998,8 @@ export function createAppPageEntrypoint({
             serveStreamingMetadata,
             supportsDynamicResponse:
               renderOperation === 'render' &&
-              (typeof postponed === 'string' || supportsDynamicResponse),
+              (typeof postponed === 'string' ||
+                supportsDynamicResponseForRender),
             buildManifest,
             nextFontManifest,
             reactLoadableManifest,
@@ -1055,7 +1080,7 @@ export function createAppPageEntrypoint({
             validationLevel:
               nextConfig.experimental.instantInsights.validationLevel,
             experimental: {
-              isRoutePPREnabled,
+              isRoutePPREnabled: isPPREnabled,
               expireTime: nextConfig.expireTime,
               staleTimes: nextConfig.experimental.staleTimes,
               dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
@@ -1122,6 +1147,8 @@ export function createAppPageEntrypoint({
 
         // Keep recovery output separate from successful response cache entries.
         if ('error' in result) {
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           ;(req as any).fetchMetrics = result.result.metadata.fetchMetrics
           return result
         }
@@ -1158,6 +1185,8 @@ export function createAppPageEntrypoint({
         }
 
         // Pull any fetch metrics from the render onto the request.
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(req as any).fetchMetrics = fetchMetrics
 
         // we don't throw static to dynamic errors in dev as isSSG
@@ -1167,7 +1196,7 @@ export function createAppPageEntrypoint({
           isSSG &&
           cacheControl?.revalidate === 0 &&
           !routeModule.isDev &&
-          !isRoutePPREnabled
+          !isPPREnabled
         ) {
           const staticBailoutInfo = metadata.staticBailoutInfo
 
@@ -1287,7 +1316,7 @@ export function createAppPageEntrypoint({
           // PPR, preserve the existing behavior for built-in bots.
           if (
             fallbackMode === FallbackMode.PRERENDER &&
-            (isRoutePPREnabled ? !serveStreamingMetadata : Boolean(botType))
+            (isPPREnabled ? !serveStreamingMetadata : Boolean(botType))
           ) {
             fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
           }
@@ -1315,10 +1344,10 @@ export function createAppPageEntrypoint({
             pageIsDynamic &&
             (isProduction || !isPrerendered)
           ) {
-            // Serve the fallback for document and static RSC requests. Dynamic
-            // RSC requests render separately and can reuse the RDC from cached
-            // postponed state.
-            if (isRoutePPREnabled && !isDynamicRSCRequest) {
+            // Documents and static prefetches can use the generic shell.
+            // Navigations and runtime prefetches need a response that resolves
+            // the data required at their request stage.
+            if (isPPREnabled && (!isRSCRequest || isStaticPrefetchRequest)) {
               const cacheKey =
                 isProduction && typeof prerenderInfo?.fallback === 'string'
                   ? prerenderInfo.fallback
@@ -1371,7 +1400,7 @@ export function createAppPageEntrypoint({
                 isFallback: true,
                 previewProps,
                 prerenderManifest,
-                isRoutePPREnabled,
+                isRoutePPREnabled: isPPREnabled,
                 responseGenerator: async () =>
                   doRender({
                     span,
@@ -1402,7 +1431,7 @@ export function createAppPageEntrypoint({
               if (fallbackResponse) {
                 if (
                   !isMinimalMode &&
-                  isRoutePPREnabled &&
+                  isPPREnabled &&
                   // Upgrading a fallback shell into a more specific ISR entry is
                   // only done when Partial Prefetching is enabled, mirroring the
                   // `partialFallback` flag the adapter emits for deployments.
@@ -1434,7 +1463,7 @@ export function createAppPageEntrypoint({
                       const result = await responseCache.revalidate(
                         ssgCacheKey,
                         incrementalCache,
-                        isRoutePPREnabled,
+                        isPPREnabled,
                         false,
                         (c) => {
                           return doRender({
@@ -1467,17 +1496,21 @@ export function createAppPageEntrypoint({
                   })
                 }
 
-                // Remove the cache control from the response to prevent it from being
-                // used in the surrounding cache.
-                delete fallbackResponse.cacheControl
-
-                return fallbackResponse
+                // The outer cache must not store this generic shell for the
+                // concrete URL. isFallback identifies the shell for concurrent
+                // navigations and runtime prefetches, even when its HTML is
+                // complete.
+                return {
+                  ...fallbackResponse,
+                  cacheControl: undefined,
+                  isFallback: true,
+                }
               }
             }
           }
 
-          // Only requests that aren't revalidating can be resumed. If we have the
-          // minimal postponed data, then we should resume the render with it.
+          // Request-specific renders reuse the supplied postponed state.
+          // Revalidation prerenders produce new state instead.
           let postponed =
             !isOnDemandRevalidate && !isRevalidating && minimalPostponed
               ? minimalPostponed
@@ -1489,7 +1522,7 @@ export function createAppPageEntrypoint({
             // postponed state to keep cached values consistent with the
             // prerender. Draft mode requests render fresh values without this
             // published RDC.
-            isRoutePPREnabled &&
+            isPPREnabled &&
             !isDraftMode &&
             process.env.NEXT_RUNTIME !== 'edge' &&
             !isMinimalMode &&
@@ -1504,7 +1537,7 @@ export function createAppPageEntrypoint({
             !forceStaticRender
           ) {
             const incrementalCacheKey = shellCacheKey ?? resolvedPathname
-            const incrementalCacheEntry = await incrementalCache.get(
+            let incrementalCacheEntry = await incrementalCache.get(
               incrementalCacheKey,
               {
                 kind: IncrementalCacheKind.APP_PAGE,
@@ -1514,6 +1547,33 @@ export function createAppPageEntrypoint({
               }
             )
 
+            // The blocking policy applies when cached output is missing or
+            // expired. The response cache coalesces concurrent prerenders for
+            // this key.
+            if (
+              (incrementalCacheEntry === null ||
+                incrementalCacheEntry.isStale === -1) &&
+              canRenderDynamicRSCForPPRRoute &&
+              shouldBlockOnPrerender
+            ) {
+              const result = await routeModule
+                .getResponseCache(req)
+                .revalidate(
+                  incrementalCacheKey,
+                  incrementalCache,
+                  isPPREnabled,
+                  false,
+                  (c) => responseGenerator({ ...c, forceStaticRender: true }),
+                  null,
+                  hasResolved,
+                  ctx.waitUntil
+                )
+              if (result !== null && 'error' in result) {
+                return result
+              }
+              incrementalCacheEntry = result
+            }
+
             // If the cache entry is found, we should use the postponed data from
             // the cache.
             if (
@@ -1521,8 +1581,8 @@ export function createAppPageEntrypoint({
               incrementalCacheEntry.value &&
               incrementalCacheEntry.value.kind === CachedRouteKind.APP_PAGE
             ) {
-              // CRITICAL: we're assigning the postponed data from the cache entry
-              // here as we're using the RDC to resume the render.
+              // A dynamic RSC render can reuse the Resume Data Cache in this
+              // postponed data.
               postponed = incrementalCacheEntry.value.postponed
               hasFullyStaticCacheEntry = postponed === undefined
 
@@ -1530,6 +1590,7 @@ export function createAppPageEntrypoint({
               // navigations and runtime prefetches.
               if (
                 hasFullyStaticCacheEntry &&
+                !incrementalCacheEntry.isFallback &&
                 incrementalCacheEntry.value.rscData !== undefined &&
                 !incrementalCacheEntry.isStale &&
                 isSSG &&
@@ -1546,54 +1607,62 @@ export function createAppPageEntrypoint({
                 isDynamicRSCResponse = false
                 return toResponseCacheEntry(incrementalCacheEntry)
               }
+            }
 
-              // If the cache entry is stale, we should trigger a background
-              // revalidation so that subsequent requests will get a fresh response.
-              if (
-                incrementalCacheEntry &&
-                // We want to trigger this flow if the cache entry is stale and if
-                // the requested revalidation flow is either foreground or
-                // background.
-                (incrementalCacheEntry.isStale === -1 ||
-                  incrementalCacheEntry.isStale === true)
-              ) {
-                // We want to schedule this on the next tick to ensure that the
-                // render is not blocked on it.
-                scheduleOnNextTick(async () => {
-                  const responseCache = routeModule.getResponseCache(req)
+            // Regenerate stale entries without blocking this request.
+            const hasStalePrerender =
+              incrementalCacheEntry?.value?.kind === CachedRouteKind.APP_PAGE &&
+              (incrementalCacheEntry.isStale === -1 ||
+                incrementalCacheEntry.isStale === true)
 
-                  try {
-                    const result = await responseCache.revalidate(
-                      incrementalCacheKey,
-                      incrementalCache,
-                      isRoutePPREnabled,
-                      false,
-                      (c) =>
-                        responseGenerator({
-                          ...c,
-                          // CRITICAL: we need to set this to true as we're
-                          // revalidating in the background and typically this dynamic
-                          // RSC request is not treated as static.
-                          forceStaticRender: true,
-                        }),
-                      // CRITICAL: we need to pass null here because passing the
-                      // previous cache entry here (which is stale) will switch on
-                      // isOnDemandRevalidate and break the prerendering.
-                      null,
-                      hasResolved,
-                      ctx.waitUntil
-                    )
-                    if (result !== null && 'error' in result) {
-                      throw result.error
-                    }
-                  } catch (err) {
-                    console.error(
-                      'Error revalidating the page in the background',
-                      err
-                    )
+            // An `empty` build output may still require dynamic RSC after a
+            // cache fill. Render this request independently while a background
+            // prerender fills the shared cache. Complete outputs and explicit
+            // blocking policies use the awaited prerender above. Unclassified
+            // outputs keep the existing cache miss behavior.
+            const shouldPrerenderMissInBackground =
+              incrementalCacheEntry === null &&
+              canRenderDynamicRSCForPPRRoute &&
+              rscPrerenderCompleteness === 'empty' &&
+              !shouldBlockOnPrerender
+
+            // Subsequent requests can use the new prerender. Dynamic RSC
+            // renders do not populate this shared cache.
+            if (hasStalePrerender || shouldPrerenderMissInBackground) {
+              // Schedule the prerender after this request's render can start.
+              scheduleOnNextTick(async () => {
+                const responseCache = routeModule.getResponseCache(req)
+
+                try {
+                  const result = await responseCache.revalidate(
+                    incrementalCacheKey,
+                    incrementalCache,
+                    isPPREnabled,
+                    false,
+                    (c) =>
+                      responseGenerator({
+                        ...c,
+                        // Prerender even though the request supports dynamic
+                        // rendering.
+                        forceStaticRender: true,
+                      }),
+                    // responseGenerator treats isStale === -1 as on-demand
+                    // revalidation. Pass null so background work does not
+                    // change this request's revalidation mode.
+                    null,
+                    hasResolved,
+                    ctx.waitUntil
+                  )
+                  if (result !== null && 'error' in result) {
+                    throw result.error
                   }
-                })
-              }
+                } catch (err) {
+                  console.error(
+                    'Error revalidating the page in the background',
+                    err
+                  )
+                }
+              })
             }
           }
 
@@ -1774,7 +1843,7 @@ export function createAppPageEntrypoint({
       const invokeOnCacheEntry = (cacheEntry: ResponseCacheEntry) => {
         // Prefer onCacheEntryV2 for PPR entries so the callback can receive
         // postponed state for both document and RSC requests.
-        const onCacheEntry = isRoutePPREnabled
+        const onCacheEntry = isPPREnabled
           ? (getRequestMeta(req, 'onCacheEntryV2') ??
             getRequestMeta(req, 'onCacheEntry'))
           : getRequestMeta(req, 'onCacheEntry')
@@ -1873,7 +1942,7 @@ export function createAppPageEntrypoint({
           throw new NoFallbackError()
         }
 
-        const cacheEntry = await routeModule.handleResponse({
+        let cacheEntry = await routeModule.handleResponse({
           cacheKey: ssgCacheKey,
           responseGenerator: (c) =>
             responseGenerator({
@@ -1882,7 +1951,7 @@ export function createAppPageEntrypoint({
             }),
           routeKind: RouteKind.APP_PAGE,
           isOnDemandRevalidate,
-          isRoutePPREnabled,
+          isRoutePPREnabled: isPPREnabled,
           req,
           nextConfig,
           previewProps,
@@ -1890,6 +1959,35 @@ export function createAppPageEntrypoint({
           waitUntil: ctx.waitUntil,
           isMinimalMode,
         })
+
+        // Render dynamic RSC when the shared cache result cannot serve this
+        // request. Keep this render outside the response cache so concurrent
+        // callers use their own cookies and router state.
+        if (
+          canRenderDynamicRSCForPPRRoute &&
+          !isDynamicRSCResponse &&
+          cacheEntry !== null &&
+          !('error' in cacheEntry) &&
+          cacheEntry.value?.kind === CachedRouteKind.APP_PAGE
+        ) {
+          const cachedData = cacheEntry.value
+          const isPartialPrerender = typeof cachedData.postponed === 'string'
+          const hasRSCResponse =
+            cachedData.rscData !== undefined ||
+            cachedData.html.contentType === RSC_CONTENT_TYPE_HEADER
+
+          if (cacheEntry.isFallback || isPartialPrerender || !hasRSCResponse) {
+            cacheEntry = await doRender({
+              span,
+              postponed: cachedData.postponed,
+              fallbackRouteParams: null,
+              stagedFallbackParams: null,
+              renderOperation: 'render',
+              supportsDynamicResponse: true,
+            })
+            isDynamicRSCResponse = true
+          }
+        }
 
         if (cacheEntry !== null && 'error' in cacheEntry) {
           if (res.headersSent || res.writableEnded) {
@@ -2047,12 +2145,13 @@ export function createAppPageEntrypoint({
         // A static shell with postponed parts doesn't include the Turbopack
         // bootstrap: the resume emits it with the request's CSP nonce. When
         // such a shell is served without a resume, it has to be added.
-        const pushTurbopackBootstrapScript = (result: RenderResult) => {
+        const pushTurbopackBootstrap = (result: RenderResult) => {
           if (!didPostpone) return
-          const bootstrapScript = createTurbopackBootstrapScriptStreamForPage(
+          const bootstrapScript = createTurbopackBootstrapStreamForPage(
             buildManifest,
             srcPage,
-            getScriptNonceFromHeaders(req.headers)
+            getScriptNonceFromHeaders(req.headers),
+            nextConfig.experimental.externalBrowserRuntime === true
           )
           if (bootstrapScript) result.push(bootstrapScript)
         }
@@ -2073,7 +2172,7 @@ export function createAppPageEntrypoint({
           // If we served a static response, we should set the cache headers
           // regardless of whether it was a prefetch or navigation request.
           !isDynamicRSCResponse &&
-          (!didPostpone || isPrefetchRSCRequest)
+          (!didPostpone || isStaticPrefetchRequest)
         ) {
           if (!isMinimalMode) {
             // set x-nextjs-cache header to match the header
@@ -2210,7 +2309,7 @@ export function createAppPageEntrypoint({
         // status.
         if (
           cachedData.status &&
-          (!isRSCRequest || !isRoutePPREnabled) &&
+          (!isRSCRequest || !isPPREnabled) &&
           res.statusCode === 200
         ) {
           res.statusCode = cachedData.status
@@ -2392,7 +2491,7 @@ export function createAppPageEntrypoint({
           // Turbopack bootstrap is left out of the shell for the resume to
           // emit, so add it here. Append the closing tags so the browser can
           // parse a complete document.
-          pushTurbopackBootstrapScript(body)
+          pushTurbopackBootstrap(body)
           body.push(
             new ReadableStream({
               start(controller) {
@@ -2421,7 +2520,7 @@ export function createAppPageEntrypoint({
           if (
             process.env.__NEXT_TEST_MODE &&
             isMinimalMode &&
-            isRoutePPREnabled &&
+            isPPREnabled &&
             body.contentType === HTML_CONTENT_TYPE_HEADER
           ) {
             // As we're in minimal mode, the static part would have already been
@@ -2449,7 +2548,7 @@ export function createAppPageEntrypoint({
           // emit, so add it here. Since we're not resuming the render, we need
           // to at least add the closing body and html tags to create valid
           // HTML.
-          pushTurbopackBootstrapScript(body)
+          pushTurbopackBootstrap(body)
           body.push(
             new ReadableStream({
               start(controller) {

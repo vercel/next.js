@@ -235,6 +235,8 @@ describe('ReplayableNodeStream', () => {
 
       const replay = replayable.createReplayStream()
 
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       const subscribers = (replayable as any)._subscribers as Set<unknown>
       expect(subscribers.size).toBe(1)
 
@@ -255,6 +257,8 @@ describe('ReplayableNodeStream', () => {
 
       replayable.createReplayStream()
 
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       const subscribers = (replayable as any)._subscribers as Set<unknown>
       expect(subscribers.size).toBe(0)
     })
@@ -269,6 +273,8 @@ describe('ReplayableNodeStream', () => {
       const replay = replayable.createReplayStream()
       replay.on('error', () => {})
 
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       const subscribers = (replayable as any)._subscribers as Set<unknown>
       expect(subscribers.size).toBe(0)
     })
@@ -350,15 +356,23 @@ describe('ReplayableNodeStream', () => {
 
       const replay = replayable.createReplayStream()
 
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       expect((replayable as any)._chunks).not.toBeNull()
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       expect((replayable as any)._subscribers.size).toBe(1)
 
       replayable.dispose()
 
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       expect((replayable as any)._chunks).toBeNull()
       // Subscribers must NOT be cleared: the replay stream's onEnd subscriber
       // needs to remain active so the stream receives push(null) when the
       // source ends, otherwise the consumer never sees EOF.
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       expect((replayable as any)._subscribers.size).toBe(1)
 
       replay.destroy()

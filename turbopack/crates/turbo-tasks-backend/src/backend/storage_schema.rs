@@ -22,6 +22,7 @@ use std::{
     sync::Arc,
 };
 
+use auto_hash_map::EdgeSet;
 use parking_lot::Mutex;
 use rustc_hash::FxHasher;
 use turbo_tasks::{
@@ -75,7 +76,8 @@ struct TaskStorageSchema {
     #[field(storage = "direct", category = "meta", inline, default)]
     aggregation_number: AggregationNumber,
 
-    /// Tasks that depend on this task's output.
+    /// Tasks that depend on this task's output. Like all reverse edges, only added when the
+    /// forward edge is new, so entries are pushed (`push_output_dependent`) without a lookup.
 
     #[field(
         storage = "auto_set",
@@ -84,7 +86,7 @@ struct TaskStorageSchema {
         filter_transient,
         drop_on_completion_if_immutable
     )]
-    output_dependent: AutoSet<TaskId, 4>,
+    output_dependent: EdgeSet<TaskId, 4>,
 
     /// The task's output value.
     /// Filtered during serialization to skip transient outputs (referencing transient tasks).
@@ -110,6 +112,13 @@ struct TaskStorageSchema {
     /// Aggregated collectibles from the subgraph.
     #[field(storage = "counter_map", category = "meta", filter_transient)]
     aggregated_collectibles: CounterMap<CollectibleRef, i32, 1>,
+
+    /// Changes of this task's contribution to its uppers' aggregated collectibles that haven't
+    /// been sent to the uppers yet: while the task is dirty, these changes are netted here and
+    /// sent once, together with the update that makes the task clean (see
+    /// `aggregation_update::stage_outgoing_collectibles`).
+    #[field(storage = "counter_map", category = "meta", filter_transient)]
+    pending_collectibles: CounterMap<CollectibleRef, i32, 1>,
 
     /// Outdated collectibles to be cleaned up (transient).
     #[field(storage = "counter_map", category = "transient", shrink_on_completion)]
@@ -154,6 +163,12 @@ struct TaskStorageSchema {
     ///   root.
     #[field(storage = "direct", category = "transient", inline, default)]
     transient_ref_count: u32,
+
+    /// The active count: how many active tasks (or roots) keep this task active. Inline so that
+    /// tasks becoming active and inactive don't add and remove a lazy field. Holds
+    /// [`ACTIVE_COUNT_SPILLED`] while the count doesn't fit, see [`ActivenessAccessors`].
+    #[field(storage = "direct", category = "transient", inline, default)]
+    active_count: i16,
 
     // =========================================================================
     // FLAGS (meta) - Boolean flags stored in TaskFlags bitfield
@@ -249,7 +264,7 @@ struct TaskStorageSchema {
         filter_transient,
         shrink_on_completion
     )]
-    children: AutoSet<TaskId, 6>,
+    children: EdgeSet<TaskId, 6>,
 
     /// Follower nodes in the aggregation tree (reference counted).
     ///
@@ -269,7 +284,7 @@ struct TaskStorageSchema {
         shrink_on_completion,
         drop_on_completion_if_immutable
     )]
-    output_dependencies: AutoSet<TaskId, 6>,
+    output_dependencies: EdgeSet<TaskId, 6>,
 
     /// Cells this task depends on as a whole (keyless). The common case; kept separate from
     /// `cell_dependencies_keyed` so it stores a bare `CellRef` instead of a `(CellRef, CellKey)`
@@ -281,7 +296,7 @@ struct TaskStorageSchema {
         shrink_on_completion,
         drop_on_completion_if_immutable
     )]
-    cell_dependencies: AutoSet<CellRef, 3>,
+    cell_dependencies: EdgeSet<CellRef, 3>,
 
     /// Cells this task depends on with a `CellKey`. Rare.
     /// - `CellKeyKind::Hash`: narrowed to a hashed sub-value, only invalidated when it changes.
@@ -298,7 +313,7 @@ struct TaskStorageSchema {
         shrink_on_completion,
         drop_on_completion_if_immutable
     )]
-    cell_dependencies_keyed: AutoSet<(CellRef, CellKey), 1>,
+    cell_dependencies_keyed: EdgeSet<(CellRef, CellKey), 1>,
 
     /// Collectibles this task depends on.
     #[field(
@@ -308,7 +323,7 @@ struct TaskStorageSchema {
         shrink_on_completion,
         drop_on_completion_if_immutable
     )]
-    collectibles_dependencies: AutoSet<CollectiblesRef, 3>,
+    collectibles_dependencies: EdgeSet<CollectiblesRef, 3>,
 
     /// Outdated output dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient", drop_on_completion)]
@@ -332,30 +347,44 @@ struct TaskStorageSchema {
     /// Tasks that depend on this task's cells as a whole (keyless). Reverse of
     /// `cell_dependencies`. In a `cell_dependents` entry the `CellRef.task` field holds the
     /// DEPENDENT task's id and `CellRef.cell` is this task's cell (see `CellDependency` docs).
+    /// Entries are pushed, see `output_dependent`.
     #[field(
         storage = "auto_set",
         category = "data",
         filter_transient,
         drop_on_completion_if_immutable
     )]
-    cell_dependents: AutoSet<CellRef, 3>,
+    cell_dependents: EdgeSet<CellRef, 3>,
 
-    /// Tasks that depend on this task's cells with a `CellKey`. Reverse of
-    /// `cell_dependencies_keyed`. `CellKeyKind::Hash` entries are only invalidated when that
-    /// sub-value changes, `CellKeyKind::Provisional` entries like `cell_dependents`.
+    /// Tasks that depend on this task's cells with a `CellKeyKind::Hash` key, only invalidated
+    /// when that sub-value changes. Reverse of `cell_dependencies_keyed`, together with
+    /// `cell_dependents_provisional`. Only grows until the edges become outdated, so it stays a
+    /// flat array even for widely read cells.
     #[field(
         storage = "auto_set",
         category = "data",
         filter_transient,
         drop_on_completion_if_immutable
     )]
-    cell_dependents_keyed: AutoSet<(CellRef, CellKey), 1>,
+    cell_dependents_keyed: EdgeSet<(CellRef, CellKey), 1>,
 
-    /// Tasks that depend on collectibles of a specific type from this task.
-    /// Maps TraitTypeId -> Set<TaskId>
+    /// Tasks that depend on this task's cells with a `CellKeyKind::Provisional` key, invalidated
+    /// like `cell_dependents`. These are removed again soon, when the reader's `KeyedReadRef` or
+    /// `LazyReadRef` is dropped or its execution completes, so they are kept apart from
+    /// `cell_dependents_keyed` in a small hash set.
+    #[field(
+        storage = "auto_set",
+        category = "data",
+        filter_transient,
+        drop_on_completion_if_immutable
+    )]
+    cell_dependents_provisional: AutoSet<(CellRef, CellKey), 1>,
 
+    /// Tasks that depend on collectibles of a specific type from this task: the reverse of
+    /// `collectibles_dependencies`. Only added when the reader's forward edge is new, so entries
+    /// are pushed (`push_collectibles_dependents`) without a lookup.
     #[field(storage = "auto_set", category = "meta", filter_transient)]
-    collectibles_dependents: AutoSet<(TraitTypeId, TaskId), 3>,
+    collectibles_dependents: EdgeSet<(TraitTypeId, TaskId), 3>,
 
     #[field(
         storage = "auto_map",
@@ -384,9 +413,10 @@ struct TaskStorageSchema {
     // =========================================================================
     // TRANSIENT EXECUTION STATE (transient)
     // =========================================================================
-    /// Activeness state for root/once tasks (transient).
+    /// The rarely needed part of the task's activeness (root, active-until-clean, the clean
+    /// event, a spilled active count), see [`ActivenessAccessors`] (transient).
     #[field(storage = "direct", category = "transient")]
-    activeness: ActivenessState,
+    activeness_state: ActivenessState,
 
     /// In-progress execution state (transient).
     #[field(storage = "direct", category = "transient")]
@@ -553,6 +583,11 @@ pub enum KeyEvictability {
 }
 
 impl TaskStorage {
+    /// Whether the task is executing (or about to).
+    pub(crate) fn is_in_progress(&self) -> bool {
+        self.get_in_progress().is_some()
+    }
+
     /// Determine the evictability level of this task based on its flags.
     ///
     /// This checks only the flags on the TaskStorage itself. The caller
@@ -577,7 +612,7 @@ impl TaskStorage {
         // All these flags imply that the task is currently being used in some way
         // either literally executing, or about to
         if self.get_in_progress().is_some()
-            || self.get_activeness().is_some()
+            || self.is_active()
             // Without these checks we could corrupt racing reads.
             // Basically if a task restores ALL but data is already restored, then it will set meta_restoring, so it would break semantics to clear data_restored while that is happening.  We could fix it by adding a loop to the restoring threads but it is just much simpler to back off in this case.
             || flags.meta_restoring()
@@ -824,7 +859,7 @@ impl TaskStorage {
         };
         if should_track_activeness {
             let activeness = ActivenessState::new_root(root_type, task_id);
-            self.lazy.push_exact(LazyField::Activeness(activeness));
+            self.lazy.push_exact(LazyField::ActivenessState(activeness));
         }
 
         // Set the task as scheduled so it can be executed
@@ -895,6 +930,15 @@ impl TaskStorage {
         self.get_transient_ref_count().copied().unwrap_or(0)
     }
 
+    /// Whether the task is active: a non-zero active count, or an `activeness_state`. Both are
+    /// needed: a root task or one kept active until clean has a state while its count can be `0`
+    /// (the count only lives in the state, as [`ACTIVE_COUNT_SPILLED`], when it doesn't fit the
+    /// inline `i16`).
+    pub(crate) fn is_active(&self) -> bool {
+        self.get_active_count().is_some_and(|&count| count != 0)
+            || self.get_activeness_state().is_some()
+    }
+
     /// Pins a newly initialized task until its construction operation connects it to the graph.
     pub fn gc_pin_for_construction(&mut self) {
         debug_assert_eq!(self.gc_transient_ref_count(), 0);
@@ -909,11 +953,12 @@ impl TaskStorage {
     ///
     /// The `Data`-category dependent sets are deliberately not consulted:
     ///
-    /// - `cell_dependents` / `cell_dependents_keyed` are redundant with ancestry. A cell dependent
-    ///   is either a child, whose child edge already orders the teardown, or a sibling reached by
-    ///   passing a `ResolvedVc` laterally, which needs a common ancestor that collects both in the
-    ///   same pass. Counting them deadlocked the caller/callee cycle `NftJsonAsset::content` ->
-    ///   `all_assets_from_entries_filtered`, whose tasks could then never be collected.
+    /// - `cell_dependents` / `cell_dependents_keyed` / `cell_dependents_provisional` are redundant
+    ///   with ancestry. A cell dependent is either a child, whose child edge already orders the
+    ///   teardown, or a sibling reached by passing a `ResolvedVc` laterally, which needs a common
+    ///   ancestor that collects both in the same pass. Counting them deadlocked the caller/callee
+    ///   cycle `NftJsonAsset::content` -> `all_assets_from_entries_filtered`, whose tasks could
+    ///   then never be collected.
     /// - `output_dependent` is redundant with `parent_count`. It records a read of a task's
     ///   *output*, which is the `OperationVc` representation, and those reads go through
     ///   `connect()` -- so the reader is already a child. (A `ResolvedVc` read, the one that
@@ -949,7 +994,7 @@ impl TaskStorage {
                     && self.collectibles_dependents().is_none_or(|d| d.is_empty())
                     && self.gc_transient_ref_count() == 0
                     && self.get_in_progress().is_none()
-                    && self.get_activeness().is_none()
+                    && !self.is_active()
             }
             // Same two edge sets, minus the entries that die with the session. The pins above are
             // skipped entirely: they are `category = "transient"` and never reach disk.
@@ -1067,6 +1112,17 @@ where
         self.extend(items)
     }
 }
+impl<V: Copy + Eq + Hash, const I: usize> MergeRestore for EdgeSet<V, I> {
+    type Item = V;
+    fn merge_restore(&mut self, items: impl IntoIterator<Item = Self::Item>) {
+        // The transient residue and the restored persistent entries are disjoint, so append them
+        // without looking them up (or inflating the set).
+        for item in items {
+            self.push(item);
+        }
+        self.shrink_to_fit();
+    }
+}
 
 /// Outcome of a `drop_partial` call: did residue (transient entries that
 /// can't be reconstructed from disk) survive the drop?
@@ -1079,6 +1135,87 @@ pub(crate) enum DropPartialOutcome {
     /// and must be preserved through the eviction
     HasResidue,
 }
+
+/// [`TaskStorage::active_count`] value meaning the count is in
+/// [`ActivenessState::spilled_active_count`].
+pub(crate) const ACTIVE_COUNT_SPILLED: i16 = i16::MIN;
+
+/// A task's activeness: the inline `i16` active count, plus the rarely needed
+/// [`ActivenessState`] in the lazy `activeness_state` field (only for roots, tasks kept active
+/// until clean, and counts that don't fit the `i16`). A task is active when either is present.
+pub(crate) trait ActivenessAccessors: TaskStorageAccessors {
+    /// Whether the task is active, see [`TaskStorage::is_active`].
+    fn is_active(&self) -> bool {
+        self.typed().is_active()
+    }
+
+    /// The number of active tasks keeping this task active. Can be negative under races.
+    fn active_count(&self) -> i32 {
+        match self.get_active_count().copied().unwrap_or(0) {
+            ACTIVE_COUNT_SPILLED => self
+                .get_activeness_state()
+                .and_then(|state| state.spilled_active_count)
+                .expect("a spilled active count must be in the activeness state"),
+            count => count as i32,
+        }
+    }
+
+    fn has_positive_active_count(&self) -> bool {
+        self.active_count() > 0
+    }
+
+    fn is_active_until_clean(&self) -> bool {
+        self.get_activeness_state()
+            .is_some_and(|state| state.active_until_clean)
+    }
+
+    /// The activeness state, created if absent.
+    fn activeness_state_mut_or_insert(&mut self, task_id: TaskId) -> &mut ActivenessState {
+        if !self.has_activeness_state() {
+            self.set_activeness_state(ActivenessState::new(task_id));
+        }
+        self.get_activeness_state_mut()
+            .expect("activeness state should exist after set")
+    }
+
+    /// Removes the activeness state once it holds nothing.
+    fn remove_activeness_state_if_empty(&mut self) {
+        if self
+            .get_activeness_state()
+            .is_some_and(|state| state.is_empty())
+        {
+            self.take_activeness_state();
+        }
+    }
+
+    /// Adds `delta` to the active count and returns the new count.
+    fn add_active_count(&mut self, task_id: TaskId, delta: i32) -> i32 {
+        let was_spilled = self.get_active_count() == Some(&ACTIVE_COUNT_SPILLED);
+        let count = self.active_count() + delta;
+        if count > ACTIVE_COUNT_SPILLED as i32 && count <= i16::MAX as i32 {
+            self.set_active_count(count as i16);
+            if was_spilled {
+                if let Some(state) = self.get_activeness_state_mut() {
+                    state.spilled_active_count = None;
+                }
+                self.remove_activeness_state_if_empty();
+            }
+        } else {
+            self.activeness_state_mut_or_insert(task_id)
+                .spilled_active_count = Some(count);
+            self.set_active_count(ACTIVE_COUNT_SPILLED);
+        }
+        count
+    }
+
+    /// Makes the task inactive, returning the activeness state it had.
+    fn take_all_activeness(&mut self) -> Option<ActivenessState> {
+        self.set_active_count(0);
+        self.take_activeness_state()
+    }
+}
+
+impl<T: TaskStorageAccessors> ActivenessAccessors for T {}
 
 /// Helper trait for drop_partial implementation. `CellData` and the
 /// macro-generated `LazyField` arms also implement this trait so all
@@ -1102,6 +1239,18 @@ impl<T: IsTransient> DropPartial for Option<T> {
 }
 
 impl<T: IsTransient + Hash + Eq, const I: usize> DropPartial for AutoSet<T, I> {
+    fn drop_partial(&mut self) -> DropPartialOutcome {
+        self.retain(|t| t.is_transient());
+        if self.is_empty() {
+            DropPartialOutcome::Empty
+        } else {
+            self.shrink_to_fit();
+            DropPartialOutcome::HasResidue
+        }
+    }
+}
+
+impl<T: IsTransient + Copy + Eq + Hash, const I: usize> DropPartial for EdgeSet<T, I> {
     fn drop_partial(&mut self) -> DropPartialOutcome {
         self.retain(|t| t.is_transient());
         if self.is_empty() {

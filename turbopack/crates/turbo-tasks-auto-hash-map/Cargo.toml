@@ -29,3 +29,7 @@ harness = false
 [[bench]]
 name = "auto_set"
 harness = false
+
+[[bench]]
+name = "edge_set"
+harness = false

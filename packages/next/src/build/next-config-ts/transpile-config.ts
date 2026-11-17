@@ -72,6 +72,8 @@ export async function transpileConfig({
         // Value is 'strip' or 'transform' based on how the feature is enabled.
         // https://nodejs.org/api/process.html#processfeaturestypescript
         // TODO: Remove `as any` once we bump @types/node to v22.10.0+
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         if ((process.features as any).typescript) {
           // Run import() here to catch errors and fallback to legacy resolution.
           return (await import(pathToFileURL(nextConfigPath).href)).default
