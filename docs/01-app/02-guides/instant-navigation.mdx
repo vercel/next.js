@@ -417,6 +417,19 @@ Set `EXPOSE_TESTING_API=1` when running both `next build` and `next start`. Sett
 
 Focus these tests on the user flows that matter most.
 
+### Search-parameter updates
+
+Changing only the search parameters updates the existing page. If that update needs data that was not prefetched, React can keep the previously revealed content visible until the data arrives. A prefetched shell containing a Suspense fallback does not guarantee that the update will replace that content with the fallback.
+
+This affects what you can assert inside `instant()`. For example, changing `/shop?category=home` to `/shop?category=outdoors` may need a fresh stock read. The helper holds that read until the callback finishes. Waiting for the updated URL or catalogue inside the callback can therefore time out, even though the same navigation completes normally without the lock.
+
+Choose the test based on the intended experience:
+
+- If the update should retain existing content while fresh data loads, test the pending UI and completed update without an `instant()` scope. See [Filter with pending feedback](/docs/app/guides/interactive-apps#step-3-filter-with-pending-feedback).
+- To test entry into a prefetched page, navigate from a different page and assert on the content prepared before the click. Leave fresh data assertions outside the scope.
+
+Search-parameter updates can still be instant when the content they need is already available. Check what the link actually prefetches before treating an `instant()` timeout as a navigation failure.
+
 ## Fixing a navigation that blocks
 
 Consider a different route, `/products/[slug]`, that fetches product data from a public API and shows a featured list alongside:
