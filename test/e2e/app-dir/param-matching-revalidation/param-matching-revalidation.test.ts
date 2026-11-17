@@ -190,10 +190,10 @@ describe('param-matching-revalidation', () => {
     cases(kind)
   })
 
-  // `plain` has no matching configuration. The legacy Vercel builder renders
-  // a value without a build-time prerender on every request for these routes
-  // instead of storing it.
-  // @force-gate !deploy || adapter
+  // `plain` has no matching configuration. These routes serve a shell for a
+  // value without a build-time prerender, and a deployment does not always
+  // store the completed page afterwards.
+  // @force-gate !deploy
   describe.each(['fallback', 'plain'])('%s', (kind) => {
     cases(kind)
   })
@@ -208,8 +208,12 @@ describe('param-matching-revalidation', () => {
         const first = `/pm-reval/dynamic/${top}/first`
         const second = `/pm-reval/dynamic/${top}/second`
 
-        const before = await settle(first, `${top}/first`)
-        expect(await settle(second, `${top}/second`)).toBe(before)
+        // A deployment can replace a shell it has just served.
+        const before = await retry(async () => {
+          const stamp = await read(first, `${top}/first`)
+          expect(await read(second, `${top}/second`)).toBe(stamp)
+          return stamp
+        }, timeout)
 
         await revalidate({ tag: `pm-reval:dynamic:${top}` })
 
