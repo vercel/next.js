@@ -209,6 +209,10 @@ pub async fn go_bundle_from_sources(
 /// exist. Its import path is the module path joined with `alias`, so source directory names
 /// do not need to be valid import paths. Generated files under `alias` join that package;
 /// the other generated Go files form the `main` package and must share one directory.
+///
+/// Go applies `internal` visibility to the alias path, not the source path. Place the alias
+/// below every `x` whose `x/internal/...` packages the sources import, and place the `main`
+/// package where it may import the alias.
 #[turbo_tasks::function]
 pub async fn go_package_bundle_from_sources(
     sources: ResolvedVc<GoSourceSet>,

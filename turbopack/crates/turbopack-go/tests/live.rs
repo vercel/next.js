@@ -1271,15 +1271,24 @@ async fn generated_entry_imports_source_directory_as_package() -> Result<()> {
     let session = Session::new().await?;
     // Neither `(group)` nor `[id]` may appear in a Go import path.
     let directory = "app/(group)/[id]";
+    let handler = [
+        "package route",
+        "import (",
+        "\t\"embed\"",
+        "\t\"example.com/native-fixture/app/internal/greeting\"",
+        "\t\"example.com/native-fixture/internal/message\"",
+        ")",
+        "//go:embed assets/*",
+        "var assets embed.FS",
+        "func Message() string {",
+        "\tasset, _ := assets.ReadFile(\"assets/message.txt\")",
+        "\treturn sibling() + \":\" + string(asset) + \":\" + message.Text() + \":\" + \
+         greeting.Text() + \":\" + Generated()",
+        "}",
+    ]
+    .join("\n");
     session
-        .write(
-            &format!("{directory}/handler.go"),
-            "package route\n\nimport \
-             (\n\t\"embed\"\n\n\t\"example.com/native-fixture/internal/message\"\n)\n\n//go:embed \
-             assets/*\nvar assets embed.FS\n\nfunc Message() string {\n\tasset, _ := \
-             assets.ReadFile(\"assets/message.txt\")\n\treturn sibling() + \":\" + string(asset) \
-             + \":\" + message.Text() + \":\" + Generated()\n}\n",
-        )
+        .write(&format!("{directory}/handler.go"), &handler)
         .await?;
     session
         .write(
@@ -1290,23 +1299,36 @@ async fn generated_entry_imports_source_directory_as_package() -> Result<()> {
     session
         .write(&format!("{directory}/assets/message.txt"), "asset-v1")
         .await?;
+    // `app/internal` is only visible to packages below `app`, so the alias must stay there.
+    session
+        .write(
+            "app/internal/greeting/greeting.go",
+            "package greeting\n\nfunc Text() string { return \"greeting\" }\n",
+        )
+        .await?;
     let root = FileSystemPath {
         fs: ResolvedVc::upcast(session.fs),
         path: rcstr!(""),
     };
     let options = session.go_context.options.clone();
-    let alias = rcstr!("_next_go/route_example");
+    let alias = rcstr!("app/_next_go_route_example");
     let generated = BTreeMap::from([
         (
-            rcstr!("_next_go/main/main.go"),
-            rcstr!(
-                "package main\n\nimport (\n\t\"fmt\"\n\n\troute \
-                 \"example.com/native-fixture/_next_go/route_example\"\n)\n\nfunc main() { \
-                 fmt.Print(route.Message()) }\n"
+            rcstr!("app/_next_go_main/main.go"),
+            RcStr::from(
+                [
+                    "package main",
+                    "import (",
+                    "\t\"fmt\"",
+                    "\troute \"example.com/native-fixture/app/_next_go_route_example\"",
+                    ")",
+                    "func main() { fmt.Print(route.Message()) }",
+                ]
+                .join("\n"),
             ),
         ),
         (
-            rcstr!("_next_go/route_example/zz_generated.go"),
+            rcstr!("app/_next_go_route_example/zz_generated.go"),
             rcstr!("package route\n\nfunc Generated() string { return \"generated\" }\n"),
         ),
     ]);
@@ -1373,11 +1395,15 @@ async fn generated_entry_imports_source_directory_as_package() -> Result<()> {
     };
     let first = output(build().await?).await?;
     assert!(
-        first.starts_with("sibling-v1:asset-v1:") && first.ends_with(":generated"),
+        first.starts_with("sibling-v1:asset-v1:") && first.ends_with(":greeting:generated"),
         "{first}"
     );
     assert!(
-        !session.project.join("_next_go").exists(),
+        std::fs::read_dir(session.project.join("app"))?.all(|entry| !entry
+            .unwrap()
+            .file_name()
+            .to_string_lossy()
+            .starts_with("_next_go")),
         "virtual package directories must not be written to the project"
     );
     // Sources, embedded files, and their directory inventories remain compiler inputs.
@@ -1413,7 +1439,7 @@ async fn generated_entry_imports_source_directory_as_package() -> Result<()> {
     };
     let expected = session.project.join(directory).join("sibling.go:3");
     assert!(
-        message.contains(expected.to_str().unwrap()) && !message.contains("_next_go"),
+        message.contains(expected.to_str().unwrap()) && !message.contains("_next_go_route"),
         "{message}"
     );
     session.stop().await;
