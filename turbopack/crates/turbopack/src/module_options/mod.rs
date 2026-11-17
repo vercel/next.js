@@ -508,6 +508,7 @@ impl ModuleOptions {
                                     resolve_options_context,
                                     ecmascript_source_map_generation_options.full,
                                     config_tracing_module_context(*execution_context),
+                                    webpack_loaders_options.emitted_files_scope.clone(),
                                 )
                                 .to_resolved()
                                 .await?,
@@ -928,6 +929,7 @@ impl ModuleOptions {
                                 *execution_context,
                                 options.config_location,
                                 css_source_map_generation_options.full,
+                                options.emitted_files_scope.clone(),
                             )
                             .to_resolved()
                             .await?,

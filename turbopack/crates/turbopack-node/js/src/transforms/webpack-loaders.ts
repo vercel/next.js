@@ -154,6 +154,24 @@ type ResolveOptions = {
   importFields?: string[]
 }
 
+interface EmittedAsset {
+  file: string
+  content: string | { binary: string }
+}
+
+interface PendingEmittedAsset extends Omit<EmittedAsset, 'content'> {
+  content: string | Buffer
+}
+
+function serializeEmittedAsset(asset: PendingEmittedAsset): EmittedAsset {
+  return {
+    ...asset,
+    content: Buffer.isBuffer(asset.content)
+      ? { binary: asset.content.toString('base64') }
+      : asset.content,
+  }
+}
+
 const transform = (
   ipc: TransformIpc,
   content: string | { binary: string },
@@ -163,7 +181,11 @@ const transform = (
   target: string,
   mode: 'development' | 'production',
   sourceMap: boolean
-) => {
+): Promise<{
+  source: string | { binary: string } | null
+  map?: string
+  assets: EmittedAsset[]
+}> => {
   return new Promise((resolve, reject) => {
     const resource = pathResolve(contextDir, name)
     const resourceDir = dirname(resource)
@@ -172,6 +194,7 @@ const transform = (
       typeof loader === 'string' ? { loader, options: {} } : loader
     )
     const buildDependencies = new Set<string>()
+    const emittedAssets = new Map<string, PendingEmittedAsset>()
 
     const logs: Array<{
       time: number
@@ -195,6 +218,19 @@ const transform = (
           target,
           mode,
           sourceMap,
+          emitFile(name: string, content: string | Buffer) {
+            if (typeof name !== 'string') {
+              throw new TypeError(
+                'emitFile(name, content): name must be a string'
+              )
+            }
+            if (typeof content !== 'string' && !Buffer.isBuffer(content)) {
+              throw new TypeError(
+                'emitFile(name, content): content must be a string or Buffer'
+              )
+            }
+            emittedAssets.set(name, { file: name, content })
+          },
           utils: { absolutify, contextify, createHash },
           getOptions() {
             const entry = this.loaders[this.loaderIndex]
@@ -649,6 +685,7 @@ const transform = (
         if (!result.result) return reject(new Error('No result from loaders'))
         const [source, map] = result.result
         const resolvedValue = {
+          assets: [...emittedAssets.values()].map(serializeEmittedAsset),
           source: Buffer.isBuffer(source)
             ? { binary: source.toString('base64') }
             : source,

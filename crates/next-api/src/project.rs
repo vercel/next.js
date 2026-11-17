@@ -49,10 +49,10 @@ use serde::{Deserialize, Serialize};
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Completions, FxIndexMap, InvalidationReason, NonLocalValue, OperationValue,
-    OperationVc, OrderedAutoMap, ReadRef, ResolvedVc, State, TransientInstance, TryFlatJoinIterExt,
-    TryJoinIterExt, Vc, debug::ValueDebugFormat, fxindexmap, message_queue::TraceEvent,
-    turbo_tasks,
+    CollectiblesSource, Completion, Completions, FxIndexMap, InvalidationReason, NonLocalValue,
+    OperationValue, OperationVc, OrderedAutoMap, ReadRef, ResolvedVc, State, TransientInstance,
+    TryFlatJoinIterExt, TryJoinIterExt, Vc, debug::ValueDebugFormat, fxindexmap,
+    message_queue::TraceEvent, turbo_tasks,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
@@ -74,6 +74,7 @@ use turbopack_core::{
     },
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
+    emitted_output::{EmittedFile, EmittedFileCollectible, EmittedOutputAsset},
     environment::NodeJsVersion,
     file_source::FileSource,
     ident::Layer,
@@ -2840,7 +2841,8 @@ impl Project {
     ) -> Result<()> {
         let span = tracing::info_span!("emitting");
         async move {
-            let all_output_assets = all_assets_from_entries_operation(output_assets);
+            let all_output_assets =
+                all_assets_from_entries_operation(self.to_resolved().await?, output_assets);
 
             let client_relative_path = self.client_relative_path().owned().await?;
             let node_root = self.node_root().owned().await?;
@@ -3392,9 +3394,193 @@ async fn any_output_changed(
 }
 
 #[turbo_tasks::function(operation, root)]
-fn all_assets_from_entries_operation(
+async fn all_assets_from_entries_operation(
+    project: ResolvedVc<Project>,
     operation: OperationVc<OutputAssets>,
 ) -> Result<Vc<ExpandedOutputAssets>> {
+    Ok(all_assets_from_entries(with_loader_emitted_files(
+        *project, operation,
+    )))
+}
+
+#[turbo_tasks::function]
+pub async fn with_loader_emitted_files(
+    project: Vc<Project>,
+    operation: OperationVc<OutputAssets>,
+) -> Result<Vc<OutputAssets>> {
     let assets = operation.connect();
-    Ok(all_assets_from_entries(assets))
+    let assets_root = output_assets_root_operation(operation);
+    assets_root.connect().await?;
+    let emitted = loader_emitted_assets(project, assets_root).await?;
+    if emitted.is_empty() {
+        return Ok(assets);
+    }
+    Ok(assets.concatenate(Vc::cell(emitted)))
+}
+
+pub async fn loader_emitted_assets(
+    project: Vc<Project>,
+    operation: impl CollectiblesSource,
+) -> Result<Vec<ResolvedVc<Box<dyn OutputAsset>>>> {
+    let emitted = operation.peek_collectibles::<Box<dyn EmittedFileCollectible>>();
+    if emitted.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut files = emitted
+        .into_iter()
+        .map(|file| file.file().owned())
+        .try_join()
+        .await?;
+    // Collectibles are unordered.
+    files.sort_by(|a, b| {
+        (&a.scope, &a.name, &a.origin.path).cmp(&(&b.scope, &b.name, &b.origin.path))
+    });
+    loader_emitted_output_assets(project, files).await
+}
+
+/// Collectibles must be read from a root operation.
+#[turbo_tasks::function(operation, root)]
+fn output_assets_root_operation(operation: OperationVc<OutputAssets>) -> Vc<OutputAssets> {
+    operation.connect()
+}
+
+async fn loader_emitted_output_assets(
+    project: Vc<Project>,
+    files: Vec<EmittedFile>,
+) -> Result<Vec<ResolvedVc<Box<dyn OutputAsset>>>> {
+    let node_root = project.node_root().owned().await?;
+    let static_root = node_root.join("static")?;
+    // Client assets are written from the client filesystem, which is rebased onto the node root.
+    let client_static_root = project.client_relative_path().await?.join("static")?;
+    let is_development = project.next_mode().await?.is_development();
+    let mut placed = Vec::new();
+    let mut first_at_path: FxHashMap<FileSystemPath, ResolvedVc<FileContent>> =
+        FxHashMap::default();
+    for file in files {
+        // Match each webpack compiler's output.path.
+        let root = match file.scope.as_str() {
+            "client" => node_root.clone(),
+            "server" if !is_development => node_root.join("server/chunks")?,
+            _ => node_root.join("server")?,
+        };
+        let name = file.name.split('?').next().unwrap_or_default();
+        #[cfg(target_os = "windows")]
+        let name = name.replace('\\', "/");
+        let relative = name.trim_start_matches('/');
+        if relative.is_empty()
+            || relative.ends_with('/')
+            || matches!(relative.rsplit('/').next(), Some("." | ".."))
+        {
+            emitted_file_issue(
+                &file,
+                IssueSeverity::Error,
+                "names a directory rather than a file",
+            );
+            continue;
+        }
+        let Some(path) = root
+            .join(relative)
+            .ok()
+            .filter(|path| path.is_inside_ref(&node_root))
+        else {
+            emitted_file_issue(
+                &file,
+                IssueSeverity::Error,
+                "is outside of the output directory",
+            );
+            continue;
+        };
+        let path = if let Some(relative) = static_root.get_relative_path_to(&path)
+            && path.is_inside_ref(&static_root)
+        {
+            client_static_root.join(&relative)?
+        } else {
+            path
+        };
+        // Write identical content once; leave conflicts for the emitter.
+        if let Some(first) = first_at_path.get(&path)
+            && (*first == file.content || *first.await? == *file.content.await?)
+        {
+            continue;
+        }
+        first_at_path.entry(path.clone()).or_insert(file.content);
+        placed.push((path, file));
+    }
+    let mut directories = FxHashSet::default();
+    for path in first_at_path.keys() {
+        let mut parent = path.parent();
+        while parent.is_inside_ref(&node_root) {
+            if first_at_path.contains_key(&parent) {
+                directories.insert(parent.clone());
+            }
+            parent = parent.parent();
+        }
+    }
+    placed.retain(|(path, file)| {
+        let is_directory = directories.contains(path);
+        if is_directory {
+            emitted_file_issue(
+                file,
+                IssueSeverity::Error,
+                "is also the directory of another emitted file",
+            );
+        }
+        !is_directory
+    });
+    placed
+        .into_iter()
+        .map(async |(path, file)| {
+            Ok(ResolvedVc::upcast::<Box<dyn OutputAsset>>(
+                EmittedOutputAsset::new(path, *file.content)
+                    .to_resolved()
+                    .await?,
+            ))
+        })
+        .try_join()
+        .await
+}
+
+fn emitted_file_issue(file: &EmittedFile, severity: IssueSeverity, problem: &str) {
+    EmittedFileIssue {
+        path: file.origin.clone(),
+        description: format!(
+            "The file {:?} emitted by a webpack loader or PostCSS plugin {problem}.",
+            file.name
+        )
+        .into(),
+        severity,
+    }
+    .resolved_cell()
+    .emit();
+}
+
+#[turbo_tasks::value(shared)]
+struct EmittedFileIssue {
+    path: FileSystemPath,
+    description: RcStr,
+    severity: IssueSeverity,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for EmittedFileIssue {
+    fn stage(&self) -> IssueStage {
+        IssueStage::Emit
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        self.severity
+    }
+
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.path.clone())
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!("Invalid emitted file")))
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(self.description.clone())))
+    }
 }
