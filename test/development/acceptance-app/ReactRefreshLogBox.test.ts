@@ -1186,7 +1186,7 @@ describe('ReactRefreshLogBox app', () => {
           |             ^",
         "stack": [
           "${isTurbopack ? '<anonymous>' : 'eval'} app/page.js (4:13)",
-          "Page app/page.js (5:${isTurbopack ? '6' : '5'})",
+          "Page app/page.js (5:6)",
         ],
       }
     `)

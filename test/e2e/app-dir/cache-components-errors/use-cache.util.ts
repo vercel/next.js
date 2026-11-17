@@ -72,11 +72,11 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
               expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/use-cache-cookies": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
                  Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at a (app/use-cache-cookies/page.tsx:22:11)
+                     at a (app/use-cache-cookies/page.tsx:22:18)
                    20 |   // in userland.
                    21 |   try {
                  > 22 |     await cookies()
-                      |           ^
+                      |                  ^
                    23 |   } catch {}
                    24 |
                    25 |   return null
@@ -297,11 +297,11 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
               expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/use-cache-headers": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
                  Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at a (app/use-cache-headers/page.tsx:21:11)
+                     at a (app/use-cache-headers/page.tsx:21:18)
                    19 |   // to ensure that this error is shown even when it's caught in userland.
                    20 |   try {
                  > 21 |     await headers()
-                      |           ^
+                      |                  ^
                    22 |   } catch {}
                    23 |
                    24 |   return null
@@ -408,11 +408,11 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
               expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/use-cache-connection": \`connection()\` can't be called inside \`"use cache"\` because cached functions may run during prerendering, without an incoming request. Call it outside the cached function.
                  Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at a (app/use-cache-connection/page.tsx:21:11)
+                     at a (app/use-cache-connection/page.tsx:21:21)
                    19 |   // here to ensure that this error is shown even when it's caught in userland.
                    20 |   try {
                  > 21 |     await connection()
-                      |           ^
+                      |                     ^
                    22 |   } catch {}
                    23 |
                    24 |   return null
