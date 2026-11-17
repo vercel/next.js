@@ -97,7 +97,7 @@ sees the differential knows the test measures the property.
 
 ## `instant()` is not a stopwatch
 
-See: [`instant()`](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests).
+See: [`instant()`](https://nextjs.org/docs/app/guides/testing/playwright#testing-instant-navigations).
 
 The test does not measure how fast a navigation is. `instant()` gates dynamic data so the content
 of the static shell can be asserted; the signal is presence, not speed. Under the lock, an instant

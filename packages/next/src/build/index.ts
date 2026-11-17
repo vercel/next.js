@@ -126,7 +126,7 @@ import { sortByPageExts } from './sort-by-page-exts'
 import { getConventionFileBaseName } from './get-convention-file-base-name'
 import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
 import { readGoProxyConfig, readGoRouteConfig } from './analysis/go-config'
-import { ensureGoSdkReplacement } from '../lib/go-sdk'
+import { ensureGoSdk } from '../lib/go-sdk'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
@@ -830,6 +830,8 @@ async function writeImagesManifest(
 ): Promise<void> {
   const images = { ...config.images }
   const { deviceSizes, imageSizes } = images
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(images as any).sizes = [...deviceSizes, ...imageSizes]
 
   // By default, remotePatterns will allow no remote images ([])
@@ -1939,7 +1941,12 @@ export default async function build(
       if (!isGenerateMode) {
         if (bundler === Bundler.Turbopack) {
           if (config.experimental.goRoutes) {
-            await ensureGoSdkReplacement(dir)
+            await ensureGoSdk({
+              dir,
+              rootDir:
+                config.turbopack?.root || config.outputFileTracingRoot || dir,
+              distDir,
+            })
           }
           const {
             duration: compilerDuration,

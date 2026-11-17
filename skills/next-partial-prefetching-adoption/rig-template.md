@@ -83,7 +83,7 @@ separate terminal after the build, keep it running during the test command,
 and stop it afterward. Use only one server lifecycle for the measured app.
 
 Adapt the script names and port to the project. Follow the public
-[client-navigation test](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests): load the source route, confirm the real
+[client-navigation test](https://nextjs.org/docs/app/guides/testing/playwright#testing-instant-navigations): load the source route, confirm the real
 Link is visible, then enter `instant()`, click, wait for the destination URL,
 and assert the prefetched UI.
 

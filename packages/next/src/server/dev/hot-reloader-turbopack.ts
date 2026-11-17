@@ -179,6 +179,10 @@ const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
 /** Output directory (relative to `distDir`) of server-HMR-managed chunks. */
 const SERVER_HMR_CHUNKS_DIR = join('server', 'chunks')
 
+// How long a server component change observed outside of an update waits for
+// that update's start before it is announced on its own.
+const SERVER_COMPONENT_CHANGES_FALLBACK_MS = 100
+
 const TURBOPACK_OUTPUT_DIRS = [
   join('static', 'chunks'),
   join('static', 'media'),
@@ -928,6 +932,7 @@ export async function createHotReloaderTurbopack(
 
   let updateInProgress = false
   let pendingServerComponentChanges = false
+  let pendingServerComponentChangesTimeout: NodeJS.Timeout | undefined
 
   // Tell browsers to refetch RSC (soft refresh, not full page reload).
   // Skip while there are outstanding compilation errors: an RSC refetch would
@@ -944,9 +949,24 @@ export async function createHotReloaderTurbopack(
   // Each announcement makes every client refetch its page, so an update's
   // changes are announced once, on the update's end.
   function handleServerComponentChanges() {
-    if (updateInProgress) {
-      pendingServerComponentChanges = true
-    } else {
+    pendingServerComponentChanges = true
+    // Change events and update start/end messages are delivered separately,
+    // so a change can be observed before its update's start. Wait for the
+    // update's end, but don't lose the change if no update follows (it was
+    // observed after its update's end).
+    if (!updateInProgress && !pendingServerComponentChangesTimeout) {
+      pendingServerComponentChangesTimeout = setTimeout(
+        flushServerComponentChanges,
+        SERVER_COMPONENT_CHANGES_FALLBACK_MS
+      )
+    }
+  }
+
+  function flushServerComponentChanges() {
+    clearTimeout(pendingServerComponentChangesTimeout)
+    pendingServerComponentChangesTimeout = undefined
+    if (pendingServerComponentChanges) {
+      pendingServerComponentChanges = false
       notifyServerComponentChanges()
     }
   }
@@ -1260,6 +1280,8 @@ export async function createHotReloaderTurbopack(
       previousRouteKeys = new Set(routes.keys())
 
       await handleEntrypoints({
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         entrypoints: entrypoints as any,
 
         currentEntrypoints,
@@ -2328,6 +2350,10 @@ export async function createHotReloaderTurbopack(
       // Report MCP telemetry if MCP server is enabled
       recordMcpTelemetry(opts.telemetry)
 
+      clearTimeout(pendingServerComponentChangesTimeout)
+      pendingServerComponentChangesTimeout = undefined
+      pendingServerComponentChanges = false
+
       for (const wsClient of [
         ...clientsWithoutHtmlRequestId,
         ...clientsByHtmlRequestId.values(),
@@ -2360,6 +2386,9 @@ export async function createHotReloaderTurbopack(
       switch (updateMessage.updateType) {
         case 'start': {
           updateInProgress = true
+          // The update's end announces any pending changes.
+          clearTimeout(pendingServerComponentChangesTimeout)
+          pendingServerComponentChangesTimeout = undefined
           pendingBuilding.schedule(BUILDING_MESSAGE_DEFER_MS, () => {
             hotReloader.send({ type: HMR_MESSAGE_SENT_TO_BROWSER.BUILDING })
           })
@@ -2375,10 +2404,7 @@ export async function createHotReloaderTurbopack(
         case 'end': {
           updateInProgress = false
           pendingBuilding.cancel()
-          if (pendingServerComponentChanges) {
-            pendingServerComponentChanges = false
-            notifyServerComponentChanges()
-          }
+          flushServerComponentChanges()
           sendEnqueuedMessages()
 
           function addToErrorsMap(

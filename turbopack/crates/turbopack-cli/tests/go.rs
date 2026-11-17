@@ -1161,7 +1161,9 @@ fn watch_observes_imported_packages_and_embedded_assets() {
         || {
             std::fs::read_to_string(project.join("watch.log"))
                 .unwrap()
-                .contains("Go module replacements must point to a directory inside the module")
+                .contains(
+                    "Go module replacements must point to a directory inside the project root",
+                )
         },
     );
     assert_eq!(std::fs::read(&target).unwrap(), previous);

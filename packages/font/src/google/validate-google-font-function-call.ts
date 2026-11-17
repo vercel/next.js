@@ -32,6 +32,8 @@ export function validateGoogleFontFunctionCall(
     adjustFontFallback = true,
     variable,
     subsets,
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
   } = fontFunctionArgument || ({} as any)
   if (functionName === '') {
     nextFontError(`next/font/google has no default export`)

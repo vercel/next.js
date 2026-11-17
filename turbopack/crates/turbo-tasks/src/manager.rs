@@ -1612,7 +1612,8 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     /// Returns [UpdateInfo] with all updates aggregated over a given duration
-    /// (`aggregation`). Will only return None when the timeout is reached while
+    /// (`aggregation`): the update ends once no foreground job has been running for
+    /// that long. Will only return None when the timeout is reached while
     /// waiting for the first update.
     pub async fn aggregated_update_info(
         &self,
@@ -1667,7 +1668,21 @@ impl<B: Backend + 'static> TurboTasks<B> {
             loop {
                 select! {
                     () = tokio::time::sleep(aggregation) => {
-                        break;
+                        // Only end the update once no foreground job is running. Work that
+                        // starts within the aggregation window and outlasts it would otherwise
+                        // be reported partly in this update and partly in the next one.
+                        let listener = self
+                            .event_foreground_done
+                            .listen_with_note(|| || "wait for update info".to_string());
+                        if self
+                            .currently_scheduled_foreground_jobs
+                            .load(Ordering::Acquire)
+                            == 0
+                        {
+                            break;
+                        }
+                        listener.await;
+                        // Restarts the sleep
                     }
                     () = self.event_foreground_done.listen_with_note(|| || "wait for update info".to_string()) => {
                         // Resets the sleep
