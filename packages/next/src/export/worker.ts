@@ -656,12 +656,10 @@ export async function exportPages(
       // a slow page only occupies its own slot. Results keep the order of
       // `exportPaths`; the RDC seed selection in `export/index.ts` relies on
       // it when several seeds match.
-      results.push(
-        ...(await mapWithConcurrency(
-          exportPaths,
-          maxConcurrency,
-          (exportPath) => exportPageWithRetry(exportPath, retryCount)
-        ))
+      return await mapWithConcurrency(
+        exportPaths,
+        maxConcurrency,
+        (exportPath) => exportPageWithRetry(exportPath, retryCount)
       )
     } else {
       for (let i = 0; i < exportPaths.length; i += maxConcurrency) {
