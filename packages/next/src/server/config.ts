@@ -694,6 +694,15 @@ function assignDefaultsAndValidate(
     )
   }
 
+  if (
+    result.experimental.exposeTestingApiInProductionBuild &&
+    !result.cacheComponents
+  ) {
+    throw new Error(
+      `\`experimental.exposeTestingApiInProductionBuild\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`
+    )
+  }
+
   if (result.partialPrefetching && !result.cacheComponents) {
     throw new Error(
       `\`partialPrefetching\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`
