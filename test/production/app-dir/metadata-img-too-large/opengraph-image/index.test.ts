@@ -10,6 +10,8 @@ describe('app-dir - metadata-img-too-large opengraph-image', () => {
   const pngFile = generatePNG(8)
 
   it('should throw when opengraph-image file size exceeds 8MB', async () => {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     await next.patchFile('app/opengraph-image.png', pngFile as any)
     await next.build()
 

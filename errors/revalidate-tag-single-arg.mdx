@@ -20,6 +20,8 @@ revalidateTag('posts')
 revalidateTag('posts', 'max')
 ```
 
+> **Good to know**: In Server Actions, switching to `'max'` also changes [client cache behavior](/docs/app/api-reference/functions/updateTag#client-cache-behavior). Use [`updateTag`](#option-2-use-updatetag-in-server-actions) to preserve immediate updates.
+
 ### Option 2: Use updateTag in Server Actions
 
 If you're calling this from a Server Action and need immediate expiration for read-your-own-writes, use `updateTag` instead:

@@ -1,0 +1,21 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/imports/optional-comments/input/index.js:34:16  Module not found: Can't resolve './missing-should-error-default.mjs'
+  
+      30 |     "Cannot find module './missing-should-error-optional-false.mjs'"
+      31 |   )
+      32 | 
+      33 |   // Default behavior without any optional comment should produce errors
+         +                v------------------------------------------v
+      34 +   await expect(import('./missing-should-error-default.mjs')).rejects.toThrow(
+         +                ^------------------------------------------^
+      35 |     "Cannot find module './missing-should-error-default.mjs'"
+      36 |   )
+      37 | })
+      38 | 
+  
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: relative './missing-should-error-default.mjs'
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/imports/optional-comments/input/index.js
+  | Type of request: EcmaScript Modules request
+  |

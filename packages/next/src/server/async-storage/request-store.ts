@@ -298,7 +298,11 @@ class RequestStoreImpl implements RequestStore {
     this.isHmrRefresh = inputs.isHmrRefresh
     this.serverComponentsHmrCache =
       inputs.serverComponentsHmrCache ||
-      (globalThis as any).__serverComponentsHmrCache
+      (
+        globalThis as typeof globalThis & {
+          __serverComponentsHmrCache?: ServerComponentsHmrCache
+        }
+      ).__serverComponentsHmrCache
     this.hmrRefreshHash = inputs.hmrRefreshHash
     this.stagedFallbackParams = inputs.stagedFallbackParams
     this.usedDynamic = false

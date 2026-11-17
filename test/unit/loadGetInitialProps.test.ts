@@ -6,6 +6,8 @@ describe('loadGetInitialProps', () => {
     class TestComponent {
       getInitialProps() {}
     }
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const rejectPromise = loadGetInitialProps(TestComponent as any, {})
     const error = new Error(
       '"TestComponent.getInitialProps()" is defined as an instance method - visit https://nextjs.org/docs/messages/get-initial-props-as-an-instance-method for more information.'
@@ -14,6 +16,8 @@ describe('loadGetInitialProps', () => {
   })
 
   it('should resolve to an empty object if getInitialProps is missing', async () => {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const result = await loadGetInitialProps((() => {}) as any, {})
     expect(result).toEqual({})
   })
@@ -24,6 +28,8 @@ describe('loadGetInitialProps', () => {
         return { foo: 1 }
       }
     }
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const result = await loadGetInitialProps(TestComponent as any, {})
     expect(result).toEqual({ foo: 1 })
   })
@@ -39,6 +45,8 @@ describe('loadGetInitialProps', () => {
         finished: true,
       },
     }
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const result = await loadGetInitialProps(TestComponent as any, ctx)
     expect(result).toBe('invalidValue')
   })
@@ -47,6 +55,8 @@ describe('loadGetInitialProps', () => {
     class TestComponent {
       static async getInitialProps() {}
     }
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const rejectPromise = loadGetInitialProps(TestComponent as any, {})
     const error = new Error(
       '"TestComponent.getInitialProps()" should resolve to an object. But found "undefined" instead.'

@@ -130,6 +130,16 @@ describe('app-root-param-getters - simple', () => {
         "`import('next/root-params').lang()` was used inside a Server Action. This is not supported. Functions from 'next/root-params' can only be called in the context of a route."
       )
     }
+    if (isNextDev) {
+      // The browser also forwards the resulting uncaught error to the terminal,
+      // asynchronously. Wait for it, so that it doesn't end up in the CLI output
+      // of the next test, which asserts that this error is absent.
+      await retry(() => {
+        expect(getCliOutput()).toInclude(
+          "[browser] Uncaught Error: `import('next/root-params').lang()` was used inside a Server Action."
+        )
+      })
+    }
   })
 
   it('should not error when rerendering the page after a server action', async () => {
