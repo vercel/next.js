@@ -53,7 +53,6 @@ export const INTERNAL_HEADERS = [
   'x-next-internal-go-token',
   'x-next-resume-state-length',
   'next-resume',
-  'x-next-internal-front-worker-failed',
 ]
 
 export const filterInternalHeaders = (

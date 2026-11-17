@@ -32,12 +32,6 @@ export type FrontRouteTable =
         stripRequestHeaders: readonly string[]
         stripRequestHeaderPrefixes: readonly string[]
         statusText: Readonly<Record<string, string>>
-        /**
-         * When a worker fails before answering a direct request, the front
-         * hands the request to Node with this header, and Node answers with
-         * its error page, as it does when its own call to the worker fails.
-         */
-        workerFailedHeader: Readonly<{ name: string; value: string }>
       }>
     }>
 
@@ -76,7 +70,6 @@ export type FrontRouteTableInput = Readonly<{
   appRoute: (pathname: string) => { kind: RouteKind; page: string } | undefined
   internalHeaders: readonly string[]
   maxHeaderBytes: number
-  workerFailedHeader: Readonly<{ name: string; value: string }>
 }>
 
 const VERSION = 1
@@ -151,7 +144,6 @@ export function frontRouteTable(input: FrontRouteTableInput): FrontRouteTable {
       stripRequestHeaders: [...input.internalHeaders],
       stripRequestHeaderPrefixes: ['x-next-internal-'],
       statusText,
-      workerFailedHeader: input.workerFailedHeader,
     },
   }
 }

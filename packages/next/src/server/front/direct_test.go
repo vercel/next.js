@@ -28,8 +28,7 @@ const testTable = `{"contract":{"version":1},"basePath":"","maxHeaderBytes":1638
 "dynamic":[{"path":["api","users",{"param":"id"}],"go":"/api/users/[id]/route"}],
 "direct":{"stripRequestHeaders":["x-matched-path"],
 "stripRequestHeaderPrefixes":["x-next-internal-"],
-"statusText":{"200":"OK","413":"Payload Too Large","500":"Internal Server Error"},
-"workerFailedHeader":{"name":"x-next-internal-front-worker-failed","value":"s3cret"}}}`
+"statusText":{"200":"OK","413":"Payload Too Large","500":"Internal Server Error"}}}`
 
 func startDirect(t *testing.T, worker http.HandlerFunc) *directFixture {
 	t.Helper()
@@ -152,7 +151,7 @@ func TestAWorkerThatCannotBeReachedHandsTheRequestToNode(t *testing.T) {
 	}
 	got := <-fx.node
 	body, _ := io.ReadAll(got.Body)
-	if got.RequestURI != "/api/echo" || string(body) != "body" || got.Header.Get("X-Next-Internal-Front-Worker-Failed") != "" {
+	if got.RequestURI != "/api/echo" || string(body) != "body" {
 		t.Errorf("Node got %q with body %q", got.RequestURI, body)
 	}
 }
@@ -186,23 +185,16 @@ func TestNodeReasonPhrasesTrailersAndEarlyHints(t *testing.T) {
 	}
 }
 
-func TestAWorkerFailingBeforeHeadersIsReportedToNode(t *testing.T) {
+func TestAWorkerFailingBeforeHeadersGetsAPlain500(t *testing.T) {
 	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) { panic(http.ErrAbortHandler) })
-	conn, _ := net.Dial("tcp", fx.addr)
-	defer conn.Close()
-	fmt.Fprintf(conn, "POST /api/echo?x=1 HTTP/1.1\r\nHost: example.com\r\nContent-Length: 4\r\nConnection: close\r\n\r\nbody")
-	out, _ := io.ReadAll(conn)
-	if !strings.HasSuffix(string(out), "node") {
-		t.Fatalf("%q", out)
+	res := fx.raw(t, "GET /api/echo HTTP/1.1")
+	if !strings.HasPrefix(res, "HTTP/1.1 500 Internal Server Error\r\n") || !strings.HasSuffix(res, "Internal Server Error") {
+		t.Fatalf("%q", res)
 	}
-	<-fx.worker
-	got := <-fx.node
-	body, _ := io.ReadAll(got.Body)
-	if got.Method != "POST" || got.RequestURI != "/api/echo?x=1" || len(body) != 0 {
-		t.Errorf("Node got %s %q with body %q", got.Method, got.RequestURI, body)
-	}
-	if v := got.Header.Get("X-Next-Internal-Front-Worker-Failed"); v != "s3cret" {
-		t.Errorf("failure header %q", v)
+	select {
+	case r := <-fx.node:
+		t.Errorf("Node got %s, but the worker may have run the request", r.RequestURI)
+	default:
 	}
 }
 

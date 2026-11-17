@@ -4,10 +4,6 @@ import path from 'path'
 import type { NextConfigComplete, NextConfigRuntime } from '../config-shared'
 import type { setupFsCheck } from './router-utils/filesystem'
 import { INSTRUMENTATION_HOOK_FILENAME } from '../../lib/constants'
-import {
-  createFrontWorkerFailureSecret,
-  FRONT_WORKER_FAILED_HEADER,
-} from './front-worker-failure.external'
 import { INTERNAL_HEADERS } from './server-ipc/utils'
 import { frontRouteTable, type FrontRouteTable } from './front-route-table'
 
@@ -53,9 +49,5 @@ export function collectFrontRouteTable(
       fsChecker.getRouteDefinition('appFile', pathname, undefined),
     internalHeaders: INTERNAL_HEADERS,
     maxHeaderBytes: http.maxHeaderSize,
-    workerFailedHeader: {
-      name: FRONT_WORKER_FAILED_HEADER,
-      value: createFrontWorkerFailureSecret(),
-    },
   })
 }

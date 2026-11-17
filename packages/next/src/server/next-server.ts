@@ -1116,13 +1116,6 @@ export default class NextNodeServer extends BaseServer<
         if (!entry) {
           throw new InvariantError('Missing Go route manifest entry')
         }
-        if (getRequestMeta(req, 'frontRouteGoWorkerFailed')) {
-          // next-front sent this request to the route.go worker itself, and
-          // the worker failed before answering. Fail the same way a failed
-          // call to the worker fails here, so the client gets the same error
-          // response as without the front.
-          throw new Error('The route.go worker failed before responding')
-        }
         if (!this.nativeRoutes) {
           const { NativeRouteManager } =
             require('./lib/native-route.external') as typeof import('./lib/native-route.external')

@@ -45,7 +45,10 @@
 
 import type { ResolvedNextConfig } from './resolved-config'
 import { getGateTestContext } from './test-context'
-import { FRONT_SERVER_BINARY_ENV } from 'next/dist/server/lib/front-server-env'
+import {
+  FRONT_SERVER_BINARY_ENV,
+  FRONT_SERVER_ENV,
+} from 'next/dist/server/lib/front-server-env'
 
 export type ConditionValue = unknown
 
@@ -187,6 +190,10 @@ export const conditions: Record<string, Condition> = {
   frontServerBinary: staticCondition(
     'a next-front build is available through `__NEXT_EXPERIMENTAL_FRONT_SERVER_BINARY` (the test-front-server-prod CI job builds one)',
     () => Boolean(process.env[FRONT_SERVER_BINARY_ENV])
+  ),
+  frontServer: staticCondition(
+    '`next start` runs behind the experimental front server (`__NEXT_EXPERIMENTAL_FRONT_SERVER=1`)',
+    () => process.env[FRONT_SERVER_ENV] === '1'
   ),
 
   // Always false, so `// @gate FIXME` marks a test as a known failure without

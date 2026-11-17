@@ -50,12 +50,6 @@ export type OnCacheEntryHandler = (
 ) => Promise<boolean | void> | boolean | void
 
 export interface RequestMeta {
-  /**
-   * Set when next-front reports that the route.go worker it sent this request
-   * to failed before answering (front-worker-failure.external.ts).
-   */
-  frontRouteGoWorkerFailed?: boolean
-
   /** Server-owned identity for the development Request Insights timeline. */
   requestInsightsIdentity?: RequestInsightsIdentity
   /**

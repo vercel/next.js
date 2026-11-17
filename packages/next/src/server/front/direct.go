@@ -50,14 +50,7 @@ type directConfig struct {
 	StripRequestHeaders        []string          `json:"stripRequestHeaders"`
 	StripRequestHeaderPrefixes []string          `json:"stripRequestHeaderPrefixes"`
 	StatusText                 map[string]string `json:"statusText"`
-	// When a worker fails before answering, the request goes to Node with
-	// this header; Node then answers with its error page, as when its own
-	// call to the worker fails.
-	WorkerFailedHeader struct {
-		Name  string `json:"name"`
-		Value string `json:"value"`
-	} `json:"workerFailedHeader"`
-	strip map[string]bool
+	strip                      map[string]bool
 }
 
 // goUpstream is one route.go worker.
@@ -277,24 +270,23 @@ func (f *front) newGoProxy(up *goUpstream) *httputil.ReverseProxy {
 				return
 			}
 			proxyErrorLog.Printf("route.go worker %s: %v", up.address, err)
-			f.node.ServeHTTP(attempt.w, workerFailed(r, attempt.state.direct))
+			// TODO: answer with Node's error page, as without the front. Node
+			// renders it per request, so the front must hand the request back
+			// and have Node trust that the worker failed, which needs the
+			// token on Node's listener (step 5's routing contract). Until then
+			// the client gets a plain 500 here, where Node sends its page.
+			writeInternalError(attempt.w)
 		},
 		ErrorLog: proxyErrorLog,
 	}
 }
 
-// workerFailed is the request to hand Node when a worker failed after it may
-// have received r: the same request line and headers, no body (the worker
-// may have read it), and the header that tells Node the worker failed. Node
-// then answers what it answers when its own call to the worker fails.
-func workerFailed(r *http.Request, cfg directConfig) *http.Request {
-	out := r.Clone(r.Context())
-	out.Body = http.NoBody
-	out.ContentLength = 0
-	out.TransferEncoding = nil
-	out.Header.Del("Content-Length")
-	out.Header.Set(cfg.WorkerFailedHeader.Name, cfg.WorkerFailedHeader.Value)
-	return out
+// writeInternalError is the front's own answer when a worker fails after it
+// may have received the request: a plain 500.
+func writeInternalError(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusInternalServerError)
+	io.WriteString(w, "Internal Server Error")
 }
 
 func isDialError(err error) bool {
