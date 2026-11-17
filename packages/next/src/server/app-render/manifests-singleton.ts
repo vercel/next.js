@@ -7,7 +7,7 @@ import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
 import { mightBeServerReferenceId } from '../../shared/lib/server-reference-info'
 import { wellKnownProperties } from '../../shared/lib/utils/reflect-utils'
-import { workAsyncStorage } from './work-async-storage.external'
+import { workAsyncStorage, type WorkStore } from './work-async-storage.external'
 import {
   workUnitAsyncStorage,
   type WorkUnitStore,
@@ -118,6 +118,16 @@ function isUseCacheStore(workUnitStore: WorkUnitStore | undefined): boolean {
   }
 }
 
+/**
+ * Whether client references in `"use cache"` entries are serialized by their
+ * stable client reference name instead of the build-local module ID. The
+ * serialization (clientModules proxy) and deserialization
+ * (rscModuleMappingForUseCache) must both use this, so they always agree.
+ */
+function usesStableClientReferenceNames(workStore: WorkStore): boolean {
+  return workStore.durableUseCacheEntries
+}
+
 function createProxiedClientReferenceManifest(
   clientReferenceManifestsPerRoute: Map<
     string,
@@ -140,7 +150,10 @@ function createProxiedClientReferenceManifest(
             )?.clientReferenceManifest
 
             if (currentManifest?.[prop][id]) {
-              if (prop === 'clientModules') {
+              if (
+                prop === 'clientModules' &&
+                usesStableClientReferenceNames(workStore)
+              ) {
                 const workUnitStore = workUnitAsyncStorage.getStore()
                 if (isUseCacheStore(workUnitStore)) {
                   // This creates a mapping so that a given client references with name
@@ -308,7 +321,7 @@ function createProxiedClientReferenceManifest(
         key: string
       ): ClientReferenceManifest['rscModuleMapping'][string] | undefined {
         const workStore = workAsyncStorage.getStore()
-        if (workStore) {
+        if (workStore && usesStableClientReferenceNames(workStore)) {
           const currentManifest = clientReferenceManifestsPerRoute.get(
             workStore.route
           )?.clientReferenceManifest
