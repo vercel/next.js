@@ -3,6 +3,7 @@ mod cell_data;
 mod counter_map;
 mod eviction;
 mod gc;
+mod keyed_dependents;
 mod operation;
 mod snapshot_coordinator;
 mod storage;
@@ -504,8 +505,9 @@ impl TurboTasksBackend {
             .unwrap_or(0)
     }
 
-    /// The number of hashed keyed dependents (dependency edges of readers on keys of its cells,
-    /// `cell_dependents_keyed`) of a task, restoring it if needed. Test-only hook.
+    /// The number of keyed dependents (dependency edges of readers on keys of its cells,
+    /// `cell_dependents_keyed_index` and `cell_dependents_provisional`) of a task, restoring it if
+    /// needed. Test-only hook.
     #[doc(hidden)]
     pub fn keyed_cell_dependents_count_for_testing(
         &self,
@@ -516,7 +518,7 @@ impl TurboTasksBackend {
         let Some(task) = ctx.try_task(task, TaskDataCategory::Data) else {
             return 0;
         };
-        task.iter_cell_dependents_keyed().count()
+        task.iter_keyed_cell_dependents().count()
     }
 
     /// The effective aggregation number of a task (`None` if it doesn't exist). `u32::MAX` means
