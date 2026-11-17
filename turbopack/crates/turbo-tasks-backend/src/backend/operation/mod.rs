@@ -1440,6 +1440,19 @@ impl Display for TaskType {
     }
 }
 
+/// The state a reader's cell dependency edge had before [`TaskGuard::mark_cell_dependency`] made
+/// it current.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CellDependencyMark {
+    /// The edge didn't exist.
+    New,
+    /// The edge existed from the reader's previous execution.
+    WasOutdated,
+    /// The edge was already current: an earlier (or concurrent) read of the same execution
+    /// marked it.
+    AlreadyCurrent,
+}
+
 pub struct TaskGuard<'a> {
     task_id: TaskId,
     task: StorageWriteGuard<'a>,
@@ -1543,21 +1556,11 @@ impl<'a> TaskGuard<'a> {
         new_value
     }
 
-    /// Adds a keyed cell dependent, to `cell_dependents_provisional` for a
-    /// [`CellKeyKind::Provisional`] key and to `cell_dependents_keyed` otherwise. The caller
-    /// guarantees it is new (a reverse edge is only added when its forward edge is new), so it is
-    /// pushed.
+    /// Removes a keyed cell dependent (from `cell_dependents_provisional` for a
+    /// [`CellKeyKind::Provisional`] key, from `cell_dependents_keyed` otherwise), see
+    /// [`Self::ensure_cell_dependent`].
     ///
     /// [`CellKeyKind::Provisional`]: turbo_tasks::CellKeyKind::Provisional
-    pub fn add_keyed_cell_dependent(&mut self, dependent: (CellRef, CellKey)) {
-        if dependent.1.is_provisional() {
-            let _ = self.add_cell_dependents_provisional(dependent);
-        } else {
-            self.push_cell_dependents_keyed(dependent);
-        }
-    }
-
-    /// Removes a keyed cell dependent, see [`Self::add_keyed_cell_dependent`].
     pub fn remove_keyed_cell_dependent(&mut self, dependent: &(CellRef, CellKey)) -> bool {
         if dependent.1.is_provisional() {
             self.remove_cell_dependents_provisional(dependent)
@@ -1566,13 +1569,92 @@ impl<'a> TaskGuard<'a> {
         }
     }
 
-    /// Whether the task has a keyed cell dependent, see [`Self::add_keyed_cell_dependent`].
+    /// Whether the task has a keyed cell dependent, see [`Self::ensure_cell_dependent`].
     #[cfg(test)]
     pub fn has_keyed_cell_dependent(&self, dependent: &(CellRef, CellKey)) -> bool {
         if dependent.1.is_provisional() {
             self.cell_dependents_provisional_contains(dependent)
         } else {
             self.cell_dependents_keyed_contains(dependent)
+        }
+    }
+
+    /// Reader side of registering a cell dependency (see `try_read_task_cell`): makes the
+    /// dependency edge on `target` (with `key`) current, and returns its previous state.
+    ///
+    /// This doesn't add the reverse edge on the target task. The caller must do that afterwards,
+    /// with [`Self::ensure_cell_dependent`], in a separate lock section of the target task.
+    pub fn mark_cell_dependency(
+        &mut self,
+        target: CellRef,
+        key: Option<CellKey>,
+    ) -> CellDependencyMark {
+        match key {
+            None => {
+                if self.remove_outdated_cell_dependencies(&target) {
+                    CellDependencyMark::WasOutdated
+                } else if self.add_cell_dependencies(target) {
+                    CellDependencyMark::New
+                } else {
+                    CellDependencyMark::AlreadyCurrent
+                }
+            }
+            Some(key) => {
+                if self.remove_outdated_cell_dependencies_keyed(&(target, key)) {
+                    CellDependencyMark::WasOutdated
+                } else if self.add_cell_dependencies_keyed((target, key)) {
+                    CellDependencyMark::New
+                } else {
+                    CellDependencyMark::AlreadyCurrent
+                }
+            }
+        }
+    }
+
+    /// Undoes [`Self::mark_cell_dependency`] given the `mark` it returned. Only allowed when the
+    /// target task is immutable or gone: a mutable target may already have been invalidated
+    /// through the edge, so removing it could lose that invalidation.
+    pub fn unmark_cell_dependency(
+        &mut self,
+        target: CellRef,
+        key: Option<CellKey>,
+        mark: CellDependencyMark,
+    ) {
+        match (mark, key) {
+            (CellDependencyMark::AlreadyCurrent, _) => {}
+            (CellDependencyMark::New, None) => {
+                self.remove_cell_dependencies(&target);
+            }
+            (CellDependencyMark::New, Some(key)) => {
+                self.remove_cell_dependencies_keyed(&(target, key));
+            }
+            (CellDependencyMark::WasOutdated, None) => {
+                let _ = self.add_outdated_cell_dependencies(target);
+            }
+            (CellDependencyMark::WasOutdated, Some(key)) => {
+                let _ = self.add_outdated_cell_dependencies_keyed((target, key));
+            }
+        }
+    }
+
+    /// Owner side of registering a cell dependency (see `try_read_task_cell`): adds the reverse
+    /// edge for `reverse` (with `key`) unless it's already there.
+    ///
+    /// This must not trust the reader's [`CellDependencyMark`]: with the reader and the owner
+    /// locked separately, a concurrent read of the same cell by the same reader execution can see
+    /// the edge as already current before that read's reverse edge is added, or add the reverse
+    /// edge before this read gets here.
+    pub fn ensure_cell_dependent(&mut self, reverse: CellRef, key: Option<CellKey>) {
+        match key {
+            None => {
+                let _ = self.add_cell_dependents(reverse);
+            }
+            Some(key) if key.is_provisional() => {
+                let _ = self.add_cell_dependents_provisional((reverse, key));
+            }
+            Some(key) => {
+                let _ = self.add_cell_dependents_keyed((reverse, key));
+            }
         }
     }
 
@@ -1986,6 +2068,8 @@ impl TaskStorageAccessors for TaskGuard<'_> {
     }
 }
 
+#[cfg(test)]
+pub(in crate::backend) use self::update_cell::invalidate_cell_dependents;
 pub use self::{
     aggregation_update::{
         AggregatedDataUpdate, AggregationUpdateJob, CollectiblesUpdateVec, get_aggregation_number,

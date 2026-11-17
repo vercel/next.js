@@ -11,8 +11,8 @@
 //!   sized array. The callers know when a batch of changes is done, e.g. when the owning task
 //!   completes.
 //! * [`EdgeSet::push`] adds an element the caller guarantees is new, without looking it up or
-//!   inflating. A task's reverse edges are only added when the forward edge is new, so they are
-//!   pushed.
+//!   inflating. Reverse edges that are added together with a new forward edge, while both tasks are
+//!   locked, are pushed.
 //!
 //! # Representation
 //! * A [`TinyVec`] with a `u32` length: up to `INLINE` elements inline, then a heap array.
