@@ -1,11 +1,29 @@
+const { PHASE_DEVELOPMENT_SERVER } = require('next/constants')
+
 /**
- * @type {import('next').NextConfig}
+ * @param {string} phase
+ * @returns {import('next').NextConfig}
  */
-const nextConfig = {
+module.exports = (phase) => ({
   crossOrigin: 'use-credentials',
   experimental: {
     externalBrowserRuntime: true,
   },
-}
+  async headers() {
+    if (phase === PHASE_DEVELOPMENT_SERVER) {
+      return []
+    }
 
-module.exports = nextConfig
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            value: "script-src 'self'",
+          },
+        ],
+      },
+    ]
+  },
+})

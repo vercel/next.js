@@ -23,6 +23,8 @@ function setup(initialHmrVersion?: string, greeting?: string) {
     issues: jest.fn(),
   }
   client.setHooks(hooks)
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(globalThis as any)[listenersGlobal] = [['entry.js', callback]]
   const options: ClientOptions = {
     initialHmrVersion,
@@ -51,6 +53,8 @@ function setup(initialHmrVersion?: string, greeting?: string) {
 }
 
 afterEach(() => {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   delete (globalThis as any)[listenersGlobal]
 })
 
@@ -94,6 +98,8 @@ describe('initial document HMR baseline', () => {
   it('does not reset observed state to the HTML fallback if connect is called again', () => {
     const { client, sent, receive, options } = setup('3', '3')
     receive({ type: 'server-component-changes', hmrVersion: '4' })
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     ;(globalThis as any)[listenersGlobal] = [['another-entry.js', jest.fn()]]
     client.connect(options)
     expect(sent[sent.length - 1].hmrVersion).toBe('4')

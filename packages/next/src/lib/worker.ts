@@ -1,6 +1,7 @@
 import type { ChildProcess } from 'child_process'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { Transform } from 'stream'
+import { finished } from 'stream/promises'
 import {
   formatDebugAddress,
   formatNodeOptions,
@@ -20,6 +21,8 @@ const CPU_PROFILE_FLUSH_TIMEOUT_MS = 60_000
 
 const cleanupWorkers = async (worker: JestWorker): Promise<void> => {
   const children: ChildProcess[] = []
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   for (const curWorker of ((worker as any)._workerPool?._workers || []) as {
     _child?: ChildProcess
   }[]) {
@@ -205,6 +208,8 @@ export class Worker {
        * But this property is not available in NodeThreadWorker, so we need to check if we are using ChildProcessWorker
        */
       if (!farmOptions.enableWorkerThreads) {
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         for (const worker of ((this._worker as any)._workerPool?._workers ||
           []) as {
           _child?: ChildProcess
@@ -250,9 +255,10 @@ export class Worker {
           callback()
         },
       })
-      // Stop the activity if there's any output from the worker
-      this._worker.getStdout().pipe(abortActivityStreamOnLog)
-      this._worker.getStderr().pipe(abortActivityStreamOnLog)
+      // Stop the activity on worker output. Neither stream should end the
+      // shared sink.
+      this._worker.getStdout().pipe(abortActivityStreamOnLog, { end: false })
+      this._worker.getStderr().pipe(abortActivityStreamOnLog, { end: false })
 
       // Pipe the worker's stdout and stderr to the parent process
       this._worker.getStdout().pipe(process.stdout)
@@ -293,7 +299,10 @@ export class Worker {
       : (args: any[]) => args
 
     for (const method of farmOptions.exposedMethods) {
-      if (method.startsWith('_')) continue
+      if (method.startsWith('_'))
+        continue
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
       ;(this as any)[method] = timeout
         ? // eslint-disable-next-line no-loop-func
           async (...args: any[]) => {
@@ -304,6 +313,8 @@ export class Worker {
               for (;;) {
                 onActivityImpl()
                 const result = await Promise.race([
+                  // TODO(as-any): pre-existing cast, not yet reviewed
+                  // eslint-disable-next-line @next/internal/no-as-any
                   (this._worker as any)[method](...sanitizedArgs),
                   restartPromise,
                 ])
@@ -316,6 +327,8 @@ export class Worker {
             }
           }
         : (...args: any[]) =>
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             (this._worker as any)[method](...sanitizeArgs(args))
     }
   }
@@ -334,7 +347,21 @@ export class Worker {
     }
     this._worker = undefined
     await cleanupWorkers(worker)
-    return worker.end()
+    // Drain output before resolving; child exit can precede the final events.
+    const [result] = await Promise.all([
+      worker.end(),
+      finished(worker.getStdout(), {
+        readable: true,
+        writable: false,
+        cleanup: true,
+      }),
+      finished(worker.getStderr(), {
+        readable: true,
+        writable: false,
+        cleanup: true,
+      }),
+    ])
+    return result
   }
 
   /**

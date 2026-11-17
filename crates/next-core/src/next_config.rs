@@ -923,6 +923,9 @@ const DEFAULT_REQUEST_COST: f32 = 20_000.0;
 const DEFAULT_WEIGHT_DISTRIBUTION: f32 = 0.1;
 
 /// `experimental.turbopackChunking`: hints for Turbopack's production chunker.
+///
+/// The default sizes and request cost are scaled down when chunk items are minified before
+/// chunking, see `ChunkSizeDefaults`.
 #[derive(
     Clone, Debug, Default, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
@@ -1540,11 +1543,9 @@ pub struct OptionJsonValue(
     #[bincode(with = "turbo_bincode::serde_self_describing")] pub Option<serde_json::Value>,
 );
 
-fn turbopack_config_documentation_link() -> RcStr {
-    rcstr!(
-        "https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders"
-    )
-}
+static TURBOPACK_CONFIG_DOCUMENTATION_LINK: RcStr = rcstr!(
+    "https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders"
+);
 
 #[turbo_tasks::value(shared)]
 struct InvalidLoaderRuleRenameAsIssue {
@@ -1578,7 +1579,7 @@ impl Issue for InvalidLoaderRuleRenameAsIssue {
     }
 
     fn documentation_link(&self) -> RcStr {
-        turbopack_config_documentation_link()
+        TURBOPACK_CONFIG_DOCUMENTATION_LINK.clone()
     }
 }
 
@@ -1618,7 +1619,7 @@ impl Issue for InvalidLoaderRuleConditionIssue {
     }
 
     fn documentation_link(&self) -> RcStr {
-        turbopack_config_documentation_link()
+        TURBOPACK_CONFIG_DOCUMENTATION_LINK.clone()
     }
 }
 

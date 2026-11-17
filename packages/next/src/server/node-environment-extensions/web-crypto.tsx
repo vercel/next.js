@@ -27,6 +27,8 @@ try {
   const _getRandomValues = webCrypto.getRandomValues
   webCrypto.getRandomValues = function getRandomValues() {
     io(getRandomValuesExpression, 'crypto')
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     return _getRandomValues.apply(webCrypto, arguments as any)
   }
 } catch {
@@ -40,6 +42,8 @@ try {
   const _randomUUID = webCrypto.randomUUID
   webCrypto.randomUUID = function randomUUID() {
     io(randomUUIDExpression, 'crypto')
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     return _randomUUID.apply(webCrypto, arguments as any)
   } as typeof _randomUUID
 } catch {
