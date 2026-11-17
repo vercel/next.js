@@ -6,6 +6,60 @@ describe('adapter-partial-fallback', () => {
     files: __dirname,
   })
 
+  it('waits for an RSC prerender that can specialize to a static result', async () => {
+    const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
+      await next.readJSON('build-complete.json')
+    const html = outputs.prerenders.find(
+      (output) => output.pathname === '/miss-static/[slug]'
+    )
+    const rsc = outputs.prerenders.find(
+      (output) => output.pathname === '/miss-static/[slug].rsc'
+    )
+    expect(html).toMatchObject({
+      response: 'initial',
+      compute: 'resuming',
+      config: { allowQuery: ['nxtPslug'], partialFallback: true },
+    })
+    expect(rsc).toMatchObject({
+      response: 'empty',
+      compute: 'blocking',
+      config: { allowQuery: ['nxtPslug'] },
+    })
+    for (const suffix of ['', '.rsc']) {
+      expect(
+        outputs.prerenders.find(
+          (output) => output.pathname === '/miss-static/known' + suffix
+        )
+      ).toMatchObject({ response: 'complete', compute: 'static' })
+    }
+  })
+
+  it('uses source-route evidence across multiple fallback prefixes', async () => {
+    const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
+      await next.readJSON('build-complete.json')
+    const source = '/on-miss/prefixes/[category]/[slug]'
+    for (const pathname of [
+      source,
+      '/on-miss/prefixes/static/[slug]',
+      '/on-miss/prefixes/partial/[slug]',
+    ]) {
+      expect(
+        outputs.prerenders.find(
+          (output) => output.pathname === pathname + '.rsc'
+        )
+      ).toMatchObject({
+        route: source,
+        response: 'empty',
+        compute: 'blocking',
+      })
+    }
+    expect(
+      outputs.prerenders.find(
+        (output) => output.pathname === '/on-miss/prefixes/partial/known.rsc'
+      )
+    ).toMatchObject({ response: 'empty', compute: 'dynamic' })
+  })
+
   it('should emit partial fallback metadata when infra can upgrade the shell', async () => {
     const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
       await next.readJSON('build-complete.json')

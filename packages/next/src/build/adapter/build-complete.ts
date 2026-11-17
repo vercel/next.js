@@ -205,6 +205,9 @@ type PrerenderClassification =
        * cached prerender exists. The result can still be partial. A dynamic
        * render can reuse cached postponed state and stream without waiting for
        * a separate prerender first.
+       *
+       * Next.js uses build-time prerender results to infer whether an empty
+       * parameter matcher must wait for a prerender.
        */
       compute: 'blocking' | 'dynamic' | 'resuming' | 'static'
 
@@ -526,6 +529,143 @@ function getRscPrerenderClassification(
     routeType: route.routeType,
     response,
     compute,
+  }
+}
+
+function hasRemainingPrerenderableParams(
+  route: DynamicPrerenderManifestRoute
+): boolean {
+  return (
+    (route.remainingPrerenderableParams?.length ?? 0) > 0 ||
+    (route.fallbackRootParams?.length ?? 0) > 0
+  )
+}
+
+function createDynamicPrerenderClassifier(
+  prerenderManifest: PrerenderManifest,
+  routesManifest: RoutesManifest
+) {
+  const queryKeysByPathname = new Map<string, readonly string[]>(
+    routesManifest.dynamicRoutes.map((route) => [
+      route.page,
+      Object.values(
+        route.routeKeys ??
+          getNamedRouteRegex(route.page, { prefixRouteKeys: true }).routeKeys
+      ),
+    ])
+  )
+  const continuationBySource = new Map<
+    string,
+    Map<string, { html: boolean; rsc: boolean }>
+  >()
+
+  const getUnresolvedParamsKey = (queryKeys: readonly string[]) =>
+    JSON.stringify([...new Set(queryKeys)].sort())
+
+  function getPathnameQueryKeys(pathname: string): readonly string[] {
+    let keys = queryKeysByPathname.get(pathname)
+    if (keys === undefined) {
+      keys = Object.values(
+        getNamedRouteRegex(pathname, { prefixRouteKeys: true }).routeKeys
+      )
+      queryKeysByPathname.set(pathname, keys)
+    }
+    return keys
+  }
+
+  function recordPrerenderResult(
+    source: string,
+    route: PrerenderManifestRoute | DynamicPrerenderManifestRoute,
+    unresolvedQueryKeys: readonly string[]
+  ) {
+    const html = route.compute === 'dynamic' || route.compute === 'resuming'
+    const rsc = getRscPrerenderClassification(route).compute === 'dynamic'
+    let continuationByParams = continuationBySource.get(source)
+    if (continuationByParams === undefined) {
+      continuationByParams = new Map()
+      continuationBySource.set(source, continuationByParams)
+    }
+    const key = getUnresolvedParamsKey(unresolvedQueryKeys)
+    const previous = continuationByParams.get(key)
+    continuationByParams.set(key, {
+      html: html && (previous?.html ?? true),
+      rsc: rsc && (previous?.rsc ?? true),
+    })
+  }
+
+  for (const [pathname, route] of Object.entries(prerenderManifest.routes)) {
+    recordPrerenderResult(route.srcRoute ?? pathname, route, [])
+  }
+
+  for (const [pathname, route] of Object.entries(
+    prerenderManifest.dynamicRoutes
+  )) {
+    // Terminal shells have resolved all params that generateStaticParams can
+    // supply. Intermediate results do not describe the completed prerender.
+    if (
+      typeof route.fallback === 'string' &&
+      !hasRemainingPrerenderableParams(route)
+    ) {
+      recordPrerenderResult(
+        route.fallbackSourceRoute ?? pathname,
+        route,
+        getPathnameQueryKeys(pathname)
+      )
+    }
+  }
+
+  return function classifyDynamicPrerender(
+    pathname: string,
+    route: DynamicPrerenderManifestRoute,
+    classification: PrerenderClassification,
+    kind: 'html' | 'rsc',
+    allowQuery: readonly string[]
+  ): PrerenderClassification {
+    if (
+      classification.response !== 'empty' ||
+      classification.compute !== 'dynamic'
+    ) {
+      return classification
+    }
+
+    const remainingParamNames = [
+      ...(route.fallbackRootParams ?? []),
+      ...(route.remainingPrerenderableParams ?? []).map(
+        (param) => param.paramName
+      ),
+    ]
+    // A key that omits these params regenerates a shared shell that keeps them
+    // unresolved. Results with completed params do not describe that shell.
+    if (
+      !remainingParamNames.every((paramName) =>
+        allowQuery.includes(`${NEXT_QUERY_PARAM_PREFIX}${paramName}`)
+      )
+    ) {
+      return classification
+    }
+
+    // Parallel-slot params are derived from the matched URL. Only URL path
+    // params identify which build-time results describe this cache entry.
+    const pathnameQueryKeys = getPathnameQueryKeys(pathname)
+    const unresolvedQueryKeys = pathnameQueryKeys.filter(
+      (key) => !allowQuery.includes(key)
+    )
+    // A shared entry that resolves no additional URL param keeps its mode.
+    if (unresolvedQueryKeys.length === pathnameQueryKeys.length) {
+      return classification
+    }
+
+    // Build-time results must leave the same params unresolved as regeneration
+    // for this cache key. A key can resolve params outside
+    // generateStaticParams.
+    const continuation = continuationBySource
+      .get(route.fallbackSourceRoute || pathname)
+      ?.get(getUnresolvedParamsKey(unresolvedQueryKeys))
+    if (continuation?.[kind] !== true) {
+      return { ...classification, compute: 'blocking' }
+    }
+
+    return classification
   }
 }
 
@@ -1682,6 +1822,11 @@ export async function handleBuildComplete({
         return newCheck
       }
 
+      const classifyDynamicPrerender = createDynamicPrerenderClassifier(
+        prerenderManifest,
+        routesManifest
+      )
+
       for (const route in prerenderManifest.routes) {
         const {
           initialExpireSeconds: initialExpiration,
@@ -1977,6 +2122,7 @@ export async function handleBuildComplete({
           continue
         }
 
+        const manifestRoute = prerenderManifest.dynamicRoutes[dynamicRoute]
         const {
           fallback,
           fallbackExpire,
@@ -1994,7 +2140,7 @@ export async function handleBuildComplete({
           compute,
           htmlSize,
           experimentalBypassFor,
-        } = prerenderManifest.dynamicRoutes[dynamicRoute]
+        } = manifestRoute
 
         const srcRoute = fallbackSourceRoute || dynamicRoute
         const parentOutput = getParentOutput(srcRoute, dynamicRoute)
@@ -2102,12 +2248,18 @@ export async function handleBuildComplete({
               )
             : undefined
 
-        const classification = getPrerenderClassification(
+        const classification = classifyDynamicPrerender(
           dynamicRoute,
-          routeType,
-          response,
-          compute,
-          htmlSize
+          manifestRoute,
+          getPrerenderClassification(
+            dynamicRoute,
+            routeType,
+            response,
+            compute,
+            htmlSize
+          ),
+          'html',
+          htmlAllowQuery
         )
 
         const initialOutput: AdapterOutput['PRERENDER'] = {
@@ -2208,6 +2360,16 @@ export async function handleBuildComplete({
               'private, no-store, no-cache, max-age=0, must-revalidate'
           }
 
+          const rscClassification = classifyDynamicPrerender(
+            dynamicRoute,
+            manifestRoute,
+            getRscPrerenderClassification(
+              isAppPage ? manifestRoute : undefined
+            ),
+            'rsc',
+            dataAllowQuery
+          )
+
           if (isAppPage) {
             await handleAppMeta(dynamicRoute, initialOutput, meta, {
               htmlAllowQuery,
@@ -2218,9 +2380,7 @@ export async function handleBuildComplete({
           if (renderingMode === RenderingMode.PARTIALLY_STATIC) {
             outputs.prerenders.push({
               ...initialOutput,
-              ...getRscPrerenderClassification(
-                prerenderManifest.dynamicRoutes[dynamicRoute]
-              ),
+              ...rscClassification,
               id: `${dynamicRoute}.rsc`,
               pathname: `${dynamicRoute}.rsc`,
               fallback: {
@@ -2246,11 +2406,7 @@ export async function handleBuildComplete({
           } else if (dataRoute) {
             outputs.prerenders.push({
               ...initialOutput,
-              ...getRscPrerenderClassification(
-                isAppPage
-                  ? prerenderManifest.dynamicRoutes[dynamicRoute]
-                  : undefined
-              ),
+              ...rscClassification,
               id: dataRoute,
               pathname: dataRoute,
               fallback: undefined,
