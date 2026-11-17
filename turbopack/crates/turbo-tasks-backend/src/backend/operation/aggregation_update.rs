@@ -619,7 +619,9 @@ impl AggregatedDataUpdate {
         let aggregation = get_aggregation_number(task);
         let mut dirty_count = 0;
         let mut current_session_clean_count = 0;
-        let collectibles_update = if is_aggregating_node(aggregation) {
+        // Whether `collectibles_update` can contain more than one entry per collectible.
+        let mut need_optimize = false;
+        let mut collectibles_update = if is_aggregating_node(aggregation) {
             dirty_count = task
                 .get_aggregated_dirty_container_count()
                 .copied()
@@ -639,44 +641,18 @@ impl AggregatedDataUpdate {
                     collectibles_update.push((*collectible, 1));
                 }
             }
+            // A collectible can be listed twice: own and aggregated.
+            need_optimize =
+                !task.is_collectibles_empty() && !task.is_aggregated_collectibles_empty();
             collectibles_update
         } else {
             task.iter_collectibles().map(|(&k, &v)| (k, v)).collect()
         };
         // The uppers haven't seen the pending changes yet (see `stage_outgoing_collectibles`), so
-        // subtract them. They must net out with the entries above before the update is applied:
-        // otherwise an unpublished collectible would appear and disappear again in the upper,
-        // which invalidates its readers. Not all callers optimize the update (`balance_edge`
-        // applies it while holding both locks), so this nets them here. Pending changes are rare
-        // (only dirty tasks with collectible changes), so this costs nothing in the common case.
-        let mut collectibles_update = collectibles_update;
+        // subtract them.
         if !task.is_pending_collectibles_empty() {
-            // An aggregating task can list a collectible twice (own and aggregated). Combine
-            // these entries into the first one and subtract the pending count from it, so no
-            // opposite entries remain for the same collectible.
-            let mut first_index = FxHashMap::<CollectibleRef, usize>::default();
-            for i in 0..collectibles_update.len() {
-                let (collectible, count) = collectibles_update[i];
-                match first_index.entry(collectible) {
-                    HashMapEntry::Occupied(entry) => {
-                        collectibles_update[*entry.get()].1 += count;
-                        collectibles_update[i].1 = 0;
-                    }
-                    HashMapEntry::Vacant(entry) => {
-                        entry.insert(i);
-                        if let Some(pending) = task.get_pending_collectibles(&collectible) {
-                            collectibles_update[i].1 -= *pending;
-                        }
-                    }
-                }
-            }
-            collectibles_update.retain(|(_, count)| *count != 0);
-            // The remaining pending collectibles are never zero and not in the update yet.
-            for (collectible, count) in task.iter_pending_collectibles() {
-                if !first_index.contains_key(collectible) {
-                    collectibles_update.push((*collectible, -*count));
-                }
-            }
+            collectibles_update.extend(task.iter_pending_collectibles().map(|(&k, &v)| (k, -v)));
+            need_optimize = true;
         }
         let (dirty, current_session_clean) = task.dirty_state();
         if dirty {
@@ -687,6 +663,12 @@ impl AggregatedDataUpdate {
         }
 
         let mut result = Self::new().collectibles_update(collectibles_update);
+        // Duplicate entries must net out before the update is applied: otherwise a collectible
+        // could disappear and appear again in the upper, which invalidates its readers. Not all
+        // callers optimize the update (`balance_edge` applies it while holding both locks).
+        if need_optimize {
+            result = result.optimize();
+        }
         if dirty_count > 0 {
             result = result.dirty_container_update(
                 task.id(),
