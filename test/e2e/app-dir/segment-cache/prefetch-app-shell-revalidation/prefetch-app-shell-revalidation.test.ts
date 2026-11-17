@@ -3,17 +3,6 @@ import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 import { retry } from 'next-test-utils'
 
-/**
- * When a page switches from static to partial during a revalidation,
- * it continues serving static prerender responses for navigations
- * and runtime prefetches even though it shouldn't.
- *
- * This variable enables failing assertions that demonstrate this.
- * We keep both codepaths to also demonstrate the current (incorrect) behavior.
- * */
-const REPRODUCE_STATIC_PAGE_UPGRADE_BUG =
-  !!process.env.REPRODUCE_STATIC_PAGE_UPGRADE_BUG || false
-
 // The fixture rewrites value.json during requests; deployments do not provide
 // a writable, shared application filesystem.
 // @force-gate !deploy
@@ -65,7 +54,6 @@ describe('App Shell revalidation', () => {
         'static page that only starts reading cookies in the shell after a revalidation',
       route:
         '/static-conditional-cookies-in-shell/static-shell-equal-to-prefetch',
-      hasPrefetchData: false,
     },
     {
       // A variation of the previous test that includes prefetch-only content,
@@ -75,9 +63,8 @@ describe('App Shell revalidation', () => {
         'static page with prefetch-only content that only starts reading cookies in the shell after a revalidation',
       route:
         '/static-conditional-cookies-in-shell/static-shell-smaller-than-prefetch',
-      hasPrefetchData: true,
     },
-  ])('$description', ({ route, hasPrefetchData }) => {
+  ])('$description', ({ route }) => {
     // We should upgrade from a static shell to a runtime shell after a revalidation
     // despite the build-time hints being stale.
 
@@ -112,7 +99,7 @@ describe('App Shell revalidation', () => {
       }, 'no-requests')
     })
 
-    it('[FAILING] starts using runtime requests when the page starts using cookies in the shell after a revalidation', async () => {
+    it('starts using runtime requests when the page starts using cookies in the shell after a revalidation', async () => {
       let page: Playwright.Page
       const browser = await next.browser('/', {
         beforePageLoad(p: Playwright.Page) {
@@ -126,121 +113,48 @@ describe('App Shell revalidation', () => {
 
       // Reveal a link to the page. We should see revalidated content.
       // After the revalidation, the page starts using cookies in the shell.
-      if (REPRODUCE_STATIC_PAGE_UPGRADE_BUG) {
-        // Expected behavior: runtime follow-up that works
-        await act(async () => {
-          await browser
-            .elementByCss(
-              linkAccordionSelector({ href: route, prefetch: 'auto' })
-            )
-            .click()
-        }, [
-          // First, a static request (because the page was statically optimized at build time).
-          // This response should signal to the client router that runtime requests are still needed.
-          { includes: 'Cached value: updated', kind: 'static' },
-          // Then, a runtime shell follow-up.
-          { includes: 'Cookie data', kind: 'runtime' },
-          // This should be a runtime shell, i.e. we should not see runtime prefetch content.
-          {
-            includes: 'Runtime prefetch data (behind cookies)',
-            block: 'reject',
-          },
-        ])
-      } else {
-        // Actual behavior is still buggy: the client issues a runtime
-        // follow-up, but *does not get a proper response*.
-        await act(async () => {
-          await browser
-            .elementByCss(
-              linkAccordionSelector({ href: route, prefetch: 'auto' })
-            )
-            .click()
-        }, [
-          // First, a static request (because the page was statically optimized at build time).
-          // This response should signal to the client router that runtime requests are still needed.
-          { includes: 'Cached value: updated', kind: 'static' },
-
-          // FAILING: We *do* issue a follow up runtime request, but it just returns
-          // the static prerender result (under a `next-router-prefetch: 3` response).
-          // It includes data gated behind `prefetch()` (which a shell would not do)...
-          {
-            includes: hasPrefetchData
-              ? 'Prefetch data'
-              : 'Static page that conditionally uses cookies in the shell',
-            kind: 'runtime',
-          },
-          // ...and does not include cookies. The response still needs runtime
-          // data, so the client treats it as a failed attempt and doesn't
-          // send the runtime request again.
-          { includes: 'Cookie data', kind: 'runtime', block: 'reject' },
-        ])
-
-        // The failed attempt backs off. If the link is shown again, we use
-        // what's in the cache and don't send the runtime request again.
+      await act(async () => {
         await browser
           .elementByCss(
             linkAccordionSelector({ href: route, prefetch: 'auto' })
           )
           .click()
-        await act(async () => {
-          await browser
-            .elementByCss(
-              linkAccordionSelector({ href: route, prefetch: 'auto' })
-            )
-            .click()
-        }, 'no-requests')
-      }
+      }, [
+        // First, a static request (because the page was statically optimized at
+        // build time). This response should signal to the client router that
+        // runtime requests are still needed.
+        { includes: 'Cached value: updated', kind: 'static' },
+        // Then, a runtime shell follow-up.
+        { includes: 'Cookie data', kind: 'runtime' },
+        // This should be a runtime shell, i.e. we should not see runtime
+        // prefetch content.
+        {
+          includes: 'Runtime prefetch data (behind cookies)',
+          block: 'reject',
+        },
+      ])
 
-      // Navigate to the page. It became partial after revalidation, so we should
-      // do another request.
-      if (REPRODUCE_STATIC_PAGE_UPGRADE_BUG) {
-        // Expected behavior
-        await act(
-          async () => {
-            await browser.elementByCss(`a[href="${route}"]`).click()
-
-            // We should show contents from the runtime shell while navigating.
-            expect(await browser.elementById('cookie-data').text()).toEqual(
-              'Cookie data'
-            )
-          },
-          // The runtime shell is complete, so no extra requests should be needed.
-          'no-requests'
-        )
-        expect(await browser.elementById('cookie-data').text()).toEqual(
-          'Cookie data'
-        )
-      } else {
-        // Actual behavior: the static page upgrade is broken.
-        await act(async () => {
+      // The runtime shell supplies cookies immediately. Navigation fills the
+      // remaining prefetch-stage holes.
+      await browser.eval('window.__beforeNavigation = true')
+      await act(
+        async () => {
           await browser.elementByCss(`a[href="${route}"]`).click()
-          // The server did not actually return a runtime shell, so we don't
-          // see cookies, just the static prerender result.
-          expect(
-            await browser.elementById('cookie-data-fallback').text()
-          ).toEqual('Loading cookie data...')
-          if (hasPrefetchData) {
-            // We do however show `prefetch()` data, because a static prerender includes those.
-            expect(await browser.elementById('prefetch-data').text()).toBe(
-              'Prefetch data'
-            )
-          }
-        }, [
-          // The navigation request *also* incorrectly returns the (partial) static prerender
-          // result, which does not contain cookies.
-          {
-            includes:
-              'Static page that conditionally uses cookies in the shell',
-          },
-          { includes: 'Cookie data', block: 'reject' },
-        ])
 
-        // The navigation response was partial, so decoding the payload errors with
-        // with "Connection Closed" and crashes the page.
-        expect(await browser.elementById('__next_error__').text()).toContain(
-          'This page couldn’t load'
-        )
-      }
+          // We should show contents from the runtime shell while navigating.
+          expect(await browser.elementById('cookie-data').text()).toEqual(
+            'Cookie data'
+          )
+        },
+        { includes: 'Runtime prefetch data (behind cookies)' }
+      )
+      expect(await browser.eval('window.__beforeNavigation')).toBe(true)
+      expect(await browser.elementById('cookie-data').text()).toEqual(
+        'Cookie data'
+      )
+      expect(
+        await browser.elementById('cookies-runtime-prefetch-data').text()
+      ).toEqual('Runtime prefetch data (behind cookies)')
     })
   })
 

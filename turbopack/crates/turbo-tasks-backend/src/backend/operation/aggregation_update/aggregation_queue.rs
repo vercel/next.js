@@ -218,7 +218,7 @@ impl Fixture {
                 .set_restored(TaskDataCategory::All);
         }
         {
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut ctx = ExecuteContext::new(&tt);
             for task_id in 1..=config.edges as u32 + 1 {
                 let number = if task_id == UPPER {
                     UPPER_NUMBER
@@ -267,7 +267,7 @@ impl Fixture {
     /// Times may include this entire call: payload construction, queue/context construction and
     /// draining real removal jobs, including their effects. No restoration or checks run here.
     pub fn remove(&self) {
-        let mut ctx = ExecuteContext::new(self.tt.backend(), &self.tt);
+        let mut ctx = ExecuteContext::new(&self.tt);
         let mut queue = AggregationUpdateQueue::new_without_optimizations();
         match self.config.jobs {
             JobShape::SingleEdge => {
@@ -298,7 +298,7 @@ impl Fixture {
 
     /// Restores one reference per edge in fixed insertion order, irrespective of removal order.
     pub fn restore(&self) {
-        let mut ctx = ExecuteContext::new(self.tt.backend(), &self.tt);
+        let mut ctx = ExecuteContext::new(&self.tt);
         let mut queue = AggregationUpdateQueue::new_without_optimizations();
         // Separate one-ID additions keep insertion order fixed even for mixed placement: the
         // multi-ID addition handler may swap-remove inner IDs before inserting follower IDs.
@@ -320,7 +320,7 @@ impl Fixture {
     }
 
     fn check(&self, references: u32) {
-        let mut ctx = ExecuteContext::new(self.tt.backend(), &self.tt);
+        let mut ctx = ExecuteContext::new(&self.tt);
         let upper = ctx.task(id(UPPER), TaskDataCategory::All);
         let expected_followers = if references == 0 {
             0

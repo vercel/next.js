@@ -9173,6 +9173,7 @@ dependencies = [
  "bincode",
  "codspeed-criterion-compat",
  "concurrent-queue",
+ "crossbeam-utils",
  "dashmap 7.0.0-rc2",
  "either",
  "event-listener",
@@ -9214,6 +9215,7 @@ dependencies = [
  "codspeed-criterion-compat",
  "crossbeam-utils",
  "dashmap 7.0.0-rc2",
+ "either",
  "fs-err",
  "futures",
  "hashbrown 0.15.4",
@@ -9961,6 +9963,21 @@ dependencies = [
  "turbopack-ecmascript",
  "turbopack-resolve",
  "turbopack-trace-utils",
+]
+
+[[package]]
+name = "turbopack-nft-napi"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "turbo-rcstr",
+ "turbo-tasks",
+ "turbo-tasks-backend",
+ "turbo-tasks-malloc",
+ "turbopack-nft",
 ]
 
 [[package]]

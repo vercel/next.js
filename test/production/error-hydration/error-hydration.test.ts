@@ -26,6 +26,8 @@ describe('error-hydration', () => {
     expect(
       await browser.eval(
         () =>
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           (window as any).__ERROR_PAGE_GET_INITIAL_PROPS_INVOKED_CLIENT_SIDE__
       )
     ).toBe(undefined)
@@ -62,6 +64,8 @@ describe('error-hydration', () => {
       expect(
         await browser.eval(
           () =>
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             (window as any).__ERROR_PAGE_GET_INITIAL_PROPS_INVOKED_CLIENT_SIDE__
         )
       ).toBe(true)

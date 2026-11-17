@@ -16,7 +16,9 @@ use turbo_tasks_malloc::TurboMalloc;
 /// idle keep-alive (10s by default).
 ///
 /// This tries to visit each currently idle blocking-pool thread once to collect its heap, then
-/// purges the freed pages to the OS. It is best effort: the idle count is a snapshot, so threads
+/// purges the freed pages to the OS, including small free ranges between memory that's still in
+/// use (see [`TurboMalloc::collect_and_purge_all`]), since the heap is fragmented after freeing
+/// most of it. It is best effort: the idle count is a snapshot, so threads
 /// that change state concurrently may be missed, and a busy or capped blocking pool may not run the
 /// visits on distinct threads before the bounded rendezvous times out. Missed threads still collect
 /// when they exit. Purging many GB takes a while, so it runs on a blocking thread.
@@ -29,12 +31,12 @@ pub async fn release_freed_memory() {
             .metrics()
             .num_idle_blocking_threads();
         visit_idle_blocking_threads(idle_threads, || TurboMalloc::collect(false)).await;
-        // `collect(true)` purges the freed pages of all threads, so one call is enough. It also
-        // works if tokio runs this on a new blocking thread that never allocated.
-        let _ = tokio::task::spawn_blocking(|| TurboMalloc::collect(true)).await;
+        // This purges the freed pages of all threads, so one call is enough. It also works if
+        // tokio runs this on a new blocking thread that never allocated.
+        let _ = tokio::task::spawn_blocking(TurboMalloc::collect_and_purge_all).await;
     }
     #[cfg(target_family = "wasm")]
-    TurboMalloc::collect(true);
+    TurboMalloc::collect_and_purge_all();
 }
 
 /// Runs `f` once on each of `count` distinct blocking-pool threads.
