@@ -107,7 +107,6 @@ import {
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_URL,
   NEXT_ROUTER_STATE_TREE_HEADER,
-  NEXT_INSTANT_TEST_COOKIE,
 } from '../client/components/app-router-headers'
 import { nanoid } from 'next/dist/compiled/nanoid'
 import { LocaleRouteNormalizer } from './normalizers/locale-route-normalizer'
@@ -2684,57 +2683,15 @@ export default abstract class Server<
       routeModule = components.routeModule
     }
 
-    /**
-     * If the route being rendered is an app page, and the ppr feature has been
-     * enabled, then the given route _could_ support PPR.
-     */
-    const couldSupportPPR: boolean =
+    const isPPREnabled: boolean =
       this.isAppPPREnabled &&
       typeof routeModule !== 'undefined' &&
       isAppPageRouteModule(routeModule)
 
-    // When enabled, this will allow the use of the `?__nextppronly` query to
-    // enable debugging of the static shell.
-    const hasDebugStaticShellQuery =
-      process.env.__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING === '1' &&
-      typeof query.__nextppronly !== 'undefined' &&
-      couldSupportPPR
-
-    // Whether the testing API is exposed (dev mode or explicit flag)
-    const exposeTestingApi =
-      this.dev === true ||
-      this.nextConfig.experimental.exposeTestingApiInProductionBuild === true
-
-    // Check for the instant test cookie for MPA navigations (page reload, full
-    // page load) in the Instant Navigation Testing API. Only applies to
-    // document requests (no RSC header) - RSC requests should proceed normally
-    // even during a locked scope, with blocking happening on the client side.
-    const hasInstantTestCookie =
-      exposeTestingApi &&
-      !isRSCRequestHeader(req.headers[RSC_HEADER]) &&
-      typeof req.headers.cookie === 'string' &&
-      req.headers.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=') &&
-      couldSupportPPR
-
-    // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
-    // prerender manifest and this is an app page.
-    const isRoutePPREnabled: boolean =
-      couldSupportPPR &&
-      ((
-        prerenderManifest.routes[pathname] ??
-        prerenderManifest.dynamicRoutes[pathname]
-      )?.renderingMode === 'PARTIALLY_STATIC' ||
-        // Ideally we'd want to check the appConfig to see if this page has PPR
-        // enabled or not, but that would require plumbing the appConfig through
-        // to the server during development. We assume that the page supports it
-        // but only during development or when the testing API is exposed.
-        ((hasDebugStaticShellQuery || hasInstantTestCookie) &&
-          (exposeTestingApi || this.experimentalTestProxy === true)))
-
     // If we're in minimal mode, then try to get the postponed information from
     // the request metadata. If available, use it for resuming the postponed
     // render.
-    const minimalPostponed = isRoutePPREnabled
+    const minimalPostponed = isPPREnabled
       ? getRequestMeta(req, 'postponed')
       : undefined
     const hasPostponedState = typeof minimalPostponed === 'string'
