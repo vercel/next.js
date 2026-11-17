@@ -129,7 +129,7 @@ export default async function Page() {
 }
 ```
 
-To keep an individual `fetch` request uncached, use `cache: 'no-store'` or `next: { revalidate: 0 }` without conflicting caching options. To force all `fetch` requests in a segment to be uncached, including requests with explicit caching options, use [`fetchCache = 'force-no-store'`](#fetchcache).
+To keep an individual `fetch` request uncached, use `cache: 'no-store'` or `next: { revalidate: 0 }` without conflicting caching options.
 
 #### `fetchCache`
 
@@ -158,7 +158,7 @@ export const fetchCache = 'auto'
 - **`'force-cache'`**: Ensure all `fetch` requests opt into caching by setting the `cache` option of all `fetch` requests to `'force-cache'`.
 - **`'default-no-store'`**: Allow any `cache` option to be passed to `fetch` but if no option is provided then set the `cache` option to `'no-store'`. This means that even `fetch` requests before Request-time APIs are considered dynamic.
 - **`'only-no-store'`**: Ensure all `fetch` requests opt out of caching by changing the default to `cache: 'no-store'` if no option is provided and causing an error if any `fetch` requests use `cache: 'force-cache'`
-- **`'force-no-store'`**: Ensure all `fetch` requests opt out of caching by setting the `cache` option of all `fetch` requests to `'no-store'`. This forces all `fetch` requests to be re-fetched every request even if they provide a `'force-cache'` option.
+- **`'force-no-store'`**: Opt `fetch` requests out of caching unless a request explicitly sets `cache: 'force-cache'` without `next.revalidate`. To keep every request uncached, remove those explicit `force-cache` options or replace them with `cache: 'no-store'`.
 
 ##### Cross-route segment behavior
 
