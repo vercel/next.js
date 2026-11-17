@@ -524,9 +524,15 @@ struct ModuleReplacement {
     new: Requirement,
 }
 
-/// Resolves a directory replacement's target inside the main module. Only directory
+/// Resolves a directory replacement's target, relative to the main module, inside the source
+/// boundary. In a monorepo the boundary is the workspace root, so a module in an application
+/// directory can map a package installed in the workspace's `node_modules`. Only directory
 /// replacements are supported: they are tracked like module sources and need no download.
-fn replacement_directory(project: &Path, replacement: &ModuleReplacement) -> Result<PathBuf> {
+fn replacement_directory(
+    boundary: &Path,
+    project: &Path,
+    replacement: &ModuleReplacement,
+) -> Result<PathBuf> {
     ensure!(
         replacement.new.version.is_empty(),
         "versioned Go module replacements are not supported in this release: {}",
@@ -544,8 +550,8 @@ fn replacement_directory(project: &Path, replacement: &ModuleReplacement) -> Res
         }
     }
     ensure!(
-        directory.starts_with(project) && directory != project,
-        "Go module replacements must point to a directory inside the module: {} => {}",
+        directory.starts_with(boundary) && !project.starts_with(&directory),
+        "Go module replacements must point to a directory inside the project root: {} => {}",
         replacement.old.path,
         replacement.new.path
     );
@@ -953,6 +959,7 @@ async fn observe_packages(
 #[turbo_tasks::function(session_dependent)]
 async fn discover(
     root: FileSystemPath,
+    boundary: FileSystemPath,
     files: Vec<RcStr>,
     go_session: ResolvedVc<GoBuildSession>,
     generated: BTreeMap<RcStr, RcStr>,
@@ -965,7 +972,17 @@ async fn discover(
     let project = to_sys_path(root.clone())
         .await?
         .context("Go inputs require a disk filesystem")?;
-    let mut tracker = Tracker::new(&root, &project, &go_context);
+    // Directory replacements may live outside the module but inside the boundary, so inputs
+    // are tracked relative to the boundary. The module itself is always inside it.
+    let boundary_path = to_sys_path(boundary.clone())
+        .await?
+        .context("Go inputs require a disk filesystem")?;
+    ensure!(
+        project.starts_with(&boundary_path),
+        "Go module is outside its boundary: {}",
+        project.display()
+    );
+    let mut tracker = Tracker::new(&boundary, &boundary_path, &go_context);
     let run = async {
         validate_build_cache(&project, &go_context)?;
         let directory = entry_directory(&project, &files)?;
@@ -1017,7 +1034,7 @@ async fn discover(
                 // A directory replacement resolves from its own go.mod and sources, never the
                 // module cache. Observe its go.mod so creating or editing it invalidates
                 // discovery; its packages are tracked like module sources below.
-                let directory = replacement_directory(&project, replacement)?;
+                let directory = replacement_directory(&boundary_path, &project, replacement)?;
                 tracker.file(&directory.join("go.mod")).await?;
                 roots.push((requirement.path.as_str(), directory));
                 continue;
@@ -1299,6 +1316,7 @@ impl GoBundleResult {
 #[turbo_tasks::function]
 async fn bundle(
     root: FileSystemPath,
+    boundary: FileSystemPath,
     mut files: Vec<RcStr>,
     go_session: ResolvedVc<GoBuildSession>,
     generated: BTreeMap<RcStr, RcStr>,
@@ -1307,7 +1325,7 @@ async fn bundle(
     files.extend(generated.keys().cloned());
     files.sort();
     files.dedup();
-    let discovery = discover(root.clone(), files, *go_session, generated).await?;
+    let discovery = discover(root.clone(), boundary, files, *go_session, generated).await?;
     let outcome = match &discovery.outcome {
         DiscoveryOutcome::Ready(plan) => {
             let project = to_sys_path(root.clone())
@@ -1359,7 +1377,13 @@ pub fn go_bundle(
     files: Vec<RcStr>,
     go_context: GoBuildContext,
 ) -> Vc<GoBundleResult> {
-    bundle(root, files, shared_session(go_context), BTreeMap::new())
+    bundle(
+        root.clone(),
+        root,
+        files,
+        shared_session(go_context),
+        BTreeMap::new(),
+    )
 }
 
 /// Compile named sources with additional generated files in the same directory. Generated
@@ -1371,7 +1395,13 @@ pub fn go_bundle_with_generated_files(
     go_context: GoBuildContext,
     generated: BTreeMap<RcStr, RcStr>,
 ) -> Vc<GoBundleResult> {
-    bundle(root, files, shared_session(go_context), generated)
+    bundle(
+        root.clone(),
+        root,
+        files,
+        shared_session(go_context),
+        generated,
+    )
 }
 
 /// Session-valued entrypoint for persistent compiler consumers. Generated source
@@ -1383,7 +1413,7 @@ pub fn go_bundle_with_session(
     session: ResolvedVc<GoBuildSession>,
     generated: BTreeMap<RcStr, RcStr>,
 ) -> Vc<GoBundleResult> {
-    bundle(root, files, *session, generated)
+    bundle(root.clone(), root, files, *session, generated)
 }
 
 #[cfg(test)]

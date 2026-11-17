@@ -1107,6 +1107,14 @@ export interface ExperimentalConfig {
   turbopackInputSourceMaps?: boolean
 
   /**
+   * Enable file tracing (NFT) in the Turbopack dev server. File references in
+   * server code and externals are traced and included in the module graph,
+   * but no `.nft.json` files are written. This option does not change
+   * production builds. Defaults to false.
+   */
+  turbopackFileTracingForDev?: boolean
+
+  /**
    * Currently in active development. This splits modules into fragments and
    * chunks only import the used fragments of the modules.
    */

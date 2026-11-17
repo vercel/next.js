@@ -61,6 +61,8 @@ import { MultiFileWriter } from '../lib/multi-file-writer'
 import { createRenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
 import { getExportPathPageKey } from './utils'
 import { installGlobalBehaviors } from '../server/node-environment-extensions/global-behaviors'
+// TODO(as-any): pre-existing cast, not yet reviewed
+// eslint-disable-next-line @next/internal/no-as-any
 ;(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,
 }

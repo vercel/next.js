@@ -231,7 +231,7 @@ impl AppProject {
             project.encryption_key(),
             project.server_compile_time_info().environment(),
             project.client_compile_time_info().environment(),
-            *project.should_write_nft_manifests().await?,
+            *project.should_trace().await?,
             project.server_source_map_generation_options(),
         ))
     }
@@ -268,7 +268,7 @@ impl AppProject {
             project.encryption_key(),
             project.server_compile_time_info().environment(),
             project.client_compile_time_info().environment(),
-            *project.should_write_nft_manifests().await?,
+            *project.should_trace().await?,
             project.server_source_map_generation_options(),
         ))
     }
@@ -616,7 +616,7 @@ impl AppProject {
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
-            *self.project().should_write_nft_manifests().await?,
+            *self.project().should_trace().await?,
             self.project().server_source_map_generation_options(),
         ))
     }
@@ -914,7 +914,7 @@ impl AppProject {
         if *self.project.per_page_module_graph().await? {
             let next_mode = self.project.next_mode();
             let next_mode_ref = next_mode.await?;
-            let should_trace = *self.project.should_write_nft_manifests().await?;
+            let should_trace = *self.project.should_trace().await?;
             let should_read_binding_usage = next_mode_ref.is_production();
             let remove_unused_imports = *self
                 .project
@@ -1714,7 +1714,7 @@ impl AppEndpoint {
                 .get_client_references_for_endpoint(
                     *rsc_entry,
                     matches!(this.ty, AppEndpointType::Page { .. }),
-                    /* include_traced */ *project.should_write_nft_manifests().await?,
+                    /* include_traced */ *project.should_trace().await?,
                     /* include_binding_usage */ project.next_mode().await?.is_production(),
                 )
                 .to_resolved()
@@ -2773,7 +2773,7 @@ impl Endpoint for AppEndpoint {
             .get_client_references_for_endpoint(
                 *app_entry.rsc_entry,
                 true,
-                *project.should_write_nft_manifests().await?,
+                *project.should_trace().await?,
                 project.next_mode().await?.is_production(),
             )
             .await?;
@@ -2843,7 +2843,7 @@ impl Endpoint for AppEndpoint {
             .get_client_references_for_endpoint(
                 *app_entry.rsc_entry,
                 true,
-                *project.should_write_nft_manifests().await?,
+                *project.should_trace().await?,
                 project.next_mode().await?.is_production(),
             )
             .to_resolved()

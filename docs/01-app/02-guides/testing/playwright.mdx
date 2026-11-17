@@ -137,10 +137,6 @@ test('should navigate to the about page', async ({ page }) => {
 
 <AppOnly>
 
-### Testing instant navigations
-
-If you're using Cache Components, the `instant()` helper from `@next/playwright` lets you assert what is visible immediately after a navigation, before any dynamic content streams in. See the [Instant navigation guide](/docs/app/guides/instant-navigation) and the [`instant` API reference](/docs/app/api-reference/file-conventions/route-segment-config/instant) for setup and examples.
-
 ### Testing routes preserved by Cache Components
 
 With Cache Components, previous pages remain hidden in the DOM after client-side navigation. Test locators can match elements in both visible and hidden routes. Use visibility-aware locators. See [Testing preserved UI](/docs/app/guides/preserving-ui-state#testing) for examples and locator behavior.
@@ -164,3 +160,157 @@ You can learn more about Playwright and Continuous Integration from these resour
 - [Next.js with Playwright example](https://github.com/vercel/next.js/tree/canary/examples/with-playwright)
 - [Playwright on your CI provider](https://playwright.dev/docs/ci)
 - [Playwright Discord](https://discord.com/invite/playwright-807756831384403968)
+
+<AppOnly>
+
+## Testing instant navigations
+
+If you're using [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), the `instant()` helper from `@next/playwright` lets you assert what is visible immediately after a navigation, before any dynamic content streams in. The helper is experimental.
+
+> **Good to know:** The callback tests the same UI you can inspect with **Pause on navigations** in the [Navigation Inspector](/docs/app/guides/instant-navigation#visualize-loading-states-with-the-nextjs-devtools). When the callback finishes, `instant()` releases the pause, like clicking **Resume**.
+
+### Installing the helper
+
+After setting up Playwright above, install `@next/playwright`:
+
+```bash package="pnpm"
+pnpm add -D @next/playwright
+```
+
+```bash package="npm"
+npm install -D @next/playwright
+```
+
+```bash package="yarn"
+yarn add -D @next/playwright
+```
+
+```bash package="bun"
+bun add -D @next/playwright
+```
+
+With Cache Components enabled, you can use the helper in `next dev` without additional configuration. For `next build` and `next start`, enable the testing API as shown in [Production builds](#production-builds).
+
+### Initial page loads
+
+On an initial page load or reload, `instant()` lets you test the route's static shell while dynamic server content remains paused:
+
+```ts filename="e2e/initial-load.test.ts" highlight={5-15}
+import { expect, test } from '@playwright/test'
+import { instant } from '@next/playwright'
+
+test('shows the initial shell', async ({ page, baseURL }) => {
+  await instant(
+    page,
+    async () => {
+      await page.goto('/dashboard')
+      await expect(
+        page.getByRole('heading', { name: 'Dashboard' })
+      ).toBeVisible()
+    },
+    { baseURL }
+  )
+})
+```
+
+Pass Playwright's configured `baseURL` so the helper can set up the pause before `page.goto()`. Inside the callback, assert on the static content and loading states. After `instant()` returns, dynamic content can stream in and you can assert on the completed page.
+
+### Client navigations
+
+On a client navigation, `instant()` lets you test the destination's prefetched UI. Click a link inside the callback:
+
+```ts filename="e2e/navigation.test.ts" highlight={7-11}
+import { expect, test } from '@playwright/test'
+import { instant } from '@next/playwright'
+
+test('shows the dashboard shell', async ({ page }) => {
+  await page.goto('/')
+
+  await instant(page, async () => {
+    await page.getByRole('link', { name: 'Dashboard' }).click()
+    await page.waitForURL((url) => url.pathname === '/dashboard')
+    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+  })
+})
+```
+
+The prefetched UI can contain more than the initial static shell, depending on the link's [prefetch configuration](/docs/app/guides/optimizing-prefetching). If all the page's content is cached or prefetched, you can assert on the whole page inside the callback. Check any remaining dynamic content after `instant()` returns.
+
+Wait for the destination URL before asserting on its UI. Otherwise, a shared selector could match the source page before the navigation completes. If the destination cannot appear while dynamic content is paused, the URL wait times out and the test fails.
+
+Cache Components can preserve previous pages hidden in the DOM. Use `getByRole`, which excludes hidden elements by default, or filter other locators with `.filter({ visible: true })`. See [Testing preserved UI](/docs/app/guides/preserving-ui-state#testing).
+
+### Production builds
+
+The testing API is available automatically in `next dev` with Cache Components. To test a production build, enable [`experimental.exposeTestingApiInProductionBuild`](/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild) only for the test server:
+
+```ts filename="next.config.ts" switcher highlight={3,8}
+import type { NextConfig } from 'next'
+
+const exposeTestingApi = process.env.EXPOSE_TESTING_API === '1'
+
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+  experimental: {
+    exposeTestingApiInProductionBuild: exposeTestingApi,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher highlight={1,7}
+const exposeTestingApi = process.env.EXPOSE_TESTING_API === '1'
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  cacheComponents: true,
+  experimental: {
+    exposeTestingApiInProductionBuild: exposeTestingApi,
+  },
+}
+
+module.exports = nextConfig
+```
+
+Set `EXPOSE_TESTING_API=1` when you build and start the test server.
+
+```bash filename="Terminal"
+EXPOSE_TESTING_API=1 pnpm build
+EXPOSE_TESTING_API=1 pnpm start
+```
+
+Keep this option disabled on user-facing production deployments.
+
+### Parameters
+
+```ts
+function instant<T>(
+  page: Page,
+  callback: () => Promise<T>,
+  options?: { baseURL?: string }
+): Promise<T>
+```
+
+| Parameter         | Description                                                                                                            |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `page`            | The Playwright page to navigate and inspect.                                                                           |
+| `callback`        | An async function containing navigation actions and assertions. Dynamic server content stays paused until it finishes. |
+| `options.baseURL` | The application URL. Required before the first page load. Defaults to `page.url()` once a page has loaded.             |
+
+The returned promise resolves with the callback's result or rejects with its error. The helper releases the pause when the callback finishes, including when an assertion fails.
+
+### Limitations
+
+- These tests assume a warm cache and check which UI can render before dynamic server content arrives. They do not measure cold-cache loading time or prefetch latency.
+- The pause applies to the browser context. Nested or concurrent `instant()` calls in the same context throw an error. Use separate contexts for concurrent tests.
+- The pause holds back dynamic server content but allows hydration to continue. Client Components that do not need that content may already be visible when assertions run.
+- The pause uses a cookie scoped to the hostname, not the port. Avoid using it across different applications on the same hostname in one browser context.
+
+### Search-parameter updates
+
+Changing only search parameters updates the existing page. If the update suspends on data that was not prefetched, React can keep the previous content visible instead of showing a fallback.
+
+`instant()` holds that data until the callback finishes. Waiting for the updated URL or content inside the callback can therefore time out even when ordinary navigation works. If retaining content is the intended experience, test [pending feedback](/docs/app/guides/interactive-apps#step-3-filter-with-pending-feedback) and the completed update without the pause. A search-parameter update can still be instant when the content it needs is already available.
+
+</AppOnly>

@@ -16,8 +16,9 @@ describe('native-proxy-go', () => {
 
   it('maps next/go to the SDK in the installed next package', async () => {
     // proxy.go imports next/go. The fixture's go.mod has neither the requirement
-    // nor the replacement: Next.js adds both once the dev server or build has
-    // set up the bundler, which happens no later than the first request.
+    // nor the replacement: Next.js adds the replacement, and the requirement
+    // because the SDK is imported, once the dev server or build has set up the
+    // bundler, which happens no later than the first request.
     await next.fetch('/')
     const goMod = await next.readFile('go.mod')
     expect(goMod).toMatch(/^require next\/go v0\.0\.0$/m)

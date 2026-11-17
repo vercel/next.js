@@ -21,6 +21,8 @@ describe('client-dev-overlay', () => {
   ) {
     return browser.eval(
       `!!document.querySelector('nextjs-portal').shadowRoot.querySelector('${selector}')`
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
     ) as any
   }
   const selectors = {
