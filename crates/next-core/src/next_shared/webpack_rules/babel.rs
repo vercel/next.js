@@ -352,7 +352,13 @@ pub async fn resolve_babel_plugin_react_compiler(
     next_config: Vc<NextConfig>,
     project_path: &FileSystemPath,
 ) -> Result<Option<RcStr>> {
-    let Some(next_package) = &*try_get_next_package(project_path.clone()).await? else {
+    let package_map = next_config
+        .turbopack_package_map(project_path.clone())
+        .owned()
+        .await?;
+    let Some(next_package) =
+        &*try_get_next_package(project_path.clone(), package_map.clone()).await?
+    else {
         BabelPluginReactCompilerResolutionIssue {
             failed_resolution: rcstr!("next"),
             config_file_path: next_config
@@ -371,12 +377,7 @@ pub async fn resolve_babel_plugin_react_compiler(
         Request::parse(Pattern::Constant(
             BABEL_PLUGIN_REACT_COMPILER_PACKAGE_JSON.clone(),
         )),
-        node_cjs_resolve_options(
-            next_config
-                .turbopack_package_map(project_path.clone())
-                .owned()
-                .await?,
-        ),
+        node_cjs_resolve_options(package_map),
     );
     let Some(source) = babel_plugin_result.await?.first_source() else {
         BabelPluginReactCompilerResolutionIssue {

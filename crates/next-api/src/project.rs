@@ -12,7 +12,7 @@ use indexmap::map::Entry;
 use next_core::{
     app_structure::find_app_dir,
     emit_assets, get_edge_chunking_context, get_edge_chunking_context_with_client_assets,
-    get_edge_compile_time_info, get_edge_resolve_options_context,
+    get_edge_compile_time_info, get_edge_resolve_options_context, get_next_package,
     instrumentation::instrumentation_files,
     middleware::middleware_files,
     mode::NextMode,
@@ -57,7 +57,7 @@ use turbo_tasks::{
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
     DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, File, FileContent, FileSystem,
-    FileSystemPath, VirtualFileSystem, invalidation,
+    FileSystemPath, FileSystemPathOption, VirtualFileSystem, invalidation,
 };
 use turbo_unix_path::join_path;
 use turbopack::{
@@ -1405,6 +1405,25 @@ impl Project {
         *self.next_config
     }
 
+    /// The Node.js package map that packages are located with instead of the `node_modules`
+    /// folders, if any.
+    #[turbo_tasks::function]
+    pub async fn package_map(self: Vc<Self>) -> Result<Vc<FileSystemPathOption>> {
+        Ok(self
+            .next_config()
+            .turbopack_package_map(self.project_path().owned().await?))
+    }
+
+    /// The directory of the `next` package that the project depends on.
+    #[turbo_tasks::function]
+    pub async fn next_package(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        Ok(
+            get_next_package(self.project_path().owned().await?, self.next_config())
+                .await?
+                .cell(),
+        )
+    }
+
     /// Build the `IssueFilter` for this project, incorporating any
     /// `turbopack.ignoreIssue` rules from the Next.js config.
     #[turbo_tasks::function]
@@ -1539,10 +1558,7 @@ impl Project {
             node_execution_chunking_context,
             self.env(),
             node_backend,
-            self.next_config()
-                .turbopack_package_map(self.project_path().owned().await?)
-                .owned()
-                .await?,
+            self.package_map().owned().await?,
         ))
     }
 
@@ -3094,10 +3110,7 @@ impl Project {
             /* resolve_typescript */ false,
             /* prune */ None,
             /* trace_file_references */ true,
-            self.next_config()
-                .turbopack_package_map(project_path.clone())
-                .owned()
-                .await?,
+            self.package_map().owned().await?,
         );
 
         Ok(Vc::cell(
@@ -3128,16 +3141,13 @@ impl Project {
             /* resolve_typescript */ false,
             /* prune */ None,
             /* trace_file_references */ true,
-            self.next_config()
-                .turbopack_package_map(self.project_path().owned().await?)
-                .owned()
-                .await?,
+            self.package_map().owned().await?,
         ));
-        let hook_modules = require_hook_modules(self.project_path().owned().await?, asset_context)
+        let hook_modules = require_hook_modules(self.next_package().owned().await?, asset_context)
             .owned()
             .await?;
         let renderer_modules =
-            pages_renderer_modules(self.project_path().owned().await?, asset_context)
+            pages_renderer_modules(self.next_package().owned().await?, asset_context)
                 .owned()
                 .await?;
 

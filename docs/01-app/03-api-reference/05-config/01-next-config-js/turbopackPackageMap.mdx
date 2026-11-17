@@ -91,7 +91,6 @@ A package can only import the packages that its `dependencies` list. For example
 > - The package map and the locations of all packages must be inside of the [root directory](/docs/app/api-reference/config/next-config-js/turbopack#root-directory).
 > - A `url` is relative to the package map, or an absolute `file:` URL.
 > - Several package IDs can share one location. Turbopack identifies the importing package from the location of the importing file, so an import from a shared location only resolves when it leads to the same location from all of the packages that share it.
-> - Next.js still finds the `next` package itself in the `node_modules` folders.
 > - TypeScript does not read package maps. Type checking resolves packages on its own.
 
 ## Version History

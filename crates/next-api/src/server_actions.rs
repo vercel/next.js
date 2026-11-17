@@ -5,7 +5,6 @@ use bincode::{Decode, Encode};
 use either::Either;
 use itertools::Itertools;
 use next_core::{
-    get_next_package,
     next_client_reference::{CssClientReferenceModule, EcmascriptClientReferenceModule},
     next_manifests::{
         ActionLayer, ActionManifestEntryDurability, ActionManifestModuleId,
@@ -460,7 +459,7 @@ struct ModulesInformation {
 #[turbo_tasks::function]
 async fn get_use_cache_modules_to_ignore(project: ResolvedVc<Project>) -> Result<Vc<Modules>> {
     let app_project = project.app_project().await?.unwrap();
-    let next_dir = get_next_package(project.project_path().owned().await?).await?;
+    let next_dir = project.next_package().owned().await?;
     let source_to_ignore =
         FileSource::new(next_dir.join("dist/server/route-modules/app-page/module.compiled.js")?);
     Ok(Vc::cell(

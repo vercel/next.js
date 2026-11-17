@@ -49,7 +49,9 @@ use crate::{
     mode::NextMode,
     next_build::get_postcss_package_mapping,
     next_config::NextConfig,
-    next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_server_import_map},
+    next_import_map::{
+        get_next_edge_and_server_fallback_import_map, get_next_package, get_next_server_import_map,
+    },
     next_server::{
         resolve::{ExternalCjsModulesResolvePlugin, ExternalPredicate},
         transforms::{get_next_server_internal_transforms_rules, get_next_server_transforms_rules},
@@ -152,7 +154,7 @@ pub async fn get_server_resolve_options_context(
 
     // Always load these predefined packages as external.
     let mut external_packages: Vec<RcStr> = load_next_js_jsonc_file(
-        project_path.clone(),
+        get_next_package(project_path.clone(), next_config).await?,
         rcstr!("dist/lib/server-external-packages.jsonc"),
     )
     .await?;
@@ -441,7 +443,7 @@ pub async fn get_server_module_options_context(
     };
     let postcss_transform_options = PostCssTransformOptions {
         postcss_package: Some(
-            get_postcss_package_mapping(project_path.clone())
+            get_postcss_package_mapping(project_path.clone(), next_config)
                 .to_resolved()
                 .await?,
         ),
@@ -489,11 +491,19 @@ pub async fn get_server_module_options_context(
         .transpose()?;
 
     // ModuleOptionsContext related options
-    let tsconfig = get_typescript_transform_options(project_path.clone(), tsconfig_path.clone())
-        .to_resolved()
+    let package_map = next_config
+        .turbopack_package_map(project_path.clone())
+        .owned()
         .await?;
+    let tsconfig = get_typescript_transform_options(
+        project_path.clone(),
+        tsconfig_path.clone(),
+        package_map.clone(),
+    )
+    .to_resolved()
+    .await?;
     let decorators_options =
-        get_decorators_transform_options(project_path.clone(), tsconfig_path.clone());
+        get_decorators_transform_options(project_path.clone(), tsconfig_path.clone(), package_map);
     let enable_mdx_rs = *next_config.mdx_rs().await?;
 
     // Get the jsx transform options for the `client` side.

@@ -59,6 +59,12 @@ function addInstalledPackage(dir, includeDevDependencies = false) {
     dependencies,
   }
 
+  // Like in `node_modules`, a package can import itself by its name. Next.js
+  // does that.
+  if (packageJson.name !== undefined) {
+    dependencies[packageJson.name] = id
+  }
+
   const names = Object.keys({
     ...packageJson.dependencies,
     ...packageJson.peerDependencies,

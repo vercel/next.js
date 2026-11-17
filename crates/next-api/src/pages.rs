@@ -307,6 +307,7 @@ impl PagesProject {
         let next_router_root = next_router_fs.root().owned().await?;
         Ok(find_pages_structure(
             self.project.project_path().owned().await?,
+            self.project.next_package().owned().await?,
             next_router_root,
             self.project.next_config().page_extensions(),
             self.project.next_mode(),

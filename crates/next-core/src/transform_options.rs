@@ -16,15 +16,18 @@ use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 use crate::{mode::NextMode, next_config::NextConfig};
 
+/// Reads the tsconfig of the project and the tsconfigs it extends. `package_map` is the path of
+/// the package map to find the packages of `extends` with, if any.
 async fn get_typescript_options(
     project_path: FileSystemPath,
     tsconfig_path: Option<FileSystemPath>,
+    package_map: Option<FileSystemPath>,
 ) -> Result<Option<Vec<(Vc<FileJsonContent>, ResolvedVc<Box<dyn Source>>)>>> {
     if let Some(tsconfig_path) = tsconfig_path {
         let tsconfigs = read_tsconfigs(
             tsconfig_path.read(),
             ResolvedVc::upcast(FileSource::new(tsconfig_path.clone()).to_resolved().await?),
-            node_cjs_resolve_options(None),
+            node_cjs_resolve_options(package_map.clone()),
         )
         .await
         .ok();
@@ -36,7 +39,7 @@ async fn get_typescript_options(
             Some(FindContextFileResult::Found(path, _)) => read_tsconfigs(
                 path.read(),
                 ResolvedVc::upcast(FileSource::new(path.clone()).to_resolved().await?),
-                node_cjs_resolve_options(None),
+                node_cjs_resolve_options(package_map),
             )
             .await
             .ok(),
@@ -51,8 +54,9 @@ async fn get_typescript_options(
 pub async fn get_typescript_transform_options(
     project_path: FileSystemPath,
     tsconfig_path: Option<FileSystemPath>,
+    package_map: Option<FileSystemPath>,
 ) -> Result<Vc<TypescriptTransformOptions>> {
-    let tsconfig = get_typescript_options(project_path, tsconfig_path).await?;
+    let tsconfig = get_typescript_options(project_path, tsconfig_path, package_map).await?;
 
     let use_define_for_class_fields = if let Some(ref tsconfig) = tsconfig {
         read_from_tsconfigs(tsconfig, |json, _| {
@@ -92,8 +96,9 @@ pub async fn get_typescript_transform_options(
 pub async fn get_decorators_transform_options(
     project_path: FileSystemPath,
     tsconfig_path: Option<FileSystemPath>,
+    package_map: Option<FileSystemPath>,
 ) -> Result<Vc<DecoratorsOptions>> {
-    let tsconfig = get_typescript_options(project_path, tsconfig_path).await?;
+    let tsconfig = get_typescript_options(project_path, tsconfig_path, package_map).await?;
 
     let experimental_decorators = if let Some(ref tsconfig) = tsconfig {
         read_from_tsconfigs(tsconfig, |json, _| {
@@ -171,7 +176,11 @@ pub async fn get_jsx_transform_options(
     next_config: Vc<NextConfig>,
     tsconfig_path: Option<FileSystemPath>,
 ) -> Result<Vc<JsxTransformOptions>> {
-    let tsconfig = get_typescript_options(project_path.clone(), tsconfig_path).await?;
+    let package_map = next_config
+        .turbopack_package_map(project_path.clone())
+        .owned()
+        .await?;
+    let tsconfig = get_typescript_options(project_path.clone(), tsconfig_path, package_map).await?;
 
     let is_react_development = mode.await?.is_react_development();
     let enable_react_refresh = if is_react_development {
