@@ -83,7 +83,7 @@ separate terminal after the build, keep it running during the test command,
 and stop it afterward. Use only one server lifecycle for the measured app.
 
 Adapt the script names and port to the project. Follow the public
-[`instant()` testing pattern](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests): use `page.goto()` for an initial-load
+[`instant()` testing pattern](https://nextjs.org/docs/app/guides/testing/playwright#testing-instant-navigations): use `page.goto()` for an initial-load
 contract and click the real `<Link>` for a client-navigation contract.
 
 ### Test context

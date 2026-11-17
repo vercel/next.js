@@ -14,6 +14,7 @@ use crate::{
                 AggregationUpdateJob, AggregationUpdateQueue, InnerOfUppersLostFollowersJob,
                 get_aggregation_number, get_uppers, is_aggregating_node,
             },
+            stage_outgoing_collectibles,
         },
         storage_schema::{ActivenessAccessors, TaskStorageAccessors},
     },
@@ -256,10 +257,9 @@ fn cleanup_old_edges_inner(
                         collectible_type: ty,
                     });
                 }
-                queue.extend(AggregationUpdateJob::data_update(
-                    &mut task,
-                    AggregatedDataUpdate::new().collectibles_update(collectibles),
-                ));
+                let mut update = AggregatedDataUpdate::new().collectibles_update(collectibles);
+                stage_outgoing_collectibles(&mut task, &mut update);
+                queue.extend(AggregationUpdateJob::data_update(&mut task, update));
             }
             OutdatedEdge::CellDependency { dependent, cell } => {
                 {

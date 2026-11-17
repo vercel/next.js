@@ -14,6 +14,8 @@ const babel = (code) =>
       name: 'tests',
       isDev: false,
     },
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
   } as any).code
 
 describe('babel plugin (next-page-config)', () => {

@@ -41,8 +41,13 @@ pub async fn make_production_chunks(
     let span = span_outer.clone();
     async move {
         let module_chunk_groups = module_graph.chunk_group_info().module_chunk_groups();
-        let chunk_group_info = module_graph.chunk_group_info().await?;
-        let heuristics = &chunk_group_info.chunking_heuristics;
+        // Only the heuristics, so this doesn't depend on the whole `ChunkGroupInfo` (which
+        // changes with every change of the set of chunk groups).
+        let heuristics = module_graph
+            .chunk_group_info()
+            .chunking_heuristics()
+            .await?;
+        let heuristics = &*heuristics;
         // Merged modules only exist when module merging is enabled; computing `merged_modules()`
         // otherwise would force the (potentially expensive) merge analysis — and the module graph
         // isn't even built to support it (it only collects `is_mergeable` when merging is on). So

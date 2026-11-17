@@ -1782,7 +1782,9 @@ export default class NextNodeServer extends BaseServer<
       page,
       body:
         method !== 'GET' && method !== 'HEAD'
-          ? (getRequestMeta(params.request, 'clonableBody') as any)
+          ? // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
+            (getRequestMeta(params.request, 'clonableBody') as any)
           : undefined,
 
       signal: signalFromNodeResponse(params.response.originalResponse),
@@ -2199,6 +2201,8 @@ export default class NextNodeServer extends BaseServer<
       onError: params.onError,
       onWarning: params.onWarning,
       incrementalCache:
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         (globalThis as any).__incrementalCache ||
         getRequestMeta(params.req, 'incrementalCache'),
       serverComponentsHmrCache: getRequestMeta(

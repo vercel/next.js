@@ -20,6 +20,8 @@ describe('RequestCookiesAdapter', () => {
     // These methods are not available on the sealed instance
     expect(() => sealed.set('foo', 'bar2')).toThrow(ReadonlyRequestCookiesError)
     expect(() => sealed.delete('foo')).toThrow(ReadonlyRequestCookiesError)
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(() => (sealed as any).clear()).toThrow(ReadonlyRequestCookiesError)
 
     // Ensure nothing was actually changed.
@@ -39,6 +41,8 @@ describe('RequestCookiesAdapter', () => {
     // These methods are not available on the sealed instance
     expect(() => sealed.set('foo', 'bar2')).toThrow(ReadonlyRequestCookiesError)
     expect(() => sealed.delete('foo')).toThrow(ReadonlyRequestCookiesError)
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(() => (sealed as any).clear()).toThrow(ReadonlyRequestCookiesError)
 
     // Ensure nothing was actually changed.
@@ -99,6 +103,8 @@ describe('wrapWithMutableAccessCheck', () => {
   let createCookiesWithMutableAccessCheck: typeof import('./request-cookies').createCookiesWithMutableAccessCheck
 
   beforeAll(() => {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     ;(globalThis as any).AsyncLocalStorage ??= (
       require('node:async_hooks') as typeof import('node:async_hooks')
     ).AsyncLocalStorage

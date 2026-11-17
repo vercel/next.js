@@ -75,8 +75,14 @@ describe('Prefetching Links in viewport', () => {
     await resetDataRequests()
     const browser = await next.browser('/', { baseUrl: proxyPort })
     await browser.eval(function navigate() {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       ;(window as any).next.router.push('/ssg/slow')
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       ;(window as any).next.router.push('/ssg/slow')
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       ;(window as any).next.router.push('/ssg/slow')
     })
     await browser.waitForElementByCss('#content')
