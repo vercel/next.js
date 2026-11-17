@@ -79,7 +79,7 @@ use std::{
 
 use indexmap::map::Entry;
 use ringmap::RingSet;
-use rustc_hash::{FxBuildHasher, FxHashMap};
+use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 use smallvec::{SmallVec, smallvec};
 #[cfg(feature = "trace_aggregation_update_queue")]
 use tracing::span::Span;
@@ -156,14 +156,18 @@ fn is_effectively_dirty(task: &TaskGuard<'_>) -> bool {
 
 /// Delayed collectible propagation: decides which collectible changes of `update`, an update of
 /// the contribution of `task` to its uppers, are sent now. Must be called under the lock of `task`,
-/// after its dirty state has been updated, for every outgoing update of the task.
+/// after its dirty state has been updated, for every outgoing update of the task that changes
+/// collectibles or can make the task clean.
 ///
 /// - While the task is dirty (itself or through its children), the collectible changes are moved
 ///   into the task's `pending_collectibles`, where positive and negative changes of the same
-///   collectible cancel out. Only the dirty state part of `update` is sent.
-/// - Once the task is clean, the pending changes are added to `update`. The update that makes the
-///   task clean always passes here, so they are sent together with it.
-/// - Without uppers nobody has seen the contribution, so the pending changes are dropped.
+///   collectible cancel out. Only the dirty state part of `update` is sent. This also applies when
+///   the task has no uppers yet: a task that is executing can temporarily have many collectibles
+///   that it removes again before it's clean, and these shouldn't be propagated.
+/// - Once the task is clean, the pending changes are netted with the changes of `update` and added
+///   to it, so `update` stays normalized (one entry per collectible). The update that makes the
+///   task clean always passes here, so they are sent together with it. Without uppers, the update
+///   isn't sent, which drops the pending changes: nobody has seen the contribution.
 ///
 /// A dirty subgraph often changes the same collectibles back and forth before it is clean again,
 /// e.g. a task that takes the collectibles of a recomputed child cancels the child's changes when
@@ -177,33 +181,20 @@ fn is_effectively_dirty(task: &TaskGuard<'_>) -> bool {
 ///
 /// [`AggregatedDataUpdate::from_task`] subtracts the pending changes, so that new and removed
 /// uppers see the same contribution as the existing uppers.
-fn stage_outgoing_collectibles(task: &mut TaskGuard<'_>, update: &mut AggregatedDataUpdate) {
+pub fn stage_outgoing_collectibles(task: &mut TaskGuard<'_>, update: &mut AggregatedDataUpdate) {
     let has_pending = !task.is_pending_collectibles_empty();
     if update.collectibles_update.is_empty() && !has_pending {
         return;
     }
-    if task.is_upper_empty() {
-        if has_pending {
-            let pending: SmallVec<[CollectibleRef; 4]> =
-                task.iter_pending_collectibles().map(|(&k, _)| k).collect();
-            for collectible in pending {
-                task.remove_pending_collectibles(&collectible);
-            }
-        }
+    let is_dirty = is_effectively_dirty(task);
+    if !is_dirty && !has_pending {
+        // Clean and nothing pending: send the changes as they are.
         return;
     }
-    if is_effectively_dirty(task) {
-        for (collectible, count) in take(&mut update.collectibles_update) {
-            let _ = task.update_pending_collectibles_count(collectible, count);
-        }
-    } else if has_pending {
-        let pending: CollectiblesUpdateVec = task
-            .iter_pending_collectibles()
-            .map(|(&k, &v)| (k, v))
-            .collect();
-        for (collectible, _) in pending.iter() {
-            task.remove_pending_collectibles(collectible);
-        }
+    for (collectible, count) in take(&mut update.collectibles_update) {
+        let _ = task.update_pending_collectibles_count(collectible, count);
+    }
+    if !is_dirty && let Some(pending) = task.take_pending_collectibles() {
         update.collectibles_update.extend(pending);
     }
 }
@@ -557,11 +548,13 @@ impl AggregationUpdateJob {
         )
     }
 
+    /// Creates a job that sends `update` to the uppers of `task`. Callers that send collectible
+    /// changes or can make the task clean must pass `update` through
+    /// [`stage_outgoing_collectibles`] first.
     pub fn data_update(
         task: &mut TaskGuard<'_>,
-        mut update: AggregatedDataUpdate,
+        update: AggregatedDataUpdate,
     ) -> Option<AggregationUpdateJob> {
-        stage_outgoing_collectibles(task, &mut update);
         if update.is_empty() {
             return None;
         }
@@ -656,13 +649,26 @@ impl AggregatedDataUpdate {
         // which invalidates its readers. Not all callers optimize the update (`balance_edge`
         // applies it while holding both locks), so this nets them here. Pending changes are rare
         // (only dirty tasks with collectible changes), so this costs nothing in the common case.
-        let collectibles_update = if task.is_pending_collectibles_empty() {
-            collectibles_update
-        } else {
-            let mut collectibles_update = collectibles_update;
-            collectibles_update.extend(task.iter_pending_collectibles().map(|(&k, &v)| (k, -v)));
-            sum_collectibles_update(collectibles_update)
-        };
+        let mut collectibles_update = collectibles_update;
+        if !task.is_pending_collectibles_empty() {
+            // Subtract each pending count once, from the first entry of its collectible (an
+            // aggregating task can list a collectible twice: own and aggregated).
+            let mut netted = FxHashSet::default();
+            for (collectible, count) in collectibles_update.iter_mut() {
+                if let Some(pending) = task.get_pending_collectibles(collectible)
+                    && netted.insert(*collectible)
+                {
+                    *count -= *pending;
+                }
+            }
+            collectibles_update.retain(|(_, count)| *count != 0);
+            // The remaining pending collectibles are never zero and not in the update yet.
+            for (collectible, count) in task.iter_pending_collectibles() {
+                if !netted.contains(collectible) {
+                    collectibles_update.push((*collectible, -*count));
+                }
+            }
+        }
         let (dirty, current_session_clean) = task.dirty_state();
         if dirty {
             dirty_count += 1;
@@ -5666,7 +5672,7 @@ mod delayed_collectibles_tests {
     use turbo_tasks::{TaskPriority, TurboTasks};
 
     use super::{
-        AggregationUpdateQueue, check_pending_collectibles_invariant,
+        AggregatedDataUpdate, AggregationUpdateQueue, check_pending_collectibles_invariant,
         follower_debt_tests::{
             FOLLOWER, INNER, UPPER, add, aggregated, balance, collectible, id, remove, run,
             setup_with_data, uppers,
@@ -5678,7 +5684,7 @@ mod delayed_collectibles_tests {
             operation::{ExecuteContext, UpdateCollectibleOperation},
             storage_schema::TaskStorageAccessors,
         },
-        data::{AggregationNumber, Dirtyness},
+        data::{AggregationNumber, CellRef, CollectibleRef, Dirtyness},
     };
 
     fn set_dirty(tt: &TurboTasks<TurboTasksBackend>, task: u32, dirty: bool) {
@@ -5831,6 +5837,61 @@ mod delayed_collectibles_tests {
         set_dirty(&tt, 2, false);
         assert_eq!((aggregated(&tt, 1), aggregated(&tt, 3)), (1, 1));
         assert!(reader_is_dirty(&tt), "publishing invalidates the reader");
+    }
+
+    /// A dirty task without uppers delays its changes too: an executing task can temporarily have
+    /// collectibles that it removes again before it's clean.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn changes_without_uppers_are_delayed_until_clean() {
+        let tt = setup_with_data(&[(1, UPPER), (2, INNER)], false);
+        set_dirty(&tt, 2, true);
+        emit(&tt, 2, 1);
+        assert_eq!(pending(&tt, 2), 1);
+
+        // A new upper sees only the published contribution.
+        run(&tt, [add(1, 2)]);
+        assert_eq!((aggregated(&tt, 1), pending(&tt, 2)), (0, 1));
+
+        set_dirty(&tt, 2, false);
+        assert_eq!((aggregated(&tt, 1), pending(&tt, 2)), (1, 0));
+    }
+
+    /// Without uppers, becoming clean drops the pending changes: nobody has seen them.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn clean_without_uppers_drops_pending_changes() {
+        let tt = setup_with_data(&[(1, UPPER), (2, INNER)], false);
+        set_dirty(&tt, 2, true);
+        emit(&tt, 2, 1);
+        assert_eq!(pending(&tt, 2), 1);
+        set_dirty(&tt, 2, false);
+        assert_eq!(pending(&tt, 2), 0);
+
+        // The collectible is still part of the contribution of 2.
+        run(&tt, [add(1, 2)]);
+        assert_eq!(aggregated(&tt, 1), 1);
+    }
+
+    /// `from_task` subtracts each pending count once, even when an aggregating task lists a
+    /// collectible twice (own and aggregated), and adds pending removals.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn from_task_nets_pending_changes() {
+        let tt = setup_with_data(&[(2, UPPER)], false);
+        let other = CollectibleRef {
+            cell: CellRef {
+                task: id(1001),
+                ..collectible().cell
+            },
+            ..collectible()
+        };
+        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let mut task = ctx.task(id(2), TaskDataCategory::All);
+        let _ = task.update_collectibles_positive_crossing(collectible(), 1);
+        task.update_aggregated_collectibles(collectible(), |_| Some(1));
+        let _ = task.update_pending_collectibles_count(collectible(), 1);
+        let _ = task.update_pending_collectibles_count(other, -1);
+        let mut update = AggregatedDataUpdate::from_task(&mut task).collectibles_update;
+        update.sort_by_key(|(collectible, _)| collectible.cell.task);
+        assert_eq!(update.as_slice(), [(collectible(), 1), (other, 1)]);
     }
 
     fn check(tt: &TurboTasks<TurboTasksBackend>, task: u32) -> Result<(), String> {
