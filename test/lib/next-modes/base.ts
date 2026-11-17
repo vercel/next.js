@@ -949,7 +949,7 @@ export class NextInstance {
           resolve()
         })
       })
-      this.childProcess.kill(signal)
+      this.childProcess?.kill(signal)
       await closePromise
       this.childProcess = undefined
       this.isStopping = null
