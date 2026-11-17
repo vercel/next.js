@@ -114,6 +114,30 @@ Open the upgrade in a separate Git worktree?
 
 When you run the command from an existing coding agent, it provides the prepared task to that agent instead. The agent keeps the model, reasoning effort, and permissions already configured for its session.
 
+## Use the upgraded app
+
+An upgrade in a separate Git worktree changes that worktree only. Committing the upgrade or opening a pull request leaves your original checkout and its installed dependencies unchanged.
+
+The upgrade task asks the agent to report the upgrade branch, worktree path, verified Next.js version, checks, and pull request URL when available. The report should also identify any steps you still need to take to use the upgrade.
+
+To use the upgraded app:
+
+1. Choose a checkout. To keep working in your original checkout, review and merge the upgrade branch or pull request through your usual Git workflow, then update that checkout. To try the upgrade before merging, open the app's directory in the upgraded worktree instead.
+2. Install dependencies with the project's package manager in the chosen checkout. For a monorepo, run the install from its workspace root.
+3. From the app's directory, confirm the installed version with `next --version` through the project's package manager, then restart the development server there.
+
+For example, in a standalone npm app after merging the upgrade into your chosen checkout:
+
+```bash filename="Terminal"
+npm install
+npx next --version
+npm run dev
+```
+
+The version output should match the agent's verified target.
+
+Upgrade reminders check the Next.js version installed in the checkout running `next dev` or `next build`. A reminder can still appear in the original checkout until it uses the upgraded dependencies.
+
 ## Configure upgrade reminders
 
 Upgrade reminders are enabled by default with the `security` policy. Set [`experimental.agentUpgrade`](/docs/app/api-reference/config/next-config-js/agentUpgrade) to choose another policy or disable reminders:

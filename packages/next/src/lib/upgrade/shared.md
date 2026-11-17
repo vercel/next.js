@@ -69,4 +69,16 @@ adoption, before moving on to delivery or the next adoption.
       local changes and report that a PR requires a repository and remote.
 - [ ] If a PR is possible but permission has not been granted, ask the user
       whether to open one when reporting the completed work.
+- [ ] In the completion report, name the upgrade branch and worktree path when
+      applicable, the verified Next.js version, checks run, and any PR URL.
+      Distinguish verified upgrade work from remaining steps to use it.
+- [ ] If the upgrade remains in a separate worktree, explain that the original
+      checkout and its installed dependencies are unchanged. Give concrete
+      steps to integrate the branch or PR into the original checkout, or run
+      the app from the upgraded worktree. Include installing dependencies in
+      the chosen checkout, verifying `next --version` with the app's package
+      manager, and restarting the development server. See
+      [Use the upgraded app](https://nextjs.org/docs/app/guides/upgrading/agent-upgrade#use-the-upgraded-app).
+      Leave integration to the user unless they requested it; do not suppress
+      reminders to make the original checkout appear upgraded.
 - [ ] If work is incomplete, report completed work, the blocker, and how to resume.

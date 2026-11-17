@@ -57,6 +57,8 @@ If you don't choose within ten seconds, or the buffered output grows past about 
 
 When a coding agent runs `next dev` or `next build`, the first eligible reminder stops the command with instructions to report the upgrade. Retrying the same command promptly continues the original task with a warning.
 
+Reminders use the Next.js version installed in the checkout running the command. An upgrade committed in a separate Git worktree does not update the original checkout's dependencies. See [Use the upgraded app](/docs/app/guides/upgrading/agent-upgrade#use-the-upgraded-app) to apply the upgrade and restart the development server.
+
 When upgrade reminders are enabled, `next dev` also writes a separate managed upgrade block to `AGENTS.md`. This block delegates handling of the installed CLI's reminders:
 
 ```md filename="AGENTS.md"
