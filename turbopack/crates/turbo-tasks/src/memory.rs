@@ -1,5 +1,8 @@
 //! Returning freed memory to the OS.
 
+#[cfg(not(target_family = "wasm"))]
+use std::time::Duration;
+
 use turbo_tasks_malloc::TurboMalloc;
 
 /// Makes memory that has already been freed (e.g. by dropping the turbo-tasks storage in
@@ -32,17 +35,21 @@ use turbo_tasks_malloc::TurboMalloc;
 pub async fn release_freed_memory() {
     #[cfg(not(target_family = "wasm"))]
     {
-        let workers = visit_workers(|| TurboMalloc::collect(false), WORKER_VISIT_DEADLINE).await;
+        // The idle blocking-pool threads and the workers are independent, so visit both at once.
+        // Both are done before the purge below.
+        let idle_threads = tokio::runtime::Handle::current()
+            .metrics()
+            .num_idle_blocking_threads();
+        let (workers, ()) = tokio::join!(
+            visit_workers(|| TurboMalloc::collect(false), WORKER_VISIT_DEADLINE),
+            visit_idle_blocking_threads(idle_threads, || TurboMalloc::collect(false)),
+        );
         tracing::trace!(
             workers = workers.workers,
             visited = workers.visited,
             elapsed_us = workers.elapsed.as_micros() as u64,
             "visited runtime workers"
         );
-        let idle_threads = tokio::runtime::Handle::current()
-            .metrics()
-            .num_idle_blocking_threads();
-        visit_idle_blocking_threads(idle_threads, || TurboMalloc::collect(false)).await;
         // This purges the freed pages of all threads, so one call is enough. It also works if
         // tokio runs this on a new blocking thread that never allocated.
         let _ = tokio::task::spawn_blocking(TurboMalloc::collect_and_purge_all).await;
@@ -57,7 +64,7 @@ pub async fn release_freed_memory() {
 /// a second, in the visit or in the workers' park hooks. This bounds the wait for workers that are
 /// busy with other work.
 #[cfg(not(target_family = "wasm"))]
-const WORKER_VISIT_DEADLINE: std::time::Duration = std::time::Duration::from_secs(2);
+const WORKER_VISIT_DEADLINE: Duration = Duration::from_secs(2);
 
 /// The outcome of [`visit_workers`].
 #[cfg(not(target_family = "wasm"))]
@@ -67,7 +74,7 @@ struct WorkerVisits {
     workers: usize,
     /// How many of them `f` ran on.
     visited: usize,
-    elapsed: std::time::Duration,
+    elapsed: Duration,
 }
 
 /// Runs `f` once on each scheduler worker thread of the current runtime, without blocking any of
@@ -96,10 +103,7 @@ struct WorkerVisits {
 ///
 /// On a current-thread runtime this just runs `f` on the calling thread, which is its only worker.
 #[cfg(not(target_family = "wasm"))]
-async fn visit_workers(
-    f: impl Fn() + Send + Sync + 'static,
-    deadline: std::time::Duration,
-) -> WorkerVisits {
+async fn visit_workers(f: impl Fn() + Send + Sync + 'static, deadline: Duration) -> WorkerVisits {
     use std::{
         collections::HashSet,
         sync::{
@@ -117,7 +121,7 @@ async fn visit_workers(
     };
 
     /// Grace period after the deadline for the tasks to notice it and finish.
-    const GRACE: std::time::Duration = std::time::Duration::from_millis(20);
+    const GRACE: Duration = Duration::from_millis(20);
     /// With one task per worker, visiting 32 workers can take seconds, with two about a
     /// millisecond.
     const TASKS_PER_WORKER: usize = 2;
@@ -157,14 +161,15 @@ async fn visit_workers(
                 .count()
         }
 
-        /// Runs `f` if the calling thread is a worker that wasn't visited yet.
-        fn visit_current_thread(&self) {
+        /// Runs `f` if the calling thread wasn't visited yet. Spawned tasks only run on worker
+        /// threads, so only the thread that called [`visit_workers`] needs `check_worker`.
+        fn visit_current_thread(&self, check_worker: bool) {
             let current = std::thread::current().id();
             {
                 let mut state = self.state.lock();
                 if state.closed
                     || state.visited.contains(&current)
-                    || !self.is_worker_thread(current)
+                    || (check_worker && !self.is_worker_thread(current))
                 {
                     return;
                 }
@@ -180,7 +185,9 @@ async fn visit_workers(
                     let mut state = visits.state.lock();
                     state.running -= 1;
                     // Re-reads the workers' threads, in case a worker role moved to a new thread.
-                    if visits.visited_workers(&state) == visits.metrics.num_workers() {
+                    // That's linear, so only do it once enough threads were visited.
+                    let workers = visits.metrics.num_workers();
+                    if state.visited.len() >= workers && visits.visited_workers(&state) == workers {
                         visits.all_visited.store(true, Ordering::Release);
                     }
                     if state.closed && state.running == 0 {
@@ -223,14 +230,14 @@ async fn visit_workers(
         idle: Notify::new(),
     });
     // When called from a worker, visit it right away; that's one task less to spread.
-    visits.visit_current_thread();
+    visits.visit_current_thread(true);
     let end = start + deadline;
-    let mut tasks: Vec<_> = (0..TASKS_PER_WORKER * workers)
+    let tasks: Vec<_> = (0..TASKS_PER_WORKER * workers)
         .map(|_| {
             let visits = visits.clone();
             tokio::spawn(async move {
                 while !visits.all_visited.load(Ordering::Acquire) && Instant::now() < end {
-                    visits.visit_current_thread();
+                    visits.visit_current_thread(false);
                     // Also let the OS run other threads, e.g. the workers being woken, when there
                     // are more threads than CPUs.
                     std::thread::yield_now();
@@ -239,14 +246,10 @@ async fn visit_workers(
             })
         })
         .collect();
-    let wait_for_tasks = async {
-        for task in &mut tasks {
-            let _ = task.await;
-        }
-    };
-    let _ = tokio::time::timeout(deadline + GRACE, wait_for_tasks).await;
-    for task in &tasks {
-        task.abort();
+    let aborts: Vec<_> = tasks.iter().map(|task| task.abort_handle()).collect();
+    let _ = tokio::time::timeout(deadline + GRACE, futures::future::join_all(tasks)).await;
+    for abort in &aborts {
+        abort.abort();
     }
     visits.close().await;
     let visited = visits.visited_workers(&visits.state.lock());
@@ -267,10 +270,7 @@ async fn visit_workers(
 /// visit can be repeated on a thread after the timeout, and some idle threads can be missed.
 #[cfg(not(target_family = "wasm"))]
 async fn visit_idle_blocking_threads(count: usize, f: impl Fn() + Clone + Send + 'static) {
-    use std::{
-        sync::{Arc, Condvar, Mutex},
-        time::Duration,
-    };
+    use std::sync::{Arc, Condvar, Mutex};
 
     /// Visiting takes milliseconds; this only bounds the wait.
     const RENDEZVOUS_TIMEOUT: Duration = Duration::from_secs(1);
