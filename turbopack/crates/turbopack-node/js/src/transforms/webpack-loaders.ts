@@ -158,6 +158,7 @@ interface EmittedAsset {
   file: string
   content: string | { binary: string }
   sourceMap?: string | object | null | false
+  minimized?: true
 }
 
 interface PendingEmittedAsset extends Omit<EmittedAsset, 'content'> {
@@ -222,7 +223,8 @@ const transform = (
           emitFile(
             name: string,
             content: string | Buffer,
-            emittedSourceMap?: string | object | null | false
+            emittedSourceMap?: string | object | null | false,
+            assetInfo?: { minimized?: boolean } | null
           ) {
             if (typeof name !== 'string') {
               throw new TypeError(
@@ -238,6 +240,7 @@ const transform = (
               file: name,
               content,
               sourceMap: emittedSourceMap || undefined,
+              minimized: assetInfo?.minimized ? true : undefined,
             })
           },
           utils: { absolutify, contextify, createHash },

@@ -110,6 +110,29 @@ describe('webpack-loader-emit-file', () => {
     }
   })
 
+  it('minifies emitted assets with webpack-compatible minimized metadata', async () => {
+    const browser = await next.browser('/')
+    expect(await browser.elementByCss('#minify-value').text()).toBe('minify')
+    const code = '// minify-comment\nconsole.log( "minify" + "-me" );\n'
+    expect((await fetchAsset('already-minified.js')).toString()).toBe(code)
+    const js = (await fetchAsset('minify-me.js')).toString()
+    if (isNextDev) {
+      expect(js).toBe(code)
+    } else {
+      expect(js).not.toContain('minify-comment')
+      expect(js).toContain('console.log(')
+    }
+    for (const name of ['minify-me.css', 'already-minified.css']) {
+      const css = (await fetchAsset(name)).toString()
+      if (isNextDev) {
+        expect(css).toContain('minify-comment')
+      } else {
+        expect(css).not.toContain('minify-comment')
+        expect(css.replace(/\s/g, '')).toContain('p{color:red}')
+      }
+    }
+  })
+
   it('emits files from modules loaded with importModule', async () => {
     const $ = await next.render$('/')
     expect($('#imported-value').text()).toBe('imported-value')

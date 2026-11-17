@@ -76,6 +76,14 @@ describe('webpack loader emitFile IPC', () => {
     })
   })
 
+  it('transports only the minimized flag from assetInfo', async () => {
+    const result = await run({ ignoredInfo: true })
+    expect(result.assets).toEqual([
+      { file: 'ignored-info.txt', content: 'source' },
+      { file: 'minimized.js', content: 'source', minimized: true },
+    ])
+  })
+
   it('collects files from pitch functions', async () => {
     const result = await run({ pitch: true })
     expect(result.source).toBe('export default "pitched"')

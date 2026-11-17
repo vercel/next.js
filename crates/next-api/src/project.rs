@@ -57,7 +57,7 @@ use turbo_tasks::{
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
     DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig, File, FileContent, FileSystem,
-    FileSystemPath, VirtualFileSystem, invalidation,
+    FileSystemPath, VirtualFileSystem, invalidation, rope::Rope,
 };
 use turbo_unix_path::join_path;
 use turbopack::{
@@ -69,9 +69,10 @@ use turbopack_core::{
     asset::AssetContent,
     changed::content_changed,
     chunk::{
-        ChunkType, ChunkingContext, EvaluatableAssets, UnusedReferences,
+        ChunkType, ChunkingContext, EvaluatableAssets, MangleType, UnusedReferences,
         chunk_id_strategy::{ModuleIdFallback, ModuleIdStrategy},
     },
+    code_builder::{CodeBuilder, SectionMap},
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     emitted_output::{EmittedFile, EmittedFileCollectible, EmittedOutputAsset, prepare_source_map},
@@ -100,14 +101,16 @@ use turbopack_core::{
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{FindContextFileResult, find_context_file},
     source::{OptionSource, Source},
-    source_map::{SourceMapGenerationOptions, SourceMapType},
+    source_map::{SourceMapGenerationOptions, SourceMapType, SourceMaps},
     version::{
         NotFoundVersion, OptionVersionedContent, Update, Version, VersionState, VersionedContent,
     },
     virtual_source::VirtualSource,
 };
-use turbopack_ecmascript::async_chunk::proxy::{
-    activation_key_from_chunk_path, lazy_compilation_state,
+use turbopack_css::minify::minify_css;
+use turbopack_ecmascript::{
+    async_chunk::proxy::{activation_key_from_chunk_path, lazy_compilation_state},
+    minify::minify,
 };
 #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
 use turbopack_node::child_process_backend;
@@ -3457,16 +3460,21 @@ async fn loader_emitted_output_assets(
     let next_config = project.next_config();
     let client_maps = next_config.client_source_maps(mode).await?.is_some();
     let server_maps = next_config.server_source_maps().await?.is_some();
+    let client_minify = *next_config.turbo_client_minify(mode).await?;
+    let server_minify = *next_config.turbo_server_minify(mode).await?;
+    let edge_minify = *next_config.turbo_edge_minify(mode).await?;
+    let mangle = !*project.no_mangling().await?;
     let project_path = project.project_path().owned().await?;
     let mut placed = Vec::new();
     let mut first_at_path: FxHashMap<FileSystemPath, ResolvedVc<FileContent>> =
         FxHashMap::default();
     for file in files {
         // Match each webpack compiler's output.path.
-        let root = match file.scope.as_str() {
-            "client" => node_root.clone(),
-            "server" if !is_development => node_root.join("server/chunks")?,
-            _ => node_root.join("server")?,
+        let (root, minify) = match file.scope.as_str() {
+            "client" => (node_root.clone(), client_minify),
+            "server" if !is_development => (node_root.join("server/chunks")?, server_minify),
+            "server" => (node_root.join("server")?, server_minify),
+            _ => (node_root.join("server")?, edge_minify),
         };
         let name = file.name.split('?').next().unwrap_or_default();
         #[cfg(target_os = "windows")]
@@ -3495,12 +3503,17 @@ async fn loader_emitted_output_assets(
             );
             continue;
         };
-        let (path, source_maps) = if let Some(relative) = static_root.get_relative_path_to(&path)
+        let (path, source_maps, minify) = if let Some(relative) =
+            static_root.get_relative_path_to(&path)
             && path.is_inside_ref(&static_root)
         {
-            (client_static_root.join(&relative)?, client_maps)
+            (
+                client_static_root.join(&relative)?,
+                client_maps,
+                client_minify,
+            )
         } else {
-            (path, server_maps)
+            (path, server_maps, minify)
         };
         // Keep the first map for identical content; leave conflicts for the emitter.
         if let Some(first) = first_at_path.get(&path)
@@ -3509,7 +3522,7 @@ async fn loader_emitted_output_assets(
             continue;
         }
         first_at_path.entry(path.clone()).or_insert(file.content);
-        placed.push((path, source_maps, file));
+        placed.push((path, source_maps, minify, file));
     }
     let mut directories = FxHashSet::default();
     for path in first_at_path.keys() {
@@ -3521,7 +3534,7 @@ async fn loader_emitted_output_assets(
             parent = parent.parent();
         }
     }
-    placed.retain(|(path, _, file)| {
+    placed.retain(|(path, _, _, file)| {
         let is_directory = directories.contains(path);
         if is_directory {
             emitted_file_issue(
@@ -3534,7 +3547,7 @@ async fn loader_emitted_output_assets(
     });
     placed
         .into_iter()
-        .map(async |(path, source_maps, file)| {
+        .map(async |(path, source_maps, minify, file)| {
             let mut source_map = None;
             if source_maps && let Some(raw) = file.source_map {
                 match prepare_emitted_source_map(*file.content, *raw, project_path.clone())
@@ -3555,8 +3568,32 @@ async fn loader_emitted_output_assets(
                     ),
                 }
             }
+            let kind = match path.extension() {
+                Some("js" | "mjs" | "cjs") => Some(false),
+                Some("css") => Some(true),
+                _ => None,
+            };
+            let mut content = file.content;
+            if let Some(css) = kind
+                && minify
+                && (css || !file.minimized)
+            {
+                match minify_emitted_file(*file.content, source_map.map(|map| *map), css, mangle)
+                    .await
+                {
+                    Ok(minified) => {
+                        content = minified.content;
+                        source_map = minified.source_map;
+                    }
+                    Err(error) => emitted_file_issue(
+                        &file,
+                        IssueSeverity::Error,
+                        &format!("could not be minified: {}", PrettyPrintError(&error)),
+                    ),
+                }
+            }
             Ok(ResolvedVc::upcast::<Box<dyn OutputAsset>>(
-                EmittedOutputAsset::new(path, *file.content, source_map.map(|map| *map))
+                EmittedOutputAsset::new(path, *content, source_map.map(|map| *map))
                     .to_resolved()
                     .await?,
             ))
@@ -3628,4 +3665,57 @@ async fn prepare_emitted_source_map(
             None => FileContent::NotFound.cell(),
         },
     )
+}
+
+#[turbo_tasks::value]
+struct MinifiedEmittedFile {
+    content: ResolvedVc<FileContent>,
+    source_map: Option<ResolvedVc<FileContent>>,
+}
+
+#[turbo_tasks::function]
+async fn minify_emitted_file(
+    content: ResolvedVc<FileContent>,
+    source_map: Option<ResolvedVc<FileContent>>,
+    css: bool,
+    mangle: bool,
+) -> Result<Vc<MinifiedEmittedFile>> {
+    let FileContent::Content(file) = &*content.await? else {
+        return Ok(MinifiedEmittedFile {
+            content,
+            source_map,
+        }
+        .cell());
+    };
+    let map = match source_map {
+        Some(map) => match &*map.await? {
+            FileContent::Content(map) => Some(map.content().clone()),
+            FileContent::NotFound => None,
+        },
+        None => None,
+    };
+    let (code, map) = if css {
+        let map = map.as_ref().map(|map| map.to_str()).transpose()?;
+        let (code, map) = minify_css(&file.content().to_str()?, map.as_deref())?;
+        (Rope::from(code), map.map(Rope::from))
+    } else {
+        let has_map = map.is_some();
+        let maps = SourceMaps::new(map.map(SectionMap::Raw), None);
+        let mut builder = CodeBuilder::new(false, maps.generation_options());
+        builder.push_source(file.content(), maps)?;
+        let code = minify(
+            builder.build(),
+            has_map,
+            mangle.then_some(MangleType::OptimalSize),
+        )?;
+        let map = has_map
+            .then(|| code.generate_source_map_ref(None, SourceMapType::Full))
+            .transpose()?;
+        (code.into_source_code(), map)
+    };
+    Ok(MinifiedEmittedFile {
+        content: FileContent::Content(File::from(code)).resolved_cell(),
+        source_map: map.map(|map| FileContent::Content(File::from(map)).resolved_cell()),
+    }
+    .cell())
 }

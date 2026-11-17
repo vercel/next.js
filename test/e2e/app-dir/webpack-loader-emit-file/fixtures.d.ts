@@ -32,3 +32,7 @@ declare module '*.importer' {
   const value: string
   export default value
 }
+declare module '*.minify' {
+  const value: string
+  export default value
+}

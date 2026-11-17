@@ -173,4 +173,18 @@ describe('webpack-loader-emit-file-conflicts', () => {
       'names a directory rather than a file'
     )
   })
+
+  // Development builds don't minify.
+  // @force-gate !dev && !deploy
+  it('fails the build when an emitted file cannot be minified', async () => {
+    await next.stop()
+    await next.patchFile('fixtures/emit.name', 'broken.js\n', async () => {
+      const { exitCode, cliOutput } = await next.build()
+      expect(exitCode).toBe(1)
+      if (isTurbopack) {
+        expect(cliOutput).toContain('"../../static/media/broken.js"')
+        expect(cliOutput).toContain('could not be minified')
+      }
+    })
+  })
 })

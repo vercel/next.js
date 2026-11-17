@@ -94,6 +94,7 @@ export default async function transform(
               ? { binary: msg.content.toString('base64') }
               : msg.content,
             sourceMap: msg.sourceMap || undefined,
+            minimized: msg.info?.minimized ? true : undefined,
           })
         }
         break

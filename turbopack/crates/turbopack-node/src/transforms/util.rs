@@ -27,6 +27,8 @@ pub struct LoaderEmittedAsset {
     content: Either<RcStr, BytesBase64>,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
     source_map: Option<JsonValue>,
+    #[serde(default)]
+    minimized: bool,
 }
 
 pub fn loader_emitted_assets_to_files(
@@ -56,6 +58,7 @@ pub fn loader_emitted_assets_to_files(
                 origin: origin.clone(),
                 content: FileContent::Content(content).resolved_cell(),
                 source_map,
+                minimized: asset.minimized,
             }
             .resolved_cell())
         })
