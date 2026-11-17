@@ -308,8 +308,8 @@ pub mod tests {
 
     use turbo_rcstr::{RcStr, rcstr};
     use turbo_tasks::{
-        Completion, Effects, OperationVc, ReadRef, Vc, read_strongly_consistent_and_apply_effects,
-        take_effects,
+        Completion, Effects, OperationVc, ReadRef, Vc, read_effects,
+        read_strongly_consistent_and_apply_effects,
     };
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
@@ -602,7 +602,7 @@ pub mod tests {
     #[turbo_tasks::function(operation, root)]
     async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Effects>> {
         let _ = op.resolve().strongly_consistent().await?;
-        Ok(take_effects(op).await?.cell())
+        Ok(read_effects(op).await?.cell())
     }
 
     #[turbo_tasks::function(operation, root)]

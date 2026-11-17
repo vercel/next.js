@@ -100,14 +100,14 @@ struct TaskStorageSchema {
     // =========================================================================
     // COLLECTIBLES (meta)
     // =========================================================================
-    /// Collectibles emitted by this task (reference counted).
+    /// Collectibles emitted by this task. Emitting a collectible again is a no-op.
     #[field(
-        storage = "counter_map",
+        storage = "auto_set",
         category = "meta",
         filter_transient,
         shrink_on_completion
     )]
-    collectibles: CounterMap<CollectibleRef, i32, 1>,
+    collectibles: AutoSet<CollectibleRef, 1>,
 
     /// Aggregated collectibles from the subgraph.
     #[field(storage = "counter_map", category = "meta", filter_transient)]
@@ -120,9 +120,10 @@ struct TaskStorageSchema {
     #[field(storage = "counter_map", category = "meta", filter_transient)]
     pending_collectibles: CounterMap<CollectibleRef, i32, 1>,
 
-    /// Outdated collectibles to be cleaned up (transient).
-    #[field(storage = "counter_map", category = "transient", shrink_on_completion)]
-    outdated_collectibles: CounterMap<CollectibleRef, i32, 1>,
+    /// The collectibles of the previous execution that haven't been emitted again yet: removed
+    /// when the execution completes (transient).
+    #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
+    outdated_collectibles: AutoSet<CollectibleRef, 1>,
 
     // =========================================================================
     // STATE FIELDS (meta)

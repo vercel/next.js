@@ -234,7 +234,7 @@ impl Fixture {
                     effective: number,
                 });
                 if config.data {
-                    let _ = task.update_collectibles_positive_crossing(collectible(), 1);
+                    let _ = task.add_collectibles(collectible());
                 }
             }
         }
@@ -360,11 +360,8 @@ impl Fixture {
         );
         // Own collectibles are never removed by changing an aggregation edge.
         assert_eq!(
-            upper
-                .get_collectibles(&collectible())
-                .copied()
-                .unwrap_or_default(),
-            i32::from(self.config.data)
+            upper.collectibles_contains(&collectible()),
+            self.config.data
         );
         drop(upper);
         for index in 0..self.config.edges {
@@ -382,12 +379,7 @@ impl Fixture {
             assert_eq!(task.upper_len(), usize::from(expected != 0));
             assert!(task.is_followers_empty());
             assert!(task.is_aggregated_collectibles_empty());
-            assert_eq!(
-                task.get_collectibles(&collectible())
-                    .copied()
-                    .unwrap_or_default(),
-                i32::from(self.config.data)
-            );
+            assert_eq!(task.collectibles_contains(&collectible()), self.config.data);
         }
     }
 

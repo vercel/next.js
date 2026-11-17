@@ -40,8 +40,6 @@ use next_core::{
         get_tracing_compile_time_info,
     },
     next_telemetry::ProjectFeatureUsageSummary,
-    parse_segment_config_from_source,
-    segment_config::ParseSegmentMode,
     util::{NextRuntime, OptionEnvMap},
 };
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -77,10 +75,7 @@ use turbopack_core::{
     environment::NodeJsVersion,
     file_source::FileSource,
     ident::Layer,
-    issue::{
-        CollectibleIssuesExt, Issue, IssueExt, IssueFilter, IssueSeverity, IssueStage, PlainIssue,
-        StyledString,
-    },
+    issue::{Issue, IssueExt, IssueFilter, IssueSeverity, IssueStage, PlainIssue, StyledString},
     module::{Module, Modules, StyleModule},
     module_graph::{
         GraphEntries, ModuleGraph, ModuleGraphOptions, SingleModuleGraph, SingleModuleGraphNode,
@@ -1812,34 +1807,12 @@ impl Project {
         })
     }
 
-    /// Computes the whole app module graph without dropping issues.
-    ///
-    /// Use this instead of [Self::whole_app_module_graphs] when you need to collect issues from
-    /// the computation (e.g. for the `get_compilation_issues` MCP tool).
-    #[turbo_tasks::function]
-    pub async fn whole_app_module_graphs_without_dropping_issues(
-        self: ResolvedVc<Self>,
-    ) -> Result<Vc<BaseAndFullModuleGraph>> {
-        let module_graphs_op = whole_app_module_graph_operation(self);
-        let module_graphs_vc = module_graphs_op.connect();
-        scale_down_node_pool(self).await?;
-        Ok(module_graphs_vc)
-    }
-
-    /// Computes the whole app module graph, dropping issues in development mode so that
-    /// individual routes don't each report every issue from the shared graph.
+    /// Computes the whole app module graph.
     #[turbo_tasks::function(root)]
     pub async fn whole_app_module_graphs(
         self: ResolvedVc<Self>,
     ) -> Result<Vc<BaseAndFullModuleGraph>> {
-        let module_graphs_op = whole_app_module_graph_operation(self);
-        let module_graphs_vc = if self.next_mode().await?.is_production() {
-            module_graphs_op.connect()
-        } else {
-            let vc = module_graphs_op.resolve().strongly_consistent().await?;
-            module_graphs_op.drop_issues();
-            *vc
-        };
+        let module_graphs_vc = whole_app_module_graph_operation(self).connect();
         scale_down_node_pool(self).await?;
         Ok(module_graphs_vc)
     }
@@ -2301,8 +2274,52 @@ impl Project {
         Ok(ProjectFeatureUsageSummary { features }.cell())
     }
 
+    /// Emits an issue for each route of [`Self::entrypoints_with_app_route_filter`] that both the
+    /// App Router and the Pages Router match.
+    ///
+    /// This is separate from the entrypoints: the operations that pick single endpoints out of the
+    /// entrypoints (see `EntrypointsOperation`) connect to them, so issues emitted there would be
+    /// reported for every route, not just the conflicting ones.
+    #[turbo_tasks::function]
+    pub async fn emit_route_conflict_issues(
+        self: Vc<Self>,
+        app_route_filter: Option<Vec<RcStr>>,
+    ) -> Result<()> {
+        let entrypoints = self
+            .entrypoints_with_app_route_filter(app_route_filter)
+            .await?;
+        let conflicts = entrypoints
+            .routes
+            .iter()
+            .filter(|(_, route)| matches!(route, Route::Conflict))
+            .map(|(pathname, _)| pathname);
+        for pathname in conflicts {
+            ConflictIssue {
+                path: self.project_path().owned().await?,
+                title: StyledString::Text(
+                    format!("App Router and Pages Router both match path: {pathname}").into(),
+                )
+                .resolved_cell(),
+                description: StyledString::Text(
+                    "Next.js does not support having both App Router and Pages Router routes \
+                     matching the same path. Please remove one of the conflicting routes."
+                        .into(),
+                )
+                .resolved_cell(),
+                severity: IssueSeverity::Error,
+            }
+            .resolved_cell()
+            .emit();
+        }
+        Ok(())
+    }
+
     /// Scans the app/pages directories for entry points files (matching the
     /// provided page_extensions).
+    ///
+    /// This must not emit issues: the per-route operations of `EntrypointsOperation` connect to
+    /// the entrypoints (to keep them alive), so its issues would be reported for every route. See
+    /// [`Self::emit_route_conflict_issues`].
     #[turbo_tasks::function]
     pub async fn entrypoints(self: Vc<Self>) -> Result<Vc<Entrypoints>> {
         Ok(self.entrypoints_with_app_route_filter(None))
@@ -2353,24 +2370,7 @@ impl Project {
 
             match routes.entry(pathname.clone()) {
                 Entry::Occupied(mut entry) => {
-                    ConflictIssue {
-                        path: self.project_path().owned().await?,
-                        title: StyledString::Text(
-                            format!("App Router and Pages Router both match path: {pathname}")
-                                .into(),
-                        )
-                        .resolved_cell(),
-                        description: StyledString::Text(
-                            "Next.js does not support having both App Router and Pages Router \
-                             routes matching the same path. Please remove one of the conflicting \
-                             routes."
-                                .into(),
-                        )
-                        .resolved_cell(),
-                        severity: IssueSeverity::Error,
-                    }
-                    .resolved_cell()
-                    .emit();
+                    // The issue is emitted by `emit_route_conflict_issues`.
                     *entry.get_mut() = Route::Conflict;
                 }
                 Entry::Vacant(entry) => {
@@ -2419,7 +2419,9 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn edge_middleware_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
+    pub(crate) async fn edge_middleware_context(
+        self: Vc<Self>,
+    ) -> Result<Vc<Box<dyn AssetContext>>> {
         let mut transitions = vec![];
 
         let app_dir = find_app_dir(self.project_path().owned().await?)
@@ -2485,7 +2487,9 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn node_middleware_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
+    pub(crate) async fn node_middleware_context(
+        self: Vc<Self>,
+    ) -> Result<Vc<Box<dyn AssetContext>>> {
         let mut transitions = vec![];
 
         let app_dir = find_app_dir(self.project_path().owned().await?)
@@ -2578,34 +2582,14 @@ impl Project {
             .as_ref()
             .map(|_| CLIENT_TRANSITION_NAME.clone());
 
+        // The segment config is parsed by the endpoint, see `MiddlewareSettings`.
         let is_proxy = convention_file_base_name(fs_path.file_name()) == "proxy";
-        let config = parse_segment_config_from_source(
-            source,
-            if is_proxy {
-                ParseSegmentMode::Proxy
-            } else {
-                ParseSegmentMode::Base
-            },
-        );
-        let runtime = config.await?.runtime.unwrap_or(if is_proxy {
-            NextRuntime::NodeJs
-        } else {
-            NextRuntime::Edge
-        });
-
-        let middleware_asset_context = match runtime {
-            NextRuntime::NodeJs => self.node_middleware_context(),
-            NextRuntime::Edge => self.edge_middleware_context(),
-        };
-
         Ok(Vc::upcast(MiddlewareEndpoint::new(
             self,
-            middleware_asset_context,
             source,
+            is_proxy,
             app_dir.clone(),
             ecmascript_client_reference_transition_name,
-            config,
-            runtime,
         )))
     }
 
@@ -3019,16 +3003,12 @@ impl Project {
     }
 
     /// The whole-app graphs, for the import traces of the issues of the whole app (e.g. of a
-    /// build). Doesn't drop issues: it's only used for the graphs.
+    /// build).
     #[turbo_tasks::function]
     pub async fn whole_app_module_graphs_for_import_traces(
         self: Vc<Self>,
     ) -> Result<Vc<ModuleGraphs>> {
-        Ok(Vc::cell(vec![
-            self.whole_app_module_graphs_without_dropping_issues()
-                .await?
-                .full,
-        ]))
+        Ok(Vc::cell(vec![self.whole_app_module_graphs().await?.full]))
     }
 
     /// Completion when server side changes are detected in output assets

@@ -36,10 +36,10 @@ use turbo_tasks::{
     TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TaskPersistence, TaskPriority, TraitTypeId,
     TurboTasks, TurboTasksCallApi, TurboTasksPanic, ValueTypeId,
     backend::{
-        Backend, CachedTaskType, CachedTaskTypeArc, CellContent, CellHash, TaskCollectiblesMap,
-        TaskExecutionSpec, TransientTaskType, TurboTaskContextError, TurboTaskLocalContextError,
-        TurboTasksError, TurboTasksExecutionError, TurboTasksExecutionErrorMessage,
-        TypedCellContent, VerificationMode,
+        Backend, CachedTaskType, CachedTaskTypeArc, CellContent, CellHash, TaskExecutionSpec,
+        TransientTaskType, TurboTaskContextError, TurboTaskLocalContextError, TurboTasksError,
+        TurboTasksExecutionError, TurboTasksExecutionErrorMessage, TypedCellContent,
+        VerificationMode,
     },
     event::{Event, EventDescription, EventListener},
     macro_helpers::NativeFunction,
@@ -2337,34 +2337,10 @@ impl TurboTasksBackend {
             )));
             debug_assert!(old.is_none(), "InProgress already exists");
 
-            // Make all current collectibles outdated (remove left-over outdated collectibles)
-            enum Collectible {
-                Current(CollectibleRef, i32),
-                Outdated(CollectibleRef),
-            }
-            let collectibles = task
-                .iter_collectibles()
-                .map(|(&collectible, &value)| Collectible::Current(collectible, value))
-                .chain(
-                    task.iter_outdated_collectibles()
-                        .map(|(collectible, _count)| Collectible::Outdated(*collectible)),
-                )
-                .collect::<Vec<_>>();
-            for collectible in collectibles {
-                match collectible {
-                    Collectible::Current(collectible, value) => {
-                        let _ = task.insert_outdated_collectible(collectible, value);
-                    }
-                    Collectible::Outdated(collectible) => {
-                        if task
-                            .collectibles()
-                            .is_none_or(|m| m.get(&collectible).is_none())
-                        {
-                            task.remove_outdated_collectibles(&collectible);
-                        }
-                    }
-                }
-            }
+            // Make all current collectibles outdated (replacing the left-over outdated
+            // collectibles, which the previous execution's completion already removed)
+            let outdated_collectibles = task.iter_collectibles().collect();
+            task.set_outdated_collectibles(outdated_collectibles);
 
             if self.should_track_dependencies() {
                 // Make all dependencies outdated
@@ -2768,7 +2744,7 @@ impl TurboTasksBackend {
 
         old_edges.extend(
             task.iter_outdated_collectibles()
-                .map(|(&collectible, &count)| OutdatedEdge::Collectible(collectible, count)),
+                .map(OutdatedEdge::Collectible),
         );
 
         if self.should_track_dependencies() {
@@ -3626,14 +3602,14 @@ impl TurboTasksBackend {
                     .or_insert(0) += 1;
             }
         }
-        for (&collectible, &count) in task.iter_collectibles() {
+        for collectible in task.iter_collectibles() {
             if collectible.collectible_type == collectible_type {
                 *collectibles
                     .entry(RawVc::task_cell(
                         collectible.cell.task,
                         collectible.cell.cell,
                     ))
-                    .or_insert(0) += count;
+                    .or_insert(0) += 1;
             }
         }
         if let Some(reader_id) = reader_id {
@@ -3677,69 +3653,6 @@ impl TurboTasksBackend {
                 collectible_type,
                 cell,
             },
-            1,
-            self.execute_context(turbo_tasks),
-        );
-    }
-
-    fn unemit_collectible(
-        &self,
-        collectible_type: TraitTypeId,
-        collectible: RawVc,
-        count: u32,
-        task_id: TaskId,
-        turbo_tasks: &TurboTasks<TurboTasksBackend>,
-    ) {
-        self.assert_valid_collectible(task_id, collectible);
-
-        let Some((collectible_task, cell)) = collectible.as_task_cell() else {
-            panic!("Collectibles need to be resolved");
-        };
-        let cell = CellRef {
-            task: collectible_task,
-            cell,
-        };
-        operation::UpdateCollectibleOperation::run(
-            task_id,
-            CollectibleRef {
-                collectible_type,
-                cell,
-            },
-            -(i32::try_from(count).unwrap()),
-            self.execute_context(turbo_tasks),
-        );
-    }
-
-    fn unemit_collectibles(
-        &self,
-        collectible_type: TraitTypeId,
-        collectibles: &TaskCollectiblesMap,
-        task_id: TaskId,
-        turbo_tasks: &TurboTasks<TurboTasksBackend>,
-    ) {
-        let updates: SmallVec<[_; 1]> = collectibles
-            .iter()
-            .filter(|&(_, &count)| count > 0)
-            .map(|(&collectible, &count)| {
-                self.assert_valid_collectible(task_id, collectible);
-                let Some((collectible_task, cell)) = collectible.as_task_cell() else {
-                    panic!("Collectibles need to be resolved");
-                };
-                (
-                    CollectibleRef {
-                        collectible_type,
-                        cell: CellRef {
-                            task: collectible_task,
-                            cell,
-                        },
-                    },
-                    -count,
-                )
-            })
-            .collect();
-        operation::UpdateCollectibleOperation::run_batch(
-            task_id,
-            updates,
             self.execute_context(turbo_tasks),
         );
     }
@@ -3939,8 +3852,8 @@ impl TurboTasksBackend {
                         .push(task_id);
                 }
 
-                for (&collectible, &value) in task.iter_collectibles() {
-                    if value > 0 {
+                for collectible in task.iter_collectibles() {
+                    {
                         if let Some((flag, _)) = collectibles.get_mut(&collectible) {
                             *flag = true
                         } else if task.get_pending_collectibles(&collectible).is_none() {
@@ -4299,27 +4212,6 @@ impl Backend for TurboTasksBackend {
         turbo_tasks: &TurboTasks<Self>,
     ) {
         self.emit_collectible(collectible_type, collectible, task_id, turbo_tasks)
-    }
-
-    fn unemit_collectible(
-        &self,
-        collectible_type: TraitTypeId,
-        collectible: RawVc,
-        count: u32,
-        task_id: TaskId,
-        turbo_tasks: &TurboTasks<Self>,
-    ) {
-        self.unemit_collectible(collectible_type, collectible, count, task_id, turbo_tasks)
-    }
-
-    fn unemit_collectibles(
-        &self,
-        collectible_type: TraitTypeId,
-        collectibles: &TaskCollectiblesMap,
-        task_id: TaskId,
-        turbo_tasks: &TurboTasks<Self>,
-    ) {
-        self.unemit_collectibles(collectible_type, collectibles, task_id, turbo_tasks)
     }
 
     fn update_task_cell(

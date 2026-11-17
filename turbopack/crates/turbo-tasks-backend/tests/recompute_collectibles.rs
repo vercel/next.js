@@ -106,7 +106,7 @@ async fn compute(
     let operation = inner_compute(input, input2);
     // Collectibles are only stable after a strongly consistent read of their source.
     let value = *operation.read_strongly_consistent().await?;
-    let collectibles = operation.peek_collectibles::<Box<dyn ValueToString>>();
+    let collectibles = operation.read_collectibles::<Box<dyn ValueToString>>();
     if collectibles.len() != 1 {
         bail!("expected 1 collectible, found {}", collectibles.len());
     }

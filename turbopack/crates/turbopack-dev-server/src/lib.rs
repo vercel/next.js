@@ -31,7 +31,7 @@ use tokio::task::JoinHandle;
 use tracing::{Instrument, Level, Span, event, info_span};
 use turbo_tasks::{
     Completion, Effects, NonLocalValue, OperationVc, PrettyPrintError, ResolvedVc, TurboTasksApi,
-    Vc, read_strongly_consistent_and_apply_effects, run_once_with_reason, take_effects,
+    Vc, read_effects, read_strongly_consistent_and_apply_effects, run_once_with_reason,
     util::FormatDuration,
 };
 use turbopack_core::issue::{IssueReporter, IssueSeverity, handle_issues};
@@ -67,7 +67,7 @@ async fn get_source_with_issues_operation(
     source_op: OperationVc<Box<dyn ContentSource>>,
 ) -> Result<Vc<ContentSourceWithIssues>> {
     let _ = source_op.resolve().strongly_consistent().await?;
-    let effects = take_effects(source_op).await?;
+    let effects = read_effects(source_op).await?;
     Ok(ContentSourceWithIssues { source_op, effects }.cell())
 }
 

@@ -5,9 +5,7 @@ use anyhow::{Context, Result, ensure};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    Completion, ResolvedVc, Vc, resolve_strongly_consistent_and_take_and_apply_effects,
-};
+use turbo_tasks::{Completion, ResolvedVc, Vc, resolve_strongly_consistent_and_apply_effects};
 use turbo_tasks_fs::{
     DiskFileSystem, File, FileContent, FileSystem, FileSystemPath, Permissions, to_sys_path,
 };
@@ -86,8 +84,7 @@ async fn create_parser_operation(
     host_session: ResolvedVc<GoBuildSession>,
 ) -> Result<Vc<FileSystemPath>> {
     let path =
-        resolve_strongly_consistent_and_take_and_apply_effects(emit_parser_operation(host_session))
-            .await?;
+        resolve_strongly_consistent_and_apply_effects(emit_parser_operation(host_session)).await?;
     Ok(*path)
 }
 

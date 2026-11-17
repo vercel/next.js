@@ -2462,9 +2462,6 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
 /// - `remove_{field}(key) -> Option<V>` - Standard HashMap remove
 /// - `get_{field}(key) -> Option<&V>` - Single-item lookup
 ///
-/// Additionally, for i32 value types only (signed counters):
-/// - `update_{field}_positive_crossing(key, delta) -> bool` - Track positive boundary crossing
-///
 /// Note: CounterMap only supports `i32` and `u32` value types. Other types will produce
 /// a compile error.
 fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
@@ -2624,42 +2621,6 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
             #track_modification
             Some(self.typed_mut().#typed_take_name())
         }
-    };
-
-    // Generate signed-type-specific methods only for i32
-    let signed_methods = if is_signed {
-        let update_positive_crossing_name = field.infixed_ident("update", "positive_crossing");
-        let update_positive_crossing_body = if field.is_transient() {
-            quote! {
-                #bind_map
-                let crossed = map.update_positive_crossing(key, delta);
-                #drop_if_empty
-                crossed
-            }
-        } else {
-            quote! {
-                if delta == 0 {
-                    return false;
-                }
-                #track_modification_key
-                #bind_map
-                let crossed = map.update_positive_crossing(key, delta);
-                #drop_if_empty
-                crossed
-            }
-        };
-
-        quote! {
-            #[doc = "Update a signed counter by the given delta."]
-            #[doc = "Returns true if the count crossed the positive boundary (became positive or non-positive)."]
-            #[must_use]
-            fn #update_positive_crossing_name(&mut self, key: #key_type, delta: #value_type) -> bool {
-                #check_access
-                #update_positive_crossing_body
-            }
-        }
-    } else {
-        quote! {}
     };
 
     let update_count_body = if field.is_transient() {
@@ -2876,8 +2837,6 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
             #check_access
             #take_body
         }
-
-        #signed_methods
     }
 }
 

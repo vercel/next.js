@@ -14,8 +14,8 @@ use next_api::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Effects, ReadConsistency, ReadRef, ResolvedVc, TransientInstance, TurboTasks, Vc,
-    read_strongly_consistent_and_apply_effects, take_effects,
+    Effects, ReadConsistency, ReadRef, ResolvedVc, TransientInstance, TurboTasks, Vc, read_effects,
+    read_strongly_consistent_and_apply_effects,
 };
 use turbo_tasks_backend::TurboTasksBackend;
 use turbo_tasks_fs::canonicalize_to_rcstr;
@@ -302,7 +302,7 @@ async fn endpoint_write_to_disk_with_apply(
     ) -> Result<Vc<WithEffects>> {
         let op = inner_operation(endpoint);
         let output_paths = op.read_strongly_consistent().await?;
-        let effects = take_effects(op).await?;
+        let effects = read_effects(op).await?;
         Ok(WithEffects {
             output_paths,
             effects,

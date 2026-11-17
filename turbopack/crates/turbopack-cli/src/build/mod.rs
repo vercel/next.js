@@ -11,7 +11,7 @@ use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     Effects, OperationVc, ReadConsistency, ResolvedVc, TaskId, TransientInstance, TryJoinIterExt,
-    TurboTasks, Vc, read_strongly_consistent_and_apply_effects, take_effects,
+    TurboTasks, Vc, read_effects, read_strongly_consistent_and_apply_effects,
 };
 use turbo_tasks_backend::{
     BackendOptions, BackingStorageOptions, GitVersionInfo, StartupCacheState, StorageMode,
@@ -222,7 +222,7 @@ impl TurbopackBuildBuilder {
 #[turbo_tasks::function(operation, root)]
 async fn extract_effects_operation(op: OperationVc<()>) -> Result<Vc<Effects>> {
     let _ = op.resolve().strongly_consistent().await?;
-    Ok(take_effects(op).await?.cell())
+    Ok(read_effects(op).await?.cell())
 }
 
 #[turbo_tasks::function(operation, root)]

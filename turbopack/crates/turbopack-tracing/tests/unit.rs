@@ -442,7 +442,7 @@ fn node_file_trace(input_path: &str) -> Result<()> {
                 .map(|s| s.to_string())
                 .collect::<FxIndexSet<_>>();
 
-            // println!("issues: {:#?}", op.peek_issues().get_plain_issues().await?);
+            // println!("issues: {:#?}", op.read_issues().get_plain_issues().await?);
 
             let reference = std::fs::read_to_string(reference)?;
             // crude JS -> JSON conversion

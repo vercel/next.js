@@ -23,7 +23,7 @@ use crate::{
 
 pub enum OutdatedEdge {
     Child(TaskId),
-    Collectible(CollectibleRef, i32),
+    Collectible(CollectibleRef),
     /// `dependent` reads `cell`. Cleanup removes both halves of the edge, whichever side it was
     /// captured from.
     CellDependency {
@@ -226,21 +226,22 @@ fn cleanup_old_edges_inner(
                     );
                 }
             }
-            OutdatedEdge::Collectible(collectible, count) => {
-                let mut collectibles = CollectiblesUpdateVec::new();
-                collectibles.push((collectible, -count));
+            OutdatedEdge::Collectible(collectible) => {
+                let mut outdated_collectibles = vec![collectible];
                 outdated.retain(|e| match e {
-                    OutdatedEdge::Collectible(collectible, count) => {
-                        collectibles.push((*collectible, -*count));
+                    OutdatedEdge::Collectible(collectible) => {
+                        outdated_collectibles.push(*collectible);
                         false
                     }
                     _ => true,
                 });
                 let mut task = ctx.task(task_id, TaskDataCategory::All);
+                let mut collectibles = CollectiblesUpdateVec::new();
                 let mut emptied_collectables = FxHashSet::default();
-                for (collectible, count) in collectibles.iter_mut() {
-                    if task.update_collectibles_positive_crossing(*collectible, *count) {
+                for collectible in outdated_collectibles {
+                    if task.remove_collectibles(&collectible) {
                         emptied_collectables.insert(collectible.collectible_type);
+                        collectibles.push((collectible, -1));
                     }
                 }
 

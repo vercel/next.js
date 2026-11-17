@@ -2,10 +2,8 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, OperationValue, OperationVc, ResolvedVc, Vc,
-    debug::ValueDebugFormat, take_effects,
+    FxIndexMap, NonLocalValue, OperationValue, OperationVc, ResolvedVc, Vc, debug::ValueDebugFormat,
 };
-use turbopack_core::issue::CollectibleIssuesExt;
 
 use crate::{
     entrypoints::Entrypoints,
@@ -31,37 +29,13 @@ pub struct EntrypointsOperation {
     pub pages_error_endpoint: OperationVc<OptionEndpoint>,
 }
 
-/// Removes issues and effects from the top-level `entrypoints` operation so that they're not
-/// duplicated across many different individual entrypoints or routes.
-#[turbo_tasks::function(operation, root)]
-async fn entrypoints_without_collectibles_operation(
-    entrypoints: OperationVc<Entrypoints>,
-) -> Result<Vc<Entrypoints>> {
-    // Dropping and taking the collectibles leaves the task that does it with a negative count for
-    // each of them. Many `pick_*` root operations connect to this operation, so doing it in this
-    // task would copy all of those collectibles into each of them. Doing it in an inner operation
-    // isolates the dropped collectibles, so this task has no (or very few) collectibles.
-    //
-    // The inner operation keeps its long name so it is easy to identify in traces.
-    #[turbo_tasks::function(operation, root)]
-    async fn inner_entrypoints_without_collectibles_operation(
-        entrypoints: OperationVc<Entrypoints>,
-    ) -> Result<Vc<Entrypoints>> {
-        let _ = entrypoints.resolve().strongly_consistent().await?;
-        entrypoints.drop_issues();
-        let _ = take_effects(entrypoints).await?;
-        Ok(entrypoints.connect())
-    }
-
-    Ok(inner_entrypoints_without_collectibles_operation(entrypoints).connect())
-}
-
 #[turbo_tasks::value_impl]
 impl EntrypointsOperation {
     #[turbo_tasks::function(operation, root)]
     pub async fn new(entrypoints: OperationVc<Entrypoints>) -> Result<Vc<Self>> {
+        // The `pick_*` operations connect to `entrypoints`, so they get its collectibles, see
+        // `Project::entrypoints`.
         let e = entrypoints.connect().await?;
-        let entrypoints = entrypoints_without_collectibles_operation(entrypoints);
         Ok(Self {
             routes: e
                 .routes

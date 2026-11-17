@@ -199,8 +199,6 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn note_waited_for_in_progress_task(&self);
 
     fn emit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc);
-    fn unemit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc, count: u32);
-    fn unemit_collectibles(&self, trait_type: TraitTypeId, collectibles: &TaskCollectiblesMap);
 
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
     /// using it could break cache invalidation.
@@ -2302,28 +2300,6 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
             trait_type,
             collectible,
             current_task("emitting collectible"),
-            self,
-        );
-    }
-
-    fn unemit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc, count: u32) {
-        self.backend.unemit_collectible(
-            trait_type,
-            collectible,
-            count,
-            current_task("emitting collectible"),
-            self,
-        );
-    }
-
-    fn unemit_collectibles(&self, trait_type: TraitTypeId, collectibles: &TaskCollectiblesMap) {
-        if !collectibles.values().any(|&count| count > 0) {
-            return;
-        }
-        self.backend.unemit_collectibles(
-            trait_type,
-            collectibles,
-            current_task("unemitting collectibles"),
             self,
         );
     }

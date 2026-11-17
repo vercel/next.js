@@ -79,8 +79,8 @@ impl GetContentFn {
     }
 }
 
-async fn peek_issues<T: Send>(source: OperationVc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
-    let captured = source.peek_issues();
+async fn read_issues<T: Send>(source: OperationVc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
+    let captured = source.read_issues();
 
     captured
         .get_plain_issues(&IssueFilter::everything(), None)
@@ -129,7 +129,7 @@ async fn get_update_stream_item_operation(
 ) -> Result<Vc<UpdateStreamItem>> {
     let content_op = get_content.call();
     let content_result = content_op.read_strongly_consistent().await;
-    let mut plain_issues = peek_issues(content_op).await?;
+    let mut plain_issues = read_issues(content_op).await?;
 
     let content_value = match content_result {
         Ok(content) => content,
@@ -180,7 +180,7 @@ async fn get_update_stream_item_operation(
             // Collectibles are only stable after a strongly consistent read of their source.
             let update = update_op.read_strongly_consistent().await?;
 
-            extend_issues(&mut plain_issues, peek_issues(update_op).await?);
+            extend_issues(&mut plain_issues, read_issues(update_op).await?);
 
             Ok(UpdateStreamItem::Found {
                 update,
@@ -197,7 +197,7 @@ async fn get_update_stream_item_operation(
                 return Ok(UpdateStreamItem::NotFound.cell());
             }
 
-            extend_issues(&mut plain_issues, peek_issues(proxy_result_op).await?);
+            extend_issues(&mut plain_issues, read_issues(proxy_result_op).await?);
 
             let from = from.get();
             if let Some(from) =

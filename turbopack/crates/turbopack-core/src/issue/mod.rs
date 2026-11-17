@@ -367,7 +367,7 @@ impl IssueFilter {
     }
 }
 
-/// A list of issues captured with [`CollectibleIssuesExt::peek_issues`].
+/// A list of issues captured with [`CollectibleIssuesExt::read_issues`].
 #[turbo_tasks::value(shared)]
 #[derive(Debug)]
 pub struct CapturedIssues {
@@ -1110,26 +1110,17 @@ where
     /// Returns all issues from `source`
     ///
     /// Must be called in a turbo-task as this constructs a `cell`
-    fn peek_issues(self) -> CapturedIssues;
-
-    /// Drops all issues from `source`
-    ///
-    /// This unemits the issues. They will not propagate up.
-    fn drop_issues(self);
+    fn read_issues(self) -> CapturedIssues;
 }
 
 impl<T> CollectibleIssuesExt for T
 where
     T: CollectiblesSource + Copy + Send,
 {
-    fn peek_issues(self) -> CapturedIssues {
+    fn read_issues(self) -> CapturedIssues {
         CapturedIssues {
-            issues: self.peek_collectibles(),
+            issues: self.read_collectibles(),
         }
-    }
-
-    fn drop_issues(self) {
-        self.drop_collectibles::<Box<dyn Issue>>();
     }
 }
 
@@ -1142,7 +1133,7 @@ where
 #[turbo_tasks::function(operation, root)]
 async fn collect_issues(source: OperationVc<()>) -> Result<Vc<PlainIssues>> {
     let plain = source
-        .peek_issues()
+        .read_issues()
         .get_plain_issues(&IssueFilter::everything(), None)
         .await?;
     Ok(PlainIssues(plain).cell())

@@ -635,7 +635,7 @@ impl AggregatedDataUpdate {
             let mut collectibles_update = CollectiblesUpdateVec::with_capacity(
                 task.collectibles_len() + task.aggregated_collectibles_len(),
             );
-            collectibles_update.extend(task.iter_collectibles().map(|(&k, &v)| (k, v)));
+            collectibles_update.extend(task.iter_collectibles().map(|k| (k, 1)));
             for (collectible, count) in task.iter_aggregated_collectibles() {
                 if *count > 0 {
                     collectibles_update.push((*collectible, 1));
@@ -646,7 +646,7 @@ impl AggregatedDataUpdate {
                 !task.is_collectibles_empty() && !task.is_aggregated_collectibles_empty();
             collectibles_update
         } else {
-            task.iter_collectibles().map(|(&k, &v)| (k, v)).collect()
+            task.iter_collectibles().map(|k| (k, 1)).collect()
         };
         // The uppers haven't seen the pending changes yet (see `stage_outgoing_collectibles`), so
         // subtract them.
@@ -4435,7 +4435,7 @@ mod follower_debt_tests {
                     effective: aggregation_number,
                 });
                 if emit {
-                    let _ = task.update_collectibles_positive_crossing(collectible(), 1);
+                    let _ = task.add_collectibles(collectible());
                 }
             }
         }
@@ -5664,7 +5664,8 @@ mod delayed_collectibles_tests {
     use turbo_tasks::{TaskPriority, TurboTasks};
 
     use super::{
-        AggregatedDataUpdate, AggregationUpdateQueue, check_pending_collectibles_invariant,
+        AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue,
+        check_pending_collectibles_invariant,
         follower_debt_tests::{
             FOLLOWER, INNER, UPPER, add, aggregated, balance, collectible, id, remove, run,
             setup_with_data, uppers,
@@ -5697,8 +5698,24 @@ mod delayed_collectibles_tests {
         }
     }
 
-    fn emit(tt: &TurboTasks<TurboTasksBackend>, task: u32, count: i32) {
-        UpdateCollectibleOperation::run(id(task), collectible(), count, ExecuteContext::new(tt));
+    fn emit(tt: &TurboTasks<TurboTasksBackend>, task: u32) {
+        UpdateCollectibleOperation::run(id(task), collectible(), ExecuteContext::new(tt));
+    }
+
+    /// Removes the test collectible from `task`, like the completion of an execution that doesn't
+    /// emit it again (see `cleanup_old_edges`).
+    fn remove_collectible(tt: &TurboTasks<TurboTasksBackend>, task: u32) {
+        let mut ctx = ExecuteContext::new(tt);
+        let mut queue = AggregationUpdateQueue::new_without_optimizations();
+        {
+            let mut task = ctx.task(id(task), TaskDataCategory::All);
+            assert!(task.remove_collectibles(&collectible()));
+            let mut update =
+                AggregatedDataUpdate::new().collectibles_update(smallvec![(collectible(), -1)]);
+            stage_outgoing_collectibles(&mut task, &mut update);
+            queue.extend(AggregationUpdateJob::data_update(&mut task, update));
+        }
+        queue.execute(&mut ctx);
     }
 
     fn pending(tt: &TurboTasks<TurboTasksBackend>, task: u32) -> i32 {
@@ -5722,11 +5739,11 @@ mod delayed_collectibles_tests {
         set_dirty(&tt, 2, true);
         assert!(has_dirty_containers(&tt, 1));
 
-        emit(&tt, 2, 1);
+        emit(&tt, 2);
         assert_eq!((aggregated(&tt, 1), pending(&tt, 2)), (0, 1));
-        emit(&tt, 2, -1);
+        remove_collectible(&tt, 2);
         assert_eq!((aggregated(&tt, 1), pending(&tt, 2)), (0, 0));
-        emit(&tt, 2, 1);
+        emit(&tt, 2);
         assert_eq!((aggregated(&tt, 1), pending(&tt, 2)), (0, 1));
 
         set_dirty(&tt, 2, false);
@@ -5739,7 +5756,7 @@ mod delayed_collectibles_tests {
         let tt = setup_with_data(&[(1, UPPER), (2, INNER), (3, UPPER)], false);
         run(&tt, [add(1, 2)]);
         set_dirty(&tt, 2, true);
-        emit(&tt, 2, 1);
+        emit(&tt, 2);
 
         run(&tt, [add(3, 2)]);
         assert_eq!((aggregated(&tt, 1), aggregated(&tt, 3)), (0, 0));
@@ -5759,7 +5776,7 @@ mod delayed_collectibles_tests {
         set_dirty(&tt, 3, true);
         assert!(has_dirty_containers(&tt, 2));
 
-        emit(&tt, 2, 1);
+        emit(&tt, 2);
         assert_eq!((aggregated(&tt, 1), pending(&tt, 2)), (0, 1));
 
         // The child becoming clean makes 2 clean, which sends the pending changes.
@@ -5808,7 +5825,7 @@ mod delayed_collectibles_tests {
         );
         run(&tt, [add(1, 2), add(3, 2)]);
         set_dirty(&tt, 2, true);
-        emit(&tt, 2, 1);
+        emit(&tt, 2);
         assert_eq!(pending(&tt, 2), 1);
         add_reader(&tt, 1);
 
@@ -5833,7 +5850,7 @@ mod delayed_collectibles_tests {
     async fn changes_without_uppers_are_delayed_until_clean() {
         let tt = setup_with_data(&[(1, UPPER), (2, INNER)], false);
         set_dirty(&tt, 2, true);
-        emit(&tt, 2, 1);
+        emit(&tt, 2);
         assert_eq!(pending(&tt, 2), 1);
 
         // A new upper sees only the published contribution.
@@ -5849,7 +5866,7 @@ mod delayed_collectibles_tests {
     async fn clean_without_uppers_drops_pending_changes() {
         let tt = setup_with_data(&[(1, UPPER), (2, INNER)], false);
         set_dirty(&tt, 2, true);
-        emit(&tt, 2, 1);
+        emit(&tt, 2);
         assert_eq!(pending(&tt, 2), 1);
         set_dirty(&tt, 2, false);
         assert_eq!(pending(&tt, 2), 0);
@@ -5867,7 +5884,7 @@ mod delayed_collectibles_tests {
         let other = other_collectible();
         let mut ctx = ExecuteContext::new(&tt);
         let mut task = ctx.task(id(2), TaskDataCategory::All);
-        let _ = task.update_collectibles_positive_crossing(collectible(), 1);
+        let _ = task.add_collectibles(collectible());
         task.update_aggregated_collectibles(collectible(), |_| Some(1));
         let _ = task.update_pending_collectibles_count(collectible(), 1);
         let _ = task.update_pending_collectibles_count(other, -1);
@@ -5883,7 +5900,7 @@ mod delayed_collectibles_tests {
         let tt = setup_with_data(&[(2, UPPER)], false);
         let mut ctx = ExecuteContext::new(&tt);
         let mut task = ctx.task(id(2), TaskDataCategory::All);
-        let _ = task.update_collectibles_positive_crossing(collectible(), 1);
+        let _ = task.add_collectibles(collectible());
         task.update_aggregated_collectibles(collectible(), |_| Some(1));
         let _ = task.update_pending_collectibles_count(collectible(), 2);
         let update = AggregatedDataUpdate::from_task(&mut task).collectibles_update;
@@ -5904,7 +5921,7 @@ mod delayed_collectibles_tests {
         {
             let mut ctx = ExecuteContext::new(&tt);
             let mut task = ctx.task(id(2), TaskDataCategory::All);
-            let _ = task.update_collectibles_positive_crossing(collectible(), 1);
+            let _ = task.add_collectibles(collectible());
             task.update_aggregated_collectibles(collectible(), |_| Some(1));
             let _ = task.update_pending_collectibles_count(collectible(), 2);
         }
@@ -5974,7 +5991,7 @@ mod delayed_collectibles_tests {
         let tt = setup_with_data(&[(1, UPPER), (2, INNER)], false);
         run(&tt, [add(1, 2)]);
         set_dirty(&tt, 2, true);
-        emit(&tt, 2, 1);
+        emit(&tt, 2);
         assert_eq!(pending(&tt, 2), 1);
         assert_eq!(check(&tt, 2), Ok(()));
         set_dirty(&tt, 2, false);
@@ -6041,7 +6058,7 @@ mod deferred_removal_tests {
     fn emit(tt: &TurboTasks<TurboTasksBackend>, task: u32) {
         let mut ctx = ExecuteContext::new(tt);
         let mut task = ctx.task(id(task), TaskDataCategory::All);
-        let _ = task.update_collectibles_positive_crossing(collectible(), 1);
+        let _ = task.add_collectibles(collectible());
     }
 
     /// Registers `READER` as a dependent of the collectibles of `upper`.
@@ -6388,10 +6405,7 @@ mod overtake_benchmark {
             for i in 0..EDGES {
                 let mut task =
                     ctx.task(super::follower_debt_tests::id(i + 2), TaskDataCategory::All);
-                let _ = task.update_collectibles_positive_crossing(
-                    super::follower_debt_tests::collectible(),
-                    1,
-                );
+                let _ = task.add_collectibles(super::follower_debt_tests::collectible());
             }
         }
         run(&tt, (0..EDGES).map(|i| add(1, i + 2)));

@@ -17,7 +17,7 @@ use rustc_hash::FxHashMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     ApplyError, CapturedEffect, Effect, EffectExt, EffectStateStorage, Effects, EffectsError,
-    NonLocalValue, OperationValue, ReadRef, ResolvedVc, State, TurboTasks, Vc, take_effects,
+    NonLocalValue, OperationValue, ReadRef, ResolvedVc, State, TurboTasks, Vc, read_effects,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
@@ -233,12 +233,12 @@ async fn producer_operation(input: ResolvedVc<TestInput>) -> Result<()> {
 async fn extract_effects(input: ResolvedVc<TestInput>) -> Result<Vc<Effects>> {
     let producer = producer_operation(input);
     let _ = producer.resolve().strongly_consistent().await?;
-    Ok(take_effects(producer).await?.cell())
+    Ok(read_effects(producer).await?.cell())
 }
 
 /// Mutate the spec via its top-level handle and return the resulting
 /// `Effects`. State mutation is synchronous at top-level (so it doesn't make
-/// any operation non-deterministic); only the `take_effects` step runs
+/// any operation non-deterministic); only the `read_effects` step runs
 /// inside an operation root so it gets strongly-consistent read semantics.
 async fn emit_and_take(
     spec: &State<EmitSpec>,
@@ -734,7 +734,7 @@ async fn capture_skip_then_stomp_signals_retry() {
     .unwrap()
 }
 
-/// Enough effects that `take_effects` spreads their captures over several workers (it uses one
+/// Enough effects that `read_effects` spreads their captures over several workers (it uses one
 /// worker per 64 effects, up to one per CPU and at most 8).
 const MANY_EFFECTS: usize = 1000;
 
@@ -838,7 +838,7 @@ async fn probe_producer_operation(input: ResolvedVc<ProbeInput>) -> Result<()> {
 async fn extract_probe_effects(input: ResolvedVc<ProbeInput>) -> Result<Vc<Effects>> {
     let producer = probe_producer_operation(input);
     let _ = producer.resolve().strongly_consistent().await?;
-    Ok(take_effects(producer).await?.cell())
+    Ok(read_effects(producer).await?.cell())
 }
 
 fn probe_input(count: usize, expected: usize) -> ResolvedVc<ProbeInput> {
@@ -859,7 +859,7 @@ fn probe_input(count: usize, expected: usize) -> ResolvedVc<ProbeInput> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn many_effects_are_captured_concurrently() {
     if turbo_tasks::parallel::available_parallelism().map_or(1, |n| n.get()) < 2 {
-        // `take_effects` uses a single worker on a single CPU.
+        // `read_effects` uses a single worker on a single CPU.
         return;
     }
     let tt = create_tt();
@@ -951,10 +951,10 @@ async fn versioned_producer_operation(input: ResolvedVc<VersionInput>) -> Result
 async fn extract_versioned_effects(input: ResolvedVc<VersionInput>) -> Result<Vc<Effects>> {
     let producer = versioned_producer_operation(input);
     let _ = producer.resolve().strongly_consistent().await?;
-    Ok(take_effects(producer).await?.cell())
+    Ok(read_effects(producer).await?.cell())
 }
 
-/// Cell reads by captures on worker threads are dependencies of the task calling `take_effects`.
+/// Cell reads by captures on worker threads are dependencies of the task calling `read_effects`.
 /// Changing the read cell recaptures every effect, although the effects themselves are unchanged.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn many_effects_capture_reads_are_tracked() {

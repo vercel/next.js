@@ -63,28 +63,17 @@ pub trait CounterValue:
 {
     /// Check if this value is zero.
     fn is_zero(&self) -> bool;
-
-    /// Check if this value is positive (> 0).
-    fn is_positive(&self) -> bool;
 }
 
 impl CounterValue for u32 {
     fn is_zero(&self) -> bool {
         *self == 0
     }
-
-    fn is_positive(&self) -> bool {
-        *self > 0
-    }
 }
 
 impl CounterValue for i32 {
     fn is_zero(&self) -> bool {
         *self == 0
-    }
-
-    fn is_positive(&self) -> bool {
-        *self > 0
     }
 }
 
@@ -275,44 +264,13 @@ impl<K: Hash + Eq, V: CounterValue, const I: usize> CounterMap<K, V, I> {
     }
 
     /// Add a new entry, panicking if the entry already exists.
+    ///
+    /// `#[allow(dead_code)]` rather than a `cfg` gate (the generated code calls it), only tests
+    /// use the generated `add_*` accessors.
+    #[allow(dead_code)]
     pub fn add_entry(&mut self, key: K, value: V) {
         let old = self.0.insert(key, value);
         assert!(old.is_none(), "Entry already exists");
-    }
-
-    /// Update a signed counter by the given delta, returning `true` if the count
-    /// crossed the positive boundary (became positive or became non-positive).
-    ///
-    /// This is useful for tracking collectibles where positive counts indicate
-    /// presence and non-positive counts indicate absence.
-    pub fn update_positive_crossing(&mut self, key: K, delta: V) -> bool {
-        match self.0.entry(key) {
-            Entry::Occupied(mut e) => {
-                let old = *e.get_mut();
-                // Invariant: we never store zero values, so any existing entry must be non-zero
-                debug_assert!(
-                    !old.is_zero(),
-                    "CounterMap invariant violated: zero value stored"
-                );
-                let new = old + delta;
-                let state_change = old.is_positive() != new.is_positive();
-                if new.is_zero() {
-                    e.remove();
-                    self.0.shrink_amortized();
-                } else {
-                    *e.get_mut() = new;
-                }
-                state_change
-            }
-            Entry::Vacant(e) => {
-                if !delta.is_zero() {
-                    e.insert(delta);
-                    delta.is_positive()
-                } else {
-                    false
-                }
-            }
-        }
     }
 }
 
@@ -391,49 +349,6 @@ mod tests {
         let mut map: CounterMap<u32, u32, 1> = CounterMap::new();
         map.add_entry(1, 10);
         map.add_entry(1, 20); // Should panic
-    }
-
-    #[test]
-    fn test_update_positive_crossing_new_positive() {
-        let mut map: CounterMap<u32, i32, 1> = CounterMap::new();
-        // From nothing to positive - crosses positive boundary
-        assert!(map.update_positive_crossing(1, 5));
-        assert_eq!(map.get(&1), Some(&5));
-    }
-
-    #[test]
-    fn test_update_positive_crossing_new_negative() {
-        let mut map: CounterMap<u32, i32, 1> = CounterMap::new();
-        // From nothing to negative - doesn't cross positive boundary
-        assert!(!map.update_positive_crossing(1, -5));
-        assert_eq!(map.get(&1), Some(&-5));
-    }
-
-    #[test]
-    fn test_update_positive_crossing_stay_positive() {
-        let mut map: CounterMap<u32, i32, 1> = CounterMap::new();
-        map.update_positive_crossing(1, 5);
-        // Staying positive doesn't cross boundary
-        assert!(!map.update_positive_crossing(1, 3));
-        assert_eq!(map.get(&1), Some(&8));
-    }
-
-    #[test]
-    fn test_update_positive_crossing_to_non_positive() {
-        let mut map: CounterMap<u32, i32, 1> = CounterMap::new();
-        map.update_positive_crossing(1, 5);
-        // Crossing to non-positive
-        assert!(map.update_positive_crossing(1, -8));
-        assert_eq!(map.get(&1), Some(&-3));
-    }
-
-    #[test]
-    fn test_update_positive_crossing_to_zero_removes() {
-        let mut map: CounterMap<u32, i32, 1> = CounterMap::new();
-        map.update_positive_crossing(1, 5);
-        // Crossing to zero removes and crosses boundary
-        assert!(map.update_positive_crossing(1, -5));
-        assert!(map.is_empty());
     }
 
     #[test]

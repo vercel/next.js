@@ -28,8 +28,8 @@ use serde::Serialize;
 use tokio::{process::Command, time::timeout};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Effects, ResolvedVc, TurboTasks, ValueToString, Vc, backend::Backend,
-    read_strongly_consistent_and_apply_effects, take_effects,
+    Effects, ResolvedVc, TurboTasks, ValueToString, Vc, backend::Backend, read_effects,
+    read_strongly_consistent_and_apply_effects,
 };
 use turbo_tasks_backend::TurboTasksBackend;
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
@@ -447,7 +447,7 @@ async fn node_file_trace_operation(
 
     let emit_op = emit_assets_into_dir_operation(assets, output_dir.clone());
     emit_op.read_strongly_consistent().await?;
-    let effects = take_effects(emit_op).await?;
+    let effects = read_effects(emit_op).await?;
 
     Ok(NodeFileTraceResult { rebased, effects }.cell())
 }

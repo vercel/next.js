@@ -40,7 +40,7 @@ use crate::{
         storage::{SpecificTaskDataCategory, StorageWriteGuard, TaskEntryGuard, TrackOutcome},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
-    data::{CellRef, CollectibleRef, Dirtyness, InProgressState, TransientTask},
+    data::{CellRef, Dirtyness, InProgressState, TransientTask},
 };
 
 /// Whether an [`ExecuteContext`] task open may create the task, requires it to already exist, or
@@ -1311,10 +1311,6 @@ impl<'e> ExecuteContext<'e> {
         }
         None
     }
-
-    pub fn debug_get_task_description(&self, task_id: TaskId) -> String {
-        self.backend().debug_get_task_description(task_id)
-    }
 }
 
 pub struct ChildExecuteContext<'e> {
@@ -1745,17 +1741,6 @@ impl<'a> TaskGuard<'a> {
         }
     }
 
-    /// Insert an outdated collectible with count. Returns true if it was newly inserted.
-    #[must_use]
-    pub fn insert_outdated_collectible(&mut self, collectible: CollectibleRef, value: i32) -> bool {
-        // Check if already exists
-        if self.get_outdated_collectibles(&collectible).is_some() {
-            return false;
-        }
-        // Insert new entry
-        self.add_outdated_collectibles(collectible, value);
-        true
-    }
     pub fn get_task_type(&self) -> TaskTypeRef<'_> {
         if let Some(task_type) = self.get_persistent_task_type() {
             TaskTypeRef::Cached(task_type)
