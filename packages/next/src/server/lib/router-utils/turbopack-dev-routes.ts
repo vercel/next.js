@@ -386,10 +386,11 @@ export async function createTurbopackRoutePublisher(
         '.env.development',
         '.env',
       ].map((file) => path.join(dir, file))
-      const configFiles = [
-        path.join(dir, nextConfig.typescript.tsconfigPath || 'tsconfig.json'),
-        path.join(dir, 'jsconfig.json'),
-      ]
+      const tsconfigFile = path.join(
+        dir,
+        nextConfig.typescript.tsconfigPath || 'tsconfig.json'
+      )
+      const configFiles = [tsconfigFile, path.join(dir, 'jsconfig.json')]
       const middlewareFiles = middlewareCandidates.map((file) => file.filePath)
       const files = [...envFiles, ...configFiles, ...middlewareFiles]
       const watcher = new Watchpack({ aggregateTimeout: 5 })
@@ -417,7 +418,10 @@ export async function createTurbopackRoutePublisher(
                   await propagateServerField(opts, 'loadEnvConfig', [
                     { dev: true, forceReload: true },
                   ])
-                if (!enabledTypeScript)
+                // The setup scan walks the project, so rerun it only when a
+                // tsconfig appears. New .ts files enable TypeScript through
+                // the native inventory's hasTypeScriptFiles instead.
+                if (!enabledTypeScript && changed.has(tsconfigFile))
                   enabledTypeScript = await verifyTypeScript(opts)
                 await updateDefines(hotReloader)
                 await hotReloader.invalidate({

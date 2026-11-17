@@ -325,6 +325,7 @@ pub async fn development_discovery(
         has_root_not_found: root.await?.modules.not_found.is_some(),
         ..Default::default()
     };
+    let extensions = page_extensions.await?;
     let mut queue = vec![(String::new(), root.to_resolved().await?)];
     while let Some((prefix, tree)) = queue.pop() {
         let tree = tree.await?;
@@ -338,14 +339,12 @@ pub async fn development_discovery(
             // Global metadata conventions are only routes at the App root.
             if candidate.kind == "app-metadata"
                 && !prefix.is_empty()
-                && match_global_metadata_file(candidate.source.file_name(), &page_extensions.await?)
-                    .is_some()
+                && match_global_metadata_file(candidate.source.file_name(), &extensions).is_some()
             {
                 continue;
             }
             let mut candidate = candidate.clone();
             if candidate.kind == "app-metadata" {
-                let extensions = page_extensions.await?;
                 let dynamic = match_local_metadata_file(candidate.source.file_name(), &extensions)
                     .map(|metadata| metadata.dynamic)
                     .or_else(|| {

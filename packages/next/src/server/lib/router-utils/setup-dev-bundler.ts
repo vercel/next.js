@@ -171,28 +171,6 @@ export type ServerFields = {
   resetFetch?: () => void
 }
 
-/**
- * Whether a route has a segment after a catch-all segment, e.g.
- * `/blog/[...slug]/opengraph-image`. A catch-all segment must be the last
- * segment of a route, so such a route can never be matched.
- */
-function isNestedInCatchAllSegment(route: string): boolean {
-  const segments = route
-    .split('/')
-    .filter(
-      (segment) =>
-        segment !== '' &&
-        !(segment.startsWith('(') && segment.endsWith(')')) &&
-        !segment.startsWith('@')
-    )
-  const catchAllIndex = segments.findIndex(
-    (segment) =>
-      (segment.startsWith('[[...') && segment.endsWith(']]')) ||
-      (segment.startsWith('[...') && segment.endsWith(']'))
-  )
-  return catchAllIndex !== -1 && catchAllIndex < segments.length - 1
-}
-
 export async function verifyTypeScript(opts: SetupOpts) {
   const verifyResult = await verifyAndRunTypeScript({
     dir: opts.dir,
@@ -1306,14 +1284,10 @@ async function startWatcher(
         // we serve a separate manifest with all pages for the client in
         // dev mode so that we can match a page after a rewrite on the client
         // before it has been built and is populated in the _buildManifest
-        const sortedRoutes = getSortedRoutes(
-          // Turbopack reports routes nested inside a catch-all segment as an
-          // error and doesn't create entrypoints for them. Leave them out here
-          // so they don't stop the dev server from starting.
-          opts.turbo
-            ? routedPages.filter((page) => !isNestedInCatchAllSegment(page))
-            : routedPages
-        )
+        // This watcher only runs for Webpack and Rspack. Turbopack dev takes
+        // its routes from native discovery, which already skips routes nested
+        // inside a catch-all segment.
+        const sortedRoutes = getSortedRoutes(routedPages)
 
         const dynamicRoutes = sortedRoutes.map(
           (page): FilesystemDynamicRoute => {
