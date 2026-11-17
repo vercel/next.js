@@ -1319,6 +1319,8 @@ export async function createHotReloaderTurbopack(
                   nextConfig
                 )
                 serverFields.middleware = {
+                  // Like the JS Proxy entries, dev routing uses `matchers`, not `match`.
+                  // eslint-disable-next-line @next/internal/no-as-any
                   match: null as any,
                   page: '/',
                   matchers,

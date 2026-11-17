@@ -126,6 +126,24 @@ export class NativeRouteManager {
 
   private async start(executable: string): Promise<Worker> {
     const token = randomBytes(32).toString('hex')
+    // A freshly written executable can briefly stay open for writing, for
+    // example in a process forked while Turbopack wrote it. Spawning it then
+    // fails with ETXTBSY until that handle closes, so retry for a short while.
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.launch(executable, token)
+      } catch (error) {
+        if (
+          (error as NodeJS.ErrnoException)?.code !== 'ETXTBSY' ||
+          attempt >= 20
+        )
+          throw error
+        await new Promise((resolve) => setTimeout(resolve, 25 * (attempt + 1)))
+      }
+    }
+  }
+
+  private async launch(executable: string, token: string): Promise<Worker> {
     const child = spawn(/* turbopackIgnore: true */ executable, [], {
       stdio: ['pipe', 'pipe', 'inherit'],
       env: { ...process.env, __NEXT_GO_TOKEN: token },
