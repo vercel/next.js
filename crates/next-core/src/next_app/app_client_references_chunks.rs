@@ -550,7 +550,7 @@ mod tests {
     fn isolated_merged_groups_must_match_parent_and_tag() {
         let group = ChunkGroup::IsolatedMerged {
             parent: 7,
-            merge_tag: CLIENT_MERGE_TAG,
+            merge_tag: CLIENT_MERGE_TAG.clone(),
             entries: Vec::new(),
         };
 

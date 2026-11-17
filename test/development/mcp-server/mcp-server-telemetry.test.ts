@@ -6,6 +6,8 @@ describe('mcp-server telemetry tracking', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     env: {
+      CI: '1',
+      NEXT_TELEMETRY_DISABLED: '',
       NEXT_TELEMETRY_DEBUG: '1',
     },
   })

@@ -25,6 +25,8 @@ describe('getDisplayName', () => {
     expect(getDisplayName(ComponentTwo)).toBe('CustomDisplayName')
     expect(getDisplayName(FunctionalComponent)).toBe('FunctionalComponent')
     expect(getDisplayName(() => null)).toBe('Unknown')
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(getDisplayName('div' as any)).toBe('div')
   })
 })

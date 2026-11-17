@@ -293,6 +293,8 @@ describe('route-change-refetch - App Router refetch count', () => {
   // tells it apart from a navigation or a prefetch.
   async function startCountingRefetches(browser: Playwright) {
     await browser.eval(() => {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       const win = window as any
       win.__refetches = 0
       const originalFetch = win.fetch
@@ -306,6 +308,8 @@ describe('route-change-refetch - App Router refetch count', () => {
   }
 
   function countRefetches(browser: Playwright): Promise<number> {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     return browser.eval(() => (window as any).__refetches)
   }
 

@@ -26,6 +26,8 @@ const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoade
     const stringifiedCacheHandlerPath = cacheHandler
       ? stringifyRequest(this, cacheHandler)
       : null
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const buildInfo = getModuleBuildInfo(this._module as any)
     const middlewareConfig: ProxyConfig = JSON.parse(
       Buffer.from(middlewareConfigBase64, 'base64').toString()
