@@ -1572,8 +1572,8 @@ export interface ExperimentalConfig {
   useCache?: boolean
 
   /**
-   * Enables durable `"use cache"` remote cache entries across deployments. Only implemented for
-   * Turbopack.
+   * Enables durable `"use cache"` remote cache entries across deployments.
+   * Ignored in development and when using webpack or Rspack.
    */
   durableUseCacheEntries?: boolean
 

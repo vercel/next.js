@@ -226,9 +226,9 @@ export function installDevValidationWorker(options: InstallOptions): void {
         httpAgentOptions: nextConfig.httpAgentOptions,
         cacheLifeProfiles: nextConfig.cacheLife,
         useCacheTimeout: nextConfig.experimental.useCacheTimeout,
-        durableUseCacheEntries: Boolean(
-          nextConfig.experimental.durableUseCacheEntries
-        ),
+        // Durability metadata is not generated in development. Keep this in
+        // sync with createWorkStore, including for hand-built worker stores.
+        durableUseCacheEntries: false,
         staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
       },
     }
