@@ -13,5 +13,14 @@ Once a file is defined, Next.js will automatically serve the file (with hashes i
 > **Good to know**:
 >
 > - A page's explicit `openGraph.images` or `twitter.images` metadata overrides the corresponding file-based images, including files in the same segment. See [image precedence](/docs/app/api-reference/file-conventions/metadata/opengraph-image#precedence-with-metadata-exports).
-> - Special Route Handlers like [`sitemap.ts`](/docs/app/api-reference/file-conventions/metadata/sitemap), [`opengraph-image.tsx`](/docs/app/api-reference/file-conventions/metadata/opengraph-image), and [`icon.tsx`](/docs/app/api-reference/file-conventions/metadata/app-icons), and other [metadata files](/docs/app/api-reference/file-conventions/metadata) are cached by default unless runtime work prevents prerendering. With Cache Components, see [Route Handler caching](/docs/app/getting-started/route-handlers#with-cache-components) and [sitemap caching](/docs/app/api-reference/file-conventions/metadata/sitemap#caching-with-cache-components).
 > - If using along with [`proxy.ts`](/docs/app/api-reference/file-conventions/proxy), [configure the matcher](/docs/app/api-reference/file-conventions/proxy#matcher) to exclude the metadata files.
+
+## Caching
+
+Metadata files generated from code, such as `sitemap.ts`, `robots.ts`, and `opengraph-image.tsx`, are special Route Handlers.
+
+Without Cache Components, these handlers are prerendered at build time and cached by default unless they use uncached data, a [Request-time API](/docs/app/glossary#request-time-apis), or a [dynamic config](/docs/app/guides/caching-without-cache-components#dynamic) option.
+
+With [Cache Components](/docs/app/getting-started/caching), generated metadata follows the [Route Handler caching rules](/docs/app/getting-started/route-handlers#with-cache-components). Uncached data, Request-time APIs, and non-deterministic operations prevent prerendering.
+
+Data access and non-deterministic work can be included in the prerendered response by caching it with [`use cache`](/docs/app/api-reference/directives/use-cache) and setting its lifetime with [`cacheLife`](/docs/app/api-reference/functions/cacheLife). Cached values reflect when the result was generated and remain unchanged until revalidation.

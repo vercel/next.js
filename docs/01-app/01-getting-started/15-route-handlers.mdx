@@ -145,9 +145,7 @@ async function getProducts() {
 
 ### Special Route Handlers
 
-When Cache Components is disabled, special Route Handlers like [`sitemap.ts`](/docs/app/api-reference/file-conventions/metadata/sitemap), [`opengraph-image.tsx`](/docs/app/api-reference/file-conventions/metadata/opengraph-image), and [`icon.tsx`](/docs/app/api-reference/file-conventions/metadata/app-icons), and other [metadata files](/docs/app/api-reference/file-conventions/metadata) remain static by default unless they use Request-time APIs or dynamic config options.
-
-With Cache Components, the [same caching rules](#with-cache-components) apply to special Route Handlers. For example, uncached current-time reads prevent a sitemap from being prerendered. See [sitemap caching with Cache Components](/docs/app/api-reference/file-conventions/metadata/sitemap#caching-with-cache-components).
+Metadata files such as [`sitemap.ts`](/docs/app/api-reference/file-conventions/metadata/sitemap), [`opengraph-image.tsx`](/docs/app/api-reference/file-conventions/metadata/opengraph-image), and [`icon.tsx`](/docs/app/api-reference/file-conventions/metadata/app-icons) use special Route Handlers. See [metadata caching](/docs/app/api-reference/file-conventions/metadata#caching) for their caching behavior.
 
 ### Route Resolution
 

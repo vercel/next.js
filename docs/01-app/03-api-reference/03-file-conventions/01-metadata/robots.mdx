@@ -17,9 +17,7 @@ Sitemap: https://acme.com/sitemap.xml
 
 ## Generate a Robots file
 
-Add a `robots.js` or `robots.ts` file that returns a [`Robots` object](#robots-object).
-
-> **Good to know**: `robots.js` is a special Route Handler. Without Cache Components, it is cached by default unless it uses a [Request-time API](/docs/app/glossary#request-time-apis) or [dynamic config](/docs/app/guides/caching-without-cache-components#dynamic) option. With Cache Components, [Route Handler caching rules](/docs/app/getting-started/route-handlers#with-cache-components) apply.
+Add a `robots.js` or `robots.ts` file that returns a [`Robots` object](#robots-object). This generates `robots.txt` using a [metadata Route Handler](/docs/app/api-reference/file-conventions/metadata#caching).
 
 ```ts filename="app/robots.ts" switcher
 import type { MetadataRoute } from 'next'

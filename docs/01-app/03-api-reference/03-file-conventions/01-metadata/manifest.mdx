@@ -19,9 +19,7 @@ Add or generate a `manifest.(json|webmanifest)` file that matches the [Web Manif
 
 ## Generate a Manifest file
 
-Add a `manifest.js` or `manifest.ts` file that returns a [`Manifest` object](#manifest-object).
-
-> Good to know: `manifest.js` is a special Route Handler. Without Cache Components, it is cached by default unless it uses a [Request-time API](/docs/app/glossary#request-time-apis) or [dynamic config](/docs/app/guides/caching-without-cache-components#dynamic) option. With Cache Components, [Route Handler caching rules](/docs/app/getting-started/route-handlers#with-cache-components) apply.
+Add a `manifest.js` or `manifest.ts` file that returns a [`Manifest` object](#manifest-object). Generated manifests follow the [metadata caching rules](/docs/app/api-reference/file-conventions/metadata#caching).
 
 ```ts filename="app/manifest.ts" switcher
 import type { MetadataRoute } from 'next'
