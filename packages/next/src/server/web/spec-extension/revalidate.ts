@@ -32,6 +32,10 @@ type CacheLifeConfig = {
  * (e.g. `"max"`), or a `{ expire }` object. For immediate expiration in Server Actions, use
  * [`updateTag`](https://nextjs.org/docs/app/api-reference/functions/updateTag) instead.
  *
+ * In a Server Action, `expire: 0` also triggers
+ * [`updateTag`'s client refresh and invalidation](https://nextjs.org/docs/app/api-reference/functions/updateTag#client-cache-behavior).
+ * A nonzero `expire`, such as `"max"`, does not trigger these client effects.
+ *
  * Read more: [Next.js Docs: `revalidateTag`](https://nextjs.org/docs/app/api-reference/functions/revalidateTag)
  */
 export function revalidateTag(tag: string, profile: string | CacheLifeConfig) {
@@ -52,6 +56,9 @@ export function revalidateTag(tag: string, profile: string | CacheLifeConfig) {
 /**
  * This function allows you to update [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
  * This can only be called from within a Server Action to enable read-your-own-writes semantics.
+ *
+ * Also re-renders the current route and invalidates client cache entries.
+ * See [client cache behavior](https://nextjs.org/docs/app/api-reference/functions/updateTag#client-cache-behavior) for the scope.
  *
  * Read more: [Next.js Docs: `updateTag`](https://nextjs.org/docs/app/api-reference/functions/updateTag)
  */

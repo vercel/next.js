@@ -1,14 +1,11 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use swc_core::{
-    base::SwcComments,
-    ecma::{
-        ast::{
-            BlockStmt, CallExpr, Expr, FunctionBody, Lit, MemberExpr, ModuleDecl, ModuleItem, Pat,
-            Program, Prop, SimpleAssignTarget, Stmt, Str, SwitchCase,
-        },
-        visit::AstParentKind,
+use swc_core::ecma::{
+    ast::{
+        BlockStmt, CallExpr, Expr, FunctionBody, Lit, MemberExpr, ModuleDecl, ModuleItem, Pat,
+        Program, Prop, SimpleAssignTarget, Stmt, Str, SwitchCase,
     },
+    visit::AstParentKind,
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat};
@@ -42,6 +39,7 @@ use crate::{
         service_worker::ServiceWorkerAssetReferenceCodeGen,
         worker::{WorkerAssetReferenceCodeGen, WorkerGlobalsReplacementCodeGen},
     },
+    swc_comments::MutableComments,
 };
 
 #[derive(Default)]
@@ -52,7 +50,7 @@ pub struct CodeGeneration {
     pub early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
     pub late_stmts: Vec<CodeGenerationHoistedStmt>,
     pub early_late_stmts: Vec<CodeGenerationHoistedStmt>,
-    pub comments: Option<SwcComments>,
+    pub comments: Option<MutableComments>,
 }
 
 impl CodeGeneration {
@@ -81,7 +79,7 @@ impl CodeGeneration {
 
     pub fn visitors_with_comments(
         visitors: Vec<(AstPathId, Box<dyn AstModifier>)>,
-        comments: SwcComments,
+        comments: MutableComments,
     ) -> Self {
         CodeGeneration {
             visitors,

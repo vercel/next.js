@@ -69,4 +69,8 @@ adoption, before moving on to delivery or the next adoption.
       local changes and report that a PR requires a repository and remote.
 - [ ] If a PR is possible but permission has not been granted, ask the user
       whether to open one when reporting the completed work.
+- [ ] If the upgrade remains in a separate worktree, report its branch and path
+      and explain that the original checkout is unchanged. Tell the user how to
+      merge the changes or use that worktree, install dependencies, and restart
+      the development server.
 - [ ] If work is incomplete, report completed work, the blocker, and how to resume.

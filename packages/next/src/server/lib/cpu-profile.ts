@@ -17,6 +17,21 @@ if (isCpuProfileEnabled) {
   process.on('exit', () => {
     saveCpuProfile()
   })
+
+  // Next.js workers (see `lib/worker.ts`) are stopped with a signal, which
+  // terminates the process without emitting 'exit'. Save the profile first,
+  // then re-raise the signal so the worker still dies by it and the parent
+  // observes the same exit as without profiling.
+  if (process.env.IS_NEXT_WORKER) {
+    const onSignal = (signal: NodeJS.Signals) => {
+      process.removeListener('SIGINT', onSignal)
+      process.removeListener('SIGTERM', onSignal)
+      saveCpuProfile()
+      process.kill(process.pid, signal)
+    }
+    process.on('SIGINT', onSignal)
+    process.on('SIGTERM', onSignal)
+  }
 }
 
 /**
@@ -46,7 +61,9 @@ export function saveCpuProfile(): void {
       .replace(/[:.]/g, '-')
       .slice(0, 19)
     const baseName = privateCpuProfileName || 'cpu-profile'
-    const filename = `${baseName}-${timestamp}.cpuprofile`
+    // Include the pid so concurrent processes (e.g. build workers) that save
+    // within the same second don't overwrite each other's profiles.
+    const filename = `${baseName}-${timestamp}-${process.pid}.cpuprofile`
 
     let outputPath: string
     if (cpuProfileDir) {

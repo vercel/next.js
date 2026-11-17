@@ -134,7 +134,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
             .await?;
 
         let should_enable_comments_proxy =
-            !ctx.comments.leading.is_empty() && !ctx.comments.trailing.is_empty();
+            !ctx.comments.is_leading_empty() && !ctx.comments.is_trailing_empty();
 
         //[TODO]: as same as swc/core does, we should set should_enable_comments_proxy
         // depends on the src's comments availability. For now, check naively if leading

@@ -42,7 +42,7 @@ use crate::{
     embed_js::next_js_file_path,
     mode::NextMode,
     next_font::{
-        font_fallback::FontFallback,
+        font_fallback::{FontFallback, FontFallbacks},
         google::{
             font_fallback::get_font_fallback,
             options::{FontDataEntry, FontWeights, NextFontGoogleOptions, options_from_request},
@@ -68,14 +68,14 @@ pub const GOOGLE_FONTS_STYLESHEET_URL: &str = "https://fonts.googleapis.com/css2
 // Always sending this user agent ensures consistent results from Google Fonts.
 // Google Fonts will vary responses based on user agent, e.g. only returning
 // references to certain font types for certain browsers.
-pub const USER_AGENT_FOR_GOOGLE_FONTS: RcStr = rcstr!(
+static USER_AGENT_FOR_GOOGLE_FONTS: RcStr = rcstr!(
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) \
      Chrome/104.0.0.0 Safari/537.36"
 );
 
 /// The google fonts plugin downloads fonts locally and transforms the url in the css into a
 /// specific format that is then intercepted later. This is the prefix we use for the new url.
-pub const GOOGLE_FONTS_INTERNAL_PREFIX: RcStr =
+pub static GOOGLE_FONTS_INTERNAL_PREFIX: RcStr =
     rcstr!("@vercel/turbopack-next/internal/font/google/font");
 
 #[turbo_tasks::value(transparent)]
@@ -255,14 +255,14 @@ impl NextFontGoogleCssModuleReplacer {
             )
             .await?;
 
-        let font_fallback = get_font_fallback(self.project_path.clone(), options);
+        let font_fallbacks = get_font_fallback(self.project_path.clone(), options);
         let stylesheet = match stylesheet_str {
             Some(s) => Some(
                 update_google_stylesheet(
                     s,
                     options,
                     scoped_font_family,
-                    font_fallback.has_size_adjust(),
+                    font_fallbacks.has_size_adjust(),
                 )
                 .owned()
                 .await?,
@@ -287,8 +287,8 @@ impl NextFontGoogleCssModuleReplacer {
                 FileContent::Content(
                     build_stylesheet(
                         Vc::cell(stylesheet),
-                        get_font_css_properties(options, font_fallback),
-                        font_fallback,
+                        get_font_css_properties(options, font_fallbacks),
+                        font_fallbacks,
                     )
                     .await?
                     .into(),
@@ -617,22 +617,23 @@ async fn get_stylesheet_url_from_options(
 #[turbo_tasks::function]
 async fn get_font_css_properties(
     options_vc: Vc<NextFontGoogleOptions>,
-    font_fallback: Vc<FontFallback>,
+    font_fallbacks: Vc<FontFallbacks>,
 ) -> Result<Vc<FontCssProperties>> {
     let options = &*options_vc.await?;
     let scoped_font_family =
         get_scoped_font_family(FontFamilyType::WebFont, options_vc.font_family().await?);
 
     let mut font_families = vec![format!("'{}'", scoped_font_family.clone()).into()];
-    let font_fallback = &*font_fallback.await?;
-    match font_fallback {
-        FontFallback::Manual(fonts) => {
-            font_families.extend_from_slice(fonts);
+    for font_fallback in &*font_fallbacks.await? {
+        match &*font_fallback.await? {
+            FontFallback::Manual(fonts) => {
+                font_families.extend_from_slice(fonts);
+            }
+            FontFallback::Automatic(fallback) => {
+                font_families.push(format!("'{}'", fallback.scoped_font_family).into());
+            }
+            FontFallback::Error => {}
         }
-        FontFallback::Automatic(fallback) => {
-            font_families.push(format!("'{}'", fallback.scoped_font_family).into());
-        }
-        FontFallback::Error => {}
     }
 
     Ok(FontCssProperties::cell(FontCssProperties {
@@ -722,7 +723,7 @@ async fn fetch_from_google_fonts(
     severity: IssueSeverity,
 ) -> Result<Option<Vc<HttpResponseBody>>> {
     let result = fetch_client
-        .fetch(url, Some(USER_AGENT_FOR_GOOGLE_FONTS))
+        .fetch(url, Some(USER_AGENT_FOR_GOOGLE_FONTS.clone()))
         .await?;
 
     Ok(match *result {

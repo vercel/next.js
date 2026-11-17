@@ -1,6 +1,5 @@
 /**
- * Create or update AGENTS.md with managed Next.js instructions when `next dev`
- * detects an AI coding agent.
+ * Create or update AGENTS.md with managed Next.js instructions.
  *
  * Keep the marker and block content in sync with:
  *   - packages/create-next-app/helpers/generate-agent-files.ts

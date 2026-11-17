@@ -27,16 +27,22 @@ describe('Scroll Back Restoration Support', () => {
     expect(scrollX).not.toBe(0)
     expect(scrollY).not.toBe(0)
 
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     await browser.eval(() => (window as any).next.router.push('/another'))
 
     await retry(async () => {
       const html = await browser.eval(() => document.documentElement.innerHTML)
       expect(html).toMatch(/hi from another/)
     })
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     await browser.eval(() => ((window as any).didHydrate = false))
 
     await browser.eval(() => window.history.back())
     await retry(async () => {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       expect(await browser.eval(() => (window as any).didHydrate)).toBe(true)
     })
 
