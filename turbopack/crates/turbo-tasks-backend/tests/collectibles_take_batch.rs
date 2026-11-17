@@ -130,7 +130,8 @@ async fn emit_keep(count: u32) -> Result<()> {
 #[turbo_tasks::function(operation, root)]
 async fn taking_operation(input: ResolvedVc<ChangingInput>, drop: bool) -> Result<Vc<u32>> {
     let child = child_operation(input);
-    let count = *child.connect().await?;
+    // Collectibles are only stable after a strongly consistent read of their source.
+    let count = *child.read_strongly_consistent().await?;
     let taken = if drop {
         child.drop_collectibles::<Box<dyn ValueToString>>();
         0
@@ -149,7 +150,7 @@ struct Strings(Vec<String>);
 #[turbo_tasks::function(operation, root)]
 async fn outer_taking_operation(input: ResolvedVc<ChangingInput>) -> Result<Vc<Strings>> {
     let taking = taking_operation(input, false);
-    taking.connect().await?;
+    taking.read_strongly_consistent().await?;
     let mut taken = Vec::new();
     for collectible in taking.take_collectibles::<Box<dyn ValueToString>>() {
         taken.push(collectible.to_string().await?.to_string());
@@ -166,7 +167,7 @@ fn empty_operation() -> Vc<()> {
 #[turbo_tasks::function(operation, root)]
 async fn empty_taking_operation() -> Result<Vc<u32>> {
     let empty = empty_operation();
-    empty.connect().await?;
+    empty.read_strongly_consistent().await?;
     Ok(Vc::cell(
         empty.take_collectibles::<Box<dyn ValueToString>>().len() as u32,
     ))
@@ -187,7 +188,7 @@ async fn upper_operation(
 ) -> Result<Vc<UpperRead>> {
     let _ = upper;
     let taking = taking_operation(input, drop);
-    let taken = *taking.connect().await?;
+    let taken = *taking.read_strongly_consistent().await?;
     let mut visible = Vec::new();
     for collectible in taking.peek_collectibles::<Box<dyn ValueToString>>() {
         visible.push(collectible.to_string().await?.to_string());
