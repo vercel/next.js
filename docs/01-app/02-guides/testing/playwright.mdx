@@ -193,7 +193,7 @@ Click a link inside the callback to inspect the destination's prefetched UI. Its
 
 If all required content is cached or prefetched, assert on it inside the callback.
 
-Wait for the destination URL before asserting on its UI so a shared selector cannot match the source page. Assert on deferred content after `instant()` returns. Cache Components can preserve previous pages hidden in the DOM; use [visibility-aware locators](/docs/app/guides/preserving-ui-state#testing).
+Wait for the destination URL before asserting on its UI so a shared selector cannot match the source page. Assert on deferred content after `instant()` returns. Cache Components can preserve previous pages hidden in the DOM; use `getByRole`, which excludes hidden elements by default, or filter other locators with `.filter({ visible: true })`. See [Testing preserved UI](/docs/app/guides/preserving-ui-state#testing).
 
 ```ts filename="e2e/navigation.test.ts" highlight={7-11}
 import { expect, test } from '@playwright/test'
@@ -264,7 +264,7 @@ The testing API is available automatically in `next dev` with Cache Components. 
 
 ### Limitations
 
-- Readiness checks model a warm cache. They test which UI can render without waiting for dynamic server content, not cold-cache loading time or prefetch latency.
+- These tests assume a warm cache. They check which UI can render before dynamic server content arrives; they do not measure cold-cache loading time or prefetch latency.
 - The pause applies to the browser context. Nested or concurrent `instant()` calls in the same context throw; separate contexts are independent.
 - Entering and leaving the callback corresponds to **Pause on navigations** and **Resume** in the [Navigation Inspector](/docs/app/guides/instant-navigation#visualize-loading-states-with-the-nextjs-devtools).
 - The pause uses a cookie scoped to the hostname, not the port. Avoid using it across different applications on the same hostname in one browser context.

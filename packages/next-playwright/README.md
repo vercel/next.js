@@ -5,12 +5,8 @@
 
 Playwright helpers for testing Next.js applications.
 
-```sh
-npm install -D @next/playwright @playwright/test
-```
-
 See the [Playwright guide](https://nextjs.org/docs/app/guides/testing/playwright#testing-instant-navigations)
-for parameters, initial page loads, production setup, and navigation caveats.
+for installation, parameters, initial page loads, and navigation caveats.
 
 ## Instant Navigation Testing
 
@@ -21,14 +17,16 @@ the full page.
 
 `instant()` lets you test whether a route achieves this. While the callback is
 active, navigations render only cached and prefetched content. Dynamic data is
-deferred until the callback returns. This separates assertions on the shell from assertions on the completed page.
+deferred until the callback returns. This lets you make deterministic assertions
+against the shell without race conditions.
 
-These checks model a warm cache and test which UI can render without waiting for
-dynamic server content. They do not measure cold-cache loading time or prefetch
-latency. Missing content may indicate a caching or Suspense-boundary problem, but
-check the intended behavior first: a
-[same-page search-parameter update](https://nextjs.org/docs/app/guides/testing/playwright#search-parameter-updates)
-can retain existing content until fresh data arrives.
+The tool assumes a warm cache: all prefetches have completed and all cacheable
+data is available. This way you're testing whether the route is _structured
+correctly_ for instant navigation, independent of network timing. If content you
+expected to be cached is missing inside the callback, it points to a problem — a
+missing `use cache` directive, a misplaced Suspense boundary, or a similar gap.
+For [same-page search-parameter updates](https://nextjs.org/docs/app/guides/testing/playwright#search-parameter-updates),
+waiting for fresh data can be intentional.
 
 ### Examples
 
@@ -105,9 +103,21 @@ navigations. While the cookie is active:
 
 When the callback completes, the cookie is cleared and normal behavior resumes.
 
-## Implementation
+## Design
 
-The helper acquires and releases Next.js's navigation lock through a browser-context
-cookie. The [implementation](https://github.com/vercel/next.js/blob/canary/packages/next-playwright/src/index.ts)
-shows how the helper scopes the cookie and releases it even when assertions fail.
-The cookie encoding is internal; use the helper rather than setting a fixed value.
+The layering between this package and Next.js is intentionally very thin. This
+serves as a reference implementation that other testing frameworks and dev tools
+can replicate with minimal effort. The entire mechanism is a single cookie:
+
+```ts
+// Set the cookie to enter instant mode
+document.cookie = 'next-instant-navigation-testing=1; path=/'
+
+// ... run assertions ...
+
+// Clear the cookie to resume normal behavior
+document.cookie = 'next-instant-navigation-testing=; path=/; max-age=0'
+```
+
+See the [helper implementation](https://github.com/vercel/next.js/blob/canary/packages/next-playwright/src/index.ts)
+for browser-context cookie handling and cleanup when assertions fail.
