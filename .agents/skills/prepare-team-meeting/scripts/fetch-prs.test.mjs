@@ -4,7 +4,9 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { spawnSync } from 'node:child_process'
 import { test } from 'node:test'
+import { fileURLToPath } from 'node:url'
 import {
   SEARCH_CAP,
   collectPrs,
@@ -15,6 +17,24 @@ import {
 } from './fetch-prs.mjs'
 
 const NOW = Date.parse('2026-11-17T14:00:00Z')
+const SCRIPT = fileURLToPath(new URL('./fetch-prs.mjs', import.meta.url))
+
+test('CLI: --help prints usage, bad options exit 1 without calling gh', () => {
+  const help = spawnSync(process.execPath, [SCRIPT, '--help'], {
+    encoding: 'utf8',
+  })
+  assert.equal(help.status, 0)
+  assert.match(help.stdout, /^Usage: node fetch-prs.mjs --authors/)
+  const bad = spawnSync(
+    process.execPath,
+    [SCRIPT, '--authors', 'a', '--chunk', '0'],
+    // An empty PATH makes any `gh` call fail differently.
+    { encoding: 'utf8', env: { PATH: '' } }
+  )
+  assert.equal(bad.status, 1)
+  assert.match(bad.stderr, /--chunk must be a positive integer/)
+  assert.match(bad.stderr, /Usage:/)
+})
 
 function pr(number, author, extra = {}) {
   return {
