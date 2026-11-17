@@ -6,10 +6,6 @@ This example showcases how you can use [Makeswift](https://www.makeswift.com/) t
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-makeswift&project-name=cms-makeswift&repository-name=cms-makeswift)
 
-## Demo
-
-### [https://nextjs-makeswift-example.vercel.app/](https://nextjs-makeswift-example.vercel.app/)
-
 ### Related examples
 
 - [AgilityCMS](/examples/cms-agilitycms)
