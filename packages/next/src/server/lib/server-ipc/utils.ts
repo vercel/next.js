@@ -39,7 +39,8 @@ export const filterReqHeaders = (
 
 // These are headers that are only used internally and should
 // not be honored from the external request
-const INTERNAL_HEADERS = [
+/** Request headers Node removes from every client request. */
+export const INTERNAL_HEADERS = [
   'x-middleware-rewrite',
   'x-middleware-redirect',
   'x-middleware-set-cookie',

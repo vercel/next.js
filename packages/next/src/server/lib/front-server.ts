@@ -10,6 +10,8 @@ import {
   type StartServerResult,
 } from './start-server'
 import { findFrontBinary } from './front-binary'
+import type { FrontRouteTable } from './front-route-table'
+import { observeNativeRouteWorkers } from './native-route.external'
 import { FRONT_SERVER_ENV } from './front-server-env'
 import { formatHostname } from './format-hostname'
 import { printAndExit } from './utils'
@@ -123,6 +125,16 @@ function spawnFront(
     front.stdin.end()
     return exited
   }
+  // Control messages to the front, one JSON object per line on its stdin
+  // (src/server/front/control.go): the route table once the router has
+  // loaded, then each route.go worker as Node starts or retires it.
+  const send = (message: object) => {
+    if (!closing) front.stdin.write(JSON.stringify(message) + '\n')
+  }
+  const setRouteTable = (table: FrontRouteTable) => {
+    send({ event: 'table', table })
+    observeNativeRouteWorkers(send)
+  }
 
   return new Promise<PublicServer>((resolve, reject) => {
     let ready = false
@@ -145,7 +157,7 @@ function spawnFront(
     })
     readFrontStdout(front.stdout, (port) => {
       ready = true
-      resolve({ hostname: options.hostname, port, close })
+      resolve({ hostname: options.hostname, port, close, setRouteTable })
     })
   })
 }
