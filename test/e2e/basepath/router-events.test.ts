@@ -131,4 +131,57 @@ describe('basePath', () => {
       await browser.close()
     }
   })
+
+  it.each(['push', 'replace'])(
+    'should preserve the data loading error when %s navigates to the current URL',
+    async (method) => {
+      let failedRequests = 0
+      const browser = await next.browser(`${basePath}/gssp?test=same-url`, {
+        async beforePageLoad(page) {
+          await page.route('**/_next/data/**', (route) => {
+            failedRequests++
+            return route.fulfill({ status: 500, body: 'Internal Server Error' })
+          })
+        },
+      })
+
+      try {
+        await retry(() =>
+          expect(browser.eval('window.next.router.isReady')).resolves.toBe(true)
+        )
+        await browser.eval('window._clearEventLog()')
+        await browser.eval('window.beforeNavigation = true')
+
+        const message = await browser.eval(`
+          window.next.router.${method}(window.location.href).then(
+            () => null,
+            (error) => error.message
+          )
+        `)
+
+        expect(failedRequests).toBeGreaterThan(0)
+        expect(message).toBe('Failed to load static props')
+        expect(await browser.eval('window._getEventLog()')).toEqual([
+          [
+            'routeChangeStart',
+            `${basePath}/gssp?test=same-url`,
+            { shallow: false },
+          ],
+          [
+            'routeChangeError',
+            'Failed to load static props',
+            null,
+            `${basePath}/gssp?test=same-url`,
+            { shallow: false },
+          ],
+        ])
+        expect(await browser.eval('window.beforeNavigation')).toBe(true)
+        expect(await browser.elementByCss('#gssp').text()).toBe(
+          'getServerSideProps'
+        )
+      } finally {
+        await browser.close()
+      }
+    }
+  )
 })

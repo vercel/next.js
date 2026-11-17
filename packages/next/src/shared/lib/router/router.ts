@@ -2064,6 +2064,10 @@ export default class Router implements BaseRouter {
     if (isAssetError(err) || loadErrorFail) {
       Router.events.emit('routeChangeError', err, as, routeProps)
 
+      if (as === addBasePath(addLocale(this.asPath, this.locale))) {
+        throw err
+      }
+
       // If we can't load the page it could be one of following reasons
       //  1. Page doesn't exists
       //  2. Page does exist in a different zone
