@@ -95,8 +95,7 @@ describe('webpack-loader-emit-file-conflicts', () => {
     )
   })
 
-  // Turbopack development checks each route's emitted files separately.
-  // @force-gate !deploy && !(dev && turbopack)
+  // @force-gate !deploy
   it('rejects separate routes emitting different contents at the same path', async () => {
     const message = isTurbopack
       ? conflict
