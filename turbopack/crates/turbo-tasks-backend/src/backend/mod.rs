@@ -4,8 +4,6 @@ mod counter_map;
 mod eviction;
 mod gc;
 mod known_immutable;
-#[cfg(test)]
-mod known_immutable_tests;
 mod operation;
 mod snapshot_coordinator;
 mod storage;
@@ -729,11 +727,15 @@ fn lock_task_and_optional_reader<'e>(
     // Immutable tasks never need dependency edges and can never be invalidated, so reading them
     // doesn't need the reader lock. A task that is known to be immutable is locked alone.
     if known_immutable.contains(task_id) {
+        // A collected (deleted or missing) task returns `None` here, even if its bit is still set.
         let task = ctx.try_task(task_id, TaskDataCategory::All)?;
         if task.immutable() {
             return Some((task, None));
         }
-        // Unreachable, as only immutable tasks are known to be immutable. Take the pair below.
+        // Unreachable: the `immutable` flag is never cleared, and task ids are never reused, so a
+        // task id that is known to be immutable always names that same immutable task. A task
+        // that is collected by GC and called again gets a new id. See [`KnownImmutable`]. Fall
+        // back to the pair path below in release builds.
         debug_assert!(false, "task {task_id} is known to be immutable, but isn't");
         drop(task);
     }
@@ -1344,6 +1346,8 @@ impl TurboTasksBackend {
         let provisional = CellKey::provisional(id);
         if self.known_immutable.contains(task_id) {
             let mut task = ctx.task(task_id, TaskDataCategory::All);
+            // See `lock_task_and_optional_reader` for why a known-immutable task id can't name a
+            // mutable task, also across GC and re-execution.
             debug_assert!(
                 task.immutable(),
                 "task {task_id} is known to be immutable, but isn't"
