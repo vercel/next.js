@@ -10,8 +10,7 @@ use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, FxIndexMap, OperationVc, PrettyPrintError, ReadRef, ResolvedVc, TryJoinIterExt, Vc,
-    duration_span, parallel::available_parallelism,
-    resolve_strongly_consistent_and_take_and_apply_effects,
+    duration_span, parallel::available_parallelism, resolve_strongly_consistent_and_apply_effects,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, to_sys_path};
@@ -252,7 +251,7 @@ async fn create_evaluate_pool_assets_operation(
     // HACK: applying effects from inside a task means they may get re-applied if this task is
     // invalidated. That's acceptable because the pool is created lazily; we can't move the
     // apply to a true top-level task without eagerly reading the operation.
-    let assets = resolve_strongly_consistent_and_take_and_apply_effects(operation).await?;
+    let assets = resolve_strongly_consistent_and_apply_effects(operation).await?;
 
     Ok(*assets)
 }

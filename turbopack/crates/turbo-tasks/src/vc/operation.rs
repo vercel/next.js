@@ -271,7 +271,7 @@ impl<T> CollectiblesSource for OperationVc<T>
 where
     T: ?Sized,
 {
-    fn peek_collectibles<Vt: VcValueTrait>(self) -> AutoSet<ResolvedVc<Vt>> {
+    fn read_collectibles<Vt: VcValueTrait>(self) -> AutoSet<ResolvedVc<Vt>> {
         let tt = turbo_tasks();
         let map = tt.read_task_collectibles(self.task, Vt::get_trait_type_id());
         map.into_iter()

@@ -12,7 +12,7 @@ use hyper::{
 use mime::Mime;
 use turbo_tasks::{
     CollectiblesSource, Effects, OperationVc, ReadRef, ResolvedVc, TransientInstance, Vc,
-    read_strongly_consistent_and_apply_effects, take_effects, util::SharedError,
+    read_effects, read_strongly_consistent_and_apply_effects, util::SharedError,
 };
 use turbo_tasks_bytes::Bytes;
 use turbo_tasks_fs::FileContent;
@@ -87,8 +87,8 @@ async fn get_from_source_with_collectibles_operation(
     let result = op.read_strongly_consistent().await?;
     Ok(GetFromSourceResultWithCollectibles {
         result,
-        effects: take_effects(op).await?,
-        content_source_side_effects: op.peek_collectibles(),
+        effects: read_effects(op).await?,
+        content_source_side_effects: op.read_collectibles(),
     }
     .cell())
 }

@@ -21,7 +21,7 @@ async fn test_transitive_emitting() {
         async fn operation() -> Result<Vc<()>> {
             let result_op = my_transitive_emitting_function(rcstr!(""), rcstr!(""));
             let result_val = result_op.read_strongly_consistent().await?;
-            let list = result_op.peek_collectibles::<Box<dyn ValueToString>>();
+            let list = result_op.read_collectibles::<Box<dyn ValueToString>>();
             assert_eq!(list.len(), 2);
             let mut expected = ["123", "42"].into_iter().collect::<FxHashSet<_>>();
             for collectible in list {
@@ -70,7 +70,7 @@ async fn test_multi_emitting() {
         async fn operation() -> Result<Vc<()>> {
             let result_op = my_multi_emitting_function();
             let result_val = result_op.read_strongly_consistent().await?;
-            let list = result_op.peek_collectibles::<Box<dyn ValueToString>>();
+            let list = result_op.read_collectibles::<Box<dyn ValueToString>>();
             assert_eq!(list.len(), 2);
             let mut expected = ["123", "42"].into_iter().collect::<FxHashSet<_>>();
             for collectible in list {
@@ -88,38 +88,38 @@ async fn test_multi_emitting() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn peeking_collectibles_parallel() {
+async fn reading_collectibles_parallel() {
     run_once(&REGISTRATION, async || {
         let result_op = my_transitive_emitting_function(rcstr!(""), rcstr!("a"));
         let result_val = result_op.connect().strongly_consistent().await?;
-        let list = result_op.peek_collectibles::<Box<dyn ValueToString>>();
+        let list = result_op.read_collectibles::<Box<dyn ValueToString>>();
         assert_eq!(list.len(), 2);
         assert_eq!(result_val.0, 0);
 
         let result_op = my_transitive_emitting_function(rcstr!(""), rcstr!("b"));
         let result_val = result_op.connect().strongly_consistent().await?;
-        let list = result_op.peek_collectibles::<Box<dyn ValueToString>>();
+        let list = result_op.read_collectibles::<Box<dyn ValueToString>>();
         assert_eq!(list.len(), 2);
         assert_eq!(result_val.0, 0);
 
         let result_op =
             my_transitive_emitting_function_with_child_scope(rcstr!(""), rcstr!("b"), rcstr!("1"));
         let result_val = result_op.connect().strongly_consistent().await?;
-        let list = result_op.peek_collectibles::<Box<dyn ValueToString>>();
+        let list = result_op.read_collectibles::<Box<dyn ValueToString>>();
         assert_eq!(list.len(), 2);
         assert_eq!(result_val.0, 0);
 
         let result_op =
             my_transitive_emitting_function_with_child_scope(rcstr!(""), rcstr!("b"), rcstr!("2"));
         let result_val = result_op.connect().strongly_consistent().await?;
-        let list = result_op.peek_collectibles::<Box<dyn ValueToString>>();
+        let list = result_op.read_collectibles::<Box<dyn ValueToString>>();
         assert_eq!(list.len(), 2);
         assert_eq!(result_val.0, 0);
 
         let result_op =
             my_transitive_emitting_function_with_child_scope(rcstr!(""), rcstr!("c"), rcstr!("3"));
         let result_val = result_op.connect().strongly_consistent().await?;
-        let list = result_op.peek_collectibles::<Box<dyn ValueToString>>();
+        let list = result_op.read_collectibles::<Box<dyn ValueToString>>();
         assert_eq!(list.len(), 2);
         assert_eq!(result_val.0, 0);
 
@@ -130,11 +130,11 @@ async fn peeking_collectibles_parallel() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn peeking_collectibles_with_resolve() {
+async fn reading_collectibles_with_resolve() {
     run_once(&REGISTRATION, async || {
         let result_op = my_transitive_emitting_function_with_resolve(rcstr!("resolve"));
         result_op.connect().strongly_consistent().await?;
-        let list = result_op.peek_collectibles::<Box<dyn ValueToString>>();
+        let list = result_op.read_collectibles::<Box<dyn ValueToString>>();
         assert_eq!(list.len(), 2);
 
         anyhow::Ok(())
@@ -173,7 +173,7 @@ async fn my_transitive_emitting_function_collectibles(
     let result_op = my_transitive_emitting_function(key, key2);
     result_op.read_strongly_consistent().await?;
     Ok(Vc::cell(
-        result_op.peek_collectibles::<Box<dyn ValueToString>>(),
+        result_op.read_collectibles::<Box<dyn ValueToString>>(),
     ))
 }
 
@@ -187,7 +187,7 @@ async fn my_transitive_emitting_function_with_child_scope(
     let thing_op = my_transitive_emitting_function(key, key2);
     let thing_vc = thing_op.connect();
     thing_op.read_strongly_consistent().await?;
-    let list = thing_op.peek_collectibles::<Box<dyn ValueToString>>();
+    let list = thing_op.read_collectibles::<Box<dyn ValueToString>>();
     assert_eq!(list.len(), 2);
     Ok(thing_vc)
 }

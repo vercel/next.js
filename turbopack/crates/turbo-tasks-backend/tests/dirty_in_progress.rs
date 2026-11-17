@@ -93,7 +93,7 @@ async fn compute_operation(input: ResolvedVc<ChangingInput>) -> Result<Vc<Output
     println!("start compute");
     let operation = inner_compute(input);
     let value = *operation.connect().await?;
-    let collectibles = operation.peek_collectibles::<Box<dyn ValueToString>>();
+    let collectibles = operation.read_collectibles::<Box<dyn ValueToString>>();
     if collectibles.len() > 1 {
         bail!("expected 0..1 collectible, found {}", collectibles.len());
     }

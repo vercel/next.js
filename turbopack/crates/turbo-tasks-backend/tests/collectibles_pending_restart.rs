@@ -112,7 +112,7 @@ async fn collect(a: ResolvedVc<Input>, b: ResolvedVc<Input>) -> Result<Vc<Names>
     let source = source(a, b);
     source.read_strongly_consistent().await?;
     let mut names = Vec::new();
-    for collectible in source.peek_collectibles::<Box<dyn ValueToString>>() {
+    for collectible in source.read_collectibles::<Box<dyn ValueToString>>() {
         names.push((*collectible.to_string().await?).clone());
     }
     names.sort();

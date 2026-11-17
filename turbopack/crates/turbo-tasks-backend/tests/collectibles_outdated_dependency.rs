@@ -148,7 +148,7 @@ async fn gated_collector(
     } else {
         source.read_strongly_consistent().await?;
     }
-    let collectibles = source.peek_collectibles::<Box<dyn ValueToString>>();
+    let collectibles = source.read_collectibles::<Box<dyn ValueToString>>();
     Ok(Vc::cell(collectibles.len() as u32))
 }
 

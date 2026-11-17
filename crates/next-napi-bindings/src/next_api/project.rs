@@ -59,7 +59,7 @@ use turbo_tasks::{
     Vc, mark_top_level_task,
     memory::release_freed_memory,
     message_queue::{CompilationEvent, Severity, TraceEvent},
-    read_strongly_consistent_and_apply_effects, take_effects, turbo_tasks,
+    read_effects, read_strongly_consistent_and_apply_effects, turbo_tasks,
     unmark_top_level_task_may_leak_eventually_consistent_state,
 };
 use turbo_tasks_backend::{BackingStorageOptions, db_invalidation::invalidation_reasons};
@@ -2052,7 +2052,7 @@ async fn hmr_update_with_issues_operation(
         Some(project.hmr_module_graphs(chunk_name)),
     )
     .await?;
-    let effects = Arc::new(take_effects(update_op).await?);
+    let effects = Arc::new(read_effects(update_op).await?);
     Ok(HmrUpdateWithIssues {
         update,
         issues,
@@ -2113,7 +2113,7 @@ async fn server_hmr_snapshot_with_effects_operation(
         Some(project.server_hmr_module_graphs(entry_paths)),
     )
     .await?;
-    let effects = Arc::new(take_effects(snapshot_op).await?);
+    let effects = Arc::new(read_effects(snapshot_op).await?);
     Ok(ServerHmrSnapshotWithEffects {
         chunk_lists: snapshot.chunk_lists.clone(),
         version: snapshot.version.clone(),
@@ -2333,7 +2333,7 @@ async fn get_client_hmr_chunk_names_with_issues_operation(
     let hmr_chunk_names = hmr_chunk_names_op.read_strongly_consistent().await?;
     let filter = container.project().issue_filter().await?;
     let issues = get_issues(hmr_chunk_names_op, &filter, None).await?;
-    let effects = Arc::new(take_effects(hmr_chunk_names_op).await?);
+    let effects = Arc::new(read_effects(hmr_chunk_names_op).await?);
     Ok(HmrChunkNamesWithIssues {
         chunk_names: hmr_chunk_names,
         issues,

@@ -1865,7 +1865,7 @@ fn remove_symbolic_link_dir_helper(path: &Path) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use turbo_rcstr::rcstr;
-    use turbo_tasks::{Effects, OperationVc, Vc, take_effects};
+    use turbo_tasks::{Effects, OperationVc, Vc, read_effects};
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
     use super::*;
@@ -1873,7 +1873,7 @@ mod tests {
     #[turbo_tasks::function(operation, root)]
     async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Effects>> {
         let _ = op.resolve().strongly_consistent().await?;
-        Ok(take_effects(op).await?.cell())
+        Ok(read_effects(op).await?.cell())
     }
 
     #[cfg(not(miri))]
@@ -2061,7 +2061,7 @@ mod tests {
 
         use turbo_rcstr::{RcStr, rcstr};
         use turbo_tasks::{
-            Effects, ResolvedVc, Vc, read_strongly_consistent_and_apply_effects, take_effects,
+            Effects, ResolvedVc, Vc, read_effects, read_strongly_consistent_and_apply_effects,
         };
         use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
@@ -2097,7 +2097,7 @@ mod tests {
         ) -> anyhow::Result<Vc<Effects>> {
             let write_op = write_operation(fs, path, contents);
             write_op.read_strongly_consistent().await?;
-            Ok(take_effects(write_op).await?.cell())
+            Ok(read_effects(write_op).await?.cell())
         }
 
         async fn write(
@@ -3017,7 +3017,7 @@ mod tests {
         };
 
         use turbo_rcstr::{RcStr, rcstr};
-        use turbo_tasks::{Effects, Vc, read_strongly_consistent_and_apply_effects, take_effects};
+        use turbo_tasks::{Effects, Vc, read_effects, read_strongly_consistent_and_apply_effects};
         use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
         use crate::{
@@ -3303,7 +3303,7 @@ mod tests {
                 let allowed_file = root_path.join(&file_path)?;
                 let write_op = write_file_operation(allowed_file, contents);
                 write_op.read_strongly_consistent().await?;
-                Ok(take_effects(write_op).await?.cell())
+                Ok(read_effects(write_op).await?.cell())
             }
 
             #[turbo_tasks::function(operation, root)]
@@ -3391,7 +3391,7 @@ mod tests {
         };
 
         use turbo_rcstr::{RcStr, rcstr};
-        use turbo_tasks::{Effects, Vc, read_strongly_consistent_and_apply_effects, take_effects};
+        use turbo_tasks::{Effects, Vc, read_effects, read_strongly_consistent_and_apply_effects};
         use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
         use crate::{DiskFileSystem, File as TurboFile, FileContent, FileSystem, FileSystemPath};
@@ -3420,7 +3420,7 @@ mod tests {
             let path = fs.root().await?.join("file.txt")?;
             let write_op = write_file_operation(path, contents, atomic);
             write_op.read_strongly_consistent().await?;
-            Ok(take_effects(write_op).await?.cell())
+            Ok(read_effects(write_op).await?.cell())
         }
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

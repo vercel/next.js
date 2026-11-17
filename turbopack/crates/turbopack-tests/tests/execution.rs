@@ -14,7 +14,7 @@ use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Effects, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TurboTasks, Vc,
-    debug::ValueDebugFormat, read_strongly_consistent_and_apply_effects, take_effects,
+    debug::ValueDebugFormat, read_effects, read_strongly_consistent_and_apply_effects,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::CommandLineProcessEnv;
@@ -258,7 +258,7 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
         let op = run_inner_operation(resource, snapshot_mode);
         // Collectibles are only stable after a strongly consistent read of their source.
         let result = op.read_strongly_consistent().await?.clone();
-        let effects = take_effects(op).await?;
+        let effects = read_effects(op).await?;
         Ok(JsResultWithEffects { result, effects }.cell())
     }
 
@@ -752,7 +752,7 @@ async fn snapshot_issues(
         .map(|result| *result.module_graphs);
 
     let plain_issues = run_result_op
-        .peek_issues()
+        .read_issues()
         .get_plain_issues(&IssueFilter::everything(), module_graphs)
         .await?;
 

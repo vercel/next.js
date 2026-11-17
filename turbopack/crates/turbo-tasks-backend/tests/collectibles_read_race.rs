@@ -112,7 +112,7 @@ struct ReaderResult((u32, Vec<RcStr>));
 async fn reader(generation: ResolvedVc<Generation>, _index: u32) -> Result<Vc<ReaderResult>> {
     let generation_value = *generation.await?.state.get();
     let mut names = Vec::new();
-    for collectible in emitter(generation).peek_collectibles::<Box<dyn ValueToString>>() {
+    for collectible in emitter(generation).read_collectibles::<Box<dyn ValueToString>>() {
         names.push((*collectible.to_string().await?).clone());
     }
     names.sort();

@@ -2700,7 +2700,7 @@ pub mod tests {
         // Collectibles are only stable after a strongly consistent read of their source.
         let _ = trace_operation.read_strongly_consistent().await?;
         let issues = trace_operation
-            .peek_issues()
+            .read_issues()
             .iter()
             .map(async |issue| {
                 let issue = issue.into_trait_ref().await?;

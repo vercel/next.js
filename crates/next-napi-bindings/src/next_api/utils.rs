@@ -21,7 +21,7 @@ use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::Serialize;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Effects, GcRoot, OperationVc, ReadRef, TaskId, Vc, VcValueType, take_effects};
+use turbo_tasks::{Effects, GcRoot, OperationVc, ReadRef, TaskId, Vc, VcValueType, read_effects};
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     issue::{
@@ -113,12 +113,12 @@ pub fn root_task_dispose(
     Ok(())
 }
 
-/// [Peeks] at the [`Issue`]s held by the given source and returns them as [`PlainIssue`]s.
+/// [Reads] the [`Issue`]s held by the given source and returns them as [`PlainIssue`]s.
 ///
 /// The import traces of the issues are found in `module_graphs`, which should be the graphs that
 /// the source was compiled with.
 ///
-/// [Peeks]: turbo_tasks::CollectiblesSource::peek_collectibles
+/// [Reads]: turbo_tasks::CollectiblesSource::read_collectibles
 /// [`Issue`]: turbopack_core::issue::Issue
 pub async fn get_issues<T: Send>(
     source: OperationVc<T>,
@@ -127,7 +127,7 @@ pub async fn get_issues<T: Send>(
 ) -> Result<Arc<Vec<ReadRef<PlainIssue>>>> {
     Ok(Arc::new(
         source
-            .peek_issues()
+            .read_issues()
             .get_plain_issues(filter, module_graphs)
             .await?,
     ))
@@ -489,7 +489,7 @@ pub async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
 )> {
     let result = source_op.read_strongly_consistent().await;
     let issues = get_issues(source_op, filter, module_graphs).await?;
-    let effects = Arc::new(take_effects(source_op).await?);
+    let effects = Arc::new(read_effects(source_op).await?);
 
     let result = if result.is_err() && issues.iter().any(|i| i.severity <= IssueSeverity::Error) {
         None

@@ -40,7 +40,7 @@ const APPLY_EFFECTS_CONCURRENCY_LIMIT: usize = 1024;
 pub trait Effect {
     /// Read any Vc data needed for `apply()` and return the [`CapturedEffect`] that performs it.
     ///
-    /// Must not create cells (e.g. with `.cell()`): [`take_effects`] captures many effects
+    /// Must not create cells (e.g. with `.cell()`): [`read_effects`] captures many effects
     /// concurrently as part of the one task calling it, so the order in which cells were created,
     /// which assigns their indices in that task, wouldn't be deterministic.
     ///
@@ -277,7 +277,7 @@ impl EffectStateStorage {
 /// #
 /// # use anyhow::Result;
 /// # use turbo_tasks::{
-/// #     Effects, ReadRef, Vc, read_strongly_consistent_and_apply_effects, take_effects,
+/// #     Effects, ReadRef, Vc, read_strongly_consistent_and_apply_effects, read_effects,
 /// # };
 /// #
 /// # async fn _wrapper() -> Result<()> {
@@ -300,7 +300,7 @@ impl EffectStateStorage {
 ///     // collectibles are only stable after a strongly consistent read of their source
 ///     let output = operation.read_strongly_consistent().await?;
 ///     // read the effects from the collectibles
-///     let effects = take_effects(operation).await?;
+///     let effects = read_effects(operation).await?;
 ///     Ok(OutputWithEffects { output, effects }.cell())
 /// }
 ///
@@ -318,10 +318,10 @@ impl EffectStateStorage {
 /// The effects stay collectibles of `source`'s subgraph, so they also reach the uppers of the
 /// calling task. Applying an effect whose value was already applied is a no-op (see
 /// [`EffectStateStorage`]), so an upper that also applies them doesn't write twice.
-pub async fn take_effects(source: impl CollectiblesSource) -> Result<Effects> {
-    debug_assert_not_in_top_level_task("take_effects");
+pub async fn read_effects(source: impl CollectiblesSource) -> Result<Effects> {
+    debug_assert_not_in_top_level_task("read_effects");
     let effects: Vec<ResolvedVc<Box<dyn Effect>>> = source
-        .peek_collectibles::<Box<dyn Effect>>()
+        .read_collectibles::<Box<dyn Effect>>()
         .into_iter()
         .collect();
 
@@ -331,7 +331,7 @@ pub async fn take_effects(source: impl CollectiblesSource) -> Result<Effects> {
     let unique_keys = build_unique_keys(&captured);
 
     let invalidator = get_invalidator()
-        .expect("take_effects must be called from within a turbo-tasks task context");
+        .expect("read_effects must be called from within a turbo-tasks task context");
 
     Ok(Effects::new(captured, unique_keys, invalidator))
 }
@@ -341,7 +341,7 @@ pub async fn take_effects(source: impl CollectiblesSource) -> Result<Effects> {
 const CAPTURE_EFFECTS_MIN_PER_WORKER: usize = 64;
 
 /// The maximum number of workers [`capture_effects`] uses. Every capture records its reads as
-/// dependencies of the one task calling [`take_effects`], which locks that task. With more workers
+/// dependencies of the one task calling [`read_effects`], which locks that task. With more workers
 /// they mostly wait for that lock: on a warm build with ~200k effects, capturing took 4.3s with 1
 /// worker, 1.4s with 4, 0.9s with 8, and still 0.9s with 16 or 32 workers, using 2-4x the CPU
 /// time.
@@ -483,7 +483,7 @@ impl From<Arc<dyn EffectError>> for EffectsError {
 }
 
 /// Dedup'd indices into the captured Vec — one entry per unique key. Computed eagerly in
-/// [`take_effects`] purely from the captured effects (no [`EffectStateStorage`] interaction);
+/// [`read_effects`] purely from the captured effects (no [`EffectStateStorage`] interaction);
 /// the apply-side state machine in [`EffectStateStorage::run_apply`] handles per-key hash dedup.
 type UniqueKeys = Result<Vec<usize>, Arc<ConflictingEffectError>>;
 
@@ -513,10 +513,10 @@ pub struct Effects {
     /// upstream `ReadRef` strong-count cascades are naturally released.
     #[turbo_tasks(debug_ignore)]
     captured: CapturedSlice,
-    /// Captured at `take_effects` time. `None` for `Effects::empty()` (nothing to retry).
+    /// Captured at `read_effects` time. `None` for `Effects::empty()` (nothing to retry).
     #[turbo_tasks(debug_ignore)]
     invalidator: Option<Invalidator>,
-    /// Unique key info computed eagerly in `take_effects`. Holds one index into `captured` per
+    /// Unique key info computed eagerly in `read_effects`. Holds one index into `captured` per
     /// unique key, or a `ConflictingEffectError` if two captured effects share a key with
     /// different hashes. No [`EffectStateStorage`] interaction here — that is deferred to
     /// `apply()`.
@@ -579,14 +579,14 @@ impl Effects {
     /// first such error wins.
     ///
     /// `apply` must only be used in a "top-level" task (e.g. [`run_once`][crate::run_once]),
-    /// after [`take_effects`] is called from an [operation read with strong
+    /// after [`read_effects`] is called from an [operation read with strong
     /// consistency][crate::OperationVc::read_strongly_consistent].
     ///
-    /// See [`take_effects`] for example usage.
+    /// See [`read_effects`] for example usage.
     ///
     /// **Do not call this directly.** External callers must go through
     /// [`read_strongly_consistent_and_apply_effects`] or
-    /// [`resolve_strongly_consistent_and_take_and_apply_effects`], which own the read+apply+retry
+    /// [`resolve_strongly_consistent_and_apply_effects`], which own the read+apply+retry
     /// loop required to recover from [`EffectsError::Retry`]. Exposed publicly only as
     /// [`Effects::apply_for_testing`] (`#[doc(hidden)]`) so integration tests can drive the apply
     /// state machine directly.
@@ -683,7 +683,7 @@ impl Effects {
 /// error.
 ///
 /// This is one of two public entry points for applying effects (see also
-/// [`resolve_strongly_consistent_and_take_and_apply_effects`]) — `Effects::apply` is private so the
+/// [`resolve_strongly_consistent_and_apply_effects`]) — `Effects::apply` is private so the
 /// retry contract cannot be bypassed.
 pub async fn read_strongly_consistent_and_apply_effects<T, F>(
     op: OperationVc<T>,
@@ -708,13 +708,13 @@ where
 /// AVOID CALLING THIS UNLESS DEEPLY REQUIRED
 ///
 /// Like [`read_strongly_consistent_and_apply_effects`], but the [`Effects`] directly accessed by
-/// calling [`take_effects`] on the supplied operation.
+/// calling [`read_effects`] on the supplied operation.
 ///
 /// Unlike [`read_strongly_consistent_and_apply_effects`], this may be called from *inside* a
 /// turbo-tasks task (it owns the `mark`/`unmark` around `apply`). The consequence is that the
 /// effects may be re-applied if that enclosing task is invalidated — acceptable for lazily-created
 /// resources.
-pub async fn resolve_strongly_consistent_and_take_and_apply_effects<T>(
+pub async fn resolve_strongly_consistent_and_apply_effects<T>(
     op: OperationVc<T>,
 ) -> Result<ResolvedVc<T>>
 where
@@ -723,9 +723,9 @@ where
     let mut attempts = 0usize;
     loop {
         let value = op.resolve().strongly_consistent().await?;
-        // Run the callback while *not* marked top-level so it can `take_effects` / read Vcs.
+        // Run the callback while *not* marked top-level so it can `read_effects` / read Vcs.
 
-        let effects = take_effects(op).await?;
+        let effects = read_effects(op).await?;
         // `Effects::apply` asserts it runs at the top-level. Mark only around the apply, then
         // unmark so any further work (including the next loop iteration's read) is unaffected.
         mark_top_level_task();
@@ -771,7 +771,7 @@ fn handle_apply_retry(err: EffectsError, attempts: &mut usize) -> Result<()> {
 /// Build the deduped per-key indices into the captured slice. Detects per-key value-hash
 /// conflicts. This is the eager half of effect deduplication — it inspects only the captured
 /// effects themselves (no [`EffectStateStorage`] interaction) and is therefore safe to call
-/// from inside a turbo-tasks task in [`take_effects`].
+/// from inside a turbo-tasks task in [`read_effects`].
 fn build_unique_keys(captured: &[Box<dyn CapturedEffect>]) -> UniqueKeys {
     let mut by_key: FxHashMap<Box<[u8]>, usize> = FxHashMap::default();
     for (idx, effect) in captured.iter().enumerate() {
@@ -797,7 +797,7 @@ fn build_unique_keys(captured: &[Box<dyn CapturedEffect>]) -> UniqueKeys {
 
 #[cfg(test)]
 mod tests {
-    use crate::{CollectiblesSource, Effects, take_effects};
+    use crate::{CollectiblesSource, Effects, read_effects};
 
     #[test]
     #[allow(dead_code)]
@@ -806,8 +806,8 @@ mod tests {
         fn check_effects_apply() {
             assert_send(Effects::empty().apply());
         }
-        fn check_take_effects<T: CollectiblesSource + Send + Sync>(t: T) {
-            assert_send(take_effects(t));
+        fn check_read_effects<T: CollectiblesSource + Send + Sync>(t: T) {
+            assert_send(read_effects(t));
         }
     }
 }

@@ -148,7 +148,7 @@ struct WithIssues {
 async fn with_issues_operation(op: OperationVc<Failure>) -> Result<Vc<WithIssues>> {
     let failure = op.read_strongly_consistent().await?;
     let issues = op
-        .peek_issues()
+        .read_issues()
         .get_plain_issues(&IssueFilter::everything(), None)
         .await?
         .iter()
