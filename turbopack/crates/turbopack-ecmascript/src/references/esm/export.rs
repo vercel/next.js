@@ -867,8 +867,18 @@ async fn build_compact_reexports(
     let sources: Vec<ReexportSource> = sources.into_values().collect();
 
     // The runtime defines the namespace properties in list order, and a module namespace object
-    // must list its keys in code unit order. Adjacent exports from the same module share a group.
-    pairs.sort_by(|(a, ..), (b, ..)| cmp_code_units(a, b));
+    // must list its keys in code unit order. Mangled names are only chosen when the namespace
+    // object cannot escape, so nothing can observe its key order: keep the exports in import order
+    // instead, which gives every module a single group and lets the imports be subsumed. The sort
+    // is stable, so the source index keeps modules with an unknown position apart.
+    // Adjacent exports from the same module share a group.
+    if mangled_names.is_some() {
+        pairs.sort_by_key(|(_, _, source)| {
+            (sources.get(*source).map(|source| source.order), *source)
+        });
+    } else {
+        pairs.sort_by(|(a, ..), (b, ..)| cmp_code_units(a, b));
+    }
     let mut groups: Vec<ReexportGroup> = Vec::new();
     for (exported, imported, source) in pairs {
         match groups.last_mut() {
