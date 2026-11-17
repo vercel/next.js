@@ -832,7 +832,10 @@ async function exportAppImpl(
       })
     }
 
-    const profileStaticGeneration = isStaticGenerationProfileEnabled()
+    // `output: export` calls exportApp again to copy the prerendered output.
+    // Keep that pass from replacing the profile of the actual generation work.
+    const profileStaticGeneration =
+      options.buildExport && isStaticGenerationProfileEnabled()
     if (profileStaticGeneration) {
       resetStaticGenerationProfile(distDir)
     }

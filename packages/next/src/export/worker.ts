@@ -423,7 +423,9 @@ export async function exportPages(
     phase = 'initial',
   } = input
 
-  const profiler = getStaticGenerationProfiler()
+  const profiler = options.buildExport
+    ? getStaticGenerationProfiler()
+    : undefined
   const profiledCall = profiler?.beginCall(distDir)
 
   installGlobalBehaviors(nextConfig)
