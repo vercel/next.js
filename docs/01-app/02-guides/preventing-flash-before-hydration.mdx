@@ -195,9 +195,11 @@ The inline script puts the correct value in the DOM before React hydrates. Even 
 
 Scripts inserted via DOM updates don't execute in the browser. On client-side navigations, React renders the component from the RSC payload and the script won't run. Making the component a Client Component solves this: `toLocaleDateString()` runs directly in the browser on soft navigations, while the inline script handles hard navigations. [`useId`](https://react.dev/reference/react/useId) generates a stable unique ID for each instance.
 
-React also warns in development when rendering produces `<script>` tags. To avoid this, wrap the script in a helper that sets `type="text/javascript"` on the server and `type="text/plain"` on the client. `suppressHydrationWarning` handles the type mismatch.
+React also warns in development when rendering produces `<script>` tags. To avoid this, make the helper a Client Component so it sets `type="text/javascript"` during server rendering and `type="text/plain"` during client rendering. The `'use client'` directive ensures this also works when a Server Component imports the helper directly. `suppressHydrationWarning` handles the type mismatch.
 
 ```tsx filename="app/components/inline-script.tsx" switcher
+'use client'
+
 export function InlineScript({ html }: { html: string }) {
   return (
     <script
@@ -210,6 +212,8 @@ export function InlineScript({ html }: { html: string }) {
 ```
 
 ```jsx filename="app/components/inline-script.js" switcher
+'use client'
+
 export function InlineScript({ html }) {
   return (
     <script
