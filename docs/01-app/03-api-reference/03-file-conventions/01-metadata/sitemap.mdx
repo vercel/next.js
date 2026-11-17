@@ -41,7 +41,9 @@ For smaller applications, you can create a `sitemap.xml` file and place it in th
 
 You can use the `sitemap.(js|ts)` file convention to programmatically **generate** a sitemap by exporting a default function that returns an array of URLs. If using TypeScript, a [`Sitemap`](#returns) type is available.
 
-> **Good to know**: `sitemap.js` is a special Route Handler that is cached by default unless it uses a [Request-time API](/docs/app/glossary#request-time-apis) or [dynamic config](/docs/app/guides/caching-without-cache-components#dynamic) option.
+> **Good to know**: `sitemap.js` is a special Route Handler. Without Cache Components, it is cached by default unless it uses a [Request-time API](/docs/app/glossary#request-time-apis) or [dynamic config](/docs/app/guides/caching-without-cache-components#dynamic) option. With Cache Components, see [Caching with Cache Components](#caching-with-cache-components).
+
+Use each page's actual modification date for `lastModified`. The examples below use fixed timestamps.
 
 ```ts filename="app/sitemap.ts" switcher
 import type { MetadataRoute } from 'next'
@@ -50,19 +52,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
       url: 'https://acme.com',
-      lastModified: new Date(),
+      lastModified: '2023-04-06T15:02:24.021Z',
       changeFrequency: 'yearly',
       priority: 1,
     },
     {
       url: 'https://acme.com/about',
-      lastModified: new Date(),
+      lastModified: '2023-04-06T15:02:24.021Z',
       changeFrequency: 'monthly',
       priority: 0.8,
     },
     {
       url: 'https://acme.com/blog',
-      lastModified: new Date(),
+      lastModified: '2023-04-06T15:02:24.021Z',
       changeFrequency: 'weekly',
       priority: 0.5,
     },
@@ -75,19 +77,19 @@ export default function sitemap() {
   return [
     {
       url: 'https://acme.com',
-      lastModified: new Date(),
+      lastModified: '2023-04-06T15:02:24.021Z',
       changeFrequency: 'yearly',
       priority: 1,
     },
     {
       url: 'https://acme.com/about',
-      lastModified: new Date(),
+      lastModified: '2023-04-06T15:02:24.021Z',
       changeFrequency: 'monthly',
       priority: 0.8,
     },
     {
       url: 'https://acme.com/blog',
-      lastModified: new Date(),
+      lastModified: '2023-04-06T15:02:24.021Z',
       changeFrequency: 'weekly',
       priority: 0.5,
     },
@@ -119,6 +121,12 @@ Output:
   </url>
 </urlset>
 ```
+
+#### Caching with Cache Components
+
+With [Cache Components](/docs/app/getting-started/caching) enabled, `sitemap.ts` follows the [Route Handler caching rules](/docs/app/getting-started/route-handlers#with-cache-components). A sitemap with fixed entries can be prerendered. Reading the current time with `new Date()` or `Date.now()` outside a cache scope prevents prerendering, whether you use the value for `lastModified` or to filter entries. Next.js serves the sitemap at request time instead of failing the build.
+
+To prerender a sitemap that depends on the current time or uncached data, cache that work with [`use cache`](/docs/app/api-reference/directives/use-cache) and set its lifetime with [`cacheLife`](/docs/app/api-reference/functions/cacheLife). The time is read when the cached result is generated, so time-based filtering reflects that cached time until the result is revalidated.
 
 ### Image Sitemaps
 
@@ -217,7 +225,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
       url: 'https://acme.com',
-      lastModified: new Date(),
+      lastModified: '2023-04-06T15:02:24.021Z',
       alternates: {
         languages: {
           es: 'https://acme.com/es',
@@ -227,7 +235,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     {
       url: 'https://acme.com/about',
-      lastModified: new Date(),
+      lastModified: '2023-04-06T15:02:24.021Z',
       alternates: {
         languages: {
           es: 'https://acme.com/es/about',
@@ -237,7 +245,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     {
       url: 'https://acme.com/blog',
-      lastModified: new Date(),
+      lastModified: '2023-04-06T15:02:24.021Z',
       alternates: {
         languages: {
           es: 'https://acme.com/es/blog',
@@ -254,7 +262,7 @@ export default function sitemap() {
   return [
     {
       url: 'https://acme.com',
-      lastModified: new Date(),
+      lastModified: '2023-04-06T15:02:24.021Z',
       alternates: {
         languages: {
           es: 'https://acme.com/es',
@@ -264,7 +272,7 @@ export default function sitemap() {
     },
     {
       url: 'https://acme.com/about',
-      lastModified: new Date(),
+      lastModified: '2023-04-06T15:02:24.021Z',
       alternates: {
         languages: {
           es: 'https://acme.com/es/about',
@@ -274,7 +282,7 @@ export default function sitemap() {
     },
     {
       url: 'https://acme.com/blog',
-      lastModified: new Date(),
+      lastModified: '2023-04-06T15:02:24.021Z',
       alternates: {
         languages: {
           es: 'https://acme.com/es/blog',
