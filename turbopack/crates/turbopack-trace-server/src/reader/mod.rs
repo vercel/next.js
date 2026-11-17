@@ -17,6 +17,7 @@ use std::{
 
 use anyhow::Result;
 use flate2::bufread::GzDecoder;
+use lzma_rust2::XzReader;
 use turbopack_trace_utils::tracing::{TRACE_HEADER, TRACE_HEADER_PREFIX, check_trace_header};
 
 use crate::{
@@ -124,7 +125,7 @@ impl ObjectSafeTraceFormat for ErasedTraceFormat {
 #[derive(Default)]
 enum TraceFile {
     Raw(BufReader<File>),
-    /// A zstd or gzip compressed file, decompressed on a background thread.
+    /// A zstd, gzip or xz compressed file, decompressed on a background thread.
     Compressed {
         decoder: threaded::ThreadedDecoder,
         /// Handle to the compressed file, used for size queries.
@@ -258,10 +259,11 @@ impl TraceReader {
             (1 << 17) + 7,
             file,
         );
-        let magic_bytes = file.peek(4)?;
-        let is_zstd = path.ends_with(".zst") || magic_bytes == [0x28, 0xb5, 0x2f, 0xfd];
-        let is_gz = path.ends_with(".gz") || matches!(magic_bytes, [0x1f, 0x8b, _, _]);
-        if !is_zstd && !is_gz {
+        let magic_bytes = file.peek(6)?;
+        let is_zstd = path.ends_with(".zst") || magic_bytes.starts_with(&[0x28, 0xb5, 0x2f, 0xfd]);
+        let is_gz = path.ends_with(".gz") || magic_bytes.starts_with(&[0x1f, 0x8b]);
+        let is_xz = path.ends_with(".xz") || magic_bytes == [0xfd, b'7', b'z', b'X', b'Z', 0x00];
+        if !is_zstd && !is_gz && !is_xz {
             return Ok(TraceFile::Raw(file));
         }
         // Keep a handle to the compressed file for size queries, since the decoder (and the
@@ -273,6 +275,15 @@ impl TraceReader {
                 BATCH_SIZE,
                 |decoder: &mut zstd::Decoder<'static, BufReader<File>>| {
                     decoder.get_mut().stream_position().unwrap_or(0)
+                },
+            )
+        } else if is_xz {
+            threaded::ThreadedDecoder::new(
+                // Allow concatenated streams, e.g. as written by parallel compressors.
+                XzReader::new(file, true),
+                BATCH_SIZE,
+                |decoder: &mut XzReader<BufReader<File>>| {
+                    decoder.inner_mut().stream_position().unwrap_or(0)
                 },
             )
         } else {
@@ -615,6 +626,13 @@ mod tests {
         zstd::encode_all(data, 3).unwrap()
     }
 
+    fn xz(data: &[u8]) -> Vec<u8> {
+        let mut encoder =
+            lzma_rust2::XzWriter::new(Vec::new(), lzma_rust2::XzOptions::with_preset(1)).unwrap();
+        encoder.write_all(data).unwrap();
+        encoder.finish().unwrap()
+    }
+
     /// Reads one trace file with a [`TraceReader`] on a background thread, like the server
     /// does, but only for a single [`TraceReader::try_read`] pass. Dropping it deletes the file,
     /// which makes the reader stop waiting for more data, and joins the reader thread.
@@ -713,7 +731,7 @@ mod tests {
     }
 
     #[test]
-    fn loads_raw_zstd_gzip_identically() {
+    fn loads_raw_and_compressed_identically() {
         // Multiple batches worth of data.
         let spans = 100_000;
         let raw = trace(spans);
@@ -722,6 +740,9 @@ mod tests {
             ("identical.trace", raw.clone()),
             ("identical.trace.zst", zstd(&raw)),
             ("identical.trace.gz", gzip(&raw)),
+            ("identical.trace.xz", xz(&raw)),
+            // Detected by magic bytes, without a file extension.
+            ("identical-xz.trace", xz(&raw)),
         ] {
             let reader = ReaderFixture::new(name, &data);
             reader.wait_for_span_count(spans as usize);
@@ -742,6 +763,7 @@ mod tests {
         for (name, mut data) in [
             ("truncated.trace.zst", zstd(&raw)),
             ("truncated.trace.gz", gzip(&raw)),
+            ("truncated.trace.xz", xz(&raw)),
         ] {
             data.truncate(data.len() / 2);
             let reader = ReaderFixture::new(name, &data);
