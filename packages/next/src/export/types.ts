@@ -17,6 +17,7 @@ import type { RouteMetadata } from './routes/types'
 import type { RenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
 import type { StaticWorker } from '../build'
 import type { Bundler } from '../lib/bundler'
+import type { StaticGenerationPhase } from './static-generation-profile'
 
 export type ExportPathEntry = ExportPathMap[keyof ExportPathMap] & {
   path: string
@@ -40,6 +41,15 @@ export interface ExportPagesInput {
   fetchCacheKeyPrefix: string | undefined
   options: ExportAppOptions
   renderResumeDataCachesByPage: Record<string, string> | undefined
+  /** Which static generation phase these pages belong to. */
+  phase?: StaticGenerationPhase
+  /**
+   * Identifies one `exportApp` run. With `staticGenerationAdaptive`, workers
+   * keep their incremental cache across calls that share a session and phase.
+   */
+  sessionId?: string
+  /** Why these pages were sent to this worker (for profiling). */
+  placement?: string
 }
 
 export interface ExportPageInput {
@@ -65,6 +75,7 @@ export interface ExportPageInput {
   enableExperimentalReact?: boolean
   sriEnabled: boolean
   renderResumeDataCache: RenderResumeDataCache | undefined
+  phase?: StaticGenerationPhase
 }
 
 export type ExportRouteResult =

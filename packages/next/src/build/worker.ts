@@ -26,4 +26,8 @@ export const isPageStatic: typeof isPageStaticImpl = async (params) => {
   return isPageStaticImpl(params)
 }
 
-export { exportPages } from '../export/worker'
+export {
+  exportPages,
+  exportPagesAdaptive,
+  getStaticWorkerMemoryUsage,
+} from '../export/worker'

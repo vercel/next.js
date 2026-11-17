@@ -11,6 +11,7 @@ import {
   STRICT_ROUTE_MATCHING_DEFAULT_WARNING,
 } from './lib/router-utils/strict-route-matching-config'
 import { configSchema } from './config-schema'
+import { createAdmissionConfig } from '../export/adaptive/admission-controller'
 
 describe('loadConfig', () => {
   let loadConfig: typeof import('./config').default
@@ -24,6 +25,31 @@ describe('loadConfig', () => {
     const configModule = await import('./config')
     loadConfig = configModule.default
   })
+
+  it.each([
+    { configured: undefined, maximum: 64 },
+    { configured: 8, maximum: 8 },
+    { configured: 4, maximum: 4 },
+    { configured: 9, maximum: 9 },
+  ])(
+    'preserves the adaptive concurrency setting $configured through config loading',
+    async ({ configured, maximum }) => {
+      const config = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          experimental: {
+            staticGenerationAdaptive: true,
+            staticGenerationMaxConcurrency: configured,
+          },
+        },
+      })
+      const maxConcurrency = config.experimental.staticGenerationMaxConcurrency
+      expect(maxConcurrency).toBe(configured)
+      expect(createAdmissionConfig({ maxConcurrency }).maxConcurrency).toBe(
+        maximum
+      )
+    }
+  )
+
   it.each([true, false])(
     'links removed experimental.dynamicIO=%s to the migration guide',
     async (dynamicIO) => {
