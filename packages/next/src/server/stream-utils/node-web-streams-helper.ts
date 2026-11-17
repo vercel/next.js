@@ -586,9 +586,9 @@ export function createHeadInsertionTransformStream(
   })
 }
 
-async function createClientResumeScriptInsertionTransformStream(): Promise<
-  TransformStream<Uint8Array, Uint8Array>
-> {
+async function createClientResumeInsertionTransformStream(
+  externalBrowserRuntime: boolean
+): Promise<TransformStream<Uint8Array, Uint8Array>> {
   const segmentPath = '/_full'
   const cacheBustingHeader = await computeCacheBustingSearchParam(
     '1', //            headers[NEXT_ROUTER_PREFETCH_HEADER]
@@ -597,6 +597,72 @@ async function createClientResumeScriptInsertionTransformStream(): Promise<
     undefined //       headers[NEXT_URL]
   )
   const searchStr = `${NEXT_RSC_UNION_QUERY}=${cacheBustingHeader}`
+  if (externalBrowserRuntime) {
+    // Resume mode must be known before either async runtime or framework script
+    // executes, so the marker precedes every child of the opening head.
+    const encodedInsertion = encoder.encode(
+      `<meta name="next-client-resume" content="${searchStr}">`
+    )
+    const headPrefix = encoder.encode('<head')
+    let matchedBytes = 0
+    let inHeadTag = false
+    let quote = 0
+    let didInsert = false
+
+    return new TransformStream({
+      transform(chunk, controller) {
+        if (!didInsert) {
+          for (let i = 0; i < chunk.length; i++) {
+            const byte = chunk[i]
+            if (!inHeadTag) {
+              if (matchedBytes < headPrefix.length) {
+                matchedBytes =
+                  byte === headPrefix[matchedBytes]
+                    ? matchedBytes + 1
+                    : byte === headPrefix[0]
+                      ? 1
+                      : 0
+                continue
+              }
+              if (
+                byte !== 62 &&
+                byte !== 32 &&
+                byte !== 9 &&
+                byte !== 10 &&
+                byte !== 12 &&
+                byte !== 13
+              ) {
+                matchedBytes = byte === headPrefix[0] ? 1 : 0
+                continue
+              }
+              inHeadTag = true
+            }
+            if (quote !== 0) {
+              if (byte === quote) quote = 0
+            } else if (byte === 34 || byte === 39) {
+              quote = byte
+            } else if (byte === 62) {
+              controller.enqueue(chunk.subarray(0, i + 1))
+              controller.enqueue(encodedInsertion)
+              if (i + 1 < chunk.length) {
+                controller.enqueue(chunk.subarray(i + 1))
+              }
+              didInsert = true
+              return
+            }
+          }
+        }
+        controller.enqueue(chunk)
+      },
+      flush() {
+        if (!didInsert) {
+          throw new InvariantError(
+            'Expected an opening head tag in the static fallback prerender'
+          )
+        }
+      },
+    })
+  }
   const NEXT_CLIENT_RESUME_SCRIPT = `<script>__NEXT_CLIENT_RESUME=fetch(location.pathname+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}': '1','${NEXT_ROUTER_PREFETCH_HEADER}': '1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}': '${segmentPath}'}})</script>`
 
   let didAlreadyInsert = false
@@ -1105,11 +1171,11 @@ export async function continueStaticFallbackPrerender(
     getServerInsertedHTML,
     getServerInsertedMetadata,
     deploymentId,
-  }: ContinueStaticPrerenderOptions
+    externalBrowserRuntime,
+  }: ContinueStaticPrerenderOptions & { externalBrowserRuntime: boolean }
 ) {
-  // Same as `continueStaticPrerender`, but also inserts an additional script
-  // to instruct the client to start fetching the hydration data as early
-  // as possible.
+  // The fallback shell needs a client request for its hydration data, started
+  // independently of the framework bundle.
   return chainTransformers(prerenderStream, [
     // Buffer everything to avoid flushing too frequently
     createBufferedTransformStream(),
@@ -1117,8 +1183,8 @@ export async function continueStaticFallbackPrerender(
     deploymentId ? createHtmlDataDplIdTransformStream(deploymentId) : null,
     // Insert generated tags to head
     createHeadInsertionTransformStream(getServerInsertedHTML),
-    // Insert the client resume script into the head
-    await createClientResumeScriptInsertionTransformStream(),
+    // Insert client resume instructions into the head
+    await createClientResumeInsertionTransformStream(externalBrowserRuntime),
     // Transform metadata
     createMetadataTransformStream(getServerInsertedMetadata),
     // Insert the inlined data (Flight data, form state, etc.) stream into the HTML

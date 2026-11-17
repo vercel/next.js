@@ -29,6 +29,7 @@ import { getDeploymentId } from '../shared/lib/deployment-id'
 import { setNavigationBuildId } from './navigation-build-id'
 import type { ClientInstrumentationModules } from './router-transition-types'
 import { initializeRouterTransitionModules } from './components/router-transition'
+import { getClientResumeMetadata, getClientResumeState } from './client-resume'
 
 /// <reference types="react-dom/experimental" />
 
@@ -47,6 +48,12 @@ const instantTestStaticFetch: Promise<Response> | undefined =
     ? (self.__next_instant_test as unknown as Promise<Response>)
     : undefined
 
+const clientResumeFetch =
+  window.__NEXT_CLIENT_RESUME ??
+  (process.env.__NEXT_EXTERNAL_BROWSER_RUNTIME && getClientResumeMetadata()
+    ? getClientResumeState().response
+    : undefined)
+
 const encoder = new TextEncoder()
 
 let initialServerDataBuffer: (string | Uint8Array)[] | undefined = undefined
@@ -64,8 +71,7 @@ let initialServerDataChunks: Array<Uint8Array> | null =
   process.env.__NEXT_CACHE_COMPONENTS &&
   process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS &&
   !instantTestStaticFetch &&
-  // @ts-expect-error
-  !window.__NEXT_CLIENT_RESUME
+  !clientResumeFetch
     ? []
     : null
 let initialServerDataChunksForHydration = initialServerDataChunks
@@ -335,13 +341,7 @@ if (instantTestStaticFetch) {
       initialRSCPayload
     )
   })
-} else if (
-  // @ts-expect-error
-  window.__NEXT_CLIENT_RESUME
-) {
-  const clientResumeFetch: Promise<Response> =
-    // @ts-expect-error
-    window.__NEXT_CLIENT_RESUME
+} else if (clientResumeFetch) {
   initialServerResponse = Promise.resolve(
     createFromFetch<InitialRSCPayload>(clientResumeFetch, {
       callServer,
