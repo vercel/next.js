@@ -503,6 +503,10 @@ This keeps your editor strict via `tsconfig.json` while allowing the production 
 > - In development, only `tsconfig.json` is watched for changes. If you edit a different file name via `typescript.tsconfigPath`, restart the dev server to apply changes.
 > - The configured file is used in `next dev`, `next build`, and `next typegen`.
 
+### Custom `distDir`
+
+When Next.js automatically configures your `tsconfig.json`, it can add generated type paths for the current [`distDir`](/docs/app/api-reference/config/next-config-js/distDir) to `include`. If you change `distDir`, or use a temporary one (for example, set from an environment variable for a separate build), Next.js may append new entries without removing old ones, and [`next-env.d.ts`](#next-envdts) references the last `distDir` used. Remove stale entries, or revert `tsconfig.json` after temporary runs.
+
 ### Disabling TypeScript errors in production
 
 Next.js fails your **production build** (`next build`) when TypeScript errors are present in your project.
