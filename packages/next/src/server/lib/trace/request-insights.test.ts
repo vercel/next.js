@@ -848,6 +848,93 @@ describe('request insights', () => {
     }
   })
 
+  it('flushes completed requests after 300ms', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const distDir = await mkdtemp(
+      path.join(tmpdir(), 'request-insights-batch-')
+    )
+    await initializeRequestInsightsJournal(distDir)
+    configureJournalProvider(distDir)
+    const fs = require('fs/promises') as typeof import('fs/promises')
+    const append = jest.spyOn(fs, 'appendFile')
+    jest.useFakeTimers()
+    try {
+      startRequestInsight({ requestId: 'timed' })
+      recordSpan({ name: 'render', requestId: 'timed' })
+      completeRequestInsight({ requestId: 'timed' })
+
+      await jest.advanceTimersByTimeAsync(299)
+      expect(append).not.toHaveBeenCalled()
+      await jest.advanceTimersByTimeAsync(1)
+      await closeRequestInsightsJournal()
+      expect(append).toHaveBeenCalledTimes(1)
+    } finally {
+      jest.useRealTimers()
+      append.mockRestore()
+      await resetRequestInsightsJournalForTest()
+      await rm(distDir, { recursive: true, force: true })
+    }
+  })
+
+  it('flushes completed requests when the batch reaches 64KB', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    startRequestInsight({ requestId: 'seed' })
+    recordSpan({ name: 'render', requestId: 'seed' })
+    const request = getRequestInsightsSnapshot().requests[0]
+    const distDir = await mkdtemp(
+      path.join(tmpdir(), 'request-insights-batch-')
+    )
+    await initializeRequestInsightsJournal(distDir)
+    const fs = require('fs/promises') as typeof import('fs/promises')
+    const append = jest.spyOn(fs, 'appendFile')
+    jest.useFakeTimers()
+    try {
+      appendRequestInsightToJournal({
+        ...request,
+        requestId: 'large-1',
+        url: 'x'.repeat(40 * 1024),
+      })
+      appendRequestInsightToJournal({
+        ...request,
+        requestId: 'large-2',
+        url: 'x'.repeat(40 * 1024),
+      })
+      await closeRequestInsightsJournal()
+      expect(append).toHaveBeenCalledTimes(2)
+    } finally {
+      jest.useRealTimers()
+      append.mockRestore()
+      await resetRequestInsightsJournalForTest()
+      await rm(distDir, { recursive: true, force: true })
+    }
+  })
+
+  it('flushes completed requests before reading the journal', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const distDir = await mkdtemp(
+      path.join(tmpdir(), 'request-insights-batch-')
+    )
+    await initializeRequestInsightsJournal(distDir)
+    configureJournalProvider(distDir)
+    const fs = require('fs/promises') as typeof import('fs/promises')
+    const append = jest.spyOn(fs, 'appendFile')
+    jest.useFakeTimers()
+    try {
+      startRequestInsight({ requestId: 'forced' })
+      recordSpan({ name: 'render', requestId: 'forced' })
+      completeRequestInsight({ requestId: 'forced' })
+      expect(append).not.toHaveBeenCalled()
+
+      await readRequestInsightsJournal(distDir)
+      expect(append).toHaveBeenCalledTimes(1)
+    } finally {
+      jest.useRealTimers()
+      append.mockRestore()
+      await resetRequestInsightsJournalForTest()
+      await rm(distDir, { recursive: true, force: true })
+    }
+  })
+
   it('rotates between records inside a completed-request batch', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     startRequestInsight({ requestId: 'seed' })
