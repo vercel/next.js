@@ -67,8 +67,6 @@ const pathname = usePathname()
 
 ## Behavior
 
-After a native `pushState` or `replaceState` call, `usePathname` can still return the previous pathname while a local state update renders. See [Native History API update timing](/docs/app/getting-started/linking-and-navigating#native-history-api).
-
 ### Cache Components
 
 When [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled, `usePathname` may require a [`Suspense`](https://react.dev/reference/react/Suspense) boundary. This depends on whether the pathname can be resolved during prerendering.
