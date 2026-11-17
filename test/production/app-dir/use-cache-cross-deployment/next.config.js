@@ -15,8 +15,7 @@ const nextConfig = {
   experimental: {
     // The file-backed remote handler does not support concurrent writers.
     cpus: 1,
-    durableUseCacheEntries:
-      process.env.DURABLE_USE_CACHE_ENTRIES === '1' ? true : undefined,
+    durableUseCacheEntries: process.env.DURABLE_USE_CACHE_ENTRIES === '1',
   },
 }
 
