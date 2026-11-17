@@ -125,7 +125,7 @@ Use `ParamValues` when you need to distinguish an encoded slash within a segment
 
 Each route directory is an ordinary Go package, such as `package route`. It cannot be `package main`: Next.js generates the program entrypoint and imports the route directory as a package. Method functions can be declared in `route.go` or a compiled sibling `.go` file. Next.js generates method dispatch in the route package. Do not create `zz_next_route_*.go` files, which are reserved for generated code.
 
-Sibling `.go` files compile together with `route.go` and must use the same package name. Go applies its normal file selection to the route package, including build constraints, platform filename suffixes, and excluding `_test.go` files. Declare method functions in files that are always compiled. Shared packages can use ordinary module imports, including `internal` packages.
+Sibling `.go` files compile together with `route.go` and must use the same package name. Go applies its normal file selection to the route package, including build constraints, platform filename suffixes, and excluding `_test.go` files. Declare method functions in files that are always compiled. Shared packages can use ordinary module imports, including `internal` packages that are visible from the route directory, such as `<module>/internal/...` or `<module>/app/internal/...` for a route under `app`.
 
 Direct `go run` and `go test` do not inject the generated wrapper or `ParamValues` helper. Run the route through Next.js to test its integration. Brackets, parentheses, and other characters in route directory names do not need to form valid Go import paths: Next.js compiles the route package from a virtual directory and reports errors and stack traces against the original files.
 
