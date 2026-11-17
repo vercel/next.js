@@ -3,7 +3,7 @@
 import base from './base.module.css'
 import styles from './inner2.module.css'
 
-export default async function Inner2() {
+export default function Inner2() {
   if (typeof window === 'undefined') {
     throw new Error('Expected error to opt out of server rendering')
   }
