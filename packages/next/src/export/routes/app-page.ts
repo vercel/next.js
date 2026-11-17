@@ -40,7 +40,6 @@ import {
 import {
   AcceptMarkdownError,
   getPageMarkdownExport,
-  MARKDOWN_SUFFIX,
   resolveMarkdown,
   type MarkdownExport,
 } from '../../server/lib/accept-markdown'
@@ -86,7 +85,8 @@ export async function exportAppPage(
   fileWriter: MultiFileWriter,
   sharedContext: AppSharedContext,
   routeMatch: RouteMatch,
-  routeCache?: RouteCacheMetadata
+  routeCache?: RouteCacheMetadata,
+  markdownFilepath?: string
 ): Promise<ExportRouteResult> {
   const afterRunner = new AfterRunner()
 
@@ -246,12 +246,16 @@ export async function exportAppPage(
     // Writing static HTML to a file.
     fileWriter.append(htmlFilepath, html)
 
-    // Generate the `experimental.acceptMarkdown` alternate next to the HTML.
-    // Only successful renders get one: a page that prerenders as a 404,
-    // redirect or error keeps that status for every representation.
+    // Generate the `experimental.acceptMarkdown` alternate. Only successful
+    // renders get one: a page that prerenders as a 404, redirect or error
+    // keeps that status for every representation.
     const markdownExport = await getMarkdownExport(renderOpts, page)
     const renderStatusCode = metadata.statusCode ?? initialStatusCode
-    if (markdownExport !== undefined && renderStatusCode === 200) {
+    if (
+      markdownExport !== undefined &&
+      markdownFilepath &&
+      renderStatusCode === 200
+    ) {
       if (cacheControl.revalidate !== false) {
         throw new AcceptMarkdownError(
           normalizeAppPath(page),
@@ -263,10 +267,7 @@ export async function exportAppPage(
         normalizeAppPath(page),
         (renderOpts as any).params ?? {}
       )
-      fileWriter.append(
-        htmlFilepath.replace(/\.html$/, MARKDOWN_SUFFIX),
-        markdown
-      )
+      fileWriter.append(markdownFilepath, markdown)
     }
 
     const isParallelRoute = /\/@\w+/.test(page)

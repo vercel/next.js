@@ -265,6 +265,9 @@ export async function setupFsCheck(opts: {
   }
   let buildId = 'development'
   let previewProps: __ApiPreviewProps
+  // `experimental.acceptMarkdown`: page paths (without basePath) with a
+  // prerendered alternate. Only known after a build; undefined in dev.
+  let markdownAlternates: Set<string> | undefined
 
   const setRouteDefinition = (
     type: 'appFile' | 'pageFile',
@@ -574,6 +577,7 @@ export async function setupFsCheck(opts: {
       headers: routesManifest.headers,
       onMatchHeaders: routesManifest.onMatchHeaders,
     }
+    markdownAlternates = new Set(routesManifest.markdownAlternates ?? [])
   } else {
     // dev handling
     customRoutes = await loadCustomRoutes(opts.config)
@@ -676,6 +680,7 @@ export async function setupFsCheck(opts: {
 
     buildId,
     handleLocale,
+    markdownAlternates,
 
     appFiles,
     pageFiles,

@@ -32,6 +32,12 @@ import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-p
 import { NextDataPathnameNormalizer } from '../../normalizers/request/next-data'
 import { BasePathPathnameNormalizer } from '../../normalizers/request/base-path'
 import { RouteKind } from '../../route-kind'
+import {
+  decodeMarkdownPathChars,
+  getMarkdownPathname,
+  getPathnameCandidatesFromMarkdownPathname,
+  MARKDOWN_SUFFIX,
+} from '../accept-markdown'
 
 import { addRequestMeta, getRequestMeta } from '../../request-meta'
 import { isRSCRequestHeader } from '../is-rsc-request'
@@ -284,7 +290,91 @@ export function getResolveRoutes(
       }
     }
 
+    /**
+     * `experimental.acceptMarkdown`: maps a page's `.md` URL (requested
+     * directly, or the destination of a generated `Accept: text/markdown`
+     * rewrite) to the page itself, marking the request so the page serves its
+     * alternate. Production maps only URLs whose ownership the build
+     * recorded. Dev maps a `.md` URL nothing else serves as-is to its single
+     * candidate page. Like public files, these URLs take precedence over
+     * dynamic routes.
+     *
+     * For other requests it records whether the path's alternate is usable,
+     * so pages whose `.md` URL belongs to something else serve HTML only.
+     */
+    async function normalizeMarkdownPathname() {
+      if (
+        !config.experimental.acceptMarkdown ||
+        config.cacheComponents ||
+        getRequestMeta(req, 'isMarkdownRequest')
+      ) {
+        return
+      }
+      const pathname = parsedUrl.pathname || '/'
+      const hasBasePath = Boolean(
+        config.basePath && pathHasPrefix(pathname, config.basePath)
+      )
+      if (config.basePath && !hasBasePath) return
+      const unprefixed = hasBasePath
+        ? removePathPrefix(pathname, config.basePath) || '/'
+        : pathname
+      const withBasePath = (p: string) =>
+        p === '/' && hasBasePath
+          ? config.basePath
+          : addPathPrefix(p, hasBasePath ? config.basePath : '')
+
+      if (!unprefixed.endsWith(MARKDOWN_SUFFIX)) {
+        let isAvailable: boolean
+        if (fsChecker.markdownAlternates) {
+          isAvailable = fsChecker.markdownAlternates.has(unprefixed)
+        } else {
+          // Dev: like the build, skip when the `.md` URL belongs to a file or
+          // route, or when `/` and `/index` both claim `/index.md`.
+          const rootSibling =
+            unprefixed === '/' ? '/index' : unprefixed === '/index' ? '/' : ''
+          isAvailable =
+            !(await fsChecker.getItem(
+              withBasePath(getMarkdownPathname(unprefixed))
+            )) &&
+            !(
+              rootSibling &&
+              (await fsChecker.getItem(withBasePath(rootSibling)))
+            )
+        }
+        addRequestMeta(req, 'isMarkdownAlternateAvailable', isAvailable)
+        return
+      }
+
+      const candidates = getPathnameCandidatesFromMarkdownPathname(
+        // Generated rewrite destinations percent-encode pattern characters.
+        decodeMarkdownPathChars(unprefixed)
+      )
+      let pagePathname: string | undefined
+      if (fsChecker.markdownAlternates) {
+        pagePathname = candidates.find((candidate) =>
+          fsChecker.markdownAlternates!.has(candidate)
+        )
+      } else if (!(await fsChecker.getItem(pathname))) {
+        // `/index.md` is ambiguous when both `/` and `/index` exist.
+        const existing: string[] = []
+        for (const candidate of candidates) {
+          if (
+            candidates.length === 1 ||
+            (await fsChecker.getItem(withBasePath(candidate)))
+          ) {
+            existing.push(candidate)
+          }
+        }
+        if (existing.length === 1) pagePathname = existing[0]
+      }
+      if (!pagePathname) return
+
+      parsedUrl.pathname = withBasePath(pagePathname)
+      addRequestMeta(req, 'isMarkdownRequest', true)
+    }
+
     async function checkTrue() {
+      await normalizeMarkdownPathname()
       const pathname = parsedUrl.pathname || '/'
 
       if (checkLocaleApi(pathname)) {
@@ -510,6 +600,7 @@ export function getResolveRoutes(
         }
 
         if (route.name === 'check_fs') {
+          await normalizeMarkdownPathname()
           const pathname = parsedUrl.pathname || '/'
 
           if (invokedOutputs?.has(pathname) || checkLocaleApi(pathname)) {

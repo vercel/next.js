@@ -7,14 +7,69 @@ import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param
 
 /**
  * Helpers for `experimental.acceptMarkdown`: App Router pages may export a
- * `markdown` string or function that is served instead of the rendered page
- * to requests that prefer `Accept: text/markdown`.
+ * `markdown` string or function. Its value is prerendered as an alternate
+ * served at the page's `.md` URL, and a generated `beforeFiles` rewrite sends
+ * `Accept: text/markdown` requests there (dev negotiates at runtime instead).
  */
 
 export const MARKDOWN_CONTENT_TYPE = MARKDOWN_CONTENT_TYPE_HEADER
 
-/** File suffix of the prerendered alternate, written next to the page's `.html`. */
+/** Suffix of a page's public alternate URL and of its prerendered artifact. */
 export const MARKDOWN_SUFFIX = '.md'
+
+/**
+ * Path of a page's prerendered alternate, relative to `distDir`. Kept outside
+ * `server/app`, where a user route such as `app/notes.md/route.ts` owns the
+ * `notes.md` directory.
+ */
+export function getMarkdownArtifactPath(pathname: string): string {
+  return `server/markdown${normalizePagePath(pathname)}${MARKDOWN_SUFFIX}`
+}
+
+/**
+ * The public `.md` URL of a page's alternate (without basePath): `/` maps to
+ * `/index.md`, any other path to `<path>.md`.
+ */
+export function getMarkdownPathname(pathname: string): string {
+  return `${pathname === '/' ? '/index' : pathname}${MARKDOWN_SUFFIX}`
+}
+
+/**
+ * Characters path-to-regexp treats specially. Generated rewrite destinations
+ * percent-encode them, since destinations are parsed as URLs (where `\` isn't
+ * an escape); `decodeMarkdownPathChars` reverses exactly this encoding.
+ */
+const PATTERN_CHARS = /[:()*+{}\\]/g
+
+/** Percent-encodes path-to-regexp metacharacters in a literal pathname. */
+export function encodeMarkdownPathChars(pathname: string): string {
+  return pathname.replace(
+    PATTERN_CHARS,
+    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`
+  )
+}
+
+/** Inverse of `encodeMarkdownPathChars`. */
+export function decodeMarkdownPathChars(pathname: string): string {
+  return pathname.replace(/%(?:28|29|2A|2B|3A|5C|7B|7D)/gi, (e) =>
+    String.fromCharCode(parseInt(e.slice(1), 16))
+  )
+}
+
+/**
+ * Page paths a `.md` URL (without basePath) could belong to: `/index.md` is
+ * both the root's alternate and a literal `/index` page's. Empty when the URL
+ * isn't an alternate URL.
+ */
+export function getPathnameCandidatesFromMarkdownPathname(
+  markdownPathname: string
+): string[] {
+  if (!markdownPathname.endsWith(MARKDOWN_SUFFIX)) return []
+  const pathname = markdownPathname.slice(0, -MARKDOWN_SUFFIX.length)
+  // `/.md` and `/foo/.md` aren't alternates.
+  if (pathname === '' || pathname.endsWith('/')) return []
+  return pathname === '/index' ? ['/', '/index'] : [pathname]
+}
 
 export type MarkdownExport =
   | string
@@ -167,47 +222,45 @@ export async function resolveMarkdown(
   return result
 }
 
-type MediaRange = { type: string; q: number }
-
-function parseAccept(accept: string): MediaRange[] {
-  const ranges: MediaRange[] = []
-  for (const part of accept.split(',')) {
-    const [rawType, ...rawParams] = part.split(';')
-    const type = rawType.trim().toLowerCase()
-    if (!type) continue
-    let q = 1
-    for (const param of rawParams) {
-      const [key, value] = param.split('=')
-      if (key?.trim().toLowerCase() === 'q') {
-        const parsed = Number(value?.trim())
-        q = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 0), 1) : 0
-      }
-    }
-    ranges.push({ type, q })
-  }
-  return ranges
+/**
+ * Builds a case-insensitive pattern from a lowercase literal using character
+ * classes, since `has` values are plain regex strings without flags.
+ */
+function caseInsensitive(literal: string): string {
+  return literal.replace(/[a-z]/g, (c) => `[${c}${c.toUpperCase()}]`)
 }
 
+// A media-range parameter other than `q`.
+const OTHER_PARAM = '\\s*;(?!\\s*[qQ]\\s*=)[^,;]*'
+// A q-value greater than 0: `1`, `1.0`..`1.000`, or a fractional value
+// with at least one non-zero digit, e.g. `0.1`, `0.10` or `.500`.
+const POSITIVE_Q = '(?:1(?:\\.0{0,3})?|0?\\.(?=\\d{1,3}(?:\\D|$))\\d*[1-9]\\d*)'
+
 /**
- * Whether an `Accept` header prefers Markdown over HTML: `text/markdown` must be
- * listed explicitly with q > 0, and its q must be at least the highest q among
- * `text/html`, `text/*` and `*\/*`. Ties go to Markdown; wildcards alone don't
- * select Markdown.
+ * Regex source matching an `Accept` header that lists `text/markdown`
+ * explicitly with q > 0 (no q counts as 1). The media type and `q` are
+ * case-insensitive, other parameters and whitespace are allowed, and
+ * wildcards or other types such as `text/x-markdown` don't count. Relative
+ * ranking against `text/html` isn't considered.
+ *
+ * Used verbatim as the `has` value of generated `beforeFiles` rewrites, and by
+ * the dev server's runtime negotiation, so both agree.
  */
+export const ACCEPT_MARKDOWN_PATTERN =
+  `(?:.*,)?\\s*${caseInsensitive('text/markdown')}` +
+  `(?:${OTHER_PARAM})*` +
+  `(?:\\s*;\\s*[qQ]\\s*=\\s*${POSITIVE_Q}(?:${OTHER_PARAM})*)?` +
+  `\\s*(?:,.*)?`
+
+const ACCEPT_MARKDOWN_REGEX = new RegExp(`^(?:${ACCEPT_MARKDOWN_PATTERN})$`)
+
+/** Whether an `Accept` header asks for Markdown (see `ACCEPT_MARKDOWN_PATTERN`). */
 export function prefersMarkdown(
   accept: string | string[] | undefined
 ): boolean {
   if (!accept) return false
   const header = Array.isArray(accept) ? accept.join(',') : accept
-  let markdown = -1
-  let html = 0
-  for (const { type, q } of parseAccept(header)) {
-    if (type === 'text/markdown') markdown = Math.max(markdown, q)
-    else if (type === 'text/html' || type === 'text/*' || type === '*/*') {
-      html = Math.max(html, q)
-    }
-  }
-  return markdown > 0 && markdown >= html
+  return ACCEPT_MARKDOWN_REGEX.test(header)
 }
 
 /**
@@ -219,23 +272,25 @@ export async function readPrerenderedMarkdown(
   distDir: string,
   pathname: string
 ): Promise<string | undefined> {
-  if (process.env.NEXT_RUNTIME === 'edge') return undefined
-  const { join } = require('node:path') as typeof import('node:path')
-  const { readFile } =
-    require('node:fs/promises') as typeof import('node:fs/promises')
-  const file = join(
-    /* turbopackIgnore: true */
-    process.cwd(),
-    relativeProjectDir,
-    distDir,
-    'server',
-    'app',
-    `${normalizePagePath(pathname)}${MARKDOWN_SUFFIX}`
-  )
-  try {
-    return await readFile(/* turbopackIgnore: true */ file, 'utf8')
-  } catch (err: any) {
-    if (err?.code === 'ENOENT') return undefined
-    throw err
+  // `if/else` rather than an early return, so Edge bundles drop the Node.js
+  // `require()`s.
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    return undefined
+  } else {
+    const { join } = require('path') as typeof import('path')
+    const { readFile } = require('fs/promises') as typeof import('fs/promises')
+    const file = join(
+      /* turbopackIgnore: true */
+      process.cwd(),
+      relativeProjectDir,
+      distDir,
+      getMarkdownArtifactPath(pathname)
+    )
+    try {
+      return await readFile(/* turbopackIgnore: true */ file, 'utf8')
+    } catch (err: any) {
+      if (err?.code === 'ENOENT') return undefined
+      throw err
+    }
   }
 }

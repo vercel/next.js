@@ -1,4 +1,6 @@
-// No `markdown` export: always HTML.
+// The root alternate is served at `/index.md`.
+export const markdown = '# Home\n'
+
 export default function Page() {
-  return <p>plain page</p>
+  return <h1>Home</h1>
 }

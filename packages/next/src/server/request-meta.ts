@@ -144,6 +144,22 @@ export interface RequestMeta {
   isRSCRequest?: true
 
   /**
+   * True when the request is for a page's `experimental.acceptMarkdown`
+   * alternate at its `.md` URL, either requested directly or reached through
+   * a generated `Accept: text/markdown` rewrite. The router strips the `.md`
+   * suffix and sets this so the page serves its alternate.
+   */
+  isMarkdownRequest?: true
+
+  /**
+   * `experimental.acceptMarkdown`: false when the router knows this path has
+   * no usable alternate, e.g. because its `.md` URL is served by a public
+   * file or another route. The page then serves HTML only, without
+   * `Vary: Accept`.
+   */
+  isMarkdownAlternateAvailable?: boolean
+
+  /**
    * A search param set by the Next.js client when performing RSC requests.
    * Because some CDNs do not vary their cache entries on our custom headers,
    * this search param represents a hash of the header values. For any cached

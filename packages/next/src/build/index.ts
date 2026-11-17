@@ -252,6 +252,7 @@ import {
 } from '../server/lib/router-utils/build-prefetch-segment-data-route'
 import { generateRoutesManifest } from './generate-routes-manifest'
 import { buildCustomRoute } from '../lib/build-custom-route'
+import { generateMarkdownRewrites } from './accept-markdown-rewrites'
 import { validateAppPaths } from './validate-app-paths'
 import { throwMissingGspErrorInStaticRoute } from '../shared/lib/errors/ensure-static-gsp-errors'
 import { isEmptyParams } from '../server/lib/params-utils'
@@ -661,6 +662,13 @@ export type RoutesManifest = {
   }
   skipProxyUrlNormalize?: boolean
   caseSensitive?: boolean
+  /**
+   * `experimental.acceptMarkdown`: the prerendered page paths (without
+   * basePath) that have a Markdown alternate at their `.md` URL. Used by the
+   * router to recognize those URLs; adapters get the alternates as
+   * prerender outputs and the generated `beforeFiles` rewrites.
+   */
+  markdownAlternates?: string[]
   /**
    * User-configured deployment ID for skew protection.
    */
@@ -1210,9 +1218,9 @@ export default async function build(
         )
       loadedConfig = config
 
-      // `experimental.acceptMarkdown` only generates alternates for static
-      // pages served by `next start`/`next dev`. Other modes build normally
-      // and serve HTML only.
+      // `experimental.acceptMarkdown` only generates alternates (and their
+      // rewrites) for fully static pages. Other modes build normally and
+      // serve HTML only.
       if (config.experimental.acceptMarkdown) {
         if (config.output === 'export') {
           Log.warn(
@@ -4567,6 +4575,37 @@ export default async function build(
             page: route.page,
           })
         )
+
+        // `experimental.acceptMarkdown`: route `Accept: text/markdown`
+        // requests to the alternates written while prerendering, after the
+        // user's own `beforeFiles` rewrites.
+        if (
+          config.experimental.acceptMarkdown &&
+          config.output !== 'export' &&
+          !isAppCacheComponentsEnabled
+        ) {
+          const {
+            rewrites: markdownRewrites,
+            alternates,
+            warnings,
+          } = generateMarkdownRewrites({
+            prerenderedPaths: Object.keys(prerenderManifest.routes),
+            distDir,
+            publicDir: hasPublicDir ? publicDir : undefined,
+            routePathnames: new Set([
+              ...(pageKeys.app ?? []).map((p) => normalizeAppPath(p)),
+              ...pageKeys.pages,
+              // Concrete prerendered paths, e.g. a generated `/files/a.md`.
+              ...Object.keys(prerenderManifest.routes),
+            ]),
+            basePath: config.basePath,
+          })
+          for (const warning of warnings) Log.warn(warning)
+          routesManifest.rewrites.beforeFiles.push(
+            ...markdownRewrites.map((r) => buildCustomRoute('rewrite', r))
+          )
+          routesManifest.markdownAlternates = alternates
+        }
 
         // Now write the routes manifest out.
         await nextBuildSpan

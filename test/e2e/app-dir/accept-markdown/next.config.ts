@@ -8,6 +8,12 @@ const nextConfig: NextConfig = {
   experimental: {
     acceptMarkdown: true,
   },
+  async rewrites() {
+    return {
+      // User rules come before the generated Markdown rewrites.
+      beforeFiles: [{ source: '/overridden', destination: '/static' }],
+    }
+  },
 }
 
 export default withMDX(nextConfig)

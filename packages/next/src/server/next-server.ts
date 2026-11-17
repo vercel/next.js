@@ -2111,6 +2111,20 @@ export default class NextNodeServer extends BaseServer<
       return null
     }
 
+    // `experimental.acceptMarkdown` doesn't support the Edge runtime, so a
+    // `.md` URL the router mapped to an Edge page has no alternate. Answer 404
+    // here rather than letting the page render HTML at that URL.
+    if (getRequestMeta(params.req, 'isMarkdownRequest')) {
+      const response = new Response('Not Found', {
+        status: 404,
+        headers: { 'content-type': 'text/plain; charset=utf-8' },
+      })
+      params.res.statusCode = 404
+      params.res.setHeader('content-type', 'text/plain; charset=utf-8')
+      params.res.originalResponse.end('Not Found')
+      return { response, waitUntil: Promise.resolve() }
+    }
+
     // For edge to "fetch" we must always provide an absolute URL
     const isNextDataRequest = getRequestMeta(params.req, 'isNextDataReq')
     const initialUrl = new URL(

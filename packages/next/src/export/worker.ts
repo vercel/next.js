@@ -60,6 +60,7 @@ import type { AppSharedContext } from '../server/app-render/app-render'
 import { MultiFileWriter } from '../lib/multi-file-writer'
 import { createRenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
 import { getExportPathPageKey } from './utils'
+import { getMarkdownArtifactPath } from '../server/lib/accept-markdown'
 import { installGlobalBehaviors } from '../server/node-environment-extensions/global-behaviors'
 ;(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,
@@ -355,7 +356,11 @@ async function exportPageImpl(
       fileWriter,
       sharedContext,
       routeMatch,
-      routeCache
+      routeCache,
+      // `experimental.acceptMarkdown` alternates always live at a stable
+      // path, independent of route-cache scoping and outside `server/app`, so
+      // the server, the build's routing step and adapters can find them.
+      join(distDir, getMarkdownArtifactPath(path))
     )
   } else {
     const sharedContext: PagesSharedContext = {

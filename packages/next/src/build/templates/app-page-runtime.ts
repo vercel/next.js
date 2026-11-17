@@ -84,6 +84,7 @@ import {
   NEXT_NAV_DEPLOYMENT_ID_HEADER,
   NEXT_RESUME_HEADER,
   NEXT_RESUME_STATE_LENGTH_HEADER,
+  TEXT_PLAIN_CONTENT_TYPE_HEADER,
 } from '../../lib/constants' with { 'turbopack-transition': 'next-server-utility' }
 import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags' with { 'turbopack-transition': 'next-server-utility' }
@@ -865,73 +866,99 @@ export function createAppPageEntrypoint({
       res.setHeader('Vary', varyHeader)
 
       // `experimental.acceptMarkdown`: pages that export `markdown` vary on
-      // `Accept`, and answer requests preferring Markdown with the alternate
-      // prerendered at build (computed on request in dev). Layouts and the
-      // page component don't render for these responses.
+      // `Accept` and serve their alternate to `.md` requests. The router
+      // marks those (`isMarkdownRequest`), including `Accept: text/markdown`
+      // requests that a generated `beforeFiles` rewrite sent to the `.md` URL.
+      // Dev has no generated rewrites, so it also negotiates `Accept` here.
+      // Production serves the alternate prerendered at build; dev computes
+      // it on request. Layouts and the page component don't render.
       if (
         nextConfig.experimental.acceptMarkdown &&
         !nextConfig.cacheComponents &&
         process.env.NEXT_RUNTIME !== 'edge'
       ) {
-        const markdownExport = await getPageMarkdownExport(
-          tree,
-          normalizedSrcPage
-        )
+        const isMarkdownRequest =
+          getRequestMeta(req, 'isMarkdownRequest') === true
+        // The router reports when this path's `.md` URL belongs to something
+        // else; the page then serves HTML only.
+        const markdownExport =
+          getRequestMeta(req, 'isMarkdownAlternateAvailable') === false
+            ? undefined
+            : await getPageMarkdownExport(tree, normalizedSrcPage)
         if (markdownExport !== undefined) {
           res.setHeader('Vary', `${varyHeader}, Accept`)
+        }
 
-          if (
-            (method === 'GET' || method === 'HEAD') &&
-            !isRouterRequest &&
-            !isPossibleServerAction &&
-            !isDraftMode &&
-            prefersMarkdown(req.headers.accept)
-          ) {
-            let markdown: string | undefined
-            if (routeModule.isDev) {
-              // Match production: only `generateStaticParams` paths have an
-              // alternate.
-              if (
-                !pageIsDynamic ||
-                (await isGeneratedParams(tree, params ?? {}))
-              ) {
-                markdown = await resolveMarkdown(
-                  markdownExport,
-                  normalizedSrcPage,
-                  (params ?? {}) as Record<string, string | string[]>
-                )
-              }
-            } else if (isPrerendered) {
-              // Only this route's own prerendered artifact can be served.
-              markdown = await readPrerenderedMarkdown(
-                getRequestMeta(req, 'relativeProjectDir') ||
-                  routeModule.relativeProjectDir,
-                routeModule.distDir,
-                resolvedPathname
+        const isNegotiatedInDev =
+          routeModule.isDev &&
+          markdownExport !== undefined &&
+          (method === 'GET' || method === 'HEAD') &&
+          !isRouterRequest &&
+          !isPossibleServerAction &&
+          !isDraftMode &&
+          prefersMarkdown(req.headers.accept)
+
+        if (isMarkdownRequest || isNegotiatedInDev) {
+          let markdown: string | undefined
+          if (markdownExport === undefined) {
+            // No alternate: `.md` URLs 404 below.
+          } else if (routeModule.isDev) {
+            // Match production: only `generateStaticParams` paths have an
+            // alternate.
+            if (
+              !pageIsDynamic ||
+              (await isGeneratedParams(tree, params ?? {}))
+            ) {
+              markdown = await resolveMarkdown(
+                markdownExport,
+                normalizedSrcPage,
+                (params ?? {}) as Record<string, string | string[]>
               )
             }
+          } else if (isPrerendered) {
+            // Only this route's own prerendered artifact can be served.
+            markdown = await readPrerenderedMarkdown(
+              getRequestMeta(req, 'relativeProjectDir') ||
+                routeModule.relativeProjectDir,
+              routeModule.distDir,
+              resolvedPathname
+            )
+          }
 
-            if (markdown !== undefined) {
-              res.statusCode = 200
-              if (routeModule.isDev) {
-                res.setHeader('Cache-Control', 'no-store')
-              }
-              await sendRenderResult({
-                req,
-                res,
-                result: RenderResult.fromStatic(
-                  markdown,
-                  MARKDOWN_CONTENT_TYPE
-                ),
-                generateEtags: false,
-                poweredByHeader: nextConfig.poweredByHeader,
-                cacheControl: routeModule.isDev
-                  ? undefined
-                  : { revalidate: false, expire: nextConfig.expireTime },
-              })
-              ctx.waitUntil?.(Promise.resolve())
-              return null
+          if (markdown !== undefined) {
+            res.statusCode = 200
+            if (routeModule.isDev) {
+              res.setHeader('Cache-Control', 'no-store')
             }
+            await sendRenderResult({
+              req,
+              res,
+              result: RenderResult.fromStatic(markdown, MARKDOWN_CONTENT_TYPE),
+              generateEtags: false,
+              poweredByHeader: nextConfig.poweredByHeader,
+              cacheControl: routeModule.isDev
+                ? undefined
+                : { revalidate: false, expire: nextConfig.expireTime },
+            })
+            ctx.waitUntil?.(Promise.resolve())
+            return null
+          }
+
+          if (isMarkdownRequest) {
+            res.statusCode = 404
+            await sendRenderResult({
+              req,
+              res,
+              result: RenderResult.fromStatic(
+                'Not Found',
+                TEXT_PLAIN_CONTENT_TYPE_HEADER
+              ),
+              generateEtags: false,
+              poweredByHeader: nextConfig.poweredByHeader,
+              cacheControl: undefined,
+            })
+            ctx.waitUntil?.(Promise.resolve())
+            return null
           }
         }
       }
