@@ -87,7 +87,7 @@ describe('evalManifest', () => {
   afterEach(() => {
     jest.resetAllMocks()
     cache.clear()
-    delete (globalThis as any).__RSC_MANIFEST
+    Reflect.deleteProperty(globalThis, '__RSC_MANIFEST')
   })
 
   it('collects what the manifest registers on globalThis without touching the real global', () => {
@@ -95,16 +95,13 @@ describe('evalManifest', () => {
       '(globalThis.__RSC_MANIFEST ??= {})["/page"] = { chunks: ["a.js"] };'
     )
 
-    const result = evalManifest<{ __RSC_MANIFEST: Record<string, unknown> }>(
-      'path/to/manifest.js',
-      false
-    )
+    const result = evalManifest<{
+      __RSC_MANIFEST: Record<string, { chunks: unknown }>
+    }>('path/to/manifest.js', false)
 
     expect(result.__RSC_MANIFEST['/page']).toEqual({ chunks: ['a.js'] })
-    expect(Array.isArray((result.__RSC_MANIFEST['/page'] as any).chunks)).toBe(
-      true
-    )
-    expect((globalThis as any).__RSC_MANIFEST).toBeUndefined()
+    expect(Array.isArray(result.__RSC_MANIFEST['/page'].chunks)).toBe(true)
+    expect(Reflect.get(globalThis, '__RSC_MANIFEST')).toBeUndefined()
   })
 
   it('exposes only the deployment id from process.env', () => {
