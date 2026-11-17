@@ -68,6 +68,41 @@ export type RequestInsightFetch = {
   index?: number
 }
 
+export type RequestInsightRscPayloadBoundary = {
+  /** `<project-relative module path>#<export name>` */
+  name: string
+  instances: number
+  /** Estimated bytes of the props data owned by all instances combined. */
+  bytes: number
+  /** Estimated owned bytes of the largest single instance. */
+  largestInstanceBytes: number
+}
+
+/**
+ * Estimated size of the RSC (Flight) payload a request sent to the browser,
+ * measured in development with React's dev-only debug metadata removed. Other
+ * development overhead (e.g. longer module ids) remains, so this is not the
+ * production transfer size. Only aggregates and module identifiers are
+ * stored, never payload contents.
+ */
+export type RequestInsightRscPayload = {
+  status: 'complete' | 'incomplete' | 'unavailable'
+  unavailableReason?: 'too-large' | 'parse-error'
+  /** Uncompressed bytes, excluding React's dev-only debug metadata. */
+  estimatedBytes?: number
+  /** Top Client Component boundaries by owned bytes, descending. */
+  boundaries?: RequestInsightRscPayloadBoundary[]
+  /** Owned bytes of application boundaries not listed in `boundaries`. */
+  otherBoundariesBytes?: number
+  /** Owned bytes of Next.js-internal Client Component boundaries. */
+  frameworkBoundariesBytes?: number
+  /**
+   * Bytes of data referenced by more than one boundary instance, or by both a
+   * boundary and non-boundary content.
+   */
+  sharedBytes?: number
+}
+
 export type RequestInsight = {
   requestId: string
   kind?: RequestInsightKind
@@ -82,6 +117,7 @@ export type RequestInsight = {
   status: 'ok' | 'error' | 'pending'
   spans: RequestInsightSpan[]
   fetches: RequestInsightFetch[]
+  rscPayload?: RequestInsightRscPayload
 }
 
 export type RequestInsightsSnapshot = {

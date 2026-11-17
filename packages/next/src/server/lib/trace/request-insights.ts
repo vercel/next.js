@@ -9,6 +9,7 @@ import {
   REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
   type RequestInsight,
   type RequestInsightFetch,
+  type RequestInsightRscPayload,
   type RequestInsightKind,
   type RequestInsightProxyStatus,
   type RequestInsightSource,
@@ -83,6 +84,7 @@ export type RequestInsightsHistoryProvider = {
 export type RequestInsightUpdate = {
   span?: RequestInsightSpan
   fetch?: RequestInsightFetch
+  rscPayload?: RequestInsightRscPayload
 }
 
 const REDACTED_VALUE = 'redacted'
@@ -259,6 +261,40 @@ class InMemoryRequestInsightsStore {
     if (addedFetch && insight.completedAt !== undefined) {
       getRequestInsightsHistoryProvider()?.appendUpdate?.(insight, {
         fetch: sanitizedFetch,
+      })
+    }
+    this.notify(insight)
+  }
+
+  recordRscPayload(
+    identity: RequestInsightIdentity,
+    rscPayload: RequestInsightRscPayload
+  ): void {
+    if (!identity.requestId) {
+      return
+    }
+
+    const requestIdentity = {
+      requestId: identity.requestId,
+      kind: identity.kind,
+    }
+    if (
+      !this.requests.has(getRequestInsightKey(requestIdentity)) &&
+      getRequestInsightsHistoryProvider()?.appendArchivedUpdate?.(
+        requestIdentity,
+        { rscPayload }
+      )
+    ) {
+      return
+    }
+    const insight = this.getOrCreateRequest(identity, getCurrentTimestamp())
+    if (!insight) {
+      return
+    }
+    insight.rscPayload = rscPayload
+    if (insight.completedAt !== undefined) {
+      getRequestInsightsHistoryProvider()?.appendUpdate?.(insight, {
+        rscPayload,
       })
     }
     this.notify(insight)
@@ -615,6 +651,13 @@ export function recordRequestInsightFetch(
   fetch: RequestInsightFetch
 ): void {
   getRequestInsightsStore().recordFetch(identity, fetch)
+}
+
+export function recordRequestInsightRscPayload(
+  identity: RequestInsightIdentity,
+  rscPayload: RequestInsightRscPayload
+): void {
+  getRequestInsightsStore().recordRscPayload(identity, rscPayload)
 }
 
 export function recordRequestInsightSource(

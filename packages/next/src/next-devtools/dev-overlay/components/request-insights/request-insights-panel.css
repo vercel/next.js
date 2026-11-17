@@ -933,6 +933,20 @@
   text-transform: uppercase;
 }
 
+.request-insights-fetch.request-insights-rsc-boundary {
+  grid-template-columns: minmax(0, 1fr) 72px 72px 72px;
+}
+
+.request-insights-rsc-boundary-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.request-insights-rsc-boundary-summary {
+  color: var(--color-gray-800);
+}
+
 .request-insights-method {
   color: var(--color-gray-1000);
 }
@@ -1016,5 +1030,9 @@
 
   .request-insights-fetch > span:nth-child(n + 4) {
     display: none;
+  }
+
+  .request-insights-fetch.request-insights-rsc-boundary {
+    grid-template-columns: minmax(0, 1fr) 64px 64px;
   }
 }

@@ -186,7 +186,7 @@ class RequestInsightsJournal {
         if (!previous && !snapshot) {
           return
         }
-        const { span } = update
+        const { span, rscPayload } = update
         let { fetch } = update
         let archived: RequestInsight | undefined
         if (!snapshot && fetch) {
@@ -200,9 +200,10 @@ class RequestInsightsJournal {
             fetch = undefined
           }
         }
-        if (!span && !fetch) return
+        if (!span && !fetch && !rscPayload) return
 
         const metadata = getRequestMetadata(snapshot ?? previous!)
+        if (rscPayload) metadata.rscPayload = rscPayload
         if (span?.status === 'error') metadata.status = 'error'
         else if (metadata.status !== 'error' && span?.status === 'ok')
           metadata.status = 'ok'
@@ -571,7 +572,10 @@ function parseJournalLine(line: string): JournalRecord | undefined {
     ) {
       return record as JournalRecord
     }
-    if (record.version === 2 && (record.span || record.fetch)) {
+    if (
+      record.version === 2 &&
+      (record.span || record.fetch || request.rscPayload)
+    ) {
       return record as JournalRecord
     }
     return undefined
@@ -581,7 +585,7 @@ function parseJournalLine(line: string): JournalRecord | undefined {
 }
 
 function getRequestMetadata(request: RequestMetadata): RequestMetadata {
-  return {
+  const metadata: RequestMetadata = {
     requestId: request.requestId,
     kind: request.kind,
     source: request.source,
@@ -594,6 +598,12 @@ function getRequestMetadata(request: RequestMetadata): RequestMetadata {
     completedAt: request.completedAt,
     status: request.status,
   }
+  // Summaries don't carry the payload. Leave the key out instead of setting
+  // it to undefined, so merging metadata into an archived record keeps it.
+  if (request.rscPayload) {
+    metadata.rscPayload = request.rscPayload
+  }
+  return metadata
 }
 
 function createSessionId(): string {

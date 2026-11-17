@@ -27,6 +27,20 @@ type RequestInsight = {
   startTime: number
   completedAt?: number
   status: 'ok'
+  rscPayload?: {
+    status: 'complete' | 'incomplete' | 'unavailable'
+    unavailableReason?: 'too-large' | 'parse-error'
+    estimatedBytes?: number
+    boundaries?: Array<{
+      name: string
+      instances: number
+      bytes: number
+      largestInstanceBytes: number
+    }>
+    otherBoundariesBytes?: number
+    frameworkBoundariesBytes?: number
+    sharedBytes?: number
+  }
   spans: Array<{
     name?: string
     traceId?: string
@@ -149,6 +163,73 @@ describe('request insights', () => {
     expect(result.cliOutput).toMatch(
       /No request insights captured yet|retained requests \(newest first\)/
     )
+  })
+
+  async function getRequestInsightsSnapshot() {
+    return (await next
+      .fetch('/_next/development/request-insights')
+      .then((response) => response.json())) as {
+      requests: RequestInsight[]
+    }
+  }
+
+  // Serialized size of the `rows` prop the RSC payload fixture passes to its
+  // client component.
+  const expectedRowsPropBytes = Buffer.byteLength(
+    JSON.stringify({
+      rows: Array.from({ length: 500 }, (_, index) => ({
+        id: index,
+        name: `user-${index}`,
+        email: `user${index}@example.com`,
+      })),
+    })
+  )
+
+  function expectRowsTablePayload(insight: RequestInsight | undefined) {
+    const rscPayload = insight?.rscPayload
+    expect(rscPayload?.status).toBe('complete')
+    expect(rscPayload?.estimatedBytes).toBeGreaterThan(expectedRowsPropBytes)
+
+    const [topBoundary] = rscPayload?.boundaries ?? []
+    expect(topBoundary?.name).toBe('app/rsc-payload/rows-table.tsx#RowsTable')
+    expect(topBoundary?.instances).toBe(1)
+    expect(topBoundary?.bytes).toBeGreaterThanOrEqual(
+      expectedRowsPropBytes * 0.9
+    )
+    expect(topBoundary?.bytes).toBeLessThanOrEqual(expectedRowsPropBytes * 1.1)
+
+    // The summary only carries aggregates, never payload contents.
+    expect(JSON.stringify(rscPayload)).not.toContain('user0@example.com')
+  }
+
+  function findRscPayloadRequest(requests: RequestInsight[], isRsc: boolean) {
+    return requests.findLast(
+      (request) =>
+        request.kind !== 'instant-insights' &&
+        request.route === '/rsc-payload' &&
+        request.spans.some((span) => span.attributes?.['next.rsc'] === true) ===
+          isRsc
+    )
+  }
+
+  it('records the estimated RSC payload of a document request', async () => {
+    await next.render('/rsc-payload')
+
+    await retry(async () => {
+      const snapshot = await getRequestInsightsSnapshot()
+      expectRowsTablePayload(findRscPayloadRequest(snapshot.requests, false))
+    })
+  })
+
+  it('records the estimated RSC payload of a client navigation', async () => {
+    const browser = await next.browser('/rsc-payload-start')
+    await browser.elementById('to-rsc-payload').click()
+    await browser.waitForElementByCss('#rows-table')
+
+    await retry(async () => {
+      const snapshot = await getRequestInsightsSnapshot()
+      expectRowsTablePayload(findRscPayloadRequest(snapshot.requests, true))
+    })
   })
 
   it('keeps outer server and app render spans on the same request', async () => {

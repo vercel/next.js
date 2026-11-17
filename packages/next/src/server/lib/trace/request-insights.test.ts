@@ -6,6 +6,7 @@ import {
   getRequestInsightsSnapshot,
   importRequestInsightSpans,
   recordRequestInsightFetch,
+  recordRequestInsightRscPayload,
   registerRequestInsightsExporter,
   recordRequestInsightSource,
   startRequestInsight,
@@ -773,6 +774,77 @@ describe('request insights', () => {
       }
     }
   )
+
+  it('keeps an RSC payload recorded after completion through later archived updates and rewrites', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+    await initializeRequestInsightsJournal(distDir)
+    configureJournalProvider(distDir)
+    const rscPayload = {
+      status: 'complete' as const,
+      estimatedBytes: 1234,
+      boundaries: [
+        {
+          name: 'app/table.tsx#Table',
+          instances: 1,
+          bytes: 1000,
+          largestInstanceBytes: 1000,
+        },
+      ],
+      otherBoundariesBytes: 0,
+      frameworkBoundariesBytes: 0,
+      sharedBytes: 0,
+    }
+    function complete(requestId: string) {
+      startRequestInsight({ requestId })
+      recordSpan({ name: 'render', requestId })
+      completeRequestInsight({ requestId })
+    }
+    async function readPayload() {
+      return (
+        await readRequestInsightsJournal(distDir, { requestId: 'late' })
+      )[0]?.rscPayload
+    }
+
+    try {
+      complete('late')
+      // Recorded after completion, while the request is still live.
+      recordRequestInsightRscPayload({ requestId: 'late' }, rscPayload)
+      expect(await readPayload()).toEqual(rscPayload)
+
+      // Evict it from the live window, then update the archived record.
+      for (let i = 0; i < MAX_LIVE_COMPLETED_REQUEST_INSIGHTS + 1; i++) {
+        complete(`newer-${i}`)
+      }
+      recordSpan({ name: 'late work', requestId: 'late' })
+      expect(await readPayload()).toEqual(rscPayload)
+
+      // A late update that rewrites the full record must keep the payload.
+      const fs = require('fs/promises') as typeof import('fs/promises')
+      const currentStat = await fs.stat(
+        path.join(distDir, 'request-insights.ndjson')
+      )
+      const stat = jest.spyOn(fs, 'stat')
+      stat.mockResolvedValueOnce({
+        ...currentStat,
+        size: 50 * 1024 * 1024 - 1,
+      })
+      try {
+        await configureRequestInsightsJournal(distDir)
+      } finally {
+        stat.mockRestore()
+      }
+      recordSpan({ name: 'later work', requestId: 'late' })
+      const [rewritten] = await readRequestInsightsJournal(distDir, {
+        requestId: 'late',
+      })
+      expect(rewritten?.spans).toHaveLength(3)
+      expect(rewritten?.rscPayload).toEqual(rscPayload)
+    } finally {
+      await resetRequestInsightsJournalForTest()
+      await rm(distDir, { recursive: true, force: true })
+    }
+  })
 
   it('writes late spans without serializing previously stored spans again', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'

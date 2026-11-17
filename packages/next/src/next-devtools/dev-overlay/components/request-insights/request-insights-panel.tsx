@@ -18,6 +18,7 @@ import {
   getRequestInsightKind,
   type RequestInsight,
   type RequestInsightFetch,
+  type RequestInsightRscPayload,
 } from '../../../shared/request-insights'
 import {
   getRequestInsightFetchCount,
@@ -981,7 +982,7 @@ function RequestDetails({
         </div>
       </div>
 
-      <RequestOverview overview={overview} />
+      <RequestOverview overview={overview} rscPayload={request.rscPayload} />
       {overview.errorSummary ? (
         <div className="request-insights-error">{overview.errorSummary}</div>
       ) : null}
@@ -996,14 +997,19 @@ function RequestDetails({
       />
 
       <FetchTable fetches={request.fetches} />
+      {request.rscPayload ? (
+        <RscPayloadTable rscPayload={request.rscPayload} />
+      ) : null}
     </div>
   )
 }
 
 function RequestOverview({
   overview,
+  rscPayload,
 }: {
   overview: ReturnType<typeof getRequestOverview>
+  rscPayload: RequestInsightRscPayload | undefined
 }) {
   return (
     <div className="request-insights-overview">
@@ -1013,6 +1019,16 @@ function RequestOverview({
       <span>{overview.fetchSummary}</span>
       <span>{overview.cacheSummary}</span>
       <span>{overview.spanSummary}</span>
+      {rscPayload ? (
+        <Tooltip
+          className="request-insights-rsc-payload-tooltip"
+          title={RSC_PAYLOAD_ESTIMATE_DESCRIPTION}
+        >
+          <span className="request-insights-rsc-payload">
+            {formatRscPayloadLabel(rscPayload)}
+          </span>
+        </Tooltip>
+      ) : null}
       {overview.route ? (
         <span className="request-insights-route-template">
           Route {overview.route}
@@ -1428,6 +1444,107 @@ function FetchTable({ fetches }: { fetches: RequestInsightFetch[] }) {
               </div>
             )
           })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const RSC_PAYLOAD_ESTIMATE_DESCRIPTION =
+  "Estimated uncompressed size of the RSC payload sent to the browser, excluding React's development-only debug metadata. Other development overhead remains, so this is not the production transfer size."
+
+function formatPayloadBytes(bytes: number): string {
+  if (bytes < 1000) {
+    return `${bytes} B`
+  }
+  const kilobytes = bytes / 1000
+  return kilobytes < 10
+    ? `${kilobytes.toFixed(1)} kB`
+    : `${Math.round(kilobytes)} kB`
+}
+
+function formatRscPayloadLabel(rscPayload: RequestInsightRscPayload): string {
+  if (rscPayload.status === 'unavailable') {
+    return rscPayload.unavailableReason === 'too-large'
+      ? 'RSC payload: too large to analyze'
+      : 'RSC payload: unavailable'
+  }
+  const size = `RSC payload ≈ ${formatPayloadBytes(rscPayload.estimatedBytes ?? 0)}`
+  return rscPayload.status === 'incomplete'
+    ? `${size} (est., incomplete)`
+    : `${size} (est.)`
+}
+
+function RscPayloadTable({
+  rscPayload,
+}: {
+  rscPayload: RequestInsightRscPayload
+}) {
+  const boundaries = rscPayload.boundaries ?? []
+  const summaryRows: Array<[label: string, bytes: number | undefined]> = [
+    ['Other components', rscPayload.otherBoundariesBytes],
+    ['Next.js internals', rscPayload.frameworkBoundariesBytes],
+    ['Shared data', rscPayload.sharedBytes],
+  ]
+  const visibleSummaryRows = summaryRows.filter(([, bytes]) => !!bytes)
+
+  let note: string | null = null
+  if (rscPayload.status === 'incomplete') {
+    note =
+      'The response ended before the payload was complete, so components are not broken down.'
+  } else if (rscPayload.status === 'unavailable') {
+    note =
+      rscPayload.unavailableReason === 'too-large'
+        ? 'The payload exceeded the analysis limit.'
+        : 'The payload could not be analyzed.'
+  } else if (boundaries.length === 0 && visibleSummaryRows.length === 0) {
+    note = 'No Client Component props in this payload.'
+  }
+
+  return (
+    <div className="request-insights-section">
+      <div className="request-insights-section-heading">
+        <div className="request-insights-section-title">RSC payload</div>
+        <div className="request-insights-section-note">
+          Estimated props size per Client Component
+        </div>
+      </div>
+      {note ? (
+        <div className="request-insights-muted">{note}</div>
+      ) : (
+        <div className="request-insights-fetch-table">
+          <div className="request-insights-fetch request-insights-rsc-boundary request-insights-fetch-header">
+            <span>Component</span>
+            <span>Instances</span>
+            <span>Est. size</span>
+            <span>Largest</span>
+          </div>
+          {boundaries.map((boundary) => (
+            <div
+              className="request-insights-fetch request-insights-rsc-boundary"
+              key={boundary.name}
+            >
+              <span className="request-insights-rsc-boundary-name">
+                {boundary.name}
+              </span>
+              <span>{boundary.instances}</span>
+              <span>{formatPayloadBytes(boundary.bytes)}</span>
+              <span>{formatPayloadBytes(boundary.largestInstanceBytes)}</span>
+            </div>
+          ))}
+          {visibleSummaryRows.map(([label, bytes]) => (
+            <div
+              className="request-insights-fetch request-insights-rsc-boundary request-insights-rsc-boundary-summary"
+              key={label}
+            >
+              <span className="request-insights-rsc-boundary-name">
+                {label}
+              </span>
+              <span>-</span>
+              <span>{formatPayloadBytes(bytes ?? 0)}</span>
+              <span>-</span>
+            </div>
+          ))}
         </div>
       )}
     </div>

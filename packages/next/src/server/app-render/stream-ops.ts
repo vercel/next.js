@@ -41,8 +41,29 @@ export const streamToBuffer = _m.streamToBuffer
 export const chainStreams = _m.chainStreams
 export const createDocumentClosingStream = _m.createDocumentClosingStream
 export const processPrelude = _m.processPrelude
-export const createWebInlinedDataStream = _m.createWebInlinedDataStream
-export const createNodeInlinedDataStream = _m.createNodeInlinedDataStream
+let createWebInlinedDataStreamImpl: WebMod['createWebInlinedDataStream']
+let createNodeInlinedDataStreamImpl: WebMod['createNodeInlinedDataStream']
+if (process.env.__NEXT_DEV_SERVER && process.env.NEXT_RUNTIME !== 'edge') {
+  // The Flight data inlined into the HTML is what the browser receives, so it
+  // is measured for Request Insights here.
+  const { tapRscPayloadForRequestInsights } =
+    require('../dev/rsc-payload-tap') as typeof import('../dev/rsc-payload-tap')
+  createWebInlinedDataStreamImpl = (source, ...args) =>
+    _m.createWebInlinedDataStream(
+      tapRscPayloadForRequestInsights(source),
+      ...args
+    )
+  createNodeInlinedDataStreamImpl = (source, ...args) =>
+    _m.createNodeInlinedDataStream(
+      tapRscPayloadForRequestInsights(source),
+      ...args
+    )
+} else {
+  createWebInlinedDataStreamImpl = _m.createWebInlinedDataStream
+  createNodeInlinedDataStreamImpl = _m.createNodeInlinedDataStream
+}
+export const createWebInlinedDataStream = createWebInlinedDataStreamImpl
+export const createNodeInlinedDataStream = createNodeInlinedDataStreamImpl
 export const createPendingStream = _m.createPendingStream
 export const createOnHeadersCallback = _m.createOnHeadersCallback
 export const resumeAndAbort = _m.resumeAndAbort

@@ -1,0 +1,140 @@
+:N1794929540137.2166
+4:"[project]/repo/packages/next/dist/next-devtools/userspace/app/segment-explorer-node.js [app-client] (ecmascript)"
+5:"/_next/static/chunks/repo_packages_next_dist_08xiw1xjxz0o7._.js"
+6:I["$4",["$5"],"SegmentViewNode"]
+8:"$Sreact.fragment"
+17:"[project]/repo/packages/next/dist/client/components/layout-router.js [app-client] (ecmascript)"
+18:I["$17",["$5"],"default"]
+1a:"[project]/repo/packages/next/dist/client/components/render-from-template-context.js [app-client] (ecmascript)"
+1b:I["$1a",["$5"],"default"]
+37:"[project]/rscapp/app/client.js [app-client] (ecmascript)"
+38:"/_next/static/chunks/_1ns1te05ki_7k._.js"
+39:I["$37",["$5","$38"],"Shell"]
+3b:I["$37",["$5","$38"],"Small"]
+3d:I["$37",["$5","$38"],"BigTable"]
+45:"[project]/repo/packages/next/dist/lib/framework/boundary-components.js [app-client] (ecmascript)"
+46:I["$45",["$5"],"OutletBoundary"]
+48:"$Sreact.suspense"
+51:"ViewportBoundary"
+52:I["$45",["$5"],"$51"]
+58:"MetadataBoundary"
+59:I["$45",["$5"],"$58"]
+61:"[project]/repo/packages/next/dist/client/components/builtin/global-error.js [app-client] (ecmascript)"
+62:I["$61",["$5"],"default",1]
+2:{"name":"Preloads","key":null,"env":"Prerender","stack":[],"props":{"preloadCallbacks":[]}}
+3:[]
+7:[]
+9:[]
+c:I["[project]/repo/packages/next/dist/client/components/layout-router.js [app-client] (ecmascript)",["/_next/static/chunks/repo_packages_next_dist_08xiw1xjxz0o7._.js"],"default"]
+f:I["[project]/repo/packages/next/dist/client/components/render-from-template-context.js [app-client] (ecmascript)",["/_next/static/chunks/repo_packages_next_dist_08xiw1xjxz0o7._.js"],"default"]
+10:{}
+11:[["Promise.all","",0,0,0,0,true]]
+e:{"children":["$","$Lf",null,"$10",null,"$11",1]}
+12:[["Promise.all","",0,0,0,0,true]]
+d:{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$8",null,"$e",null,"$12",0],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$Y","forbidden":"$undefined","unauthorized":"$undefined","segmentViewBoundaries":"$Y"}
+13:[["Promise.all","",0,0,0,0,true]]
+b:{"name":"RootLayout","key":null,"env":"Prerender","stack":[],"props":{"children":["$","$Lc",null,"$d",null,"$13",1],"params":"$Y"}}
+14:[["RootLayout","/home/user/app-example/.next/dev/server/chunks/ssr/_1o_5zd5fwgtrf._.js",15,267,14,1,false]]
+15:[["RootLayout","/home/user/app-example/.next/dev/server/chunks/ssr/_1o_5zd5fwgtrf._.js",16,274,14,1,false]]
+16:[["Promise.all","",0,0,0,0,true]]
+19:[["Promise.all","",0,0,0,0,true]]
+1c:[]
+1e:{"name":"NotFound","key":null,"env":"Prerender","stack":[],"props":{}}
+1f:{"name":"HTTPAccessErrorFallback","key":null,"env":"Prerender","owner":"$1e","stack":[],"props":{"status":404,"message":"This page could not be found."}}
+20:[]
+21:[]
+22:[]
+23:[]
+24:[]
+25:[]
+26:[]
+27:[["Promise.all","",0,0,0,0,true]]
+28:[["Promise.all","",0,0,0,0,true]]
+2a:[["Promise.all","",0,0,0,0,true]]
+2b:[["Promise.all","",0,0,0,0,true],["Promise.all","",0,0,0,0,true]]
+2c:[["Promise.all","",0,0,0,0,true],["Promise.all","",0,0,0,0,true]]
+2f:[["Promise.all","",0,0,0,0,true],["Promise.all","",0,0,0,0,true]]
+30:[["Promise.all","",0,0,0,0,true],["Promise.all","",0,0,0,0,true]]
+32:{"name":"Page","key":null,"env":"Prerender","stack":[["Promise.all","",0,0,0,0,true],["Promise.all","",0,0,0,0,true]],"props":{"params":"$@33","searchParams":"$@34"}}
+35:[["Page","/home/user/app-example/.next/dev/server/chunks/ssr/[root-of-the-server]__1ki2-vdq94soh._.js",1956,267,1955,1,false]]
+36:[["Page","/home/user/app-example/.next/dev/server/chunks/ssr/[root-of-the-server]__1ki2-vdq94soh._.js",1958,268,1955,1,false]]
+3a:[["Page","/home/user/app-example/.next/dev/server/chunks/ssr/[root-of-the-server]__1ki2-vdq94soh._.js",1961,276,1955,1,false]]
+3c:[["Page","/home/user/app-example/.next/dev/server/chunks/ssr/[root-of-the-server]__1ki2-vdq94soh._.js",1968,276,1955,1,false]]
+3e:[["Page","/home/user/app-example/.next/dev/server/chunks/ssr/[root-of-the-server]__1ki2-vdq94soh._.js",1982,268,1955,1,false]]
+3f:[["Page","/home/user/app-example/.next/dev/server/chunks/ssr/[root-of-the-server]__1ki2-vdq94soh._.js",1990,268,1955,1,false]]
+40:[["Array.map","",0,0,0,0,false],["Promise.all","",0,0,0,0,true]]
+43:"$EObject.defineProperty(()=>{\n            const { trackPendingImport } = __turbopack_context__.r(\"[externals]/next/dist/server/app-render/module-loading/track-module-loading.external.js [external] (next/dist/server/app-render/module-loading/track-module-loading.external.js, cjs)\");\n            const exportsOrPromise = getter();\n            trackPendingImport(exportsOrPromise);\n            return exportsOrPromise;\n        },\"name\",{value:\"\"})"
+42:{"name":"Next.MetadataOutlet","key":null,"env":"Prerender","stack":[["Promise.all","",0,0,0,0,true],["Promise.all","",0,0,0,0,true]],"props":{"tree":["__PAGE__",{},{"metadata":{},"page":["$43","[project]/rscapp/app/fixture/page.js"]},[]]}}
+44:[]
+47:[]
+4a:[]
+4d:"$EObject.defineProperty(function(type,config,children){for(var propName,i=2;i<arguments.length;i++)validateChildKeys(arguments[i]);i={};var key=null;if(null!=config)for(propName in didWarnAboutOldJSXRuntime||!(\"__self\"in config)||\"key\"in config||(didWarnAboutOldJSXRuntime=!0,console.warn(\"Your app (or one of its dependencies) is using an outdated JSX transform. Update to the modern JSX transform for faster performance: https://react.dev/link/new-jsx-transform\")),hasValidKey(config)&&(checkKeyStringCoercion(config.key),key=\"\"+config.key),config)hasOwnProperty.call(config,propName)&&\"key\"!==propName&&\"__self\"!==propName&&\"__source\"!==propName&&(i[propName]=config[propName]);var childrenLength=arguments.length-2;if(1===childrenLength)i.children=children;else if(1<childrenLength){for(var childArray=Array(childrenLength),_i=0;_i<childrenLength;_i++)childArray[_i]=arguments[_i+2];Object.freeze&&Object.freeze(childArray),i.children=childArray}if(type&&type.defaultProps)for(propName in childrenLength=type.defaultProps)void 0===i[propName]&&(i[propName]=childrenLength[propName]);return key&&function(props,displayName){function warnAboutAccessingKey(){specialPropKeyWarningShown||(specialPropKeyWarningShown=!0,console.error(\"%s: `key` is not a prop. Trying to access it will result in `undefined` being returned. If you need to access the same value within the child component, you should pass it as a different prop. (https://react.dev/link/special-props)\",displayName))}warnAboutAccessingKey.isReactWarning=!0,Object.defineProperty(props,\"key\",{get:warnAboutAccessingKey,configurable:!0})}(i,\"function\"==typeof type?type.displayName||type.name||\"Unknown\":type),(propName=1e4>ReactSharedInternals.recentlyCreatedOwnerStacks++)?(childArray=Error.stackTraceLimit,Error.stackTraceLimit=10,childrenLength=Error(\"react-stack-top-frame\"),Error.stackTraceLimit=childArray):childrenLength=unknownOwnerDebugStack,ReactElement(type,key,i,getOwner(),childrenLength,propName?createTask(getTaskName(type)):unknownOwnerDebugTask)},\"name\",{value:\"\"})"
+4c:{"name":"NonIndex","key":null,"env":"Prerender","stack":[],"props":{"createElement":"$4d","pagePath":"/fixture","statusCode":200,"isPossibleServerAction":false}}
+4f:{"name":"ViewportWrapper","key":null,"env":"Prerender","stack":[],"props":{}}
+50:[]
+54:{"name":"Next.Viewport","key":null,"env":"Prerender","owner":"$4f","stack":[],"props":{}}
+56:{"name":"MetadataWrapper","key":null,"env":"Prerender","stack":[],"props":{}}
+57:[]
+5a:[]
+5b:[]
+5d:{"name":"Next.Metadata","key":null,"env":"Prerender","owner":"$56","stack":[],"props":{}}
+5f:{"name":"MetadataBlocker","key":null,"env":"Prerender","owner":"$56","stack":[],"props":{}}
+63:[]
+1:D{"time":122.14453109375063}
+1:D"$2"
+1:D{"time":122.62032409375024}
+1:null
+a:D{"time":130.22618309374957}
+a:D"$b"
+a:D{"time":131.15980209375084}
+1d:D{"time":132.0750740937492}
+1d:D"$1e"
+1d:D{"time":132.87404209375018}
+1d:D"$1f"
+1d:D{"time":133.26228609374994}
+1d:[["$","title",null,{"children":"404: This page could not be found."},"$1f","$20",1],["$","div",null,{"style":{"fontFamily":"system-ui,\"Segoe UI\",Roboto,Helvetica,Arial,sans-serif,\"Apple Color Emoji\",\"Segoe UI Emoji\"","height":"100vh","textAlign":"center","display":"flex","flexDirection":"column","alignItems":"center","justifyContent":"center"},"children":["$","div",null,{"children":[["$","style",null,{"dangerouslySetInnerHTML":{"__html":"body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}"}},"$1f","$23",1],["$","h1",null,{"className":"next-error-h1","style":{"display":"inline-block","margin":"0 20px 0 0","padding":"0 23px 0 0","fontSize":24,"fontWeight":500,"verticalAlign":"top","lineHeight":"49px"},"children":404},"$1f","$24",1],["$","div",null,{"style":{"display":"inline-block"},"children":["$","h2",null,{"style":{"fontSize":14,"fontWeight":400,"lineHeight":"49px","margin":0},"children":"This page could not be found."},"$1f","$26",1]},"$1f","$25",1]]},"$1f","$22",1]},"$1f","$21",1]]
+a:["$","html",null,{"children":["$","body",null,{"children":["$","$L18",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L1b",null,{},null,"$19",1],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":["$","$L6","c-not-found",{"type":"not-found","pagePath":"__next_builtin__not-found.js","children":["$1d",[]]},null,"$1c",0],"forbidden":"$undefined","unauthorized":"$undefined","segmentViewBoundaries":[["$","$L6",null,{"type":"boundary:not-found","pagePath":"__next_builtin__not-found.js@boundary"},null,"$27",1],"$undefined","$undefined",["$","$L6",null,{"type":"boundary:global-error","pagePath":"__next_builtin__global-error.js"},null,"$28",1]]},null,"$16",1]},"$b","$15",1]},"$b","$14",1]
+2d:X
+31:D{"time":136.71819409374984}
+31:D"$32"
+31:D{"time":137.22988009374967}
+31:["$","main",null,{"children":[["$","$L39",null,{"title":"wrapper","children":[["$","$L3b",null,{"label":"inside shell"},"$32","$3a",1],["$","$L3d",null,{"rows":[{"id":0,"name":"user-0"},{"id":1,"name":"user-1"},{"id":2,"name":"user-2"},{"id":3,"name":"user-3"},{"id":4,"name":"user-4"}],"meta":{"tag":"shared-object"}},"$32","$3c",1]]},"$32","$36",1],["$","$L3d",null,{"rows":["$31:props:children:0:props:children:1:props:rows:0","$31:props:children:0:props:children:1:props:rows:1"],"meta":"$31:props:children:0:props:children:1:props:meta"},"$32","$3e",1],["$","p",null,{"children":"héllo €"},"$32","$3f",1]]},"$32","$35",1]
+41:D{"time":138.4398850937505}
+41:D"$42"
+41:D{"time":206.06203209375053}
+41:["$","$L46",null,{"children":["$","$48",null,{"name":"Next.MetadataOutlet","children":"$@49"},"$42","$47",1]},"$42","$44",1]
+2e:[["children",{"s":"__PAGE__","h":1024,"d":{"r":["$","$8","c",{"children":[["$","$L6","c-page",{"type":"page","pagePath":"fixture/page.js","children":"$31"},null,"$30",1],[["$","script","script-0",{"src":"/_next/static/chunks/_1ns1te05ki_7k._.js","async":true,"nonce":"$undefined"},null,"$40",0]],"$41"]},null,"$2f",0],"p":false,"v":null}}]]
+29:[["children",{"s":"fixture","h":1024,"d":{"r":["$","$8","c",{"children":[null,["$","$L18",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L1b",null,{},null,"$2c",1],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$undefined","forbidden":"$undefined","unauthorized":"$undefined","segmentViewBoundaries":["$undefined","$undefined","$undefined","$undefined"]},null,"$2b",1]]},null,"$2a",0],"p":false,"v":"$2d"},"c":"$Q2e"}]]
+4b:D{"time":207.5523170937504}
+4b:D"$4c"
+4b:D{"time":207.6609100937494}
+4b:null
+4e:D{"time":207.89618009375044}
+4e:D"$4f"
+4e:D{"time":208.20110409375047}
+53:D{"time":208.4427390937508}
+53:D"$54"
+4e:["$","$L52",null,{"children":"$L53"},"$4f","$50",1]
+55:D{"time":209.92829909374996}
+55:D"$56"
+55:D{"time":210.34098509374962}
+5c:D{"time":210.7655190937494}
+5c:D"$5d"
+5e:D{"time":211.9410080937505}
+5e:D"$5f"
+5e:D{"time":212.0066190937505}
+5e:null
+55:["$","$L59",null,{"children":[["$","div",null,{"hidden":true,"children":["$","$48",null,{"name":"Next.Metadata","children":"$L5c"},"$56","$5b",1]},"$56","$5a",1],"$5e"]},"$56","$57",1]
+60:[]
+0:{"P":"$1","c":["","fixture"],"q":"","i":true,"t":{"t":{"s":"","h":1040,"d":{"r":["$","$L6","layout",{"type":"layout","pagePath":"layout.js","children":["$","$8","c",{"children":[[["$","script","script-0",{"src":"/_next/static/chunks/repo_packages_next_dist_08xiw1xjxz0o7._.js","async":true,"nonce":"$undefined"},null,"$9",0]],"$a"]},null,"$7",1]},null,"$3",0],"p":false,"v":null},"c":"$Q29"},"h":{"r":["$","$8","h",{"children":["$4b","$4e","$55",null]},null,"$4a",0],"p":false,"v":null}},"m":"$W60","G":["$62",["$","$L6","ge-svn",{"type":"global-error","pagePath":"__next_builtin__global-error.js","children":[]},null,"$63",0]],"S":true,"r":"$undefined","s":"$undefined","a":"$undefined","p":"$undefined","d":"$undefined","b":"development"}
+33:{}
+34:
+64:[]
+65:[]
+2d:C
+53:D{"time":239.20578409375048}
+53:[["$","meta","0",{"charSet":"utf-8"},"$42","$64",0],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"},"$42","$65",0]]
+49:D{"time":243.99474809374988}
+49:null
+5c:D{"time":244.03857609374973}
+5c:[]

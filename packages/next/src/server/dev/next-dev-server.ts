@@ -25,7 +25,8 @@ import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import { installUseCacheProbe } from './use-cache-probe-pool'
 import { installDevValidationWorker } from './dev-validation-worker-pool'
-import { join as pathJoin } from 'path'
+import { configureRscPayloadModulePathPrefix } from './rsc-payload-tap'
+import { join as pathJoin, relative as pathRelative } from 'path'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import {
@@ -303,6 +304,16 @@ export default class DevServer extends Server {
         getHistory: (query) => getJournalHistory(this.distDir, query),
         read: (query) => readRequestInsightsJournal(this.distDir, query),
       })
+      // Turbopack module ids are relative to the bundler root, which can be a
+      // monorepo root above the project. Show them relative to the project.
+      configureRscPayloadModulePathPrefix(
+        pathRelative(
+          this.nextConfig.turbopack?.root ||
+            this.nextConfig.outputFileTracingRoot ||
+            this.dir,
+          this.dir
+        )
+      )
       this.onServerClose(async () => {
         clearRequestInsightsHistoryProvider()
         await closeRequestInsightsJournal()
