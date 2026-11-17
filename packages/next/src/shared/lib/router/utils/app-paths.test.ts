@@ -1,18 +1,10 @@
 import {
   compareAppPaths,
-  createAppPageEntryLookup,
   normalizeRscURL,
-  selectAppPageEntry as selectAppPageEntryDirect,
+  selectAppPageEntry,
 } from './app-paths'
 
-describe.each([
-  ['selectAppPageEntry', selectAppPageEntryDirect],
-  [
-    'createAppPageEntryLookup',
-    (pathname: string, appPaths: readonly string[]) =>
-      createAppPageEntryLookup(appPaths)(pathname),
-  ],
-])('%s', (_name, selectAppPageEntry) => {
+describe('selectAppPageEntry', () => {
   it('prefers the direct children page over an expanded catch-all slot', () => {
     const appPaths = ['/@slot/[...catchAll]/page', '/foo/page'].sort(
       compareAppPaths
