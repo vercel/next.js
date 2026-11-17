@@ -7,6 +7,7 @@ related:
   description: Explore the full instant API, caching, and revalidation.
   links:
     - app/api-reference/file-conventions/route-segment-config/instant
+    - app/guides/testing/playwright
     - app/guides/optimizing-prefetching
     - app/getting-started/caching
     - app/getting-started/revalidating
@@ -137,7 +138,7 @@ Each case is validated independently. A `<Suspense>` boundary that covers one na
 
 ### Test it in CI
 
-The `@next/playwright` package provides an [`instant()`](/docs/app/api-reference/file-conventions/route-segment-config/instant#testing-instant-navigation) helper that scopes your assertions to the UI that's immediately available on navigation, so regressions surface in CI. See [Prevent regressions with e2e tests](#prevent-regressions-with-e2e-tests) for the pattern.
+The `@next/playwright` package provides an [`instant()`](/docs/app/guides/testing/playwright#testing-instant-navigations) helper that scopes your assertions to the UI that's immediately available on navigation, so regressions surface in CI. See [Prevent regressions with e2e tests](#prevent-regressions-with-e2e-tests) for the pattern.
 
 ### Inspect loading states
 
@@ -311,23 +312,7 @@ Toggle **Pause on navigations** off when you're done inspecting loading states. 
 
 Validation catches structural problems during development, but as the codebase grows, the structural checks can only tell you that a shell exists. They can't tell you whether the right content is in it. E2E tests close that gap: they assert on what the user actually sees when the navigation completes, catching regressions before they ship.
 
-The [`@next/playwright`](https://www.npmjs.com/package/@next/playwright) package includes an `instant()` helper for this. Install it alongside `@playwright/test`:
-
-```bash package="pnpm"
-pnpm add -D @next/playwright @playwright/test
-```
-
-```bash package="npm"
-npm install -D @next/playwright @playwright/test
-```
-
-```bash package="yarn"
-yarn add -D @next/playwright @playwright/test
-```
-
-```bash package="bun"
-bun add -D @next/playwright @playwright/test
-```
+Use [`instant()` from `@next/playwright`](/docs/app/guides/testing/playwright#testing-instant-navigations) to test the product route above.
 
 A route can be reached two ways, and a `<Suspense>` boundary can cover one without covering the other:
 
@@ -385,37 +370,7 @@ test.describe('Product page (/store/[slug])', () => {
 
 The example route has no `generateStaticParams`, so its product heading is outside the initial static shell. Check the product fallback inside the initial-load scope and the heading after it finishes. On a client navigation, per-link prefetching makes the product heading available inside the scope.
 
-Pass Playwright's `baseURL` to `instant()` when `page.goto()` is the first navigation. The helper needs the origin before requesting the document.
-
-Inside the callback, an initial page load shows the static UI and a client navigation shows the destination's prefetched UI. Other dynamic content remains blocked until the callback finishes.
-
-> **Good to know:** The start of the `instant()` scope is the same as turning on **Pause on navigations** in the Navigation Inspector, and the end of the scope releases the pause the way **Resume** does.
-
-For client navigations, wait for the destination URL before asserting on its UI. Otherwise, a shared selector can match the source page before the destination commits. If the prefetched destination cannot commit, the URL wait times out and the test fails.
-
-Cache Components keeps previous pages hidden in the DOM after navigation. Use `getByRole`, which excludes hidden elements by default, or filter other locators with `.filter({ visible: true })` so assertions target the visible page. See [Testing preserved UI](/docs/app/guides/preserving-ui-state#testing).
-
-Run these against `next dev`, where the testing API is enabled automatically. For CI with a production build, enable [`exposeTestingApiInProductionBuild`](/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild) only for the test build:
-
-```ts filename="next.config.ts" highlight={3,9}
-import type { NextConfig } from 'next'
-
-const exposeTestingApi = process.env.EXPOSE_TESTING_API === '1'
-
-const nextConfig: NextConfig = {
-  cacheComponents: true,
-  partialPrefetching: true,
-  experimental: {
-    exposeTestingApiInProductionBuild: exposeTestingApi,
-  },
-}
-
-export default nextConfig
-```
-
-Set `EXPOSE_TESTING_API=1` when running both `next build` and `next start`. Setting it only for `next start` does not add the testing API to an existing build.
-
-Focus these tests on the user flows that matter most.
+See the Playwright guide for [installation](/docs/app/guides/testing/playwright#installing-the-helper), [production setup](/docs/app/guides/testing/playwright#production-builds), and [search-parameter updates](/docs/app/guides/testing/playwright#search-parameter-updates).
 
 ## Fixing a navigation that blocks
 

@@ -145,11 +145,9 @@ When the UI is frozen, click **Resume** to let the current navigation finish. Th
 
 ## Testing instant navigation
 
-The `@next/playwright` package exports an `instant()` helper that holds back dynamic content while the callback runs against the instant UI. The testing API is available automatically in development. For a production build, enable [`experimental.exposeTestingApiInProductionBuild`](/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild) in the test build. See the [guide](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) for a full example.
+With Cache Components, you can also test what is visible immediately after a navigation, before dynamic content streams in. The `instant()` helper from `@next/playwright` pauses that content while your test checks the static shell on an initial load or the prefetched UI on a client navigation.
 
-```typescript
-import { instant } from '@next/playwright'
-```
+This helper is separate from the `export const instant` route option. See [Testing instant navigations](/docs/app/guides/testing/playwright#testing-instant-navigations) for setup and examples.
 
 {/* TODO: remove when fixed and from prod-docs-release */}
 
