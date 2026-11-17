@@ -91,6 +91,8 @@ export function onCaughtError(
   if (process.env.NODE_ENV !== 'production') {
     const errorBoundaryName =
       // read react component displayName
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       (errorBoundaryComponent as any)?.displayName ||
       errorBoundaryComponent?.name ||
       'Unknown'

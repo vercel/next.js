@@ -15,6 +15,7 @@
 ## Escalate when
 
 - Any React sync PR: must link the upstream React commit range and name behavior changes (strong, already in REVIEW.md as "vendored code"); new import of `react-server-dom-*` outside `entry-base.ts` (strong); changes to `module.compiled.js` selection (medium).
+- Coupling to React internals or the Flight protocol is reviewed by the [react](react.md) area: see [react-internals-need-human-review](../rules/react-internals-need-human-review.md).
 - TODO
 
 ## Rules

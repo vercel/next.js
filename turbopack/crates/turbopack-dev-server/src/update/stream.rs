@@ -175,18 +175,21 @@ async fn get_update_stream_item_operation(
             let resolved_content = static_content.content;
             let from = from.get().to_resolved().await?;
             let update_op = versioned_content_update_operation(resolved_content, from);
+            // Collectibles are only stable after a strongly consistent read of their source.
+            let update = update_op.read_strongly_consistent().await?;
 
             extend_issues(&mut plain_issues, peek_issues(update_op).await?);
 
             Ok(UpdateStreamItem::Found {
-                update: update_op.connect().await?,
+                update,
                 issues: plain_issues,
             }
             .cell())
         }
         ResolveSourceRequestResult::HttpProxy(proxy_result_op) => {
             let proxy_result_vc = proxy_result_op.connect();
-            let proxy_result_value = proxy_result_vc.await?;
+            // Collectibles are only stable after a strongly consistent read of their source.
+            let proxy_result_value = proxy_result_op.read_strongly_consistent().await?;
 
             if proxy_result_value.status == 404 {
                 return Ok(UpdateStreamItem::NotFound.cell());

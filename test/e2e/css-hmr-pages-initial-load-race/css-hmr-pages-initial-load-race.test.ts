@@ -33,6 +33,8 @@ describe('css-hmr-pages-initial-load-race', () => {
     const browser = await next.browser('/', {
       async beforePageLoad(page) {
         await page.addInitScript(() => {
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           ;(window as any).__appObserverDocument = crypto.randomUUID()
         })
         page.on('request', (request) => {

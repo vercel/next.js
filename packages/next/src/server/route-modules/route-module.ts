@@ -293,7 +293,11 @@ export abstract class RouteModule<
 
       result = {
         buildId: process.env.__NEXT_BUILD_ID || '',
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         buildManifest: self.__BUILD_MANIFEST as any,
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         fallbackBuildManifest: {} as any,
         reactLoadableManifest: maybeJSONParse(self.__REACT_LOADABLE_MANIFEST),
         nextFontManifest: maybeJSONParse(self.__NEXT_FONT_MANIFEST),
@@ -309,6 +313,8 @@ export abstract class RouteModule<
           version: 4,
           caseSensitive: Boolean(process.env.__NEXT_CASE_SENSITIVE_ROUTES),
           basePath: process.env.__NEXT_BASE_PATH || '',
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           rewrites: (process.env.__NEXT_REWRITES as any) || {
             beforeFiles: [],
             afterFiles: [],
@@ -318,6 +324,8 @@ export abstract class RouteModule<
           headers: [],
           onMatchHeaders: [],
           i18n:
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             (process.env.__NEXT_I18N_CONFIG as any as I18NConfig) || undefined,
           skipProxyUrlNormalize: Boolean(
             process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
@@ -487,6 +495,8 @@ export abstract class RouteModule<
         previewProps,
         serverFilesManifest,
         reactLoadableManifest,
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         clientReferenceManifest: (clientReferenceManifest as any)
           ?.__RSC_MANIFEST?.[srcPage.replace(/%5F/g, '_')],
         serverActionsManifest,
@@ -549,6 +559,8 @@ export abstract class RouteModule<
     isMinimalMode: boolean
   ): Promise<IncrementalCache> {
     if (process.env.NEXT_RUNTIME === 'edge') {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       return (globalThis as any).__incrementalCache
     } else {
       let CacheHandler: any
@@ -597,6 +609,8 @@ export abstract class RouteModule<
 
       // we need to expose this on globalThis as the app-render
       // workStore grabs the incrementalCache from there
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       ;(globalThis as any).__incrementalCache = incrementalCache
       return incrementalCache
     }
@@ -995,6 +1009,8 @@ export abstract class RouteModule<
       basePath,
       rewrites,
       pageIsDynamic,
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       trailingSlash: process.env.__NEXT_TRAILING_SLASH as any as boolean,
       caseSensitive: Boolean(routesManifest.caseSensitive),
     })

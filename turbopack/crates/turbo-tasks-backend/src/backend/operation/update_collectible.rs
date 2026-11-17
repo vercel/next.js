@@ -8,7 +8,7 @@ use crate::{
         TaskDataCategory,
         operation::{
             AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue,
-            CollectiblesUpdateVec, ExecuteContext,
+            CollectiblesUpdateVec, ExecuteContext, stage_outgoing_collectibles,
         },
         storage_schema::TaskStorageAccessors,
     },
@@ -92,10 +92,9 @@ impl UpdateCollectibleOperation {
             }
         }
         if !collectibles.is_empty() {
-            queue.extend(AggregationUpdateJob::data_update(
-                &mut task,
-                AggregatedDataUpdate::new().collectibles_update(collectibles),
-            ));
+            let mut update = AggregatedDataUpdate::new().collectibles_update(collectibles);
+            stage_outgoing_collectibles(&mut task, &mut update);
+            queue.extend(AggregationUpdateJob::data_update(&mut task, update));
         }
 
         drop(task);

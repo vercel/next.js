@@ -357,6 +357,8 @@ export function getServerUtils({
 
         Object.assign(rewriteParams, destQuery, params)
         Object.assign(rewrittenParsedUrl.query, parsedDestination.query)
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         delete (parsedDestination as any).query
 
         Object.assign(rewrittenParsedUrl, parsedDestination)

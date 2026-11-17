@@ -398,6 +398,8 @@ function findStaticInversion(gates: Gate[]): Gate | null {
 }
 
 function resolveTestFn(kind: string): TestFn {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   const g = global as any
   switch (kind) {
     case 'it':
@@ -421,6 +423,8 @@ function resolveTestFn(kind: string): TestFn {
 
 /** The `.skip` counterpart of `resolveTestFn`, for a false `@force-gate`. */
 function resolveSkipFn(kind: string): TestFn {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   const g = global as any
   if (kind.startsWith('describe')) return g.describe.skip
   if (kind.startsWith('test')) return g.test.skip
@@ -444,6 +448,8 @@ export function _test_gate_describe_each(
   pragmas: GatePragma[],
   table: readonly unknown[]
 ) {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   const g = global as any
   const allGates = pragmas.map(parseGate)
   return createGatedTest(
@@ -559,6 +565,8 @@ export function findLazyForceSkip(
  */
 function wrapTestGlobals(): void {
   for (const key of ['it', 'test'] as const) {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const original = (global as any)[key]
     if (typeof original !== 'function' || original.__gateWrapped) continue
 
@@ -592,6 +600,8 @@ function wrapTestGlobals(): void {
       },
     })
     Object.defineProperty(wrapped, '__gateWrapped', { value: true })
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     ;(global as any)[key] = wrapped
   }
 }
@@ -609,6 +619,8 @@ function wrapHookGlobals(): void {
     'beforeEach',
     'afterEach',
   ] as const) {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const original = (global as any)[key]
     if (typeof original !== 'function' || original.__gateWrapped) continue
 
@@ -632,13 +644,19 @@ function wrapHookGlobals(): void {
       },
     })
     Object.defineProperty(wrapped, '__gateWrapped', { value: true })
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     ;(global as any)[key] = wrapped
   }
 }
 
 /** Called from `test/jest-setup-after-env.ts`. */
 export function installGate(): void {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(global as any)._test_gate = _test_gate
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(global as any)._test_gate_describe_each = _test_gate_describe_each
   wrapTestGlobals()
   wrapHookGlobals()

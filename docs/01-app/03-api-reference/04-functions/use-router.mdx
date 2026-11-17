@@ -117,6 +117,8 @@ router.forward()
 
 Navigate forwards to the next page in the browser’s history stack.
 
+`router.back()` and `router.forward()` do not trigger view transition animations. See [view transitions during browser history navigation](/docs/app/guides/view-transitions#browser-history-navigation).
+
 ### `router.bfcacheId`
 
 An opaque string identifier scoped to the current route segment. It changes when the surrounding segment is freshly created by a push or replace navigation, and stays the same for back/forward navigations, `router.refresh()`, and search-param- or hash-only navigations. See [`bfcacheId`](#bfcacheid) below for details.
