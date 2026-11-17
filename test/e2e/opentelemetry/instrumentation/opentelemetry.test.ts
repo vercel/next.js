@@ -7,6 +7,7 @@ import path from 'path'
 
 import { SavedSpan } from './constants'
 import { type Collector, connectCollector } from './collector'
+import { assertNoErrorSpansInSuccessfulTraces } from './span-invariants'
 
 const EXTERNAL = {
   traceId: 'ee75cd9e534ff5e9ed78b4a0c706f0f2',
@@ -126,6 +127,18 @@ describe.each(
   }
 
   let connectedCollector: Collector
+
+  // Routes that deliberately fail (e.g. `error`, `stream-error`,
+  // `revalidation-error`, `getServerSidePropsError`) can record ERROR spans
+  // even though the response status is below 400.
+  const errorRoute = /error/i
+
+  afterEach(() => {
+    assertNoErrorSpansInSuccessfulTraces(getCollector().getAllSpans(), {
+      ignore: (root) =>
+        errorRoute.test(String(root.attributes?.['http.target'] ?? '')),
+    })
+  })
 
   async function expectAppRouteTrace(pathname: string) {
     expect((await next.fetch(pathname)).status).toBe(200)
