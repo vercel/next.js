@@ -27,6 +27,10 @@ type RequestInsight = {
   startTime: number
   completedAt?: number
   status: 'ok'
+  rscPayload?: {
+    status: 'complete' | 'incomplete' | 'unavailable'
+    boundaries?: Array<{ name: string; instances: number; bytes: number }>
+  }
   spans: Array<{
     name?: string
     traceId?: string
@@ -149,6 +153,43 @@ describe('request insights', () => {
     expect(result.cliOutput).toMatch(
       /No request insights captured yet|retained requests \(newest first\)/
     )
+  })
+
+  // Catches Flight protocol changes from React updates: the payload analyzer
+  // fails closed on unknown rows, and a known prop must be measured as its
+  // serialized size.
+  it('records the estimated RSC payload of a request', async () => {
+    await next.render('/rsc-payload')
+    const expectedRowsPropBytes = Buffer.byteLength(
+      JSON.stringify({
+        rows: Array.from({ length: 500 }, (_, index) => ({
+          id: index,
+          name: `user-${index}`,
+          email: `user${index}@example.com`,
+        })),
+      })
+    )
+
+    await retry(async () => {
+      const snapshot = (await next
+        .fetch('/_next/development/request-insights')
+        .then((response) => response.json())) as { requests: RequestInsight[] }
+      const rscPayload = snapshot.requests.findLast(
+        (request) =>
+          request.kind !== 'instant-insights' &&
+          request.route === '/rsc-payload'
+      )?.rscPayload
+      expect(rscPayload?.status).toBe('complete')
+      const [topBoundary] = rscPayload?.boundaries ?? []
+      expect(topBoundary?.name).toBe('app/rsc-payload/rows-table.tsx#RowsTable')
+      expect(topBoundary?.instances).toBe(1)
+      expect(topBoundary?.bytes).toBeGreaterThanOrEqual(
+        expectedRowsPropBytes * 0.9
+      )
+      expect(topBoundary?.bytes).toBeLessThanOrEqual(
+        expectedRowsPropBytes * 1.1
+      )
+    })
   })
 
   it('keeps outer server and app render spans on the same request', async () => {
