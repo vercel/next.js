@@ -12,7 +12,7 @@ Some common approaches to this problem:
 - Updating state in `useEffect` after hydration avoids the error but can introduce a visible flash and adds a render.
 - Rendering only on the server means giving up on client-specific formatting entirely.
 
-Using an **inline script** that runs synchronously as the browser parses the HTML, you can update the DOM **before the first paint**. This guide covers dates, themes, and persisted UI state. If a shared value or placeholder is acceptable until React loads, use [`use(browser())` with Suspense](#rendering-client-specific-content).
+Using an **inline script** that runs synchronously as the browser parses the HTML, you can update the DOM **before the first paint**. This guide covers dates, themes, and persisted UI state.
 
 ## Choose an approach
 
@@ -603,8 +603,6 @@ React replaces the fallback when the inner component is ready, coordinating the 
 
 In this example, `suppressHydrationWarning` applies to the fallback because its date formatting can differ between the server and browser. A shared placeholder doesn't need it.
 
-If a browser-specific value must be applied before React loads, use the inline-script patterns above.
-
 ### Subscribing to browser values
 
 Use [`useSyncExternalStore`](https://react.dev/reference/react/useSyncExternalStore#adding-support-for-server-rendering) for a value with an ongoing subscription, such as network status or a shared `localStorage` store. `getSnapshot` reads the current value, and `subscribe` registers a callback that runs when it changes. Return the same snapshot while the underlying value is unchanged.
@@ -613,7 +611,7 @@ If a `useSyncExternalStore` call only uses an empty subscription and returns `fa
 
 For server rendering, provide a `getServerSnapshot` that returns the same value on the server and during hydration. React then reads the client snapshot. This avoids copying the value into state in a mount effect, but the initial server snapshot can still be visible before it updates.
 
-For `localStorage`, notify subscribers when your page writes to storage as well as listening for `storage` events from other documents. If the value is owned by one component, keep it in React state instead; a browser-only component can initialize that state directly, as in the [editor example](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
+For `localStorage`, notify subscribers when your page writes to storage as well as listening for `storage` events from other documents. If the value is owned by one component, keep it in React state instead.
 
 ### Why not `useEffect`?
 
@@ -636,8 +634,6 @@ export default function App() {
 ```
 
 This avoids a hydration mismatch, but the user can see the placeholder before the effect runs. The synchronous `setIsClient(true)` update also adds an extra render and is reported as an error by `eslint-config-next`'s [`react-hooks/set-state-in-effect`](https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect) rule. If the update suspends, it can reactivate a parent Suspense fallback.
-
-Use [`use(browser())`](#rendering-client-specific-content) with a useful server-rendered fallback or a placeholder. Choose an inline script when the client-specific value needs to be visible on the first paint, or [`useSyncExternalStore`](#subscribing-to-browser-values) for external-store subscriptions.
 
 [`useEffect`](https://react.dev/reference/react/useEffect) still handles ongoing synchronization with external systems, such as starting and cleaning up a timer. `use(browser())` only defers rendering until the browser.
 
