@@ -2038,8 +2038,13 @@ impl Endpoint for PageEndpoint {
 
     #[turbo_tasks::function]
     async fn module_graphs(self: Vc<Self>) -> Result<Vc<ModuleGraphs>> {
-        let client_module_graph = self.client_module_graph().to_resolved().await?;
         let ssr_module_graph = self.ssr_module_graph().to_resolved().await?;
+        // Like the output, only HTML pages have a client graph: building it for e.g. an API route
+        // would resolve its server-only modules for the browser.
+        if self.await?.ty != PageEndpointType::Html {
+            return Ok(Vc::cell(vec![ssr_module_graph]));
+        }
+        let client_module_graph = self.client_module_graph().to_resolved().await?;
         Ok(Vc::cell(if client_module_graph != ssr_module_graph {
             vec![client_module_graph, ssr_module_graph]
         } else {

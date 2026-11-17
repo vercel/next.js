@@ -30,6 +30,7 @@ use crate::{
     condition::ContextCondition,
     generated_code_source::GeneratedCodeSource,
     ident::{AssetIdent, Layer},
+    module_graph::ModuleGraphs,
     source::Source,
     source_map::{GenerateSourceMap, SourceMap, SourceMapType, TokenWithSource},
     source_pos::SourcePos,
@@ -179,33 +180,6 @@ pub trait Issue {
     /// context about the error.
     async fn additional_sources(&self) -> Result<Vec<AdditionalIssueSource>> {
         Ok(vec![])
-    }
-}
-
-// A collectible trait that allows traces to be computed for a given module.
-#[turbo_tasks::value_trait]
-pub trait ImportTracer {
-    #[turbo_tasks::function]
-    fn get_traces(self: Vc<Self>, path: FileSystemPath) -> Vc<ImportTraces>;
-}
-
-#[turbo_tasks::value]
-#[derive(Debug)]
-pub struct DelegatingImportTracer {
-    delegates: AutoSet<ResolvedVc<Box<dyn ImportTracer>>>,
-}
-
-impl DelegatingImportTracer {
-    async fn get_traces(&self, path: FileSystemPath) -> Result<Vec<ImportTrace>> {
-        Ok(self
-            .delegates
-            .iter()
-            .map(|d| d.get_traces(path.clone()))
-            .try_join()
-            .await?
-            .iter()
-            .flat_map(|v| v.0.iter().cloned())
-            .collect())
     }
 }
 
@@ -398,7 +372,6 @@ impl IssueFilter {
 #[derive(Debug)]
 pub struct CapturedIssues {
     issues: AutoSet<ResolvedVc<Box<dyn Issue>>>,
-    tracer: ResolvedVc<DelegatingImportTracer>,
 }
 
 impl CapturedIssues {
@@ -407,15 +380,28 @@ impl CapturedIssues {
         self.issues.iter().copied()
     }
 
-    // Returns all the issues as formatted `PlainIssues`.
-    pub async fn get_plain_issues(&self, filter: &IssueFilter) -> Result<Vec<ReadRef<PlainIssue>>> {
+    /// Returns all the issues as formatted `PlainIssues`, with import traces in `module_graphs`.
+    ///
+    /// The `module_graphs` should be the graphs that the source of the issues was compiled with.
+    /// They are only resolved when there are issues, and an error in them only drops the traces.
+    pub async fn get_plain_issues(
+        &self,
+        filter: &IssueFilter,
+        module_graphs: Option<Vc<ModuleGraphs>>,
+    ) -> Result<Vec<ReadRef<PlainIssue>>> {
+        let module_graphs = match module_graphs {
+            Some(module_graphs) if !self.issues.is_empty() => {
+                module_graphs.to_resolved().await.ok()
+            }
+            _ => None,
+        };
         let mut list = self
             .issues
             .iter()
             .map(async |issue| {
                 if filter.matches(*issue).await? {
                     Ok(Some(
-                        PlainIssue::from_issue(**issue, Some(*self.tracer)).await?,
+                        PlainIssue::from_issue(**issue, module_graphs.map(|g| *g)).await?,
                     ))
                 } else {
                     Ok(None)
@@ -989,10 +975,10 @@ impl PlainIssue {
     #[turbo_tasks::function]
     pub async fn from_issue(
         issue: ResolvedVc<Box<dyn Issue>>,
-        import_tracer: Option<ResolvedVc<DelegatingImportTracer>>,
+        module_graphs: Option<ResolvedVc<ModuleGraphs>>,
     ) -> Result<Vc<Self>> {
         Ok(
-            Self::from_issue_ref(&*issue.into_trait_ref().await?, import_tracer)
+            Self::from_issue_ref(&*issue.into_trait_ref().await?, module_graphs)
                 .await?
                 .cell(),
         )
@@ -1000,9 +986,10 @@ impl PlainIssue {
 }
 
 impl PlainIssue {
+    /// `module_graphs` are the graphs to find import traces of the issue in.
     pub async fn from_issue_ref(
         trait_ref: &dyn Issue,
-        import_tracer: Option<ResolvedVc<DelegatingImportTracer>>,
+        module_graphs: Option<ResolvedVc<ModuleGraphs>>,
     ) -> Result<Self> {
         let severity = trait_ref.severity();
         let file_path = trait_ref.file_path().await?;
@@ -1037,9 +1024,10 @@ impl PlainIssue {
                     .try_join()
                     .await?
             },
-            import_traces: match import_tracer {
-                Some(tracer) => {
-                    into_plain_trace(tracer.await?.get_traces(file_path).await?).await?
+            import_traces: match module_graphs {
+                Some(module_graphs) => {
+                    into_plain_trace(module_graphs.import_traces(file_path).await?.0.clone())
+                        .await?
                 }
                 None => vec![],
             },
@@ -1137,11 +1125,6 @@ where
     fn peek_issues(self) -> CapturedIssues {
         CapturedIssues {
             issues: self.peek_collectibles(),
-
-            tracer: DelegatingImportTracer {
-                delegates: self.peek_collectibles(),
-            }
-            .resolved_cell(),
         }
     }
 
@@ -1160,7 +1143,7 @@ where
 async fn collect_issues(source: OperationVc<()>) -> Result<Vc<PlainIssues>> {
     let plain = source
         .peek_issues()
-        .get_plain_issues(&IssueFilter::everything())
+        .get_plain_issues(&IssueFilter::everything(), None)
         .await?;
     Ok(PlainIssues(plain).cell())
 }

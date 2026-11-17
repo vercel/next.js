@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level, Span};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CollectiblesSource, JoinIterExt, NonLocalValue, OperationVc, ReadRef, ResolvedVc,
+    CollectiblesSource, FxIndexSet, JoinIterExt, NonLocalValue, OperationVc, ReadRef, ResolvedVc,
     TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
@@ -31,7 +31,7 @@ use turbo_tasks_fs::FileSystemPath;
 use crate::{
     chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType, MergeableModule, TracedMode},
     ident::AssetIdent,
-    issue::{ImportTracer, ImportTraces, Issue, IssueExt, IssueSeverity, analyze::AnalyzeIssue},
+    issue::{ImportTraces, Issue, IssueExt, IssueSeverity, analyze::AnalyzeIssue},
     module::{Module, ModuleSideEffects},
     module_graph::{
         async_module_info::{AsyncModulesInfo, compute_async_module_info},
@@ -619,10 +619,6 @@ impl SingleModuleGraph {
             entry_nodes: OnceLock::new(),
         }
         .cell();
-
-        turbo_tasks::emit(ResolvedVc::upcast::<Box<dyn ImportTracer>>(
-            ModuleGraphImportTracer::new(graph).to_resolved().await?,
-        ));
         Ok(graph)
     }
 
@@ -794,6 +790,41 @@ impl SingleModuleGraph {
     }
 }
 
+/// The module graphs that something (e.g. an endpoint) was compiled with.
+#[turbo_tasks::value(transparent)]
+pub struct ModuleGraphs(Vec<ResolvedVc<ModuleGraph>>);
+
+#[turbo_tasks::value_impl]
+impl ModuleGraphs {
+    /// The import traces of the modules at `path`: for each graph that contains them, the shortest
+    /// import path from an entry of that graph. Used to explain to the user why a module with an
+    /// issue is part of the compilation.
+    #[turbo_tasks::function]
+    pub async fn import_traces(&self, path: FileSystemPath) -> Result<Vc<ImportTraces>> {
+        // The graphs can share their inputs (e.g. a base graph), each is traced once.
+        let graphs: FxIndexSet<OperationVc<SingleModuleGraph>> = self
+            .0
+            .iter()
+            .map(async |graph| Ok(graph.await?.input_graphs.clone()))
+            .try_join()
+            .await?
+            .into_iter()
+            .flatten()
+            .collect();
+        let traces = graphs
+            .into_iter()
+            .map(async |graph| {
+                let graph = graph.connect().to_resolved().await?;
+                ModuleGraphImportTracer::new(*graph)
+                    .get_traces(path.clone())
+                    .await
+            })
+            .try_join()
+            .await?;
+        Ok(ImportTraces(traces.iter().flat_map(|t| t.0.iter().cloned()).collect()).cell())
+    }
+}
+
 #[turbo_tasks::value]
 struct ModuleGraphImportTracer {
     graph: ResolvedVc<SingleModuleGraph>,
@@ -836,10 +867,8 @@ impl ModuleGraphImportTracer {
         }
         Ok(PathToModulesMap::cell(PathToModulesMap { map }))
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ImportTracer for ModuleGraphImportTracer {
+    /// The shortest import paths from the entries of the graph to the modules at `path`.
     #[turbo_tasks::function]
     async fn get_traces(self: Vc<Self>, path: FileSystemPath) -> Result<Vc<ImportTraces>> {
         let path_to_modules = self.path_to_modules().await?;

@@ -43,7 +43,7 @@ use turbopack_core::{
     ident::Layer,
     issue::{CollectibleIssuesExt, IssueFilter},
     module_graph::{
-        ModuleGraph, ModuleGraphOptions, SingleModuleGraph,
+        ModuleGraph, ModuleGraphOptions, ModuleGraphs, SingleModuleGraph,
         binding_usage_info::compute_binding_usage_info,
     },
     reference_type::{InnerAssets, ReferenceType},
@@ -80,6 +80,8 @@ use crate::util::REPO_ROOT;
 struct RunTestResult {
     js_result: ResolvedVc<JsResult>,
     path: FileSystemPath,
+    /// The graphs the test was compiled with, for the import traces of its issues.
+    module_graphs: ResolvedVc<ModuleGraphs>,
 }
 
 #[turbo_tasks::value]
@@ -627,6 +629,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         module_graph = ModuleGraph::from_graphs(vec![single_graph], Some(binding_usage));
     }
     let module_graph = module_graph.connect();
+    let module_graphs = ResolvedVc::cell(vec![module_graph.to_resolved().await?]);
 
     let mut builder = NodeJsChunkingContext::builder(
         project_root.clone(),
@@ -723,6 +726,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             }
             .resolved_cell(),
             path: path.clone(),
+            module_graphs,
         }
         .cell());
     };
@@ -730,6 +734,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     Ok(RunTestResult {
         js_result: JsResult::resolved_cell(parse_json_with_source_context(str)?),
         path: path.clone(),
+        module_graphs,
     }
     .cell())
 }
@@ -740,11 +745,15 @@ async fn snapshot_issues(
     run_result_op: OperationVc<RunTestResult>,
 ) -> Result<()> {
     let PreparedTest { path, .. } = &*prepared_test.await?;
-    let _ = run_result_op.resolve().strongly_consistent().await;
+    let module_graphs = run_result_op
+        .read_strongly_consistent()
+        .await
+        .ok()
+        .map(|result| *result.module_graphs);
 
     let plain_issues = run_result_op
         .peek_issues()
-        .get_plain_issues(&IssueFilter::everything())
+        .get_plain_issues(&IssueFilter::everything(), module_graphs)
         .await?;
 
     turbopack_test_utils::snapshot::snapshot_issues(plain_issues, path.join("issues")?, &REPO_ROOT)
