@@ -164,6 +164,8 @@ test('Page', () => {
 
 > **Good to know**: The example above uses the common `__tests__` convention, but test files can also be colocated inside the `app` router.
 
+Vitest's jsdom setup does not run the App Router navigation runtime. Use explicit mocks to test your own `onNavigate` logic or UI that uses `useLinkStatus`. To verify navigation and pending state, use [Playwright E2E tests](/docs/app/guides/testing/playwright#creating-your-first-playwright-e2e-test) against a running Next.js application.
+
 </AppOnly>
 
 <PagesOnly>
@@ -217,26 +219,6 @@ test('Page', () => {
 ```
 
 </PagesOnly>
-
-## Testing navigation
-
-The setup above renders components in jsdom without running a Next.js application. You can test a `<Link>` component's rendered text and `href`, but clicking it does not exercise Next.js navigation as it would in your application.
-
-<AppOnly>
-
-In this setup, `next/link` resolves to the Pages Router implementation because Vitest does not apply Next.js's App Router aliases. Without router context, clicking a link does not call `onNavigate`. The Pages Router's `useLinkStatus` always returns `{ pending: false }`. Mocking `next/navigation` alone does not enable App Router navigation or pending state.
-
-</AppOnly>
-
-To unit-test your own `onNavigate` logic, test the handler as a function or use [`vi.mock`](https://vitest.dev/api/vi.html#vi-mock) to provide an explicit `next/link` mock that invokes the handler. These tests verify your handler's behavior with the supplied event, rather than when Next.js calls it.
-
-<AppOnly>
-
-To unit-test UI that uses `useLinkStatus`, mock the hook's return value with both `{ pending: false }` and `{ pending: true }`. This tests how your UI responds to each state, rather than how navigation changes the state.
-
-</AppOnly>
-
-Use [Playwright E2E tests](/docs/app/guides/testing/playwright#creating-your-first-playwright-e2e-test) against a running Next.js application to verify navigation, `onNavigate` cancellation, and App Router pending feedback.
 
 ## Running your tests
 
