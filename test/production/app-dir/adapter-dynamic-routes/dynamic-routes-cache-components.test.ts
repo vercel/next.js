@@ -41,15 +41,7 @@ describe('adapter dynamic routes (cache components)', () => {
 
     expect(serializeDynamicRoutes(routing.dynamicRoutes))
       .toMatchInlineSnapshot(`
-     "14 entries
-
-     /_not-found.rsc
-       ^/_not\\-found\\.rsc(?:/)?$
-       -> /_not-found
-
-     /_global-error.rsc
-       ^/_global\\-error\\.rsc(?:/)?$
-       -> /_global-error
+     "12 entries
 
      /[lang]
        ^[/]?/(?<nxtPlang>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$

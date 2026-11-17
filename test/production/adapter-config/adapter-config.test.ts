@@ -681,4 +681,60 @@ describe('adapter-config', () => {
       '/docs/isr-app/first.rsc'
     )
   })
+
+  it('resolves static .rsc requests before user afterFiles rewrites', async () => {
+    const {
+      outputs,
+      routing,
+      buildId,
+    }: Parameters<NextAdapter['onBuildComplete']>[0] = await next.readJSON(
+      'build-complete.json'
+    )
+    const pathnames = [
+      ...outputs.appPages,
+      ...outputs.appRoutes,
+      ...outputs.pages,
+      ...outputs.pagesApi,
+      ...outputs.prerenders,
+      ...outputs.staticFiles,
+    ].map((output) => output.pathname)
+
+    // A user catch-all afterFiles rewrite. It must not capture the `.rsc`
+    // form of a static page, which used to be an output of its own and so
+    // resolved before any afterFiles rewrite.
+    const routes = {
+      ...routing,
+      afterFiles: [
+        ...routing.afterFiles,
+        {
+          sourceRegex: '^/docs/(?<slug>[^/]+?)(?:/)?$',
+          destination: '/docs/node-app/$slug',
+        },
+      ],
+    }
+    const resolve = (pathname: string) =>
+      resolveRoutes({
+        url: new URL(pathname, 'http://localhost'),
+        buildId,
+        basePath: '/docs',
+        requestBody: new ReadableStream(),
+        headers: new Headers({ rsc: '1' }),
+        pathnames,
+        routes,
+        invokeMiddleware: async () => ({}),
+      })
+
+    // The rewrite is active for paths without an output.
+    expect((await resolve('/docs/not-a-page')).resolvedPathname).toBe(
+      '/docs/node-app/[slug]'
+    )
+
+    for (const [pathname, expected] of [
+      ['/docs/node-app.rsc', '/docs/node-app'],
+      ['/docs/edge-app.rsc', '/docs/edge-app'],
+      ['/docs/node-route.rsc', '/docs/node-route'],
+    ]) {
+      expect((await resolve(pathname)).resolvedPathname).toBe(expected)
+    }
+  })
 })

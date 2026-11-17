@@ -2371,7 +2371,7 @@ export async function handleBuildComplete({
     const dynamicRoutes: DynamicRouteItem[] = []
     const dynamicDataRoutes: DynamicRouteItem[] = []
     const dynamicSegmentRoutes: DynamicRouteItem[] = []
-    const staticRscRoutes: DynamicRouteItem[] = []
+    const staticRscRoutes: RewriteItem[] = []
 
     const getDestinationQuery = (routeKeys: Record<string, string>) => {
       const items = Object.entries(routeKeys ?? {})
@@ -2600,7 +2600,9 @@ export async function handleBuildComplete({
     }
 
     // A request for `X.rsc` that no prerendered output serves goes to the
-    // function `X` of a static App Router page or route.
+    // function `X` of a static App Router page or route. These rewrites lead
+    // `afterFiles`, so they run after the output check, like the `.rsc`
+    // function outputs they replace, but before any user afterFiles rewrite.
     for (const pathname of rscFunctionPathnames) {
       if (isDynamicRoute(pathname)) {
         continue
@@ -2718,14 +2720,16 @@ export async function handleBuildComplete({
 
       const combinedDynamicRoutes = [
         ...dynamicDataRoutes,
-        ...staticRscRoutes,
         ...dynamicSegmentRoutes,
         ...dynamicRoutes,
       ] satisfies Route[]
 
       const rewrites = {
         beforeFiles: routesManifest.rewrites.beforeFiles.map(buildRewriteItem),
-        afterFiles: routesManifest.rewrites.afterFiles.map(buildRewriteItem),
+        afterFiles: [
+          ...staticRscRoutes,
+          ...routesManifest.rewrites.afterFiles.map(buildRewriteItem),
+        ],
         fallback: routesManifest.rewrites.fallback.map(buildRewriteItem),
       }
 

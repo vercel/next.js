@@ -21,11 +21,13 @@ Rewrite routes checked before filesystem route matching.
 
 Rewrite routes checked after filesystem route matching.
 
+The first entries route `X.rsc` requests to the function `X` of a static App Router page or route (`/index.rsc` for the root). They come before user rewrites. Next.js does not emit a separate `.rsc` function output, so a `.rsc` request that no prerendered output serves resolves through these entries.
+
 ## `routing.dynamicRoutes`
 
 Dynamic matchers generated from route segments such as `[slug]` and catch-all routes.
 
-These routes also route `X.rsc` requests to the App Router function `X`. Next.js does not emit a separate `.rsc` function output, so a `.rsc` request that no prerendered output serves resolves through these routes.
+These routes also route `X.rsc` requests for a dynamic App Router page or route to its function `X`.
 
 ## `routing.onMatch`
 

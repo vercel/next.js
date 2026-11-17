@@ -42,15 +42,7 @@ describe('adapter dynamic routes (no root params)', () => {
 
     expect(serializeDynamicRoutes(routing.dynamicRoutes))
       .toMatchInlineSnapshot(`
-     "8 entries
-
-     /_not-found.rsc
-       ^/_not\\-found\\.rsc(?:/)?$
-       -> /_not-found
-
-     /_global-error.rsc
-       ^/_global\\-error\\.rsc(?:/)?$
-       -> /_global-error
+     "6 entries
 
      /$1/posts/[id]
        ^[/]?/(acme\\.one\\-two,three/de|acme\\.one\\-two,three/en)/posts/(?<nxtPid>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$

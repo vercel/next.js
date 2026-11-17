@@ -40,7 +40,7 @@ describe('adapter dynamic routes (legacy)', () => {
 
     expect(serializeDynamicRoutes(routing.dynamicRoutes))
       .toMatchInlineSnapshot(`
-     "15 entries
+     "13 entries
 
      /legacy/[id]
        ^/_next/data/test\\-build\\-id[/]?/legacy/(?<nxtPid>[^/]+?)\\.json(?:/)?$
@@ -54,14 +54,6 @@ describe('adapter dynamic routes (legacy)', () => {
      /static-two
        ^/_next/data/test\\-build\\-id[/]?/static\\-two\\.json(?:/)?$
        -> /static-two
-
-     /_not-found.rsc
-       ^/_not\\-found\\.rsc(?:/)?$
-       -> /_not-found
-
-     /api/data.rsc
-       ^/api/data\\.rsc(?:/)?$
-       -> /api/data
 
      /blog/[slug]
        ^[/]?/blog/(?<nxtPslug>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$

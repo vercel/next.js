@@ -26,15 +26,7 @@ describe('adapter dynamic routes (shell prefixes, one combination)', () => {
 
     expect(serializeDynamicRoutes(routing.dynamicRoutes))
       .toMatchInlineSnapshot(`
-     "5 entries
-
-     /_not-found.rsc
-       ^/_not\\-found\\.rsc(?:/)?$
-       -> /_not-found
-
-     /_global-error.rsc
-       ^/_global\\-error\\.rsc(?:/)?$
-       -> /_global-error
+     "3 entries
 
      /acme.one-two,three/en/posts/[id]
        ^[/]?/acme\\.one\\-two,three/en/posts/(?<nxtPid>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
