@@ -20,9 +20,11 @@ const fileLoader = {
 const moduleTypes = ['json', 'asset'] as const
 
 const nextConfig: NextConfig = {
+  productionBrowserSourceMaps: true,
   cacheComponents: false,
   experimental: {
     cachedNavigations: false,
+    serverSourceMaps: true,
   },
   turbopack: {
     rules: {
@@ -153,7 +155,16 @@ const nextConfig: NextConfig = {
       },
     },
   },
-  webpack(config, { isServer, nextRuntime }) {
+  webpack(config, { isServer, nextRuntime, dev, webpack }) {
+    // Webpack's dev devtool emits no maps for emitted files, so add them like Turbopack does.
+    if (dev) {
+      config.plugins.push(
+        new webpack.SourceMapDevToolPlugin({
+          filename: '[file].map',
+          test: /(?:mapped-asset\.js|original-name\.js|mapped-styles\.css)$/,
+        })
+      )
+    }
     const outputPath = isServer
       ? nextRuntime === 'nodejs'
         ? nodeOutputPath

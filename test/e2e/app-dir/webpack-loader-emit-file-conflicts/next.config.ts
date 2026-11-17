@@ -7,9 +7,11 @@ const outputPath =
 
 const loaderNames: Record<string, string> = {
   'per-compiler': 'compiler',
+  'same-map': 'map',
 }
 
 const nextConfig: NextConfig = {
+  productionBrowserSourceMaps: true,
   turbopack: {
     rules: {
       '*.first': {
@@ -18,6 +20,10 @@ const nextConfig: NextConfig = {
       },
       '*.second': {
         loaders: [{ loader: './second-loader.js', options: { outputPath } }],
+        as: '*.js',
+      },
+      '*.same-map': {
+        loaders: [{ loader: './map-loader.js', options: { outputPath } }],
         as: '*.js',
       },
       '*.name': {
@@ -55,6 +61,7 @@ const nextConfig: NextConfig = {
       'second',
       'per-compiler',
       'route',
+      'same-map',
       'name',
     ]) {
       config.module.rules.push({

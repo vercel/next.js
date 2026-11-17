@@ -50,8 +50,8 @@ use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     CollectiblesSource, Completion, Completions, FxIndexMap, InvalidationReason, NonLocalValue,
-    OperationValue, OperationVc, OrderedAutoMap, ReadRef, ResolvedVc, State, TransientInstance,
-    TryFlatJoinIterExt, TryJoinIterExt, Vc, debug::ValueDebugFormat, fxindexmap,
+    OperationValue, OperationVc, OrderedAutoMap, PrettyPrintError, ReadRef, ResolvedVc, State,
+    TransientInstance, TryFlatJoinIterExt, TryJoinIterExt, Vc, debug::ValueDebugFormat, fxindexmap,
     message_queue::TraceEvent, turbo_tasks,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
@@ -74,7 +74,7 @@ use turbopack_core::{
     },
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
-    emitted_output::{EmittedFile, EmittedFileCollectible, EmittedOutputAsset},
+    emitted_output::{EmittedFile, EmittedFileCollectible, EmittedOutputAsset, prepare_source_map},
     environment::NodeJsVersion,
     file_source::FileSource,
     ident::Layer,
@@ -3452,7 +3452,12 @@ async fn loader_emitted_output_assets(
     let static_root = node_root.join("static")?;
     // Client assets are written from the client filesystem, which is rebased onto the node root.
     let client_static_root = project.client_relative_path().await?.join("static")?;
-    let is_development = project.next_mode().await?.is_development();
+    let mode = project.next_mode();
+    let is_development = mode.await?.is_development();
+    let next_config = project.next_config();
+    let client_maps = next_config.client_source_maps(mode).await?.is_some();
+    let server_maps = next_config.server_source_maps().await?.is_some();
+    let project_path = project.project_path().owned().await?;
     let mut placed = Vec::new();
     let mut first_at_path: FxHashMap<FileSystemPath, ResolvedVc<FileContent>> =
         FxHashMap::default();
@@ -3490,21 +3495,21 @@ async fn loader_emitted_output_assets(
             );
             continue;
         };
-        let path = if let Some(relative) = static_root.get_relative_path_to(&path)
+        let (path, source_maps) = if let Some(relative) = static_root.get_relative_path_to(&path)
             && path.is_inside_ref(&static_root)
         {
-            client_static_root.join(&relative)?
+            (client_static_root.join(&relative)?, client_maps)
         } else {
-            path
+            (path, server_maps)
         };
-        // Write identical content once; leave conflicts for the emitter.
+        // Keep the first map for identical content; leave conflicts for the emitter.
         if let Some(first) = first_at_path.get(&path)
             && (*first == file.content || *first.await? == *file.content.await?)
         {
             continue;
         }
         first_at_path.entry(path.clone()).or_insert(file.content);
-        placed.push((path, file));
+        placed.push((path, source_maps, file));
     }
     let mut directories = FxHashSet::default();
     for path in first_at_path.keys() {
@@ -3516,7 +3521,7 @@ async fn loader_emitted_output_assets(
             parent = parent.parent();
         }
     }
-    placed.retain(|(path, file)| {
+    placed.retain(|(path, _, file)| {
         let is_directory = directories.contains(path);
         if is_directory {
             emitted_file_issue(
@@ -3529,9 +3534,29 @@ async fn loader_emitted_output_assets(
     });
     placed
         .into_iter()
-        .map(async |(path, file)| {
+        .map(async |(path, source_maps, file)| {
+            let mut source_map = None;
+            if source_maps && let Some(raw) = file.source_map {
+                match prepare_emitted_source_map(*file.content, *raw, project_path.clone())
+                    .to_resolved()
+                    .await
+                {
+                    Ok(map) if !matches!(*map.await?, FileContent::NotFound) => {
+                        source_map = Some(map)
+                    }
+                    Ok(_) => {}
+                    Err(error) => emitted_file_issue(
+                        &file,
+                        IssueSeverity::Warning,
+                        &format!(
+                            "has an invalid source map, which was omitted: {}",
+                            PrettyPrintError(&error)
+                        ),
+                    ),
+                }
+            }
             Ok(ResolvedVc::upcast::<Box<dyn OutputAsset>>(
-                EmittedOutputAsset::new(path, *file.content)
+                EmittedOutputAsset::new(path, *file.content, source_map.map(|map| *map))
                     .to_resolved()
                     .await?,
             ))
@@ -3583,4 +3608,24 @@ impl Issue for EmittedFileIssue {
     async fn description(&self) -> Result<Option<StyledString>> {
         Ok(Some(StyledString::Text(self.description.clone())))
     }
+}
+
+#[turbo_tasks::function]
+async fn prepare_emitted_source_map(
+    content: Vc<FileContent>,
+    map: Vc<FileContent>,
+    project_path: FileSystemPath,
+) -> Result<Vc<FileContent>> {
+    let (FileContent::Content(content), FileContent::Content(map)) =
+        (&*content.await?, &*map.await?)
+    else {
+        return Ok(FileContent::NotFound.cell());
+    };
+    let map = serde_json::from_slice(&map.content().to_bytes())?;
+    Ok(
+        match prepare_source_map(map, content, &project_path).await? {
+            Some(map) => FileContent::Content(File::from(map)).cell(),
+            None => FileContent::NotFound.cell(),
+        },
+    )
 }

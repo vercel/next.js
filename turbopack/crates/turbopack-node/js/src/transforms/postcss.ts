@@ -93,11 +93,7 @@ export default async function transform(
             content: Buffer.isBuffer(msg.content)
               ? { binary: msg.content.toString('base64') }
               : msg.content,
-            sourceMap: !sourceMap
-              ? undefined
-              : typeof msg.sourceMap === 'string'
-                ? msg.sourceMap
-                : JSON.stringify(msg.sourceMap),
+            sourceMap: msg.sourceMap || undefined,
           })
         }
         break

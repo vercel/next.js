@@ -157,6 +157,7 @@ type ResolveOptions = {
 interface EmittedAsset {
   file: string
   content: string | { binary: string }
+  sourceMap?: string | object | null | false
 }
 
 interface PendingEmittedAsset extends Omit<EmittedAsset, 'content'> {
@@ -218,7 +219,11 @@ const transform = (
           target,
           mode,
           sourceMap,
-          emitFile(name: string, content: string | Buffer) {
+          emitFile(
+            name: string,
+            content: string | Buffer,
+            emittedSourceMap?: string | object | null | false
+          ) {
             if (typeof name !== 'string') {
               throw new TypeError(
                 'emitFile(name, content): name must be a string'
@@ -229,7 +234,11 @@ const transform = (
                 'emitFile(name, content): content must be a string or Buffer'
               )
             }
-            emittedAssets.set(name, { file: name, content })
+            emittedAssets.set(name, {
+              file: name,
+              content,
+              sourceMap: emittedSourceMap || undefined,
+            })
           },
           utils: { absolutify, contextify, createHash },
           getOptions() {
