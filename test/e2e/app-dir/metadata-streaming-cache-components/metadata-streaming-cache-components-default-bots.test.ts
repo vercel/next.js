@@ -26,11 +26,98 @@ function expectOptionalCatchallParams(html: string) {
       files: __dirname,
       overrideFiles: {
         'next.config.js': `
-          module.exports = {
-            cacheComponents: true,
+          module.exports = (phase, { defaultConfig }) => {
+            if (defaultConfig.adapterPath) {
+              const adapterModule = require(defaultConfig.adapterPath)
+              const adapter = adapterModule.default ?? adapterModule
+              console.log(
+                'HTML_LIMITED_BOT_PRERENDERS_CAPABILITY: ' +
+                  (adapter.unstable_capabilities?.handlesHtmlLimitedBotPrerenders === true)
+              )
+            }
+            return { cacheComponents: true }
           }
         `,
       },
+    })
+
+    const isVercelDeploy =
+      isNextDeploy && process.env.NEXT_TEST_DEPLOY_TARGET_VERCEL === '1'
+
+    function supportsHtmlLimitedBotPrerenders() {
+      const declarations = [
+        ...next.cliOutput.matchAll(
+          /HTML_LIMITED_BOT_PRERENDERS_CAPABILITY: (true|false)/g
+        ),
+      ]
+      const capability = declarations.at(-1)?.[1]
+      if (process.env.NEXT_ENABLE_ADAPTER === '1') {
+        expect(capability).toBeDefined()
+      }
+      return capability === 'true'
+    }
+
+    describe('bot cache policy', () => {
+      it.each([
+        ['/fully-static', 'fully static'],
+        ['/dynamic-page/partial', 'dynamic-page - partial'],
+      ])('serves complete metadata to bots for %s', async (pathname, title) => {
+        const warmResponse = await next.fetch(pathname, {
+          headers: { 'user-agent': 'Mozilla/5.0' },
+        })
+        expect(warmResponse.status).toBe(200)
+        await warmResponse.text()
+
+        const response = await next.fetch(pathname, {
+          headers: { 'user-agent': 'Discordbot' },
+        })
+        expect(response.status).toBe(200)
+        expect(response.headers.get('x-next-prelude-metadata')).toBeNull()
+        const $ = cheerio.load(await response.text())
+        expect($('head title').text()).toBe(title)
+        expect($('body title').length).toBe(0)
+
+        if (isVercelDeploy) {
+          expect(response.headers.get('x-vercel-cache')).toBe(
+            supportsHtmlLimitedBotPrerenders() ? 'HIT' : 'BYPASS'
+          )
+        }
+      })
+
+      it('bypasses deferred metadata for bots and preserves the cached shell', async () => {
+        const pathname = '/dynamic-metadata/partial'
+        const warmResponse = await next.fetch(pathname, {
+          headers: { 'user-agent': 'Mozilla/5.0' },
+        })
+        expect(warmResponse.status).toBe(200)
+        await warmResponse.text()
+
+        for (const userAgent of ['Discordbot', 'discordbot']) {
+          const response = await next.fetch(pathname, {
+            headers: { 'user-agent': userAgent },
+          })
+          expect(response.status).toBe(200)
+          expect(response.headers.get('x-next-prelude-metadata')).toBeNull()
+          const $ = cheerio.load(await response.text())
+          expect($('head title').text()).toBe('dynamic-metadata - partial')
+          expect($('body title').length).toBe(0)
+          if (isVercelDeploy) {
+            expect(response.headers.get('x-vercel-cache')).toBe('BYPASS')
+          }
+        }
+
+        const response = await next.fetch(pathname, {
+          headers: { 'user-agent': 'Mozilla/5.0' },
+        })
+        expect(response.status).toBe(200)
+        expect(response.headers.get('x-next-prelude-metadata')).toBe('0')
+        const $ = cheerio.load(await response.text())
+        expect($('head title').length).toBe(0)
+        expect($('body title').text()).toBe('dynamic-metadata - partial')
+        if (isVercelDeploy) {
+          expect(response.headers.get('x-vercel-cache')).toBe('HIT')
+        }
+      })
     })
 
     it('should serve the PPR shell to regular user agents', async () => {
