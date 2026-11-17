@@ -4,6 +4,7 @@ import pitchAsset from '../fixtures/asset.pitch'
 import fileAsset from '../fixtures/asset.file'
 import '../fixtures/styles.css'
 import { value } from '../fixtures/pure/module.pure'
+import { unused as autoValue } from '../fixtures/pure/symbols.auto'
 import mapped from '../fixtures/asset.mapped'
 import json from '../fixtures/data.emit-json'
 import staticAsset from '../fixtures/data.emit-asset'
@@ -18,6 +19,7 @@ export default function Page() {
       <p id="file-asset">{fileAsset}</p>
       <p id="pure-value">{value}</p>
       <p id="transitive-value">{transitiveValue}</p>
+      <p id="auto-value">{autoValue}</p>
       <p id="mapped-value">{mapped}</p>
       <p id="imported-value">{imported}</p>
       <pre id="non-js-values">

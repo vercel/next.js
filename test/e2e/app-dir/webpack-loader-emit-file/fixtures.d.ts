@@ -13,6 +13,9 @@ declare module '*.file' {
 declare module '*.pure' {
   export const value: string
 }
+declare module '*.auto' {
+  export const unused: number
+}
 declare module '*.mapped' {
   const value: string
   export default value
