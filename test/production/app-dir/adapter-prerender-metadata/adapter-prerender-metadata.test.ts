@@ -1,5 +1,6 @@
-import { stat } from 'fs/promises'
+import { readFile, stat } from 'fs/promises'
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 import type { NextAdapter } from 'next'
 
 type AdapterBuildContext = Parameters<NextAdapter['onBuildComplete']>[0]
@@ -45,6 +46,52 @@ describe('adapter-prerender-metadata', () => {
   async function getPrerenderManifest() {
     return next.readJSON('.next/prerender-manifest.json')
   }
+
+  it('preserves bot bypasses when the adapter omits the capability', async () => {
+    const prerenders = await getPrerenders()
+
+    for (const pathname of ['/ppr-shell', '/blog/[slug]']) {
+      const output = prerenders.find((entry) => entry.pathname === pathname)
+      expect(output).toBeDefined()
+      expect(output.config.bypassFor).toContainEqual({
+        type: 'header',
+        key: 'user-agent',
+        value: '.*(?:MyHTMLLimitedBot).*',
+      })
+    }
+  })
+
+  it('preserves the metadata marker through prerender regeneration', async () => {
+    const prerenders = await getPrerenders()
+    const shell = prerenders.find((output) => output.pathname === '/ppr-shell')
+    expect(shell?.fallback?.initialHeaders?.['x-next-prelude-metadata']).toBe(
+      '0'
+    )
+
+    if (!shell?.fallback?.filePath) {
+      throw new Error('Expected a cached HTML fallback for /ppr-shell')
+    }
+    const metadataPath = shell.fallback.filePath.replace(/\.html$/, '.meta')
+    const previousMetadata = await stat(metadataPath)
+    const { previewModeId } = await next.readJSON(
+      '.next/server/preview-props.json'
+    )
+    const response = await next.fetch('/ppr-shell', {
+      headers: { 'x-prerender-revalidate': previewModeId },
+    })
+    expect(response.status).toBe(200)
+    expect(response.headers.get('x-next-prelude-metadata')).toBe('0')
+    await retry(async () => {
+      expect((await stat(metadataPath)).mtimeMs).toBeGreaterThan(
+        previousMetadata.mtimeMs
+      )
+    })
+    const regenerated = JSON.parse(await readFile(metadataPath, 'utf8'))
+    expect(regenerated.headers['x-next-prelude-metadata']).toBe('0')
+    expect(
+      (await next.fetch('/ppr-shell')).headers.get('x-next-prelude-metadata')
+    ).toBe('0')
+  })
 
   it('provides existing files for every prerender fallback', async () => {
     const prerenders = await getPrerenders()
@@ -640,6 +687,49 @@ describe('adapter-prerender-metadata', () => {
     for (const segment of segments) {
       expect(segment.route).toBe('/blog/[slug]')
       expectUnclassified(segment)
+    }
+  })
+})
+
+// The adapter output and legacy manifest serve different deployment paths.
+describe.each([false, true])('HTML-limited bot capability: %s', (enabled) => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    env: {
+      NEXT_TEST_HTML_LIMITED_BOT_CAPABILITY: String(enabled),
+    },
+  })
+
+  it('keeps action bypasses and delegates bot handling only after opt-in', async () => {
+    const { outputs }: AdapterBuildContext = await next.readJSON(
+      'build-complete.json'
+    )
+    const manifest = await next.readJSON('.next/prerender-manifest.json')
+    const botRule = {
+      type: 'header',
+      key: 'user-agent',
+      value: '.*(?:MyHTMLLimitedBot).*',
+    }
+    const actionRules = [
+      { type: 'header', key: 'next-action' },
+      {
+        type: 'header',
+        key: 'content-type',
+        value: 'multipart/form-data;.*',
+      },
+    ]
+
+    for (const pathname of ['/ppr-shell', '/blog/[slug]']) {
+      const output = outputs.prerenders.find(
+        (entry) => entry.pathname === pathname
+      )
+      expect(output).toBeDefined()
+      expect(output.config.bypassFor).toEqual(
+        enabled ? actionRules : [...actionRules, botRule]
+      )
+      const legacyRoute =
+        manifest.routes[pathname] ?? manifest.dynamicRoutes[pathname]
+      expect(legacyRoute.experimentalBypassFor).toContainEqual(botRule)
     }
   })
 })

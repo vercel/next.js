@@ -561,6 +561,16 @@ type Route = {
 export interface NextAdapter {
   name: string
   /**
+   * Deployment capabilities whose interface can change between releases.
+   */
+  unstable_capabilities?: {
+    /**
+     * Omits per-route HTML-limited bot bypasses from this adapter's outputs.
+     * The deployment target must select bot-compatible prerender responses.
+     */
+    handlesHtmlLimitedBotPrerenders?: boolean
+  }
+  /**
    * modifyConfig is called for any CLI command that loads the next.config
    * to only apply for specific commands the "phase" should be used
    * @param config
@@ -714,6 +724,19 @@ export async function handleBuildComplete({
   ) as NextAdapter
 
   if (typeof adapterMod.onBuildComplete === 'function') {
+    const filterHtmlLimitedBotsBypass = (bypassFor: RouteHas[] | undefined) => {
+      if (
+        adapterMod.unstable_capabilities?.handlesHtmlLimitedBotPrerenders !==
+        true
+      ) {
+        return bypassFor
+      }
+
+      return bypassFor?.filter(
+        (bypass) => bypass.type !== 'header' || bypass.key !== 'user-agent'
+      )
+    }
+
     const syntheticSymlinks = createAdapterSyntheticSymlinkDirectory(distDir)
     const outputs: AdapterOutputs = {
       pages: [],
@@ -1882,7 +1905,7 @@ export async function handleBuildComplete({
             renderingMode,
             bypassFor:
               isAppPage && srcRoute !== '/_not-found'
-                ? experimentalBypassFor
+                ? filterHtmlLimitedBotsBypass(experimentalBypassFor)
                 : undefined,
             bypassToken: previewProps.previewModeId,
           },
@@ -2149,7 +2172,9 @@ export async function handleBuildComplete({
             allowHeader,
             renderingMode,
             partialFallback: canEmitPartialFallback || undefined,
-            bypassFor: isAppPage ? experimentalBypassFor : undefined,
+            bypassFor: isAppPage
+              ? filterHtmlLimitedBotsBypass(experimentalBypassFor)
+              : undefined,
             bypassToken: previewProps.previewModeId,
           },
         }
