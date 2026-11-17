@@ -1,8 +1,8 @@
 import type {
   Attributes,
-  Link,
   Span,
   SpanContext,
+  SpanOptions,
   SpanStatus,
 } from 'next/dist/compiled/@opentelemetry/api'
 import type { TraceEvent, ReportingSpanSelection } from '../../../trace/types'
@@ -32,7 +32,7 @@ export type ReportingStart = {
   name: string
   start: bigint
   attributes?: Attributes
-  links?: Link[]
+  links?: SpanOptions['links']
 }
 
 export type ReportingCompletion = {
