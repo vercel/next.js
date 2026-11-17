@@ -416,6 +416,7 @@ async function readNormalizedNFT(next, name) {
         expect(nonNodeModulesFiles).toMatchInlineSnapshot(`
                 [
                   "page/react-loadable-manifest.json",
+                  "page/route-prerender-manifest.json",
                   "page_client-reference-manifest.js",
                 ]
               `)
@@ -549,6 +550,7 @@ async function readNormalizedNFT(next, name) {
         expect(nonNodeModulesFiles).toMatchInlineSnapshot(`
          [
            "page/react-loadable-manifest.json",
+           "page/route-prerender-manifest.json",
            "page_client-reference-manifest.js",
          ]
         `)
@@ -588,17 +590,20 @@ async function readNormalizedNFT(next, name) {
            "./.next/BUILD_ID",
            "./.next/app-path-routes-manifest.json",
            "./.next/build-manifest.json",
-           "./.next/prerender-manifest.json",
            "./.next/required-server-files.json",
            "./.next/routes-manifest.json",
            "./.next/server/app-paths-manifest.json",
            "./.next/server/app/_global-error/page/react-loadable-manifest.json",
+           "./.next/server/app/_global-error/page/route-prerender-manifest.json",
            "./.next/server/app/_global-error/page_client-reference-manifest.js",
            "./.next/server/app/_not-found/page/react-loadable-manifest.json",
+           "./.next/server/app/_not-found/page/route-prerender-manifest.json",
            "./.next/server/app/_not-found/page_client-reference-manifest.js",
            "./.next/server/app/dynamic-read/page/react-loadable-manifest.json",
+           "./.next/server/app/dynamic-read/page/route-prerender-manifest.json",
            "./.next/server/app/dynamic-read/page_client-reference-manifest.js",
            "./.next/server/app/page/react-loadable-manifest.json",
+           "./.next/server/app/page/route-prerender-manifest.json",
            "./.next/server/app/page_client-reference-manifest.js",
            "./.next/server/functions-config-manifest.json",
            "./.next/server/middleware-build-manifest.js",

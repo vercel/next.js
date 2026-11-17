@@ -11,6 +11,13 @@ import { RouteKind } from '../route-kind'
 
 export const ROUTE_CACHE_DIRECTORY = 'route-cache'
 
+/**
+ * The file name of a route's prerender manifest. It ends with the name of the
+ * complete `prerender-manifest.json`, so a tool has to match the whole file
+ * name to tell the two apart.
+ */
+export const ROUTE_PRERENDER_MANIFEST = 'route-prerender-manifest.json'
+
 export type ResponseCacheOwner = {
   readonly kind: RouteKind
   /** Canonical Pages pathname or full App module name, including groups and slots. */
@@ -33,6 +40,39 @@ export function getResponseCacheOwner(
         ? definition.pathname
         : definition.page,
   }
+}
+
+/**
+ * The prerender manifest of one route, relative to the build output directory.
+ * It holds only that route's entries of the complete prerender manifest, and
+ * sits in the directory named after the route
+ * (`server/app/blog/[slug]/page.js` has `server/app/blog/[slug]/page/`).
+ *
+ * The build writes the manifest to this path, the route reads it from this
+ * path, and the route's file trace lists this path. The webpack trace plugin
+ * calls this function. Turbopack lists the directory named after the entry
+ * file (`crates/next-api/src/nft_json.rs`), which it names with the same
+ * rule: keep the two in step.
+ *
+ * @param page the App module name including groups and slots, or the Pages
+ * pathname
+ */
+export function getRoutePrerenderManifestPath(
+  kind: RouteKind,
+  page: string
+): string {
+  if (kind === RouteKind.PAGES || kind === RouteKind.PAGES_API) {
+    // The rule of `getAssetPathFromRoute`. Unlike `normalizePagePath`, it also
+    // puts `/index` in front of a dynamic page below `pages/index/`.
+    const assetPath =
+      page === '/'
+        ? '/index'
+        : /^\/index(\/|$)/.test(page)
+          ? `/index${page}`
+          : page
+    return `server/pages${assetPath}/${ROUTE_PRERENDER_MANIFEST}`
+  }
+  return `server/app${page}/${ROUTE_PRERENDER_MANIFEST}`
 }
 
 /**

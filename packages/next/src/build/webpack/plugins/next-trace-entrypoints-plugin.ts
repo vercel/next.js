@@ -8,6 +8,9 @@ import {
   TRACE_OUTPUT_VERSION,
   type CompilerNameValues,
 } from '../../../shared/lib/constants'
+import { getRoutePrerenderManifestPath } from '../../../server/lib/route-cache-key'
+import { RouteKind } from '../../../server/route-kind'
+import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
   NODE_ESM_RESOLVE_OPTIONS,
@@ -260,6 +263,38 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
               )
             )
           }
+        }
+
+        // Every route reads its own prerender manifest at runtime through a
+        // computed path, so the tracer does not find it, and the build writes
+        // it after tracing: see `getRoutePrerenderManifestPath`. An
+        // automatically static page lists it too: its trace is not completed
+        // later, but adapters still add its entry to the functions of other
+        // pages (`pages/404`).
+        //
+        // `/_app` and `/_document` are not routes.
+        const isAppEntry = entrypoint.name.startsWith('app/')
+        if (
+          (isAppEntry || entrypoint.name.startsWith('pages/')) &&
+          entrypoint.name !== 'pages/_app' &&
+          entrypoint.name !== 'pages/_document'
+        ) {
+          // An entry is named after its page with `normalizePagePath`. The
+          // directory of the manifest has that name for most pages, not all.
+          const page = denormalizePagePath(
+            entrypoint.name.slice(isAppEntry ? 'app'.length : 'pages'.length)
+          )
+          entryFiles.add(
+            nodePath.join(
+              outputPath,
+              outputPrefix,
+              '..',
+              getRoutePrerenderManifestPath(
+                isAppEntry ? RouteKind.APP_PAGE : RouteKind.PAGES,
+                page
+              )
+            )
+          )
         }
 
         const finalFiles: string[] = []

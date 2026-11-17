@@ -18,6 +18,7 @@ import {
 import {
   APP_PATHS_MANIFEST,
   AdapterOutputType,
+  PRERENDER_MANIFEST,
   type PHASE_TYPE,
 } from '../../shared/lib/constants'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -3032,6 +3033,12 @@ async function getSharedNodeAssets({
   // Run after hasInstrumentationHook, which inserts the NFT-provided file hash for .next/server/instrumentation.js
   for (const file of requiredServerFiles) {
     const filePath = path.join(dir, file)
+    if (filePath === path.join(distDir, PRERENDER_MANIFEST)) {
+      // No function needs the complete prerender manifest: every route's file
+      // trace lists the route's own manifest, and the adapter gets the
+      // prerender data through `outputs.prerenders`.
+      continue
+    }
     const fileOutputPath = path.relative(repoRoot, filePath)
     // Already a shared asset (e.g. instrumentation, distDir package.json).
     if (fileOutputPath in sharedNodeAssets) continue
@@ -3100,6 +3107,11 @@ async function loadNFT(
         '.'
       hash = hashLinkTarget(salt, linkTarget)
       source = syntheticSymlinks.createLink(entry.source, linkTarget, hash)
+    }
+
+    if (hash === null) {
+      // A file that is written after tracing has no hash in the trace.
+      hash = await hashFile(salt, source)
     }
 
     assets[entry.destination] = source
