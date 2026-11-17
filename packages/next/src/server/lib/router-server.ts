@@ -78,8 +78,10 @@ import {
   recordRequestInsightSource,
 } from './trace/request-insights'
 import {
+  FLIGHT_HEADERS,
   NEXT_HTML_REQUEST_ID_HEADER,
   NEXT_REQUEST_ID_HEADER,
+  NEXT_URL,
 } from '../../client/components/app-router-headers'
 import { nanoid } from 'next/dist/compiled/nanoid'
 import { filterInvalidDevRequestIdHeaders } from './dev-request-id'
@@ -92,6 +94,7 @@ import {
 import { MAX_LIVE_COMPLETED_REQUEST_INSIGHTS } from '../../shared/lib/request-insights'
 
 const debug = setupDebug('next:router-server:main')
+const ROUTER_REQUEST_HEADERS = [...FLIGHT_HEADERS, NEXT_URL] as const
 const isNextFont = (pathname: string | null) =>
   pathname && /\/media\/[^/]+\.(woff|woff2|eot|ttf|otf)$/.test(pathname)
 
@@ -674,6 +677,14 @@ export async function initialize(opts: {
 
       debug('invokeRender', req.url, req.headers)
 
+      // A route can remove these headers before it rejects the request with
+      // NoFallbackError. The next matching route has to see what the client
+      // sent: they select the kind of response, and the `_rsc` search param
+      // is validated against them.
+      const routerHeaders = ROUTER_REQUEST_HEADERS.map(
+        (name) => req.headers[name]
+      )
+
       try {
         const initResult =
           await renderServer?.instance?.initialize(renderServerOpts)
@@ -681,6 +692,12 @@ export async function initialize(opts: {
           await initResult?.requestHandler(req, res)
         } catch (err) {
           if (err instanceof NoFallbackError) {
+            for (let i = 0; i < ROUTER_REQUEST_HEADERS.length; i++) {
+              const value = routerHeaders[i]
+              if (value !== undefined) {
+                req.headers[ROUTER_REQUEST_HEADERS[i]] = value
+              }
+            }
             await handleRequest(handleIndex + 1)
             return
           }

@@ -2883,6 +2883,11 @@ export default abstract class Server<
               (name) => paramMatching[name] === 'not-found'
             )
           )
+        } else {
+          // The request may have been rejected by a more specific route that
+          // configures parameter matching.
+          removeRequestMeta(req, 'devParamMatchingRejected')
+          removeRequestMeta(req, 'devNotFoundParams')
         }
 
         if (

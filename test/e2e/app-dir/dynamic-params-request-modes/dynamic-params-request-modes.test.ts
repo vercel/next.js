@@ -42,6 +42,44 @@ describe('dynamicParams: false request modes', () => {
     expect(load(await unlisted.text())('#catch-all').text()).toBe('unlisted')
   })
 
+  async function fetchFollowingRedirects(
+    pathname: string,
+    headers: Record<string, string>
+  ) {
+    let res = await next.fetch(pathname, { headers, redirect: 'manual' })
+    let redirects = 0
+    while (res.status === 307 && redirects < 5) {
+      redirects++
+      res = await next.fetch(res.headers.get('location')!, {
+        headers,
+        redirect: 'manual',
+      })
+    }
+    return { status: res.status, redirects }
+  }
+
+  // The client sends the `_rsc` search param after one redirect.
+  it('answers an RSC request from the less specific route after one redirect', async () => {
+    const headers = { RSC: '1', 'Next-Url': '/' }
+    expect(await fetchFollowingRedirects('/overlap/unlisted', headers)).toEqual(
+      { status: 200, redirects: 1 }
+    )
+    expect(await fetchFollowingRedirects('/overlap/known', headers)).toEqual({
+      status: 200,
+      redirects: 1,
+    })
+  })
+
+  it('navigates to the less specific route without reloading the document', async () => {
+    const browser = await next.browser('/')
+    await browser.eval('window.__navSentinel = true')
+    await browser.elementById('to-overlap-unlisted').click()
+    await retry(async () => {
+      expect(await browser.elementById('catch-all').text()).toBe('unlisted')
+    })
+    expect(await browser.eval('window.__navSentinel')).toBe(true)
+  })
+
   async function enableDraftMode() {
     const response = await next.fetch('/draft')
     expect(response.status).toBe(204)
