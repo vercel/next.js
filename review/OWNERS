@@ -776,6 +776,22 @@ scripts/sync-react.js
 test/lib/react-channel-require-hook.js
 test/e2e/app-dir/{taint,temporary-references,view-transitions,gesture-transitions}/**
 
+[react] @acdlite @eps1lon @unstubbable
+packages/next/src/compiled/react/**
+packages/next/src/compiled/react-dom/**
+packages/next/src/compiled/react-experimental/**
+packages/next/src/compiled/react-dom-experimental/**
+packages/next/src/compiled/react-is/**
+packages/next/src/compiled/react-server-dom-webpack/**
+packages/next/src/compiled/react-server-dom-webpack-experimental/**
+packages/next/src/compiled/react-server-dom-turbopack/**
+packages/next/src/compiled/react-server-dom-turbopack-experimental/**
+packages/next/src/compiled/scheduler*/**
+packages/next/src/server/route-modules/app-page/vendored/**
+packages/next/src/server/app-render/entry-base.ts
+packages/next/src/server/app-render/react-server.node.ts
+scripts/sync-react.js
+
 [next-package-build] @eps1lon @timneutkens
 packages/next/src/compiled/**
 packages/next/taskfile*.js

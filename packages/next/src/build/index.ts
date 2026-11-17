@@ -193,6 +193,7 @@ import { getStaticMetadataPrerenderPathname } from '../lib/metadata/get-metadata
 import { isStaticMetadataFile } from '../lib/metadata/is-metadata-route'
 import { createClientRouterFilter } from '../lib/create-client-router-filter'
 import { startTypeChecking } from './type-check'
+import { removeStaleDevTypes } from '../lib/typescript/remove-stale-dev-types'
 import { generateInterceptionRoutesRewrites } from '../lib/generate-interception-routes-rewrites'
 
 import { buildDataRoute } from '../server/lib/router-utils/build-data-route'
@@ -768,7 +769,6 @@ export interface FunctionsConfigManifest {
     string,
     {
       maxDuration?: number | undefined
-      runtime?: 'nodejs'
       regions?: string[] | string
       matchers?: Array<{
         regexp: string
@@ -776,7 +776,10 @@ export interface FunctionsConfigManifest {
         has?: Rewrite['has']
         missing?: Rewrite['has']
       }>
-    }
+    } & (
+      | { runtime?: 'nodejs'; nativeEntry?: never }
+      | { runtime: 'go'; nativeEntry: string }
+    )
   >
 }
 
@@ -825,6 +828,8 @@ async function writeImagesManifest(
 ): Promise<void> {
   const images = { ...config.images }
   const { deviceSizes, imageSizes } = images
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(images as any).sizes = [...deviceSizes, ...imageSizes]
 
   // By default, remotePatterns will allow no remote images ([])
@@ -861,7 +866,7 @@ async function writeStandaloneDirectory(
   outputFileTracingRoot: string,
   requiredServerFiles: RequiredServerFilesManifest,
   middlewareManifest: MiddlewareManifest,
-  hasNodeMiddleware: boolean,
+  middlewareConfig: FunctionsConfigManifest['functions'][string] | undefined,
   hasInstrumentationHook: boolean,
   staticPages: Set<string>,
   loadedEnvFiles: LoadedEnvFiles,
@@ -879,7 +884,7 @@ async function writeStandaloneDirectory(
         outputFileTracingRoot,
         requiredServerFiles.config,
         middlewareManifest,
-        hasNodeMiddleware,
+        middlewareConfig,
         hasInstrumentationHook,
         staticPages
       )
@@ -910,18 +915,22 @@ async function writeStandaloneDirectory(
         await fs.copyFile(filePath, outputPath)
       }
 
-      if (hasNodeMiddleware) {
+      if (middlewareConfig) {
+        const middlewareEntry =
+          middlewareConfig.runtime === 'go'
+            ? middlewareConfig.nativeEntry
+            : 'middleware.js'
         const middlewareOutput = path.join(
           distDir,
           STANDALONE_DIRECTORY,
           path.relative(outputFileTracingRoot, distDir),
           SERVER_DIRECTORY,
-          'middleware.js'
+          middlewareEntry
         )
 
         await fs.mkdir(path.dirname(middlewareOutput), { recursive: true })
         await fs.copyFile(
-          path.join(distDir, SERVER_DIRECTORY, 'middleware.js'),
+          path.join(distDir, SERVER_DIRECTORY, middlewareEntry),
           middlewareOutput
         )
       }
@@ -1472,8 +1481,13 @@ export default async function build(
         `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
       )
 
+      // proxy.go is only a convention file when Go routes are enabled, so an
+      // unrelated Go file in the project root does not affect other apps.
       const proxyDetectionRegExp = new RegExp(
-        `^${PROXY_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
+        `^${PROXY_FILENAME}\\.(?:${[
+          ...config.pageExtensions,
+          ...(config.experimental.goRoutes ? ['go'] : []),
+        ].join('|')})$`
       )
 
       const instrumentationHookDetectionRegExp = new RegExp(
@@ -1510,6 +1524,15 @@ export default async function build(
           middlewareFilePath = rootPath
         }
         if (isAtConventionLevel && fileBaseName === PROXY_FILENAME) {
+          // A Go proxy cannot be combined with a JavaScript one. Multiple
+          // JavaScript Proxy files keep resolving to the last one.
+          if (
+            proxyFilePath &&
+            (proxyFilePath.endsWith('.go') || rootPath.endsWith('.go'))
+          )
+            throw new Error(
+              `Multiple Proxy files detected: ".${normalizePathSep(proxyFilePath)}" and ".${normalizePathSep(rootPath)}". Remove one of these files; Next.js supports a single Proxy file.`
+            )
           proxyFilePath = rootPath
         }
         if (
@@ -1704,6 +1727,15 @@ export default async function build(
             routeTypesManifest,
             path.join(distDir, 'types', 'root-params.d.ts')
           )
+
+          // The TypeScript CLI type check includes every file in tsconfig,
+          // so types left behind by a stopped `next dev` would fail it after
+          // routes are moved or deleted. `next dev` writes below the
+          // configured `distDir`, which can differ from the build output with
+          // `output: 'export'`.
+          await removeStaleDevTypes({
+            distDirRoot: path.join(dir, config.distDirRoot),
+          })
         })
 
       // Turbopack already handles conflicting app and page routes.
@@ -2977,7 +3009,6 @@ export default async function build(
       const middlewareFile = normalizePathSep(
         proxyFilePath || middlewareFilePath || ''
       )
-      let hasNodeMiddleware = false
 
       if (middlewareFile) {
         // Is format of `(/src)/(proxy|middleware).<ext>`, so split by
@@ -3000,9 +3031,13 @@ export default async function build(
         }
 
         if (staticInfo.runtime === 'nodejs' || isProxyFile(page)) {
-          hasNodeMiddleware = true
           functionsConfigManifest.functions['/_middleware'] = {
-            runtime: 'nodejs',
+            ...(middlewareFile.endsWith('.go')
+              ? {
+                  runtime: 'go' as const,
+                  nativeEntry: 'middleware.native.json',
+                }
+              : { runtime: 'nodejs' as const }),
             matchers: staticInfo.middleware?.matchers ?? [
               {
                 regexp: '^.*$',
@@ -4794,7 +4829,6 @@ export default async function build(
               nextVersion: process.env.__NEXT_VERSION as string,
               repoRoot: config.repoRoot,
               outputFileTracingRoot,
-              hasNodeMiddleware,
               hasInstrumentationHook,
               previewProps,
               adapterPath,
@@ -4823,7 +4857,7 @@ export default async function build(
               outputFileTracingRoot,
               requiredServerFilesManifest,
               middlewareManifest,
-              hasNodeMiddleware,
+              functionsConfigManifest.functions['/_middleware'],
               hasInstrumentationHook,
               staticPages,
               loadedEnvFiles,
