@@ -449,6 +449,7 @@ describe('adapter-prerender-metadata', () => {
         response: 'empty',
         compute: 'dynamic',
         remainingPrerenderableParams: [{ paramName: 'slug' }],
+        rscCompute: { resolvedPathname: compute, completedShell: compute },
       })
       for (const suffix of ['', '.rsc']) {
         const output = prerenders.find(
@@ -538,6 +539,7 @@ describe('adapter-prerender-metadata', () => {
 
   it('waits when the cache key resolves more params than the terminal prerenders', async () => {
     const prerenders = await getPrerenders()
+    const manifest = await getPrerenderManifest()
     const source = '/on-miss/complete-fallback/[category]/[item]'
     for (const pathname of [
       source,
@@ -550,6 +552,10 @@ describe('adapter-prerender-metadata', () => {
       expect(
         prerenders.find((output) => output.pathname === pathname + '.rsc')
       ).toMatchObject({ response: 'empty', compute: 'blocking' })
+      expect(manifest.dynamicRoutes[pathname].rscCompute).toEqual({
+        resolvedPathname: 'blocking',
+        completedShell: 'dynamic',
+      })
     }
   })
 
@@ -568,6 +574,10 @@ describe('adapter-prerender-metadata', () => {
           { paramName: 'catchAll', paramType: 'catchall' },
         ])
       )
+      expect(manifest.dynamicRoutes[source].rscCompute).toEqual({
+        resolvedPathname: compute,
+        completedShell: 'dynamic',
+      })
       for (const extension of ['', '.rsc']) {
         expect(
           prerenders.find((output) => output.pathname === source + extension)

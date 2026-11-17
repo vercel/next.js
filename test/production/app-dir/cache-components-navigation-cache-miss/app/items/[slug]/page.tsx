@@ -18,12 +18,13 @@ export function generateStaticParams() {
 async function Caller() {
   const cookieStore = await cookies()
   const caller = cookieStore.get('caller')?.value ?? 'none'
+  const testCase = cookieStore.get('test-case')?.value
   if (
-    cookieStore.get('test-case')?.value === 'expiration' &&
-    existsSync('expiration.hold') &&
-    !existsSync('expiration.release')
+    testCase &&
+    existsSync(testCase + '.hold') &&
+    !existsSync(testCase + '.release')
   ) {
-    writeFileSync('expiration.rendered-before-release', '')
+    writeFileSync(testCase + '.rendered-before-release', '')
   }
   return <p id="caller">{'Caller: ' + caller}</p>
 }

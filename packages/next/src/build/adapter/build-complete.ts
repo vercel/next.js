@@ -1565,7 +1565,7 @@ export async function handleBuildComplete({
         return newCheck
       }
 
-      const classifyDynamicPrerender = createDynamicPrerenderClassifier(
+      const { classifyDynamicPrerender } = createDynamicPrerenderClassifier(
         prerenderManifest,
         routesManifest
       )

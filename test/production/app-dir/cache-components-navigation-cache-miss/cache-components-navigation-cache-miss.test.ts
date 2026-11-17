@@ -139,6 +139,178 @@ describe('cache-components-navigation-cache-miss', () => {
     }
   )
 
+  it.each([
+    {
+      source: 'inferred-static',
+      slug: 'inferred-static-unbuilt',
+      dynamic: false,
+      text: 'Item: inferred-static-unbuilt',
+    },
+    {
+      source: 'inferred-static',
+      slug: 'inferred-becomes-partial',
+      dynamic: true,
+      text: 'Caller: one',
+    },
+    {
+      source: 'inferred-mixed',
+      slug: 'inferred-mixed-unbuilt',
+      dynamic: true,
+      text: 'Caller: one',
+    },
+    {
+      source: 'inferred-client-hole',
+      slug: 'inferred-client-unbuilt',
+      dynamic: false,
+      text: 'Client-hole page',
+    },
+  ])(
+    'waits for unknown params at /$source/$slug from build-time results',
+    async ({ source, slug, dynamic, text }) => {
+      const path = `/${source}/${slug}`
+      const manifest = await next.readJSON('.next/prerender-manifest.json')
+      expect(manifest.routes[path]).toBeUndefined()
+      expect(manifest.dynamicRoutes[`/${source}/[slug]`].rscCompute).toEqual({
+        resolvedPathname: 'blocking',
+        completedShell: 'blocking',
+      })
+      if (dynamic) {
+        await next.patchFile(slug + '.cookies', '')
+      }
+      await next.patchFile(slug + '.hold', '')
+      const first = await client(path, slug, 'one')
+      const second = await client(path, slug, 'two')
+      const navigations = Promise.allSettled([
+        first.navigate(text),
+        second.navigate(dynamic ? 'Caller: two' : text),
+      ])
+      try {
+        await retry(() => next.readFile(slug + '.held'))
+        await retry(() => next.readFile(slug + '.requested-one'))
+        await retry(() => next.readFile(slug + '.requested-two'))
+        expect(first.responses).toHaveLength(0)
+        expect(second.responses).toHaveLength(0)
+        await next.patchFile(slug + '.release', '')
+        expectSucceeded(await navigations)
+        for (const current of [first, second]) {
+          if (dynamic) {
+            await expectRequestSpecificFlight(current)
+          } else {
+            expectFlight(current.responses, false)
+            for (const response of current.responses) {
+              expect(response.headers()['x-nextjs-prerender']).toBe('1')
+            }
+          }
+        }
+        expect(await next.readJSON(slug + '.stored.json')).toEqual({
+          writes: 1,
+          hasPostponed: dynamic,
+        })
+        await expect(
+          next.readFile(slug + '.rendered-before-release')
+        ).rejects.toThrow(/ENOENT/)
+      } finally {
+        await next.patchFile(slug + '.release', '')
+        await navigations
+        await first.close()
+        await second.close()
+      }
+    }
+  )
+
+  it('classifies the shared shell that next start actually regenerates', async () => {
+    const manifest = await next.readJSON('.next/prerender-manifest.json')
+    expect(
+      manifest.dynamicRoutes['/inferred-shared/[category]/[item]'].rscCompute
+    ).toEqual({ resolvedPathname: 'blocking', completedShell: 'dynamic' })
+    await next.patchFile('inferred-shared.hold', '')
+    const current = await client('/inferred-shared/third/x', 'inferred-shared')
+    const navigation = Promise.allSettled([
+      current.navigate('Complete shared shell'),
+    ])
+    try {
+      await retry(() => next.readFile('inferred-shared.held'))
+      expectSucceeded(await navigation)
+      expectFlight(current.responses, true)
+      expect(await current.page.locator('#client-params').innerText()).toBe(
+        'third/x'
+      )
+      expect(await next.readFile('inferred-shared.cache-key')).toMatch(
+        /\/inferred-shared\/third\/\[item\]$/
+      )
+      await expect(
+        next.readFile('inferred-shared.stored.json')
+      ).rejects.toThrow(/ENOENT/)
+    } finally {
+      await next.patchFile('inferred-shared.release', '')
+      await navigation
+      await current.close()
+    }
+    await retry(async () => {
+      expect((await next.readJSON('inferred-shared.stored.json')).writes).toBe(
+        1
+      )
+    })
+    const cached = await client(
+      '/inferred-shared/third/y',
+      'inferred-shared',
+      'two'
+    )
+    try {
+      await cached.navigate('Complete shared shell')
+      expectFlight(cached.responses, true)
+      expect(await cached.page.locator('#client-params').innerText()).toBe(
+        'third/y'
+      )
+      expect((await next.readJSON('inferred-shared.stored.json')).writes).toBe(
+        1
+      )
+    } finally {
+      await cached.close()
+    }
+  })
+
+  it('renders dynamic RSC while a shared prerender defers parallel-slot params', async () => {
+    const testCase = 'inferred-slot-unbuilt'
+    const path = '/inferred-slot/' + testCase
+    const manifest = await next.readJSON('.next/prerender-manifest.json')
+    expect(
+      manifest.dynamicRoutes['/inferred-slot/[slug]'].fallbackRouteParams
+    ).toEqual(
+      expect.arrayContaining([{ paramName: 'catchAll', paramType: 'catchall' }])
+    )
+    expect(manifest.dynamicRoutes['/inferred-slot/[slug]'].rscCompute).toEqual({
+      resolvedPathname: 'blocking',
+      completedShell: 'dynamic',
+    })
+    await next.patchFile(testCase + '.hold', '')
+    const current = await client(path, testCase)
+    const navigation = Promise.allSettled([
+      current.navigate('Item: ' + testCase),
+    ])
+    try {
+      await retry(() => next.readFile(testCase + '.held'))
+      expectSucceeded(await navigation)
+      expectFlight(current.responses, true)
+      expect(await current.page.locator('#slot-params').innerText()).toBe(
+        testCase
+      )
+      await expect(next.readFile(testCase + '.stored.json')).rejects.toThrow(
+        /ENOENT/
+      )
+    } finally {
+      await next.patchFile(testCase + '.release', '')
+      await navigation
+      await current.close()
+    }
+    await retry(async () => {
+      expect(await next.readJSON(testCase + '.stored.json')).toEqual({
+        writes: 1,
+        hasPostponed: true,
+      })
+    })
+  })
+
   it('waits for a prerender for an unknown explicitly blocking value', async () => {
     const path = '/blocking/unbuilt'
     const manifest = await next.readJSON('.next/prerender-manifest.json')
@@ -168,48 +340,105 @@ describe('cache-components-navigation-cache-miss', () => {
     }
   })
 
-  it('waits for regeneration after an on-demand blocking prerender expires', async () => {
-    const path = '/blocking/expiration'
+  it.each([
+    {
+      path: '/blocking/expiration',
+      testCase: 'expiration',
+      matcher: '/blocking/[slug]',
+    },
+    {
+      path: '/inferred-static/inferred-expiration',
+      testCase: 'inferred-expiration',
+      matcher: '/inferred-static/[slug]',
+    },
+  ])(
+    'waits for regeneration after a blocking prerender expires at $path',
+    async ({ path, testCase, matcher }) => {
+      const manifest = await next.readJSON('.next/prerender-manifest.json')
+      expect(manifest.routes[path]).toBeUndefined()
+      expect(manifest.dynamicRoutes[matcher].rscCompute.resolvedPathname).toBe(
+        'blocking'
+      )
+      await next.patchFile(testCase + '.cookies', '')
+      const initial = await client(path, testCase, 'one')
+      try {
+        await initial.navigate('Caller: one')
+        await expectRequestSpecificFlight(initial)
+        expect(await next.readJSON(testCase + '.stored.json')).toEqual({
+          writes: 1,
+          hasPostponed: true,
+        })
+      } finally {
+        await initial.close()
+      }
+
+      await next.patchFile(testCase + '.expired', '')
+      await next.patchFile(testCase + '.hold', '')
+      const current = await client(path, testCase, 'two')
+      const navigation = Promise.allSettled([current.navigate('Caller: two')])
+      try {
+        await retry(() => next.readFile(testCase + '.held'))
+        expect(await next.readFile(testCase + '.lookup-two')).toBe('expired')
+        expect(current.responses).toHaveLength(0)
+        await next.patchFile(testCase + '.release', '')
+        expectSucceeded(await navigation)
+        await expectRequestSpecificFlight(current)
+        await expect(
+          next.readFile(testCase + '.rendered-before-release')
+        ).rejects.toThrow(/ENOENT/)
+        expect(await next.readJSON(testCase + '.stored.json')).toEqual({
+          writes: 2,
+          hasPostponed: true,
+        })
+      } finally {
+        await next.patchFile(testCase + '.release', '')
+        await next.deleteFile(testCase + '.expired')
+        await navigation
+        await current.close()
+      }
+    }
+  )
+
+  it('serves usable stale data without waiting for an inferred blocking prerender', async () => {
+    const testCase = 'inferred-stale'
+    const path = '/inferred-static/' + testCase
     const manifest = await next.readJSON('.next/prerender-manifest.json')
-    expect(manifest.routes[path]).toBeUndefined()
-    expect(manifest.dynamicRoutes['/blocking/[slug]'].compute).toBe('blocking')
-    await next.patchFile('expiration.cookies', '')
-    const initial = await client(path, 'expiration', 'one')
+    expect(
+      manifest.dynamicRoutes['/inferred-static/[slug]'].rscCompute
+        .resolvedPathname
+    ).toBe('blocking')
+    await next.patchFile(testCase + '.cookies', '')
+    const first = await client(path, testCase, 'one')
     try {
-      await initial.navigate('Caller: one')
-      await expectRequestSpecificFlight(initial)
-      expect(await next.readJSON('expiration.stored.json')).toEqual({
-        writes: 1,
-        hasPostponed: true,
-      })
+      await first.navigate('Caller: one')
+      await expectRequestSpecificFlight(first)
+      expect((await next.readJSON(testCase + '.stored.json')).writes).toBe(1)
     } finally {
-      await initial.close()
+      await first.close()
     }
 
-    await next.patchFile('expiration.expired', '')
-    await next.patchFile('expiration.hold', '')
-    const current = await client(path, 'expiration', 'two')
+    await next.patchFile(testCase + '.stale', '')
+    await next.patchFile(testCase + '.hold', '')
+    const current = await client(path, testCase, 'two')
     const navigation = Promise.allSettled([current.navigate('Caller: two')])
     try {
-      await retry(() => next.readFile('expiration.held'))
-      expect(await next.readFile('expiration.lookup-two')).toBe('expired')
-      expect(current.responses).toHaveLength(0)
-      await next.patchFile('expiration.release', '')
+      await retry(() => next.readFile(testCase + '.held'))
       expectSucceeded(await navigation)
       await expectRequestSpecificFlight(current)
-      await expect(
-        next.readFile('expiration.rendered-before-release')
-      ).rejects.toThrow(/ENOENT/)
-      expect(await next.readJSON('expiration.stored.json')).toEqual({
-        writes: 2,
-        hasPostponed: true,
-      })
+      expect(await next.readFile(testCase + '.lookup-two')).toBe('stale')
+      expect((await next.readJSON(testCase + '.stored.json')).writes).toBe(1)
+      await next.readFile(testCase + '.rendered-before-release')
     } finally {
-      await next.patchFile('expiration.release', '')
-      await next.deleteFile('expiration.expired')
+      await next.patchFile(testCase + '.release', '')
       await navigation
       await current.close()
     }
+    await retry(async () => {
+      expect(await next.readJSON(testCase + '.stored.json')).toEqual({
+        writes: 2,
+        hasPostponed: true,
+      })
+    })
   })
 
   it('uses the concrete classification for a built partial path under a blocking matcher', async () => {
@@ -244,48 +473,68 @@ describe('cache-components-navigation-cache-miss', () => {
     })
   })
 
-  it('serves concurrent incomplete misses while one background prerender is held', async () => {
-    const path = '/items/async'
-    const manifest = await next.readJSON('.next/prerender-manifest.json')
-    expect(manifest.routes[path].prefetchDataRoute).toBeUndefined()
-    await next.patchFile('async.hold', '')
-    const first = await client(path, 'async', 'one')
-    const second = await client(path, 'async', 'two')
-    const navigations = Promise.allSettled([
-      first.navigate('Caller: one'),
-      second.navigate('Caller: two'),
-    ])
-    try {
-      await retry(() => next.readFile('async.held'))
-      await retry(async () => {
-        expect(first.responses.length).toBeGreaterThan(0)
-        expect(second.responses.length).toBeGreaterThan(0)
-      })
-      expectSucceeded(await navigations)
-      for (const current of [first, second]) {
-        await expectRequestSpecificFlight(current)
+  it.each([
+    {
+      path: '/items/async',
+      testCase: 'async',
+      matcher: '/items/[slug]',
+      compute: 'blocking',
+    },
+    {
+      path: '/inferred-partial/inferred-partial-unbuilt',
+      testCase: 'inferred-partial-unbuilt',
+      matcher: '/inferred-partial/[slug]',
+      compute: 'dynamic',
+    },
+  ])(
+    'serves concurrent incomplete misses while a background prerender is held at $path',
+    async ({ path, testCase, matcher, compute }) => {
+      const manifest = await next.readJSON('.next/prerender-manifest.json')
+      const entry = manifest.routes[path] ?? manifest.dynamicRoutes[matcher]
+      expect(entry.prefetchDataRoute).toBeFalsy()
+      expect(manifest.dynamicRoutes[matcher].rscCompute.resolvedPathname).toBe(
+        compute
+      )
+      await next.patchFile(testCase + '.cookies', '')
+      await next.patchFile(testCase + '.hold', '')
+      const first = await client(path, testCase, 'one')
+      const second = await client(path, testCase, 'two')
+      const navigations = Promise.allSettled([
+        first.navigate('Caller: one'),
+        second.navigate('Caller: two'),
+      ])
+      try {
+        await retry(() => next.readFile(testCase + '.held'))
+        await retry(async () => {
+          expect(first.responses.length).toBeGreaterThan(0)
+          expect(second.responses.length).toBeGreaterThan(0)
+        })
+        expectSucceeded(await navigations)
+        for (const current of [first, second]) {
+          await expectRequestSpecificFlight(current)
+        }
+      } finally {
+        await next.patchFile(testCase + '.release', '')
+        await navigations
+        await first.close()
+        await second.close()
       }
-    } finally {
-      await next.patchFile('async.release', '')
-      await navigations
-      await first.close()
-      await second.close()
-    }
-    await retry(async () => {
-      expect(await next.readJSON('async.stored.json')).toEqual({
-        writes: 1,
-        hasPostponed: true,
+      await retry(async () => {
+        expect(await next.readJSON(testCase + '.stored.json')).toEqual({
+          writes: 1,
+          hasPostponed: true,
+        })
       })
-    })
-    const cached = await client(path, 'async', 'three')
-    try {
-      await cached.navigate('Caller: three')
-      await expectRequestSpecificFlight(cached)
-      expect((await next.readJSON('async.stored.json')).writes).toBe(1)
-    } finally {
-      await cached.close()
+      const cached = await client(path, testCase, 'three')
+      try {
+        await cached.navigate('Caller: three')
+        await expectRequestSpecificFlight(cached)
+        expect((await next.readJSON(testCase + '.stored.json')).writes).toBe(1)
+      } finally {
+        await cached.close()
+      }
     }
-  })
+  )
 
   it('renders request-specific Flight when a built static path becomes partial', async () => {
     const path = '/items/becomes-partial'

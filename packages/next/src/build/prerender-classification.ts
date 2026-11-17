@@ -1,13 +1,16 @@
 import type {
   DynamicPrerenderManifestRoute,
+  PrerenderCompute,
   PrerenderManifest,
   PrerenderManifestRoute,
   RoutesManifest,
 } from '.'
 import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
 import { getRscPrerenderCompleteness } from '../server/lib/prerender-rsc-completeness'
+import { normalizeNextQueryParam } from '../server/web/utils'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { RenderingMode } from './rendering-mode'
 
 /**
  * Classification metadata for a prerendered response. App Router HTML and
@@ -68,6 +71,11 @@ export type PrerenderClassification =
       compute?: never
       htmlSize?: never
     }
+
+type ClassifiedPrerender = Extract<
+  PrerenderClassification,
+  { compute: unknown }
+>
 
 export function getPrerenderClassification(
   route: string,
@@ -216,18 +224,18 @@ export function createDynamicPrerenderClassifier(
     }
   }
 
-  return function classifyDynamicPrerender(
+  function getCompute(
     pathname: string,
     route: DynamicPrerenderManifestRoute,
-    classification: PrerenderClassification,
+    classification: ClassifiedPrerender,
     kind: 'html' | 'rsc',
     allowQuery: readonly string[]
-  ): PrerenderClassification {
+  ): PrerenderCompute {
     if (
       classification.response !== 'empty' ||
       classification.compute !== 'dynamic'
     ) {
-      return classification
+      return classification.compute
     }
 
     const remainingParamNames = [
@@ -243,7 +251,7 @@ export function createDynamicPrerenderClassifier(
         allowQuery.includes(`${NEXT_QUERY_PARAM_PREFIX}${paramName}`)
       )
     ) {
-      return classification
+      return classification.compute
     }
 
     // Parallel-slot params are derived from the matched URL. Only URL path
@@ -254,7 +262,7 @@ export function createDynamicPrerenderClassifier(
     )
     // A shared entry that resolves no additional URL param keeps its mode.
     if (unresolvedQueryKeys.length === pathnameQueryKeys.length) {
-      return classification
+      return classification.compute
     }
 
     // Build-time results must leave the same params unresolved as regeneration
@@ -264,9 +272,95 @@ export function createDynamicPrerenderClassifier(
       .get(route.fallbackSourceRoute || pathname)
       ?.get(getUnresolvedParamsKey(unresolvedQueryKeys))
     if (continuation?.[kind] !== true) {
-      return { ...classification, compute: 'blocking' }
+      return 'blocking'
     }
 
-    return classification
+    return classification.compute
+  }
+
+  function classifyDynamicPrerender(
+    pathname: string,
+    route: DynamicPrerenderManifestRoute,
+    classification: PrerenderClassification,
+    kind: 'html' | 'rsc',
+    allowQuery: readonly string[]
+  ): PrerenderClassification {
+    if (classification.compute === undefined) {
+      return classification
+    }
+    const compute = getCompute(
+      pathname,
+      route,
+      classification,
+      kind,
+      allowQuery
+    )
+    return compute === classification.compute
+      ? classification
+      : { ...classification, compute }
+  }
+
+  return { classifyDynamicPrerender, getCompute, getPathnameQueryKeys }
+}
+
+export function addRscPrerenderCompute(
+  prerenderManifest: PrerenderManifest,
+  routesManifest: RoutesManifest
+): void {
+  const { getCompute, getPathnameQueryKeys } = createDynamicPrerenderClassifier(
+    prerenderManifest,
+    routesManifest
+  )
+
+  for (const [pathname, route] of Object.entries(
+    prerenderManifest.dynamicRoutes
+  )) {
+    if (
+      route.renderingMode !== RenderingMode.PARTIALLY_STATIC ||
+      route.fallback === false
+    ) {
+      continue
+    }
+
+    const classification = getRscPrerenderClassification(route)
+    if (classification.compute === undefined) {
+      continue
+    }
+
+    const pathnameQueryKeys = getPathnameQueryKeys(pathname)
+    const resolvedPathname = getCompute(
+      pathname,
+      route,
+      classification,
+      'rsc',
+      pathnameQueryKeys
+    )
+    const prerenderableParamNames = new Set(
+      (route.remainingPrerenderableParams ?? []).map((param) => param.paramName)
+    )
+    const pathnameParamNames = new Set(
+      pathnameQueryKeys.map(normalizeNextQueryParam)
+    )
+    const hasDeferredSlotParams = route.fallbackRouteParams?.some(
+      (param) =>
+        !prerenderableParamNames.has(param.paramName) &&
+        !pathnameParamNames.has(param.paramName)
+    )
+    // Completed-shell regeneration defers slot-only params that cannot be
+    // filled by generateStaticParams. Concrete build-time results can resolve
+    // those params from the URL, so they do not describe this cached state.
+    const completedShell = hasDeferredSlotParams
+      ? classification.compute
+      : getCompute(
+          pathname,
+          route,
+          classification,
+          'rsc',
+          (route.remainingPrerenderableParams ?? []).map(
+            (param) => `${NEXT_QUERY_PARAM_PREFIX}${param.paramName}`
+          )
+        )
+
+    route.rscCompute = { resolvedPathname, completedShell }
   }
 }

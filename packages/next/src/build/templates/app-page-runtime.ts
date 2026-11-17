@@ -554,11 +554,6 @@ export function createAppPageEntrypoint({
     const rscPrerenderCompleteness = getRscPrerenderCompleteness(
       prerenderManifestEntry
     )
-    const shouldBlockOnPrerender =
-      rscPrerenderCompleteness === 'complete' ||
-      isEnsureStaticPage ||
-      prerenderManifestEntry?.compute === 'blocking'
-
     const isDynamicRSCRequest =
       isPPREnabled &&
       isRSCRequest &&
@@ -720,6 +715,19 @@ export function createAppPageEntrypoint({
         shellCacheKey = cacheKey
       }
     }
+
+    // Concrete built paths keep their own classification. Unknown paths use the
+    // policy for the cache entry this request will regenerate.
+    const rscCompute = prerenderedRoute
+      ? undefined
+      : prerenderInfo?.rscCompute?.[
+          shellCacheKey === null ? 'resolvedPathname' : 'completedShell'
+        ]
+    const shouldBlockOnPrerender =
+      rscPrerenderCompleteness === 'complete' ||
+      isEnsureStaticPage ||
+      prerenderManifestEntry?.compute === 'blocking' ||
+      rscCompute === 'blocking'
 
     let ssgCacheKey: string | null = null
     let usesShellCacheKey = false
