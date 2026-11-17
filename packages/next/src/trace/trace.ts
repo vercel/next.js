@@ -11,11 +11,7 @@ import type {
   TraceState,
   ReportingSpanSelection,
 } from './types'
-import type {
-  Attributes as OpenTelemetryAttributes,
-  AttributeValue,
-  Span as OpenTelemetrySpan,
-} from 'next/dist/compiled/@opentelemetry/api'
+import type { Span as OpenTelemetrySpan } from 'next/dist/compiled/@opentelemetry/api'
 import { normalizeTraceAttributes } from '../server/lib/trace/span-attributes'
 export { normalizeTraceAttributes } from '../server/lib/trace/span-attributes'
 import { getTimestamp, toHrTime } from '../server/lib/trace/utils'

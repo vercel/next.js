@@ -4,7 +4,7 @@ import type {
   Span,
   SpanContext,
   SpanStatus,
-} from '@opentelemetry/api'
+} from 'next/dist/compiled/@opentelemetry/api'
 import type { TraceEvent, ReportingSpanSelection } from '../../../trace/types'
 import { getTraceClock } from './local-span-clock.node'
 import { reportToolingMeasurements } from './local-span-metrics.node'
