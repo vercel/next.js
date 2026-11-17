@@ -621,25 +621,28 @@ describe('local span recording', () => {
     let activeSpanDuringDirectWithSpan
 
     await context.with(foregroundContext, () =>
-      traceLocalSpan({ name: 'Instant Insights', parent: null }, async () => {
-        activeSpanDuringLocalWork = trace.getSpan(context.active())
-        await traceLocalSpan(
-          { name: 'Prepare validation inputs' },
-          async () => {
-            activeSpanDuringNestedLocalWork = trace.getSpan(context.active())
-            getTracer().trace(NextNodeServerSpan.createComponentTree, () => {
-              activeSpanDuringNextTrace = trace.getSpan(context.active())
-            })
-            const directSpan = getTracer().startSpan(
-              NextNodeServerSpan.getLayoutOrPageModule
-            )
-            getTracer().withSpan(directSpan, () => {
-              activeSpanDuringDirectWithSpan = trace.getSpan(context.active())
-            })
-            directSpan.end()
-          }
-        )
-      })
+      traceLocalSpan(
+        { name: 'Instant Insights', parentSpan: null },
+        async () => {
+          activeSpanDuringLocalWork = trace.getSpan(context.active())
+          await traceLocalSpan(
+            { name: 'Prepare validation inputs' },
+            async () => {
+              activeSpanDuringNestedLocalWork = trace.getSpan(context.active())
+              getTracer().trace(NextNodeServerSpan.createComponentTree, () => {
+                activeSpanDuringNextTrace = trace.getSpan(context.active())
+              })
+              const directSpan = getTracer().startSpan(
+                NextNodeServerSpan.getLayoutOrPageModule
+              )
+              getTracer().withSpan(directSpan, () => {
+                activeSpanDuringDirectWithSpan = trace.getSpan(context.active())
+              })
+              directSpan.end()
+            }
+          )
+        }
+      )
     )
 
     expect(activeSpanDuringLocalWork).toBe(foregroundSpan)

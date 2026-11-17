@@ -25,6 +25,9 @@ export function createReactTimingSpanRecords(
       case 'completed':
         status = 'ok'
         break
+      case 'aborted':
+      case undefined:
+        break
     }
     return {
       ...context,
