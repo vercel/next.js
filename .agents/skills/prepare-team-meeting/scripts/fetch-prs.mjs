@@ -15,8 +15,8 @@
 //                       (merged | open | draft), hasNumbers and body
 //   <out>/index.md      one line per PR, sorted by author then number. Use it
 //                       to pick categories and owners.
-//   <out>/bodies/NN.md  PR descriptions in chunks of --chunk PRs, used to
-//                       extract benchmark numbers.
+//   <out>/bodies/NN.md  PR descriptions in chunks of --chunk PRs, used to extract
+//                       user-visible changes, decisions and benchmarks.
 //
 // `--out` must not exist yet, or must be an empty directory. Nothing is ever
 // deleted. Without `--out`, a fresh temporary directory is created.
@@ -239,13 +239,33 @@ export function writeOutput(args, prs, out) {
   return { counts, header }
 }
 
+export const USAGE = `Usage: node fetch-prs.mjs --authors <login,login,...>
+  [--days 7] [--since YYYY-MM-DD] [--until YYYY-MM-DD]
+  [--repo vercel/next.js] [--out <new-or-empty-dir>] [--chunk 30]`
+
 function main() {
+  if (process.argv.includes('--help') || process.argv.includes('-h')) {
+    console.log(USAGE)
+    return
+  }
   const args = parseArgs(process.argv.slice(2))
-  const runGh = (ghArgs) =>
-    execFileSync('gh', ghArgs, {
-      encoding: 'utf8',
-      maxBuffer: 256 * 1024 * 1024,
-    })
+  const runGh = (ghArgs) => {
+    try {
+      return execFileSync('gh', ghArgs, {
+        encoding: 'utf8',
+        maxBuffer: 256 * 1024 * 1024,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      })
+    } catch (err) {
+      const stderr = String(err.stderr || '')
+      const hint = /HTTP 40[13]/.test(stderr)
+        ? ' (gh has no read access to pull requests of this repo; get that permission, then retry with the same --out, which is still empty)'
+        : ''
+      throw new Error(
+        `gh ${ghArgs.slice(0, 6).join(' ')} failed${hint}: ${stderr.trim()}`
+      )
+    }
+  }
   // Check the output directory before spending any GitHub requests. A failed
   // query leaves at most an empty directory behind.
   const out = prepareOutDir(args.out)
@@ -263,6 +283,7 @@ if (
     main()
   } catch (err) {
     console.error(`fetch-prs: ${err.message}`)
+    console.error(USAGE)
     process.exit(1)
   }
 }
