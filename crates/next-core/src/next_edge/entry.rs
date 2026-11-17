@@ -4,12 +4,13 @@ use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{context::AssetContext, module::Module, reference_type::ReferenceType};
 
-use crate::util::load_next_js_template_no_imports;
+use crate::{next_config::NextConfig, util::load_next_js_template_no_imports};
 
 #[turbo_tasks::function]
 pub async fn wrap_edge_entry(
     asset_context: Vc<Box<dyn AssetContext>>,
     project_root: FileSystemPath,
+    next_config: Vc<NextConfig>,
     entry: ResolvedVc<Box<dyn Module>>,
     pathname: RcStr,
 ) -> Result<Vc<Box<dyn Module>>> {
@@ -21,6 +22,7 @@ pub async fn wrap_edge_entry(
     let template_source = load_next_js_template_no_imports(
         "edge-wrapper.js",
         project_root,
+        next_config,
         &[("VAR_ENTRY_NAME", &format!("middleware_{pathname}"))],
         &[],
         &[],

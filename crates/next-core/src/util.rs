@@ -259,7 +259,7 @@ pub async fn get_transpiled_packages(
     let mut transpile_packages: Vec<RcStr> = next_config.transpile_packages().owned().await?;
 
     let default_transpiled_packages: Vec<RcStr> = load_next_js_json_file(
-        project_path,
+        get_next_package(project_path, next_config).await?,
         rcstr!("dist/lib/default-transpiled-packages.json"),
     )
     .await?;
@@ -280,7 +280,7 @@ pub async fn foreign_code_context_condition(
     // of the `node_modules` specific resolve options (the template files are
     // technically node module files).
     let not_next_template_dir = ContextCondition::not(ContextCondition::InPath(
-        get_next_package(project_path.clone())
+        get_next_package(project_path.clone(), next_config)
             .await?
             .join(NEXT_TEMPLATE_PATH)?,
     ));
@@ -375,16 +375,16 @@ pub enum MiddlewareMatcherKind {
 pub async fn load_next_js_template<'b>(
     template_path: &'b str,
     project_path: FileSystemPath,
+    next_config: Vc<NextConfig>,
     replacements: impl IntoIterator<Item = (&'b str, &'b str)>,
     injections: impl IntoIterator<Item = (&'b str, &'b str)>,
     imports: impl IntoIterator<Item = (&'b str, Option<&'b str>)>,
 ) -> Result<Vc<Box<dyn Source>>> {
-    let template_path = virtual_next_js_template_path(project_path.clone(), template_path).await?;
+    let package_root = get_next_package(project_path, next_config).await?;
+    let template_path = virtual_next_js_template_path(&package_root, template_path)?;
 
     let content = file_content_rope(template_path.read()).await?;
     let content = content.to_str()?;
-
-    let package_root = get_next_package(project_path).await?;
 
     let content = expand_next_js_template(
         &content,
@@ -410,16 +410,16 @@ pub async fn load_next_js_template<'b>(
 pub async fn load_next_js_template_no_imports(
     template_path: &str,
     project_path: FileSystemPath,
+    next_config: Vc<NextConfig>,
     replacements: &[(&str, &str)],
     injections: &[(&str, &str)],
     imports: &[(&str, Option<&str>)],
 ) -> Result<Vc<Box<dyn Source>>> {
-    let template_path = virtual_next_js_template_path(project_path.clone(), template_path).await?;
+    let package_root = get_next_package(project_path, next_config).await?;
+    let template_path = virtual_next_js_template_path(&package_root, template_path)?;
 
     let content = file_content_rope(template_path.read()).await?;
     let content = content.to_str()?;
-
-    let package_root = get_next_package(project_path).await?;
 
     let content = expand_next_js_template_no_imports(
         &content,
@@ -450,23 +450,20 @@ pub async fn file_content_rope(content: Vc<FileContent>) -> Result<Vc<Rope>> {
     Ok(file.content().to_owned().cell())
 }
 
-async fn virtual_next_js_template_path(
-    project_path: FileSystemPath,
+fn virtual_next_js_template_path(
+    next_package: &FileSystemPath,
     file: &str,
 ) -> Result<FileSystemPath> {
     debug_assert!(!file.contains('/'));
-    get_next_package(project_path)
-        .await?
-        .join(&format!("{NEXT_TEMPLATE_PATH}/{file}"))
+    next_package.join(&format!("{NEXT_TEMPLATE_PATH}/{file}"))
 }
 
+/// Loads a JSON file of the `next` package at `next_package`.
 pub async fn load_next_js_json_file<T: DeserializeOwned>(
-    project_path: FileSystemPath,
+    next_package: FileSystemPath,
     sub_path: RcStr,
 ) -> Result<T> {
-    let file_path = get_next_package(project_path.clone())
-        .await?
-        .join(&sub_path)?;
+    let file_path = next_package.join(&sub_path)?;
 
     let content = &*file_path.read().await?;
 
@@ -477,13 +474,12 @@ pub async fn load_next_js_json_file<T: DeserializeOwned>(
     }
 }
 
+/// Loads a JSON file with comments of the `next` package at `next_package`.
 pub async fn load_next_js_jsonc_file<T: DeserializeOwned>(
-    project_path: FileSystemPath,
+    next_package: FileSystemPath,
     sub_path: RcStr,
 ) -> Result<T> {
-    let file_path = get_next_package(project_path.clone())
-        .await?
-        .join(&sub_path)?;
+    let file_path = next_package.join(&sub_path)?;
 
     let content = &*file_path.read().await?;
 

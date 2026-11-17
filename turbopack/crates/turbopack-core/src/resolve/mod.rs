@@ -43,6 +43,7 @@ use crate::{
             ResolveModulesOptions, ResolveOptions, resolve_modules_options,
         },
         origin::ResolveOrigin,
+        package_map::{PackageMapLookup, PackageMapMiss, lookup_package_map},
         parse::{Request, stringify_data_uri},
         pattern::{Pattern, PatternMatch, read_matches},
         plugin::{AfterResolvePlugin, AfterResolvePluginCondition, BeforeResolvePlugin},
@@ -56,6 +57,7 @@ pub mod error;
 pub mod node;
 pub mod options;
 pub mod origin;
+pub mod package_map;
 pub mod parse;
 pub mod pattern;
 pub mod plugin;
@@ -1541,6 +1543,42 @@ async fn find_package(
                             name: get_package_name(dir, package_file)?,
                             file,
                         });
+                    }
+                }
+            }
+            ResolveModules::PackageMap(map_path) => {
+                let lookup = lookup_package_map(map_path, &lookup_path, &package_name).await?;
+                // The package map decides where the module is, unless it can't be read.
+                if collect_affecting_sources
+                    && !matches!(lookup, PackageMapLookup::Miss(PackageMapMiss::Invalid))
+                {
+                    affecting_sources.push(ResolvedVc::upcast(
+                        FileSource::new(map_path.clone()).to_resolved().await?,
+                    ));
+                }
+                // A miss is explained by the resolving issue when no other location has the
+                // module either.
+                let PackageMapLookup::Found(targets) = lookup else {
+                    continue;
+                };
+                for (name, location) in targets {
+                    let Some(path) = realpath_if_exists(
+                        &location,
+                        collect_affecting_sources.then_some(&mut affecting_sources),
+                    )
+                    .await?
+                    else {
+                        continue;
+                    };
+                    match *path.get_type().await? {
+                        FileSystemEntryType::Directory => {
+                            packages.push(FindPackageItem::PackageDirectory { name, dir: path });
+                        }
+                        // A package can consist of a single file.
+                        FileSystemEntryType::File => {
+                            packages.push(FindPackageItem::PackageFile { name, file: path });
+                        }
+                        _ => {}
                     }
                 }
             }
@@ -3117,8 +3155,12 @@ async fn resolve_import_map_result(
                     alias_lookup_path.clone(),
                     request,
                     match ty {
-                        ExternalType::CommonJs => node_cjs_resolve_options(),
-                        ExternalType::EcmaScriptModule => node_esm_resolve_options(),
+                        ExternalType::CommonJs => {
+                            node_cjs_resolve_options(options.await?.package_map().cloned())
+                        }
+                        ExternalType::EcmaScriptModule => {
+                            node_esm_resolve_options(options.await?.package_map().cloned())
+                        }
                         ExternalType::Script | ExternalType::Url | ExternalType::Global => options,
                     },
                 )
@@ -4085,7 +4127,7 @@ mod tests {
                 lookup_path,
                 ReferenceType::CommonJs(Default::default()),
                 Request::parse(pattern),
-                node_cjs_resolve_options(),
+                node_cjs_resolve_options(None),
             )
             .await?;
             let mut entries = Vec::new();
@@ -4234,7 +4276,7 @@ mod tests {
 
         let extensions = custom_extensions
             .unwrap_or_else(|| vec![rcstr!(".ts"), rcstr!(".js"), rcstr!(".json")]);
-        let mut options_value = node_esm_resolve_options()
+        let mut options_value = node_esm_resolve_options(None)
             .with_fully_specified(fully_specified)
             .with_extensions(extensions)
             .owned()

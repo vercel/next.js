@@ -40,6 +40,12 @@ pub struct ResolveOptionsContext {
     /// Enable resolving of the node_modules folder when within the provided
     /// directory
     pub enable_node_modules: Option<FileSystemPath>,
+    /// The path of a [Node.js package map]. When set, packages are located through the package
+    /// map instead of the `node_modules` folders: a package can only import the packages that the
+    /// map lists in its dependencies.
+    ///
+    /// [Node.js package map]: https://nodejs.org/api/packages.html#package-maps
+    pub package_map: Option<FileSystemPath>,
     /// A specific path to a tsconfig.json file to use for resolving modules. If `None`, one will
     /// be looked up through the filesystem
     pub tsconfig_path: TsConfigHandling,

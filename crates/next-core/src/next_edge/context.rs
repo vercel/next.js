@@ -132,6 +132,10 @@ pub async fn get_edge_resolve_options_context(
 
     let resolve_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().owned().await?),
+        package_map: next_config
+            .turbopack_package_map(project_path.clone())
+            .owned()
+            .await?,
         enable_edge_node_externals: true,
         custom_conditions,
         import_map: Some(next_edge_import_map),

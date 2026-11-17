@@ -103,6 +103,7 @@ impl MiddlewareEndpoint {
         Ok(wrap_edge_entry(
             *self.asset_context,
             self.project.project_path().owned().await?,
+            self.project.next_config(),
             module,
             rcstr!("middleware"),
         ))

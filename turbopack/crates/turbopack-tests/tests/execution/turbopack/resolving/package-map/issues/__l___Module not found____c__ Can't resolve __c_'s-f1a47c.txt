@@ -1,0 +1,21 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map/input/index.js:44:16  Module not found: Can't resolve 'single-file/sub'
+  
+      40 | })
+      41 | 
+      42 | it('should resolve a package that consists of a single file', () => {
+      43 |   expect(singleFile).toBe('single-file')
+         +                v------------------------v
+      44 +   expect(() => require('single-file/sub')).toThrow()
+         +                ^------------------------^
+      45 | })
+      46 | 
+      47 | it('should still resolve self-references and package imports', () => {
+      48 |   expect(self).toBe('self')
+  
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: module 'single-file' with subpath '/sub'
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map/input/index.js
+  | Type of request: commonjs request
+  |

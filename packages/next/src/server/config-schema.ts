@@ -464,6 +464,9 @@ export const experimentalSchema = {
   turbopackLocalPostcssConfig: z.boolean().optional(),
   turbopackModuleIds: z.enum(['named', 'deterministic']).optional(),
   turbopackInferModuleSideEffects: z.boolean().optional(),
+  turbopackPackageMap: z
+    .union([z.string().min(1), z.literal(false)])
+    .optional(),
   turbopackCjsTreeShaking: z.boolean().optional(),
   turbopackMangleExportNames: z.boolean().optional(),
   turbopackMangleViaMaterializedNamespaceObject: z.boolean().optional(),

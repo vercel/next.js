@@ -1,0 +1,20 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map/input/index.js:67:16  Module not found: Can't resolve 'not-installed'
+  
+      63 | })
+      64 | 
+      65 | it('should not resolve a dependency that the package map cannot locate', () => {
+      66 |   expect(() => require('undefined-id')).toThrow()
+         +                v----------------------v
+      67 +   expect(() => require('not-installed')).toThrow()
+         +                ^----------------------^
+      68 | })
+      69 | 
+  
+  Package map: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map/input/package-map.json locates "not-installed" at [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map/input/store/not-installed-1.0.0, which doesn't exist.
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: module "'not-installed'"
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map/input/index.js
+  | Type of request: commonjs request
+  |

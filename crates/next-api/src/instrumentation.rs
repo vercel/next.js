@@ -88,6 +88,7 @@ impl InstrumentationEndpoint {
         let edge_entry_module = wrap_edge_entry(
             *self.asset_context,
             self.project.project_path().owned().await?,
+            self.project.next_config(),
             *userland_module,
             rcstr!("instrumentation"),
         )

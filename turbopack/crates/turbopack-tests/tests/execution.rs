@@ -318,6 +318,10 @@ struct TestOptions {
     /// such requests would, which makes them unresolvable.
     #[serde(default = "default_true")]
     server_relative_root: bool,
+    /// The path of a package map, relative to the directory of the test. When set, packages are
+    /// located through the package map instead of the `node_modules` folders.
+    #[serde(default)]
+    package_map: Option<RcStr>,
 }
 
 fn default_true() -> bool {
@@ -345,6 +349,7 @@ impl Default for TestOptions {
             numeric_module_ids: false,
             side_effect_free_packages: Vec::new(),
             server_relative_root: default_true(),
+            package_map: None,
         }
     }
 }
@@ -505,6 +510,12 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         .resolved_cell(),
     );
 
+    let package_map = options
+        .package_map
+        .as_ref()
+        .map(|package_map| project_path.join(package_map))
+        .transpose()?;
+
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
         Default::default(),
         compile_time_info,
@@ -545,6 +556,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         ResolveOptionsContext {
             enable_typescript: true,
             enable_node_modules: Some(project_root.clone()),
+            package_map: package_map.clone(),
             enable_node_native_modules: true,
             enable_node_externals: true,
             custom_conditions: vec![rcstr!("development")],
@@ -555,6 +567,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 ContextCondition::InNodeModules,
                 ResolveOptionsContext {
                     enable_node_modules: Some(project_root.clone()),
+                    package_map,
                     custom_conditions: vec![rcstr!("development")],
                     browser: true,
                     ..Default::default()

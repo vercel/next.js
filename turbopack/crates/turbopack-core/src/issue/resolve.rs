@@ -10,7 +10,8 @@ use super::{Issue, IssueSource, IssueStage, StyledString};
 use crate::{
     issue::IssueSeverity,
     resolve::{
-        options::{ImportMap, ImportMapResult, ResolveOptions},
+        options::{ImportMap, ImportMapResult, ResolveModules, ResolveOptions},
+        package_map::package_map_miss_explanation,
         parse::Request,
     },
 };
@@ -75,6 +76,25 @@ impl Issue for ResolvingIssue {
                             PrettyPrintError(&err)
                         )?;
                     }
+                }
+            }
+        }
+        for modules in &self.resolve_options.await?.modules {
+            let ResolveModules::PackageMap(map_path) = modules else {
+                continue;
+            };
+            for req in request_parts {
+                let Request::Module { module, .. } = &*req.await? else {
+                    continue;
+                };
+                if let Some(explanation) = &*package_map_miss_explanation(
+                    map_path.clone(),
+                    self.file_path.parent(),
+                    module.clone(),
+                )
+                .await?
+                {
+                    writeln!(description, "Package map: {explanation}")?;
                 }
             }
         }

@@ -1,0 +1,20 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map-external-file/input/index.js:11:16  Module not found: Can't resolve 'dep'
+  
+       7 |   expect(fromApp).toBe('dep')
+       8 | })
+       9 | 
+      10 | it('should not resolve a package from a file that is not within any package', () => {
+         +                v------------v
+      11 +   expect(() => require('dep')).toThrow()
+         +                ^------------^
+      12 | })
+      13 | 
+  
+  Package map: the importing file is not within any package defined in [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map-external-file/input/package-map.json.
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: module "'dep'"
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map-external-file/input/index.js
+  | Type of request: commonjs request
+  |

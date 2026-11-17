@@ -358,6 +358,7 @@ async fn build_dependency_requests_changed(
     cwd: FileSystemPath,
     requests: Vec<(RcStr, bool)>,
     source: ResolvedVc<Box<dyn Source>>,
+    package_map: Option<FileSystemPath>,
 ) -> Result<Vc<Completion>> {
     for (request, is_directory) in requests {
         let request_path = cwd.join(&request)?;
@@ -378,9 +379,9 @@ async fn build_dependency_requests_changed(
         } else {
             let parsed_request = Request::parse(Pattern::Constant(request.clone()));
             let options = if request.ends_with(".mjs") {
-                node_esm_resolve_options()
+                node_esm_resolve_options(package_map.clone())
             } else {
-                node_cjs_resolve_options()
+                node_cjs_resolve_options(package_map.clone())
             };
             let resolved = resolve(
                 cwd.clone(),
@@ -458,6 +459,7 @@ impl WebpackLoadersProcessedAsset {
                 chunking_context,
                 env,
                 node_backend,
+                package_map: _,
             } = &*transform.execution_context.await?;
             let source_content = self.source.content();
             let AssetContent::File(file) = *source_content.await? else {
@@ -874,10 +876,19 @@ impl EvaluateContext for WebpackLoaderContext {
                         Ok::<_, anyhow::Error>(())
                     };
                     let build_dependency_request_subscriptions = async {
+                        // The loader runs in Node.js, which finds packages through the package
+                        // map when there is one.
+                        let package_map = match self.resolve_options_context {
+                            Some(resolve_options_context) => {
+                                resolve_options_context.await?.package_map.clone()
+                            }
+                            None => None,
+                        };
                         build_dependency_requests_changed(
                             self.cwd.clone(),
                             build_dependency_requests,
                             *self.context_source_for_issue,
+                            package_map,
                         )
                         .await?;
                         Ok::<_, anyhow::Error>(())

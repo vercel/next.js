@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use either::Either;
-use next_core::{get_next_package, next_server::get_tracing_compile_time_info};
+use next_core::next_server::get_tracing_compile_time_info;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{
@@ -40,12 +40,12 @@ use crate::{nft::traced_modules_for_entries, nft_json_builder::NftJsonBuilder, p
 /// of how the output is assembled, by [`Project::additional_traced_modules`].
 #[turbo_tasks::function]
 pub(crate) async fn require_hook_modules(
-    project_path: FileSystemPath,
+    next_package: FileSystemPath,
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<Modules>> {
     let next_resolve_origin = Vc::upcast(PlainResolveOrigin::new(
         asset_context,
-        get_next_package(project_path).await?.join("_")?,
+        next_package.join("_")?,
     ));
 
     Ok(Vc::cell(
@@ -76,12 +76,12 @@ pub(crate) async fn require_hook_modules(
 /// available when the endpoint initializes.
 #[turbo_tasks::function]
 pub(crate) async fn pages_renderer_modules(
-    project_path: FileSystemPath,
+    next_package: FileSystemPath,
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<Modules>> {
     let next_resolve_origin = Vc::upcast(PlainResolveOrigin::new(
         asset_context,
-        get_next_package(project_path).await?.join("_")?,
+        next_package.join("_")?,
     ));
 
     Ok(Vc::cell(
@@ -236,7 +236,7 @@ impl Asset for ServerNftJsonAsset {
             nft_json.add(path, hash, &content)?;
         }
 
-        let next_dir = get_next_package(this.project.project_path().owned().await?).await?;
+        let next_dir = this.project.next_package().owned().await?;
         for ty in ["app-page", "pages"] {
             let dir = next_dir.join(&format!("dist/server/route-modules/{ty}"))?;
             let module_path = dir.join("module.compiled.js")?;
@@ -394,13 +394,14 @@ impl ServerNftJsonAsset {
             /* resolve_typescript */ false,
             /* prune */ Some((self.project.project_root_path().owned().await?, prune)),
             /* trace_file_references */ true,
+            self.project.package_map().owned().await?,
         ));
 
-        let project_path = self.project.project_path().owned().await?;
+        let next_package = self.project.next_package().owned().await?;
 
         let next_resolve_origin = Vc::upcast(PlainResolveOrigin::new(
             asset_context,
-            get_next_package(project_path.clone()).await?.join("_")?,
+            next_package.join("_")?,
         ));
 
         let entries = match self.ty {
@@ -427,7 +428,7 @@ impl ServerNftJsonAsset {
         // The modules the require hook needs are part of every endpoint's trace (see
         // `Project::additional_traced_modules`), but `next-server.js` / `next-minimal-server.js`
         // are traced on their own for `output: 'standalone'`, so they have to be added here too.
-        let hook_modules = require_hook_modules(project_path, asset_context)
+        let hook_modules = require_hook_modules(next_package, asset_context)
             .owned()
             .await?;
 

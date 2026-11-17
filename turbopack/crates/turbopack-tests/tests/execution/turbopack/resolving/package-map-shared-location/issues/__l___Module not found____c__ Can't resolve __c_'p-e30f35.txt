@@ -1,0 +1,21 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map-shared-location/input/store/lib/index.js:2:31  Module not found: Can't resolve 'peer'
+  
+       1 | export { default as common } from 'common'
+         +                               v-------------v
+       2 + export const loadPeer = () => require('peer')
+         +                               ^-------------^
+       3 | export const loadOnlyOld = () => require('only-old')
+       4 | 
+  
+  Package map: the importing file is within the packages "lib-new", "lib-old" of [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map-shared-location/input/package-map.json, which share one location but don't agree on where "peer" is.
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: module "'peer'"
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map-shared-location/input/store/lib/index.js
+  | Type of request: commonjs request
+  | 
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map-shared-location/input/store/lib/index.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map-shared-location/input/index.js

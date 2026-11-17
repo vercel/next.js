@@ -1,0 +1,34 @@
+{
+  "packages": {
+    "app": {
+      "url": ".",
+      "dependencies": {
+        "lib": "lib-new"
+      }
+    },
+    "lib-old": {
+      "url": "./store/lib",
+      "dependencies": {
+        "common": "common@1.0.0",
+        "peer": "peer@1.0.0",
+        "only-old": "common@1.0.0"
+      }
+    },
+    "lib-new": {
+      "url": "./store/lib",
+      "dependencies": {
+        "common": "common@1.0.0",
+        "peer": "peer@2.0.0"
+      }
+    },
+    "common@1.0.0": {
+      "url": "./store/common-1.0.0"
+    },
+    "peer@1.0.0": {
+      "url": "./store/peer-1.0.0"
+    },
+    "peer@2.0.0": {
+      "url": "./store/peer-2.0.0"
+    }
+  }
+}

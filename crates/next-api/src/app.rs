@@ -9,7 +9,7 @@ use next_core::{
         Entrypoints as AppEntrypoints, FileSystemPathVec, MetadataItem, collect_root_params,
         get_entrypoints,
     },
-    get_edge_resolve_options_context, get_next_package,
+    get_edge_resolve_options_context,
     next_app::{
         AppEntry, AppPage, AppPath, get_app_client_references_chunks,
         get_app_client_shared_chunk_group, get_app_page_entry, get_app_route_entry,
@@ -168,16 +168,17 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn app_entrypoints(&self) -> Vc<AppEntrypoints> {
+    async fn app_entrypoints(&self) -> Result<Vc<AppEntrypoints>> {
         let conf = self.project.next_config();
-        get_entrypoints(
+        Ok(get_entrypoints(
             self.app_dir.clone(),
+            self.project.next_package().owned().await?,
             conf.page_extensions(),
             conf.is_global_not_found_enabled(),
             conf.explicit_parallel_route_children(),
             conf.strict_route_matching(),
             self.project.next_mode(),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
@@ -1830,7 +1831,7 @@ impl AppEndpoint {
         // in the browser.
         let polyfill_output_asset = if matches!(this.ty, AppEndpointType::Page { .. }) {
             // polyfill-nomodule.js is a pre-compiled asset distributed as part of next
-            let next_package = get_next_package(project.project_path().owned().await?).await?;
+            let next_package = project.next_package().owned().await?;
             let polyfill_source =
                 FileSource::new(next_package.join("dist/build/polyfills/polyfill-nomodule.js")?);
 
@@ -1862,7 +1863,7 @@ impl AppEndpoint {
                     .enable_external_browser_runtime()
                     .await?
             {
-                let next_package = get_next_package(project.project_path().owned().await?).await?;
+                let next_package = project.next_package().owned().await?;
                 let external_browser_runtime_source = FileSource::new(next_package.join(
                     "dist/compiled/react-dom-experimental/unstable_server-external-runtime.js",
                 )?);

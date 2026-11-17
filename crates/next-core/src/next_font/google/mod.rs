@@ -85,13 +85,18 @@ struct FontData(FxHashMap<RcStr, FontDataEntry>);
 #[turbo_tasks::value(shared)]
 pub(crate) struct NextFontGoogleReplacer {
     project_path: FileSystemPath,
+    /// The directory of the `next` package, which has the font data.
+    next_package: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
 impl NextFontGoogleReplacer {
     #[turbo_tasks::function]
-    pub fn new(project_path: FileSystemPath) -> Vc<Self> {
-        Self::cell(NextFontGoogleReplacer { project_path })
+    pub fn new(project_path: FileSystemPath, next_package: FileSystemPath) -> Vc<Self> {
+        Self::cell(NextFontGoogleReplacer {
+            project_path,
+            next_package,
+        })
     }
 
     #[turbo_tasks::function]
@@ -99,10 +104,14 @@ impl NextFontGoogleReplacer {
         let request_hash = get_request_hash(&query);
         let qstr = qstring::QString::from(query.as_str());
 
-        let font_data = load_font_data(self.project_path.clone());
+        let font_data = load_font_data(self.next_package.clone());
         let options = font_options_from_query_map(query, font_data);
 
-        let fallback = get_font_fallback(self.project_path.clone(), options);
+        let fallback = get_font_fallback(
+            self.project_path.clone(),
+            self.next_package.clone(),
+            options,
+        );
         let properties = get_font_css_properties(options, fallback).await?;
         let js_asset = VirtualSource::new(
             next_js_file_path(rcstr!("internal/font/google"))
@@ -192,6 +201,8 @@ impl ImportMappingReplacement for NextFontGoogleReplacer {
 #[turbo_tasks::value(shared)]
 pub struct NextFontGoogleCssModuleReplacer {
     project_path: FileSystemPath,
+    /// The directory of the `next` package, which has the font data.
+    next_package: FileSystemPath,
     execution_context: ResolvedVc<ExecutionContext>,
     next_mode: ResolvedVc<NextMode>,
     fetch_client: ResolvedVc<FetchClientConfig>,
@@ -202,12 +213,14 @@ impl NextFontGoogleCssModuleReplacer {
     #[turbo_tasks::function]
     pub fn new(
         project_path: FileSystemPath,
+        next_package: FileSystemPath,
         execution_context: ResolvedVc<ExecutionContext>,
         next_mode: ResolvedVc<NextMode>,
         fetch_client: ResolvedVc<FetchClientConfig>,
     ) -> Vc<Self> {
         Self::cell(NextFontGoogleCssModuleReplacer {
             project_path,
+            next_package,
             execution_context,
             next_mode,
             fetch_client,
@@ -217,7 +230,7 @@ impl NextFontGoogleCssModuleReplacer {
     #[turbo_tasks::function]
     async fn import_map_result(&self, query: RcStr) -> Result<Vc<ImportMapResult>> {
         let request_hash = get_request_hash(&query);
-        let font_data = load_font_data(self.project_path.clone());
+        let font_data = load_font_data(self.next_package.clone());
         let options = font_options_from_query_map(query, font_data);
         let stylesheet_url = get_stylesheet_url_from_options(options, font_data)
             .owned()
@@ -255,7 +268,11 @@ impl NextFontGoogleCssModuleReplacer {
             )
             .await?;
 
-        let font_fallbacks = get_font_fallback(self.project_path.clone(), options);
+        let font_fallbacks = get_font_fallback(
+            self.project_path.clone(),
+            self.next_package.clone(),
+            options,
+        );
         let stylesheet = match stylesheet_str {
             Some(s) => Some(
                 update_google_stylesheet(
@@ -452,9 +469,9 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
 }
 
 #[turbo_tasks::function]
-async fn load_font_data(project_root: FileSystemPath) -> Result<Vc<FontData>> {
+async fn load_font_data(next_package: FileSystemPath) -> Result<Vc<FontData>> {
     let data: FontData = load_next_js_json_file(
-        project_root,
+        next_package,
         rcstr!("dist/compiled/@next/font/dist/google/font-data.json"),
     )
     .await?;
@@ -762,6 +779,7 @@ async fn get_mock_stylesheet(
         project_path: _,
         chunking_context,
         node_backend,
+        package_map: _,
     } = *execution_context.await?;
     let asset_context = node_evaluate_asset_context(
         execution_context,

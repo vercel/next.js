@@ -310,6 +310,7 @@ async fn source(
         Vc::upcast(build_chunking_context),
         env,
         node_backend,
+        None,
     );
 
     let server_fs = Vc::upcast::<Box<dyn FileSystem>>(ServerFileSystem::new());

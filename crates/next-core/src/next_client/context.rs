@@ -185,6 +185,10 @@ pub async fn get_client_resolve_options_context(
 
     let resolve_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().owned().await?),
+        package_map: next_config
+            .turbopack_package_map(project_path.clone())
+            .owned()
+            .await?,
         custom_conditions,
         import_map: Some(next_client_import_map),
         fallback_import_map: Some(next_client_fallback_import_map),
@@ -251,11 +255,19 @@ pub async fn get_client_module_options_context(
         .map(|p| project_path.join(p))
         .transpose()?;
 
-    let tsconfig = get_typescript_transform_options(project_path.clone(), tsconfig_path.clone())
-        .to_resolved()
+    let package_map = next_config
+        .turbopack_package_map(project_path.clone())
+        .owned()
         .await?;
+    let tsconfig = get_typescript_transform_options(
+        project_path.clone(),
+        tsconfig_path.clone(),
+        package_map.clone(),
+    )
+    .to_resolved()
+    .await?;
     let decorators_options =
-        get_decorators_transform_options(project_path.clone(), tsconfig_path.clone());
+        get_decorators_transform_options(project_path.clone(), tsconfig_path.clone(), package_map);
     let enable_mdx_rs = *next_config.mdx_rs().await?;
     let jsx_runtime_options = get_jsx_transform_options(
         project_path.clone(),
@@ -323,7 +335,7 @@ pub async fn get_client_module_options_context(
     };
     let postcss_transform_options = PostCssTransformOptions {
         postcss_package: Some(
-            get_postcss_package_mapping(project_path.clone())
+            get_postcss_package_mapping(project_path.clone(), next_config)
                 .to_resolved()
                 .await?,
         ),
@@ -360,7 +372,7 @@ pub async fn get_client_module_options_context(
 
     let enable_rust_react_compiler = *next_config.rust_react_compiler().await?;
     let rust_react_compiler_target = if enable_rust_react_compiler.is_some() {
-        match detect_react_compiler_target(&project_path).await? {
+        match detect_react_compiler_target(next_config, &project_path).await? {
             Some(ReactCompilerTarget::React18) => ReactCompilerTarget::React18,
             _ => ReactCompilerTarget::React19,
         }

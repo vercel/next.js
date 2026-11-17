@@ -1139,6 +1139,16 @@ export interface ExperimentalConfig {
   turbopackCjsTreeShaking?: boolean
 
   /**
+   * Path to a [Node.js package map](https://nodejs.org/api/packages.html#package-maps), which
+   * Turbopack uses to locate packages instead of the `node_modules` hierarchy. A relative path
+   * is resolved from the project directory. Set to `false` to ignore the package map that
+   * Node.js was started with.
+   *
+   * Defaults to the path passed to Node.js through `--experimental-package-map`.
+   */
+  turbopackPackageMap?: string | false
+
+  /**
    * Shorten ("mangle") the export names modules expose to each other in Turbopack, to reduce
    * bundle size. Only affects the keys used to link modules together: a module whose export names
    * can be observed by user code (a namespace object that escapes, a dynamic `import()`, a

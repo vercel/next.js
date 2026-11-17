@@ -1,0 +1,21 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map/input/index.js:30:16  Module not found: Can't resolve 'dep/private.js'
+  
+      26 |   expect(legacyFile).toBe('legacy@1.0.0/lib/file')
+      27 | })
+      28 | 
+      29 | it('should not resolve a subpath that the exports field does not expose', () => {
+         +                v-----------------------v
+      30 +   expect(() => require('dep/private.js')).toThrow()
+         +                ^-----------------------^
+      31 | })
+      32 | 
+      33 | it('should give each package its own dependencies', () => {
+      34 |   expect(shared).toBe('shared@2.0.0')
+  
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: module 'dep' with subpath '/private.js'
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map/input/index.js
+  | Type of request: commonjs request
+  |

@@ -16,7 +16,7 @@ use turbo_tasks::{
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fetch::FetchClientConfig;
 use turbo_tasks_fs::{
-    FileSystemPath,
+    FileSystemPath, FileSystemPathOption,
     glob::{Glob, GlobOptions},
 };
 use turbopack::module_options::{
@@ -1197,6 +1197,9 @@ pub struct ExperimentalConfig {
     turbopack_input_source_maps: Option<bool>,
     turbopack_module_fragments: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
+    /// The path of the Node.js package map to locate packages with, relative to the project
+    /// directory.
+    turbopack_package_map: Option<RcStr>,
     turbopack_minify_before_chunking: Option<bool>,
     turbopack_shared_runtime: Option<bool>,
     /// Custom URL prefix for Web Worker URLs (the entrypoint and the module
@@ -2723,6 +2726,25 @@ impl NextConfig {
                 .as_ref()
                 .and_then(|t| t.chunk_loading_global.clone()),
         )
+    }
+
+    /// The [Node.js package map](https://nodejs.org/api/packages.html#package-maps) that packages
+    /// are located with instead of the `node_modules` folders, if any.
+    #[turbo_tasks::function]
+    pub fn turbopack_package_map(
+        &self,
+        project_path: FileSystemPath,
+    ) -> Result<Vc<FileSystemPathOption>> {
+        let Some(package_map) = &self.experimental.turbopack_package_map else {
+            return Ok(Vc::cell(None));
+        };
+        let Some(path) = project_path.try_join(package_map) else {
+            bail!(
+                "The package map {package_map} is outside of the Turbopack root directory. Set \
+                 `turbopack.root` to a directory that contains it."
+            );
+        };
+        Ok(Vc::cell(Some(path)))
     }
 
     #[turbo_tasks::function]

@@ -1,0 +1,21 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map-shared-location/input/store/lib/index.js:3:34  Module not found: Can't resolve 'only-old'
+  
+       1 | export { default as common } from 'common'
+       2 | export const loadPeer = () => require('peer')
+         +                                  v-----------------v
+       3 + export const loadOnlyOld = () => require('only-old')
+         +                                  ^-----------------^
+       4 | 
+  
+  Package map: the importing file is within the packages "lib-new", "lib-old" of [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map-shared-location/input/package-map.json, which share one location but don't agree on where "only-old" is.
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: module "'only-old'"
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map-shared-location/input/store/lib/index.js
+  | Type of request: commonjs request
+  | 
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map-shared-location/input/store/lib/index.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map-shared-location/input/index.js

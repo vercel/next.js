@@ -768,8 +768,8 @@ async fn insert_next_server_special_aliases(
     match &ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {}
         // the logic closely follows the one in createRSCAliases in webpack-config.ts
-        ServerContextType::AppSSR { app_dir } => {
-            let next_package = get_next_package(app_dir.clone()).await?;
+        ServerContextType::AppSSR { .. } => {
+            let next_package = get_next_package(project_path.clone(), next_config).await?;
             import_map.insert_exact_alias(
                 rcstr!("styled-jsx"),
                 request_to_import_mapping(next_package.clone(), rcstr!("styled-jsx")),
@@ -1164,8 +1164,10 @@ async fn insert_next_shared_aliases(
         _ => {}
     }
 
+    let next_package = get_next_package(project_path.clone(), next_config).await?;
+
     let next_font_google_replacer_mapping = ImportMapping::Dynamic(ResolvedVc::upcast(
-        NextFontGoogleReplacer::new(project_path.clone())
+        NextFontGoogleReplacer::new(project_path.clone(), next_package.clone())
             .to_resolved()
             .await?,
     ))
@@ -1191,6 +1193,7 @@ async fn insert_next_shared_aliases(
         ImportMapping::Dynamic(ResolvedVc::upcast(
             NextFontGoogleCssModuleReplacer::new(
                 project_path.clone(),
+                next_package.clone(),
                 execution_context,
                 next_mode,
                 fetch_client,
@@ -1211,7 +1214,6 @@ async fn insert_next_shared_aliases(
         .resolved_cell(),
     );
 
-    let next_package = get_next_package(project_path.clone()).await?;
     import_map.insert_singleton_alias(rcstr!("@swc/helpers"), next_package.clone());
     import_map.insert_singleton_alias(rcstr!("styled-jsx"), next_package.clone());
     import_map.insert_singleton_alias(rcstr!("next"), project_path.clone());
@@ -1309,8 +1311,16 @@ async fn insert_next_shared_aliases(
     Ok(())
 }
 
-pub async fn get_next_package(context_directory: FileSystemPath) -> Result<FileSystemPath> {
-    try_get_next_package(context_directory)
+/// Finds the directory of the `next` package that the project at `project_path` depends on.
+pub async fn get_next_package(
+    project_path: FileSystemPath,
+    next_config: Vc<NextConfig>,
+) -> Result<FileSystemPath> {
+    let package_map = next_config
+        .turbopack_package_map(project_path.clone())
+        .owned()
+        .await?;
+    try_get_next_package(project_path, package_map)
         .owned()
         .await?
         .context("Next.js package not found")
@@ -1406,16 +1416,20 @@ impl Issue for MissingNextFolderIssue {
     }
 }
 
+/// Finds the directory of the `next` package that the package containing `context_directory`
+/// depends on, like Node.js would: with `package_map` when there is one, and in the `node_modules`
+/// folders otherwise.
 #[turbo_tasks::function]
 pub async fn try_get_next_package(
     context_directory: FileSystemPath,
+    package_map: Option<FileSystemPath>,
 ) -> Result<Vc<OptionFileSystemPath>> {
     let root = context_directory.root().owned().await?;
     let result = resolve(
         context_directory.clone(),
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
         Request::parse(Pattern::Constant(rcstr!("next/package.json"))),
-        node_cjs_resolve_options(),
+        node_cjs_resolve_options(package_map),
     );
     if let Some(source) = result.await?.first_source() {
         Ok(Vc::cell(Some(source.ident().await?.path.parent())))

@@ -239,14 +239,17 @@ async fn try_join_base_url(
 }
 
 /// Returns the resolve options
+///
+/// `package_map` is the path of the package map to find the packages of `extends` with, if any.
 #[turbo_tasks::function]
 pub async fn tsconfig_resolve_options(
     tsconfig: FileSystemPath,
+    package_map: Option<FileSystemPath>,
 ) -> Result<Vc<TsConfigResolveOptions>> {
     let configs = read_tsconfigs(
         tsconfig.read(),
         ResolvedVc::upcast(FileSource::new(tsconfig.clone()).to_resolved().await?),
-        node_cjs_resolve_options(),
+        node_cjs_resolve_options(package_map),
     )
     .await?;
 

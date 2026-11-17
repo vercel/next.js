@@ -7,8 +7,6 @@ use turbo_tasks_fs::{
     RealPathErrorType,
 };
 
-use crate::next_import_map::get_next_package;
-
 /// A final route in the pages directory.
 #[turbo_tasks::value]
 pub struct PagesStructureItem {
@@ -103,6 +101,7 @@ impl PagesDirectoryStructure {
 #[turbo_tasks::function]
 pub async fn find_pages_structure(
     project_root: FileSystemPath,
+    next_package: FileSystemPath,
     next_router_root: FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
     next_mode: Vc<crate::mode::NextMode>,
@@ -136,6 +135,7 @@ pub async fn find_pages_structure(
 
     Ok(get_pages_structure_for_root_directory(
         project_root,
+        next_package,
         Vc::cell(pages_root),
         next_router_root,
         page_extensions,
@@ -147,6 +147,7 @@ pub async fn find_pages_structure(
 #[turbo_tasks::function]
 async fn get_pages_structure_for_root_directory(
     project_root: FileSystemPath,
+    next_package: FileSystemPath,
     project_path: Vc<FileSystemPathOption>,
     next_router_path: FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
@@ -282,7 +283,6 @@ async fn get_pages_structure_for_root_directory(
 
     // Only skip user pages routes during build mode when there are no user pages
     let should_create_pages_entries = has_user_pages || next_mode.await?.is_development();
-    let next_package = get_next_package(project_root.clone()).await?;
 
     let app_item = {
         let app_router_path = next_router_path.join("_app")?;

@@ -221,6 +221,7 @@ pub async fn create_page_ssr_entry_module(
     let mut source = load_next_js_template(
         template_file,
         project_root.clone(),
+        next_config,
         replacements,
         injections.iter().map(|(k, v)| (*k, &**v)),
         imports
@@ -327,6 +328,7 @@ pub async fn create_page_ssr_entry_module(
         ssr_module = wrap_edge_entry(
             ssr_module_context,
             project_root,
+            next_config,
             ssr_module,
             pages_function_name(&definition_page).into(),
         );

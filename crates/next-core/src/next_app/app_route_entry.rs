@@ -75,6 +75,7 @@ pub async fn get_app_route_entry(
     let virtual_source = load_next_js_template(
         "app-route.js",
         project_root.clone(),
+        next_config,
         [
             ("VAR_DEFINITION_PAGE", &*page.to_string()),
             ("VAR_DEFINITION_PATHNAME", &pathname),
@@ -187,6 +188,7 @@ async fn wrap_edge_route(
     let source = load_next_js_template(
         "edge-app-route.js",
         project_root.clone(),
+        next_config,
         [("VAR_USERLAND", &*inner), ("VAR_PAGE", &page.to_string())],
         [
             ("cacheHandlerImports", cache_handler_imports.as_str()),
@@ -217,6 +219,7 @@ async fn wrap_edge_route(
     Ok(wrap_edge_entry(
         asset_context,
         project_root.clone(),
+        next_config,
         wrapped,
         app_function_name(&page).into(),
     ))

@@ -47,9 +47,9 @@ struct Fallback {
 
 // This JSON file is large, so we cache it in turbotasks
 #[turbo_tasks::function]
-async fn load_font_metrics(project_root: FileSystemPath) -> Result<Vc<FontMetricsMap>> {
+async fn load_font_metrics(next_package: FileSystemPath) -> Result<Vc<FontMetricsMap>> {
     let data: FontMetricsMap = load_next_js_json_file(
-        project_root,
+        next_package,
         rcstr!("dist/server/capsize-font-metrics.json"),
     )
     .await?;
@@ -60,6 +60,7 @@ async fn load_font_metrics(project_root: FileSystemPath) -> Result<Vc<FontMetric
 #[turbo_tasks::function]
 pub(super) async fn get_font_fallback(
     project_root: FileSystemPath,
+    next_package: FileSystemPath,
     options_vc: Vc<NextFontGoogleOptions>,
 ) -> Result<Vc<FontFallbacks>> {
     let options = options_vc.await?;
@@ -69,7 +70,7 @@ pub(super) async fn get_font_fallback(
     // `adjustFontFallback` is enabled (and only then), independent of whether a manual `fallback`
     // list was provided. The manual list is appended after it.
     if options.adjust_font_fallback {
-        let metrics_json = load_font_metrics(project_root.clone()).await?;
+        let metrics_json = load_font_metrics(next_package.clone()).await?;
         let fallback = lookup_fallback(&options.font_family, &metrics_json, true);
 
         match fallback {

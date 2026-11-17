@@ -62,6 +62,7 @@ pub async fn node_evaluate_asset_context(
     );
     let import_map = import_map.resolved_cell();
     let node_env = node_env_value(execution_context.env()).await?;
+    let package_map = execution_context.await?.package_map.clone();
 
     // base context used for node_modules (and context for app code will be derived
     // from this)
@@ -74,6 +75,7 @@ pub async fn node_evaluate_asset_context(
                 .owned()
                 .await?,
         ),
+        package_map,
         enable_node_externals: true,
         enable_node_native_modules: true,
         custom_conditions: vec![node_env.clone(), rcstr!("node")],
@@ -152,5 +154,6 @@ pub async fn config_tracing_module_context(
         /* prune */ None,
         // Don't trace fs.readFile in configs and webpack loaders. This can cause infinite loops
         false,
+        execution_context.await?.package_map.clone(),
     )))
 }

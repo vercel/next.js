@@ -23,7 +23,6 @@ use crate::{
             match_local_metadata_file, normalize_metadata_route,
         },
     },
-    next_import_map::get_next_package,
 };
 
 // Next.js ignores underscores for routes but you can use %5f to still serve an underscored
@@ -961,6 +960,7 @@ fn add_app_metadata_route(
 #[turbo_tasks::function]
 pub fn get_entrypoints(
     app_dir: FileSystemPath,
+    next_package: FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
     is_global_not_found_enabled: Vc<bool>,
     explicit_parallel_route_children: Vc<bool>,
@@ -969,6 +969,7 @@ pub fn get_entrypoints(
 ) -> Vc<Entrypoints> {
     directory_tree_to_entrypoints(
         app_dir.clone(),
+        next_package.clone(),
         get_directory_tree(app_dir.clone(), page_extensions),
         get_global_metadata(app_dir, page_extensions),
         is_global_not_found_enabled,
@@ -999,6 +1000,7 @@ pub async fn collect_root_params(
 #[turbo_tasks::function]
 async fn directory_tree_to_entrypoints(
     app_dir: FileSystemPath,
+    next_package: FileSystemPath,
     directory_tree: Vc<DirectoryTree>,
     global_metadata: Vc<GlobalMetadata>,
     is_global_not_found_enabled: Vc<bool>,
@@ -1010,6 +1012,7 @@ async fn directory_tree_to_entrypoints(
 ) -> Result<Vc<Entrypoints>> {
     let entrypoints = directory_tree_to_entrypoints_internal(
         app_dir.clone(),
+        next_package.clone(),
         global_metadata,
         is_global_not_found_enabled,
         explicit_parallel_route_children,
@@ -1026,9 +1029,7 @@ async fn directory_tree_to_entrypoints(
         return Ok(entrypoints);
     }
 
-    let builtin_default = get_next_package(app_dir.clone())
-        .await?
-        .join("dist/client/components/builtin/default.js")?;
+    let builtin_default = next_package.join("dist/client/components/builtin/default.js")?;
     let entrypoints_ref = entrypoints.await?;
     let plain_tree = directory_tree.into_plain().await?;
     let mut declared_slots = FxIndexMap::default();
@@ -1660,6 +1661,7 @@ struct AppPageLoaderTreeOption(Option<ResolvedVc<AppPageLoaderTree>>);
 #[turbo_tasks::function]
 async fn directory_tree_to_loader_tree(
     app_dir: FileSystemPath,
+    next_package: FileSystemPath,
     global_metadata: Vc<GlobalMetadata>,
     directory_name: RcStr,
     directory_tree: Vc<DirectoryTree>,
@@ -1675,6 +1677,7 @@ async fn directory_tree_to_loader_tree(
     let mut missing_defaults = Vec::new();
     let tree = directory_tree_to_loader_tree_internal(
         app_dir.clone(),
+        next_package.clone(),
         global_metadata,
         directory_name,
         plain_tree,
@@ -1707,7 +1710,7 @@ async fn directory_tree_to_loader_tree(
 /// If the module and the parent module are not set, set them to the default value.
 ///
 /// # Arguments
-/// * `app_dir` - The application directory.
+/// * `next_package` - The directory of the `next` package, which has the default pages.
 /// * `module` - The current module to check and update if it is not set.
 /// * `parent_module` - The parent module to update if the current module is set or both are not
 ///   set.
@@ -1716,7 +1719,7 @@ async fn directory_tree_to_loader_tree(
 /// * `is_first_layer_group_route` - If true, the module will be overridden with the parent module
 ///   if it is not set.
 async fn check_and_update_module_references(
-    app_dir: FileSystemPath,
+    next_package: &FileSystemPath,
     module: &mut Option<FileSystemPath>,
     parent_module: &mut Option<FileSystemPath>,
     file_path: &str,
@@ -1737,7 +1740,7 @@ async fn check_and_update_module_references(
         // page. This can only happen in the root directory because after this the parent module
         // will always be set.
         (None, None) => {
-            let default_page = get_next_package(app_dir).await?.join(file_path)?;
+            let default_page = next_package.join(file_path)?;
             *module = Some(default_page.clone());
             *parent_module = Some(default_page);
         }
@@ -1750,16 +1753,16 @@ async fn check_and_update_module_references(
 /// If the module is not set, it will be set to the default page.
 ///
 /// # Arguments
-/// * `app_dir` - The application directory.
+/// * `next_package` - The directory of the `next` package, which has the default pages.
 /// * `module` - The module to check and update if it is not set.
 /// * `file_path` - The file path to the default page if the module is not set.
 async fn check_and_update_global_module_references(
-    app_dir: FileSystemPath,
+    next_package: &FileSystemPath,
     module: &mut Option<FileSystemPath>,
     file_path: &str,
 ) -> Result<()> {
     if module.is_none() {
-        *module = Some(get_next_package(app_dir).await?.join(file_path)?);
+        *module = Some(next_package.join(file_path)?);
     }
 
     Ok(())
@@ -1767,6 +1770,7 @@ async fn check_and_update_global_module_references(
 
 async fn directory_tree_to_loader_tree_internal(
     app_dir: FileSystemPath,
+    next_package: FileSystemPath,
     global_metadata: Vc<GlobalMetadata>,
     directory_name: RcStr,
     directory_tree: &PlainDirectoryTree,
@@ -1800,7 +1804,7 @@ async fn directory_tree_to_loader_tree_internal(
     // the default page if they are not set.
     if is_root_directory || is_first_layer_group_route {
         check_and_update_module_references(
-            app_dir.clone(),
+            &next_package,
             &mut modules.not_found,
             &mut parent_modules.not_found,
             "dist/client/components/builtin/not-found.js",
@@ -1809,7 +1813,7 @@ async fn directory_tree_to_loader_tree_internal(
         .await?;
 
         check_and_update_module_references(
-            app_dir.clone(),
+            &next_package,
             &mut modules.forbidden,
             &mut parent_modules.forbidden,
             "dist/client/components/builtin/forbidden.js",
@@ -1818,7 +1822,7 @@ async fn directory_tree_to_loader_tree_internal(
         .await?;
 
         check_and_update_module_references(
-            app_dir.clone(),
+            &next_package,
             &mut modules.unauthorized,
             &mut parent_modules.unauthorized,
             "dist/client/components/builtin/unauthorized.js",
@@ -1829,7 +1833,7 @@ async fn directory_tree_to_loader_tree_internal(
 
     if is_root_directory {
         check_and_update_global_module_references(
-            app_dir.clone(),
+            &next_package,
             &mut modules.global_error,
             "dist/client/components/builtin/global-error.js",
         )
@@ -1924,6 +1928,7 @@ async fn directory_tree_to_loader_tree_internal(
         let subtree = if for_app_path.contains_page(&child_app_page) {
             Box::pin(directory_tree_to_loader_tree_internal(
                 app_dir.clone(),
+                next_package.clone(),
                 global_metadata,
                 subdir_name.clone(),
                 subdirectory,
@@ -2069,7 +2074,7 @@ async fn directory_tree_to_loader_tree_internal(
 
             tree.parallel_routes.insert(
                 key.clone(),
-                retained_route_tree(app_dir.clone(), global_metadata, app_page.clone()).await?,
+                retained_route_tree(&next_package, global_metadata, app_page.clone()).await?,
             );
         }
     }
@@ -2077,7 +2082,7 @@ async fn directory_tree_to_loader_tree_internal(
     if tree.parallel_routes.is_empty() {
         if modules.default.is_some() || current_level_is_parallel_route {
             tree = default_route_tree(
-                app_dir.clone(),
+                &next_package,
                 global_metadata,
                 app_page.clone(),
                 modules.default.clone(),
@@ -2095,10 +2100,10 @@ async fn directory_tree_to_loader_tree_internal(
         // content. Named-only layouts can carry their parallel route state
         // directly without a synthetic default child.
         let children = if is_interception_host {
-            retained_route_tree(app_dir.clone(), global_metadata, app_page.clone()).await?
+            retained_route_tree(&next_package, global_metadata, app_page.clone()).await?
         } else {
             default_route_tree(
-                app_dir.clone(),
+                &next_package,
                 global_metadata,
                 app_page.clone(),
                 modules.default.clone(),
@@ -2114,7 +2119,7 @@ async fn directory_tree_to_loader_tree_internal(
 }
 
 async fn default_route_tree(
-    app_dir: FileSystemPath,
+    next_package: &FileSystemPath,
     global_metadata: Vc<GlobalMetadata>,
     app_page: AppPage,
     default_component: Option<FileSystemPath>,
@@ -2136,20 +2141,18 @@ async fn default_route_tree(
             "dist/client/components/builtin/default.js"
         };
 
-        get_next_package(app_dir).await?.join(default_file)?
+        next_package.join(default_file)?
     };
 
     synthetic_default_route_tree(global_metadata, app_page, default).await
 }
 
 async fn retained_route_tree(
-    app_dir: FileSystemPath,
+    next_package: &FileSystemPath,
     global_metadata: Vc<GlobalMetadata>,
     app_page: AppPage,
 ) -> Result<AppPageLoaderTree> {
-    let default_null = get_next_package(app_dir)
-        .await?
-        .join("dist/client/components/builtin/default-null.js")?;
+    let default_null = next_package.join("dist/client/components/builtin/default-null.js")?;
     synthetic_default_route_tree(global_metadata, app_page, default_null).await
 }
 
@@ -2174,6 +2177,7 @@ async fn synthetic_default_route_tree(
 #[turbo_tasks::function]
 async fn directory_tree_to_entrypoints_internal(
     app_dir: FileSystemPath,
+    next_package: FileSystemPath,
     global_metadata: ResolvedVc<GlobalMetadata>,
     is_global_not_found_enabled: Vc<bool>,
     explicit_parallel_route_children: Vc<bool>,
@@ -2188,6 +2192,7 @@ async fn directory_tree_to_entrypoints_internal(
     let span = tracing::info_span!("build layout trees", name = display(&app_page));
     directory_tree_to_entrypoints_internal_untraced(
         app_dir,
+        next_package,
         global_metadata,
         is_global_not_found_enabled,
         explicit_parallel_route_children,
@@ -2205,6 +2210,7 @@ async fn directory_tree_to_entrypoints_internal(
 
 async fn directory_tree_to_entrypoints_internal_untraced(
     app_dir: FileSystemPath,
+    next_package: FileSystemPath,
     global_metadata: ResolvedVc<GlobalMetadata>,
     is_global_not_found_enabled: Vc<bool>,
     explicit_parallel_route_children: Vc<bool>,
@@ -2268,6 +2274,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
 
         let loader_tree = *directory_tree_to_loader_tree(
             app_dir.clone(),
+            next_package.clone(),
             *global_metadata,
             directory_name.clone(),
             directory_tree_vc,
@@ -2383,40 +2390,24 @@ async fn directory_tree_to_entrypoints_internal_untraced(
 
         // fill in the default modules for the not-found entrypoint
         if modules.layout.is_none() {
-            modules.layout = Some(
-                get_next_package(app_dir.clone())
-                    .await?
-                    .join("dist/client/components/builtin/layout.js")?,
-            );
+            modules.layout = Some(next_package.join("dist/client/components/builtin/layout.js")?);
         }
 
         if modules.not_found.is_none() {
-            modules.not_found = Some(
-                get_next_package(app_dir.clone())
-                    .await?
-                    .join("dist/client/components/builtin/not-found.js")?,
-            );
+            modules.not_found =
+                Some(next_package.join("dist/client/components/builtin/not-found.js")?);
         }
         if modules.forbidden.is_none() {
-            modules.forbidden = Some(
-                get_next_package(app_dir.clone())
-                    .await?
-                    .join("dist/client/components/builtin/forbidden.js")?,
-            );
+            modules.forbidden =
+                Some(next_package.join("dist/client/components/builtin/forbidden.js")?);
         }
         if modules.unauthorized.is_none() {
-            modules.unauthorized = Some(
-                get_next_package(app_dir.clone())
-                    .await?
-                    .join("dist/client/components/builtin/unauthorized.js")?,
-            );
+            modules.unauthorized =
+                Some(next_package.join("dist/client/components/builtin/unauthorized.js")?);
         }
         if modules.global_error.is_none() {
-            modules.global_error = Some(
-                get_next_package(app_dir.clone())
-                    .await?
-                    .join("dist/client/components/builtin/global-error.js")?,
-            );
+            modules.global_error =
+                Some(next_package.join("dist/client/components/builtin/global-error.js")?);
         }
 
         // Next.js has this logic in "collect-app-paths", where the root not-found page
@@ -2447,9 +2438,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                                 // leaf module only keeps page pointing to empty-stub
                                 AppDirModules {
                                     // page is built-in/empty-stub
-                                    page: Some(get_next_package(app_dir.clone())
-                                        .await?
-                                        .join("dist/client/components/builtin/empty-stub.js")?,
+                                    page: Some(next_package.join("dist/client/components/builtin/empty-stub.js")?,
                                     ),
                                     ..Default::default()
                                 }
@@ -2459,9 +2448,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                                 AppDirModules {
                                     page: match modules.not_found {
                                         Some(v) => Some(v),
-                                        None => Some(get_next_package(app_dir.clone())
-                                            .await?
-                                            .join("dist/client/components/builtin/not-found.js")?,
+                                        None => Some(next_package.join("dist/client/components/builtin/not-found.js")?,
                                         ),
                                     },
                                     ..Default::default()
@@ -2487,9 +2474,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                     match modules.global_not_found {
                         Some(v) => Some(v),
                         None => Some(
-                            get_next_package(app_dir.clone())
-                                .await?
-                                .join("dist/client/components/builtin/global-not-found.js")?,
+                            next_package.join("dist/client/components/builtin/global-not-found.js")?,
                         ),
                     }
                 } else {
@@ -2524,7 +2509,6 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         if matches!(*next_mode.await?, NextMode::Build) {
             // Create a `_global-error/page` route using user's global-error.js or built-in
             // fallback.
-            let next_package = get_next_package(app_dir.clone()).await?;
             let global_error_tree = AppPageLoaderTree {
                 page: app_page.clone(),
                 segment: directory_name.clone(),
@@ -2573,6 +2557,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         .iter()
         .map(|(subdir_name, &subdirectory)| {
             let app_dir = app_dir.clone();
+            let next_package = next_package.clone();
 
             async move {
                 let mut child_app_page = app_page.clone();
@@ -2608,6 +2593,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
 
                 let map = directory_tree_to_entrypoints_internal(
                     app_dir.clone(),
+                    next_package.clone(),
                     *global_metadata,
                     is_global_not_found_enabled,
                     explicit_parallel_route_children,
@@ -2636,6 +2622,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
 
                             let loader_tree = directory_tree_to_loader_tree(
                                 app_dir.clone(),
+                                next_package.clone(),
                                 *global_metadata,
                                 directory_name.clone(),
                                 directory_tree_vc,

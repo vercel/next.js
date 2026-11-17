@@ -123,6 +123,7 @@ pub async fn get_middleware_module(
     let source = load_next_js_template(
         "middleware.js",
         project_root,
+        next_config,
         [("VAR_USERLAND", INNER), ("VAR_DEFINITION_PAGE", page_path)],
         [],
         [(
