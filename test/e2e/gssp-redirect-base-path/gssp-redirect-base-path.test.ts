@@ -116,6 +116,8 @@ describe('GS(S)P Redirect with basePath', () => {
         post: 'first',
       },
     })
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const initialHref = await browser.eval(() => (window as any).initialHref)
     const { pathname } = new URL(initialHref)
     expect(pathname).toBe(`${basePath}/gsp-blog/redirect-dest-_gsp-blog_first`)
@@ -136,6 +138,8 @@ describe('GS(S)P Redirect with basePath', () => {
           post: 'first',
         },
       })
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       const initialHref = await browser.eval(() => (window as any).initialHref)
       const { pathname } = new URL(initialHref)
       expect(pathname).toBe(`${basePath}/gsp-blog/first`)
@@ -149,6 +153,8 @@ describe('GS(S)P Redirect with basePath', () => {
 
     await browser.waitForElementByCss('#index')
 
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const initialHref = await browser.eval(() => (window as any).initialHref)
     const { pathname } = new URL(initialHref)
     expect(pathname).toBe(`${basePath}/gsp-blog/redirect-dest-_`)
@@ -163,6 +169,8 @@ describe('GS(S)P Redirect with basePath', () => {
 
       await browser.waitForElementByCss('#index')
 
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       const initialHref = await browser.eval(() => (window as any).initialHref)
       const { pathname } = new URL(initialHref)
       expect(pathname).toBe(`${basePath}`)
@@ -180,6 +188,8 @@ describe('GS(S)P Redirect with basePath', () => {
       expect(html).toMatch(/oops not found/)
     })
 
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const initialHref = await browser.eval(() => (window as any).initialHref)
     expect(initialHref).toBeFalsy()
 
@@ -199,6 +209,8 @@ describe('GS(S)P Redirect with basePath', () => {
       expect(hostname).toBe('example.vercel.sh')
     })
 
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const initialHref = await browser.eval(() => (window as any).initialHref)
     expect(initialHref).toBeFalsy()
   })
@@ -214,6 +226,8 @@ describe('GS(S)P Redirect with basePath', () => {
       expect(hostname).toBe('example.vercel.sh')
     })
 
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const initialHref = await browser.eval(() => (window as any).initialHref)
     expect(initialHref).toBeFalsy()
 

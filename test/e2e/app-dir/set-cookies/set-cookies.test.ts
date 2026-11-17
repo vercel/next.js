@@ -4,7 +4,11 @@ import cookies, { nextConfigHeaders } from './cookies.mjs'
 
 function getSetCookieHeaders(res: Response): ReadonlyArray<string> {
   return (
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     (res.headers as any).getSetCookie?.() ??
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     (res.headers as any).raw()['set-cookie']
   )
 }

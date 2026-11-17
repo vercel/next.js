@@ -313,13 +313,13 @@ describe('Cache Components Errors - Client Components', () => {
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
-                   at <unknown> (app/client-use-search-params/client.tsx:6:3)
+                   at <unknown> (app/client-use-search-params/client.tsx:6:18)
                    at body (<anonymous>)
                    at html (<anonymous>)
                  4 |
                  5 | export function Client() {
                > 6 |   useSearchParams()
-                   |   ^
+                   |                  ^
                  7 |   return <p>hello world</p>
                  8 | }
                  9 | {
@@ -461,13 +461,13 @@ describe('Cache Components Errors - Client Components', () => {
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
-                   at <unknown> (app/client-use-pathname/[id]/client.tsx:6:3)
+                   at <unknown> (app/client-use-pathname/[id]/client.tsx:6:14)
                    at body (<anonymous>)
                    at html (<anonymous>)
                  4 |
                  5 | export function Client() {
                > 6 |   usePathname()
-                   |   ^
+                   |              ^
                  7 |   return <p>hello world</p>
                  8 | }
                  9 | {

@@ -6,6 +6,8 @@ import loader from 'next/dist/build/babel/loader'
 
 const dir = path.resolve(os.tmpdir())
 
+// TODO(as-any): pre-existing cast, not yet reviewed
+// eslint-disable-next-line @next/internal/no-as-any
 const babel = async (code: string, queryOpts = {} as any) => {
   const { isServer = false, resourcePath = `index.js` } = queryOpts
 

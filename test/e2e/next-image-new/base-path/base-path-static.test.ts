@@ -102,7 +102,11 @@ describe('Static Image Component Tests for basePath', () => {
   }
 
   it('should have <head> containing <meta name="viewport"> followed by <link rel="preload"> for priority image', async () => {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     let metaViewport = { index: 0, attribs: {} as any }
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     let linkPreload = { index: 0, attribs: {} as any }
     $('head')
       .children()
@@ -119,9 +123,13 @@ describe('Static Image Component Tests for basePath', () => {
           linkPreload = { index, attribs }
         }
       })
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect((metaViewport.attribs as any).content).toContain(
       'width=device-width'
     )
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(normalizeURL((linkPreload.attribs as any).imagesrcset)).toMatch(
       /%2F_next%2Fstatic%2Fmedia%2Ftest-rect\.(.*)\.jpg/g
     )

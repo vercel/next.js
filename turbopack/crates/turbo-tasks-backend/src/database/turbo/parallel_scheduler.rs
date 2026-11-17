@@ -10,6 +10,12 @@ impl ParallelScheduler for TurboTasksParallelScheduler {
         parallel::available_parallelism().map_or(4, |count| count.get())
     }
 
+    fn spawn_blocking(&self, f: impl FnOnce() + Send + 'static) {
+        // Like the other methods (via `scope_bounded`), this requires a tokio runtime: the
+        // database is always opened and committed inside one.
+        drop(tokio::runtime::Handle::current().spawn_blocking(f));
+    }
+
     fn parallel_for_each<T>(&self, items: &[T], f: impl Fn(&T) + Send + Sync)
     where
         T: Sync,
