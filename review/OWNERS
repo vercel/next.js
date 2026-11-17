@@ -19,6 +19,13 @@
 # members picked at random by scripts/review-context.mjs, from the people
 # listed here who committed in the past week.
 # TODO: request the Next.js oncall instead, once Vercel Agent supports it.
+#
+# [team-members] isn't an area. It lists people on the team who don't own an
+# area yet, so the agent treats them as team members when they author a PR.
+# It takes no globs and no rubric, and its members are never requested as
+# reviewers.
+
+[team-members] @jimmyhmiller
 
 # ----------------------------------------------------------------------
 # App Router runtime
