@@ -276,6 +276,25 @@ const tests = {
         'C:\\Users\\username\\projects\\project-name\\src\\pages\\layout.tsx',
       errors: [{ message }],
     },
+    {
+      code: `
+      import Script from "next/script";
+
+      export default function Home() {
+        return (
+          <html lang="en">
+            <body>
+              <Script
+                src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js"
+                strategy='beforeInteractive'
+              />
+            </body>
+          </html>
+        );
+      }`,
+      filename: '/tmp/repro/srv/app/web/pages/layout.tsx',
+      errors: [{ message }],
+    },
   ],
 }
 
