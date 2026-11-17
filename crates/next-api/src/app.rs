@@ -1338,7 +1338,7 @@ impl GoEndpoint {
         let prepared = self.analysis().await?;
         let declarations = prepared.declarations.await?;
         let root = project.project_path().owned().await?;
-        let context = go_browser_context(project);
+        let asset_context = go_browser_context(project);
         let mut entries = vec![];
         let mut valid = true;
         for entry in &declarations.browser_entries {
@@ -1399,7 +1399,7 @@ impl GoEndpoint {
             } else {
                 Vc::upcast(FileSource::new(source))
             };
-            let module = context
+            let module = asset_context
                 .process(
                     module_source,
                     ReferenceType::Entry(EntryReferenceSubType::default()),
