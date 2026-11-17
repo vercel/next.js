@@ -343,6 +343,7 @@ async fn build_assets(
         ),
         load_env(root_path.clone()),
         node_backend,
+        None,
     );
 
     let asset_context = get_client_asset_context(

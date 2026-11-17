@@ -1,0 +1,18 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map-missing/input/index.js:3:16  Module not found: Can't resolve 'dep'
+  
+       1 | it('should not resolve any package when the package map does not exist', () => {
+       2 |   // The `node_modules` folders are not a fallback.
+         +                v------------v
+       3 +   expect(() => require('dep')).toThrow()
+         +                ^------------^
+       4 | })
+       5 | 
+  
+  Package map: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map-missing/input/package-map.json is invalid, so no package can be found.
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: module "'dep'"
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map-missing/input/index.js
+  | Type of request: commonjs request
+  |

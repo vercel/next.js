@@ -394,6 +394,11 @@ impl ServerNftJsonAsset {
             /* resolve_typescript */ false,
             /* prune */ Some((self.project.project_root_path().owned().await?, prune)),
             /* trace_file_references */ true,
+            self.project
+                .next_config()
+                .turbopack_package_map(self.project.project_path().owned().await?)
+                .owned()
+                .await?,
         ));
 
         let project_path = self.project.project_path().owned().await?;

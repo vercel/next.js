@@ -1539,6 +1539,10 @@ impl Project {
             node_execution_chunking_context,
             self.env(),
             node_backend,
+            self.next_config()
+                .turbopack_package_map(self.project_path().owned().await?)
+                .owned()
+                .await?,
         ))
     }
 
@@ -3090,6 +3094,10 @@ impl Project {
             /* resolve_typescript */ false,
             /* prune */ None,
             /* trace_file_references */ true,
+            self.next_config()
+                .turbopack_package_map(project_path.clone())
+                .owned()
+                .await?,
         );
 
         Ok(Vc::cell(
@@ -3120,6 +3128,10 @@ impl Project {
             /* resolve_typescript */ false,
             /* prune */ None,
             /* trace_file_references */ true,
+            self.next_config()
+                .turbopack_package_map(self.project_path().owned().await?)
+                .owned()
+                .await?,
         ));
         let hook_modules = require_hook_modules(self.project_path().owned().await?, asset_context)
             .owned()

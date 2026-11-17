@@ -34,6 +34,12 @@ pub enum ResolveModules {
         dir: FileSystemPath,
         excluded_extensions: ResolvedVc<ExcludedExtensions>,
     },
+    /// Look the module up in the [Node.js package map] at this path: the package that contains
+    /// the lookup path has to depend on the module, and the map tells where the module is. This
+    /// takes the place of looking into the `node_modules` directories.
+    ///
+    /// [Node.js package map]: https://nodejs.org/api/packages.html#package-maps
+    PackageMap(FileSystemPath),
 }
 
 #[derive(Hash, PartialEq, Eq, Clone, Copy, Debug, NonLocalValue, Encode, Decode, Default)]
@@ -680,6 +686,18 @@ pub struct ResolveOptions {
     pub server_relative_root: Option<FileSystemPath>,
 
     pub placeholder_for_future_extensions: (),
+}
+
+impl ResolveOptions {
+    /// The path of the [package map] that modules are looked up in, if any.
+    ///
+    /// [package map]: ResolveModules::PackageMap
+    pub fn package_map(&self) -> Option<&FileSystemPath> {
+        self.modules.iter().find_map(|modules| match modules {
+            ResolveModules::PackageMap(path) => Some(path),
+            _ => None,
+        })
+    }
 }
 
 #[turbo_tasks::value_impl]

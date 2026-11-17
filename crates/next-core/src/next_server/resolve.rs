@@ -45,6 +45,8 @@ pub(crate) struct ExternalCjsModulesResolvePlugin {
     predicate: ResolvedVc<ExternalPredicate>,
     import_externals: bool,
     condition: ResolvedVc<AfterResolvePluginCondition>,
+    /// The package map that Node.js locates packages with at runtime, if any.
+    package_map: Option<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
@@ -53,6 +55,7 @@ impl ExternalCjsModulesResolvePlugin {
     pub async fn new(
         predicate: ResolvedVc<ExternalPredicate>,
         import_externals: bool,
+        package_map: Option<FileSystemPath>,
     ) -> Result<Vc<Self>> {
         let condition = AfterResolvePluginCondition::new_with_glob(
             None,
@@ -64,6 +67,7 @@ impl ExternalCjsModulesResolvePlugin {
             predicate,
             import_externals,
             condition,
+            package_map,
         }
         .cell())
     }
@@ -211,9 +215,9 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         let mut request_str = request_str.to_string();
 
         let node_resolve_options = if is_esm {
-            node_esm_resolve_options()
+            node_esm_resolve_options(self.package_map.clone())
         } else {
-            node_cjs_resolve_options()
+            node_cjs_resolve_options(self.package_map.clone())
         };
         let result_from_original_location = loop {
             let node_resolved_from_original_location = resolve(
@@ -273,7 +277,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 // It would be more efficient to use an CJS external instead of an ESM external,
                 // but we need to verify if that would be correct (as in resolves to the same
                 // file).
-                let node_resolve_options = node_cjs_resolve_options();
+                let node_resolve_options = node_cjs_resolve_options(self.package_map.clone());
                 let node_resolved = resolve(
                     lookup_path.clone(),
                     reference_type.clone(),

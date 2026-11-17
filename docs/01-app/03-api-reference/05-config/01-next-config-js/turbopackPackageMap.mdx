@@ -1,0 +1,101 @@
+---
+title: turbopackPackageMap
+description: Locate packages with a Node.js package map instead of the node_modules folders.
+version: experimental
+related:
+  links:
+    - app/api-reference/config/next-config-js/turbopack
+---
+
+The `experimental.turbopackPackageMap` option selects the [Node.js package map](https://nodejs.org/api/packages.html#package-maps) that Turbopack locates packages with. A package map is a JSON file that lists where every package is and which packages it may import, so resolving an import no longer depends on the layout of the `node_modules` folders.
+
+```ts filename="next.config.ts" switcher highlight={5}
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    turbopackPackageMap: './package-map.json',
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher highlight={4}
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    turbopackPackageMap: './package-map.json',
+  },
+}
+
+module.exports = nextConfig
+```
+
+A relative path is resolved from the project directory.
+
+## Reference
+
+| Value       | Behavior                                                                                                   |
+| ----------- | ---------------------------------------------------------------------------------------------------------- |
+| `string`    | Path to the package map.                                                                                   |
+| `false`     | Ignore the package map that Node.js was started with, and look for packages in the `node_modules` folders. |
+| `undefined` | Use the package map that Node.js was started with, if any. This is the default.                            |
+
+By default, Next.js uses the package map that Node.js itself uses: the path of the `--experimental-package-map` option, on the command line or in the `NODE_OPTIONS` environment variable. Package managers that generate a package map can set this option for the scripts they run, in which case no configuration is needed.
+
+## How it works
+
+A package map contains a `packages` object. Each key is a package ID, and each entry has the location of the package as a `url`, and the `dependencies` it may import:
+
+```json filename="package-map.json"
+{
+  "packages": {
+    "my-app": {
+      "url": ".",
+      "dependencies": {
+        "next": "next@16.0.0",
+        "ui": "ui@1.2.0"
+      }
+    },
+    "ui@1.2.0": {
+      "url": "./packages/ui",
+      "dependencies": {
+        "clsx": "clsx@2.1.1"
+      }
+    },
+    "clsx@2.1.1": {
+      "url": "./.store/clsx-2.1.1"
+    },
+    "next@16.0.0": {
+      "url": "./.store/next-16.0.0"
+    }
+  }
+}
+```
+
+When a file imports a package, such as `import { Button } from 'ui'`, Turbopack:
+
+1. Finds the package that contains the importing file, from the locations in the package map.
+2. Looks the imported name up in the `dependencies` of that package.
+3. Resolves the rest of the import inside of the location of the package it refers to. The `exports` field, the `main` field and file extensions apply as usual.
+
+Imports that are not for a package, such as relative imports, [`resolveAlias`](/docs/app/api-reference/config/next-config-js/turbopack#resolving-aliases) and `paths` of `tsconfig.json`, are not affected.
+
+A package can only import the packages that its `dependencies` list. For example, importing `clsx` from a file of `my-app` in the package map above fails with a `Module not found` error, which states that `clsx` is not in the dependencies of `my-app`.
+
+> **Good to know:**
+>
+> - This option only affects Turbopack. It has no effect when using webpack.
+> - Turbopack does not look into the `node_modules` folders when it uses a package map.
+> - The package map and the locations of all packages must be inside of the [root directory](/docs/app/api-reference/config/next-config-js/turbopack#root-directory).
+> - A `url` is relative to the package map, or an absolute `file:` URL.
+> - Several package IDs can share one location. Turbopack identifies the importing package from the location of the importing file, so an import from a shared location only resolves when it leads to the same location from all of the packages that share it.
+> - Next.js still finds the `next` package itself in the `node_modules` folders.
+> - TypeScript does not read package maps. Type checking resolves packages on its own.
+
+## Version History
+
+| Version   | Changes                                                        |
+| --------- | -------------------------------------------------------------- |
+| `v16.5.0` | `experimental.turbopackPackageMap` configuration option added. |

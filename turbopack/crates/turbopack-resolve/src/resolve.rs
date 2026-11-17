@@ -150,18 +150,22 @@ async fn base_resolve_options(
     };
     Ok(ResolveOptions {
         extensions,
-        modules: if let Some(environment) = emulating {
-            if *environment.resolve_node_modules().await? {
-                vec![ResolveModules::Nested(vec![rcstr!("node_modules")])]
+        modules: {
+            let enable_node_modules = if let Some(environment) = emulating {
+                *environment.resolve_node_modules().await?
             } else {
-                Vec::new()
+                opt.enable_node_modules.is_some()
+            };
+            match &opt.package_map {
+                // The package map takes the place of the `node_modules` folders.
+                Some(package_map) if enable_node_modules => {
+                    vec![ResolveModules::PackageMap(package_map.clone())]
+                }
+                None if enable_node_modules => {
+                    vec![ResolveModules::Nested(vec![rcstr!("node_modules")])]
+                }
+                _ => Vec::new(),
             }
-        } else {
-            let mut mods = Vec::new();
-            if opt.enable_node_modules.is_some() {
-                mods.push(ResolveModules::Nested(vec![rcstr!("node_modules")]));
-            }
-            mods
         },
         into_package: {
             let mut resolve_into = vec![ResolveIntoPackage::ExportsField {
@@ -234,7 +238,10 @@ pub async fn resolve_options(
             anyhow::Ok::<Vc<ResolveOptions>>(match &*tsconfig {
                 FindContextFileResult::Found(path, _) => apply_tsconfig_resolve_options(
                     resolve_options,
-                    tsconfig_resolve_options(path.clone()),
+                    tsconfig_resolve_options(
+                        path.clone(),
+                        options_context_value.package_map.clone(),
+                    ),
                 ),
                 FindContextFileResult::NotFound(_) => resolve_options,
             })
@@ -257,7 +264,10 @@ pub async fn resolve_options(
                     // If the file exists, use it.
                     apply_tsconfig_resolve_options(
                         resolve_options,
-                        tsconfig_resolve_options(tsconfig_path.clone()),
+                        tsconfig_resolve_options(
+                            tsconfig_path.clone(),
+                            options_context_value.package_map.clone(),
+                        ),
                     )
                 } else {
                     // Otherwise, try and find one.

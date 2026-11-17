@@ -762,6 +762,7 @@ async fn get_mock_stylesheet(
         project_path: _,
         chunking_context,
         node_backend,
+        package_map: _,
     } = *execution_context.await?;
     let asset_context = node_evaluate_asset_context(
         execution_context,

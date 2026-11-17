@@ -1,0 +1,13 @@
+{
+  "packages": {
+    "app": {
+      "url": "./app",
+      "dependencies": {
+        "dep": "dep"
+      }
+    },
+    "dep": {
+      "url": "./store/dep"
+    }
+  }
+}

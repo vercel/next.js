@@ -1,0 +1,44 @@
+{
+  "packages": {
+    "app": {
+      "url": ".",
+      "dependencies": {
+        "dep": "dep@1.0.0",
+        "shared": "shared@2.0.0",
+        "aliased": "shared@1.0.0",
+        "@scope/pkg": "@scope/pkg@1.0.0",
+        "legacy": "legacy@1.0.0",
+        "single-file": "single-file",
+        "undefined-id": "undefined-id@1.0.0",
+        "not-installed": "not-installed@1.0.0"
+      }
+    },
+    "dep@1.0.0": {
+      "url": "./store/dep-1.0.0",
+      "dependencies": {
+        "shared": "shared@1.0.0"
+      }
+    },
+    "shared@1.0.0": {
+      "url": "store/shared-1.0.0/"
+    },
+    "shared@2.0.0": {
+      "url": "./store/../store/shared-2.0.0"
+    },
+    "@scope/pkg@1.0.0": {
+      "url": "./store/scope-pkg-1.0.0"
+    },
+    "legacy@1.0.0": {
+      "url": "./store/legacy%2D1.0.0"
+    },
+    "single-file": {
+      "url": "./store/single-file.js"
+    },
+    "hidden@1.0.0": {
+      "url": "./store/hidden-1.0.0"
+    },
+    "not-installed@1.0.0": {
+      "url": "./store/not-installed-1.0.0"
+    }
+  }
+}

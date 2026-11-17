@@ -11,6 +11,11 @@ pub struct ExecutionContext {
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub env: ResolvedVc<Box<dyn ProcessEnv>>,
     pub node_backend: ResolvedVc<Box<dyn NodeBackend>>,
+    /// The path of the [Node.js package map] that Node.js locates packages with, if any. The
+    /// code that is evaluated resolves its packages with it as well.
+    ///
+    /// [Node.js package map]: https://nodejs.org/api/packages.html#package-maps
+    pub package_map: Option<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
@@ -21,12 +26,14 @@ impl ExecutionContext {
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         env: ResolvedVc<Box<dyn ProcessEnv>>,
         node_backend: ResolvedVc<Box<dyn NodeBackend>>,
+        package_map: Option<FileSystemPath>,
     ) -> Vc<Self> {
         ExecutionContext {
             project_path,
             chunking_context,
             env,
             node_backend,
+            package_map,
         }
         .cell()
     }

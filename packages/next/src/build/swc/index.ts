@@ -1,6 +1,7 @@
 import path from 'path'
 import { pathToFileURL } from 'url'
 import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
+import { resolvePackageMap } from '../../lib/node-package-map'
 import { arch, platform } from 'os'
 import { platformArchTriples } from 'next/dist/compiled/@napi-rs/triples'
 import * as Log from '../output/log'
@@ -1065,6 +1066,19 @@ function bindingToApi(
           priorityRoutes: chunkingConfig.priorityRoutes?.map(regexComponents),
         },
       }
+    }
+
+    // Turbopack takes the package map relative to the project path. The package map that
+    // Node.js was started with is the default.
+    const packageMap = resolvePackageMap(
+      nextConfigSerializable.experimental?.turbopackPackageMap,
+      projectPath
+    )
+    nextConfigSerializable.experimental = {
+      ...nextConfigSerializable.experimental,
+      turbopackPackageMap: packageMap
+        ? normalizePathOnWindows(path.relative(projectPath, packageMap))
+        : undefined,
     }
 
     return JSON.stringify(nextConfigSerializable, null, 2)

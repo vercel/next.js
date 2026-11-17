@@ -1,0 +1,3 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map-invalid/input/package-map.json  Invalid package map
+  
+  Package "dep" has an unsupported URL scheme in "https://example.com/dep"; only file URLs and relative URLs are supported.

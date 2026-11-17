@@ -1,0 +1,22 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map/input/index.js:62:16  Module not found: Can't resolve 'only-in-node-modules'
+  
+      58 |   // In the package map, but not a dependency of this package.
+      59 |   expect(() => require('hidden')).toThrow()
+      60 |   expect(() => require('#hidden')).toThrow()
+      61 |   // In `node_modules`, but not in the package map.
+         +                v-----------------------------v
+      62 +   expect(() => require('only-in-node-modules')).toThrow()
+         +                ^-----------------------------^
+      63 | })
+      64 | 
+      65 | it('should not resolve a dependency that the package map cannot locate', () => {
+      66 |   expect(() => require('undefined-id')).toThrow()
+  
+  Package map: "only-in-node-modules" is not in the dependencies of the importing package "app" in [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map/input/package-map.json.
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: module "'only-in-node-modules'"
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/package-map/input/index.js
+  | Type of request: commonjs request
+  |

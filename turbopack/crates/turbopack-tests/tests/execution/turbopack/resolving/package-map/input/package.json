@@ -1,0 +1,10 @@
+{
+  "name": "app",
+  "exports": {
+    "./self": "./self.js"
+  },
+  "imports": {
+    "#dep": "dep",
+    "#hidden": "hidden"
+  }
+}

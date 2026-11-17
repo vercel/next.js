@@ -187,9 +187,15 @@ pub async fn get_server_resolve_options_context(
 
     external_packages.retain(|item| !transpiled_packages.contains(item));
 
+    let package_map = next_config
+        .turbopack_package_map(project_path.clone())
+        .owned()
+        .await?;
+
     let server_external_packages_plugin = ExternalCjsModulesResolvePlugin::new(
         ExternalPredicate::Only(ResolvedVc::cell(external_packages)).cell(),
         *next_config.import_externals().await?,
+        package_map.clone(),
     )
     .to_resolved()
     .await?;
@@ -214,6 +220,7 @@ pub async fn get_server_resolve_options_context(
         ExternalCjsModulesResolvePlugin::new(
             ExternalPredicate::AllExcept(ResolvedVc::cell(transpiled_packages)).cell(),
             *next_config.import_externals().await?,
+            package_map.clone(),
         )
         .to_resolved()
         .await?
@@ -252,6 +259,7 @@ pub async fn get_server_resolve_options_context(
 
     let resolve_options_context = ResolveOptionsContext {
         enable_node_modules: Some(root_dir.clone()),
+        package_map,
         enable_node_externals: true,
         enable_node_native_modules: true,
         module: true,

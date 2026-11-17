@@ -161,7 +161,7 @@ pub async fn get_babel_loader_rules(
 
         let mut react_compiler_options_with_target: ReactCompilerOptions =
             (*react_compiler_options).clone();
-        if let Some(target) = detect_react_compiler_target(project_path).await? {
+        if let Some(target) = detect_react_compiler_target(next_config, project_path).await? {
             react_compiler_options_with_target.target = Some(target);
         }
 
@@ -276,6 +276,7 @@ pub async fn get_babel_loader_rules(
 }
 
 pub async fn detect_react_compiler_target(
+    next_config: Vc<NextConfig>,
     project_path: &FileSystemPath,
 ) -> Result<Option<ReactCompilerTarget>> {
     #[derive(Deserialize)]
@@ -287,7 +288,12 @@ pub async fn detect_react_compiler_target(
         project_path.clone(),
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
         Request::parse(Pattern::Constant(rcstr!("react/package.json"))),
-        node_cjs_resolve_options(),
+        node_cjs_resolve_options(
+            next_config
+                .turbopack_package_map(project_path.clone())
+                .owned()
+                .await?,
+        ),
     );
 
     let Some(source) = react_pkg_result.await?.first_source() else {
@@ -365,7 +371,12 @@ pub async fn resolve_babel_plugin_react_compiler(
         Request::parse(Pattern::Constant(
             BABEL_PLUGIN_REACT_COMPILER_PACKAGE_JSON.clone(),
         )),
-        node_cjs_resolve_options(),
+        node_cjs_resolve_options(
+            next_config
+                .turbopack_package_map(project_path.clone())
+                .owned()
+                .await?,
+        ),
     );
     let Some(source) = babel_plugin_result.await?.first_source() else {
         BabelPluginReactCompilerResolutionIssue {

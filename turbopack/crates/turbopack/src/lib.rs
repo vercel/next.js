@@ -890,12 +890,15 @@ async fn process_default_internal(
 
 /// `prune` skips matching files as the graph is walked, rather than filtering them out of the
 /// result afterwards.
+///
+/// `package_map` is the path of the package map that Node.js locates packages with, if any.
 #[turbo_tasks::function]
 pub async fn externals_tracing_module_context(
     compile_time_info: Vc<CompileTimeInfo>,
     resolve_typescript: bool,
     prune: Option<(FileSystemPath, ResolvedVc<Glob>)>,
     trace_file_references: bool,
+    package_map: Option<FileSystemPath>,
 ) -> Result<Vc<ModuleAssetContext>> {
     let mut extensions = vec![rcstr!(".js"), rcstr!(".node"), rcstr!(".json")];
     if resolve_typescript {
@@ -916,6 +919,7 @@ pub async fn externals_tracing_module_context(
     let resolve_options = ResolveOptionsContext {
         custom_extensions: Some(extensions),
         emulate_environment: Some(compile_time_info.await?.environment),
+        package_map,
         loose_errors: true,
         collect_affecting_sources: true,
         custom_conditions: vec![rcstr!("node")],
@@ -1109,6 +1113,10 @@ impl AssetContext for ModuleAssetContext {
                                             /* resolve_typescript */ false,
                                             /* prune */ None,
                                             /* trace_file_references */ true,
+                                            self.resolve_options_context()
+                                                .await?
+                                                .package_map
+                                                .clone(),
                                         )),
                                         // If target is specified, a symlink will be created to
                                         // make the folder
