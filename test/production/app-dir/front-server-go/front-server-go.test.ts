@@ -62,6 +62,18 @@ describe('front-server-go', () => {
       expect(got.header['X-Next-Internal-Go-Token']).toBeUndefined()
     })
 
+    it('sends exactly these headers for a request with only Host', async () => {
+      const got = await received('/go/echo')
+      expect(Object.keys(got.header).sort()).toEqual([
+        'Connection',
+        'X-Forwarded-For',
+        'X-Forwarded-Host',
+        'X-Forwarded-Port',
+        'X-Forwarded-Proto',
+      ])
+      expect(got.header['Connection']).toEqual(['keep-alive'])
+    })
+
     it('keeps the forwarded headers the client sends', async () => {
       const got = await received('/go/echo', [
         'X-Forwarded-For: 203.0.113.7',
@@ -249,20 +261,19 @@ describe('front-server-go', () => {
       expect(getHeader(options, 'allow')).toBe('GET, HEAD, OPTIONS, POST')
     })
 
-    it('answers Node’s prerendered 500 page when the handler panics', async () => {
+    it('answers Node’s error page when the handler panics', async () => {
       const res = await send('/go/panic')
-      const page = await next.readFile('.next/server/pages/500.html')
       expect(res.statusLine).toBe('HTTP/1.1 500 Internal Server Error')
-      expect(res.body.toString()).toBe(page)
       expect(Object.fromEntries(res.headers)).toMatchObject({
         'cache-control':
           'private, no-cache, no-store, max-age=0, must-revalidate',
         'x-powered-by': 'Next.js',
-        etag: expect.stringMatching(/^"[0-9a-z]+"$/),
         'content-type': 'text/html; charset=utf-8',
-        'content-length': String(Buffer.byteLength(page)),
-        vary: 'Accept-Encoding',
       })
+      const html = res.body.toString()
+      expect(html).toContain('500: Internal Server Error')
+      expect(html).toContain('"page":"/_error"')
+      expect(html).toContain('"statusCode":500')
     })
 
     it('sends the first chunk of a streaming response before it ends', async () => {

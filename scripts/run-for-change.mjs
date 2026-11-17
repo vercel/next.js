@@ -68,9 +68,14 @@ const CHANGE_ITEM_GROUPS = {
     'packages/next/src/server/lib/front-server.ts',
     'packages/next/src/server/lib/front-binary.ts',
     'packages/next/src/server/lib/front-server-env.ts',
+    'packages/next/src/server/lib/front-route-table.ts',
+    'packages/next/src/server/lib/front-route-table-input.ts',
+    'packages/next/src/server/lib/native-route.external.ts',
     'packages/next/src/server/lib/start-server.ts',
     'packages/next/src/cli/next-start.ts',
     'test/production/app-dir/front-server',
+    'test/production/app-dir/front-server-go',
+    'test/e2e/app-dir/native-route-go',
   ],
   // Changes confined to these paths cannot affect a webpack build.
   turbopack: [
