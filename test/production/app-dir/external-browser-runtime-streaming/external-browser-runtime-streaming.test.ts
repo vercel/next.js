@@ -47,6 +47,12 @@ describe('external-browser-runtime-streaming', () => {
       expect(await page.locator('#dynamic-fallback').isVisible()).toBe(true)
       expect(await page.locator('#large').isVisible()).toBe(false)
       expect(await page.locator('#dynamic').isVisible()).toBe(false)
+      expect(
+        await page.locator('body link[href="/streamed-icon.svg"]').count()
+      ).toBe(2)
+      expect(
+        await page.locator('head link[href="/streamed-icon.svg"]').count()
+      ).toBe(0)
       expect(await page.locator('#shell').getAttribute('data-hydrated')).toBe(
         'false'
       )
@@ -59,6 +65,12 @@ describe('external-browser-runtime-streaming', () => {
       expect(
         await page.locator('#large-fallback, #dynamic-fallback').count()
       ).toBe(0)
+      expect(
+        await page.locator('body link[href="/streamed-icon.svg"]').count()
+      ).toBe(0)
+      expect(
+        await page.locator('head link[href="/streamed-icon.svg"]').count()
+      ).toBe(2)
     })
     expect(await page.locator('#shell').getAttribute('data-hydrated')).toBe(
       'false'

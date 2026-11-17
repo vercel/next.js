@@ -1,9 +1,13 @@
+const { PHASE_DEVELOPMENT_SERVER } = require('next/constants')
+
 /**
- * @type {import('next').NextConfig}
+ * @param {string} phase
+ * @returns {import('next').NextConfig}
  */
-const nextConfig = {
+module.exports = (phase) => ({
   cacheComponents: true,
   experimental: {
+    externalBrowserRuntime: true,
     prerenderEarlyExit: false,
     // This suite resumes fallback shells for uncovered params, which are
     // legitimately blocking navigations; unscoped, that surfaces a
@@ -15,6 +19,22 @@ const nextConfig = {
     // instead.
     instantInsights: { validationLevel: 'manual-warning' },
   },
-}
+  async headers() {
+    if (phase === PHASE_DEVELOPMENT_SERVER) {
+      return []
+    }
 
-module.exports = nextConfig
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Content-Security-Policy',
+            // Preview deployments inject the Vercel toolbar.
+            value: "script-src 'self' https://vercel.live",
+          },
+        ],
+      },
+    ]
+  },
+})

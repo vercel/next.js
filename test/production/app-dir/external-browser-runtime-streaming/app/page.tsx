@@ -2,6 +2,16 @@ import { connection } from 'next/server'
 import { Suspense } from 'react'
 import { Shell } from './shell'
 
+export async function generateMetadata() {
+  await connection()
+  return {
+    icons: {
+      icon: '/streamed-icon.svg',
+      apple: '/streamed-icon.svg',
+    },
+  }
+}
+
 async function DynamicBoundary() {
   await connection()
   return <p id="dynamic">Request-time content</p>
