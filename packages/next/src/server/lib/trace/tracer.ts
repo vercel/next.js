@@ -400,7 +400,6 @@ class NextTracerImpl implements NextTracer {
         ? parentSpan
         : undefined
     const shouldDelegateSpan =
-      !localSpanSinkActive &&
       !isolatedParentSpan &&
       (NextVanillaSpanAllowlist.has(type) ||
         process.env.NEXT_OTEL_VERBOSE === '1')
@@ -698,10 +697,7 @@ class NextTracerImpl implements NextTracer {
       return getTracerInstance().startSpan(type, options, parentContext)
     }
 
-    const createDelegate =
-      !localSpanSinkActive &&
-      !isolatedParentSpan &&
-      this.isOpenTelemetryEnabled()
+    const createDelegate = !isolatedParentSpan && this.isOpenTelemetryEnabled()
 
     return this.createLocalRecordingSpan(
       type,

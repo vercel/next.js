@@ -3270,6 +3270,7 @@ async function expectTrace(
       includeBubbleSpans ? collector.getAllSpans() : collector.getSpans()
     ).filter(
       (span) =>
+        span.attributes?.['next.tooling.id'] === undefined &&
         ![
           'LoadComponents.loadRouteModule',
           'AppRouteRouteModule.loadUserland',
