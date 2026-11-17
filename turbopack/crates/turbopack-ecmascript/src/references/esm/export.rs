@@ -697,9 +697,10 @@ impl UnusedReferencesRead {
     }
 }
 
-/// Orders the exports by key and groups adjacent exports forwarded from the same module, or returns
-/// `None` if any export does not fit the compact shape (a plain, immutable forward of a named
-/// binding out of an in-graph module) so the caller falls back to the general registration.
+/// Orders the exports and groups adjacent exports forwarded from the same module, or returns `None`
+/// if any export does not fit the compact shape (a plain, immutable forward of a named binding out
+/// of an in-graph module) so the caller falls back to the general registration. Exports are in code
+/// unit order of their keys, or in import order when the names are mangled.
 async fn build_compact_reexports(
     exports: &FrozenMap<RcStr, EsmExport>,
     mangled_names: Option<&FrozenMap<RcStr, RcStr>>,
@@ -869,8 +870,9 @@ async fn build_compact_reexports(
     // The runtime defines the namespace properties in list order, and a module namespace object
     // must list its keys in code unit order. Mangled names are only chosen when the namespace
     // object cannot escape, so nothing can observe its key order: keep the exports in import order
-    // instead, which gives every module a single group and lets the imports be subsumed. The sort
-    // is stable, so the source index keeps modules with an unknown position apart.
+    // instead, which gives every module a single group so the imports can be subsumed when the
+    // checks below allow it. The source index keeps modules that share a position apart, and the
+    // stable sort keeps each module's exports in their original order.
     // Adjacent exports from the same module share a group.
     if mangled_names.is_some() {
         pairs.sort_by_key(|(_, _, source)| {
@@ -1042,8 +1044,9 @@ async fn emit_compact_reexports(
 }
 
 /// A run of adjacent entries in a compact re-export registration that are forwarded from the same
-/// module: the `exported name -> name on that module` pairs, in code unit order of the exported
-/// names. A module whose exports interleave with another module's heads several groups.
+/// module: the `exported name -> name on that module` pairs. Without mangling the pairs are in code
+/// unit order of the exported names, and a module whose exports interleave with another module's
+/// heads several groups. With mangling every module heads a single group.
 struct ReexportGroup {
     /// Index into [`CompactReexports::sources`].
     source: usize,
