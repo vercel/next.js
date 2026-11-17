@@ -1,4 +1,5 @@
 import { execFileSync, spawnSync } from 'child_process'
+import { mkdtempSync } from 'fs'
 import {
   cp,
   mkdir,
@@ -78,8 +79,13 @@ function goMod(directory: string) {
   return readFile(join(directory, 'go.mod'), 'utf8')
 }
 
-function build(directory: string) {
-  execFileSync(go, ['build', '-mod=readonly', '-o', os.devNull, '.'], {
+/** Builds the package in `directory`, or the named files in it. */
+function build(directory: string, files: string[] = ['.']) {
+  // Windows cannot write a build output to os.devNull. An existing directory
+  // receives the executable instead.
+  const output = mkdtempSync(join(os.tmpdir(), 'next-go-sdk-build-'))
+  temporaryDirectories.push(output)
+  execFileSync(go, ['build', '-mod=readonly', '-o', output, ...files], {
     cwd: directory,
     env: {
       ...process.env,
@@ -141,6 +147,24 @@ afterEach(async () => {
 
     expect(await goMod(dir)).toMatch(/^require next\/go v0\.0\.0$/m)
     expect(() => build(dir)).not.toThrow()
+  })
+
+  it('detects imports in route directories that are not import paths', async () => {
+    // `[id]` and `(group)` are not valid in Go import paths, so these packages
+    // cannot be listed by pattern.
+    const dir = await temporaryDirectory()
+    await writeModule(dir, 'example.com/app')
+    const route = join(dir, 'app/(group)/items/[id]')
+    await write(
+      join(route, 'route.go'),
+      `package main\n\nimport (\n\t"net/http"\n\t"next/go"\n)\n\nfunc GET(w http.ResponseWriter, r *http.Request) { next.Next(w) }\n\nfunc main() {}\n`
+    )
+    const sdkDir = await installNext(dir, '16.0.0')
+
+    await ensureGoSdk({ dir, rootDir: dir, sdkDir })
+
+    expect(await goMod(dir)).toMatch(/^require next\/go v0\.0\.0$/m)
+    expect(() => build(route, ['route.go'])).not.toThrow()
   })
 
   it('does not add the requirement when next/go is not imported', async () => {

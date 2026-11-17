@@ -129,34 +129,55 @@ async function scanProject(
   return { packages, modules }
 }
 
+// Characters Go accepts in import path elements. Route directories such as
+// `[id]` and `(group)` fall outside them.
+const IMPORT_PATH = /^[A-Za-z0-9._~/+-]*$/
+
+const LIST = ['list', '-e', '-mod=readonly', '-deps', '-f', '{{.ImportPath}}']
+
 /** Whether any of the packages, their tests, or their dependencies import the SDK. */
 async function importsSdk(
   moduleDir: string,
   packages: string[]
 ): Promise<boolean> {
-  const patterns = packages.map((pkg) => {
+  const patterns: string[] = []
+  const byFiles: string[] = []
+  for (const pkg of packages) {
     const relative = path.relative(moduleDir, pkg).split(path.sep).join('/')
-    return relative ? `./${relative}` : '.'
-  })
+    if (IMPORT_PATH.test(relative)) {
+      patterns.push(relative ? `./${relative}` : '.')
+    } else {
+      byFiles.push(pkg)
+    }
+  }
   // -e reports packages that fail to load, including the SDK while its
   // requirement is still missing, instead of failing the whole listing.
-  const output = await go(moduleDir, [
-    'list',
-    '-e',
-    '-mod=readonly',
-    '-deps',
-    '-test',
-    '-f',
-    '{{.ImportPath}}',
-    ...patterns,
-  ])
-  return output.split('\n').some((line) => {
-    // Test variants are listed as "path [pkg.test]".
-    const importPath = line.split(' ')[0]
-    return (
-      importPath === GO_SDK_MODULE || importPath.startsWith(`${GO_SDK_MODULE}/`)
+  const outputs: string[] = []
+  if (patterns.length) {
+    outputs.push(await go(moduleDir, [...LIST, '-test', ...patterns]))
+  }
+  // A directory that is not a valid import path cannot be named as a package,
+  // so list its files instead, like Turbopack compiles it.
+  for (const pkg of byFiles) {
+    const files = (await fs.readdir(pkg)).filter(
+      (name) =>
+        name.endsWith('.go') &&
+        !name.endsWith('_test.go') &&
+        !name.startsWith('.') &&
+        !name.startsWith('_')
     )
-  })
+    if (files.length) outputs.push(await go(pkg, [...LIST, ...files]))
+  }
+  return outputs.some((output) =>
+    output.split('\n').some((line) => {
+      // Test variants are listed as "path [pkg.test]".
+      const importPath = line.split(' ')[0]
+      return (
+        importPath === GO_SDK_MODULE ||
+        importPath.startsWith(`${GO_SDK_MODULE}/`)
+      )
+    })
+  )
 }
 
 /** Go requires a ./ or ../ prefix for directory replacements. */
