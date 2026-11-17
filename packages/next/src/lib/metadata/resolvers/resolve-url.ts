@@ -94,7 +94,7 @@ function resolveRelativeUrl(url: string | URL, pathname: string): string | URL {
 
 // The regex is matching logic from packages/next/src/lib/load-custom-routes.ts
 const FILE_REGEX =
-  /^(?:\/((?!\.well-known(?:\/.*)?)(?:[^/]+\/)*[^/]+\.\w+))(\/?|$)/i
+  /^(?:\/((?!\.well-known(?:\/.*)?)(?:[^/]+\/)*[^/]+\.\w+))[^/]*\/?$/i
 function isFilePattern(pathname: string): boolean {
   return FILE_REGEX.test(pathname)
 }
