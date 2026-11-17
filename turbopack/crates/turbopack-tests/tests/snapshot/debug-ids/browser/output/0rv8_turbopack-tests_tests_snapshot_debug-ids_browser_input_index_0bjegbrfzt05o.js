@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="def46318-113b-4f82-5b10-6d3d2287859d")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="bf58b67a-dc45-cd6b-ed9e-6f1b4bc9811e")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -1144,9 +1144,16 @@ browserContextPrototype.q = exportUrl;
 /**
  * Returns the URL relative to the origin where a chunk can be fetched from.
  */ function getChunkRelativeUrl(chunkPath, basePath = RUNTIME_CHUNK_BASE_PATH) {
+    // A chunkPath may already carry a query string (e.g. `?dpl=xxx`) when it was
+    // produced by `__turbopack_export_url__`, which appends ASSET_SUFFIX at
+    // module-export time. Split it off so the `?` isn't percent-encoded into the
+    // path and ASSET_SUFFIX isn't appended a second time.
+    const queryIndex = chunkPath.indexOf('?');
+    const pathPart = queryIndex === -1 ? chunkPath : chunkPath.slice(0, queryIndex);
+    const querySuffix = queryIndex === -1 ? ASSET_SUFFIX : chunkPath.slice(queryIndex);
     // Most chunk paths need no escaping.
-    const encodedPath = CHUNK_PATH_NEEDS_ENCODING.test(chunkPath) ? chunkPath.split('/').map(encodeURIComponent).join('/') : chunkPath;
-    return `${basePath}${encodedPath}${ASSET_SUFFIX}`;
+    const encodedPath = CHUNK_PATH_NEEDS_ENCODING.test(pathPart) ? pathPart.split('/').map(encodeURIComponent).join('/') : pathPart;
+    return `${basePath}${encodedPath}${querySuffix}`;
 }
 // Shared runtime primitives consumed by the bundled `createWorker` helper,
 // exposed as `__turbopack_chunk_base_path__` and `__turbopack_chunk_asset_suffix__`.
@@ -2708,5 +2715,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=def46318-113b-4f82-5b10-6d3d2287859d
+//# debugId=bf58b67a-dc45-cd6b-ed9e-6f1b4bc9811e
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map
