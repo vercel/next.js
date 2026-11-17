@@ -495,11 +495,19 @@ function checkDynamicRoutes(
 
 /**
  * Resolves the current URL against pathnames and dynamic routes after an
- * afterFiles or fallback rewrite. This uses the same precedence as a request
- * without a rewrite: an exact (non-template) pathname wins over dynamic routes,
- * and a dynamic route is only used for it when it resolves to that same
- * pathname (so its route matches are preserved). Returns undefined when nothing
- * matched so the caller can continue with the next route.
+ * afterFiles or fallback rewrite.
+ *
+ * Precedence mirrors a request without a rewrite: an exact (non-template)
+ * pathname wins over dynamic routes, and a dynamic route is only used for it
+ * when it resolves to that same pathname (so its route matches are preserved).
+ * As on that path, the exact match is direct while dynamic destinations may
+ * resolve through the locale fallback.
+ *
+ * Unlike that path, a dynamic route whose non-template destination is not in
+ * `pathnames` does not contribute route matches to an exact match here.
+ *
+ * Returns undefined when nothing matched so the caller can continue with the
+ * next route.
  */
 function resolveRewrittenPathname({
   url,
