@@ -284,6 +284,7 @@ import { createComponentStylesAndScripts } from './create-component-styles-and-s
 import { parseLoaderTree } from '../../shared/lib/router/utils/parse-loader-tree'
 import {
   createPrerenderResumeDataCache,
+  createReadEntriesResumeDataCache,
   createRenderResumeDataCache,
   type PrerenderResumeDataCache,
   type RenderResumeDataCache,
@@ -9415,6 +9416,10 @@ async function prerenderToStream(
           }
         }
         resumeDataCache = { ...resumeDataCache, cache }
+      }
+
+      if (!resumeDataCache.mutable) {
+        resumeDataCache = createReadEntriesResumeDataCache(resumeDataCache)
       }
       reactServerPrerenderResultIsDynamic = null
       reactServerResumeDataCache = resumeDataCache
