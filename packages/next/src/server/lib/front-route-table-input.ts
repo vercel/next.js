@@ -4,13 +4,12 @@ import path from 'path'
 import type { NextConfigComplete, NextConfigRuntime } from '../config-shared'
 import type { setupFsCheck } from './router-utils/filesystem'
 import { INSTRUMENTATION_HOOK_FILENAME } from '../../lib/constants'
-import { generateETag } from './etag'
-import { INTERNAL_HEADERS } from './server-ipc/utils'
 import {
-  frontRouteTable,
-  type ErrorPage,
-  type FrontRouteTable,
-} from './front-route-table'
+  createFrontWorkerFailureSecret,
+  FRONT_WORKER_FAILED_HEADER,
+} from './front-worker-failure.external'
+import { INTERNAL_HEADERS } from './server-ipc/utils'
+import { frontRouteTable, type FrontRouteTable } from './front-route-table'
 
 type FsChecker = Awaited<ReturnType<typeof setupFsCheck>>
 
@@ -54,34 +53,9 @@ export function collectFrontRouteTable(
       fsChecker.getRouteDefinition('appFile', pathname, undefined),
     internalHeaders: INTERNAL_HEADERS,
     maxHeaderBytes: http.maxHeaderSize,
-    errorPage: readErrorPage(serverDir, config),
+    workerFailedHeader: {
+      name: FRONT_WORKER_FAILED_HEADER,
+      value: createFrontWorkerFailureSecret(),
+    },
   })
-}
-
-/**
- * Node's answer when a route.go worker fails before sending headers: the
- * prerendered 500 page, with the headers Node sends it with.
- */
-function readErrorPage(
-  serverDir: string,
-  config: NextConfigComplete | NextConfigRuntime
-): ErrorPage | undefined {
-  let body: string
-  try {
-    body = fs.readFileSync(path.join(serverDir, 'pages', '500.html'), 'utf8')
-  } catch {
-    return undefined
-  }
-  const headers: Array<readonly [string, string]> = [
-    [
-      'Cache-Control',
-      'private, no-cache, no-store, max-age=0, must-revalidate',
-    ],
-  ]
-  if (config.poweredByHeader) headers.push(['X-Powered-By', 'Next.js'])
-  if (config.generateEtags) headers.push(['ETag', generateETag(body)])
-  headers.push(['Content-Type', 'text/html; charset=utf-8'])
-  // Node's compression middleware marks every compressible response.
-  if (config.compress !== false) headers.push(['Vary', 'Accept-Encoding'])
-  return { headers, body }
 }

@@ -56,6 +56,10 @@ import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
 import { NEXT_PATCH_SYMBOL } from './patch-fetch-symbol'
 import type { ServerInitResult } from './render-server'
 import { filterInternalHeaders } from './server-ipc/utils'
+import {
+  FRONT_WORKER_FAILED_HEADER,
+  isFrontWorkerFailure,
+} from './front-worker-failure.external'
 import { blockCrossSiteDEV } from './router-utils/block-cross-site-dev'
 import { traceGlobals } from '../../trace/shared'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
@@ -381,6 +385,12 @@ export async function initialize(opts: {
   const requestHandlerInner: WorkerRequestHandler = async (req, res) => {
     addRequestMeta(req, 'relativeProjectDir', relativeProjectDir)
     const assetPrefix = getAssetPrefix()
+
+    // next-front reports a route.go worker that failed on a request it sent
+    // directly; read it before the internal headers are removed.
+    if (isFrontWorkerFailure(req.headers[FRONT_WORKER_FAILED_HEADER])) {
+      addRequestMeta(req, 'frontRouteGoWorkerFailed', true)
+    }
 
     // internal headers should not be honored by the request handler
     if (!process.env.NEXT_PRIVATE_TEST_HEADERS) {

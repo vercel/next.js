@@ -2,6 +2,7 @@ import { spawn } from 'child_process'
 import fs from 'fs'
 import readline from 'readline'
 import type { Readable } from 'stream'
+import setupDebug from 'next/dist/compiled/debug'
 import * as Log from '../../build/output/log'
 import {
   startServer,
@@ -15,6 +16,10 @@ import { observeNativeRouteWorkers } from './native-route.external'
 import { FRONT_SERVER_ENV } from './front-server-env'
 import { formatHostname } from './format-hostname'
 import { printAndExit } from './utils'
+
+// DEBUG=next:front-server shows what Node tells the front: whether it may
+// route route.go requests directly (or why not), and each worker.
+const debug = setupDebug('next:front-server')
 
 /**
  * `next start` with __NEXT_EXPERIMENTAL_FRONT_SERVER=1: a Go process
@@ -132,8 +137,26 @@ function spawnFront(
     if (!closing) front.stdin.write(JSON.stringify(message) + '\n')
   }
   const setRouteTable = (table: FrontRouteTable) => {
+    debug(
+      'reason' in table
+        ? 'route table: every request goes to Node (%s)'
+        : 'route table: %d static and %d dynamic route.go routes',
+      ...('reason' in table
+        ? [table.reason]
+        : [
+            Object.keys(table.goExact).length,
+            table.dynamic.filter((route) => route.go).length,
+          ])
+    )
     send({ event: 'table', table })
-    observeNativeRouteWorkers(send)
+    observeNativeRouteWorkers((event) => {
+      debug(
+        'route.go worker %s: %s',
+        event.event,
+        event.event === 'worker' ? event.page : event.address
+      )
+      send(event)
+    })
   }
 
   return new Promise<PublicServer>((resolve, reject) => {

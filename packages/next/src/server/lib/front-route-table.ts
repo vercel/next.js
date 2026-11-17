@@ -32,18 +32,14 @@ export type FrontRouteTable =
         stripRequestHeaders: readonly string[]
         stripRequestHeaderPrefixes: readonly string[]
         statusText: Readonly<Record<string, string>>
-        errorPage: ErrorPage
+        /**
+         * When a worker fails before answering a direct request, the front
+         * hands the request to Node with this header, and Node answers with
+         * its error page, as it does when its own call to the worker fails.
+         */
+        workerFailedHeader: Readonly<{ name: string; value: string }>
       }>
     }>
-
-/**
- * What Node answers when a route.go worker fails before sending headers: its
- * prerendered 500 page. The front sends the same response.
- */
-export type ErrorPage = Readonly<{
-  headers: ReadonlyArray<readonly [string, string]>
-  body: string
-}>
 
 /** One segment of a route pattern, as in the router contract spec (9.1). */
 export type PatternEntry =
@@ -80,8 +76,7 @@ export type FrontRouteTableInput = Readonly<{
   appRoute: (pathname: string) => { kind: RouteKind; page: string } | undefined
   internalHeaders: readonly string[]
   maxHeaderBytes: number
-  /** Node's 500 page, or undefined when it isn't prerendered. */
-  errorPage: ErrorPage | undefined
+  workerFailedHeader: Readonly<{ name: string; value: string }>
 }>
 
 const VERSION = 1
@@ -89,9 +84,6 @@ const VERSION = 1
 export function frontRouteTable(input: FrontRouteTableInput): FrontRouteTable {
   const reason = ineligibleReason(input)
   if (reason) return { contract: { version: VERSION }, reason }
-  if (!input.errorPage) {
-    return { contract: { version: VERSION }, reason: 'no prerendered 500 page' }
-  }
 
   // Headers added when a rule matches (a deploymentId adds two). One that
   // only applies under /_next/ never meets a direct request; one that
@@ -159,7 +151,7 @@ export function frontRouteTable(input: FrontRouteTableInput): FrontRouteTable {
       stripRequestHeaders: [...input.internalHeaders],
       stripRequestHeaderPrefixes: ['x-next-internal-'],
       statusText,
-      errorPage: input.errorPage,
+      workerFailedHeader: input.workerFailedHeader,
     },
   }
 }
