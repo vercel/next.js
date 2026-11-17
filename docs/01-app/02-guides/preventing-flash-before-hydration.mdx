@@ -537,8 +537,6 @@ export function ThemeToggle() {
 | Page is already fully dynamic                   | Format the date on the server using the `Accept-Language` header                                                                                                     |
 | Translating content between languages           | Use [internationalization](/docs/app/guides/internationalization) with per-locale static builds or dynamic rendering                                                 |
 
-<span id="updating-the-date-with-suspense" />
-
 ### Rendering client-specific content
 
 With React 19.3, call `use(browser())` in a Client Component to defer its rendering to the browser. Wrap the component in `<Suspense>` to choose what appears in its place during server rendering. The fallback can contain useful server-rendered content or a placeholder.
@@ -616,8 +614,6 @@ If a `useSyncExternalStore` call only uses an empty subscription and returns `fa
 For server rendering, provide a `getServerSnapshot` that returns the same value on the server and during hydration. React then reads the client snapshot. This avoids copying the value into state in a mount effect, but the initial server snapshot can still be visible before it updates.
 
 For `localStorage`, notify subscribers when your page writes to storage as well as listening for `storage` events from other documents. If the value is owned by one component, keep it in React state instead; a browser-only component can initialize that state directly, as in the [editor example](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
-
-<span id="why-not-use-useeffect-for-the-initial-value" />
 
 ### Why not `useEffect`?
 
