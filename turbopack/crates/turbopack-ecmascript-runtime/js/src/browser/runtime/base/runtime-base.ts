@@ -122,7 +122,6 @@ function getLoadedChunkPaths(): ChunkPath[] {
   return Array.from(loadedJsChunkPaths)
 }
 
-
 // Registry mapping a merged chunk's path to its constituent component chunk paths.
 const chunkComponents: Map<ChunkPath, ChunkPath[]> = new Map()
 
