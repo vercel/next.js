@@ -541,8 +541,6 @@ export function ThemeToggle() {
 
 With React 19.3, call `use(browser())` in a Client Component to defer its rendering to the browser. Wrap the component in `<Suspense>` to choose what appears in its place during server rendering. The fallback can contain useful server-rendered content or a placeholder.
 
-Browser APIs can then be read during rendering or used to initialize local state. The [editor example](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) uses this pattern to initialize state from `localStorage` with a placeholder fallback.
-
 For example, the following component uses a server-formatted date as useful fallback content, then replaces it with the browser-formatted date:
 
 ```tsx filename="app/components/browser-date.tsx" switcher
@@ -602,6 +600,8 @@ export function LocalDate({ date }) {
 React replaces the fallback when the inner component is ready, coordinating the update with other pending Suspense reveals. This avoids a synchronous mount-effect state update, but the fallback is visible first and replacing it can still cause a visible change.
 
 In this example, `suppressHydrationWarning` applies to the fallback because its date formatting can differ between the server and browser. A shared placeholder doesn't need it.
+
+For an additional example that initializes local state from `localStorage` with a placeholder fallback, see [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
 
 ### Subscribing to browser values
 
