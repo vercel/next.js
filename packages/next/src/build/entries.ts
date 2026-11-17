@@ -534,26 +534,6 @@ export async function createEntrypoints(
     )
   }
 
-  // Every page of a route shares the route's app paths, so resolve the final
-  // route matcher once per route instead of once per page.
-  const finalRouteMatcherEntries = new Map<string, string | undefined>()
-  const getFinalRouteMatcherEntry = (
-    normalizedAppPage: string,
-    matchedAppPaths: string[]
-  ): string | undefined => {
-    if (finalRouteMatcherEntries.has(normalizedAppPage)) {
-      return finalRouteMatcherEntries.get(normalizedAppPage)
-    }
-
-    const entry = matchedAppPaths.some(
-      (appPath) => normalizeAppPath(appPath) === normalizedAppPage
-    )
-      ? selectAppPageEntry(normalizedAppPage, matchedAppPaths)
-      : undefined
-    finalRouteMatcherEntries.set(normalizedAppPage, entry)
-    return entry
-  }
-
   const getEntryHandler =
     (mappings: MappedPages, pagesType: PAGE_TYPES): ((page: string) => void) =>
     async (page) => {
@@ -633,7 +613,10 @@ export async function createEntrypoints(
       const isFinalRouteMatcher =
         config.experimental.strictRouteMatching &&
         matchedAppPaths?.length &&
-        getFinalRouteMatcherEntry(normalizedAppPage, matchedAppPaths) === page
+        matchedAppPaths.some(
+          (appPath) => normalizeAppPath(appPath) === normalizedAppPage
+        ) &&
+        selectAppPageEntry(normalizedAppPage, matchedAppPaths) === page
 
       runDependingOnPageType({
         page,
