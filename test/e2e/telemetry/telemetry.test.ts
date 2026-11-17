@@ -101,10 +101,17 @@ describe('Telemetry CLI', () => {
 
     it('emits event when swc fails to load', async () => {
       await fs.remove(path.join(next.testDir, '.next'))
+      // Webpack can run without native addons, so the build reaches SWC's
+      // fallback instead of failing while loading the bundler.
       const { cliOutput } = await next.build({
+        args: ['--webpack'],
         env: {
           NODE_OPTIONS: '--no-addons',
           NEXT_TELEMETRY_DEBUG: '1',
+          NEXT_RSPACK: '',
+          NEXT_TEST_USE_RSPACK: '',
+          IS_TURBOPACK_TEST: '',
+          TURBOPACK: '',
         },
       })
       expect(cliOutput).toMatch(/NEXT_SWC_LOAD_FAILURE/)
