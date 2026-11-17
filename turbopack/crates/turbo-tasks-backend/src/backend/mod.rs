@@ -746,19 +746,23 @@ impl TurboTasksBackend {
     /// Reads that don't need a dependency edge (immutable task, untracked reads, ...) just read
     /// the content under the shared lock.
     ///
-    /// Tracked reads are only handled when the task already has the reader as dependent (e.g. a
-    /// repeated read in the same execution or a re-execution). Race argument: `update_cell` removes
-    /// the old content and snapshots `cell_dependents` under the task's exclusive lock, and only
-    /// afterwards checks each dependent's current/outdated `cell_dependencies`. We first make the
-    /// reader-side dependency current (locking only the reader), then, under the shared lock,
-    /// verify the task-side edge still exists and read the content. If an update's exclusive
-    /// section happens before our shared section, we see no content and fall back. If it happens
-    /// after, the update sees the task-side edge and then a *current* reader-side edge, so the
-    /// reader is made stale. Making the reader-side edge current when we then fall back is
-    /// harmless: the slow path does the same.
+    /// Tracked reads are only handled when the dependency edge already exists (e.g. a repeated read
+    /// in the same execution or a re-execution). As in the slow path (`add_cell_dependency` in
+    /// `try_read_task_cell`), the reader's forward edge (current or outdated) tells whether the
+    /// task-side reverse edge exists, so the task's `cell_dependents`, a flat array that is scanned
+    /// on lookup, is never searched.
     ///
-    /// Inserting a *new* task-side edge still requires the slow path, which locks both tasks
-    /// together (see `lock_task_and_optional_reader`).
+    /// Race argument: `update_cell` changes the content and snapshots `cell_dependents` under the
+    /// task's exclusive lock, and only afterwards checks each dependent's current/outdated
+    /// `cell_dependencies`. We first make the reader's existing forward edge current (locking only
+    /// the reader), and only then read the content under the shared lock. If an update's exclusive
+    /// section happens before our shared section, we read the new content. If it happens after, the
+    /// update finds the reverse edge and then a *current* forward edge, so the reader is made
+    /// stale. Making the forward edge current when we then fall back is harmless: the slow path
+    /// does the same.
+    ///
+    /// A *new* edge also needs its reverse edge, which still requires the slow path, locking both
+    /// tasks together (see `lock_task_and_optional_reader`).
     ///
     /// Provisional keyed reads (`lazy_reader()` / `keyed_reader()`) always take the slow path:
     /// their edges are refined or converted later under `task_pair`, and `update_cell` invalidates
@@ -772,14 +776,6 @@ impl TurboTasksBackend {
         tracking: ReadCellTracking,
     ) -> Option<SharedReference> {
         let key = tracking.key();
-        let has_edge = |task: &storage::StorageReadGuard<'_>, reader: TaskId| {
-            let reverse = CellRef { task: reader, cell };
-            if let Some(k) = key {
-                task.cell_dependents_keyed_contains(&(reverse, k))
-            } else {
-                task.cell_dependents_contains(&reverse)
-            }
-        };
         let task = self.storage.access_read(task_id)?;
         if !is_task_readable(&task) {
             return None;
@@ -792,29 +788,39 @@ impl TurboTasksBackend {
         if key.is_some_and(|k| k.is_provisional()) {
             return None;
         }
-        if !has_edge(&task, reader_id) || !task.cell_data_contains(&cell) {
+        if !task.cell_data_contains(&cell) {
             return None;
         }
         drop(task);
 
-        // Make the reader side current *before* reading the content (see above).
+        // Make the existing forward edge current *before* reading the content (see above).
         {
             let mut reader_task = ctx.task(reader_id, TaskDataCategory::All);
             let target = CellRef {
                 task: task_id,
                 cell,
             };
-            if let Some(k) = key {
-                if !reader_task.remove_outdated_cell_dependencies_keyed(&(target, k)) {
+            let edge_exists = if let Some(k) = key {
+                if reader_task.remove_outdated_cell_dependencies_keyed(&(target, k)) {
                     let _ = reader_task.add_cell_dependencies_keyed((target, k));
+                    true
+                } else {
+                    reader_task.cell_dependencies_keyed_contains(&(target, k))
                 }
-            } else if !reader_task.remove_outdated_cell_dependencies(&target) {
+            } else if reader_task.remove_outdated_cell_dependencies(&target) {
                 let _ = reader_task.add_cell_dependencies(target);
+                true
+            } else {
+                reader_task.cell_dependencies_contains(&target)
+            };
+            if !edge_exists {
+                // A new edge: the slow path adds both sides together.
+                return None;
             }
         }
 
         let task = self.storage.access_read(task_id)?;
-        if !is_task_readable(&task) || !has_edge(&task, reader_id) {
+        if !is_task_readable(&task) {
             return None;
         }
         task.get_cell_data(&cell).cloned()
@@ -855,21 +861,28 @@ impl TurboTasksBackend {
             // No dependency edge needed.
             _ => return read(&task),
         };
-        if !task.output_dependent_contains(&reader_id) || read(&task).is_none() {
-            return None;
-        }
+        // Only a readable output can be served here, so check it before locking the reader.
+        read(&task)?;
         drop(task);
 
-        // Make the reader side current *before* reading the output (see above).
+        // Make the existing forward edge current *before* reading the output (see above). The
+        // reader's forward edge tells whether the task-side `output_dependent` edge exists.
         {
             let mut reader_task = ctx.task(reader_id, TaskDataCategory::All);
-            if !reader_task.remove_outdated_output_dependencies(&task_id) {
+            let edge_exists = if reader_task.remove_outdated_output_dependencies(&task_id) {
                 let _ = reader_task.add_output_dependencies(task_id);
+                true
+            } else {
+                reader_task.output_dependencies_contains(&task_id)
+            };
+            if !edge_exists {
+                // A new edge: the slow path adds both sides together.
+                return None;
             }
         }
 
         let task = self.storage.access_read(task_id)?;
-        if !is_task_readable(&task) || !task.output_dependent_contains(&reader_id) {
+        if !is_task_readable(&task) {
             return None;
         }
         read(&task)
