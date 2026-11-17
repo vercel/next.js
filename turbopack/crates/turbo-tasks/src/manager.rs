@@ -23,7 +23,7 @@ use auto_hash_map::AutoMap;
 use bincode::{Decode, Encode};
 use either::Either;
 use futures::FutureExt;
-use rustc_hash::{FxBuildHasher, FxHasher};
+use rustc_hash::{FxBuildHasher, FxHashSet, FxHasher};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tokio::{select, sync::mpsc::Receiver, task_local};
@@ -160,7 +160,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         index: CellId,
         reader: TaskId,
         id: u32,
-        key_hashes: &mut dyn Iterator<Item = u64>,
+        key_hashes: &FxHashSet<u64>,
     );
 
     /// Reads a [`RawVcUnpacked::LocalOutput`][crate::RawVcUnpacked::LocalOutput]. If the task has
@@ -1612,7 +1612,8 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     /// Returns [UpdateInfo] with all updates aggregated over a given duration
-    /// (`aggregation`). Will only return None when the timeout is reached while
+    /// (`aggregation`): the update ends once no foreground job has been running for
+    /// that long. Will only return None when the timeout is reached while
     /// waiting for the first update.
     pub async fn aggregated_update_info(
         &self,
@@ -1667,7 +1668,21 @@ impl<B: Backend + 'static> TurboTasks<B> {
             loop {
                 select! {
                     () = tokio::time::sleep(aggregation) => {
-                        break;
+                        // Only end the update once no foreground job is running. Work that
+                        // starts within the aggregation window and outlasts it would otherwise
+                        // be reported partly in this update and partly in the next one.
+                        let listener = self
+                            .event_foreground_done
+                            .listen_with_note(|| || "wait for update info".to_string());
+                        if self
+                            .currently_scheduled_foreground_jobs
+                            .load(Ordering::Acquire)
+                            == 0
+                        {
+                            break;
+                        }
+                        listener.await;
+                        // Restarts the sleep
                     }
                     () = self.event_foreground_done.listen_with_note(|| || "wait for update info".to_string()) => {
                         // Resets the sleep
@@ -2214,10 +2229,16 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         index: CellId,
         reader: TaskId,
         id: u32,
-        key_hashes: &mut dyn Iterator<Item = u64>,
+        key_hashes: &FxHashSet<u64>,
     ) {
-        self.backend
-            .refine_provisional_cell_dependency(task, index, reader, id, key_hashes, self)
+        self.backend.refine_provisional_cell_dependency(
+            task,
+            index,
+            reader,
+            id,
+            key_hashes.iter().copied(),
+            self,
+        )
     }
 
     fn try_read_own_task_cell(
@@ -3037,7 +3058,6 @@ impl CurrentCellRef {
     where
         T: PartialEq + VcValueType,
         VcReadTarget<T>: KeyedEq,
-        <VcReadTarget<T> as KeyedEq>::Key: std::hash::Hash,
     {
         self.conditional_update(|old_value| {
             let Some(old_value) = old_value else {
@@ -3065,7 +3085,6 @@ impl CurrentCellRef {
     ) where
         T: VcValueType + PartialEq,
         VcReadTarget<T>: KeyedEq,
-        <VcReadTarget<T> as KeyedEq>::Key: std::hash::Hash,
     {
         let mut new_shared_reference = Some(new_shared_reference);
         self.conditional_update_with_shared_reference(&mut |old_sr| {

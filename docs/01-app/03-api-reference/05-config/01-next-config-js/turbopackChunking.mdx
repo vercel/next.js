@@ -123,7 +123,8 @@ loads at the cost of navigation performance. This is because each additional net
 being made is costly, however, smaller chunks are more likely to be re-usable across pages.
 
 > **Good to know**: The size thresholds depend on the experimental
-> `experimental.turbopackMinifyBeforeChunking` option. When it is enabled (and minification is on),
+> `experimental.turbopackMinifyBeforeChunking` option, which is enabled by default on canary
+> releases. When it is enabled (and minification is on),
 > Turbopack minifies each module before chunking and measures sizes in bytes of minified code
 > instead. The default thresholds and `requestCost`, including the server chunk thresholds below,
 > are then scaled down to 40% of the values listed here. Values you set explicitly are used as-is,

@@ -103,7 +103,7 @@ import { RedirectStatusCode } from '../../client/components/redirect-status-code
 import { InvariantError } from '../../shared/lib/invariant-error' with { 'turbopack-transition': 'next-server-utility' }
 import { scheduleOnNextTick } from '../../lib/scheduler' with { 'turbopack-transition': 'next-server-utility' }
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param' with { 'turbopack-transition': 'next-server-utility' }
-import { createTurbopackBootstrapScriptStreamForPage } from '../../server/app-render/turbopack-bootstrap-script' with { 'turbopack-transition': 'next-server-utility' }
+import { createTurbopackBootstrapStreamForPage } from '../../server/app-render/turbopack-bootstrap-script' with { 'turbopack-transition': 'next-server-utility' }
 import { getScriptNonceFromHeaders } from '../../server/app-render/get-script-nonce-from-header' with { 'turbopack-transition': 'next-server-utility' }
 
 type AppPageRenderOperation = 'render' | 'prerender'
@@ -243,8 +243,10 @@ export function createAppPageEntrypoint({
     // `BaseServer.handleRequest`, which records the target before normalization.
     const httpTarget = req.url
 
-    const multiZoneDraftMode = process.env
-      .__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
+    const multiZoneDraftMode =
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
+      process.env.__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
 
     // Registering `instrumentation.ts` usually installs the tracer provider, so
     // do it before starting the request span. The span is started before
@@ -927,6 +929,8 @@ export function createAppPageEntrypoint({
         ))
 
       incrementalCache?.resetRequestCache()
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       ;(globalThis as any).__incrementalCache = incrementalCache
 
       const doRender = async ({
@@ -1164,6 +1168,8 @@ export function createAppPageEntrypoint({
 
         // Keep recovery output separate from successful response cache entries.
         if ('error' in result) {
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           ;(req as any).fetchMetrics = result.result.metadata.fetchMetrics
           return result
         }
@@ -1200,6 +1206,8 @@ export function createAppPageEntrypoint({
         }
 
         // Pull any fetch metrics from the render onto the request.
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(req as any).fetchMetrics = fetchMetrics
 
         // we don't throw static to dynamic errors in dev as isSSG
@@ -2161,12 +2169,13 @@ export function createAppPageEntrypoint({
         // A static shell with postponed parts doesn't include the Turbopack
         // bootstrap: the resume emits it with the request's CSP nonce. When
         // such a shell is served without a resume, it has to be added.
-        const pushTurbopackBootstrapScript = (result: RenderResult) => {
+        const pushTurbopackBootstrap = (result: RenderResult) => {
           if (!didPostpone) return
-          const bootstrapScript = createTurbopackBootstrapScriptStreamForPage(
+          const bootstrapScript = createTurbopackBootstrapStreamForPage(
             buildManifest,
             srcPage,
-            getScriptNonceFromHeaders(req.headers)
+            getScriptNonceFromHeaders(req.headers),
+            nextConfig.experimental.externalBrowserRuntime === true
           )
           if (bootstrapScript) result.push(bootstrapScript)
         }
@@ -2500,7 +2509,7 @@ export function createAppPageEntrypoint({
           // Turbopack bootstrap is left out of the shell for the resume to
           // emit, so add it here. Append the closing tags so the browser can
           // parse a complete document.
-          pushTurbopackBootstrapScript(body)
+          pushTurbopackBootstrap(body)
           body.push(
             new ReadableStream({
               start(controller) {
@@ -2557,7 +2566,7 @@ export function createAppPageEntrypoint({
           // emit, so add it here. Since we're not resuming the render, we need
           // to at least add the closing body and html tags to create valid
           // HTML.
-          pushTurbopackBootstrapScript(body)
+          pushTurbopackBootstrap(body)
           body.push(
             new ReadableStream({
               start(controller) {

@@ -1,5 +1,6 @@
 //! Type definitions for the Next.js manifest formats.
 
+mod chunk_tables;
 pub mod client_reference_manifest;
 mod encode_uri_component;
 

@@ -17,6 +17,7 @@
 
 mod canonicalized_path_cache;
 mod content;
+mod created_dirs;
 mod disk;
 pub mod embed;
 mod error;

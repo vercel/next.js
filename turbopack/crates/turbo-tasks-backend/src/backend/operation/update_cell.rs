@@ -448,7 +448,7 @@ mod invalidate_cell_dependents_tests {
     /// invalidates the cell for `keys` and returns `(dirty, stale)` of the dependent.
     fn run(setup: Setup, keys: SmallVec<[Option<CellKey>; 2]>) -> (bool, bool) {
         let tt = backend();
-        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let mut ctx = ExecuteContext::new(&tt);
         {
             let mut dependent = ctx.task(task(DEPENDENT), TaskDataCategory::All);
             dependent.set_in_progress(InProgressState::InProgress(Box::new(
@@ -576,7 +576,7 @@ mod invalidate_cell_dependents_tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn remaining_provisional_dependencies_converted_on_completion() {
         let tt = backend();
-        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let mut ctx = ExecuteContext::new(&tt);
         {
             let (mut cell_task, mut dependent) =
                 ctx.task_pair(task(CELL_TASK), task(DEPENDENT), TaskDataCategory::All);
@@ -624,7 +624,7 @@ mod invalidate_cell_dependents_tests {
         // cell).
         let tt = backend();
         {
-            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut ctx = ExecuteContext::new(&tt);
             let (mut cell_task, mut dependent) =
                 ctx.task_pair(task(CELL_TASK), task(DEPENDENT), TaskDataCategory::All);
             cell_task.add_keyed_cell_dependent((reverse_ref(), CellKey::provisional(0)));
@@ -636,11 +636,11 @@ mod invalidate_cell_dependents_tests {
             cell_ref().cell,
             task(DEPENDENT),
             0,
-            &mut [1u64].into_iter(),
+            [1u64],
             &tt,
         );
 
-        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let mut ctx = ExecuteContext::new(&tt);
         let dependent = ctx.task(task(DEPENDENT), TaskDataCategory::All);
         assert!(dependent.cell_dependencies_keyed_contains(&(cell_ref(), CellKey::provisional(0))));
         assert!(!dependent.cell_dependencies_keyed_contains(&(cell_ref(), CellKey::hash(1))));

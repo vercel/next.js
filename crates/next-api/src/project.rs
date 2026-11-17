@@ -1890,6 +1890,7 @@ impl Project {
                 .next_config()
                 .turbo_nested_async_chunking(self.next_mode(), true),
             shared_runtime: self.next_config().turbo_shared_runtime(self.next_mode()),
+            external_browser_runtime: self.next_config().enable_external_browser_runtime(),
             per_page_module_graph: self.per_page_module_graph(),
             lazy_dynamic_imports: self
                 .next_config()
@@ -2520,10 +2521,13 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn find_middleware(self: Vc<Self>) -> Result<Vc<FindContextFileResult>> {
+    pub(crate) async fn find_middleware(self: Vc<Self>) -> Result<Vc<FindContextFileResult>> {
         Ok(find_context_file(
             self.project_path().owned().await?,
-            middleware_files(self.next_config().page_extensions()),
+            middleware_files(
+                self.next_config().page_extensions(),
+                self.next_config().go_routes(),
+            ),
             // our callers do not care about affecting sources
             false,
         ))
@@ -2535,6 +2539,12 @@ impl Project {
         let FindContextFileResult::Found(fs_path, _) = &*middleware.await? else {
             return Ok(Vc::upcast(EmptyEndpoint::new(self)));
         };
+        if fs_path.file_name() == "proxy.go" {
+            return Ok(crate::app::go_proxy_endpoint(
+                self.to_resolved().await?,
+                fs_path.clone(),
+            ));
+        }
         let source = Vc::upcast(FileSource::new(fs_path.clone()));
         let app_dir = find_app_dir(self.project_path().owned().await?)
             .owned()
