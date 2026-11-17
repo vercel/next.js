@@ -137,8 +137,12 @@ pub struct MetaEntry {
     amqf: qfilter::FilterRef<'static>,
     /// Compression recorded in this entry's meta file.
     compression: Compression,
-    /// The static sorted file that is lazily loaded
-    sst: OnceLock<StaticSortedFile>,
+    /// The static sorted file, opened eagerly in the background (see [`EagerSstOpen`]) or lazily
+    /// by the first lookup that needs it, whichever comes first.
+    ///
+    /// Shared with the background open, which fills the slot even if this entry is dropped in the
+    /// meantime.
+    sst: Arc<OnceLock<StaticSortedFile>>,
 }
 
 // Safety: FilterRef is a read-only view into stable backing bytes which are Send+Sync.
@@ -206,6 +210,32 @@ impl MetaEntry {
     /// Used during compaction to avoid caching mmaps on the MetaEntry.
     pub fn sst_metadata(&self) -> StaticSortedFileMetaData {
         self.sst_data
+    }
+}
+
+/// A pending background open of the SST file of a [`MetaEntry`], collected by
+/// [`MetaFile::collect_eager_sst_opens`] and run on a blocking thread with [`EagerSstOpen::run`].
+///
+/// It holds a strong reference to the entry's SST slot, so every open runs to completion: an entry
+/// dropped in the meantime (e.g. retired by compaction) keeps only its slot alive, and the opened
+/// file is closed again when the open finishes.
+pub(crate) struct EagerSstOpen {
+    slot: Arc<OnceLock<StaticSortedFile>>,
+    sst_data: StaticSortedFileMetaData,
+    compression: Compression,
+    access_mode: AccessMode,
+}
+
+impl EagerSstOpen {
+    /// Opens the SST file into its entry's slot, unless a lookup opened it already.
+    ///
+    /// Opening is best-effort: on failure the slot stays empty, so the next lookup that needs the
+    /// file opens it lazily and reports the error itself. A lookup that needs the file while it is
+    /// being opened here waits for this open instead of starting a second one.
+    pub(crate) fn run(self, db_path: &Path) {
+        let _ = self.slot.get_or_try_init(|| {
+            StaticSortedFile::open(db_path, self.sst_data, self.compression, self.access_mode)
+        });
     }
 }
 
@@ -442,7 +472,7 @@ impl MetaFile {
                 amqf_data_offset: start_of_amqf_data_offset..end_of_amqf_data_offset,
                 amqf,
                 compression,
-                sst: OnceLock::new(),
+                sst: Default::default(),
             });
             start_of_amqf_data_offset = end_of_amqf_data_offset;
         }
@@ -470,14 +500,25 @@ impl MetaFile {
 
     pub fn clear_cache(&mut self) {
         for entry in self.entries.iter_mut() {
-            entry.sst.take();
+            // Replace the slot instead of taking its value: a background open that is still
+            // pending holds the old slot, so it can't re-populate the cleared cache.
+            entry.sst = Default::default();
         }
     }
 
-    pub fn prepare_sst_cache(&self) {
-        for entry in self.entries.iter() {
-            let _ = entry.sst(self);
-        }
+    /// Appends an [`EagerSstOpen`] for every entry whose SST file isn't open yet.
+    pub(crate) fn collect_eager_sst_opens(&self, opens: &mut Vec<EagerSstOpen>) {
+        opens.extend(
+            self.entries
+                .iter()
+                .filter(|entry| entry.sst.get().is_none())
+                .map(|entry| EagerSstOpen {
+                    slot: entry.sst.clone(),
+                    sst_data: entry.sst_data,
+                    compression: entry.compression,
+                    access_mode: self.access_mode,
+                }),
+        );
     }
 
     pub fn sequence_number(&self) -> u32 {

@@ -420,6 +420,8 @@ describe('runtime error state handler', () => {
               routerType,
               buildError: null,
               errors: [{ ...error, boundary: { kind: 'default-global' } }],
+              // TODO(as-any): pre-existing cast, not yet reviewed
+              // eslint-disable-next-line @next/internal/no-as-any
             } as any,
           ],
         ])
@@ -487,6 +489,8 @@ it('rejects invalid boundary kinds', async () => {
   const error = runtimeError(0, 'failed')
   const send = jest.fn()
   await createRuntimeErrorStateHandler(send).handle(
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     update('/example', [{ ...error, boundary: { kind: 'uncaught' } } as any])
   )
   expect(send).not.toHaveBeenCalled()

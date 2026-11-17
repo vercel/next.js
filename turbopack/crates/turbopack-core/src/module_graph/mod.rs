@@ -24,7 +24,6 @@ use turbo_tasks::{
     TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
-    keyed::KeyedAccess,
     util::SharedError,
 };
 use turbo_tasks_fs::FileSystemPath;
@@ -730,7 +729,7 @@ impl SingleModuleGraph {
                         let mut neighbors = self.graph.neighbors(node).detach();
                         while let Some((edge, succ)) = neighbors.next(&self.graph) {
                             if unused_references_edges.as_ref().is_some_and(|edges| {
-                                edges.contains_key(&GraphEdgeIndex::new(graph_idx, edge))
+                                edges.contains(&GraphEdgeIndex::new(graph_idx, edge))
                             }) {
                                 continue;
                             }
@@ -1298,7 +1297,7 @@ impl ModuleGraphSnapshot {
                     && self
                         .unused_references_edges
                         .as_ref()
-                        .is_some_and(|edges| edges.contains_key(&edge_idx))
+                        .is_some_and(|edges| edges.contains(&edge_idx))
                 {
                     // Don't just return None here, that would end the iterator
                     continue;

@@ -415,15 +415,10 @@ async fn parentless_calls_of_transient_tasks_are_only_roots_if_root_functions() 
 
     let salt = TransientValue::new(7);
     let salt2 = salt.clone();
-    let (non_root, operation, operation_id) = tt
-        .run(async move {
-            let operation = transient_root_operation(input, salt2);
-            Ok((
-                task_id_of(transient_endpoint(*input, salt)),
-                operation,
-                task_id_of(operation.connect()),
-            ))
-        })
+    // Check the parentless call before creating the operation: the operation calls the same task
+    // and its transient parent edge would race with the exact ref-count assertion.
+    let non_root = tt
+        .run(async move { Ok(task_id_of(transient_endpoint(*input, salt))) })
         .await
         .unwrap();
     let backend = tt.backend();
@@ -435,6 +430,14 @@ async fn parentless_calls_of_transient_tasks_are_only_roots_if_root_functions() 
             .is_some_and(|n| n != ROOT)
     );
     assert_eq!(backend.transient_ref_count_for_testing(non_root), 1);
+
+    let (operation, operation_id) = tt
+        .run(async move {
+            let operation = transient_root_operation(input, salt2);
+            Ok((operation, task_id_of(operation.connect())))
+        })
+        .await
+        .unwrap();
     // ...but a `root` function is a root from its creation.
     assert!(operation_id.is_transient());
     assert_eq!(
