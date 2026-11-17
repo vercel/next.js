@@ -8,9 +8,10 @@ related:
   links:
     - app/api-reference/file-conventions/route-segment-config/instant
     - app/guides/instant-navigation
+    - app/api-reference/functions/instant
 ---
 
-Use `experimental.exposeTestingApiInProductionBuild` to include the Instant Navigation testing API in a production build. The [`instant()` helper from `@next/playwright`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) uses this API to pause request-time content while an end-to-end test asserts on the UI available immediately.
+Use `experimental.exposeTestingApiInProductionBuild` to include the Instant Navigation testing API in a production build. The [`instant()` helper from `@next/playwright`](/docs/app/api-reference/functions/instant) uses this API to pause request-time content while an end-to-end test asserts on the UI available immediately.
 
 Enable the option only for a dedicated test build:
 

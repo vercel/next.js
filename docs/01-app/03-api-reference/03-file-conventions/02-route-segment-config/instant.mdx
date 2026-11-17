@@ -145,11 +145,7 @@ When the UI is frozen, click **Resume** to let the current navigation finish. Th
 
 ## Testing instant navigation
 
-The `@next/playwright` package exports an `instant()` helper that holds back dynamic content while the callback runs against the instant UI. The testing API is available automatically in development. For a production build, enable [`experimental.exposeTestingApiInProductionBuild`](/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild) in the test build. See the [guide](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) for a full example.
-
-```typescript
-import { instant } from '@next/playwright'
-```
+Use [`instant()` from `@next/playwright`](/docs/app/api-reference/functions/instant) to assert on the initial or prefetched UI while dynamic content is paused. The helper's API reference covers setup, examples, and limitations. It is separate from the `export const instant` route option documented here.
 
 {/* TODO: remove when fixed and from prod-docs-release */}
 

@@ -6,6 +6,7 @@ related:
   description: Learn more about testing instant navigations.
   links:
     - app/guides/instant-navigation
+    - app/api-reference/functions/instant
 ---
 
 Playwright is a testing framework that lets you automate Chromium, Firefox, and WebKit with a single API. You can use it to write **End-to-End (E2E)** testing. This guide will show you how to set up Playwright with Next.js and write your first tests.
@@ -139,7 +140,7 @@ test('should navigate to the about page', async ({ page }) => {
 
 ### Testing instant navigations
 
-If you're using Cache Components, the `instant()` helper from `@next/playwright` lets you assert what is visible immediately after a navigation, before any dynamic content streams in. See the [Instant navigation guide](/docs/app/guides/instant-navigation) and the [`instant` API reference](/docs/app/api-reference/file-conventions/route-segment-config/instant) for setup and examples.
+With Cache Components, [`instant()` from `@next/playwright`](/docs/app/api-reference/functions/instant) pauses dynamic content so you can assert on the initial or prefetched UI. See its API reference for setup, examples, and limitations, or the [Instant navigation guide](/docs/app/guides/instant-navigation) to improve the route itself.
 
 ### Testing routes preserved by Cache Components
 
