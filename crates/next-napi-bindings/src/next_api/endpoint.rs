@@ -300,8 +300,13 @@ async fn endpoint_client_changed_with_issues_operation(
     endpoint_op: OperationVc<OptionEndpoint>,
 ) -> Result<Vc<Completion>> {
     let changed_op = endpoint_client_changed_operation(endpoint_op);
-    let Err(err) = changed_op.connect().await else {
+    let Err(_) = changed_op.connect().await else {
         return Ok(changed_op.connect());
+    };
+    // Collectibles are only stable after a strongly consistent read of their source.
+    let err = match changed_op.read_strongly_consistent().await {
+        Ok(_) => return Ok(changed_op.connect()),
+        Err(err) => err,
     };
     let filter = issue_filter_from_endpoint(endpoint_op).await;
     let issues = get_issues(changed_op, &filter).await?;

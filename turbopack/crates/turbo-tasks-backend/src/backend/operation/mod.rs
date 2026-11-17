@@ -29,6 +29,8 @@ use turbo_tasks::{
 pub use self::aggregation_edge::{TaskAggregationEdges, verify_aggregation_edges};
 #[cfg(not(target_family = "wasm"))]
 pub use self::aggregation_update::aggregation_queue;
+#[cfg(feature = "verify_aggregation_graph")]
+pub use self::aggregation_update::check_pending_collectibles_invariant;
 pub use self::aggregation_update::{AggregationUpdateQueue, ComputeDirtyAndCleanUpdate};
 use crate::{
     backend::{
