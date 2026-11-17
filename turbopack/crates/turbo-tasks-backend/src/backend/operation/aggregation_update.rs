@@ -79,7 +79,7 @@ use std::{
 
 use indexmap::map::Entry;
 use ringmap::RingSet;
-use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
+use rustc_hash::{FxBuildHasher, FxHashMap};
 use smallvec::{SmallVec, smallvec};
 #[cfg(feature = "trace_aggregation_update_queue")]
 use tracing::span::Span;
@@ -651,20 +651,29 @@ impl AggregatedDataUpdate {
         // (only dirty tasks with collectible changes), so this costs nothing in the common case.
         let mut collectibles_update = collectibles_update;
         if !task.is_pending_collectibles_empty() {
-            // Subtract each pending count once, from the first entry of its collectible (an
-            // aggregating task can list a collectible twice: own and aggregated).
-            let mut netted = FxHashSet::default();
-            for (collectible, count) in collectibles_update.iter_mut() {
-                if let Some(pending) = task.get_pending_collectibles(collectible)
-                    && netted.insert(*collectible)
-                {
-                    *count -= *pending;
+            // An aggregating task can list a collectible twice (own and aggregated). Combine
+            // these entries into the first one and subtract the pending count from it, so no
+            // opposite entries remain for the same collectible.
+            let mut first_index = FxHashMap::<CollectibleRef, usize>::default();
+            for i in 0..collectibles_update.len() {
+                let (collectible, count) = collectibles_update[i];
+                match first_index.entry(collectible) {
+                    HashMapEntry::Occupied(entry) => {
+                        collectibles_update[*entry.get()].1 += count;
+                        collectibles_update[i].1 = 0;
+                    }
+                    HashMapEntry::Vacant(entry) => {
+                        entry.insert(i);
+                        if let Some(pending) = task.get_pending_collectibles(&collectible) {
+                            collectibles_update[i].1 -= *pending;
+                        }
+                    }
                 }
             }
             collectibles_update.retain(|(_, count)| *count != 0);
             // The remaining pending collectibles are never zero and not in the update yet.
             for (collectible, count) in task.iter_pending_collectibles() {
-                if !netted.contains(collectible) {
+                if !first_index.contains_key(collectible) {
                     collectibles_update.push((*collectible, -*count));
                 }
             }
@@ -5669,6 +5678,7 @@ mod follower_debt_tests {
 /// Deterministic tests of delayed collectible propagation (see `stage_outgoing_collectibles`).
 #[cfg(test)]
 mod delayed_collectibles_tests {
+    use smallvec::smallvec;
     use turbo_tasks::{TaskPriority, TurboTasks};
 
     use super::{
@@ -5677,6 +5687,7 @@ mod delayed_collectibles_tests {
             FOLLOWER, INNER, UPPER, add, aggregated, balance, collectible, id, remove, run,
             setup_with_data, uppers,
         },
+        stage_outgoing_collectibles,
     };
     use crate::{
         backend::{
@@ -5876,13 +5887,7 @@ mod delayed_collectibles_tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn from_task_nets_pending_changes() {
         let tt = setup_with_data(&[(2, UPPER)], false);
-        let other = CollectibleRef {
-            cell: CellRef {
-                task: id(1001),
-                ..collectible().cell
-            },
-            ..collectible()
-        };
+        let other = other_collectible();
         let mut ctx = ExecuteContext::new(tt.backend(), &tt);
         let mut task = ctx.task(id(2), TaskDataCategory::All);
         let _ = task.update_collectibles_positive_crossing(collectible(), 1);
@@ -5892,6 +5897,94 @@ mod delayed_collectibles_tests {
         let mut update = AggregatedDataUpdate::from_task(&mut task).collectibles_update;
         update.sort_by_key(|(collectible, _)| collectible.cell.task);
         assert_eq!(update.as_slice(), [(collectible(), 1), (other, 1)]);
+    }
+
+    /// When both the own and the aggregated entry of a collectible are pending, `from_task` must
+    /// not leave opposite entries for it.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn from_task_combines_own_and_aggregated_entries() {
+        let tt = setup_with_data(&[(2, UPPER)], false);
+        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let mut task = ctx.task(id(2), TaskDataCategory::All);
+        let _ = task.update_collectibles_positive_crossing(collectible(), 1);
+        task.update_aggregated_collectibles(collectible(), |_| Some(1));
+        let _ = task.update_pending_collectibles_count(collectible(), 2);
+        let update = AggregatedDataUpdate::from_task(&mut task).collectibles_update;
+        assert!(update.is_empty(), "{update:?}");
+    }
+
+    /// Edge balancing of an aggregating task whose own and aggregated entries are both pending
+    /// doesn't invalidate the readers of the new upper, which already sees the collectible from
+    /// another inner task.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn new_inner_edge_with_own_and_aggregated_pending_changes() {
+        let tt = setup_with_data(
+            &[(1, UPPER), (2, FOLLOWER), (3, FOLLOWER + 1), (READER, 0)],
+            false,
+        );
+        run(&tt, [add(1, 2), add(3, 2)]);
+        set_dirty(&tt, 2, true);
+        {
+            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut task = ctx.task(id(2), TaskDataCategory::All);
+            let _ = task.update_collectibles_positive_crossing(collectible(), 1);
+            task.update_aggregated_collectibles(collectible(), |_| Some(1));
+            let _ = task.update_pending_collectibles_count(collectible(), 2);
+        }
+        {
+            // Another inner task of 1 contributes the collectible already.
+            let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+            let mut task = ctx.task(id(1), TaskDataCategory::All);
+            task.update_aggregated_collectibles(collectible(), |_| Some(1));
+        }
+        add_reader(&tt, 1);
+
+        // Still aggregating, but lower than 1, so the follower edge becomes an inner edge.
+        set_aggregation_number(&tt, 2, UPPER / 2);
+        run(&tt, [balance(1, 2)]);
+        assert_eq!(uppers(&tt, 2), vec![(id(1), 1), (id(3), 1)]);
+        assert_eq!(aggregated(&tt, 1), 1);
+        assert!(
+            !reader_is_dirty(&tt),
+            "the unpublished collectible must not invalidate the reader"
+        );
+    }
+
+    /// A clean flush nets the update's changes with the pending ones: one non-zero entry per
+    /// collectible.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn clean_flush_combines_update_and_pending_changes() {
+        let tt = setup_with_data(&[(1, UPPER), (2, INNER)], false);
+        run(&tt, [add(1, 2)]);
+        let other = other_collectible();
+        let third = CollectibleRef {
+            cell: CellRef {
+                task: id(1002),
+                ..collectible().cell
+            },
+            ..collectible()
+        };
+        let mut ctx = ExecuteContext::new(tt.backend(), &tt);
+        let mut task = ctx.task(id(2), TaskDataCategory::All);
+        let _ = task.update_pending_collectibles_count(collectible(), 1);
+        let _ = task.update_pending_collectibles_count(other, 1);
+        let mut update = AggregatedDataUpdate::new()
+            .collectibles_update(smallvec![(collectible(), -1), (third, 1)]);
+        stage_outgoing_collectibles(&mut task, &mut update);
+        let mut update = update.collectibles_update;
+        update.sort_by_key(|(collectible, _)| collectible.cell.task);
+        assert_eq!(update.as_slice(), [(other, 1), (third, 1)]);
+        assert!(task.is_pending_collectibles_empty());
+    }
+
+    fn other_collectible() -> CollectibleRef {
+        CollectibleRef {
+            cell: CellRef {
+                task: id(1001),
+                ..collectible().cell
+            },
+            ..collectible()
+        }
     }
 
     fn check(tt: &TurboTasks<TurboTasksBackend>, task: u32) -> Result<(), String> {
