@@ -1,6 +1,13 @@
 package route
 
-import "net/http"
+import (
+	"net/http"
+
+	"example.com/native-route/app/internal/visibility"
+)
+
+// Fails to compile unless this package may import app/internal packages.
+var _ = visibility.Name
 
 func sibling() string { return "sibling-v1" }
 

@@ -1196,16 +1196,56 @@ async fn managed_session(
     Ok(*owner.await?.session(scope, options, None, watch).await?)
 }
 
-/// Virtual directory of the generated `main` package, relative to the Go module root.
-const GO_ENTRYPOINT_DIRECTORY: &str = "_next_go/main";
 /// Module path for route directories that have no go.mod.
 const GO_STANDALONE_MODULE: &str = "next-go-route";
 
-/// Virtual, module-relative package directory for a route or proxy directory. The name is a
-/// valid import path element, readable in stack traces, and unique per source directory.
-fn go_package_alias(source_directory: &str, is_proxy: bool) -> String {
+/// Virtual, module-relative directories for a route or proxy package and its generated `main`
+/// package.
+struct GoPackageAlias {
+    package: String,
+    entrypoint: String,
+}
+
+/// Whether Go accepts `element` in an import path. This is a conservative subset of
+/// `golang.org/x/mod/module.CheckImportPath`.
+fn is_go_import_path_element(element: &str) -> bool {
+    let reserved = element
+        .split('.')
+        .next()
+        .unwrap_or_default()
+        .to_ascii_uppercase();
+    !element.is_empty()
+        && !element.starts_with('.')
+        && !element.ends_with('.')
+        && element
+            .chars()
+            .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '.' | '_'))
+        && !matches!(reserved.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        && !(reserved.len() == 4
+            && (reserved.starts_with("COM") || reserved.starts_with("LPT"))
+            && reserved.ends_with(|ch: char| ch.is_ascii_digit()))
+}
+
+/// Choose virtual package directories with valid import paths for a source directory.
+///
+/// The package lives in the deepest ancestor-or-self of the source directory whose path is a
+/// valid import path. Go only lets a package import `x/internal/...` when the importer's path
+/// starts with `x`, and any such `x` the source directory could reach is a valid prefix of it,
+/// so this keeps `internal` imports working. The entrypoint is placed beside the package so it
+/// can import it even when that prefix contains an `internal` element. The final name is
+/// readable in stack traces and unique per source directory.
+fn go_package_alias(source_directory: &str, is_proxy: bool) -> GoPackageAlias {
+    let elements: Vec<_> = source_directory
+        .split('/')
+        .filter(|element| !element.is_empty())
+        .collect();
+    let valid = elements
+        .iter()
+        .take_while(|element| is_go_import_path_element(element))
+        .count();
+    let parent = elements[..valid].join("/");
     let mut name = String::new();
-    for ch in source_directory.chars() {
+    for ch in elements[valid..].join("/").chars() {
         if ch.is_ascii_alphanumeric() {
             name.push(ch);
         } else if !name.is_empty() && !name.ends_with('_') {
@@ -1215,10 +1255,59 @@ fn go_package_alias(source_directory: &str, is_proxy: bool) -> String {
     let name = name.trim_end_matches('_');
     let kind = if is_proxy { "proxy" } else { "route" };
     let hash = turbo_tasks_hash::hash_xxh3_hash64(source_directory) as u32;
-    if name.is_empty() {
-        format!("_next_go/{kind}_{hash:08x}")
+    let package = if name.is_empty() {
+        format!("_next_go_{kind}_{hash:08x}")
     } else {
-        format!("_next_go/{kind}_{name}_{hash:08x}")
+        format!("_next_go_{kind}_{name}_{hash:08x}")
+    };
+    let entrypoint = format!("_next_go_main_{hash:08x}");
+    let join = |name: String| {
+        if parent.is_empty() {
+            name
+        } else {
+            format!("{parent}/{name}")
+        }
+    };
+    GoPackageAlias {
+        package: join(package),
+        entrypoint: join(entrypoint),
+    }
+}
+
+#[cfg(test)]
+mod go_package_alias_tests {
+    use super::*;
+
+    #[test]
+    fn aliases_keep_the_longest_valid_import_path_prefix() {
+        let hash = |path: &str| turbo_tasks_hash::hash_xxh3_hash64(path) as u32;
+        let alias = go_package_alias("app/(group)/native/[id]", false);
+        let h = hash("app/(group)/native/[id]");
+        assert_eq!(
+            alias.package,
+            format!("app/_next_go_route_group_native_id_{h:08x}")
+        );
+        assert_eq!(alias.entrypoint, format!("app/_next_go_main_{h:08x}"));
+        let alias = go_package_alias("app/api/hello", false);
+        let h = hash("app/api/hello");
+        assert_eq!(
+            alias.package,
+            format!("app/api/hello/_next_go_route_{h:08x}")
+        );
+        let alias = go_package_alias("", true);
+        let h = hash("");
+        assert_eq!(alias.package, format!("_next_go_proxy_{h:08x}"));
+        assert_eq!(alias.entrypoint, format!("_next_go_main_{h:08x}"));
+        let alias = go_package_alias("app/café a 100%/x", false);
+        assert!(alias.package.starts_with("app/_next_go_route_caf_a_100_x_"));
+        for element in [
+            "@slot", "[id]", "(group)", ".hidden", "a.", "CON", "com1.txt", "",
+        ] {
+            assert!(!is_go_import_path_element(element), "{element}");
+        }
+        for element in ["api", "rss.xml", "v1-beta", "_private", "console"] {
+            assert!(is_go_import_path_element(element), "{element}");
+        }
     }
 }
 
@@ -1394,6 +1483,7 @@ impl Endpoint for GoEndpoint {
         .replace("__NEXT_GO_PACKAGE__", package);
         // The route directory is overlaid at a virtual directory with a valid import path, since
         // segments such as `[id]` or `(group)` are not. Nothing is written to the project.
+        // See `go_package_alias` for how `internal` imports keep working.
         let source_directory = if module_root == directory {
             ""
         } else {
@@ -1401,7 +1491,10 @@ impl Endpoint for GoEndpoint {
                 .get_path_to(&directory)
                 .context("Go route outside module")?
         };
-        let alias = go_package_alias(source_directory, is_proxy);
+        let GoPackageAlias {
+            package: alias,
+            entrypoint,
+        } = go_package_alias(source_directory, is_proxy);
         let mut generated = BTreeMap::new();
         let import_path = match &source_set.module_path {
             Some(module_path) => format!("{module_path}/{alias}"),
@@ -1435,7 +1528,7 @@ impl Endpoint for GoEndpoint {
                 RcStr::from(dispatch),
             ),
             (
-                RcStr::from(format!("{GO_ENTRYPOINT_DIRECTORY}/main.go")),
+                RcStr::from(format!("{entrypoint}/main.go")),
                 RcStr::from(wrapper),
             ),
         ]);
