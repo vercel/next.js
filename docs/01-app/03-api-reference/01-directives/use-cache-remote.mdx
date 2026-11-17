@@ -97,6 +97,12 @@ This is intentional. Between builds, the function's identity hash or the shape o
 
 If you need entries that persist across deploys, use [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) for non-`fetch` functions, or rely on the [`fetch`](/docs/app/api-reference/functions/fetch) cache.
 
+### Reads within a request
+
+A remote cache doesn't mean a round trip on every call. When the remote handler comes from your hosting provider or [`cacheHandlers`](/docs/app/api-reference/config/next-config-js/cacheHandlers) config, the first call with a given set of arguments in a request looks up the entry (and fills it on a miss). Later calls with the same arguments in that request reuse that result, or its error, without calling the handler again.
+
+This is separate from the entry's lifetime, which [`cacheLife`](/docs/app/api-reference/functions/cacheLife) controls across requests. Within one request, an update another server instance writes to the shared store isn't visible to a repeated call, and waiting before calling again doesn't change that. To read again, use a new request or different arguments, and put retries for a flaky upstream inside the cached function. See [deduplication within a request](/docs/app/api-reference/directives/use-cache#deduplication-within-a-request) for details and an example.
+
 ### Caching with runtime data
 
 Both `use cache` and `'use cache: remote'` can't access runtime values like cookies or search params directly. You can extract these values and pass them as arguments to cached functions. See [with runtime data](/docs/app/getting-started/caching#working-with-runtime-apis) for this pattern.

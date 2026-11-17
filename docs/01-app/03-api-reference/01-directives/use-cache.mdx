@@ -143,6 +143,75 @@ Note that `getOrderTotals` is not cached. It is exported so other parts of the a
 
 With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), prerendering fills the entry and keeps rendering, so this output contributes to the route's [static shell](/docs/app/getting-started/caching#prerendering) and can contribute to its [prefetch](/docs/app/getting-started/caching#prefetching). A cache life too short to store safely leaves a hole that resolves at request time instead. See [prerendering behavior](/docs/app/api-reference/functions/cacheLife#prerendering-behavior) for the thresholds.
 
+### Deduplication within a request
+
+A cached function is deduplicated per request by its [cache key](#cache-keys). When several calls with the same arguments run at the same time, they share one invocation: one cache handler lookup and, on a miss, one run of the function body.
+
+For [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private), and for any cache kind whose handler comes from your hosting provider or from [`cacheHandlers`](/docs/app/api-reference/config/next-config-js/cacheHandlers) config (such as a platform-provided [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote)), Next.js also keeps each completed invocation for the rest of the request. A later call with the same arguments reuses that result without calling the handler's `get` again. This holds even when another server instance has written a newer entry to the shared store in the meantime, and when the function threw, the later call receives the same error.
+
+Reusing the result keeps a render consistent, since every component that reads the same entry during a request sees the same value. It also means:
+
+- Calling a cached function again with the same arguments doesn't re-read the cache. A fresh read needs a new request or different arguments.
+- Waiting and calling again with the same arguments is not a retry. Put retry logic inside the cached function, so the invocation settles only after its attempts are done.
+
+```tsx filename="lib/items.ts" switcher
+// Avoid: the second call reuses the first, rejected invocation
+export async function getItemWithOuterRetry(id: string) {
+  try {
+    return await getItem(id)
+  } catch {
+    await new Promise((resolve) => setTimeout(resolve, 250))
+    return await getItem(id) // same arguments, same error
+  }
+}
+
+// Prefer: retry inside the cached function
+export async function getItem(id: string) {
+  'use cache: remote'
+
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await fetchFromOrigin(id)
+    } catch (error) {
+      if (attempt === 3) throw error
+      await new Promise((resolve) => setTimeout(resolve, 250))
+    }
+  }
+}
+```
+
+```jsx filename="lib/items.js" switcher
+// Avoid: the second call reuses the first, rejected invocation
+export async function getItemWithOuterRetry(id) {
+  try {
+    return await getItem(id)
+  } catch {
+    await new Promise((resolve) => setTimeout(resolve, 250))
+    return await getItem(id) // same arguments, same error
+  }
+}
+
+// Prefer: retry inside the cached function
+export async function getItem(id) {
+  'use cache: remote'
+
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await fetchFromOrigin(id)
+    } catch (error) {
+      if (attempt === 3) throw error
+      await new Promise((resolve) => setTimeout(resolve, 250))
+    }
+  }
+}
+```
+
+> **Good to know**:
+>
+> - A completed invocation is not reused when [Draft Mode](#draft-mode) is enabled.
+> - A kept entry is discarded if [`updateTag()`](/docs/app/api-reference/functions/updateTag) in a Server Action earlier in the same request invalidated it, so the next call reads it again.
+> - Built-in in-memory handlers, including a self-hosted `'use cache: remote'` without a `cacheHandlers` entry, don't keep completed invocations, because reading them again is a local lookup rather than a network round trip.
+
 ## Serialization
 
 Arguments to cached functions and their return values must be serializable.
