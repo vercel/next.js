@@ -140,10 +140,7 @@ function createProxiedClientReferenceManifest(
             )?.clientReferenceManifest
 
             if (currentManifest?.[prop][id]) {
-              if (
-                workStore.durableUseCacheEntries &&
-                prop === 'clientModules'
-              ) {
+              if (prop === 'clientModules') {
                 const workUnitStore = workUnitAsyncStorage.getStore()
                 if (isUseCacheStore(workUnitStore)) {
                   // This creates a mapping so that a given client references with name
@@ -311,7 +308,7 @@ function createProxiedClientReferenceManifest(
         key: string
       ): ClientReferenceManifest['rscModuleMapping'][string] | undefined {
         const workStore = workAsyncStorage.getStore()
-        if (workStore && workStore.durableUseCacheEntries) {
+        if (workStore) {
           const currentManifest = clientReferenceManifestsPerRoute.get(
             workStore.route
           )?.clientReferenceManifest
