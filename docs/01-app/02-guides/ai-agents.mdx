@@ -247,7 +247,7 @@ Adopt Cache Components in this project using the next-cache-components-adoption 
 
 The [`next-cache-components-optimizer`](https://www.skills.sh/vercel/next.js/next-cache-components-optimizer) Skill expands a target route's static shell to include the useful UI you want available on an initial load:
 
-1. Writes a failing [`instant()`](/docs/app/api-reference/functions/instant) test for the static-shell UI you named.
+1. Writes a failing [`instant()`](/docs/app/guides/testing/playwright#testing-instant-navigations) test for the static-shell UI you named.
 2. Refactors the route until it passes, often by moving a data read below a `<Suspense>` boundary.
 3. Commits the passing test with the refactoring, so it catches future regressions.
 
@@ -268,7 +268,7 @@ Optimize the static shell for /dashboard using the next-cache-components-optimiz
 The [`next-partial-prefetching-adoption`](https://www.skills.sh/vercel/next.js/next-partial-prefetching-adoption) Skill moves an app onto [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), where links share one App Shell:
 
 1. Audits existing `<Link prefetch={true}>` navigations and identifies the prefetched UI to preserve.
-2. Captures that UI in passing [`instant()`](/docs/app/api-reference/functions/instant) tests before enabling Partial Prefetching, then migrates each destination until the same tests pass unchanged.
+2. Captures that UI in passing [`instant()`](/docs/app/guides/testing/playwright#testing-instant-navigations) tests before enabling Partial Prefetching, then migrates each destination until the same tests pass unchanged.
 3. Enables the flag, resolves the URL-data insights it surfaces, and marks optional per-link prefetching candidates for later.
 
 It needs [Cache Components](/docs/app/getting-started/caching) already adopted and a production-like build it can run for prefetch verification.
@@ -288,7 +288,7 @@ Adopt Partial Prefetching in this project using the next-partial-prefetching-ado
 The [`next-partial-prefetching-optimizer`](https://www.skills.sh/vercel/next.js/next-partial-prefetching-optimizer) Skill takes a target navigation or set of navigations and works toward the UI you want ready before each click:
 
 1. Turns the requested behavior for each navigation into a contract for what is prefetched, what waits for navigation, and when prefetching begins.
-2. Captures each contract in an [`instant()`](/docs/app/api-reference/functions/instant) test.
+2. Captures each contract in an [`instant()`](/docs/app/guides/testing/playwright#testing-instant-navigations) test.
 3. Applies the [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) patterns and keeps the passing tests as regression coverage.
 
 It needs Cache Components and Partial Prefetching already adopted.

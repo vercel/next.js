@@ -7,7 +7,7 @@ related:
   description: Explore the full instant API, caching, and revalidation.
   links:
     - app/api-reference/file-conventions/route-segment-config/instant
-    - app/api-reference/functions/instant
+    - app/guides/testing/playwright
     - app/guides/optimizing-prefetching
     - app/getting-started/caching
     - app/getting-started/revalidating
@@ -138,7 +138,7 @@ Each case is validated independently. A `<Suspense>` boundary that covers one na
 
 ### Test it in CI
 
-The `@next/playwright` package provides an [`instant()`](/docs/app/api-reference/functions/instant) helper that scopes your assertions to the UI that's immediately available on navigation, so regressions surface in CI. See [Prevent regressions with e2e tests](#prevent-regressions-with-e2e-tests) for the pattern.
+The `@next/playwright` package provides an [`instant()`](/docs/app/guides/testing/playwright#testing-instant-navigations) helper that scopes your assertions to the UI that's immediately available on navigation, so regressions surface in CI. See [Prevent regressions with e2e tests](#prevent-regressions-with-e2e-tests) for the pattern.
 
 ### Inspect loading states
 
@@ -310,7 +310,7 @@ Toggle **Pause on navigations** off when you're done inspecting loading states. 
 
 ## Prevent regressions with e2e tests
 
-Use [`instant()` from `@next/playwright`](/docs/app/api-reference/functions/instant) to test which content is available before dynamic data arrives. The helper pauses that data while your assertions run.
+Use [`instant()` from `@next/playwright`](/docs/app/guides/testing/playwright#testing-instant-navigations) to test which content is available before dynamic data arrives. The helper pauses that data while your assertions run.
 
 For the product route above, test that a client navigation shows the prefetched product heading while stock remains pending:
 
@@ -338,7 +338,7 @@ test('shows the prefetched product before stock arrives', async ({ page }) => {
 })
 ```
 
-Also test the [initial page load](/docs/app/api-reference/functions/instant#initial-page-loads): it uses the static shell, which can differ from the prefetched UI. See the API reference for [installation](/docs/app/api-reference/functions/instant#installation), [production setup](/docs/app/api-reference/functions/instant#production-builds), and [search-parameter updates](/docs/app/api-reference/functions/instant#search-parameter-updates).
+Also test the [initial page load](/docs/app/guides/testing/playwright#initial-page-loads): it uses the static shell, which can differ from the prefetched UI. See the Playwright guide for [installation](/docs/app/guides/testing/playwright#installing-the-helper), [production setup](/docs/app/guides/testing/playwright#production-builds), and [search-parameter updates](/docs/app/guides/testing/playwright#search-parameter-updates).
 
 ## Fixing a navigation that blocks
 

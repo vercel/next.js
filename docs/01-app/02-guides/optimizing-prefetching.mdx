@@ -24,7 +24,7 @@ Use [`prefetch()`](/docs/app/api-reference/functions/prefetch) and [`navigation(
 
 ## Use the optimizer skill (recommended)
 
-The [`next-partial-prefetching-optimizer`](/docs/app/guides/ai-agents#next-partial-prefetching-optimizer) skill applies this guide with a coding agent. It defines the UI that should be ready for a selected link in an [`instant()` test](/docs/app/api-reference/functions/instant), proves the current behavior, and works the test to green.
+The [`next-partial-prefetching-optimizer`](/docs/app/guides/ai-agents#next-partial-prefetching-optimizer) skill applies this guide with a coding agent. It defines the UI that should be ready for a selected link in an [`instant()` test](/docs/app/guides/testing/playwright#testing-instant-navigations), proves the current behavior, and works the test to green.
 
 Install the skill:
 
@@ -352,7 +352,7 @@ Each call defers one subtree. To require static output for the whole route, so a
 
 ## Test prefetched and deferred content
 
-Use [`instant()`](/docs/app/api-reference/functions/instant) to inspect the destination's prefetched UI. Its API reference covers installation, test configuration, and navigation caveats.
+Use [`instant()`](/docs/app/guides/testing/playwright#testing-instant-navigations) to inspect the destination's prefetched UI. The Playwright guide covers installation, test configuration, and navigation caveats.
 
 When [adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching#verify-prefetched-ui-with-tests), run this test before enabling the feature and rerun the same assertions afterward. This preserves the UI selected from the legacy full prefetch while its implementation moves to the App Shell or a per-link prefetch.
 
