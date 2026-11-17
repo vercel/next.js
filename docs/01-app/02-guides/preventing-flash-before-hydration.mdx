@@ -539,9 +539,9 @@ export function ThemeToggle() {
 
 ### Rendering client-specific content
 
-With React 19.3, call `use(browser())` in a Client Component to defer its rendering to the browser. Wrap the component in `<Suspense>` to choose what appears in its place during server rendering. The fallback can contain useful server-rendered content or a placeholder.
+With React 19.3, call `use(browser())` in a Client Component to defer its rendering to the browser. Wrap the component in `<Suspense>` with a fallback.
 
-For example, the following component uses a server-formatted date as useful fallback content, then replaces it with the browser-formatted date:
+Here's an example:
 
 ```tsx filename="app/components/browser-date.tsx" switcher
 'use client'
@@ -597,11 +597,11 @@ export function LocalDate({ date }) {
 }
 ```
 
-React replaces the fallback when the inner component is ready, coordinating the update with other pending Suspense reveals. This avoids a synchronous mount-effect state update, but the fallback is visible first and replacing it can still cause a visible change.
+The server renders the fallback date in its own locale. `suppressHydrationWarning` silences a possible text mismatch in that fallback during hydration.
 
-In this example, `suppressHydrationWarning` applies to the fallback because its date formatting can differ between the server and browser. A shared placeholder doesn't need it.
+Once `BrowserDate` is ready, React replaces the fallback with the browser-formatted date, coordinating the update with other pending Suspense reveals. The displayed date can still change.
 
-For an additional example that initializes local state from `localStorage` with a placeholder fallback, see [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
+A shared placeholder doesn't need `suppressHydrationWarning`. For an additional example that initializes local state from `localStorage` with a placeholder fallback, see [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
 
 ### Subscribing to browser values
 
