@@ -26,6 +26,12 @@
     "./next-partial-prefetching-adoption",
     "./next-partial-prefetching-optimizer"
   ],
+  "mcpServers": {
+    "next-devtools": {
+      "command": "npx",
+      "args": ["-y", "next-devtools-mcp@latest"]
+    }
+  },
   "interface": {
     "displayName": "Next.js",
     "shortDescription": "Adopt and optimize Cache Components, Partial Prefetching, and Next.js runtime behavior",

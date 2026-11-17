@@ -30,7 +30,13 @@
         "bundle-optimizer",
         "skills",
         "coding-agents"
-      ]
+      ],
+      "mcpServers": {
+        "next-devtools": {
+          "command": "npx",
+          "args": ["-y", "next-devtools-mcp@latest"]
+        }
+      }
     }
   ]
 }

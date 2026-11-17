@@ -21,5 +21,11 @@
     "coding-agents"
   ],
   "skills": ["./"],
+  "mcpServers": {
+    "next-devtools": {
+      "command": "npx",
+      "args": ["-y", "next-devtools-mcp@latest"]
+    }
+  },
   "icon": "./assets/logo.svg"
 }
