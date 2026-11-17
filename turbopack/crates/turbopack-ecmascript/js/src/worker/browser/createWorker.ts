@@ -1,5 +1,6 @@
 // Embedded worker-runtime helper. This file is bundled as a regular module and
-// `__turbopack_require__`d by the generated web-worker loader code.
+// `__turbopack_require__`d by the module containing the worker call. That module
+// passes this helper's default export to its generated web-worker loader.
 //
 // The chunk-URL builder, the chunk base path and the asset suffix are read from
 // the shared `__turbopack_chunk_relative_url__` / `__turbopack_chunk_base_path__`
@@ -133,9 +134,9 @@ function createWorker(
 }
 
 /**
- * Returns a function, that when called with the constructor + any options calls `createWorker()`.
- * The worker configuration (`entrypoint`, `moduleChunks`) is passed by `turbopack-ecmascript`
- * at build time, leaving the runtime caller to only supply the constructor and options.
+ * Returns a function that calls `createWorker()` with the constructor and options.
+ * The generated loader supplies `entrypoint` and `moduleChunks` when the originating
+ * module calls it with this helper's default export, constructor, and options.
  */
 export default function generateCreateWorker(
   entrypoint: string,
