@@ -605,13 +605,61 @@ For an additional example that initializes local state from `localStorage` with 
 
 ### Subscribing to browser values
 
-Use [`useSyncExternalStore`](https://react.dev/reference/react/useSyncExternalStore#adding-support-for-server-rendering) for a value with an ongoing subscription, such as network status or a shared `localStorage` store. `getSnapshot` reads the current value, and `subscribe` registers a callback that runs when it changes. Return the same snapshot while the underlying value is unchanged.
+Use [`useSyncExternalStore`](https://react.dev/reference/react/useSyncExternalStore#adding-support-for-server-rendering) when a browser value can change and you need to subscribe to it. For example, this component updates when the browser goes online or offline:
 
-If a `useSyncExternalStore` call only uses an empty subscription and returns `false` on the server and `true` in the browser, replace it with `use(browser())` inside a Suspense boundary. Keep `useSyncExternalStore` for actual store subscriptions.
+```tsx filename="app/components/network-status.tsx" switcher
+'use client'
 
-For server rendering, provide a `getServerSnapshot` that returns the same value on the server and during hydration. React then reads the client snapshot. This avoids copying the value into state in a mount effect, but the initial server snapshot can still be visible before it updates.
+import { useSyncExternalStore } from 'react'
 
-For `localStorage`, notify subscribers when your page writes to storage as well as listening for `storage` events from other documents. If the value is owned by one component, keep it in React state instead.
+function subscribe(callback: () => void) {
+  window.addEventListener('online', callback)
+  window.addEventListener('offline', callback)
+  return () => {
+    window.removeEventListener('online', callback)
+    window.removeEventListener('offline', callback)
+  }
+}
+
+export default function NetworkStatus() {
+  const isOnline = useSyncExternalStore(
+    subscribe,
+    () => navigator.onLine,
+    () => true
+  )
+
+  return <p>{isOnline ? 'Online' : 'Offline'}</p>
+}
+```
+
+```jsx filename="app/components/network-status.js" switcher
+'use client'
+
+import { useSyncExternalStore } from 'react'
+
+function subscribe(callback) {
+  window.addEventListener('online', callback)
+  window.addEventListener('offline', callback)
+  return () => {
+    window.removeEventListener('online', callback)
+    window.removeEventListener('offline', callback)
+  }
+}
+
+export default function NetworkStatus() {
+  const isOnline = useSyncExternalStore(
+    subscribe,
+    () => navigator.onLine,
+    () => true
+  )
+
+  return <p>{isOnline ? 'Online' : 'Offline'}</p>
+}
+```
+
+The third argument supplies `true` during server rendering and hydration, so the initial HTML says `Online`. React then reads `navigator.onLine`, which can change the label to `Offline` after hydration. `subscribe` handles subsequent changes and removes the listeners when the component unmounts.
+
+If you're using an empty subscription only to return `false` on the server and `true` in the browser, use `use(browser())` instead.
 
 ### Why not `useEffect`?
 
@@ -633,9 +681,7 @@ export default function App() {
 }
 ```
 
-This avoids a hydration mismatch, but the user can see the placeholder before the effect runs. The synchronous `setIsClient(true)` update also adds an extra render and is reported as an error by `eslint-config-next`'s [`react-hooks/set-state-in-effect`](https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect) rule. If the update suspends, it can reactivate a parent Suspense fallback.
-
-[`useEffect`](https://react.dev/reference/react/useEffect) still handles ongoing synchronization with external systems, such as starting and cleaning up a timer. `use(browser())` only defers rendering until the browser.
+This avoids a hydration mismatch, but the user can see the placeholder before the effect runs. The synchronous `setIsClient(true)` update also adds an extra render and is reported as an error by `eslint-config-next`'s [`react-hooks/set-state-in-effect`](https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect) rule.
 
 `useLayoutEffect` runs before paint but after hydration. It prevents the flash between hydration and paint, but not the flash between the HTML arriving and React hydrating. On slow connections, the browser paints the server HTML before React has loaded. The inline script runs during HTML **parsing**, before React is involved.
 
