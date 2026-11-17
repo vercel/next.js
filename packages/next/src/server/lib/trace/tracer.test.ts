@@ -5,6 +5,8 @@
 import type {
   Context,
   ContextManager,
+  Span as ApiSpan,
+  SpanContext,
   TextMapGetter,
   TextMapPropagator,
   TextMapSetter,
@@ -52,6 +54,10 @@ import {
   DEFERRED_REQUEST_SPAN_KEY,
   encodeDeferredRequestSpan,
 } from './deferred-request-span'
+
+// The OpenTelemetry SDK's span, with the parent `clearSpanParent` clears
+// (`@opentelemetry/sdk-trace` 2.x).
+type SdkSpan = ApiSpan & { parentSpanContext?: SpanContext }
 
 const customContextKey = createContextKey('next.tracer.test.custom-context')
 const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
@@ -498,7 +504,7 @@ describe('deferred request span', () => {
       })!
       const child = reserved.run(() =>
         trace.getTracer('test').startSpan('middleware')
-      ) as any
+      ) as SdkSpan
       expect(child.parentSpanContext?.spanId).toBe(reserved.spanId)
 
       const makeRoot = context.with(
@@ -514,7 +520,7 @@ describe('deferred request span', () => {
       const reserved = getTracer().reserveRequestSpan('GET', {
         attributes: {},
       })!
-      const other = trace.getTracer('test').startSpan('other') as any
+      const other = trace.getTracer('test').startSpan('other') as SdkSpan
       const makeRoot = context.with(
         trace.setSpan(context.active(), other),
         () => reserved.captureActiveChild()
