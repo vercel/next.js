@@ -1,4 +1,4 @@
-import { loadManifest } from './load-manifest.external'
+import { evalManifest, loadManifest } from './load-manifest.external'
 import { readFileSync } from 'fs'
 
 jest.mock('fs')
@@ -78,5 +78,70 @@ describe('loadManifest', () => {
     expect(Object.isFrozen(result2)).toBe(true)
 
     expect(result).toBe(result2)
+  })
+})
+
+describe('evalManifest', () => {
+  const cache = new Map<string, unknown>()
+
+  afterEach(() => {
+    jest.resetAllMocks()
+    cache.clear()
+    delete (globalThis as any).__RSC_MANIFEST
+  })
+
+  it('collects what the manifest registers on globalThis without touching the real global', () => {
+    ;(readFileSync as jest.Mock).mockReturnValue(
+      '(globalThis.__RSC_MANIFEST ??= {})["/page"] = { chunks: ["a.js"] };'
+    )
+
+    const result = evalManifest<{ __RSC_MANIFEST: Record<string, unknown> }>(
+      'path/to/manifest.js',
+      false
+    )
+
+    expect(result.__RSC_MANIFEST['/page']).toEqual({ chunks: ['a.js'] })
+    expect(Array.isArray((result.__RSC_MANIFEST['/page'] as any).chunks)).toBe(
+      true
+    )
+    expect((globalThis as any).__RSC_MANIFEST).toBeUndefined()
+  })
+
+  it('exposes only the deployment id from process.env', () => {
+    const prev = process.env.NEXT_DEPLOYMENT_ID
+    process.env.NEXT_DEPLOYMENT_ID = 'dpl_123'
+    try {
+      ;(readFileSync as jest.Mock).mockReturnValue(
+        'globalThis.env = Object.keys(process.env); globalThis.id = process.env.NEXT_DEPLOYMENT_ID;'
+      )
+      expect(evalManifest('path/to/manifest.js', false)).toEqual({
+        env: ['NEXT_DEPLOYMENT_ID'],
+        id: 'dpl_123',
+      })
+    } finally {
+      if (prev === undefined) {
+        delete process.env.NEXT_DEPLOYMENT_ID
+      } else {
+        process.env.NEXT_DEPLOYMENT_ID = prev
+      }
+    }
+  })
+
+  it('freezes and caches the result when caching', () => {
+    ;(readFileSync as jest.Mock).mockReturnValue(
+      'globalThis.__RSC_MANIFEST = { "/page": { chunks: ["a.js"] } };'
+    )
+
+    const result = evalManifest<any>('path/to/manifest.js', true, cache)
+    expect(Object.isFrozen(result.__RSC_MANIFEST['/page'].chunks)).toBe(true)
+    expect(evalManifest('path/to/manifest.js', true, cache)).toBe(result)
+    expect(readFileSync).toHaveBeenCalledTimes(1)
+  })
+
+  it('throws on an empty file', () => {
+    ;(readFileSync as jest.Mock).mockReturnValue('')
+    expect(() => evalManifest('path/to/manifest.js', false)).toThrow(
+      'Manifest file is empty'
+    )
   })
 })
