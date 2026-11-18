@@ -1,5 +1,4 @@
 import { createReadStream } from 'fs'
-import { appendFile, mkdir } from 'fs/promises'
 import { createGunzip } from 'zlib'
 import { pipeline } from 'stream/promises'
 import { PassThrough } from 'stream'
@@ -8,6 +7,7 @@ import {
   RequestInsightsArchives,
 } from './request-insights-archive'
 import path from 'path'
+import { RotatingFile } from '../../../lib/rotating-file'
 import isError from '../../../lib/is-error'
 import { createInterface } from 'readline'
 import {
@@ -83,7 +83,7 @@ type JournalCursor = {
 class RequestInsightsJournal {
   private writes = Promise.resolve()
   private pendingAppends: AppendBatch | undefined
-  private size = 0
+  private readonly writer: RotatingFile
   private sequence = 0
   private summaries = new Map<string, IndexedSummary>()
   private pendingRequests = new Set<string>()
@@ -95,7 +95,8 @@ class RequestInsightsJournal {
   private maintenanceTimer: ReturnType<typeof setInterval> | undefined
 
   constructor(readonly file: string) {
-    this.archives = new RequestInsightsArchives(file)
+    this.writer = new RotatingFile(file, JOURNAL_SIZE_LIMIT)
+    this.archives = new RequestInsightsArchives(this.writer)
   }
 
   // Reads and lifecycle changes must share the write queue too: a read must not
@@ -125,6 +126,7 @@ class RequestInsightsJournal {
     // A queued initialize/configure may have installed a timer while closing.
     clearInterval(this.maintenanceTimer)
     this.maintenanceTimer = undefined
+    this.writer.close()
   }
 
   read(filter: JournalFilter): Promise<RequestInsight[]> {
@@ -174,12 +176,11 @@ class RequestInsightsJournal {
   }
 
   private async appendRequests(records: PendingAppend[]): Promise<void> {
-    await this.ensureDirectory()
     let index = 0
     while (index < records.length) {
       if (
-        this.size > 0 &&
-        this.size + records[index].byteLength > JOURNAL_SIZE_LIMIT
+        this.writer.size > 0 &&
+        this.writer.wouldExceed(records[index].byteLength)
       ) {
         await this.rotate()
       }
@@ -192,10 +193,9 @@ class RequestInsightsJournal {
         byteLength += record.byteLength
       } while (
         index < records.length &&
-        this.size + byteLength + records[index].byteLength <= JOURNAL_SIZE_LIMIT
+        !this.writer.wouldExceed(byteLength + records[index].byteLength)
       )
-      await appendFile(this.file, lines, 'utf8')
-      this.size += byteLength
+      this.writer.write(Buffer.from(lines, 'utf8'))
       for (let i = start; i < index; i++) {
         const record = records[i]
         this.archives.recordTime(record.summary.startTime)
@@ -302,7 +302,7 @@ class RequestInsightsJournal {
         }
         if (
           !previous ||
-          this.size + Buffer.byteLength(line, 'utf8') > JOURNAL_SIZE_LIMIT
+          this.writer.wouldExceed(Buffer.byteLength(line, 'utf8'))
         ) {
           let fullRequest: RequestInsight
           if (snapshot) {
@@ -322,12 +322,10 @@ class RequestInsightsJournal {
           updatedSummary = summarizeRequestInsight(fullRequest)
         }
         const byteLength = Buffer.byteLength(line, 'utf8')
-        await this.ensureDirectory()
-        if (this.size > 0 && this.size + byteLength > JOURNAL_SIZE_LIMIT) {
+        if (this.writer.size > 0 && this.writer.wouldExceed(byteLength)) {
           await this.rotate()
         }
-        await appendFile(this.file, line, 'utf8')
-        this.size += byteLength
+        this.writer.write(Buffer.from(line, 'utf8'))
         this.archives.recordTime(metadata.startTime)
         this.summaries.set(key, {
           sequence: this.summaries.get(key)?.sequence ?? ++this.sequence,
@@ -341,7 +339,6 @@ class RequestInsightsJournal {
 
   private async rotate(): Promise<void> {
     await this.archives.rotate()
-    this.size = 0
     this.summaries.clear()
     this.generation++
     this.truncated = true
@@ -350,10 +347,9 @@ class RequestInsightsJournal {
 
   initialize(): Promise<void> {
     return this.run(async () => {
-      await this.ensureDirectory()
-      await this.archives.scanActiveFile()
+      this.writer.close()
+      this.writer.size = await this.archives.scanActiveFile()
       await this.archives.rotate()
-      this.size = 0
       this.sequence = 0
       this.summaries.clear()
       this.sessionId = createSessionId()
@@ -366,8 +362,8 @@ class RequestInsightsJournal {
 
   configure(): Promise<void> {
     return this.run(async () => {
-      await this.ensureDirectory()
-      this.size = await this.archives.scanActiveFile()
+      this.writer.close()
+      this.writer.size = await this.archives.scanActiveFile()
       this.startMaintenance()
     })
   }
@@ -457,10 +453,6 @@ class RequestInsightsJournal {
   flush(): Promise<void> {
     this.pendingAppends = undefined
     return this.writes
-  }
-
-  private async ensureDirectory(): Promise<void> {
-    await mkdir(path.dirname(this.file), { recursive: true })
   }
 }
 

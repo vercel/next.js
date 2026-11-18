@@ -40,6 +40,7 @@ import {
   utimes,
   writeFile,
 } from 'fs/promises'
+import fs from 'fs'
 import { gunzipSync, gzipSync } from 'zlib'
 import { tmpdir } from 'os'
 import path from 'path'
@@ -1749,6 +1750,37 @@ describe('request insights', () => {
       await initializeRequestInsightsJournal(distDir)
       expect(await archiveNames(distDir)).toEqual(['unknown.ndjson.gz'])
       expect(await readdir(directory)).not.toContain('unknown.ndjson')
+    })
+  })
+
+  it('keeps closed history when reopening the active file fails', async () => {
+    await withJournal(async (distDir) => {
+      const request = journalRequest('survives-reopen-failure')
+      appendRequestInsightToJournal(request)
+      await getRequestInsightsHistory(distDir)
+      const reopen = jest.spyOn(fs, 'openSync').mockImplementationOnce(() => {
+        throw new Error('Cannot create the new active file')
+      })
+      try {
+        await expect(
+          initializeRequestInsightsJournal(distDir)
+        ).rejects.toThrow()
+      } finally {
+        reopen.mockRestore()
+      }
+      expect(
+        await readRequestInsightsJournal(distDir, {
+          requestId: request.requestId,
+        })
+      ).toEqual([request])
+      // A subsequent startup can recover and compress the closed source.
+      await initializeRequestInsightsJournal(distDir)
+      expect(await archiveNames(distDir)).toHaveLength(1)
+      expect(
+        await readRequestInsightsJournal(distDir, {
+          requestId: request.requestId,
+        })
+      ).toEqual([request])
     })
   })
 

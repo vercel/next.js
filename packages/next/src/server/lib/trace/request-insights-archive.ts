@@ -1,10 +1,11 @@
 import { createReadStream, createWriteStream } from 'fs'
-import { mkdir, open, readdir, rename, stat, unlink, utimes } from 'fs/promises'
+import { open, readdir, rename, stat, unlink, utimes } from 'fs/promises'
 import path from 'path'
 import { createInterface } from 'readline'
 import { pipeline } from 'stream/promises'
 import { createGzip } from 'zlib'
 import isError from '../../../lib/is-error'
+import type { RotatingFile } from '../../../lib/rotating-file'
 
 const ARCHIVE_MAX_AGE = 7 * 24 * 60 * 60 * 1000
 const ARCHIVE_MAX_BYTES = 100 * 1024 * 1024
@@ -24,7 +25,7 @@ export class RequestInsightsArchives {
   private earliest = Infinity
   private latest = -Infinity
 
-  constructor(private readonly activeFile: string) {}
+  constructor(private readonly writer: RotatingFile) {}
 
   recordTime(time: number): void {
     // Stay within four-digit UTC years, including after rounding the upper bound.
@@ -37,7 +38,7 @@ export class RequestInsightsArchives {
   async scanActiveFile(): Promise<number> {
     this.earliest = Infinity
     this.latest = -Infinity
-    const input = createReadStream(this.activeFile, { encoding: 'utf8' })
+    const input = createReadStream(this.writer.file, { encoding: 'utf8' })
     const lines = createInterface({ input, crlfDelay: Infinity })
     try {
       for await (const line of lines) {
@@ -64,28 +65,21 @@ export class RequestInsightsArchives {
   }
 
   async rotate(): Promise<void> {
-    const directory = path.dirname(this.activeFile)
-    await mkdir(directory, { recursive: true })
-    let size = 0
-    try {
-      size = (await stat(this.activeFile)).size
-    } catch (error) {
-      if (!isError(error) || error.code !== 'ENOENT') throw error
-    }
-    if (size === 0) {
-      await (await open(this.activeFile, 'a')).close()
+    if (this.writer.size === 0) {
+      this.writer.open()
       return
     }
+    const directory = path.dirname(this.writer.file)
 
     const range = Number.isFinite(this.earliest)
       ? `${formatTime(Math.floor(this.earliest / 1000) * 1000)}--${formatTime(Math.ceil(this.latest / 1000) * 1000)}`
       : 'unknown'
     const names = new Set(await readdir(directory))
     const previous =
-      (await listArchives(this.activeFile)).at(-1)?.rotatedAt ?? 0
+      (await listArchives(this.writer.file)).at(-1)?.rotatedAt ?? 0
     // mtime is the rotation order, independent of overlapping request-time ranges.
     // Keep it strictly increasing even if two rotations share a clock tick.
-    const rotatedAt = new Date(Math.max(Date.now(), Math.floor(previous) + 1))
+    const rotatedAt = Math.max(Date.now(), Math.ceil(previous) + 1) / 1000
     let closedFile: string
     for (let collision = 0; ; collision++) {
       const name = `${range}${collision ? `-${collision}` : ''}.ndjson`
@@ -101,13 +95,14 @@ export class RequestInsightsArchives {
       }
     }
     try {
-      await rename(this.activeFile, closedFile)
+      // Close before renaming (including on Windows); never truncate an open reader.
+      this.writer.rotate(closedFile)
     } catch (error) {
       await removeArchiveFile(closedFile)
       throw error
     }
-    // Never truncate an inode that a reader may still have open.
-    await (await open(this.activeFile, 'a')).close()
+    // Outside the reservation rollback: a failed reopen must not delete history.
+    this.writer.open()
     this.earliest = Infinity
     this.latest = -Infinity
     await utimes(closedFile, rotatedAt, rotatedAt)
@@ -116,7 +111,7 @@ export class RequestInsightsArchives {
   /** Retry interrupted compression before pruning; never discard its only source. */
   async maintain(): Promise<void> {
     try {
-      const archives = await listArchives(this.activeFile)
+      const archives = await listArchives(this.writer.file)
       const files = new Set(archives.map((archive) => archive.file))
       for (const archive of archives) {
         try {
@@ -134,8 +129,8 @@ export class RequestInsightsArchives {
         }
       }
 
-      const complete = (await listArchives(this.activeFile)).filter((archive) =>
-        archive.file.endsWith('.gz')
+      const complete = (await listArchives(this.writer.file)).filter(
+        (archive) => archive.file.endsWith('.gz')
       )
       let bytes = complete.reduce((total, archive) => total + archive.size, 0)
       const cutoff = Date.now() - ARCHIVE_MAX_AGE
@@ -207,7 +202,9 @@ async function compressArchive(archive: Archive): Promise<void> {
       createGzip(),
       createWriteStream(temporary, { flags: 'wx' })
     )
-    const rotatedAt = new Date(archive.rotatedAt)
+    // Pass seconds directly: Date would truncate fractional milliseconds and
+    // can make successive rotations tie on older Node versions.
+    const rotatedAt = archive.rotatedAt / 1000
     await utimes(temporary, rotatedAt, rotatedAt)
     await rename(temporary, `${archive.file}.gz`)
   } catch (error) {
