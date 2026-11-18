@@ -388,7 +388,8 @@ export interface NextJsHotReloaderInterface {
    * `reloadAfterInvalidation` only when the change can also affect what a
    * render produces: it makes connected clients refetch server components, and
    * advances `getServerComponentsHmrRefreshHash`, discarding `"use cache"`
-   * entries.
+   * entries that aren't keyed by their code hash (see
+   * `experimental.durableUseCacheEntries`).
    */
   invalidate({
     reloadAfterInvalidation,
