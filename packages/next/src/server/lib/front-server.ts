@@ -65,8 +65,10 @@ export async function startFrontServer(
         // or Node's), Node's header and request timeouts, and a pool idle time
         // a second below Node's keep-alive, so the front never sends a request
         // on a connection Node is closing.
+        // Node ignores --keepAliveTimeout 0 and keeps its own value, so 0
+        // falls back here too.
         idleTimeoutMs:
-          options.keepAliveTimeout ?? privateServer.keepAliveTimeout,
+          options.keepAliveTimeout || privateServer.keepAliveTimeout,
         headerTimeoutMs: privateServer.headersTimeout,
         requestTimeoutMs: privateServer.requestTimeout,
         upstreamIdleMs: privateServer.keepAliveTimeout - 1000,
