@@ -18,7 +18,7 @@ use crate::{
     ScopeHoistingContext,
     chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
-    references::esm::base::{ReferencedAsset, ReferencedAssetIdent},
+    references::esm::base::{ImportSource, ReferencedAsset, ReferencedAssetIdent},
     rename::module::EcmascriptModuleRenameModule,
     runtime_functions::TURBOPACK_IMPORT,
     side_effect_optimization::{
@@ -225,9 +225,8 @@ impl EcmascriptModulePartReference {
                 ReferencedAssetIdent::Module {
                     ref import_source, ..
                 } => {
-                    let target = match &import_source {
-                        crate::references::esm::base::ImportSource::Module { asset, .. } => *asset,
-                        _ => unreachable!("part module reference must target an in-graph module"),
+                    let ImportSource::Module { asset: target, .. } = *import_source else {
+                        bail!("part module reference must target an in-graph module");
                     };
                     let namespace_key = ident.into_module_namespace_ident().unwrap();
                     if subsumed_namespaces.contains(&namespace_key) {
