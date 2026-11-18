@@ -1621,8 +1621,8 @@ export interface ExperimentalConfig {
    * @experimental Use the Rust port of the React compiler (Turbopack only).
    * Requires `reactCompiler` to be enabled.
    *
-   * Defaults to `true` on canary releases when `reactCompiler` is enabled and
-   * Turbopack is used, `false` otherwise.
+   * Defaults to `true` on canary releases, `false` otherwise. Has no effect
+   * unless `reactCompiler` is enabled and Turbopack is used.
    */
   turbopackRustReactCompiler?: boolean
 

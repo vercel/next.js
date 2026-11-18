@@ -688,11 +688,10 @@ function assignDefaultsAndValidate(
     }
   }
 
-  // Use the Rust port of the React Compiler by default on canary releases
-  // when the React Compiler is enabled and Turbopack is used. This runs after
-  // validation so only explicitly set values are validated.
-  result.experimental.turbopackRustReactCompiler ??=
-    !isStableBuild() && !!process.env.TURBOPACK && !!result.reactCompiler
+  // Use the Rust port of the React Compiler by default on canary releases.
+  // Webpack ignores it, and Turbopack only uses it when `reactCompiler` is set.
+  // This runs after validation so only explicitly set values are validated.
+  result.experimental.turbopackRustReactCompiler ??= !isStableBuild()
 
   if (result.experimental.cachedNavigations && !result.cacheComponents) {
     throw new Error(
