@@ -1,21 +1,31 @@
-import type { ReactNode } from 'react'
+import { Suspense, type ReactNode } from 'react'
 
 export function generateStaticParams() {
   return [{ locale: 'en' }, { locale: 'de' }, { locale: 'fr' }]
 }
 
-export default async function Layout({
+export default function Layout({
   children,
   params,
 }: {
   children: ReactNode
   params: Promise<{ locale: string }>
 }) {
-  const { locale } = await params
   return (
     <section>
-      <h1 id="server-locale">Server locale: {locale}</h1>
+      <Suspense fallback={null}>
+        <LocaleHeading params={params} />
+      </Suspense>
       {children}
     </section>
   )
+}
+
+async function LocaleHeading({
+  params,
+}: {
+  params: Promise<{ locale: string }>
+}) {
+  const { locale } = await params
+  return <h1 id="server-locale">Server locale: {locale}</h1>
 }
