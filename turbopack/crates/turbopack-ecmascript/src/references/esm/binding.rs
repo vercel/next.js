@@ -3,7 +3,6 @@ use bincode::{Decode, Encode};
 use rustc_hash::FxHashMap;
 use swc_core::{
     atoms::atom,
-    base::SwcComments,
     common::{
         DUMMY_SP, Spanned,
         comments::{Comment, CommentKind, Comments},
@@ -30,6 +29,7 @@ use crate::{
         base::{ReferencedAsset, ReferencedAssetIdent},
         export::is_export_no_side_effects,
     },
+    swc_comments::MutableComments,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode, Hash)]
@@ -128,7 +128,7 @@ impl EsmBindings {
         scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<CodeGeneration> {
         let mut visitors = vec![];
-        let generated_comments = SwcComments::default();
+        let generated_comments = MutableComments::default();
         let mut has_no_side_effects = false;
 
         let unused_references = chunking_context.unused_references();
