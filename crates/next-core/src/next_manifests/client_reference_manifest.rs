@@ -639,20 +639,24 @@ async fn build_manifest(
         let normalized_manifest_entry = entry_name.replace("%5F", "_");
         Ok(ClientReferenceManifestResult {
             content: AssetContent::file(
-                FileContent::Content(File::from(formatdoc! {
-                    r#"
+                FileContent::Content(
+                    File::from(formatdoc! {
+                        r#"
                         (() => {{
                         {declarations}{MANIFEST_NODE_FACTORIES}const m = {manifest};
                         {add_deployment_id}(globalThis.__RSC_MANIFEST ??= {{}})[{entry_name}] = m;
                         }})();
                     "#,
-                    entry_name = StringifyJs(&normalized_manifest_entry),
-                    add_deployment_id = if add_deployment_id_at_runtime {
-                        ADD_DEPLOYMENT_ID_AT_RUNTIME
-                    } else {
-                        ""
-                    },
-                }))
+                        entry_name = StringifyJs(&normalized_manifest_entry),
+                        add_deployment_id = if add_deployment_id_at_runtime {
+                            ADD_DEPLOYMENT_ID_AT_RUNTIME
+                        } else {
+                            ""
+                        },
+                    })
+                    // The dev server reads this file while it may be rewritten.
+                    .with_atomic_write(),
+                )
                 .cell(),
             )
             .to_resolved()

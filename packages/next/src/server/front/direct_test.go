@@ -59,7 +59,7 @@ func startDirect(t *testing.T, worker http.HandlerFunc) *directFixture {
 	}
 	public := ln.Addr().(*net.TCPAddr)
 	fx.front = newFront(newProxy(node.Listener.Addr().String(), public, 4*time.Second), public, 4*time.Second)
-	srv := &http.Server{Handler: fx.front}
+	srv := newServer(fx.front, 4*time.Second, time.Minute, time.Minute)
 	go srv.Serve(ln)
 	t.Cleanup(func() { srv.Close() })
 	fx.addr = ln.Addr().String()

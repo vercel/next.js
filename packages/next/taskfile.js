@@ -2883,7 +2883,9 @@ export default async function (task) {
   await task.watch('src/bin', 'bin', opts)
   await task.watch('src/pages', 'pages', opts)
   await task.watch('src/server', ['server', 'server_esm', 'server_wasm'], opts)
-  await task.watch('src/server/front/*.go', 'front_server', opts)
+  // task.watch watches a directory (it doesn't expand globs), so a pattern
+  // like front/*.go would never fire.
+  await task.watch('src/server/front', 'front_server', opts)
   await task.watch('src/api', 'api_esm', opts)
   await task.watch(
     'src/build',

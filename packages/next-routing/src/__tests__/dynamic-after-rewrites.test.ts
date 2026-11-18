@@ -492,3 +492,185 @@ describe('Mixed afterFiles and fallback with Dynamic Routes', () => {
     })
   })
 })
+
+describe('Exact pathnames take precedence over dynamic routes after rewrites', () => {
+  const slugRoute = {
+    sourceRegex: '^/(?<nxtPslug>[^/]+?)(?:/)?$',
+    destination: '/[slug]?nxtPslug=$nxtPslug',
+  }
+
+  it('should prefer an exact pathname after an afterFiles rewrite', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/old'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [{ sourceRegex: '^/old$', destination: '/about' }],
+        dynamicRoutes: [slugRoute],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/about', '/[slug]'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.resolvedPathname).toBe('/about')
+    expect(result.routeMatches).toBeUndefined()
+    expect(result.invocationTarget?.pathname).toBe('/about')
+  })
+
+  it('should prefer an exact pathname after an afterFiles alias rewrite', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/about.rsc'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [{ sourceRegex: '^/about\\.rsc$', destination: '/about' }],
+        dynamicRoutes: [slugRoute],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/about', '/[slug]'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.resolvedPathname).toBe('/about')
+    expect(result.routeMatches).toBeUndefined()
+  })
+
+  it('should prefer an exact pathname after a fallback rewrite', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/old/page'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [slugRoute],
+        onMatch: [],
+        fallback: [{ sourceRegex: '^/old/page$', destination: '/about' }],
+      },
+      pathnames: ['/about', '/[slug]'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.resolvedPathname).toBe('/about')
+    expect(result.routeMatches).toBeUndefined()
+  })
+
+  it('should still match a dynamic route when the rewrite destination is not an exact pathname', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/old'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [{ sourceRegex: '^/old$', destination: '/foo' }],
+        dynamicRoutes: [slugRoute],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/about', '/[slug]'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.resolvedPathname).toBe('/[slug]')
+    expect(result.routeMatches).toEqual({ '1': 'foo', nxtPslug: 'foo' })
+  })
+
+  it('should not add route matches from a dynamic route whose non-template destination is not a pathname', async () => {
+    // A request without a rewrite keeps these route matches for the exact
+    // match; after a rewrite they are not added.
+    const dynamicRoutes = [
+      {
+        sourceRegex: '^/(?<slug>[^/]+?)(?:/)?$',
+        destination: '/not-in-pathnames?slug=$slug',
+      },
+    ]
+
+    const direct = await resolveRoutes(
+      createBaseParams({
+        url: new URL('https://example.com/about'),
+        routes: {
+          beforeMiddleware: [],
+          beforeFiles: [],
+          afterFiles: [],
+          dynamicRoutes,
+          onMatch: [],
+          fallback: [],
+        },
+        pathnames: ['/about'],
+      })
+    )
+    expect(direct.resolvedPathname).toBe('/about')
+    expect(direct.routeMatches?.slug).toBe('about')
+
+    const rewritten = await resolveRoutes(
+      createBaseParams({
+        url: new URL('https://example.com/old'),
+        routes: {
+          beforeMiddleware: [],
+          beforeFiles: [],
+          afterFiles: [{ sourceRegex: '^/old$', destination: '/about' }],
+          dynamicRoutes,
+          onMatch: [],
+          fallback: [],
+        },
+        pathnames: ['/about'],
+      })
+    )
+    expect(rewritten.resolvedPathname).toBe('/about')
+    expect(rewritten.routeMatches).toBeUndefined()
+  })
+
+  describe('with i18n locale fallback', () => {
+    const i18n = {
+      defaultLocale: 'en',
+      locales: ['en', 'fr'],
+      localeDetection: false as const,
+    }
+
+    function createLocaleParams(destination: string, pathnames: string[]) {
+      return createBaseParams({
+        url: new URL('https://example.com/old'),
+        i18n,
+        routes: {
+          beforeMiddleware: [],
+          beforeFiles: [],
+          afterFiles: [
+            { sourceRegex: '^/(en/)?old$', destination: '/en/about' },
+          ],
+          dynamicRoutes: [
+            {
+              sourceRegex: '^/(?<loc>en|fr)/(?<slug>[^/]+?)(?:/)?$',
+              destination,
+            },
+          ],
+          onMatch: [],
+          fallback: [],
+        },
+        pathnames,
+      })
+    }
+
+    it('should keep route matches when the dynamic destination resolves to the exact pathname via locale fallback', async () => {
+      const result = await resolveRoutes(
+        createLocaleParams('/fr/en/about?slug=$slug', ['/en/about', '/[slug]'])
+      )
+
+      expect(result.resolvedPathname).toBe('/en/about')
+      expect(result.routeMatches?.slug).toBe('about')
+    })
+
+    it('should prefer the exact pathname when the dynamic destination resolves elsewhere via locale fallback', async () => {
+      const result = await resolveRoutes(
+        createLocaleParams('/fr/about?slug=$slug', ['/en/about', '/about'])
+      )
+
+      expect(result.resolvedPathname).toBe('/en/about')
+      expect(result.routeMatches).toBeUndefined()
+    })
+  })
+})

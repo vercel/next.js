@@ -195,7 +195,6 @@ type directAttempt struct {
 func (f *front) serveDirect(w http.ResponseWriter, r *http.Request, up *goUpstream) {
 	attempt := &directAttempt{state: f.state.Load(), request: r, w: w}
 	ctx := context.WithValue(r.Context(), directAttemptKey{}, attempt)
-	ctx = context.WithValue(ctx, responseWriterKey{}, w)
 	// Node never guesses a Content-Type (see newProxy).
 	w.Header()["Content-Type"] = nil
 	up.proxy.ServeHTTP(dropInformational{w}, r.WithContext(ctx))
@@ -264,10 +263,10 @@ func (f *front) newGoProxy(up *goUpstream, maxHeaderBytes int64) *httputil.Rever
 				text = "unknown"
 			}
 			res.Status = fmt.Sprintf("%d %s", res.StatusCode, text)
-			return writeCustomStatusLine(res)
+			return keepStatusLine(res)
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
-			if errors.Is(err, errResponseWritten) || r.Context().Err() != nil {
+			if r.Context().Err() != nil {
 				return
 			}
 			attempt := r.Context().Value(directAttemptKey{}).(*directAttempt)
