@@ -15,10 +15,10 @@ import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/ca
  * self.__next_instant_test as its hydration source.
  *
  * The script is cookie-guarded so it is inert unless the instant test cookie is
- * present (the prelude is shared across all requests). The fetch mirrors the
- * __NEXT_CLIENT_RESUME prefetch used for fallback routes; the instant test
- * cookie rides along on the same-origin request, so the server returns
- * static-only data, which doubles as the feature flag (truthy = instant mode).
+ * present (the prelude is shared across all requests). The fetch retrieves the
+ * aggregate prerendered Flight payload. The instant test cookie rides along on
+ * the same-origin request, so the server returns static-only data. The fetch
+ * promise also identifies instant mode during client initialization.
  */
 export async function getInstantTestBootstrapScriptContent(): Promise<string> {
   const segmentPath = '/_full'

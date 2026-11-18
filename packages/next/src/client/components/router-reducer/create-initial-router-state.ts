@@ -90,10 +90,10 @@ export function createInitialRouterState({
     // write below re-decodes with the payload's actual response-level value.
     // Pass the conservative value here.
     true,
-    // The initial payload always includes the param values in the tree
-    // (fallback shells are patched with the parsed values before this runs —
-    // see createInitialRSCPayloadFromFallbackPrerender), so there's no
-    // pathname to parse them from.
+    // The tree already includes its param values. Normal fallback hydration
+    // resolves them in resolveFallbackHydration before this call. The Instant
+    // Navigation Testing API uses createInitialRSCPayloadFromFallbackPrerender.
+    // This decoder does not need a pathname to parse params.
     null,
     initialRenderedSearch,
     null,

@@ -17,7 +17,11 @@ describe('route-scoped-cache with PPR', () => {
     }
   }
 
-  async function prefetch(pathname: string, segment = '/_full') {
+  const catalogSegment = '/catalog/$d$category/$d$item/__PAGE__'
+  const sharedSegment = '/shared/$d$category/$d$item/__PAGE__'
+  const catchAllSegment = '/$c$slug/__PAGE__'
+
+  async function prefetch(pathname: string, segment: string) {
     const response = await next.fetch(pathname, {
       headers: {
         RSC: '1',
@@ -34,7 +38,9 @@ describe('route-scoped-cache with PPR', () => {
     const pathname = '/catalog/a/known'
     if (isNextDeploy) {
       expect((await read(pathname)).shell).toBe('catalog-shell')
-      expect(await prefetch(pathname)).toContain('catalog-shell')
+      expect(await prefetch(pathname, catalogSegment)).toContain(
+        'catalog-shell'
+      )
       return
     }
     expect(
@@ -118,9 +124,9 @@ describe('route-scoped-cache with PPR', () => {
       expect(result.state.route).toBe('ppr-shared')
       expect(result.state.params).toEqual({ category: 'a', item })
     }
-    const first = await prefetch('/shared/a/one')
+    const first = await prefetch('/shared/a/one', sharedSegment)
     expect(first).toContain('shared-shell')
-    expect(await prefetch('/shared/a/two')).toBe(first)
+    expect(await prefetch('/shared/a/two', sharedSegment)).toBe(first)
   })
 
   it('normal: preserves HTML, RSC navigation, full prefetch and segment prefetch', async () => {
@@ -135,7 +141,7 @@ describe('route-scoped-cache with PPR', () => {
     expect(navigation).toContain('ppr-catalog')
     expect(navigation).toContain('known')
     expect(navigation).not.toContain('ppr-catchall')
-    const shell = await prefetch(pathname)
+    const shell = await prefetch(pathname, catalogSegment)
     expect(shell).toContain('catalog-shell')
     expect(shell).toContain(html.state.generation)
     const tree = await prefetch(pathname, '/_tree')
@@ -156,7 +162,9 @@ describe('route-scoped-cache with PPR', () => {
     const path = '/catalog/a/on-demand'
     const before = await read(path)
     await retry(async () => {
-      expect(await prefetch(path)).toContain(before.state.generation)
+      expect(await prefetch(path, catalogSegment)).toContain(
+        before.state.generation
+      )
     })
     const result = await next.fetch('/api/revalidate', {
       method: 'POST',
@@ -168,7 +176,9 @@ describe('route-scoped-cache with PPR', () => {
       const after = await read(path)
       expect(after.state.route).toBe('ppr-catalog')
       expect(after.state.generation).not.toBe(before.state.generation)
-      expect(await prefetch(path)).toContain(after.state.generation)
+      expect(await prefetch(path, catalogSegment)).toContain(
+        after.state.generation
+      )
     })
   })
 
@@ -199,9 +209,20 @@ describe('route-scoped-cache with PPR', () => {
       expect((await read(alias)).state.route).toBe(encoded.state.route)
       expect((await read(canonical)).state).toEqual(ordinary.state)
       // The RSC lookup can bypass the normal response-cache entry point.
-      expect(await prefetch(canonical)).toContain('catalog-shell')
-      expect(await prefetch(canonical)).not.toContain('catchall-shell')
-      expect(await prefetch(alias)).toContain(encoded.shell)
+      expect(await prefetch(canonical, catalogSegment)).toContain(
+        'catalog-shell'
+      )
+      expect(await prefetch(canonical, catalogSegment)).not.toContain(
+        'catchall-shell'
+      )
+      expect(
+        await prefetch(
+          alias,
+          encoded.state.route === 'ppr-catalog'
+            ? catalogSegment
+            : catchAllSegment
+        )
+      ).toContain(encoded.shell)
       const navigation = await next.fetch(alias, { headers: { RSC: '1' } })
       expect(navigation.status).toBe(200)
       expect(navigation.headers.get('content-type')).toContain(
@@ -221,7 +242,9 @@ describe('route-scoped-cache with PPR', () => {
       expect(result.shell).toBe('shared-shell')
       expect(result.state.route).toBe('ppr-shared')
       expect(result.state.params).toEqual({ category: 'a', item })
-      expect(await prefetch(`/shared/a/${item}`)).toContain('shared-shell')
+      expect(await prefetch(`/shared/a/${item}`, sharedSegment)).toContain(
+        'shared-shell'
+      )
     }
   })
 })

@@ -22,7 +22,6 @@ export const expectedWhenTrailingSlashTrue = [
   '404.html',
   '404/index.html',
   '__next.__PAGE__.txt',
-  '__next._full.txt',
   '__next._head.txt',
   '__next._index.txt',
   '__next._tree.txt',
@@ -47,7 +46,6 @@ export const expectedWhenTrailingSlashTrue = [
       ]
     : []),
   expect.stringMatching(/_next\/static\/[A-Za-z0-9_-]+\/_ssgManifest.js/),
-  '_not-found/__next._full.txt',
   '_not-found/__next._head.txt',
   '_not-found/__next._index.txt',
   '_not-found/__next._not-found.__PAGE__.txt',
@@ -55,13 +53,11 @@ export const expectedWhenTrailingSlashTrue = [
   '_not-found/__next._tree.txt',
   '_not-found/index.html',
   '_not-found/index.txt',
-  'another/__next._full.txt',
   'another/__next._head.txt',
   'another/__next._index.txt',
   'another/__next._tree.txt',
   'another/__next.another.__PAGE__.txt',
   'another/__next.another.txt',
-  'another/first/__next._full.txt',
   'another/first/__next._head.txt',
   'another/first/__next._index.txt',
   'another/first/__next._tree.txt',
@@ -72,7 +68,6 @@ export const expectedWhenTrailingSlashTrue = [
   'another/first/index.txt',
   'another/index.html',
   'another/index.txt',
-  'another/second/__next._full.txt',
   'another/second/__next._head.txt',
   'another/second/__next._index.txt',
   'another/second/__next._tree.txt',
@@ -83,7 +78,6 @@ export const expectedWhenTrailingSlashTrue = [
   'another/second/index.txt',
   'api/json',
   'api/txt',
-  'client/__next._full.txt',
   'client/__next._head.txt',
   'client/__next._index.txt',
   'client/__next._tree.txt',
@@ -92,7 +86,6 @@ export const expectedWhenTrailingSlashTrue = [
   'client/index.html',
   'client/index.txt',
   'favicon.ico',
-  'image-import/__next._full.txt',
   'image-import/__next._head.txt',
   'image-import/__next._index.txt',
   'image-import/__next._tree.txt',
@@ -108,7 +101,6 @@ export const expectedWhenTrailingSlashTrue = [
 const expectedWhenTrailingSlashFalse = [
   '404.html',
   '__next.__PAGE__.txt',
-  '__next._full.txt',
   '__next._head.txt',
   '__next._index.txt',
   '__next._tree.txt',
@@ -134,7 +126,6 @@ const expectedWhenTrailingSlashFalse = [
   expect.stringMatching(/_next\/static\/[A-Za-z0-9_-]+\/_ssgManifest.js/),
   '_not-found.html',
   '_not-found.txt',
-  '_not-found/__next._full.txt',
   '_not-found/__next._head.txt',
   '_not-found/__next._index.txt',
   '_not-found/__next._not-found.__PAGE__.txt',
@@ -142,7 +133,6 @@ const expectedWhenTrailingSlashFalse = [
   '_not-found/__next._tree.txt',
   'another.html',
   'another.txt',
-  'another/__next._full.txt',
   'another/__next._head.txt',
   'another/__next._index.txt',
   'another/__next._tree.txt',
@@ -150,7 +140,6 @@ const expectedWhenTrailingSlashFalse = [
   'another/__next.another.txt',
   'another/first.html',
   'another/first.txt',
-  'another/first/__next._full.txt',
   'another/first/__next._head.txt',
   'another/first/__next._index.txt',
   'another/first/__next._tree.txt',
@@ -159,7 +148,6 @@ const expectedWhenTrailingSlashFalse = [
   'another/first/__next.another.txt',
   'another/second.html',
   'another/second.txt',
-  'another/second/__next._full.txt',
   'another/second/__next._head.txt',
   'another/second/__next._index.txt',
   'another/second/__next._tree.txt',
@@ -170,7 +158,6 @@ const expectedWhenTrailingSlashFalse = [
   'api/txt',
   'client.html',
   'client.txt',
-  'client/__next._full.txt',
   'client/__next._head.txt',
   'client/__next._index.txt',
   'client/__next._tree.txt',
@@ -179,7 +166,6 @@ const expectedWhenTrailingSlashFalse = [
   'favicon.ico',
   'image-import.html',
   'image-import.txt',
-  'image-import/__next._full.txt',
   'image-import/__next._head.txt',
   'image-import/__next._index.txt',
   'image-import/__next._tree.txt',
@@ -444,6 +430,9 @@ export function runTests({
           ? expectedWhenTrailingSlashTrue
           : expectedWhenTrailingSlashFalse
         const actualFiles = await getFiles(outputDir)
+        expect(
+          actualFiles.some((file) => file.endsWith('__next._full.txt'))
+        ).toBe(false)
         expect(actualFiles).toEqual(expect.arrayContaining(expected))
         expect(actualFiles).toHaveLength(expected.length)
         const html404 = await fs.readFile(join(outputDir, '404.html'), 'utf8')

@@ -102,7 +102,7 @@ describe('segment cache prefetch fallback retry', () => {
         headers: {
           RSC: '1',
           'Next-Router-Prefetch': '1',
-          'Next-Router-Segment-Prefetch': '/_full',
+          'Next-Router-Segment-Prefetch': '/posts/$d$id/__PAGE__',
         },
       })
       const body = await res.text()

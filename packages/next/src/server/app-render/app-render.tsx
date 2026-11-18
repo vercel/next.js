@@ -8959,58 +8959,9 @@ async function continueStaticPrerenderWithInlinedData(
   getServerInsertedHTML: () => Promise<string>,
   getServerInsertedMetadata: () => Promise<string>,
   deploymentId: string | undefined,
-  ComponentMod: AppPageModule,
-  renderFlightStream: typeof renderToWebFlightStream,
-  clientModules: Parameters<typeof renderToWebFlightStream>[2],
-  filterStackFrameForError: typeof filterStackFrame,
-  serverComponentsErrorHandler: (err: unknown) => string | undefined,
+  exposeTestingApi: boolean,
   turbopackBootstrap: TurbopackBootstrap | undefined
 ): Promise<AnyStream> {
-  const hasFallbackRouteParams =
-    fallbackRouteParams && fallbackRouteParams.size > 0
-  if (hasFallbackRouteParams) {
-    // This is a "static fallback" prerender: although the page didn't
-    // access any runtime params in a Server Component, it may have
-    // accessed a runtime param in a client segment.
-    //
-    // TODO: If there were no client segments, we can use the fully static
-    // path instead.
-    //
-    // Rather than use a dynamic server resume to fill in the params,
-    // we can rely on the client to parse the params from the URL and use
-    // that to hydrate the page.
-    //
-    // Send an empty InitialRSCPayload to the server component renderer
-    // The data will be fetched by the client instead.
-    // TODO: In the future, rather than defer the entire hydration payload
-    // to be fetched by the client, we should only defer the client
-    // segments, since those are the only ones whose data is not complete.
-    const emptyReactServerResult =
-      await createReactServerPrerenderResultFromRender(
-        renderFlightStream(ComponentMod, [], clientModules, {
-          filterStackFrame: filterStackFrameForError,
-          onError: serverComponentsErrorHandler,
-        })
-      )
-    const inlinedDataStream = withTurbopackBootstrap(
-      createInlinedDataStream(
-        emptyReactServerResult.consumeAsStream(),
-        nonce,
-        formState,
-        externalBrowserRuntime
-      ),
-      turbopackBootstrap,
-      nonce
-    )
-    return continueStaticFallbackPrerender(htmlStream, {
-      inlinedDataStream,
-      getServerInsertedHTML,
-      getServerInsertedMetadata,
-      deploymentId,
-      nonce,
-    })
-  }
-
   const inlinedDataStream = withTurbopackBootstrap(
     createInlinedDataStream(
       reactServerResult.consumeAsStream(),
@@ -9021,6 +8972,17 @@ async function continueStaticPrerenderWithInlinedData(
     turbopackBootstrap,
     nonce
   )
+  if (fallbackRouteParams && fallbackRouteParams.size > 0) {
+    return continueStaticFallbackPrerender(htmlStream, {
+      inlinedDataStream,
+      getServerInsertedHTML,
+      getServerInsertedMetadata,
+      deploymentId,
+      fallbackRouteParams,
+      nonce,
+      exposeTestingApi,
+    })
+  }
   return continueStaticPrerender(htmlStream, {
     inlinedDataStream,
     getServerInsertedHTML,
@@ -10325,11 +10287,7 @@ async function prerenderToStream(
         getServerInsertedHTML,
         getServerInsertedMetadata,
         ctx.sharedContext.deploymentId,
-        ComponentMod,
-        renderFlightStream,
-        clientModules,
-        filterStackFrame,
-        serverComponentsErrorHandler,
+        renderOpts.experimental.exposeTestingApi === true,
         turbopackBootstrap
       )
 
@@ -10897,11 +10855,7 @@ async function prerenderToStream(
           getServerInsertedHTML,
           getServerInsertedMetadata,
           ctx.sharedContext.deploymentId,
-          ComponentMod,
-          renderFlightStream,
-          clientModules,
-          filterStackFrame,
-          serverComponentsErrorHandler,
+          renderOpts.experimental.exposeTestingApi === true,
           errorBootstrap
         )
 
@@ -11416,7 +11370,8 @@ async function collectSegmentData(
     serverConsumerManifest,
     Boolean(renderOpts.experimental.prefetchInlining),
     hints,
-    isUpgradeableISRFallback
+    isUpgradeableISRFallback,
+    renderOpts.experimental.exposeTestingApi === true
   )
 }
 

@@ -29,6 +29,11 @@ import { getDeploymentId } from '../shared/lib/deployment-id'
 import { setNavigationBuildId } from './navigation-build-id'
 import type { ClientInstrumentationModules } from './router-transition-types'
 import { initializeRouterTransitionModules } from './components/router-transition'
+import {
+  resolveFallbackHydration,
+  clearFallbackDocumentRetry,
+  type FallbackHydration,
+} from './fallback-hydration'
 
 /// <reference types="react-dom/experimental" />
 
@@ -55,16 +60,16 @@ let initialServerDataWriter: ReadableStreamDefaultController | undefined =
 let initialServerDataLoaded = false
 let initialServerDataFlushed = false
 
-// With Cached Navigations, we keep the initial Flight stream's bytes as we
-// hand them to React, so hydration can cut a shell from them. We only do this
-// when hydration decodes this stream, not a fetched payload. We record chunks
-// until the stream is flushed, and hydration keeps its own reference. Each
-// lets go of the chunks when it's done.
+// With Cached Navigations, we keep the initial Flight stream's bytes as we hand
+// them to React, so hydration can cut a shell from them. We only do this for
+// ordinary inline hydration. Fallback hydration excludes these bytes because
+// their router tree still contains unresolved param placeholders. The testing
+// API hydrates from its separately fetched payload. We record chunks until the
+// stream is flushed and retain them until hydration ends.
 let initialServerDataChunks: Array<Uint8Array> | null =
   process.env.__NEXT_CACHE_COMPONENTS &&
   process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS &&
   !instantTestStaticFetch &&
-  // @ts-expect-error
   !window.__NEXT_CLIENT_RESUME
     ? []
     : null
@@ -90,6 +95,7 @@ declare global {
      */
     __next_r?: string
     __next_f: NextFlight
+    __NEXT_CLIENT_RESUME?: FallbackHydration
   }
 }
 
@@ -335,25 +341,6 @@ if (instantTestStaticFetch) {
       initialRSCPayload
     )
   })
-} else if (
-  // @ts-expect-error
-  window.__NEXT_CLIENT_RESUME
-) {
-  const clientResumeFetch: Promise<Response> =
-    // @ts-expect-error
-    window.__NEXT_CLIENT_RESUME
-  initialServerResponse = Promise.resolve(
-    createFromFetch<InitialRSCPayload>(clientResumeFetch, {
-      callServer,
-      findSourceMapURL,
-      debugChannel,
-    })
-  ).then(async (fallbackInitialRSCPayload) =>
-    createInitialRSCPayloadFromFallbackPrerender(
-      await clientResumeFetch,
-      fallbackInitialRSCPayload
-    )
-  )
 } else {
   initialServerResponse = createFromReadableStream<InitialRSCPayload>(
     readable,
@@ -404,6 +391,8 @@ const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
   : React.Fragment
 
 function Root({ children }: React.PropsWithChildren<{}>) {
+  React.useEffect(clearFallbackDocumentRetry, [])
+
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
@@ -445,7 +434,7 @@ export async function hydrate(
     staticIndicatorState = { pathname: null, appIsrManifest: null }
     webSocket = createWebSocket(staticIndicatorState)
   }
-  const initialRSCPayload = await initialServerResponse
+  let initialRSCPayload = await initialServerResponse
 
   // Initialize the offline module to register browser event listeners
   // (offline/online) before any components hydrate.
@@ -459,6 +448,20 @@ export async function hydrate(
     setNavigationBuildId(initialRSCPayload.b!)
   } else {
     setNavigationBuildId(getDeploymentId()!)
+  }
+
+  let shouldHydrate = true
+  // The client resume script sets this only in fully static fallback shells.
+  if (!instantTestStaticFetch && window.__NEXT_CLIENT_RESUME) {
+    const result = await resolveFallbackHydration(
+      initialRSCPayload,
+      window.__NEXT_CLIENT_RESUME
+    )
+    initialRSCPayload = result.payload
+    shouldHydrate = result.shouldHydrate
+    if (!shouldHydrate) {
+      initialFormStateData = null
+    }
   }
 
   initializeRouterTransitionModules(instrumentationModules)
@@ -490,10 +493,13 @@ export async function hydrate(
     </StrictModeIfEnabled>
   )
 
-  if (document.documentElement.id === '__next_error__') {
+  if (!shouldHydrate || document.documentElement.id === '__next_error__') {
     let element = reactEl
     // Server rendering failed, fall back to client-side rendering
-    if (process.env.NODE_ENV !== 'production') {
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      document.documentElement.id === '__next_error__'
+    ) {
       const { RootLevelDevOverlayElement } =
         require('../next-devtools/userspace/app/client-entry') as typeof import('../next-devtools/userspace/app/client-entry')
 

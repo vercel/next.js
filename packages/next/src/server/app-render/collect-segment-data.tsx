@@ -162,7 +162,8 @@ export async function collectSegmentData(
   serverConsumerManifest: any,
   prefetchInlining: boolean,
   hints: PrefetchHints | null,
-  isUpgradeableISRFallback: boolean
+  isUpgradeableISRFallback: boolean,
+  shouldEmitFullSegment: boolean
 ): Promise<Map<SegmentRequestKey, Buffer>> {
   // Traverse the router tree and generate a prefetch response for each segment.
 
@@ -330,8 +331,9 @@ export async function collectSegmentData(
   const treeBuffer = await streamToBuffer(treeStream)
   resultMap.set('/_tree' as SegmentRequestKey, treeBuffer)
 
-  // Also output the entire full page data response
-  resultMap.set('/_full' as SegmentRequestKey, fullPageDataBuffer)
+  if (shouldEmitFullSegment) {
+    resultMap.set('/_full' as SegmentRequestKey, fullPageDataBuffer)
+  }
 
   // Await the segment tasks in parallel and write the segment prefetches to
   // the result map.

@@ -16,33 +16,15 @@ import {
   getRenderedSearch,
 } from './route-params'
 import { createHrefFromUrl } from './components/router-reducer/create-href-from-url'
+import { splitPathnameIntoParts } from './components/segment-cache/cache-key'
 
 export function createInitialRSCPayloadFromFallbackPrerender(
   response: Response,
   fallbackInitialRSCPayload: InitialRSCPayload
 ): InitialRSCPayload {
-  // This is a static fallback page. In order to hydrate the page, we need to
-  // parse the client params from the URL, but to account for the possibility
-  // that the page was rewritten, we need to check the response headers
-  // for x-nextjs-rewritten-path or x-nextjs-rewritten-query headers. Since
-  // we can't access the headers of the initial document response, the client
-  // performs a fetch request to the current location. Since it's possible that
-  // the fetch request will be dynamically rewritten to a different path than
-  // the initial document, this fetch request delivers _all_ the hydration data
-  // for the page; it was not inlined into the document, like it normally
-  // would be.
-  //
-  // TODO: Consider treating the case where fetch is rewritten to a different
-  // path from the document as a special deopt case. We should optimistically
-  // assume this won't happen, inline the data into the document, and perform
-  // a minimal request (like a HEAD or range request) to verify that the
-  // response matches. Tricky to get right because we need to account for
-  // all the different deployment environments we support, like output:
-  // "export" mode, where we currently don't assume that custom response
-  // headers are present.
-
-  // Patch the transport tree sent by the server with the correct params
-  // parsed from the URL + response object.
+  // The Instant Navigation Testing API fetches an aggregate prerendered
+  // payload, including unresolved route params. The client resolves them from
+  // the same response's rewritten URL to keep routing and data consistent.
   const renderedPathname = getRenderedPathname(response)
   const renderedSearch = getRenderedSearch(response)
   const canonicalUrl = createHrefFromUrl(new URL(location.href))
@@ -54,7 +36,7 @@ export function createInitialRSCPayloadFromFallbackPrerender(
     t: {
       t: fillInFallbackTransportTree(
         fallbackTransportData.t,
-        renderedPathname.split('/').filter((part) => part !== ''),
+        splitPathnameIntoParts(renderedPathname),
         0
       ),
       h: fallbackTransportData.h,
@@ -74,7 +56,7 @@ export function createInitialRSCPayloadFromFallbackPrerender(
  * in by parsing the rendered pathname, so the hydrated tree has the same
  * identity a direct render of this URL would have.
  */
-function fillInFallbackTransportTree(
+export function fillInFallbackTransportTree(
   node: FullTransportNode,
   pathnameParts: Array<string>,
   pathnamePartsIndex: number

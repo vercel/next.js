@@ -20,10 +20,15 @@ import {
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_RSC_UNION_QUERY,
+  NEXT_INSTANT_TEST_COOKIE,
 } from '../../client/components/app-router-headers'
 import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/cache-busting-search-param'
 import type { AnyStream } from '../app-render/stream-ops'
-import { htmlEscapeAttributeString } from '../../shared/lib/htmlescape'
+import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
+import {
+  htmlEscapeAttributeString,
+  htmlEscapeJsonString,
+} from '../../shared/lib/htmlescape'
 
 function voidCatch() {
   // this catcher is designed to be used with pipeTo where we expect the underlying
@@ -588,20 +593,25 @@ export function createHeadInsertionTransformStream(
 }
 
 async function createClientResumeScriptInsertionTransformStream(
-  nonce: string | undefined
+  fallbackRouteParams: OpaqueFallbackRouteParams,
+  nonce: string | undefined,
+  exposeTestingApi: boolean
 ): Promise<TransformStream<Uint8Array, Uint8Array>> {
-  const segmentPath = '/_full'
+  const segmentPath = '/_tree'
   const cacheBustingHeader = await computeCacheBustingSearchParam(
     '1', //            headers[NEXT_ROUTER_PREFETCH_HEADER]
-    '/_full', //       headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]
+    segmentPath, //    headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]
     undefined, //      headers[NEXT_ROUTER_STATE_TREE_HEADER]
     undefined //       headers[NEXT_URL]
   )
-  const searchStr = `${NEXT_RSC_UNION_QUERY}=${cacheBustingHeader}`
+  const params = htmlEscapeJsonString(JSON.stringify([...fallbackRouteParams]))
   const nonceAttribute = nonce
     ? ` nonce="${htmlEscapeAttributeString(nonce)}"`
     : ''
-  const NEXT_CLIENT_RESUME_SCRIPT = `<script${nonceAttribute}>__NEXT_CLIENT_RESUME=fetch(location.pathname+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}': '1','${NEXT_ROUTER_PREFETCH_HEADER}': '1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}': '${segmentPath}'}})</script>`
+  const shouldFetchTree = exposeTestingApi
+    ? `!self.__next_instant_test&&document.cookie.indexOf('${NEXT_INSTANT_TEST_COOKIE}=')===-1`
+    : 'true'
+  const NEXT_CLIENT_RESUME_SCRIPT = `<script${nonceAttribute}>if(${shouldFetchTree}){self.__NEXT_CLIENT_RESUME={params:${params},response:(()=>{const url=new URL(location.href);url.hash='';const pairs=url.search.slice(1).split('&').filter(pair=>pair&&!pair.startsWith('${NEXT_RSC_UNION_QUERY}='));pairs.push('${NEXT_RSC_UNION_QUERY}=${cacheBustingHeader}');url.search=pairs.join('&');return fetch(url,{credentials:'same-origin',headers:{'${RSC_HEADER}':'1','${NEXT_ROUTER_PREFETCH_HEADER}':'1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}':'${segmentPath}'}})})()};self.__NEXT_CLIENT_RESUME.response.catch(()=>{})}</script>`
 
   let didAlreadyInsert = false
   return new TransformStream({
@@ -1105,7 +1115,9 @@ export async function continueStaticPrerender(
 export type ContinueStaticFallbackPrerenderOptions<
   TStream = ReadableStream<Uint8Array>,
 > = ContinueStaticPrerenderOptions<TStream> & {
+  fallbackRouteParams: OpaqueFallbackRouteParams
   nonce: string | undefined
+  exposeTestingApi: boolean
 }
 
 export async function continueStaticFallbackPrerender(
@@ -1115,12 +1127,13 @@ export async function continueStaticFallbackPrerender(
     getServerInsertedHTML,
     getServerInsertedMetadata,
     deploymentId,
+    fallbackRouteParams,
     nonce,
+    exposeTestingApi,
   }: ContinueStaticFallbackPrerenderOptions
 ) {
-  // Same as `continueStaticPrerender`, but also inserts an additional script
-  // to instruct the client to start fetching the hydration data as early
-  // as possible.
+  // Same as `continueStaticPrerender`, but also inserts an additional script to
+  // resolve rewrites before hydrating the inline Flight payload.
   return chainTransformers(prerenderStream, [
     // Buffer everything to avoid flushing too frequently
     createBufferedTransformStream(),
@@ -1129,7 +1142,11 @@ export async function continueStaticFallbackPrerender(
     // Insert generated tags to head
     createHeadInsertionTransformStream(getServerInsertedHTML),
     // Insert the client resume script into the head
-    await createClientResumeScriptInsertionTransformStream(nonce),
+    await createClientResumeScriptInsertionTransformStream(
+      fallbackRouteParams,
+      nonce,
+      exposeTestingApi
+    ),
     // Transform metadata
     createMetadataTransformStream(getServerInsertedMetadata),
     // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
