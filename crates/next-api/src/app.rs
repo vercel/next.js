@@ -35,6 +35,7 @@ use next_core::{
     },
     next_server_component::NextServerComponentTransition,
     next_server_utility::{NEXT_SERVER_UTILITY_MERGE_TAG, NextServerUtilityTransition},
+    pages_structure::PagesDirectoryStructure,
     util::{NextRuntime, app_function_name, module_styles_rule_condition, styles_rule_condition},
 };
 use smallvec::smallvec;
@@ -1179,93 +1180,65 @@ pub(crate) fn go_proxy_endpoint(
     )
 }
 
-/// Replaces a template placeholder, failing if the template no longer contains it.
-fn replace_go_placeholder(source: String, placeholder: &str, value: &str) -> Result<String> {
+/// Renders the Go proxy handler with the configuration that proxy.ts URL
+/// normalization depends on.
+fn go_proxy_handler_source(base_path: &str, skip_proxy_url_normalize: bool) -> Result<String> {
+    let source = include_str!("templates/go_proxy_handler.go");
+    let base_path_placeholder = "\"__NEXT_GO_BASE_PATH__\"";
+    let skip_placeholder = "const nextGoSkipProxyURLNormalize = false";
     ensure!(
-        source.contains(placeholder),
-        "Go proxy template is missing placeholder {placeholder}"
+        source.contains(base_path_placeholder) && source.contains(skip_placeholder),
+        "Go proxy template is missing a configuration placeholder"
     );
-    Ok(source.replacen(placeholder, value, 1))
+    Ok(source
+        .replacen(base_path_placeholder, &serde_json::to_string(base_path)?, 1)
+        .replacen(
+            skip_placeholder,
+            &format!("const nextGoSkipProxyURLNormalize = {skip_proxy_url_normalize}"),
+            1,
+        ))
 }
 
-/// The Go proxy handler normalizes transport URLs (RSC, segment prefetch and
-/// Pages data requests) to page URLs itself, because adapter builds invoke it
-/// with the original request URL.
-async fn go_proxy_handler_source(
-    next_config: Vc<NextConfig>,
-    base_path: Option<&str>,
-) -> Result<String> {
-    let i18n_config = next_config.i18n().await?;
-    let i18n = Option::as_ref(&*i18n_config);
-    let skip_proxy_url_normalize = *next_config.skip_proxy_url_normalize().await?;
-    let default_locale = i18n.map(|i18n| i18n.default_locale.as_str()).unwrap_or("");
-    let locales = i18n
-        .into_iter()
-        .flat_map(|i18n| i18n.locales.iter().map(String::as_str));
-    let domains = i18n
-        .and_then(|i18n| i18n.domains.as_ref())
-        .into_iter()
-        .flatten()
-        .map(|domain| (domain.domain.as_str(), domain.default_locale.as_str()));
-    render_go_proxy_handler(
-        base_path.unwrap_or(""),
-        default_locale,
-        skip_proxy_url_normalize,
-        locales,
-        domains,
-    )
-}
-
-/// Renders the Go proxy handler template with the application's routing
-/// configuration. `domains` yields i18n `(domain, defaultLocale)` pairs.
-fn render_go_proxy_handler<'a>(
-    base_path: &str,
-    default_locale: &str,
-    skip_proxy_url_normalize: bool,
-    locales: impl IntoIterator<Item = &'a str>,
-    domains: impl IntoIterator<Item = (&'a str, &'a str)>,
-) -> Result<String> {
-    let locales = locales
-        .into_iter()
-        .map(|locale| -> Result<String> { Ok(format!("\t{},", serde_json::to_string(locale)?)) })
-        .collect::<Result<Vec<_>>>()?
-        .join("\n");
-    // The first domain for a hostname wins, matching detectDomainLocale.
-    let mut domain_locales = BTreeMap::new();
-    for (domain, locale) in domains {
-        let hostname = domain.split(':').next().unwrap_or_default().to_lowercase();
-        domain_locales.entry(hostname).or_insert(locale);
+/// proxy.go only supports App Router applications. Pages Router routing (data
+/// requests and locales) would need its own URL normalization in Go to match
+/// proxy.ts.
+async fn go_proxy_unsupported_reason(project: Vc<Project>) -> Result<Option<RcStr>> {
+    let pages = project.pages_project().pages_structure().await?;
+    let mut has_pages_routes = false;
+    for directory in pages.pages.iter().chain(pages.api.iter()) {
+        if pages_directory_has_routes(**directory).await? {
+            has_pages_routes = true;
+            break;
+        }
     }
-    let domain_locales = domain_locales
-        .iter()
-        .map(|(hostname, locale)| -> Result<String> {
-            Ok(format!(
-                "\t{}: {},",
-                serde_json::to_string(hostname)?,
-                serde_json::to_string(locale)?
-            ))
-        })
-        .collect::<Result<Vec<_>>>()?
-        .join("\n");
+    if has_pages_routes {
+        return Ok(Some(rcstr!(
+            "proxy.go is only supported in App Router applications. Move the routes in the pages \
+             directory to the app directory, or use proxy.ts."
+        )));
+    }
+    if project.next_config().i18n().await?.is_some() {
+        return Ok(Some(rcstr!(
+            "proxy.go does not support the i18n configuration, which only applies to the Pages \
+             Router. Remove i18n from your Next.js config, or use proxy.ts."
+        )));
+    }
+    Ok(None)
+}
 
-    let source = include_str!("templates/go_proxy_handler.go").to_owned();
-    let source = replace_go_placeholder(
-        source,
-        "\"__NEXT_GO_BASE_PATH__\"",
-        &serde_json::to_string(base_path)?,
-    )?;
-    let source = replace_go_placeholder(
-        source,
-        "\"__NEXT_GO_DEFAULT_LOCALE__\"",
-        &serde_json::to_string(default_locale)?,
-    )?;
-    let source = replace_go_placeholder(
-        source,
-        "const nextGoSkipProxyURLNormalize = false",
-        &format!("const nextGoSkipProxyURLNormalize = {skip_proxy_url_normalize}"),
-    )?;
-    let source = replace_go_placeholder(source, "\t// __NEXT_GO_LOCALES__", &locales)?;
-    replace_go_placeholder(source, "\t// __NEXT_GO_DOMAIN_LOCALES__", &domain_locales)
+/// Whether a pages directory contains a route. `_app`, `_document` and `_error`
+/// are not routes.
+async fn pages_directory_has_routes(directory: Vc<PagesDirectoryStructure>) -> Result<bool> {
+    let directory = directory.await?;
+    if !directory.items.is_empty() {
+        return Ok(true);
+    }
+    for child in &directory.children {
+        if Box::pin(pages_directory_has_routes(**child)).await? {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 async fn is_adapter_build(project: ResolvedVc<Project>) -> Result<bool> {
@@ -1304,7 +1277,9 @@ impl Issue for GoRouteIssue {
         Ok(self.path.clone())
     }
     async fn title(&self) -> Result<StyledString> {
-        Ok(StyledString::Text(rcstr!("Unable to compile route.go")))
+        Ok(StyledString::Text(
+            format!("Unable to compile {}", self.path.file_name()).into(),
+        ))
     }
     async fn description(&self) -> Result<Option<StyledString>> {
         Ok(Some(StyledString::Text(self.message.clone())))
@@ -1334,6 +1309,20 @@ impl Endpoint for GoEndpoint {
                 output_assets: OutputAssets::empty().to_resolved().await?,
                 output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
                 first_load_chunks: None,
+            }
+            .cell());
+        }
+        if is_proxy && let Some(message) = go_proxy_unsupported_reason(*project).await? {
+            GoRouteIssue {
+                path: this.path.clone(),
+                message,
+            }
+            .resolved_cell()
+            .emit();
+            return Ok(EndpointOutput {
+                project,
+                output_assets: OutputAssets::empty().to_resolved().await?,
+                output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
             }
             .cell());
         }
@@ -1394,7 +1383,10 @@ impl Endpoint for GoEndpoint {
         let base_path = project.next_config().base_path().await?;
         let route_pattern = format!("{}{pathname}", base_path.as_deref().unwrap_or(""));
         let handler = if is_proxy {
-            go_proxy_handler_source(project.next_config(), base_path.as_deref()).await?
+            go_proxy_handler_source(
+                base_path.as_deref().unwrap_or(""),
+                *project.next_config().skip_proxy_url_normalize().await?,
+            )?
         } else {
             include_str!("templates/go_route_handler.go").replace(
                 "\"__NEXT_GO_ROUTE_PATTERN__\"",
@@ -3145,52 +3137,18 @@ impl AppEndpointOutput {
 }
 
 #[cfg(test)]
-mod go_proxy_handler_tests {
-    use super::render_go_proxy_handler;
+mod tests {
+    use super::go_proxy_handler_source;
 
     #[test]
-    fn renders_defaults_without_placeholders() {
-        let source = render_go_proxy_handler("", "", false, [], []).unwrap();
-        assert!(!source.contains("__NEXT_GO_"), "{source}");
+    fn renders_go_proxy_handler_configuration() {
+        let source = go_proxy_handler_source("", false).unwrap();
+        assert!(!source.contains("__NEXT_GO_"));
         assert!(source.contains("const nextGoBasePath = \"\"\n"));
-        assert!(source.contains("const nextGoDefaultLocale = \"\"\n"));
         assert!(source.contains("const nextGoSkipProxyURLNormalize = false\n"));
-        assert!(source.contains("var nextGoLocales = []string{\n\n}"));
-        assert!(source.contains("var nextGoDomainLocales = map[string]string{\n\n}"));
-    }
 
-    #[test]
-    fn renders_routing_configuration() {
-        let source = render_go_proxy_handler(
-            "/docs",
-            "en-US",
-            true,
-            ["en-US", "fr", "nl"],
-            [
-                ("FR.example.test:3000", "fr"),
-                ("nl.example.test", "nl"),
-                // A later entry for the same hostname is ignored.
-                ("fr.example.test", "de"),
-            ],
-        )
-        .unwrap();
-        assert!(!source.contains("__NEXT_GO_"), "{source}");
-        assert!(source.contains("const nextGoBasePath = \"/docs\"\n"));
-        assert!(source.contains("const nextGoDefaultLocale = \"en-US\"\n"));
+        let source = go_proxy_handler_source("/docs\"", true).unwrap();
+        assert!(source.contains(r#"const nextGoBasePath = "/docs\"""#));
         assert!(source.contains("const nextGoSkipProxyURLNormalize = true\n"));
-        assert!(
-            source.contains("var nextGoLocales = []string{\n\t\"en-US\",\n\t\"fr\",\n\t\"nl\",\n}")
-        );
-        assert!(source.contains(
-            "var nextGoDomainLocales = map[string]string{\n\t\"fr.example.test\": \
-             \"fr\",\n\t\"nl.example.test\": \"nl\",\n}"
-        ));
-        assert!(!source.contains("\"de\""));
-    }
-
-    #[test]
-    fn escapes_configuration_as_go_string_literals() {
-        let source = render_go_proxy_handler("/a\"b\\c", "", false, [], []).unwrap();
-        assert!(source.contains(r#"const nextGoBasePath = "/a\"b\\c""#));
     }
 }

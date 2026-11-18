@@ -302,7 +302,7 @@ impl PagesProject {
     }
 
     #[turbo_tasks::function]
-    async fn pages_structure(&self) -> Result<Vc<PagesStructure>> {
+    pub async fn pages_structure(&self) -> Result<Vc<PagesStructure>> {
         let next_router_fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new());
         let next_router_root = next_router_fs.root().owned().await?;
         Ok(find_pages_structure(

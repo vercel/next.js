@@ -17,7 +17,7 @@ type NextInstance = ReturnType<typeof nextTestSetup>['next']
  */
 async function withAdapterProxy(
   next: NextInstance,
-  callback: (origin: string, buildId: string) => Promise<void>
+  callback: (origin: string) => Promise<void>
 ) {
   await next.stop()
   const config = await next.readFile('next.config.ts')
@@ -30,7 +30,6 @@ async function withAdapterProxy(
   )
   await next.build()
   const output = JSON.parse(await next.readFile('go-proxy-output.json'))
-  const buildId = (await next.readFile('.next/BUILD_ID')).trim()
   const directory = await fs.mkdtemp(join(tmpdir(), 'go-proxy-function-'))
   const binary = join(
     directory,
@@ -50,7 +49,7 @@ async function withAdapterProxy(
       const response = await fetch(`${origin}/native-proxy/inspect`)
       expect(response.headers.get('x-middleware-next')).toBe('1')
     })
-    await callback(origin, buildId)
+    await callback(origin)
   } finally {
     const exited = once(child, 'exit')
     child.kill()
@@ -184,26 +183,14 @@ describe('native-proxy-go', () => {
     expect(await response.text()).toBe('blocked by Go\n')
   })
 
-  it.each([
-    '/native-proxy/secure',
-    '/native-proxy/secure.rsc',
-    '/native-proxy/secure.segments/_tree.segment.rsc',
-    '/native-proxy/pages-secure',
-  ])('protects the secure page through %s', async (path) => {
-    const response = await next.fetch(path)
-    expect(response.status).toBe(403)
-    expect(await response.text()).toBe('protected\n')
-  })
-
-  // The build ID and Pages data endpoint require a local production build.
-  // @force-gate start
-  it('protects the secure Pages data endpoint', async () => {
-    const response = await next.fetch(
-      `/_next/data/${next.buildId}/native-proxy/pages-secure.json`
-    )
-    expect(response.status).toBe(403)
-    expect(await response.text()).toBe('protected\n')
-  })
+  it.each(['/native-proxy/secure', '/native-proxy/secure.rsc'])(
+    'protects the secure page through %s',
+    async (path) => {
+      const response = await next.fetch(path)
+      expect(response.status).toBe(403)
+      expect(await response.text()).toBe('protected\n')
+    }
+  )
 
   it('serves compressed terminal responses', async () => {
     // Middleware response processing strips encoded-body headers, so the body
@@ -255,7 +242,8 @@ describe('native-proxy-go', () => {
   it('rewrites paths and queries', async () => {
     const response = await next.fetch('/native-proxy/rewrite')
     expect(response.status).toBe(200)
-    expect(await response.json()).toMatchObject({ query: { rewritten: '1' } })
+    const $ = cheerio.load(await response.text())
+    expect(JSON.parse($('#query').text())).toEqual({ rewritten: '1' })
   })
 
   it('redirects without following the destination', async () => {
@@ -463,20 +451,10 @@ describe('native-proxy-go', () => {
     expect(response.headers.get('x-private-token')).toBe('false')
   })
 
-  // @force-gate start
-  it('normalizes data-request URLs by default', async () => {
-    const response = await next.fetch(
-      `/_next/data/${next.buildId}/native-proxy/inspect.json?from=data`
-    )
-    expect(response.headers.get('x-go-url')).toBe(
-      '/native-proxy/inspect?from=data'
-    )
-  })
-
   // Artifact inspection and executing a build-host binary are self-hosted checks.
   if (isNextStart) {
     it('emits a Go middleware output whose PORT server runs without Next.js', async () => {
-      await withAdapterProxy(next, async (origin, buildId) => {
+      await withAdapterProxy(next, async (origin) => {
         // Like Node.js proxies, Go proxies register no Edge functions.
         const middlewareManifest = JSON.parse(
           await next.readFile(
@@ -513,66 +491,13 @@ describe('native-proxy-go', () => {
           body: 'hosted body',
         })
         expect(body.headers.get('x-go-body')).toBe('hosted body')
-        // Platforms invoke the executable with original request URLs, so
-        // every transport form of a page must be authorized as that page.
         for (const path of [
           '/native-proxy/secure',
           '/native-proxy/secure.rsc',
-          '/native-proxy/secure.segments/_tree.segment.rsc',
-          '/native-proxy/pages-secure',
-          `/_next/data/${buildId}/native-proxy/pages-secure.json`,
-          `/_next/data/${buildId}/native-proxy/pages-secure`,
-          '/_next/data/other-build/native-proxy/pages-secure.json',
-          `/%5Fnext/data/${buildId}/native-proxy/pages-secure%2Ejson`,
         ]) {
           const response = await fetch(`${origin}${path}`)
-          expect({ path, status: response.status }).toEqual({
-            path,
-            status: 403,
-          })
+          expect(response.status).toBe(403)
           expect(response.headers.get('x-middleware-next')).toBeNull()
-        }
-        // Each transport URL reaches Proxy as the page URL it resolves to.
-        // Other URLs, including encoded separators, are forwarded unchanged.
-        for (const [path, expected] of [
-          [
-            `/_next/data/${buildId}/native-proxy/inspect.json?from=data&x=1`,
-            '/native-proxy/inspect?from=data&x=1',
-          ],
-          [`/_next/data/${buildId}/index.json`, '/'],
-          [`/_next/data/${buildId}/index/index.json`, '/index'],
-          [`/_next/data/${buildId}/index/index/foo.json`, '/index/foo'],
-          // /index/<segment> is emitted unchanged for dynamic routes.
-          [`/_next/data/${buildId}/index/settings.json`, '/index/settings'],
-          [
-            `/_next/data/${buildId}%2Fextra/native-proxy/inspect.json`,
-            '/native-proxy/inspect',
-          ],
-          ['/_next/data//native-proxy/inspect.json', '/native-proxy/inspect'],
-          [
-            `/_next/data/${buildId}/native-proxy/a%2Fb.json`,
-            '/native-proxy/a%2Fb',
-          ],
-          ['/native-proxy/inspect%2Ersc', '/native-proxy/inspect'],
-          [
-            '/native-proxy/inspect.segments/$c$children/__PAGE__.segment.rsc',
-            '/native-proxy/inspect',
-          ],
-          [
-            '/native-proxy/inspect.segments/$c$children/$d$slug/__PAGE__.segment.rsc',
-            '/native-proxy/inspect',
-          ],
-          ['/_next/static/chunks/main.js', '/_next/static/chunks/main.js'],
-          ['/_next/data', '/_next/data'],
-          ['/native-proxy/inspect.json', '/native-proxy/inspect.json'],
-          ['/native-proxy/a%2Fb', '/native-proxy/a%2Fb'],
-        ]) {
-          // Send the raw path, without client-side URL normalization.
-          const response = await fetchViaRawHttp(origin, path)
-          expect({ path, url: response.headers.get('x-go-url') }).toEqual({
-            path,
-            url: expected,
-          })
         }
         for (const path of ['cookie-state', 'cookie-rewrite']) {
           const response = await fetch(`${origin}/native-proxy/${path}`)
@@ -661,239 +586,222 @@ describe('native-proxy-go', () => {
 
 // Hosted tests require the Go proxy adapter and builder releases.
 // @force-gate turbopack && !deploy
-describe.each([false, true])(
-  'native-proxy-go with i18n and skipProxyUrlNormalize: %s',
-  (skipProxyUrlNormalize) => {
+describe.each(['', '/docs'])(
+  'native-proxy-go request URLs with basePath "%s"',
+  (basePath) => {
     const { next } = nextTestSetup({ files: __dirname, skipStart: true })
 
-    beforeAll(async () => {
-      const config = await next.readFile('next.config.ts')
-      await next.patchFile(
-        'next.config.ts',
-        config.replace(
-          'experimental: {',
-          `skipProxyUrlNormalize: ${skipProxyUrlNormalize},
-        i18n: { locales: ['en', 'fr'], defaultLocale: 'en' },
-        experimental: {`
-        )
-      )
-      await next.start()
-    })
+    // Transport forms are passed to the proxy as proxy.ts receives them.
+    const paths = [
+      '',
+      '/native-proxy/inspect',
+      '/native-proxy/inspect?x=1',
+      '/native-proxy/inspect.rsc',
+      '/native-proxy/inspect.rsc?x=1',
+      '/native-proxy/inspect?q=a.rsc',
+      '/native-proxy/a.rsc.rsc',
+      '/native-proxy/inspect%2Ersc',
+      '/native-proxy/a%2Fb',
+      '/native-proxy/inspect.segments/_tree.segment.rsc',
+      '/native-proxy/inspect.segments/$c$children/__PAGE__.segment.rsc',
+      '/_next/data/build-id/native-proxy/inspect.json',
+      '/_next/data/build-id/index/native-proxy/inspect.json',
+      '/en/native-proxy/inspect',
+      '/index.rsc',
+      '/native-proxy/x/../inspect',
+      '/native-proxy/x/%2e%2e/inspect',
+      '/native-proxy/inspect?',
+      '/native-proxy/inspect?_rsc=abc&a=1',
+      '/native-proxy/inspect?nxtPslug=a&slug=b',
+      '/native-proxy/inspect?a+b=c%20d&e',
+      '/native-proxy/caf%C3%A9|x',
+    ].map((path) => basePath + path || '/')
 
-    it.each(['', '/en', '/fr'])(
-      'forwards the URL with locale prefix "%s"',
-      async (prefix) => {
-        const path = `${prefix}/url-normalization?from=locale`
-        const response = await next.fetch(path)
-        expect(response.status).toBe(200)
-        expect(response.headers.get('x-go-url')).toBe(
-          !skipProxyUrlNormalize && prefix === '/en'
-            ? '/url-normalization?from=locale'
-            : path
-        )
+    async function receivedURLs(origin: string) {
+      const received: Record<string, string | null> = {}
+      for (const path of paths) {
+        // Send the raw path, without client-side URL normalization.
+        const response = await fetchViaRawHttp(origin, path)
+        received[path] = response.headers.get('x-go-url')
       }
-    )
-
-    // The build ID and Pages data endpoint require a local production build.
-    // @force-gate start
-    it('handles the original locale-prefixed data-request URL', async () => {
-      const path = `/_next/data/${next.buildId}/en/url-normalization.json?from=data`
-      const response = await next.fetch(path)
-      expect(response.status).toBe(200)
-      expect(response.headers.get('x-go-url')).toBe(
-        skipProxyUrlNormalize ? path : '/url-normalization?from=data'
-      )
-    })
+      return received
+    }
 
     // Executing a build-host binary is a self-hosted check.
     // @force-gate start
-    it('normalizes locale-prefixed URLs in adapter builds like next start', async () => {
-      await withAdapterProxy(next, async (origin, buildId) => {
-        // The same expectations as the self-hosted tests above.
-        for (const [path, expected] of [
-          ['/url-normalization?from=locale', '/url-normalization?from=locale'],
-          [
-            '/en/url-normalization?from=locale',
-            '/url-normalization?from=locale',
-          ],
-          [
-            '/EN/url-normalization?from=locale',
-            '/url-normalization?from=locale',
-          ],
-          [
-            '/fr/url-normalization?from=locale',
-            '/fr/url-normalization?from=locale',
-          ],
-          [
-            '/FR/url-normalization?from=locale',
-            '/fr/url-normalization?from=locale',
-          ],
-          ['/en', '/'],
-          [
-            `/_next/data/${buildId}/en/url-normalization.json?from=data`,
-            '/url-normalization?from=data',
-          ],
-          [
-            `/_next/data/${buildId}/fr/url-normalization.json?from=data`,
-            '/fr/url-normalization?from=data',
-          ],
-        ]) {
-          const response = await fetchViaRawHttp(origin, path)
-          expect({ path, url: response.headers.get('x-go-url') }).toEqual({
-            path,
-            url: skipProxyUrlNormalize ? path : expected,
-          })
-        }
-        // Proxy authorization applies to every URL of the default locale.
-        for (const path of [
-          '/native-proxy/pages-secure',
-          '/en/native-proxy/pages-secure',
-          '/EN/native-proxy/pages-secure',
-          `/_next/data/${buildId}/en/native-proxy/pages-secure.json`,
-        ]) {
-          const response = await fetchViaRawHttp(origin, path)
-          expect({ path, status: response.status }).toEqual({
-            path,
-            status:
-              skipProxyUrlNormalize && path !== '/native-proxy/pages-secure'
-                ? 200
-                : 403,
-          })
-        }
-      })
+    it('passes proxy.go the same URLs as proxy.ts in next start and adapter builds', async () => {
+      const config = await next.readFile('next.config.ts')
+      const proxy = await next.readFile('proxy.go')
+      const withBasePath = config.replace(
+        'experimental: {',
+        `basePath: ${JSON.stringify(basePath)}, experimental: {`
+      )
+      try {
+        await next.patchFile('next.config.ts', withBasePath)
+        await next.start()
+        const goStart = await receivedURLs(next.url)
+        let goAdapter: Record<string, string | null> | undefined
+        await withAdapterProxy(next, async (origin) => {
+          goAdapter = await receivedURLs(origin)
+        })
+
+        await next.stop()
+        await next.patchFile('next.config.ts', withBasePath)
+        await next.deleteFile('proxy.go')
+        await next.patchFile(
+          'proxy.ts',
+          `import { NextResponse, type NextRequest } from 'next/server'
+           export function proxy(request: NextRequest) {
+             const url = new URL(request.url)
+             const response = NextResponse.next()
+             response.headers.set('x-go-url', url.pathname + url.search)
+             return response
+           }`
+        )
+        await next.start()
+        const tsStart = await receivedURLs(next.url)
+
+        expect(tsStart).toMatchObject({
+          [`${basePath}/native-proxy/inspect.rsc?x=1`]: `${basePath}/native-proxy/inspect?x=1`,
+          [`${basePath}/native-proxy/inspect.segments/_tree.segment.rsc`]: `${basePath}/native-proxy/inspect.segments/_tree.segment`,
+          [`${basePath}/native-proxy/x/../inspect`]: `${basePath}/native-proxy/inspect`,
+          [`${basePath}/native-proxy/inspect?_rsc=abc&a=1`]: `${basePath}/native-proxy/inspect?a=1`,
+        })
+        expect(goStart).toEqual(tsStart)
+        expect(goAdapter).toEqual(tsStart)
+      } finally {
+        await next.stop()
+        await next.deleteFile('proxy.ts')
+        await next.patchFile('proxy.go', proxy)
+        await next.patchFile('next.config.ts', config)
+      }
     })
   }
 )
 
-// Hosted tests require the Go proxy adapter and builder releases.
 // @force-gate turbopack && !deploy
-describe('native-proxy-go adapter build with basePath and i18n domains', () => {
-  const { next } = nextTestSetup({ files: __dirname, skipStart: true })
+describe('native-proxy-go requires an App Router application', () => {
+  const { next, isNextDev } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+  })
 
-  // Executing a build-host binary is a self-hosted check.
-  // @force-gate start
-  it('normalizes page and transport URLs with basePath and domain default locales', async () => {
+  const pagesRouterError =
+    'proxy.go is only supported in App Router applications'
+  const i18nError = 'proxy.go does not support the i18n configuration'
+
+  // Starts the dev server or runs a production build, and returns whether the
+  // proxy works and the output of that run.
+  async function run() {
+    if (isNextDev) {
+      // Starting the dev server resets the CLI output.
+      await next.start()
+      try {
+        const response = await next.fetch('/native-proxy/inspect')
+        return {
+          ok: response.headers.get('x-go-proxy') === 'yes',
+          output: next.cliOutput,
+        }
+      } finally {
+        await next.stop()
+      }
+    }
+    const { exitCode, cliOutput } = await next.build()
+    return { ok: exitCode === 0, output: cliOutput }
+  }
+
+  async function expectError(message: string) {
+    if (isNextDev) {
+      await next.start()
+      try {
+        await next.fetch('/native-proxy/inspect')
+        await retry(() => {
+          expect(next.cliOutput).toContain(message)
+        })
+      } finally {
+        await next.stop()
+      }
+    } else {
+      const { exitCode, cliOutput } = await next.build()
+      expect(exitCode).not.toBe(0)
+      expect(cliOutput).toContain(message)
+    }
+  }
+
+  it.each([
+    [
+      'a Pages Router page',
+      'pages/legacy.tsx',
+      'export default function Page() { return null }',
+    ],
+    [
+      'only a Pages Router API route',
+      'pages/api/legacy.ts',
+      'export default function handler(_req: any, res: any) { res.end() }',
+    ],
+  ])('rejects %s', async (_, file, content) => {
+    await next.patchFile(file, content)
+    try {
+      await expectError(pagesRouterError)
+    } finally {
+      await next.deleteFile(file)
+    }
+  })
+
+  it('rejects an i18n configuration', async () => {
     const config = await next.readFile('next.config.ts')
     await next.patchFile(
       'next.config.ts',
       config.replace(
         'experimental: {',
-        `basePath: '/docs',
-        i18n: {
-          locales: ['en', 'fr', 'nl'],
-          defaultLocale: 'en',
-          domains: [{ domain: 'fr.example.test', defaultLocale: 'fr' }],
-        },
-        experimental: {`
+        `i18n: { locales: ['en', 'fr'], defaultLocale: 'en' }, experimental: {`
       )
     )
-    await withAdapterProxy(next, async (origin, buildId) => {
-      const data = `/docs/_next/data/${buildId}`
-      for (const [host, path, expected] of [
-        [
-          undefined,
-          `${data}/en/url-normalization.json`,
-          '/docs/url-normalization',
-        ],
-        [
-          undefined,
-          `${data}/EN/url-normalization.json`,
-          '/docs/url-normalization',
-        ],
-        [
-          undefined,
-          `${data}/fr/url-normalization.json`,
-          '/docs/fr/url-normalization',
-        ],
-        [undefined, `${data}/en.json`, '/docs'],
-        [undefined, `${data}/nl.json`, '/docs/nl'],
-        [
-          undefined,
-          '/docs/native-proxy/inspect.rsc',
-          '/docs/native-proxy/inspect',
-        ],
-        [
-          undefined,
-          '/docs/native-proxy/inspect.segments/_tree.segment.rsc',
-          '/docs/native-proxy/inspect',
-        ],
-        // Paths outside basePath are not data requests for this application.
-        [
-          undefined,
-          `/docsx/_next/data/${buildId}/en/url-normalization.json`,
-          `/docsx/_next/data/${buildId}/en/url-normalization.json`,
-        ],
-        [
-          'fr.example.test',
-          `${data}/fr/url-normalization.json`,
-          '/docs/url-normalization',
-        ],
-        [
-          'FR.example.test:3000',
-          `${data}/fr/url-normalization.json`,
-          '/docs/url-normalization',
-        ],
-        [
-          'fr.example.test',
-          `${data}/en/url-normalization.json`,
-          '/docs/en/url-normalization',
-        ],
-        // Page URLs match NextURL: the locale is canonicalized, and the
-        // default locale for the host is omitted.
-        [undefined, '/docs/url-normalization', '/docs/url-normalization'],
-        [undefined, '/docs/en/url-normalization', '/docs/url-normalization'],
-        [undefined, '/docs/EN/url-normalization', '/docs/url-normalization'],
-        [undefined, '/docs/fr/url-normalization', '/docs/fr/url-normalization'],
-        [undefined, '/docs/FR/url-normalization', '/docs/fr/url-normalization'],
-        [undefined, '/docs/nl/url-normalization', '/docs/nl/url-normalization'],
-        [undefined, '/docs/en/url-normalization/', '/docs/url-normalization/'],
-        [
-          undefined,
-          '/docs/en/url-normalization?from=locale',
-          '/docs/url-normalization?from=locale',
-        ],
-        [undefined, '/docs/en', '/docs'],
-        [undefined, '/docs/en/', '/docs/'],
-        [undefined, '/docs/fr', '/docs/fr'],
-        [undefined, '/docs/fr/api/proxy-query', '/docs/api/proxy-query'],
-        [undefined, '/docs/english/page', '/docs/english/page'],
-        [
-          undefined,
-          '/docs/en/native-proxy/inspect.rsc',
-          '/docs/native-proxy/inspect',
-        ],
-        [undefined, '/docs/en/a%2Fb', '/docs/a%2Fb'],
-        [undefined, '/en/url-normalization', '/url-normalization'],
-        [
-          'fr.example.test',
-          '/docs/fr/url-normalization',
-          '/docs/url-normalization',
-        ],
-        [
-          'fr.example.test',
-          '/docs/url-normalization',
-          '/docs/url-normalization',
-        ],
-        [
-          'fr.example.test',
-          '/docs/en/url-normalization',
-          '/docs/en/url-normalization',
-        ],
-        ['FR.example.test:3000', '/docs/FR', '/docs'],
-      ]) {
-        const response = await fetchViaRawHttp(origin, path!, {
-          headers: host ? { host } : {},
-        })
-        expect({ host, path, url: response.headers.get('x-go-url') }).toEqual({
-          host,
-          path,
-          url: expected,
-        })
+    try {
+      await expectError(i18nError)
+    } finally {
+      await next.patchFile('next.config.ts', config)
+    }
+  })
+
+  it('allows a pages directory without routes', async () => {
+    // Custom _app, _document and _error files are not routes. A production
+    // build of an App Router application cannot include them without pages
+    // regardless of proxy.go, so only development checks them.
+    const files: Record<string, string> = isNextDev
+      ? {
+          'pages/_app.tsx': `export default function App({ Component, pageProps }: any) {
+            return <Component {...pageProps} />
+          }`,
+          'pages/_document.tsx': `import { Html, Head, Main, NextScript } from 'next/document'
+          export default function Document() {
+            return (
+              <Html>
+                <Head />
+                <body>
+                  <Main />
+                  <NextScript />
+                </body>
+              </Html>
+            )
+          }`,
+          'pages/_error.tsx': `export default function Error() { return null }`,
+        }
+      : { 'pages/README.md': 'Not a route.' }
+    for (const [file, content] of Object.entries(files)) {
+      await next.patchFile(file, content)
+    }
+    try {
+      const { ok, output } = await run()
+      expect(output).not.toContain(pagesRouterError)
+      expect(ok).toBe(true)
+    } finally {
+      for (const file of Object.keys(files)) {
+        await next.deleteFile(file)
       }
-    })
+    }
   })
 })
-
 // @force-gate turbopack && !deploy
 describe('native-proxy-go in src with Go route handlers', () => {
   const { next } = nextTestSetup({ files: join(__dirname, 'src-fixture') })

@@ -1,10 +1,10 @@
 package main
 
 import (
-	"net"
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -20,21 +20,6 @@ type RequestOptions struct {
 	// that differ only in case are combined. Hop-by-hop headers, such as
 	// Connection and the headers it lists, are ignored.
 	Headers http.Header
-}
-
-// Routing configuration, replaced when the proxy is compiled.
-const nextGoBasePath = "__NEXT_GO_BASE_PATH__"
-const nextGoDefaultLocale = "__NEXT_GO_DEFAULT_LOCALE__"
-const nextGoSkipProxyURLNormalize = false
-
-// nextGoLocales lists the i18n locales in their configured casing.
-var nextGoLocales = []string{
-	// __NEXT_GO_LOCALES__
-}
-
-// nextGoDomainLocales maps i18n domain hostnames to their default locale.
-var nextGoDomainLocales = map[string]string{
-	// __NEXT_GO_DOMAIN_LOCALES__
 }
 
 // nextGoEmptyOverride stands in for an empty override list, which Next.js
@@ -187,66 +172,113 @@ func nextGoForwardedProto(value string) string {
 	return "http"
 }
 
-// nextGoUnreserved reports whether c is an RFC 3986 unreserved character.
-func nextGoUnreserved(c byte) bool {
-	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9' ||
-		c == '-' || c == '.' || c == '_' || c == '~'
-}
+// Proxy configuration, replaced when the proxy is compiled.
+const nextGoBasePath = "__NEXT_GO_BASE_PATH__"
+const nextGoSkipProxyURLNormalize = false
 
-func nextGoUnhex(c byte) (byte, bool) {
-	switch {
-	case '0' <= c && c <= '9':
-		return c - '0', true
-	case 'a' <= c && c <= 'f':
-		return c - 'a' + 10, true
-	case 'A' <= c && c <= 'F':
-		return c - 'A' + 10, true
-	}
-	return 0, false
-}
-
-// nextGoDecodeUnreserved decodes percent-encoded unreserved characters, which
-// are equivalent to their literal form (RFC 3986, section 6.2.2.2). Other
-// escapes, such as encoded separators, keep their meaning and are preserved.
-func nextGoDecodeUnreserved(escaped string) string {
-	if !strings.Contains(escaped, "%") {
-		return escaped
-	}
-	var b strings.Builder
-	b.Grow(len(escaped))
-	for i := 0; i < len(escaped); i++ {
-		if escaped[i] == '%' && i+2 < len(escaped) {
-			hi, ok1 := nextGoUnhex(escaped[i+1])
-			lo, ok2 := nextGoUnhex(escaped[i+2])
-			if c := hi<<4 | lo; ok1 && ok2 && nextGoUnreserved(c) {
-				b.WriteByte(c)
-				i += 2
-				continue
-			}
+// nextGoNormalizeURL rewrites the request URL to the one the JavaScript
+// adapter passes to proxy.ts as request.url. That URL is parsed as a WHATWG
+// URL (resolving dot segments, for example), has its RSC suffix removed and,
+// unless skipProxyUrlNormalize is set, is normalized by NextURL twice (once
+// by the adapter and once by NextRequest) with internal query parameters
+// removed.
+func nextGoNormalizeURL(r *http.Request) {
+	target := r.RequestURI
+	if !strings.HasPrefix(target, "/") {
+		target = r.URL.EscapedPath()
+		if r.URL.ForceQuery || r.URL.RawQuery != "" {
+			target += "?" + r.URL.RawQuery
 		}
-		b.WriteByte(escaped[i])
+	}
+	target, _, _ = strings.Cut(target, "#")
+	target = nextGoRemoveRSCSuffix(target)
+	rawPath, rawQuery, hasQuery := strings.Cut(target, "?")
+	path := nextGoParsePath(rawPath)
+	query := ""
+	if nextGoSkipProxyURLNormalize {
+		query = nextGoPercentEncode(rawQuery, nextGoQueryEscape)
+	} else {
+		path = nextGoFormatPathname(path, false, len(r.Header.Values("x-nextjs-data")) > 0)
+		path = nextGoFormatPathname(path, true, false)
+		query = nextGoNormalizeQuery(rawQuery)
+		hasQuery = query != ""
+	}
+	unescaped, err := url.PathUnescape(path)
+	if err != nil {
+		return
+	}
+	r.URL.Path = unescaped
+	r.URL.RawPath = path
+	r.URL.RawQuery = query
+	r.URL.ForceQuery = hasQuery && query == ""
+	r.RequestURI = path
+	if hasQuery {
+		r.RequestURI += "?" + query
+	}
+}
+
+// nextGoRemoveRSCSuffix matches normalizeRscURL: it removes the first ".rsc"
+// that ends the path or the query.
+func nextGoRemoveRSCSuffix(target string) string {
+	i := strings.Index(target, ".rsc?")
+	if i < 0 {
+		if !strings.HasSuffix(target, ".rsc") {
+			return target
+		}
+		i = len(target) - len(".rsc")
+	}
+	return target[:i] + target[i+len(".rsc"):]
+}
+
+func nextGoPathEscape(c byte) bool {
+	return c <= 0x20 || c >= 0x7f || strings.IndexByte("\"#<>?^`{}", c) >= 0
+}
+
+func nextGoQueryEscape(c byte) bool {
+	return c <= 0x20 || c >= 0x7f || strings.IndexByte("\"#<>'", c) >= 0
+}
+
+func nextGoPercentEncode(value string, escape func(byte) bool) string {
+	var b strings.Builder
+	for i := 0; i < len(value); i++ {
+		if c := value[i]; escape(c) {
+			b.WriteString("%" + strings.ToUpper(strconv.FormatInt(int64(c)>>4, 16)) + strings.ToUpper(strconv.FormatInt(int64(c)&15, 16)))
+		} else {
+			b.WriteByte(c)
+		}
 	}
 	return b.String()
 }
 
-// nextGoHostDefaultLocale returns the default locale for a request host,
-// preferring a matching i18n domain over the global default locale.
-func nextGoHostDefaultLocale(host string) string {
-	if len(nextGoDomainLocales) > 0 {
-		hostname := host
-		if h, _, err := net.SplitHostPort(host); err == nil {
-			hostname = h
+// nextGoParsePath parses an origin-form path like the WHATWG URL parser.
+func nextGoParsePath(raw string) string {
+	raw = strings.NewReplacer("\t", "", "\n", "", "\r", "").Replace(raw)
+	var segments []string
+	start := 1
+	for i := 1; i <= len(raw); i++ {
+		if i < len(raw) && raw[i] != '/' && raw[i] != '\\' {
+			continue
 		}
-		if locale, ok := nextGoDomainLocales[strings.ToLower(hostname)]; ok {
-			return locale
+		atEnd := i == len(raw)
+		segment := nextGoPercentEncode(raw[start:i], nextGoPathEscape)
+		start = i + 1
+		switch strings.ToLower(segment) {
+		case "..", ".%2e", "%2e.", "%2e%2e":
+			if len(segments) > 0 {
+				segments = segments[:len(segments)-1]
+			}
+			if atEnd {
+				segments = append(segments, "")
+			}
+		case ".", "%2e":
+			if atEnd {
+				segments = append(segments, "")
+			}
+		default:
+			segments = append(segments, segment)
 		}
 	}
-	return nextGoDefaultLocale
-}
-
-// nextGoHasPathPrefix matches a whole path prefix, like pathHasPrefix.
-func nextGoHasPathPrefix(path string, prefix string) bool {
-	return path == prefix || strings.HasPrefix(path, prefix+"/")
+	return "/" + strings.Join(segments, "/")
 }
 
 func nextGoRemoveTrailingSlash(path string) string {
@@ -256,121 +288,194 @@ func nextGoRemoveTrailingSlash(path string) string {
 	return path
 }
 
-// nextGoPagePath returns the escaped page URL path that an escaped request
-// path addresses, matching the URL that the JavaScript adapter passes to
-// proxies: RSC payloads, segment prefetches and Pages data requests are
-// alternative transports for a page and resolve to it downstream, and the
-// default locale is omitted. Proxy must authorize them as the page itself.
-func nextGoPagePath(escaped string, host string) string {
-	path := nextGoDecodeUnreserved(escaped)
-	path = strings.TrimSuffix(path, ".rsc")
-	if nextGoSkipProxyURLNormalize {
-		return path
-	}
-
-	// Segment prefetches: <page>.segments/<segment path>.segment(.rsc)
-	if i := strings.LastIndex(path, ".segments/"); i > 0 && strings.HasSuffix(path, ".segment") {
-		path = path[:i]
-	}
-
-	trailingSlash := path != "/" && strings.HasSuffix(path, "/")
-	pathname, hasBasePath := path, false
-	if nextGoBasePath != "" && nextGoHasPathPrefix(path, nextGoBasePath) {
-		pathname, hasBasePath = path[len(nextGoBasePath):], true
-		if pathname == "" {
-			pathname = "/"
+// nextGoFormatPathname matches parsing and formatting a pathname with
+// NextURL. The adapter clears the build ID of Pages data URLs, and NextRequest
+// keeps it.
+func nextGoFormatPathname(pathname string, keepBuildID bool, isDataRequest bool) string {
+	trailingSlash := pathname != "/" && strings.HasSuffix(pathname, "/")
+	hasBasePath := nextGoBasePath != "" &&
+		(pathname == nextGoBasePath || strings.HasPrefix(pathname, nextGoBasePath+"/"))
+	if hasBasePath {
+		pathname = pathname[len(nextGoBasePath):]
+		if !strings.HasPrefix(pathname, "/") {
+			pathname = "/" + pathname
 		}
 	}
-
-	// Pages data requests: <basePath>/_next/data/<buildId>/<page>.json
-	isData := strings.HasPrefix(pathname, "/_next/data/")
-	if isData {
-		trailingSlash = false
-		// Any build ID resolves downstream, so do not require the current one.
-		pathname = strings.TrimPrefix(pathname, "/_next/data/")
-		if i := strings.IndexByte(pathname, '/'); i >= 0 {
-			pathname = pathname[i:]
+	buildID := ""
+	if strings.HasPrefix(pathname, "/_next/data/") && strings.HasSuffix(pathname, ".json") {
+		parts := strings.Split(strings.TrimSuffix(strings.TrimPrefix(pathname, "/_next/data/"), ".json"), "/")
+		buildID = parts[0]
+		if len(parts) > 1 && parts[1] == "index" {
+			pathname = "/"
 		} else {
-			pathname = ""
+			pathname = "/" + strings.Join(parts[1:], "/")
 		}
-		pathname = strings.TrimSuffix(pathname, ".json")
-		// Invert normalizePagePath: / is emitted as /index and pages under
-		// /index as /index/index. Other paths, including /index/<dynamic
-		// segment>, are emitted unchanged.
-		if pathname == "" || pathname == "/" || pathname == "/index" {
+	}
+	if !keepBuildID {
+		buildID = ""
+		if isDataRequest && pathname == "/index" {
 			pathname = "/"
-		} else if strings.HasPrefix(pathname, "/index/index") {
-			if rest := pathname[len("/index"):]; rest == "/index" || strings.HasPrefix(rest, "/index/") {
-				pathname = rest
+		}
+	}
+	formatted := pathname
+	if buildID != "" || !trailingSlash {
+		formatted = nextGoRemoveTrailingSlash(formatted)
+	}
+	if buildID != "" {
+		suffix := ".json"
+		if pathname == "/" {
+			suffix = "index.json"
+		}
+		formatted = "/_next/data/" + buildID + formatted + suffix
+	}
+	if hasBasePath {
+		formatted = nextGoBasePath + formatted
+	}
+	if buildID == "" && trailingSlash {
+		if !strings.HasSuffix(formatted, "/") {
+			formatted += "/"
+		}
+		return formatted
+	}
+	return nextGoRemoveTrailingSlash(formatted)
+}
+
+type nextGoQueryParam struct{ name, value string }
+
+// nextGoNormalizeQuery matches the adapter's URLSearchParams handling: it
+// restores nxtP- and nxtI-prefixed parameter names, removes _rsc, and
+// serializes the parameters as application/x-www-form-urlencoded.
+func nextGoNormalizeQuery(query string) string {
+	var params []nextGoQueryParam
+	for _, sequence := range strings.Split(query, "&") {
+		if sequence == "" {
+			continue
+		}
+		name, value, _ := strings.Cut(sequence, "=")
+		params = append(params, nextGoQueryParam{nextGoFormDecode(name), nextGoFormDecode(value)})
+	}
+	remove := func(name string) {
+		kept := params[:0]
+		for _, param := range params {
+			if param.name != name {
+				kept = append(kept, param)
 			}
 		}
-	} else if len(nextGoLocales) == 0 || nextGoURLNormalizedByNext {
-		// Next.js has already applied basePath and locale normalization to
-		// page URLs; applying it twice is not idempotent for every path.
-		return path
+		params = kept
 	}
-
-	// Locales, like NextURL: detect the locale prefix, then add it back only
-	// when it differs from the default locale for the host.
-	if len(nextGoLocales) > 0 {
-		locale := ""
-		first, rest, _ := strings.Cut(pathname[1:], "/")
-		for _, candidate := range nextGoLocales {
-			if first != "" && strings.EqualFold(first, candidate) {
-				locale = candidate
-				pathname = "/" + rest
+	names := make([]string, len(params))
+	for i, param := range params {
+		names[i] = param.name
+	}
+	for _, name := range names {
+		var values []string
+		for _, param := range params {
+			if param.name == name {
+				values = append(values, param.value)
+			}
+		}
+		for _, prefix := range []string{"nxtP", "nxtI"} {
+			if name != prefix && strings.HasPrefix(name, prefix) {
+				normalized := name[len(prefix):]
+				remove(normalized)
+				for _, value := range values {
+					params = append(params, nextGoQueryParam{normalized, value})
+				}
+				remove(name)
 				break
 			}
 		}
-		defaultLocale := nextGoHostDefaultLocale(host)
-		if locale == "" {
-			locale = defaultLocale
-		}
-		if locale != "" && locale != defaultLocale {
-			lower := strings.ToLower(pathname)
-			if !nextGoHasPathPrefix(lower, "/api") && !nextGoHasPathPrefix(lower, "/"+strings.ToLower(locale)) {
-				pathname = "/" + locale + pathname
-			}
-		}
 	}
-
-	if !trailingSlash {
-		pathname = nextGoRemoveTrailingSlash(pathname)
+	remove("_rsc")
+	serialized := make([]string, len(params))
+	for i, param := range params {
+		serialized[i] = nextGoFormEncode(param.name) + "=" + nextGoFormEncode(param.value)
 	}
-	if hasBasePath {
-		pathname = nextGoBasePath + pathname
-	}
-	if trailingSlash {
-		if !strings.HasSuffix(pathname, "/") {
-			pathname += "/"
-		}
-		return pathname
-	}
-	return nextGoRemoveTrailingSlash(pathname)
+	return strings.Join(serialized, "&")
 }
 
-// nextGoNormalizeRequestURL rewrites the request URL to the page it addresses.
-func nextGoNormalizeRequestURL(r *http.Request) {
-	escaped := r.URL.EscapedPath()
-	page := nextGoPagePath(escaped, r.Host)
-	if page == nextGoDecodeUnreserved(escaped) {
-		return
+// nextGoFormDecode decodes an application/x-www-form-urlencoded value,
+// replacing invalid UTF-8 like the WHATWG UTF-8 decoder.
+func nextGoFormDecode(value string) string {
+	value = strings.ReplaceAll(value, "+", " ")
+	decoded := make([]byte, 0, len(value))
+	for i := 0; i < len(value); i++ {
+		if value[i] == '%' && i+2 < len(value) {
+			if b, err := strconv.ParseUint(value[i+1:i+3], 16, 8); err == nil && value[i+1] != '+' && value[i+1] != '-' {
+				decoded = append(decoded, byte(b))
+				i += 2
+				continue
+			}
+		}
+		decoded = append(decoded, value[i])
 	}
-	path, err := url.PathUnescape(page)
-	if err != nil {
-		return
+	var b strings.Builder
+	needed, seen, lower, upper := 0, 0, byte(0x80), byte(0xbf)
+	var codePoint rune
+	for i := 0; i < len(decoded); i++ {
+		c := decoded[i]
+		if needed == 0 {
+			switch {
+			case c <= 0x7f:
+				b.WriteByte(c)
+			case 0xc2 <= c && c <= 0xdf:
+				needed, codePoint = 1, rune(c&0x1f)
+			case 0xe0 <= c && c <= 0xef:
+				if c == 0xe0 {
+					lower = 0xa0
+				} else if c == 0xed {
+					upper = 0x9f
+				}
+				needed, codePoint = 2, rune(c&0xf)
+			case 0xf0 <= c && c <= 0xf4:
+				if c == 0xf0 {
+					lower = 0x90
+				} else if c == 0xf4 {
+					upper = 0x8f
+				}
+				needed, codePoint = 3, rune(c&0x7)
+			default:
+				b.WriteRune('\uFFFD')
+			}
+			continue
+		}
+		if c < lower || c > upper {
+			needed, seen, codePoint, lower, upper = 0, 0, 0, 0x80, 0xbf
+			b.WriteRune('\uFFFD')
+			i--
+			continue
+		}
+		lower, upper = 0x80, 0xbf
+		codePoint = codePoint<<6 | rune(c&0x3f)
+		if seen++; seen == needed {
+			b.WriteRune(codePoint)
+			needed, seen, codePoint = 0, 0, 0
+		}
 	}
-	r.URL.Path = path
-	r.URL.RawPath = page
-	r.RequestURI = r.URL.RequestURI()
+	if needed != 0 {
+		b.WriteRune('\uFFFD')
+	}
+	return b.String()
+}
+
+// nextGoFormEncode matches the application/x-www-form-urlencoded serializer.
+func nextGoFormEncode(value string) string {
+	value = nextGoPercentEncode(value, func(c byte) bool {
+		return c != ' ' && c != '*' && c != '-' && c != '.' && c != '_' &&
+			!('0' <= c && c <= '9' || 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z')
+	})
+	return strings.ReplaceAll(value, " ", "+")
 }
 
 func nextGoHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Adapter builds invoke Go directly with the original request URL,
-		// bypassing the JavaScript adapter's URL normalization. Keep proxy
-		// authorization on the page identity that the request resolves to.
-		nextGoNormalizeRequestURL(r)
+		// Adapter builds invoke Go directly, bypassing the JavaScript adapter.
+		// Apply its URL normalization so Proxy sees the same URL as proxy.ts.
+		// Next.js has already applied it to requests it forwards, and it is not
+		// idempotent: applying it twice would change paths such as /a.rsc.rsc.
+		if !nextGoTrustInternalHeaders {
+			nextGoNormalizeURL(r)
+		}
 		response := &nextGoProxyWriter{ResponseWriter: w, request: r}
 		// Next.js resolves destinations against its own request origin, which
 		// differs from the client's Host. Adapter builds resolve against r.Host,

@@ -334,7 +334,8 @@ export class NativeRouteManager {
           port: worker.port,
           agent: worker.agent,
           method: req.method,
-          path: url.pathname + url.search,
+          // Forward request.url exactly, including an empty query.
+          path: url.href.slice(url.origin.length).split('#', 1)[0],
           headers,
         })
         upstream = connection
