@@ -83,3 +83,14 @@ func TestLoadRejectsUnknownVersionsAndPatterns(t *testing.T) {
 		}
 	}
 }
+
+func TestHostCountsTowardTheHeaderLimit(t *testing.T) {
+	table, err := Load([]byte(`{"contract":{"version":1},"maxHeaderBytes":16384,"goExact":{"/api/echo":"/api/echo/route"}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := Request{Method: "GET", Target: "/api/echo", Proto: "HTTP/1.1", Host: strings.Repeat("h", 4000), Header: map[string][]string{"X-Large": {strings.Repeat("x", 12500)}}}
+	if got := table.Decide(r); got.Why != "headers near Node's size limit" {
+		t.Errorf("large Host went direct: %+v", got)
+	}
+}

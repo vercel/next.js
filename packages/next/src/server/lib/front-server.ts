@@ -12,7 +12,6 @@ import {
 } from './start-server'
 import { findFrontBinary } from './front-binary'
 import type { FrontRouteTable } from './front-route-table'
-import { observeNativeRouteWorkers } from './native-route.external'
 import { FRONT_SERVER_ENV } from './front-server-env'
 import { formatHostname } from './format-hostname'
 import { printAndExit } from './utils'
@@ -137,6 +136,8 @@ function spawnFront(
     if (!closing) front.stdin.write(JSON.stringify(message) + '\n')
   }
   const setRouteTable = (table: FrontRouteTable) => {
+    const { observeNativeRouteWorkers } =
+      require('./native-route.external') as typeof import('./native-route.external')
     debug(
       'reason' in table
         ? 'route table: every request goes to Node (%s)'

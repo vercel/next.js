@@ -1,4 +1,5 @@
 import { STATUS_CODES } from 'http'
+import mimeTypes from 'next/dist/compiled/compression/mime-types.json'
 import { RouteKind } from '../route-kind'
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param'
 import { INTERCEPTION_ROUTE_MARKERS } from '../../shared/lib/router/utils/interception-routes'
@@ -34,6 +35,7 @@ export type FrontRouteTable =
         stripRequestHeaders: readonly string[]
         stripRequestHeaderPrefixes: readonly string[]
         statusText: Readonly<Record<string, string>>
+        mimeTypes: Readonly<Record<string, boolean>>
       }>
     }>
 
@@ -146,6 +148,7 @@ export function frontRouteTable(input: FrontRouteTableInput): FrontRouteTable {
       stripRequestHeaders: [...input.internalHeaders],
       stripRequestHeaderPrefixes: ['x-next-internal-'],
       statusText,
+      mimeTypes,
     },
   }
 }
@@ -195,22 +198,21 @@ export function patternOf(page: string): PatternEntry[] | undefined {
       path.push(segment)
       continue
     }
-    switch (param.paramType) {
-      case 'dynamic':
-        path.push({ param: param.paramName })
-        break
-      case 'catchall':
-      case 'optional-catchall':
-        // A catch-all can only end a pattern.
-        if (i !== segments.length - 1) return undefined
-        path.push({
-          rest: param.paramName,
-          min: param.paramType === 'catchall' ? 1 : 0,
-        })
-        break
-      default:
-        // Interception routes ("(.)[id]") come with rewrites of their own.
-        return undefined
+    if (param.paramType === 'dynamic') {
+      path.push({ param: param.paramName })
+    } else if (
+      param.paramType === 'catchall' ||
+      param.paramType === 'optional-catchall'
+    ) {
+      // A catch-all can only end a pattern.
+      if (i !== segments.length - 1) return undefined
+      path.push({
+        rest: param.paramName,
+        min: param.paramType === 'catchall' ? 1 : 0,
+      })
+    } else {
+      // Interception routes ("(.)[id]") come with rewrites of their own.
+      return undefined
     }
   }
   return path

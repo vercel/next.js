@@ -11,6 +11,8 @@ type Request struct {
 	Target string
 	// "HTTP/1.1", "HTTP/1.0", ...
 	Proto string
+	// Host is separate because HTTP servers remove it from Header.
+	Host string
 	// Header fields by canonical name ("Accept-Encoding"), one entry per
 	// line the client sent, without Host. An http.Header can be passed as is.
 	Header map[string][]string
@@ -81,7 +83,7 @@ func (t *Table) checkRequest(r Request) string {
 			}
 		}
 	}
-	size := len(r.Method) + len(r.Target) + len(r.Proto) + 4
+	size := len(r.Method) + len(r.Target) + len(r.Proto) + 4 + len("Host") + len(r.Host) + 4
 	for name, values := range r.Header {
 		// Node keeps only the first line of some headers and joins others;
 		// with one line per name both are the same.

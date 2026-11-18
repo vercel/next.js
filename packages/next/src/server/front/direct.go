@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -50,6 +51,9 @@ type directConfig struct {
 	StripRequestHeaders        []string          `json:"stripRequestHeaders"`
 	StripRequestHeaderPrefixes []string          `json:"stripRequestHeaderPrefixes"`
 	StatusText                 map[string]string `json:"statusText"`
+	MimeTypes                  map[string]bool   `json:"mimeTypes"`
+	compress                   bool
+	maxHeaderBytes             int64
 	strip                      map[string]bool
 }
 
@@ -86,6 +90,7 @@ func (f *front) choose(r *http.Request) *goUpstream {
 		Method:        r.Method,
 		Target:        r.RequestURI,
 		Proto:         r.Proto,
+		Host:          r.Host,
 		Header:        r.Header,
 		ContentLength: r.ContentLength,
 	})
@@ -114,13 +119,17 @@ func (f *front) apply(msg controlMessage) {
 			return
 		}
 		var holder struct {
-			Direct directConfig `json:"direct"`
+			Direct         directConfig `json:"direct"`
+			Compress       bool         `json:"compress"`
+			MaxHeaderBytes int64        `json:"maxHeaderBytes"`
 		}
 		if err := json.Unmarshal(msg.Table, &holder); err != nil {
 			proxyErrorLog.Printf("route table: %v; sending every request to Node", err)
 			return
 		}
 		next.direct = holder.Direct
+		next.direct.compress = holder.Compress
+		next.direct.maxHeaderBytes = holder.MaxHeaderBytes
 		next.direct.strip = map[string]bool{}
 		for _, name := range holder.Direct.StripRequestHeaders {
 			next.direct.strip[strings.ToLower(name)] = true
@@ -168,7 +177,7 @@ func (f *front) upstreamAt(s *directState, msg controlMessage) *goUpstream {
 		DisableCompression:    true,
 		ExpectContinueTimeout: 1 * time.Second,
 	}
-	up.proxy = f.newGoProxy(up)
+	up.proxy = f.newGoProxy(up, s.direct.maxHeaderBytes)
 	return up
 }
 
@@ -177,13 +186,14 @@ type directAttemptKey struct{}
 // directAttempt follows one direct request, so the error handler knows
 // whether the worker could have seen it.
 type directAttempt struct {
-	state *directState
-	body  *guardedBody
-	w     http.ResponseWriter
+	state   *directState
+	request *http.Request
+	body    *guardedBody
+	w       http.ResponseWriter
 }
 
 func (f *front) serveDirect(w http.ResponseWriter, r *http.Request, up *goUpstream) {
-	attempt := &directAttempt{state: f.state.Load(), w: w}
+	attempt := &directAttempt{state: f.state.Load(), request: r, w: w}
 	ctx := context.WithValue(r.Context(), directAttemptKey{}, attempt)
 	ctx = context.WithValue(ctx, responseWriterKey{}, w)
 	// Node never guesses a Content-Type (see newProxy).
@@ -194,7 +204,7 @@ func (f *front) serveDirect(w http.ResponseWriter, r *http.Request, up *goUpstre
 // newGoProxy forwards to one worker. The worker must get the request Node
 // would have sent it (native-route-proxy.ts), and the client the response
 // Node would have written.
-func (f *front) newGoProxy(up *goUpstream) *httputil.ReverseProxy {
+func (f *front) newGoProxy(up *goUpstream, maxHeaderBytes int64) *httputil.ReverseProxy {
 	publicPort := strconv.Itoa(f.public.Port)
 	mapIPv4 := f.public.IP.To4() == nil
 	return &httputil.ReverseProxy{
@@ -229,9 +239,10 @@ func (f *front) newGoProxy(up *goUpstream) *httputil.ReverseProxy {
 			}
 		},
 		FlushInterval: -1,
-		Transport:     up.transport,
+		Transport:     nodeHeaderLimitTransport{up.transport, maxHeaderBytes},
 		ModifyResponse: func(res *http.Response) error {
 			attempt := res.Request.Context().Value(directAttemptKey{}).(*directAttempt)
+			addCompressionVary(res.Header, attempt.state.direct)
 			// Node passes the worker's Trailer header on but never the trailer
 			// fields themselves. Go's Transport moved the header into
 			// res.Trailer; put it back as a plain header and drop the fields.
@@ -263,10 +274,7 @@ func (f *front) newGoProxy(up *goUpstream) *httputil.ReverseProxy {
 			// The worker is gone and never saw the request (Node hasn't told
 			// us yet): hand it to Node, as if the worker weren't ready.
 			if isDialError(err) && (attempt.body == nil || !attempt.body.read) {
-				if attempt.body != nil {
-					r.Body = attempt.body.body
-				}
-				f.node.ServeHTTP(attempt.w, r)
+				f.node.ServeHTTP(attempt.w, attempt.request)
 				return
 			}
 			proxyErrorLog.Printf("route.go worker %s: %v", up.address, err)
@@ -279,6 +287,77 @@ func (f *front) newGoProxy(up *goUpstream) *httputil.ReverseProxy {
 		},
 		ErrorLog: proxyErrorLog,
 	}
+}
+
+// Node's parser counts status text, header names and values, excluding wire
+// delimiters. Go's MaxResponseHeaderBytes includes those delimiters, so using
+// it would reject responses below Node's limit. Check before ReverseProxy
+// removes hop-by-hop headers, and retain Transport's existing raw-byte cap.
+type nodeHeaderLimitTransport struct {
+	transport *http.Transport
+	limit     int64
+}
+
+func (t nodeHeaderLimitTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	res, err := t.transport.RoundTrip(r)
+	if err != nil {
+		return nil, err
+	}
+	_, statusText, _ := strings.Cut(res.Status, " ")
+	size := int64(len(statusText))
+	for name, values := range res.Header {
+		for _, value := range values {
+			size += int64(len(name) + len(value))
+		}
+	}
+	// Transport moves these fields out of Header while parsing the response.
+	if len(res.TransferEncoding) > 0 {
+		size += int64(len("Transfer-Encoding") + len(strings.Join(res.TransferEncoding, ", ")))
+	}
+	if len(res.Trailer) > 0 {
+		size += int64(len("Trailer") + 2*(len(res.Trailer)-1))
+		for name := range res.Trailer {
+			size += int64(len(name))
+		}
+	}
+	if size >= t.limit {
+		res.Body.Close()
+		return nil, fmt.Errorf("route.go response headers exceed Node's %d-byte limit", t.limit)
+	}
+	return res, nil
+}
+
+var noTransform = regexp.MustCompile(`(?:^|,)\s*no-transform\s*(?:,|$)`)
+
+// Node's compression middleware varies compressible responses even when the
+// client accepts no supported encoding or the body is below its threshold.
+// The MIME overrides come from the same database bundled with that middleware.
+func addCompressionVary(header http.Header, cfg directConfig) {
+	if !cfg.compress || noTransform.MatchString(strings.Join(header.Values("Cache-Control"), ", ")) {
+		return
+	}
+	typ := strings.ToLower(strings.TrimSpace(header.Get("Content-Type")))
+	if end := strings.IndexAny(typ, "; \t\r\n"); end >= 0 {
+		typ = typ[:end]
+	}
+	compressible, known := cfg.MimeTypes[typ]
+	if !known {
+		compressible = strings.HasPrefix(typ, "text/") || strings.HasSuffix(typ, "+json") || strings.HasSuffix(typ, "+text") || strings.HasSuffix(typ, "+xml")
+	}
+	if !compressible {
+		return
+	}
+	vary := strings.Join(header.Values("Vary"), ", ")
+	for _, field := range strings.Split(vary, ",") {
+		field = strings.TrimSpace(field)
+		if field == "*" || strings.EqualFold(field, "Accept-Encoding") {
+			return
+		}
+	}
+	if vary != "" {
+		vary += ", "
+	}
+	header.Set("Vary", vary+"Accept-Encoding")
 }
 
 // writeInternalError is the front's own answer when a worker fails after it

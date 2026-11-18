@@ -6,6 +6,8 @@ import { getHeader, rawRequest } from '../front-server/raw-http'
 // `next start`. Every expectation is today's behavior, so the suite passes
 // with or without a front server in front of Node, whichever of them ends up
 // calling the Go worker.
+// route.go is only supported by Turbopack.
+// @force-gate turbopack
 describe('front-server-go', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
@@ -181,6 +183,19 @@ describe('front-server-go', () => {
   })
 
   describe('what Node answers before the worker', () => {
+    it('counts Host toward Node’s request-header limit', async () => {
+      await send('/go/echo')
+      const res = await rawRequest(
+        Number(next.appPort),
+        [
+          'GET /go/echo HTTP/1.1',
+          `Host: ${'h'.repeat(4000)}.example`,
+          `X-Large: ${'x'.repeat(12500)}`,
+        ].join('\r\n')
+      )
+      expect(res.status).toBe(431)
+    })
+
     it('redirects a trailing slash', async () => {
       const res = await send('/go/users/42/')
       expect(res.status).toBe(308)
@@ -212,6 +227,49 @@ describe('front-server-go', () => {
   })
 
   describe('the response the client gets', () => {
+    it.each([
+      ['json', true],
+      ['text', true],
+      ['svg', true],
+      ['customjson', true],
+      ['png', false],
+      ['unknown', false],
+    ])(
+      'varies %s by Accept-Encoding when appropriate',
+      async (type, varies) => {
+        // Plain query values keep these requests eligible for the direct path.
+        const target = `/go/extras?type=${type}`
+        await send(target)
+        const res = await send(target)
+        expect(getHeader(res, 'vary')).toBe(
+          varies ? 'Accept-Encoding' : undefined
+        )
+      }
+    )
+
+    it('preserves existing Vary fields and respects no-transform', async () => {
+      for (const [query, expected] of [
+        ['vary=Origin', 'Origin, Accept-Encoding'],
+        ['vary=accept-encoding', 'accept-encoding'],
+        ['vary=wildcard', '*'],
+        ['cacheControl=no-transform', undefined],
+      ]) {
+        const target = `/go/extras?${query}`
+        await send(target)
+        const res = await send(target)
+        expect(getHeader(res, 'vary')).toBe(expected)
+      }
+    })
+
+    it('rejects worker response headers larger than Node’s limit', async () => {
+      // Both the first request through Node and subsequent direct requests
+      // must fail, rather than returning 200 once the worker is announced.
+      for (let i = 0; i < 2; i++) {
+        const res = await send('/go/extras?largeHeader=1')
+        expect(res.status).toBe(500)
+      }
+    })
+
     it.each([
       [201, 'HTTP/1.1 201 Created'],
       [413, 'HTTP/1.1 413 Payload Too Large'],

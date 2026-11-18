@@ -1149,8 +1149,25 @@ export async function ncc_comment_json(task, opts) {
 }
 externals['compression'] = 'next/dist/compiled/compression'
 export async function ncc_compression(task, opts) {
+  // Keep the front server's response policy on the middleware's MIME database.
+  const compression = require.resolve('compression')
+  const compressible = require.resolve('compressible', {
+    paths: [dirname(compression)],
+  })
+  const mimeDb = require.resolve('mime-db/db.json', {
+    paths: [dirname(compressible)],
+  })
+  const database = JSON.parse(await fs.readFile(mimeDb, 'utf8'))
+  await writeJson(
+    join(__dirname, 'src/compiled/compression/mime-types.json'),
+    Object.fromEntries(
+      Object.entries(database)
+        .filter(([, value]) => typeof value.compressible === 'boolean')
+        .map(([type, value]) => [type, value.compressible])
+    )
+  )
   await task
-    .source(relative(__dirname, require.resolve('compression')))
+    .source(relative(__dirname, compression))
     .ncc({ packageName: 'compression', externals })
     .target('src/compiled/compression')
 }

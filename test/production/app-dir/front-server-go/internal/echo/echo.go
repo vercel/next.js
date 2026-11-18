@@ -22,6 +22,7 @@ type Received struct {
 	// The worker's TCP peer: which process sent this request.
 	RemoteAddr string `json:"remoteAddr"`
 	Pid        int    `json:"pid"`
+	ParentPid  int    `json:"parentPid"`
 }
 
 // Serve writes the request as JSON. params names the route's path values.
@@ -44,5 +45,6 @@ func Serve(w http.ResponseWriter, r *http.Request, params ...string) {
 		Params:        values,
 		RemoteAddr:    r.RemoteAddr,
 		Pid:           os.Getpid(),
+		ParentPid:     os.Getppid(),
 	})
 }
