@@ -1285,6 +1285,7 @@ impl Project {
             include_mergeable: *self.next_config().turbo_scope_hoisting(next_mode).await?,
             include_traced: *self.should_trace().await?,
             include_binding_usage: self.next_mode().await?.is_production(),
+            force_activated: false,
         })
     }
 }
