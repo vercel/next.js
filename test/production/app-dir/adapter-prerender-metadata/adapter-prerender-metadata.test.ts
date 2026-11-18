@@ -47,8 +47,9 @@ describe('adapter-prerender-metadata', () => {
     return next.readJSON('.next/prerender-manifest.json')
   }
 
-  it('preserves bot bypasses when the adapter omits the capability', async () => {
+  it('preserves bot bypasses when the adapter omits getCapabilities', async () => {
     const prerenders = await getPrerenders()
+    expect(await next.readJSON('capability-calls.json')).toBe(0)
 
     for (const pathname of ['/ppr-shell', '/blog/[slug]']) {
       const output = prerenders.find((entry) => entry.pathname === pathname)
@@ -692,11 +693,15 @@ describe('adapter-prerender-metadata', () => {
 })
 
 // The adapter output and legacy manifest serve different deployment paths.
-describe.each([false, true])('HTML-limited bot capability: %s', (enabled) => {
+describe.each([
+  { mode: 'empty', enabled: false },
+  { mode: 'disabled', enabled: false },
+  { mode: 'sync', enabled: true },
+])('HTML-limited bot capability: $mode', ({ mode, enabled }) => {
   const { next } = nextTestSetup({
     files: __dirname,
     env: {
-      NEXT_TEST_HTML_LIMITED_BOT_CAPABILITY: String(enabled),
+      NEXT_TEST_HTML_LIMITED_BOT_CAPABILITY: mode,
     },
   })
 
@@ -705,6 +710,7 @@ describe.each([false, true])('HTML-limited bot capability: %s', (enabled) => {
       'build-complete.json'
     )
     const manifest = await next.readJSON('.next/prerender-manifest.json')
+    expect(await next.readJSON('capability-calls.json')).toBe(1)
     const botRule = {
       type: 'header',
       key: 'user-agent',

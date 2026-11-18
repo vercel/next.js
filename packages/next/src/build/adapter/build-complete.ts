@@ -558,18 +558,21 @@ type Route = {
   priority?: boolean
 }
 
+export interface NextAdapterCapabilities {
+  /**
+   * Omits per-route HTML-limited bot bypasses from this adapter's outputs. The
+   * deployment target must select bot-compatible prerender responses.
+   */
+  handlesHtmlLimitedBotPrerenders?: boolean
+}
+
 export interface NextAdapter {
   name: string
   /**
-   * Deployment capabilities whose interface can change between releases.
+   * Returns deployment capabilities before Next.js creates adapter outputs.
+   * Omitted capabilities preserve the existing output behavior.
    */
-  unstable_capabilities?: {
-    /**
-     * Omits per-route HTML-limited bot bypasses from this adapter's outputs.
-     * The deployment target must select bot-compatible prerender responses.
-     */
-    handlesHtmlLimitedBotPrerenders?: boolean
-  }
+  getCapabilities?: () => NextAdapterCapabilities
   /**
    * modifyConfig is called for any CLI command that loads the next.config
    * to only apply for specific commands the "phase" should be used
@@ -724,11 +727,9 @@ export async function handleBuildComplete({
   ) as NextAdapter
 
   if (typeof adapterMod.onBuildComplete === 'function') {
+    const capabilities = adapterMod.getCapabilities?.()
     const filterHtmlLimitedBotsBypass = (bypassFor: RouteHas[] | undefined) => {
-      if (
-        adapterMod.unstable_capabilities?.handlesHtmlLimitedBotPrerenders !==
-        true
-      ) {
+      if (capabilities?.handlesHtmlLimitedBotPrerenders !== true) {
         return bypassFor
       }
 
