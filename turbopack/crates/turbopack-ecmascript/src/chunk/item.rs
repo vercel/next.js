@@ -12,7 +12,7 @@ use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
-        ChunkingContextExt, MinifyType, ModuleId, SourceMapSourceType,
+        ChunkingContextExt, ModuleId, SourceMapSourceType,
     },
     code_builder::{Code, CodeBuilder, PersistedCode},
     ident::AssetIdent,
@@ -33,6 +33,7 @@ use crate::{
         chunk_type::EcmascriptChunkType, minified_module_factory,
         placeable::EcmascriptChunkPlaceable,
     },
+    emit_options::EcmascriptEmitOptions,
     references::async_module::{AsyncModuleOptions, OptionAsyncModuleOptions},
     runtime_functions::TURBOPACK_ASYNC_MODULE,
     utils::StringifyJs,
@@ -280,8 +281,8 @@ pub(crate) enum ChunkItemFactoryContent {
 }
 
 /// The content of a chunk item as it goes into a chunk, so that chunk size estimation and code
-/// generation agree on what a chunk item is: minified per item when `minify` asks for it
-/// (see [`ChunkMinification::per_item`](crate::chunk::ChunkMinification)), the raw content
+/// generation agree on what a chunk item is: minified per item when `minify` carries the options
+/// for it (see [`ChunkMinification::per_item`](crate::chunk::ChunkMinification)), the raw content
 /// otherwise.
 ///
 /// Fails if the content failed to generate. Callers decide what that means: sizing counts the item
@@ -291,7 +292,7 @@ pub(crate) async fn chunk_item_factory_content(
     chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
     async_module_info: Option<Vc<AsyncModuleInfo>>,
     estimated: bool,
-    minify: MinifyType,
+    minify: Option<Vc<EcmascriptEmitOptions>>,
     source_maps: bool,
 ) -> Result<ChunkItemFactoryContent> {
     let content = chunk_item
@@ -300,13 +301,13 @@ pub(crate) async fn chunk_item_factory_content(
         .content_with_async_module_info(async_module_info, estimated)
         .await?;
     Ok(match minify {
-        MinifyType::Minify { mangle } => ChunkItemFactoryContent::Minified {
+        Some(options) => ChunkItemFactoryContent::Minified {
             // Reading the content here surfaces a generation error before minifying rather than
             // inside it.
             strict: content.await?.options.strict,
-            factory: minified_module_factory(content, source_maps, mangle.is_some()),
+            factory: minified_module_factory(content, source_maps, options),
         },
-        MinifyType::NoMinify => ChunkItemFactoryContent::Unminified(content),
+        None => ChunkItemFactoryContent::Unminified(content),
     })
 }
 
