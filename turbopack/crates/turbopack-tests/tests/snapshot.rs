@@ -406,14 +406,19 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     let module_rules = ModuleRule::new(
         conditions,
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            preprocess: ResolvedVc::cell(vec![]),
-            main: ResolvedVc::cell(vec![
-                EcmascriptInputTransform::Plugin(emotion_transform_plugin().to_resolved().await?),
-                EcmascriptInputTransform::Plugin(
-                    styled_components_transform_plugin().to_resolved().await?,
-                ),
-            ]),
-            postprocess: ResolvedVc::cell(vec![]),
+            preprocess: ResolvedVc::cell(Box::default()),
+            main: ResolvedVc::cell(
+                vec![
+                    EcmascriptInputTransform::Plugin(
+                        emotion_transform_plugin().to_resolved().await?,
+                    ),
+                    EcmascriptInputTransform::Plugin(
+                        styled_components_transform_plugin().to_resolved().await?,
+                    ),
+                ]
+                .into_boxed_slice(),
+            ),
+            postprocess: ResolvedVc::cell(Box::default()),
         }],
     );
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(

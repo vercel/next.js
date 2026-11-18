@@ -77,9 +77,9 @@ pub async fn get_next_pages_transforms_rule(
     Ok(ModuleRule::new(
         conditions,
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            preprocess: ResolvedVc::cell(vec![]),
-            main: ResolvedVc::cell(vec![]),
-            postprocess: ResolvedVc::cell(vec![strip_transform]),
+            preprocess: ResolvedVc::cell(Box::default()),
+            main: ResolvedVc::cell(Box::default()),
+            postprocess: ResolvedVc::cell(vec![strip_transform].into_boxed_slice()),
         }],
     ))
 }

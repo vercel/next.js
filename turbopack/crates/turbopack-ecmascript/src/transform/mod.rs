@@ -26,7 +26,7 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     environment::Environment,
@@ -69,7 +69,7 @@ pub struct PresetEnvConfig {
 }
 
 #[turbo_tasks::value(task_input)]
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Copy, Hash)]
 pub enum EcmascriptInputTransform {
     Plugin(ResolvedVc<TransformPlugin>),
     PresetEnv(ResolvedVc<Environment>, ResolvedVc<PresetEnvConfig>),
@@ -173,29 +173,27 @@ impl CustomTransformer for TransformPlugin {
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone, Hash)]
-pub struct EcmascriptInputTransforms(Vec<EcmascriptInputTransform>);
+pub struct EcmascriptInputTransforms(Box<[EcmascriptInputTransform]>);
 
 #[turbo_tasks::value_impl]
 impl EcmascriptInputTransforms {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
-        Vc::cell(Vec::new())
+        Vc::cell(Box::default())
     }
 
     /// Creates a cell from a list of transforms. Being a task function, equal lists share the same
     /// cell, so the result can be used as a cache key (e.g. for module identity).
     #[turbo_tasks::function]
     pub fn new(transforms: Vec<EcmascriptInputTransform>) -> Vc<Self> {
-        Vc::cell(transforms)
+        Vc::cell(transforms.into_boxed_slice())
     }
 
     /// Concatenates the given transform lists (in order) into a single interned cell.
     #[turbo_tasks::function]
     pub async fn concat(parts: Vec<ResolvedVc<Self>>) -> Result<Vc<Self>> {
-        let mut transforms = Vec::new();
-        for part in parts {
-            transforms.extend(part.await?.iter().cloned());
-        }
+        let parts = parts.into_iter().try_join().await?;
+        let transforms = parts.iter().flat_map(|part| part.iter().copied()).collect();
         Ok(Self::new(transforms))
     }
 }
