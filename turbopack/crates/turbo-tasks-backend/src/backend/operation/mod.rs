@@ -655,11 +655,14 @@ impl<'e> ExecuteContext<'e> {
                             // Batch failure: distribute the error to each affected task, replacing
                             // any result stored before the failure.
                             let msg = format!("{e:?}");
+                            let unreadable_file =
+                                CacheFileUnreadable::find(&e).map(|u| u.file_name().to_string());
                             for &idx in indices {
                                 *tasks[idx].restore_result_mut(category) =
-                                    OnceLock::from(Err(anyhow::anyhow!(
-                                        "Batch {} restore failed: {msg}",
-                                        category_name(category.into())
+                                    OnceLock::from(Err(batch_restore_error(
+                                        category.into(),
+                                        &msg,
+                                        unreadable_file.as_deref(),
                                     )));
                             }
                         }
@@ -863,6 +866,22 @@ impl<'e> ExecuteContext<'e> {
                 .collect();
             panic!("Restore failures:\n{}", msgs.join("\n"));
         }
+    }
+}
+
+/// The error of one task whose batch restore of `category` failed with an error formatted as
+/// `msg`. `anyhow::Error` isn't `Clone`, so each task of the batch gets its own copy of the
+/// message. It's marked again as [`CacheFileUnreadable`] if the batch failed because the database
+/// file `unreadable_file` couldn't be read, so that the restore panic still reports that.
+fn batch_restore_error(
+    category: TaskDataCategory,
+    msg: &str,
+    unreadable_file: Option<&str>,
+) -> anyhow::Error {
+    let error = anyhow::anyhow!("Batch {} restore failed: {msg}", category_name(category));
+    match unreadable_file {
+        Some(file_name) => anyhow::Error::new(CacheFileUnreadable::new(file_name, error)),
+        None => error,
     }
 }
 
@@ -3386,6 +3405,28 @@ mod unreadable_cache_tests {
         is_short_session: true,
         skip_compaction: true,
     };
+
+    /// When a batch restore fails because a database file is unreadable, each task's copy of the
+    /// error is still marked, so the restore panic reports the unreadable file.
+    #[test]
+    fn batch_restore_error_keeps_the_unreadable_marker() {
+        let error = batch_restore_error(
+            TaskDataCategory::Data,
+            "checksum mismatch",
+            Some("00000007.sst"),
+        );
+        assert_eq!(
+            CacheFileUnreadable::find(&error).map(CacheFileUnreadable::file_name),
+            Some("00000007.sst")
+        );
+        assert_eq!(
+            error.to_string(),
+            "Batch data restore failed: checksum mismatch"
+        );
+
+        let error = batch_restore_error(TaskDataCategory::Data, "some bug", None);
+        assert!(CacheFileUnreadable::find(&error).is_none());
+    }
 
     /// Restoring a task whose data is in a database file that was modified after the database was
     /// opened panics with a [`PersistentCacheUnreadablePanic`] instead of a generic panic.

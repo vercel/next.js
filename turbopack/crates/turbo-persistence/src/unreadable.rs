@@ -85,6 +85,16 @@ mod tests {
         anyhow!("No such file or directory").context("Unable to open 00000001.sst")
     }
 
+    /// The `{:?}` output of `error` without its backtrace (if `RUST_BACKTRACE` is set), which
+    /// differs depending on where it was captured.
+    fn debug_without_backtrace(error: &anyhow::Error) -> String {
+        let debug = format!("{error:?}");
+        match debug.find("\n\nStack backtrace:") {
+            Some(index) => debug[..index].to_string(),
+            None => debug,
+        }
+    }
+
     #[test]
     fn marking_does_not_change_how_an_error_is_printed() {
         let marked = Err::<(), _>(error())
@@ -94,7 +104,10 @@ mod tests {
         let unmarked = error().context("Looking up a key failed");
         assert_eq!(format!("{marked}"), format!("{unmarked}"));
         assert_eq!(format!("{marked:#}"), format!("{unmarked:#}"));
-        assert_eq!(format!("{marked:?}"), format!("{unmarked:?}"));
+        assert_eq!(
+            debug_without_backtrace(&marked),
+            debug_without_backtrace(&unmarked)
+        );
         assert_eq!(
             CacheFileUnreadable::find(&marked).map(CacheFileUnreadable::file_name),
             Some("00000001.sst")

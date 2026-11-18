@@ -266,10 +266,10 @@ impl TurboBackingStorage {
     /// If a database file couldn't be read (see [`CacheFileUnreadable`]), e.g. because it was
     /// deleted or modified by another process while it was in use, the panic payload is a
     /// [`PersistentCacheUnreadablePanic`] with a message explaining that and what to do about it.
-    /// Otherwise this panics with `context` and `error` as before.
+    /// Otherwise this panics with `description` and `error` as before.
     #[cold]
     #[track_caller]
-    pub(crate) fn panic_on_read_error(&self, context: impl Display, error: anyhow::Error) -> ! {
+    pub(crate) fn panic_on_read_error(&self, description: impl Display, error: anyhow::Error) -> ! {
         if let Some(message) = unreadable_cache_message(
             &error,
             self.inner.base_path.as_deref(),
@@ -277,7 +277,7 @@ impl TurboBackingStorage {
         ) {
             std::panic::panic_any(PersistentCacheUnreadablePanic { message });
         }
-        panic!("{context}: {error:?}");
+        panic!("{description}: {error:?}");
     }
 
     pub(crate) fn next_free_task_id(&self) -> Result<TaskId> {
@@ -1032,15 +1032,20 @@ mod tests {
             .expect("the payload must be a PersistentCacheUnreadablePanic");
         assert!(panic.message.contains("00000007.sst"), "{}", panic.message);
 
-        // Other errors panic as before.
+        // Other errors panic as before. (Without the error's backtrace, which is included if
+        // `RUST_BACKTRACE` is set.)
         let payload = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             storage.panic_on_read_error("Failed to restore", anyhow::anyhow!("some bug"))
         }))
         .expect_err("must panic");
-        assert_eq!(
-            payload.downcast_ref::<String>().map(String::as_str),
-            Some("Failed to restore: some bug")
-        );
+        let message = payload
+            .downcast_ref::<String>()
+            .expect("the payload must be a String");
+        let message = message
+            .split("\n\nStack backtrace:")
+            .next()
+            .unwrap_or_default();
+        assert_eq!(message, "Failed to restore: some bug");
         Ok(())
     }
 }
