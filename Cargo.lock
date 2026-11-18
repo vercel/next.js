@@ -9039,7 +9039,6 @@ version = "0.0.0"
 dependencies = [
  "bincode",
  "either",
- "indexmap 2.14.0",
  "mime",
  "serde",
  "smallvec",
