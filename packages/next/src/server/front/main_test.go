@@ -163,6 +163,73 @@ func TestAddsNoContentTypeNodeDidNotSend(t *testing.T) {
 	}
 }
 
+func TestForwardsAResponseBeforeTheUploadFinishes(t *testing.T) {
+	for _, status := range []int{http.StatusOK, http.StatusForbidden} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			addr, _ := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
+				// The stand-in for Node must allow a response while the request
+				// body is still arriving, as Node does.
+				controller := http.NewResponseController(w)
+				if err := controller.EnableFullDuplex(); err != nil {
+					t.Error(err)
+					return
+				}
+				var first [1]byte
+				if _, err := io.ReadFull(r.Body, first[:]); err != nil {
+					t.Error(err)
+					return
+				}
+				w.WriteHeader(status)
+				io.WriteString(w, "first")
+				if err := controller.Flush(); err != nil {
+					t.Error(err)
+					return
+				}
+				if status == http.StatusOK {
+					io.Copy(io.Discard, r.Body)
+					io.WriteString(w, "-last")
+				}
+			})
+			conn, err := net.Dial("tcp", addr)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer conn.Close()
+			conn.SetDeadline(time.Now().Add(5 * time.Second))
+			// Keep the connection alive and send only part of the body. A client
+			// that waits for the first response chunk must not deadlock here.
+			io.WriteString(conn, "POST /upload HTTP/1.1\r\nHost: shop.example.com\r\nContent-Length: 10\r\n\r\na")
+			res, err := http.ReadResponse(bufio.NewReader(conn), &http.Request{Method: http.MethodPost})
+			if err != nil {
+				t.Fatalf("response headers before the upload finishes: %v", err)
+			}
+			defer res.Body.Close()
+			if res.StatusCode != status {
+				t.Fatalf("status = %d, want %d", res.StatusCode, status)
+			}
+			var first [5]byte
+			if _, err := io.ReadFull(res.Body, first[:]); err != nil {
+				t.Fatalf("response chunk before the upload finishes: %v", err)
+			}
+			if string(first[:]) != "first" {
+				t.Fatalf("first chunk = %q", first)
+			}
+			io.WriteString(conn, "bcdefghij")
+			body, err := io.ReadAll(res.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := ""
+			if status == http.StatusOK {
+				want = "-last"
+			}
+			if string(body) != want {
+				t.Errorf("remaining body = %q, want %q", body, want)
+			}
+		})
+	}
+}
+
 func TestKeepsEverySetCookie(t *testing.T) {
 	addr, _ := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Set-Cookie", "a=1")
@@ -214,6 +281,99 @@ func TestKeepsNodesStatusLine(t *testing.T) {
 			body, _ := io.ReadAll(res.Body)
 			if res.Status != status || string(body) != "hello" || res.Header.Get("X-Kept") != "yes" {
 				t.Errorf("got %q %q %q, want %q hello yes", res.Status, body, res.Header.Get("X-Kept"), status)
+			}
+		})
+	}
+}
+
+func TestKeepsTrailersWithACustomStatusLine(t *testing.T) {
+	addr, _ := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
+		conn, buf, _ := w.(http.Hijacker).Hijack()
+		defer conn.Close()
+		io.WriteString(buf, "HTTP/1.1 400 Custom Reason\r\nTransfer-Encoding: chunked\r\nTrailer: X-Checksum, X-Extra\r\n\r\n4\r\nbody\r\n0\r\nX-Checksum: abc123\r\nX-Checksum: second\r\nX-Extra: kept\r\n\r\n")
+		buf.Flush()
+	})
+	res := rawRoundTrip(t, addr, get("/"))
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != "400 Custom Reason" || string(body) != "body" {
+		t.Fatalf("got %q %q, want 400 Custom Reason body", res.Status, body)
+	}
+	if got := strings.Join(res.Trailer.Values("X-Checksum"), "|"); got != "abc123|second" {
+		t.Errorf("X-Checksum trailer = %q, want abc123|second", got)
+	}
+	if got := res.Trailer.Get("X-Extra"); got != "kept" {
+		t.Errorf("X-Extra trailer = %q, want kept", got)
+	}
+}
+
+func TestKeepsHeadSemanticsWithACustomStatusLine(t *testing.T) {
+	addr, _ := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
+		conn, buf, _ := w.(http.Hijacker).Hijack()
+		defer conn.Close()
+		io.WriteString(buf, "HTTP/1.1 400 Custom Reason\r\nContent-Length: 5\r\n\r\n")
+		buf.Flush()
+	})
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	conn.SetDeadline(time.Now().Add(5 * time.Second))
+	io.WriteString(conn, "HEAD / HTTP/1.1\r\nHost: shop.example.com\r\nConnection: close\r\n\r\n")
+	reader := bufio.NewReader(conn)
+	res, err := http.ReadResponse(reader, &http.Request{Method: http.MethodHead})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != "400 Custom Reason" || res.ContentLength != 5 {
+		t.Fatalf("got %q with length %d, want 400 Custom Reason with length 5", res.Status, res.ContentLength)
+	}
+	// Read the wire, rather than res.Body, which a HEAD client always treats
+	// as empty even if the server incorrectly writes bytes after the headers.
+	body, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(body) != 0 {
+		t.Errorf("HEAD response wrote a body: %q", body)
+	}
+}
+
+func TestKeepsAnUpgradeWithACustomStatusLine(t *testing.T) {
+	for _, status := range []string{"101 Switching Protocols", "101 Custom Upgrade"} {
+		t.Run(status, func(t *testing.T) {
+			addr, _ := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
+				conn, buf, _ := w.(http.Hijacker).Hijack()
+				defer conn.Close()
+				fmt.Fprintf(buf, "HTTP/1.1 %s\r\nConnection: Upgrade\r\nUpgrade: front-test\r\n\r\n", status)
+				buf.Flush()
+				io.Copy(conn, buf)
+			})
+			conn, err := net.Dial("tcp", addr)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer conn.Close()
+			conn.SetDeadline(time.Now().Add(5 * time.Second))
+			io.WriteString(conn, "GET / HTTP/1.1\r\nHost: shop.example.com\r\nConnection: Upgrade\r\nUpgrade: front-test\r\n\r\n")
+			reader := bufio.NewReader(conn)
+			res, err := http.ReadResponse(reader, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if res.Status != status || res.Header.Get("Upgrade") != "front-test" {
+				t.Fatalf("got %q with Upgrade %q", res.Status, res.Header.Get("Upgrade"))
+			}
+			io.WriteString(conn, "ping")
+			var echo [4]byte
+			if _, err := io.ReadFull(reader, echo[:]); err != nil {
+				t.Fatalf("bidirectional upgrade: %v", err)
+			}
+			if string(echo[:]) != "ping" {
+				t.Errorf("echo = %q, want ping", echo)
 			}
 		})
 	}

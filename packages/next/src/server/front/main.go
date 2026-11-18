@@ -296,6 +296,11 @@ var hijackedResponses sync.WaitGroup
 // the client connection over, writes the response byte for byte, and closes
 // the connection afterwards.
 func writeCustomStatusLine(res *http.Response) error {
+	// ReverseProxy's upgrade handler already preserves the reason phrase and
+	// relays bytes in both directions. A 101 must reach that handler.
+	if res.StatusCode == http.StatusSwitchingProtocols {
+		return nil
+	}
 	if res.Status == fmt.Sprintf("%d %s", res.StatusCode, http.StatusText(res.StatusCode)) {
 		return nil
 	}
@@ -309,45 +314,18 @@ func writeCustomStatusLine(res *http.Response) error {
 	}
 	hijackedResponses.Add(1)
 	defer hijackedResponses.Done()
-	conn, buf, err := hijacker.Hijack()
+	conn, _, err := hijacker.Hijack()
 	if err != nil {
 		return nil
 	}
 	defer conn.Close()
 
-	header := res.Header.Clone()
-	header.Set("Connection", "close")
-	// The Transport removed Node's chunked framing and moved its trailers to
-	// res.Trailer. When Node sent the body chunked, send it chunked again, so
-	// the trailers can follow it. Otherwise the closed connection ends the
-	// body, unless Node sent its length.
-	chunked := res.Request.Method != http.MethodHead && len(res.TransferEncoding) > 0 && res.TransferEncoding[0] == "chunked"
-	header.Del("Transfer-Encoding")
-	if chunked {
-		header.Set("Transfer-Encoding", "chunked")
-	} else if res.ContentLength >= 0 {
-		header.Set("Content-Length", strconv.FormatInt(res.ContentLength, 10))
-	}
-	fmt.Fprintf(buf, "HTTP/1.1 %s\r\n", res.Status)
-	header.Write(buf)
-	buf.WriteString("\r\n")
-	if err := buf.Flush(); err != nil || res.Request.Method == http.MethodHead {
-		return errResponseWritten
-	}
-	if !chunked {
-		io.Copy(conn, res.Body)
-		return errResponseWritten
-	}
-	// Each read from Node becomes one chunk, written straight to the client.
-	chunks := httputil.NewChunkedWriter(conn)
-	if _, err := io.Copy(chunks, res.Body); err != nil {
-		return errResponseWritten
-	}
-	// Close writes the last, empty chunk; the trailers (filled in once the
-	// body has been read) and a blank line end the response.
-	chunks.Close()
-	res.Trailer.Write(conn)
-	io.WriteString(conn, "\r\n")
+	// Response.Write preserves Node's reason phrase and restores the body
+	// framing, including trailers populated as the body reaches EOF. Write
+	// directly to the connection so streaming responses aren't buffered.
+	response := *res
+	response.Close = true
+	response.Write(conn)
 	return errResponseWritten
 }
 
