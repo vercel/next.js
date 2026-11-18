@@ -88,6 +88,8 @@ export type AdaptiveOrchestratorOptions = {
   /** See "heavy-route limit" in `route-queue.ts`. */
   heavyRouteLimit?: boolean
   log?: (message: string) => void
+  /** Clock for how long memory stays high; defaults to `Date.now`. */
+  now?: () => number
 }
 
 /** Share of the machine memory the workers may use together. */
@@ -97,6 +99,15 @@ const MACHINE_LOW_WATER = 0.8
 /** Share of the machine memory that worker RSS may reach in total. */
 const MACHINE_RAW_SHARE = 0.95
 const MAX_CONSECUTIVE_STEP_ERRORS = 5
+/** Warn about RSS near the machine limit once it stays there this long. */
+const RSS_WARNING_AFTER_MS = 5000
+const MEMORY_HINT =
+  'To avoid this, lower `experimental.staticGenerationMaxConcurrency` or `experimental.cpus`, or give the build more memory.'
+
+function formatMemory(bytes: number): string {
+  const mb = Math.max(0, bytes) / (1024 * 1024)
+  return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${Math.round(mb)} MB`
+}
 
 export class StaticGenerationCrashError extends Error {
   code = 'NEXT_STATIC_GENERATION_WORKER_CRASH'
@@ -130,6 +141,7 @@ export function runAdaptiveStaticGeneration(
     maxCrashRetries = 2,
     heavyRouteLimit = false,
     log = () => {},
+    now = Date.now,
   } = options
 
   const results: Array<ExportPagesResult[number] | undefined> = new Array(
@@ -166,6 +178,10 @@ export function runAdaptiveStaticGeneration(
 
   /** Allocated worker memory is over the machine budget (with hysteresis). */
   let machineSaturated = false
+  /** Each memory warning is logged at most once per run (phase). */
+  let warnedBudget = false
+  let warnedRss = false
+  let rssHighSince: number | undefined
 
   return new Promise<ExportPagesResult>((resolve, reject) => {
     let settled = false
@@ -446,6 +462,44 @@ export function runAdaptiveStaticGeneration(
       pump()
     }
 
+    /**
+     * Says once when the machine's memory starts slowing generation down, so
+     * a slow build has a visible reason. The checks run on every step result,
+     * so each warning is logged at most once per run.
+     */
+    const warnAboutMemory = (budget: number, rawUsage: number) => {
+      if (machineSaturated && !warnedBudget) {
+        warnedBudget = true
+        log(
+          `Static generation reached its memory limit: build workers are using ${formatMemory(totalWorkerRss() + idleAllocated())} of their ${formatMemory(budget)} budget (${formatMemory(machineMemoryLimit)} available to the build). Each worker now renders one page at a time until memory frees up. ${MEMORY_HINT}`
+        )
+      }
+      if (rawUsage < 1) {
+        rssHighSince = undefined
+        return
+      }
+      rssHighSince ??= now()
+      // While over the budget above, that warning already explains it.
+      if (
+        warnedRss ||
+        machineSaturated ||
+        now() - rssHighSince < RSS_WARNING_AFTER_MS
+      ) {
+        return
+      }
+      warnedRss = true
+      const [resident, limit] =
+        memory.mode === 'threads'
+          ? [memory.getRss(), machineMemoryLimit * MACHINE_RAW_SHARE]
+          : [
+              totalWorkerRawRss() + idleRss(),
+              machineMemoryLimit * MACHINE_RAW_SHARE - getParentUsage(),
+            ]
+      log(
+        `Static generation is close to the machine's memory limit: build processes hold ${formatMemory(resident)} of the ${formatMemory(limit)} they may use (${formatMemory(machineMemoryLimit)} available to the build). Workers finish their current pages before taking more, which slows generation down. ${MEMORY_HINT}`
+      )
+    }
+
     const pump = () => {
       if (settled) return
       if (remaining === 0) {
@@ -475,6 +529,7 @@ export function runAdaptiveStaticGeneration(
               machineMemoryLimit * MACHINE_RAW_SHARE - getParentUsage()
             )
       const holdBackBusy = machineSaturated || rawUsage >= 1
+      warnAboutMemory(budget, rawUsage)
 
       const idle = slots
         .filter((slot) => !slot.busy)

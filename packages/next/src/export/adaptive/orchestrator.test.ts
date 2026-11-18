@@ -193,9 +193,10 @@ describe('runAdaptiveStaticGeneration', () => {
   it('renders every page once and returns results in input order', async () => {
     const workers = [new FakeWorker(0), new FakeWorker(1), new FakeWorker(2)]
     const paths = exportPaths(100)
-    const { promise } = run(workers, paths)
+    const { promise, logs } = run(workers, paths)
     const results = await promise
     expect(results.map((r) => r.path)).toEqual(paths.map((p) => p.path))
+    expect(logs).toEqual([])
     const rendered = workers.flatMap((w) => w.rendered.map((r) => r.path))
     expect(rendered.sort()).toEqual(paths.map((p) => p.path).sort())
   })
@@ -267,7 +268,10 @@ describe('runAdaptiveStaticGeneration', () => {
 
   it('includes idle process RSS in the machine-wide safeguard', async () => {
     const workers = [new FakeWorker(0)]
-    const { promise } = run(workers, exportPaths(30), {
+    let clock = 0
+    const { promise, logs } = run(workers, exportPaths(30), {
+      // Each scheduling pass is a second later.
+      now: () => (clock += 1000),
       machineMemoryLimit: 2 * 1024 * MB,
       memory: {
         mode: 'processes',
@@ -282,6 +286,29 @@ describe('runAdaptiveStaticGeneration', () => {
     // Drain each admitted chunk before sending more while idle processes
     // keep the machine above its RSS threshold.
     expect(workers[0].maxRunning).toBe(5)
+    // RSS stayed high for longer than a moment: say so, once.
+    expect(logs).toEqual([
+      expect.stringContaining(
+        "Static generation is close to the machine's memory limit: build processes hold 2.1 GB of the 1.8 GB they may use"
+      ),
+    ])
+  })
+
+  it("doesn't warn about RSS that is high only briefly", async () => {
+    const workers = [new FakeWorker(0)]
+    const { promise, logs } = run(workers, exportPaths(30), {
+      machineMemoryLimit: 2 * 1024 * MB,
+      memory: {
+        mode: 'processes',
+        getRss: () => 100 * MB,
+        getIdleAllocated: () => 0,
+        getIdleRss: () => 1900 * MB,
+      },
+      maxConcurrency: 8,
+      now: () => 0,
+    })
+    expect(await promise).toHaveLength(30)
+    expect(logs).toEqual([])
   })
 
   it('preserves an exhausted worker budget while making serial progress', async () => {
@@ -531,7 +558,7 @@ describe('runAdaptiveStaticGeneration', () => {
     ]
     const reported = new Set<number>()
     const chunksAfterFirstStep: number[][] = [[], []]
-    const { promise } = run(
+    const { promise, logs } = run(
       workers,
       [...exportPaths(20, '/a'), ...exportPaths(20, '/b')],
       {
@@ -552,6 +579,10 @@ describe('runAdaptiveStaticGeneration', () => {
     // with headroom only gets a page after draining the previous one.
     expect(chunksAfterFirstStep[1].length).toBeGreaterThan(0)
     expect(chunksAfterFirstStep[1].every((size) => size === 1)).toBe(true)
+    // Said once, although the limit holds for the rest of the build.
+    expect(logs).toEqual([
+      'Static generation reached its memory limit: build workers are using 1.5 GB of their 1.6 GB budget (2.0 GB available to the build). Each worker now renders one page at a time until memory frees up. To avoid this, lower `experimental.staticGenerationMaxConcurrency` or `experimental.cpus`, or give the build more memory.',
+    ])
   })
 
   it('reports per-page heap above the worker baseline', async () => {
