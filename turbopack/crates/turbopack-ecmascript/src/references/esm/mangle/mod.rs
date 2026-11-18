@@ -26,7 +26,7 @@
 
 mod table;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::RcStr;
@@ -41,6 +41,7 @@ use crate::chunk::{EcmascriptChunkPlaceable, EcmascriptExports};
 
 /// The namespace and names used to register and read a source module's exports.
 #[turbo_tasks::value]
+#[derive(Clone)]
 pub struct ExportInfo {
     /// Module whose namespace holds these exports: the shared target for flat members,
     /// otherwise the source module itself.
@@ -105,50 +106,57 @@ enum ExportNamesScope {
     Group(ResolvedVc<MergedModuleGroup>),
 }
 
-/// Computed export names and the source-module identity used for their namespace.
-#[turbo_tasks::value]
-struct ComputedExportNames {
-    /// The source-module identity used for the namespace. In mixed groups this may differ
-    /// from the merged factory's original entry, which needs its own namespace.
-    entry: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-    names: rustc_hash::FxHashMap<
-        ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-        FrozenMap<RcStr, RcStr>,
-    >,
-}
-
-#[turbo_tasks::value(transparent)]
-struct OptionComputedExportNames(Option<ResolvedVc<ComputedExportNames>>);
+/// Complete per-module export information for one computation scope.
+#[turbo_tasks::value(transparent, cell = "keyed")]
+struct ComputedExportNames(
+    rustc_hash::FxHashMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, ExportInfo>,
+);
 
 #[turbo_tasks::function]
 async fn compute_export_names(
     scope: ExportNamesScope,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-) -> Result<Vc<OptionComputedExportNames>> {
+) -> Result<Vc<ComputedExportNames>> {
     let flat = matches!(scope, ExportNamesScope::Group(_));
     let (preferred_entry, modules) = match scope {
-        ExportNamesScope::Single(module) => (ResolvedVc::upcast(module), vec![(0, module)]),
+        ExportNamesScope::Single(module) => (
+            ResolvedVc::upcast(module),
+            vec![(0, module, MergeableModuleExposure::External)],
+        ),
         ExportNamesScope::Group(group) => {
             let group = group.await?;
-            // Only externally read members contribute to the shared table. Internal namespaces
-            // keep their source identity; unexposed members only use local bindings.
             let modules = group
                 .modules
                 .await?
                 .iter()
                 .enumerate()
-                .filter(|(_, (_, exposure))| *exposure == MergeableModuleExposure::External)
-                .filter_map(|(index, (module, _))| {
+                .filter_map(|(index, (module, exposure))| {
                     ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*module)
-                        .map(|module| (index, module))
+                        .map(|module| (index, module, *exposure))
                 })
                 .collect();
             (group.entry, modules)
         }
     };
+    let mut infos = rustc_hash::FxHashMap::default();
     let mut exports_to_name = Vec::new();
     let mut eligible_modules = Vec::new();
-    for (index, module) in modules {
+    for (index, module, exposure) in modules {
+        // Only externally read members contribute to the shared table. Internal namespaces
+        // keep their source identity; unexposed members only use local bindings.
+        if flat && exposure != MergeableModuleExposure::External {
+            let info = compute_export_names(ExportNamesScope::Single(module), chunking_context)
+                .get(&module)
+                .await?;
+            infos.insert(
+                module,
+                info.as_deref()
+                    .context("standalone export information is missing for a merged member")?
+                    .clone(),
+            );
+            continue;
+        }
+        infos.insert(module, ExportInfo::unmangled(module));
         // Non-static export shapes need their existing runtime representation without
         // excluding eligible peers from the shared table.
         let EcmascriptExports::EsmExports(exports) = *module.get_exports().await? else {
@@ -170,23 +178,19 @@ async fn compute_export_names(
             continue;
         }
         let usage_info = usage.export_usage.await?;
-        let ModuleExportUsageInfo::Exports(used) = &*usage_info else {
+        let ModuleExportUsageInfo::Exports(_) = &*usage_info else {
             continue;
         };
-        if !flat && used.is_empty() {
-            continue;
-        }
         let expanded = exports.expand_exports(*usage.export_usage).await?;
         // Runtime re-exports such as `export * from "./some-dynamic-cjs"` discover names
         // dynamically and access properties by their original names. We cannot compute
         // collision-free keys or rewrite every access to the shared table ahead of time.
-        if !expanded.dynamic_exports.is_empty() || (!flat && expanded.exports.is_empty()) {
+        if !expanded.dynamic_exports.is_empty() {
             continue;
         }
-        // Preserve even a flat member with no used exports, since imports must still target
-        // the shared factory and agree with its empty registration. Standalone modules with
-        // no used exports, or whose used set resolves to no actual exports, have nothing to
-        // rename and keep their unmangled representation.
+        // Empty eligible modules still need export information: flat members must target
+        // the shared factory and agree with its empty registration. The same eligibility
+        // rule applies to standalone modules, even when there is nothing to rename.
         eligible_modules.push(module);
         for name in expanded.exports.keys() {
             let key = if flat {
@@ -203,7 +207,7 @@ async fn compute_export_names(
         .or_else(|| eligible_modules.first())
         .copied()
     else {
-        return Ok(Vc::cell(None));
+        return Ok(Vc::cell(infos));
     };
     // Every emitted export participates, including `default` and `__esModule`.
     //
@@ -231,16 +235,19 @@ async fn compute_export_names(
             names.entry(module).or_default().push((name, key));
         }
     }
-    Ok(Vc::cell(Some(
-        ComputedExportNames {
-            entry,
-            names: names
-                .into_iter()
-                .map(|(module, names)| (module, FrozenMap::from_iter(names)))
-                .collect(),
-        }
-        .resolved_cell(),
-    )))
+    for (module, names) in names {
+        infos.insert(
+            module,
+            ExportInfo {
+                // In mixed groups this may differ from the original factory entry,
+                // which needs its own namespace.
+                namespace: entry,
+                names: Some(FrozenMap::from_iter(names)),
+                flat,
+            },
+        );
+    }
+    Ok(Vc::cell(infos))
 }
 
 /// Resolves the namespace target, output keys and registration mode of `module` together.
@@ -275,28 +282,19 @@ pub async fn export_info(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<ExportInfo>> {
-    let group = if let Some(groups) = *chunking_context.merged_modules().await?
+    let scope = if let Some(groups) = *chunking_context.merged_modules().await?
         && let Some(group) = groups.get(&ResolvedVc::upcast(module)).await?.as_deref()
     {
-        Some(ExportNamesScope::Group(*group))
+        ExportNamesScope::Group(*group)
     } else {
-        None
+        ExportNamesScope::Single(module)
     };
-    for scope in group
-        .into_iter()
-        .chain(std::iter::once(ExportNamesScope::Single(module)))
-    {
-        if let Some(computed_names) = *compute_export_names(scope, chunking_context).await?
-            && let computed_names = computed_names.await?
-            && let Some(names) = computed_names.names.get(&module)
-        {
-            return Ok(ExportInfo {
-                namespace: computed_names.entry,
-                names: Some(names.clone()),
-                flat: matches!(scope, ExportNamesScope::Group(_)),
-            }
-            .cell());
-        }
-    }
-    Ok(ExportInfo::unmangled(module).cell())
+    let info = compute_export_names(scope, chunking_context)
+        .get(&module)
+        .await?;
+    Ok(info
+        .as_deref()
+        .context("export information is missing for the selected module scope")?
+        .clone()
+        .cell())
 }

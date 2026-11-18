@@ -1,3 +1,4 @@
+import './unused-exports'
 import {
   a,
   b,
@@ -36,6 +37,15 @@ it('should actually mangle the exported names', () => {
   expect(exportsInfo.reallyLongExportName.mangledName).not.toBe(
     exportsInfo.thisIsAVeryLongFunctionName.mangledName
   )
+})
+
+it('should keep unused evaluation-only exports non-mangleable in metadata', () => {
+  const info = globalThis.__unusedMangleExportsInfo
+  expect(info.unusedLongExportName).toEqual({
+    used: false,
+    canMangle: false,
+    mangledName: null,
+  })
 })
 
 it('should keep a name that is already short', () => {
