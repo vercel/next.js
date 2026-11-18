@@ -601,10 +601,11 @@ fn react_compiler_options(
 ) -> react_compiler::entrypoint::plugin_options::PluginOptions {
     use react_compiler::entrypoint::plugin_options::{CompilerTarget, PluginOptions};
 
+    let is_dev = node_env != "production";
     let mut plugin_options = PluginOptions {
         should_compile: true,
         enable_reanimated: false,
-        is_dev: node_env != "production",
+        is_dev,
         filename: Some(file_name.to_string()),
         compilation_mode: options.compilation_mode.as_str().to_string(),
         panic_threshold: "none".to_string(),
@@ -622,6 +623,10 @@ fn react_compiler_options(
         profiling: false,
         debug: false,
     };
+    // Give generated anonymous functions descriptive names in development (e.g.
+    // `Component[useEffect()]`) so stack frames stay readable. This matches the Babel plugin
+    // configuration used for development builds.
+    plugin_options.environment.enable_name_anonymous_functions = is_dev;
     if let Some(enable_preserve_existing_memoization_guarantees) =
         options.enable_preserve_existing_memoization_guarantees
     {

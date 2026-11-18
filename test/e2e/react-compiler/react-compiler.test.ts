@@ -119,14 +119,7 @@ describe.each(['default', 'babelrc', 'rust'] as const)(
       expect(cliOutput).not.toMatch(/error/)
     })
 
-    // TODO: The Rust port of the React Compiler does not yet implement the
-    // `Page[useEffect()]` naming heuristic that the Babel plugin applies, so the
-    // memoized temporaries surface as `t0`, `t1`, … in stack frames.
-    //
-    // Re-enable once `nextjs_react_compiler` learns to set debug names on generated
-    // expressions.
-    const it_ = variant === 'rust' ? it.skip : it
-    it_('should name functions in dev', async () => {
+    it('should name functions in dev', async () => {
       const browser = await next.browser('/function-naming')
       await browser.waitForElementByCss(
         '[data-testid="call-frame"][aria-busy="false"]',
@@ -145,17 +138,30 @@ describe.each(['default', 'babelrc', 'rust'] as const)(
             // Just make sure this is the heuristic from the React Compiler not something else.
             'Page[useEffect()]'
       if (isNextDev) {
+        // TODO: The Rust React Compiler's SWC bridge (`swc_ecma_react_compiler`)
+        // drops source positions of generated code, so frames inside the compiled
+        // component map back to the component declaration. Expect the same
+        // location as the other variants once spans are preserved.
+        const codeFrame =
+          variant === 'rust'
+            ? `"source": "app/function-naming/page.tsx (5:16) @ ${devFunctionName}
+         > 5 | export default function Page() {
+             |                ^",
+           "stack": [
+             "${devFunctionName} app/function-naming/page.tsx (5:16)",
+           ],`
+            : `"source": "app/function-naming/page.tsx (8:19) @ ${devFunctionName}
+         >  8 |     const error = new Error('test-top-frame')
+              |                   ^",
+           "stack": [
+             "${devFunctionName} app/function-naming/page.tsx (8:19)",
+           ],`
         await expect(browser).toDisplayCollapsedRedbox(`
          {
            "description": "test-top-frame",
            "environmentLabel": null,
            "label": "Console Error",
-           "source": "app/function-naming/page.tsx (8:19) @ ${devFunctionName}
-         >  8 |     const error = new Error('test-top-frame')
-              |                   ^",
-           "stack": [
-             "${devFunctionName} app/function-naming/page.tsx (8:19)",
-           ],
+           ${codeFrame}
          }
         `)
         // We care more about the sourcemapped frame in the Redbox.
