@@ -64,9 +64,7 @@ impl ServerHmrChunkLists {
 /// pulled since the server modules were last fully re-evaluated, and the modules shipped to the
 /// runtimes since then.
 ///
-/// Held in a project-global `State`. It describes the running process, so it is never persisted:
-/// it encodes to nothing and decodes empty. (Skipping the whole `State` field instead would
-/// recreate the `State` when decoding, which needs a task context.)
+/// Held in a project-global `State`.
 #[derive(Clone, Debug, Default, PartialEq, Eq, NonLocalValue, OperationValue)]
 pub struct ServerHmrLoadedState {
     /// Module content hashes, by runtime directory (the chunks' output directory, which is how
@@ -101,7 +99,7 @@ impl ServerHmrLoadedState {
             if runtime.modules.is_empty() {
                 continue;
             }
-            let modules = self.modules.entry(runtime.dir.clone()).or_default();
+            let modules = self.modules.entry(runtime.output_dir.clone()).or_default();
             for (id, module) in &runtime.modules {
                 changed |= modules.insert(id.clone(), module.hash) != Some(module.hash);
             }
@@ -134,10 +132,9 @@ pub struct ServerHmrRouteModule {
 /// A route's chunks that one runtime loads, expanded into modules.
 #[derive(Clone, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
 pub struct ServerHmrRouteRuntime {
-    /// The chunks' output directory, which identifies the runtime.
-    pub dir: RcStr,
+    /// The chunks' output directory, which disambiguates the runtime.
+    pub output_dir: RcStr,
     pub chunks: Vec<ServerHmrRouteChunk>,
-    /// Each module of the chunks, once.
     pub modules: FxIndexMap<ModuleId, ServerHmrRouteModule>,
 }
 
@@ -190,7 +187,7 @@ impl ServerHmrRouteModules {
             let runtime = runtimes
                 .entry(dir.clone())
                 .or_insert_with(|| ServerHmrRouteRuntime {
-                    dir,
+                    output_dir: dir,
                     chunks: Vec::new(),
                     modules: FxIndexMap::default(),
                 });
@@ -203,7 +200,7 @@ impl ServerHmrRouteModules {
                 if module.hash != hash {
                     bail!(
                         "Chunks of server runtime {} disagree about the code of module {}",
-                        runtime.dir,
+                        runtime.output_dir,
                         id
                     );
                 }
@@ -450,8 +447,11 @@ pub async fn compute_server_hmr_update(
             .runtimes
             .iter()
             .map(|runtime| {
-                let shipments =
-                    plan_runtime(runtime, loaded.modules.get(&runtime.dir), route_was_pulled);
+                let shipments = plan_runtime(
+                    runtime,
+                    loaded.modules.get(&runtime.output_dir),
+                    route_was_pulled,
+                );
                 (runtime, shipments)
             })
             .filter(|(_, shipments)| !shipments.is_empty())
