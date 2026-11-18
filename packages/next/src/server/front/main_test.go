@@ -2,13 +2,16 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -821,5 +824,110 @@ func TestKeepsTrailersOnACustomStatusLine(t *testing.T) {
 	}
 	if got := res.Trailer.Get("X-Checksum"); got != "abc123" {
 		t.Errorf("trailer X-Checksum = %q, want %q", got, "abc123")
+	}
+}
+
+// HTTP/1.0 allows a request without a Host header. Node must see the public
+// address, not the front's connection to Node.
+func TestUsesThePublicAddressWhenTheRequestHasNoHost(t *testing.T) {
+	addr, seen := startProxy(t, nil)
+	rawRoundTrip(t, addr, "GET /health HTTP/1.0\r\n\r\n")
+	if got := (<-seen).host; got != addr {
+		t.Errorf("Node saw Host %q, want the public address %q", got, addr)
+	}
+}
+
+// lockedBuffer is a bytes.Buffer safe to write from the server's goroutines.
+type lockedBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *lockedBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *lockedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+// A client that leaves before Node answers, like a cancelled prefetch, isn't
+// an error worth logging; Node logs nothing either.
+func TestLogsNothingWhenTheClientLeavesEarly(t *testing.T) {
+	var logged lockedBuffer
+	proxyErrorLog.SetOutput(&logged)
+	t.Cleanup(func() { proxyErrorLog.SetOutput(os.Stderr) })
+
+	cancelled := make(chan struct{})
+	addr, _ := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+		close(cancelled)
+	})
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	io.WriteString(conn, get("/slow"))
+	time.Sleep(100 * time.Millisecond)
+	conn.Close()
+
+	select {
+	case <-cancelled:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Node never saw the request cancelled")
+	}
+	// Give the front's error handler time to run after the cancellation.
+	time.Sleep(200 * time.Millisecond)
+	if got := logged.String(); got != "" {
+		t.Errorf("logged %q, want nothing", got)
+	}
+}
+
+// Go reads 0 differently from Node for the client idle timeout and the pool
+// idle time, so those are refused; 0 header and request timeouts mean no
+// limit, as in Node.
+func TestRejectsTimeoutsGoWouldReadDifferently(t *testing.T) {
+	base := map[string]string{"--listen": ":0", "--upstream": "127.0.0.1:1", "--idle-timeout-ms": "65000", "--header-timeout-ms": "60000", "--request-timeout-ms": "300000", "--upstream-idle-ms": "4000"}
+	args := func(name, value string) []string {
+		var out []string
+		for k, v := range base {
+			if k == name {
+				v = value
+			}
+			out = append(out, k, v)
+		}
+		return out
+	}
+	for _, c := range []struct {
+		name, value string
+		ok          bool
+	}{
+		{"--idle-timeout-ms", "0", false},
+		{"--upstream-idle-ms", "0", false},
+		{"--header-timeout-ms", "-1", false},
+		{"--request-timeout-ms", "-1", false},
+		{"--header-timeout-ms", "0", true},
+		{"--request-timeout-ms", "0", true},
+	} {
+		_, err := parseConfig(args(c.name, c.value))
+		if (err == nil) != c.ok {
+			t.Errorf("%s %s: err = %v, want ok=%v", c.name, c.value, err, c.ok)
+		}
+	}
+}
+
+// A target in absolute form isn't passed on as sent: Go's server takes the
+// Host from the target and drops the client's Host header, and Node gets the
+// path. This pins down that known difference from plain next start.
+func TestAbsoluteFormTargetReachesNodeAsAPathWithTheTargetsHost(t *testing.T) {
+	addr, seen := startProxy(t, nil)
+	rawRoundTrip(t, addr, "GET http://other.example/p?q=1 HTTP/1.1\r\nHost: shop.example.com\r\nConnection: close\r\n\r\n")
+	got := <-seen
+	if got.requestURI != "/p?q=1" || got.host != "other.example" {
+		t.Errorf("Node saw %q with Host %q, want %q with Host %q", got.requestURI, got.host, "/p?q=1", "other.example")
 	}
 }

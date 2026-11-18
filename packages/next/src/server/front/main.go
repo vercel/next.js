@@ -80,6 +80,24 @@ func parseConfig(args []string) (config, error) {
 	if len(missing) > 0 {
 		return config{}, fmt.Errorf("missing %s", strings.Join(missing, ", "))
 	}
+	// Go reads 0 differently from Node for two of these: an idle timeout of 0
+	// falls back to the request timeout, and an IdleConnTimeout of 0 keeps
+	// idle connections to Node forever. The launcher never passes either, so
+	// refuse them rather than guess. Negative values are always mistakes.
+	for _, f := range []struct {
+		name     string
+		value    int
+		positive bool
+	}{
+		{"idle-timeout-ms", *idleMs, true},
+		{"upstream-idle-ms", *upstreamIdleMs, true},
+		{"header-timeout-ms", *headerMs, false},
+		{"request-timeout-ms", *requestMs, false},
+	} {
+		if f.value < 0 || (f.positive && f.value == 0) {
+			return config{}, fmt.Errorf("--%s can't be %d", f.name, f.value)
+		}
+	}
 	ms := func(n int) time.Duration { return time.Duration(n) * time.Millisecond }
 	return config{
 		listen:         *listen,
@@ -113,7 +131,9 @@ func main() {
 	go func() {
 		<-stopRequested()
 		// No deadline: like Node's server.close(), wait for every in-flight
-		// request, however long it streams.
+		// request, however long it streams. Shutdown doesn't wait for
+		// connections taken over for a WebSocket upgrade, so those end when
+		// the process exits.
 		if err := srv.Shutdown(context.Background()); err != nil {
 			fmt.Fprintln(os.Stderr, "next-front: shutdown:", err)
 		}
@@ -177,6 +197,14 @@ func stopRequested() <-chan struct{} {
 // for other defaults in Go's server and proxy.
 func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) http.Handler {
 	publicPort := strconv.Itoa(public.Port)
+	// The Host Node sees for a request that came without one (HTTP/1.0
+	// allows that). Go would otherwise fill in Node's private address, which
+	// would end up in request.url and redirects. Without the front, Node
+	// falls back to its own hostname, localhost unless one was given.
+	publicHost := net.JoinHostPort(public.IP.String(), publicPort)
+	if public.IP.IsUnspecified() {
+		publicHost = net.JoinHostPort("localhost", publicPort)
+	}
 	// Go reports an IPv4 client as plain IPv4 (10.0.0.5), but Node, listening
 	// on all interfaces, reports it as IPv4-mapped IPv6 (::ffff:10.0.0.5).
 	// clientIP uses Node's form when this is set, so Node sees the same
@@ -193,8 +221,15 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) 
 			// Keep the client's Host header. pr.Out starts as a copy of
 			// pr.In, so it already has it; this guards against ProxyRequest's
 			// SetURL helper, which would clear it and make Go send Node's
-			// address instead.
+			// address instead. For a target in absolute form
+			// ("GET http://other.example/p"), Go's server has already replaced
+			// the Host header with the target's host, and Node gets the path
+			// ("/p") as the target; the client's own Host header can't be
+			// recovered here.
 			pr.Out.Host = pr.In.Host
+			if pr.Out.Host == "" {
+				pr.Out.Host = publicHost
+			}
 			// Go re-escapes some request paths and drops query parameters it
 			// can't parse; keepRequestTarget sends the target as the client
 			// did, so Node sees the same URL as without the front.
@@ -231,7 +266,14 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) 
 			ExpectContinueTimeout: 1 * time.Second,
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
-			proxyErrorLog.Printf("proxy error: %v", err)
+			// When the request was cancelled on the client's side (the client
+			// went away, as with a cancelled prefetch, or its upload hit the
+			// request timeout), Node logs nothing, so the front doesn't
+			// either. The answer below still goes out, so a timed-out upload
+			// gets its 502 and its connection closed.
+			if !errors.Is(err, context.Canceled) || r.Context().Err() == nil {
+				proxyErrorLog.Printf("proxy error: %v", err)
+			}
 			// If the request had a body, part of it may still be unread (the
 			// request timed out mid-upload, or Node went away). In full-duplex
 			// mode Go's server keeps the connection open after this answer, and
