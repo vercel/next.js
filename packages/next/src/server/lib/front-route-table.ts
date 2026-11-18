@@ -1,5 +1,7 @@
 import { STATUS_CODES } from 'http'
 import { RouteKind } from '../route-kind'
+import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param'
+import { INTERCEPTION_ROUTE_MARKERS } from '../../shared/lib/router/utils/interception-routes'
 
 /**
  * The route table Node sends next-front (src/server/front/routing). It tells
@@ -170,25 +172,45 @@ function ineligibleReason(input: FrontRouteTableInput): string | undefined {
 
 /**
  * Turns a route's page path into a segment list, or undefined when a segment
- * isn't one of the forms file-system routes use.
+ * isn't one of the forms the front can match exactly as Node does. Segments
+ * are read with getSegmentParam, the parser the router itself uses.
  */
 export function patternOf(page: string): PatternEntry[] | undefined {
+  if (page === '/') return []
   const segments = page.split('/').slice(1)
-  if (segments.length === 1 && segments[0] === '') return []
   const path: PatternEntry[] = []
   for (const [i, segment] of segments.entries()) {
-    const last = i === segments.length - 1
-    let match: RegExpExecArray | null
-    if ((match = /^\[\[\.\.\.([^[\]]+)\]\]$/.exec(segment)) && last) {
-      path.push({ rest: match[1], min: 0 })
-    } else if ((match = /^\[\.\.\.([^[\]]+)\]$/.exec(segment)) && last) {
-      path.push({ rest: match[1], min: 1 })
-    } else if ((match = /^\[([^[\].]+)\]$/.exec(segment))) {
-      path.push({ param: match[1] })
-    } else if (segment !== '' && !/[[\]]/.test(segment)) {
+    const param = getSegmentParam(segment)
+    if (!param) {
+      // A literal segment. Brackets getSegmentParam didn't read as a
+      // parameter ("a[b]"), and interception markers ("(..)photo"), are
+      // forms the front doesn't match.
+      if (
+        segment === '' ||
+        /[[\]]/.test(segment) ||
+        INTERCEPTION_ROUTE_MARKERS.some((marker) => segment.startsWith(marker))
+      ) {
+        return undefined
+      }
       path.push(segment)
-    } else {
-      return undefined
+      continue
+    }
+    switch (param.paramType) {
+      case 'dynamic':
+        path.push({ param: param.paramName })
+        break
+      case 'catchall':
+      case 'optional-catchall':
+        // A catch-all can only end a pattern.
+        if (i !== segments.length - 1) return undefined
+        path.push({
+          rest: param.paramName,
+          min: param.paramType === 'catchall' ? 1 : 0,
+        })
+        break
+      default:
+        // Interception routes ("(.)[id]") come with rewrites of their own.
+        return undefined
     }
   }
   return path
