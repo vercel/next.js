@@ -151,9 +151,16 @@ impl ServerHmrRouteModules {
     }
 }
 
-/// Shipped modules with the hash of the code that is shipped.
+/// A shipped module, with the hash of the code that is shipped.
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue)]
+struct ServerHmrModuleEntry {
+    id: ModuleId,
+    hash: u128,
+    entry: EcmascriptModuleEntry,
+}
+
 #[turbo_tasks::value(transparent, serialization = "skip")]
-struct ServerHmrModuleEntries(Vec<(ModuleId, u128, EcmascriptModuleEntry)>);
+struct ServerHmrModuleEntries(Vec<ServerHmrModuleEntry>);
 
 #[turbo_tasks::function(operation, root)]
 async fn server_hmr_module_entries_operation(
@@ -168,7 +175,11 @@ async fn server_hmr_module_entries_operation(
         .map(async |(id, entry)| {
             let hash = *entry.hash.await?;
             let entry = EcmascriptModuleEntry::from_code(id, *entry.code, &chunk_path).await?;
-            Ok((id.clone(), hash, entry))
+            Ok(ServerHmrModuleEntry {
+                id: id.clone(),
+                hash,
+                entry,
+            })
         })
         .try_join()
         .await?;
@@ -340,19 +351,18 @@ pub async fn compute_server_hmr_update(
     let mut merged_by_dir = FxIndexMap::<RcStr, (FxIndexMap<_, _>, FxIndexMap<_, _>)>::default();
     for (chunk, ids, entries, added) in shipped_chunks {
         if entries.len() != ids.len()
-            || entries
-                .iter()
-                .zip(&ids)
-                .any(|((id, hash, _), requested_id)| {
+            || entries.iter().zip(&ids).any(
+                |(ServerHmrModuleEntry { id, hash, .. }, requested_id)| {
                     id != requested_id || chunk.version.entries_hashes.get(id) != Some(hash)
-                })
+                },
+            )
         {
             return Ok(ServerHmrUpdate::FullReevaluation);
         }
         let (merged_entries, merged_chunks) = merged_by_dir
             .entry(runtime_dir(&chunk.version.chunk_path))
             .or_default();
-        for (id, _, entry) in entries.iter() {
+        for ServerHmrModuleEntry { id, entry, .. } in entries.iter() {
             merged_entries.insert(id.clone(), entry.clone());
         }
         merged_chunks.insert(
