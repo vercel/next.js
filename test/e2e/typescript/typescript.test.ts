@@ -10,6 +10,7 @@ describe('TypeScript Features', () => {
 
   it('should render the page', async () => {
     const $ = await next.render$('/hello')
+    expect($('#app-prop').text()).toBe('bar')
     expect($('body').text()).toMatch(/Hello World/)
     expect($('body').text()).toMatch(/1000000000000/)
   })
