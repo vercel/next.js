@@ -59,6 +59,10 @@ module.exports = async function () {
     console.error('loader rules importModule failed:', e)
   }
 
+  // The page imports this module too, so it is shared with the app
+  const sharedModule = await this.importModule('../shared.counted.js')
+  const sharedValue = sharedModule.sharedValue
+
   // Try importing the wasm+URL+dynamic-import module (supported in
   // Turbopack, not in webpack's importModule)
   let imageUrl = 'unsupported'
@@ -102,5 +106,6 @@ module.exports = async function () {
     export const aliasDepLabel = ${JSON.stringify(aliasDepLabel)};
     export const customDataValue = ${JSON.stringify(customDataValue)};
     export const consumedValue = ${JSON.stringify(consumedValue)};
+    export const sharedValue = ${JSON.stringify(sharedValue)};
   `
 }

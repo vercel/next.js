@@ -983,12 +983,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 let lookup_path = loader_path(&self.cwd, &lookup_path).await?;
 
                 let request_vc = Request::parse(Pattern::Constant(request.clone()));
-                // The loader evaluates the module graph in a separate process that can't activate
-                // lazily compiled dynamic imports, so they have to be compiled eagerly.
-                let origin = PlainResolveOrigin::new(
-                    self.asset_context.without_lazy_compilation(),
-                    lookup_path.join("_")?,
-                );
+                let origin = PlainResolveOrigin::new(*self.asset_context, lookup_path.join("_")?);
                 let resolved = esm_resolve(
                     Vc::upcast(origin),
                     request_vc,
@@ -1011,13 +1006,17 @@ impl EvaluateContext for WebpackLoaderContext {
                     .context("importModule: module is not evaluatable")?;
 
                 // Build a module graph from the resolved module and its
-                // transitive dependencies
+                // transitive dependencies. The loader evaluates it in a separate process that can't
+                // activate lazily compiled dynamic imports, so the graph includes their targets.
                 let single_graph = SingleModuleGraph::new_with_entry(
                     ChunkGroupEntry::Entry {
                         modules: vec![module],
                         heuristics: EntryHeuristics::default(),
                     },
-                    ModuleGraphOptions::default(),
+                    ModuleGraphOptions {
+                        force_activated: true,
+                        ..Default::default()
+                    },
                 );
                 let import_module_graph = ModuleGraph::from_graphs(vec![single_graph], None)
                     .connect()

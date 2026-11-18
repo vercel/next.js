@@ -23,6 +23,9 @@ const nextConfig = {
         loaders: [require.resolve('./text-to-export-loader.js')],
         as: '*.js',
       },
+      '*.counted.js': {
+        loaders: [require.resolve('./count-loader.js')],
+      },
     },
   },
   webpack(config) {

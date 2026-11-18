@@ -219,12 +219,15 @@ impl Module for LazyCompilationProxyModule {
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        if !lazy_compilation_state(self.key.clone()).await?.is_active() {
+    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
+        if !lazy_compilation_state(self.await?.key.clone())
+            .await?
+            .is_active()
+        {
             return Ok(ModuleReferences::empty());
         }
 
-        Ok(Vc::cell(vec![ResolvedVc::upcast(self.target)]))
+        Ok(self.activated_references())
     }
 
     #[turbo_tasks::function]
@@ -234,7 +237,22 @@ impl Module for LazyCompilationProxyModule {
 }
 
 #[turbo_tasks::value_impl]
-impl ActivatableModule for LazyCompilationProxyModule {}
+impl ActivatableModule for LazyCompilationProxyModule {
+    #[turbo_tasks::function]
+    fn activated_references(&self) -> Vc<ModuleReferences> {
+        Vc::cell(vec![ResolvedVc::upcast(self.target)])
+    }
+}
+
+impl LazyCompilationProxyModule {
+    /// Whether the proxy loads its target in `module_graph`: when the graph forces activatable
+    /// modules to be activated, or once the proxy is activated. The graph is checked first, so such
+    /// graphs don't depend on the activation state.
+    pub(crate) async fn is_active_in(&self, module_graph: Vc<ModuleGraph>) -> Result<bool> {
+        Ok(*module_graph.force_activated().await?
+            || lazy_compilation_state(self.key.clone()).await?.is_active())
+    }
+}
 
 #[turbo_tasks::value_impl]
 impl ChunkableModule for LazyCompilationProxyModule {
@@ -259,7 +277,7 @@ impl EcmascriptChunkPlaceable for LazyCompilationProxyModule {
     async fn chunk_item_content(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        _module_graph: Vc<ModuleGraph>,
+        module_graph: Vc<ModuleGraph>,
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
@@ -268,8 +286,7 @@ impl EcmascriptChunkPlaceable for LazyCompilationProxyModule {
             return Ok(EcmascriptChunkItemContent::default().cell());
         }
 
-        let state = lazy_compilation_state(this.key.clone()).await?;
-        let inner_code = if state.is_active() {
+        let inner_code = if this.is_active_in(module_graph).await? {
             let target = this.target.await?.referenced_module().await?;
             let loader_ident = chunking_context.async_loader_chunk_item_ident(Vc::upcast(*target));
             let loader_id = chunking_context
@@ -308,15 +325,14 @@ impl EcmascriptChunkPlaceable for LazyCompilationProxyModule {
     async fn chunk_item_content_ident(
         self: Vc<Self>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
-        _module_graph: Vc<ModuleGraph>,
+        module_graph: Vc<ModuleGraph>,
     ) -> Result<Vc<AssetIdent>> {
         let this = self.await?;
-        let state = lazy_compilation_state(this.key.clone()).await?;
         Ok(self
             .ident()
             .owned()
             .await?
-            .with_modifier(if state.is_active() {
+            .with_modifier(if this.is_active_in(module_graph).await? {
                 rcstr!("active")
             } else {
                 rcstr!("inactive")

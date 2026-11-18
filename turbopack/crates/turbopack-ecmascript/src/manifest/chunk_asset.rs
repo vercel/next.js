@@ -16,7 +16,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    async_chunk::proxy::{LazyCompilationProxyModule, lazy_compilation_state},
+    async_chunk::proxy::LazyCompilationProxyModule,
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         data::EcmascriptChunkData, ecmascript_chunk_item,
@@ -269,14 +269,12 @@ impl EcmascriptChunkPlaceable for ManifestAsyncModule {
     async fn chunk_item_output_assets(
         self: Vc<Self>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
-        _module_graph: Vc<ModuleGraph>,
+        module_graph: Vc<ModuleGraph>,
     ) -> Result<Vc<OutputAssetsWithReferenced>> {
         // An unactivated proxy has no references, so the chunk list would name nothing
         if let Some(proxy) =
             ResolvedVc::try_downcast_type::<LazyCompilationProxyModule>(self.await?.inner)
-            && !lazy_compilation_state(proxy.await?.key.clone())
-                .await?
-                .is_active()
+            && !proxy.await?.is_active_in(module_graph).await?
         {
             return Ok(self.chunk_group());
         }
