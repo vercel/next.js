@@ -50,7 +50,8 @@ export function backgroundLogCompilationEvents(
             data.name,
             msToNs(data.startTimeMs),
             msToNs(data.endTimeMs),
-            Object.fromEntries(data.attributes ?? [])
+            Object.fromEntries(data.attributes ?? []),
+            { reportToOtel: data.reportToOtel === true }
           )
           traceMemoryUsage(data.name, parentSpan)
           if (flushEachTraceEvent) {

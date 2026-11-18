@@ -1,4 +1,4 @@
-import { sendMessage } from '../dev/hot-reloader/pages/websocket'
+import { sendTraceMessage } from '../dev/hot-reloader/pages/websocket'
 import type { Span } from './tracer'
 
 export default function reportToSocket(span: Span) {
@@ -6,12 +6,13 @@ export default function reportToSocket(span: Span) {
     throw new Error('Expected span to be ended')
   }
 
-  sendMessage(
+  sendTraceMessage(
     JSON.stringify({
       event: 'span-end',
       startTime: span.startTime,
       endTime: span.state.endTime,
       spanName: span.name,
+      reportToOtel: span.reportToOtel,
       attributes: span.attributes,
     })
   )

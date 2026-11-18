@@ -1,5 +1,3 @@
-import { getActiveLocalSpan } from '../lib/trace/local-span-recorder'
-import { type Span, trace } from '../../trace'
 import type { NextConfigComplete } from '../config-shared'
 import type { CustomRoutes } from '../../lib/load-custom-routes'
 import type { Duplex } from 'stream'
@@ -64,6 +62,8 @@ import {
   isMiddlewareFilename,
 } from '../../build/utils'
 import { DecodeError } from '../../shared/lib/utils'
+import { type Span, trace } from '../../trace'
+import { getActiveLocalSpan } from '../lib/trace/local-span-recorder'
 import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
 import { existsSync, promises as fs } from 'fs'
@@ -343,7 +343,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       'hot-reloader',
       undefined,
       { version: process.env.__NEXT_VERSION as string },
-      { parent: getActiveLocalSpan(), recordToInsights: true }
+      {
+        parent: getActiveLocalSpan(),
+        reportToOtel: true,
+        recordToInsights: true,
+      }
     )
     // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
     // of the current `next dev` invocation.
@@ -510,6 +514,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           let traceChild:
             | {
                 name: string
+                reportToOtel?: boolean
                 recordToInsights?: boolean
                 startTime?: bigint
                 endTime?: bigint
@@ -525,6 +530,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             case 'span-end': {
               traceChild = {
                 name: payload.spanName,
+                reportToOtel: payload.reportToOtel === true,
                 startTime:
                   BigInt(Math.floor(payload.startTime)) *
                   MILLISECONDS_IN_NANOSECOND,
@@ -537,8 +543,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             }
             case 'client-hmr-latency': {
               traceChild = {
-                recordToInsights: true,
                 name: payload.event,
+                reportToOtel: payload.reportToOtel === true,
+                recordToInsights: true,
                 startTime:
                   BigInt(payload.startTime) * MILLISECONDS_IN_NANOSECOND,
                 endTime: BigInt(payload.endTime) * MILLISECONDS_IN_NANOSECOND,
@@ -671,6 +678,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               traceChild.endTime,
               { ...traceChild.attrs, clientId: payload.id },
               {
+                reportToOtel: traceChild.reportToOtel,
                 recordToInsights: traceChild.recordToInsights,
               }
             )
@@ -764,7 +772,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         )
 
       const entrypoints = await webpackConfigSpan
-        .traceChild('create-entrypoints')
+        .traceChild('create-entrypoints', undefined, { reportToOtel: true })
         .traceAsyncFn(() =>
           createEntrypoints({
             appDir: this.appDir,

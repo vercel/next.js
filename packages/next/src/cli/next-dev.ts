@@ -226,9 +226,8 @@ const handleSessionStop = async (
       distDir,
       isTurboSession: isTurbopack,
     })
-
-    writeDevState()
   }
+  writeDevState()
 
   // Save CPU profile if it was enabled (before exiting)
   saveCpuProfile()
@@ -418,41 +417,39 @@ const nextDev = async (
     traceUploadUrl = options.experimentalUploadTrace
   }
 
-  if (traceUploadUrl) {
-    let isRageRestart = false
-    let distDirCleared = false
-    try {
-      if (fs.existsSync(DEV_STATE_FILE)) {
-        const allState = JSON.parse(
-          fs.readFileSync(DEV_STATE_FILE, 'utf8')
-        ) as Record<string, DevStateEntry>
-        const state = allState[dir]
-        if (
-          state?.stopTime &&
-          Date.now() - state.stopTime < RAGE_RESTART_THRESHOLD_MS
-        ) {
-          // Only flag as a rage restart if the git branch hasn't changed. If
-          // either the stored or current branch is unknown, skip the comparison
-          // and fall back to time-only detection.
-          const storedBranch = state.gitBranch
-          const currentBranch = getGitBranch(dir)
-          const branchChanged =
-            storedBranch && currentBranch && storedBranch !== currentBranch
-          if (!branchChanged) {
-            isRageRestart = true
-          }
-        }
-        if (state?.distDirPath && !fs.existsSync(state.distDirPath)) {
-          distDirCleared = true
+  let isRageRestart = false
+  let distDirCleared = false
+  try {
+    if (fs.existsSync(DEV_STATE_FILE)) {
+      const allState = JSON.parse(
+        fs.readFileSync(DEV_STATE_FILE, 'utf8')
+      ) as Record<string, DevStateEntry>
+      const state = allState[dir]
+      if (
+        state?.stopTime &&
+        Date.now() - state.stopTime < RAGE_RESTART_THRESHOLD_MS
+      ) {
+        // Only flag as a rage restart if the git branch hasn't changed. If
+        // either the stored or current branch is unknown, skip the comparison
+        // and fall back to time-only detection.
+        const storedBranch = state.gitBranch
+        const currentBranch = getGitBranch(dir)
+        const branchChanged =
+          storedBranch && currentBranch && storedBranch !== currentBranch
+        if (!branchChanged) {
+          isRageRestart = true
         }
       }
-    } catch {
-      // Corrupt file — leave both flags false
+      if (state?.distDirPath && !fs.existsSync(state.distDirPath)) {
+        distDirCleared = true
+      }
     }
-    devSpanAttrs = {
-      'rage-restart': isRageRestart,
-      'missing-next-dir': distDirCleared,
-    }
+  } catch {
+    // Corrupt file — leave both flags false
+  }
+  devSpanAttrs = {
+    'rage-restart': isRageRestart,
+    'missing-next-dir': distDirCleared,
   }
 
   const enabledFeatures = Object.fromEntries(
@@ -547,6 +544,7 @@ const nextDev = async (
             allowedUpgradeRetries
           ).join(','),
           NEXT_PRIVATE_TRACE_ID: traceId,
+          NEXT_PRIVATE_TRACE_LAST_ID: String(exportTraceState().lastId),
           NEXT_PRIVATE_ENABLED_FEATURES: JSON.stringify(enabledFeatures),
           NEXT_PRIVATE_DEV_SPAN_ATTRS: JSON.stringify(devSpanAttrs),
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
@@ -729,7 +727,7 @@ const nextDev = async (
 }
 
 function writeDevState(): void {
-  if (!traceUploadUrl || !dir) return
+  if (!dir) return
   try {
     fs.mkdirSync(path.dirname(DEV_STATE_FILE), { recursive: true })
 

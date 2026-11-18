@@ -8,18 +8,14 @@ import {
 } from '../../../lib/parse-trace-file'
 
 describe('render-path tracing', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
+    startCommand: `node node_modules/next/dist/bin/next ${process.env.IS_WEBPACK_TEST ? '--webpack' : '--turbopack'}`,
     env: {
       // Give the child time to flush response-close spans before SIGKILL.
       NEXT_EXIT_TIMEOUT_MS: '30000',
     },
   })
-
-  if (!isNextDev) {
-    it('should be skipped in production', () => {})
-    return
-  }
 
   it('records startup, compilation and backdated request spans across an edit', async () => {
     const requestStartedAt = Date.now()
@@ -61,7 +57,10 @@ describe('render-path tracing', () => {
 
     const startup = eventsByName.get('start-dev-server') ?? []
     expect(startup).toHaveLength(1)
-    expect(startup[0].parentId).toBeUndefined()
+    const sessions = eventsByName.get('dev-server-session') ?? []
+    expect(sessions).toHaveLength(1)
+    expect(sessions[0].parentId).toBeUndefined()
+    expect(startup[0].parentId).toBe(sessions[0].id)
     expect(eventsByName.get('compile-path')?.length).toBeGreaterThan(0)
 
     const clientEvents = eventsByName.get('client-hmr-latency') ?? []

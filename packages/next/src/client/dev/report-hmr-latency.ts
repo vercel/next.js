@@ -30,6 +30,7 @@ export default function reportHmrLatency(
   sendMessage(
     JSON.stringify({
       event: 'client-hmr-latency',
+      reportToOtel: true,
       id: window.__nextDevClientId,
       startTime: startMsSinceEpoch,
       endTime: endMsSinceEpoch,

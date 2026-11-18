@@ -69,11 +69,14 @@ export function traceMemoryUsage(
       String(value),
     ])
   )
-  if (parentSpan) {
-    parentSpan.traceChild('memory-usage', tracedMemoryUsageAsStrings)
-  } else {
-    trace('memory-usage', undefined, tracedMemoryUsageAsStrings)
-  }
+  const span = parentSpan
+    ? parentSpan.traceChild('memory-usage', tracedMemoryUsageAsStrings, {
+        reportToOtel: true,
+      })
+    : trace('memory-usage', undefined, tracedMemoryUsageAsStrings, {
+        reportToOtel: true,
+      })
+  span.stop()
   if (process.env.EXPERIMENTAL_DEBUG_MEMORY_USAGE) {
     const percentageHeapUsed = (100 * heapUsed) / heapMax
 

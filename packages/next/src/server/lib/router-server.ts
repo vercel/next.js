@@ -167,6 +167,7 @@ export async function initialize(opts: {
   experimentalHttpsServer?: boolean
   serverFastRefresh?: boolean
   startServerSpan?: Span
+  devServerSessionSpan?: Span
   quiet?: boolean
 }): Promise<ServerInitResult> {
   if (!process.env.NODE_ENV) {
@@ -245,10 +246,12 @@ export async function initialize(opts: {
 
     const setupDevBundlerSpan = opts.startServerSpan
       ? opts.startServerSpan.traceChild('setup-dev-bundler', undefined, {
+          reportToOtel: true,
           recordToInsights: true,
           scope: true,
         })
       : trace('setup-dev-bundler', undefined, undefined, {
+          reportToOtel: true,
           recordToInsights: true,
           scope: true,
         })
