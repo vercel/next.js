@@ -11,106 +11,27 @@ related:
     - app/guides/debugging
 ---
 
-Use Next.js DevTools to inspect errors, route information, and loading states while running `next dev`. The development indicator shows diagnostics in a corner of the page and gives you access to the DevTools menu.
+Use Next.js DevTools to inspect errors, route information, and loading states while running `next dev`.
 
 ## Open DevTools
 
-Start your app with `next dev` and open it in your browser. Click the Next.js logo (**N**) to open the DevTools menu. The logo appears in the bottom-left corner by default. If you've collapsed the badge, click the logo to expand it, then click it again to open the menu.
+Click the Next.js logo (**N**) to open the DevTools menu. The logo appears in the bottom-left corner by default. The menu includes route information, [Preferences](#preferences), and tools such as the [Navigation Inspector](/docs/app/guides/instant-navigation#visualize-loading-states-with-the-nextjs-devtools), which lets you preview loading states with Cache Components enabled.
 
-Menu entries depend on your router, enabled features, and the current page:
-
-| Entry                    | Purpose                                                                                                                                                            |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Diagnostics**          | Show the number of errors (red) and Insights (amber), and open the error overlay. It opens on the **Issues** tab when there are errors, otherwise on **Insights**. |
-| **Route**                | Show whether the current route is static or dynamic, when this distinction applies.                                                                                |
-| **Bundler**              | Show the bundler running your app.                                                                                                                                 |
-| **Cache Components**     | Show when [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled.                                                            |
-| **Route Info**           | Inspect the App Router route tree and its files and boundaries.                                                                                                    |
-| **Navigation Inspector** | Pause page loads and navigations to inspect loading states. See [Inspect issues and Insights](#inspect-issues-and-insights).                                       |
-| **Request Insights**     | Inspect local App Router request, render, fetch, and cache activity when `experimental.requestInsights` is enabled.                                                |
-| **Cache**                | Explain whether the current load bypassed caches or filled a cold cache.                                                                                           |
-| **Preferences**          | Adjust appearance, indicator visibility, and development server controls. See [Preferences](#preferences).                                                         |
-
-## Read the development badge
-
-The development indicator shows the Next.js logo when idle. The badge expands to show diagnostics or status text as you work.
-
-| Part                                 | What it does                                                                                                                        |
-| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
-| **N** (Next.js logo)                 | Opens the DevTools menu. When collapsed and colored, expands the badge.                                                             |
-| **Issues** (red)                     | A button with the number of errors. Click it to open the error overlay on the **Issues** tab.                                       |
-| **Insights** (amber)                 | A button with the number of Insights. Click it to open the error overlay on the **Insights** tab.                                   |
-| **Compiling** or **Rendering**       | Temporary status text. It goes away on its own when the work finishes.                                                              |
-| **Cold cache** or **Cache disabled** | Status text shown after a load that filled cold caches or bypassed caches. Open the **Cache** entry in the menu for an explanation. |
-| **‹** or **×**                       | The chevron (**‹**) collapses the badge. When the idle indicator is hidden, **×** dismisses a diagnostic badge.                     |
-
-The **‹** and **×** controls don't appear while **Compiling** or **Rendering** is showing, because that status is temporary.
-
-## Inspect issues and Insights
-
-When Next.js reports a diagnostic, the badge shows an **Issues** button, an **Insights** button, or both. Each button opens the error overlay on its own tab, so you can go straight to the type of diagnostic you want to read. The **Diagnostics** entry in the DevTools menu shows both counts and opens the overlay as well.
-
-The Next.js logo stays beside the diagnostic buttons. Click the logo to open the DevTools menu and access **Preferences** without closing or collapsing the badge.
-
-For example, an instant-navigation Insight identifies content that prevents a navigation from being instant. See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for how to interpret and resolve these Insights.
-
-With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, you can also open **Navigation Inspector** from the DevTools menu. It pauses page loads and client navigations so you can inspect the loading UI before dynamic content appears. See [Visualize loading states with the Next.js DevTools](/docs/app/guides/instant-navigation#visualize-loading-states-with-the-nextjs-devtools) for the walkthrough.
+When Next.js reports a diagnostic, click the red **Issues** or amber **Insights** button beside the logo to open its tab. You can also select **Diagnostics** from the menu.
 
 ## Move the badge
 
-If the badge covers part of your app, close any open DevTools panels and drag the Next.js logo. Hover over the logo to see the **Drag to move** hint. The badge snaps to a corner when you release it, and Next.js saves the position for your project.
-
-To choose a position with a keyboard, open the DevTools menu, select **Preferences**, and use the [**Position**](#position) selector.
-
-You can also configure the initial position in `next.config` with [`devIndicators.position`](/docs/app/api-reference/config/next-config-js/devIndicators).
-
-Moving the badge lets you interact with the covered part of your app while keeping diagnostics visible.
+If the badge covers part of your app, close any open DevTools panels and drag the Next.js logo to another corner. You can also choose a corner under [**Position**](#position) in Preferences or set the initial corner with [`devIndicators.position`](/docs/app/api-reference/config/next-config-js/devIndicators).
 
 ## Collapse the badge
 
-Click **‹** at the end of the badge, labeled **Collapse issues badge**, to collapse the diagnostic buttons into the Next.js logo. A red logo shows the error count. If there are only Insights, an amber logo shows the Insight count.
+Click the chevron (**‹**) at the end of the badge to collapse it to the Next.js logo. The diagnostic count stays visible. Click the logo to expand the badge, then click it again to open the menu.
 
-Click the red or amber logo to expand the badge. The logo's accessible name includes the count and diagnostic type, for example **Show 2 issues**. Once the badge expands, the logo opens the DevTools menu again.
-
-When **Show indicator** is on, you can collapse the badge even during a build error. You can still expand it to inspect the diagnostics.
-
-The **Cold cache** and **Cache disabled** states also have a collapse button. Its label is **Collapse Cold cache badge** or **Collapse Cache disabled badge**.
-
-### Dismiss the badge when the indicator is hidden
-
-When the idle indicator is hidden with [**Show indicator**](#show-indicator) or [`devIndicators: false`](/docs/app/api-reference/config/next-config-js/devIndicators), diagnostics still appear so you don't miss them. In that case the last control is **×**, labeled **Dismiss issues badge**, and it removes the whole badge until the next new diagnostic appears.
-
-Build errors can't be dismissed, because your app can't run until the build error is fixed.
-
-## Use DevTools with browser automation
-
-If the development badge covers a control that a test or computer-use agent needs to click, move or collapse the badge to uncover the control while preserving diagnostics.
-
-This [Playwright](/docs/app/guides/testing/playwright) example assumes your app is running in development, your Playwright `baseURL` points to the dev server, and the home page has a **Submit** button. The test uses the collapse button's accessible name to uncover **Submit**:
-
-```ts filename="tests/example.spec.ts"
-import { test } from '@playwright/test'
-
-test('submits the form', async ({ page }) => {
-  await page.goto('/')
-
-  // Collapse the DevTools badge if a diagnostic is showing.
-  const collapse = page.getByRole('button', { name: 'Collapse issues badge' })
-  if (await collapse.isVisible()) {
-    await collapse.click()
-  }
-
-  await page.getByRole('button', { name: 'Submit' }).click()
-})
-```
-
-When the indicator is hidden, use the name **Dismiss issues badge** instead. To keep the badge away from your app's controls in every run, set [`devIndicators.position`](/docs/app/api-reference/config/next-config-js/devIndicators) to a corner your app doesn't use.
-
-The logo button describes how to move the badge in the accessibility tree. When the badge shows the menu trigger, its accessible name is **Open Next.js Dev Tools**.
+If the idle indicator is hidden, **×** dismisses the diagnostic badge until a new diagnostic appears. Build errors stay visible until you fix them.
 
 ## Preferences
 
-Click the Next.js logo and select **Preferences** to change how DevTools look and behave. The **?** next to each option links to its section below.
+Open **Preferences** from the DevTools menu to change how DevTools look and behave.
 
 ### Theme
 
@@ -118,7 +39,7 @@ Use your system theme, or choose **Light** or **Dark**.
 
 ### Position
 
-Place the badge in any of the four corners: **Bottom left**, **Bottom right**, **Top left**, or **Top right**. Dragging the Next.js logo to a corner changes the same setting. See [Move the badge](#move-the-badge).
+Choose any of the four corners. Dragging the Next.js logo updates the same setting.
 
 ### Size
 
@@ -126,20 +47,18 @@ Choose **Small**, **Medium**, or **Large** for the badge and DevTools panels.
 
 ### Show indicator
 
-Turn off **Show indicator** to hide the idle indicator for the current dev server session and dismiss the current diagnostic badge. Build errors stay visible. New errors and Insights still appear with the Next.js logo, so you can reopen **Preferences**.
+Turn off **Show indicator** to hide the idle badge and dismiss the current diagnostic. New errors and Insights still appear, and build errors stay visible.
 
-The **Indicator hidden** message appears in the badge's corner for 5 seconds. Click **Undo** while the message is visible to restore the indicator. After it disappears, use your [keyboard shortcut](#keyboard-shortcut) or reopen **Preferences** from a new diagnostic and turn **Show indicator** back on. If you haven't set a shortcut and no diagnostic is visible, restart the dev server. Reloading alone keeps the indicator hidden until the setting expires after one day.
-
-To hide the idle indicator for the whole project, set [`devIndicators`](/docs/app/api-reference/config/next-config-js/devIndicators) to `false` in `next.config`. Diagnostics still appear with `devIndicators: false`, and turning **Show indicator** on temporarily doesn't change your project configuration.
+To bring the badge back, click **Undo** on the confirmation, use your [shortcut](#keyboard-shortcut), or restart the dev server. You can also reopen Preferences from a new diagnostic and turn **Show indicator** back on. To hide the idle badge for the whole project, set [`devIndicators: false`](/docs/app/api-reference/config/next-config-js/devIndicators) in `next.config`.
 
 ### Keyboard shortcut
 
-In **Preferences**, use **Shortcut** to set a key combination that shows or hides the indicator. Click **Record shortcut**, then press the keys. After **Saved** appears in the field, use the same combination to toggle the indicator. Click **×** in the shortcut field to clear it.
+Click **Record shortcut** and press a key combination. Once it shows **Saved**, press the same keys to show or hide the indicator.
 
 ### Restart dev server
 
-Restart the development server from the browser without returning to your terminal.
+Restart the development server from the browser.
 
 ### Reset bundler cache
 
-Clear the bundler cache and restart the dev server. Use this when you see stale errors or your changes don't appear. This option is available when the bundler supports a persistent cache.
+Clear the bundler cache and restart the dev server. Use this if you see stale errors or your changes don't appear.
