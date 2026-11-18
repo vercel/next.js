@@ -830,7 +830,7 @@ function writeOverridesField(
     // since that's the surface where silently-dropped overrides hurt most.
     const pnpmMajorVersion = getPnpmMajorVersion()
     if (pnpmMajorVersion === null || pnpmMajorVersion >= 11) {
-      writePnpmWorkspaceOverrides(overrides, packageJson.name)
+      writePnpmWorkspaceOverrides(overrides, packageJson.name, cwd)
       return
     }
 
@@ -895,18 +895,19 @@ function findPnpmWorkspaceRoot(fromDir: string): string {
   return workspaceManifest ? path.dirname(workspaceManifest) : fromDir
 }
 
-function writePnpmWorkspaceOverrides(
+export function writePnpmWorkspaceOverrides(
   overrides: Record<string, string>,
-  appPackageName: unknown
+  appPackageName: unknown,
+  projectDir: string
 ) {
-  // Deferred require so `js-yaml` is only loaded when we hit the pnpm v11+
+  // Deferred require so `yaml` is only loaded when we hit the pnpm v11+
   // branch (i.e. not for npm/yarn/bun/pnpm-v10 upgrades). The package is CJS,
   // so a sync `require()` keeps this function synchronous.
-  const yaml = require('js-yaml') as typeof import('js-yaml')
+  const { isMap, parseDocument } = require('yaml') as typeof import('yaml')
 
-  const workspaceRoot = findPnpmWorkspaceRoot(cwd)
+  const workspaceRoot = findPnpmWorkspaceRoot(projectDir)
   const filePath = path.join(workspaceRoot, 'pnpm-workspace.yaml')
-  const isSharedWorkspaceRoot = workspaceRoot !== cwd
+  const isSharedWorkspaceRoot = workspaceRoot !== projectDir
 
   // A shared workspace root's overrides apply to every package in the
   // workspace, so an unqualified `@types/react` entry would force the upgraded
@@ -920,40 +921,42 @@ function writePnpmWorkspaceOverrides(
       scope = appPackageName
     } else {
       console.log(
-        `${pc.yellow('⚠')} The package.json at "${cwd}" has no "name", so the overrides below could not be scoped to it and will apply to every package in the workspace.`
+        `${pc.yellow('⚠')} The package.json at "${projectDir}" has no "name", so the overrides below could not be scoped to it and will apply to every package in the workspace.`
       )
     }
   }
 
-  let doc: Record<string, any> = {}
-  if (fs.existsSync(filePath)) {
-    const existing = fs.readFileSync(filePath, 'utf8')
-    const parsed = yaml.load(existing)
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      doc = parsed as Record<string, any>
-    }
+  // The Document API keeps comments and formatting in a file we don't own.
+  const doc = parseDocument(
+    fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : ''
+  )
+  if (doc.errors.length > 0) {
+    throw doc.errors[0]
+  }
+  if (doc.contents !== null && !isMap(doc.contents)) {
+    throw new Error(
+      `Expected "${filePath}" to contain a YAML mapping, so the overrides could not be written.`
+    )
   }
 
-  if (!doc.overrides || typeof doc.overrides !== 'object') {
-    doc.overrides = {}
+  if (!isMap(doc.get('overrides', true))) {
+    doc.set('overrides', doc.createNode({}))
   }
   const changedKeys: string[] = []
   for (const [dependency, value] of Object.entries(overrides)) {
     const key = scope === null ? dependency : `${scope}>${dependency}`
-    if (doc.overrides[key] !== value) {
+    if (doc.getIn(['overrides', key]) !== value) {
       changedKeys.push(key)
+      doc.setIn(['overrides', key], value)
     }
-    doc.overrides[key] = value
   }
 
-  // `js-yaml` cannot round-trip comments, so re-serializing strips them from a
-  // file we don't own. Skip the write when every override already has the value
-  // we would set — re-running the upgrade shouldn't damage the manifest.
+  // Re-running the upgrade shouldn't touch the manifest.
   if (changedKeys.length === 0) {
     return
   }
 
-  fs.writeFileSync(filePath, yaml.dump(doc))
+  fs.writeFileSync(filePath, doc.toString())
 
   if (isSharedWorkspaceRoot) {
     console.log(
@@ -964,8 +967,7 @@ function writePnpmWorkspaceOverrides(
         )} ${changedKeys.length === 1 ? 'was' : 'were'} written to "${filePath}".` +
         (scope === null
           ? ''
-          : `\n  They are scoped to "${scope}" so the rest of the workspace is unaffected.`) +
-        `\n  Comments in that file were not preserved.`
+          : `\n  They are scoped to "${scope}" so the rest of the workspace is unaffected.`)
     )
   }
 }
