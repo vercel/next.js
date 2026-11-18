@@ -39,7 +39,7 @@ use crate::{
     module_fragments::part::module::EcmascriptModulePartAsset,
     references::esm::{
         base::{EsmAssetReference, ImportSource, ReferencedAsset, ReferencedAssetIdent},
-        mangle::export_info,
+        mangle::{ExportInfo, export_info},
     },
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM, TURBOPACK_ESM_REEXPORT},
     side_effect_optimization::reference::EcmascriptModulePartReference,
@@ -701,7 +701,7 @@ impl UnusedReferencesRead {
 /// unit order of their keys, or in import order when the names are mangled.
 async fn build_compact_reexports(
     exports: &FrozenMap<RcStr, EsmExport>,
-    mangled_names: Option<&FrozenMap<RcStr, RcStr>>,
+    info: &ExportInfo,
     eval_context: &EvalContext,
     mode: ExportRegistrationMode,
     synthetic_references: Option<SyntheticReexportReferences<'_>>,
@@ -826,10 +826,7 @@ async fn build_compact_reexports(
             return Ok(None);
         };
 
-        let exported_key = mangled_names
-            .and_then(|names| names.get(exported))
-            .unwrap_or(exported)
-            .clone();
+        let exported_key = info.export_name(exported).clone();
         let key = (namespace_ident.clone(), ctxt);
         let order = if let Some(idx) = idx {
             idx
@@ -1217,7 +1214,7 @@ impl EsmExports {
         {
             build_compact_reexports(
                 &expanded.exports,
-                info.mangled_names(),
+                &info,
                 eval_context,
                 export_registration_mode,
                 synthetic_references,
