@@ -206,7 +206,7 @@ function parseKeyCode(code: string | JSX.Element) {
     // Add more as needed
   }
 
-  if (codeToKeyMap[code]) {
+  if (Object.prototype.hasOwnProperty.call(codeToKeyMap, code)) {
     return codeToKeyMap[code]
   }
 

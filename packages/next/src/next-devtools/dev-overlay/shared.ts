@@ -34,7 +34,6 @@ export type DevToolsConfig = {
   >
   devToolsPanelSize?: Record<string, { width: number; height: number }>
   scale?: number
-  hideShortcut?: string | null
   requestInsights?: {
     showInternal?: boolean
     verbose?: boolean
@@ -91,7 +90,6 @@ export interface OverlayState {
   readonly page: string
   readonly tree: FlightRouterState | null
   readonly theme: 'light' | 'dark' | 'system'
-  readonly hideShortcut: string | null
   readonly instantNavs: boolean
   readonly requestInsights: readonly RequestInsight[]
   readonly requestInsightsConfig: Readonly<{
@@ -466,7 +464,6 @@ export const INITIAL_OVERLAY_STATE: Omit<
   page: '',
   tree: null,
   theme: 'system',
-  hideShortcut: null,
   instantNavs: hasInstantNavsCookie,
   requestInsights: [],
   requestInsightsConfig: { showInternal: false, verbose: false },
@@ -736,7 +733,6 @@ export function useErrorOverlayReducer(
             devToolsPanelPosition,
             devToolsPanelSize,
             scale,
-            hideShortcut,
             requestInsights: requestInsightsConfig,
           } = action.devToolsConfig
 
@@ -750,9 +746,6 @@ export function useErrorOverlayReducer(
               devToolsPanelPosition ?? state.devToolsPanelPosition,
             scale: scale ?? state.scale,
             devToolsPanelSize: devToolsPanelSize ?? state.devToolsPanelSize,
-            hideShortcut:
-              // hideShortcut can be null.
-              hideShortcut !== undefined ? hideShortcut : state.hideShortcut,
             requestInsightsConfig: requestInsightsConfig
               ? {
                   showInternal:

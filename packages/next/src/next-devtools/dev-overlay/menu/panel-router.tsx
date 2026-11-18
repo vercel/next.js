@@ -20,7 +20,6 @@ import {
   ACTION_DEV_INDICATOR_SET,
   ACTION_DEVTOOLS_POSITION,
   ACTION_DEVTOOLS_SCALE,
-  ACTION_DEVTOOLS_CONFIG,
   ACTION_ERROR_OVERLAY_CLOSE,
   ACTION_ERROR_OVERLAY_OPEN,
   type ErrorOverlayTab,
@@ -30,13 +29,28 @@ import { LoadingIcon } from '../icons/loading-icon'
 import { UserPreferencesBody } from '../components/errors/dev-tools-indicator/dev-tools-info/user-preferences'
 import { useShortcuts } from '../hooks/use-shortcuts'
 import { useUpdateAllPanelPositions } from '../components/devtools-indicator/devtools-indicator'
-import { saveDevToolsConfig } from '../utils/save-devtools-config'
 import { InstantNavsPanel } from '../components/instant-navs/instant-navs-panel'
 import { RequestInsightsPanel } from '../components/request-insights/request-insights-panel'
 import './panel-router.css'
 import { CacheDisabledBody } from '../components/errors/dev-tools-indicator/dev-tools-info/cache-disabled'
 import { ColdCacheBody } from '../components/errors/dev-tools-indicator/dev-tools-info/cold-cache'
 import { IndicatorVisibilityNotice } from '../components/devtools-indicator/indicator-visibility-notice'
+
+const INDICATOR_SHORTCUT_KEY = 'nextjs-devtools-indicator-shortcut'
+
+function readIndicatorShortcut(): string | null {
+  try {
+    const shortcut = localStorage.getItem(INDICATOR_SHORTCUT_KEY)
+    return shortcut &&
+      /^(?:(?:Meta|Control|Alt|Shift)\+){0,4}[A-Za-z][A-Za-z0-9]{0,31}$/.test(
+        shortcut
+      )
+      ? shortcut
+      : null
+  } catch {
+    return null
+  }
+}
 
 const MenuPanel = () => {
   const { setPanel, setSelectedIndex } = usePanelRouterContext()
@@ -245,6 +259,21 @@ const useToggleDevtoolsVisibility = () => {
 
 export const PanelRouter = () => {
   const { state } = useDevOverlayContext()
+  // A shared dev server must not be able to assign another browser a shortcut
+  // that dismisses its diagnostics. Only locally recorded bindings are active.
+  const [hideShortcut, setHideShortcut] = useState(readIndicatorShortcut)
+  function updateHideShortcut(shortcut: string | null) {
+    setHideShortcut(shortcut)
+    try {
+      if (shortcut === null) {
+        localStorage.removeItem(INDICATOR_SHORTCUT_KEY)
+      } else {
+        localStorage.setItem(INDICATOR_SHORTCUT_KEY, shortcut)
+      }
+    } catch {
+      // Recording still works for this page when browser storage is unavailable.
+    }
+  }
   const { triggerRef, setPanel } = usePanelRouterContext()
   const { toggleDevtools, showDevtools, showHideNotice, dismissHideNotice } =
     useToggleDevtoolsVisibility()
@@ -279,7 +308,7 @@ export const PanelRouter = () => {
   }
 
   useShortcuts(
-    state.hideShortcut ? { [state.hideShortcut]: toggleDevtools } : {},
+    hideShortcut ? { [hideShortcut]: toggleDevtools } : {},
     triggerRef
   )
 
@@ -287,7 +316,7 @@ export const PanelRouter = () => {
     <>
       {showHideNotice && state.disableDevIndicator && (
         <IndicatorVisibilityNotice
-          shortcut={state.hideShortcut}
+          shortcut={hideShortcut}
           position={state.devToolsPosition}
           onUndo={showDevtools}
           onDismiss={dismissHideNotice}
@@ -311,7 +340,11 @@ export const PanelRouter = () => {
           closeOnClickOutside
           header={<DevToolsHeader title="Preferences" />}
         >
-          <UserPreferencesWrapper toggleVisibility={toggleDevtools} />
+          <UserPreferencesWrapper
+            toggleVisibility={toggleDevtools}
+            hideShortcut={hideShortcut}
+            setHideShortcut={updateHideShortcut}
+          />
         </DynamicPanel>
       </PanelRoute>
 
@@ -480,8 +513,12 @@ const InfoFooter = ({ href }: { href: string }) => {
 
 const UserPreferencesWrapper = ({
   toggleVisibility,
+  hideShortcut,
+  setHideShortcut,
 }: {
   toggleVisibility: () => void
+  hideShortcut: string | null
+  setHideShortcut: (value: string | null) => void
 }) => {
   const { dispatch, state } = useDevOverlayContext()
   const updateAllPanelPositions = useUpdateAllPanelPositions()
@@ -505,14 +542,8 @@ const UserPreferencesWrapper = ({
           })
           updateAllPanelPositions(devToolsPosition)
         }}
-        hideShortcut={state.hideShortcut}
-        setHideShortcut={(value) => {
-          dispatch({
-            type: ACTION_DEVTOOLS_CONFIG,
-            devToolsConfig: { hideShortcut: value },
-          })
-          saveDevToolsConfig({ hideShortcut: value })
-        }}
+        hideShortcut={hideShortcut}
+        setHideShortcut={setHideShortcut}
         toggleVisibility={toggleVisibility}
       />
     </div>
