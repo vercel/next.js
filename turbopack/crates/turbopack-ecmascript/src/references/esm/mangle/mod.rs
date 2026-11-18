@@ -109,7 +109,8 @@ enum ExportNamesScope {
 }
 
 /// Complete per-module export information for one computation scope.
-#[turbo_tasks::value(transparent, cell = "keyed")]
+/// Group members are code-generated together, so this result uses ordinary storage.
+#[turbo_tasks::value(transparent)]
 struct ComputedExportNames(
     rustc_hash::FxHashMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, ExportInfo>,
 );
@@ -153,12 +154,11 @@ async fn compute_export_names(
         // Internal namespaces still emit a table under their source identity and can
         // mangle independently. Only externally read members share the flat table.
         if flat && exposure == MergeableModuleExposure::Internal {
-            let info = compute_export_names(ExportNamesScope::Single(module), chunking_context)
-                .get(&module)
-                .await?;
+            let info =
+                compute_export_names(ExportNamesScope::Single(module), chunking_context).await?;
             infos.insert(
                 module,
-                info.as_deref()
+                info.get(&module)
                     .context("standalone export information is missing for a merged member")?
                     .clone(),
             );
@@ -297,11 +297,9 @@ pub async fn export_info(
     } else {
         ExportNamesScope::Single(module)
     };
-    let info = compute_export_names(scope, chunking_context)
-        .get(&module)
-        .await?;
+    let info = compute_export_names(scope, chunking_context).await?;
     Ok(info
-        .as_deref()
+        .get(&module)
         .context("export information is missing for the selected module scope")?
         .clone()
         .cell())
@@ -319,11 +317,9 @@ pub(crate) async fn export_info_for_metadata(
     if info.await?.can_mangle_names() {
         return Ok(info);
     }
-    let info = compute_export_names(ExportNamesScope::Single(module), chunking_context)
-        .get(&module)
-        .await?;
+    let info = compute_export_names(ExportNamesScope::Single(module), chunking_context).await?;
     Ok(info
-        .as_deref()
+        .get(&module)
         .context("standalone export information is missing for export metadata")?
         .clone()
         .cell())
