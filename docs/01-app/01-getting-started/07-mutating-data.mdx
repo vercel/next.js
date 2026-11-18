@@ -503,7 +503,7 @@ export async function createPost(formData) {
 
 Calling `redirect` [throws](/docs/app/api-reference/functions/redirect#behavior) a framework handled control-flow exception. Any code after it won't execute. If you need fresh data, call [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) beforehand.
 
-For client-side success messages and error handling, see [Handling redirects in client code](/docs/app/guides/server-actions#handling-redirects-in-client-code).
+For custom error handling around redirecting actions, see [Handling redirect errors](/docs/app/guides/server-actions#handling-redirect-errors).
 
 ### Cookies
 

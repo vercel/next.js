@@ -74,77 +74,13 @@ The mutation, the cache invalidation, and the page re-render all complete in a s
 
 [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) with a stale-while-revalidate profile is the exception: it marks the tag for background refresh and does **not** include a re-render in the action response. The page reflects the change on a later read. An action that does none of the above carries only its return value, and the current route is not re-rendered.
 
-## Handling redirects in client code
+## Handling redirect errors
 
-When a Client Component awaits a Server Action that calls `redirect()`, the promise is rejected with a Next.js redirect error. Code immediately after the `await` does not run. A surrounding `catch` receives the error, and a `finally` block still runs. This applies to both internal and external redirect destinations.
+`redirect()` uses an internal Next.js error for control flow. A `try/catch` can catch this error both where `redirect()` runs on the server and when client code awaits a redirecting Server Action. In the client case, the action's promise is rejected, so code immediately after `await` does not run.
 
-Next.js handles the navigation separately from the promise rejection. Catching the redirect error on the client does not cancel that navigation, but treating it as an application error can show an error message before the destination loads.
+If you need a `catch` block for application errors, call [`unstable_rethrow`](/docs/app/api-reference/functions/unstable_rethrow) first. It rethrows Next.js control-flow errors before your application error handling runs. This prevents a redirect from being displayed as an application failure.
 
-If you add custom error handling around an awaited action, call [`unstable_rethrow`](/docs/app/api-reference/functions/unstable_rethrow) at the start of the `catch` block. It rethrows Next.js control-flow errors before your application error handling runs.
-
-The form below calls the [redirecting `createPost` action](/docs/app/getting-started/mutating-data#redirect-after-a-mutation):
-
-```tsx filename="app/ui/create-post-form.tsx" switcher
-'use client'
-
-import { useState } from 'react'
-import { unstable_rethrow } from 'next/navigation'
-import { createPost } from '@/app/lib/actions'
-
-export function CreatePostForm() {
-  const [error, setError] = useState('')
-
-  return (
-    <form
-      action={async (formData) => {
-        setError('')
-        try {
-          await createPost(formData)
-        } catch (err) {
-          unstable_rethrow(err)
-          setError('Could not create the post.')
-        }
-      }}
-    >
-      <input name="title" aria-label="Post title" required />
-      <button type="submit">Create post</button>
-      {error && <p role="alert">{error}</p>}
-    </form>
-  )
-}
-```
-
-```jsx filename="app/ui/create-post-form.js" switcher
-'use client'
-
-import { useState } from 'react'
-import { unstable_rethrow } from 'next/navigation'
-import { createPost } from '@/app/lib/actions'
-
-export function CreatePostForm() {
-  const [error, setError] = useState('')
-
-  return (
-    <form
-      action={async (formData) => {
-        setError('')
-        try {
-          await createPost(formData)
-        } catch (err) {
-          unstable_rethrow(err)
-          setError('Could not create the post.')
-        }
-      }}
-    >
-      <input name="title" aria-label="Post title" required />
-      <button type="submit">Create post</button>
-      {error && <p role="alert">{error}</p>}
-    </form>
-  )
-}
-```
-
-The same error handling applies when you await an action inside `startTransition` in an event handler. To show a success message after a redirect, render it on the destination page instead of relying on code after the awaited call.
+For expected errors and uncaught exceptions, see [Error handling](/docs/app/getting-started/error-handling). For rendering errors, Next.js's [`error.js`](/docs/app/api-reference/file-conventions/error) and [`catchError`](/docs/app/api-reference/functions/catchError) boundaries already let framework control-flow errors pass through.
 
 ## Security
 
