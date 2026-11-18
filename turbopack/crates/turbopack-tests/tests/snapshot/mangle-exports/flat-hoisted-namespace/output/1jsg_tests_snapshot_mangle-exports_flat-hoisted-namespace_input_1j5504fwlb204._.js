@@ -3,10 +3,10 @@
 
 
 __turbopack_context__.s([
-    "t",
-    ()=>a2,
     "r",
     ()=>sameLongExportName2,
+    "t",
+    ()=>a2,
     "_",
     ()=>a1,
     "g",

@@ -869,7 +869,7 @@ async fn build_compact_reexports(
     // checks below allow it. The source index keeps modules that share a position apart, and the
     // stable sort keeps each module's exports in their original order.
     // Adjacent exports from the same module share a group.
-    if mangled_names.is_some() {
+    if info.can_mangle_names() {
         pairs.sort_by_key(|(_, _, source)| {
             (sources.get(*source).map(|source| source.order), *source)
         });
