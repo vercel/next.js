@@ -13,6 +13,7 @@ pub mod external_module;
 pub mod hot_module;
 pub mod ident;
 pub mod import_meta_glob;
+pub mod input_relative;
 pub mod member;
 pub mod node;
 pub mod pattern_mapping;
@@ -141,6 +142,7 @@ use crate::{
         hot_module::{ModuleHotReferenceAssetReference, ModuleHotReferenceCodeGen},
         ident::IdentReplacement,
         import_meta_glob::{import_meta_glob_reference, parse_import_meta_glob},
+        input_relative::InputRelativeCodeGen,
         member::MemberReplacement,
         node::PackageJsonReference,
         raw::{DirAssetReference, FileSourceReference},
@@ -3942,8 +3944,8 @@ async fn handle_free_var_reference(
                 InputRelativeConstant::DirName => source_path.parent(),
                 InputRelativeConstant::FileName => source_path,
             };
-            analysis.add_code_gen(ConstantValueCodeGen::new(
-                as_abs_path(source_path).into(),
+            analysis.add_code_gen(InputRelativeCodeGen::new(
+                source_path,
                 analysis.intern_path(ast_path),
             ));
         }

@@ -126,6 +126,7 @@ type AsyncModule = (
 ) => void
 
 type ResolveAbsolutePath = (modulePath?: string) => string
+type ToProjectPath = (request: string, root: string) => string
 type ResolveFileUrl = (modulePath: string, root?: string) => string
 
 type ExternalRequire = (
@@ -174,6 +175,7 @@ interface TurbopackBaseContext<M> {
   h: GetChunkRelativeURL
   w: string
   P: ResolveAbsolutePath
+  p: ToProjectPath
   F: ResolveFileUrl
   U: RelativeURL
   b: ChunkBasePath
