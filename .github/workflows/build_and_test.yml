@@ -1227,9 +1227,10 @@ jobs:
       stepName: 'test-cache-components-prod-${{ matrix.group }}'
     secrets: inherit
 
-  # Reruns the routing gate and the front server's behavior suite with
-  # `next start` behind the experimental Go front server. Both must pass the
-  # same as they do without it (packages/next/src/server/front). Runs on every
+  # Reruns the routing gate, the front server's behavior suites and the
+  # route.go suites with `next start` behind the experimental Go front server.
+  # They must pass the same as they do without it
+  # (packages/next/src/server/front). Runs on every
   # canary push, and on pull requests that change the front server's files
   # (the `front-server` group in scripts/run-for-change.mjs).
   test-front-server-prod:
@@ -1266,6 +1267,14 @@ jobs:
             node run-tests.js \
               test/production/app-dir/front-server/front-server.test.ts \
               test/production/app-dir/front-server/front-server-process.test.ts
+        else
+          # route.go requests the front sends to Go workers directly, and the
+          # route.go suite, whose proxy.ts and rewrites keep it on Node.
+          NEXT_TEST_MODE=start IS_TURBOPACK_TEST=1 TURBOPACK_BUILD=1 \
+            node run-tests.js \
+              test/production/app-dir/front-server-go/front-server-go.test.ts \
+              test/production/app-dir/front-server-go/front-server-go-direct.test.ts \
+              test/e2e/app-dir/native-route-go/native-route-go.test.ts
         fi
       stepName: 'test-front-server-prod-${{ matrix.group }}'
     secrets: inherit
