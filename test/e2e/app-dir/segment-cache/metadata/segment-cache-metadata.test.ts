@@ -226,12 +226,15 @@ describe('segment cache (metadata)', () => {
           .click()
       }, 'no-requests')
 
+      await browser.eval('window.__metadataNavigation = true')
+      // A complete cached response includes the page even when only metadata
+      // was requested.
       await act(
         async () => {
           await browser.elementByCss(`a[href="${secondHref}"]`).click()
         },
         expectsStaticResponse
-          ? { includes: title }
+          ? { includes: pageText }
           : [{ includes: title }, { includes: pageText, block: 'reject' }]
       )
       expect(navigationRequestTrees).toEqual([METADATA_ONLY_REQUEST_TREE])
@@ -239,16 +242,13 @@ describe('segment cache (metadata)', () => {
       for (const response of navigationResponses) {
         expect(response.status()).toBe(200)
         if (expectsStaticResponse) {
-          // A complete cached prerender includes the page despite the request
-          // tree.
           expect(response.headers()['x-nextjs-prerender']).toBe('1')
-          expect(await response.text()).toContain(pageText)
         } else {
           expect(response.headers()['x-nextjs-prerender']).toBeUndefined()
-          expect(await response.text()).not.toContain(pageText)
         }
       }
 
+      expect(await browser.eval('window.__metadataNavigation')).toBe(true)
       expect(await browser.elementById('target-page').text()).toBe(pageText)
       await retry(async () => {
         expect(await browser.eval(() => document.title)).toBe(title)
