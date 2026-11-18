@@ -1,6 +1,9 @@
 const relay = require('../relay.config')
 
 module.exports = {
+  experimental: {
+    turbopackDetectGlobalVirtualStore: true,
+  },
   compiler: {
     relay: {
       src: './pages',
