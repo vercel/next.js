@@ -80,6 +80,8 @@ The mutation, the cache invalidation, and the page re-render all complete in a s
 
 If you need a `catch` block for application errors, call [`unstable_rethrow`](/docs/app/api-reference/functions/unstable_rethrow) first. It rethrows Next.js control-flow errors before your application error handling runs. This prevents a redirect from being displayed as an application failure.
 
+For Server Actions, this guidance applies when the action itself calls `redirect()`. Redirects returned by [Proxy](/docs/app/api-reference/file-conventions/proxy) can produce a different error that `unstable_rethrow` does not handle.
+
 For expected errors and uncaught exceptions, see [Error handling](/docs/app/getting-started/error-handling). For rendering errors, Next.js's [`error.js`](/docs/app/api-reference/file-conventions/error) and [`catchError`](/docs/app/api-reference/functions/catchError) boundaries already let framework control-flow errors pass through.
 
 ## Security
