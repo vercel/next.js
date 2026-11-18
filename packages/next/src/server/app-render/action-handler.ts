@@ -80,6 +80,7 @@ import {
   ActionDidRevalidateStaticAndDynamic,
 } from '../../shared/lib/action-revalidation-kind'
 import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/cache-busting-search-param'
+import { encodeURIPath } from '../../shared/lib/encode-uri-path'
 
 const INLINE_ACTION_PREFIX = '$$RSC_SERVER_ACTION_'
 
@@ -258,7 +259,11 @@ async function createForwardedActionResponse(
     }
   }
 
-  const fetchUrl = new URL(`${origin}${basePath}${workerPathname}`)
+  // Webpack worker entries can retain the escaped underscore used in app paths.
+  const encodedWorkerPathname = encodeURIPath(
+    workerPathname.replace(/%5F/g, '_')
+  )
+  const fetchUrl = new URL(`${origin}${basePath}${encodedWorkerPathname}`)
 
   try {
     let body: BodyInit | ReadableStream<Uint8Array> | undefined
