@@ -2364,6 +2364,7 @@ impl SingleModuleGraphBuilderNode {
             // non-load-bearing for correctness) only when spans are enabled. Stays on the builder
             // node; never reaches the graph node.
             span_name: if emit_spans {
+                // INVALIDATION: This ident is only used for tracing
                 Some(module.ident_string().untracked().await?)
             } else {
                 None

@@ -472,7 +472,7 @@ async fn leak_keyed(
     executions: ResolvedVc<Executions>,
 ) -> Result<Vc<ReadResult>> {
     let leak = LEAKS[leak as usize];
-    // Count executions untracked so this doesn't create a dependency.
+    // INVALIDATION: This is just a test
     let executions = executions.untracked().await?;
     // Don't hold the guard of `get_untracked` while setting the state.
     let count = *executions.get_untracked() + 1;
@@ -679,17 +679,22 @@ async fn read_while_changing(
     let map = map.connect();
     let keyed = map.keyed_reader().await?;
     let value = keyed.get("a").copied();
-    // Count executions untracked so this doesn't create a dependency.
+    // INVALIDATION: Counting executions must not add a dependency that invalidates this task
+    // when the counter is updated.
     let executions = executions.untracked().await?;
     let count = *executions.get_untracked() + 1;
     executions.set(count);
     if count == 1 {
         // Change the unaccessed key `b` while the `KeyedReadRef` is still alive. The full
         // (keyed-read) dependency is still in effect, so this has to invalidate this task.
+        // INVALIDATION: Mutate the input without adding a direct dependency on the step;
+        // invalidation must come from the reader dependency under test.
         step.untracked().await?.set(2);
         // Wait until the map is recomputed with the new value.
         let mut attempts = 0;
         loop {
+            // INVALIDATION: Poll for recomputation without adding a full-cell dependency
+            // that would mask the keyed reader's invalidation behavior.
             let current = map.untracked().await?;
             if current.get("b") == Some(&22) {
                 break;
