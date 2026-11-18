@@ -78,7 +78,10 @@ export function ErrorOverlay({
   return (
     <Activity mode={mounted ? 'visible' : 'hidden'}>
       <Errors
-        key={tabKey}
+        // Remount when the requested tab changes so the Issues and Insights
+        // entries in the badge and menu open their own tab.
+        key={`${tabKey}-${state.errorOverlayTab ?? ''}`}
+        initialTab={state.errorOverlayTab}
         {...commonProps}
         debugInfo={state.debugInfo}
         getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}

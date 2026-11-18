@@ -1,11 +1,13 @@
 ---
 title: devIndicators
-description: Configuration options for the on-screen indicator that gives context about the current route you're viewing during development.
+description: Configure the position and visibility of the Next.js development indicator with devIndicators.
 ---
 
-`devIndicators` allows you to configure the on-screen indicator that gives context about the current route you're viewing during development.
+Use `devIndicators` in `next.config` to set the initial position of the Next.js development indicator or hide it when idle.
 
-Open `next.config.ts` and set `position` to choose where the indicator renders. The default is `bottom-left`.
+See the [Next.js DevTools guide](/docs/app/guides/devtools) to open DevTools, move the indicator, and collapse diagnostic badges.
+
+Set `devIndicators.position` in `next.config.ts` to choose where the indicator appears. The default is `bottom-left`.
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'
@@ -19,7 +21,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-To hide the indicator entirely, set `devIndicators` to `false`. Next.js will still surface any compile or runtime errors that were encountered.
+To hide the idle indicator, set `devIndicators` to `false`. Compile errors, runtime errors, and Insights still appear, and you can open the DevTools menu whenever a diagnostic badge is visible. To hide the indicator temporarily from the browser, use [Show indicator](/docs/app/guides/devtools#show-indicator) in Preferences.
 
 ```ts filename="next.config.ts"
 const nextConfig: NextConfig = {
@@ -53,7 +55,7 @@ There are two reasons a route might opt out of prerendering:
 - The presence of [Request-time APIs](/docs/app/glossary#request-time-apis) which rely on request information.
 - An [uncached data request](/docs/app/getting-started/fetching-data), like a call to an ORM or database driver.
 
-Check your route for any of these conditions, and if you are not able to statically render the route, then consider using [`loading.js`](/docs/app/api-reference/file-conventions/loading) or [`<Suspense />`](https://react.dev/reference/react/Suspense) to leverage [streaming](/docs/app/getting-started/linking-and-navigating#streaming).
+Check your route for these conditions. If the route needs request-time data, use [`loading.js`](/docs/app/api-reference/file-conventions/loading) or [`<Suspense />`](https://react.dev/reference/react/Suspense) to [stream the UI](/docs/app/getting-started/linking-and-navigating#streaming).
 
 </AppOnly>
 

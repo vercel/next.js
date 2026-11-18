@@ -1,0 +1,44 @@
+/* Matches the badge: a dark pill in the badge's corner. */
+.indicator-visibility-notice {
+  position: fixed;
+  z-index: var(--top-z-index);
+  display: flex;
+  align-items: center;
+  gap: var(--size-12);
+  height: var(--size-36);
+  padding: 0 var(--size-4) 0 var(--size-16);
+  border-radius: var(--rounded-full);
+  background: rgba(0, 0, 0, 0.8);
+  box-shadow:
+    0 0 0 1px #171717,
+    inset 0 0 0 1px hsla(0, 0%, 100%, 0.14),
+    0px 16px 32px -8px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(48px);
+  color: #fff;
+  font-family: var(--font-stack-sans);
+  font-size: var(--size-13);
+  font-weight: 500;
+  white-space: nowrap;
+
+  button {
+    flex-shrink: 0;
+    height: var(--size-28);
+    padding: 0 var(--size-12);
+    border: 0;
+    border-radius: var(--rounded-full);
+    background: hsla(0, 0%, 100%, 0.12);
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
+    transition: background 150ms ease;
+
+    &:hover {
+      background: hsla(0, 0%, 100%, 0.2);
+    }
+
+    &:focus-visible {
+      outline: 2px solid #fff;
+      outline-offset: 2px;
+    }
+  }
+}

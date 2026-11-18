@@ -1,8 +1,7 @@
-import { useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { useUpdateAnimation } from './hooks/use-update-animation'
 import { useMeasureWidth } from './hooks/use-measure-width'
 import { Cross } from '../../icons/cross'
-import { Warning } from '../../icons/warning'
 import { css } from '../../utils/css'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { useRenderErrorContext } from '../../dev-overlay'
@@ -10,62 +9,35 @@ import { useIndicatorDisplay } from '../../hooks/use-indicator-display'
 import {
   ACTION_ERROR_OVERLAY_CLOSE,
   ACTION_ERROR_OVERLAY_OPEN,
+  type ErrorOverlayTab,
 } from '../../shared'
 import { usePanelRouterContext } from '../../menu/context'
 import { getIssueBucketState } from '../../menu/issue-bucket-state'
 import { BASE_LOGO_SIZE } from '../../utils/indicator-metrics'
 import { StatusIndicator, Status } from './status-indicator'
+import { Tooltip } from '../tooltip/tooltip'
 
 const SHORT_DURATION_MS = 150
 
-function Plural({ count, animate }: { count: number; animate: boolean }) {
-  if (count <= 1) return null
-  return (
-    <span aria-hidden data-issues-count-plural data-animate={animate}>
-      s
-    </span>
-  )
+function pluralize(count: number, word: string) {
+  return count === 1 ? word : `${word}s`
 }
 
-function PillLabel({
-  normalCount,
-  instantCount,
-  normalCountAnimating,
-  instantCountAnimating,
-}: {
-  normalCount: number
-  instantCount: number
-  normalCountAnimating: boolean
-  instantCountAnimating: boolean
-}) {
-  const hasNormal = normalCount > 0
-  const hasInstant = instantCount > 0
-  return (
-    <>
-      {hasNormal && (
-        <>
-          Issue
-          <Plural
-            count={normalCount}
-            animate={normalCountAnimating && normalCount === 2}
-          />
-        </>
-      )}
-      {hasNormal && hasInstant && ' · '}
-      {hasInstant && (
-        <>
-          {hasNormal && <>{instantCount} </>}
-          Insight
-          <Plural
-            count={instantCount}
-            animate={instantCountAnimating && instantCount === 2}
-          />
-        </>
-      )}
-    </>
-  )
-}
-
+/**
+ * The badge is a single dark tray:
+ *
+ *   [N] [Issues] [Insights] [status or cache text] | [‹ or ×]
+ *
+ * - The N always opens the DevTools menu.
+ * - Issues and Insights are separate colored buttons; each opens the error
+ *   overlay on its own tab.
+ * - Compiling/Rendering and cache states are plain text, not buttons.
+ * - The trailing control belongs to the tray, never to a chip: ‹ collapses the
+ *   diagnostics into the N, × dismisses the badge when the idle indicator is
+ *   hidden. It is omitted while a temporary status is showing.
+ * - Collapsed, the N turns red (issues) or amber (insights only); clicking it
+ *   expands the badge again.
+ */
 export function NextLogo({
   onTriggerClick,
   ...buttonProps
@@ -76,20 +48,68 @@ export function NextLogo({
   const SIZE = BASE_LOGO_SIZE / state.scale
   const { panel, triggerRef, setPanel } = usePanelRouterContext()
   const isMenuOpen = panel === 'panel-selector'
+  const canDrag = panel === null
+  const disableTooltips = !canDrag || state.isErrorOverlayOpen
+  const moveDescriptionId = useId()
+  const tooltipDirection = state.devToolsPosition.startsWith('top')
+    ? 'bottom'
+    : 'top'
+  const collapseLabel = state.disableDevIndicator
+    ? 'Dismiss issues badge'
+    : 'Collapse issues badge'
 
   const hasError = totalErrorCount > 0
-  const { insightsOnly } = getIssueBucketState(
+  const { insightsOnly, hasNormal, hasInstant } = getIssueBucketState(
     normalErrorCount,
     instantErrorCount
   )
   const [isErrorExpanded, setIsErrorExpanded] = useState(hasError)
-  const [previousHasError, setPreviousHasError] = useState(hasError)
-  if (previousHasError !== hasError) {
-    setPreviousHasError(hasError)
-    // Reset the expanded state when the error state changes
-    setIsErrorExpanded(hasError)
-  }
+  const lastErrorId = state.errors[state.errors.length - 1]?.id
+  const [previousDiagnostics, setPreviousDiagnostics] = useState({
+    count: totalErrorCount,
+    lastErrorId,
+    hasVulnerabilityInsight: state.hasVulnerabilityInsight,
+  })
+  const [previousHideVersion, setPreviousHideVersion] = useState(
+    state.devIndicatorHideVersion
+  )
   const [dismissed, setDismissed] = useState(false)
+  const [previousOverlayOpen, setPreviousOverlayOpen] = useState(
+    state.isErrorOverlayOpen
+  )
+  if (previousOverlayOpen !== state.isErrorOverlayOpen) {
+    setPreviousOverlayOpen(state.isErrorOverlayOpen)
+    if (state.isErrorOverlayOpen) setIsErrorExpanded(true)
+  }
+  if (
+    previousDiagnostics.count !== totalErrorCount ||
+    previousDiagnostics.lastErrorId !== lastErrorId ||
+    previousDiagnostics.hasVulnerabilityInsight !==
+      state.hasVulnerabilityInsight
+  ) {
+    setPreviousDiagnostics({
+      count: totalErrorCount,
+      lastErrorId,
+      hasVulnerabilityInsight: state.hasVulnerabilityInsight,
+    })
+    if (
+      !hasError ||
+      totalErrorCount > previousDiagnostics.count ||
+      (lastErrorId ?? 0) > (previousDiagnostics.lastErrorId ?? 0) ||
+      (state.hasVulnerabilityInsight &&
+        !previousDiagnostics.hasVulnerabilityInsight)
+    ) {
+      setIsErrorExpanded(hasError)
+      setDismissed(false)
+    }
+  }
+  if (previousHideVersion !== state.devIndicatorHideVersion) {
+    setPreviousHideVersion(state.devIndicatorHideVersion)
+    setDismissed(true)
+  }
+  if (dismissed && !state.disableDevIndicator) {
+    setDismissed(false)
+  }
   const normalErrorAnimating = useUpdateAnimation(
     normalErrorCount,
     SHORT_DURATION_MS
@@ -99,34 +119,68 @@ export function NextLogo({
     SHORT_DURATION_MS
   )
   const newErrorDetected = normalErrorAnimating || instantErrorAnimating
-  const leadingCount =
-    normalErrorCount > 0 ? normalErrorCount : instantErrorCount
-  const leadingCountAnimating =
-    normalErrorCount > 0 ? normalErrorAnimating : instantErrorAnimating
 
-  // The status pill and the persistent cache badge are owned by a single state
-  // machine that handles all the show/hide timing and the atomic handoff
-  // between the two (so the indicator never blanks to the bare logo between
-  // them). The two are mutually exclusive.
+  // The status text and the persistent cache badge are owned by a single
+  // state machine that handles the show/hide timing and the handoff between
+  // the two. They are mutually exclusive.
   const { status: displayStatus, cacheBadge } = useIndicatorDisplay(
     state.buildingIndicator,
     state.renderingIndicator,
     state.cacheIndicator
   )
-  const showStatusIndicator = displayStatus !== Status.None
-  const statusReplacesIssues = showStatusIndicator && !state.disableDevIndicator
-  const showIssues =
-    !statusReplacesIssues && (isErrorExpanded || state.disableDevIndicator)
+  const [cacheBadgeCollapsed, setCacheBadgeCollapsed] = useState(false)
+  const [previousCacheBadge, setPreviousCacheBadge] = useState(cacheBadge)
+  if (previousCacheBadge !== cacheBadge) {
+    setPreviousCacheBadge(cacheBadge)
+    setCacheBadgeCollapsed(false)
+  }
+
+  const showStatusIndicator =
+    displayStatus !== Status.None && !state.disableDevIndicator
+  const showIssues = hasError && (isErrorExpanded || state.disableDevIndicator)
+  const isCollapsed = hasError && !showIssues
+  const showCacheBadge =
+    cacheBadge !== null &&
+    !cacheBadgeCollapsed &&
+    !hasError &&
+    !state.disableDevIndicator
+  // Build errors can be collapsed, but not dismissed: the app cannot run
+  // until they are fixed.
+  const canCloseIssues =
+    showIssues && !(state.buildError && state.disableDevIndicator)
+  const showControl = !showStatusIndicator && (canCloseIssues || showCacheBadge)
+  const collapsedTone = isCollapsed
+    ? insightsOnly
+      ? 'insight'
+      : 'issue'
+    : undefined
+  const collapsedLabel = hasNormal
+    ? `Show ${normalErrorCount} ${pluralize(normalErrorCount, 'issue')}`
+    : `Show ${instantErrorCount} ${pluralize(instantErrorCount, 'Insight')}`
 
   const ref = useRef<HTMLDivElement | null>(null)
   const measuredWidth = useMeasureWidth(ref)
 
-  const isExpanded =
-    isErrorExpanded ||
-    cacheBadge !== null ||
-    showStatusIndicator ||
-    state.disableDevIndicator
+  const isExpanded = showIssues || showCacheBadge || showStatusIndicator
   const width = measuredWidth === 0 ? 'auto' : measuredWidth
+
+  function openOverlay(tab: ErrorOverlayTab) {
+    if (state.isErrorOverlayOpen && state.errorOverlayTab === tab) {
+      dispatch({ type: ACTION_ERROR_OVERLAY_CLOSE })
+      return
+    }
+    dispatch({ type: ACTION_ERROR_OVERLAY_OPEN, tab })
+    // Keep the instant navigation panel mounted so its capture survives and
+    // it stays behind the error overlay backdrop. Other panels still close
+    // when the overlay opens.
+    if (panel !== 'instant-navs') {
+      setPanel(null)
+    }
+  }
+
+  function chipTitle(label: string) {
+    return canDrag ? `View ${label} · Drag to move` : `View ${label}`
+  }
 
   return (
     <div
@@ -135,10 +189,11 @@ export function NextLogo({
         {
           '--size': `${SIZE}px`,
           '--duration-short': `${SHORT_DURATION_MS}ms`,
-          // if the indicator is disabled, hide the badge
-          // also allow the "disabled" state be dismissed, as long as there are no build errors
+          // Diagnostics retain access to the menu when the idle indicator is
+          // hidden. Non-build diagnostics can still be explicitly dismissed.
           display:
-            state.disableDevIndicator && (!hasError || dismissed)
+            state.disableDevIndicator &&
+            (!hasError || (dismissed && !state.buildError))
               ? 'none'
               : 'block',
         } as React.CSSProperties
@@ -153,25 +208,38 @@ export function NextLogo({
             --color-outer-border: #171717;
             --color-inner-border: hsla(0, 0%, 100%, 0.14);
             --color-hover-alpha-subtle: hsla(0, 0%, 100%, 0.13);
-            --color-hover-alpha-error: hsla(0, 0%, 100%, 0.2);
-            --color-hover-alpha-error-2: hsla(0, 0%, 100%, 0.25);
+            --color-issue: #ca2a30;
+            --color-issue-border: #e5484d;
+            --color-insight: rgba(217, 119, 6, 0.95);
+            --color-insight-border: rgba(245, 158, 11, 0.9);
+            --color-cache: #47a8ff;
+            --chip-height: var(--mark-size);
             --mark-size: calc(var(--size) - var(--size-2) * 2);
 
             --focus-color: var(--color-blue-800);
             --focus-ring: 2px solid var(--focus-color);
-
-            &:has([data-next-badge][data-error='true']) {
-              --focus-color: #fff;
-            }
           }
 
-          [data-disabled-icon] {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding-right: 4px;
+          [data-next-badge-description] {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            overflow: hidden;
+            clip-path: inset(50%);
+            white-space: nowrap;
           }
 
+          [data-next-badge] [data-draggable='true'] {
+            cursor: grab;
+          }
+
+          .devtools-indicator-tooltip {
+            width: max-content;
+            max-width: min(320px, calc(100vw - 32px));
+          }
+
+          /* The tray. Always dark; the chips inside carry the color. */
           [data-next-badge] {
             width: var(--size);
             height: var(--size);
@@ -189,168 +257,66 @@ export function NextLogo({
             cursor: pointer;
             scale: 1;
             overflow: hidden;
-            will-change: scale, box-shadow, width, background;
+            will-change: scale, width;
             transition:
               scale var(--duration-short) var(--timing),
-              width var(--duration-long) var(--timing),
-              box-shadow var(--duration-long) var(--timing),
-              background var(--duration-short) ease;
-
-            &:active[data-error='false'] {
-              scale: 0.95;
-            }
+              width var(--duration-long) var(--timing);
 
             &[data-animate='true']:not(:hover) {
               scale: 1.02;
             }
 
-            &[data-error='false']:has([data-next-mark]:focus-visible) {
+            &:has([data-next-mark]:focus-visible) {
               outline: var(--focus-ring);
               outline-offset: 3px;
             }
 
-            &[data-error='true'] {
-              background: #ca2a30;
-              --color-inner-border: #e5484d;
-
-              [data-next-mark] {
-                background: var(--color-hover-alpha-error);
-                outline-offset: 0px;
-
-                &:focus-visible {
-                  outline: var(--focus-ring);
-                  outline-offset: -1px;
-                }
-
-                &:hover {
-                  background: var(--color-hover-alpha-error-2);
-                }
-              }
-            }
-
-            &[data-cache-badge]:not([data-error='true']) {
-              background: rgba(217, 119, 6, 0.95);
-              --color-inner-border: rgba(245, 158, 11, 0.9);
-
-              [data-issues-open] {
-                color: white;
-              }
-            }
-
-            &[data-insights-only='true']:not([data-error='true']) {
-              background: rgba(217, 119, 6, 0.95);
-              --color-inner-border: rgba(245, 158, 11, 0.9);
-
-              [data-issues-open] {
-                color: white;
-              }
-            }
-
-            &[data-error-expanded='false'][data-error='true'] ~ [data-dot] {
-              scale: 1;
-            }
-
             > div {
               display: flex;
+              align-items: center;
+              gap: var(--size-4);
+            }
+
+            /* Everything inside the tray sits 2px from its edge, so the N,
+               the chips and the control are concentric with the tray. */
+            &[data-error-expanded='true'] > div {
+              padding-right: var(--size-2);
+            }
+
+            &[data-error-expanded='true'] [data-next-mark] {
+              background: hsla(0, 0%, 100%, 0.08);
+
+              &:hover {
+                background: var(--color-hover-alpha-subtle);
+              }
+            }
+
+            /* Collapsed diagnostics: the whole circle takes the color. */
+            &[data-collapsed='issue'] {
+              background: var(--color-issue);
+              --color-inner-border: var(--color-issue-border);
+            }
+
+            &[data-collapsed='insight'] {
+              background: var(--color-insight);
+              --color-inner-border: var(--color-insight-border);
+            }
+
+            &[data-collapsed] [data-next-mark]:hover {
+              background: hsla(0, 0%, 100%, 0.18);
             }
           }
 
-          [data-issues-collapse]:focus-visible {
-            outline: var(--focus-ring);
-          }
-
-          [data-toast-pill]:has([data-issues-open]:focus-visible) {
-            outline: var(--focus-ring);
-            outline-offset: -1px;
-          }
-
-          [data-dot] {
-            content: '';
-            width: var(--size-8);
-            height: var(--size-8);
-            background: #fff;
-            box-shadow: 0 0 0 1px var(--color-outer-border);
-            border-radius: 50%;
-            position: absolute;
-            top: 2px;
-            right: 0px;
-            scale: 0;
-            pointer-events: none;
-            transition: scale 200ms var(--timing);
-            transition-delay: var(--duration-short);
-          }
-
-          /* Shared pill layout for the errors toast and the cache badge. Keyed
-             on data-toast-pill rather than data-issues so it applies to both,
-             while data-issues stays exclusive to the errors toast. */
-          [data-toast-pill] {
-            --padding-left: 8px;
-            display: flex;
-            gap: 2px;
-            align-items: center;
-            padding-left: 8px;
-            padding-right: 8px;
-            height: var(--size-32);
-            margin-right: 2px;
-            border-radius: var(--rounded-full);
-            transition: background var(--duration-short) ease;
-
-            &:has([data-issues-open]:hover) {
-              background: var(--color-hover-alpha-error);
-            }
-
-            &:has([data-issues-collapse]) {
-              padding-right: calc(var(--padding-left) / 2);
-            }
-          }
-
-          [data-issues-open] {
-            font-size: var(--size-13);
-            color: white;
-            width: fit-content;
-            height: 100%;
-            display: flex;
-            gap: 2px;
-            align-items: center;
-            margin: 0;
-            line-height: var(--size-36);
-            font-weight: 500;
-            z-index: 2;
-            white-space: nowrap;
-
-            &:focus-visible {
-              outline: 0;
-            }
-          }
-
-          [data-issues-collapse] {
-            width: var(--size-24);
-            height: var(--size-24);
+          [data-next-mark] {
+            flex: none;
+            width: var(--mark-size);
+            height: var(--mark-size);
+            margin: 0 var(--size-2);
             display: flex;
             align-items: center;
             justify-content: center;
             border-radius: var(--rounded-full);
             transition: background var(--duration-short) ease;
-
-            &:hover {
-              background: var(--color-hover-alpha-error);
-            }
-          }
-
-          [data-cross] {
-            color: #fff;
-            width: var(--size-12);
-            height: var(--size-12);
-          }
-
-          [data-next-mark] {
-            width: var(--mark-size);
-            height: var(--mark-size);
-            margin: 0 2px;
-            display: flex;
-            align-items: center;
-            border-radius: var(--rounded-full);
-            transition: background var(--duration-long) var(--timing);
 
             &:focus-visible {
               outline: 0;
@@ -365,6 +331,107 @@ export function NextLogo({
               width: var(--size-40);
               height: var(--size-40);
             }
+          }
+
+          [data-next-badge][data-error-expanded='true'] [data-next-mark] {
+            margin-right: 0;
+          }
+
+          /* Issues and Insights: separate colored buttons. */
+          [data-issues-group] {
+            display: flex;
+            align-items: center;
+            gap: var(--size-4);
+          }
+
+          [data-issues-open] {
+            height: var(--chip-height);
+            padding: 0 var(--size-10);
+            display: flex;
+            gap: var(--size-4);
+            align-items: center;
+            border-radius: var(--rounded-full);
+            color: white;
+            font-size: var(--size-13);
+            font-weight: 500;
+            line-height: var(--size-20);
+            white-space: nowrap;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+            transition: filter var(--duration-short) ease;
+
+            &[data-issues-tab='errors'] {
+              background: var(--color-issue);
+            }
+
+            &[data-issues-tab='instant'] {
+              background: var(--color-insight);
+            }
+
+            &:hover {
+              filter: brightness(1.12);
+            }
+
+            &:focus-visible {
+              outline: 2px solid #fff;
+              outline-offset: -2px;
+            }
+          }
+
+          /* Cache state after a load: plain text, not a button. */
+          [data-cache-label] {
+            display: flex;
+            align-items: center;
+            gap: var(--size-6);
+            padding: 0 var(--size-6);
+            color: white;
+            font-size: var(--size-13);
+            font-weight: 500;
+            white-space: nowrap;
+          }
+
+          [data-cache-dot] {
+            flex: none;
+            width: var(--size-8);
+            height: var(--size-8);
+            border-radius: 50%;
+            background: var(--color-cache);
+          }
+
+          /* Trailing control: ‹ collapses, × dismisses. Part of the tray. */
+          [data-badge-divider] {
+            flex: none;
+            width: 1px;
+            height: var(--size-16);
+            background: rgba(255, 255, 255, 0.18);
+          }
+
+          [data-issues-collapse] {
+            flex: none;
+            width: var(--size-24);
+            height: var(--chip-height);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--rounded-full);
+            color: rgba(255, 255, 255, 0.75);
+            transition:
+              background var(--duration-short) ease,
+              color var(--duration-short) ease;
+
+            &:hover {
+              background: var(--color-hover-alpha-subtle);
+              color: #fff;
+            }
+
+            &:focus-visible {
+              outline: var(--focus-ring);
+            }
+          }
+
+          [data-cross],
+          [data-collapse-chevron] {
+            width: var(--size-12);
+            height: var(--size-12);
           }
 
           [data-issues-count-animation] {
@@ -388,13 +455,6 @@ export function NextLogo({
             }
 
             [data-issues-count-enter] {
-              animation: fadeIn 300ms var(--timing) forwards;
-            }
-          }
-
-          [data-issues-count-plural] {
-            display: inline-block;
-            &[data-animate='true'] {
               animation: fadeIn 300ms var(--timing) forwards;
             }
           }
@@ -431,133 +491,212 @@ export function NextLogo({
 
           @media (prefers-reduced-motion) {
             [data-issues-count-exit],
-            [data-issues-count-enter],
-            [data-issues-count-plural] {
+            [data-issues-count-enter] {
               animation-duration: 0ms !important;
             }
           }
         `}
       </style>
+      <span id={moveDescriptionId} data-next-badge-description>
+        Drag to move the badge to another corner.
+        {' To move it with a keyboard, open Preferences and choose Position.'}
+      </span>
       <div
         data-next-badge
         data-error={hasError && !insightsOnly}
-        data-insights-only={insightsOnly && !statusReplacesIssues}
+        data-insights-only={insightsOnly}
         data-error-expanded={isExpanded}
+        data-collapsed={collapsedTone}
         data-status={displayStatus}
         data-cache-badge={cacheBadge ?? undefined}
         data-animate={newErrorDetected}
         style={{ width }}
       >
         <div ref={ref}>
-          {/* Children */}
-          {!state.disableDevIndicator && (
+          <Tooltip
+            asChild
+            disabled={disableTooltips}
+            className="devtools-indicator-tooltip"
+            direction={tooltipDirection}
+            title={
+              isCollapsed
+                ? canDrag
+                  ? `${collapsedLabel} · Drag to move`
+                  : collapsedLabel
+                : canDrag
+                  ? 'Open DevTools menu · Drag to move'
+                  : `${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`
+            }
+          >
             <button
               id="next-logo"
               ref={triggerRef}
               data-next-mark
-              onClick={onTriggerClick}
-              disabled={state.disableDevIndicator}
-              aria-haspopup="menu"
-              aria-expanded={isMenuOpen}
-              aria-controls="nextjs-dev-tools-menu"
-              aria-label={`${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`}
+              // Collapsed, the colored N stands in for the diagnostics, so
+              // clicking it brings them back. Expanded, it opens the menu.
+              onClick={
+                isCollapsed ? () => setIsErrorExpanded(true) : onTriggerClick
+              }
+              aria-haspopup={isCollapsed ? undefined : 'menu'}
+              aria-expanded={isCollapsed ? undefined : isMenuOpen}
+              aria-controls={isCollapsed ? undefined : 'nextjs-dev-tools-menu'}
+              aria-label={
+                isCollapsed
+                  ? collapsedLabel
+                  : `${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`
+              }
+              aria-describedby={canDrag ? moveDescriptionId : undefined}
+              data-draggable={canDrag}
               data-nextjs-dev-tools-button
-              style={{
-                display: showStatusIndicator ? 'none' : 'flex',
-              }}
               {...buttonProps}
             >
               <NextMark />
             </button>
-          )}
-          {isExpanded && (
-            <>
-              {/* Error badge has priority over cache indicator */}
-              {showIssues && (
-                <div data-issues data-toast-pill>
+          </Tooltip>
+          {showIssues && (
+            <div data-issues-group>
+              {hasNormal && (
+                <Tooltip
+                  asChild
+                  disabled={disableTooltips}
+                  className="devtools-indicator-tooltip"
+                  direction={tooltipDirection}
+                  title={chipTitle(pluralize(normalErrorCount, 'issue'))}
+                >
                   <button
+                    data-issues
                     data-issues-open
-                    aria-label="Open issues overlay"
-                    onClick={() => {
-                      if (state.isErrorOverlayOpen) {
-                        dispatch({
-                          type: ACTION_ERROR_OVERLAY_CLOSE,
-                        })
-                        return
-                      }
-                      dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
-                      // Keep the instant navigation panel mounted so its capture
-                      // survives and it stays behind the error overlay backdrop.
-                      // Other panels still close when the overlay opens.
-                      if (panel !== 'instant-navs') {
-                        setPanel(null)
-                      }
-                    }}
+                    data-issues-tab="errors"
+                    aria-label={`Open ${normalErrorCount} ${pluralize(normalErrorCount, 'issue')}`}
+                    aria-describedby={canDrag ? moveDescriptionId : undefined}
+                    data-draggable={canDrag}
+                    onClick={() => openOverlay('errors')}
                   >
-                    {state.disableDevIndicator && (
-                      <div data-disabled-icon>
-                        <Warning />
-                      </div>
-                    )}
                     <AnimateCount
-                      // Used the key to force a re-render when the count changes.
-                      key={leadingCount}
-                      animate={leadingCountAnimating}
+                      key={normalErrorCount}
+                      animate={normalErrorAnimating}
                       data-issues-count-animation
                     >
-                      {leadingCount}
-                    </AnimateCount>{' '}
-                    <div>
-                      <PillLabel
-                        normalCount={normalErrorCount}
-                        instantCount={instantErrorCount}
-                        normalCountAnimating={normalErrorAnimating}
-                        instantCountAnimating={instantErrorAnimating}
-                      />
-                    </div>
+                      {normalErrorCount}
+                    </AnimateCount>
+                    {pluralize(normalErrorCount, 'Issue')}
                   </button>
-                  {!state.buildError && (
-                    <button
-                      data-issues-collapse
-                      aria-label="Collapse issues badge"
-                      onClick={() => {
-                        if (state.disableDevIndicator) {
-                          setDismissed(true)
-                        } else {
-                          setIsErrorExpanded(false)
-                        }
-                        // Move focus to the trigger to prevent having it stuck on this element
-                        triggerRef.current?.focus()
-                      }}
-                    >
-                      <Cross data-cross />
-                    </button>
-                  )}
-                </div>
+                </Tooltip>
               )}
-              {/* Persistent cache badge shown when a load bypassed caches or
-                  rendered with a cold cache and nothing is actively rendering */}
-              {cacheBadge && !hasError && !state.disableDevIndicator && (
-                <CacheStatusBadge
-                  kind={cacheBadge}
-                  onTriggerClick={onTriggerClick}
-                  triggerRef={triggerRef}
+              {hasInstant && (
+                <Tooltip
+                  asChild
+                  disabled={disableTooltips}
+                  className="devtools-indicator-tooltip"
+                  direction={tooltipDirection}
+                  title={chipTitle(pluralize(instantErrorCount, 'Insight'))}
+                >
+                  <button
+                    data-issues={hasNormal ? undefined : true}
+                    data-issues-open
+                    data-issues-tab="instant"
+                    aria-label={`Open ${instantErrorCount} ${pluralize(instantErrorCount, 'Insight')}`}
+                    aria-describedby={canDrag ? moveDescriptionId : undefined}
+                    data-draggable={canDrag}
+                    onClick={() => openOverlay('instant')}
+                  >
+                    {/* The leading chip owns data-issues-count, which test
+                        utilities read as the badge's count. */}
+                    {hasNormal ? (
+                      <span>{instantErrorCount}</span>
+                    ) : (
+                      <AnimateCount
+                        key={instantErrorCount}
+                        animate={instantErrorAnimating}
+                        data-issues-count-animation
+                      >
+                        {instantErrorCount}
+                      </AnimateCount>
+                    )}
+                    {pluralize(instantErrorCount, 'Insight')}
+                  </button>
+                </Tooltip>
+              )}
+            </div>
+          )}
+          {showCacheBadge && cacheBadge && (
+            <div
+              data-cache-badge-group
+              data-cache-bypass-badge={
+                cacheBadge === 'bypass' ? true : undefined
+              }
+              data-cold-cache-badge={cacheBadge === 'cold' ? true : undefined}
+              style={{ display: 'contents' }}
+            >
+              <span data-cache-label>
+                <span aria-hidden data-cache-dot />
+                {cacheBadge === 'bypass' ? 'Cache disabled' : 'Cold cache'}
+              </span>
+              {showControl && (
+                <TrayControl
+                  label={`Collapse ${cacheBadge === 'bypass' ? 'Cache disabled' : 'Cold cache'} badge`}
+                  icon="collapse"
+                  disableTooltips={disableTooltips}
+                  tooltipDirection={tooltipDirection}
+                  onClick={() => {
+                    setCacheBadgeCollapsed(true)
+                    triggerRef.current?.focus()
+                  }}
                 />
               )}
-              {/* Status indicator shown while rendering or compiling */}
-              {showStatusIndicator && !state.disableDevIndicator && (
-                <StatusIndicator
-                  status={displayStatus}
-                  isError={hasError && !insightsOnly}
-                  onClick={onTriggerClick}
-                />
-              )}
-            </>
+            </div>
+          )}
+          {showStatusIndicator && <StatusIndicator status={displayStatus} />}
+          {showIssues && showControl && (
+            <TrayControl
+              label={collapseLabel}
+              icon={state.disableDevIndicator ? 'dismiss' : 'collapse'}
+              disableTooltips={disableTooltips}
+              tooltipDirection={tooltipDirection}
+              onClick={() => {
+                if (state.disableDevIndicator) {
+                  setDismissed(true)
+                } else {
+                  setIsErrorExpanded(false)
+                  triggerRef.current?.focus()
+                }
+              }}
+            />
           )}
         </div>
       </div>
-      <div aria-hidden data-dot />
     </div>
+  )
+}
+
+function TrayControl({
+  label,
+  icon,
+  onClick,
+  disableTooltips,
+  tooltipDirection,
+}: {
+  label: string
+  icon: 'collapse' | 'dismiss'
+  onClick: () => void
+  disableTooltips: boolean
+  tooltipDirection: 'top' | 'bottom'
+}) {
+  return (
+    <>
+      <span aria-hidden data-badge-divider />
+      <Tooltip
+        asChild
+        disabled={disableTooltips}
+        className="devtools-indicator-tooltip"
+        direction={tooltipDirection}
+        title={label}
+      >
+        <button data-issues-collapse aria-label={label} onClick={onClick}>
+          {icon === 'dismiss' ? <Cross data-cross /> : <CollapseChevron />}
+        </button>
+      </Tooltip>
+    </>
   )
 }
 
@@ -581,61 +720,31 @@ function AnimateCount({
   )
 }
 
-function CacheStatusBadge({
-  kind,
-  onTriggerClick,
-  triggerRef,
-}: {
-  kind: 'cold' | 'bypass'
-  onTriggerClick: () => void
-  triggerRef: React.RefObject<HTMLButtonElement | null>
-}) {
-  const [dismissed, setDismissed] = useState(false)
-
-  if (dismissed) {
-    return null
-  }
-
-  const label = kind === 'bypass' ? 'Cache disabled' : 'Cold cache'
-
+function CollapseChevron() {
   return (
-    // Reuses the errors toast pill styling (data-toast-pill) but is
-    // deliberately not data-issues: that attribute marks the errors toast,
-    // which test utilities click to open the redbox. A cold or cache-disabled
-    // load can also surface a validation error, so a shared data-issues would
-    // let those helpers grab this badge instead of the real toast.
-    <div
-      data-toast-pill
-      data-cache-bypass-badge={kind === 'bypass' ? true : undefined}
-      data-cold-cache-badge={kind === 'cold' ? true : undefined}
+    <svg
+      data-collapse-chevron
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden="true"
     >
-      <button
-        data-issues-open
-        data-nextjs-dev-tools-button
-        aria-label="Open Next.js Dev Tools"
-        onClick={onTriggerClick}
-      >
-        {label}
-      </button>
-      <button
-        data-issues-collapse
-        aria-label={`Collapse ${label} badge`}
-        onClick={() => {
-          setDismissed(true)
-          // Move focus to the trigger to prevent having it stuck on this element
-          triggerRef.current?.focus()
-        }}
-      >
-        <Cross data-cross />
-      </button>
-    </div>
+      <path
+        d="m10 4-4 4 4 4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   )
 }
 
 function NextMark() {
   return (
     <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-      <g transform="translate(8.5, 13)">
+      {/* Centers the mark (its paths span x 1.4–14.2, y 0.5–15.7) in the
+          40×40 box so it sits in the middle of the circle behind it. */}
+      <g transform="translate(12.2, 11.9)">
         <path
           className="paused"
           d="M13.3 15.2 L2.34 1 V12.6"

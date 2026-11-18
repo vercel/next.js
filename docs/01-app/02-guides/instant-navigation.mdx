@@ -8,6 +8,7 @@ related:
   links:
     - app/api-reference/file-conventions/route-segment-config/instant
     - app/guides/testing/playwright
+    - app/guides/devtools
     - app/guides/optimizing-prefetching
     - app/getting-started/caching
     - app/getting-started/revalidating
@@ -238,7 +239,9 @@ A soft navigation into a page with `"use client"` at the top behaves like a sing
 
 ## Visualize loading states with the Next.js DevTools
 
-As you develop a route, the Next.js DevTools let you see what your users see on page loads and client navigations before dynamic data streams in. Use it to verify that your loading states look right, confirm the content you expect appears immediately, and iterate on where to place `<Suspense>` boundaries.
+Use the **Navigation Inspector** in Next.js DevTools to see what appears during page loads and client navigations before dynamic data streams in. Preview loading states to check which content appears immediately and where to place `<Suspense>` boundaries.
+
+If the indicator covers part of your app, [move the badge](/docs/app/guides/devtools#move-the-badge) to another corner.
 
 The [React DevTools Suspense panel](https://react.dev/learn/react-developer-tools) complements this: it lists the `<Suspense>` boundaries in the tree and lets you toggle each one between its fallback and resolved state, so you can see exactly which boundary covers which part of the page.
 

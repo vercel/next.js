@@ -74,6 +74,7 @@ export interface OverlayState {
   readonly staticIndicator: 'pending' | 'static' | 'dynamic' | 'disabled'
   readonly showIndicator: boolean
   readonly disableDevIndicator: boolean
+  readonly devIndicatorHideVersion: number
   readonly debugInfo: DebugInfo
   readonly routerType: 'pages' | 'app'
   /** This flag is used to handle the Error Overlay state in the "old" overlay.
@@ -98,7 +99,11 @@ export interface OverlayState {
     verbose: boolean
   }>
   readonly hasVulnerabilityInsight: boolean
+  /** Tab the error overlay should show when it was opened for a specific
+   *  diagnostic type (the Issues or Insights badge/menu entries). */
+  readonly errorOverlayTab: ErrorOverlayTab | null
 }
+export type ErrorOverlayTab = 'errors' | 'instant'
 type DevtoolsPanelName = string
 export type OverlayDispatch = React.Dispatch<DispatcherEvent>
 
@@ -268,6 +273,7 @@ interface DevIndicatorSetAction {
 
 interface ErrorOverlayOpenAction {
   type: typeof ACTION_ERROR_OVERLAY_OPEN
+  tab?: ErrorOverlayTab
 }
 interface ErrorOverlayCloseAction {
   type: typeof ACTION_ERROR_OVERLAY_CLOSE
@@ -446,6 +452,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   // but the HMR WebSocket is only created during hydration.
   showIndicator: hasInstantNavsCookie,
   disableDevIndicator: false,
+  devIndicatorHideVersion: 0,
   buildingIndicator: false,
   refreshState: { type: 'idle' },
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
@@ -464,6 +471,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   requestInsights: [],
   requestInsightsConfig: { showInternal: false, verbose: false },
   hasVulnerabilityInsight: false,
+  errorOverlayTab: null,
 }
 
 function getInitialState(
@@ -656,7 +664,16 @@ export function useErrorOverlayReducer(
           return { ...state, versionInfo: action.versionInfo }
         }
         case ACTION_DEV_INDICATOR_SET: {
-          return { ...state, disableDevIndicator: action.disabled }
+          return {
+            ...state,
+            disableDevIndicator: action.disabled,
+            devIndicatorHideVersion:
+              state.devIndicatorHideVersion + (action.disabled ? 1 : 0),
+            isErrorOverlayOpen:
+              action.disabled && !state.buildError
+                ? false
+                : state.isErrorOverlayOpen,
+          }
         }
         case ACTION_DEV_INDICATOR: {
           return {
@@ -667,7 +684,11 @@ export function useErrorOverlayReducer(
           }
         }
         case ACTION_ERROR_OVERLAY_OPEN: {
-          return { ...state, isErrorOverlayOpen: true }
+          return {
+            ...state,
+            isErrorOverlayOpen: true,
+            errorOverlayTab: action.tab ?? state.errorOverlayTab,
+          }
         }
         case ACTION_ERROR_OVERLAY_CLOSE: {
           return { ...state, isErrorOverlayOpen: false }

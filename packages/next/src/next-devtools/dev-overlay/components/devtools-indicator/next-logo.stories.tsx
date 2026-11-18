@@ -116,6 +116,36 @@ export const WithSingleError: Story = {
   ],
 }
 
+export const WithInsight: Story = {
+  decorators: [
+    withDevOverlayContexts({
+      totalErrorCount: 1,
+      instantErrorCount: 1,
+    }),
+  ],
+}
+
+export const WithIssuesAndInsights: Story = {
+  decorators: [
+    withDevOverlayContexts({
+      totalErrorCount: 5,
+      instantErrorCount: 3,
+    }),
+  ],
+}
+
+export const WithHiddenIndicatorAndInsight: Story = {
+  decorators: [
+    withDevOverlayContexts({
+      totalErrorCount: 1,
+      instantErrorCount: 1,
+      state: {
+        disableDevIndicator: true,
+      },
+    }),
+  ],
+}
+
 export const WithMultipleErrors: Story = {
   decorators: [
     withDevOverlayContexts({

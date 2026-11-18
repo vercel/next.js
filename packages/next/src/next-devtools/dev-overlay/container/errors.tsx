@@ -55,6 +55,8 @@ interface ErrorsProps extends ErrorBaseProps {
   debugInfo: DebugInfo
   onClose: () => void
   hasVulnerabilityInsight: boolean
+  /** Tab requested by the badge or menu entry that opened the overlay. */
+  initialTab?: ErrorTab | null
 }
 
 function matchLinkType(text: string): string | null {
@@ -701,6 +703,7 @@ export function Errors({
   debugInfo,
   onClose,
   hasVulnerabilityInsight,
+  initialTab,
   ...props
 }: ErrorsProps) {
   const dialogResizerRef = useRef<HTMLDivElement | null>(null)
@@ -720,8 +723,8 @@ export function Errors({
 
   const insightCount = instantErrors.length + (hasVulnerabilityInsight ? 1 : 0)
 
-  const [activeTab, setActiveTab] = useState<ErrorTab>(() =>
-    normalErrors.length > 0 ? 'errors' : 'instant'
+  const [activeTab, setActiveTab] = useState<ErrorTab>(
+    () => initialTab ?? (normalErrors.length > 0 ? 'errors' : 'instant')
   )
   const [activeIndices, setActiveIndices] = useState<Record<ErrorTab, number>>({
     errors: 0,

@@ -4,6 +4,7 @@ import {
   assertNoDevToolsIndicator,
   toggleDevToolsIndicatorPopover,
   waitFor,
+  retry,
 } from 'next-test-utils'
 
 const COOLDOWN = 3000
@@ -24,6 +25,9 @@ describe('dev indicator - Hide DevTools Button', () => {
     await browser.elementByCss('[data-hide-dev-tools]').click()
 
     await assertNoDevToolsIndicator(browser)
+    expect(
+      await browser.elementByCss('.indicator-visibility-notice').text()
+    ).toContain('Indicator hidden')
 
     await next.stop()
     await next.start()
@@ -61,6 +65,62 @@ describe('dev indicator - Hide DevTools Button', () => {
     // Wait for `__NEXT_DEV_INDICATOR_COOLDOWN` to pass.
     await waitFor(COOLDOWN)
 
+    await browser.refresh()
+    await waitForDevToolsIndicator(browser)
+  })
+
+  it('should visibly record a shortcut and let it toggle visibility immediately after saving', async () => {
+    await next.stop()
+    await next.start()
+    const browser = await next.browser('/')
+    await toggleDevToolsIndicatorPopover(browser)
+    await browser.elementByCss('[data-preferences]').click()
+    expect(
+      await browser.elementByCss('.indicator-preference').text()
+    ).toContain('Shortcut')
+    await browser.elementByCss('.shortcut-recorder-button').click()
+    expect(
+      await browser.elementByCss('.shortcut-recorder-button').text()
+    ).toContain('Press shortcut')
+
+    async function pressShortcut() {
+      await browser.keydown('Control')
+      await browser.keydown('Shift')
+      await browser.keydown('h')
+      await browser.keyup('h')
+      await browser.keyup('Shift')
+      await browser.keyup('Control')
+    }
+
+    await pressShortcut()
+    await retry(async () => {
+      expect(
+        await browser.elementByCss('.shortcut-recorder-status-message').text()
+      ).toContain('Shortcut saved')
+    })
+
+    // Recording must end after saving, even while the recorder retains focus.
+    await pressShortcut()
+    await retry(async () => {
+      await assertNoDevToolsIndicator(browser)
+    })
+    expect(
+      await browser.elementByCss('.indicator-visibility-notice').text()
+    ).toContain('Indicator hidden')
+    await pressShortcut()
+    await waitForDevToolsIndicator(browser)
+    await retry(async () => {
+      expect(
+        await browser.hasElementByCssSelector('.indicator-visibility-notice')
+      ).toBe(false)
+    })
+
+    await toggleDevToolsIndicatorPopover(browser)
+    await browser.elementByCss('[data-preferences]').click()
+    await browser.elementByCss('[data-hide-dev-tools]').click()
+    await assertNoDevToolsIndicator(browser)
+    await browser.elementByCss('.indicator-visibility-notice button').click()
+    await waitForDevToolsIndicator(browser)
     await browser.refresh()
     await waitForDevToolsIndicator(browser)
   })
