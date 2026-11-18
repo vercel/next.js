@@ -1526,7 +1526,8 @@ export interface ExperimentalConfig {
   staticGenerationRetryCount?: number
 
   /**
-   * The amount of pages to export per worker during static generation.
+   * The maximum pages to export concurrently per worker. When unset, the legacy
+   * scheduler uses 8 and the adaptive scheduler can grow up to 64.
    */
   staticGenerationMaxConcurrency?: number
 
@@ -1534,6 +1535,20 @@ export interface ExperimentalConfig {
    * The minimum number of pages to be chunked into each export worker.
    */
   staticGenerationMinPagesPerWorker?: number
+
+  /**
+   * Opt into the adaptive static generation scheduler. Pages start rendering
+   * as soon as a render slot frees up instead of in fixed groups of
+   * `staticGenerationMaxConcurrency`.
+   */
+  staticGenerationAdaptive?: boolean
+
+  /**
+   * With `staticGenerationAdaptive`, the number of pages sent to a worker at a
+   * time. Idle workers pull the next chunk, so smaller chunks balance better
+   * and larger chunks cost less IPC.
+   */
+  staticGenerationChunkSize?: number
 
   /**
    * Allows previously fetched data to be re-used when editing server components.
@@ -2548,7 +2563,9 @@ export const defaultConfig = Object.freeze({
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
     serverComponentsHmrCancellation: false,
-    staticGenerationMaxConcurrency: 8,
+    // Resolve scheduler-specific defaults at the consumer so an explicit 8
+    // remains distinguishable from an unset limit.
+    staticGenerationMaxConcurrency: undefined,
     staticGenerationMinPagesPerWorker: 25,
     transitionIndicator: false,
     gestureTransition: false,

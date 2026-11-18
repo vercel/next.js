@@ -1,4 +1,11 @@
-import { nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
+import { join } from 'path'
+
+// Windows reports SIGKILL as exit code 1 rather than a signal.
+const workerKillMessage =
+  process.platform === 'win32'
+    ? 'Next.js build worker exited with code: 1 and signal: null'
+    : 'Next.js build worker exited with code: null and signal: SIGKILL'
 
 describe('worker-restart', () => {
   describe('timeout', () => {
@@ -47,10 +54,86 @@ describe('worker-restart', () => {
     })
 
     it('should fail the build if a worker process is killed', async () => {
-      const { cliOutput } = await next.build()
-      expect(cliOutput).toContain(
-        'Next.js build worker exited with code: null and signal: SIGKILL'
-      )
+      const { cliOutput, exitCode } = await next.build()
+      expect(exitCode).toBe(1)
+      expect(cliOutput).toContain(workerKillMessage)
+    })
+  })
+
+  describe('with experimental.staticGenerationAdaptive', () => {
+    describe('timeout', () => {
+      const { next } = nextTestSetup({
+        // The fixture's own next.config.js is replaced by `nextConfig`.
+        files: { app: new FileRef(join(__dirname, 'fixtures/timeout/app')) },
+        skipStart: true,
+        nextConfig: {
+          staticPageGenerationTimeout: 10,
+          experimental: { staticGenerationAdaptive: true },
+        },
+      })
+
+      it('should exhaust all restart attempts without worker errors', async () => {
+        const { cliOutput } = await next.build()
+        expect(cliOutput).toContain(
+          'Failed to build /bad-page/page: /bad-page (attempt 1 of 3) because it took more than 10 seconds. Retrying again shortly.'
+        )
+        expect(cliOutput).toContain(
+          'Failed to build /bad-page/page: /bad-page after 3 attempts'
+        )
+        expect(cliOutput).not.toContain(
+          'Error: Farm is ended, no more calls can be done to it'
+        )
+      })
+    })
+
+    describe('retries', () => {
+      const { next } = nextTestSetup({
+        // The fixture's own next.config.js is replaced by `nextConfig`.
+        files: { app: new FileRef(join(__dirname, 'fixtures/retries/app')) },
+        skipStart: true,
+        nextConfig: {
+          experimental: {
+            staticGenerationRetryCount: 3,
+            staticGenerationAdaptive: true,
+          },
+        },
+      })
+
+      it('should support configurable static generation retries', async () => {
+        const { cliOutput } = await next.build()
+        expect(cliOutput).toContain('This page is bad!')
+        expect(cliOutput).toContain(
+          'Failed to build /page: / (attempt 2 of 3). Retrying again shortly.'
+        )
+        expect(cliOutput).toContain(
+          'Failed to build /page: / after 3 attempts.'
+        )
+      })
+    })
+
+    describe('worker-kill', () => {
+      const { next } = nextTestSetup({
+        // The fixture's own next.config.js is replaced by `nextConfig`.
+        files: {
+          app: new FileRef(join(__dirname, 'fixtures/worker-kill/app')),
+        },
+        skipStart: true,
+        nextConfig: {
+          experimental: { staticGenerationAdaptive: true, cpus: 1 },
+        },
+      })
+
+      it('should retry a page that kills its worker, then fail the build', async () => {
+        const { cliOutput, exitCode } = await next.build()
+        expect(exitCode).not.toBe(0)
+        expect(cliOutput).toContain(workerKillMessage)
+        expect(cliOutput).toContain(
+          'Static generation failed: rendering "/bad-page" crashed the build worker 3 times.'
+        )
+        expect(cliOutput.split(workerKillMessage)).toHaveLength(4)
+        expect(cliOutput.split('worker-kill page stdout')).toHaveLength(4)
+        expect(cliOutput.split('worker-kill page stderr')).toHaveLength(4)
+      })
     })
   })
 })

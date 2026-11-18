@@ -23,6 +23,7 @@ import { makeRe } from 'next/dist/compiled/picomatch'
 import { existsSync, promises as fs } from 'fs'
 import os from 'os'
 import { getNextBuildDebuggerPortOffset, Worker } from '../lib/worker'
+import { RECOVERABLE_EXIT_CODES } from '../export/adaptive/types'
 import { defaultConfig, getNextConfigRuntime } from '../server/config-shared'
 import devalue from 'next/dist/compiled/devalue'
 import findUp from 'next/dist/compiled/find-up'
@@ -1026,6 +1027,8 @@ const staticWorkerExposedMethods = [
   'isPageStatic',
   'getDefinedNamedExports',
   'exportPages',
+  'exportPagesAdaptive',
+  'getStaticWorkerMemoryUsage',
 ] as const
 export type StaticWorker = typeof import('./worker') & Worker
 export function createStaticWorker(
@@ -1055,6 +1058,28 @@ export function createStaticWorker(
     isolatedMemory: true,
     enableWorkerThreads: config.experimental.workerThreads,
     exposedMethods: staticWorkerExposedMethods,
+    ...(config.experimental.staticGenerationAdaptive
+      ? {
+          // Pin each adaptive scheduler slot to one worker, so a slot's
+          // follow-up steps reach the worker holding its in-flight pages.
+          computeWorkerKey: (method: string, ...args: unknown[]) =>
+            method === 'exportPagesAdaptive' ||
+            method === 'getStaticWorkerMemoryUsage'
+              ? `static-generation-slot-${(args[0] as { slot: number }).slot}`
+              : null,
+          // A crashed or recycled worker is restarted and its pages retried,
+          // instead of failing the build.
+          recoverFromWorkerExit: {
+            // Windows reports SIGKILL as code 1 with no signal, just like
+            // process.exit(1). Only adaptive mode retries these ambiguous
+            // exits, with the same bounded retries as other worker crashes.
+            recoverableExitCodes:
+              process.platform === 'win32'
+                ? new Set([...RECOVERABLE_EXIT_CODES, 1])
+                : RECOVERABLE_EXIT_CODES,
+          },
+        }
+      : undefined),
     forkOptions: {
       env: {
         ...(process.env.NEXT_CPU_PROF
