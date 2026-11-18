@@ -44,6 +44,23 @@ describe('Image Legacy Rendering', () => {
     expect(img.attr('srcset')).toContain('test.png')
   })
 
+  it.each([
+    '/test.svg#icon',
+    '/test.svg#icon?theme=dark',
+    '/test.svg?v=1#icon',
+    'https://example.com/test.svg#icon',
+  ])('should preserve SVG fragments: %s', (src) => {
+    const element = React.createElement(Image, {
+      src,
+      width: 100,
+      height: 100,
+      loading: 'eager',
+    })
+    const $ = cheerio.load(ReactDOM.renderToString(element))
+    expect($('img[data-nimg]').attr('src')).toBe(src)
+    expect($('img[data-nimg]').attr('srcset')).not.toContain('/_next/image')
+  })
+
   it('should only render noscript element when lazy loading', async () => {
     const element = React.createElement(Image, {
       src: '/test.png',

@@ -639,6 +639,48 @@ describe('getImageProps()', () => {
       ['src', 'https://example.com/test.svg?v=1'],
     ])
   })
+  it.each([
+    '/test.svg#icon',
+    '/test.svg#icon?theme=dark',
+    '/test.svg?v=1#icon',
+    'https://example.com/test.svg#icon',
+    'https://example.com/test.svg#icon?theme=dark',
+    'https://example.com/test.svg?v=1#icon',
+  ])('should serve SVG fragments without optimization: %s', (src) => {
+    const { props } = getImageProps({
+      src,
+      alt: 'icon',
+      width: 100,
+      height: 100,
+    })
+    expect(props.src).toBe(src)
+    expect(props.srcSet).toBeUndefined()
+  })
+
+  it.each([
+    ['/test.svg#icon', '/test.svg?dpl=dpl_123#icon'],
+    ['/test.svg?v=1#icon', '/test.svg?v=1&dpl=dpl_123#icon'],
+    ['/test.svg#icon?theme=dark', '/test.svg?dpl=dpl_123#icon?theme=dark'],
+    ['/test.svg?dpl=existing#icon', '/test.svg?dpl=existing#icon'],
+  ])(
+    'should preserve SVG fragments with deployment IDs: %s',
+    (src, expected) => {
+      try {
+        deploymentId = 'dpl_123'
+        const { props } = getImageProps({
+          src,
+          alt: 'icon',
+          width: 100,
+          height: 100,
+        })
+        expect(props.src).toBe(expected)
+        expect(props.srcSet).toBeUndefined()
+      } finally {
+        deploymentId = undefined
+      }
+    }
+  )
+
   it('should add query string for imported local image when deployment id is defined', async () => {
     try {
       deploymentId = 'dpl_123'
