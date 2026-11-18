@@ -43,6 +43,7 @@ async function main() {
   require('next/dist/server/node-environment')
 
   const handlers: [RegExp, string][] = [
+    [/^\/api\/app\/[^/]+\/cached$/, 'app/api/app/[param]/cached/route.js'],
     [/^\/api\/app\/param\/data$/, 'app/api/app/[param]/data/route.js'],
     [/^\/api\/app\/param\/error$/, 'app/api/app/[param]/error/route.js'],
     [
@@ -54,6 +55,7 @@ async function main() {
       'app/api/app/[param]/stream-error/route.js',
     ],
     [/^\/api\/app\/param\/status$/, 'app/api/app/[param]/status/route.js'],
+    [/^\/app\/[^/]+\/cached$/, 'app/app/[param]/cached/page.js'],
     [/^\/app\/param\/loading\/error$/, 'app/app/[param]/loading/error/page.js'],
     [/^\/app\/param\/loading\/page1$/, 'app/app/[param]/loading/page1/page.js'],
     [/^\/app\/param\/loading\/page2$/, 'app/app/[param]/loading/page2/page.js'],
