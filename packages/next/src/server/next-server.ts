@@ -205,6 +205,8 @@ export default class NextNodeServer extends BaseServer<
   protected internalWaitUntil: WaitUntil | undefined
   private isDev: boolean
   private sriEnabled: boolean
+  private captureFirstResponse = false
+  private firstResponse: Promise<void> | undefined
 
   constructor(options: Options) {
     // Initialize super class
@@ -253,7 +255,8 @@ export default class NextNodeServer extends BaseServer<
       this.nextConfig.experimental.preloadEntriesOnStart
     ) {
       // Preloading may join a failing registration started by a request.
-      void this.unstable_preloadEntries().catch((err) => {
+      this.captureFirstResponse = true
+      void this.preloadEntries(true).catch((err) => {
         Log.error('Failed to preload entries:', err)
       })
     }
@@ -314,7 +317,11 @@ export default class NextNodeServer extends BaseServer<
     installProcessErrorHandlers(shouldRemoveUncaughtErrorAndRejectionListeners)
   }
 
-  public async unstable_preloadEntries(): Promise<void> {
+  public unstable_preloadEntries(): Promise<void> {
+    return this.preloadEntries()
+  }
+
+  private async preloadEntries(deferToFirstResponse = false): Promise<void> {
     // Ensure prepare process will be finished before preloading entries.
     await this.prepare()
 
@@ -324,6 +331,9 @@ export default class NextNodeServer extends BaseServer<
     await this.loadCustomCacheHandlers()
 
     for (const page of Object.keys(pagesManifest || {})) {
+      // Allow pending I/O before loading each entry.
+      await new Promise<void>((resolve) => setImmediate(resolve))
+      if (deferToFirstResponse) await this.firstResponse
       try {
         await loadComponents({
           distDir: this.distDir,
@@ -339,6 +349,8 @@ export default class NextNodeServer extends BaseServer<
     }
 
     for (const page of Object.keys(appPathsManifest || {})) {
+      await new Promise<void>((resolve) => setImmediate(resolve))
+      if (deferToFirstResponse) await this.firstResponse
       try {
         const { ComponentMod } = await loadComponents<
           AppPageModule | AppRouteModule
@@ -1306,8 +1318,18 @@ export default class NextNodeServer extends BaseServer<
 
     const handler = super.getRequestHandler()
 
-    return (req, res, parsedUrl) =>
-      handler(this.normalizeReq(req), this.normalizeRes(res), parsedUrl)
+    return (req, res, parsedUrl) => {
+      const normalizedRes = this.normalizeRes(res)
+      if (this.captureFirstResponse) {
+        this.captureFirstResponse = false
+        const response = normalizedRes.originalResponse
+        this.firstResponse = new Promise<void>((resolve) => {
+          if (response.destroyed || response.writableFinished) resolve()
+          else response.once('close', resolve)
+        })
+      }
+      return handler(this.normalizeReq(req), normalizedRes, parsedUrl)
+    }
   }
 
   public async revalidate({
