@@ -510,6 +510,27 @@ describe('fallback-shells', () => {
   })
 
   if (isNextStart) {
+    it('resumes a placeholder URL for RSC and form requests', async () => {
+      const pathname = '/placeholder-resume/[slug]'
+
+      const rscResponse = await next.fetch(`${pathname}?_rsc`, {
+        headers: { RSC: '1' },
+      })
+      expect(rscResponse.status).toBe(200)
+      expect(rscResponse.headers.get('content-type')).toContain(
+        'text/x-component'
+      )
+      expect(await rscResponse.text()).toContain('placeholder-resume')
+
+      const formResponse = await next.fetch(pathname, {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: 'value=test',
+      })
+      expect(formResponse.status).toBe(200)
+      expect(await formResponse.text()).toContain('placeholder-resume')
+    })
+
     it('should not log a HANGING_PROMISE_REJECTION error', async () => {
       expect(next.cliOutput).not.toContain('HANGING_PROMISE_REJECTION')
     })
