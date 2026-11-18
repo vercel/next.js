@@ -216,12 +216,16 @@ async function fetchServerAction(
     }
   } catch {}
 
-  const redirectLocation = location
+  let redirectLocation = location
     ? assignLocation(
         location,
         new URL(state.canonicalUrl, window.location.href)
       )
     : undefined
+
+  if (!redirectLocation && res.redirected && res.url) {
+    redirectLocation = new URL(res.url)
+  }
 
   const contentType = res.headers.get('content-type')
   const isRscResponse = !!(
