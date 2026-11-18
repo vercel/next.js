@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net"
 	"net/http"
 	"net/url"
 	"sort"
@@ -19,6 +20,16 @@ type RequestOptions struct {
 	// that differ only in case are combined. Hop-by-hop headers, such as
 	// Connection and the headers it lists, are ignored.
 	Headers http.Header
+}
+
+// Routing configuration, replaced when the proxy is compiled.
+const nextGoBasePath = "__NEXT_GO_BASE_PATH__"
+const nextGoDefaultLocale = "__NEXT_GO_DEFAULT_LOCALE__"
+const nextGoSkipProxyURLNormalize = false
+
+// nextGoDomainLocales maps i18n domain hostnames to their default locale.
+var nextGoDomainLocales = map[string]string{
+	// __NEXT_GO_DOMAIN_LOCALES__
 }
 
 // nextGoEmptyOverride stands in for an empty override list, which Next.js
@@ -171,15 +182,144 @@ func nextGoForwardedProto(value string) string {
 	return "http"
 }
 
+// nextGoUnreserved reports whether c is an RFC 3986 unreserved character.
+func nextGoUnreserved(c byte) bool {
+	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9' ||
+		c == '-' || c == '.' || c == '_' || c == '~'
+}
+
+func nextGoUnhex(c byte) (byte, bool) {
+	switch {
+	case '0' <= c && c <= '9':
+		return c - '0', true
+	case 'a' <= c && c <= 'f':
+		return c - 'a' + 10, true
+	case 'A' <= c && c <= 'F':
+		return c - 'A' + 10, true
+	}
+	return 0, false
+}
+
+// nextGoDecodeUnreserved decodes percent-encoded unreserved characters, which
+// are equivalent to their literal form (RFC 3986, section 6.2.2.2). Other
+// escapes, such as encoded separators, keep their meaning and are preserved.
+func nextGoDecodeUnreserved(escaped string) string {
+	if !strings.Contains(escaped, "%") {
+		return escaped
+	}
+	var b strings.Builder
+	b.Grow(len(escaped))
+	for i := 0; i < len(escaped); i++ {
+		if escaped[i] == '%' && i+2 < len(escaped) {
+			hi, ok1 := nextGoUnhex(escaped[i+1])
+			lo, ok2 := nextGoUnhex(escaped[i+2])
+			if c := hi<<4 | lo; ok1 && ok2 && nextGoUnreserved(c) {
+				b.WriteByte(c)
+				i += 2
+				continue
+			}
+		}
+		b.WriteByte(escaped[i])
+	}
+	return b.String()
+}
+
+// nextGoHostDefaultLocale returns the default locale for a request host,
+// preferring a matching i18n domain over the global default locale.
+func nextGoHostDefaultLocale(host string) string {
+	if len(nextGoDomainLocales) > 0 {
+		hostname := host
+		if h, _, err := net.SplitHostPort(host); err == nil {
+			hostname = h
+		}
+		if locale, ok := nextGoDomainLocales[strings.ToLower(hostname)]; ok {
+			return locale
+		}
+	}
+	return nextGoDefaultLocale
+}
+
+// nextGoPagePath returns the escaped page path that an escaped request path
+// addresses. RSC payloads, segment prefetches and Pages data requests are
+// alternative transports for a page and resolve to it downstream, so Proxy
+// must authorize them as the page itself.
+func nextGoPagePath(escaped string, host string) string {
+	path := nextGoDecodeUnreserved(escaped)
+	path = strings.TrimSuffix(path, ".rsc")
+	if nextGoSkipProxyURLNormalize {
+		return path
+	}
+
+	// Segment prefetches: <page>.segments/<segment path>.segment(.rsc)
+	if i := strings.LastIndex(path, ".segments/"); i > 0 && strings.HasSuffix(path, ".segment") {
+		path = path[:i]
+	}
+
+	// Pages data requests: <basePath>/_next/data/<buildId>/<page>.json
+	pathname, hasBasePath := path, false
+	if nextGoBasePath != "" && (path == nextGoBasePath || strings.HasPrefix(path, nextGoBasePath+"/")) {
+		pathname, hasBasePath = path[len(nextGoBasePath):], true
+	}
+	if !strings.HasPrefix(pathname, "/_next/data/") {
+		return path
+	}
+	// Any build ID resolves downstream, so do not require the current one.
+	pathname = strings.TrimPrefix(pathname, "/_next/data/")
+	if i := strings.IndexByte(pathname, '/'); i >= 0 {
+		pathname = pathname[i:]
+	} else {
+		pathname = ""
+	}
+	pathname = strings.TrimSuffix(pathname, ".json")
+	// Invert normalizePagePath: / is emitted as /index and pages under
+	// /index as /index/index. Other paths, including /index/<dynamic
+	// segment>, are emitted unchanged.
+	if pathname == "" || pathname == "/" || pathname == "/index" {
+		pathname = "/"
+	} else if strings.HasPrefix(pathname, "/index/index") {
+		if rest := pathname[len("/index"):]; rest == "/index" || strings.HasPrefix(rest, "/index/") {
+			pathname = rest
+		}
+	}
+	// Data URLs always carry the locale. Like the JavaScript adapter, omit the
+	// default locale so the path matches the page URL clients request.
+	if locale := nextGoHostDefaultLocale(host); locale != "" {
+		first, rest, _ := strings.Cut(pathname[1:], "/")
+		if strings.EqualFold(first, locale) {
+			pathname = "/" + rest
+		}
+	}
+	if hasBasePath {
+		if pathname == "/" {
+			return nextGoBasePath
+		}
+		return nextGoBasePath + pathname
+	}
+	return pathname
+}
+
+// nextGoNormalizeRequestURL rewrites the request URL to the page it addresses.
+func nextGoNormalizeRequestURL(r *http.Request) {
+	escaped := r.URL.EscapedPath()
+	page := nextGoPagePath(escaped, r.Host)
+	if page == nextGoDecodeUnreserved(escaped) {
+		return
+	}
+	path, err := url.PathUnescape(page)
+	if err != nil {
+		return
+	}
+	r.URL.Path = path
+	r.URL.RawPath = page
+	r.RequestURI = r.URL.RequestURI()
+}
+
 func nextGoHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Adapter builds invoke Go directly, bypassing the JavaScript adapter's
-		// RSC URL normalization. Keep proxy authorization on the page identity.
-		if strings.HasSuffix(r.URL.Path, ".rsc") {
-			r.URL.Path = strings.TrimSuffix(r.URL.Path, ".rsc")
-			r.URL.RawPath = strings.TrimSuffix(r.URL.RawPath, ".rsc")
-			r.RequestURI = r.URL.RequestURI()
-		}
+		// Adapter builds invoke Go directly with the original request URL,
+		// bypassing the JavaScript adapter's URL normalization. Keep proxy
+		// authorization on the page identity that the request resolves to.
+		nextGoNormalizeRequestURL(r)
 		response := &nextGoProxyWriter{ResponseWriter: w, request: r}
 		// Next.js resolves destinations against its own request origin, which
 		// differs from the client's Host. Adapter builds resolve against r.Host,

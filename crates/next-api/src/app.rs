@@ -1179,6 +1179,74 @@ pub(crate) fn go_proxy_endpoint(
     )
 }
 
+/// Replaces a template placeholder, failing if the template no longer contains it.
+fn replace_go_placeholder(source: String, placeholder: &str, value: &str) -> Result<String> {
+    ensure!(
+        source.contains(placeholder),
+        "Go proxy template is missing placeholder {placeholder}"
+    );
+    Ok(source.replacen(placeholder, value, 1))
+}
+
+/// The Go proxy handler normalizes transport URLs (RSC, segment prefetch and
+/// Pages data requests) to page URLs itself, because adapter builds invoke it
+/// with the original request URL.
+async fn go_proxy_handler_source(
+    next_config: Vc<NextConfig>,
+    base_path: Option<&str>,
+) -> Result<String> {
+    let i18n_config = next_config.i18n().await?;
+    let i18n = Option::as_ref(&*i18n_config);
+    let skip_proxy_url_normalize = *next_config.skip_proxy_url_normalize().await?;
+    let default_locale = i18n.map(|i18n| i18n.default_locale.as_str()).unwrap_or("");
+    // The first domain for a hostname wins, matching detectDomainLocale.
+    let mut domain_locales = BTreeMap::new();
+    for domain in i18n
+        .and_then(|i18n| i18n.domains.as_ref())
+        .into_iter()
+        .flatten()
+    {
+        let hostname = domain
+            .domain
+            .split(':')
+            .next()
+            .unwrap_or_default()
+            .to_lowercase();
+        domain_locales
+            .entry(hostname)
+            .or_insert_with(|| domain.default_locale.clone());
+    }
+    let domain_locales = domain_locales
+        .iter()
+        .map(|(hostname, locale)| -> Result<String> {
+            Ok(format!(
+                "\t{}: {},",
+                serde_json::to_string(hostname)?,
+                serde_json::to_string(locale)?
+            ))
+        })
+        .collect::<Result<Vec<_>>>()?
+        .join("\n");
+
+    let source = include_str!("templates/go_proxy_handler.go").to_owned();
+    let source = replace_go_placeholder(
+        source,
+        "\"__NEXT_GO_BASE_PATH__\"",
+        &serde_json::to_string(base_path.unwrap_or(""))?,
+    )?;
+    let source = replace_go_placeholder(
+        source,
+        "\"__NEXT_GO_DEFAULT_LOCALE__\"",
+        &serde_json::to_string(default_locale)?,
+    )?;
+    let source = replace_go_placeholder(
+        source,
+        "const nextGoSkipProxyURLNormalize = false",
+        &format!("const nextGoSkipProxyURLNormalize = {skip_proxy_url_normalize}"),
+    )?;
+    replace_go_placeholder(source, "\t// __NEXT_GO_DOMAIN_LOCALES__", &domain_locales)
+}
+
 async fn is_adapter_build(project: ResolvedVc<Project>) -> Result<bool> {
     Ok(project.next_mode().await?.is_production()
         && *project.next_config().is_using_adapter().await?)
@@ -1305,7 +1373,7 @@ impl Endpoint for GoEndpoint {
         let base_path = project.next_config().base_path().await?;
         let route_pattern = format!("{}{pathname}", base_path.as_deref().unwrap_or(""));
         let handler = if is_proxy {
-            include_str!("templates/go_proxy_handler.go").to_owned()
+            go_proxy_handler_source(project.next_config(), base_path.as_deref()).await?
         } else {
             include_str!("templates/go_route_handler.go").replace(
                 "\"__NEXT_GO_ROUTE_PATTERN__\"",

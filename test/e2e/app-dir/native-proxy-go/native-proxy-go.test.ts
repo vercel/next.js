@@ -9,6 +9,56 @@ import { request } from 'http'
 import cheerio from 'cheerio'
 import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 
+type NextInstance = ReturnType<typeof nextTestSetup>['next']
+
+/**
+ * Rebuilds with an adapter, then runs the emitted Go middleware executable
+ * the way a hosting platform does: directly, with original request URLs.
+ */
+async function withAdapterProxy(
+  next: NextInstance,
+  callback: (origin: string, buildId: string) => Promise<void>
+) {
+  await next.stop()
+  const config = await next.readFile('next.config.ts')
+  await next.patchFile(
+    'next.config.ts',
+    config.replace(
+      'experimental: {',
+      `adapterPath: ${JSON.stringify(join(next.testDir, 'capture-adapter.mjs'))}, experimental: {`
+    )
+  )
+  await next.build()
+  const output = JSON.parse(await next.readFile('go-proxy-output.json'))
+  const buildId = (await next.readFile('.next/BUILD_ID')).trim()
+  const directory = await fs.mkdtemp(join(tmpdir(), 'go-proxy-function-'))
+  const binary = join(
+    directory,
+    process.platform === 'win32' ? 'user-server.exe' : 'user-server'
+  )
+  await fs.copyFile(output.filePath, binary)
+  await fs.chmod(binary, 0o755)
+  const port = await findPort()
+  const child = spawn(binary, [], {
+    cwd: directory,
+    env: { ...process.env, PORT: String(port) },
+    stdio: 'ignore',
+  })
+  const origin = `http://127.0.0.1:${port}`
+  try {
+    await retry(async () => {
+      const response = await fetch(`${origin}/native-proxy/inspect`)
+      expect(response.headers.get('x-middleware-next')).toBe('1')
+    })
+    await callback(origin, buildId)
+  } finally {
+    const exited = once(child, 'exit')
+    child.kill()
+    await exited
+    await fs.rm(directory, { recursive: true, force: true })
+  }
+}
+
 // Hosted tests require the Go proxy adapter and builder releases.
 // @force-gate turbopack && !deploy
 describe('native-proxy-go', () => {
@@ -134,14 +184,26 @@ describe('native-proxy-go', () => {
     expect(await response.text()).toBe('blocked by Go\n')
   })
 
-  it.each(['/native-proxy/secure', '/native-proxy/secure.rsc'])(
-    'protects the secure page through %s',
-    async (path) => {
-      const response = await next.fetch(path)
-      expect(response.status).toBe(403)
-      expect(await response.text()).toBe('protected\n')
-    }
-  )
+  it.each([
+    '/native-proxy/secure',
+    '/native-proxy/secure.rsc',
+    '/native-proxy/secure.segments/_tree.segment.rsc',
+    '/native-proxy/pages-secure',
+  ])('protects the secure page through %s', async (path) => {
+    const response = await next.fetch(path)
+    expect(response.status).toBe(403)
+    expect(await response.text()).toBe('protected\n')
+  })
+
+  // The build ID and Pages data endpoint require a local production build.
+  // @force-gate start
+  it('protects the secure Pages data endpoint', async () => {
+    const response = await next.fetch(
+      `/_next/data/${next.buildId}/native-proxy/pages-secure.json`
+    )
+    expect(response.status).toBe(403)
+    expect(await response.text()).toBe('protected\n')
+  })
 
   it('serves compressed terminal responses', async () => {
     // Middleware response processing strips encoded-body headers, so the body
@@ -414,84 +476,70 @@ describe('native-proxy-go', () => {
   // Artifact inspection and executing a build-host binary are self-hosted checks.
   if (isNextStart) {
     it('emits a Go middleware output whose PORT server runs without Next.js', async () => {
-      await next.stop()
-      const config = await next.readFile('next.config.ts')
-      await next.patchFile(
-        'next.config.ts',
-        config.replace(
-          'experimental: {',
-          `adapterPath: ${JSON.stringify(join(next.testDir, 'capture-adapter.mjs'))}, experimental: {`
-        )
-      )
-      await next.build()
-      // Like Node.js proxies, Go proxies register no Edge functions.
-      const middlewareManifest = JSON.parse(
-        await next.readFile('.next/server/middleware/middleware-manifest.json')
-      )
-      expect(middlewareManifest.middleware).toEqual({})
-      expect(middlewareManifest.functions).toEqual({})
-      const output = JSON.parse(await next.readFile('go-proxy-output.json'))
-      expect(output).toMatchObject({
-        type: 'MIDDLEWARE',
-        runtime: 'go',
-        id: '/_middleware',
-        pathname: '/_middleware',
-        sourcePage: '/proxy',
-      })
-      expect(output.config.matchers).toEqual([
-        expect.objectContaining({ source: '/:path*' }),
-      ])
-      const appPages = JSON.parse(
-        await next.readFile('go-app-pages-output.json')
-      )
-      expect(appPages).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ pathname: '/native-proxy/secure.rsc' }),
-        ])
-      )
-      const directory = await fs.mkdtemp(join(tmpdir(), 'go-proxy-function-'))
-      const binary = join(
-        directory,
-        process.platform === 'win32' ? 'user-server.exe' : 'user-server'
-      )
-      await fs.copyFile(output.filePath, binary)
-      await fs.chmod(binary, 0o755)
-      const port = await findPort()
-      const child = spawn(binary, [], {
-        cwd: directory,
-        env: { ...process.env, PORT: String(port) },
-        stdio: 'ignore',
-      })
-      try {
-        await retry(async () => {
-          const response = await fetch(
-            `http://127.0.0.1:${port}/native-proxy/inspect`
+      await withAdapterProxy(next, async (origin, buildId) => {
+        // Like Node.js proxies, Go proxies register no Edge functions.
+        const middlewareManifest = JSON.parse(
+          await next.readFile(
+            '.next/server/middleware/middleware-manifest.json'
           )
-          expect(response.headers.get('x-middleware-next')).toBe('1')
+        )
+        expect(middlewareManifest.middleware).toEqual({})
+        expect(middlewareManifest.functions).toEqual({})
+        const output = JSON.parse(await next.readFile('go-proxy-output.json'))
+        expect(output).toMatchObject({
+          type: 'MIDDLEWARE',
+          runtime: 'go',
+          id: '/_middleware',
+          pathname: '/_middleware',
+          sourcePage: '/proxy',
         })
-        const rewrite = await fetch(
-          `http://127.0.0.1:${port}/native-proxy/rewrite`
+        expect(output.config.matchers).toEqual([
+          expect.objectContaining({ source: '/:path*' }),
+        ])
+        const appPages = JSON.parse(
+          await next.readFile('go-app-pages-output.json')
         )
+        expect(appPages).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ pathname: '/native-proxy/secure.rsc' }),
+          ])
+        )
+        const rewrite = await fetch(`${origin}/native-proxy/rewrite`)
         expect(rewrite.headers.get('x-middleware-rewrite')).toBe(
-          `http://127.0.0.1:${port}/api/proxy-query?rewritten=1`
+          `${origin}/api/proxy-query?rewritten=1`
         )
-        const body = await fetch(`http://127.0.0.1:${port}/native-proxy/body`, {
+        const body = await fetch(`${origin}/native-proxy/body`, {
           method: 'POST',
           body: 'hosted body',
         })
         expect(body.headers.get('x-go-body')).toBe('hosted body')
+        // Platforms invoke the executable with original request URLs, so
+        // every transport form of a page must be authorized as that page.
         for (const path of [
           '/native-proxy/secure',
           '/native-proxy/secure.rsc',
+          '/native-proxy/secure.segments/_tree.segment.rsc',
+          '/native-proxy/pages-secure',
+          `/_next/data/${buildId}/native-proxy/pages-secure.json`,
+          `/_next/data/${buildId}/native-proxy/pages-secure`,
+          '/_next/data/other-build/native-proxy/pages-secure.json',
+          `/%5Fnext/data/${buildId}/native-proxy/pages-secure%2Ejson`,
         ]) {
-          const response = await fetch(`http://127.0.0.1:${port}${path}`)
-          expect(response.status).toBe(403)
+          const response = await fetch(`${origin}${path}`)
+          expect({ path, status: response.status }).toEqual({
+            path,
+            status: 403,
+          })
           expect(response.headers.get('x-middleware-next')).toBeNull()
         }
+        const data = await fetch(
+          `${origin}/_next/data/${buildId}/native-proxy/inspect.json?from=data`
+        )
+        expect(data.headers.get('x-go-url')).toBe(
+          '/native-proxy/inspect?from=data'
+        )
         for (const path of ['cookie-state', 'cookie-rewrite']) {
-          const response = await fetch(
-            `http://127.0.0.1:${port}/native-proxy/${path}`
-          )
+          const response = await fetch(`${origin}/native-proxy/${path}`)
           const cookies = response.headers.getSetCookie()
           expect(cookies).toHaveLength(3)
           expect(response.headers.get('x-middleware-set-cookie')).toBe(
@@ -503,7 +551,7 @@ describe('native-proxy-go', () => {
           ['relative-rewrite', 'x-middleware-rewrite'],
         ]) {
           for (const destination of ['?new=1', './target?new=1', '#section']) {
-            const url = new URL(`http://127.0.0.1:${port}/native-proxy/a%2Fb`)
+            const url = new URL(`${origin}/native-proxy/a%2Fb`)
             url.search = new URLSearchParams({
               old: '1',
               [parameter]: destination,
@@ -519,17 +567,11 @@ describe('native-proxy-go', () => {
             )
           }
         }
-        const forged = await fetch(
-          `http://127.0.0.1:${port}/native-proxy/inspect`,
-          { headers: { 'x-next-internal-test': 'internal value' } }
-        )
+        const forged = await fetch(`${origin}/native-proxy/inspect`, {
+          headers: { 'x-next-internal-test': 'internal value' },
+        })
         expect(forged.headers.get('x-private-token')).toBe('false')
-      } finally {
-        const exited = once(child, 'exit')
-        child.kill()
-        await exited
-        await fs.rm(directory, { recursive: true, force: true })
-      }
+      })
     })
   }
   it('identifies conflicting Proxy files', async () => {
@@ -625,6 +667,27 @@ describe.each([false, true])(
       expect(response.headers.get('x-go-url')).toBe(
         skipProxyUrlNormalize ? path : '/url-normalization?from=data'
       )
+    })
+
+    // Executing a build-host binary is a self-hosted check.
+    // @force-gate start
+    it('normalizes locale-prefixed data-request URLs in adapter builds', async () => {
+      await withAdapterProxy(next, async (origin, buildId) => {
+        for (const [locale, expected] of [
+          ['en', '/url-normalization?from=data'],
+          ['fr', '/fr/url-normalization?from=data'],
+        ]) {
+          const path = `/_next/data/${buildId}/${locale}/url-normalization.json?from=data`
+          const response = await fetch(`${origin}${path}`)
+          expect(response.headers.get('x-go-url')).toBe(
+            skipProxyUrlNormalize ? path : expected
+          )
+        }
+        const data = await fetch(
+          `${origin}/_next/data/${buildId}/en/native-proxy/pages-secure.json`
+        )
+        expect(data.status).toBe(skipProxyUrlNormalize ? 200 : 403)
+      })
     })
   }
 )
