@@ -28,6 +28,7 @@ mod table;
 
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
+use rustc_hash::FxHashMap;
 use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
@@ -111,9 +112,7 @@ enum ExportNamesScope {
 /// Complete per-module export information for one computation scope.
 /// Group members are code-generated together, so this result uses ordinary storage.
 #[turbo_tasks::value(transparent)]
-struct ComputedExportNames(
-    rustc_hash::FxHashMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, ExportInfo>,
-);
+struct ComputedExportNames(FxHashMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, ExportInfo>);
 
 #[turbo_tasks::function]
 async fn compute_export_names(
@@ -141,7 +140,7 @@ async fn compute_export_names(
             (group.entry, modules)
         }
     };
-    let mut infos = rustc_hash::FxHashMap::default();
+    let mut infos = FxHashMap::default();
     let mut exports_to_name = Vec::new();
     let mut eligible_modules = Vec::new();
     for (index, module, exposure) in modules {
@@ -229,7 +228,7 @@ async fn compute_export_names(
     let mut names = eligible_modules
         .into_iter()
         .map(|module| (module, Vec::new()))
-        .collect::<rustc_hash::FxHashMap<_, _>>();
+        .collect::<FxHashMap<_, _>>();
     for (module, name, key) in exports_to_name {
         // Standalone maps omit unchanged keys. Flat maps explicitly cover every export,
         // since producers and metadata also use them to distinguish shared bindings.
