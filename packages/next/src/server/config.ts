@@ -688,6 +688,12 @@ function assignDefaultsAndValidate(
     }
   }
 
+  // Use the Rust port of the React Compiler by default on canary releases
+  // when the React Compiler is enabled and Turbopack is used. This runs after
+  // validation so only explicitly set values are validated.
+  result.experimental.turbopackRustReactCompiler ??=
+    !isStableBuild() && !!process.env.TURBOPACK && !!result.reactCompiler
+
   if (result.experimental.cachedNavigations && !result.cacheComponents) {
     throw new Error(
       `\`experimental.cachedNavigations\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`
