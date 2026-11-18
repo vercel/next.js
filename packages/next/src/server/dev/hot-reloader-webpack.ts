@@ -695,18 +695,14 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   }
 
   private async clean(span: Span): Promise<void> {
-    return span.traceChild('clean').traceAsyncFn(() =>
-      recursiveDeleteSyncWithAsyncRetries(
-        join(this.dir, this.config.distDir),
-        // Keep diagnostic history (including the unmanaged legacy file).
-        new Set([
-          'cache',
-          'lock',
-          'request-insights',
-          'request-insights.ndjson',
-        ])
+    return span
+      .traceChild('clean')
+      .traceAsyncFn(() =>
+        recursiveDeleteSyncWithAsyncRetries(
+          join(this.dir, this.config.distDir),
+          new Set(['cache', 'lock'])
+        )
       )
-    )
   }
 
   private async getWebpackConfig(span: Span) {

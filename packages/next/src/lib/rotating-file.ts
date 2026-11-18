@@ -32,11 +32,10 @@ export class RotatingFile {
     return this.fd
   }
 
-  /** Rename to preserve history, or truncate when the caller needs only a tail. */
-  rotate(destination?: string): void {
+  /** Discard the old contents when the size limit is reached. */
+  rotate(): void {
     this.close()
-    if (destination) fs.renameSync(this.file, destination)
-    else this.open('w')
+    this.open('w')
     this.size = 0
   }
 
