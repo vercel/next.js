@@ -185,8 +185,8 @@ impl EcmascriptChunkPlaceable for EcmascriptCollectModuleWithChunkGroup {
                 // of module as the wasm loader and the client-reference proxy, which
                 // `BindingUsageInfo::used_exports` special-cases by ident with a `TODO fix these
                 // cases`. Mangling therefore cannot be computed here at all, rather than being
-                // merely undesirable. Keeping this `false` makes `export_info` answer
-                // before it consults the graph; flip it once this module is graph-tracked.
+                // merely undesirable. Keeping this `false` makes `export_info` skip export-usage
+                // analysis; flip it once this module is graph-tracked.
                 mangle_export_names: false,
             }
             .resolved_cell(),
