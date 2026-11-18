@@ -1,5 +1,5 @@
-import { NormalModule } from 'next/dist/compiled/webpack/webpack'
 import type { Span } from '../../../trace'
+import { NormalModule } from 'next/dist/compiled/webpack/webpack'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import path from 'path'
 
@@ -52,11 +52,13 @@ export class ProfilingPlugin {
     stopHook: any,
     {
       parentSpan,
+      recordToInsights = false,
       attrs,
       onStart,
       onStop,
     }: {
       parentSpan?: (...params: any[]) => Span
+      recordToInsights?: boolean
       attrs?: any
       onStart?: (span: Span, ...params: any[]) => void
       onStop?: (span: Span, ...params: any[]) => void
@@ -68,9 +70,9 @@ export class ProfilingPlugin {
       (...params: any[]) => {
         const name = typeof spanName === 'function' ? spanName() : spanName
         const attributes = attrs ? attrs(...params) : attrs
-        span = parentSpan
-          ? parentSpan(...params).traceChild(name, attributes)
-          : this.runWebpackSpan.traceChild(name, attributes)
+        span = (
+          parentSpan ? parentSpan(...params) : this.runWebpackSpan
+        ).traceChild(name, attributes, { recordToInsights })
 
         if (onStart) onStart(span, ...params)
       }
@@ -96,6 +98,7 @@ export class ProfilingPlugin {
       {
         parentSpan: () =>
           webpackInvalidSpans.get(compiler) || this.runWebpackSpan,
+        recordToInsights: true,
         attrs: () => ({ name: compiler.name }),
         onStart: (span, compilation) => {
           spans.set(compilation, span)
@@ -111,6 +114,7 @@ export class ProfilingPlugin {
         compiler.hooks.invalid,
         compiler.hooks.done,
         {
+          recordToInsights: true,
           onStart: (span) => webpackInvalidSpans.set(compiler, span),
           onStop: () => webpackInvalidSpans.delete(compiler),
           attrs: (fileName: any) => ({

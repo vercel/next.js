@@ -1,5 +1,8 @@
-// Import cpu-profile first to start profiling early if enabled
+import { getActiveLocalSpan } from '../../server/lib/trace/local-span-recorder'
 import { saveCpuProfile } from '../../server/lib/cpu-profile'
+// Compiler workers enter here without the CLI's Node environment initialization.
+// Install the baseline before any tracing module captures AsyncLocalStorage.
+import '../../server/node-environment-baseline'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { stringBufferUtils } from 'next/dist/compiled/webpack-sources3'
 import { red } from '../../lib/picocolors'
@@ -31,9 +34,9 @@ import {
   getTraceEvents,
   initializeTraceState,
   setGlobal,
-  trace,
   type TraceEvent,
   type TraceState,
+  trace,
 } from '../../trace'
 import { WEBPACK_LAYERS } from '../../lib/constants'
 import { TraceEntryPointsPlugin } from '../webpack/plugins/next-trace-entrypoints-plugin'
@@ -89,8 +92,11 @@ export async function webpackBuildImpl(
   const config = NextBuildContext.config!
   process.env.NEXT_COMPILER_NAME = compilerName || 'server'
 
-  const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
-
+  const runWebpackSpan = nextBuildSpan.traceChild(
+    'run-webpack-compiler',
+    undefined,
+    { recordToInsights: true, scope: true }
+  )
   const hasDeferredEntries =
     config.experimental.deferredEntries &&
     config.experimental.deferredEntries.length > 0
@@ -171,7 +177,7 @@ export async function webpackBuildImpl(
         getBaseWebpackConfig(dir, {
           ...commonWebpackOptions,
           middlewareMatchers: entrypoints.middlewareMatchers,
-          runWebpackSpan,
+          runWebpackSpan: runWebpackSpan!,
           compilerType: COMPILER_NAMES.client,
           entrypoints: entrypoints.client,
           deferredEntrypoints: deferredEntrypoints?.client,
@@ -181,7 +187,7 @@ export async function webpackBuildImpl(
         }),
         getBaseWebpackConfig(dir, {
           ...commonWebpackOptions,
-          runWebpackSpan,
+          runWebpackSpan: runWebpackSpan!,
           middlewareMatchers: entrypoints.middlewareMatchers,
           compilerType: COMPILER_NAMES.server,
           entrypoints: entrypoints.server,
@@ -192,7 +198,7 @@ export async function webpackBuildImpl(
         }),
         getBaseWebpackConfig(dir, {
           ...commonWebpackOptions,
-          runWebpackSpan,
+          runWebpackSpan: runWebpackSpan!,
           middlewareMatchers: entrypoints.middlewareMatchers,
           compilerType: COMPILER_NAMES.edgeServer,
           entrypoints: entrypoints.edgeServer,
@@ -257,7 +263,10 @@ export async function webpackBuildImpl(
       debug('starting edge-server compiler')
       const start = Date.now()
       ;[edgeServerResult, inputFileSystem] = edgeConfig
-        ? await runCompiler(edgeConfig, { runWebpackSpan, inputFileSystem })
+        ? await runCompiler(edgeConfig, {
+            runWebpackSpan,
+            inputFileSystem,
+          })
         : [null]
       debug(`edge-server compiler finished ${Date.now() - start}ms`)
     }
@@ -437,7 +446,10 @@ export async function workerMain(workerData: {
   ))
   await installBindings(config.experimental?.useWasmBinary)
   NextBuildContext.nextBuildSpan = trace(
-    `worker-main-${workerData.compilerName}`
+    `worker-main-${workerData.compilerName}`,
+    undefined,
+    undefined,
+    { parent: getActiveLocalSpan(), recordToInsights: true }
   )
 
   const result = await webpackBuildImpl(workerData.compilerName)
@@ -462,5 +474,8 @@ export async function workerMain(workerData: {
   // Save CPU profile before worker exits
   await saveCpuProfile()
 
-  return { ...result, debugTraceEvents: getTraceEvents() }
+  return {
+    ...result,
+    debugTraceEvents: getTraceEvents(),
+  }
 }

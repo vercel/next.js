@@ -1,7 +1,21 @@
+import type { Span } from '@opentelemetry/api'
 import type { LocalSpanDelivery } from './local-span-recorder'
-import { captureLocalSpanRecorder, type SpanStoreRecord } from './span-store'
+import { normalizeTraceAttributes } from './span-attributes'
+import {
+  captureLocalSpanRecorder,
+  isLocalSpanSinkActive,
+  isRequestInsightsEnabled,
+  type SpanStoreRecord,
+} from './span-store'
 
 type RequestSpanIdentity = ReturnType<typeof getCurrentRequestIdentity>
+type ActivityInsight = {
+  identity: RequestSpanIdentity
+  rootSpanId: string | undefined
+  started: boolean
+}
+const activityInsights = new WeakMap<Span, ActivityInsight>()
+
 function applyRequestIdentity(
   record: SpanStoreRecord,
   identity: RequestSpanIdentity
@@ -23,6 +37,61 @@ export function captureRequestSpanRecorder(
     const span = recording.toSpanStoreRecord(end)
     applyRequestIdentity(span, identity)
     deliver([span])
+  }
+}
+
+export function captureInsightSpanRecorder(
+  span: Span,
+  parent: Span | undefined,
+  name: string,
+  type: string
+): LocalSpanDelivery {
+  const identity = getCurrentRequestIdentity()
+  let insight = parent?.isRecording() ? activityInsights.get(parent) : undefined
+  if (identity.requestId) {
+    insight = { identity, rootSpanId: undefined, started: true }
+  } else if (!insight) {
+    const requestId = span.spanContext().spanId
+    insight = {
+      identity: {
+        requestId,
+        requestInsightKind: 'tooling',
+        requestInsightSource: 'tooling',
+        htmlRequestId: requestId,
+        route: name,
+      },
+      rootSpanId: span.spanContext().spanId,
+      started: false,
+    }
+  }
+  activityInsights.set(span, insight)
+  const scoped = isLocalSpanSinkActive()
+  const deliver = captureLocalSpanRecorder()
+  return (recording, end) => {
+    if (!scoped && !insight.started && isRequestInsightsEnabled()) {
+      const { startRequestInsight } =
+        require('./request-insights') as typeof import('./request-insights')
+      startRequestInsight({
+        requestId: insight.identity.requestId,
+        kind: 'tooling',
+        source: 'tooling',
+        route: insight.identity.route,
+      })
+      insight.started = true
+    }
+    const record = recording.toSpanStoreRecord(
+      end,
+      normalizeTraceAttributes(recording.attributes)
+    )
+    applyRequestIdentity(record, insight.identity)
+    record.requestInsightRoot = record.spanId === insight.rootSpanId
+    record.attributes = {
+      ...record.attributes,
+      'next.span_category': 'tooling',
+      'next.span_type': type,
+      'next.span_name': name,
+    }
+    deliver([record])
   }
 }
 
