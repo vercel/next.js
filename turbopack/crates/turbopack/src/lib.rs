@@ -157,8 +157,7 @@ async fn apply_module_type(
             let mut builder = EcmascriptModuleAsset::builder(
                 source,
                 ResolvedVc::upcast(context_for_module),
-                concat_transforms([*preprocess, *main, *postprocess])
-                    .await?
+                concat_transforms(vec![**preprocess, **main, **postprocess])
                     .to_resolved()
                     .await?,
                 *options,
@@ -479,14 +478,23 @@ async fn process_default(
 
 /// Concatenates the given transform lists (in order) into a single interned
 /// [`EcmascriptInputTransforms`] cell.
+#[turbo_tasks::function]
 async fn concat_transforms(
-    parts: impl IntoIterator<Item = ResolvedVc<EcmascriptInputTransforms>>,
+    parts: Vec<ResolvedVc<EcmascriptInputTransforms>>,
 ) -> Result<Vc<EcmascriptInputTransforms>> {
     let mut transforms = Vec::new();
     for part in parts {
         transforms.extend(part.await?.iter().cloned());
     }
     Ok(EcmascriptInputTransforms::new(transforms))
+}
+
+/// Drains resolved transform lists into the `Vc` form taken by [`concat_transforms`]. The `Vc`s
+/// stay resolved, so calling the task does not schedule a resolve call.
+fn to_vcs(
+    list: &mut Vec<ResolvedVc<EcmascriptInputTransforms>>,
+) -> Vec<Vc<EcmascriptInputTransforms>> {
+    list.drain(..).map(|vc| *vc).collect()
 }
 
 /// Apply collected transforms to a module type.
@@ -538,16 +546,14 @@ async fn apply_module_rule_transforms(
             // Apply collected preprocess/main in order, then module type's transforms
             if !collected_preprocess.is_empty() {
                 collected_preprocess.push(*preprocess);
-                *preprocess = concat_transforms(collected_preprocess.drain(..))
-                    .await?
+                *preprocess = concat_transforms(to_vcs(collected_preprocess))
                     .to_resolved()
                     .await?;
             }
 
             if !collected_main.is_empty() {
                 collected_main.push(*main);
-                *main = concat_transforms(collected_main.drain(..))
-                    .await?
+                *main = concat_transforms(to_vcs(collected_main))
                     .to_resolved()
                     .await?;
             }
@@ -555,9 +561,10 @@ async fn apply_module_rule_transforms(
             // Apply module type's postprocess first, then collected postprocess
             if !collected_postprocess.is_empty() {
                 *postprocess = concat_transforms(
-                    std::iter::once(*postprocess).chain(collected_postprocess.drain(..)),
+                    std::iter::once(**postprocess)
+                        .chain(collected_postprocess.drain(..).map(|vc| *vc))
+                        .collect(),
                 )
-                .await?
                 .to_resolved()
                 .await?;
             }
@@ -565,10 +572,9 @@ async fn apply_module_rule_transforms(
         ModuleType::Custom(custom_module_type) => {
             if has_transforms {
                 // Combine collected transforms into single Vcs
-                let combined_preprocess = concat_transforms(collected_preprocess.drain(..)).await?;
-                let combined_main = concat_transforms(collected_main.drain(..)).await?;
-                let combined_postprocess =
-                    concat_transforms(collected_postprocess.drain(..)).await?;
+                let combined_preprocess = concat_transforms(to_vcs(collected_preprocess));
+                let combined_main = concat_transforms(to_vcs(collected_main));
+                let combined_postprocess = concat_transforms(to_vcs(collected_postprocess));
 
                 match custom_module_type
                     .extend_ecmascript_transforms(
