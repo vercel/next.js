@@ -599,7 +599,6 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 options.runtime_type,
             )
             .minify_before_chunking(options.minify_before_chunking)
-            .module_merging(options.scope_hoisting)
             .shared_runtime(options.shared_runtime)
             .export_usage(if options.remove_unused_exports {
                 Some(binding_usage.unwrap().connect().to_resolved().await?)
@@ -657,7 +656,6 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 options.runtime_type,
             )
             .minify_before_chunking(options.minify_before_chunking)
-            .module_merging(options.scope_hoisting)
             .export_usage(if options.remove_unused_exports {
                 Some(binding_usage.unwrap().connect().to_resolved().await?)
             } else {

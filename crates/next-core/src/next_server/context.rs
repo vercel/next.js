@@ -1124,7 +1124,6 @@ pub async fn get_server_chunking_context_with_client_assets(
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
-    .merged_modules(merged_modules.to_resolved().await?)
     .debug_ids(*debug_ids.await?)
     .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
@@ -1171,8 +1170,10 @@ pub async fn get_server_chunking_context_with_client_assets(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?)
             .minify_before_chunking(*minify_before_chunking.await?);
+        if *scope_hoisting.await? {
+            builder = builder.merged_modules(merged_modules.to_resolved().await?);
+        }
     }
 
     Ok(builder.build())
@@ -1253,7 +1254,6 @@ pub async fn get_server_chunking_context(
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
-    .merged_modules(merged_modules.to_resolved().await?)
     .debug_ids(*debug_ids.await?)
     .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
@@ -1297,8 +1297,10 @@ pub async fn get_server_chunking_context(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?)
             .minify_before_chunking(*minify_before_chunking.await?);
+        if *scope_hoisting.await? {
+            builder = builder.merged_modules(merged_modules.to_resolved().await?);
+        }
     }
 
     Ok(builder.build())

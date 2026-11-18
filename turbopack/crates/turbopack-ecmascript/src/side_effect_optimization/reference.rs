@@ -204,7 +204,7 @@ impl EcmascriptModulePartReference {
             // hoisting group (unless it's a namespace import)
         } else {
             let ident = referenced_asset
-                .prepare_binding(
+                .get_ident(
                     chunking_context,
                     match export_usage {
                         ExportUsage::Named(export) => Some(export.clone()),
@@ -215,8 +215,6 @@ impl EcmascriptModulePartReference {
                     },
                     scope_hoisting_context,
                 )
-                .await?
-                .get_ident(chunking_context)
                 .await?
                 .context("part module reference should have an ident")?;
 

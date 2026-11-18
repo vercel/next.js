@@ -661,7 +661,6 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         RuntimeType::Development,
     )
     .source_map_source_type(turbopack_core::chunk::SourceMapSourceType::RelativeUri)
-    .module_merging(options.scope_hoisting)
     .minify_before_chunking(options.minify_before_chunking)
     .export_usage(if options.remove_unused_exports {
         Some(binding_usage.unwrap().connect().to_resolved().await?)
