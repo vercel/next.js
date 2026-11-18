@@ -72,11 +72,10 @@ import type { WorkerRenderOptsPartial } from './types'
 import { AdaptiveWorkerSession } from './adaptive/worker-session'
 import { createAdmissionConfig } from './adaptive/admission-controller'
 import { MemoryMonitor } from './adaptive/memory-monitor'
-import {
-  RECYCLE_EXIT_CODE,
-  type AdaptiveSessionInput,
-  type AdaptiveStepInput,
-  type AdaptiveStepResult,
+import type {
+  AdaptiveSessionInput,
+  AdaptiveStepInput,
+  AdaptiveStepResult,
 } from './adaptive/types'
 // TODO(as-any): pre-existing cast, not yet reviewed
 // eslint-disable-next-line @next/internal/no-as-any
@@ -796,7 +795,7 @@ async function createAdaptiveSession(
     | undefined
   const getRenderOpts = (phase: StaticGenerationPhase) => {
     if (current?.phase !== phase) {
-      current = {
+      const entry: NonNullable<typeof current> = {
         phase,
         renderOpts: getSharedIncrementalCache(
           { sessionId, phase },
@@ -806,6 +805,12 @@ async function createAdaptiveSession(
           return { ...input.renderOpts, incrementalCache }
         }),
       }
+      current = entry
+      // Like `getSharedIncrementalCache`, don't keep a failed creation
+      // around, so the next page retries it.
+      entry.renderOpts.catch(() => {
+        if (current === entry) current = undefined
+      })
     }
     return current.renderOpts
   }
@@ -850,17 +855,9 @@ export async function exportPagesAdaptive(
 ): Promise<AdaptiveStepResult> {
   const workerId = getStaticWorkerId()
 
-  if (
-    step.recycleWorkerId === workerId &&
-    (!adaptiveSession || adaptiveSession.session.idle)
-  ) {
-    // jest-worker starts a fresh process to replace this one.
-    adaptiveSession?.profiler?.flush()
-    process.exit(RECYCLE_EXIT_CODE)
-  }
-
   if (adaptiveSession?.id !== step.sessionId) {
-    if (!step.session) {
+    // A cancelled build has nothing to stop on a worker without the session.
+    if (!step.session || step.cancel) {
       return {
         workerId,
         needsSession: true,

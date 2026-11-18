@@ -72,6 +72,7 @@ export class Worker {
 
   private _onActivity: (() => void) | undefined
   private _onActivityAbort: (() => void) | undefined
+  private _workerExitRecovery = false
 
   constructor(
     workerPath: string,
@@ -95,15 +96,22 @@ export class Worker {
       onActivityAbort?: () => void
       onRestart?: (method: string, args: any[], attempts: number) => void
       /**
-       * Recover when a child process is killed by a signal (e.g. out of
-       * memory) or exits with one of `recoverableExitCodes`, instead of
+       * Allow recovering when a child process is killed by a signal (e.g. out
+       * of memory) or exits with one of `recoverableExitCodes`, instead of
        * exiting the parent. jest-worker starts a replacement child and
        * rejects the call that was in flight with a `WorkerError`; the caller
        * is expected to retry that work. Other exit codes still fail the
        * build.
+       *
+       * Recovery is off until the caller turns it on with
+       * `setWorkerExitRecovery(true)`, so it only covers the work that knows
+       * how to retry. A worker that restarts more than `maxRestarts` times
+       * within `restartWindowMs` exits the parent like an unrecoverable exit.
        */
       recoverFromWorkerExit?: {
         recoverableExitCodes: ReadonlySet<number>
+        maxRestarts?: number
+        restartWindowMs?: number
       }
       logger?: Pick<typeof console, 'error' | 'info' | 'warn'>
       exposedMethods: ReadonlyArray<string>
@@ -172,6 +180,23 @@ export class Worker {
     const { nodeOptions: formattedNodeOptions, execArgv } =
       formatNodeOptions(nodeOptions)
 
+    const maxRestarts = recoverFromWorkerExit?.maxRestarts ?? 10
+    const restartWindowMs = recoverFromWorkerExit?.restartWindowMs ?? 60_000
+    const restartTimes = new WeakMap<object, number[]>()
+    /**
+     * Records a restart of one pool worker. Returns `false` once that worker
+     * restarted too often recently, e.g. because it crashes on startup.
+     */
+    const recordRestart = (worker: object): boolean => {
+      const now = Date.now()
+      const times = (restartTimes.get(worker) ?? []).filter(
+        (time) => now - time < restartWindowMs
+      )
+      times.push(now)
+      restartTimes.set(worker, times)
+      return times.length <= maxRestarts
+    }
+
     const createWorker = () => {
       const workerEnv: NodeJS.ProcessEnv = {
         ...process.env,
@@ -233,25 +258,25 @@ export class Worker {
               if (!this._worker || !(code || (signal && signal !== 'SIGINT'))) {
                 return
               }
-              if (code !== null) {
-                const recoverable =
-                  recoverFromWorkerExit.recoverableExitCodes.has(code)
-                // Code 1 can represent a forced termination on Windows.
-                // Report it even when the caller opted into recovery.
-                if (!recoverable || code === 1) {
-                  logger.error(
-                    `Next.js build worker exited with code: ${code} and signal: ${signal}`
-                  )
-                }
-                if (!recoverable) {
-                  process.exit(code)
-                }
-              } else {
+              logger.error(
+                `Next.js build worker exited with code: ${code} and signal: ${signal}`
+              )
+              const recoverable =
+                this._workerExitRecovery &&
+                (code === null ||
+                  recoverFromWorkerExit.recoverableExitCodes.has(code))
+              if (!recoverable) {
+                process.exit(code ?? 1)
+              }
+              if (!recordRestart(worker)) {
+                logger.error(
+                  `Next.js build worker restarted more than ${maxRestarts} times within ${restartWindowMs / 1000} seconds. Giving up.`
+                )
+                process.exit(code ?? 1)
+              }
+              if (code === null) {
                 // Killed by a signal: out of memory (SIGABRT from V8, SIGKILL
                 // from the OOM killer) or killed from outside.
-                logger.error(
-                  `Next.js build worker exited with code: ${code} and signal: ${signal}`
-                )
                 // jest-worker only restarts children that exit with a
                 // non-zero code, and shuts the worker down otherwise. Start
                 // the replacement before that happens so the worker's merged
@@ -417,6 +442,14 @@ export class Worker {
             // eslint-disable-next-line @next/internal/no-as-any
             (this._worker as any)[method](...sanitizeArgs(args))
     }
+  }
+
+  /**
+   * Turns recovery from worker exits on or off; see `recoverFromWorkerExit`.
+   * Has no effect unless the worker was created with that option.
+   */
+  setWorkerExitRecovery(enabled: boolean): void {
+    this._workerExitRecovery = enabled
   }
 
   setOnActivity(onActivity: (() => void) | undefined): void {

@@ -41,8 +41,9 @@ type Task = {
 
 type Slot = {
   index: number
-  active: boolean
   busy: boolean
+  /** A cancel step was sent after the build failed. */
+  cancelled: boolean
   sessionReady: boolean
   workerId: string | undefined
   status: AdaptiveWorkerStatus | undefined
@@ -56,10 +57,8 @@ export type AdaptiveOrchestratorOptions = {
   session: AdaptiveSessionInput
   renderResumeDataCachesByPage?: Record<string, string>
   getPageKey: (exportPath: ExportPathEntry) => string
-  /** Worker slots in the pool. */
+  /** Worker slots to schedule pages on. */
   numSlots: number
-  /** Slots to use from the start; the rest activate under load. */
-  initialSlots: number
   chunkSize: number
   /** User cap for pages in flight per worker, if configured. */
   maxConcurrency: number | undefined
@@ -97,8 +96,6 @@ const MACHINE_HIGH_WATER = 0.9
 const MACHINE_LOW_WATER = 0.8
 /** Share of the machine memory that worker RSS may reach in total. */
 const MACHINE_RAW_SHARE = 0.95
-/** A worker is considered CPU bound above this event loop utilization. */
-const CPU_BOUND_ELU = 0.85
 const MAX_CONSECUTIVE_STEP_ERRORS = 5
 
 export class StaticGenerationCrashError extends Error {
@@ -159,8 +156,8 @@ export function runAdaptiveStaticGeneration(
   const numSlots = Math.max(1, options.numSlots)
   const slots: Slot[] = Array.from({ length: numSlots }, (_, index) => ({
     index,
-    active: index < Math.max(1, Math.min(numSlots, options.initialSlots)),
     busy: false,
+    cancelled: false,
     sessionReady: false,
     workerId: undefined,
     status: undefined,
@@ -171,10 +168,36 @@ export function runAdaptiveStaticGeneration(
 
   return new Promise<ExportPagesResult>((resolve, reject) => {
     let settled = false
+    let failed = false
+
+    /**
+     * After the build failed, tell a worker to drop the pages it accepted but
+     * hasn't started, so it stops rendering and writing them. A slot with a
+     * step in flight is cancelled once that step returns, since a worker
+     * runs one call at a time.
+     */
+    const cancelSlot = (slot: Slot) => {
+      if (slot.cancelled || slot.busy || !slot.workerId) return
+      slot.cancelled = true
+      callStep(slot.index, {
+        sessionId,
+        slot: slot.index,
+        phase,
+        submit: [],
+        wait: 'drained',
+        limits: { maxConcurrency, rssLimit: undefined },
+        cancel: true,
+      }).catch(() => {
+        // The worker is gone or the pool was ended; nothing left to stop.
+      })
+    }
+
     const fail = (err: unknown) => {
       if (settled) return
       settled = true
+      failed = true
       reject(err)
+      for (const slot of slots) cancelSlot(slot)
     }
 
     if (remaining === 0) {
@@ -200,12 +223,11 @@ export function runAdaptiveStaticGeneration(
       memory.mode === 'threads' ? memory.getParentAllocated() : memory.getRss()
 
     const workerBudget = () => {
-      const activeSlots = slots.filter((slot) => slot.active).length
       const budget =
         machineMemoryLimit * MACHINE_BUDGET_SHARE -
         getParentUsage() -
         idleAllocated()
-      return Math.max(0, budget) / Math.max(1, activeSlots)
+      return Math.max(0, budget) / slots.length
     }
 
     /** Puts a handed-out page back: into its route, or to the retry queue. */
@@ -277,28 +299,6 @@ export function runAdaptiveStaticGeneration(
       return headroom * 1000 - inFlight
     }
 
-    const maybeActivateSlot = () => {
-      const inactive = slots.find((slot) => !slot.active)
-      if (!inactive || pendingCount() <= chunkSize) return
-      const active = slots.filter((slot) => slot.active)
-      const allCpuBound = active.every(
-        (slot) => slot.status && slot.status.elu >= CPU_BOUND_ELU
-      )
-      if (!allCpuBound) return
-      const avgRss = totalWorkerRss() / Math.max(1, active.length)
-      const budget =
-        machineMemoryLimit * MACHINE_BUDGET_SHARE - getParentUsage()
-      if (
-        totalWorkerRss() + idleAllocated() + avgRss <
-        budget * MACHINE_LOW_WATER
-      ) {
-        inactive.active = true
-        log(
-          `Activating static worker slot ${inactive.index}: all workers are CPU bound and memory allows`
-        )
-      }
-    }
-
     const send = (
       slot: Slot,
       submit: Task[],
@@ -322,7 +322,6 @@ export function runAdaptiveStaticGeneration(
         }),
         wait: step.wait ?? 'capacity',
         limits: { maxConcurrency, rssLimit: workerBudget() },
-        recycleWorkerId: step.recycleWorkerId,
       }
       callStep(slot.index, input).then(
         (result) => onResult(slot, submit, result),
@@ -335,7 +334,14 @@ export function runAdaptiveStaticGeneration(
       submitted: Task[],
       result: AdaptiveStepResult
     ) => {
-      if (settled) return
+      if (settled) {
+        slot.busy = false
+        if (failed) {
+          slot.workerId = result.workerId
+          cancelSlot(slot)
+        }
+        return
+      }
       slot.busy = false
       slot.consecutiveErrors = 0
 
@@ -368,6 +374,7 @@ export function runAdaptiveStaticGeneration(
           }
         }
         for (const { id, heapPerPage, ...pageResult } of result.results) {
+          for (const set of outstanding.values()) set.delete(id)
           if (results[id] !== undefined) continue
           results[id] = pageResult
           const task = tasks.get(id)
@@ -376,7 +383,6 @@ export function runAdaptiveStaticGeneration(
             routeQueue.complete(task, pageResult.result?.duration, heapPerPage)
           }
           remaining--
-          for (const set of outstanding.values()) set.delete(id)
         }
       }
 
@@ -384,7 +390,12 @@ export function runAdaptiveStaticGeneration(
     }
 
     const onError = (slot: Slot, submitted: Task[], err: unknown) => {
-      if (settled) return
+      if (settled) {
+        slot.busy = false
+        // A worker that threw has stopped its own session; one that
+        // restarted has nothing left to cancel.
+        return
+      }
       slot.busy = false
       slot.sessionReady = false
 
@@ -455,10 +466,8 @@ export function runAdaptiveStaticGeneration(
       if (usage >= MACHINE_HIGH_WATER || rawUsage >= 1) machineSaturated = true
       else if (usage <= MACHINE_LOW_WATER) machineSaturated = false
 
-      maybeActivateSlot()
-
       const idle = slots
-        .filter((slot) => slot.active && !slot.busy)
+        .filter((slot) => !slot.busy)
         .sort((a, b) => slotScore(b) - slotScore(a))
 
       for (const slot of idle) {

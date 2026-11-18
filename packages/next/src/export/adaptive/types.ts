@@ -5,24 +5,6 @@ import type {
 } from '../types'
 import type { StaticGenerationPhase } from '../static-generation-profile'
 
-/**
- * A worker that exits with this code was explicitly asked to be restarted
- * (recycled). jest-worker restarts it.
- */
-export const RECYCLE_EXIT_CODE = 75
-
-/**
- * A worker that exits with this code was about to run out of heap. jest-worker
- * restarts it, and the scheduler retries its pages one at a time.
- */
-export const MEMORY_PRESSURE_EXIT_CODE = 76
-
-/** Exit codes from which the static worker pool recovers on its own. */
-export const RECOVERABLE_EXIT_CODES: ReadonlySet<number> = new Set([
-  RECYCLE_EXIT_CODE,
-  MEMORY_PRESSURE_EXIT_CODE,
-])
-
 /** Everything an adaptive session needs that doesn't change per page. */
 export type AdaptiveSessionInput = Omit<
   ExportPagesInput,
@@ -60,8 +42,11 @@ export type AdaptiveStepInput = {
     /** RSS budget for this worker, from the machine-wide budget. */
     rssLimit: number | undefined
   }
-  /** Exit to be restarted if this is still the worker with this id. */
-  recycleWorkerId?: string
+  /**
+   * The build failed: drop the pages this worker has not started yet and
+   * return right away. Pages already rendering can't be stopped.
+   */
+  cancel?: boolean
 }
 
 export type AdaptiveWorkerStatus = {

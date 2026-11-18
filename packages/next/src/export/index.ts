@@ -793,68 +793,78 @@ async function exportAppImpl(
         }),
         { allocated: 0, rss: 0 }
       )
-      return runAdaptiveStaticGeneration({
-        exportPaths,
-        phase,
-        sessionId,
-        session: {
-          buildId,
-          deploymentId: nextConfig.deploymentId,
-          clientAssetToken: nextConfig.supportsImmutableAssets
-            ? ''
-            : nextConfig.deploymentId,
-          parentSpanId: span.getId(),
-          pagesDataDir,
-          renderOpts,
-          options,
-          dir,
-          distDir,
-          outDir: options.buildExport
-            ? join(distDir, 'server', 'pages')
-            : outDir,
-          nextConfig,
-          cacheHandler: nextConfig.cacheHandler,
-          cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
-          fetchCache: true,
-          fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
+      // Only the adaptive scheduler retries the pages of a worker that
+      // crashed, so only its steps may recover from a worker exit.
+      worker.setWorkerExitRecovery(true)
+      try {
+        return await runAdaptiveStaticGeneration({
+          exportPaths,
+          phase,
           sessionId,
-        },
-        renderResumeDataCachesByPage,
-        getPageKey: getExportPathPageKey,
-        // Keep the page-count limit when activating additional workers.
-        // Fetch deduplication is process-local, so extra workers can duplicate requests.
-        numSlots: numWorkers,
-        initialSlots: numWorkers,
-        chunkSize: getStaticGenerationChunkSize(
-          exportPaths.length,
-          numWorkers,
-          nextConfig.experimental.staticGenerationChunkSize
-        ),
-        maxConcurrency: configuredMaxConcurrency,
-        machineMemoryLimit: getConstrainedMemory() ?? os.totalmem(),
-        memory: nextConfig.experimental.workerThreads
-          ? {
-              mode: 'threads',
-              getRss: () => process.memoryUsage.rss(),
-              getIdleAllocated: () => idleMemory.allocated,
-              getParentAllocated: () => {
-                const heap = v8.getHeapStatistics()
-                return heap.used_heap_size + heap.external_memory
+          session: {
+            buildId,
+            deploymentId: nextConfig.deploymentId,
+            clientAssetToken: nextConfig.supportsImmutableAssets
+              ? ''
+              : nextConfig.deploymentId,
+            parentSpanId: span.getId(),
+            pagesDataDir,
+            renderOpts,
+            options,
+            dir,
+            distDir,
+            outDir: options.buildExport
+              ? join(distDir, 'server', 'pages')
+              : outDir,
+            nextConfig,
+            cacheHandler: nextConfig.cacheHandler,
+            cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
+            fetchCache: true,
+            fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
+            sessionId,
+          },
+          renderResumeDataCachesByPage,
+          getPageKey: getExportPathPageKey,
+          // Fetch deduplication is process-local, so more workers than the
+          // page-count limit allows would duplicate requests.
+          numSlots: numWorkers,
+          chunkSize: getStaticGenerationChunkSize(
+            exportPaths.length,
+            numWorkers,
+            nextConfig.experimental.staticGenerationChunkSize
+          ),
+          maxConcurrency: configuredMaxConcurrency,
+          // A container limit can be larger than the machine's memory.
+          machineMemoryLimit: Math.min(
+            getConstrainedMemory() ?? Infinity,
+            os.totalmem()
+          ),
+          memory: nextConfig.experimental.workerThreads
+            ? {
+                mode: 'threads',
+                getRss: () => process.memoryUsage.rss(),
+                getIdleAllocated: () => idleMemory.allocated,
+                getParentAllocated: () => {
+                  const heap = v8.getHeapStatistics()
+                  return heap.used_heap_size + heap.external_memory
+                },
+              }
+            : {
+                mode: 'processes',
+                getRss: () => process.memoryUsage.rss(),
+                getIdleAllocated: () => idleMemory.allocated,
+                getIdleRss: () => idleMemory.rss,
               },
-            }
-          : {
-              mode: 'processes',
-              getRss: () => process.memoryUsage.rss(),
-              getIdleAllocated: () => idleMemory.allocated,
-              getIdleRss: () => idleMemory.rss,
-            },
-        callStep: (_slot, input) => worker.exportPagesAdaptive(input),
-        // Experimental knob, off by default while it's being measured: keep
-        // a second heavy route off other workers while light routes wait.
-        heavyRouteLimit:
-          process.env.__NEXT_STATIC_GENERATION_HEAVY_ROUTE_LIMIT === '1',
-        log: (message) => Log.warn(message),
-      })
+          callStep: (_slot, input) => worker.exportPagesAdaptive(input),
+          // Experimental knob, off by default while it's being measured: keep
+          // a second heavy route off other workers while light routes wait.
+          heavyRouteLimit:
+            process.env.__NEXT_STATIC_GENERATION_HEAVY_ROUTE_LIMIT === '1',
+          log: (message) => Log.warn(message),
+        })
+      } finally {
+        worker.setWorkerExitRecovery(false)
+      }
     }
 
     // Calculate the page count per batch based on the number of workers.
@@ -935,7 +945,12 @@ async function exportAppImpl(
     const profileStaticGeneration =
       options.buildExport && isStaticGenerationProfileEnabled()
     if (profileStaticGeneration) {
-      resetStaticGenerationProfile(distDir)
+      try {
+        resetStaticGenerationProfile(distDir)
+      } catch (err) {
+        // Profiling must never fail the build.
+        Log.warn(`Failed to reset the static generation profile: ${err}`)
+      }
     }
 
     results = await exportPagesInBatches(
@@ -961,9 +976,14 @@ async function exportAppImpl(
     }
 
     if (profileStaticGeneration) {
-      const summary = writeStaticGenerationSummary(distDir)
-      if (summary && !options.silent) {
-        Log.info(formatStaticGenerationSummary(summary))
+      try {
+        const summary = writeStaticGenerationSummary(distDir)
+        if (summary && !options.silent) {
+          Log.info(formatStaticGenerationSummary(summary))
+        }
+      } catch (err) {
+        // Profiling must never fail the build.
+        Log.warn(`Failed to write the static generation profile: ${err}`)
       }
     }
   }

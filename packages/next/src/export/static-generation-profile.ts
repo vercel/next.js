@@ -160,11 +160,16 @@ class StaticGenerationProfiler {
     this.started = true
 
     const dir = getStaticGenerationProfileDir(distDir)
-    fs.mkdirSync(dir, { recursive: true })
-    this.file = path.join(
-      dir,
-      `worker-${process.pid}${threadId ? `-${threadId}` : ''}.jsonl`
-    )
+    try {
+      fs.mkdirSync(dir, { recursive: true })
+      this.file = path.join(
+        dir,
+        `worker-${process.pid}${threadId ? `-${threadId}` : ''}.jsonl`
+      )
+    } catch {
+      // Profiling must never fail the build. Without a file, `flush` drops
+      // the records.
+    }
 
     this.records.push({
       type: 'worker',
@@ -301,9 +306,10 @@ class StaticGenerationProfiler {
   }
 
   flush() {
-    if (!this.file || this.records.length === 0) return
+    if (this.records.length === 0) return
     const records = this.records
     this.records = []
+    if (!this.file) return
     try {
       fs.appendFileSync(
         this.file,
@@ -392,7 +398,12 @@ export function readProfileRecords(dir: string): ProfileRecord[] {
     return records
   }
   for (const file of files) {
-    const content = fs.readFileSync(path.join(dir, file), 'utf8')
+    let content: string
+    try {
+      content = fs.readFileSync(path.join(dir, file), 'utf8')
+    } catch {
+      continue
+    }
     for (const line of content.split('\n')) {
       if (!line) continue
       try {

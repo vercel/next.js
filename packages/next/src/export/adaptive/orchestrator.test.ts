@@ -62,10 +62,6 @@ class FakeWorker {
   step(input: AdaptiveStepInput): Promise<AdaptiveStepResult> {
     return new Promise<AdaptiveStepResult>((resolve, reject) => {
       this.crash = reject
-      if (input.recycleWorkerId === this.workerId) {
-        this.restart()
-        return
-      }
       if (!this.session || this.sessionId !== input.sessionId) {
         if (!input.session) {
           resolve({
@@ -174,7 +170,6 @@ function run(
     session: {} as AdaptiveSessionInput,
     getPageKey: (exportPath) => exportPath.path,
     numSlots: workers.length,
-    initialSlots: workers.length,
     chunkSize: 5,
     maxConcurrency: undefined,
     machineMemoryLimit: 16 * 1024 * MB,
@@ -388,25 +383,6 @@ describe('runAdaptiveStaticGeneration', () => {
     )
   })
 
-  it('does not recycle a worker based on delayed GC heap observations', async () => {
-    let floor = 100
-    const workers = [
-      new FakeWorker(0, {
-        memory: () => {
-          floor += 5
-          return { postGcFloor: floor * MB, heapUsed: 150 * MB }
-        },
-      }),
-    ]
-    const { promise, logs } = run(workers, exportPaths(300))
-    const results = await promise
-    expect(results).toHaveLength(300)
-    expect(workers[0].restarts).toBe(0)
-    expect(logs.some((l) => l.startsWith('Recycling static worker'))).toBe(
-      false
-    )
-  })
-
   it('re-sends the session to a worker that restarted between steps', async () => {
     const workers = [new FakeWorker(0)]
     let restarted = false
@@ -481,6 +457,51 @@ describe('runAdaptiveStaticGeneration', () => {
       expect(session.status().queued).toBe(3 - concurrency)
     }
   )
+
+  it('cancels queued exports on other workers when the build fails', async () => {
+    let cancelled = false
+    let startedAfterCancel = 0
+    const workers = [
+      new FakeWorker(0, {
+        onPageStart: () => {
+          throw new Error('boom')
+        },
+      }),
+      new FakeWorker(1, {
+        renderMs: () => 20,
+        onPageStart: () => {
+          if (cancelled) startedAfterCancel++
+        },
+      }),
+    ]
+    const cancelSteps: number[] = []
+    const { promise } = run(
+      workers,
+      [...exportPaths(20, '/a'), ...exportPaths(20, '/b')],
+      {
+        maxConcurrency: 1,
+        callStep: (slot, input) => {
+          const result = workers[slot].step(input)
+          if (input.cancel) {
+            cancelSteps.push(slot)
+            if (slot === 1) cancelled = true
+          }
+          return result
+        },
+      }
+    )
+    await expect(promise).rejects.toThrow('boom')
+
+    // Worker 1 is cancelled once its in-flight step returns.
+    for (let i = 0; i < 100 && !cancelSteps.includes(1); i++) await sleep(10)
+    expect(cancelSteps).toContain(1)
+    await sleep(100)
+    expect(workers[1].session!.status()).toMatchObject({
+      running: 0,
+      queued: 0,
+    })
+    expect(startedAfterCancel).toBe(0)
+  })
 
   it('honors a configured max concurrency', async () => {
     const workers = [new FakeWorker(0, { renderMs: () => 5 })]

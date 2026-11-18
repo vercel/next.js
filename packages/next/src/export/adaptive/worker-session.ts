@@ -52,6 +52,7 @@ export class AdaptiveWorkerSession {
     { id: number; heapPerPage?: number } & ExportPagesResult[number]
   > = []
   private fatalError: { error: unknown } | undefined
+  private cancelled = false
   private waiters = new Set<() => void>()
   private rssLimit: number | undefined
   private memory: MemorySnapshot | undefined
@@ -121,6 +122,16 @@ export class AdaptiveWorkerSession {
   }
 
   async step(input: AdaptiveStepInput): Promise<AdaptiveStepResult> {
+    if (input.cancel) {
+      this.cancel()
+      return {
+        workerId: this.options.workerId,
+        results: [],
+        refused: input.submit.map((task) => task.id),
+        status: this.status(),
+      }
+    }
+
     this.throwIfFailed()
 
     const limitChanged = this.rssLimit !== input.limits.rssLimit
@@ -159,14 +170,24 @@ export class AdaptiveWorkerSession {
     }
   }
 
+  /**
+   * Stops the session after the build failed elsewhere: queued pages are
+   * dropped and nothing new starts. Pages already rendering finish.
+   */
+  cancel(): void {
+    this.cancelled = true
+    this.queue.length = 0
+    this.notify()
+  }
+
   private throwIfFailed(): void {
     if (this.fatalError) throw this.fatalError.error
   }
 
   private pump(): void {
-    // A fatal export stops the session, including later ticks and completions
-    // of pages that were already running when it failed.
-    if (this.fatalError) return
+    // A fatal export or a cancelled build stops the session, including later
+    // ticks and completions of pages that were already running.
+    if (this.fatalError || this.cancelled) return
 
     while (this.queue.length > 0 && !this.runningIsolated) {
       const next = this.queue[0]
