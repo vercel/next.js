@@ -2,7 +2,9 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -12,6 +14,126 @@ import (
 	"testing"
 	"time"
 )
+
+type statusWriteConn struct {
+	net.Conn
+	output    bytes.Buffer
+	remaining int
+	err       error
+}
+
+func (c *statusWriteConn) Write(p []byte) (int, error) {
+	n := min(len(p), c.remaining)
+	c.remaining -= n
+	c.output.Write(p[:n])
+	return n, c.err
+}
+
+func TestStatusLineAcrossWrites(t *testing.T) {
+	interim := "HTTP/1.1 100 Continue\r\nX-Status: HTTP/1.1 400 Bad Request\r\n\r\n"
+	for _, tc := range []struct {
+		name, status, input, want string
+	}{
+		{"longer", "400 Custom Reason", "HTTP/1.1 400 Bad Request\r\n\r\nbody", "HTTP/1.1 400 Custom Reason\r\n\r\nbody"},
+		{"shorter", "200 X", "HTTP/1.1 200 OK\r\n\r\nbody", "HTTP/1.1 200 X\r\n\r\nbody"},
+		{"http10", "400 Custom Reason", "HTTP/1.0 400 Bad Request\r\n\r\nbody", "HTTP/1.0 400 Custom Reason\r\n\r\nbody"},
+		{"interim", "400 Custom Reason", interim + "HTTP/1.1 400 Bad Request\r\n\r\nbody", interim + "HTTP/1.1 400 Custom Reason\r\n\r\nbody"},
+		{"body", "400 Custom Reason", "HTTP/1.1 400 Bad Request\r\n\r\nHTTP/1.1 400 Bad Request\r\n", "HTTP/1.1 400 Custom Reason\r\n\r\nHTTP/1.1 400 Bad Request\r\n"},
+		{"unexpected status", "400 Custom Reason", "HTTP/1.1 500 Internal Server Error\r\n\r\nHTTP/1.1 400 Bad Request\r\n", "HTTP/1.1 500 Internal Server Error\r\n\r\nHTTP/1.1 400 Bad Request\r\n"},
+	} {
+		for _, size := range []int{1, len(tc.input)} {
+			t.Run(fmt.Sprintf("%s/%d", tc.name, size), func(t *testing.T) {
+				output := &statusWriteConn{remaining: len(tc.want)}
+				conn := &statusConn{Conn: output}
+				conn.setStatus(tc.status)
+				for rest := tc.input; rest != ""; {
+					next := rest[:min(size, len(rest))]
+					n, err := conn.Write([]byte(next))
+					if err != nil || n != len(next) {
+						t.Fatalf("Write = %d, %v, want %d, nil", n, err, len(next))
+					}
+					rest = rest[len(next):]
+				}
+				if got := output.output.String(); got != tc.want {
+					t.Errorf("wire = %q, want %q", got, tc.want)
+				}
+			})
+		}
+	}
+}
+
+func TestStatusLineWriteErrors(t *testing.T) {
+	failure := errors.New("write failed")
+	input := "HTTP/1.1 400 Bad Request\r\nX-Kept: yes\r\n\r\nbody"
+	oldLineLen := len("HTTP/1.1 400 Bad Request\r\n")
+	for _, status := range []string{"400 X", "400 A much longer reason"} {
+		for _, buffered := range []int{0, 5} {
+			for _, afterLine := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/%d/%t", status, buffered, afterLine), func(t *testing.T) {
+					limit, want := 5, 0
+					if afterLine {
+						limit = len("HTTP/1.1 "+status+"\r\n") + 3
+						want = oldLineLen + 3 - buffered
+					}
+					output := &statusWriteConn{remaining: limit, err: failure}
+					conn := &statusConn{Conn: output}
+					conn.setStatus(status)
+					if buffered != 0 {
+						if n, err := conn.Write([]byte(input[:buffered])); err != nil || n != buffered {
+							t.Fatalf("buffered Write = %d, %v", n, err)
+						}
+					}
+					n, err := conn.Write([]byte(input[buffered:]))
+					if !errors.Is(err, failure) || n != want {
+						t.Errorf("Write = %d, %v, want %d, %v", n, err, want, failure)
+					}
+					if n, err := conn.Write([]byte("next")); n != 0 || !errors.Is(err, failure) {
+						t.Errorf("Write after failure = %d, %v", n, err)
+					}
+				})
+			}
+		}
+	}
+	t.Run("short write", func(t *testing.T) {
+		conn := &statusConn{Conn: &statusWriteConn{remaining: 5}}
+		conn.setStatus("400 Custom Reason")
+		if _, err := conn.Write([]byte(input)); !errors.Is(err, io.ErrShortWrite) {
+			t.Errorf("Write error = %v, want %v", err, io.ErrShortWrite)
+		}
+	})
+}
+
+func TestStatusConnectionHalfClose(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	client, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	server, err := ln.Accept()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+	server.SetDeadline(time.Now().Add(5 * time.Second))
+	client.SetDeadline(time.Now().Add(5 * time.Second))
+	conn := &statusConn{Conn: server}
+	if err := conn.CloseWrite(); err != nil {
+		t.Fatal(err)
+	}
+	var data [4]byte
+	if _, err := client.Read(data[:]); err != io.EOF {
+		t.Fatalf("client read = %v, want EOF", err)
+	}
+	io.WriteString(client, "ping")
+	if _, err := io.ReadFull(conn, data[:]); err != nil || string(data[:]) != "ping" {
+		t.Fatalf("read after CloseWrite = %q, %v", data, err)
+	}
+}
 
 // received is what the stub upstream saw.
 type received struct {
@@ -37,7 +159,7 @@ func startProxy(t *testing.T, handler http.HandlerFunc) (string, <-chan received
 	if err != nil {
 		t.Fatal(err)
 	}
-	front := &http.Server{Handler: newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second)}
+	front := newServer(newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second), 0, 0, 0)
 	go front.Serve(ln)
 	t.Cleanup(func() { front.Close() })
 	return ln.Addr().String(), seen
@@ -309,6 +431,44 @@ func TestKeepsTrailersWithACustomStatusLine(t *testing.T) {
 	}
 }
 
+func TestKeepsACustomStatusConnectionAlive(t *testing.T) {
+	addr, _ := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/custom" {
+			conn, buf, _ := w.(http.Hijacker).Hijack()
+			defer conn.Close()
+			io.WriteString(buf, "HTTP/1.1 400 Custom Reason\r\nContent-Length: 5\r\n\r\nhello")
+			buf.Flush()
+		} else {
+			io.WriteString(w, "HTTP/1.1 400 Bad Request\r\n")
+		}
+	})
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	conn.SetDeadline(time.Now().Add(5 * time.Second))
+	reader := bufio.NewReader(conn)
+	for _, tc := range []struct{ path, status, body string }{
+		{"/custom", "400 Custom Reason", "hello"},
+		{"/standard", "200 OK", "HTTP/1.1 400 Bad Request\r\n"},
+	} {
+		fmt.Fprintf(conn, "GET %s HTTP/1.1\r\nHost: shop.example.com\r\n\r\n", tc.path)
+		res, err := http.ReadResponse(reader, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, err := io.ReadAll(res.Body)
+		res.Body.Close()
+		if err != nil || res.Status != tc.status || string(body) != tc.body {
+			t.Fatalf("got %q %q, %v, want %q %q", res.Status, body, err, tc.status, tc.body)
+		}
+		if res.Close {
+			t.Fatal("response closed the keep-alive connection")
+		}
+	}
+}
+
 func TestKeepsHeadSemanticsWithACustomStatusLine(t *testing.T) {
 	addr, _ := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
 		conn, buf, _ := w.(http.Hijacker).Hijack()
@@ -379,6 +539,156 @@ func TestKeepsAnUpgradeWithACustomStatusLine(t *testing.T) {
 	}
 }
 
+func TestCancelsAStreamWhenTheClientDisconnects(t *testing.T) {
+	for _, request := range []struct{ name, text string }{
+		{"GET", "GET / HTTP/1.1\r\nHost: shop.example.com\r\n\r\n"},
+		{"POST", "POST / HTTP/1.1\r\nHost: shop.example.com\r\nContent-Length: 10\r\n\r\nabcdefghij"},
+		{"unfinished POST", "POST / HTTP/1.1\r\nHost: shop.example.com\r\nContent-Length: 10\r\n\r\na"},
+	} {
+		for _, status := range []string{"200 OK", "200 Custom Reason"} {
+			t.Run(request.name+"/"+status, func(t *testing.T) {
+				upstream, err := net.Listen("tcp", "127.0.0.1:0")
+				if err != nil {
+					t.Fatal(err)
+				}
+				release := make(chan struct{})
+				disconnected := make(chan struct{})
+				upstreamDone := make(chan struct{})
+				go func() {
+					defer close(upstreamDone)
+					conn, err := upstream.Accept()
+					if err != nil {
+						return
+					}
+					defer conn.Close()
+					go func() {
+						<-release
+						conn.Close()
+					}()
+					reader := bufio.NewReader(conn)
+					if _, err := http.ReadRequest(reader); err != nil {
+						return
+					}
+					fmt.Fprintf(conn, "HTTP/1.1 %s\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nfirst\r\n", status)
+					io.Copy(io.Discard, reader)
+					close(disconnected)
+				}()
+				ln, err := net.Listen("tcp", "127.0.0.1:0")
+				if err != nil {
+					close(release)
+					upstream.Close()
+					t.Fatal(err)
+				}
+				front := newServer(newProxy(upstream.Addr().String(), ln.Addr().(*net.TCPAddr), time.Second), 5*time.Second, 5*time.Second, 0)
+				go front.Serve(ln)
+				t.Cleanup(func() {
+					close(release)
+					upstream.Close()
+					front.Close()
+					<-upstreamDone
+				})
+				client, err := net.Dial("tcp", ln.Addr().String())
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer client.Close()
+				client.SetDeadline(time.Now().Add(5 * time.Second))
+				io.WriteString(client, request.text)
+				res, err := http.ReadResponse(bufio.NewReader(client), nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var first [5]byte
+				if _, err := io.ReadFull(res.Body, first[:]); err != nil {
+					t.Fatal(err)
+				}
+				select {
+				case <-disconnected:
+					t.Fatal("the upstream closed before the client disconnected")
+				default:
+				}
+				client.Close()
+				select {
+				case <-disconnected:
+				case <-time.After(3 * time.Second):
+					t.Fatal("the upstream stayed open after the client disconnected")
+				}
+			})
+		}
+	}
+}
+
+func TestStreamsACustomStatusDuringAnUpload(t *testing.T) {
+	upstream, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer upstream.Close()
+	upstreamDone := make(chan struct{})
+	go func() {
+		defer close(upstreamDone)
+		conn, err := upstream.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		conn.SetDeadline(time.Now().Add(5 * time.Second))
+		req, err := http.ReadRequest(bufio.NewReader(conn))
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		var first [1]byte
+		if _, err := io.ReadFull(req.Body, first[:]); err != nil {
+			t.Error(err)
+			return
+		}
+		io.WriteString(conn, "HTTP/1.1 200 Custom Reason\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nfirst\r\n")
+		rest, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		if string(first[:])+string(rest) != "abcdefghij" {
+			t.Errorf("upload = %q%q", first, rest)
+		}
+		io.WriteString(conn, "5\r\n-last\r\n0\r\n\r\n")
+	}()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	front := newServer(newProxy(upstream.Addr().String(), ln.Addr().(*net.TCPAddr), time.Second), 5*time.Second, 5*time.Second, 0)
+	go front.Serve(ln)
+	t.Cleanup(func() {
+		front.Close()
+		<-upstreamDone
+	})
+	client, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	client.SetDeadline(time.Now().Add(5 * time.Second))
+	io.WriteString(client, "POST /upload HTTP/1.1\r\nHost: shop.example.com\r\nContent-Length: 10\r\n\r\na")
+	res, err := http.ReadResponse(bufio.NewReader(client), &http.Request{Method: http.MethodPost})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var first [5]byte
+	if _, err := io.ReadFull(res.Body, first[:]); err != nil {
+		t.Fatal(err)
+	}
+	io.WriteString(client, "bcdefghij")
+	rest, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != "200 Custom Reason" || string(first[:])+string(rest) != "first-last" {
+		t.Errorf("got %q %q%q", res.Status, first, rest)
+	}
+}
+
 func TestShutdownWaitsForACustomStatusLineResponse(t *testing.T) {
 	release := make(chan struct{})
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -395,7 +705,7 @@ func TestShutdownWaitsForACustomStatusLineResponse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	front := &http.Server{Handler: newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second)}
+	front := newServer(newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second), 0, 0, 0)
 	go front.Serve(ln)
 
 	conn, err := net.Dial("tcp", ln.Addr().String())
@@ -414,7 +724,6 @@ func TestShutdownWaitsForACustomStatusLineResponse(t *testing.T) {
 	stopped := make(chan struct{})
 	go func() {
 		front.Shutdown(context.Background())
-		hijackedResponses.Wait()
 		close(stopped)
 	}()
 	select {
@@ -605,7 +914,7 @@ func TestAnswersBeforeTheUploadFinishes(t *testing.T) {
 	}
 }
 
-// A response with a custom reason phrase goes through writeCustomStatusLine.
+// A response with a custom reason phrase goes through keepStatusLine.
 // The trailers Node sends after a chunked body must still reach the client.
 func TestKeepsTrailersOnACustomStatusLine(t *testing.T) {
 	addr := startFrontFor(t, func(w http.ResponseWriter, r *http.Request) {

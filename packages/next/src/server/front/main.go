@@ -18,6 +18,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
@@ -118,9 +119,6 @@ func main() {
 		if err := srv.Shutdown(context.Background()); err != nil {
 			fmt.Fprintln(os.Stderr, "next-front: shutdown:", err)
 		}
-		// Shutdown doesn't track hijacked connections; wait for the responses
-		// writeCustomStatusLine is still sending.
-		hijackedResponses.Wait()
 		close(stopped)
 	}()
 
@@ -134,22 +132,147 @@ func main() {
 // newServer is the public server. It times out what Node times out: idle
 // keep-alive connections, request headers, and whole requests. Responses
 // aren't limited, so long streams aren't cut off, as in Node.
-func newServer(handler http.Handler, idleTimeout, headerTimeout, requestTimeout time.Duration) *http.Server {
-	return &http.Server{
+func newServer(handler http.Handler, idleTimeout, headerTimeout, requestTimeout time.Duration) *frontServer {
+	return &frontServer{&http.Server{
 		Handler:           handler,
 		IdleTimeout:       idleTimeout,
 		ReadHeaderTimeout: headerTimeout,
 		// Reading a request, body included, must finish within Node's
 		// requestTimeout. Go clears the deadline when a connection is taken
-		// over (WebSocket upgrades, writeCustomStatusLine), so those aren't
-		// cut off.
+		// over for a WebSocket upgrade, so those aren't cut off.
 		ReadTimeout: requestTimeout,
 		// Go's server answers "OPTIONS *" itself by default, reading the body
 		// with no deadline and never calling the handler. Forward it to Node
 		// instead, as without the front.
 		DisableGeneralOptionsHandler: true,
 		ErrorLog:                     log.New(os.Stderr, "next-front: ", 0),
+		ConnContext: func(ctx context.Context, conn net.Conn) context.Context {
+			return context.WithValue(ctx, statusConnKey{}, conn)
+		},
+	}}
+}
+
+// Keep net/http in charge of request bodies, cancellation and shutdown. The
+// connection adapter only replaces the reason phrase in a response status line.
+type frontServer struct{ *http.Server }
+
+func (s *frontServer) Serve(ln net.Listener) error {
+	return s.Server.Serve(statusListener{ln})
+}
+
+type statusListener struct{ net.Listener }
+
+func (ln statusListener) Accept() (net.Conn, error) {
+	conn, err := ln.Listener.Accept()
+	if err != nil {
+		return nil, err
 	}
+	return &statusConn{Conn: conn}, nil
+}
+
+type statusConnKey struct{}
+
+type statusConn struct {
+	net.Conn
+	mu       sync.Mutex
+	status   string
+	header   []byte
+	writeErr error
+}
+
+func (c *statusConn) setStatus(status string) {
+	c.mu.Lock()
+	c.status = status
+	c.mu.Unlock()
+}
+
+func (c *statusConn) Write(p []byte) (int, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.writeErr != nil {
+		return 0, c.writeErr
+	}
+	if c.status == "" {
+		return c.Conn.Write(p)
+	}
+
+	buffered := len(c.header)
+	c.header = append(c.header, p...)
+	consumed, rewriteAt, oldLineLen, newLineLen := 0, -1, 0, 0
+	var wire []byte
+	for consumed < len(c.header) {
+		remaining := c.header[consumed:]
+		lineEnd := bytes.Index(remaining, []byte("\r\n"))
+		if lineEnd < 0 {
+			break
+		}
+		line := remaining[:lineEnd]
+		if len(line) >= 12 && bytes.HasPrefix(line, []byte("HTTP/1.")) && line[8] == ' ' {
+			if string(line[9:12]) == c.status[:3] {
+				rewriteAt = consumed
+				oldLineLen, newLineLen = lineEnd+2, 9+len(c.status)+2
+				wire = append(wire, c.header[:consumed+9]...)
+				wire = append(wire, c.status...)
+				wire = append(wire, remaining[lineEnd:]...)
+				consumed = len(c.header)
+				c.status = ""
+				break
+			}
+			if line[9] == '1' && string(line[9:12]) != "101" {
+				// An automatic 100 Continue can race with the final response.
+				// Skip its entire header block, never looking inside its fields.
+				end := bytes.Index(remaining, []byte("\r\n\r\n"))
+				if end < 0 {
+					break
+				}
+				consumed += end + 4
+				continue
+			}
+		}
+		// An unexpected final response must pass through unchanged. Never scan
+		// its headers or body for something that resembles a status line.
+		consumed = len(c.header)
+		c.status = ""
+		break
+	}
+	if wire == nil {
+		wire = c.header[:consumed]
+	}
+	if len(wire) == 0 {
+		return len(p), nil
+	}
+	buffers := net.Buffers{wire}
+	written, err := buffers.WriteTo(c.Conn)
+	if err == nil && written != int64(len(wire)) {
+		err = io.ErrShortWrite
+	}
+	if err != nil {
+		c.writeErr = err
+		// Counts refer to the caller's input, even when the reason phrase grew
+		// or shrank. A partly written replacement line isn't consumed yet.
+		n := int(written)
+		if rewriteAt >= 0 && n > rewriteAt {
+			if n < rewriteAt+newLineLen {
+				n = rewriteAt
+			} else {
+				n += oldLineLen - newLineLen
+			}
+		}
+		return max(0, min(len(p), n-buffered)), err
+	}
+	c.header = c.header[consumed:]
+	if c.status == "" {
+		c.header = nil
+	}
+	return len(p), nil
+}
+
+// ReverseProxy uses TCP half-close to finish upgraded connections.
+func (c *statusConn) CloseWrite() error {
+	if conn, ok := c.Conn.(interface{ CloseWrite() error }); ok {
+		return conn.CloseWrite()
+	}
+	return errors.New("connection does not support CloseWrite")
 }
 
 // stopRequested is closed on stdin EOF, SIGINT or SIGTERM, whichever comes
@@ -235,13 +358,8 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) 
 			DisableCompression:    true,
 			ExpectContinueTimeout: 1 * time.Second,
 		},
-		// Go writes its own text after the status code; writeCustomStatusLine
-		// sends Node's instead when they differ.
-		ModifyResponse: writeCustomStatusLine,
+		ModifyResponse: keepStatusLine,
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
-			if errors.Is(err, errResponseWritten) {
-				return
-			}
 			proxyErrorLog.Printf("proxy error: %v", err)
 			// If the request had a body, part of it may still be unread (the
 			// request timed out mid-upload, or Node went away). In full-duplex
@@ -270,32 +388,15 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) 
 		// mode lets the response go out as Node sends it. It fails only for
 		// HTTP/2, which the front doesn't serve.
 		http.NewResponseController(w).EnableFullDuplex()
-		proxy.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), responseWriterKey{}, w)))
+		proxy.ServeHTTP(w, r)
 	})
 }
 
 var proxyErrorLog = log.New(os.Stderr, "next-front: ", 0)
 
-type responseWriterKey struct{}
-
-// errResponseWritten tells the ErrorHandler that writeCustomStatusLine already
-// sent the response.
-var errResponseWritten = errors.New("response written on the hijacked connection")
-
-// hijackedResponses counts the responses writeCustomStatusLine is sending.
-// Each is added before its connection is hijacked, while Shutdown still waits
-// for that connection, so the count can't go up from zero after Shutdown
-// returns.
-var hijackedResponses sync.WaitGroup
-
-// writeCustomStatusLine sends Node's response itself when its status line
-// isn't the one Go's server would write. Node lets apps set any reason phrase
-// (`res.statusMessage`, like "400 Invalid JSON") and uses its own texts for
-// some codes ("413 Payload Too Large"); Go's ResponseWriter always writes
-// http.StatusText. Such responses are rare (mostly errors), so the front takes
-// the client connection over, writes the response byte for byte, and closes
-// the connection afterwards.
-func writeCustomStatusLine(res *http.Response) error {
+// Go chooses its own reason phrase. Preserve Node's at the connection boundary
+// while leaving all HTTP framing and connection management to net/http.
+func keepStatusLine(res *http.Response) error {
 	// ReverseProxy's upgrade handler already preserves the reason phrase and
 	// relays bytes in both directions. A 101 must reach that handler.
 	if res.StatusCode == http.StatusSwitchingProtocols {
@@ -304,29 +405,10 @@ func writeCustomStatusLine(res *http.Response) error {
 	if res.Status == fmt.Sprintf("%d %s", res.StatusCode, http.StatusText(res.StatusCode)) {
 		return nil
 	}
-	w, ok := res.Request.Context().Value(responseWriterKey{}).(http.ResponseWriter)
-	if !ok {
-		return nil
+	if conn, ok := res.Request.Context().Value(statusConnKey{}).(*statusConn); ok {
+		conn.setStatus(res.Status)
 	}
-	hijacker, ok := w.(http.Hijacker)
-	if !ok {
-		return nil
-	}
-	hijackedResponses.Add(1)
-	defer hijackedResponses.Done()
-	conn, _, err := hijacker.Hijack()
-	if err != nil {
-		return nil
-	}
-	defer conn.Close()
-
-	// Response.Write preserves Node's reason phrase and restores the body
-	// framing, including trailers populated as the body reaches EOF. Write
-	// directly to the connection so streaming responses aren't buffered.
-	response := *res
-	response.Close = true
-	response.Write(conn)
-	return errResponseWritten
+	return nil
 }
 
 // keepRequestTarget makes the outgoing request line carry the target exactly
