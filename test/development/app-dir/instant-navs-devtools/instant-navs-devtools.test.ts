@@ -445,6 +445,87 @@ describe('instant-nav-panel', () => {
   })
 
   describe('MPA captures', () => {
+    it.each(['light', 'dark'] as const)(
+      'should respect the selected theme on a %s system',
+      async (colorScheme) => {
+        const browser = await next.browser('/', {
+          beforePageLoad: (page) => page.emulateMedia({ colorScheme }),
+        })
+        await clearInstantModeCookie(browser)
+        await waitForAppHydration(browser)
+        await openInstantNavPanel(browser)
+        await clickStartCapturing(browser)
+        await browser.refresh()
+        await getInstantNavPanel(browser)
+        await expectMpaPanel(browser)
+
+        for (const theme of ['light', 'dark', 'system']) {
+          // Apply the same host classes as the DevTools theme preference.
+          await browser.eval((theme) => {
+            const portal = document.querySelector('nextjs-portal')!
+            portal.classList.toggle('light', theme === 'light')
+            portal.classList.toggle('dark', theme === 'dark')
+          }, theme)
+          const isDark =
+            theme === 'dark' || (theme === 'system' && colorScheme === 'dark')
+          const readColors = () =>
+            browser.eval(() => {
+              const root = document.querySelector('nextjs-portal')!.shadowRoot!
+              const banner = getComputedStyle(
+                root.querySelector('.instant-nav-debugger-paused')!
+              )
+              const button = getComputedStyle(
+                root.querySelector('.instant-nav-debugger-paused-button')!
+              )
+              return {
+                bannerColor: banner.color,
+                bannerBackground: banner.backgroundColor,
+                buttonColor: button.color,
+                buttonBackground: button.backgroundColor,
+              }
+            })
+          expect(await readColors()).toEqual({
+            bannerColor: 'rgb(23, 23, 23)',
+            bannerBackground: isDark
+              ? 'rgb(231, 199, 85)'
+              : 'rgb(254, 244, 171)',
+            buttonColor: isDark ? 'rgb(237, 237, 237)' : 'rgb(23, 23, 23)',
+            buttonBackground: isDark ? 'rgb(0, 0, 0)' : 'rgb(255, 255, 255)',
+          })
+          await browser.locator('.instant-nav-debugger-paused-button').hover()
+          expect((await readColors()).buttonBackground).toBe(
+            isDark ? 'rgb(46, 46, 46)' : 'rgb(250, 250, 250)'
+          )
+          await browser.locator('.instant-nav-state-title').hover()
+        }
+        await clickResume(browser)
+        await expectPendingPanel(browser)
+        for (const theme of ['light', 'dark', 'system']) {
+          const isDark =
+            theme === 'dark' || (theme === 'system' && colorScheme === 'dark')
+          const colors = await browser.eval((theme) => {
+            const portal = document.querySelector('nextjs-portal')!
+            portal.classList.toggle('light', theme === 'light')
+            portal.classList.toggle('dark', theme === 'dark')
+            const root = portal.shadowRoot!
+            const status = root.querySelector('.instant-nav-waiting-status')!
+            const dot = root.querySelector('.instant-nav-waiting-status-dot')!
+            return {
+              background: getComputedStyle(status).backgroundColor,
+              dot: getComputedStyle(dot).backgroundColor,
+              dotCenter: getComputedStyle(dot, '::after').backgroundColor,
+            }
+          }, theme)
+          expect(colors).toEqual({
+            background: isDark ? 'rgb(15, 48, 88)' : 'rgb(240, 247, 255)',
+            dot: isDark ? 'rgb(37, 84, 143)' : 'rgb(184, 207, 251)',
+            dotCenter: isDark ? 'rgb(70, 139, 226)' : 'rgb(0, 112, 243)',
+          })
+        }
+        await clearInstantModeCookie(browser)
+      }
+    )
+
     it('should show page load state after clicking Start and refreshing', async () => {
       const browser = await next.browser('/target-page/my-post?search=foo')
       await clearInstantModeCookie(browser)
