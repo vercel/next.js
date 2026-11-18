@@ -264,7 +264,7 @@ impl EcmascriptBrowserEvaluateChunk {
         ident.modifiers.extend(
             evaluatable_assets
                 .iter()
-                .map(|entry| entry.ident().to_string().owned())
+                .map(|entry| entry.ident_string().owned())
                 .try_join()
                 .await?,
         );
