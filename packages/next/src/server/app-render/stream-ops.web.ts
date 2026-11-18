@@ -13,6 +13,7 @@ import { prerender } from 'react-dom/static'
 import type { renderToReadableStream as flightRenderToReadableStream } from 'react-server-dom-webpack/server'
 
 import {
+  type ContinueStaticFallbackPrerenderOptions,
   renderToInitialFizzStream,
   streamToString as webStreamToString,
   createRuntimePrefetchTransformStream,
@@ -36,6 +37,7 @@ import type { AnyStream as AnyStreamType } from './app-render-prerender-utils'
 type FlightRenderToReadableStream = typeof flightRenderToReadableStream
 
 export type AnyStream = AnyStreamType
+export type { ContinueStaticFallbackPrerenderOptions }
 
 export type ContinueStreamSharedOptions = {
   deploymentId: string | undefined
@@ -140,7 +142,7 @@ export async function continueDynamicPrerender(
 
 export async function continueStaticFallbackPrerender(
   prerenderStream: AnyStream,
-  opts: ContinueStaticPrerenderOptions
+  opts: ContinueStaticFallbackPrerenderOptions<AnyStream>
 ): Promise<AnyStream> {
   return webContinueStaticFallbackPrerender(
     prerenderStream as ReadableStream<Uint8Array>,

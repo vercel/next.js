@@ -29,8 +29,8 @@ use swc_core::{
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueToStringRef, Vc, turbofmt,
+    FxIndexMap, FxIndexSet, NonLocalValue, OperationVc, OrderedAutoMap, ReadRef, ResolvedVc,
+    TryFlatJoinIterExt, TryJoinIterExt, ValueToStringRef, Vc, turbofmt,
 };
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath, rope::RopeBuilder};
 use turbo_tasks_hash::{HashAlgorithm, deterministic_hash};
@@ -915,11 +915,10 @@ async fn parse_actions(module: ResolvedVc<Box<dyn Module>>) -> Result<Vc<OptionA
         actions.retain(|_, entry| all_exports.iter().any(|export| export == &entry.name));
     }
 
-    let mut actions = FxIndexMap::from_iter(actions.into_iter());
-    actions.sort_keys();
+    // `actions` is a `BTreeMap`, so this is sorted by the action hash.
     Ok(Vc::cell(Some(
         ActionMap {
-            actions,
+            actions: actions.into(),
             entry_path,
             entry_query,
         }
@@ -1039,8 +1038,7 @@ impl AllActions {
 #[turbo_tasks::value]
 #[derive(Debug)]
 pub struct ActionMap {
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub actions: FxIndexMap<String, ActionEntry>,
+    pub actions: OrderedAutoMap<String, ActionEntry>,
     pub entry_path: String,
     pub entry_query: String,
 }
@@ -1052,10 +1050,7 @@ struct OptionActionMap(Option<ResolvedVc<ActionMap>>);
 type LayerAndActions = (ActionLayer, ResolvedVc<ActionMap>);
 /// A mapping of every module module containing Server Actions, mapping to its layer and actions.
 #[turbo_tasks::value(transparent)]
-pub struct AllModuleActions(
-    #[bincode(with = "turbo_bincode::indexmap")]
-    FxIndexMap<ResolvedVc<Box<dyn Module>>, LayerAndActions>,
-);
+pub struct AllModuleActions(OrderedAutoMap<ResolvedVc<Box<dyn Module>>, LayerAndActions>);
 
 #[turbo_tasks::function]
 pub async fn map_server_actions(

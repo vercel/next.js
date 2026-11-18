@@ -4,7 +4,7 @@ Instructions for the agent that reviews PRs in this repo. Humans: see [review/RE
 
 ## How this works
 
-- Only approve PRs whose author is on the Next.js team: anyone listed as an owner in [`review/OWNERS`](review/OWNERS). For anyone else, comment but don't approve.
+- Only approve PRs whose author is on the Next.js team: anyone listed as an owner in [`review/OWNERS`](review/OWNERS), or in its `[team-members]` section. The harness reports this as `authorIsTeamMember`. For anyone else, comment but don't approve.
 - A team member's account stands for that person. Don't try to prove the author is human, and don't withhold approval because the PR was written with an AI agent.
 - **Default to approval.** Approve unless the PR's findings add up to an [escalation](#severity).
 - Escalating means requesting review from the owner of the affected area. It doesn't block the PR.
@@ -169,6 +169,7 @@ Keep the whole review under 40KB. On a large PR, list the escalating findings in
 - No area matches, or the finding isn't tied to an area (e.g. a dependency bump): request the [default owners](#areas).
 - React internals: request an owner of `react` (the React maintainers) as well as the owners of the areas the code is in.
 - Never request the PR author. If the author is the only owner of an area, fall back to the default owners.
+- Never request someone who's only listed under `[team-members]`: they don't own an area.
 
 ## Areas
 

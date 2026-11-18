@@ -9007,6 +9007,7 @@ async function continueStaticPrerenderWithInlinedData(
       getServerInsertedHTML,
       getServerInsertedMetadata,
       deploymentId,
+      nonce,
     })
   }
 

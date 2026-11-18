@@ -3,7 +3,7 @@ use bincode::{Decode, Encode};
 use next_core::{next_manifests::ProxyMatcher, route_discovery::DevelopmentDiscovery};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, OperationValue, OperationVc, ResolvedVc, Vc,
+    NonLocalValue, OperationValue, OperationVc, OrderedAutoMap, ResolvedVc, Vc,
     debug::ValueDebugFormat, take_effects,
 };
 use turbo_tasks_fs::FileSystemPath;
@@ -24,8 +24,7 @@ use crate::{
 /// This is needed to call `write_to_disk` which expects an `OperationVc<Endpoint>`.
 #[turbo_tasks::value(shared)]
 pub struct EntrypointsOperation {
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub routes: FxIndexMap<RcStr, RouteOperation>,
+    pub routes: OrderedAutoMap<RcStr, RouteOperation>,
     pub middleware: Option<MiddlewareOperation>,
     pub instrumentation: Option<InstrumentationOperation>,
     pub development: Option<DevelopmentDiscovery>,
