@@ -1,4 +1,7 @@
-use std::{collections::VecDeque, fmt::Write};
+use std::{
+    collections::{BTreeMap, VecDeque},
+    fmt::Write,
+};
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
@@ -6,7 +9,7 @@ use swc_core::{ecma::ast::Expr, quote};
 use turbo_esregex::EsRegex;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
+    NonLocalValue, OrderedAutoMap, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, File, FileContent, FileSystemPath};
 use turbopack_core::{
@@ -40,9 +43,7 @@ pub(crate) enum DirListEntry {
 }
 
 #[turbo_tasks::value(transparent)]
-pub(crate) struct DirList(
-    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, DirListEntry>,
-);
+pub(crate) struct DirList(OrderedAutoMap<RcStr, DirListEntry>);
 
 #[turbo_tasks::value_impl]
 impl DirList {
@@ -60,7 +61,8 @@ impl DirList {
         let root_val = root.clone();
         let dir_val = dir.clone();
 
-        let mut list = FxIndexMap::default();
+        // Sorted by the relative path.
+        let mut list = BTreeMap::new();
 
         let dir_content = dir.read_dir().await?;
         let entries = match &*dir_content {
@@ -92,9 +94,7 @@ impl DirList {
             }
         }
 
-        list.sort_keys();
-
-        Ok(Vc::cell(list))
+        Ok(Vc::cell(list.into()))
     }
 
     #[turbo_tasks::function]
@@ -103,7 +103,7 @@ impl DirList {
 
         let mut queue = VecDeque::from([this]);
 
-        let mut list = FxIndexMap::default();
+        let mut list = OrderedAutoMap::default();
 
         while let Some(dir) = queue.pop_front() {
             for (k, entry) in &*dir {
@@ -123,9 +123,7 @@ impl DirList {
 }
 
 #[turbo_tasks::value(transparent)]
-pub(crate) struct FlatDirList(
-    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, FileSystemPath>,
-);
+pub(crate) struct FlatDirList(OrderedAutoMap<RcStr, FileSystemPath>);
 
 #[turbo_tasks::value_impl]
 impl FlatDirList {

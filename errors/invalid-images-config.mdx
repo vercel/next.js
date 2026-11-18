@@ -34,7 +34,8 @@ module.exports = {
     // enable dangerous use of SVG images
     dangerouslyAllowSVG: false,
     // set the Content-Security-Policy header
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    contentSecurityPolicy:
+      "default-src 'self'; script-src 'none'; frame-src 'none'; sandbox;",
     // sets the Content-Disposition header ('inline' or 'attachment')
     contentDispositionType: 'attachment',
     // limit of 25 objects
@@ -51,5 +52,5 @@ module.exports = {
 
 ## Useful Links
 
-- [Image Optimization Documentation](/docs/pages/api-reference/components/image)
-- [`next/image` Documentation](/docs/pages/api-reference/components/image)
+- [Image Optimization Guide](/docs/app/getting-started/images)
+- [`next/image` Documentation](/docs/app/api-reference/components/image)

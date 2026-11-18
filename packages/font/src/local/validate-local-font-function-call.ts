@@ -48,6 +48,8 @@ export function validateLocalFontFunctionCall(
     variable,
     adjustFontFallback,
     declarations,
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
   } = fontData || ({} as any)
 
   if (!allowedDisplayValues.includes(display)) {

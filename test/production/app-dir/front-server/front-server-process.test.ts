@@ -1,5 +1,6 @@
 import { execFile, spawn, type ChildProcess } from 'child_process'
 import fs from 'fs/promises'
+import http from 'http'
 import net from 'net'
 import path from 'path'
 import { once } from 'events'
@@ -256,6 +257,35 @@ describe('front-server process', () => {
       expect(await exit).toEqual({ code: 143, signal: null })
     })
 
+    it('never answers with a server error while shutting down', async () => {
+      const { child, port, exit } = await startNext({ flag })
+      expect(await getText(port)).toMatchObject({ status: 200 })
+      // Requests keep coming, each on a new connection, while the server
+      // shuts down. Each must either be answered normally or be refused
+      // once the server stops accepting, as with plain next start. A 5xx
+      // would mean a request was accepted and then couldn't be served.
+      const statuses: number[] = []
+      let stopped = false
+      const keepRequesting = async () => {
+        while (!stopped) {
+          try {
+            statuses.push(await statusOnNewConnection(port))
+          } catch {
+            // Refused or reset: the server no longer accepts connections.
+            return
+          }
+        }
+      }
+      const workers = Array.from({ length: 16 }, keepRequesting)
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      process.kill(child.pid!, 'SIGTERM')
+      expect(await exit).toEqual({ code: 143, signal: null })
+      stopped = true
+      await Promise.all(workers)
+      expect(statuses.length).toBeGreaterThan(0)
+      expect(statuses.filter((status) => status >= 500)).toEqual([])
+    })
+
     it('listens on the port passed with -p', async () => {
       const port = await getFreePort()
       const started = await startNext({ flag, args: ['-p', String(port)] })
@@ -374,6 +404,21 @@ function portOf(server: net.Server): number {
     throw new Error(`not listening on a TCP port: ${address}`)
   }
   return address.port
+}
+
+/** Sends GET / on a connection of its own and resolves with the status. */
+function statusOnNewConnection(port: number): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const req = http.get(
+      { host: 'localhost', port, path: '/', agent: false },
+      (res) => {
+        res.resume()
+        res.on('end', () => resolve(res.statusCode!))
+        res.on('error', reject)
+      }
+    )
+    req.on('error', reject)
+  })
 }
 
 async function getFreePort(): Promise<number> {

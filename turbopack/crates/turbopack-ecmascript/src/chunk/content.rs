@@ -50,7 +50,7 @@ impl ChunkMinification {
     }
 
     /// The minification to apply to each chunk item before it is written into the chunk.
-    fn per_item(self) -> MinifyType {
+    pub(crate) fn per_item(self) -> MinifyType {
         match self {
             ChunkMinification::PerItem { mangle } => MinifyType::Minify { mangle },
             ChunkMinification::None | ChunkMinification::WholeChunk { .. } => MinifyType::NoMinify,

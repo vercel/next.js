@@ -93,6 +93,9 @@ const promptOutput = createPromptOutput()
 let upgradeOffered = false
 let upgradeInProgress = false
 let interruption: NodeJS.Signals | null = null
+// Set when the server child was terminated by a signal that this process did
+// not send, so that `next dev` exits with the conventional 128 + signal code.
+let childExitSignal: NodeJS.Signals | null = null
 let devSpanAttrs: { 'rage-restart': boolean; 'missing-next-dir': boolean } = {
   'rage-restart': false,
   'missing-next-dir': false,
@@ -239,7 +242,9 @@ const handleSessionStop = async (
     process.exit(
       interruption && (interruption === 'SIGHUP' || interruptedUpgrade)
         ? 128 + os.constants.signals[interruption]
-        : exitCode
+        : childExitSignal
+          ? 128 + os.constants.signals[childExitSignal]
+          : exitCode
     )
   }
 }
@@ -628,7 +633,28 @@ const nextDev = async (
           if (upgradeInProgress) {
             interruption ??= signal
             await handleSessionStop(null)
+            return
           }
+          // Shutdowns initiated by this process returned above. The server
+          // handles SIGINT/SIGTERM itself and exits with a code, so a signal
+          // exit here means it was killed externally (e.g. by the OOM killer)
+          // or crashed. Stop instead of running on without a server.
+          // Termination requests (e.g. Ctrl+C before the server installed its
+          // handlers) are not errors, so only report other signals.
+          if (
+            signal !== 'SIGINT' &&
+            signal !== 'SIGTERM' &&
+            signal !== 'SIGHUP'
+          ) {
+            Log.error(
+              `The Next.js dev server process exited unexpectedly due to signal ${signal}.` +
+                (signal === 'SIGKILL'
+                  ? ' This can happen when the system runs out of memory.'
+                  : '')
+            )
+          }
+          childExitSignal = signal
+          await handleSessionStop(/* signal */ null)
           return
         }
         if (code === RESTART_EXIT_CODE) {
