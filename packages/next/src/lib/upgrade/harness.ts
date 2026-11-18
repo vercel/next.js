@@ -10,6 +10,7 @@ import * as Log from '../../build/output/log'
 import { getAgentName } from '../../telemetry/agent-name'
 import type { AgentUpgradeHandoffMethod } from '../../telemetry/events/agent-upgrade'
 import { bold, cyan, dim } from '../picocolors'
+import { stripNodeEnv } from './agent-env'
 import { getHarnessModels, type UpgradeModel } from './model-discovery'
 import { runChildProcess } from './run-child-process'
 
@@ -292,6 +293,7 @@ function launchHarness(
     {
       cwd: directory,
       stdio: 'inherit',
+      env: stripNodeEnv(),
     },
     onSpawn
   )
