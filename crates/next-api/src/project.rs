@@ -3284,22 +3284,26 @@ async fn whole_app_module_graph_operation(
         );
 
         if !span.is_disabled() {
+            // INVALIDATION: This count is only used for tracing
             let base_module_count = base_single_module_graph
                 .connect()
                 .module_count()
                 .untracked()
                 .await?;
+            // INVALIDATION: This count is only used for tracing
             let additional_module_count = additional_module_graph
                 .connect()
                 .module_count()
                 .untracked()
                 .await?;
             span.record("modules", *base_module_count + *additional_module_count);
+            // INVALIDATION: This count is only used for tracing
             let base_edge_count = base_single_module_graph
                 .connect()
                 .edge_count()
                 .untracked()
                 .await?;
+            // INVALIDATION: This count is only used for tracing
             let additional_edge_count = additional_module_graph
                 .connect()
                 .edge_count()
