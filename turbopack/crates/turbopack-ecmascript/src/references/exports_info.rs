@@ -16,7 +16,7 @@ use crate::{
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
     magic_identifier::MAGIC_IDENTIFIER_WEBPACK_EXPORTS_INFO_STR,
-    references::esm::mangle::mangled_export_names,
+    references::esm::mangle::export_info,
 };
 
 /// Responsible for initializing the `ExportsInfoBinding` object binding, so that it may be
@@ -52,7 +52,7 @@ impl ExportsInfoBinding {
         // whether export mangling is enabled at all — see the `map` closure below for exactly
         // what each of the three fields means.
         let exports = exports.await?;
-        let mangled_names = mangled_export_names(*module, chunking_context).await?;
+        let info = export_info(*module, chunking_context).await?;
 
         let props = if let EcmascriptExports::EsmExports(exports) = &*exports {
             exports
@@ -64,13 +64,13 @@ impl ExportsInfoBinding {
                     let used: Expr = is_used.into();
                     // `canMangle` is true exactly when this export is a genuine candidate for
                     // mangling: the module has to be eligible at all (which is what a `Some` map
-                    // means — see `mangled_export_names`) and the export itself has to be used, as
+                    // means — see `export_info`) and the export itself has to be used, as
                     // an unused export is never emitted and so was never a candidate.
                     // `mangledName` is then always a string — the assigned key when mangling
                     // actually renamed it, or the export's own name when it was considered but
                     // kept itself (e.g. already short enough) — and only `null` when `canMangle`
                     // is false.
-                    let can_mangle_names = mangled_names.as_ref().filter(|_| is_used);
+                    let can_mangle_names = info.mangled_names().filter(|_| is_used);
                     let can_mangle_expr: Expr = can_mangle_names.is_some().into();
                     let mangled_name: Expr =
                         match can_mangle_names {
