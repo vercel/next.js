@@ -62,6 +62,30 @@ describe('use-router-with-rewrites', () => {
     })
   })
 
+  describe('dynamic segment in the middle of the path', () => {
+    it('should interpolate the query when using useRouter.push and the current URL has a query', async () => {
+      const browser = await next.browser('/dynamic-mid-path/a/detail?from=x')
+      await browser.elementById('router-push').click()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe('b')
+      })
+      const url = new URL(await browser.url())
+      expect(url.pathname + url.search).toBe('/dynamic-mid-path/b/detail')
+    })
+
+    it('should interpolate the query when using Link and the current URL has a query', async () => {
+      const browser = await next.browser('/dynamic-mid-path/a/detail?from=x')
+      await browser.elementByCss('a').click()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe('c')
+      })
+      const url = new URL(await browser.url())
+      expect(url.pathname + url.search).toBe('/dynamic-mid-path/c/detail')
+    })
+  })
+
   // This is an edge case where rewrite won't work as expected due to trade-off,
   // but interpolates the query instead.
   describe('rewrite to same segment', () => {
