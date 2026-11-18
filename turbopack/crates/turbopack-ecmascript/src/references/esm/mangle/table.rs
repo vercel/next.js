@@ -190,7 +190,7 @@ fn bucket_of(name: &str, len: u32) -> Option<u64> {
 /// The returned map only has an entry for a name that actually changed — a name that already fit
 /// and kept itself is simply absent, so a caller must treat a missing key as "keep the original
 /// name", not as "not eligible" (that distinction, when it matters, has to come from elsewhere;
-/// see the doc comment on [`super::MangledExportNames`]).
+/// see [`super::ExportInfo::mangled_names`]).
 ///
 /// [`RESERVED_KEYS`] are never handed out, even though they are not themselves assigned a short
 /// name.

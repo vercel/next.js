@@ -19,6 +19,7 @@
 mod table;
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
@@ -54,7 +55,7 @@ impl ExportInfo {
         self.namespace
     }
 
-    /// The output key, falling back to the source name when it was not renamed.
+    /// The output key to use for the given export.
     pub fn export_name<'a>(&'a self, name: &'a RcStr) -> &'a RcStr {
         self.names
             .as_ref()
@@ -72,12 +73,20 @@ impl ExportInfo {
     }
 }
 
-/// One flat namespace for a scope-hoisting group. Allocation keys include the module index,
-/// so two source modules exporting the same name still get distinct output properties.
+/// The modules that share an export-name allocation. Group keys include the original member
+/// index, so two source modules exporting the same name still get distinct output properties.
+#[turbo_tasks::task_input]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Encode, Decode)]
+pub(crate) enum ExportAllocationDomain {
+    Single(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>),
+    Group(ResolvedVc<MergedModuleGroup>),
+}
+
+/// Allocated names and the source-module identity used for their namespace.
 #[turbo_tasks::value]
-pub(crate) struct FlatExportGroup {
-    /// The source-module identity used for the shared namespace. In mixed groups this may
-    /// differ from the merged factory's original entry, which needs its own namespace.
+pub(crate) struct AllocatedExports {
+    /// The source-module identity used for the namespace. In mixed groups this may differ
+    /// from the merged factory's original entry, which needs its own namespace.
     pub entry: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     pub names: rustc_hash::FxHashMap<
         ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
@@ -86,27 +95,37 @@ pub(crate) struct FlatExportGroup {
 }
 
 #[turbo_tasks::value(transparent)]
-pub(crate) struct OptionFlatExportGroup(pub Option<ResolvedVc<FlatExportGroup>>);
+pub(crate) struct OptionAllocatedExports(pub Option<ResolvedVc<AllocatedExports>>);
 
 #[turbo_tasks::function]
-pub(crate) async fn flat_group_exports(
-    group: Vc<MergedModuleGroup>,
+pub(crate) async fn allocate_exports(
+    domain: ExportAllocationDomain,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-) -> Result<Vc<OptionFlatExportGroup>> {
-    let group = group.await?;
-    let mut exports_to_name = Vec::new();
-    let mut flat_modules = Vec::new();
-    for (index, (module, exposure)) in group.modules.await?.iter().enumerate() {
-        // Only externally read members contribute to the shared table. Internal namespaces
-        // keep their source identity; unexposed members only use local bindings.
-        if *exposure != MergeableModuleExposure::External {
-            continue;
+) -> Result<Vc<OptionAllocatedExports>> {
+    let flat = matches!(domain, ExportAllocationDomain::Group(_));
+    let (preferred_entry, modules) = match domain {
+        ExportAllocationDomain::Single(module) => (ResolvedVc::upcast(module), vec![(0, module)]),
+        ExportAllocationDomain::Group(group) => {
+            let group = group.await?;
+            // Only externally read members contribute to the shared table. Internal namespaces
+            // keep their source identity; unexposed members only use local bindings.
+            let modules = group
+                .modules
+                .await?
+                .iter()
+                .enumerate()
+                .filter(|(_, (_, exposure))| *exposure == MergeableModuleExposure::External)
+                .filter_map(|(index, (module, _))| {
+                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*module)
+                        .map(|module| (index, module))
+                })
+                .collect();
+            (group.entry, modules)
         }
-        // Non-static export shapes keep their existing namespace without excluding peers.
-        let Some(module) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*module)
-        else {
-            continue;
-        };
+    };
+    let mut exports_to_name = Vec::new();
+    let mut eligible_modules = Vec::new();
+    for (index, module) in modules {
         let EcmascriptExports::EsmExports(exports) = *module.get_exports().await? else {
             continue;
         };
@@ -118,47 +137,67 @@ pub(crate) async fn flat_group_exports(
         let usage = chunking_context
             .module_export_usage(*ResolvedVc::upcast(module))
             .await?;
-        // Flattening changes both names and namespace identity: it is only safe when all reads
-        // are known named accesses lowered by codegen, not user-observable namespace reads.
-        if usage.namespace_object_may_escape
-            || matches!(*usage.export_usage.await?, ModuleExportUsageInfo::All)
-        {
+        // Renaming (and sharing a namespace when flat) is only safe when all reads are known
+        // named accesses lowered by codegen, not user-observable namespace reads.
+        if usage.namespace_object_may_escape {
+            continue;
+        }
+        let usage_info = usage.export_usage.await?;
+        let ModuleExportUsageInfo::Exports(used) = &*usage_info else {
+            continue;
+        };
+        if !flat && used.is_empty() {
             continue;
         }
         let expanded = exports.expand_exports(*usage.export_usage).await?;
         // Runtime re-exports discover their names dynamically, so we cannot allocate collision-free
         // keys for them or rewrite every access to the shared table ahead of time.
-        if !expanded.dynamic_exports.is_empty() {
+        if !expanded.dynamic_exports.is_empty() || (!flat && expanded.exports.is_empty()) {
             continue;
         }
-        // Preserve even an eligible member with no used exports, since imports must still
-        // target the shared factory and agree with its empty registration.
-        flat_modules.push(module);
+        // Preserve even a flat member with no used exports, since imports must still target
+        // the shared factory and agree with its empty registration. Standalone modules with
+        // nothing to rename keep their unmangled representation.
+        eligible_modules.push(module);
         for name in expanded.exports.keys() {
-            exports_to_name.push((module, name.clone(), RcStr::from(format!("{index}:{name}"))));
+            let key = if flat {
+                RcStr::from(format!("{index}:{name}"))
+            } else {
+                name.clone()
+            };
+            exports_to_name.push((module, name.clone(), key));
         }
     }
-    let Some(entry) = flat_modules
+    let Some(entry) = eligible_modules
         .iter()
-        .find(|module| ResolvedVc::upcast(**module) == group.entry)
-        .or_else(|| flat_modules.first())
+        .find(|module| ResolvedVc::upcast(**module) == preferred_entry)
+        .or_else(|| eligible_modules.first())
         .copied()
     else {
         return Ok(Vc::cell(None));
     };
+    // Every emitted export participates, including `default` and `__esModule`: these are
+    // ordinary names for static ESM exports. CommonJS and dynamic re-exports keep their
+    // original names via the checks above. Reserved output keys are excluded by `table`.
     let allocated = shorten_to_unique_names(exports_to_name.iter().map(|(_, _, key)| key));
-    let mut names = flat_modules
+    let mut names = eligible_modules
         .into_iter()
         .map(|module| (module, Vec::new()))
         .collect::<rustc_hash::FxHashMap<_, _>>();
     for (module, name, key) in exports_to_name {
-        names
-            .entry(module)
-            .or_default()
-            .push((name, allocated.get(&key).unwrap().clone()));
+        // Standalone maps omit unchanged keys. Flat maps explicitly cover every export,
+        // since producers and metadata also use them to distinguish shared bindings.
+        if let Some(output_name) = allocated.get(&key) {
+            names
+                .entry(module)
+                .or_default()
+                .push((name, output_name.clone()));
+        } else if flat {
+            names.entry(module).or_default().push((name, key));
+        }
     }
     Ok(Vc::cell(Some(
-        FlatExportGroup {
+        AllocatedExports {
             entry,
             names: names
                 .into_iter()
@@ -199,71 +238,28 @@ pub async fn export_info(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<ExportInfo>> {
-    if let Some(groups) = *chunking_context.merged_modules().await?
+    let group = if let Some(groups) = *chunking_context.merged_modules().await?
         && let Some(group) = groups.get(&ResolvedVc::upcast(module)).await?.as_deref()
-        && let Some(flat_group) = *flat_group_exports(**group, chunking_context).await?
     {
-        let flat_group = flat_group.await?;
-        if let Some(names) = flat_group.names.get(&module) {
+        Some(ExportAllocationDomain::Group(*group))
+    } else {
+        None
+    };
+    for domain in group
+        .into_iter()
+        .chain(std::iter::once(ExportAllocationDomain::Single(module)))
+    {
+        if let Some(allocated) = *allocate_exports(domain, chunking_context).await?
+            && let allocated = allocated.await?
+            && let Some(names) = allocated.names.get(&module)
+        {
             return Ok(ExportInfo {
-                namespace: flat_group.entry,
+                namespace: allocated.entry,
                 names: Some(names.clone()),
-                flat: true,
+                flat: matches!(domain, ExportAllocationDomain::Group(_)),
             }
             .cell());
         }
     }
-    // (4) Only statically known ESM exports can be renamed.
-    let EcmascriptExports::EsmExports(exports) = *module.get_exports().await? else {
-        return Ok(ExportInfo::unmangled(module).cell());
-    };
-
-    // (1) Disabled for the module these exports belong to. Deliberately independent of whether
-    // this build minifies at all: mangling and minification are two separate concerns, and a
-    // caller may want either without the other.
-    if !exports.await?.mangle_export_names {
-        return Ok(ExportInfo::unmangled(module).cell());
-    }
-
-    let usage = chunking_context
-        .module_export_usage(*ResolvedVc::upcast(module))
-        .await?;
-
-    // (3) An original name may still be read through a namespace value.
-    if usage.namespace_object_may_escape {
-        return Ok(ExportInfo::unmangled(module).cell());
-    }
-
-    // (2) We don't know which exports are used, so we don't know that all uses are ours.
-    let usage_info = usage.export_usage.await?;
-    let ModuleExportUsageInfo::Exports(used) = &*usage_info else {
-        return Ok(ExportInfo::unmangled(module).cell());
-    };
-    if used.is_empty() {
-        return Ok(ExportInfo::unmangled(module).cell());
-    }
-
-    // (4) `export * from "./some-dynamic-cjs"` is resolved at runtime by property access on the
-    // original names, and a used set that resolves to no actual export at all leaves nothing to
-    // mangle.
-    let expanded = exports.expand_exports(*usage.export_usage).await?;
-    if !expanded.dynamic_exports.is_empty() || expanded.exports.is_empty() {
-        return Ok(ExportInfo::unmangled(module).cell());
-    }
-
-    // Every emitted export is mangled, `default` and `__esModule` included.
-    //
-    // Neither is a runtime contract *as an export name*. The runtime paths that look `'default'` up
-    // by name — the CommonJS interop in `esmNamespaceObject` and the proxy traps behind
-    // `ensureDynamicExports` — only apply to CommonJS targets and to modules with dynamic
-    // re-exports, and both already keep their original names via the checks above. `__esModule` is
-    // how a CommonJS module signals interop *to* ESM, so an ESM module that happens to export that
-    // name is just an ordinary export. `__esModule` still cannot be *assigned* to some other
-    // export, because the runtime defines that property itself; see `RESERVED_KEYS` in `table`.
-    Ok(ExportInfo {
-        namespace: module,
-        names: Some(shorten_to_unique_names(expanded.exports.keys())),
-        flat: false,
-    }
-    .cell())
+    Ok(ExportInfo::unmangled(module).cell())
 }
