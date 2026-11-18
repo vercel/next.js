@@ -1041,7 +1041,11 @@ where
         let effects = get_effects(&*value);
         let plan = effects.plan()?;
         let check_current = obsolete < MAX_OBSOLETE_PLANS;
+        #[cfg(feature = "publication_test_hooks")]
+        publication_test_hooks::fire(publication_test_hooks::Point::Captured).await;
         let mut publication = effects.claim().await;
+        #[cfg(feature = "publication_test_hooks")]
+        publication_test_hooks::fire(publication_test_hooks::Point::Claimed).await;
         if check_current {
             match read_current(op, &get_effects, &value, &plan)? {
                 Currentness::Current(_) => {}
@@ -1058,6 +1062,8 @@ where
                 }
             }
         }
+        #[cfg(feature = "publication_test_hooks")]
+        publication_test_hooks::fire(publication_test_hooks::Point::Validated).await;
         let result = {
             // Restores the previous marking even if applying unwinds or is cancelled.
             struct TopLevel(bool);
@@ -1074,6 +1080,8 @@ where
             handle_apply_retry(err, &mut retries)?;
             continue;
         }
+        #[cfg(feature = "publication_test_hooks")]
+        publication_test_hooks::fire(publication_test_hooks::Point::Applied).await;
         drop(publication);
         if !check_current {
             return Ok(value);
@@ -1098,6 +1106,77 @@ where
                 wait_for_change_to_end().await;
                 handle_obsolete_plan(&mut obsolete)
             }
+        }
+    }
+}
+
+/// Pause points inside [`read_strongly_consistent_and_apply_effects`], for deterministic
+/// interleaving tests only.
+#[cfg(feature = "publication_test_hooks")]
+#[doc(hidden)]
+pub mod publication_test_hooks {
+    use std::sync::Arc;
+
+    use futures::future::BoxFuture;
+    use parking_lot::RwLock;
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum Point {
+        /// The plan is captured; no claims are held.
+        Captured,
+        /// The plan's keys are claimed; validation has not run.
+        Claimed,
+        /// Validation passed, or was skipped after too many obsolete plans; nothing has been
+        /// written yet.
+        Validated,
+        /// The plan is applied; claims of written keys are released and revalidation has not run.
+        Applied,
+    }
+
+    pub type Hook = Arc<dyn Fn(Point) -> BoxFuture<'static, ()> + Send + Sync>;
+
+    static HOOK: RwLock<Option<Hook>> = RwLock::new(None);
+
+    pub fn set(hook: Option<Hook>) {
+        // Drop the previous hook outside the lock: its drop may call `set` again.
+        let previous = std::mem::replace(&mut *HOOK.write(), hook);
+        drop(previous);
+    }
+
+    pub(super) async fn fire(point: Point) {
+        let hook = HOOK.read().clone();
+        if let Some(hook) = hook {
+            hook(point).await;
+        }
+    }
+
+    /// Synchronous pause points outside publication, in code that cannot await.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum SyncPoint {
+        /// A [`State`][crate::State] mutation is visible to readers; its dependents have not been
+        /// notified yet.
+        StateMutationVisible,
+        /// An invalidation has marked its tasks dirty; the dirtiness has not propagated to their
+        /// aggregating ancestors yet.
+        InvalidationDirtied,
+        /// A changed cell's new content is readable and its direct dependents are dirty; their
+        /// dirtiness has not propagated to their aggregating ancestors yet.
+        CellChangeExposed,
+    }
+
+    pub type SyncHook = Arc<dyn Fn(SyncPoint) + Send + Sync>;
+
+    static SYNC_HOOK: RwLock<Option<SyncHook>> = RwLock::new(None);
+
+    pub fn set_sync(hook: Option<SyncHook>) {
+        let previous = std::mem::replace(&mut *SYNC_HOOK.write(), hook);
+        drop(previous);
+    }
+
+    pub fn fire_sync(point: SyncPoint) {
+        let hook = SYNC_HOOK.read().clone();
+        if let Some(hook) = hook {
+            hook(point);
         }
     }
 }

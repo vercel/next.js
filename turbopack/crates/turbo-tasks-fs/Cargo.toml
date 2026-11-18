@@ -79,4 +79,5 @@ rstest = { workspace = true }
 sha2 = { workspace = true }
 tempfile = { workspace = true }
 turbo-tasks-testing = { workspace = true }
-turbo-tasks-backend = { workspace = true }
+turbo-tasks-backend = { workspace = true, features = ["publication_test_hooks"] }
+turbo-tasks = { workspace = true, features = ["publication_test_hooks"] }

@@ -89,6 +89,10 @@ fn notify_mutated(
     if invalidators.is_empty() && serialization_invalidator.is_none() {
         return;
     }
+    #[cfg(feature = "publication_test_hooks")]
+    crate::publication_test_hooks::fire_sync(
+        crate::publication_test_hooks::SyncPoint::StateMutationVisible,
+    );
     let _span = trace_span!("state value changed").entered();
     with_turbo_tasks(|tt| {
         Invalidator::invalidate_all(invalidators, &**tt);

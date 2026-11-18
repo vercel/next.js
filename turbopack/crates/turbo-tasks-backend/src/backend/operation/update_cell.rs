@@ -365,6 +365,11 @@ fn invalidate_cell_dependents(
     if let Some(in_progress) = in_progress_cell {
         in_progress.event.notify(usize::MAX);
     }
+
+    #[cfg(feature = "publication_test_hooks")]
+    turbo_tasks::publication_test_hooks::fire_sync(
+        turbo_tasks::publication_test_hooks::SyncPoint::CellChangeExposed,
+    );
 }
 
 #[cfg(test)]

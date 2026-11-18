@@ -79,6 +79,8 @@ pub use turbo_tasks_macros::{DeterministicHash, turbobail, turbofmt};
 
 #[doc(hidden)]
 pub use crate::changes::ChangeInProgress;
+#[cfg(feature = "publication_test_hooks")]
+pub use crate::effect::publication_test_hooks;
 #[cfg(feature = "inline_execution_stats")]
 pub use crate::manager::InlineExecutionStats;
 #[cfg(feature = "task_dirty_cause")]

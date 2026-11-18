@@ -57,6 +57,10 @@ pub fn invalidate(
         }
     });
     ctx.schedule_tasks(&to_schedule);
+    #[cfg(feature = "publication_test_hooks")]
+    turbo_tasks::publication_test_hooks::fire_sync(
+        turbo_tasks::publication_test_hooks::SyncPoint::InvalidationDirtied,
+    );
     queue.execute(&mut ctx);
 }
 
