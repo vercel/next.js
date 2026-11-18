@@ -3947,3 +3947,255 @@ fn read_only_open_of_missing_directory_does_not_create_it() -> Result<()> {
     assert!(!path.exists());
     Ok(())
 }
+
+/// Runs everything like [`SerialScheduler`](crate::parallel_scheduler::SerialScheduler), but never
+/// runs background work, so SST files are never opened eagerly: they are opened by the first lookup
+/// that needs them.
+#[derive(Clone, Copy)]
+struct NoBackgroundScheduler;
+
+impl ParallelSchedulerTrait for NoBackgroundScheduler {
+    fn parallelism(&self) -> usize {
+        1
+    }
+
+    fn spawn_blocking(&self, _f: impl FnOnce() + Send + 'static) {}
+
+    fn parallel_for_each<T>(&self, items: &[T], f: impl Fn(&T) + Send + Sync)
+    where
+        T: Sync,
+    {
+        crate::parallel_scheduler::SerialScheduler.parallel_for_each(items, f)
+    }
+
+    fn try_parallel_for_each<'l, T, E>(
+        &self,
+        items: &'l [T],
+        f: impl (Fn(&'l T) -> Result<(), E>) + Send + Sync,
+    ) -> Result<(), E>
+    where
+        T: Sync,
+        E: Send + 'static,
+    {
+        crate::parallel_scheduler::SerialScheduler.try_parallel_for_each(items, f)
+    }
+
+    fn try_parallel_for_each_mut<'l, T, E>(
+        &self,
+        items: &'l mut [T],
+        f: impl (Fn(&'l mut T) -> Result<(), E>) + Send + Sync,
+    ) -> Result<(), E>
+    where
+        T: Send + Sync,
+        E: Send + 'static,
+    {
+        crate::parallel_scheduler::SerialScheduler.try_parallel_for_each_mut(items, f)
+    }
+
+    fn try_parallel_for_each_task_mut<T, E>(
+        &self,
+        items: &mut [T],
+        f: impl (Fn(&mut T) -> Result<(), E>) + Send + Sync,
+    ) -> Result<(), E>
+    where
+        T: Send + Sync,
+        E: Send + 'static,
+    {
+        crate::parallel_scheduler::SerialScheduler.try_parallel_for_each_task_mut(items, f)
+    }
+
+    fn try_parallel_for_each_owned<T, E>(
+        &self,
+        items: Vec<T>,
+        f: impl (Fn(T) -> Result<(), E>) + Send + Sync,
+    ) -> Result<(), E>
+    where
+        T: Send + Sync,
+        E: Send + 'static,
+    {
+        crate::parallel_scheduler::SerialScheduler.try_parallel_for_each_owned(items, f)
+    }
+
+    fn parallel_map_collect<'l, Item, PerItemResult, Result>(
+        &self,
+        items: &'l [Item],
+        f: impl Fn(&'l Item) -> PerItemResult + Send + Sync,
+    ) -> Result
+    where
+        Item: Sync,
+        PerItemResult: Send + Sync + 'l,
+        Result: FromIterator<PerItemResult>,
+    {
+        crate::parallel_scheduler::SerialScheduler.parallel_map_collect(items, f)
+    }
+
+    fn parallel_map_collect_owned<Item, PerItemResult, Result>(
+        &self,
+        items: Vec<Item>,
+        f: impl Fn(Item) -> PerItemResult + Send + Sync,
+    ) -> Result
+    where
+        Item: Send + Sync,
+        PerItemResult: Send + Sync,
+        Result: FromIterator<PerItemResult>,
+    {
+        crate::parallel_scheduler::SerialScheduler.parallel_map_collect_owned(items, f)
+    }
+}
+
+/// Opens the database in `path` without opening any SST file yet (see [`NoBackgroundScheduler`]).
+fn open_lazy_db(path: &Path, mmap: bool) -> Result<TurboPersistence<NoBackgroundScheduler, 1>> {
+    TurboPersistence::open_with_config_and_parallel_scheduler(
+        path.to_path_buf(),
+        config_with_mmap(mmap),
+        NoBackgroundScheduler,
+    )
+}
+
+/// Writes `value` for key `[1]` into a new database in `path`, and returns the names of the files
+/// with `extension` that the database now has.
+fn write_single_value(path: &Path, value: Vec<u8>, extension: &str) -> Result<Vec<String>> {
+    let db = open_lazy_db(path, false)?;
+    let batch = db.write_batch()?;
+    batch.put(0, vec![1u8], value.into())?;
+    db.commit_write_batch(batch)?;
+    db.shutdown();
+    let mut names = fs::read_dir(path)?
+        .map(|entry| Ok(entry?.file_name().to_string_lossy().into_owned()))
+        .filter(|name: &Result<String>| {
+            name.as_ref()
+                .map_or(true, |name| name.ends_with(&format!(".{extension}")))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    names.sort();
+    assert!(!names.is_empty(), "no .{extension} file was written");
+    Ok(names)
+}
+
+/// Asserts that `result` failed because of [`CacheFileUnreadable`](crate::CacheFileUnreadable)
+/// naming one of `files`, and returns the formatted error.
+fn assert_unreadable<T: std::fmt::Debug>(result: Result<T>, files: &[String]) -> String {
+    let error = result.expect_err("the read must fail");
+    let unreadable = crate::CacheFileUnreadable::find(&error)
+        .unwrap_or_else(|| panic!("the error isn't marked as unreadable: {error:?}"));
+    assert!(
+        files.iter().any(|file| file == unreadable.file_name()),
+        "{} isn't one of {files:?}",
+        unreadable.file_name()
+    );
+    format!("{error:#}")
+}
+
+/// An SST file that is deleted after the database was opened, but before it was first read, is
+/// reported as unreadable when a lookup needs it.
+#[rstest]
+#[case::mmap(true)]
+#[case::file(false)]
+fn sst_deleted_after_open_is_unreadable(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let ssts = write_single_value(path, vec![2u8; 16], "sst")?;
+
+    let db = open_lazy_db(path, mmap)?;
+    for sst in &ssts {
+        fs::remove_file(path.join(sst))?;
+    }
+    let message = assert_unreadable(db.get(0, &vec![1u8]), &ssts);
+    assert!(
+        message.contains("Unable to open static sorted file referenced from"),
+        "{message}"
+    );
+    Ok(())
+}
+
+/// A block of an SST file that was modified in place (without changing its length) after the
+/// database was opened fails its checksum, which is reported as unreadable.
+#[rstest]
+#[case::mmap(true)]
+#[case::file(false)]
+fn sst_corrupted_after_open_is_unreadable(#[case] mmap: bool) -> Result<()> {
+    use std::io::{Seek, SeekFrom, Write};
+
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let ssts = write_single_value(path, vec![2u8; 16], "sst")?;
+
+    let db = open_lazy_db(path, mmap)?;
+    for sst in &ssts {
+        // Flip a byte of the data of the first block, right after its 8-byte header.
+        let mut file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(path.join(sst))?;
+        let len = file.metadata()?.len();
+        let mut byte = [0u8];
+        file.seek(SeekFrom::Start(8))?;
+        std::io::Read::read_exact(&mut file, &mut byte)?;
+        file.seek(SeekFrom::Start(8))?;
+        file.write_all(&[!byte[0]])?;
+        assert_eq!(file.metadata()?.len(), len);
+    }
+    let message = assert_unreadable(db.get(0, &vec![1u8]), &ssts);
+    assert!(message.contains("checksum mismatch"), "{message}");
+    Ok(())
+}
+
+/// A blob file that is deleted after the database was opened is reported as unreadable when its
+/// value is read.
+// Writes a production-size blob, which is too slow under Miri.
+#[cfg(not(miri))]
+#[rstest]
+#[case::mmap(true)]
+#[case::file(false)]
+fn blob_deleted_after_open_is_unreadable(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let blobs = write_single_value(path, vec![42u8; MAX_MEDIUM_VALUE_SIZE + 1], "blob")?;
+
+    let db = open_lazy_db(path, mmap)?;
+    for blob in &blobs {
+        fs::remove_file(path.join(blob))?;
+    }
+    assert_unreadable(db.get(0, &vec![1u8]), &blobs);
+    Ok(())
+}
+
+/// A blob file whose data was modified in place fails its checksum, which is reported as
+/// unreadable.
+// Writes a production-size blob, which is too slow under Miri.
+#[cfg(not(miri))]
+#[rstest]
+#[case::mmap(true)]
+#[case::file(false)]
+fn blob_corrupted_after_open_is_unreadable(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let blobs = write_single_value(path, vec![42u8; MAX_MEDIUM_VALUE_SIZE + 1], "blob")?;
+
+    let db = open_lazy_db(path, mmap)?;
+    for blob in &blobs {
+        let blob_path = path.join(blob);
+        let mut bytes = fs::read(&blob_path)?;
+        let last = bytes.len() - 1;
+        bytes[last] = !bytes[last];
+        fs::write(&blob_path, &bytes)?;
+    }
+    let message = assert_unreadable(db.get(0, &vec![1u8]), &blobs);
+    assert!(message.contains("checksum mismatch"), "{message}");
+    Ok(())
+}
+
+/// Reads from a healthy database aren't reported as unreadable.
+#[rstest]
+#[case::mmap(true)]
+#[case::file(false)]
+fn healthy_database_is_readable(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    write_single_value(path, vec![2u8; 16], "sst")?;
+
+    let db = open_lazy_db(path, mmap)?;
+    assert_eq!(db.get(0, &vec![1u8])?.as_deref(), Some(&[2u8; 16][..]));
+    assert!(db.get(0, &vec![3u8])?.is_none());
+    Ok(())
+}

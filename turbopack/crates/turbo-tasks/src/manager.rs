@@ -1820,18 +1820,30 @@ struct TurboTasksExecutor;
 ///
 /// Turbtasks catches panics from user code and propagates throught the task tree, but if it happens
 /// as part of state management we have to abort
+///
+/// A [`PersistentCacheUnreadablePanic`] doesn't necessarily indicate a bug, and its message
+/// (printed by the panic hook) explains what happened, so it's not reported as a bug.
+///
+/// [`PersistentCacheUnreadablePanic`]: crate::PersistentCacheUnreadablePanic
 async fn abort_on_panic<F: Future>(f: F) -> F::Output {
     match AssertUnwindSafe(f).catch_unwind().await {
         Ok(r) => r,
-        Err(_) => {
-            eprintln!(
-                "\nturbo-tasks: an internal panic occurred outside the per-task panic \
-                 boundary. This is a bug in turbo-tasks/Turbopack — please report it at \
-                 https://github.com/vercel/next.js/discussions and include the panic message \
-                 and stack trace above.\n\nAborting."
-            );
+        Err(payload) => {
+            eprintln!("\n{}\n\nAborting.", abort_on_panic_message(&*payload));
             abort();
         }
+    }
+}
+
+/// The message printed by [`abort_on_panic`] for a panic with `payload`.
+fn abort_on_panic_message(payload: &(dyn std::any::Any + Send)) -> &'static str {
+    if payload.is::<crate::PersistentCacheUnreadablePanic>() {
+        "turbo-tasks: the persistent cache could not be read, see the error above."
+    } else {
+        "turbo-tasks: an internal panic occurred outside the per-task panic boundary. This is a \
+         bug in turbo-tasks/Turbopack — please report it at \
+         https://github.com/vercel/next.js/discussions and include the panic message and stack \
+         trace above."
     }
 }
 
@@ -3224,6 +3236,22 @@ pub(crate) async fn read_local_output(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_abort_on_panic_message() {
+        let unreadable: Box<dyn std::any::Any + Send> =
+            Box::new(crate::PersistentCacheUnreadablePanic {
+                message: "cache file 00000001.sst is missing".to_string(),
+            });
+        let message = abort_on_panic_message(&*unreadable);
+        assert!(message.contains("could not be read"), "{message}");
+        assert!(!message.contains("report"), "{message}");
+        assert!(!message.contains("bug"), "{message}");
+
+        let other: Box<dyn std::any::Any + Send> = Box::new("some bug".to_string());
+        let message = abort_on_panic_message(&*other);
+        assert!(message.contains("please report it"), "{message}");
+    }
 
     #[test]
     fn test_inline_execution_depth_guard_restores_depth() {

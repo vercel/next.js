@@ -54,6 +54,7 @@ use crate::{
     sst_filter::SstFilter,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFileIter},
     static_sorted_file_builder::{StaticSortedFileBuilderMeta, StreamingSstWriter},
+    unreadable::MarkUnreadable,
     write_batch::{FinishResult, NewFile, WriteBatch},
 };
 
@@ -866,8 +867,18 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     }
 
     /// Reads and decompresses a blob file. This is not backed by any cache.
+    ///
+    /// Any failure (the file is missing or can't be read, or fails its checksum) is marked as
+    /// [`CacheFileUnreadable`].
+    ///
+    /// [`CacheFileUnreadable`]: crate::CacheFileUnreadable
     #[tracing::instrument(level = "info", name = "reading database blob", skip_all)]
     fn read_blob(&self, seq: u32, compression: Compression) -> Result<ArcBytes> {
+        self.read_blob_unmarked(seq, compression)
+            .mark_unreadable(|| format!("{seq:08}.blob"))
+    }
+
+    fn read_blob_unmarked(&self, seq: u32, compression: Compression) -> Result<ArcBytes> {
         let path = self.path.join(format!("{seq:08}.blob"));
         #[cfg(feature = "mmap")]
         let file = File::open(&path)?;
