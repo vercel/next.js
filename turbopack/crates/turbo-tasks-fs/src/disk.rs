@@ -352,8 +352,8 @@ impl DiskFileSystemInner {
     }
 
     /// Returns the root recorded by [`DiskFileSystem::start_watching`], without creating a
-    /// dependency. Only for [`crate::watcher::DiskFileSystemWatcherApi`], which runs outside of
-    /// turbo-tasks functions.
+    /// dependency. Only for the watcher's filesystem API (`DiskFileSystemWatcherApi`), which runs
+    /// outside of turbo-tasks functions.
     pub(crate) fn watcher_root_path(&self) -> &Path {
         let root = self.root_value.get().expect(
             "DiskFileSystem::start_watching must read the root before starting the watcher",
