@@ -25,6 +25,11 @@ declare module 'next/dist/compiled/react-dom/server'
 declare module 'next/dist/compiled/react-dom/server.edge'
 declare module 'next/dist/compiled/browserslist'
 
+declare module 'next/dist/compiled/next-start/start-server.js' {
+  const runtime: typeof import('../src/server/lib/start-server')
+  export = runtime
+}
+
 declare module 'react-server-dom-webpack/client' {
   import type { Options } from 'react-server-dom-webpack/client.edge'
 

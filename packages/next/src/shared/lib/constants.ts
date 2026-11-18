@@ -67,6 +67,8 @@ export enum AdapterOutputType {
   MIDDLEWARE = 'MIDDLEWARE',
 }
 
+export const SUPPORTED_TEST_RUNNERS_LIST = ['playwright'] as const
+
 export const PHASE_EXPORT = 'phase-export'
 export const PHASE_ANALYZE = 'phase-analyze'
 export const PHASE_PRODUCTION_BUILD = 'phase-production-build'
