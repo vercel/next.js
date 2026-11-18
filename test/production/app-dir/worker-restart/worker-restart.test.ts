@@ -111,7 +111,10 @@ describe('worker-restart', () => {
       })
     })
 
-    describe('worker-kill', () => {
+    describe.each([
+      ['child processes', false],
+      ['worker threads', true],
+    ])('worker-kill (%s)', (_name, workerThreads) => {
       const { next } = nextTestSetup({
         // The fixture's own next.config.js is replaced by `nextConfig`.
         files: {
@@ -119,20 +122,26 @@ describe('worker-restart', () => {
         },
         skipStart: true,
         nextConfig: {
-          experimental: { staticGenerationAdaptive: true, cpus: 1 },
+          experimental: {
+            staticGenerationAdaptive: true,
+            cpus: 1,
+            workerThreads,
+          },
         },
       })
 
       it('should retry a page that kills its worker, then fail the build', async () => {
         const { cliOutput, exitCode } = await next.build()
         expect(exitCode).not.toBe(0)
-        expect(cliOutput).toContain(workerKillMessage)
+        if (!workerThreads) {
+          expect(cliOutput.split(workerKillMessage)).toHaveLength(4)
+        }
         expect(cliOutput).toContain(
           'Static generation failed: rendering "/bad-page" crashed the build worker 3 times.'
         )
-        expect(cliOutput.split(workerKillMessage)).toHaveLength(4)
         expect(cliOutput.split('worker-kill page stdout')).toHaveLength(4)
         expect(cliOutput.split('worker-kill page stderr')).toHaveLength(4)
+        expect(cliOutput).not.toContain('Farm is ended')
       })
     })
   })

@@ -40,9 +40,11 @@ describe.each([
     if (!workerThreads) {
       expect(next.cliOutput).toContain(workerKillMessage)
       expect(next.cliOutput.split(workerKillMessage)).toHaveLength(2)
-      expect(next.cliOutput).toMatch(
-        /Retrying \d+ page\(s\) from a crashed build worker one at a time: .*\/crash-once/
-      )
     }
+    expect(next.cliOutput).toMatch(
+      /Retrying \d+ page\(s\) from a crashed build worker one at a time: .*\/crash-once/
+    )
+    expect(next.cliOutput.split('adaptive crash-once stdout')).toHaveLength(2)
+    expect(next.cliOutput.split('adaptive crash-once stderr')).toHaveLength(2)
   })
 })
