@@ -35,6 +35,7 @@ fn transform(
                 is_react_server_layer: true,
                 is_development: false,
                 use_cache_enabled: true,
+                durable_use_cache_entries_enabled: false,
                 hash_salt,
                 cache_kinds,
             },

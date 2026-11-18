@@ -173,15 +173,15 @@ export function formatIssue(issue: Issue) {
 
   // Render additional sources (e.g., generated code from a loader)
   for (const additional of issue.additionalSources ?? []) {
+    const additionalFilePath = formatFilePath(additional.source.source.filePath)
+    const loc = additional.source.range
+      ? `:${additional.source.range.start.line + 1}:${additional.source.range.start.column + 1}`
+      : ''
+    message += `${additional.description}:\n${additionalFilePath}${loc}\n`
     if (additional.codeFrame) {
-      const additionalFilePath = formatFilePath(
-        additional.source.source.filePath
-      )
-      const loc = additional.source.range
-        ? `:${additional.source.range.start.line + 1}:${additional.source.range.start.column + 1}`
-        : ''
-      message += `${additional.description}:\n${additionalFilePath}${loc}\n${additional.codeFrame.trimEnd()}\n\n`
+      message += `${additional.codeFrame.trimEnd()}\n`
     }
+    message += '\n'
   }
 
   if (importTraces?.length) {

@@ -1,0 +1,7 @@
+  x unstable_cacheDurable() requires experimental.durableUseCacheEntries to be enabled.
+   ,-[input.js:6:1]
+ 5 | export async function action() {
+ 6 |   unstable_cacheDurable()
+   :   ^^^^^^^^^^^^^^^^^^^^^^^
+ 7 | }
+   `----

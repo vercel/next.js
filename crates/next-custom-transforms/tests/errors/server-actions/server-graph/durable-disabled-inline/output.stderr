@@ -1,0 +1,21 @@
+  x unstable_cacheDurable() requires experimental.durableUseCacheEntries to be enabled.
+   ,-[input.js:5:1]
+ 4 |   'use cache: remote'
+ 5 |   unstable_cacheDurable()
+   :   ^^^^^^^^^^^^^^^^^^^^^^^
+ 6 | }
+   `----
+  x unstable_cacheDurable() requires experimental.durableUseCacheEntries to be enabled.
+    ,-[input.js:10:1]
+  9 |   'use cache'
+ 10 |   unstable_cacheDurable()
+    :   ^^^^^^^^^^^^^^^^^^^^^^^
+ 11 | }
+    `----
+  x unstable_cacheDurable() requires experimental.durableUseCacheEntries to be enabled.
+    ,-[input.js:15:1]
+ 14 |   'use server'
+ 15 |   unstable_cacheDurable()
+    :   ^^^^^^^^^^^^^^^^^^^^^^^
+ 16 | }
+    `----

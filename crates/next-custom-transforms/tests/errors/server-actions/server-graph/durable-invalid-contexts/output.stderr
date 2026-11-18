@@ -1,0 +1,101 @@
+  x unstable_cacheDurable() can only be called directly inside a "use server" or "use cache" function.
+   ,-[input.js:7:1]
+ 6 | 
+ 7 | unstable_cacheDurable()
+   : ^^^^^^^^^^^^^^^^^^^^^^^
+   `----
+  x unstable_cacheDurable() can only be called directly inside a "use server" or "use cache" function.
+    ,-[input.js:10:1]
+  9 | export function normal() {
+ 10 |   unstable_cacheDurable()
+    :   ^^^^^^^^^^^^^^^^^^^^^^^
+ 11 | }
+    `----
+  x unstable_cacheDurable() can only be called directly inside a "use server" or "use cache" function.
+    ,-[input.js:14:1]
+ 13 | export async function normalAsync() {
+ 14 |   durable()
+    :   ^^^^^^^^^
+ 15 | }
+    `----
+  x unstable_cacheDurable() can only be called directly inside a "use server" or "use cache" function.
+    ,-[input.js:21:1]
+ 20 |   const callback = () => {
+ 21 |     unstable_cacheDurable()
+    :     ^^^^^^^^^^^^^^^^^^^^^^^
+ 22 |   }
+    `----
+  x unstable_cacheDurable() can only be called directly inside a "use server" or "use cache" function.
+    ,-[input.js:27:1]
+ 26 | 
+ 27 | export const expression = async () => unstable_cacheDurable()
+    :                                       ^^^^^^^^^^^^^^^^^^^^^^^
+    `----
+  x unstable_cacheDurable() can only be called directly inside a "use server" or "use cache" function.
+    ,-[input.js:34:1]
+ 33 |     get value() {
+ 34 |       unstable_cacheDurable()
+    :       ^^^^^^^^^^^^^^^^^^^^^^^
+ 35 |       return 'value'
+    `----
+  x unstable_cacheDurable() can only be called directly inside a "use server" or "use cache" function.
+    ,-[input.js:38:1]
+ 37 |     set value(value) {
+ 38 |       unstable_cacheDurable()
+    :       ^^^^^^^^^^^^^^^^^^^^^^^
+ 39 |     },
+    `----
+  x unstable_cacheDurable() can only be called directly inside a "use server" or "use cache" function.
+    ,-[input.js:47:1]
+ 46 |   return class {
+ 47 |     value = unstable_cacheDurable()
+    :             ^^^^^^^^^^^^^^^^^^^^^^^
+    `----
+  x unstable_cacheDurable() can only be called directly inside a "use server" or "use cache" function.
+    ,-[input.js:50:1]
+ 49 |     static {
+ 50 |       unstable_cacheDurable()
+    :       ^^^^^^^^^^^^^^^^^^^^^^^
+ 51 |     }
+    `----
+  x unstable_cacheDurable() does not accept arguments.
+    ,-[input.js:57:1]
+ 56 |   'use cache'
+ 57 |   unstable_cacheDurable(sideEffect())
+    :   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 58 | }
+    `----
+  x unstable_cacheDurable() can only be called directly inside a "use server" or "use cache" function.
+    ,-[input.js:70:1]
+ 69 |   normal() {
+ 70 |     durable()
+    :     ^^^^^^^^^
+ 71 |   },
+    `----
+  x It is not allowed to define inline "use cache" annotated class instance methods.
+  | To define cached functions, use functions, object method properties, or static class methods instead.
+  | 
+    ,-[input.js:75:1]
+ 74 |     export class Methods {
+ 75 | ,->   async cached() {
+ 76 | |       'use cache'
+ 77 | |       unstable_cacheDurable()
+ 78 | `->   }
+    `----
+  x It is not allowed to define inline "use server" annotated class instance methods.
+  | To define Server Actions, use functions, object method properties, or static class methods instead.
+  | 
+    ,-[input.js:80:1]
+ 79 |     
+ 80 | ,->   async action() {
+ 81 | |       'use server'
+ 82 | |       unstable_cacheDurable()
+ 83 | `->   }
+    `----
+  x unstable_cacheDurable() can only be called directly inside a "use server" or "use cache" function.
+    ,-[input.js:86:1]
+ 85 |   normal() {
+ 86 |     cache.unstable_cacheDurable()
+    :     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 87 |   }
+    `----

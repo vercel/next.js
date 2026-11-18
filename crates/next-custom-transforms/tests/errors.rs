@@ -168,6 +168,9 @@ fn next_font_loaders_errors(input: PathBuf) {
 fn react_server_actions_errors(input: PathBuf) {
     use next_custom_transforms::transforms::react_server_components::{Config, Options};
     let is_react_server_layer = input.iter().any(|s| s.to_str() == Some("server-graph"));
+    let durable_use_cache_entries_enabled = !input
+        .iter()
+        .any(|s| s.to_str().is_some_and(|s| s.contains("disabled")));
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
@@ -197,8 +200,14 @@ fn react_server_actions_errors(input: PathBuf) {
                         is_react_server_layer,
                         is_development: true,
                         use_cache_enabled: true,
+                        durable_use_cache_entries_enabled,
                         hash_salt: rcstr!("").into(),
-                        cache_kinds: FxHashSet::default().into(),
+                        cache_kinds: if durable_use_cache_entries_enabled {
+                            FxHashSet::default()
+                        } else {
+                            FxHashSet::from_iter([rcstr!("remote")])
+                        }
+                        .into(),
                     },
                     tr.comments.as_ref().clone(),
                     unresolved_mark,
@@ -240,6 +249,7 @@ fn server_actions_turbopack_rsc_errors(input: PathBuf) {
                         is_react_server_layer: true,
                         is_development: true,
                         use_cache_enabled: true,
+                        durable_use_cache_entries_enabled: false,
                         hash_salt: rcstr!("").into(),
                         cache_kinds: FxHashSet::default().into(),
                     },
@@ -325,6 +335,7 @@ fn use_cache_not_allowed(input: PathBuf) {
                         is_react_server_layer: true,
                         is_development: true,
                         use_cache_enabled: false,
+                        durable_use_cache_entries_enabled: false,
                         hash_salt: rcstr!("").into(),
                         cache_kinds: FxHashSet::from_iter([rcstr!("x")]).into(),
                     },
