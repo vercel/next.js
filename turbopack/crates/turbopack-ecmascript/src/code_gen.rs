@@ -1,11 +1,16 @@
+use std::sync::{Arc, Mutex};
+
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use swc_core::ecma::{
-    ast::{
-        BlockStmt, CallExpr, Expr, FunctionBody, Lit, MemberExpr, ModuleDecl, ModuleItem, Pat,
-        Program, Prop, SimpleAssignTarget, Stmt, Str, SwitchCase,
+use swc_core::{
+    common::Span,
+    ecma::{
+        ast::{
+            BlockStmt, CallExpr, Expr, FunctionBody, Id, Ident, Lit, MemberExpr, ModuleDecl,
+            ModuleItem, Pat, Program, Prop, SimpleAssignTarget, Stmt, Str, SwitchCase,
+        },
+        visit::AstParentKind,
     },
-    visit::AstParentKind,
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat};
@@ -51,6 +56,39 @@ pub struct CodeGeneration {
     pub late_stmts: Vec<CodeGenerationHoistedStmt>,
     pub early_late_stmts: Vec<CodeGenerationHoistedStmt>,
     pub comments: Option<MutableComments>,
+    /// Filled by the `visitors` when they are applied, see [`ScopeBindingsCollector`].
+    pub scope_bindings: Option<ScopeBindingsCollector>,
+}
+
+/// Collects references to bindings that the code generation replaced with another expression
+/// (e.g. a reference to an import binding `foo` that is replaced by
+/// `__TURBOPACK__imported__module__…__["foo"]`).
+///
+/// The replacement keeps the span of the replaced identifier, so the final generated expression
+/// can be looked up by span after all passes (e.g. hygiene) ran. These are emitted as bindings of
+/// the module scope in the source map `scopes`, so a debugger can show (and evaluate) the original
+/// variable.
+#[derive(Clone, Default)]
+pub struct ScopeBindingsCollector(Arc<Mutex<Vec<(Id, Span)>>>);
+
+impl ScopeBindingsCollector {
+    /// Records that the reference `ident` was replaced by an expression with the same span. The
+    /// first recorded reference for a binding wins.
+    pub fn record(&self, ident: &Ident) {
+        if ident.span.is_dummy() {
+            return;
+        }
+        let id = ident.to_id();
+        let mut bindings = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        if !bindings.iter().any(|(existing, _)| *existing == id) {
+            bindings.push((id, ident.span));
+        }
+    }
+
+    /// Takes all recorded references.
+    pub fn take(&self) -> Vec<(Id, Span)> {
+        std::mem::take(&mut *self.0.lock().unwrap_or_else(|e| e.into_inner()))
+    }
 }
 
 impl CodeGeneration {

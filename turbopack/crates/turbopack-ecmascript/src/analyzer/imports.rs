@@ -690,6 +690,11 @@ impl ImportMap {
         None
     }
 
+    /// All local ESM import bindings in source order.
+    pub(crate) fn local_import_ids(&self) -> impl Iterator<Item = &Id> {
+        self.imports.keys().chain(self.namespace_imports.keys())
+    }
+
     pub fn references(&self) -> impl ExactSizeIterator<Item = &ImportMapReference> {
         self.references.iter()
     }

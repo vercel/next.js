@@ -323,8 +323,7 @@ dependencies = [
 [[package]]
 name = "ast_node"
 version = "7.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "edf54a7a1bf98e127c22e9e2b9d19619092c74283fdc14e4d67da69780f90db6"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "quote",
  "swc_macros_common",
@@ -575,8 +574,7 @@ dependencies = [
 [[package]]
 name = "better_scoped_tls"
 version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7cd228125315b132eed175bf47619ac79b945b26e56b848ba203ae4ea8603609"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "scoped-tls",
 ]
@@ -625,8 +623,7 @@ dependencies = [
 [[package]]
 name = "binding_macros"
 version = "82.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86707daf7829cb3fb6f2c8942354eff22d336faff0cf2c6240fd668a15ec1b6e"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "anyhow",
  "console_error_panic_hook",
@@ -2253,8 +2250,7 @@ dependencies = [
 [[package]]
 name = "from_variant"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5ff35a391aef949120a0340d690269b3d9f63460a6106e99bd07b961f345ea9"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "swc_macros_common",
  "syn 2.0.104",
@@ -2699,8 +2695,7 @@ dependencies = [
 [[package]]
 name = "hstr"
 version = "4.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b904c58532ecdbf77f46013daec3ecfa9aec83ec17cf4c8053be80a9c1d8d15"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "hashbrown 0.14.5",
  "new_debug_unreachable",
@@ -5205,8 +5200,7 @@ checksum = "84350ffee5cedfabf9bee3e8825721f651da8ff79d50fe7a37cf0ca015c428ee"
 [[package]]
 name = "preset_env_base"
 version = "11.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a404b6c79afe9e6b1dd00aa8a9d528c913f4f5b2f716196f780025ab81400cef"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "anyhow",
  "browserslist-rs 0.22.0",
@@ -6835,8 +6829,7 @@ dependencies = [
 [[package]]
 name = "string_enum"
 version = "1.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae36a4951ca7bd1cfd991c241584a9824a70f6aff1e7d4f693fb3f2465e4030e"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "quote",
  "swc_macros_common",
@@ -6915,8 +6908,7 @@ checksum = "804f44ed3c63152de6a9f90acbea1a110441de43006ea51bcce8f436196a288b"
 [[package]]
 name = "swc"
 version = "82.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d87a939774c3fe39787564a74c011e3a9c5844d721d6107b00ae9c0f6b6ed9cd"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -6975,8 +6967,7 @@ dependencies = [
 [[package]]
 name = "swc_allocator"
 version = "5.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f2e587c2b183333ba3547a916d180b7caaaa90610f1be5699710837bb635b8a"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "allocator-api2",
  "bumpalo",
@@ -6987,8 +6978,7 @@ dependencies = [
 [[package]]
 name = "swc_atoms"
 version = "10.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50bb5f0ddb3d05cf1d46368de41dd82db7401fdd53f4b8271612be91573308a3"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "cbor4ii",
  "hstr",
@@ -7014,8 +7004,7 @@ dependencies = [
 [[package]]
 name = "swc_common"
 version = "27.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1953f0e786c305582e21ef5a093cfe16cfeaa4231f56f780db82e4952b7ef5b2"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "anyhow",
  "ast_node",
@@ -7044,8 +7033,7 @@ dependencies = [
 [[package]]
 name = "swc_compiler_base"
 version = "67.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "282a86e0d04822c445b00567d4fcdfca4ff9afdd5a428051b07e27237136eb9e"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -7069,8 +7057,7 @@ dependencies = [
 [[package]]
 name = "swc_config"
 version = "6.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf6924ef781f1f8af3dfdac9674e94f0ab0c20af6b88b2e116af57b1e755b591"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "anyhow",
  "bytes-str",
@@ -7090,8 +7077,7 @@ dependencies = [
 [[package]]
 name = "swc_config_macro"
 version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b416e8ce6de17dc5ea496e10c7012b35bbc0e3fef38d2e065eed936490db0b3"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7102,8 +7088,7 @@ dependencies = [
 [[package]]
 name = "swc_core"
 version = "84.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73cc18c57fccd216b5e160ce9980ccb6cf04208acc4f1d823ce7763719dc29e5"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "binding_macros",
  "par-core",
@@ -7135,8 +7120,7 @@ dependencies = [
 [[package]]
 name = "swc_css_ast"
 version = "27.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90f73170f0f198d4b275cb52709a482a726e7d469819c40d36e3f51caa48c591"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "is-macro",
  "string_enum",
@@ -7147,8 +7131,7 @@ dependencies = [
 [[package]]
 name = "swc_css_codegen"
 version = "27.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ea6a1545b160ad1a4c2d115ca5b51e66c516a8acc23282a76750bde05f40cdc"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "auto_impl",
  "bitflags 2.13.2",
@@ -7164,8 +7147,7 @@ dependencies = [
 [[package]]
 name = "swc_css_codegen_macros"
 version = "1.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7e32e407d0a010fedb53cf9dfdccf091521a2c9081efc077da647f7c8963741"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "quote",
  "syn 2.0.104",
@@ -7174,8 +7156,7 @@ dependencies = [
 [[package]]
 name = "swc_css_compat"
 version = "27.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6706fd43d1e311d02417f90c0a32a66c8fa64045f9736b4ac9fa3045d3a2cb02"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "bitflags 2.13.2",
  "serde",
@@ -7189,8 +7170,7 @@ dependencies = [
 [[package]]
 name = "swc_css_minifier"
 version = "27.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fa1993bbe8e6287c89d23594eaa37407f127f2f13157db109be34d7f2cdd664"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "rustc-hash 2.1.1",
  "serde",
@@ -7204,8 +7184,7 @@ dependencies = [
 [[package]]
 name = "swc_css_parser"
 version = "27.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee5a33fc6a930501dda18665c7231324152feca3ed4078caa7d63e3f2d7d95e8"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "lexical",
  "serde",
@@ -7217,8 +7196,7 @@ dependencies = [
 [[package]]
 name = "swc_css_prefixer"
 version = "34.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d43d57b93397d1dcb0872285d9e88d0a98f1d5f8a1a9a2c1c48f11ae53fd6192"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "once_cell",
  "preset_env_base",
@@ -7235,8 +7213,7 @@ dependencies = [
 [[package]]
 name = "swc_css_utils"
 version = "27.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ad99770f78de19dcc782f659fb505eb35ecf24b323b06bde9305eef13292e5a"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "once_cell",
  "rustc-hash 2.1.1",
@@ -7250,8 +7227,7 @@ dependencies = [
 [[package]]
 name = "swc_css_visit"
 version = "27.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d975b8fe89b2e13183198a57e98c2348b8e1808d4f303710d37de6e7fbb1d8a"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "serde",
  "swc_atoms",
@@ -7263,8 +7239,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_ast"
 version = "30.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86bef17958307218ffee375556423bd47a82deb8f6ef8b54bc5a4086958cd1d1"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "bitflags 2.13.2",
  "cbor4ii",
@@ -7285,8 +7260,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_codegen"
 version = "33.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d49a036fba6d4961fcbcafe58fc70b7362e124fe470b12355b03c2dd58b83d94"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "ascii",
  "compact_str",
@@ -7309,8 +7283,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_codegen_macros"
 version = "2.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e276dc62c0a2625a560397827989c82a93fd545fcf6f7faec0935a82cc4ddbb8"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "proc-macro2",
  "swc_macros_common",
@@ -7320,8 +7293,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_bugfixes"
 version = "58.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78c3a4f4c4e68f717f2541076d39a83368d7794a615a174dbc4200fee730fd0e"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "rustc-hash 2.1.1",
  "swc_atoms",
@@ -7337,8 +7309,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_common"
 version = "47.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "330f65389ceefc816a45c162f8992a6890ed64cd4cafd42528237f65e95b80dc"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "swc_common",
  "swc_ecma_ast",
@@ -7349,8 +7320,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2015"
 version = "57.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e45954f1bdb22f162e7f617d24051341fb2e22204d0aae7c83af46f5588dc0f"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "arrayvec 0.7.6",
  "indexmap 2.14.0",
@@ -7376,8 +7346,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2016"
 version = "52.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2595a73b895df48bcbf9fa704435c611a840ca8b773343c6a1d78f25da23434"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "swc_ecma_ast",
  "swc_ecma_transformer",
@@ -7389,8 +7358,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2017"
 version = "52.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4cbe3c66710b47613e5a096aebcd3bdb43eec27c2444f480d971295adf423c0a"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "serde",
  "swc_common",
@@ -7404,8 +7372,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2018"
 version = "53.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a5d2bcdb846f70cae453c37182cfec5ba33c6e949f5c4fdee4d2287caa043ca1"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "serde",
  "swc_ecma_ast",
@@ -7418,8 +7385,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2019"
 version = "52.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "671dd058c8b2c282fe698ca22810a50c0ff90c59f19b1d8845ec55ccbc9501e5"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "swc_common",
  "swc_ecma_ast",
@@ -7432,8 +7398,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2020"
 version = "55.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d20f7e9c6b6c1a2008739b1d7a75498f303eabfdc4fb5d45e5e24d3924d654b"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "serde",
  "swc_common",
@@ -7449,8 +7414,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2021"
 version = "52.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "227b0b3b402567e9bd7dbdd6968c3ea05300b608f8f8fd8596f67e835b5163fb"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "swc_ecma_ast",
  "swc_ecma_transformer",
@@ -7462,8 +7426,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_es2022"
 version = "55.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe67ff379ca661dc4730bf438f4cb619e34ce1454739d83bd3b0a1f6d434fbab"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "rustc-hash 2.1.1",
  "swc_atoms",
@@ -7481,8 +7444,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_compat_regexp"
 version = "10.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a78ba9079490409e44dde0b96c7c8f9dffd2c490d2a82eb2c7be0ed80d14649"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "icu_properties 2.1.2",
  "swc_ecma_regexp_ast",
@@ -7492,8 +7454,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_ext_transforms"
 version = "36.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb72a915adaa5ffece82bb2f9894f07e5cef7bc655a735004d66b6a12042d378"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "phf 0.11.2",
  "swc_common",
@@ -7505,8 +7466,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_hooks"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af2927f285c88c51f7fed0a07316389ca1311a02761fbd31c0f3d29d53774a1a"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "swc_atoms",
  "swc_common",
@@ -7517,8 +7477,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_lints"
 version = "38.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aca8cd124f59d602adf8cb216e3261ff479b0d7722dcec141fcd51178afff9b3"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "auto_impl",
  "dashmap 6.1.0",
@@ -7538,8 +7497,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_loader"
 version = "28.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce6e0b74a455f7443bf0e9b0c0d14c7f819f3e4cf8fe30075ac822743d9bd2ca"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "anyhow",
  "dashmap 6.1.0",
@@ -7560,8 +7518,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_minifier"
 version = "64.0.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eafdd3ebcce0ab0c66a293f1192e39cf9735e5ddf6f9eb6d4349da68892b8c47"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "arrayvec 0.7.6",
  "bitflags 2.13.2",
@@ -7595,8 +7552,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_parser"
 version = "47.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d844422a916ff71cec4b5e4835e57c6dd72bc9aadbc6a16d1f405d7f95e633f3"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "bitflags 2.13.2",
  "either",
@@ -7615,8 +7571,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_preset_env"
 version = "68.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a08e09e2bb76f5dc4bff812b3c50329e8d4ac4ed7e5126c55ab7a1ebba373fb"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "anyhow",
  "foldhash 0.1.5",
@@ -7640,8 +7595,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_quote_macros"
 version = "47.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c89f43f60bffadee4de41f7a638fe58a8dcefe4fc22991684d8fbd44fe38f3a9"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "anyhow",
  "proc-macro2",
@@ -7658,8 +7612,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_react_compiler"
 version = "27.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e363ec4a6b3cb129b61975f4b495fa0ecab7d9ebcb214589a95aca0cf224e1b"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "indexmap 2.14.0",
  "react_compiler",
@@ -7680,8 +7633,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_regexp"
 version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77ad021aa638e19200ffc277999268a07734aab06a3e06ab0c02c29bbd5bc577"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "phf 0.11.2",
  "rustc-hash 2.1.1",
@@ -7696,8 +7648,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_regexp_ast"
 version = "4.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "154d3e03945e40abd710047da02f1608cfc18e0713d2f492605d199d9809588b"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "bitflags 2.13.2",
  "is-macro",
@@ -7709,14 +7660,12 @@ dependencies = [
 [[package]]
 name = "swc_ecma_regexp_common"
 version = "0.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a0a09a9e4dc09c97f07273695bd4b58e46b99dbb0cb788ce0dad2a181eb1e94"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 
 [[package]]
 name = "swc_ecma_regexp_visit"
 version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae70e4ff270a35cbad280a0501d8b0067d1bf70f774ee0eb80d54966112ca9c1"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "serde",
  "swc_atoms",
@@ -7728,8 +7677,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_testing"
 version = "28.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e93e2aa69a4dd8c6e9dd99f335d095421b5d5e1a4bd8798579c5862970b67198"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "anyhow",
  "hex",
@@ -7741,8 +7689,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transformer"
 version = "23.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a834ddc8997c5567168868438c253b2f117c420f3a7c8c413b51c4bff61ed1d"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "rustc-hash 2.1.1",
  "swc_atoms",
@@ -7760,8 +7707,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms"
 version = "65.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f220d5177d8b403cc0dc02e9997637f375635c33c90fdde9817a4b66a22575ea"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "par-core",
  "swc_common",
@@ -7779,8 +7725,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_base"
 version = "51.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a3086e42c44eb333f3d6d37a39abb1d168b32ffbf6e6f4413388b6af25e41b5"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "better_scoped_tls",
  "indexmap 2.14.0",
@@ -7801,8 +7746,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_classes"
 version = "51.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0eef98e7aec98db2286734e2eadc3b69eff175099c1cf024d1ef9299f5089578"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "swc_common",
  "swc_ecma_ast",
@@ -7814,8 +7758,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_compat"
 version = "59.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e1edea94e96bca2627e0dadfb9f3fd5ca3c93c756381517495e132f794f1f88"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "indexmap 2.14.0",
  "par-core",
@@ -7842,8 +7785,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_macros"
 version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc777288799bf6786e5200325a56e4fbabba590264a4a48a0c70b16ad0cf5cd8"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7854,8 +7796,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_module"
 version = "58.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "18f95cbd13529586a830ba7b49483073ff03ab68956a2a10c0949e87a8e4e8d2"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "Inflector",
  "anyhow",
@@ -7882,8 +7823,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_optimization"
 version = "54.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64c11dd8ba1393d4636cf4a7cd9697927f06957acdf78f663ccd97129db91245"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "bytes-str",
  "dashmap 6.1.0",
@@ -7907,8 +7847,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_proposal"
 version = "51.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c297f34c1ae5b1d35cc88496280b707ecb55d9bb540e5cb384757e4f2dfe72a0"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "either",
  "rustc-hash 2.1.1",
@@ -7925,8 +7864,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_react"
 version = "57.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "976dc553655e405a6879d9c2d5977bb76165a7a2ab249d5687768632ffb86c66"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "base64 0.22.1",
  "bytes-str",
@@ -7950,8 +7888,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_testing"
 version = "55.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff7cfb087e85d7fa40ac6070c132b1ce0f71f93b2cb4a9abb4ef2ee354c13ca3"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "ansi_term",
  "anyhow",
@@ -7976,8 +7913,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_transforms_typescript"
 version = "57.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ec0a0850a03db3a20d2950f8217f27edab0cab6bf941a4f5d15ec944fab88c2"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "bytes-str",
  "rustc-hash 2.1.1",
@@ -7994,8 +7930,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_utils"
 version = "36.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b59b32185a6e5dabfc087ab27fbab048f64dfd73e8290aa339a4aaffcb8fb439"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "dragonbox_ecma",
  "hashbrown 0.14.5",
@@ -8015,8 +7950,7 @@ dependencies = [
 [[package]]
 name = "swc_ecma_visit"
 version = "30.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc14fd3354020d23d7d4bbe37136c01f9887e84f106967e965ea2c03c002b6ea"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "new_debug_unreachable",
  "num-bigint",
@@ -8057,8 +7991,7 @@ dependencies = [
 [[package]]
 name = "swc_eq_ignore_macros"
 version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c16ce73424a6316e95e09065ba6a207eba7765496fed113702278b7711d4b632"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -8068,8 +8001,7 @@ dependencies = [
 [[package]]
 name = "swc_error_reporters"
 version = "29.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "363cea95ecf19a832de77ea0e68308cf176a504ad852aff7f5d5cafadc068b27"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "anyhow",
  "miette",
@@ -8081,8 +8013,7 @@ dependencies = [
 [[package]]
 name = "swc_macros_common"
 version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aae1efbaa74943dc5ad2a2fb16cbd78b77d7e4d63188f3c5b4df2b4dcd2faaae"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -8092,8 +8023,7 @@ dependencies = [
 [[package]]
 name = "swc_node_comments"
 version = "28.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "05d538da0d42288caadfb4b9e189040312324362994b13adb619fea222e4bfcb"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "dashmap 6.1.0",
  "rustc-hash 2.1.1",
@@ -8104,8 +8034,7 @@ dependencies = [
 [[package]]
 name = "swc_plugin_backend_wasmtime"
 version = "18.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9e97ec5b0ffa1e431b4e1d7f4e234c173dc4244297a666b8bdc7b88715d4e74"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "anyhow",
  "swc_common",
@@ -8117,8 +8046,7 @@ dependencies = [
 [[package]]
 name = "swc_plugin_macro"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "584f7e74ca311c843d67e143331d9fb17bd5468f6216f3feac0b012d7cc268c0"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -8128,8 +8056,7 @@ dependencies = [
 [[package]]
 name = "swc_plugin_proxy"
 version = "31.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5e831b57ed002a2abeee0bc2f20752ee3302f2b931980e3e5ddfa4f6d9653567"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "better_scoped_tls",
  "cbor4ii",
@@ -8142,8 +8069,7 @@ dependencies = [
 [[package]]
 name = "swc_plugin_runner"
 version = "35.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ed411b493a00e7cc4eb147aa4f326dff681634a447625a73f8527d9944c8159"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "anyhow",
  "blake3",
@@ -8180,8 +8106,7 @@ dependencies = [
 [[package]]
 name = "swc_sourcemap"
 version = "10.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df9ce7c46dc9730284761c88b34d15a8cfbaf40884705f3deec65b9493765ac8"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "base64-simd 0.8.0",
  "bitvec",
@@ -8209,8 +8134,7 @@ dependencies = [
 [[package]]
 name = "swc_transform_common"
 version = "21.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5e4b5dbedb2078bfec90855e49ffd8cda0c6d78b7f6f8d75c7a765d5de97b58"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "better_scoped_tls",
  "rustc-hash 2.1.1",
@@ -8221,8 +8145,7 @@ dependencies = [
 [[package]]
 name = "swc_visit"
 version = "2.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7df72a1be54e379864cebf04f26abb4d7ee637977f62f8ec8387233f7a27e88"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "either",
 ]
@@ -8409,8 +8332,7 @@ dependencies = [
 [[package]]
 name = "testing"
 version = "28.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b16c4ded13bda542f4c5164c4a39b05377f1a4c0cc342cda0c885108b9008b86"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "cargo_metadata 0.18.1",
  "difference",
@@ -8430,8 +8352,7 @@ dependencies = [
 [[package]]
 name = "testing_macros"
 version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "971a7561e3787ce2eb1768b900c385e797395037fecc56aadb2ed8230a4ba774"
+source = "git+https://github.com/mischnic/swc.git?branch=fleet%2Fturbopack-sourcemap-scopes#dce9a57ce36cca3e624e13faba68ca822dd5dae1"
 dependencies = [
  "anyhow",
  "glob",
@@ -9775,6 +9696,7 @@ dependencies = [
  "serde_qs",
  "smallvec",
  "strsim",
+ "swc_compiler_base",
  "swc_core",
  "swc_ecma_react_compiler",
  "swc_sourcemap",
