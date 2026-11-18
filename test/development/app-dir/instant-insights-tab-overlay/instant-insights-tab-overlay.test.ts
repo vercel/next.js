@@ -272,7 +272,7 @@ describe('instant insights tab overlay', () => {
     expect(pill?.hasError).toBe(true)
     expect(pill?.insightsOnly).toBe(false)
     expect(
-      await evalInPortal(browser, (root) =>
+      await evalInPortal(browser, (root: ShadowRoot) =>
         Array.from(root.querySelectorAll('[data-issues-open]'), (button) =>
           button.getAttribute('aria-label')
         )
