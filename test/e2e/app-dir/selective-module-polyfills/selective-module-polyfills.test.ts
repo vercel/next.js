@@ -14,11 +14,12 @@ describe('selective-module-polyfills', () => {
   // runs, so only the polyfills Next.js ships can bring them back.
   function openWithoutBuiltins(pathname: string) {
     return next.browser(pathname, {
-      beforePageLoad: (page) =>
-        page.addInitScript(() => {
+      beforePageLoad: async (page) => {
+        await page.addInitScript(() => {
           Reflect.deleteProperty(URL, 'canParse')
           Reflect.deleteProperty(Array.prototype, 'at')
-        }),
+        })
+      },
     })
   }
 
