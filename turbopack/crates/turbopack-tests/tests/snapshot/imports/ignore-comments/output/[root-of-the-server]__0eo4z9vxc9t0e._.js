@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/[root-of-the-server]__0kx1kaj2uwzi1._.js","[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)",((__turbopack_context__) => {
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/[root-of-the-server]__0eo4z9vxc9t0e._.js","[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 // Embedded worker-runtime helper. This file is bundled as a regular module and
@@ -63,11 +63,13 @@ __turbopack_context__.s([
 function generateCreateWorker(entrypoint, moduleChunks) {
     return (WorkerConstructor, workerOptions)=>createWorker(WorkerConstructor, entrypoint, moduleChunks, workerOptions);
 }
-}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/index.js [test] (ecmascript)",((__turbopack_context__, module, exports) => {
+}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/ignore-worker.cjs (static in ecmascript)",((__turbopack_context__) => {
+
+__turbopack_context__.q("/static/ignore-worker.3cqstqcuvhq6o.cjs");}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/index.js [test] (ecmascript)",((__turbopack_context__, module, exports) => {
 
 var __TURBOPACK__import$2e$meta__ = {
     get url () {
-        return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/index.js");
+        return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/index.js");
     },
     env: {
         DEV: true,
@@ -77,13 +79,17 @@ var __TURBOPACK__import$2e$meta__ = {
         SSR: false
     }
 };
-const url = new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/worker.js (static in ecmascript)"));
-__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/worker.js [test] (ecmascript, worker loader)")(SharedWorker);
-}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/worker.js (static in ecmascript)",((__turbopack_context__) => {
+// Ignore comments on imports and requires are covered by the
+// `imports/ignore-comments` execution test. Web workers are only created for
+// browser targets, so this case is covered by a snapshot test.
+__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript, worker loader)")(Worker);
+// Shouldn't cause a worker to be created, but `ignore-worker.cjs` is still
+// pulled in by `new URL()`
+new Worker(new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/ignore-worker.cjs (static in ecmascript)")));
+new Worker(new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/ignore-worker.cjs (static in ecmascript)")));
+}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript, worker loader)",((__turbopack_context__) => {
 
-__turbopack_context__.q("/static/worker.1n36e5vaxakik.js");}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/shared/input/worker.js [test] (ecmascript, worker loader)",((__turbopack_context__) => {
-
-__turbopack_context__.v(__turbopack_context__.r("[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)")["default"]("output/0uxq_crates_turbopack-tests_tests_snapshot_workers_shared_output_0uy0mninb8pht._.js", ["output/1do3_crates_turbopack-tests_tests_snapshot_workers_shared_input_worker_1u1i0a127q7ym.js","output/1i9t_crates_turbopack-tests_tests_snapshot_workers_shared_input_worker_1im1g730qzysb.js"]));
+__turbopack_context__.v(__turbopack_context__.r("[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)")["default"]("output/0ce9_turbopack-tests_tests_snapshot_imports_ignore-comments_output_0uy0mninb8pht._.js", ["output/1jsg_tests_snapshot_imports_ignore-comments_input_vercel_cjs_0j-fab5w1df6z._.js","output/1ece_tests_snapshot_imports_ignore-comments_input_vercel_cjs_0_vdt2ki2mlm8._.js"]));
 })]);
 
-//# sourceMappingURL=%5Broot-of-the-server%5D__0kx1kaj2uwzi1._.js.map
+//# sourceMappingURL=%5Broot-of-the-server%5D__0eo4z9vxc9t0e._.js.map

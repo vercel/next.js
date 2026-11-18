@@ -1,6 +1,6 @@
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
-    "output/1ece_tests_snapshot_swc_transforms_preset_env_input_index_0t5kch25fdgzz.js",
-    {"otherChunks":["output/turbopack_crates_turbopack-tests_tests_snapshot_1v9rcb0xkvvrg._.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/swc_transforms/preset_env/input/index.js [test] (ecmascript)"]}
+    "output/1ece_tests_snapshot_swc_transforms_preset_env_input_index_0mant_vdtd0tq.js",
+    {"otherChunks":["output/turbopack_crates_turbopack-tests_tests_snapshot_0_32zj5udwwc2._.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/swc_transforms/preset_env/input/index.js [test] (ecmascript)"]}
 ]);
 (function(){
 var chunksToRegister = globalThis["TURBOPACK"];
@@ -2166,4 +2166,4 @@ chunksToRegister.forEach(registerChunk);
 })();
 
 
-//# sourceMappingURL=1jsg_tests_snapshot_swc_transforms_preset_env_input_index_0t5kch25fdgzz.js.map
+//# sourceMappingURL=1jsg_tests_snapshot_swc_transforms_preset_env_input_index_0mant_vdtd0tq.js.map

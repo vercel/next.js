@@ -1,4 +1,4 @@
-(()=>{"use strict";(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_1j7kr1qmrqahp._.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/react/jsx-dev-runtime.js [test] (ecmascript)",((__turbopack_context__) => {
+(()=>{"use strict";(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_1y72x3vuvecja._.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/react/jsx-dev-runtime.js [test] (ecmascript)",((__turbopack_context__) => {
 
 
 __turbopack_context__.s([
@@ -47,4 +47,4 @@ function MyApp() {
 }
 })]);})()
 
-//# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_1j7kr1qmrqahp._.js.map
+//# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_1y72x3vuvecja._.js.map

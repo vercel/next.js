@@ -331,6 +331,7 @@ pub async fn make_chunks(
         let span = tracing::trace_span!("make chunks for type", name = display(&ty_name));
         async {
             let chunking_config = chunking_configs.get(&ty);
+            let is_style = *ty.is_style().await?;
             let mut split_context = SplitContext {
                 ty,
                 chunking_context,
@@ -338,11 +339,13 @@ pub async fn make_chunks(
                 min_component_chunk_size: chunking_config
                     .filter(|config| config.generate_component_chunks)
                     .map(|config| config.min_component_chunk_size),
+                // The order of style chunk items is semantic (CSS cascade), so keep it.
+                canonical_order: !is_style,
             };
 
             if let Some(chunking_config) = chunking_config {
                 // Production chunking
-                if *ty.is_style().await? {
+                if is_style {
                     make_style_production_chunks(
                         chunk_items,
                         batch_groups.into_iter().collect(),
@@ -364,7 +367,7 @@ pub async fn make_chunks(
                 }
             } else {
                 // Development chunking
-                if *ty.is_style().await? {
+                if is_style {
                     make_chunk(
                         chunk_items,
                         Vec::new(),
@@ -410,6 +413,130 @@ struct SplitContext<'a> {
     /// When set, merged chunks also emit their constituent component chunks (see
     /// [`make_chunk`]), with this minimum size for a component chunk to be emitted on its own.
     min_component_chunk_size: Option<usize>,
+    /// Whether chunk items (and batch groups) are put into a canonical order before a chunk is
+    /// created. The order of chunk items is derived from the traversal of the chunk group, which
+    /// differs between chunk groups (e.g. when they enter an import cycle at different modules).
+    /// Without a canonical order, chunk groups that share the same chunk items would create
+    /// distinct (but equivalent) chunks, each generating and emitting the same code.
+    canonical_order: bool,
+}
+
+/// The key an element (a chunk item, a batch or a batch group) is sorted by: the asset ident of a
+/// representative chunk item, which is the item itself or the first item of the batch / batch
+/// group.
+///
+/// The keys of the elements of one chunk are unique: a module is part of at most one element of a
+/// chunk (batches and batch groups are disjoint, see `sort_batch_groups`), and
+/// [`ChunkItem::asset_ident`] must uniquely identify a chunk item at runtime, as it's the source of
+/// its module id. Should two keys still tie, they are ordered by the [`ChunkItem::content_ident`]
+/// of the representative items, which uniquely identifies their content. Elements that tie on both
+/// would be the same item by those contracts, so their relative order can't affect the output.
+struct SortKey {
+    asset_ident: RcStr,
+    chunk_item: Option<ResolvedVc<Box<dyn ChunkItem>>>,
+}
+
+impl SortKey {
+    async fn from_chunk_item(chunk_item: Option<ResolvedVc<Box<dyn ChunkItem>>>) -> Result<Self> {
+        Ok(SortKey {
+            asset_ident: match chunk_item {
+                Some(chunk_item) => chunk_item.asset_ident().to_string().owned().await?,
+                None => RcStr::default(),
+            },
+            chunk_item,
+        })
+    }
+
+    async fn for_item(item: &ChunkItemOrBatchWithInfo) -> Result<Self> {
+        Ok(match item {
+            ChunkItemOrBatchWithInfo::ChunkItem {
+                chunk_item,
+                asset_ident,
+                ..
+            } => SortKey {
+                asset_ident: asset_ident.clone(),
+                chunk_item: Some(chunk_item.chunk_item),
+            },
+            ChunkItemOrBatchWithInfo::Batch { batch, .. } => Self::for_batch(**batch).await?,
+        })
+    }
+
+    async fn for_batch(batch: Vc<ChunkItemBatchWithAsyncModuleInfo>) -> Result<Self> {
+        let first = batch.await?.chunk_items.first().map(|item| item.chunk_item);
+        Self::from_chunk_item(first).await
+    }
+
+    async fn for_batch_group(batch_group: Vc<ChunkItemBatchGroup>) -> Result<Self> {
+        Ok(match batch_group.await?.items.first() {
+            Some(ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(item)) => {
+                Self::from_chunk_item(Some(item.chunk_item)).await?
+            }
+            Some(&ChunkItemOrBatchWithAsyncModuleInfo::Batch(batch)) => {
+                Self::for_batch(*batch).await?
+            }
+            None => Self::from_chunk_item(None).await?,
+        })
+    }
+}
+
+/// Sorts `elements` by their `keys` (see [`SortKey`]).
+async fn sort_canonically<T>(elements: &mut Vec<T>, keys: Vec<SortKey>) -> Result<()> {
+    let mut keyed = keys
+        .into_iter()
+        .zip(elements.drain(..))
+        .map(|(key, element)| (key, None::<RcStr>, element))
+        .collect::<Vec<_>>();
+    keyed.sort_by(|(a, ..), (b, ..)| a.asset_ident.cmp(&b.asset_ident));
+    // Break ties (not expected to happen, see `SortKey`) by the content ident, which is only
+    // computed for the tied elements.
+    let mut start = 0;
+    while start < keyed.len() {
+        let end = start
+            + keyed[start..]
+                .iter()
+                .take_while(|(key, ..)| key.asset_ident == keyed[start].0.asset_ident)
+                .count();
+        if end - start > 1 {
+            for (key, content_ident, _) in &mut keyed[start..end] {
+                *content_ident = match key.chunk_item {
+                    Some(chunk_item) => Some(chunk_item.content_ident().to_string().owned().await?),
+                    None => None,
+                };
+            }
+            keyed[start..end].sort_by(|(_, a, _), (_, b, _)| a.cmp(b));
+        }
+        start = end;
+    }
+    elements.extend(keyed.into_iter().map(|(.., element)| element));
+    Ok(())
+}
+
+async fn sort_chunk_items(chunk_items: &mut Vec<&'_ ChunkItemOrBatchWithInfo>) -> Result<()> {
+    if chunk_items.len() < 2 {
+        return Ok(());
+    }
+    let keys = chunk_items
+        .iter()
+        .map(|item| SortKey::for_item(item))
+        .try_join()
+        .await?;
+    sort_canonically(chunk_items, keys).await
+}
+
+/// Sorts the batch groups of a chunk. Their order doesn't affect the generated code: batch groups
+/// are formed per chunk group bitset (see `compute_module_batches`), and every module has exactly
+/// one bitset, so the batch groups of a chunk are disjoint. The lookup map that `batch_info` builds
+/// from them therefore doesn't depend on their order.
+async fn sort_batch_groups(batch_groups: &mut Vec<ResolvedVc<ChunkItemBatchGroup>>) -> Result<()> {
+    if batch_groups.len() < 2 {
+        return Ok(());
+    }
+    let keys = batch_groups
+        .iter()
+        .map(|batch_group| SortKey::for_batch_group(**batch_group))
+        .try_join()
+        .await?;
+    sort_canonically(batch_groups, keys).await
 }
 
 fn build_chunk(
@@ -498,8 +625,8 @@ fn split_into_component_chunks<'l>(
 /// enabled in the `split_context`, they are also emitted as component chunks of the chunk.
 #[tracing::instrument(level = Level::TRACE, skip_all, fields(key = display(key)))]
 async fn make_chunk(
-    chunk_items: Vec<&'_ ChunkItemOrBatchWithInfo>,
-    batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
+    mut chunk_items: Vec<&'_ ChunkItemOrBatchWithInfo>,
+    mut batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
     components: Vec<ChunkComponent<'_>>,
     key: &mut String,
     split_context: &mut SplitContext<'_>,
@@ -510,8 +637,16 @@ async fn make_chunk(
             split_into_component_chunks(components, min_component_chunk_size)
         })
         .unwrap_or_default();
+    if split_context.canonical_order {
+        sort_chunk_items(&mut chunk_items).await?;
+        sort_batch_groups(&mut batch_groups).await?;
+    }
     let mut component_chunks = Vec::with_capacity(components.len());
-    for (component_items, component_batch_groups) in components {
+    for (mut component_items, mut component_batch_groups) in components {
+        if split_context.canonical_order {
+            sort_chunk_items(&mut component_items).await?;
+            sort_batch_groups(&mut component_batch_groups).await?;
+        }
         component_chunks.push(
             build_chunk(
                 component_items,

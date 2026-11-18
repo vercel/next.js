@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_0ie4tr8hvhqe-._.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/styled_components/styled_components/input/index.js [test] (ecmascript)",((__turbopack_context__) => {
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_0a1-onhynve64._.js","[project]/turbopack/crates/turbopack-tests/tests/snapshot/styled_components/styled_components/input/index.js [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([]);
@@ -17,4 +17,4 @@ console.log(MyButton);
 "styled-components/index.js";
 })]);
 
-//# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_0ie4tr8hvhqe-._.js.map
+//# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_0a1-onhynve64._.js.map

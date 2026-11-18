@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_1xzb8pohmqk06._.js",(()=>{"use strict";return["[project]/turbopack/crates/turbopack-tests/tests/snapshot/emotion/emotion/input/index.js [test] (ecmascript)",((__turbopack_context__) => {
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_08fkpou1n867g._.js",(()=>{"use strict";return["[project]/turbopack/crates/turbopack-tests/tests/snapshot/emotion/emotion/input/index.js [test] (ecmascript)",((__turbopack_context__) => {
 
 
 __turbopack_context__.s([]);
@@ -50,4 +50,4 @@ function jsxDEV() {
 "@emtion/styled/index.js";
 })]);
 
-//# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_1xzb8pohmqk06._.js.map
+//# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_08fkpou1n867g._.js.map
