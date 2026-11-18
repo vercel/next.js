@@ -750,6 +750,15 @@ mod tests {
     }
 
     #[test]
+    fn loads_concatenated_xz_streams() {
+        // Parallel compressors and `cat a.xz b.xz` produce multiple xz streams in one file.
+        let mut data = xz(&trace(50_000));
+        data.extend(xz(&span_rows(50_001, 50_000)));
+        let reader = ReaderFixture::new("concatenated.trace.xz", &data);
+        reader.wait_for_span_count(100_000);
+    }
+
+    #[test]
     fn raw_live_tail_picks_up_appended_data() {
         let reader = ReaderFixture::new("live.trace", &trace(1_000));
         reader.wait_for_span_count(1_000);
