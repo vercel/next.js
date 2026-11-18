@@ -1199,22 +1199,32 @@ async fn go_proxy_handler_source(
     let i18n = Option::as_ref(&*i18n_config);
     let skip_proxy_url_normalize = *next_config.skip_proxy_url_normalize().await?;
     let default_locale = i18n.map(|i18n| i18n.default_locale.as_str()).unwrap_or("");
-    // The first domain for a hostname wins, matching detectDomainLocale.
-    let mut domain_locales = BTreeMap::new();
-    for domain in i18n
+    let domains = i18n
         .and_then(|i18n| i18n.domains.as_ref())
         .into_iter()
         .flatten()
-    {
-        let hostname = domain
-            .domain
-            .split(':')
-            .next()
-            .unwrap_or_default()
-            .to_lowercase();
-        domain_locales
-            .entry(hostname)
-            .or_insert_with(|| domain.default_locale.clone());
+        .map(|domain| (domain.domain.as_str(), domain.default_locale.as_str()));
+    render_go_proxy_handler(
+        base_path.unwrap_or(""),
+        default_locale,
+        skip_proxy_url_normalize,
+        domains,
+    )
+}
+
+/// Renders the Go proxy handler template with the application's routing
+/// configuration. `domains` yields i18n `(domain, defaultLocale)` pairs.
+fn render_go_proxy_handler<'a>(
+    base_path: &str,
+    default_locale: &str,
+    skip_proxy_url_normalize: bool,
+    domains: impl IntoIterator<Item = (&'a str, &'a str)>,
+) -> Result<String> {
+    // The first domain for a hostname wins, matching detectDomainLocale.
+    let mut domain_locales = BTreeMap::new();
+    for (domain, locale) in domains {
+        let hostname = domain.split(':').next().unwrap_or_default().to_lowercase();
+        domain_locales.entry(hostname).or_insert(locale);
     }
     let domain_locales = domain_locales
         .iter()
@@ -1232,7 +1242,7 @@ async fn go_proxy_handler_source(
     let source = replace_go_placeholder(
         source,
         "\"__NEXT_GO_BASE_PATH__\"",
-        &serde_json::to_string(base_path.unwrap_or(""))?,
+        &serde_json::to_string(base_path)?,
     )?;
     let source = replace_go_placeholder(
         source,
@@ -3120,5 +3130,51 @@ impl AppEndpointOutput {
             AppEndpointOutput::NodeJs { client_assets, .. }
             | AppEndpointOutput::Edge { client_assets, .. } => *client_assets,
         }
+    }
+}
+
+#[cfg(test)]
+mod go_proxy_handler_tests {
+    use super::render_go_proxy_handler;
+
+    #[test]
+    fn renders_defaults_without_placeholders() {
+        let source = render_go_proxy_handler("", "", false, []).unwrap();
+        assert!(!source.contains("__NEXT_GO_"), "{source}");
+        assert!(source.contains("const nextGoBasePath = \"\"\n"));
+        assert!(source.contains("const nextGoDefaultLocale = \"\"\n"));
+        assert!(source.contains("const nextGoSkipProxyURLNormalize = false\n"));
+        assert!(source.contains("var nextGoDomainLocales = map[string]string{\n\n}"));
+    }
+
+    #[test]
+    fn renders_routing_configuration() {
+        let source = render_go_proxy_handler(
+            "/docs",
+            "en-US",
+            true,
+            [
+                ("FR.example.test:3000", "fr"),
+                ("nl.example.test", "nl"),
+                // A later entry for the same hostname is ignored.
+                ("fr.example.test", "de"),
+            ],
+        )
+        .unwrap();
+        assert!(!source.contains("__NEXT_GO_"), "{source}");
+        assert!(source.contains("const nextGoBasePath = \"/docs\"\n"));
+        assert!(source.contains("const nextGoDefaultLocale = \"en-US\"\n"));
+        assert!(source.contains("const nextGoSkipProxyURLNormalize = true\n"));
+        assert!(source.contains(
+            "var nextGoDomainLocales = map[string]string{\n\t\"fr.example.test\": \
+             \"fr\",\n\t\"nl.example.test\": \"nl\",\n}"
+        ));
+        assert!(!source.contains("\"de\""));
+    }
+
+    #[test]
+    fn escapes_configuration_as_go_string_literals() {
+        let source = render_go_proxy_handler("/a\"b\\c", "", false, []).unwrap();
+        assert!(source.contains(r#"const nextGoBasePath = "/a\"b\\c""#));
     }
 }

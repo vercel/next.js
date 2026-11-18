@@ -532,12 +532,48 @@ describe('native-proxy-go', () => {
           })
           expect(response.headers.get('x-middleware-next')).toBeNull()
         }
-        const data = await fetch(
-          `${origin}/_next/data/${buildId}/native-proxy/inspect.json?from=data`
-        )
-        expect(data.headers.get('x-go-url')).toBe(
-          '/native-proxy/inspect?from=data'
-        )
+        // Each transport URL reaches Proxy as the page URL it resolves to.
+        // Other URLs, including encoded separators, are forwarded unchanged.
+        for (const [path, expected] of [
+          [
+            `/_next/data/${buildId}/native-proxy/inspect.json?from=data&x=1`,
+            '/native-proxy/inspect?from=data&x=1',
+          ],
+          [`/_next/data/${buildId}/index.json`, '/'],
+          [`/_next/data/${buildId}/index/index.json`, '/index'],
+          [`/_next/data/${buildId}/index/index/foo.json`, '/index/foo'],
+          // /index/<segment> is emitted unchanged for dynamic routes.
+          [`/_next/data/${buildId}/index/settings.json`, '/index/settings'],
+          [
+            `/_next/data/${buildId}%2Fextra/native-proxy/inspect.json`,
+            '/native-proxy/inspect',
+          ],
+          ['/_next/data//native-proxy/inspect.json', '/native-proxy/inspect'],
+          [
+            `/_next/data/${buildId}/native-proxy/a%2Fb.json`,
+            '/native-proxy/a%2Fb',
+          ],
+          ['/native-proxy/inspect%2Ersc', '/native-proxy/inspect'],
+          [
+            '/native-proxy/inspect.segments/$c$children/__PAGE__.segment.rsc',
+            '/native-proxy/inspect',
+          ],
+          [
+            '/native-proxy/inspect.segments/$c$children/$d$slug/__PAGE__.segment.rsc',
+            '/native-proxy/inspect',
+          ],
+          ['/_next/static/chunks/main.js', '/_next/static/chunks/main.js'],
+          ['/_next/data', '/_next/data'],
+          ['/native-proxy/inspect.json', '/native-proxy/inspect.json'],
+          ['/native-proxy/a%2Fb', '/native-proxy/a%2Fb'],
+        ]) {
+          // Send the raw path, without client-side URL normalization.
+          const response = await fetchViaRawHttp(origin, path)
+          expect({ path, url: response.headers.get('x-go-url') }).toEqual({
+            path,
+            url: expected,
+          })
+        }
         for (const path of ['cookie-state', 'cookie-rewrite']) {
           const response = await fetch(`${origin}/native-proxy/${path}`)
           const cookies = response.headers.getSetCookie()
@@ -691,6 +727,93 @@ describe.each([false, true])(
     })
   }
 )
+
+// Hosted tests require the Go proxy adapter and builder releases.
+// @force-gate turbopack && !deploy
+describe('native-proxy-go adapter build with basePath and i18n domains', () => {
+  const { next } = nextTestSetup({ files: __dirname, skipStart: true })
+
+  // Executing a build-host binary is a self-hosted check.
+  // @force-gate start
+  it('normalizes transport URLs with basePath and domain default locales', async () => {
+    const config = await next.readFile('next.config.ts')
+    await next.patchFile(
+      'next.config.ts',
+      config.replace(
+        'experimental: {',
+        `basePath: '/docs',
+        i18n: {
+          locales: ['en', 'fr', 'nl'],
+          defaultLocale: 'en',
+          domains: [{ domain: 'fr.example.test', defaultLocale: 'fr' }],
+        },
+        experimental: {`
+      )
+    )
+    await withAdapterProxy(next, async (origin, buildId) => {
+      const data = `/docs/_next/data/${buildId}`
+      for (const [host, path, expected] of [
+        [
+          undefined,
+          `${data}/en/url-normalization.json`,
+          '/docs/url-normalization',
+        ],
+        [
+          undefined,
+          `${data}/EN/url-normalization.json`,
+          '/docs/url-normalization',
+        ],
+        [
+          undefined,
+          `${data}/fr/url-normalization.json`,
+          '/docs/fr/url-normalization',
+        ],
+        [undefined, `${data}/en.json`, '/docs'],
+        [undefined, `${data}/nl.json`, '/docs/nl'],
+        [
+          undefined,
+          '/docs/native-proxy/inspect.rsc',
+          '/docs/native-proxy/inspect',
+        ],
+        [
+          undefined,
+          '/docs/native-proxy/inspect.segments/_tree.segment.rsc',
+          '/docs/native-proxy/inspect',
+        ],
+        // Paths outside basePath are not data requests for this application.
+        [
+          undefined,
+          `/docsx/_next/data/${buildId}/en/url-normalization.json`,
+          `/docsx/_next/data/${buildId}/en/url-normalization.json`,
+        ],
+        [
+          'fr.example.test',
+          `${data}/fr/url-normalization.json`,
+          '/docs/url-normalization',
+        ],
+        [
+          'FR.example.test:3000',
+          `${data}/fr/url-normalization.json`,
+          '/docs/url-normalization',
+        ],
+        [
+          'fr.example.test',
+          `${data}/en/url-normalization.json`,
+          '/docs/en/url-normalization',
+        ],
+      ]) {
+        const response = await fetchViaRawHttp(origin, path!, {
+          headers: host ? { host } : {},
+        })
+        expect({ host, path, url: response.headers.get('x-go-url') }).toEqual({
+          host,
+          path,
+          url: expected,
+        })
+      }
+    })
+  })
+})
 
 // @force-gate turbopack && !deploy
 describe('native-proxy-go in src with Go route handlers', () => {
