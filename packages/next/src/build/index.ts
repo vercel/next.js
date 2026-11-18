@@ -1218,6 +1218,24 @@ export default async function build(
         )
       loadedConfig = config
 
+      // Without `experimental.allowDevelopmentBuild` (which `--debug-prerender`
+      // also enables), the bundles inline `process.env.NODE_ENV` as
+      // 'production'. Keeping 'development' at runtime would make modules that
+      // read it at runtime load development builds next to the production
+      // ones (e.g. two copies of React), which fails during prerendering. Use
+      // 'production' for the rest of the build and its workers instead.
+      if (
+        process.env.NODE_ENV === 'development' &&
+        !config.experimental.allowDevelopmentBuild
+      ) {
+        Log.warn(
+          `"NODE_ENV" is set to "development", but \`next build\` creates a production build by default. Using NODE_ENV=production for this build. ` +
+            `Remove NODE_ENV from your environment and \`.env*\` files, or enable \`experimental.allowDevelopmentBuild\` to create a development build. ` +
+            `Read more: https://nextjs.org/docs/messages/non-standard-node-env`
+        )
+        Object.assign(process.env, { NODE_ENV: 'production' })
+      }
+
       // Resolve selective build paths now that the page extensions are known.
       const debugBuildPaths = debugBuildPathsPatterns
         ? await (async () => {

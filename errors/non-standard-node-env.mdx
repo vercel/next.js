@@ -20,6 +20,12 @@ The greater React ecosystem treats `NODE_ENV` as a convention, only permitting t
 
 Setting a non-standard `NODE_ENV` value may cause dependencies to behave unexpectedly, or worse, **break dead code elimination**.
 
+### `NODE_ENV=development` during `next build`
+
+`next build` creates a production build by default. If `NODE_ENV` is set to `development` when you run `next build`, Next.js warns and uses `NODE_ENV=production` for the rest of the build, so that the built code and the code running during the build (for example, while prerendering pages) agree on the environment.
+
+If you intentionally want a development build, for example to debug errors with React development warnings, enable `experimental.allowDevelopmentBuild` in `next.config.js` and set `NODE_ENV=development` explicitly. To debug prerendering errors, use `next build --debug-prerender` instead.
+
 ## Possible Ways to Fix It
 
 To fix this error, identify the source of the erroneous `NODE_ENV` value and get rid of it: Next.js automatically sets the correct value for you.
