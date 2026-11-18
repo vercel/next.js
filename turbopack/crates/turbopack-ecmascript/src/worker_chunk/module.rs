@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use indoc::formatdoc;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
@@ -292,25 +292,17 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
             .cell());
         }
 
-        let create_worker_module = self.create_worker_module().to_resolved().await?;
-        let mut create_worker_target = create_worker_module;
+        let create_worker_module = ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(
+            self.create_worker_module().to_resolved().await?,
+        )
+        .context("createWorker helper must be ECMAScript-chunk-placeable")?;
         // The helper's `default` export is read here as a string, so it has to go through the same
         // mapping the helper itself emits — a hard-coded `["default"]` misses once its exports are
-        // mangled.
-        let create_worker_export = match ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(
-            create_worker_module,
-        ) {
-            Some(placeable) => {
-                // Resolve the factory identity as well as the key, just like a generated ESM
-                // import.
-                let info = export_info(*placeable, chunking_context).await?;
-                create_worker_target = ResolvedVc::upcast(info.namespace());
-                info.export_name(&rcstr!("default")).clone()
-            }
-            None => rcstr!("default"),
-        };
-
-        let create_worker_id = create_worker_target.chunk_item_id(chunking_context).await?;
+        // mangled. Resolve the factory identity as well as the key, just like a generated ESM
+        // import.
+        let info = export_info(*create_worker_module, chunking_context).await?;
+        let create_worker_export = info.export_name(&rcstr!("default")).clone();
+        let create_worker_id = info.namespace().chunk_item_id(chunking_context).await?;
 
         let code = match this.worker_type {
             WorkerType::WebWorker | WorkerType::SharedWebWorker => {
