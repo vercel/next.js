@@ -62,6 +62,11 @@ export async function resolveFallbackHydration(
 ): Promise<{ payload: InitialRSCPayload; shouldHydrate: boolean }> {
   try {
     const response = await fallback.response
+    const responseUrl = urlToUrlWithoutFlightMarker(new URL(response.url))
+    if (responseUrl.origin !== location.origin) {
+      response.body?.cancel().catch(() => {})
+      return navigateToDocument(responseUrl.href)
+    }
     if (
       !response.ok ||
       !response.body ||
@@ -81,9 +86,8 @@ export async function resolveFallbackHydration(
     ) {
       return navigateToDocument(location.href)
     }
-    const responseUrl = urlToUrlWithoutFlightMarker(new URL(response.url))
-    if (responseUrl.origin !== location.origin || treePayload.n !== undefined) {
-      return navigateToDocument(treePayload.n ?? responseUrl.href)
+    if (treePayload.n !== undefined) {
+      return navigateToDocument(treePayload.n)
     }
     const pathnameParts = splitPathnameIntoParts(getRenderedPathname(response))
     const tree = treePayload.t
@@ -97,7 +101,9 @@ export async function resolveFallbackHydration(
       : null
     if (tree !== null) {
       if (response.redirected) {
-        responseUrl.hash = location.hash
+        if (!responseUrl.hash) {
+          responseUrl.hash = location.hash
+        }
         history.replaceState(history.state, '', responseUrl)
       }
       return {
@@ -117,7 +123,10 @@ export async function resolveFallbackHydration(
     // initializes the router.
   }
 
-  const result = await fetchServerResponse(new URL(location.href), {
+  const documentUrl = new URL(location.href)
+  const documentHash = documentUrl.hash
+  documentUrl.hash = ''
+  const result = await fetchServerResponse(documentUrl, {
     flightRouterState: ['', {}, null, 'refetch'],
     nextUrl: null,
   })
@@ -131,7 +140,9 @@ export async function resolveFallbackHydration(
   if (!data || !data.h || !isFullTree(data.t)) {
     return navigateToDocument(location.href)
   }
-  result.canonicalUrl.hash = location.hash
+  if (!result.canonicalUrl.hash) {
+    result.canonicalUrl.hash = documentHash
+  }
   history.replaceState(history.state, '', result.canonicalUrl)
   return {
     payload: {
@@ -301,16 +312,26 @@ export function clearFallbackDocumentRetry(): void {
 }
 
 /**
- * This starts a document navigation before router initialization. The history
- * entry keeps the retry marker across a same-origin reload. A second attempt in
- * that entry rejects to prevent a reload loop. The promise remains pending
- * after navigation starts so bootstrap cannot continue.
+ * This starts an HTTP(S) document navigation before router initialization. The
+ * router's URL checks do not run on this path. This preserves the source
+ * fragment only for a same-origin destination without its own fragment. The
+ * history entry keeps the retry marker across a same-origin reload. A second
+ * attempt in that entry rejects to prevent a reload loop. The promise remains
+ * pending after navigation starts so bootstrap cannot continue.
  */
 function navigateToDocument(url: string): Promise<never> {
   const destination = new URL(url, location.href)
+  if (destination.protocol !== 'http:' && destination.protocol !== 'https:') {
+    return Promise.reject(
+      new Error('The fallback page returned an invalid document URL.')
+    )
+  }
   if (destination.origin !== location.origin) {
     location.replace(destination.href)
     return new Promise(() => {})
+  }
+  if (!destination.hash) {
+    destination.hash = location.hash
   }
   try {
     const state = getHistoryState()

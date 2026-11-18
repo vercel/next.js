@@ -233,6 +233,10 @@ export async function fetchServerResponse(
     }
 
     const responseUrl = urlToUrlWithoutFlightMarker(new URL(res.url))
+    if (responseUrl.origin !== location.origin) {
+      res.body?.cancel().catch(() => {})
+      return doMpaNavigation(responseUrl.href)
+    }
     const canonicalUrl = res.redirected ? responseUrl : originalUrl
 
     const contentType = res.headers.get('content-type') || ''
@@ -251,8 +255,9 @@ export async function fetchServerResponse(
     // If fetch returns something different than flight response handle it like a mpa navigation
     // If the fetch was not 200, we also handle it like a mpa navigation
     if (!isFlightResponse || !res.ok || !res.body) {
-      // in case the original URL came with a hash, preserve it before redirecting to the new URL
-      if (url.hash) {
+      // Preserve the source fragment only for a same-origin destination without
+      // its own fragment.
+      if (url.hash && responseUrl.origin === url.origin && !responseUrl.hash) {
         responseUrl.hash = url.hash
       }
 
@@ -346,8 +351,7 @@ export async function fetchServerResponse(
 
     if (!isPageUnloading) {
       console.error(
-        `Failed to fetch RSC payload for ${originalUrl}. Falling back to browser navigation.`,
-        err
+        'Failed to fetch RSC payload. Falling back to browser navigation.'
       )
     }
 
@@ -516,6 +520,12 @@ function decodeNavigationResponse<T>(
           // an in-flight request, but if it had already completed we still hold
           // an unread body; release it so it isn't left dangling.
           response.body?.cancel().catch(() => {})
+          return
+        }
+        // Reject foreign Flight data before the decoder reads any bytes. The
+        // caller handles the response URL as a document navigation instead.
+        if (new URL(response.url).origin !== location.origin) {
+          controller.close()
           return
         }
         const body = response.body

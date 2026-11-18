@@ -4,7 +4,13 @@ import { useParams, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import Link from 'next/link'
 
-export function LinkAccordion({ href }: { href: string }) {
+export function LinkAccordion({
+  href,
+  prefetch,
+}: {
+  href: string
+  prefetch?: boolean
+}) {
   const [visible, setVisible] = useState(false)
   return (
     <div>
@@ -14,7 +20,11 @@ export function LinkAccordion({ href }: { href: string }) {
         checked={visible}
         onChange={() => setVisible(!visible)}
       />
-      {visible ? <Link href={href}>{href}</Link> : null}
+      {visible ? (
+        <Link href={href} prefetch={prefetch}>
+          {href}
+        </Link>
+      ) : null}
     </div>
   )
 }

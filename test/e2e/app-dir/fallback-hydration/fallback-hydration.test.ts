@@ -3,11 +3,64 @@ import { assertNoConsoleErrors, gate, retry } from 'next-test-utils'
 import type { Page, Response as BrowserResponse } from 'playwright'
 import { createRouterAct } from 'router-act'
 import { join } from 'node:path'
+import { createServer, type Server } from 'node:http'
 import { RouteKind } from 'next/dist/server/route-kind'
 import { load } from 'cheerio'
 
 describe('fallback-hydration', () => {
   const { next, isNextDev, isNextStart } = nextTestSetup({ files: __dirname })
+
+  const externalResponses = new Map<
+    string,
+    { body: string; headers?: Record<string, string> }
+  >()
+  let externalServer: Server | undefined
+  const external = { origin: '' }
+
+  beforeAll(async () => {
+    const server = createServer((request, response) => {
+      response.setHeader('access-control-allow-origin', '*')
+      response.setHeader('access-control-allow-headers', '*')
+      response.setHeader(
+        'access-control-expose-headers',
+        'x-nextjs-deployment-id'
+      )
+      response.setHeader('access-control-allow-private-network', 'true')
+      if (request.method === 'OPTIONS') {
+        response.writeHead(204)
+        response.end()
+        return
+      }
+      const payload = externalResponses.get(request.url!)
+      if (request.headers['sec-fetch-dest'] !== 'document' && payload) {
+        response.writeHead(200, {
+          'content-type': 'text/x-component',
+          ...payload.headers,
+        })
+        response.end(payload.body)
+      } else {
+        response.writeHead(200, { 'content-type': 'text/html' })
+        response.end('<p>External document</p>')
+      }
+    })
+    externalServer = server
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    const address = server.address()
+    if (!address || typeof address === 'string') {
+      throw new Error('The external response server did not bind a TCP port.')
+    }
+    external.origin = `http://127.0.0.1:${address.port}`
+  })
+
+  afterAll(async () => {
+    const server = externalServer
+    if (server) {
+      server.closeAllConnections()
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()))
+      })
+    }
+  })
 
   async function openFallback(
     pathname: string,
@@ -28,6 +81,17 @@ describe('fallback-hydration', () => {
       pushErrorAsConsoleLog: true,
       waitHydration: options?.waitHydration ?? true,
       async beforePageLoad(browserPage: Page) {
+        // Chromium requires permission for deployed pages to use the local
+        // fixture.
+        if (
+          browserPage.context().browser()?.browserType().name() === 'chromium'
+        ) {
+          await browserPage
+            .context()
+            .grantPermissions(['local-network-access'], {
+              origin: next.url,
+            })
+        }
         page = browserPage
         act = createRouterAct(browserPage)
         await options?.beforePageLoad?.(browserPage)
@@ -104,12 +168,380 @@ describe('fallback-hydration', () => {
     return state
   }
 
+  // These requests only bootstrap fully static fallback shells.
+  // @force-gate !dev && cacheComponents
+  describe('bootstrap response security', () => {
+    // eslint-disable-next-line no-script-url -- This payload tests rejection of executable destinations.
+    const scriptDestination = 'javascript:window.reportUnsafeBootstrap()'
+    for (const stage of ['tree', 'recovery']) {
+      it(`does not decode a cross-origin ${stage} response`, async () => {
+        const destination = `${external.origin}/landing-${stage}`
+        let executed = false
+        let reportExecution: () => void
+        const unsafeExecution = new Promise<'executed'>((resolve) => {
+          reportExecution = () => {
+            executed = true
+            resolve('executed')
+          }
+        })
+        const decodedRequests: string[] = []
+        const { page } = await openFallback(
+          `/fallback-hydration/en/products/foreign-${stage}#private-fragment`,
+          {
+            waitHydration: false,
+            async beforePageLoad(browserPage) {
+              await browserPage.exposeFunction('reportUnsafeBootstrap', () => {
+                reportExecution()
+              })
+              browserPage.on('request', (request) => {
+                if (request.url().includes('foreign-flight-decoded.css')) {
+                  decodedRequests.push(request.url())
+                }
+              })
+              await browserPage.route('**/*', async (route) => {
+                const request = route.request()
+                if (request.headers().rsc !== '1') {
+                  await route.fallback()
+                  return
+                }
+                if (
+                  stage === 'recovery' &&
+                  request.headers()['next-router-segment-prefetch'] === '/_tree'
+                ) {
+                  await route.fulfill({ status: 503, body: 'Unavailable tree' })
+                  return
+                }
+                const response = await route.fetch()
+                const body = await response.text()
+                let flightBody = body.replace(
+                  /^([#~]?)0:\{/m,
+                  (_, marker: string) =>
+                    `${marker}0:{"n":${JSON.stringify(scriptDestination)},`
+                )
+                expect(flightBody).not.toBe(body)
+                flightBody = flightBody.replace(
+                  /^([#~]?)/,
+                  (_, marker: string) =>
+                    `${marker}:HL["${next.url}/foreign-flight-decoded.css","style"]\n`
+                )
+                externalResponses.set(new URL(destination).pathname, {
+                  body: flightBody,
+                  headers: response.headers()['x-nextjs-deployment-id']
+                    ? {
+                        'x-nextjs-deployment-id':
+                          response.headers()['x-nextjs-deployment-id'],
+                      }
+                    : undefined,
+                })
+                await route.fulfill({
+                  status: 307,
+                  headers: { location: destination },
+                  body: '',
+                })
+              })
+            },
+          }
+        )
+        expect(
+          await Promise.race([
+            page
+              .waitForURL(destination, { timeout: 15000 })
+              .then(() => 'document'),
+            unsafeExecution,
+          ])
+        ).toBe('document')
+        expect(executed).toBe(false)
+        expect(decodedRequests).toEqual([])
+        expect(new URL(page.url()).hash).toBe('')
+      })
+    }
+
+    for (const destination of [
+      scriptDestination,
+      'JaVa\nScRiPt:window.reportUnsafeBootstrap()',
+      'data:text/html,unsafe',
+    ]) {
+      it(`rejects a non-HTTP document destination: ${destination}`, async () => {
+        let executed = false
+        let failure: Promise<Error> | undefined
+        const { page } = await openFallback(
+          '/fallback-hydration/en/products/unsafe-destination',
+          {
+            waitHydration: false,
+            async beforePageLoad(browserPage) {
+              await browserPage.exposeFunction('reportUnsafeBootstrap', () => {
+                executed = true
+              })
+              failure = browserPage.waitForEvent('pageerror', {
+                timeout: 15000,
+                predicate: (error) =>
+                  error.message.includes('invalid document URL'),
+              })
+              await browserPage.route('**/*', async (route) => {
+                if (
+                  route.request().headers()['next-router-segment-prefetch'] !==
+                  '/_tree'
+                ) {
+                  await route.fallback()
+                  return
+                }
+                const response = await route.fetch()
+                const body = await response.text()
+                const modified = body.replace(
+                  /^([#~]?)0:\{/m,
+                  (_, marker: string) =>
+                    `${marker}0:{"n":${JSON.stringify(destination)},`
+                )
+                expect(modified).not.toBe(body)
+                await route.fulfill({ response, body: modified })
+              })
+            },
+          }
+        )
+        expect((await failure)?.message).toContain('invalid document URL')
+        expect(executed).toBe(false)
+        expect(new URL(page.url()).pathname).toBe(
+          '/fallback-hydration/en/products/unsafe-destination'
+        )
+      })
+    }
+
+    for (const failureKind of ['network', 'decode']) {
+      it(`does not log private URL data after a ${failureKind} failure`, async () => {
+        const query = 'fallback-private-query'
+        const fragment = 'fallback-private-fragment'
+        let failure: Promise<Error> | undefined
+        const { page, requests } = await openFallback(
+          `/fallback-hydration/en/products/private-diagnostics?value=${query}#${fragment}`,
+          {
+            waitHydration: false,
+            async beforePageLoad(browserPage) {
+              await browserPage.addInitScript(() => {
+                const diagnostics: string[] = []
+                Reflect.set(window, 'fallbackDiagnostics', diagnostics)
+                const originalFetch = window.fetch
+                window.fetch = async (...args) => {
+                  try {
+                    return await originalFetch(...args)
+                  } catch {
+                    throw new Error(
+                      `fallback-private-exception: ${location.href}`
+                    )
+                  }
+                }
+                const originalError = console.error
+                console.error = (...args) => {
+                  diagnostics.push(
+                    ...args.map((value) =>
+                      value instanceof Error
+                        ? `${value.message}\n${value.stack}`
+                        : String(value)
+                    )
+                  )
+                  originalError(...args)
+                }
+              })
+              failure = browserPage.waitForEvent('pageerror', {
+                timeout: 15000,
+                predicate: (error) =>
+                  error.message.includes(
+                    'could not initialize after reloading'
+                  ),
+              })
+              await browserPage.route('**/*', async (route) => {
+                const headers = route.request().headers()
+                if (headers.rsc !== '1') {
+                  await route.fallback()
+                } else if (
+                  headers['next-router-segment-prefetch'] === '/_tree'
+                ) {
+                  await route.fulfill({ status: 503, body: 'Unavailable tree' })
+                } else if (failureKind === 'network') {
+                  await route.abort('failed')
+                } else {
+                  await route.fulfill({
+                    contentType: 'text/x-component',
+                    body: 'Invalid Flight response',
+                  })
+                }
+              })
+            },
+          }
+        )
+        expect((await failure)?.message).toContain(
+          'could not initialize after reloading'
+        )
+        const diagnostics: string[] = await page.evaluate(() =>
+          Reflect.get(window, 'fallbackDiagnostics')
+        )
+        expect(diagnostics.join('\n')).toContain('Failed to fetch RSC payload')
+        expect(diagnostics.join('\n')).not.toContain(query)
+        expect(diagnostics.join('\n')).not.toContain(fragment)
+        expect(diagnostics.join('\n')).not.toContain(
+          'fallback-private-exception'
+        )
+        expect(
+          requests
+            .filter((request) => request.tree !== undefined)
+            .every((request) => request.url.includes(`value=${query}`))
+        ).toBe(true)
+        expect(new URL(page.url()).hash).toBe(`#${fragment}`)
+      })
+    }
+
+    for (const responseKind of ['non-flight', 'mpa']) {
+      it(`preserves only the external destination fragment for a ${responseKind} response`, async () => {
+        const destination = `${external.origin}/non-flight${responseKind === 'mpa' ? '#destination-fragment' : ''}`
+        externalResponses.set('/non-flight', {
+          body: '<p>External document</p>',
+          headers: { 'content-type': 'text/html' },
+        })
+        const { page } = await openFallback(
+          '/fallback-hydration/en/products/private-redirect#source-private-fragment',
+          {
+            waitHydration: false,
+            async beforePageLoad(browserPage) {
+              await browserPage.route('**/*', async (route) => {
+                const request = route.request()
+                if (
+                  request.headers()['next-router-segment-prefetch'] === '/_tree'
+                ) {
+                  if (responseKind === 'mpa') {
+                    const response = await route.fetch()
+                    const body = await response.text()
+                    await route.fulfill({
+                      response,
+                      body: body.replace(
+                        /^([#~]?)0:\{/m,
+                        (_, marker: string) =>
+                          `${marker}0:{"n":${JSON.stringify(destination)},`
+                      ),
+                    })
+                  } else {
+                    await route.fulfill({
+                      status: 503,
+                      body: 'Unavailable tree',
+                    })
+                  }
+                } else if (request.headers().rsc === '1') {
+                  await route.fulfill({
+                    status: 307,
+                    headers: { location: destination },
+                    body: '',
+                  })
+                } else {
+                  await route.fallback()
+                }
+              })
+            },
+          }
+        )
+        await page.waitForURL(
+          (url) => url.origin === new URL(destination).origin,
+          { timeout: 15000 }
+        )
+        expect(page.url()).toBe(destination)
+      })
+    }
+  })
+
+  it.each(['network', 'foreign-flight', 'foreign-html'])(
+    'handles an ordinary navigation with a %s response safely',
+    async (responseKind) => {
+      const href =
+        '/fallback-hydration/en/products/private-navigation?value=private-navigation-query#private-navigation-fragment'
+      const destination = `${external.origin}/navigation-${responseKind}`
+      externalResponses.set(
+        new URL(destination).pathname,
+        responseKind === 'foreign-flight'
+          ? {
+              body: `:HL["${next.url}/foreign-navigation-decoded.css","style"]\n0:{"n":"/fallback-hydration/untrusted-destination"}\n`,
+            }
+          : {
+              body: '<p>External document</p>',
+              headers: { 'content-type': 'text/html' },
+            }
+      )
+      const diagnostics: string[] = []
+      const decodedRequests: string[] = []
+      const { browser, page, act } = await openFallback('/', {
+        async beforePageLoad(browserPage) {
+          browserPage.on('request', (request) => {
+            if (request.url().includes('foreign-navigation-decoded.css')) {
+              decodedRequests.push(request.url())
+            }
+          })
+          await browserPage.exposeFunction(
+            'recordNavigationError',
+            (...args: string[]) => {
+              diagnostics.push(...args)
+            }
+          )
+          await browserPage.addInitScript(() => {
+            const originalError = console.error
+            console.error = (...args) => {
+              Reflect.get(
+                window,
+                'recordNavigationError'
+              )(
+                ...args.map((value) =>
+                  value instanceof Error
+                    ? `${value.message}\n${value.stack}`
+                    : String(value)
+                )
+              )
+              originalError(...args)
+            }
+          })
+          await browserPage.route('**/*', async (route) => {
+            const request = route.request()
+            if (!request.url().includes('private-navigation')) {
+              await route.fallback()
+            } else if (request.isNavigationRequest()) {
+              await route.fulfill({
+                contentType: 'text/html',
+                body: '<p>Document recovery</p>',
+              })
+            } else if (responseKind === 'network') {
+              await route.abort('failed')
+            } else {
+              await route.fulfill({
+                status: 307,
+                headers: { location: destination },
+                body: '',
+              })
+            }
+          })
+        },
+      })
+      await act(async () => {
+        await browser
+          .elementByCss(`input[data-link-accordion="${href}"]`)
+          .click()
+      }, 'no-requests')
+      await browser.elementByCss(`a[href="${href}"]`).click()
+      if (responseKind === 'network') {
+        await page.waitForSelector('text=Document recovery')
+        expect(new URL(page.url()).hash).toBe('#private-navigation-fragment')
+        expect(diagnostics.join('\n')).toContain('Failed to fetch RSC payload')
+        expect(diagnostics.join('\n')).not.toContain('private-navigation-query')
+        expect(diagnostics.join('\n')).not.toContain(
+          'private-navigation-fragment'
+        )
+      } else {
+        await page.waitForURL((url) => url.origin === external.origin)
+        expect(page.url()).toBe(destination)
+        expect(decodedRequests).toEqual([])
+      }
+    }
+  )
+
   // The retry guard belongs to production fallback bootstrap.
   // @force-gate !dev && cacheComponents
   it('retries a deployment mismatch once', async () => {
     let retryState: Awaited<ReturnType<typeof prepareDocumentRetry>> | undefined
     const { browser, page } = await openFallback(
-      '/fallback-hydration/en/products/retry-once',
+      '/fallback-hydration/en/products/retry-once#product',
       {
         waitHydration: false,
         async beforePageLoad(browserPage) {
@@ -121,6 +553,7 @@ describe('fallback-hydration', () => {
       'window.__NEXT_HYDRATED === true && !history.state?.__next_fallback_document_retry'
     )
     expect(retryState).toEqual({ documents: 2, trees: 2 })
+    expect(new URL(page.url()).hash).toBe('#product')
     expect(await page.evaluate(() => history.state.customState)).toBe(
       'preserved'
     )
@@ -191,7 +624,7 @@ describe('fallback-hydration', () => {
     await page.evaluate((url) => {
       history.replaceState(history.state, '', url)
       location.reload()
-    }, `${next.url}/fallback-hydration/en/products/retry-after-normal`)
+    }, new URL('/fallback-hydration/en/products/retry-after-normal', next.url).href)
     await page.waitForFunction(
       'window.__NEXT_HYDRATED === true && document.getElementById("params")?.textContent?.includes("retry-after-normal") && !history.state?.__next_fallback_document_retry'
     )
