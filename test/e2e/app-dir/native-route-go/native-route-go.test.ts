@@ -870,6 +870,46 @@ describe('native-route-go', () => {
           `basePath: '/adapter-base',\n  adapterPath: ${JSON.stringify(join(next.testDir, 'capture-adapter.mjs'))},\n  experimental:`
         )
       )
+      // Adapter builds serve every Go route from one executable. These routes
+      // overlap existing ones, so dispatch must follow Next.js route precedence.
+      for (const directory of [
+        'app/catch/static',
+        'app/catch/[id]',
+        'app/adapter-optional/fixed',
+      ]) {
+        await next.patchFile(
+          `${directory}/route.go`,
+          `package route
+
+import (
+\t"encoding/json"
+\t"net/http"
+)
+
+func GET(w http.ResponseWriter, r *http.Request) {
+\tjson.NewEncoder(w).Encode(map[string]string{"route": ${JSON.stringify(directory)}, "id": r.PathValue("id")})
+}
+`
+        )
+      }
+      // A route below app/internal is only importable from below app, so the
+      // shared executable must still reach it. It imports app/internal too.
+      await next.patchFile(
+        'app/internal/health/route.go',
+        `package route
+
+import (
+\t"encoding/json"
+\t"net/http"
+
+\t"example.com/native-route/app/internal/visibility"
+)
+
+func GET(w http.ResponseWriter, r *http.Request) {
+\tjson.NewEncoder(w).Encode(map[string]string{"route": "app/internal/health", "visibility": visibility.Name})
+}
+`
+      )
       const result = await next.build()
       expect(result.exitCode).toBe(0)
 
@@ -897,14 +937,28 @@ describe('native-route-go', () => {
       ).toBe(true)
       expect(goOutputs.map((output) => output.pathname).sort()).toEqual([
         '/adapter-base/adapter-optional/[[...slug]]',
+        '/adapter-base/adapter-optional/fixed',
         '/adapter-base/adapter-special/café a 100%',
         '/adapter-base/adapter-static',
         '/adapter-base/catch/[...slug]',
+        '/adapter-base/catch/[id]',
+        '/adapter-base/catch/static',
         '/adapter-base/explicit-methods',
+        '/adapter-base/internal/health',
         '/adapter-base/lifecycle',
         '/adapter-base/methods',
         '/adapter-base/native/[id]',
       ])
+      // Every Go route output shares one executable that dispatches by path,
+      // with identical assets, while keeping its own route identity.
+      expect(new Set(goOutputs.map((output) => output.filePath)).size).toBe(1)
+      expect(new Set(goOutputs.map((output) => output.id)).size).toBe(
+        goOutputs.length
+      )
+      for (const output of goOutputs) {
+        expect(output.assets).toEqual(goOutputs[0].assets)
+        expect(output.assetsHashes).toEqual(goOutputs[0].assetsHashes)
+      }
       for (const output of goOutputs) {
         expect(output.type).toBe('APP_ROUTE')
         // Go changes the runtime value without adding producer metadata keys.
@@ -1086,6 +1140,69 @@ describe('native-route-go', () => {
           req.end()
         })
       })
+      // Any Go output's server dispatches to the route Next.js would select.
+      await withStandaloneRoute(
+        goOutputs.find(
+          (output) => output.pathname === '/adapter-base/adapter-static'
+        )!,
+        async (port) => {
+          for (const [path, expected] of [
+            ['/adapter-base/catch/static', { route: 'app/catch/static' }],
+            ['/adapter-base/catch/one', { route: 'app/catch/[id]', id: 'one' }],
+            [
+              '/adapter-base/catch/a%2Fb',
+              { route: 'app/catch/[id]', id: 'a/b' },
+            ],
+            ['/adapter-base/catch/static/two', ['static', 'two']],
+            ['/adapter-base/catch/one/two', ['one', 'two']],
+            [
+              '/adapter-base/adapter-optional/fixed',
+              { route: 'app/adapter-optional/fixed' },
+            ],
+            [
+              '/adapter-base/adapter-optional/fixed/two',
+              { params: ['fixed', 'two'] },
+            ],
+            ['/adapter-base/adapter-optional', { params: null }],
+            ['/adapter-base/native/one', { id: 'one' }],
+            [
+              '/adapter-base/internal/health',
+              { route: 'app/internal/health', visibility: 'app-internal' },
+            ],
+          ] as const) {
+            const response = await fetchViaHTTP(
+              `http://127.0.0.1:${port}`,
+              path
+            )
+            expect(response.status).toBeLessThan(300)
+            const body = await response.json()
+            if (Array.isArray(expected)) {
+              expect(body).toEqual(expected)
+            } else {
+              expect(body).toMatchObject(expected)
+            }
+          }
+          for (const path of [
+            '/adapter-base',
+            '/adapter-base/catch',
+            '/adapter-base/native',
+            '/adapter-base/native/one/two',
+            '/adapter-base/js',
+          ]) {
+            expect(
+              (await fetchViaHTTP(`http://127.0.0.1:${port}`, path)).status
+            ).toBe(404)
+          }
+          expect(
+            (
+              await fetchViaHTTP(
+                `http://127.0.0.1:${port}`,
+                '/adapter-base/catch/%FF'
+              )
+            ).status
+          ).toBe(400)
+        }
+      )
       await withStandaloneRoute(
         goOutputs.find(
           (output) => output.pathname === '/adapter-base/methods'

@@ -44,7 +44,7 @@ pub use crate::{
     session::{GoSessionPool, GoTarget, GoToolchainOptions},
     sources::{
         GoSourceSelection, GoSourceSet, go_bundle_from_sources, go_package_bundle_from_sources,
-        go_source_failure, go_source_set,
+        go_packages_bundle_from_sources, go_packages_root, go_source_failure, go_source_set,
     },
 };
 use crate::{
@@ -710,6 +710,10 @@ fn source_path(project: &Path, aliases: &BTreeMap<RcStr, RcStr>, path: &Path) ->
 /// Report diagnostics against source files rather than their virtual package paths.
 fn source_diagnostic(message: &str, project: &Path, aliases: &BTreeMap<RcStr, RcStr>) -> String {
     let mut message = message.to_owned();
+    // Replace longer virtual paths first, so one alias that prefixes another cannot rewrite
+    // part of the longer path.
+    let mut aliases: Vec<_> = aliases.iter().collect();
+    aliases.sort_by_key(|(virtual_directory, _)| std::cmp::Reverse(virtual_directory.len()));
     for (virtual_directory, source_directory) in aliases {
         message = message.replace(
             &module_path(project, virtual_directory)
@@ -1635,18 +1639,23 @@ async fn bundle(
     go_session: ResolvedVc<GoBuildSession>,
     generated: BTreeMap<RcStr, RcStr>,
     aliases: BTreeMap<RcStr, RcStr>,
+    entrypoint: Option<RcStr>,
 ) -> Result<Vc<GoBundleResult>> {
     let go_context = go_session.await?.go_context.clone();
     // Generated files inside an aliased package belong to that package. Other generated
-    // non-Go files, such as a go.mod, only participate through the overlay.
+    // non-Go files, such as a go.mod, only participate through the overlay. With an explicit
+    // entrypoint directory, only its generated files form `main`; generated Go files in other
+    // directories are additional packages that `main` can import.
     files.extend(
         generated
             .keys()
             .filter(|path| {
-                path.ends_with(".go")
-                    && !aliases
-                        .keys()
-                        .any(|alias| Path::new(path.as_str()).starts_with(alias.as_str()))
+                let path = Path::new(path.as_str());
+                path.extension().is_some_and(|extension| extension == "go")
+                    && !aliases.keys().any(|alias| path.starts_with(alias.as_str()))
+                    && entrypoint.as_ref().is_none_or(|entrypoint| {
+                        path.parent() == Some(Path::new(entrypoint.as_str()))
+                    })
             })
             .cloned(),
     );
@@ -1719,6 +1728,7 @@ pub fn go_bundle(
         shared_session(go_context),
         BTreeMap::new(),
         BTreeMap::new(),
+        None,
     )
 }
 
@@ -1738,6 +1748,7 @@ pub fn go_bundle_with_generated_files(
         shared_session(go_context),
         generated,
         BTreeMap::new(),
+        None,
     )
 }
 
@@ -1757,6 +1768,7 @@ pub fn go_bundle_with_session(
         *session,
         generated,
         BTreeMap::new(),
+        None,
     )
 }
 

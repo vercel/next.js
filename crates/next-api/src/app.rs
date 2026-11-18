@@ -75,8 +75,9 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::single_file_ecmascript_output::SingleFileEcmascriptOutput;
 use turbopack_go::{
-    GoBuildOutcome, GoBuildSession, GoSessionPool, GoSourceSelection, GoToolchainOptions,
-    go_declarations, go_package_bundle_from_sources, go_source_failure, go_source_set,
+    GoBuildOutcome, GoBuildSession, GoSessionPool, GoSourceSelection, GoSourceSet,
+    GoToolchainOptions, go_declarations, go_package_bundle_from_sources,
+    go_packages_bundle_from_sources, go_packages_root, go_source_failure, go_source_set,
 };
 use turbopack_resolve::{ecmascript::cjs_resolve, resolve_options_context::ResolveOptionsContext};
 
@@ -1495,6 +1496,543 @@ impl Issue for GoRouteIssue {
     }
 }
 
+/// Virtual directory of the adapter entrypoint that serves every route, relative to the Go
+/// module root. It lies outside every `internal` tree.
+const GO_ROUTES_ENTRYPOINT_DIRECTORY: &str = "_next_go_main_routes";
+
+/// Make the route package at module-relative `alias` importable from
+/// [`GO_ROUTES_ENTRYPOINT_DIRECTORY`].
+///
+/// Go lets only packages below `x` import a path containing `x/internal`, and every `internal`
+/// element of a path applies. For each `internal` element of `alias`, from the deepest to the
+/// shallowest, a generated package beside that element re-exports the package below it. Returns
+/// the module-relative package to import, which is `alias` when it has no `internal` element,
+/// and the generated files.
+fn go_internal_shims(module_path: &str, alias: &str) -> Result<(String, Vec<(String, String)>)> {
+    let elements: Vec<&str> = alias.split('/').collect();
+    let mut import = alias.to_owned();
+    let mut shims = vec![];
+    for (index, _) in elements
+        .iter()
+        .enumerate()
+        .rev()
+        .filter(|(_, element)| **element == "internal")
+    {
+        let hash = turbo_tasks_hash::hash_xxh3_hash64(&import) as u32;
+        let name = format!("_next_go_shim_{hash:08x}");
+        let shim = if index == 0 {
+            name
+        } else {
+            format!("{}/{name}", elements[..index].join("/"))
+        };
+        shims.push((
+            format!("{shim}/zz_next_route_shim.go"),
+            include_str!("templates/go_route_shim.go").replace(
+                "\"__NEXT_GO_ROUTE_IMPORT__\"",
+                &serde_json::to_string(&format!("{module_path}/{import}"))?,
+            ),
+        ));
+        import = shim;
+    }
+    Ok((import, shims))
+}
+
+/// Session for Go compilation in this project. Framework inputs are translated here.
+async fn go_session(project: ResolvedVc<Project>) -> Result<Vc<GoBuildSession>> {
+    let owner = project
+        .await?
+        .go_sessions
+        .context("native Go compilation is not enabled")?;
+    let scope = to_sys_path(project.project_root_path().owned().await?)
+        .await?
+        .context("native Go compilation requires a disk filesystem")?;
+    let scope: RcStr = scope.to_str().context("non-UTF8 Go project")?.into();
+    let options = GoToolchainOptions {
+        go: std::env::var("TURBOPACK_GO")
+            .unwrap_or_else(|_| "go".into())
+            .into(),
+        tags: rcstr!(""),
+        poll_interval_ms: *project.watch_poll_interval_ms().await?,
+    };
+    let watch = *project.is_watch_enabled().await?;
+    Ok(managed_session(scope, *owner, options, watch))
+}
+
+/// A route or proxy directory analyzed as an importable package, with the generated files that
+/// join it.
+struct GoPackage {
+    sources: ResolvedVc<GoSourceSet>,
+    directory: FileSystemPath,
+    /// `basePath` joined with the route's pathname. Empty for proxies.
+    route_pattern: String,
+    handler: String,
+    dispatch: String,
+}
+
+enum GoPackageAnalysis {
+    Ready(GoPackage),
+    Failed(Option<turbopack_go::GoBundleResult>),
+}
+
+/// Analyze the directory of `path`, retaining input validation for reported failures.
+async fn analyze_go_package(
+    project: ResolvedVc<Project>,
+    session: Vc<GoBuildSession>,
+    path: &FileSystemPath,
+    kind: &GoEndpointKind,
+) -> Result<GoPackageAnalysis> {
+    let is_proxy = matches!(kind, GoEndpointKind::Proxy);
+    let directory = path.parent();
+    let sources = go_source_set(
+        project.project_root_path().owned().await?,
+        directory.clone(),
+        GoSourceSelection::Directory,
+        session,
+    )
+    .to_resolved()
+    .await?;
+    let source_set = sources.await?;
+    // A removed or replaced handler must publish nothing, including when helper files still
+    // form a valid package. Otherwise it can overwrite the replacement endpoint's manifests.
+    // The source set tracks directory membership, so recreating the handler invalidates this.
+    let handler_name = source_set
+        .root
+        .get_path_to(path)
+        .context("Go handler outside module")?;
+    if !source_set.files.contains_key(handler_name) {
+        if matches!(*path.get_type().await?, FileSystemEntryType::Error) {
+            bail!("Unable to read the Go handler {path}");
+        }
+        return Ok(GoPackageAnalysis::Failed(None));
+    }
+    let analysis = go_declarations(*sources, session).await?;
+    // Next.js owns the program entrypoint. It imports the route directory as an ordinary
+    // package, so that directory cannot be a program itself. Only files Go selects count:
+    // `//go:build ignore` generators commonly use `package main`.
+    if analysis.selected_packages.iter().any(|name| name == "main") {
+        let (file, suggestion) = if is_proxy {
+            ("proxy.go", "proxy")
+        } else {
+            ("route.go", "route")
+        };
+        let message: RcStr = format!(
+            "{file} must not use `package main`. Next.js generates the program entrypoint and \
+             imports this directory as a package. Rename the package in every .go file in this \
+             directory, for example to `package {suggestion}`."
+        )
+        .into();
+        GoRouteIssue {
+            path: path.clone(),
+            message: message.clone(),
+        }
+        .resolved_cell()
+        .emit();
+        let build = (*go_source_failure(*sources, session, message).await?).clone();
+        return Ok(GoPackageAnalysis::Failed(Some(build)));
+    }
+    // Files that disagree are reported by the compiler.
+    let package = analysis
+        .selected_packages
+        .first()
+        .map_or("route", |name| name.as_str());
+    if is_proxy {
+        ensure!(
+            analysis
+                .selected_functions
+                .iter()
+                .any(|name| name == "Proxy"),
+            "proxy.go must export func Proxy(http.ResponseWriter, *http.Request)"
+        );
+    }
+    let methods = analysis.selected_functions.iter().filter(|name| {
+        matches!(
+            name.as_str(),
+            "GET" | "HEAD" | "POST" | "PUT" | "DELETE" | "PATCH" | "OPTIONS"
+        )
+    });
+    let declarations = methods
+        .map(|method| format!("\t\"{method}\": {method},"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let dispatch = include_str!("templates/go_route_dispatch.go")
+        .replace("__NEXT_GO_PACKAGE__", package)
+        .replace("\t// __NEXT_GO_ROUTE_METHODS__", &declarations);
+    let base_path = project.next_config().base_path().await?;
+    let route_pattern = match kind {
+        GoEndpointKind::Route { page } => {
+            format!(
+                "{}{}",
+                base_path.as_deref().unwrap_or(""),
+                AppPath::from(page.clone())
+            )
+        }
+        GoEndpointKind::Proxy => String::new(),
+    };
+    let handler = if is_proxy {
+        go_proxy_handler_source(
+            *project.next_config().skip_proxy_url_normalize().await?,
+            base_path.as_deref().unwrap_or(""),
+        )?
+    } else {
+        include_str!("templates/go_route_handler.go").replace(
+            "\"__NEXT_GO_ROUTE_PATTERN__\"",
+            &serde_json::to_string(&route_pattern)?,
+        )
+    }
+    .replace("__NEXT_GO_PACKAGE__", package);
+    Ok(GoPackageAnalysis::Ready(GoPackage {
+        sources,
+        directory,
+        route_pattern,
+        handler,
+        dispatch,
+    }))
+}
+
+fn go_route_segment_rank(segment: &str) -> u8 {
+    if segment.starts_with("[[...") && segment.ends_with("]]") {
+        3
+    } else if segment.starts_with("[...") && segment.ends_with(']') {
+        2
+    } else if segment.starts_with('[') && segment.ends_with(']') {
+        1
+    } else {
+        0
+    }
+}
+
+/// Order route patterns like Next.js's `getSortedRoutes`, comparing segment by segment: a route
+/// that ends comes before its descendants, then static segments in UTF-16 order, then
+/// `[param]`, `[...catchAll]` and `[[...optionalCatchAll]]`. The first matching pattern in this
+/// order is the route Next.js would select among these routes.
+fn compare_go_route_patterns(a: &str, b: &str) -> std::cmp::Ordering {
+    use std::cmp::Ordering;
+    let mut a = a.split('/').filter(|segment| !segment.is_empty());
+    let mut b = b.split('/').filter(|segment| !segment.is_empty());
+    loop {
+        match (a.next(), b.next()) {
+            (None, None) => return Ordering::Equal,
+            (None, Some(_)) => return Ordering::Less,
+            (Some(_), None) => return Ordering::Greater,
+            (Some(a), Some(b)) => {
+                let rank = go_route_segment_rank(a).cmp(&go_route_segment_rank(b));
+                if rank != Ordering::Equal {
+                    return rank;
+                }
+                // Dynamic segments at one level share a slug name, so only static names order.
+                if go_route_segment_rank(a) == 0 && a != b {
+                    return a.encode_utf16().cmp(b.encode_utf16());
+                }
+            }
+        }
+    }
+}
+
+/// Whether a Go diagnostic names a file directly inside `directory`, given as an absolute path
+/// or relative to the directory Go ran in.
+fn go_diagnostic_mentions_directory(message: &str, directories: &[String]) -> bool {
+    message.lines().any(|line| {
+        directories.iter().any(|directory| {
+            ['/', std::path::MAIN_SEPARATOR]
+                .into_iter()
+                .any(|separator| {
+                    let prefix = format!("{directory}{separator}");
+                    line.match_indices(&prefix).any(|(index, _)| {
+                        // A relative directory must not match the tail of a longer path.
+                        let boundary = line[..index]
+                            .chars()
+                            .next_back()
+                            .is_none_or(|ch| ch.is_whitespace() || matches!(ch, '"' | '(' | ':'));
+                        let rest = &line[index + prefix.len()..];
+                        boundary
+                            && rest.find(".go:").is_some_and(|end| {
+                                rest.find(['/', std::path::MAIN_SEPARATOR])
+                                    .is_none_or(|slash| slash > end)
+                            })
+                    })
+                })
+        })
+    })
+}
+
+/// The executable that serves every App Router `route.go` in an adapter build.
+#[turbo_tasks::value(shared)]
+struct GoRoutesBundle {
+    /// Source handlers included in the executable.
+    routes: Vec<FileSystemPath>,
+    /// File name below `server/`, when compilation succeeded.
+    executable_name: Option<RcStr>,
+    executable: Option<ResolvedVc<Box<dyn OutputAsset>>>,
+    build: Option<turbopack_go::GoBundleResult>,
+}
+
+/// Compile every App Router `route.go` of an adapter build into one executable that dispatches
+/// by request path. Each route endpoint reads this shared task, so Go compiles once and every
+/// route output references the same executable. Issues are attributed to the route files.
+#[turbo_tasks::function]
+async fn go_routes_adapter_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoRoutesBundle>> {
+    let failed = |build: Option<turbopack_go::GoBundleResult>| {
+        GoRoutesBundle {
+            routes: vec![],
+            executable_name: None,
+            executable: None,
+            build,
+        }
+        .cell()
+    };
+    let app_project =
+        (*project.app_project().await?).context("route.go requires an app directory")?;
+    let mut routes = vec![];
+    for entrypoint in app_project.app_entrypoints().await?.values() {
+        if let AppEntrypoint::AppGoRoute { page, path, .. } = entrypoint {
+            routes.push((page.clone(), path.clone()));
+        }
+    }
+    ensure!(!routes.is_empty(), "no route.go handlers to compile");
+    let session = go_session(project).await?;
+    let go_session = session.await?;
+    let mut packages = vec![];
+    let mut blocked = false;
+    let mut failed_build = None;
+    for (page, path) in &routes {
+        match analyze_go_package(
+            project,
+            session,
+            path,
+            &GoEndpointKind::Route { page: page.clone() },
+        )
+        .await?
+        {
+            GoPackageAnalysis::Ready(package) => packages.push((path.clone(), package)),
+            GoPackageAnalysis::Failed(build) => {
+                blocked = true;
+                if failed_build.is_none() {
+                    failed_build = build;
+                }
+            }
+        }
+    }
+    if blocked {
+        return Ok(failed(failed_build));
+    }
+    let source_root = project.project_root_path().owned().await?;
+    let display = |path: &FileSystemPath| -> String {
+        if *path == source_root {
+            ".".to_owned()
+        } else {
+            source_root
+                .get_path_to(path)
+                .map_or_else(|| path.path.to_string(), str::to_owned)
+        }
+    };
+    // Go builds one main module. Routes in different modules would need a workspace, which
+    // turbopack-go does not support, so require that every route shares one module.
+    let mut sets = vec![];
+    for (_, package) in &packages {
+        sets.push(package.sources.await?);
+    }
+    let module = |sources: &GoSourceSet| {
+        if sources.has_go_mod {
+            format!("the Go module at {}/go.mod", display(&sources.root))
+        } else {
+            "no Go module (no go.mod)".to_owned()
+        }
+    };
+    let modules: BTreeMap<String, Vec<String>> =
+        packages
+            .iter()
+            .zip(&sets)
+            .fold(BTreeMap::new(), |mut modules, ((_, package), sources)| {
+                modules
+                    .entry(module(sources))
+                    .or_default()
+                    .push(display(&package.directory));
+                modules
+            });
+    if modules.len() > 1 {
+        for ((path, package), sources) in packages.iter().zip(&sets) {
+            let own = module(sources);
+            let others = modules
+                .iter()
+                .filter(|(module, _)| **module != own)
+                .map(|(module, directories)| format!("{} ({module})", directories.join(", ")))
+                .collect::<Vec<_>>()
+                .join("; ");
+            GoRouteIssue {
+                path: path.clone(),
+                message: format!(
+                    "Adapter builds compile every route.go into one executable, so all route.go \
+                     directories must belong to one Go module. {} uses {own}, but other routes \
+                     use a different module: {others}. Move these routes into one module, for \
+                     example by using a single go.mod at the project root.",
+                    display(&package.directory)
+                )
+                .into(),
+            }
+            .resolved_cell()
+            .emit();
+        }
+        return Ok(failed(None));
+    }
+    let mut generated = BTreeMap::new();
+    let module_path = match (&sets[0].module_path, sets[0].has_go_mod) {
+        (Some(module_path), _) => module_path.clone(),
+        // A go.mod without a module directive is reported by Go.
+        (None, true) => RcStr::from(GO_STANDALONE_MODULE),
+        (None, false) => {
+            // Directories without go.mod share a generated module at their common ancestor.
+            generated.insert(
+                rcstr!("go.mod"),
+                RcStr::from(format!(
+                    "module {GO_STANDALONE_MODULE}\n\ngo {}\n",
+                    go_language_version(&go_session.go_context.version)
+                )),
+            );
+            RcStr::from(GO_STANDALONE_MODULE)
+        }
+    };
+    // Go runs from the module root, or from the common ancestor of directories without a
+    // go.mod. Aliases and generated paths are relative to it.
+    let root = go_packages_root(&sets.iter().map(|sources| &**sources).collect::<Vec<_>>())?;
+    let mut aliased = vec![];
+    let mut aliases = BTreeMap::new();
+    for (_, package) in &packages {
+        let directory = if package.directory == root {
+            ""
+        } else {
+            root.get_path_to(&package.directory)
+                .context("Go route outside module")?
+        };
+        // The same package path as a single-route build, so `internal` imports behave the same.
+        let alias = go_package_alias(directory, false).package;
+        generated.insert(
+            RcStr::from(format!("{alias}/zz_next_route_handler.go")),
+            RcStr::from(package.handler.as_str()),
+        );
+        generated.insert(
+            RcStr::from(format!("{alias}/zz_next_route_dispatch.go")),
+            RcStr::from(package.dispatch.as_str()),
+        );
+        // The entrypoint lives outside every `internal` tree. Route packages inside one are
+        // imported through generated re-exporting packages.
+        let (import, shims) = go_internal_shims(&module_path, &alias)?;
+        generated.extend(
+            shims
+                .into_iter()
+                .map(|(path, source)| (RcStr::from(path), RcStr::from(source))),
+        );
+        aliases.insert(RcStr::from(alias.as_str()), package.sources);
+        aliased.push((import, package));
+    }
+    aliased.sort_by(|(_, a), (_, b)| compare_go_route_patterns(&a.route_pattern, &b.route_pattern));
+    let mut imports = vec![];
+    let mut table = vec![];
+    for (index, (import, package)) in aliased.iter().enumerate() {
+        imports.push(format!(
+            "\tnextroute{index} {}",
+            serde_json::to_string(&format!("{module_path}/{import}"))?
+        ));
+        table.push(format!(
+            "\t\t// {}\n\t\t{{nextroute{index}.NextInternalGoMatch, \
+             nextroute{index}.NextInternalGoHandler(false)}},",
+            package.route_pattern.replace('\n', " ")
+        ));
+    }
+    generated.insert(
+        RcStr::from(format!("{GO_ROUTES_ENTRYPOINT_DIRECTORY}/main.go")),
+        RcStr::from(
+            include_str!("templates/go_routes_adapter_main.go")
+                .replace("\t// __NEXT_GO_ROUTE_IMPORTS__", &imports.join("\n"))
+                .replace("\t\t// __NEXT_GO_ROUTES__", &table.join("\n")),
+        ),
+    );
+    let result = go_packages_bundle_from_sources(
+        aliases,
+        session,
+        RcStr::from(GO_ROUTES_ENTRYPOINT_DIRECTORY),
+        generated,
+    )
+    .await?;
+    ensure!(
+        result.is_current().await?,
+        "Go route inputs changed during compilation; retry the request"
+    );
+    let content = match &result.outcome {
+        GoBuildOutcome::Success(content) => *content,
+        GoBuildOutcome::Failed(message) => {
+            // Attribute the diagnostic to the routes whose files it names. A failure elsewhere,
+            // such as in a shared package, affects every route.
+            // Relative diagnostic paths are relative to the directory Go ran in.
+            let mut directories = vec![];
+            for (_, package) in &packages {
+                directories.push(to_sys_path(package.directory.clone()).await?);
+            }
+            let module_root = to_sys_path(root.clone()).await?;
+            let mut attributed = vec![];
+            for ((path, _), directory) in packages.iter().zip(&directories) {
+                let mut names = vec![];
+                if let Some(directory) = directory {
+                    names.push(directory.to_string_lossy().into_owned());
+                    if let Some(relative) = module_root
+                        .as_ref()
+                        .and_then(|root| directory.strip_prefix(root).ok())
+                        .filter(|relative| !relative.as_os_str().is_empty())
+                    {
+                        names.push(relative.to_string_lossy().into_owned());
+                    }
+                }
+                if go_diagnostic_mentions_directory(message, &names) {
+                    attributed.push(path.clone());
+                }
+            }
+            if attributed.is_empty() {
+                attributed = packages.iter().map(|(path, _)| path.clone()).collect();
+            }
+            for path in attributed {
+                GoRouteIssue {
+                    path,
+                    message: message.clone(),
+                }
+                .resolved_cell()
+                .emit();
+            }
+            return Ok(failed(Some((*result).clone())));
+        }
+        GoBuildOutcome::Retry => {
+            bail!("Go inputs changed during compilation; retry the request")
+        }
+        GoBuildOutcome::Cancelled => bail!("Go compilation cancelled"),
+    };
+    let hash = AssetContent::file(*content)
+        .hash(no_hash_salt(), HashAlgorithm::Xxh3Hash128Hex)
+        .await?;
+    let executable_name: RcStr =
+        format!("go-routes-{hash}{}", go_session.go_context.exe_suffix).into();
+    let node_root = project.node_root().owned().await?;
+    let output_root = to_sys_path(node_root.clone())
+        .await?
+        .context("native Go output requires a disk filesystem")?;
+    ensure!(
+        !result.is_input(&output_root.join(format!("server/{executable_name}")))?,
+        "native output would overwrite a Go input"
+    );
+    let executable: ResolvedVc<Box<dyn OutputAsset>> = ResolvedVc::upcast(
+        VirtualOutputAsset::new(
+            node_root.join(&format!("server/{executable_name}"))?,
+            AssetContent::file(*content),
+        )
+        .to_resolved()
+        .await?,
+    );
+    Ok(GoRoutesBundle {
+        routes: routes.into_iter().map(|(_, path)| path).collect(),
+        executable_name: Some(executable_name),
+        executable: Some(executable),
+        build: Some((*result).clone()),
+    }
+    .cell())
+}
+
 #[turbo_tasks::value_impl]
 impl Endpoint for GoEndpoint {
     #[turbo_tasks::function]
@@ -1502,6 +2040,17 @@ impl Endpoint for GoEndpoint {
         let this = self.await?;
         let project = this.project;
         let is_proxy = matches!(this.kind, GoEndpointKind::Proxy);
+        let native_failed = |build: Option<turbopack_go::GoBundleResult>| async move {
+            Ok::<_, anyhow::Error>(
+                EndpointOutput {
+                    project,
+                    output_assets: OutputAssets::empty().to_resolved().await?,
+                    output_paths: EndpointOutputPaths::NativeFailed { build }.resolved_cell(),
+                    first_load_chunks: None,
+                }
+                .cell(),
+            )
+        };
         if !*project.next_config().go_routes().await? {
             GoRouteIssue {
                 path: this.path.clone(),
@@ -1513,13 +2062,7 @@ impl Endpoint for GoEndpoint {
             }
             .resolved_cell()
             .emit();
-            return Ok(EndpointOutput {
-                project,
-                output_assets: OutputAssets::empty().to_resolved().await?,
-                output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
-                first_load_chunks: None,
-            }
-            .cell());
+            return native_failed(None).await;
         }
         if is_proxy && let Some(message) = go_proxy_unsupported_reason(*project).await? {
             GoRouteIssue {
@@ -1528,258 +2071,144 @@ impl Endpoint for GoEndpoint {
             }
             .resolved_cell()
             .emit();
-            return Ok(EndpointOutput {
-                project,
-                output_assets: OutputAssets::empty().to_resolved().await?,
-                output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
-                first_load_chunks: None,
-            }
-            .cell());
+            return native_failed(None).await;
         }
-        let source_root = project.project_root_path().owned().await?;
-        let directory = this.path.parent();
-        let owner = project
-            .await?
-            .go_sessions
-            .context("native Go compilation is not enabled")?;
-        let scope = to_sys_path(source_root.clone())
-            .await?
-            .context("native Go compilation requires a disk filesystem")?;
-        let scope: RcStr = scope.to_str().context("non-UTF8 Go project")?.into();
-        let options = GoToolchainOptions {
-            go: std::env::var("TURBOPACK_GO")
-                .unwrap_or_else(|_| "go".into())
-                .into(),
-            tags: rcstr!(""),
-            poll_interval_ms: *project.watch_poll_interval_ms().await?,
-        };
-        let watch = *project.is_watch_enabled().await?;
-        let session = managed_session(scope, *owner, options, watch);
+        let session = go_session(project).await?;
         let go_session = session.await?;
-        let sources = go_source_set(
-            source_root,
-            directory.clone(),
-            GoSourceSelection::Directory,
-            session,
-        )
-        .to_resolved()
-        .await?;
-        let source_set = sources.await?;
-        let module_root = source_set.root.clone();
-        // The generated `main`, dispatch and handler files below still form a valid program when
-        // the handler is not among the compiled sources, e.g. after it was deleted or replaced by
-        // `route.ts`. Such an endpoint must publish nothing, otherwise it keeps writing outputs
-        // that a replacement endpoint also writes, such as `app-paths-manifest.json`. The source
-        // set tracks the directory listing, so recreating the handler invalidates this check.
-        let handler_name = module_root
-            .get_path_to(&this.path)
-            .context("Go handler outside module")?;
-        if !source_set.files.contains_key(handler_name) {
-            if matches!(*this.path.get_type().await?, FileSystemEntryType::Error) {
-                bail!("Unable to read the Go handler {}", this.path);
+        let package = match analyze_go_package(project, session, &this.path, &this.kind).await? {
+            GoPackageAnalysis::Ready(package) => package,
+            GoPackageAnalysis::Failed(build) => return native_failed(build).await,
+        };
+        let node_root = project.node_root().owned().await?;
+        let (executable, executable_asset, result) = if !is_proxy
+            && is_adapter_build(project).await?
+        {
+            // Adapter builds serve every route.go from one executable that dispatches by path.
+            let bundle = go_routes_adapter_bundle(*project).await?;
+            // The endpoint can outlive its entry in the shared build's route list.
+            if bundle.executable.is_some() && !bundle.routes.contains(&this.path) {
+                return native_failed(None).await;
             }
-            return Ok(EndpointOutput {
-                project,
-                output_assets: OutputAssets::empty().to_resolved().await?,
-                output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
-                first_load_chunks: None,
+            match (&bundle.executable_name, bundle.executable, &bundle.build) {
+                (Some(name), Some(asset), Some(build)) => (name.clone(), asset, build.clone()),
+                _ => return native_failed(bundle.build.clone()).await,
             }
-            .cell());
-        }
-        let analysis = go_declarations(*sources, session).await?;
-        // Next.js owns the program entrypoint. It imports the route directory as an ordinary
-        // package, so that directory cannot be a program itself. Only files Go selects for the
-        // package count: `//go:build ignore` generators commonly use `package main`.
-        if analysis.selected_packages.iter().any(|name| name == "main") {
-            let (file, suggestion) = if is_proxy {
-                ("proxy.go", "proxy")
+        } else {
+            let source_set = package.sources.await?;
+            let module_root = source_set.root.clone();
+            let directory = package.directory.clone();
+            // The route directory is overlaid at a virtual directory with a valid import path,
+            // since segments such as `[id]` or `(group)` are not. Nothing is written to the
+            // project.
+            let source_directory = if module_root == directory {
+                ""
             } else {
-                ("route.go", "route")
+                module_root
+                    .get_path_to(&directory)
+                    .context("Go route outside module")?
             };
-            let message: RcStr = format!(
-                "{file} must not use `package main`. Next.js generates the program entrypoint and \
-                 imports this directory as a package. Rename the package in every .go file in \
-                 this directory, for example to `package {suggestion}`."
-            )
-            .into();
-            GoRouteIssue {
-                path: this.path.clone(),
-                message: message.clone(),
+            // See `go_package_alias` for how `internal` imports keep working.
+            let GoPackageAlias {
+                package: alias,
+                entrypoint,
+            } = go_package_alias(source_directory, is_proxy);
+            let mut generated = BTreeMap::new();
+            let import_path = match &source_set.module_path {
+                Some(module_path) => format!("{module_path}/{alias}"),
+                None => {
+                    // A directory without go.mod gets a module so the entrypoint can import it.
+                    generated.insert(
+                        rcstr!("go.mod"),
+                        RcStr::from(format!(
+                            "module {GO_STANDALONE_MODULE}\n\ngo {}\n",
+                            go_language_version(&go_session.go_context.version)
+                        )),
+                    );
+                    format!("{GO_STANDALONE_MODULE}/{alias}")
+                }
+            };
+            // All executables extract parameters from the selected destination URL.
+            // Only the entrypoint's listener, authentication and process lifetime differ.
+            let wrapper = if is_adapter_build(project).await? {
+                include_str!("templates/go_route_adapter_main.go")
+            } else {
+                include_str!("templates/go_route_main.go")
             }
-            .resolved_cell()
-            .emit();
-            // Carry the source selection's inputs so request-time validation notices when the
-            // package is renamed, rather than relying only on the file watcher.
-            let build = (*go_source_failure(*sources, session, message.clone()).await?).clone();
-            return Ok(EndpointOutput {
-                project,
-                output_assets: OutputAssets::empty().to_resolved().await?,
-                output_paths: EndpointOutputPaths::NativeFailed { build: Some(build) }
-                    .resolved_cell(),
-                first_load_chunks: None,
-            }
-            .cell());
-        }
-        // Files that disagree are reported by the compiler.
-        let package = analysis
-            .selected_packages
-            .first()
-            .map_or("route", |name| name.as_str());
-        if is_proxy {
-            ensure!(
-                analysis
-                    .selected_functions
-                    .iter()
-                    .any(|name| name == "Proxy"),
-                "proxy.go must export func Proxy(http.ResponseWriter, *http.Request)"
+            .replace(
+                "\"__NEXT_GO_ROUTE_IMPORT__\"",
+                &serde_json::to_string(&import_path)?,
             );
-        }
-        let methods = analysis.selected_functions.iter().filter(|name| {
-            matches!(
-                name.as_str(),
-                "GET" | "HEAD" | "POST" | "PUT" | "DELETE" | "PATCH" | "OPTIONS"
-            )
-        });
-        let declarations = methods
-            .map(|method| format!("\t\"{method}\": {method},"))
-            .collect::<Vec<_>>()
-            .join("\n");
-        let dispatch = include_str!("templates/go_route_dispatch.go")
-            .replace("__NEXT_GO_PACKAGE__", package)
-            .replace("\t// __NEXT_GO_ROUTE_METHODS__", &declarations);
-        let (original_name, pathname) = match &this.kind {
-            GoEndpointKind::Route { page } => {
-                (page.to_string(), AppPath::from(page.clone()).to_string())
-            }
-            GoEndpointKind::Proxy => (String::new(), String::new()),
-        };
-        let base_path = project.next_config().base_path().await?;
-        let route_pattern = format!("{}{pathname}", base_path.as_deref().unwrap_or(""));
-        let handler = if is_proxy {
-            go_proxy_handler_source(
-                *project.next_config().skip_proxy_url_normalize().await?,
-                base_path.as_deref().unwrap_or(""),
-            )?
-        } else {
-            include_str!("templates/go_route_handler.go").replace(
-                "\"__NEXT_GO_ROUTE_PATTERN__\"",
-                &serde_json::to_string(&route_pattern)?,
-            )
-        }
-        .replace("__NEXT_GO_PACKAGE__", package);
-        // The route directory is overlaid at a virtual directory with a valid import path, since
-        // segments such as `[id]` or `(group)` are not. Nothing is written to the project.
-        // See `go_package_alias` for how `internal` imports keep working.
-        let source_directory = if module_root == directory {
-            ""
-        } else {
-            module_root
-                .get_path_to(&directory)
-                .context("Go route outside module")?
-        };
-        let GoPackageAlias {
-            package: alias,
-            entrypoint,
-        } = go_package_alias(source_directory, is_proxy);
-        let mut generated = BTreeMap::new();
-        let import_path = match &source_set.module_path {
-            Some(module_path) => format!("{module_path}/{alias}"),
-            None => {
-                // A directory without go.mod gets a module so the entrypoint can import it.
-                let version = go_language_version(&go_session.go_context.version);
-                generated.insert(
-                    rcstr!("go.mod"),
-                    RcStr::from(format!("module {GO_STANDALONE_MODULE}\n\ngo {version}\n")),
+            generated.extend([
+                (
+                    RcStr::from(format!("{alias}/zz_next_route_handler.go")),
+                    RcStr::from(package.handler),
+                ),
+                (
+                    RcStr::from(format!("{alias}/zz_next_route_dispatch.go")),
+                    RcStr::from(package.dispatch),
+                ),
+                (
+                    RcStr::from(format!("{entrypoint}/main.go")),
+                    RcStr::from(wrapper),
+                ),
+            ]);
+            let result =
+                go_package_bundle_from_sources(*package.sources, session, alias.into(), generated)
+                    .await?;
+            // A stale compile invalidates this task. Leave the retry to request-side
+            // validation instead of failing the development change subscription.
+            if matches!(result.outcome, GoBuildOutcome::Retry) || !result.is_current().await? {
+                ensure!(
+                    *project.is_watch_enabled().await?,
+                    "Go route inputs changed during compilation; run the build again"
                 );
-                format!("{GO_STANDALONE_MODULE}/{alias}")
+                return native_failed(Some((*result).clone())).await;
             }
-        };
-        // All executables extract parameters from the selected destination URL.
-        // Only the entrypoint's listener, authentication and process lifetime differ.
-        let wrapper = if is_adapter_build(project).await? {
-            include_str!("templates/go_route_adapter_main.go")
-        } else {
-            include_str!("templates/go_route_main.go")
-        }
-        .replace(
-            "\"__NEXT_GO_ROUTE_IMPORT__\"",
-            &serde_json::to_string(&import_path)?,
-        );
-        generated.extend([
-            (
-                RcStr::from(format!("{alias}/zz_next_route_handler.go")),
-                RcStr::from(handler),
-            ),
-            (
-                RcStr::from(format!("{alias}/zz_next_route_dispatch.go")),
-                RcStr::from(dispatch),
-            ),
-            (
-                RcStr::from(format!("{entrypoint}/main.go")),
-                RcStr::from(wrapper),
-            ),
-        ]);
-        let result =
-            go_package_bundle_from_sources(*sources, session, alias.into(), generated).await?;
-        // Inputs that changed while compiling invalidate this task, which recomputes. Until
-        // then, publish nothing and leave the retry to request-side validation, instead of
-        // failing change subscriptions with an internal error. Editing files next to a Go
-        // entry, such as `next.config.ts` or `pages/` beside `proxy.go`, can race a compile.
-        if matches!(result.outcome, GoBuildOutcome::Retry) || !result.is_current().await? {
-            // Without a watcher, as in `next build`, nothing recomputes this task and build
-            // output is not validated per request, so fail instead of omitting the executable.
-            ensure!(
-                watch,
-                "Go route inputs changed during compilation; run the build again"
-            );
-            return Ok(EndpointOutput {
-                project,
-                output_assets: OutputAssets::empty().to_resolved().await?,
-                output_paths: EndpointOutputPaths::NativeFailed {
-                    build: Some((*result).clone()),
-                }
-                .resolved_cell(),
-                first_load_chunks: None,
-            }
-            .cell());
-        }
-        let content = match &result.outcome {
-            GoBuildOutcome::Success(content) => *content,
-            GoBuildOutcome::Failed(message) => {
-                GoRouteIssue {
-                    path: this.path.clone(),
-                    message: message.clone(),
-                }
-                .resolved_cell()
-                .emit();
-                return Ok(EndpointOutput {
-                    project,
-                    output_assets: OutputAssets::empty().to_resolved().await?,
-                    output_paths: EndpointOutputPaths::NativeFailed {
-                        build: Some((*result).clone()),
+            let content = match &result.outcome {
+                GoBuildOutcome::Success(content) => *content,
+                GoBuildOutcome::Failed(message) => {
+                    GoRouteIssue {
+                        path: this.path.clone(),
+                        message: message.clone(),
                     }
-                    .resolved_cell(),
-                    first_load_chunks: None,
+                    .resolved_cell()
+                    .emit();
+                    return native_failed(Some((*result).clone())).await;
                 }
-                .cell());
-            }
-            // Handled above.
-            GoBuildOutcome::Retry => {
-                bail!("Go inputs changed during compilation; retry the request")
-            }
-            GoBuildOutcome::Cancelled => bail!("Go compilation cancelled"),
+                GoBuildOutcome::Retry => {
+                    bail!("Go inputs changed during compilation; retry the request")
+                }
+                GoBuildOutcome::Cancelled => bail!("Go compilation cancelled"),
+            };
+            let hash = AssetContent::file(*content)
+                .hash(no_hash_salt(), HashAlgorithm::Xxh3Hash128Hex)
+                .await?;
+            let output_name = match &this.kind {
+                GoEndpointKind::Route { page } => format!("app{page}"),
+                GoEndpointKind::Proxy => "middleware".to_owned(),
+            };
+            let executable: RcStr =
+                format!("{output_name}-{hash}{}", go_session.go_context.exe_suffix).into();
+            let asset: ResolvedVc<Box<dyn OutputAsset>> = ResolvedVc::upcast(
+                VirtualOutputAsset::new(
+                    node_root.join(&format!("server/{executable}"))?,
+                    AssetContent::file(*content),
+                )
+                .to_resolved()
+                .await?,
+            );
+            (executable, asset, (*result).clone())
         };
-        let hash = AssetContent::file(*content)
-            .hash(no_hash_salt(), HashAlgorithm::Xxh3Hash128Hex)
-            .await?;
+        let original_name = match &this.kind {
+            GoEndpointKind::Route { page } => page.to_string(),
+            GoEndpointKind::Proxy => String::new(),
+        };
         let output_name = if is_proxy {
             "middleware".to_owned()
         } else {
             format!("app{original_name}")
         };
         let entry = format!("{output_name}.native.json");
-        let executable = format!("{output_name}-{hash}{}", go_session.go_context.exe_suffix);
-        let node_root = project.node_root().owned().await?;
         let mut descriptor = serde_json::json!({ "executable": executable, "goos": go_session.go_context.goos, "goarch": go_session.go_context.goarch });
         if is_proxy {
             descriptor["source"] =
@@ -1813,17 +2242,10 @@ impl Endpoint for GoEndpoint {
                 .to_resolved()
                 .await?,
             ),
+            executable_asset,
             ResolvedVc::upcast(
                 VirtualOutputAsset::new(
-                    node_root.join(&format!("server/{executable}"))?,
-                    AssetContent::file(*content),
-                )
-                .to_resolved()
-                .await?,
-            ),
-            ResolvedVc::upcast(
-                VirtualOutputAsset::new(
-                    node_root.join(&format!("server/{entry}"))?,
+                    descriptor_path,
                     AssetContent::file(
                         FileContent::Content(File::from(serde_json::to_string(&descriptor)?))
                             .cell(),
@@ -1863,8 +2285,8 @@ impl Endpoint for GoEndpoint {
             project,
             output_assets: Vc::<OutputAssets>::cell(assets).to_resolved().await?,
             output_paths: EndpointOutputPaths::Native {
-                executable_path: executable.into(),
-                build: (*result).clone(),
+                executable_path: executable,
+                build: result,
             }
             .resolved_cell(),
             first_load_chunks: None,
@@ -3474,7 +3896,7 @@ impl AppEndpointOutput {
 
 #[cfg(test)]
 mod tests {
-    use super::go_proxy_handler_source;
+    use super::*;
 
     #[test]
     fn renders_go_proxy_handler_configuration() {
@@ -3484,5 +3906,91 @@ mod tests {
         let source = go_proxy_handler_source(true, "/docs").unwrap();
         assert!(source.contains("const nextGoSkipProxyURLNormalize = true\n"));
         assert!(source.contains("const nextGoProxyBasePath = \"/docs\"\n"));
+    }
+
+    #[test]
+    fn go_routes_follow_next_route_precedence() {
+        // Expected order from `getSortedRoutes`.
+        let expected = [
+            "/base",
+            "/base/a",
+            "/base/a/[id]",
+            "/base/a/[...rest]",
+            "/base/b",
+            "/base/b/[[...optional]]",
+            "/base/caf a 100%",
+            "/base/[id]",
+            "/base/[id]/edit",
+            "/base/[id]/[...rest]",
+            "/base/[...rest]",
+        ];
+        let mut routes = expected.to_vec();
+        routes.reverse();
+        routes.sort_by(|a, b| compare_go_route_patterns(a, b));
+        assert_eq!(routes, expected);
+        // Static names compare by UTF-16 code units, like JavaScript's default sort.
+        assert_eq!(
+            compare_go_route_patterns("/\u{1F600}", "/\u{FF5E}"),
+            std::cmp::Ordering::Less
+        );
+    }
+
+    #[test]
+    fn go_internal_route_packages_are_imported_through_shims() {
+        let hash = |path: &str| turbo_tasks_hash::hash_xxh3_hash64(path) as u32;
+        let alias = "app/_next_go_route_group_native_id_00000000";
+        assert_eq!(
+            go_internal_shims("example.com/m", alias).unwrap(),
+            (alias.to_owned(), vec![])
+        );
+        // Every `internal` element applies, from the deepest to the shallowest.
+        let alias = "app/internal/deep/internal/leaf/_next_go_route_00000000";
+        let inner = format!("app/internal/deep/_next_go_shim_{:08x}", hash(alias));
+        let outer = format!("app/_next_go_shim_{:08x}", hash(&inner));
+        let (import, shims) = go_internal_shims("example.com/m", alias).unwrap();
+        assert_eq!(import, outer);
+        assert_eq!(
+            shims
+                .iter()
+                .map(|(path, _)| path.as_str())
+                .collect::<Vec<_>>(),
+            [
+                format!("{inner}/zz_next_route_shim.go"),
+                format!("{outer}/zz_next_route_shim.go"),
+            ]
+        );
+        assert!(
+            shims[0]
+                .1
+                .contains(&format!("next \"example.com/m/{alias}\""))
+        );
+        assert!(
+            shims[1]
+                .1
+                .contains(&format!("next \"example.com/m/{inner}\""))
+        );
+        // A top-level `internal` element puts the shim at the module root.
+        let alias = "internal/health/_next_go_route_00000000";
+        let (import, shims) = go_internal_shims("example.com/m", alias).unwrap();
+        assert_eq!(import, format!("_next_go_shim_{:08x}", hash(alias)));
+        assert_eq!(shims.len(), 1);
+    }
+
+    #[test]
+    fn go_diagnostics_attribute_files_directly_inside_a_route_directory() {
+        let directories = ["/p/app/api".to_owned(), "app/api".to_owned()];
+        for (message, expected) in [
+            ("/p/app/api/route.go:3:2: undefined: x", true),
+            ("app/api/route.go:3:2: undefined: x", true),
+            ("/p/app/api/users/route.go:3:2: undefined: x", false),
+            ("/p/other/app/api/route.go:3:2: undefined: x", false),
+            ("# example.com/m/app/api", false),
+        ] {
+            assert_eq!(
+                go_diagnostic_mentions_directory(message, &directories),
+                expected,
+                "{message}"
+            );
+        }
     }
 }

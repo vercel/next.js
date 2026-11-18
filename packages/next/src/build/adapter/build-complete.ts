@@ -1354,6 +1354,17 @@ export async function handleBuildComplete({
       )
 
       if (appPageKeys) {
+        // Adapter builds compile every Go route into one executable that
+        // dispatches by path. Every Go APP_ROUTE output shares its filePath,
+        // and its traced assets are merged so each output lists the same ones.
+        const goRouteOutputs: AdapterOutput['APP_ROUTE'][] = []
+        let goRouteExecutable:
+          | {
+              filePath: string
+              assets: Record<string, string>
+              assetsHashes: Record<string, string>
+            }
+          | undefined
         for (const page of orderAppPageKeysByEntry(appPageKeys)) {
           if (middlewareManifest.functions.hasOwnProperty(page)) {
             continue
@@ -1427,9 +1438,25 @@ export async function handleBuildComplete({
                 'Native route executable is outside server output'
               )
             }
+            const salt = config.outputHashSalt || ''
+            if (!goRouteExecutable) {
+              goRouteExecutable = {
+                filePath: executablePath,
+                assets: {},
+                assetsHashes: {
+                  // Like a Node trace's entryHash, expose the entrypoint content
+                  // hash without copying that same executable into assets.
+                  [normalizePathSep(path.relative(repoRoot, executablePath))]:
+                    await hashFile(salt, executablePath),
+                },
+              }
+            } else if (goRouteExecutable.filePath !== executablePath) {
+              throw new InvariantError(
+                `Go routes must share one executable, but ${page} uses ${executableRelativePath}`
+              )
+            }
             const tracedAssets: Record<string, string> = {}
             const tracedHashes: Record<string, string> = {}
-            const salt = config.outputHashSalt || ''
             await loadNFT(
               tracedAssets,
               tracedHashes,
@@ -1438,22 +1465,17 @@ export async function handleBuildComplete({
               syntheticSymlinks,
               salt
             )
-            const assets: Record<string, string> = {}
-            const assetsHashes: Record<string, string> = {}
+            const { assets, assetsHashes } = goRouteExecutable
             for (const [destination, source] of Object.entries(tracedAssets)) {
               // The binary is the entrypoint, not an additional dependency.
               // Adapters package filePath separately from assets.
               if (source === executablePath) continue
               const outputPath = normalizePathSep(destination)
+              if (assets[outputPath] !== undefined) continue
               assets[outputPath] = source
               assetsHashes[outputPath] =
                 tracedHashes[destination] ?? (await hashFile(salt, source))
             }
-            // Like a Node trace's entryHash, expose the entrypoint content hash
-            // without copying that same executable into assets a second time.
-            assetsHashes[
-              normalizePathSep(path.relative(repoRoot, executablePath))
-            ] = await hashFile(salt, executablePath)
             const functionConfig =
               functionsConfigManifest.functions[normalizedPage] || {}
             const output: AdapterOutput['APP_ROUTE'] = {
@@ -1472,6 +1494,7 @@ export async function handleBuildComplete({
             }
             appOutputMap[normalizedPage] = output
             outputs.appRoutes.push(output)
+            goRouteOutputs.push(output)
             continue
           }
           const pageFile = path.join(appDistDir, `${page}.js`)
@@ -1536,6 +1559,14 @@ export async function handleBuildComplete({
               pathname: normalizePagePath(output.pathname) + '.rsc',
               id: normalizePagePath(output.pathname) + '.rsc',
             })
+          }
+        }
+        // Give each output its own copy of the complete shared asset list.
+        const sharedGoRoute = goRouteExecutable
+        if (sharedGoRoute) {
+          for (const output of goRouteOutputs) {
+            output.assets = { ...sharedGoRoute.assets }
+            output.assetsHashes = { ...sharedGoRoute.assetsHashes }
           }
         }
       }
