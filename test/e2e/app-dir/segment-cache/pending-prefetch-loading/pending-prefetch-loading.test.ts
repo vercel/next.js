@@ -31,17 +31,41 @@ describe('navigation during a pending prefetch', () => {
             return
           }
 
-          const isPrefetch =
-            headers['next-router-prefetch'] !== undefined ||
-            headers['next-router-segment-prefetch'] !== undefined
-          if (!isPrefetch) {
-            navigationStarted = true
+          const segmentPrefetch = headers['next-router-segment-prefetch']
+          // On a cold visit the first request is the route tree (`/_tree`),
+          // not a page segment. Holding it lets the click start navigation
+          // before any page-segment prefetch exists, so the pending-entry
+          // race never happens. Let the tree through, then hold the prefetch
+          // that can resolve without page data.
+          if (segmentPrefetch === '/_tree') {
             await route.continue()
             return
           }
 
-          // Keep the prefetch in flight until navigation has started. Its
-          // response has the loading boundary and no page data.
+          const isPagePrefetch =
+            // Legacy loading-boundary prefetch: `next-router-prefetch` and
+            // the state tree, with no segment header. This is the response
+            // that carries loading.tsx and omits the page segment.
+            (segmentPrefetch === undefined &&
+              headers['next-router-prefetch'] !== undefined) ||
+            // Per-segment prefetch of the page itself.
+            (segmentPrefetch !== undefined &&
+              segmentPrefetch.endsWith('__PAGE__'))
+          if (!isPagePrefetch) {
+            // A navigation has neither prefetch header. Other segment
+            // prefetches (layout, head) are not the pending page entry.
+            if (
+              headers['next-router-prefetch'] === undefined &&
+              segmentPrefetch === undefined
+            ) {
+              navigationStarted = true
+            }
+            await route.continue()
+            return
+          }
+
+          // Keep the page prefetch in flight until navigation has started.
+          // Its response has the loading boundary and no page data.
           let release!: () => void
           const released = new Promise<void>((resolve) => {
             release = resolve
@@ -67,16 +91,17 @@ describe('navigation during a pending prefetch', () => {
       sample()
     })
 
-    // Reveal the link. Its prefetch stays in flight until this test releases it.
+    // Reveal the link. The route tree is delivered immediately; the page
+    // prefetch stays in flight until this test releases it.
     await browser.elementByCss('input[data-link-accordion="/item"]').click()
     await retry(async () => {
       expect(heldPrefetches.length).toBeGreaterThan(0)
     })
 
-    // Start navigation while that prefetch is still pending. The navigation
-    // response streams immediately, but the page itself waits 1500ms, so the
-    // prefetch can resolve before the page data arrives. createRouterAct
-    // cannot separate those two responses.
+    // Start navigation only after that page prefetch exists and is still
+    // pending. The navigation response streams immediately, but the page
+    // itself waits 1500ms, so the prefetch can resolve before the page data
+    // arrives. createRouterAct cannot separate those two responses.
     await browser.elementByCss('a[href="/item"]').click()
     await retry(async () => {
       expect(navigationStarted).toBe(true)
