@@ -12,6 +12,9 @@ import (
 // x-next-internal-* request headers can only come from the client.
 const nextGoTrustInternalHeaders = false
 
+// Platforms invoke adapter builds with the original request URL.
+const nextGoURLNormalizedByNext = false
+
 func main() {
 	port := os.Getenv("PORT")
 	number, err := strconv.Atoi(port)

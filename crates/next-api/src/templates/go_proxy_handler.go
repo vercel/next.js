@@ -27,6 +27,11 @@ const nextGoBasePath = "__NEXT_GO_BASE_PATH__"
 const nextGoDefaultLocale = "__NEXT_GO_DEFAULT_LOCALE__"
 const nextGoSkipProxyURLNormalize = false
 
+// nextGoLocales lists the i18n locales in their configured casing.
+var nextGoLocales = []string{
+	// __NEXT_GO_LOCALES__
+}
+
 // nextGoDomainLocales maps i18n domain hostnames to their default locale.
 var nextGoDomainLocales = map[string]string{
 	// __NEXT_GO_DOMAIN_LOCALES__
@@ -239,10 +244,23 @@ func nextGoHostDefaultLocale(host string) string {
 	return nextGoDefaultLocale
 }
 
-// nextGoPagePath returns the escaped page path that an escaped request path
-// addresses. RSC payloads, segment prefetches and Pages data requests are
-// alternative transports for a page and resolve to it downstream, so Proxy
-// must authorize them as the page itself.
+// nextGoHasPathPrefix matches a whole path prefix, like pathHasPrefix.
+func nextGoHasPathPrefix(path string, prefix string) bool {
+	return path == prefix || strings.HasPrefix(path, prefix+"/")
+}
+
+func nextGoRemoveTrailingSlash(path string) string {
+	if len(path) > 1 && strings.HasSuffix(path, "/") {
+		return path[:len(path)-1]
+	}
+	return path
+}
+
+// nextGoPagePath returns the escaped page URL path that an escaped request
+// path addresses, matching the URL that the JavaScript adapter passes to
+// proxies: RSC payloads, segment prefetches and Pages data requests are
+// alternative transports for a page and resolve to it downstream, and the
+// default locale is omitted. Proxy must authorize them as the page itself.
 func nextGoPagePath(escaped string, host string) string {
 	path := nextGoDecodeUnreserved(escaped)
 	path = strings.TrimSuffix(path, ".rsc")
@@ -255,47 +273,80 @@ func nextGoPagePath(escaped string, host string) string {
 		path = path[:i]
 	}
 
-	// Pages data requests: <basePath>/_next/data/<buildId>/<page>.json
+	trailingSlash := path != "/" && strings.HasSuffix(path, "/")
 	pathname, hasBasePath := path, false
-	if nextGoBasePath != "" && (path == nextGoBasePath || strings.HasPrefix(path, nextGoBasePath+"/")) {
+	if nextGoBasePath != "" && nextGoHasPathPrefix(path, nextGoBasePath) {
 		pathname, hasBasePath = path[len(nextGoBasePath):], true
+		if pathname == "" {
+			pathname = "/"
+		}
 	}
-	if !strings.HasPrefix(pathname, "/_next/data/") {
+
+	// Pages data requests: <basePath>/_next/data/<buildId>/<page>.json
+	isData := strings.HasPrefix(pathname, "/_next/data/")
+	if isData {
+		trailingSlash = false
+		// Any build ID resolves downstream, so do not require the current one.
+		pathname = strings.TrimPrefix(pathname, "/_next/data/")
+		if i := strings.IndexByte(pathname, '/'); i >= 0 {
+			pathname = pathname[i:]
+		} else {
+			pathname = ""
+		}
+		pathname = strings.TrimSuffix(pathname, ".json")
+		// Invert normalizePagePath: / is emitted as /index and pages under
+		// /index as /index/index. Other paths, including /index/<dynamic
+		// segment>, are emitted unchanged.
+		if pathname == "" || pathname == "/" || pathname == "/index" {
+			pathname = "/"
+		} else if strings.HasPrefix(pathname, "/index/index") {
+			if rest := pathname[len("/index"):]; rest == "/index" || strings.HasPrefix(rest, "/index/") {
+				pathname = rest
+			}
+		}
+	} else if len(nextGoLocales) == 0 || nextGoURLNormalizedByNext {
+		// Next.js has already applied basePath and locale normalization to
+		// page URLs; applying it twice is not idempotent for every path.
 		return path
 	}
-	// Any build ID resolves downstream, so do not require the current one.
-	pathname = strings.TrimPrefix(pathname, "/_next/data/")
-	if i := strings.IndexByte(pathname, '/'); i >= 0 {
-		pathname = pathname[i:]
-	} else {
-		pathname = ""
-	}
-	pathname = strings.TrimSuffix(pathname, ".json")
-	// Invert normalizePagePath: / is emitted as /index and pages under
-	// /index as /index/index. Other paths, including /index/<dynamic
-	// segment>, are emitted unchanged.
-	if pathname == "" || pathname == "/" || pathname == "/index" {
-		pathname = "/"
-	} else if strings.HasPrefix(pathname, "/index/index") {
-		if rest := pathname[len("/index"):]; rest == "/index" || strings.HasPrefix(rest, "/index/") {
-			pathname = rest
-		}
-	}
-	// Data URLs always carry the locale. Like the JavaScript adapter, omit the
-	// default locale so the path matches the page URL clients request.
-	if locale := nextGoHostDefaultLocale(host); locale != "" {
+
+	// Locales, like NextURL: detect the locale prefix, then add it back only
+	// when it differs from the default locale for the host.
+	if len(nextGoLocales) > 0 {
+		locale := ""
 		first, rest, _ := strings.Cut(pathname[1:], "/")
-		if strings.EqualFold(first, locale) {
-			pathname = "/" + rest
+		for _, candidate := range nextGoLocales {
+			if first != "" && strings.EqualFold(first, candidate) {
+				locale = candidate
+				pathname = "/" + rest
+				break
+			}
 		}
+		defaultLocale := nextGoHostDefaultLocale(host)
+		if locale == "" {
+			locale = defaultLocale
+		}
+		if locale != "" && locale != defaultLocale {
+			lower := strings.ToLower(pathname)
+			if !nextGoHasPathPrefix(lower, "/api") && !nextGoHasPathPrefix(lower, "/"+strings.ToLower(locale)) {
+				pathname = "/" + locale + pathname
+			}
+		}
+	}
+
+	if !trailingSlash {
+		pathname = nextGoRemoveTrailingSlash(pathname)
 	}
 	if hasBasePath {
-		if pathname == "/" {
-			return nextGoBasePath
-		}
-		return nextGoBasePath + pathname
+		pathname = nextGoBasePath + pathname
 	}
-	return pathname
+	if trailingSlash {
+		if !strings.HasSuffix(pathname, "/") {
+			pathname += "/"
+		}
+		return pathname
+	}
+	return nextGoRemoveTrailingSlash(pathname)
 }
 
 // nextGoNormalizeRequestURL rewrites the request URL to the page it addresses.

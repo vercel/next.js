@@ -1199,6 +1199,9 @@ async fn go_proxy_handler_source(
     let i18n = Option::as_ref(&*i18n_config);
     let skip_proxy_url_normalize = *next_config.skip_proxy_url_normalize().await?;
     let default_locale = i18n.map(|i18n| i18n.default_locale.as_str()).unwrap_or("");
+    let locales = i18n
+        .into_iter()
+        .flat_map(|i18n| i18n.locales.iter().map(String::as_str));
     let domains = i18n
         .and_then(|i18n| i18n.domains.as_ref())
         .into_iter()
@@ -1208,6 +1211,7 @@ async fn go_proxy_handler_source(
         base_path.unwrap_or(""),
         default_locale,
         skip_proxy_url_normalize,
+        locales,
         domains,
     )
 }
@@ -1218,8 +1222,14 @@ fn render_go_proxy_handler<'a>(
     base_path: &str,
     default_locale: &str,
     skip_proxy_url_normalize: bool,
+    locales: impl IntoIterator<Item = &'a str>,
     domains: impl IntoIterator<Item = (&'a str, &'a str)>,
 ) -> Result<String> {
+    let locales = locales
+        .into_iter()
+        .map(|locale| -> Result<String> { Ok(format!("\t{},", serde_json::to_string(locale)?)) })
+        .collect::<Result<Vec<_>>>()?
+        .join("\n");
     // The first domain for a hostname wins, matching detectDomainLocale.
     let mut domain_locales = BTreeMap::new();
     for (domain, locale) in domains {
@@ -1254,6 +1264,7 @@ fn render_go_proxy_handler<'a>(
         "const nextGoSkipProxyURLNormalize = false",
         &format!("const nextGoSkipProxyURLNormalize = {skip_proxy_url_normalize}"),
     )?;
+    let source = replace_go_placeholder(source, "\t// __NEXT_GO_LOCALES__", &locales)?;
     replace_go_placeholder(source, "\t// __NEXT_GO_DOMAIN_LOCALES__", &domain_locales)
 }
 
@@ -3139,11 +3150,12 @@ mod go_proxy_handler_tests {
 
     #[test]
     fn renders_defaults_without_placeholders() {
-        let source = render_go_proxy_handler("", "", false, []).unwrap();
+        let source = render_go_proxy_handler("", "", false, [], []).unwrap();
         assert!(!source.contains("__NEXT_GO_"), "{source}");
         assert!(source.contains("const nextGoBasePath = \"\"\n"));
         assert!(source.contains("const nextGoDefaultLocale = \"\"\n"));
         assert!(source.contains("const nextGoSkipProxyURLNormalize = false\n"));
+        assert!(source.contains("var nextGoLocales = []string{\n\n}"));
         assert!(source.contains("var nextGoDomainLocales = map[string]string{\n\n}"));
     }
 
@@ -3153,6 +3165,7 @@ mod go_proxy_handler_tests {
             "/docs",
             "en-US",
             true,
+            ["en-US", "fr", "nl"],
             [
                 ("FR.example.test:3000", "fr"),
                 ("nl.example.test", "nl"),
@@ -3165,6 +3178,9 @@ mod go_proxy_handler_tests {
         assert!(source.contains("const nextGoBasePath = \"/docs\"\n"));
         assert!(source.contains("const nextGoDefaultLocale = \"en-US\"\n"));
         assert!(source.contains("const nextGoSkipProxyURLNormalize = true\n"));
+        assert!(
+            source.contains("var nextGoLocales = []string{\n\t\"en-US\",\n\t\"fr\",\n\t\"nl\",\n}")
+        );
         assert!(source.contains(
             "var nextGoDomainLocales = map[string]string{\n\t\"fr.example.test\": \
              \"fr\",\n\t\"nl.example.test\": \"nl\",\n}"
@@ -3174,7 +3190,7 @@ mod go_proxy_handler_tests {
 
     #[test]
     fn escapes_configuration_as_go_string_literals() {
-        let source = render_go_proxy_handler("/a\"b\\c", "", false, []).unwrap();
+        let source = render_go_proxy_handler("/a\"b\\c", "", false, [], []).unwrap();
         assert!(source.contains(r#"const nextGoBasePath = "/a\"b\\c""#));
     }
 }

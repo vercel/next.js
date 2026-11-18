@@ -15,6 +15,9 @@ import (
 // client-supplied x-next-internal-* headers before forwarding.
 const nextGoTrustInternalHeaders = true
 
+// Next.js applies its proxy URL normalization before forwarding.
+const nextGoURLNormalizedByNext = true
+
 func main() {
 	token := os.Getenv("__NEXT_GO_TOKEN")
 	if token == "" {

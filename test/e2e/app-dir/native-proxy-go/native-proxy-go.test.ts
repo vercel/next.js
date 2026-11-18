@@ -707,22 +707,59 @@ describe.each([false, true])(
 
     // Executing a build-host binary is a self-hosted check.
     // @force-gate start
-    it('normalizes locale-prefixed data-request URLs in adapter builds', async () => {
+    it('normalizes locale-prefixed URLs in adapter builds like next start', async () => {
       await withAdapterProxy(next, async (origin, buildId) => {
-        for (const [locale, expected] of [
-          ['en', '/url-normalization?from=data'],
-          ['fr', '/fr/url-normalization?from=data'],
+        // The same expectations as the self-hosted tests above.
+        for (const [path, expected] of [
+          ['/url-normalization?from=locale', '/url-normalization?from=locale'],
+          [
+            '/en/url-normalization?from=locale',
+            '/url-normalization?from=locale',
+          ],
+          [
+            '/EN/url-normalization?from=locale',
+            '/url-normalization?from=locale',
+          ],
+          [
+            '/fr/url-normalization?from=locale',
+            '/fr/url-normalization?from=locale',
+          ],
+          [
+            '/FR/url-normalization?from=locale',
+            '/fr/url-normalization?from=locale',
+          ],
+          ['/en', '/'],
+          [
+            `/_next/data/${buildId}/en/url-normalization.json?from=data`,
+            '/url-normalization?from=data',
+          ],
+          [
+            `/_next/data/${buildId}/fr/url-normalization.json?from=data`,
+            '/fr/url-normalization?from=data',
+          ],
         ]) {
-          const path = `/_next/data/${buildId}/${locale}/url-normalization.json?from=data`
-          const response = await fetch(`${origin}${path}`)
-          expect(response.headers.get('x-go-url')).toBe(
-            skipProxyUrlNormalize ? path : expected
-          )
+          const response = await fetchViaRawHttp(origin, path)
+          expect({ path, url: response.headers.get('x-go-url') }).toEqual({
+            path,
+            url: skipProxyUrlNormalize ? path : expected,
+          })
         }
-        const data = await fetch(
-          `${origin}/_next/data/${buildId}/en/native-proxy/pages-secure.json`
-        )
-        expect(data.status).toBe(skipProxyUrlNormalize ? 200 : 403)
+        // Proxy authorization applies to every URL of the default locale.
+        for (const path of [
+          '/native-proxy/pages-secure',
+          '/en/native-proxy/pages-secure',
+          '/EN/native-proxy/pages-secure',
+          `/_next/data/${buildId}/en/native-proxy/pages-secure.json`,
+        ]) {
+          const response = await fetchViaRawHttp(origin, path)
+          expect({ path, status: response.status }).toEqual({
+            path,
+            status:
+              skipProxyUrlNormalize && path !== '/native-proxy/pages-secure'
+                ? 200
+                : 403,
+          })
+        }
       })
     })
   }
@@ -735,7 +772,7 @@ describe('native-proxy-go adapter build with basePath and i18n domains', () => {
 
   // Executing a build-host binary is a self-hosted check.
   // @force-gate start
-  it('normalizes transport URLs with basePath and domain default locales', async () => {
+  it('normalizes page and transport URLs with basePath and domain default locales', async () => {
     const config = await next.readFile('next.config.ts')
     await next.patchFile(
       'next.config.ts',
@@ -801,6 +838,48 @@ describe('native-proxy-go adapter build with basePath and i18n domains', () => {
           `${data}/en/url-normalization.json`,
           '/docs/en/url-normalization',
         ],
+        // Page URLs match NextURL: the locale is canonicalized, and the
+        // default locale for the host is omitted.
+        [undefined, '/docs/url-normalization', '/docs/url-normalization'],
+        [undefined, '/docs/en/url-normalization', '/docs/url-normalization'],
+        [undefined, '/docs/EN/url-normalization', '/docs/url-normalization'],
+        [undefined, '/docs/fr/url-normalization', '/docs/fr/url-normalization'],
+        [undefined, '/docs/FR/url-normalization', '/docs/fr/url-normalization'],
+        [undefined, '/docs/nl/url-normalization', '/docs/nl/url-normalization'],
+        [undefined, '/docs/en/url-normalization/', '/docs/url-normalization/'],
+        [
+          undefined,
+          '/docs/en/url-normalization?from=locale',
+          '/docs/url-normalization?from=locale',
+        ],
+        [undefined, '/docs/en', '/docs'],
+        [undefined, '/docs/en/', '/docs/'],
+        [undefined, '/docs/fr', '/docs/fr'],
+        [undefined, '/docs/fr/api/proxy-query', '/docs/api/proxy-query'],
+        [undefined, '/docs/english/page', '/docs/english/page'],
+        [
+          undefined,
+          '/docs/en/native-proxy/inspect.rsc',
+          '/docs/native-proxy/inspect',
+        ],
+        [undefined, '/docs/en/a%2Fb', '/docs/a%2Fb'],
+        [undefined, '/en/url-normalization', '/url-normalization'],
+        [
+          'fr.example.test',
+          '/docs/fr/url-normalization',
+          '/docs/url-normalization',
+        ],
+        [
+          'fr.example.test',
+          '/docs/url-normalization',
+          '/docs/url-normalization',
+        ],
+        [
+          'fr.example.test',
+          '/docs/en/url-normalization',
+          '/docs/en/url-normalization',
+        ],
+        ['FR.example.test:3000', '/docs/FR', '/docs'],
       ]) {
         const response = await fetchViaRawHttp(origin, path!, {
           headers: host ? { host } : {},
