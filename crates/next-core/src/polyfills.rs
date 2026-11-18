@@ -1,16 +1,18 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 use swc_core::ecma::preset_env::{Version, Versions};
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem};
+use turbo_tasks_fs::{
+    File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem, rope::Rope,
+};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
     code_builder::{Code, CodeBuilder},
     environment::RuntimeVersions,
     ident::AssetIdent,
-    output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
-    source_map::{GenerateSourceMap, SourceMapAsset},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
+    source_map::{GenerateSourceMap, SourceMapAsset, SourceMapType, SourceMaps},
 };
 
 use crate::next_import_map::get_next_package;
@@ -186,12 +188,18 @@ impl PolyfillsAsset {
         let required = get_required_polyfills(&*self.runtime_versions.await?);
         let next_package = get_next_package(self.project_path.clone()).await?;
 
-        let mut builder = CodeBuilder::default();
+        let mut builder = CodeBuilder::new(
+            *self.chunking_context.debug_ids_enabled().await?,
+            *self
+                .chunking_context
+                .source_map_generation_options()
+                .await?,
+        );
         for polyfill in required {
             let path = next_package.join(&format!("dist/build/polyfills/{}", polyfill))?;
             if let FileContent::Content(file) = &*path.read().await? {
                 let content = file.content();
-                let source_map = serde_json::json!({
+                let source_map: Rope = serde_json::json!({
                     "version": 3,
                     // TODO: Encode using `urlencoding`, so that these
                     // are valid URLs. However, `project_trace_source_operation` (and
@@ -208,10 +216,12 @@ impl PolyfillsAsset {
                 .to_string()
                 .into();
 
-                builder.push_source(content, Some(source_map));
+                // The polyfill file is the original source, so the same map serves both the
+                // full and the shallow variant.
+                builder.push_source(content, SourceMaps::Shared(source_map))?;
                 builder += "\n";
             } else {
-                panic!("Couldn't find polyfill file in {}", path.path);
+                bail!("Couldn't find polyfill file in {}", path.path);
             }
         }
 
@@ -226,6 +236,7 @@ impl PolyfillsAsset {
             *this.chunking_context,
             polyfills_ident(),
             Vc::upcast(self),
+            rcstr!(".js"),
         ))
     }
 }
@@ -237,7 +248,8 @@ async fn polyfills_ident() -> Result<Vc<AssetIdent>> {
             .root()
             .owned()
             .await?,
-    ))
+    )
+    .into_vc())
 }
 
 #[turbo_tasks::value_impl]
@@ -258,9 +270,21 @@ impl OutputAsset for PolyfillsAsset {
 impl OutputAssetsReference for PolyfillsAsset {
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
-        Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(vec![
-            ResolvedVc::upcast(self.source_map().to_resolved().await?),
-        ])))
+        let include_source_map = *self
+            .await?
+            .chunking_context
+            .reference_chunk_source_maps(Vc::upcast(self))
+            .await?;
+
+        let references = if include_source_map {
+            Vc::cell(vec![ResolvedVc::upcast(
+                self.source_map().to_resolved().await?,
+            )])
+        } else {
+            OutputAssets::empty()
+        };
+
+        Ok(OutputAssetsWithReferenced::from_assets(references))
     }
 }
 
@@ -271,7 +295,14 @@ impl Asset for PolyfillsAsset {
         Ok(AssetContent::file(
             FileContent::Content(File::from(
                 self.code()
-                    .to_rope_with_magic_comments(|| self.source_map())
+                    .to_rope_with_magic_comments(
+                        *self
+                            .await?
+                            .chunking_context
+                            .emitted_source_map_type()
+                            .await?,
+                        || self.source_map(),
+                    )
                     .await?,
             ))
             .cell(),
@@ -282,8 +313,8 @@ impl Asset for PolyfillsAsset {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for PolyfillsAsset {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
-        self.code().generate_source_map()
+    fn generate_source_map(self: Vc<Self>, ty: SourceMapType) -> Vc<FileContent> {
+        self.code().generate_source_map(ty)
     }
 }
 
@@ -350,6 +381,19 @@ mod tests {
             ..Default::default()
         };
         let required = get_required_polyfills(&versions);
-        assert_eq!(required, vec!["polyfill-nomodule.js"]);
+        assert_eq!(
+            required,
+            vec![
+                "polyfill-nomodule.js",
+                "module/string-trim.js",
+                "module/symbol-description.js",
+                "module/array-flat.js",
+                "module/promise-finally.js",
+                "module/object-fromentries.js",
+                "module/array-at.js",
+                "module/object-hasown.js",
+                "module/url-canparse.js"
+            ]
+        );
     }
 }
