@@ -877,8 +877,12 @@ impl DiskFileSystem {
     ///
     /// `name` is a display name for the filesystem. This should be unique.
     ///
-    /// `root` is the [canonicalized][std::fs::canonicalize] root of the filesystem. It should have
-    /// a stable [cell identity][`ResolvedVc`] to avoid invalidating every path if the root changes.
+    /// `root` is the [canonicalized][std::fs::canonicalize] root of the filesystem. Its value is
+    /// read once, and the filesystem cell is created by a task keyed by that value, so the cell
+    /// (and every task that only reads it, e.g. to format a path) can be immutable even when `root`
+    /// is mutable. If the value of `root` changes, a different filesystem instance is returned, and
+    /// every [`FileSystemPath`] on it gets a new identity, so the root should stay fixed for the
+    /// lifetime of a process.
     ///
     /// This API does not canonicalize itself, as that requires IO operations (e.g. symlink
     /// resolution) which should (ideally) not be cached.
@@ -923,6 +927,9 @@ impl DiskFileSystem {
 
 #[turbo_tasks::value_impl]
 impl DiskFileSystem {
+    /// Reads `root` and delegates to [`DiskFileSystem::new_with_root_value`]. This task depends on
+    /// `root` and is therefore mutable when `root` is, but it doesn't own the filesystem cell: it
+    /// returns the cell of the inner task.
     #[turbo_tasks::function]
     async fn new_internal(
         name: RcStr,
@@ -932,6 +939,25 @@ impl DiskFileSystem {
         map: OperationVc<DiskFileSystemMap>,
     ) -> Result<Vc<Self>> {
         let root = root.owned().await?;
+        Ok(Self::new_with_root_value(
+            name,
+            root,
+            denied_paths,
+            watcher_config,
+            map,
+        ))
+    }
+
+    /// Creates the filesystem cell. All arguments are plain values (`map` is stored, not read), so
+    /// this task has no dependencies and is immutable.
+    #[turbo_tasks::function]
+    fn new_with_root_value(
+        name: RcStr,
+        root: RcStr,
+        denied_paths: Vec<RcStr>,
+        watcher_config: DiskWatcherConfig,
+        map: OperationVc<DiskFileSystemMap>,
+    ) -> Vc<Self> {
         let instance = DiskFileSystem {
             inner: Arc::new(DiskFileSystemInner {
                 name,
@@ -954,7 +980,7 @@ impl DiskFileSystem {
             }),
         };
 
-        Ok(Self::cell(instance))
+        Self::cell(instance)
     }
 }
 
