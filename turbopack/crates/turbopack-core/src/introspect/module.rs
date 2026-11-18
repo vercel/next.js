@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 
 use super::{
     Introspectable, IntrospectableChildren,
@@ -29,7 +29,7 @@ impl Introspectable for IntrospectableModule {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<RcStr> {
-        self.0.ident().to_string()
+        self.0.ident_string()
     }
 
     #[turbo_tasks::function]
