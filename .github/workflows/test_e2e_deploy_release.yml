@@ -294,6 +294,8 @@ jobs:
         NEXT_TEST_MODE=deploy \
         IS_TURBOPACK_TEST=1 \
         NEXT_ENABLE_ADAPTER=1 \
+        NEXT_USE_GO_BUILDER=1 \
+        NEXT_NATIVE_BUILD_TIMINGS=1 \
         NEXT_TEST_DEPLOY_TARGET_VERCEL=1 \
         NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" \
         NEXT_TEST_VERSION="${{ needs.setup.outputs.next-version }}" \

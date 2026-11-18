@@ -692,6 +692,12 @@ export class NextDeployInstance extends NextInstance {
       `VERCEL_CLI_VERSION=${process.env.VERCEL_CLI_VERSION || 'vercel@latest'}`
     )
 
+    for (const name of ['NEXT_USE_GO_BUILDER', 'NEXT_NATIVE_BUILD_TIMINGS']) {
+      if (process.env[name]) {
+        additionalEnv.push(`${name}=${process.env[name]}`)
+      }
+    }
+
     // So that our `package.json#packageManager` field is respected when building on Vercel
     additionalEnv.push(`ENABLE_EXPERIMENTAL_COREPACK=1`)
 
