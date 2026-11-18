@@ -135,10 +135,23 @@ impl EsmBindings {
                     }
                     imported_module => match exports_cache.entry(export.clone()) {
                         std::collections::hash_map::Entry::Vacant(entry) => {
-                            let ident: ImportedIdent = imported_module
+                            let ident: ImportedIdent = match imported_module
                                 .get_ident(chunking_context, export.clone(), scope_hoisting_context)
                                 .await?
-                                .map_or(ImportedIdent::Unresolvable, ImportedIdent::Module);
+                            {
+                                Some(ident) => ImportedIdent::Module(ident),
+                                // The reference inserts a throw for unresolvable requests
+                                None if matches!(
+                                    imported_module,
+                                    ReferencedAsset::Unresolvable
+                                ) =>
+                                {
+                                    ImportedIdent::Unresolvable
+                                }
+                                // There is nothing to bind to, e.g. a statically missing export
+                                // of a module merged into the same scope hoisting group
+                                None => ImportedIdent::None,
+                            };
                             entry.insert(ident.clone());
                             ident
                         }

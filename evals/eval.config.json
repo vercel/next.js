@@ -83,5 +83,11 @@
     "browserJs": true,
     "publish": false,
     "timeout": 1800
+  },
+  "agent-062-pokedex-dev-loop": {
+    "skills": ["next-dev-loop"],
+    "publish": false,
+    "timeout": 1800,
+    "metrics": "pokedex"
   }
 }

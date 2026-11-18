@@ -188,6 +188,7 @@ export function prepare(href: string): PreparedNavigation {
     bfcacheVersion: getBFCacheVersion(),
     inFlightRequest: null,
     inFlightRequestTree: null,
+    completedNavigation: null,
   }
 
   // Resolve the URL now, so a relative href is committed against the location

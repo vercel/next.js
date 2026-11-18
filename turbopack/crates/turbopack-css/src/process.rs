@@ -26,7 +26,7 @@ use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     SOURCE_URL_PROTOCOL,
     asset::{Asset, AssetContent},
-    chunk::{ChunkingContext, MinifyType},
+    chunk::ChunkingContext,
     environment::Environment,
     issue::{
         AdditionalIssueSource, Issue, IssueExt, IssueSeverity, IssueSource, IssueStage,
@@ -36,7 +36,10 @@ use turbopack_core::{
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
     source::Source,
-    source_map::{structured::StructuredSourceMap, utils::add_default_ignore_list},
+    source_map::{
+        SourceMapGenerationOptions, SourceMaps, structured::StructuredSourceMap,
+        utils::add_default_ignore_list,
+    },
     source_pos::SourcePos,
 };
 
@@ -49,7 +52,7 @@ use crate::{
     },
 };
 
-pub type CssOutput = (ToCssResult, Option<StructuredSourceMap>);
+pub type CssOutput = (ToCssResult, SourceMaps<StructuredSourceMap>);
 
 #[turbo_tasks::value(transparent)]
 struct LightningCssTargets(
@@ -103,14 +106,14 @@ async fn get_lightningcss_browser_targets(
 async fn stylesheet_to_css(
     ss: &StyleSheet<'_>,
     code: &str,
-    minify_type: MinifyType,
-    enable_srcmap: bool,
+    minify: bool,
+    generation: SourceMapGenerationOptions,
     handle_nesting: bool,
     mut origin_source_map: Option<parcel_sourcemap::SourceMap>,
     environment: Option<ResolvedVc<Environment>>,
     feature_flags: LightningCssFeatureFlags,
 ) -> Result<CssOutput> {
-    let mut srcmap = if enable_srcmap {
+    let mut srcmap = if generation.should_generate_any_source_maps() {
         Some(parcel_sourcemap::SourceMap::new(""))
     } else {
         None
@@ -124,30 +127,55 @@ async fn stylesheet_to_css(
     .await?;
 
     let result = ss.to_css(PrinterOptions {
-        minify: matches!(minify_type, MinifyType::Minify { .. }),
+        minify,
         source_map: srcmap.as_mut(),
         targets,
         analyze_dependencies: None,
         ..Default::default()
     })?;
 
-    if let Some(srcmap) = &mut srcmap {
-        debug_assert_eq!(ss.sources.len(), 1);
-
-        if let Some(origin_source_map) = origin_source_map.as_mut() {
-            let _ = srcmap.extends(origin_source_map);
+    let shared_source_map = generation.full && generation.shallow && origin_source_map.is_none();
+    let shallow_source_map = if generation.shallow {
+        let mut shallow_map = if generation.full && !shared_source_map {
+            srcmap.as_ref().unwrap().clone()
         } else {
-            srcmap.add_sources(ss.sources.clone());
-            srcmap.set_source_content(0, code)?;
+            srcmap.take().unwrap()
+        };
+        let map = &mut shallow_map;
+        map.add_sources(ss.sources.clone());
+        if generation.shallow_sources_content || shared_source_map {
+            map.set_source_content(0, code)?;
         }
-    }
-
-    let srcmap = match srcmap {
-        Some(srcmap) => Some(generate_css_source_map(&srcmap)?),
-        None => None,
+        Some(generate_css_source_map(map)?)
+    } else {
+        None
     };
 
-    Ok((result, srcmap))
+    let source_map = if generation.full && !shared_source_map {
+        let map = srcmap.as_mut().unwrap();
+        debug_assert_eq!(ss.sources.len(), 1);
+        if let Some(origin_source_map) = origin_source_map.as_mut() {
+            let _ = map.extends(origin_source_map);
+        } else {
+            map.add_sources(ss.sources.clone());
+            map.set_source_content(0, code)?;
+        }
+        Some(generate_css_source_map(map)?)
+    } else {
+        None
+    };
+
+    let source_maps = if shared_source_map {
+        let map = shallow_source_map.unwrap();
+        if generation.shallow_sources_content {
+            SourceMaps::Shared(map)
+        } else {
+            SourceMaps::new(Some(map.clone()), Some(map.without_sources_content()))
+        }
+    } else {
+        SourceMaps::new(source_map, shallow_source_map)
+    };
+    Ok((result, source_maps))
 }
 
 /// Multiple [ModuleReference]s
@@ -195,7 +223,7 @@ pub enum FinalCssResult {
     Ok {
         output_code: String,
 
-        source_map: Option<StructuredSourceMap>,
+        source_maps: SourceMaps<StructuredSourceMap>,
     },
     Unparsable,
     NotFound,
@@ -228,8 +256,8 @@ pub async fn process_css_with_placeholder(
             let (result, _) = stylesheet_to_css(
                 stylesheet,
                 &code,
-                MinifyType::NoMinify,
                 false,
+                SourceMapGenerationOptions::NONE,
                 false,
                 None,
                 environment,
@@ -263,8 +291,9 @@ pub async fn process_css_with_placeholder(
 pub async fn finalize_css(
     result: Vc<CssWithPlaceholderResult>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    minify_type: MinifyType,
+    minify: bool,
     origin_source_map: Vc<FileContent>,
+    source_map_generation_options: SourceMapGenerationOptions,
     environment: Option<ResolvedVc<Environment>>,
     feature_flags: LightningCssFeatureFlags,
 ) -> Result<Vc<FinalCssResult>> {
@@ -314,11 +343,11 @@ pub async fn finalize_css(
                 None
             };
 
-            let (result, srcmap) = stylesheet_to_css(
+            let (result, source_maps) = stylesheet_to_css(
                 &stylesheet,
                 &code,
-                minify_type,
-                true,
+                minify,
+                source_map_generation_options,
                 true,
                 origin_source_map,
                 environment,
@@ -328,7 +357,7 @@ pub async fn finalize_css(
 
             Ok(FinalCssResult::Ok {
                 output_code: result.code,
-                source_map: srcmap,
+                source_maps,
             }
             .cell())
         }
@@ -352,7 +381,7 @@ pub trait ProcessCss: ParseCss {
     async fn finalize_css(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        minify_type: MinifyType,
+        minify: bool,
     ) -> Result<Vc<FinalCssResult>>;
 }
 

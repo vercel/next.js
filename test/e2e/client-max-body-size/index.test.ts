@@ -1,7 +1,112 @@
 import { nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
+import { createServer, request, type Server } from 'http'
 
 describe('client-max-body-size', () => {
+  // This tests the self-hosted replay stream and a loopback HTTP upstream.
+  // A deployed proxy runs on a different host and cannot reach that upstream.
+  // The other describes below cover the deployed request-size behavior.
+  // @force-gate !deploy
+  describe('replayed HTTP body framing', () => {
+    const limit = 32 * 1024
+    const { next } = nextTestSetup({
+      files: __dirname,
+      skipStart: true,
+      nextConfig: { experimental: { proxyClientMaxBodySize: limit } },
+    })
+    let upstream: Server
+
+    beforeAll(async () => {
+      upstream = createServer((req, res) => {
+        let bodySize = 0
+        req.on('data', (chunk) => {
+          bodySize += chunk.length
+        })
+        req.on('end', () => {
+          res.setHeader('Content-Type', 'application/json')
+          res.end(
+            JSON.stringify({
+              bodySize,
+              contentLength: req.headers['content-length'] ?? null,
+              probe: req.headers['x-body-probe'] ?? null,
+            })
+          )
+        })
+      })
+      await new Promise<void>((resolve) =>
+        upstream.listen(0, '127.0.0.1', resolve)
+      )
+      const address = upstream.address()
+      if (!address || typeof address === 'string') {
+        throw new Error('Expected an HTTP upstream port')
+      }
+      await next.start({
+        env: { TEST_PROXY_TARGET: `http://127.0.0.1:${address.port}` },
+      })
+    })
+
+    afterAll(async () => {
+      upstream?.closeAllConnections()
+      await new Promise<void>((resolve) => upstream?.close(() => resolve()))
+    })
+
+    for (const path of ['/api/echo', '/api/external']) {
+      for (const override of [false, true]) {
+        for (const chunked of [false, true]) {
+          for (const size of [limit / 2, limit, limit * 2]) {
+            it(`frames ${size} bytes for ${path} (override=${override}, chunked=${chunked})`, async () => {
+              const result = await new Promise<{
+                bodySize: number
+                contentLength: string | null
+                probe: string | null
+              }>((resolve, reject) => {
+                const req = request(
+                  `${next.url}${path}${override ? '?override' : ''}`,
+                  {
+                    method: 'POST',
+                    headers: chunked ? {} : { 'Content-Length': size },
+                  },
+                  (res) => {
+                    const chunks: Buffer[] = []
+                    res.on('data', (chunk) => chunks.push(chunk))
+                    res.on('error', reject)
+                    res.on('end', () => {
+                      try {
+                        expect(res.statusCode).toBe(200)
+                        resolve(JSON.parse(Buffer.concat(chunks).toString()))
+                      } catch (error) {
+                        reject(error)
+                      }
+                    })
+                  }
+                )
+                req.on('error', reject)
+                req.setTimeout(10_000, () => {
+                  req.destroy(
+                    new Error('Timed out waiting for the replay body')
+                  )
+                })
+                // Separate write/end keeps the length unknown for chunked input.
+                req.write(Buffer.alloc(size, 'x'))
+                req.end()
+              })
+              if (size > limit) {
+                expect(result.bodySize).toBeLessThanOrEqual(limit)
+                expect(result.bodySize).toBeLessThan(size)
+              } else {
+                expect(result.bodySize).toBe(size)
+              }
+              expect(result.contentLength).toBe(
+                chunked ? null : String(result.bodySize)
+              )
+              expect(result.probe).toBe(override ? 'preserved' : null)
+            })
+          }
+        }
+      }
+    }
+  })
+
   // These 5, 10, and 11 MiB requests exceed the Vercel test deployment's
   // 4.5 MB payload limit and receive 413 instead of 200. Next.js's 10 MiB
   // buffering limit does not configure Vercel's separate acceptance limit.

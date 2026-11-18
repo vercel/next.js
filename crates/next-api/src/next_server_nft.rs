@@ -20,7 +20,9 @@ use turbopack_core::{
     module_graph::{GraphEntries, ModuleGraph, ModuleGraphOptions, SingleModuleGraph},
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference_type::CommonJsReferenceSubType,
-    resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request},
+    resolve::{
+        FindContextFileResult, ResolveErrorMode, origin::PlainResolveOrigin, parse::Request,
+    },
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
 
@@ -283,6 +285,7 @@ fn next_owned_ignores(
     ty: &ServerNftType,
     has_next_support: bool,
     is_standalone: bool,
+    has_native_routes: bool,
 ) -> Vec<RcStr> {
     let mut globs = vec![
         rcstr!("**/node_modules/react{,-dom,-server-dom-turbopack}/**/*.development.js"),
@@ -319,6 +322,10 @@ fn next_owned_ignores(
         rcstr!("**/next/dist/compiled/browserslist/**"),
     ];
 
+    if !has_native_routes {
+        globs.push(rcstr!("**/next/dist/server/lib/native-route*.js"));
+    }
+
     // only ignore image-optimizer code when
     // this is being handled outside of next-server
     if has_next_support {
@@ -347,6 +354,21 @@ fn next_owned_ignores(
     globs
 }
 
+#[turbo_tasks::function]
+async fn has_native_routes(project: ResolvedVc<Project>) -> Result<Vc<bool>> {
+    if *project.next_config().go_routes().await? {
+        if let FindContextFileResult::Found(path, _) = &*project.find_middleware().await?
+            && path.file_name() == "proxy.go"
+        {
+            return Ok(Vc::cell(true));
+        }
+        if let Some(app) = *project.app_project().await? {
+            return Ok(app.has_go_routes());
+        }
+    }
+    Ok(Vc::cell(false))
+}
+
 #[turbo_tasks::value_impl]
 impl ServerNftJsonAsset {
     #[turbo_tasks::function]
@@ -358,6 +380,7 @@ impl ServerNftJsonAsset {
                 &self.ty,
                 *self.project.ci_has_next_support().await?,
                 is_standalone,
+                *has_native_routes(*self.project).await?,
             )
             .into_iter()
             .map(|g| Glob::new(g, GlobOptions::default()))
@@ -464,11 +487,16 @@ impl ServerNftJsonAsset {
         // `traced_modules_for_entries` inserts entries without consulting the glob (the
         // `parent == None` arm in `nft.rs`), whereas pruning one would delete it and everything
         // reachable only through it.
-        let server_ignores_glob = next_owned_ignores(&self.ty, has_next_support, is_standalone)
-            .into_iter()
-            .chain(additional_ignores)
-            .map(|g| Glob::new(g, Default::default()))
-            .collect::<Vec<_>>();
+        let server_ignores_glob = next_owned_ignores(
+            &self.ty,
+            has_next_support,
+            is_standalone,
+            *has_native_routes(*self.project).await?,
+        )
+        .into_iter()
+        .chain(additional_ignores)
+        .map(|g| Glob::new(g, Default::default()))
+        .collect::<Vec<_>>();
 
         Ok(Glob::alternatives(server_ignores_glob))
     }

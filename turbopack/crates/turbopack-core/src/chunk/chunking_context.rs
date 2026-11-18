@@ -27,45 +27,35 @@ use crate::{
         OutputAssetsWithReferenced, expand_output_assets,
     },
     reference::ModuleReference,
+    source_map::{OptionSourceMapType, SourceMapGenerationOptions},
 };
 
-#[turbo_tasks::task_input]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, DeterministicHash, Encode, Decode,
-)]
-#[serde(rename_all = "kebab-case")]
-pub enum MangleType {
-    OptimalSize,
-    Deterministic,
-}
+/// A marker trait for emit options that can be stored in a chunking context.
+///
+/// Different crates can define their own emit option types (e.g., `EcmascriptEmitOptions`,
+/// `CssEmitOptions`) without requiring the core crate to depend on their specific dependencies
+/// (e.g., SWC).
+#[turbo_tasks::value_trait]
+pub trait EmitOption {}
 
-#[turbo_tasks::value(shared, task_input)]
-#[derive(Debug, Clone, Copy, Hash, DeterministicHash, Deserialize)]
-pub enum MinifyType {
-    // TODO instead of adding a new property here,
-    // refactor that to Minify(MinifyOptions) to allow defaults on MinifyOptions
-    Minify { mangle: Option<MangleType> },
-    NoMinify,
-}
+/// A heterogeneous list of emit options stored in a chunking context.
+#[turbo_tasks::value(transparent)]
+pub struct EmitOptions(Vec<ResolvedVc<Box<dyn EmitOption>>>);
 
-impl Default for MinifyType {
-    fn default() -> Self {
-        Self::Minify {
-            mangle: Some(MangleType::OptimalSize),
-        }
-    }
-}
-
-#[turbo_tasks::value(shared, task_input)]
-#[derive(Debug, Default, Clone, Copy, Hash, DeterministicHash)]
-pub enum SourceMapsType {
-    /// Extracts source maps from input files and writes source maps for output files.
-    #[default]
-    Full,
-    /// Ignores existing input source maps, but writes source maps for output files.
-    Partial,
-    /// Ignores the existence of source maps and does not write source maps for output files.
-    None,
+/// Find a specific emit option type from the list, returning the last matching one.
+///
+/// Returns `None` if no matching option is found, in which case callers should use defaults.
+pub async fn find_emit_option<T>(list: Vc<EmitOptions>) -> Result<Option<Vc<T>>>
+where
+    T: turbo_tasks::VcValueType + turbo_tasks::UpcastStrict<Box<dyn EmitOption>>,
+{
+    let list = list.await?;
+    Ok(list
+        .iter()
+        .rev()
+        .filter_map(|item| ResolvedVc::try_downcast_type::<T>(*item))
+        .next()
+        .map(|v| *v))
 }
 
 /// Suffix to append to asset URLs.
@@ -331,6 +321,14 @@ pub struct WorkerConfigurationOptions {
 #[turbo_tasks::value_trait]
 pub trait ChunkingContext {
     #[turbo_tasks::function]
+    async fn source_map_generation_options(
+        self: Vc<Self>,
+    ) -> Result<Vc<SourceMapGenerationOptions>> {
+        Ok(SourceMapGenerationOptions::from_emitted(*self.emitted_source_map_type().await?).cell())
+    }
+    #[turbo_tasks::function]
+    fn emitted_source_map_type(self: Vc<Self>) -> Vc<OptionSourceMapType>;
+    #[turbo_tasks::function]
     fn name(self: Vc<Self>) -> Vc<RcStr>;
     #[turbo_tasks::function]
     fn source_map_source_type(self: Vc<Self>) -> Vc<SourceMapSourceType>;
@@ -376,10 +374,6 @@ pub trait ChunkingContext {
     /// Reference Source Map Assets for chunks
     #[turbo_tasks::function]
     fn reference_chunk_source_maps(self: Vc<Self>, chunk: Vc<Box<dyn OutputAsset>>) -> Vc<bool>;
-
-    /// Include Source Maps for modules
-    #[turbo_tasks::function]
-    fn reference_module_source_maps(self: Vc<Self>, module: Vc<Box<dyn Module>>) -> Vc<bool>;
 
     /// Returns a URL (relative or absolute, depending on the asset prefix) to
     /// the static asset based on its `ident`.
@@ -446,10 +440,13 @@ pub trait ChunkingContext {
         Vc::cell(false)
     }
 
+    /// Returns the list of emit options for this chunking context.
+    ///
+    /// Emit options allow crate-specific configuration (e.g., SWC minify options,
+    /// CSS minification settings) without requiring turbopack-core to depend on those crates.
+    /// Consumers fall back to their defaults when no option of the requested type is present.
     #[turbo_tasks::function]
-    fn minify_type(self: Vc<Self>) -> Vc<MinifyType> {
-        MinifyType::NoMinify.cell()
-    }
+    fn emit_options(self: Vc<Self>) -> Vc<EmitOptions>;
 
     /// EXPERIMENTAL: minify each chunk item on its own, before the chunk is assembled, instead of
     /// minifying the finished chunk.

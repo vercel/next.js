@@ -225,6 +225,8 @@ function getArgumentsForLineNumber(
 function guessEditor(): string[] {
   // Explicit config always wins
   if (process.env.REACT_EDITOR) {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     return shellQuote.parse(process.env.REACT_EDITOR) as any
   }
 
@@ -238,6 +240,8 @@ function guessEditor(): string[] {
       for (let i = 0; i < processNames.length; i++) {
         const processName = processNames[i]
         if (output.indexOf(processName) !== -1) {
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           return [(COMMON_EDITORS_MACOS as any)[processName]]
         }
       }
@@ -268,6 +272,8 @@ function guessEditor(): string[] {
       for (let i = 0; i < processNames.length; i++) {
         const processName = processNames[i]
         if (output.indexOf(processName) !== -1) {
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           return [(COMMON_EDITORS_LINUX as any)[processName] as string]
         }
       }

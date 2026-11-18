@@ -183,9 +183,9 @@ function addRevalidationHeader(
   // TODO-APP: Currently paths are treated as tags, so the second element of the tuple
   // is always empty.
 
-  // Only count tags without a profile (updateTag) as requiring client cache invalidation
-  // Tags with a profile (revalidateTag) use stale-while-revalidate and shouldn't
-  // trigger immediate client-side cache invalidation
+  // Tags without a profile (updateTag or legacy revalidateTag) require client
+  // cache invalidation. Profiles that resolve to expire: 0 also require it;
+  // revalidate() records those in pathWasRevalidated, handled below.
   const isTagRevalidated = workStore.pendingRevalidatedTags?.some(
     (item) => item.profile === undefined
   )

@@ -25,8 +25,8 @@ use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        ChunkingConfig, ChunkingContext, ChunkingContextExt, ContentHashing, EvaluatableAsset,
-        MangleType, MinifyType, SourceMapsType, availability_info::AvailabilityInfo,
+        ChunkingConfig, ChunkingContext, ChunkingContextExt, ContentHashing, EmitOption,
+        EvaluatableAsset, availability_info::AvailabilityInfo,
     },
     context::AssetContext,
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
@@ -44,9 +44,10 @@ use turbopack_core::{
         origin::{PlainResolveOrigin, ResolveOrigin},
         parse::Request,
     },
+    source_map::SourceMapType,
 };
-use turbopack_css::chunk::CssChunkType;
-use turbopack_ecmascript::chunk::EcmascriptChunkType;
+use turbopack_css::{chunk::CssChunkType, emit_options::CssEmitOptions};
+use turbopack_ecmascript::{chunk::EcmascriptChunkType, emit_options::EcmascriptEmitOptions};
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::dotenv::load_env;
 use turbopack_node::{child_process_backend, execution_context::ExecutionContext};
@@ -73,8 +74,8 @@ pub struct TurbopackBuildBuilder {
     log_level: IssueSeverity,
     show_all: bool,
     log_detail: bool,
-    source_maps_type: SourceMapsType,
-    minify_type: MinifyType,
+    source_maps_type: Option<SourceMapType>,
+    minify: bool,
     target: Target,
     scope_hoist: bool,
     // Prepared inputs detected from .go filenames, not a separate opt-in compiler mode.
@@ -93,10 +94,8 @@ impl TurbopackBuildBuilder {
             log_level: IssueSeverity::Warning,
             show_all: false,
             log_detail: false,
-            source_maps_type: SourceMapsType::Full,
-            minify_type: MinifyType::Minify {
-                mangle: Some(MangleType::OptimalSize),
-            },
+            source_maps_type: Some(SourceMapType::Full),
+            minify: true,
             target: Target::Node,
             scope_hoist: true,
             go_entries: None,
@@ -128,13 +127,13 @@ impl TurbopackBuildBuilder {
         self
     }
 
-    pub fn source_maps_type(mut self, source_maps_type: SourceMapsType) -> Self {
+    pub fn source_maps_type(mut self, source_maps_type: Option<SourceMapType>) -> Self {
         self.source_maps_type = source_maps_type;
         self
     }
 
-    pub fn minify_type(mut self, minify_type: MinifyType) -> Self {
-        self.minify_type = minify_type;
+    pub fn minify(mut self, minify: bool) -> Self {
+        self.minify = minify;
         self
     }
 
@@ -178,7 +177,7 @@ impl TurbopackBuildBuilder {
             self.entry_requests.clone(),
             self.browserslist_query.clone(),
             self.source_maps_type,
-            self.minify_type,
+            self.minify,
             self.target,
             self.scope_hoist,
             watch,
@@ -224,14 +223,25 @@ async fn extract_effects_operation(op: OperationVc<()>) -> Result<Vc<Effects>> {
     Ok(take_effects(op).await?.cell())
 }
 
+fn minify_emit_options() -> [ResolvedVc<Box<dyn EmitOption>>; 2] {
+    let ecma_opts = EcmascriptEmitOptions::builder()
+        .preset_minify_optimal_size()
+        .build();
+    let css_opts = CssEmitOptions::builder().preset_minify().build();
+    [
+        ResolvedVc::upcast(ecma_opts.resolved_cell()),
+        ResolvedVc::upcast(css_opts.resolved_cell()),
+    ]
+}
+
 #[turbo_tasks::function(operation, root)]
 async fn build_internal(
     project_dir: RcStr,
     root_dir: RcStr,
     entry_requests: Vec<EntryRequest>,
     browserslist_query: RcStr,
-    source_maps_type: SourceMapsType,
-    minify_type: MinifyType,
+    source_maps_type: Option<SourceMapType>,
+    minify: bool,
     target: Target,
     scope_hoist: bool,
     watch: bool,
@@ -251,7 +261,7 @@ async fn build_internal(
         js_entries,
         browserslist_query,
         source_maps_type,
-        minify_type,
+        minify,
         target,
         scope_hoist,
         watch,
@@ -275,8 +285,8 @@ async fn build_assets(
     root_dir: RcStr,
     entry_requests: Vec<EntryRequest>,
     browserslist_query: RcStr,
-    source_maps_type: SourceMapsType,
-    minify_type: MinifyType,
+    source_maps_type: Option<SourceMapType>,
+    minify: bool,
     target: Target,
     scope_hoist: bool,
     watch: bool,
@@ -378,7 +388,7 @@ async fn build_assets(
             .map(|request_vc| {
                 let origin_path = origin_path.clone();
                 async move {
-                    let ty = ReferenceType::Entry(EntryReferenceSubType::Undefined);
+                    let ty = ReferenceType::Entry(EntryReferenceSubType::default());
                     let request = request_vc.await?;
                     asset_context
                         .resolve_asset(origin_path, request_vc, resolve_options, ty)
@@ -460,12 +470,15 @@ async fn build_assets(
                 .await?,
                 runtime_type,
             )
-            .source_maps(source_maps_type)
+            .emitted_source_map_type(source_maps_type)
             .module_id_strategy(module_id_strategy)
             .export_usage(Some(binding_usage.connect().to_resolved().await?))
             .unused_references(unused_references)
-            .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
-            .minify_type(minify_type);
+            .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript);
+
+            if minify {
+                builder = builder.emit_options(minify_emit_options());
+            }
 
             match *node_env.await? {
                 NodeEnv::Development => {}
@@ -511,11 +524,14 @@ async fn build_assets(
                 .await?,
                 runtime_type,
             )
-            .source_maps(source_maps_type)
+            .emitted_source_map_type(source_maps_type)
             .module_id_strategy(module_id_strategy)
             .export_usage(Some(binding_usage.connect().to_resolved().await?))
-            .unused_references(unused_references)
-            .minify_type(minify_type);
+            .unused_references(unused_references);
+
+            if minify {
+                builder = builder.emit_options(minify_emit_options());
+            }
 
             match *node_env.await? {
                 NodeEnv::Development => {}
@@ -704,20 +720,14 @@ pub async fn build(args: &BuildArguments, exit: &ExitHandler) -> Result<()> {
         .log_level(
             args.common
                 .log_level
-                .map_or_else(|| IssueSeverity::Warning, |l| l.0),
+                .map_or(IssueSeverity::Warning, |l| l.0),
         )
         .source_maps_type(if args.no_sourcemap {
-            SourceMapsType::None
+            None
         } else {
-            SourceMapsType::Full
+            Some(SourceMapType::Full)
         })
-        .minify_type(if args.no_minify {
-            MinifyType::NoMinify
-        } else {
-            MinifyType::Minify {
-                mangle: Some(MangleType::OptimalSize),
-            }
-        })
+        .minify(!args.no_minify)
         .scope_hoist(!args.no_scope_hoist)
         .target(args.common.target.unwrap_or(Target::Node))
         .show_all(args.common.show_all);

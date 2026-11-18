@@ -54,6 +54,8 @@ export default function createInterface(
         bold(
           red(
             `${formatVariant(scenario, props)}: ${
+              // TODO(as-any): pre-existing cast, not yet reviewed
+              // eslint-disable-next-line @next/internal/no-as-any
               (error && (error as any).stack) || error
             }`
           )

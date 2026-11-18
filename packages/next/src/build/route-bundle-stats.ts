@@ -44,7 +44,10 @@ function toProjectRelativePaths(
   distDir: string,
   relPaths: string[]
 ): string[] {
-  return relPaths.map((f) => path.relative(dir, path.join(distDir, f)))
+  // Always use forward slashes, so the stats are the same on all platforms.
+  return relPaths.map((f) =>
+    path.relative(dir, path.join(distDir, f)).split(path.sep).join('/')
+  )
 }
 
 function buildRouteToAppPathsMap(
