@@ -431,6 +431,7 @@ export const experimentalSchema = {
   turbopackStaleOutputMaxAge: z.number().min(0).finite().optional(),
   turbopackSourceMaps: z.boolean().optional(),
   turbopackInputSourceMaps: z.boolean().optional(),
+  turbopackFileTracingForDev: z.boolean().optional(),
   turbopackModuleFragments: z.boolean().optional(),
   turbopackRemoveUnusedImports: z.boolean().optional(),
   turbopackRemoveUnusedExports: z.boolean().optional(),

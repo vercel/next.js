@@ -13,6 +13,7 @@ import { getProperError } from '../../lib/is-error'
 import { isReactLargeShellError } from './react-large-shell-error'
 import { isInstantValidationError } from './instant-validation/instant-validation-error'
 import { isNextBrowserBailoutError } from '../../shared/lib/lazy-dynamic/react-browser-bailout'
+import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 
 declare global {
   var __next_log_error__: undefined | ((err: unknown) => void)
@@ -143,7 +144,9 @@ export function createReactServerErrorHandler(
         })
       }
 
-      onReactServerRenderError(err, silenceLog)
+      // Error reporting is not rendering. Telemetry reads must not interrupt
+      // the render or opt it into dynamic rendering.
+      workUnitAsyncStorage.exit(onReactServerRenderError, err, silenceLog)
     }
 
     return err.digest
@@ -233,7 +236,8 @@ export function createHTMLErrorHandler(
           })
         }
 
-        onHTMLRenderSSRError(err, errorInfo)
+        // Keep SSR error reporting outside the render scope as well.
+        workUnitAsyncStorage.exit(onHTMLRenderSSRError, err, errorInfo)
       }
     }
 

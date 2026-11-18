@@ -294,6 +294,40 @@ function getRunMetadata(runId) {
 
 const FAILED_CONCLUSIONS = new Set(['failure', 'timed_out', 'startup_failure'])
 
+// Why a completed run that didn't pass can still have no failed jobs. Without a
+// note, the report for such a run looks the same as the one for a passing run.
+const RUN_CONCLUSION_NOTES = {
+  action_required:
+    'The run is waiting for a maintainer to approve its workflows (common for fork PRs), so no jobs have run.',
+  cancelled: 'The run was cancelled before any job failed.',
+  startup_failure:
+    'The workflow failed to start, often because of an invalid workflow file, so no jobs ran.',
+  skipped: 'The run was skipped, so no jobs ran.',
+  stale: 'GitHub marked the run stale before it finished.',
+  failure:
+    'The run failed without a failed job, for example because it waited more than 30 days for approval and expired.',
+}
+
+/**
+ * Returns a note for a completed run that didn't pass, or null for a passing or
+ * unfinished run. Callers show it when the report lists no failed jobs, so the
+ * report isn't mistaken for a clean result.
+ */
+/**
+ * Every status other than `completed` (queued, in_progress, waiting, pending,
+ * requested) means the run hasn't finished.
+ */
+function isRunUnfinished({ status }) {
+  return status !== 'completed'
+}
+
+function describeUnpassedRun({ status, conclusion }) {
+  if (status !== 'completed' || conclusion === 'success') return null
+  return Object.hasOwn(RUN_CONCLUSION_NOTES, conclusion)
+    ? RUN_CONCLUSION_NOTES[conclusion]
+    : `The run concluded "${conclusion}" without any failed jobs.`
+}
+
 function getFailedJobs(runId) {
   // Fetch all jobs first, then filter for failures in JS.
   // We can't use jq filtering during pagination because a page full of
@@ -831,9 +865,12 @@ function generateIndexMd(
     failed.length + succeeded.length + cancelled.length + skipped.length
 
   const isRunComplete = runMetadata.status === 'completed'
-  const reportTitle = isRunComplete
-    ? '# CI Failures Report'
-    : '# CI Status Report'
+  const unpassedNote =
+    failed.length === 0 ? describeUnpassedRun(runMetadata) : null
+  const reportTitle =
+    isRunComplete && !unpassedNote
+      ? '# CI Failures Report'
+      : '# CI Status Report'
 
   const lines = [reportTitle, '', `Branch: ${branchInfo.branchName}`]
 
@@ -852,6 +889,13 @@ function generateIndexMd(
     `URL: ${runMetadata.html_url}`,
     ''
   )
+
+  if (unpassedNote) {
+    lines.push(
+      `> **CI did not pass.** ${unpassedNote} This report has no failed jobs to triage; check the run URL above.`,
+      ''
+    )
+  }
 
   // Progress summary for in-progress runs
   if (!isRunComplete) {
@@ -1612,8 +1656,7 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
   const runMetadata = getRunMetadata(latestRun.id)
 
   // Step 5: Determine fetch strategy based on run status
-  const isRunInProgress =
-    runMetadata.status === 'in_progress' || runMetadata.status === 'queued'
+  const isRunInProgress = isRunUnfinished(runMetadata)
 
   let categorizedJobs
 
@@ -1649,12 +1692,15 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
 
   // Check if we should write an early report (no failed jobs yet)
   const hasNoFailedJobs = categorizedJobs.failed.length === 0
-  const hasInProgressOrQueued =
-    categorizedJobs.inProgress.length > 0 || categorizedJobs.queued.length > 0
 
-  if (hasNoFailedJobs && !hasInProgressOrQueued) {
+  if (hasNoFailedJobs && !isRunInProgress) {
     // Completed run with no failures
-    console.log('No failed jobs found.')
+    const unpassedNote = describeUnpassedRun(runMetadata)
+    console.log(
+      unpassedNote
+        ? `No failed jobs, but the run did not pass (${runMetadata.conclusion}): ${unpassedNote}`
+        : 'No failed jobs found.'
+    )
 
     // Write review files if we have PR data
     if (reviewData) {
@@ -1683,7 +1729,7 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
     return { runId: latestRun.id, isRunInProgress: false }
   }
 
-  if (hasNoFailedJobs && hasInProgressOrQueued) {
+  if (hasNoFailedJobs && isRunInProgress) {
     // In-progress run with no failures yet - still write the progress report
     console.log('No failed jobs yet, but CI is still running.')
   }
@@ -1914,9 +1960,11 @@ if (require.main === module) {
 }
 
 module.exports = {
+  describeUnpassedRun,
   generateIndexMd,
   generateJobMd,
   getJobLogs,
+  isRunUnfinished,
   rawOutputFlagsFromHelp,
   stripAnsi,
   workflowRunsPath,

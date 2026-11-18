@@ -765,6 +765,8 @@ describe('native immediate tracking', () => {
         runInThisContext('Symbol.dispose')
       disposed[nativeDispose]()
       disposed[nativeDispose]()
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       expect(() => setImmediate(undefined as any)).toThrow(/callback/)
 
       await new Promise<void>((resolve) => tracker.onIdle(resolve))
@@ -967,9 +969,13 @@ describe('patched function behavior', () => {
         DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
 
         try {
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           expect(() => setImmediate(undefined as any)).toThrow(
             /The "callback" argument must be of type function. Received undefined/
           )
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           expect(() => setImmediate('not a callback' as any)).toThrow(
             /The "callback" argument must be of type function. Received type string/
           )
@@ -1014,9 +1020,13 @@ describe('patched function behavior', () => {
         DANGEROUSLY_runPendingImmediatesAfterCurrentTask()
 
         try {
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           expect(() => process.nextTick(undefined as any)).toThrow(
             /The "callback" argument must be of type function. Received undefined/
           )
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           expect(() => process.nextTick('not a callback' as any)).toThrow(
             /The "callback" argument must be of type function. Received type string/
           )

@@ -149,6 +149,8 @@ describe('agent upgrade terminal', () => {
 
   // Forget the previous test's CLI, so a setup failure does not print it.
   beforeEach(() => {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     terminal = undefined as any
   })
 

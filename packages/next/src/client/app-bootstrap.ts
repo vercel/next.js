@@ -66,6 +66,8 @@ function loadScriptsInSequence(
 }
 
 export function appBootstrap(hydrate: () => void) {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   loadScriptsInSequence((self as any).__next_s, () => {
     // If the static shell is being debugged, skip hydration if the
     // `__nextppronly` query is present. This is only enabled when the

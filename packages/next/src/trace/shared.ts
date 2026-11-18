@@ -1,10 +1,14 @@
 import { randomBytes } from 'node:crypto'
 
+// TODO(as-any): pre-existing cast, not yet reviewed
+// eslint-disable-next-line @next/internal/no-as-any
 let _traceGlobals: Map<any, any> = (global as any)._traceGlobals
 
 if (!_traceGlobals) {
   _traceGlobals = new Map()
 }
+// TODO(as-any): pre-existing cast, not yet reviewed
+// eslint-disable-next-line @next/internal/no-as-any
 ;(global as any)._traceGlobals = _traceGlobals
 
 export const traceGlobals: Map<any, any> = _traceGlobals

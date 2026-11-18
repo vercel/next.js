@@ -134,8 +134,14 @@ describe('getCloneableBody', () => {
     await cloneable.finalize()
 
     // The request must not masquerade as a writable stream after finalize.
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect((req as any)._writableState).toBeUndefined()
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect((req as any).write).toBeUndefined()
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect((req as any).end).toBeUndefined()
     expect((await readAllWeb(req as unknown as Readable)).toString()).toBe(body)
   })

@@ -1,5 +1,5 @@
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc};
+use turbo_tasks::{OrderedAutoMap, ResolvedVc};
 
 use crate::{
     project::{Instrumentation, Middleware},
@@ -8,8 +8,7 @@ use crate::{
 
 #[turbo_tasks::value(shared)]
 pub struct Entrypoints {
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub routes: FxIndexMap<RcStr, Route>,
+    pub routes: OrderedAutoMap<RcStr, Route>,
     pub middleware: Option<Middleware>,
     pub instrumentation: Option<Instrumentation>,
     pub pages_document_endpoint: ResolvedVc<Box<dyn Endpoint>>,
