@@ -329,6 +329,17 @@ describe('next/font', () => {
         )
       ).toBe('"Open Sans"')
     })
+
+    test('page using fallback fonts together with the adjusted fallback font', async () => {
+      const browser = await next.browser('/with-fallback-adjusted')
+
+      // The size-adjusted `<family> Fallback` face is kept before the manual fallback list
+      expect(
+        await browser.eval(
+          'getComputedStyle(document.querySelector("#with-fallback-adjusted")).fontFamily'
+        )
+      ).toMatch(/^.*Open Sans.*, .*Open Sans Fallback.*, .*system-ui.*, Arial$/)
+    })
   })
 
   describe('preload', () => {

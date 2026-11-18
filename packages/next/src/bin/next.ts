@@ -110,6 +110,8 @@ class NextRootCommand extends Command {
       // its caller's environment instead of forcing all child commands into
       // production mode merely because they were launched through this CLI.
       if (commandName !== 'upgrade' || !event.getOptionValue('agent')) {
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
         process.env.NEXT_RUNTIME = 'nodejs'
       }

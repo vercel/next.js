@@ -1680,6 +1680,8 @@ describe('Image Component App Dir Tests', () => {
       format: 'json',
       isLocal: true,
       validator: 'whatwg',
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
     })) as any
     expect(result.isValid).toBe(true)
     expect(result.errors).toEqual([])

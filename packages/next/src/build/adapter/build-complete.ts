@@ -12,6 +12,7 @@ import { isDynamicRoute } from '../../shared/lib/router/utils'
 import type { Revalidate } from '../../server/lib/cache-control'
 import type { NextConfigComplete } from '../../server/config-shared'
 import {
+  createAppPageEntryLookup,
   normalizeAppPath,
   selectAppPageEntry,
 } from '../../shared/lib/router/utils/app-paths'
@@ -92,7 +93,7 @@ interface SharedRouteFields {
   pathname: string
 
   /**
-   * sourcePage is the original source in the app or pages folder
+   * sourcePage identifies the original app/page source, or a root proxy source.
    */
   sourcePage: string
 
@@ -674,7 +675,6 @@ export async function handleBuildComplete({
   previewProps,
   routesManifest,
   serverPropsPages,
-  hasNodeMiddleware,
   prerenderManifest,
   middlewareManifest,
   requiredServerFiles,
@@ -699,7 +699,6 @@ export async function handleBuildComplete({
   previewProps: __ApiPreviewProps
   bundler: Bundler
   staticPages: Set<string>
-  hasNodeMiddleware: boolean
   config: NextConfigComplete
   pageKeys: readonly string[]
   serverPropsPages: Set<string>
@@ -779,6 +778,8 @@ export async function handleBuildComplete({
         pagesSharedNodeAssetsHashes,
         appPagesSharedNodeAssets,
         appPagesSharedNodeAssetsHashes,
+        routeSharedNodeAssets,
+        routeSharedNodeAssetsHashes,
       } = await getSharedNodeAssets({
         distDir,
         requiredServerFiles,
@@ -793,7 +794,7 @@ export async function handleBuildComplete({
 
       async function handleTraceFiles(
         entryFilePath: string,
-        type: 'pages' | 'app' | 'neutral'
+        type: 'pages' | 'app' | 'proxy'
       ) {
         const assets: Record<string, string> = {}
         const assetsHashes: Record<string, string> = {}
@@ -808,12 +809,14 @@ export async function handleBuildComplete({
         Object.assign(
           assets,
           sharedNodeAssets,
+          type !== 'proxy' ? routeSharedNodeAssets : {},
           type === 'pages' ? pagesSharedNodeAssets : {},
           type === 'app' ? appPagesSharedNodeAssets : {}
         )
         Object.assign(
           assetsHashes,
           sharedNodeAssetsHashes,
+          type !== 'proxy' ? routeSharedNodeAssetsHashes : {},
           type === 'pages' ? pagesSharedNodeAssetsHashes : {},
           type === 'app' ? appPagesSharedNodeAssetsHashes : {}
         )
@@ -1154,27 +1157,62 @@ export async function handleBuildComplete({
         }
       }
 
-      if (hasNodeMiddleware) {
-        const middlewareFile = path.join(distDir, 'server', 'middleware.js')
+      const middlewareConfig = functionsConfigManifest.functions['/_middleware']
+      if (middlewareConfig) {
+        const isGoProxy = middlewareConfig.runtime === 'go'
+        const middlewareFile = path.join(
+          distDir,
+          'server',
+          isGoProxy ? middlewareConfig.nativeEntry : 'middleware.js'
+        )
         const { assets, assetsHashes } = await handleTraceFiles(
           middlewareFile,
-          'neutral'
+          'proxy'
         )
-        const functionConfig =
-          functionsConfigManifest.functions['/_middleware'] || {}
+        let filePath = middlewareFile
+        let sourcePage = 'middleware'
+        if (isGoProxy) {
+          const descriptor = JSON.parse(
+            await fs.readFile(middlewareFile, 'utf8')
+          )
+          if (
+            typeof descriptor.executable !== 'string' ||
+            path.isAbsolute(descriptor.executable) ||
+            !['proxy.go', 'src/proxy.go'].includes(descriptor.source)
+          ) {
+            throw new InvariantError('Invalid native Go proxy descriptor')
+          }
+          const serverDir = path.join(distDir, 'server')
+          filePath = path.resolve(serverDir, descriptor.executable)
+          const relativePath = path.relative(serverDir, filePath)
+          if (
+            !relativePath ||
+            relativePath === '..' ||
+            relativePath.startsWith(`..${path.sep}`) ||
+            path.isAbsolute(relativePath)
+          ) {
+            throw new InvariantError(
+              'Native proxy executable is outside server output'
+            )
+          }
+          for (const destination in assets) {
+            if (assets[destination] === filePath) delete assets[destination]
+          }
+          sourcePage = '/' + descriptor.source.slice(0, -3)
+        }
 
         outputs.middleware = {
           pathname: '/_middleware',
           id: '/_middleware',
-          sourcePage: 'middleware',
+          sourcePage,
           assets,
           assetsHashes,
           type: AdapterOutputType.MIDDLEWARE,
-          runtime: 'nodejs',
-          filePath: middlewareFile,
+          runtime: isGoProxy ? 'go' : 'nodejs',
+          filePath,
           config: {
             matchers:
-              functionConfig.matchers?.map((item) => {
+              middlewareConfig.matchers?.map((item) => {
                 return {
                   source: item.originalSource,
                   sourceRegex: item.regexp,
@@ -1447,7 +1485,9 @@ export async function handleBuildComplete({
         contentTypeHeader: rscContentTypeHeader,
       } = routesManifest.rsc
 
-      const appSourcePages = new Map<string, string>()
+      // Normalize every app page key once, rather than once per prerendered
+      // route, so matching routes to their entries stays linear.
+      const selectAppSourcePage = createAppPageEntryLookup(appPageKeys ?? [])
       const getPrerenderFilePath = (
         route: string,
         isAppPage: boolean,
@@ -1477,10 +1517,7 @@ export async function handleBuildComplete({
           let page = source
           let kind = RouteKind.PAGES
           if (isAppPage) {
-            page =
-              appSourcePages.get(source) ??
-              selectAppPageEntry(source, appPageKeys ?? [])
-            appSourcePages.set(source, page)
+            page = selectAppSourcePage(source)
             kind = page.endsWith('/route')
               ? RouteKind.APP_ROUTE
               : RouteKind.APP_PAGE
@@ -2763,6 +2800,10 @@ async function getSharedNodeAssets({
   const pagesSharedNodeAssetsHashes: Record<string, string> = {}
   const appPagesSharedNodeAssets: Record<string, string> = {}
   const appPagesSharedNodeAssetsHashes: Record<string, string> = {}
+  // The required server files are only needed by route handlers, not by the
+  // proxy.
+  const routeSharedNodeAssets: Record<string, string> = {}
+  const routeSharedNodeAssetsHashes: Record<string, string> = {}
   const salt = config.outputHashSalt || ''
 
   const moduleTypes = ['app-page', 'pages'] as const
@@ -2976,14 +3017,27 @@ async function getSharedNodeAssets({
     )
   }
 
+  // The distDir `package.json` marks `.next/server/**` as CommonJS, so every
+  // Node.js output needs it, including the proxy.
+  const distDirPackageJsonPath = path.join(distDir, 'package.json')
+  await pushAsset(
+    sharedNodeAssets,
+    sharedNodeAssetsHashes,
+    path.relative(repoRoot, distDirPackageJsonPath),
+    distDirPackageJsonPath,
+    bundler,
+    salt
+  )
+
   // Run after hasInstrumentationHook, which inserts the NFT-provided file hash for .next/server/instrumentation.js
   for (const file of requiredServerFiles) {
-    // add to shared node assets
     const filePath = path.join(dir, file)
     const fileOutputPath = path.relative(repoRoot, filePath)
+    // Already a shared asset (e.g. instrumentation, distDir package.json).
+    if (fileOutputPath in sharedNodeAssets) continue
     await pushAsset(
-      sharedNodeAssets,
-      sharedNodeAssetsHashes,
+      routeSharedNodeAssets,
+      routeSharedNodeAssetsHashes,
       fileOutputPath,
       filePath,
       bundler,
@@ -2998,6 +3052,8 @@ async function getSharedNodeAssets({
     pagesSharedNodeAssetsHashes,
     appPagesSharedNodeAssets,
     appPagesSharedNodeAssetsHashes,
+    routeSharedNodeAssets,
+    routeSharedNodeAssetsHashes,
   }
 }
 

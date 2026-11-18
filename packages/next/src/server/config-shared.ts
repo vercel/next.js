@@ -511,7 +511,7 @@ export interface DeprecatedConfig {
 }
 
 export interface ExperimentalConfig {
-  /** Native Go App Router handlers. Turbopack and self-hosted next start only. */
+  /** Enable native Go route handlers and proxies. Requires Turbopack. */
   goRoutes?: boolean
   /**
    * Nudge coding agents about security upgrades, stable releases, or Future Defaults.
@@ -639,8 +639,8 @@ export interface ExperimentalConfig {
   externalMiddlewareRewritesResolve?: boolean
   externalProxyRewritesResolve?: boolean
   /**
-   * Exposes the Instant Navigation Testing API in production builds. This
-   * API is always available in development mode.
+   * Exposes the Instant Navigation Testing API in production builds. This API
+   * requires Cache Components. It is enabled by default in development.
    *
    * The testing API allows e2e tests to control navigation timing, enabling
    * deterministic assertions on prefetched/cached UI before dynamic data
@@ -1105,6 +1105,14 @@ export interface ExperimentalConfig {
    * Enable extraction of source maps from input files. Defaults to true.
    */
   turbopackInputSourceMaps?: boolean
+
+  /**
+   * Enable file tracing (NFT) in the Turbopack dev server. File references in
+   * server code and externals are traced and included in the module graph,
+   * but no `.nft.json` files are written. This option does not change
+   * production builds. Defaults to false.
+   */
+  turbopackFileTracingForDev?: boolean
 
   /**
    * Currently in active development. This splits modules into fragments and

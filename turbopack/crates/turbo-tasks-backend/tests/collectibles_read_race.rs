@@ -125,7 +125,9 @@ struct DriverResult(Vec<(u32, Vec<RcStr>)>);
 
 #[turbo_tasks::function(operation, root)]
 async fn driver(generation: ResolvedVc<Generation>) -> Result<Vc<DriverResult>> {
-    emitter(generation).connect().await?;
+    // Collectibles are only stable after a strongly consistent read of their source. The readers
+    // still race with the collectibles change: they re-execute as soon as the generation changes.
+    emitter(generation).read_strongly_consistent().await?;
     let readers = (0..READERS)
         .map(|index| reader(*generation, index))
         .collect::<Vec<_>>();

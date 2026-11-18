@@ -28,6 +28,8 @@ export const processRoute = (r: Rewrite) => {
   // omit external rewrite destinations since these aren't
   // handled client-side
   if (!rewrite?.destination?.startsWith('/')) {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     delete (rewrite as any).destination
   }
   return rewrite

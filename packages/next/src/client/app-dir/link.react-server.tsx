@@ -8,12 +8,18 @@ export default function LinkComponent(
   const childIsHostComponent =
     typeof props.children === 'string' ||
     typeof props.children === 'number' ||
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     typeof (props.children as any)?.type === 'string'
   const childIsClientComponent =
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     (props.children as any)?.type?.$$typeof ===
     Symbol.for('react.client.reference')
 
   if (isLegacyBehavior && !childIsHostComponent && !childIsClientComponent) {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     if ((props.children as any)?.type?.$$typeof === Symbol.for('react.lazy')) {
       console.error(
         `Using a Lazy Component as a direct child of \`<Link legacyBehavior>\` from a Server Component is not supported. If you need legacyBehavior, wrap your Lazy Component in a Client Component that renders the Link's \`<a>\` tag.`

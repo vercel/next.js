@@ -2,7 +2,7 @@ use anyhow::{Result, bail};
 use rustc_hash::FxHashSet;
 use swc_core::{
     common::source_map::SmallPos,
-    ecma::ast::{Expr, Ident, ImportDecl, MemberProp, Program, Stmt},
+    ecma::ast::{Class, Expr, Function, Ident, ImportDecl, MemberProp, Program, Stmt, ThisExpr},
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
@@ -195,7 +195,8 @@ pub async fn compute_ecmascript_module_exports(
 
                 EcmascriptExports::EsmExports(esm_exports.to_resolved().await?)
             } else if specified_type == SpecifiedModuleType::EcmaScript {
-                match detect_dynamic_export(program) {
+                // A top-level `this` is `undefined` in ESM, so it doesn't indicate CommonJS.
+                match detect_dynamic_export(program, false) {
                     DetectedDynamicExportType::CommonJs => {
                         SpecifiedModuleTypeIssue {
                             // TODO(PACK-4879): this should point at the source location of the
@@ -228,7 +229,8 @@ pub async fn compute_ecmascript_module_exports(
                     ),
                 }
             } else {
-                match detect_dynamic_export(program) {
+                // A top-level `this` is `module.exports` in CommonJS.
+                match detect_dynamic_export(program, true) {
                     DetectedDynamicExportType::CommonJs => EcmascriptExports::CommonJs(None),
                     DetectedDynamicExportType::Namespace => EcmascriptExports::DynamicNamespace,
                     DetectedDynamicExportType::Value => EcmascriptExports::Value,
@@ -270,7 +272,13 @@ enum DetectedDynamicExportType {
 }
 
 // TODO move into ImportMap
-fn detect_dynamic_export(p: &Program) -> DetectedDynamicExportType {
+/// Detects how a module without ESM exports exposes its exports. When
+/// `top_level_this_is_exports` is set, a `this` bound to the module scope counts as a
+/// CommonJS `exports` reference.
+fn detect_dynamic_export(
+    p: &Program,
+    top_level_this_is_exports: bool,
+) -> DetectedDynamicExportType {
     use swc_core::ecma::visit::{Visit, VisitWith, visit_obj_and_computed};
 
     if let Program::Module(m) = p {
@@ -291,6 +299,17 @@ fn detect_dynamic_export(p: &Program) -> DetectedDynamicExportType {
         value: bool,
         namespace: bool,
         found: bool,
+        top_level_this_is_exports: bool,
+        /// How many enclosing scopes rebind `this` (non-arrow functions and classes).
+        this_binding_depth: usize,
+    }
+
+    impl Visitor {
+        fn with_this_binding(&mut self, visit: impl FnOnce(&mut Self)) {
+            self.this_binding_depth += 1;
+            visit(self);
+            self.this_binding_depth -= 1;
+        }
     }
 
     impl Visit for Visitor {
@@ -313,6 +332,25 @@ fn detect_dynamic_export(p: &Program) -> DetectedDynamicExportType {
                 self.namespace = true;
                 self.found = true;
             }
+        }
+
+        fn visit_this_expr(&mut self, _: &ThisExpr) {
+            // A free `this` aliases `module.exports`.
+            if self.top_level_this_is_exports && self.this_binding_depth == 0 {
+                self.cjs = true;
+                self.found = true;
+            }
+        }
+
+        // Arrow functions keep the outer `this`; non-arrow functions (including object
+        // methods, getters and setters) and classes rebind it. A class is treated as a
+        // whole: `this` in a computed member key is missed, which is acceptable.
+        fn visit_function(&mut self, n: &Function) {
+            self.with_this_binding(|this| n.visit_children_with(this));
+        }
+
+        fn visit_class(&mut self, n: &Class) {
+            self.with_this_binding(|this| n.visit_children_with(this));
         }
 
         fn visit_expr(&mut self, n: &Expr) {
@@ -356,6 +394,8 @@ fn detect_dynamic_export(p: &Program) -> DetectedDynamicExportType {
         value: false,
         namespace: false,
         found: false,
+        top_level_this_is_exports,
+        this_binding_depth: 0,
     };
     p.visit_with(&mut v);
     if v.cjs {
@@ -377,4 +417,61 @@ pub fn is_turbopack_helper_import(import: &ImportDecl) -> bool {
 
 pub fn is_swc_helper_import(import: &ImportDecl) -> bool {
     import.src.value.starts_with("@swc/helpers/")
+}
+
+#[cfg(test)]
+mod tests {
+    use swc_core::{
+        common::{FileName, SourceMap, sync::Lrc},
+        ecma::{
+            ast::EsVersion,
+            parser::{Syntax, parse_file_as_program},
+        },
+    };
+
+    use super::{DetectedDynamicExportType, detect_dynamic_export};
+
+    fn is_cjs(code: &str, top_level_this_is_exports: bool) -> bool {
+        let cm = Lrc::new(SourceMap::default());
+        let fm = cm.new_source_file(Lrc::new(FileName::Anon), code.to_string());
+        let program = parse_file_as_program(
+            &fm,
+            Syntax::Es(Default::default()),
+            EsVersion::latest(),
+            None,
+            &mut vec![],
+        )
+        .expect("Failed to parse");
+        matches!(
+            detect_dynamic_export(&program, top_level_this_is_exports),
+            DetectedDynamicExportType::CommonJs
+        )
+    }
+
+    #[test]
+    fn module_scope_this_is_cjs() {
+        assert!(is_cjs("this.a = 1", true));
+        assert!(is_cjs("const f = () => { this.a = 1 }", true));
+        assert!(is_cjs("function f() {} f(this)", true));
+    }
+
+    #[test]
+    fn module_scope_this_is_not_cjs_in_esm() {
+        assert!(!is_cjs("this.a = 1", false));
+    }
+
+    #[test]
+    fn rebound_this_is_not_cjs() {
+        assert!(!is_cjs("function f() { this.a = 1 }", true));
+        assert!(!is_cjs("const f = function () { this.a = 1 }", true));
+        assert!(!is_cjs("const o = { m() { this.a = 1 } }", true));
+        assert!(!is_cjs("const o = { get a() { return this.b } }", true));
+        assert!(!is_cjs("const o = { set a(v) { this.b = v } }", true));
+        assert!(!is_cjs("class A { constructor() { this.a = 1 } }", true));
+        assert!(!is_cjs(
+            "class A { a = this.b; static { this.c = 1 } }",
+            true
+        ));
+        assert!(!is_cjs("function f() { const g = () => this.a }", true));
+    }
 }

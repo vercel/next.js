@@ -33,7 +33,7 @@ use turbopack::{
 };
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{ChunkingConfig, MangleType, MinifyType},
+    chunk::ChunkingConfig,
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
     condition::ContextCondition,
@@ -58,8 +58,8 @@ use turbopack_core::{
     },
     virtual_source::VirtualSource,
 };
-use turbopack_css::chunk::CssChunkType;
-use turbopack_ecmascript::chunk::EcmascriptChunkType;
+use turbopack_css::{chunk::CssChunkType, emit_options::CssEmitOptions};
+use turbopack_ecmascript::{chunk::EcmascriptChunkType, emit_options::EcmascriptEmitOptions};
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_node::{
     child_process_backend,
@@ -254,7 +254,8 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
         snapshot_mode: IssueSnapshotMode,
     ) -> Result<Vc<JsResultWithEffects>> {
         let op = run_inner_operation(resource, snapshot_mode);
-        let result = op.connect().await?.clone();
+        // Collectibles are only stable after a strongly consistent read of their source.
+        let result = op.read_strongly_consistent().await?.clone();
         let effects = take_effects(op).await?;
         Ok(JsResultWithEffects { result, effects }.cell())
     }
@@ -639,13 +640,6 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     )
     .source_map_source_type(turbopack_core::chunk::SourceMapSourceType::RelativeUri)
     .module_merging(options.scope_hoisting)
-    .minify_type(if options.minify {
-        MinifyType::Minify {
-            mangle: Some(MangleType::OptimalSize),
-        }
-    } else {
-        MinifyType::NoMinify
-    })
     .minify_before_chunking(options.minify_before_chunking)
     .export_usage(if options.remove_unused_exports {
         Some(binding_usage.unwrap().connect().to_resolved().await?)
@@ -662,6 +656,16 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 .to_resolved()
                 .await?,
         );
+    }
+
+    if options.minify {
+        let ecma_opts = EcmascriptEmitOptions::builder()
+            .preset_minify_optimal_size()
+            .build();
+        let css_opts = CssEmitOptions::builder().preset_minify().build();
+        builder = builder
+            .emit_option(ResolvedVc::upcast(ecma_opts.resolved_cell()))
+            .emit_option(ResolvedVc::upcast(css_opts.resolved_cell()));
     }
 
     if options.remove_unused_imports {

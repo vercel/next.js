@@ -10,7 +10,7 @@ use serde_json::Value as JsonValue;
 use turbo_esregex::{EsRegex, EsRegexSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, OperationValue, OrderedAutoMap, ResolvedVc, TryJoinIterExt, Vc,
+    NonLocalValue, OperationValue, OrderedAutoMap, ResolvedVc, TryJoinIterExt, Vc,
     debug::ValueDebugFormat,
 };
 use turbo_tasks_env::EnvMap;
@@ -175,9 +175,9 @@ pub struct NextConfig {
     on_demand_entries: OnDemandEntriesConfig,
     powered_by_header: bool,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
-    public_runtime_config: FxIndexMap<String, serde_json::Value>,
+    public_runtime_config: OrderedAutoMap<String, serde_json::Value>,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
-    server_runtime_config: FxIndexMap<String, serde_json::Value>,
+    server_runtime_config: OrderedAutoMap<String, serde_json::Value>,
     static_page_generation_timeout: f64,
     target: Option<String>,
     typescript: TypeScriptConfig,
@@ -491,7 +491,7 @@ pub struct TurbopackConfig {
     #[serde(default)]
     pub rules: OrderedAutoMap<RcStr, RuleConfigCollection>,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
-    pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
+    pub resolve_alias: Option<OrderedAutoMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
     pub debug_ids: Option<bool>,
     pub chunk_loading_global: Option<RcStr>,
@@ -1195,6 +1195,7 @@ pub struct ExperimentalConfig {
     turbopack_plugin_runtime_strategy: Option<TurbopackPluginRuntimeStrategy>,
     turbopack_source_maps: Option<bool>,
     turbopack_input_source_maps: Option<bool>,
+    turbopack_file_tracing_for_dev: Option<bool>,
     turbopack_module_fragments: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
     turbopack_minify_before_chunking: Option<bool>,
@@ -2653,6 +2654,17 @@ impl NextConfig {
             self.experimental
                 .turbopack_input_source_maps
                 .unwrap_or(true),
+        )
+    }
+
+    /// Whether file tracing should be performed in development (without writing `.nft.json`
+    /// files). This option does not change production builds.
+    #[turbo_tasks::function]
+    pub fn turbopack_file_tracing_for_dev(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_file_tracing_for_dev
+                .unwrap_or(false),
         )
     }
 

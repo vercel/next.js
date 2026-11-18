@@ -401,6 +401,7 @@ interface PagePathData {
  * @param pagesDir Absolute path to the pages folder with trailing `/pages`.
  * @param appDir Absolute path to the app folder with trailing `/app`.
  * @param hasInstrumentationInject Whether `instrumentationInject` has entries.
+ * @param goRoutes Whether `experimental.goRoutes` enables root `proxy.go` files.
  */
 export async function findPagePathData(
   rootDir: string,
@@ -409,7 +410,8 @@ export async function findPagePathData(
   pagesDir: string | undefined,
   appDir: string | undefined,
   isGlobalNotFoundEnabled: boolean,
-  hasInstrumentationInject = false
+  hasInstrumentationInject = false,
+  goRoutes = false
 ): Promise<PagePathData> {
   const normalizedPagePath = tryToNormalizePagePath(page)
   let pagePath: string | null = null
@@ -427,7 +429,8 @@ export async function findPagePathData(
       rootDir,
       normalizedPagePath,
       extensions,
-      false
+      false,
+      { goProxy: goRoutes }
     )
 
     if (!pagePath) {
@@ -436,7 +439,7 @@ export async function findPagePathData(
 
     const pageUrl = ensureLeadingSlash(
       removePagePathTail(normalizePathSep(pagePath), {
-        extensions,
+        extensions: pagePath.endsWith('.go') ? ['go'] : extensions,
       })
     )
 
@@ -575,6 +578,8 @@ export function onDemandEntryHandler({
   const hasAppDir = !!appDir
   let curInvalidator: Invalidator = getInvalidator(
     multiCompiler.outputPath
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
   ) as any
   const curEntries = getEntries(multiCompiler.outputPath)
 
@@ -857,7 +862,8 @@ export function onDemandEntryHandler({
           pagesDir,
           appDir,
           !!nextConfig.experimental.globalNotFound,
-          hasInstrumentationInject
+          hasInstrumentationInject,
+          !!nextConfig.experimental.goRoutes
         )
       }
 

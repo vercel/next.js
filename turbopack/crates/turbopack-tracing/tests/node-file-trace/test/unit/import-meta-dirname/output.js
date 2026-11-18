@@ -1,0 +1,9 @@
+;[
+  'package.json',
+  'test/unit/import-meta-dirname/asset-computed.txt',
+  'test/unit/import-meta-dirname/asset-filename.txt',
+  'test/unit/import-meta-dirname/asset-join.txt',
+  'test/unit/import-meta-dirname/asset-resolve.txt',
+  'test/unit/import-meta-dirname/asset-tpl.txt',
+  'test/unit/import-meta-dirname/input.js',
+]

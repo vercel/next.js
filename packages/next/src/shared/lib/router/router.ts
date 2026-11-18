@@ -918,6 +918,8 @@ export default class Router implements BaseRouter {
         }).then((matches) => {
           // if middleware matches we leave resolving to the change function
           // as the server needs to resolve for correct priority
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           ;(options as any)._shouldResolveHref = as !== pathname
 
           this.changeState(
@@ -1158,15 +1160,19 @@ export default class Router implements BaseRouter {
           return new Promise(() => {})
         }
 
-        const routerFilterSValue: Filter | false = process.env
-          .__NEXT_CLIENT_ROUTER_S_FILTER as any
+        const routerFilterSValue: Filter | false =
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
+          process.env.__NEXT_CLIENT_ROUTER_S_FILTER as any
 
         if (!staticFilterData && routerFilterSValue) {
           staticFilterData = routerFilterSValue ? routerFilterSValue : undefined
         }
 
-        const routerFilterDValue: Filter | false = process.env
-          .__NEXT_CLIENT_ROUTER_D_FILTER as any
+        const routerFilterDValue: Filter | false =
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
+          process.env.__NEXT_CLIENT_ROUTER_D_FILTER as any
 
         if (!dynamicFilterData && routerFilterDValue) {
           dynamicFilterData = routerFilterDValue
@@ -1267,6 +1273,8 @@ export default class Router implements BaseRouter {
     // WARNING: `_h` is an internal option for handing Next.js client-side
     // hydration. Your app should _never_ use this property. It may change at
     // any time without notice.
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     const isQueryUpdating = (options as any)._h === 1
 
     if (!isQueryUpdating && !options.shallow) {
@@ -1275,6 +1283,8 @@ export default class Router implements BaseRouter {
 
     let shouldResolveHref =
       isQueryUpdating ||
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       (options as any)._shouldResolveHref ||
       parsePath(url).pathname === parsePath(as).pathname
 
@@ -1506,7 +1516,11 @@ export default class Router implements BaseRouter {
     )
     if (
       (appRouterMarkerKey !== null &&
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         (this.components[appRouterMarkerKey] as any)?.__appRouter) ||
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       (this.components[route] as any)?.__appRouter
     ) {
       handleHardNavigation({ url: as, router: this })
@@ -1535,6 +1549,8 @@ export default class Router implements BaseRouter {
     }
 
     if (shouldResolveHref && pathname !== '/_error') {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       ;(options as any)._shouldResolveHref = true
 
       if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
@@ -1627,6 +1643,8 @@ export default class Router implements BaseRouter {
     // A config rewrite can resolve `href` to another pages route after the
     // marker guard above ran. That route can hold a marker from an earlier
     // prefetch, so check it again before `getRouteInfo()` reads the cache.
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     if ((this.components[route] as any)?.__appRouter) {
       handleHardNavigation({ url: as, router: this })
       return new Promise(() => {})
@@ -2083,6 +2101,8 @@ export default class Router implements BaseRouter {
             err,
             pathname,
             query,
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
           } as any)
         } catch (gipErr) {
           console.error('Error in error page `getInitialProps`: ', gipErr)
@@ -2148,6 +2168,8 @@ export default class Router implements BaseRouter {
       // marker is not route info: it has no `Component` and no `props`, so
       // rendering it crashes `_app`. Treat it as a cache miss and fetch the
       // route info again; `change()` is responsible for the hard navigation.
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       if (existingInfo && (existingInfo as any).__appRouter) {
         existingInfo = undefined
       }
@@ -2252,6 +2274,8 @@ export default class Router implements BaseRouter {
 
           // Check again the cache with the new destination.
           existingInfo = this.components[route]
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           if (existingInfo && (existingInfo as any).__appRouter) {
             existingInfo = undefined
           }
@@ -2346,6 +2370,8 @@ export default class Router implements BaseRouter {
               locale,
               locales: this.locales,
               defaultLocale: this.defaultLocale,
+              // TODO(as-any): pre-existing cast, not yet reviewed
+              // eslint-disable-next-line @next/internal/no-as-any
             } as any
           ),
         }
@@ -2653,6 +2679,8 @@ export default class Router implements BaseRouter {
         appRouterMarkerKey !== null &&
         this.components[appRouterMarkerKey] === undefined
       ) {
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         this.components[appRouterMarkerKey] = { __appRouter: true } as any
       }
     }

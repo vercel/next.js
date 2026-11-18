@@ -5,7 +5,12 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 )
+
+// Adapter builds serve requests from the platform, not from Next.js, so
+// x-next-internal-* request headers can only come from the client.
+const nextGoTrustInternalHeaders = false
 
 func main() {
 	port := os.Getenv("PORT")
@@ -17,7 +22,15 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	server := &http.Server{Handler: nextGoHandler()}
+	handler := nextGoHandler()
+	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		for name := range r.Header {
+			if strings.HasPrefix(strings.ToLower(name), "x-next-internal-") {
+				delete(r.Header, name)
+			}
+		}
+		handler(w, r)
+	})}
 	if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
 		panic(err)
 	}
