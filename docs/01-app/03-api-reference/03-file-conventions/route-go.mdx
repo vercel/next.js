@@ -129,6 +129,8 @@ Sibling `.go` files compile together with `route.go` and must use the same packa
 
 Direct `go run` and `go test` do not inject the generated wrapper or `ParamValues` helper. Run the route through Next.js to test its integration. Brackets, parentheses, and other characters in route directory names do not need to form valid Go import paths: Next.js compiles the route package from a virtual directory and reports errors and stack traces against the original files.
 
+In adapter builds, all route directories compile into one executable, which is one Go program with one main module. Every route directory must therefore belong to the same Go module, or none of them may have a `go.mod`. A compile error in any Go route fails the build for all of them. Each route directory remains a separate package, so package-level names in different routes do not conflict, and each route can import the same `internal` packages as in development, including routes inside an `internal` directory.
+
 Go routes support `app`, `src/app`, [route groups](/docs/app/api-reference/file-conventions/route-groups), and [dynamic segments](/docs/app/api-reference/file-conventions/dynamic-routes). A Go handler cannot share its URL with another Route Handler or page.
 
 ### Development and Errors
@@ -462,7 +464,7 @@ For self-hosting, use Turbopack `next build` and `next start`. Copy the complete
 
 Go Route Handlers have no build-time prerendering mode, so they cannot produce static response files for [`output: 'export'`](/docs/app/guides/static-exports#route-handlers).
 
-Adapter deployments require an adapter that supports `runtime: 'go'`. See [Go adapter outputs](/docs/app/api-reference/adapters/output-types#app-routes-outputsapproutes) and [invoking Go entrypoints](/docs/app/api-reference/adapters/invoking-entrypoints#go-runtime-runtime-go) for packaging and the HTTP server contract. Deployment platforms own routing, rewrites, and proxy execution. Work after the response completes has no completion guarantee.
+Adapter deployments require an adapter that supports `runtime: 'go'`. Adapter builds compile every Go Route Handler into one executable that dispatches requests by path, and all Go route outputs share its `filePath`. See [Go adapter outputs](/docs/app/api-reference/adapters/output-types#app-routes-outputsapproutes) and [invoking Go entrypoints](/docs/app/api-reference/adapters/invoking-entrypoints#go-runtime-runtime-go) for packaging and the HTTP server contract. Deployment platforms own routing, rewrites, and proxy execution. Work after the response completes has no completion guarantee.
 
 ## Build and Runtime Limitations
 

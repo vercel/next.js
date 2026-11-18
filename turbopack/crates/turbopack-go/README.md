@@ -127,6 +127,18 @@ Discovery mirrors the directory's regular files, plus the subtree below each emb
 pattern's fixed prefix, and tracks the source files Go reads. Nothing is written to the
 project.
 
+`go_packages_bundle_from_sources(packages, target_session, entrypoint, generated)` compiles
+several selected directories into one executable with a single `go build`. `packages` maps each
+alias to its resolved source set; every directory is overlaid at its alias with the same
+mirroring, `//line` directives, diagnostic mapping and input tracking as a single package, and
+generated files under an alias join that package. Generated Go files directly in `entrypoint`
+form the `main` package; other generated Go files form additional packages, for example ones
+that re-export a package whose `internal` path hides it from `main`. Go builds one main module,
+so all directories must share one go.mod, or none may have one. Directories from different
+modules are rejected rather than combined through a workspace. `go_packages_root` returns the
+directory that aliases and generated paths are relative to: the module root, or without a
+go.mod the directories' nearest common ancestor, which then needs a generated `go.mod`.
+
 `GoSessionPool` lazily probes `GoToolchainOptions`, constructs persistent host or target
 sessions, retains their restored cancellation handles, and leases module-cache watchers.
 Acquire sessions from a session-dependent task. Pass `None` for a host analysis tool,

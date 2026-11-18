@@ -19,7 +19,8 @@ use turbopack_go::{
     GoBuildContext, GoBuildOptions, GoBuildOutcome, GoBuildSession, GoBundleResult, GoDeclarations,
     GoSessionPool, GoSourceSelection, GoSourceSet, GoTarget, GoToolchainOptions, filesystem,
     filesystem_with_poll_interval, go_bundle_from_sources, go_bundle_with_generated_files,
-    go_declarations, go_package_bundle_from_sources, go_source_set, read_with_validated_inputs,
+    go_declarations, go_package_bundle_from_sources, go_packages_bundle_from_sources,
+    go_source_set, read_with_validated_inputs,
 };
 
 fn copy_tree(source: &Path, target: &Path) -> Result<()> {
@@ -1791,4 +1792,472 @@ fn framework_filesystem(path: RcStr) -> Vc<DiskFileSystem> {
         DiskWatcherConfig::default(),
         DiskFileSystemMap::empty(),
     )
+}
+
+#[turbo_tasks::function(operation, root)]
+fn selected_packages_bundle(
+    packages: BTreeMap<RcStr, ResolvedVc<GoSourceSet>>,
+    options: GoBuildOptions,
+    entrypoint: RcStr,
+    generated: BTreeMap<RcStr, RcStr>,
+) -> Vc<GoBundleResult> {
+    go_packages_bundle_from_sources(
+        packages,
+        GoBuildSession::persistent("source-set-test".into(), options),
+        entrypoint,
+        generated,
+    )
+}
+
+/// Directory of the generated `main` package in multi-package tests.
+const MAIN: &str = "_next_go/main";
+
+/// Select every directory and compile them as packages of one executable, keyed by alias.
+async fn build_packages(
+    session: &Session,
+    directories: &[(&str, &str)],
+    entrypoint: &str,
+    generated: &BTreeMap<RcStr, RcStr>,
+) -> Result<turbo_tasks::ReadRef<GoBundleResult>> {
+    let root = FileSystemPath {
+        fs: ResolvedVc::upcast(session.fs),
+        path: rcstr!(""),
+    };
+    let options = session.go_context.options.clone();
+    let directories: Vec<(RcStr, RcStr)> = directories
+        .iter()
+        .map(|(alias, directory)| (RcStr::from(*alias), RcStr::from(*directory)))
+        .collect();
+    let generated = generated.clone();
+    let entrypoint = RcStr::from(entrypoint);
+    session
+        .tt
+        .run_once(async move {
+            read_with_validated_inputs(
+                || {
+                    let root = root.clone();
+                    let options = options.clone();
+                    let directories = directories.clone();
+                    let generated = generated.clone();
+                    let entrypoint = entrypoint.clone();
+                    async move {
+                        let mut packages = BTreeMap::new();
+                        for (alias, directory) in directories {
+                            let sources = selected_sources(
+                                root.clone(),
+                                root.join(&directory)?,
+                                GoSourceSelection::Directory,
+                                options.clone(),
+                            )
+                            .resolve()
+                            .strongly_consistent()
+                            .await?;
+                            packages.insert(alias, sources);
+                        }
+                        selected_packages_bundle(packages, options, entrypoint, generated)
+                            .read_strongly_consistent()
+                            .await
+                    }
+                },
+                |value| Some(&**value),
+            )
+            .await
+        })
+        .await
+}
+
+async fn run_package_bundle(
+    session: &Session,
+    result: turbo_tasks::ReadRef<GoBundleResult>,
+) -> Result<String> {
+    let bytes = session
+        .tt
+        .run_once(async move {
+            let GoBuildOutcome::Success(file) = &result.outcome else {
+                anyhow::bail!("unexpected result: {:?}", result.outcome);
+            };
+            let file = file.await?;
+            let FileContent::Content(file) = &*file else {
+                anyhow::bail!("missing executable");
+            };
+            let mut bytes = vec![];
+            file.read().read_to_end(&mut bytes)?;
+            anyhow::Ok(bytes)
+        })
+        .await?;
+    session.run_bytes(bytes).await
+}
+
+/// Generated route package file: a matcher for one route pattern, like the matcher Next.js
+/// generates, without importing anything the route does not.
+fn generated_matcher(pattern: &str) -> RcStr {
+    r#"package route
+
+import "strings"
+
+func Match(path string) bool {
+	pattern := strings.Split(strings.Trim("PATTERN", "/"), "/")
+	var segments []string
+	if trimmed := strings.Trim(path, "/"); trimmed != "" {
+		segments = strings.Split(trimmed, "/")
+	}
+	for i, segment := range pattern {
+		if strings.HasPrefix(segment, "[...") {
+			return len(segments) > i
+		}
+		if i >= len(segments) || (!strings.HasPrefix(segment, "[") && segment != segments[i]) {
+			return false
+		}
+	}
+	return len(segments) == len(pattern)
+}
+"#
+    .replace("PATTERN", pattern)
+    .into()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn generated_entry_imports_several_source_directories_as_packages() -> Result<()> {
+    let session = Session::new().await?;
+    // Neither directory name is a valid import path, and both packages use the same name and
+    // declare the same identifiers: each directory stays a separate package.
+    let id = "app/(group)/[id]";
+    let slug = "app/[...slug]";
+    let fixed = "app/fixed";
+    session
+        .write(
+            &format!("{id}/route.go"),
+            "package route\n\nimport \
+             (\n\t\"embed\"\n\n\t\"example.com/native-fixture/internal/message\"\n)\n\n//go:embed \
+             assets/*\nvar assets embed.FS\n\nfunc Name() string {\n\tasset, _ := \
+             assets.ReadFile(\"assets/message.txt\")\n\treturn \"id:\" + string(asset) + \":\" + \
+             message.Text()\n}\n",
+        )
+        .await?;
+    session
+        .write(&format!("{id}/assets/message.txt"), "asset-v1")
+        .await?;
+    session
+        .write(
+            &format!("{slug}/route.go"),
+            "package route\n\nfunc Name() string { return \"slug:\" + sibling() }\n",
+        )
+        .await?;
+    session
+        .write(
+            &format!("{slug}/sibling.go"),
+            "package route\n\nfunc sibling() string { return \"sibling-v1\" }\n",
+        )
+        .await?;
+    session
+        .write(
+            &format!("{fixed}/route.go"),
+            "package route\n\nfunc Name() string { return \"fixed\" }\n",
+        )
+        .await?;
+    let directories = [
+        ("_next_go/route_id", id),
+        ("_next_go/route_slug", slug),
+        ("_next_go/route_fixed", fixed),
+    ];
+    // Like the entrypoint Next.js generates, main lists routes in precedence order (static,
+    // then `[id]`, then the catch-all) and dispatches each path to the first match.
+    let generated = BTreeMap::from([
+        (
+            rcstr!("_next_go/main/main.go"),
+            rcstr!(
+                "package main\n\nimport (\n\t\"fmt\"\n\t\"strings\"\n\n\tfixed \
+                 \"example.com/native-fixture/_next_go/route_fixed\"\n\tid \
+                 \"example.com/native-fixture/_next_go/route_id\"\n\tslug \
+                 \"example.com/native-fixture/_next_go/route_slug\"\n)\n\nvar routes = []struct \
+                 {\n\tmatch func(string) bool\n\tname  func() string\n}{\n\t{fixed.Match, \
+                 fixed.Name},\n\t{id.Match, id.Name},\n\t{slug.Match, slug.Name},\n}\n\nfunc \
+                 main() {\n\tvar out []string\n\tfor _, path := range []string{\"/fixed\", \
+                 \"/one\", \"/one/two\", \"/\"} {\n\t\tname := \"404\"\n\t\tfor _, route := range \
+                 routes {\n\t\t\tif route.match(path) {\n\t\t\t\tname = \
+                 route.name()\n\t\t\t\tbreak\n\t\t\t}\n\t\t}\n\t\tout = append(out, \
+                 path+\"=\"+name)\n\t}\n\tfmt.Print(strings.Join(out, \" \"))\n}\n"
+            ),
+        ),
+        (
+            rcstr!("_next_go/route_fixed/zz_generated.go"),
+            generated_matcher("/fixed"),
+        ),
+        (
+            rcstr!("_next_go/route_id/zz_generated.go"),
+            generated_matcher("/[id]"),
+        ),
+        (
+            rcstr!("_next_go/route_slug/zz_generated.go"),
+            generated_matcher("/[...slug]"),
+        ),
+    ]);
+    let first = build_packages(&session, &directories, MAIN, &generated).await?;
+    let builds = session.counts().1;
+    assert_eq!(
+        run_package_bundle(&session, first).await?,
+        "/fixed=fixed /one=id:asset-v1:helper-v1 /one/two=slug:sibling-v1 /=404"
+    );
+    assert!(
+        !session.project.join("_next_go").exists(),
+        "virtual package directories must not be written to the project"
+    );
+    // One build compiles every package, and an unchanged request reuses it.
+    build_packages(&session, &directories, MAIN, &generated).await?;
+    assert_eq!(session.counts().1, builds);
+    // Sources and embedded files of every directory remain compiler inputs.
+    session
+        .write(
+            &format!("{slug}/sibling.go"),
+            "package route\n\nfunc sibling() string { return \"sibling-v2\" }\n",
+        )
+        .await?;
+    assert!(
+        run_package_bundle(
+            &session,
+            build_packages(&session, &directories, MAIN, &generated).await?
+        )
+        .await?
+        .contains("/one/two=slug:sibling-v2")
+    );
+    session
+        .write(&format!("{id}/assets/message.txt"), "asset-v2")
+        .await?;
+    assert!(
+        run_package_bundle(
+            &session,
+            build_packages(&session, &directories, MAIN, &generated).await?
+        )
+        .await?
+        .contains("/one=id:asset-v2:helper-v1")
+    );
+    session
+        .replace("internal/message/message.go", "helper-v1", "helper-v2")
+        .await?;
+    assert!(
+        run_package_bundle(
+            &session,
+            build_packages(&session, &directories, MAIN, &generated).await?
+        )
+        .await?
+        .contains("/one=id:asset-v2:helper-v2")
+    );
+    // Diagnostics name the failing source file, not a virtual package directory.
+    session
+        .write(
+            &format!("{slug}/sibling.go"),
+            "package route\n\nfunc sibling() string { return missing() }\n",
+        )
+        .await?;
+    let result = build_packages(&session, &directories, MAIN, &generated).await?;
+    let GoBuildOutcome::Failed(message) = &result.outcome else {
+        anyhow::bail!("unexpected result: {:?}", result.outcome);
+    };
+    let expected = session.project.join(slug).join("sibling.go:3");
+    assert!(
+        message.contains(expected.to_str().unwrap()) && !message.contains("_next_go"),
+        "{message}"
+    );
+    assert!(!message.contains("[id]"), "{message}");
+    session
+        .write(
+            &format!("{slug}/sibling.go"),
+            "package route\n\nfunc sibling() string { return \"sibling-v3\" }\n",
+        )
+        .await?;
+    assert!(
+        run_package_bundle(
+            &session,
+            build_packages(&session, &directories, MAIN, &generated).await?
+        )
+        .await?
+        .contains("/one/two=slug:sibling-v3")
+    );
+    session.stop().await;
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn packages_without_go_mod_share_a_generated_module_and_reject_mixed_modules() -> Result<()> {
+    let session = Session::new().await?;
+    std::fs::remove_file(session.project.join("go.mod"))?;
+    let id = "app/a/[id]";
+    let slug = "app/b/[...slug]";
+    session
+        .write(
+            &format!("{id}/route.go"),
+            "package route\n\nfunc Name() string { return \"id\" }\n",
+        )
+        .await?;
+    session
+        .write(
+            &format!("{slug}/route.go"),
+            "package route\n\nfunc Name() string { return \"slug\" }\n",
+        )
+        .await?;
+    let directories = [("_next_go/route_id", id), ("_next_go/route_slug", slug)];
+    // Aliases and the generated go.mod are relative to the directories' common ancestor.
+    let generated = BTreeMap::from([
+        (
+            rcstr!("go.mod"),
+            rcstr!("module next-go-route\n\ngo 1.24\n"),
+        ),
+        (
+            rcstr!("_next_go/main/main.go"),
+            rcstr!(
+                "package main\n\nimport (\n\t\"fmt\"\n\n\tid \
+                 \"next-go-route/_next_go/route_id\"\n\tslug \
+                 \"next-go-route/_next_go/route_slug\"\n)\n\nfunc main() { fmt.Print(id.Name() + \
+                 \",\" + slug.Name()) }\n"
+            ),
+        ),
+    ]);
+    let result = build_packages(&session, &directories, MAIN, &generated).await?;
+    assert_eq!(run_package_bundle(&session, result).await?, "id,slug");
+    assert!(!session.project.join("app/go.mod").exists());
+    assert!(!session.project.join("app/_next_go").exists());
+    // Go builds one main module, so a directory with its own module cannot join the others.
+    session
+        .write(
+            &format!("{slug}/go.mod"),
+            "module example.com/nested\n\ngo 1.24\n",
+        )
+        .await?;
+    let error = build_packages(&session, &directories, MAIN, &generated)
+        .await
+        .err()
+        .context("packages from different modules unexpectedly compiled")?;
+    assert!(
+        format!("{error:#}").contains("must belong to one Go module"),
+        "{error:#}"
+    );
+    session.stop().await;
+    Ok(())
+}
+
+/// A generated package that re-exports `Name` from `import`, like the shims Next.js generates
+/// so its entrypoint can reach route packages hidden by `internal` visibility.
+fn generated_shim(import: &str) -> RcStr {
+    format!(
+        "package shim\n\nimport next {import:?}\n\nfunc Name() string {{ return next.Name() }}\n"
+    )
+    .into()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn internal_route_packages_are_imported_through_generated_packages() -> Result<()> {
+    let session = Session::new().await?;
+    // `app/internal/greeting` is only visible below `app`.
+    session
+        .write(
+            "app/internal/greeting/greeting.go",
+            "package greeting\n\nfunc Text() string { return \"greeting\" }\n",
+        )
+        .await?;
+    let route = |name: &str| {
+        format!(
+            "package route\n\nimport \"example.com/native-fixture/app/internal/greeting\"\n\nfunc \
+             Name() string {{ return \"{name}:\" + greeting.Text() }}\n"
+        )
+    };
+    // A normal route, a route below one `internal` element and one below two of them.
+    let id = "app/(group)/[id]";
+    let health = "app/internal/health";
+    let leaf = "app/internal/deep/internal/leaf";
+    session
+        .write(&format!("{id}/route.go"), &route("id"))
+        .await?;
+    session
+        .write(&format!("{health}/route.go"), &route("health"))
+        .await?;
+    session
+        .write(&format!("{leaf}/route.go"), &route("leaf"))
+        .await?;
+    // Aliases stay below every `x` whose `x/internal/...` packages the routes import.
+    let directories = [
+        ("app/_next_go_route_id", id),
+        ("app/internal/health/_next_go_route_health", health),
+        ("app/internal/deep/internal/leaf/_next_go_route_leaf", leaf),
+    ];
+    let module = "example.com/native-fixture";
+    let main = |health: &str, leaf: &str| -> RcStr {
+        format!(
+            "package main\n\nimport (\n\t\"fmt\"\n\n\tid {:?}\n\thealth {:?}\n\tleaf \
+             {:?}\n)\n\nfunc main() {{ fmt.Print(id.Name() + \",\" + health.Name() + \",\" + \
+             leaf.Name()) }}\n",
+            format!("{module}/app/_next_go_route_id"),
+            format!("{module}/{health}"),
+            format!("{module}/{leaf}"),
+        )
+        .into()
+    };
+    // Outside `app`, the entrypoint cannot import the internal route packages directly.
+    let direct = BTreeMap::from([(
+        rcstr!("_next_go_main_routes/main.go"),
+        main(
+            "app/internal/health/_next_go_route_health",
+            "app/internal/deep/internal/leaf/_next_go_route_leaf",
+        ),
+    )]);
+    let result = build_packages(&session, &directories, "_next_go_main_routes", &direct).await?;
+    let GoBuildOutcome::Failed(message) = &result.outcome else {
+        anyhow::bail!("unexpected result: {:?}", result.outcome);
+    };
+    assert!(message.contains("use of internal package"), "{message}");
+    // A generated package beside each `internal` element re-exports the package below it, from
+    // the deepest element to the shallowest. The entrypoint imports the outermost one.
+    let shimmed = BTreeMap::from([
+        (
+            rcstr!("_next_go_main_routes/main.go"),
+            main("app/_next_go_shim_health", "app/_next_go_shim_leaf_outer"),
+        ),
+        (
+            rcstr!("app/_next_go_shim_health/shim.go"),
+            generated_shim(&format!(
+                "{module}/app/internal/health/_next_go_route_health"
+            )),
+        ),
+        (
+            rcstr!("app/internal/deep/_next_go_shim_leaf_inner/shim.go"),
+            generated_shim(&format!(
+                "{module}/app/internal/deep/internal/leaf/_next_go_route_leaf"
+            )),
+        ),
+        (
+            rcstr!("app/_next_go_shim_leaf_outer/shim.go"),
+            generated_shim(&format!(
+                "{module}/app/internal/deep/_next_go_shim_leaf_inner"
+            )),
+        ),
+    ]);
+    let result = build_packages(&session, &directories, "_next_go_main_routes", &shimmed).await?;
+    assert_eq!(
+        run_package_bundle(&session, result).await?,
+        "id:greeting,health:greeting,leaf:greeting"
+    );
+    for directory in ["app", "app/internal", "app/internal/deep", ""] {
+        assert!(
+            std::fs::read_dir(session.project.join(directory))?.all(|entry| !entry
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .starts_with("_next_go")),
+            "generated packages must not be written to {directory}"
+        );
+    }
+    // Shared `internal` packages stay compiler inputs of every route.
+    session
+        .replace(
+            "app/internal/greeting/greeting.go",
+            "\"greeting\"",
+            "\"hello\"",
+        )
+        .await?;
+    let result = build_packages(&session, &directories, "_next_go_main_routes", &shimmed).await?;
+    assert_eq!(
+        run_package_bundle(&session, result).await?,
+        "id:hello,health:hello,leaf:hello"
+    );
+    session.stop().await;
+    Ok(())
 }
