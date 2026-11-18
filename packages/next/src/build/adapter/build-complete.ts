@@ -560,8 +560,9 @@ type Route = {
 
 export interface NextAdapterCapabilities {
   /**
-   * Omits per-route HTML-limited bot bypasses from this adapter's outputs. The
-   * deployment target must select bot-compatible prerender responses.
+   * The deployment target honors the configured `htmlLimitedBots` pattern when
+   * serving prerendered pages. Matching user agents receive complete metadata
+   * in the initial HTML `<head>`.
    */
   handlesHtmlLimitedBotPrerenders?: boolean
 }
