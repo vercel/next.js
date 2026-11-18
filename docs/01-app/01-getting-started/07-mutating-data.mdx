@@ -503,6 +503,76 @@ export async function createPost(formData) {
 
 Calling `redirect` [throws](/docs/app/api-reference/functions/redirect#behavior) a framework handled control-flow exception. Any code after it won't execute. If you need fresh data, call [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) beforehand.
 
+#### Handling redirects in client code
+
+When a Client Component awaits a Server Action that calls `redirect()`, the promise is rejected with a Next.js redirect error. Code immediately after the `await` does not run. A surrounding `catch` receives the error, and a `finally` block still runs. This applies to both internal and external redirect destinations.
+
+Next.js handles the navigation separately from the promise rejection. Catching the redirect error on the client does not cancel that navigation, but treating it as an application error can show an error message before the destination loads.
+
+If you add custom error handling around an awaited action, call [`unstable_rethrow`](/docs/app/api-reference/functions/unstable_rethrow) at the start of the `catch` block. It rethrows Next.js control-flow errors before your application error handling runs:
+
+```tsx filename="app/ui/create-post-form.tsx" switcher
+'use client'
+
+import { useState } from 'react'
+import { unstable_rethrow } from 'next/navigation'
+import { createPost } from '@/app/lib/actions'
+
+export function CreatePostForm() {
+  const [error, setError] = useState('')
+
+  return (
+    <form
+      action={async (formData) => {
+        setError('')
+        try {
+          await createPost(formData)
+        } catch (err) {
+          unstable_rethrow(err)
+          setError('Could not create the post.')
+        }
+      }}
+    >
+      <input name="title" aria-label="Post title" required />
+      <button type="submit">Create post</button>
+      {error && <p role="alert">{error}</p>}
+    </form>
+  )
+}
+```
+
+```jsx filename="app/ui/create-post-form.js" switcher
+'use client'
+
+import { useState } from 'react'
+import { unstable_rethrow } from 'next/navigation'
+import { createPost } from '@/app/lib/actions'
+
+export function CreatePostForm() {
+  const [error, setError] = useState('')
+
+  return (
+    <form
+      action={async (formData) => {
+        setError('')
+        try {
+          await createPost(formData)
+        } catch (err) {
+          unstable_rethrow(err)
+          setError('Could not create the post.')
+        }
+      }}
+    >
+      <input name="title" aria-label="Post title" required />
+      <button type="submit">Create post</button>
+      {error && <p role="alert">{error}</p>}
+    </form>
+  )
+}
+```
+
+The same error handling applies when you await an action inside `startTransition` in an event handler. To show a success message after a redirect, render it on the destination page instead of relying on code after the awaited call.
+
 ### Cookies
 
 You can `get`, `set`, and `delete` cookies inside a Server Action using the [`cookies`](/docs/app/api-reference/functions/cookies) API.

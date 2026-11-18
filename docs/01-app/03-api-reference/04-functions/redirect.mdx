@@ -46,6 +46,8 @@ The `type` parameter has no effect when used in Server Components.
 
 `redirect` does not return a value.
 
+When a Client Component awaits a Server Action that calls `redirect`, the action's promise is rejected with a Next.js redirect error. See [Handling redirects in client code](/docs/app/getting-started/mutating-data#handling-redirects-in-client-code) for the effect on code after `await` and custom error handling.
+
 ## Behavior
 
 - In Server Actions and Route Handlers, redirect should be called **outside** the `try` block when using `try/catch` statements.
