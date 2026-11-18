@@ -324,6 +324,8 @@ export default class NextNodeServer extends BaseServer<
     await this.loadCustomCacheHandlers()
 
     for (const page of Object.keys(pagesManifest || {})) {
+      // Allow pending I/O before loading each entry.
+      await new Promise<void>((resolve) => setImmediate(resolve))
       try {
         await loadComponents({
           distDir: this.distDir,
@@ -339,6 +341,7 @@ export default class NextNodeServer extends BaseServer<
     }
 
     for (const page of Object.keys(appPathsManifest || {})) {
+      await new Promise<void>((resolve) => setImmediate(resolve))
       try {
         const { ComponentMod } = await loadComponents<
           AppPageModule | AppRouteModule
