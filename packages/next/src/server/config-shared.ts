@@ -986,6 +986,26 @@ export interface ExperimentalConfig {
      */
     maxMergeChunkSize?: number
     /**
+     * Best-effort maximum estimated size of a client JavaScript chunk, in uncompressed bytes
+     * (minified when `turbopackMinifyBeforeChunking` applies). Chunks are never merged into bigger
+     * chunks, and chunks that are bigger on their own are split deterministically (by module
+     * identifier) into smaller chunks. This can create chunks smaller than `minChunkSize` or
+     * exceed `maxChunkCountPerGroup`. Must be at
+     * least 3 times `minChunkSize`, and not smaller than `maxMergeChunkSize`; otherwise the values
+     * are adjusted with a warning. Set to `0` to disable the limit. Defaults to `1000000` (1 MB),
+     * or `400000` (400 KB) when minifying before chunking. Explicit values are not scaled.
+     */
+    maxChunkSize?: number
+    /**
+     * Like `maxChunkSize`, but for server (Node.js and edge) JavaScript chunks. For Node.js,
+     * must be at least 3 times `minServerChunkSize`, and not smaller than `maxMergeServerChunkSize`;
+     * otherwise the values are adjusted with a warning. Edge uses a minimum of 20 KB (8 KB when
+     * minifying before chunking) and the effective maximum as its merge limit.
+     * Set to `0` to disable the maximum size limit. Defaults to `10000000` (10 MB), or `4000000`
+     * (4 MB) when minifying before chunking. Explicit values are not scaled.
+     */
+    maxServerChunkSize?: number
+    /**
      * Emit each merged production chunk's constituent component chunks alongside it, so the
      * browser runtime can load only the ones it doesn't already have. Defaults to `false`.
      */
@@ -998,8 +1018,8 @@ export interface ExperimentalConfig {
     minComponentChunkSize?: number
     /**
      * Avoid creating more than one Node.js server chunk smaller than this size, in bytes.
-     * Smaller chunks are merged into bigger ones to avoid that. Defaults to `4000` (4 KB). Doesn't
-     * apply to Edge runtime chunks.
+     * Smaller chunks are merged into bigger ones to avoid that, unless `maxServerChunkSize` takes
+     * precedence. Defaults to `4000` (4 KB). Doesn't apply to Edge runtime chunks.
      */
     minServerChunkSize?: number
     /**
