@@ -75,7 +75,7 @@ const fn v(major: u32, minor: u32) -> Version {
 }
 
 /// A blanket polyfill for browsers without ES module support.
-/// https://caniuse.com/es6-module
+/// <https://caniuse.com/es6-module>
 static NOMODULE_POLYFILL: PolyfillDefinition = PolyfillDefinition {
     filename: "polyfill-nomodule.js",
     chrome: Some(v(61, 0)),
