@@ -31,6 +31,18 @@ describe('escheck-output', () => {
 
       expect(esCheckOutput).toContain('info: ✓ ES-Check passed!')
     })
+
+    it('should not include outdated polyfills', async () => {
+      expect(await detectPolyfills(next)).toEqual([
+        'Symbol.prototype.description',
+        'String.prototype.trimStart',
+        'Array.prototype.at',
+        'Array.prototype.flat',
+        'Object.fromEntries',
+        'Object.hasOwn',
+        'URL.canParse',
+      ])
+    })
   })
 
   describe('default browserslist', () => {
@@ -52,6 +64,10 @@ describe('escheck-output', () => {
 
       expect(esCheckOutput).toContain('info: ✓ ES-Check passed!')
     })
+
+    it('should not include outdated polyfills', async () => {
+      expect(await detectPolyfills(next)).toEqual(['URL.canParse'])
+    })
   })
 
   describe('nomodule browsers', () => {
@@ -72,6 +88,20 @@ describe('escheck-output', () => {
       )
 
       expect(esCheckOutput).toContain('info: ✓ ES-Check passed!')
+    })
+
+    it('should not include outdated polyfills', async () => {
+      expect(await detectPolyfills(next)).toEqual([
+        'Symbol.prototype.description',
+        'String.prototype.trimStart',
+        'Array.prototype.at',
+        'Array.prototype.flat',
+        'Object.fromEntries',
+        'Object.hasOwn',
+        'URL.canParse',
+        'Object.assign',
+        'Array.findIndex',
+      ])
     })
   })
 
@@ -98,3 +128,33 @@ describe('escheck-output', () => {
     })
   })
 })
+
+async function detectPolyfills(next) {
+  const { polyfillFiles } = await next.readJSON('.next/build-manifest.json')
+
+  const polyfills = {
+    'Symbol.prototype.description':
+      'Object.defineProperty(Symbol.prototype,"description"',
+    'String.prototype.trimStart': 'String.prototype.trimStart=',
+    'Array.prototype.at': 'Array.prototype.at=',
+    'Array.prototype.flat': 'Array.prototype.flat=',
+    'Object.fromEntries': 'Object.fromEntries=',
+    'Object.hasOwn': 'Object.hasOwn=',
+    'URL.canParse': 'URL.canParse=',
+    'Object.assign': 'Object.assign=',
+    'Array.findIndex': 'Maximum allowed index exceeded',
+  }
+
+  let foundPolyfills = new Set()
+
+  for (let file of polyfillFiles) {
+    let content = await next.readFile(`.next/${file}`)
+    for (let [name, matcher] of Object.entries(polyfills)) {
+      if (content.includes(matcher)) {
+        foundPolyfills.add(name)
+      }
+    }
+  }
+
+  return [...foundPolyfills]
+}
