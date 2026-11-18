@@ -284,6 +284,14 @@ const RUN_CONCLUSION_NOTES = {
  * unfinished run. Callers show it when the report lists no failed jobs, so the
  * report isn't mistaken for a clean result.
  */
+/**
+ * Every status other than `completed` (queued, in_progress, waiting, pending,
+ * requested) means the run hasn't finished.
+ */
+function isRunUnfinished({ status }) {
+  return status !== 'completed'
+}
+
 function describeUnpassedRun({ status, conclusion }) {
   if (status !== 'completed' || conclusion === 'success') return null
   return Object.hasOwn(RUN_CONCLUSION_NOTES, conclusion)
@@ -1521,10 +1529,8 @@ async function runAnalysis(prNumberArg, skipFlakyCheck) {
   console.log('Fetching run metadata...')
   const runMetadata = getRunMetadata(latestRun.id)
 
-  // Step 5: Determine fetch strategy based on run status. Every status other
-  // than `completed` (queued, in_progress, waiting, pending, requested) means
-  // the run hasn't finished.
-  const isRunInProgress = runMetadata.status !== 'completed'
+  // Step 5: Determine fetch strategy based on run status
+  const isRunInProgress = isRunUnfinished(runMetadata)
 
   let categorizedJobs
 
@@ -1810,7 +1816,12 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error(err)
-  process.exit(1)
-})
+// Run only when invoked as a script, so tests can load the helpers below.
+if (require.main === module) {
+  main().catch((err) => {
+    console.error(err)
+    process.exit(1)
+  })
+}
+
+module.exports = { describeUnpassedRun, generateIndexMd, isRunUnfinished }
