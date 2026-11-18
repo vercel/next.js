@@ -77,6 +77,7 @@ import {
 import { getRouteCacheKey } from '../../server/lib/route-cache-key'
 import { RouteKind } from '../../server/route-kind'
 import { getRscPrerenderCompleteness } from '../../server/lib/prerender-rsc-completeness'
+import { HTML_LIMITED_BOT_UA_RE_STRING } from '../../shared/lib/router/utils/is-bot'
 
 interface SharedRouteFields {
   /**
@@ -252,6 +253,13 @@ function orderAppPageKeysByEntry(appPageKeys: readonly string[]): string[] {
   return orderedAppPageKeys
 }
 
+export type PrerenderBypassCondition =
+  | RouteHas
+  | {
+      type: 'method'
+      value: string
+    }
+
 export interface AdapterOutput {
   /**
    * `PAGES` represents all the React pages that are under `pages/`.
@@ -375,7 +383,7 @@ export interface AdapterOutput {
        * bypass for is a list of has conditions the cache
        * should be bypassed and invoked directly e.g. action header
        */
-      bypassFor?: RouteHas[]
+      bypassFor?: PrerenderBypassCondition[]
       /**
        * renderingMode signals PPR or not for a prerender
        */
@@ -559,8 +567,27 @@ type Route = {
   priority?: boolean
 }
 
+export interface NextAdapterCapabilities {
+  /**
+   * The deployment target honors the configured `htmlLimitedBots` pattern when
+   * serving prerendered pages. Matching user agents receive complete metadata
+   * in the initial HTML `<head>`.
+   */
+  handlesHtmlLimitedBotPrerenders?: boolean
+  /**
+   * The deployment target supports HTTP method conditions in prerender cache
+   * bypass rules.
+   */
+  supportsPrerenderMethodBypass?: boolean
+}
+
 export interface NextAdapter {
   name: string
+  /**
+   * Returns deployment capabilities before Next.js creates adapter outputs.
+   * Omitted capabilities preserve the existing output behavior.
+   */
+  getCapabilities?: () => NextAdapterCapabilities
   /**
    * modifyConfig is called for any CLI command that loads the next.config
    * to only apply for specific commands the "phase" should be used
@@ -715,6 +742,55 @@ export async function handleBuildComplete({
   ) as NextAdapter
 
   if (typeof adapterMod.onBuildComplete === 'function') {
+    const capabilities = adapterMod.getCapabilities?.()
+    const htmlLimitedBotsPattern = `.*(?:${
+      config.htmlLimitedBots || HTML_LIMITED_BOT_UA_RE_STRING
+    }).*`
+    const isActionHeaderBypass = (condition: RouteHas) =>
+      condition.type === 'header' &&
+      condition.key.toLowerCase() === 'next-action' &&
+      condition.value === undefined
+    const isMultipartBypass = (condition: RouteHas) =>
+      condition.type === 'header' &&
+      condition.key.toLowerCase() === 'content-type' &&
+      condition.value === 'multipart/form-data;.*'
+    const getPrerenderBypassFor = (
+      bypassFor: RouteHas[] | undefined,
+      isAppPageOutput: boolean
+    ): PrerenderBypassCondition[] | undefined => {
+      if (
+        !isAppPageOutput ||
+        !bypassFor ||
+        (!capabilities?.handlesHtmlLimitedBotPrerenders &&
+          !capabilities?.supportsPrerenderMethodBypass)
+      ) {
+        return bypassFor
+      }
+
+      const useMethodBypass =
+        capabilities.supportsPrerenderMethodBypass === true &&
+        bypassFor.some(isActionHeaderBypass) &&
+        bypassFor.some(isMultipartBypass)
+      const conditions = bypassFor.filter((condition) => {
+        if (
+          capabilities.handlesHtmlLimitedBotPrerenders === true &&
+          condition.type === 'header' &&
+          condition.key.toLowerCase() === 'user-agent' &&
+          condition.value === htmlLimitedBotsPattern
+        ) {
+          return false
+        }
+        return (
+          !useMethodBypass ||
+          (!isActionHeaderBypass(condition) && !isMultipartBypass(condition))
+        )
+      })
+
+      return useMethodBypass
+        ? [{ type: 'method', value: 'POST' }, ...conditions]
+        : conditions
+    }
+
     const syntheticSymlinks = createAdapterSyntheticSymlinkDirectory(distDir)
     const outputs: AdapterOutputs = {
       pages: [],
@@ -1882,7 +1958,10 @@ export async function handleBuildComplete({
             renderingMode,
             bypassFor:
               isAppPage && srcRoute !== '/_not-found'
-                ? experimentalBypassFor
+                ? getPrerenderBypassFor(
+                    experimentalBypassFor,
+                    appOutputMap[srcRoute]?.type === AdapterOutputType.APP_PAGE
+                  )
                 : undefined,
             bypassToken: previewProps.previewModeId,
           },
@@ -2149,7 +2228,12 @@ export async function handleBuildComplete({
             allowHeader,
             renderingMode,
             partialFallback: canEmitPartialFallback || undefined,
-            bypassFor: isAppPage ? experimentalBypassFor : undefined,
+            bypassFor: isAppPage
+              ? getPrerenderBypassFor(
+                  experimentalBypassFor,
+                  appOutputMap[srcRoute]?.type === AdapterOutputType.APP_PAGE
+                )
+              : undefined,
             bypassToken: previewProps.previewModeId,
           },
         }

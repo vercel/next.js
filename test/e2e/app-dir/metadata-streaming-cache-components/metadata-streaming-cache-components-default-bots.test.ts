@@ -1,6 +1,6 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
-import { assertNoConsoleErrors, retry } from 'next-test-utils'
+import { assertNoConsoleErrors, gate, retry } from 'next-test-utils'
 
 function countSubstring(str: string, substr: string): number {
   return str.split(substr).length - 1
@@ -26,11 +26,96 @@ function expectOptionalCatchallParams(html: string) {
       files: __dirname,
       overrideFiles: {
         'next.config.js': `
-          module.exports = {
-            cacheComponents: true,
+          module.exports = (phase, { defaultConfig }) => {
+            if (defaultConfig.adapterPath) {
+              const adapterModule = require(defaultConfig.adapterPath)
+              const adapter = adapterModule.default ?? adapterModule
+              const capabilities = adapter.getCapabilities?.()
+              console.log(
+                'HTML_LIMITED_BOT_PRERENDERS_CAPABILITY: ' +
+                  (capabilities?.handlesHtmlLimitedBotPrerenders === true)
+              )
+            }
+            return { cacheComponents: true }
           }
         `,
       },
+    })
+
+    function supportsHtmlLimitedBotPrerenders() {
+      const declarations = [
+        ...next.cliOutput.matchAll(
+          /HTML_LIMITED_BOT_PRERENDERS_CAPABILITY: (true|false)/g
+        ),
+      ]
+      const capability = declarations.at(-1)?.[1]
+      if (process.env.NEXT_ENABLE_ADAPTER === '1') {
+        expect(capability).toBeDefined()
+      }
+      return capability === 'true'
+    }
+
+    describe('bot cache policy', () => {
+      it.each([
+        ['/fully-static', 'fully static'],
+        ['/dynamic-page/partial', 'dynamic-page - partial'],
+      ])('serves complete metadata to bots for %s', async (pathname, title) => {
+        const warmResponse = await next.fetch(pathname, {
+          headers: { 'user-agent': 'Mozilla/5.0' },
+        })
+        expect(warmResponse.status).toBe(200)
+        await warmResponse.text()
+
+        const response = await next.fetch(pathname, {
+          headers: { 'user-agent': 'Discordbot' },
+        })
+        expect(response.status).toBe(200)
+        expect(response.headers.get('x-next-prelude-metadata')).toBeNull()
+        const $ = cheerio.load(await response.text())
+        expect($('head title').text()).toBe(title)
+        expect($('body title').length).toBe(0)
+
+        if (await gate((conditions) => conditions.vercel)) {
+          expect(response.headers.get('x-vercel-cache')).toBe(
+            supportsHtmlLimitedBotPrerenders() ? 'HIT' : 'BYPASS'
+          )
+        }
+      })
+
+      it('bypasses deferred metadata for bots and preserves the cached shell', async () => {
+        const pathname = '/dynamic-metadata/partial'
+        const warmResponse = await next.fetch(pathname, {
+          headers: { 'user-agent': 'Mozilla/5.0' },
+        })
+        expect(warmResponse.status).toBe(200)
+        await warmResponse.text()
+
+        for (const userAgent of ['Discordbot', 'discordbot']) {
+          const response = await next.fetch(pathname, {
+            headers: { 'user-agent': userAgent },
+          })
+          expect(response.status).toBe(200)
+          expect(response.headers.get('x-next-prelude-metadata')).toBeNull()
+          const $ = cheerio.load(await response.text())
+          expect($('head title').text()).toBe('dynamic-metadata - partial')
+          expect($('body title').length).toBe(0)
+          if (await gate((conditions) => conditions.vercel)) {
+            expect(response.headers.get('x-vercel-cache')).toBe('BYPASS')
+          }
+        }
+
+        const response = await next.fetch(pathname, {
+          headers: { 'user-agent': 'Mozilla/5.0' },
+        })
+        expect(response.status).toBe(200)
+        expect(response.headers.get('x-next-prelude-metadata')).toBe('0')
+        const $ = cheerio.load(await response.text())
+        expect($('head title').length).toBe(0)
+        expect($('body title').text()).toBe('dynamic-metadata - partial')
+        if (await gate((conditions) => conditions.vercel)) {
+          expect(response.headers.get('x-vercel-cache')).toBe('HIT')
+        }
+      })
     })
 
     it('should serve the PPR shell to regular user agents', async () => {
@@ -173,7 +258,9 @@ function expectOptionalCatchallParams(html: string) {
 
     describe('Cache Components metadata streaming', () => {
       it('should generate metadata in head when page is fully static', async () => {
-        const $ = await next.render$('/fully-static')
+        const response = await next.fetch('/fully-static')
+        expect(response.headers.get('x-next-prelude-metadata')).toBeNull()
+        const $ = cheerio.load(await response.text())
         expect($('head title').text()).toBe('fully static')
         expect(countSubstring($.html(), '<title>')).toBe(1)
 
@@ -221,7 +308,9 @@ function expectOptionalCatchallParams(html: string) {
       })
 
       it('should insert dynamic metadata in body under a layout Suspense boundary', async () => {
-        const $ = await next.render$('/dynamic-metadata/partial')
+        const response = await next.fetch('/dynamic-metadata/partial')
+        expect(response.headers.get('x-next-prelude-metadata')).toBe('0')
+        const $ = cheerio.load(await response.text())
         expect($('body title').text()).toBe('dynamic-metadata - partial')
         expect(countSubstring($.html(), '<title>')).toBe(1)
 
@@ -237,7 +326,9 @@ function expectOptionalCatchallParams(html: string) {
       })
 
       it('should insert static metadata in head when dynamic page content is under a layout Suspense boundary', async () => {
-        const $ = await next.render$('/dynamic-page/partial')
+        const response = await next.fetch('/dynamic-page/partial')
+        expect(response.headers.get('x-next-prelude-metadata')).toBeNull()
+        const $ = cheerio.load(await response.text())
         expect($('head title').text()).toBe('dynamic-page - partial')
         expect(countSubstring($.html(), '<title>')).toBe(1)
 
@@ -250,6 +341,14 @@ function expectOptionalCatchallParams(html: string) {
             .text()
         ).toBe('dynamic-page - partial')
         await assertNoConsoleErrors(browser)
+      })
+
+      it('omits the metadata marker for an empty shell with deferred metadata', async () => {
+        const response = await next.fetch('/dynamic-metadata/empty')
+        expect(response.headers.get('x-next-prelude-metadata')).toBeNull()
+        const $ = cheerio.load(await response.text())
+        expect($('title').text()).toBe('dynamic-metadata - empty')
+        expect($('#empty-shell-content').text()).toBe('empty shell content')
       })
 
       it('should not yield hydration errors after revalidation', async () => {
