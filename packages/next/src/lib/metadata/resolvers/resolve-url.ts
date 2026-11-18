@@ -93,8 +93,11 @@ function resolveRelativeUrl(url: string | URL, pathname: string): string | URL {
 }
 
 // The regex is matching logic from packages/next/src/lib/load-custom-routes.ts
+// Only the last segment is checked, so `/v1.2/docs` is not a file. A dot inside
+// the last segment (`/blog/node.js-tips`) still counts, like in `<Link>`.
+// The lookahead keeps matching linear for long paths.
 const FILE_REGEX =
-  /^(?:\/((?!\.well-known(?:\/.*)?)(?:[^/]+\/)*[^/]+\.\w+))[^/]*\/?$/i
+  /^\/(?!\.well-known(?:\/.*)?)(?:[^/]+\/)*(?=[^/]+\.\w)[^/]+\/?$/i
 function isFilePattern(pathname: string): boolean {
   return FILE_REGEX.test(pathname)
 }
