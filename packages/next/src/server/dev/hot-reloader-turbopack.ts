@@ -198,6 +198,9 @@ const TURBOPACK_OUTPUT_DIRS = [
 const RETAINED_OUTPUT_PATHS = new Set([
   'cache',
   'lock',
+  // Request diagnostics outlive bundler output and span dev-server sessions.
+  'request-insights',
+  'request-insights.ndjson',
   ...TURBOPACK_OUTPUT_DIRS,
 ])
 

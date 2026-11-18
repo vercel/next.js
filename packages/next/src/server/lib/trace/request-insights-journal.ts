@@ -1,6 +1,14 @@
 import { createReadStream } from 'fs'
-import { appendFile, mkdir, stat, writeFile } from 'fs/promises'
+import { appendFile, mkdir } from 'fs/promises'
+import { createGunzip } from 'zlib'
+import { pipeline } from 'stream/promises'
+import { PassThrough } from 'stream'
+import {
+  getRequestInsightsArchiveFiles,
+  RequestInsightsArchives,
+} from './request-insights-archive'
 import path from 'path'
+import isError from '../../../lib/is-error'
 import { createInterface } from 'readline'
 import {
   getRequestInsightKey,
@@ -21,7 +29,8 @@ import {
   type RequestInsightSummary,
 } from '../../../shared/lib/request-insights-summary'
 
-const JOURNAL_SIZE_LIMIT = 50 * 1024 * 1024
+const JOURNAL_SIZE_LIMIT = 10 * 1024 * 1024
+const ARCHIVE_MAINTENANCE_INTERVAL = 60 * 60 * 1000
 const JOURNAL_WRITE_BATCH_BYTES = 64 * 1024
 const JOURNAL_FILENAME = 'request-insights.ndjson'
 const REQUEST_INSIGHTS_JOURNAL_KEY = Symbol.for(
@@ -82,7 +91,51 @@ class RequestInsightsJournal {
   private generation = 0
   private truncated = false
 
-  constructor(readonly file: string) {}
+  private readonly archives: RequestInsightsArchives
+  private maintenanceTimer: ReturnType<typeof setInterval> | undefined
+
+  constructor(readonly file: string) {
+    this.archives = new RequestInsightsArchives(file)
+  }
+
+  // Reads and lifecycle changes must share the write queue too: a read must not
+  // race a rename, and an append queued during startup must use the new session.
+  private run<T>(operation: () => Promise<T>): Promise<T> {
+    this.pendingAppends = undefined
+    const result = this.writes.then(operation)
+    this.writes = result.then(
+      () => {},
+      () => {}
+    )
+    return result
+  }
+
+  private startMaintenance(): void {
+    if (this.maintenanceTimer) return
+    this.maintenanceTimer = setInterval(() => {
+      void this.run(() => this.archives.maintain())
+    }, ARCHIVE_MAINTENANCE_INTERVAL)
+    this.maintenanceTimer.unref()
+  }
+
+  async close(): Promise<void> {
+    clearInterval(this.maintenanceTimer)
+    this.maintenanceTimer = undefined
+    await this.flush()
+    // A queued initialize/configure may have installed a timer while closing.
+    clearInterval(this.maintenanceTimer)
+    this.maintenanceTimer = undefined
+  }
+
+  read(filter: JournalFilter): Promise<RequestInsight[]> {
+    return this.run(async () => {
+      const files =
+        filter.requestId !== undefined || filter.htmlRequestId !== undefined
+          ? [...(await getRequestInsightsArchiveFiles(this.file)), this.file]
+          : [this.file]
+      return readJournalFiles(files, filter)
+    })
+  }
 
   append(request: RequestInsight): void {
     let line: string
@@ -145,6 +198,7 @@ class RequestInsightsJournal {
       this.size += byteLength
       for (let i = start; i < index; i++) {
         const record = records[i]
+        this.archives.recordTime(record.summary.startTime)
         this.summaries.set(record.key, {
           sequence: ++this.sequence,
           request: record.summary,
@@ -190,7 +244,7 @@ class RequestInsightsJournal {
         let { fetch } = update
         let archived: RequestInsight | undefined
         if (!snapshot && fetch) {
-          archived = (await readJournalFile(this.file, filter))[0]
+          archived = (await readJournalFiles([this.file], filter))[0]
           if (!archived) return
           if (
             archived.fetches.some((existing) =>
@@ -233,7 +287,8 @@ class RequestInsightsJournal {
           span?.attributes?.['next.span_type'] ===
           REQUEST_INSIGHT_REQUEST_SPAN_TYPE
         ) {
-          archived ??= snapshot ?? (await readJournalFile(this.file, filter))[0]
+          archived ??=
+            snapshot ?? (await readJournalFiles([this.file], filter))[0]
           if (!archived) return
           const canonicalSummary = summarizeRequestInsight({
             ...metadata,
@@ -257,7 +312,7 @@ class RequestInsightsJournal {
               fetches: snapshot.fetches.slice(0, fetchCount),
             }
           } else {
-            archived ??= (await readJournalFile(this.file, filter))[0]
+            archived ??= (await readJournalFiles([this.file], filter))[0]
             if (!archived) return
             fullRequest = { ...archived, ...metadata }
             if (span) fullRequest.spans.push(span)
@@ -273,6 +328,7 @@ class RequestInsightsJournal {
         }
         await appendFile(this.file, line, 'utf8')
         this.size += byteLength
+        this.archives.recordTime(metadata.startTime)
         this.summaries.set(key, {
           sequence: this.summaries.get(key)?.sequence ?? ++this.sequence,
           request: updatedSummary,
@@ -284,34 +340,36 @@ class RequestInsightsJournal {
   }
 
   private async rotate(): Promise<void> {
-    await writeFile(this.file, '')
+    await this.archives.rotate()
     this.size = 0
     this.summaries.clear()
     this.generation++
     this.truncated = true
+    await this.archives.maintain()
   }
 
-  async initialize(): Promise<void> {
-    await this.flush()
-    await this.ensureDirectory()
-    await writeFile(this.file, '')
-    this.size = 0
-    this.sequence = 0
-    this.summaries.clear()
-    this.sessionId = createSessionId()
-    this.generation = 0
-    this.truncated = false
+  initialize(): Promise<void> {
+    return this.run(async () => {
+      await this.ensureDirectory()
+      await this.archives.scanActiveFile()
+      await this.archives.rotate()
+      this.size = 0
+      this.sequence = 0
+      this.summaries.clear()
+      this.sessionId = createSessionId()
+      this.generation = 0
+      this.truncated = false
+      await this.archives.maintain()
+      this.startMaintenance()
+    })
   }
 
-  async configure(): Promise<void> {
-    await this.ensureDirectory()
-    try {
-      this.size = (await stat(this.file)).size
-    } catch (error: any) {
-      if (error.code !== 'ENOENT') {
-        throw error
-      }
-    }
+  configure(): Promise<void> {
+    return this.run(async () => {
+      await this.ensureDirectory()
+      this.size = await this.archives.scanActiveFile()
+      this.startMaintenance()
+    })
   }
 
   async getHistory(
@@ -447,24 +505,17 @@ export async function readRequestInsightsJournal(
   distDir: string,
   filter: JournalFilter = {}
 ): Promise<RequestInsight[]> {
-  const journal = getOrCreateRequestInsightsJournal(distDir)
-  await journal.flush()
-  return readJournalFile(journal.file, filter)
+  return getOrCreateRequestInsightsJournal(distDir).read(filter)
 }
 
-async function readJournalFile(
-  file: string,
+async function readJournalFiles(
+  files: string[],
   filter: JournalFilter
 ): Promise<RequestInsight[]> {
   if (filter.limit !== undefined && filter.limit <= 0) return []
   const matches = new Map<string, RequestInsight>()
-  try {
-    const lines = createInterface({
-      input: createReadStream(file, { encoding: 'utf8' }),
-      crlfDelay: Infinity,
-    })
-
-    for await (const line of lines) {
+  for await (const line of readJournalLines(files)) {
+    try {
       const record = parseJournalLine(line)
       if (!record) continue
       const request = record.request
@@ -488,19 +539,46 @@ async function readJournalFile(
       } else {
         const stored = matches.get(key)
         if (stored) {
-          Object.assign(stored, request)
+          // Delta metadata must not replace the accumulated trace arrays.
+          Object.assign(stored, request, {
+            spans: stored.spans,
+            fetches: stored.fetches,
+          })
           if (record.span) stored.spans.push(record.span)
           if (record.fetch) stored.fetches.push(record.fetch)
         }
       }
-    }
-  } catch (error: any) {
-    if (error.code !== 'ENOENT') {
-      console.warn('Failed to read Request Insights journal', error)
+    } catch (error) {
+      console.warn('Failed to read Request Insights record', error)
     }
   }
-
   return [...matches.values()]
+}
+
+async function* readJournalLines(files: string[]): AsyncGenerator<string> {
+  for (const file of files) {
+    // Propagate source/gzip errors to readline, with a handler attached immediately.
+    const input = createReadStream(file)
+    const output = new PassThrough()
+    const reading = (
+      file.endsWith('.gz')
+        ? pipeline(input, createGunzip(), output)
+        : pipeline(input, output)
+    ).catch(() => {})
+    const lines = createInterface({ input: output, crlfDelay: Infinity })
+    try {
+      yield* lines
+    } catch (error) {
+      if (!isError(error) || error.code !== 'ENOENT') {
+        console.warn('Failed to read Request Insights journal', error)
+      }
+    } finally {
+      lines.close()
+      output.destroy()
+      input.destroy()
+      await reading
+    }
+  }
 }
 
 export async function resetRequestInsightsJournalForTest(): Promise<void> {
@@ -510,7 +588,7 @@ export async function resetRequestInsightsJournalForTest(): Promise<void> {
 export async function closeRequestInsightsJournal(): Promise<void> {
   const registry = getJournalRegistry()
   await Promise.all(
-    [...registry.journals.values()].map((journal) => journal.flush())
+    [...registry.journals.values()].map((journal) => journal.close())
   )
   // TODO(as-any): pre-existing cast, not yet reviewed
   // eslint-disable-next-line @next/internal/no-as-any
@@ -545,7 +623,7 @@ function getJournalRegistry(): JournalRegistry {
 function getOrCreateRequestInsightsJournal(
   distDir: string
 ): RequestInsightsJournal {
-  const file = path.join(distDir, JOURNAL_FILENAME)
+  const file = path.resolve(distDir, 'request-insights', JOURNAL_FILENAME)
   const registry = getJournalRegistry()
   let journal = registry.journals.get(file)
   if (!journal) {
