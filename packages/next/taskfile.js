@@ -29,7 +29,7 @@ export async function next__polyfill_module_individual(task, opts) {
         'src/polyfills/*'
       )
     )
-    .swc_minify()
+    .swc_es5()
     .target('dist/build/polyfills/module')
 }
 

@@ -4737,7 +4737,8 @@ interface StagedDevRenderArtifacts {
  * artifacts or interrupted by sync IO.
  */
 type StagedDevRenderOutcome =
-  StagedDevRenderArtifacts | SyncInterruptedStagedDevRender
+  | StagedDevRenderArtifacts
+  | SyncInterruptedStagedDevRender
 
 /**
  * A settled staged dev render: how it ended, plus whether it triggered `use
@@ -4773,7 +4774,8 @@ export interface ResolvedValidationInputs extends StagedDevRenderArtifacts {
  * only ever sees `ResolvedValidationInputs`.
  */
 export type DevValidationInputs =
-  ResolvedValidationInputs | SyncInterruptedStagedDevRender
+  | ResolvedValidationInputs
+  | SyncInterruptedStagedDevRender
 
 /**
  * Drops a validation debug channel branch we've decided not to read.
