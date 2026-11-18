@@ -1,0 +1,267 @@
+{
+  "comment": "Route table + request -> decision. Any host that implements this package's decisions can run these cases. A case with \"route\" goes direct to that route.go route; one with \"node\" goes to Node, and the value is the reason it names.",
+  "tables": {
+    "app": {
+      "contract": { "version": 1 },
+      "basePath": "",
+      "maxHeaderBytes": 16384,
+      "compress": true,
+      "nodePrefixes": ["/_next/"],
+      "nodeRequestHeaders": ["rsc"],
+      "nodeExact": [
+        "/",
+        "/api/users/new",
+        "/api/users/from-public.txt",
+        "/api/health"
+      ],
+      "goExact": {
+        "/api/echo": "/api/echo/route",
+        "/api/health": "/api/health/route"
+      },
+      "dynamic": [
+        {
+          "path": ["api", "users", { "param": "id" }],
+          "go": "/api/users/[id]/route"
+        },
+        {
+          "path": ["api", "files", { "rest": "path", "min": 1 }],
+          "go": "/api/files/[...path]/route"
+        },
+        { "path": ["blog", { "param": "slug" }] },
+        {
+          "path": ["docs", { "rest": "path", "min": 0 }],
+          "go": "/docs/[[...path]]/route"
+        }
+      ]
+    },
+    "base": {
+      "contract": { "version": 1 },
+      "basePath": "/shop",
+      "maxHeaderBytes": 16384,
+      "compress": false,
+      "nodePrefixes": ["/_next/"],
+      "nodeExact": [],
+      "goExact": { "/": "/route", "/api/echo": "/api/echo/route" },
+      "dynamic": []
+    },
+    "proxy": { "contract": { "version": 1 }, "reason": "proxy.ts" }
+  },
+  "cases": [
+    {
+      "table": "app",
+      "target": "/api/users/42",
+      "route": "/api/users/[id]/route"
+    },
+    {
+      "table": "app",
+      "target": "/api/users/42?sort=asc&page=2",
+      "route": "/api/users/[id]/route"
+    },
+    {
+      "table": "app",
+      "target": "/api/users/42?key=one&key=two",
+      "route": "/api/users/[id]/route"
+    },
+    { "table": "app", "target": "/api/echo", "route": "/api/echo/route" },
+    {
+      "table": "app",
+      "target": "/api/files/a/b.txt",
+      "route": "/api/files/[...path]/route"
+    },
+    { "table": "app", "target": "/api/files", "node": "no route" },
+    { "table": "app", "target": "/docs", "route": "/docs/[[...path]]/route" },
+    {
+      "table": "app",
+      "target": "/docs/a/b",
+      "route": "/docs/[[...path]]/route"
+    },
+    { "table": "app", "target": "/api/users/new", "node": "exact Node route" },
+    {
+      "table": "app",
+      "target": "/api/users/from-public.txt",
+      "node": "exact Node route"
+    },
+    { "table": "app", "target": "/api/health", "node": "exact Node route" },
+    { "table": "app", "target": "/blog/hello", "node": "dynamic Node route" },
+    { "table": "app", "target": "/nothing", "node": "no route" },
+    { "table": "app", "target": "/", "node": "exact Node route" },
+    {
+      "table": "app",
+      "target": "/_next/static/x.js",
+      "node": "node prefix /_next/"
+    },
+
+    {
+      "table": "app",
+      "target": "/api/users/42/",
+      "node": "empty segment or trailing slash"
+    },
+    {
+      "table": "app",
+      "target": "/api//users/42",
+      "node": "empty segment or trailing slash"
+    },
+    {
+      "table": "app",
+      "target": "/api/users/../users/7",
+      "node": "dot segment"
+    },
+    { "table": "app", "target": "/api/users/./7", "node": "dot segment" },
+    { "table": "app", "target": "/api/users/a%20b", "node": "path characters" },
+    { "table": "app", "target": "/api/users/a+b", "node": "path characters" },
+    { "table": "app", "target": "/api/users/café", "node": "path characters" },
+    {
+      "table": "app",
+      "target": "http://example.com/api/echo",
+      "node": "target not in origin form"
+    },
+    {
+      "table": "app",
+      "target": "*",
+      "method": "OPTIONS",
+      "node": "target not in origin form"
+    },
+
+    { "table": "app", "target": "/api/echo?", "node": "empty query" },
+    {
+      "table": "app",
+      "target": "/api/echo?a",
+      "node": "query pair without key=value"
+    },
+    { "table": "app", "target": "/api/echo?a=", "route": "/api/echo/route" },
+    {
+      "table": "app",
+      "target": "/api/echo?&a=1",
+      "node": "query pair without key=value"
+    },
+    { "table": "app", "target": "/api/echo?a=%7e", "node": "query characters" },
+    { "table": "app", "target": "/api/echo?a=b+c", "node": "query characters" },
+    { "table": "app", "target": "/api/echo?a==b", "node": "query characters" },
+    {
+      "table": "app",
+      "target": "/api/echo?b=1&a=2&b=3",
+      "node": "query key repeated apart"
+    },
+    { "table": "app", "target": "/api/echo?2=x", "node": "integer query key" },
+    {
+      "table": "app",
+      "target": "/api/echo?__proto__=1",
+      "node": "query key __proto__"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo?constructor=x",
+      "node": "query key constructor"
+    },
+
+    {
+      "table": "app",
+      "target": "/api/echo",
+      "method": "CONNECT",
+      "node": "method CONNECT"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo",
+      "proto": "HTTP/1.0",
+      "node": "protocol HTTP/1.0"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo",
+      "header": { "Upgrade": ["websocket"] },
+      "node": "header Upgrade"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo",
+      "header": { "Expect": ["100-continue"] },
+      "node": "header Expect"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo",
+      "header": { "Rsc": ["1"] },
+      "node": "header Rsc"
+    },
+    {
+      "table": "base",
+      "target": "/shop/api/echo",
+      "header": { "Rsc": ["1"] },
+      "route": "/api/echo/route"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo",
+      "header": { "Te": ["trailers"] },
+      "node": "header Te"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo",
+      "header": { "X-Repeated": ["a", "b"] },
+      "node": "repeated header X-Repeated"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo",
+      "header": { "X-Big": ["@16000"] },
+      "node": "headers near Node's size limit"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo",
+      "contentLength": 5,
+      "node": "body on GET"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo",
+      "method": "POST",
+      "contentLength": -1,
+      "route": "/api/echo/route"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo",
+      "header": { "Accept-Encoding": ["gzip, deflate, br"] },
+      "node": "client accepts compression"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo",
+      "header": { "Accept-Encoding": ["identity"] },
+      "route": "/api/echo/route"
+    },
+
+    { "table": "base", "target": "/shop/api/echo", "route": "/api/echo/route" },
+    {
+      "table": "base",
+      "target": "/shop/api/echo",
+      "header": { "Accept-Encoding": ["gzip"] },
+      "route": "/api/echo/route"
+    },
+    {
+      "table": "base",
+      "target": "/shop",
+      "node": "outside basePath or its root"
+    },
+    {
+      "table": "base",
+      "target": "/shop/",
+      "node": "outside basePath or its root"
+    },
+    {
+      "table": "base",
+      "target": "/shopping/api/echo",
+      "node": "outside basePath or its root"
+    },
+    {
+      "table": "base",
+      "target": "/api/echo",
+      "node": "outside basePath or its root"
+    },
+
+    { "table": "proxy", "target": "/api/echo", "node": "app: proxy.ts" }
+  ]
+}
