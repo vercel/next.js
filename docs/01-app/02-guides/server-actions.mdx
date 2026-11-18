@@ -72,9 +72,79 @@ export async function createPost(formData: FormData) {
 
 The mutation, the cache invalidation, and the page re-render all complete in a single roundtrip. Because [`redirect`](/docs/app/api-reference/functions/redirect#behavior) throws a control-flow exception, any code after it does not run. Place revalidation calls before `redirect` if the destination needs the fresh data.
 
-When an action redirects, the awaited promise on the client is rejected with a Next.js redirect error. See [Handling redirects in client code](/docs/app/getting-started/mutating-data#handling-redirects-in-client-code) before adding code after the `await` or a custom `catch` handler.
-
 [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) with a stale-while-revalidate profile is the exception: it marks the tag for background refresh and does **not** include a re-render in the action response. The page reflects the change on a later read. An action that does none of the above carries only its return value, and the current route is not re-rendered.
+
+## Handling redirects in client code
+
+When a Client Component awaits a Server Action that calls `redirect()`, the promise is rejected with a Next.js redirect error. Code immediately after the `await` does not run. A surrounding `catch` receives the error, and a `finally` block still runs. This applies to both internal and external redirect destinations.
+
+Next.js handles the navigation separately from the promise rejection. Catching the redirect error on the client does not cancel that navigation, but treating it as an application error can show an error message before the destination loads.
+
+If you add custom error handling around an awaited action, call [`unstable_rethrow`](/docs/app/api-reference/functions/unstable_rethrow) at the start of the `catch` block. It rethrows Next.js control-flow errors before your application error handling runs.
+
+The form below calls the [redirecting `createPost` action](/docs/app/getting-started/mutating-data#redirect-after-a-mutation):
+
+```tsx filename="app/ui/create-post-form.tsx" switcher
+'use client'
+
+import { useState } from 'react'
+import { unstable_rethrow } from 'next/navigation'
+import { createPost } from '@/app/lib/actions'
+
+export function CreatePostForm() {
+  const [error, setError] = useState('')
+
+  return (
+    <form
+      action={async (formData) => {
+        setError('')
+        try {
+          await createPost(formData)
+        } catch (err) {
+          unstable_rethrow(err)
+          setError('Could not create the post.')
+        }
+      }}
+    >
+      <input name="title" aria-label="Post title" required />
+      <button type="submit">Create post</button>
+      {error && <p role="alert">{error}</p>}
+    </form>
+  )
+}
+```
+
+```jsx filename="app/ui/create-post-form.js" switcher
+'use client'
+
+import { useState } from 'react'
+import { unstable_rethrow } from 'next/navigation'
+import { createPost } from '@/app/lib/actions'
+
+export function CreatePostForm() {
+  const [error, setError] = useState('')
+
+  return (
+    <form
+      action={async (formData) => {
+        setError('')
+        try {
+          await createPost(formData)
+        } catch (err) {
+          unstable_rethrow(err)
+          setError('Could not create the post.')
+        }
+      }}
+    >
+      <input name="title" aria-label="Post title" required />
+      <button type="submit">Create post</button>
+      {error && <p role="alert">{error}</p>}
+    </form>
+  )
+}
+```
+
+The same error handling applies when you await an action inside `startTransition` in an event handler. To show a success message after a redirect, render it on the destination page instead of relying on code after the awaited call.
 
 ## Security
 
