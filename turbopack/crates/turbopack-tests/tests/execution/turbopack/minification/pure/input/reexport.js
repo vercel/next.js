@@ -1,1 +1,4 @@
-export { annotated as reexported } from './library'
+export {
+  annotated as reexported,
+  factory as reexportedFactory,
+} from './library'

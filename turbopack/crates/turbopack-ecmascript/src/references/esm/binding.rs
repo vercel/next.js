@@ -22,7 +22,7 @@ use turbopack_core::chunk::ChunkingContext;
 use crate::{
     ScopeHoistingContext,
     ast_path_trie::{AstPathId, AstPathTrie},
-    code_gen::CodeGeneration,
+    code_gen::{CodeGeneration, path_to},
     create_visitor,
     references::esm::{
         EsmAssetReference,
@@ -312,6 +312,12 @@ impl EsmBindings {
                                 usage_path = next;
                             }
                             let (is_call, is_tag) = is_invocation_of(usage_path);
+                            // A leading comment can also prefix a wider call/tag chain when
+                            // printed and re-parsed. Leave those invocations unannotated rather
+                            // than accidentally declaring the outer invocation pure as well.
+                            let annotate_invocation = no_side_effects
+                                && (is_call || is_tag)
+                                && !is_chained_invocation(trie, usage_path);
                             let in_var_initializer = matches!(
                                 trie.get(usage_path),
                                 Some(swc_core::ecma::visit::AstParentKind::VarDeclarator(
@@ -329,7 +335,8 @@ impl EsmBindings {
                                 ast_path,
                                 visit_mut_expr,
                                 |expr: &mut Expr| {
-                                    if no_side_effects && (is_call || is_tag || in_var_initializer)
+                                    if no_side_effects
+                                        && (annotate_invocation || in_var_initializer)
                                     {
                                         generated_comments.add_leading(
                                             expr.span().lo,
@@ -412,6 +419,40 @@ impl EsmBindings {
             CodeGeneration::visitors(visitors)
         })
     }
+}
+
+/// Whether the invoked binding's result is the base of a wider invocation chain.
+fn is_chained_invocation(trie: &AstPathTrie, usage_path: AstPathId) -> bool {
+    use swc_core::ecma::visit::AstParentKind;
+
+    let mut path = path_to(trie, usage_path, |kind| {
+        matches!(
+            kind,
+            AstParentKind::Expr(ExprField::Call | ExprField::TaggedTpl)
+        )
+    });
+    loop {
+        let next = walk_up_through(
+            trie,
+            path,
+            AstParentKind::ParenExpr(ParenExprField::Expr),
+            AstParentKind::Expr(ExprField::Paren),
+        );
+        if next == path {
+            break;
+        }
+        path = next;
+    }
+    matches!(
+        trie.get(path),
+        Some(
+            AstParentKind::Callee(CalleeField::Expr)
+                | AstParentKind::TaggedTpl(TaggedTplField::Tag)
+                | AstParentKind::MemberExpr(MemberExprField::Obj)
+                | AstParentKind::OptCall(_)
+                | AstParentKind::NewExpr(_)
+        )
+    )
 }
 
 /// Skip a known wrapper around a binding when classifying its use site.

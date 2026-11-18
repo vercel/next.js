@@ -21,6 +21,20 @@ export function unannotated() {
   state++
 }
 
+export const factory = /*#__NO_SIDE_EFFECTS__*/ function (
+  eventsOrStrings,
+  events = eventsOrStrings
+) {
+  function effect() {
+    events.push('called')
+  }
+  effect.authorize = function () {
+    if (this !== effect) throw new Error('lost receiver')
+    throw new Error('denied')
+  }
+  return effect
+}
+
 export function getState() {
   return state
 }
