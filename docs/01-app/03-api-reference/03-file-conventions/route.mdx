@@ -267,9 +267,9 @@ export async function GET(request) {
 
 ### Revalidating Cached Data
 
-With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, the `revalidate` route segment config is not supported. Use `use cache` and `cacheLife` in a separate helper function instead. See [migrating GET Route Handlers to Cache Components](/docs/app/guides/migrating-to-cache-components#route-handlers-get).
+You can [revalidate cached data](/docs/app/guides/incremental-static-regeneration) using the `revalidate` route segment config option.
 
-Without Cache Components, you can [revalidate cached data](/docs/app/guides/incremental-static-regeneration) using the `revalidate` route segment config option:
+> **Good to know**: The `revalidate` export is not supported when [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled. Use `use cache` and `cacheLife` in a separate helper function instead. See [migrating GET Route Handlers to Cache Components](/docs/app/guides/migrating-to-cache-components#route-handlers-get).
 
 ```ts filename="app/posts/route.ts" switcher
 export const revalidate = 60
@@ -643,7 +643,7 @@ export async function GET() {
 
 Route Handlers use the same [route segment configuration](/docs/app/api-reference/file-conventions/route-segment-config) as pages and layouts.
 
-With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, the `dynamic`, `dynamicParams`, `revalidate`, `fetchCache`, and `runtime` exports below are not supported. See [migrating GET Route Handlers](/docs/app/guides/migrating-to-cache-components#route-handlers-get) for caching and [migrating the `runtime` config](/docs/app/guides/migrating-to-cache-components#runtime--edge) for runtime requirements.
+The `dynamic`, `dynamicParams`, `revalidate`, `fetchCache`, and `runtime` exports below are not supported when [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled. See [migrating GET Route Handlers](/docs/app/guides/migrating-to-cache-components#route-handlers-get) for caching and [migrating the `runtime` config](/docs/app/guides/migrating-to-cache-components#runtime--edge) for runtime requirements.
 
 ```ts filename="app/items/route.ts" switcher
 export const dynamic = 'auto'
