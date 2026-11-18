@@ -302,6 +302,8 @@ export function getParsedNodeOptionsWithoutInspect() {
   delete parsed.inspect
   delete parsed['inspect-brk']
   delete parsed['inspect_brk']
+  delete parsed['inspect-wait']
+  delete parsed['inspect_wait']
 
   return parsed
 }

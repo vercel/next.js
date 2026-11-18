@@ -177,6 +177,14 @@ describe('getFormattedNodeOptionsWithoutInspect', () => {
     )
   })
 
+  it('removes --inspect-wait option', () => {
+    process.env.NODE_OPTIONS =
+      '--other --inspect-wait=127.0.0.1:9333 --inspect_wait --additional'
+    const result = getFormattedNodeOptionsWithoutInspect()
+
+    expect(result).toBe('--other --additional')
+  })
+
   it('removes --inspect option with parameters', () => {
     process.env.NODE_OPTIONS = '--other --inspect=0.0.0.0:1234 --additional'
     const result = getFormattedNodeOptionsWithoutInspect()
