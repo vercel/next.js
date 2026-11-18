@@ -4,6 +4,13 @@ use std::{
 };
 
 use anyhow::{Result, bail};
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+    impl_borrow_decode,
+};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Serialize;
 use turbo_frozenmap::{FrozenMap, FrozenSet};
@@ -57,8 +64,9 @@ impl ServerHmrChunkLists {
 /// pulled since the server modules were last fully re-evaluated, and the modules shipped to the
 /// runtimes since then.
 ///
-/// Held in a project-global `State` that is never persisted, since it describes the running
-/// process.
+/// Held in a project-global `State`. It describes the running process, so it is never persisted:
+/// it encodes to nothing and decodes empty. (Skipping the whole `State` field instead would
+/// recreate the `State` when decoding, which needs a task context.)
 #[derive(Clone, Debug, Default, PartialEq, Eq, NonLocalValue, OperationValue)]
 pub struct ServerHmrLoadedState {
     /// Module content hashes, by runtime directory (the chunks' output directory, which is how
@@ -70,6 +78,20 @@ pub struct ServerHmrLoadedState {
     /// The routes pulled, by sorted entry paths.
     pulled_routes: FxHashSet<Vec<RcStr>>,
 }
+
+impl Encode for ServerHmrLoadedState {
+    fn encode<E: Encoder>(&self, _encoder: &mut E) -> Result<(), EncodeError> {
+        Ok(())
+    }
+}
+
+impl<Context> Decode<Context> for ServerHmrLoadedState {
+    fn decode<D: Decoder<Context = Context>>(_decoder: &mut D) -> Result<Self, DecodeError> {
+        Ok(Self::default())
+    }
+}
+
+impl_borrow_decode!(ServerHmrLoadedState);
 
 impl ServerHmrLoadedState {
     /// Records a route's modules as loaded. Returns whether anything changed.
@@ -388,7 +410,7 @@ async fn runtime_update(
 /// route's modules as loaded.
 ///
 /// Only the route's own modules are shipped, so modules of other routes are still evaluated
-/// lazily, on their next request. See [`plan_runtime`] for which modules are shipped.
+/// lazily, on their next request. See `plan_runtime` for which modules are shipped.
 ///
 /// Kept outside Turbo Tasks: the loaded state is not a task input.
 pub async fn compute_server_hmr_update(
