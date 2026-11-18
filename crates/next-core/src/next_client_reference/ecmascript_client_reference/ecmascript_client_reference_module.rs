@@ -287,7 +287,7 @@ impl EcmascriptChunkPlaceable for EcmascriptClientReferenceModule {
     async fn chunk_item_content(
         self: ResolvedVc<Self>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-        _module_graph: Vc<ModuleGraph>,
+        module_graph: Vc<ModuleGraph>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
@@ -295,6 +295,7 @@ impl EcmascriptChunkPlaceable for EcmascriptClientReferenceModule {
             *ResolvedVc::upcast(self),
             self.proxy_module(),
             *chunking_context,
+            module_graph,
             async_module_info,
         ))
     }

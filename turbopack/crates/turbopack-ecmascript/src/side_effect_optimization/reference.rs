@@ -15,7 +15,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    ScopeHoistingContext,
+    ModuleMergingAnalysis, ScopeHoistingContext,
     chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     references::esm::base::{ReferencedAsset, ReferencedAssetIdent},
@@ -161,6 +161,7 @@ impl EcmascriptModulePartReference {
     pub async fn code_generation(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        module_merging: ModuleMergingAnalysis,
         scope_hoisting_context: ScopeHoistingContext<'_>,
         // Namespace variables a compact re-export registration already imports for itself.
         subsumed_namespaces: &FxHashSet<(String, Option<SyntaxContext>)>,
@@ -206,6 +207,7 @@ impl EcmascriptModulePartReference {
             let ident = referenced_asset
                 .get_ident(
                     chunking_context,
+                    module_merging,
                     match export_usage {
                         ExportUsage::Named(export) => Some(export.clone()),
                         ExportUsage::PartialNamespaceObject(_)
