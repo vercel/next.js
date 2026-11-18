@@ -23,7 +23,7 @@ use crate::{
         chunk_type::{estimated_chunk_item_size, rounded_chunk_item_size},
         item::{ChunkItemFactoryContent, chunk_item_factory_content},
     },
-    emit_options::EcmascriptEmitOptions,
+    emit_options::{ChunkItemMinifyOptions, EcmascriptEmitOptions},
 };
 
 const CODE: &str = "(() => {\n  const value = 1 + 2;\n  console.log(value);\n})";
@@ -96,13 +96,18 @@ impl EcmascriptChunkItem for TestItem {
     }
 }
 
-/// Per-item minification options: minify without mangling.
-#[turbo_tasks::function]
-fn minify() -> Vc<EcmascriptEmitOptions> {
-    EcmascriptEmitOptions::builder()
-        .preset_minify_no_mangle()
-        .build()
-        .cell()
+/// Per-item minification, compressing without mangling.
+fn minify() -> Option<ResolvedVc<ChunkItemMinifyOptions>> {
+    Some(
+        ChunkItemMinifyOptions {
+            options: EcmascriptEmitOptions::builder()
+                .preset_minify_no_mangle()
+                .minify_per_chunk_item()
+                .build()
+                .chunk_item_minify_options,
+        }
+        .resolved_cell(),
+    )
 }
 
 #[turbo_tasks::value(shared, serialization = "skip")]
@@ -119,9 +124,10 @@ struct Sizes {
 #[turbo_tasks::function(operation, root)]
 async fn sizes_operation() -> Result<Vc<Sizes>> {
     let item = test_item(false).to_resolved().await?;
+    let minify = minify();
     let factory = async |estimated| -> Result<_> {
         let ChunkItemFactoryContent::Minified { factory, .. } =
-            chunk_item_factory_content(item, None, estimated, Some(minify()), false).await?
+            chunk_item_factory_content(item, None, estimated, minify, false).await?
         else {
             bail!("per-item minification minifies the item");
         };
@@ -131,7 +137,7 @@ async fn sizes_operation() -> Result<Vc<Sizes>> {
     let final_factory = factory(false).await?;
     Ok(Sizes {
         shared_minification: estimated == final_factory,
-        minified_size: estimated_chunk_item_size(item, None, Some(minify()), false).await?,
+        minified_size: estimated_chunk_item_size(item, None, minify, false).await?,
         minified_code: final_factory.await?.source_code().to_str()?.into_owned(),
         raw_size: estimated_chunk_item_size(item, None, None, false).await?,
         rounded_raw_size: rounded_chunk_item_size(item, None, None, false).await,
@@ -170,7 +176,7 @@ async fn with_issues_operation(op: OperationVc<Failure>) -> Result<Vc<WithIssues
 async fn size_failed_operation() -> Result<Vc<Failure>> {
     let item = test_item(true).to_resolved().await?;
     Ok(Failure {
-        size: rounded_chunk_item_size(item, None, Some(minify()), false).await,
+        size: rounded_chunk_item_size(item, None, minify(), false).await,
         factory: String::new(),
     }
     .cell())

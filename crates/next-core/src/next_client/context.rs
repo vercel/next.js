@@ -597,7 +597,15 @@ pub async fn get_client_chunking_context(
     .asset_suffix(AssetSuffix::Inferred.resolved_cell())
     .emitted_source_map_type(*emitted_source_map_type.await?)
     .source_map_generation_options(*source_map_generation_options.await?)
-    .emit_options(minify_emit_options(minify, no_mangling, false).await?)
+    .emit_options(
+        minify_emit_options(
+            minify,
+            no_mangling,
+            false,
+            !next_mode.is_development() && *minify_before_chunking.await?,
+        )
+        .await?,
+    )
     .asset_base_path(Some(asset_prefix))
     .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
     .cross_origin(cross_origin_loading)
@@ -663,7 +671,6 @@ pub async fn get_client_chunking_context(
             )
             .chunk_content_hashing(ContentHashing::Direct { length: 13 })
             .module_merging(*scope_hoisting.await?)
-            .minify_before_chunking(*minify_before_chunking.await?)
             .shared_runtime(*shared_runtime.await?)
             .bootstrap_metadata_attribute(
                 (*external_browser_runtime.await?).then(|| rcstr!("data-next-turbopack")),
@@ -718,7 +725,7 @@ pub async fn get_service_worker_chunking_context(
     )
     .current_chunk_method(CurrentChunkMethod::StringLiteral)
     .asset_suffix(AssetSuffix::None.resolved_cell())
-    .emit_options(minify_emit_options(minify, no_mangling, false).await?)
+    .emit_options(minify_emit_options(minify, no_mangling, false, false).await?)
     .emitted_source_map_type(*emitted_source_map_type.await?)
     .source_map_generation_options(*source_map_generation_options.await?)
     .hash_salt(hash_salt)

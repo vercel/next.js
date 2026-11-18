@@ -1123,7 +1123,15 @@ pub async fn get_server_chunking_context_with_client_assets(
     .worker_forwarded_globals(worker_forwarded_globals())
     .manifest_chunks(lazy_dynamic_imports)
     // React needs deterministic function names to work correctly.
-    .emit_options(minify_emit_options(minify, no_mangling, true).await?);
+    .emit_options(
+        minify_emit_options(
+            minify,
+            no_mangling,
+            true,
+            next_mode.is_production() && *minify_before_chunking.await?,
+        )
+        .await?,
+    );
 
     builder = builder.source_map_source_type(if next_mode.is_development() {
         SourceMapSourceType::AbsoluteFileUri
@@ -1153,8 +1161,7 @@ pub async fn get_server_chunking_context_with_client_assets(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?)
-            .minify_before_chunking(*minify_before_chunking.await?);
+            .module_merging(*scope_hoisting.await?);
     }
 
     Ok(builder.build())
@@ -1240,7 +1247,15 @@ pub async fn get_server_chunking_context(
     .shared_runtime_chunk(*per_page_module_graph.await?)
     .worker_forwarded_globals(worker_forwarded_globals())
     .manifest_chunks(lazy_dynamic_imports)
-    .emit_options(minify_emit_options(minify, no_mangling, false).await?);
+    .emit_options(
+        minify_emit_options(
+            minify,
+            no_mangling,
+            false,
+            !next_mode.is_development() && *minify_before_chunking.await?,
+        )
+        .await?,
+    );
 
     if next_mode.is_development() {
         builder = builder.source_map_source_type(SourceMapSourceType::AbsoluteFileUri);
@@ -1266,8 +1281,7 @@ pub async fn get_server_chunking_context(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?)
-            .minify_before_chunking(*minify_before_chunking.await?);
+            .module_merging(*scope_hoisting.await?);
     }
 
     Ok(builder.build())
