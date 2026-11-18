@@ -32,7 +32,7 @@ use crate::{
     chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType, MergeableModule, TracedMode},
     ident::AssetIdent,
     issue::{ImportTracer, ImportTraces, Issue, IssueExt, IssueSeverity, analyze::AnalyzeIssue},
-    module::{Module, ModuleSideEffects},
+    module::{ActivatableModule, Module, ModuleSideEffects},
     module_graph::{
         async_module_info::{AsyncModulesInfo, compute_async_module_info},
         binding_usage_info::{BindingUsageInfo, UnusedReferenceEdges},
@@ -308,6 +308,18 @@ pub struct ModuleGraphOptions {
     pub include_traced: bool,
     /// Whether to read `ModuleReference::binding_usage()`.
     pub include_binding_usage: bool,
+    /// Treat every [`ActivatableModule`] in this graph as if it were already activated. This is
+    /// for graphs whose consumer can't activate modules on demand, e.g. code evaluated during the
+    /// build.
+    ///
+    /// The graph then follows [`ActivatableModule::activated_references`] instead of
+    /// [`Module::references`], so it includes what the module would reference once activated.
+    /// Chunk items of activatable modules check [`ModuleGraph::assumes_activated`] and generate
+    /// the code of an active module.
+    ///
+    /// This only affects this graph. It doesn't change the activation state, so other graphs that
+    /// contain the same modules still see them as inactive until they are really activated.
+    pub assume_activated: bool,
 }
 
 #[turbo_tasks::value(cell = "new", eq = "manual")]
@@ -349,6 +361,9 @@ pub struct SingleModuleGraph {
 
     entries: GraphEntries,
 
+    /// Built with [`ModuleGraphOptions::assume_activated`].
+    assume_activated: bool,
+
     /// Derived from `entries` and `modules`. Both are immutable after graph construction, and node
     /// indices are stable because graph nodes are never removed.
     #[turbo_tasks(debug_ignore, unsafe_ignore)]
@@ -368,6 +383,7 @@ impl Clone for SingleModuleGraph {
             is_mergeable: self.is_mergeable.clone(),
             modules: self.modules.clone(),
             entries: self.entries.clone(),
+            assume_activated: self.assume_activated,
             // Never carry derived state into a clone that might be modified before being stored.
             entry_nodes: OnceLock::new(),
         }
@@ -616,6 +632,7 @@ impl SingleModuleGraph {
             is_mergeable,
             modules,
             entries: entries.clone(),
+            assume_activated: options.assume_activated,
             entry_nodes: OnceLock::new(),
         }
         .cell();
@@ -984,6 +1001,21 @@ impl ModuleGraph {
             },
         }
         .cell())
+    }
+
+    /// Whether the graph was built with [`ModuleGraphOptions::assume_activated`], so its
+    /// activatable modules have to generate the code of an active module. Errors if the graph
+    /// combines graphs built with and without it, since activatable modules in the others would
+    /// lack the references that active code needs.
+    #[turbo_tasks::function]
+    pub async fn assumes_activated(self: Vc<Self>) -> Result<Vc<bool>> {
+        let this = self.await?;
+        let graphs = &this.snapshot.graphs;
+        let assumes_activated = graphs.iter().any(|graph| graph.assume_activated);
+        if assumes_activated && !graphs.iter().all(|graph| graph.assume_activated) {
+            bail!("graphs built with and without `assume_activated` can't be combined");
+        }
+        Ok(Vc::cell(assumes_activated))
     }
 
     #[turbo_tasks::function]
@@ -2419,12 +2451,21 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
         let ModuleGraphOptions {
             include_traced,
             include_binding_usage,
+            assume_activated,
             ..
         } = options;
         async move {
             // Issued before resolving the node data so both run concurrently.
             let refs_cell = if !is_traced {
-                primary_chunkable_referenced_modules(*module, include_traced, include_binding_usage)
+                // Only activatable modules get the flag, so other modules share the task with
+                // graphs built without `assume_activated`.
+                primary_chunkable_referenced_modules(
+                    *module,
+                    include_traced,
+                    include_binding_usage,
+                    assume_activated
+                        && ResolvedVc::try_sidecast::<Box<dyn ActivatableModule>>(module).is_some(),
+                )
             } else {
                 // Currently we don't care about the binding usage of traced references
                 referenced_modules_and_affecting_sources(*module, false)
@@ -3586,7 +3627,12 @@ pub mod tests {
     }
 
     #[turbo_tasks::value_impl]
-    impl ActivatableModule for MockActivatableModule {}
+    impl ActivatableModule for MockActivatableModule {
+        #[turbo_tasks::function]
+        fn activated_references(&self) -> Vc<ModuleReferences> {
+            self.inner.references()
+        }
+    }
 
     /// A [`MockModule`] that is also a [`CollectingModule`].
     #[turbo_tasks::value]
