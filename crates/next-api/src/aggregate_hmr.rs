@@ -72,9 +72,9 @@ impl ServerHmrChunkLists {
 /// it encodes to nothing and decodes empty.
 #[derive(Clone, Debug, Default, PartialEq, Eq, NonLocalValue, OperationValue)]
 pub struct ServerHmrLoadedState {
-    /// Module content hashes, keyed by runtime directory (the chunks' output directory, which is
-    /// how updates are routed to a runtime) and module id.
-    modules: FxHashMap<(RcStr, ModuleId), u128>,
+    /// Module content hashes, by module id. Ids include the module's layer, which determines the
+    /// runtime that loads it.
+    modules: FxHashMap<ModuleId, u128>,
     /// Version ids of chunks that can't be expanded into modules, by chunk path.
     opaque_chunks: FxHashMap<RcStr, RcStr>,
     /// The routes pulled, by sorted entry paths.
@@ -285,15 +285,15 @@ pub async fn compute_server_hmr_update(
         for (index, chunk) in route.chunks.iter().enumerate() {
             let dir = runtime_dir(&chunk.version.chunk_path);
             for (id, hash) in &chunk.version.entries_hashes {
-                if let Some(seen_hash) = seen.insert((dir.clone(), id), *hash) {
+                if let Some(seen_hash) = seen.insert(id, *hash) {
                     if seen_hash != *hash {
-                        // Chunks of a runtime disagree about a module's code.
+                        // Chunks disagree about a module's code.
                         return Ok(ServerHmrUpdate::FullReevaluation);
                     }
                     continue;
                 }
                 let (outdated, missing) = by_dir.entry(dir.clone()).or_default();
-                match loaded.modules.get(&(dir.clone(), id.clone())) {
+                match loaded.modules.get(id) {
                     Some(loaded_hash) if loaded_hash == hash => {}
                     Some(_) => outdated.push((index, id)),
                     None => missing.push((index, id)),
@@ -363,9 +363,8 @@ pub async fn compute_server_hmr_update(
 
     loaded.update_conditionally(|loaded| {
         for chunk in &route.chunks {
-            let dir = runtime_dir(&chunk.version.chunk_path);
             for (id, hash) in &chunk.version.entries_hashes {
-                loaded.modules.insert((dir.clone(), id.clone()), *hash);
+                loaded.modules.insert(id.clone(), *hash);
             }
         }
         for (path, id) in &route.opaque_chunks {
