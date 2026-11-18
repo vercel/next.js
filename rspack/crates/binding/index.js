@@ -80,7 +80,19 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@next/rspack-binding-android-arm64')
+        const binding = require('@next/rspack-binding-android-arm64')
+        const bindingPackageVersion =
+          require('@next/rspack-binding-android-arm64/package.json').version
+        if (
+          bindingPackageVersion !== '1.0.3' &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0'
+        ) {
+          throw new Error(
+            `Native binding package version mismatch, expected 1.0.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`
+          )
+        }
+        return binding
       } catch (e) {
         loadErrors.push(e)
       }
@@ -91,7 +103,19 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@next/rspack-binding-android-arm-eabi')
+        const binding = require('@next/rspack-binding-android-arm-eabi')
+        const bindingPackageVersion =
+          require('@next/rspack-binding-android-arm-eabi/package.json').version
+        if (
+          bindingPackageVersion !== '1.0.3' &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0'
+        ) {
+          throw new Error(
+            `Native binding package version mismatch, expected 1.0.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`
+          )
+        }
+        return binding
       } catch (e) {
         loadErrors.push(e)
       }
@@ -108,7 +132,19 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@next/rspack-binding-win32-x64-msvc')
+        const binding = require('@next/rspack-binding-win32-x64-msvc')
+        const bindingPackageVersion =
+          require('@next/rspack-binding-win32-x64-msvc/package.json').version
+        if (
+          bindingPackageVersion !== '1.0.3' &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0'
+        ) {
+          throw new Error(
+            `Native binding package version mismatch, expected 1.0.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`
+          )
+        }
+        return binding
       } catch (e) {
         loadErrors.push(e)
       }
@@ -119,7 +155,19 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@next/rspack-binding-win32-ia32-msvc')
+        const binding = require('@next/rspack-binding-win32-ia32-msvc')
+        const bindingPackageVersion =
+          require('@next/rspack-binding-win32-ia32-msvc/package.json').version
+        if (
+          bindingPackageVersion !== '1.0.3' &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0'
+        ) {
+          throw new Error(
+            `Native binding package version mismatch, expected 1.0.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`
+          )
+        }
+        return binding
       } catch (e) {
         loadErrors.push(e)
       }
@@ -130,7 +178,19 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@next/rspack-binding-win32-arm64-msvc')
+        const binding = require('@next/rspack-binding-win32-arm64-msvc')
+        const bindingPackageVersion =
+          require('@next/rspack-binding-win32-arm64-msvc/package.json').version
+        if (
+          bindingPackageVersion !== '1.0.3' &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0'
+        ) {
+          throw new Error(
+            `Native binding package version mismatch, expected 1.0.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`
+          )
+        }
+        return binding
       } catch (e) {
         loadErrors.push(e)
       }
@@ -146,7 +206,19 @@ function requireNative() {
       loadErrors.push(e)
     }
     try {
-      return require('@next/rspack-binding-darwin-universal')
+      const binding = require('@next/rspack-binding-darwin-universal')
+      const bindingPackageVersion =
+        require('@next/rspack-binding-darwin-universal/package.json').version
+      if (
+        bindingPackageVersion !== '1.0.3' &&
+        process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
+        process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0'
+      ) {
+        throw new Error(
+          `Native binding package version mismatch, expected 1.0.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`
+        )
+      }
+      return binding
     } catch (e) {
       loadErrors.push(e)
     }
@@ -157,7 +229,19 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@next/rspack-binding-darwin-x64')
+        const binding = require('@next/rspack-binding-darwin-x64')
+        const bindingPackageVersion =
+          require('@next/rspack-binding-darwin-x64/package.json').version
+        if (
+          bindingPackageVersion !== '1.0.3' &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0'
+        ) {
+          throw new Error(
+            `Native binding package version mismatch, expected 1.0.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`
+          )
+        }
+        return binding
       } catch (e) {
         loadErrors.push(e)
       }
@@ -168,7 +252,19 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@next/rspack-binding-darwin-arm64')
+        const binding = require('@next/rspack-binding-darwin-arm64')
+        const bindingPackageVersion =
+          require('@next/rspack-binding-darwin-arm64/package.json').version
+        if (
+          bindingPackageVersion !== '1.0.3' &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0'
+        ) {
+          throw new Error(
+            `Native binding package version mismatch, expected 1.0.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`
+          )
+        }
+        return binding
       } catch (e) {
         loadErrors.push(e)
       }
@@ -185,7 +281,19 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@next/rspack-binding-freebsd-x64')
+        const binding = require('@next/rspack-binding-freebsd-x64')
+        const bindingPackageVersion =
+          require('@next/rspack-binding-freebsd-x64/package.json').version
+        if (
+          bindingPackageVersion !== '1.0.3' &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0'
+        ) {
+          throw new Error(
+            `Native binding package version mismatch, expected 1.0.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`
+          )
+        }
+        return binding
       } catch (e) {
         loadErrors.push(e)
       }
@@ -196,7 +304,19 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@next/rspack-binding-freebsd-arm64')
+        const binding = require('@next/rspack-binding-freebsd-arm64')
+        const bindingPackageVersion =
+          require('@next/rspack-binding-freebsd-arm64/package.json').version
+        if (
+          bindingPackageVersion !== '1.0.3' &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0'
+        ) {
+          throw new Error(
+            `Native binding package version mismatch, expected 1.0.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`
+          )
+        }
+        return binding
       } catch (e) {
         loadErrors.push(e)
       }
@@ -214,7 +334,19 @@ function requireNative() {
           loadErrors.push(e)
         }
         try {
-          return require('@next/rspack-binding-linux-x64-musl')
+          const binding = require('@next/rspack-binding-linux-x64-musl')
+          const bindingPackageVersion =
+            require('@next/rspack-binding-linux-x64-musl/package.json').version
+          if (
+            bindingPackageVersion !== '1.0.3' &&
+            process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
+            process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0'
+          ) {
+            throw new Error(
+              `Native binding package version mismatch, expected 1.0.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`
+            )
+          }
+          return binding
         } catch (e) {
           loadErrors.push(e)
         }
@@ -225,7 +357,19 @@ function requireNative() {
           loadErrors.push(e)
         }
         try {
-          return require('@next/rspack-binding-linux-x64-gnu')
+          const binding = require('@next/rspack-binding-linux-x64-gnu')
+          const bindingPackageVersion =
+            require('@next/rspack-binding-linux-x64-gnu/package.json').version
+          if (
+            bindingPackageVersion !== '1.0.3' &&
+            process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
+            process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0'
+          ) {
+            throw new Error(
+              `Native binding package version mismatch, expected 1.0.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`
+            )
+          }
+          return binding
         } catch (e) {
           loadErrors.push(e)
         }
@@ -238,7 +382,19 @@ function requireNative() {
           loadErrors.push(e)
         }
         try {
-          return require('@next/rspack-binding-linux-arm64-musl')
+          const binding = require('@next/rspack-binding-linux-arm64-musl')
+          const bindingPackageVersion =
+            require('@next/rspack-binding-linux-arm64-musl/package.json').version
+          if (
+            bindingPackageVersion !== '1.0.3' &&
+            process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
+            process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0'
+          ) {
+            throw new Error(
+              `Native binding package version mismatch, expected 1.0.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`
+            )
+          }
+          return binding
         } catch (e) {
           loadErrors.push(e)
         }
@@ -249,7 +405,19 @@ function requireNative() {
           loadErrors.push(e)
         }
         try {
-          return require('@next/rspack-binding-linux-arm64-gnu')
+          const binding = require('@next/rspack-binding-linux-arm64-gnu')
+          const bindingPackageVersion =
+            require('@next/rspack-binding-linux-arm64-gnu/package.json').version
+          if (
+            bindingPackageVersion !== '1.0.3' &&
+            process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
+            process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0'
+          ) {
+            throw new Error(
+              `Native binding package version mismatch, expected 1.0.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`
+            )
+          }
+          return binding
         } catch (e) {
           loadErrors.push(e)
         }
@@ -262,7 +430,19 @@ function requireNative() {
           loadErrors.push(e)
         }
         try {
-          return require('@next/rspack-binding-linux-arm-musleabihf')
+          const binding = require('@next/rspack-binding-linux-arm-musleabihf')
+          const bindingPackageVersion =
+            require('@next/rspack-binding-linux-arm-musleabihf/package.json').version
+          if (
+            bindingPackageVersion !== '1.0.3' &&
+            process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
+            process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0'
+          ) {
+            throw new Error(
+              `Native binding package version mismatch, expected 1.0.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`
+            )
+          }
+          return binding
         } catch (e) {
           loadErrors.push(e)
         }
@@ -273,7 +453,19 @@ function requireNative() {
           loadErrors.push(e)
         }
         try {
-          return require('@next/rspack-binding-linux-arm-gnueabihf')
+          const binding = require('@next/rspack-binding-linux-arm-gnueabihf')
+          const bindingPackageVersion =
+            require('@next/rspack-binding-linux-arm-gnueabihf/package.json').version
+          if (
+            bindingPackageVersion !== '1.0.3' &&
+            process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
+            process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0'
+          ) {
+            throw new Error(
+              `Native binding package version mismatch, expected 1.0.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`
+            )
+          }
+          return binding
         } catch (e) {
           loadErrors.push(e)
         }
@@ -286,7 +478,19 @@ function requireNative() {
           loadErrors.push(e)
         }
         try {
-          return require('@next/rspack-binding-linux-riscv64-musl')
+          const binding = require('@next/rspack-binding-linux-riscv64-musl')
+          const bindingPackageVersion =
+            require('@next/rspack-binding-linux-riscv64-musl/package.json').version
+          if (
+            bindingPackageVersion !== '1.0.3' &&
+            process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
+            process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0'
+          ) {
+            throw new Error(
+              `Native binding package version mismatch, expected 1.0.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`
+            )
+          }
+          return binding
         } catch (e) {
           loadErrors.push(e)
         }
@@ -297,7 +501,19 @@ function requireNative() {
           loadErrors.push(e)
         }
         try {
-          return require('@next/rspack-binding-linux-riscv64-gnu')
+          const binding = require('@next/rspack-binding-linux-riscv64-gnu')
+          const bindingPackageVersion =
+            require('@next/rspack-binding-linux-riscv64-gnu/package.json').version
+          if (
+            bindingPackageVersion !== '1.0.3' &&
+            process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
+            process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0'
+          ) {
+            throw new Error(
+              `Native binding package version mismatch, expected 1.0.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`
+            )
+          }
+          return binding
         } catch (e) {
           loadErrors.push(e)
         }
@@ -309,7 +525,19 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@next/rspack-binding-linux-ppc64-gnu')
+        const binding = require('@next/rspack-binding-linux-ppc64-gnu')
+        const bindingPackageVersion =
+          require('@next/rspack-binding-linux-ppc64-gnu/package.json').version
+        if (
+          bindingPackageVersion !== '1.0.3' &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0'
+        ) {
+          throw new Error(
+            `Native binding package version mismatch, expected 1.0.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`
+          )
+        }
+        return binding
       } catch (e) {
         loadErrors.push(e)
       }
@@ -320,7 +548,19 @@ function requireNative() {
         loadErrors.push(e)
       }
       try {
-        return require('@next/rspack-binding-linux-s390x-gnu')
+        const binding = require('@next/rspack-binding-linux-s390x-gnu')
+        const bindingPackageVersion =
+          require('@next/rspack-binding-linux-s390x-gnu/package.json').version
+        if (
+          bindingPackageVersion !== '1.0.3' &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0'
+        ) {
+          throw new Error(
+            `Native binding package version mismatch, expected 1.0.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`
+          )
+        }
+        return binding
       } catch (e) {
         loadErrors.push(e)
       }
@@ -332,34 +572,70 @@ function requireNative() {
   } else if (process.platform === 'openharmony') {
     if (process.arch === 'arm64') {
       try {
-        return require('./binding.linux-arm64-ohos.node')
+        return require('./binding.openharmony-arm64.node')
       } catch (e) {
         loadErrors.push(e)
       }
       try {
-        return require('@next/rspack-binding-linux-arm64-ohos')
+        const binding = require('@next/rspack-binding-openharmony-arm64')
+        const bindingPackageVersion =
+          require('@next/rspack-binding-openharmony-arm64/package.json').version
+        if (
+          bindingPackageVersion !== '1.0.3' &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0'
+        ) {
+          throw new Error(
+            `Native binding package version mismatch, expected 1.0.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`
+          )
+        }
+        return binding
       } catch (e) {
         loadErrors.push(e)
       }
     } else if (process.arch === 'x64') {
       try {
-        return require('./binding.linux-x64-ohos.node')
+        return require('./binding.openharmony-x64.node')
       } catch (e) {
         loadErrors.push(e)
       }
       try {
-        return require('@next/rspack-binding-linux-x64-ohos')
+        const binding = require('@next/rspack-binding-openharmony-x64')
+        const bindingPackageVersion =
+          require('@next/rspack-binding-openharmony-x64/package.json').version
+        if (
+          bindingPackageVersion !== '1.0.3' &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0'
+        ) {
+          throw new Error(
+            `Native binding package version mismatch, expected 1.0.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`
+          )
+        }
+        return binding
       } catch (e) {
         loadErrors.push(e)
       }
     } else if (process.arch === 'arm') {
       try {
-        return require('./binding.linux-arm-ohos.node')
+        return require('./binding.openharmony-arm.node')
       } catch (e) {
         loadErrors.push(e)
       }
       try {
-        return require('@next/rspack-binding-linux-arm-ohos')
+        const binding = require('@next/rspack-binding-openharmony-arm')
+        const bindingPackageVersion =
+          require('@next/rspack-binding-openharmony-arm/package.json').version
+        if (
+          bindingPackageVersion !== '1.0.3' &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK &&
+          process.env.NAPI_RS_ENFORCE_VERSION_CHECK !== '0'
+        ) {
+          throw new Error(
+            `Native binding package version mismatch, expected 1.0.3 but got ${bindingPackageVersion}. You can reinstall dependencies to fix this issue.`
+          )
+        }
+        return binding
       } catch (e) {
         loadErrors.push(e)
       }
@@ -411,6 +687,8 @@ if (!nativeBinding) {
 }
 
 module.exports = nativeBinding
+module.exports.registerForceCompleteRuntimePlugin =
+  nativeBinding.registerForceCompleteRuntimePlugin
 module.exports.registerNextExternalsPlugin =
   nativeBinding.registerNextExternalsPlugin
 module.exports.Assets = nativeBinding.Assets
@@ -421,8 +699,6 @@ module.exports.ChunkGroup = nativeBinding.ChunkGroup
 module.exports.Chunks = nativeBinding.Chunks
 module.exports.CodeGenerationResult = nativeBinding.CodeGenerationResult
 module.exports.CodeGenerationResults = nativeBinding.CodeGenerationResults
-module.exports.ConcatenatedModule = nativeBinding.ConcatenatedModule
-module.exports.ContextModule = nativeBinding.ContextModule
 module.exports.Dependency = nativeBinding.Dependency
 module.exports.Diagnostics = nativeBinding.Diagnostics
 module.exports.EntryDataDto = nativeBinding.EntryDataDto
@@ -430,26 +706,28 @@ module.exports.EntryDataDTO = nativeBinding.EntryDataDTO
 module.exports.EntryDependency = nativeBinding.EntryDependency
 module.exports.EntryOptionsDto = nativeBinding.EntryOptionsDto
 module.exports.EntryOptionsDTO = nativeBinding.EntryOptionsDTO
-module.exports.ExternalModule = nativeBinding.ExternalModule
+module.exports.FileSystemDependencies = nativeBinding.FileSystemDependencies
+module.exports.JsCache = nativeBinding.JsCache
 module.exports.JsCompilation = nativeBinding.JsCompilation
 module.exports.JsCompiler = nativeBinding.JsCompiler
 module.exports.JsContextModuleFactoryAfterResolveData =
   nativeBinding.JsContextModuleFactoryAfterResolveData
 module.exports.JsContextModuleFactoryBeforeResolveData =
   nativeBinding.JsContextModuleFactoryBeforeResolveData
-module.exports.JsDependencies = nativeBinding.JsDependencies
+module.exports.JsCoordinator = nativeBinding.JsCoordinator
 module.exports.JsEntries = nativeBinding.JsEntries
 module.exports.JsExportsInfo = nativeBinding.JsExportsInfo
 module.exports.JsModuleGraph = nativeBinding.JsModuleGraph
+module.exports.JsNativeSource = nativeBinding.JsNativeSource
 module.exports.JsResolver = nativeBinding.JsResolver
 module.exports.JsResolverFactory = nativeBinding.JsResolverFactory
 module.exports.JsStats = nativeBinding.JsStats
 module.exports.KnownBuildInfo = nativeBinding.KnownBuildInfo
-module.exports.Module = nativeBinding.Module
 module.exports.ModuleGraphConnection = nativeBinding.ModuleGraphConnection
+module.exports.Modules = nativeBinding.Modules
+module.exports.NativeTimeInfoEntries = nativeBinding.NativeTimeInfoEntries
 module.exports.NativeWatcher = nativeBinding.NativeWatcher
 module.exports.NativeWatchResult = nativeBinding.NativeWatchResult
-module.exports.NormalModule = nativeBinding.NormalModule
 module.exports.RawExternalItemFnCtx = nativeBinding.RawExternalItemFnCtx
 module.exports.ReadonlyResourceData = nativeBinding.ReadonlyResourceData
 module.exports.ResolverFactory = nativeBinding.ResolverFactory
@@ -459,16 +737,62 @@ module.exports.JsVirtualFileStore = nativeBinding.JsVirtualFileStore
 module.exports.async = nativeBinding.async
 module.exports.BuiltinPluginName = nativeBinding.BuiltinPluginName
 module.exports.cleanupGlobalTrace = nativeBinding.cleanupGlobalTrace
+module.exports.concatenatedModuleGetModules =
+  nativeBinding.concatenatedModuleGetModules
+module.exports.concatenatedModuleGetRootModule =
+  nativeBinding.concatenatedModuleGetRootModule
 module.exports.EnforceExtension = nativeBinding.EnforceExtension
 module.exports.EXPECTED_RSPACK_CORE_VERSION =
   nativeBinding.EXPECTED_RSPACK_CORE_VERSION
+module.exports.externalModuleGetUserRequest =
+  nativeBinding.externalModuleGetUserRequest
 module.exports.formatDiagnostic = nativeBinding.formatDiagnostic
 module.exports.JsLoaderState = nativeBinding.JsLoaderState
 module.exports.JsRspackSeverity = nativeBinding.JsRspackSeverity
 module.exports.loadBrowserslist = nativeBinding.loadBrowserslist
 module.exports.minify = nativeBinding.minify
 module.exports.minifySync = nativeBinding.minifySync
+module.exports.moduleEmitFile = nativeBinding.moduleEmitFile
+module.exports.moduleGetBlocks = nativeBinding.moduleGetBlocks
+module.exports.moduleGetBuildInfo = nativeBinding.moduleGetBuildInfo
+module.exports.moduleGetContext = nativeBinding.moduleGetContext
+module.exports.moduleGetDependencies = nativeBinding.moduleGetDependencies
+module.exports.moduleGetFactoryMeta = nativeBinding.moduleGetFactoryMeta
+module.exports.moduleGetIdentifier = nativeBinding.moduleGetIdentifier
+module.exports.moduleGetLayer = nativeBinding.moduleGetLayer
+module.exports.moduleGetNameForCondition =
+  nativeBinding.moduleGetNameForCondition
+module.exports.moduleGetOriginalSource = nativeBinding.moduleGetOriginalSource
+module.exports.moduleGetReadableIdentifier =
+  nativeBinding.moduleGetReadableIdentifier
+module.exports.moduleGetType = nativeBinding.moduleGetType
+module.exports.moduleGetUseSimpleSourceMap =
+  nativeBinding.moduleGetUseSimpleSourceMap
+module.exports.moduleGetUseSourceMap = nativeBinding.moduleGetUseSourceMap
+module.exports.ModuleKind = nativeBinding.ModuleKind
+module.exports.moduleLibIdent = nativeBinding.moduleLibIdent
+module.exports.moduleSetBuildInfo = nativeBinding.moduleSetBuildInfo
+module.exports.moduleSetFactoryMeta = nativeBinding.moduleSetFactoryMeta
+module.exports.moduleSize = nativeBinding.moduleSize
+module.exports.normalModuleGetError = nativeBinding.normalModuleGetError
+module.exports.normalModuleGetLoaders = nativeBinding.normalModuleGetLoaders
+module.exports.normalModuleGetMatchResource =
+  nativeBinding.normalModuleGetMatchResource
+module.exports.normalModuleGetRawRequest =
+  nativeBinding.normalModuleGetRawRequest
+module.exports.normalModuleGetRequest = nativeBinding.normalModuleGetRequest
+module.exports.normalModuleGetResource = nativeBinding.normalModuleGetResource
+module.exports.normalModuleGetResourceResolveData =
+  nativeBinding.normalModuleGetResourceResolveData
+module.exports.normalModuleGetUserRequest =
+  nativeBinding.normalModuleGetUserRequest
+module.exports.normalModuleSetMatchResource =
+  nativeBinding.normalModuleSetMatchResource
+module.exports.RawJavascriptParserCommonjsExports =
+  nativeBinding.RawJavascriptParserCommonjsExports
 module.exports.RawRuleSetConditionType = nativeBinding.RawRuleSetConditionType
+module.exports.RawSyncModuleIdsPluginMode =
+  nativeBinding.RawSyncModuleIdsPluginMode
 module.exports.registerGlobalTrace = nativeBinding.registerGlobalTrace
 module.exports.RegisterJsTapKind = nativeBinding.RegisterJsTapKind
 module.exports.sync = nativeBinding.sync
