@@ -1,5 +1,9 @@
 import { runAdaptiveStaticGeneration } from './orchestrator'
-import { AdaptiveWorkerSession, type MemorySnapshot } from './worker-session'
+import {
+  AdaptiveWorkerSession,
+  MAX_STEP_WAIT_MS,
+  type MemorySnapshot,
+} from './worker-session'
 import { createAdmissionConfig } from './admission-controller'
 import type {
   AdaptiveSessionInput,
@@ -459,8 +463,8 @@ describe('runAdaptiveStaticGeneration', () => {
   )
 
   it('cancels queued exports on other workers when the build fails', async () => {
-    let cancelled = false
-    let startedAfterCancel = 0
+    let buildFailed = false
+    let startedAfterFailure = 0
     const workers = [
       new FakeWorker(0, {
         onPageStart: () => {
@@ -468,9 +472,11 @@ describe('runAdaptiveStaticGeneration', () => {
         },
       }),
       new FakeWorker(1, {
-        renderMs: () => 20,
+        // Longer than a step may wait, so the cancel has to reach this worker
+        // while its first page is still rendering.
+        renderMs: () => MAX_STEP_WAIT_MS * 2,
         onPageStart: () => {
-          if (cancelled) startedAfterCancel++
+          if (buildFailed) startedAfterFailure++
         },
       }),
     ]
@@ -480,27 +486,88 @@ describe('runAdaptiveStaticGeneration', () => {
       [...exportPaths(20, '/a'), ...exportPaths(20, '/b')],
       {
         maxConcurrency: 1,
+        // Fits the worker's capacity (one rendering, two prefetched), so it
+        // accepts the whole chunk and its step waits instead of returning
+        // refused pages right away.
+        chunkSize: 3,
         callStep: (slot, input) => {
-          const result = workers[slot].step(input)
-          if (input.cancel) {
-            cancelSteps.push(slot)
-            if (slot === 1) cancelled = true
-          }
-          return result
+          if (input.cancel) cancelSteps.push(slot)
+          return workers[slot].step(input)
         },
       }
     )
+    promise.catch(() => {
+      buildFailed = true
+    })
     await expect(promise).rejects.toThrow('boom')
+    expect(workers[1].session!.status()).toMatchObject({
+      running: 1,
+      queued: 2,
+    })
 
-    // Worker 1 is cancelled once its in-flight step returns.
+    // Worker 1's step returns within `MAX_STEP_WAIT_MS`, before its first page
+    // finishes, and the cancel then drops the pages it had queued.
     for (let i = 0; i < 100 && !cancelSteps.includes(1); i++) await sleep(10)
     expect(cancelSteps).toContain(1)
-    await sleep(100)
+    await sleep(MAX_STEP_WAIT_MS * 2 + 100)
     expect(workers[1].session!.status()).toMatchObject({
       running: 0,
       queued: 0,
     })
-    expect(startedAfterCancel).toBe(0)
+    expect(startedAfterFailure).toBe(0)
+    expect(workers[1].rendered.map((r) => r.path)).toEqual(['/b/0'])
+  })
+
+  it('gives idle workers one page at a time while the machine is over its memory budget', async () => {
+    const workers = [
+      // Worker 0 holds most of the machine's memory budget...
+      new FakeWorker(0, {
+        memory: () => ({ liveRss: 1500 * MB, rss: 1500 * MB }),
+      }),
+      // ...while worker 1 has plenty of headroom of its own.
+      new FakeWorker(1, {
+        memory: () => ({ liveRss: 100 * MB, rss: 100 * MB }),
+      }),
+    ]
+    const reported = new Set<number>()
+    const chunksAfterFirstStep: number[][] = [[], []]
+    const { promise } = run(
+      workers,
+      [...exportPaths(20, '/a'), ...exportPaths(20, '/b')],
+      {
+        machineMemoryLimit: 2 * 1024 * MB,
+        memory: { mode: 'processes', getRss: () => 100 * MB },
+        maxConcurrency: 8,
+        chunkSize: 5,
+        callStep: (slot, input) => {
+          if (reported.has(slot) && input.submit.length > 0) {
+            chunksAfterFirstStep[slot].push(input.submit.length)
+          }
+          return workers[slot].step(input).finally(() => reported.add(slot))
+        },
+      }
+    )
+    expect(await promise).toHaveLength(40)
+    // Once worker memory is known, the machine is over budget: even the worker
+    // with headroom only gets a page after draining the previous one.
+    expect(chunksAfterFirstStep[1].length).toBeGreaterThan(0)
+    expect(chunksAfterFirstStep[1].every((size) => size === 1)).toBe(true)
+  })
+
+  it('reports per-page heap above the worker baseline', async () => {
+    const worker = new FakeWorker(0, {
+      memory: () => ({ heapUsed: 300 * MB, postGcHeap: 100 * MB }),
+    })
+    const result = await worker.step({
+      sessionId: 'session-1',
+      slot: 0,
+      phase: 'initial',
+      session: {} as AdaptiveSessionInput,
+      submit: [{ id: 0, exportPath: exportPaths(1)[0] }],
+      wait: 'drained',
+      limits: { maxConcurrency: 1, rssLimit: undefined },
+    })
+    expect(result.results.map((r) => r.heapPerPage)).toEqual([200 * MB])
   })
 
   it('honors a configured max concurrency', async () => {

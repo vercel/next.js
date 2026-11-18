@@ -158,6 +158,16 @@ describe('RouteQueue', () => {
       expect(queue.isHeavy('heavy2')).toBe(true)
     })
 
+    it('ends a probe when the probe page leaves the queue after a crash', () => {
+      const queue = setup(true)
+      const probe = queue.take(1, 4)
+      expect(probe.placement).toBe('probe:heavy2')
+      // The probe crashed its worker and will be retried alone, outside the
+      // route queue. `heavy2` is still unmeasured, so probe it again.
+      queue.forget(probe.tasks[0])
+      expect(queue.take(2, 4).placement).toBe('probe:heavy2')
+    })
+
     it('keeps a second worker on light routes while a heavy route renders elsewhere', () => {
       const queue = setup(true)
       completeAll(queue, queue.take(1, 1).tasks, 5000) // probe heavy2

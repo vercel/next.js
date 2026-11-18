@@ -5,8 +5,9 @@
  * queue of accepted pages and renders up to the admission controller's window
  * at once. Each step call from the orchestrator submits pages (the worker may
  * refuse some), then resolves once the worker could take more pages (or has
- * drained), returning whatever finished since the last step plus live
- * metrics. In-flight pages keep rendering between steps.
+ * drained), or after at most `MAX_STEP_WAIT_MS`, returning whatever finished
+ * since the last step plus live metrics. In-flight pages keep rendering
+ * between steps.
  */
 import {
   AdmissionController,
@@ -19,6 +20,14 @@ import type {
   AdaptiveWorkerStatus,
 } from './types'
 import type { ExportPagesResult } from '../types'
+
+/**
+ * Longest a step waits before it returns. A worker runs one call at a time, so
+ * the orchestrator can only reach it between steps, for example to cancel the
+ * pages it has queued after the build failed on another worker. Bounding the
+ * wait bounds how many queued pages can still start after such a failure.
+ */
+export const MAX_STEP_WAIT_MS = 250
 
 export type MemorySnapshot = {
   /** Event loop utilization since the previous snapshot, 0..1. */
@@ -151,10 +160,12 @@ export class AdaptiveWorkerSession {
 
     // Refused pages should be rerouted right away.
     if (refused.length === 0) {
-      await this.waitUntil(() =>
-        input.wait === 'drained'
-          ? this.idle
-          : this.idle || (this.queue.length === 0 && this.capacity() > 0)
+      await this.waitUntil(
+        () =>
+          input.wait === 'drained'
+            ? this.idle
+            : this.idle || (this.queue.length === 0 && this.capacity() > 0),
+        MAX_STEP_WAIT_MS
       )
     }
 
@@ -210,13 +221,9 @@ export class AdaptiveWorkerSession {
       .exportPage(task)
       .then(
         (result) => {
-          const heapUsed = this.memory?.heapUsed
           this.completed.push({
             id: task.id,
-            heapPerPage:
-              heapUsed !== undefined
-                ? heapUsed / Math.max(1, this.running)
-                : undefined,
+            heapPerPage: this.heapPerPage(),
             ...result,
           })
         },
@@ -232,19 +239,37 @@ export class AdaptiveWorkerSession {
       })
   }
 
+  /**
+   * Heap above the worker's baseline, shared by the pages in flight: a rough
+   * per-page memory cost for route statistics. Without a baseline estimate
+   * yet, the whole heap would make every page look heavy, so report nothing.
+   */
+  private heapPerPage(): number | undefined {
+    const heapUsed = this.memory?.heapUsed
+    const baseline = this.controller.state.baselineHeap
+    if (heapUsed === undefined || baseline === undefined) return undefined
+    return Math.max(0, heapUsed - baseline) / Math.max(1, this.running)
+  }
+
   private notify(): void {
     for (const waiter of [...this.waiters]) waiter()
   }
 
-  private waitUntil(condition: () => boolean): Promise<void> {
+  private waitUntil(
+    condition: () => boolean,
+    timeoutMs: number
+  ): Promise<void> {
     if (condition() || this.fatalError) return Promise.resolve()
     return new Promise<void>((resolve) => {
-      const check = () => {
-        if (condition() || this.fatalError) {
-          this.waiters.delete(check)
-          resolve()
-        }
+      const done = () => {
+        clearTimeout(timer)
+        this.waiters.delete(check)
+        resolve()
       }
+      const check = () => {
+        if (condition() || this.fatalError) done()
+      }
+      const timer = setTimeout(done, timeoutMs)
       this.waiters.add(check)
     })
   }

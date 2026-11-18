@@ -38,8 +38,8 @@ type Route<T extends RouteTask> = {
   owner: number | undefined
   inFlight: number
   cost: RouteCost
-  /** A single-page probe of this route is in flight. */
-  probing: boolean
+  /** Id of the single-page probe of this route that is in flight, if any. */
+  probe: number | undefined
   /** When the current owner claimed it, to break ties between heavy routes. */
   claimSeq: number
 }
@@ -120,7 +120,7 @@ export class RouteQueue<T extends RouteTask> {
         owner: undefined,
         inFlight: 0,
         cost: { pages: 0, avgMs: 0, avgHeapBytes: undefined },
-        probing: false,
+        probe: undefined,
         claimSeq: 0,
       }
       this.routes.set(name, route)
@@ -247,19 +247,22 @@ export class RouteQueue<T extends RouteTask> {
         // elsewhere. Routes being probed are skipped unless nothing else is
         // left.
         pick =
-          candidates.find((r) => !this.isHeavy(r.name) && !r.probing) ??
+          candidates.find(
+            (r) => !this.isHeavy(r.name) && r.probe === undefined
+          ) ??
           candidates.find((r) => !this.isHeavy(r.name)) ??
           candidates[0]
         if (
           !this.isHeavy(pick.name) &&
           pick.cost.pages === 0 &&
-          !pick.probing &&
+          pick.probe === undefined &&
           pick.pending.length >= PROBE_MIN_PAGES
         ) {
           // Unmeasured and big: render one page to learn its cost before
           // committing a worker to it.
-          pick.probing = true
-          return this.fromFront(pick, 1, 'probe')
+          const probe = this.fromFront(pick, 1, 'probe')
+          pick.probe = probe.tasks[0].id
+          return probe
         }
       }
       if (!(limit && this.isHeavy(pick.name) && this.lightOwned(slot))) {
@@ -338,7 +341,7 @@ export class RouteQueue<T extends RouteTask> {
     for (const task of tasks) {
       const route = this.routeFor(task.route)
       route.inFlight = Math.max(0, route.inFlight - 1)
-      route.probing = false
+      this.endProbe(route, task)
       insertSorted(route.pending, task)
       this.pendingCount++
     }
@@ -348,13 +351,14 @@ export class RouteQueue<T extends RouteTask> {
   forget(task: T) {
     const route = this.routeFor(task.route)
     route.inFlight = Math.max(0, route.inFlight - 1)
+    this.endProbe(route, task)
   }
 
   /** A page finished; update its route's running averages. */
   complete(task: T, ms: number | undefined, heapBytes: number | undefined) {
     const route = this.routeFor(task.route)
     route.inFlight = Math.max(0, route.inFlight - 1)
-    route.probing = false
+    this.endProbe(route, task)
     if (ms === undefined || !Number.isFinite(ms)) return
     this.medians = undefined
     const cost = route.cost
@@ -368,8 +372,11 @@ export class RouteQueue<T extends RouteTask> {
     }
   }
 
-  /** The worker behind `slot` was replaced; let others claim its route. */
-  releaseSlot(slot: number) {
-    this.release(slot)
+  /**
+   * Only the probe page itself ends a probe: another page of the same route
+   * finishing or coming back says nothing about the probe.
+   */
+  private endProbe(route: Route<T>, task: T) {
+    if (route.probe === task.id) route.probe = undefined
   }
 }

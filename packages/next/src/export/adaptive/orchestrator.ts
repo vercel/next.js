@@ -164,6 +164,7 @@ export function runAdaptiveStaticGeneration(
     consecutiveErrors: 0,
   }))
 
+  /** Allocated worker memory is over the machine budget (with hysteresis). */
   let machineSaturated = false
 
   return new Promise<ExportPagesResult>((resolve, reject) => {
@@ -174,7 +175,7 @@ export function runAdaptiveStaticGeneration(
      * After the build failed, tell a worker to drop the pages it accepted but
      * hasn't started, so it stops rendering and writing them. A slot with a
      * step in flight is cancelled once that step returns, since a worker
-     * runs one call at a time.
+     * runs one call at a time; steps return within `MAX_STEP_WAIT_MS`.
      */
     const cancelSlot = (slot: Slot) => {
       if (slot.cancelled || slot.busy || !slot.workerId) return
@@ -277,7 +278,13 @@ export function runAdaptiveStaticGeneration(
         return outstandingFor(slot.workerId) === 0 ? [retryQueue.shift()!] : []
       }
       if (routeQueue.size === 0) return []
-      const capacity = slot.status ? slot.status.capacity : chunkSize
+      // Over the machine's memory budget, an idle worker gets one page so the
+      // build keeps making progress without adding much memory.
+      const capacity = machineSaturated
+        ? 1
+        : slot.status
+          ? slot.status.capacity
+          : chunkSize
       const count = Math.max(1, Math.min(chunkSize, capacity))
       const { tasks: chunk, placement } = routeQueue.take(slot.index, count)
       for (const task of chunk) {
@@ -447,13 +454,17 @@ export function runAdaptiveStaticGeneration(
         return
       }
 
-      // Machine-wide memory budget, with hysteresis.
+      // Machine-wide memory budget. Allocated memory drives the hysteresis
+      // and limits idle workers to one page while it is over budget.
       const budget =
         machineMemoryLimit * MACHINE_BUDGET_SHARE - getParentUsage()
-      // Allocated memory drives the hysteresis. RSS rarely shrinks after a
-      // burst, so it only holds dispatch back once it nears the machine
-      // limit itself.
       const usage = (totalWorkerRss() + idleAllocated()) / Math.max(1, budget)
+      if (usage >= MACHINE_HIGH_WATER) machineSaturated = true
+      else if (usage <= MACHINE_LOW_WATER) machineSaturated = false
+      // RSS rarely shrinks after a burst, and memory a process already holds
+      // can be reused, so RSS doesn't latch the allocation hysteresis above.
+      // Near the machine limit it only stops workers from prefetching: each
+      // drains the pages it has before it gets the next chunk.
       const rawUsage =
         memory.mode === 'threads'
           ? memory.getRss() /
@@ -463,8 +474,7 @@ export function runAdaptiveStaticGeneration(
               1,
               machineMemoryLimit * MACHINE_RAW_SHARE - getParentUsage()
             )
-      if (usage >= MACHINE_HIGH_WATER || rawUsage >= 1) machineSaturated = true
-      else if (usage <= MACHINE_LOW_WATER) machineSaturated = false
+      const holdBackBusy = machineSaturated || rawUsage >= 1
 
       const idle = slots
         .filter((slot) => !slot.busy)
@@ -483,7 +493,7 @@ export function runAdaptiveStaticGeneration(
           slot.status !== undefined && slot.status.capacity <= 0
         const holdBack =
           pending > 0 &&
-          (machineSaturated ||
+          (holdBackBusy ||
             slot.status?.saturated === true ||
             headIsolated ||
             noCapacity)
@@ -494,7 +504,7 @@ export function runAdaptiveStaticGeneration(
         } else if (pending > 0) {
           // Waiting for capacity only helps if we could then send pages.
           const wait =
-            pendingCount() > 0 && !machineSaturated && !headIsolated
+            pendingCount() > 0 && !holdBackBusy && !headIsolated
               ? 'capacity'
               : 'drained'
           send(slot, [], { wait })

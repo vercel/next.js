@@ -556,121 +556,125 @@ async function exportPageWithRetry(
 
   const profiledPage = profiler?.beginPage()
 
-  const renderResumeDataCache = serializedRenderResumeDataCache
-    ? createRenderResumeDataCache(
-        serializedRenderResumeDataCache,
-        renderOpts.experimental.maxPostponedStateSizeBytes,
-        renderOpts.experimental.disableResumeDataCacheCompression
-      )
-    : undefined
+  try {
+    const renderResumeDataCache = serializedRenderResumeDataCache
+      ? createRenderResumeDataCache(
+          serializedRenderResumeDataCache,
+          renderOpts.experimental.maxPostponedStateSizeBytes,
+          renderOpts.experimental.disableResumeDataCacheCompression
+        )
+      : undefined
 
-  while (attempt < maxAttempts) {
-    try {
-      result = await Promise.race<ExportPageResult | undefined>([
-        exportPage({
-          exportPath,
-          distDir,
-          outDir,
-          pagesDataDir,
-          renderOpts,
-          trailingSlash: nextConfig.trailingSlash,
-          subFolders: nextConfig.trailingSlash && !options.buildExport,
-          buildExport: options.buildExport,
-          optimizeCss: nextConfig.experimental.optimizeCss,
-          disableOptimizedLoading:
-            nextConfig.experimental.disableOptimizedLoading,
-          parentSpanId: input.parentSpanId,
-          httpAgentOptions: nextConfig.httpAgentOptions,
-          debugOutput: options.debugOutput,
-          enableExperimentalReact: needsExperimentalReact(nextConfig),
-          sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
-          buildId: input.buildId,
-          deploymentId: input.deploymentId,
-          clientAssetToken: input.clientAssetToken,
-          renderResumeDataCache,
-          phase,
-          useScopedBuildArtifacts:
-            Boolean(nextConfig.adapterPath) &&
-            nextConfig.output !== 'export' &&
-            options.buildExport,
-        }),
-        hasDebuggerAttached
-          ? // With a debugger attached, exporting can take infinitely if we paused script execution.
-            new Promise(() => {})
-          : // If exporting the page takes longer than the timeout, reject the promise.
-            new Promise((_, reject) => {
-              setTimeout(() => {
-                reject(new TimeoutError())
-              }, nextConfig.staticPageGenerationTimeout * 1000)
-            }),
-      ])
+    while (attempt < maxAttempts) {
+      try {
+        result = await Promise.race<ExportPageResult | undefined>([
+          exportPage({
+            exportPath,
+            distDir,
+            outDir,
+            pagesDataDir,
+            renderOpts,
+            trailingSlash: nextConfig.trailingSlash,
+            subFolders: nextConfig.trailingSlash && !options.buildExport,
+            buildExport: options.buildExport,
+            optimizeCss: nextConfig.experimental.optimizeCss,
+            disableOptimizedLoading:
+              nextConfig.experimental.disableOptimizedLoading,
+            parentSpanId: input.parentSpanId,
+            httpAgentOptions: nextConfig.httpAgentOptions,
+            debugOutput: options.debugOutput,
+            enableExperimentalReact: needsExperimentalReact(nextConfig),
+            sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
+            buildId: input.buildId,
+            deploymentId: input.deploymentId,
+            clientAssetToken: input.clientAssetToken,
+            renderResumeDataCache,
+            phase,
+            useScopedBuildArtifacts:
+              Boolean(nextConfig.adapterPath) &&
+              nextConfig.output !== 'export' &&
+              options.buildExport,
+          }),
+          hasDebuggerAttached
+            ? // With a debugger attached, exporting can take infinitely if we paused script execution.
+              new Promise(() => {})
+            : // If exporting the page takes longer than the timeout, reject the promise.
+              new Promise((_, reject) => {
+                setTimeout(() => {
+                  reject(new TimeoutError())
+                }, nextConfig.staticPageGenerationTimeout * 1000)
+              }),
+        ])
 
-      // If there was an error in the export, throw it immediately. In the catch block, we might retry the export,
-      // or immediately fail the build, depending on user configuration. We might also continue on and attempt other pages.
-      if (result && 'error' in result) {
-        throw new ExportPageError()
-      }
-
-      // If the export succeeds, break out of the retry loop
-      break
-    } catch (err) {
-      // The only error that should be caught here is an ExportError, as `exportPage` doesn't throw and instead returns an object with an `error` property.
-      // This is an overly cautious check to ensure that we don't accidentally catch an unexpected error.
-      if (!(err instanceof ExportPageError || err instanceof TimeoutError)) {
-        throw err
-      }
-
-      if (err instanceof TimeoutError) {
-        // If the export times out, we will restart the worker up to 3 times.
-        maxAttempts = 3
-      }
-
-      // We've reached the maximum number of attempts
-      if (attempt >= maxAttempts - 1) {
-        // Log a message if we've reached the maximum number of attempts.
-        // We only care to do this if maxAttempts was configured.
-        if (maxAttempts > 1) {
-          console.info(
-            `Failed to build ${pageKey} after ${maxAttempts} attempts.`
-          )
+        // If there was an error in the export, throw it immediately. In the catch block, we might retry the export,
+        // or immediately fail the build, depending on user configuration. We might also continue on and attempt other pages.
+        if (result && 'error' in result) {
+          throw new ExportPageError()
         }
-        // If prerenderEarlyExit is enabled, we'll exit the build immediately.
-        if (nextConfig.experimental.prerenderEarlyExit) {
-          const message = `Export encountered an error on ${pageKey}, exiting the build.`
-          console.error(message)
-          if (context.earlyExit === 'throw') {
-            throw new PrerenderEarlyExitError(message)
-          }
-          process.exit(1)
-        } else {
-          // Otherwise, this is a no-op. The build will continue, and a summary of failed pages will be displayed at the end.
+
+        // If the export succeeds, break out of the retry loop
+        break
+      } catch (err) {
+        // The only error that should be caught here is an ExportError, as `exportPage` doesn't throw and instead returns an object with an `error` property.
+        // This is an overly cautious check to ensure that we don't accidentally catch an unexpected error.
+        if (!(err instanceof ExportPageError || err instanceof TimeoutError)) {
+          throw err
         }
-      } else {
-        // Otherwise, we have more attempts to make. Wait before retrying
+
         if (err instanceof TimeoutError) {
-          console.info(
-            `Failed to build ${pageKey} (attempt ${attempt + 1} of ${maxAttempts}) because it took more than ${nextConfig.staticPageGenerationTimeout} seconds. Retrying again shortly.`
-          )
-        } else {
-          console.info(
-            `Failed to build ${pageKey} (attempt ${attempt + 1} of ${maxAttempts}). Retrying again shortly.`
-          )
+          // If the export times out, we will restart the worker up to 3 times.
+          maxAttempts = 3
         }
 
-        // Exponential backoff with random jitter to avoid thundering herd on retries
-        const baseDelay = 500 // 500ms
-        const maxDelay = 2000 // 2 seconds
-        const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay)
-        const jitter = Math.random() * 0.3 * delay // Add up to 30% random jitter
-        await new Promise((r) => setTimeout(r, delay + jitter))
+        // We've reached the maximum number of attempts
+        if (attempt >= maxAttempts - 1) {
+          // Log a message if we've reached the maximum number of attempts.
+          // We only care to do this if maxAttempts was configured.
+          if (maxAttempts > 1) {
+            console.info(
+              `Failed to build ${pageKey} after ${maxAttempts} attempts.`
+            )
+          }
+          // If prerenderEarlyExit is enabled, we'll exit the build immediately.
+          if (nextConfig.experimental.prerenderEarlyExit) {
+            const message = `Export encountered an error on ${pageKey}, exiting the build.`
+            console.error(message)
+            if (context.earlyExit === 'throw') {
+              throw new PrerenderEarlyExitError(message)
+            }
+            process.exit(1)
+          } else {
+            // Otherwise, this is a no-op. The build will continue, and a summary of failed pages will be displayed at the end.
+          }
+        } else {
+          // Otherwise, we have more attempts to make. Wait before retrying
+          if (err instanceof TimeoutError) {
+            console.info(
+              `Failed to build ${pageKey} (attempt ${attempt + 1} of ${maxAttempts}) because it took more than ${nextConfig.staticPageGenerationTimeout} seconds. Retrying again shortly.`
+            )
+          } else {
+            console.info(
+              `Failed to build ${pageKey} (attempt ${attempt + 1} of ${maxAttempts}). Retrying again shortly.`
+            )
+          }
+
+          // Exponential backoff with random jitter to avoid thundering herd on retries
+          const baseDelay = 500 // 500ms
+          const maxDelay = 2000 // 2 seconds
+          const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay)
+          const jitter = Math.random() * 0.3 * delay // Add up to 30% random jitter
+          await new Promise((r) => setTimeout(r, delay + jitter))
+        }
       }
+
+      attempt++
     }
-
-    attempt++
-  }
-
-  if (profiler && profiledPage) {
-    profiler.endPage(profiledPage, { phase, page, path, result, placement })
+  } finally {
+    // Also record pages that threw, so the profile's in-flight count stays
+    // balanced.
+    if (profiler && profiledPage) {
+      profiler.endPage(profiledPage, { phase, page, path, result, placement })
+    }
   }
 
   return { result, path, page, pageKey }

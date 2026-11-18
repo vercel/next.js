@@ -34,6 +34,7 @@ export type AdaptiveStepInput = {
   /**
    * `capacity`: return once the worker could take more pages.
    * `drained`: return once the worker has nothing in flight.
+   * Either way the step returns after at most `MAX_STEP_WAIT_MS`.
    */
   wait: 'capacity' | 'drained'
   limits: {
@@ -78,8 +79,9 @@ export type AdaptiveStepResult = {
     {
       id: number
       /**
-       * Heap in use divided by pages in flight when this page finished: a
-       * rough per-page memory cost for route statistics.
+       * Heap in use above the worker's baseline, divided by pages in flight
+       * when this page finished: a rough per-page memory cost for route
+       * statistics. Unset until the worker has a baseline estimate.
        */
       heapPerPage?: number
     } & ExportPagesResult[number]
