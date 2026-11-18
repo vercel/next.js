@@ -73,7 +73,12 @@ export function UserPreferencesBody({
         <h3 id="prefs-appearance" className="preference-group-title">
           Appearance
         </h3>
-        <PreferenceRow id="theme" label="Theme" docs="theme">
+        <PreferenceRow
+          id="theme"
+          label="Theme"
+          description="Light, dark, or match your system."
+          docs="theme"
+        >
           <Select
             id="theme"
             name="theme"
@@ -85,7 +90,12 @@ export function UserPreferencesBody({
             <option value="dark">Dark</option>
           </Select>
         </PreferenceRow>
-        <PreferenceRow id="position" label="Position" docs="position">
+        <PreferenceRow
+          id="position"
+          label="Position"
+          description="Corner for the badge. You can also drag it."
+          docs="position"
+        >
           <Select
             id="position"
             name="position"
@@ -98,7 +108,12 @@ export function UserPreferencesBody({
             <option value="top-right">Top right</option>
           </Select>
         </PreferenceRow>
-        <PreferenceRow id="size" label="Size" docs="size">
+        <PreferenceRow
+          id="size"
+          label="Size"
+          description="Scale of the badge and panels."
+          docs="size"
+        >
           <Select
             id="size"
             name="size"
@@ -126,6 +141,7 @@ export function UserPreferencesBody({
         <PreferenceRow
           id="indicator-visibility"
           label="Show indicator"
+          description="Diagnostics still appear when it's off."
           docs="show-indicator"
         >
           <button
@@ -145,6 +161,7 @@ export function UserPreferencesBody({
         <PreferenceRow
           id="indicator-shortcut"
           label="Shortcut"
+          description="Toggle the indicator from the keyboard."
           docs="keyboard-shortcut"
         >
           <ShortcutRecorder
@@ -161,6 +178,7 @@ export function UserPreferencesBody({
         <PreferenceRow
           id="restart-dev-server"
           label="Restart dev server"
+          description="Restart without leaving the browser."
           docs="restart-dev-server"
         >
           <button
@@ -181,6 +199,7 @@ export function UserPreferencesBody({
           <PreferenceRow
             id="reset-bundler-cache"
             label="Reset bundler cache"
+            description="Fixes stale errors or changes not showing."
             docs="reset-bundler-cache"
           >
             <button
@@ -213,31 +232,39 @@ const DOCS_URL = 'https://nextjs.org/docs/app/guides/devtools'
 function PreferenceRow({
   id,
   label,
+  description,
   docs,
   children,
 }: {
   /** id of the control; the label gets `${id}-label`. */
   id: string
   label: string
+  /** One short line explaining what the option does. */
+  description: string
   docs: string
   children: React.ReactNode
 }) {
   return (
     <div className="preference-row">
-      <div className="preference-label">
-        <label id={`${id}-label`} htmlFor={id}>
-          {label}
-        </label>
-        <a
-          className="preference-docs-link"
-          href={`${DOCS_URL}#${docs}`}
-          target="_blank"
-          rel="noreferrer noopener"
-          aria-label={`Learn more about ${label}`}
-          title={`Learn more about ${label}`}
-        >
-          <HelpIcon />
-        </a>
+      <div className="preference-text">
+        <div className="preference-label">
+          <label id={`${id}-label`} htmlFor={id}>
+            {label}
+          </label>
+          <a
+            className="preference-docs-link"
+            href={`${DOCS_URL}#${docs}`}
+            target="_blank"
+            rel="noreferrer noopener"
+            aria-label={`Learn more about ${label}`}
+            title={`Learn more about ${label}`}
+          >
+            <HelpIcon />
+          </a>
+        </div>
+        <p id={`${id}-description`} className="preference-description">
+          {description}
+        </p>
       </div>
       <div className="preference-control">{children}</div>
     </div>
@@ -275,7 +302,7 @@ function Select({
 }
 
 export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
-  /* One grid: every row is 40px, every control is the same width and height
+  /* One grid: every row has the same height, every control is the same width and height
      in the same right-hand column, and every section uses the same spacing. */
   .preferences-container {
     --preference-control-width: 144px;
@@ -324,7 +351,20 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    height: 40px;
+    min-height: 52px;
+    padding: 4px 0;
+    box-sizing: border-box;
+  }
+
+  .preference-text {
+    min-width: 0;
+  }
+
+  .preference-description {
+    margin: 0;
+    font-size: var(--size-13);
+    line-height: var(--size-18);
+    color: var(--color-gray-900);
   }
 
   .preference-label {
@@ -402,6 +442,10 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
 
   .preference-control .shortcut-recorder-button {
     justify-content: space-between;
+
+    &[data-has-shortcut='false'] {
+      justify-content: center;
+    }
   }
 
   .select-button {

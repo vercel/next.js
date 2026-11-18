@@ -27,7 +27,7 @@ describe('dev indicator - Hide DevTools Button', () => {
     await assertNoDevToolsIndicator(browser)
     expect(
       await browser.elementByCss('.indicator-visibility-notice').text()
-    ).toContain('Indicator hidden')
+    ).toContain('to show it')
 
     await next.stop()
     await next.start()
@@ -106,7 +106,7 @@ describe('dev indicator - Hide DevTools Button', () => {
     })
     expect(
       await browser.elementByCss('.indicator-visibility-notice').text()
-    ).toContain('Indicator hidden')
+    ).toContain('to show it')
     await pressShortcut()
     await waitForDevToolsIndicator(browser)
     await retry(async () => {

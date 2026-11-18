@@ -662,6 +662,11 @@ export function ErrorTabBar({
           'No issues'
         ) : (
           <>
+            <span
+              aria-hidden
+              className="error-overlay-tab-dot"
+              data-variant="issue"
+            />
             Issues
             <span
               className="error-overlay-tab-count"
@@ -679,6 +684,11 @@ export function ErrorTabBar({
           data-active={activeTab === 'instant'}
           onClick={() => onTabChange('instant')}
         >
+          <span
+            aria-hidden
+            className="error-overlay-tab-dot"
+            data-variant="insight"
+          />
           Insights
           <span
             className="error-overlay-tab-count"
@@ -1603,6 +1613,24 @@ export const styles = `
     &:focus-visible {
       outline: var(--focus-ring);
       outline-offset: 2px;
+    }
+  }
+
+  /* The same dots as the DevTools menu's Issues and Insights rows, so each
+     tab matches the badge button and menu row that opened it. */
+  .error-overlay-tab-dot {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    margin-right: 4px;
+    border-radius: 50%;
+
+    &[data-variant='issue'] {
+      background: var(--color-red-800);
+    }
+
+    &[data-variant='insight'] {
+      background: var(--color-amber-800);
     }
   }
 

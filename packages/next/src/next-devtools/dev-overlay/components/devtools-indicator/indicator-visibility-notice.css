@@ -1,14 +1,14 @@
-/* Matches the badge: a dark pill in the badge's corner. */
+/* Matches the badge: dark, in the badge's corner, with one action. */
 .indicator-visibility-notice {
   position: fixed;
   z-index: var(--top-z-index);
   display: flex;
   align-items: center;
-  gap: var(--size-12);
-  height: var(--size-36);
-  padding: 0 var(--size-4) 0 var(--size-16);
-  border-radius: var(--rounded-full);
-  background: rgba(0, 0, 0, 0.8);
+  gap: var(--size-16);
+  max-width: min(360px, calc(100vw - 40px));
+  padding: var(--size-10) var(--size-10) var(--size-10) var(--size-14);
+  border-radius: var(--rounded-xl);
+  background: rgba(0, 0, 0, 0.85);
   box-shadow:
     0 0 0 1px #171717,
     inset 0 0 0 1px hsla(0, 0%, 100%, 0.14),
@@ -17,8 +17,40 @@
   color: #fff;
   font-family: var(--font-stack-sans);
   font-size: var(--size-13);
-  font-weight: 500;
-  white-space: nowrap;
+
+  strong {
+    display: block;
+    font-weight: 500;
+  }
+
+  .indicator-visibility-notice-text > span {
+    display: block;
+    margin-top: 2px;
+    color: hsla(0, 0%, 100%, 0.65);
+    line-height: var(--size-18);
+  }
+
+  .indicator-visibility-notice-keys {
+    display: inline-flex;
+    gap: 3px;
+    margin: 0 2px;
+    vertical-align: -3px;
+  }
+
+  kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--size-18);
+    height: var(--size-18);
+    padding: 0 3px;
+    box-sizing: border-box;
+    border-radius: 4px;
+    background: hsla(0, 0%, 100%, 0.14);
+    color: #fff;
+    font: inherit;
+    font-size: var(--size-12);
+  }
 
   button {
     flex-shrink: 0;
@@ -29,6 +61,7 @@
     background: hsla(0, 0%, 100%, 0.12);
     color: #fff;
     font: inherit;
+    font-weight: 500;
     cursor: pointer;
     transition: background 150ms ease;
 

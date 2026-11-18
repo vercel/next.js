@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { useUpdateAnimation } from './hooks/use-update-animation'
 import { useMeasureWidth } from './hooks/use-measure-width'
 import { Cross } from '../../icons/cross'
@@ -119,6 +119,10 @@ export function NextLogo({
     SHORT_DURATION_MS
   )
   const newErrorDetected = normalErrorAnimating || instantErrorAnimating
+  // Each chip animates its own count, only when that count went up, and only
+  // right after the change (not when the chip remounts on expand).
+  const normalCountChange = useCountChange(normalErrorCount)
+  const instantCountChange = useCountChange(instantErrorCount)
 
   // The status text and the persistent cache badge are owned by a single
   // state machine that handles the show/hide timing and the handoff between
@@ -154,6 +158,7 @@ export function NextLogo({
       ? 'insight'
       : 'issue'
     : undefined
+  const collapsedCount = hasNormal ? normalErrorCount : instantErrorCount
   const collapsedLabel = hasNormal
     ? `Show ${normalErrorCount} ${pluralize(normalErrorCount, 'issue')}`
     : `Show ${instantErrorCount} ${pluralize(instantErrorCount, 'Insight')}`
@@ -179,7 +184,7 @@ export function NextLogo({
   }
 
   function chipTitle(label: string) {
-    return canDrag ? `View ${label} · Drag to move` : `View ${label}`
+    return `View ${label}`
   }
 
   return (
@@ -255,16 +260,11 @@ export function NextLogo({
             border-radius: var(--rounded-full);
             user-select: none;
             cursor: pointer;
-            scale: 1;
             overflow: hidden;
-            will-change: scale, width;
-            transition:
-              scale var(--duration-short) var(--timing),
-              width var(--duration-long) var(--timing);
-
-            &[data-animate='true']:not(:hover) {
-              scale: 1.02;
-            }
+            will-change: width;
+            /* No scale bump on new diagnostics: the count rolling in is the
+               signal, and the badge keeps a steady size. */
+            transition: width var(--duration-long) var(--timing);
 
             &:has([data-next-mark]:focus-visible) {
               outline: var(--focus-ring);
@@ -316,6 +316,9 @@ export function NextLogo({
             align-items: center;
             justify-content: center;
             border-radius: var(--rounded-full);
+            /* Explicit so the browser's default button background never shows
+               while the badge first renders. */
+            background: transparent;
             transition: background var(--duration-short) ease;
 
             &:focus-visible {
@@ -345,8 +348,9 @@ export function NextLogo({
           }
 
           [data-issues-open] {
+            cursor: pointer;
             height: var(--chip-height);
-            padding: 0 var(--size-10);
+            padding: 0 var(--size-12);
             display: flex;
             gap: var(--size-4);
             align-items: center;
@@ -357,7 +361,9 @@ export function NextLogo({
             line-height: var(--size-20);
             white-space: nowrap;
             box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
-            transition: filter var(--duration-short) ease;
+            transition:
+              filter var(--duration-short) ease,
+              box-shadow var(--duration-short) ease;
 
             &[data-issues-tab='errors'] {
               background: var(--color-issue);
@@ -368,13 +374,20 @@ export function NextLogo({
             }
 
             &:hover {
-              filter: brightness(1.12);
+              filter: brightness(1.15);
+              box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.5);
             }
 
             &:focus-visible {
               outline: 2px solid #fff;
               outline-offset: -2px;
             }
+          }
+
+          /* Status and cache text aren't buttons. */
+          [data-cache-label],
+          [data-indicator-status] {
+            cursor: default;
           }
 
           /* Cache state after a load: plain text, not a button. */
@@ -397,23 +410,19 @@ export function NextLogo({
             background: var(--color-cache);
           }
 
-          /* Trailing control: ‹ collapses, × dismisses. Part of the tray. */
-          [data-badge-divider] {
-            flex: none;
-            width: 1px;
-            height: var(--size-16);
-            background: rgba(255, 255, 255, 0.18);
-          }
-
+          /* The trailing control is its own small circle, like a smaller N. */
           [data-issues-collapse] {
             flex: none;
             width: var(--size-24);
-            height: var(--chip-height);
+            height: var(--size-24);
+            /* 6px from the badge edge on every side, like the chips are 2px. */
+            margin-right: var(--size-4);
             display: flex;
             align-items: center;
             justify-content: center;
             border-radius: var(--rounded-full);
-            color: rgba(255, 255, 255, 0.75);
+            background: transparent;
+            color: rgba(255, 255, 255, 0.8);
             transition:
               background var(--duration-short) ease,
               color var(--duration-short) ease;
@@ -428,10 +437,37 @@ export function NextLogo({
             }
           }
 
-          [data-cross],
           [data-collapse-chevron] {
-            width: var(--size-12);
-            height: var(--size-12);
+            width: var(--size-6);
+            height: var(--size-10);
+          }
+
+          [data-cross] {
+            width: var(--size-10);
+            height: var(--size-10);
+          }
+
+          /* Collapsed count on the N's corner. Decorative only: the whole
+             colored N is the button that expands the badge. */
+          [data-collapsed-count] {
+            position: absolute;
+            top: calc(var(--size-6) * -1);
+            left: calc(var(--size) - var(--size-12));
+            min-width: var(--size-16);
+            height: var(--size-16);
+            padding: 0 var(--size-4);
+            box-sizing: border-box;
+            border-radius: var(--rounded-full);
+            background: #171717;
+            color: #fff;
+            font-size: var(--size-10);
+            font-weight: 600;
+            line-height: var(--size-16);
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+            box-shadow: 0 0 0 1.5px #fff;
+            pointer-events: none;
+            z-index: 1;
           }
 
           [data-issues-count-animation] {
@@ -568,14 +604,12 @@ export function NextLogo({
                     data-issues-open
                     data-issues-tab="errors"
                     aria-label={`Open ${normalErrorCount} ${pluralize(normalErrorCount, 'issue')}`}
-                    aria-describedby={canDrag ? moveDescriptionId : undefined}
-                    data-draggable={canDrag}
                     onClick={() => openOverlay('errors')}
                   >
                     <AnimateCount
                       key={normalErrorCount}
-                      animate={normalErrorAnimating}
-                      data-issues-count-animation
+                      change={normalCountChange}
+                      countAttribute
                     >
                       {normalErrorCount}
                     </AnimateCount>
@@ -596,23 +630,17 @@ export function NextLogo({
                     data-issues-open
                     data-issues-tab="instant"
                     aria-label={`Open ${instantErrorCount} ${pluralize(instantErrorCount, 'Insight')}`}
-                    aria-describedby={canDrag ? moveDescriptionId : undefined}
-                    data-draggable={canDrag}
                     onClick={() => openOverlay('instant')}
                   >
                     {/* The leading chip owns data-issues-count, which test
                         utilities read as the badge's count. */}
-                    {hasNormal ? (
-                      <span>{instantErrorCount}</span>
-                    ) : (
-                      <AnimateCount
-                        key={instantErrorCount}
-                        animate={instantErrorAnimating}
-                        data-issues-count-animation
-                      >
-                        {instantErrorCount}
-                      </AnimateCount>
-                    )}
+                    <AnimateCount
+                      key={instantErrorCount}
+                      change={instantCountChange}
+                      countAttribute={!hasNormal}
+                    >
+                      {instantErrorCount}
+                    </AnimateCount>
                     {pluralize(instantErrorCount, 'Insight')}
                   </button>
                 </Tooltip>
@@ -665,6 +693,11 @@ export function NextLogo({
           )}
         </div>
       </div>
+      {isCollapsed && (
+        <span aria-hidden data-collapsed-count>
+          {collapsedCount}
+        </span>
+      )}
     </div>
   )
 }
@@ -684,7 +717,6 @@ function TrayControl({
 }) {
   return (
     <>
-      <span aria-hidden data-badge-divider />
       <Tooltip
         asChild
         disabled={disableTooltips}
@@ -693,27 +725,76 @@ function TrayControl({
         title={label}
       >
         <button data-issues-collapse aria-label={label} onClick={onClick}>
-          {icon === 'dismiss' ? <Cross data-cross /> : <CollapseChevron />}
+          {icon === 'dismiss' ? (
+            <Cross data-cross viewBox="1.5 1.5 11 11" />
+          ) : (
+            <CollapseChevron />
+          )}
         </button>
       </Tooltip>
     </>
   )
 }
 
+type CountChange = { from: number } | null
+
+/**
+ * The previous value of a count, for the render right after it changed. It's
+ * cleared after commit, so a chip that only remounts (for example when the
+ * badge expands again) doesn't replay the animation.
+ */
+function useCountChange(count: number): CountChange {
+  const [state, setState] = useState<{ count: number; change: CountChange }>({
+    count,
+    change: null,
+  })
+  if (state.count !== count) {
+    setState({ count, change: { from: state.count } })
+  }
+  useEffect(() => {
+    if (state.change === null) return
+    const timeout = setTimeout(() => {
+      setState((current) =>
+        current.change === null ? current : { ...current, change: null }
+      )
+    })
+    return () => clearTimeout(timeout)
+  }, [state.change])
+  return state.change
+}
+
+/**
+ * Rolls the new count in and the previous one out. Keyed by the count, so it
+ * plays once when that chip's count goes up; a chip that only remounts (for
+ * example when the badge expands again) or whose count went down doesn't
+ * animate.
+ */
 function AnimateCount({
   children: count,
-  animate = true,
-  ...props
+  change,
+  countAttribute,
 }: {
   children: number
-  animate: boolean
+  change: CountChange
+  /** The leading chip's count is what test utilities read. */
+  countAttribute?: boolean
 }) {
+  // Captured on mount; the change is cleared right after.
+  const [from] = useState(() =>
+    change !== null && count > change.from ? change.from : null
+  )
+  const animate = from !== null
   return (
-    <div {...props} data-animate={animate}>
-      <div aria-hidden data-issues-count-exit>
-        {count - 1}
-      </div>
-      <div data-issues-count data-issues-count-enter>
+    <div data-issues-count-animation data-animate={animate}>
+      {animate && (
+        <div aria-hidden data-issues-count-exit>
+          {from}
+        </div>
+      )}
+      <div
+        data-issues-count={countAttribute ? true : undefined}
+        data-issues-count-enter
+      >
         {count}
       </div>
     </div>
@@ -724,7 +805,8 @@ function CollapseChevron() {
   return (
     <svg
       data-collapse-chevron
-      viewBox="0 0 16 16"
+      // Cropped to the glyph so its box doesn't add invisible padding.
+      viewBox="5 3 6 10"
       fill="none"
       aria-hidden="true"
     >

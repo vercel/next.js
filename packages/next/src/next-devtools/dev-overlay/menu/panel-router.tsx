@@ -44,12 +44,23 @@ const MenuPanel = () => {
   const { normalErrorCount, instantErrorCount } = useRenderErrorContext()
   const isAppRouter = state.routerType === 'app'
 
-  const { hasNormal, hasInstant } = getIssueBucketState(
+  const { hasNormal, hasInstant, hasAny } = getIssueBucketState(
     normalErrorCount,
     instantErrorCount
   )
 
-  // Issues and Insights are separate entries; each opens its own overlay tab.
+  const titleParts: string[] = []
+  if (hasNormal) {
+    titleParts.push(
+      `${normalErrorCount} ${normalErrorCount === 1 ? 'issue' : 'issues'}`
+    )
+  }
+  if (hasInstant) {
+    titleParts.push(
+      `${instantErrorCount} ${instantErrorCount === 1 ? 'Insight' : 'Insights'}`
+    )
+  }
+
   function openOverlayTab(tab: ErrorOverlayTab) {
     setPanel(null)
     setSelectedIndex(-1)
@@ -63,22 +74,23 @@ const MenuPanel = () => {
   return (
     <DevtoolMenu
       items={[
-        hasNormal && {
-          title: `${normalErrorCount} ${normalErrorCount === 1 ? 'issue' : 'issues'} found. Click to view details in the dev overlay.`,
-          label: normalErrorCount === 1 ? 'Issue' : 'Issues',
-          value: <IssueCount variant="issue">{normalErrorCount}</IssueCount>,
-          onClick: () => openOverlayTab('errors'),
+        hasAny && {
+          title: `${titleParts.join(' and ')} found. Click to view details in the dev overlay.`,
+          label: 'Diagnostics',
+          value: (
+            <span className="dev-tools-indicator-issue-counts">
+              {hasNormal && (
+                <IssueCount variant="issue">{normalErrorCount}</IssueCount>
+              )}
+              {hasInstant && (
+                <IssueCount variant="insight">{instantErrorCount}</IssueCount>
+              )}
+            </span>
+          ),
+          // Opens on Issues when there are any, otherwise on Insights.
+          onClick: () => openOverlayTab(hasNormal ? 'errors' : 'instant'),
           attributes: {
-            'data-menu-issues': true,
-          },
-        },
-        hasInstant && {
-          title: `${instantErrorCount} ${instantErrorCount === 1 ? 'insight' : 'insights'} found. Click to view details in the dev overlay.`,
-          label: instantErrorCount === 1 ? 'Insight' : 'Insights',
-          value: <IssueCount variant="insight">{instantErrorCount}</IssueCount>,
-          onClick: () => openOverlayTab('instant'),
-          attributes: {
-            'data-menu-insights': true,
+            'data-menu-diagnostics': true,
           },
         },
         state.staticIndicator === 'disabled'
@@ -275,6 +287,7 @@ export const PanelRouter = () => {
     <>
       {showHideNotice && state.disableDevIndicator && (
         <IndicatorVisibilityNotice
+          shortcut={state.hideShortcut}
           position={state.devToolsPosition}
           onUndo={showDevtools}
           onDismiss={dismissHideNotice}
@@ -290,7 +303,9 @@ export const PanelRouter = () => {
           sharePanelSizeGlobally={false}
           sizeConfig={{
             kind: 'fixed',
-            height: 500 / state.scale,
+            // Tall enough for every row with its description; the content
+            // scrolls if the window is shorter.
+            height: 600 / state.scale,
             width: 480 + 32,
           }}
           closeOnClickOutside

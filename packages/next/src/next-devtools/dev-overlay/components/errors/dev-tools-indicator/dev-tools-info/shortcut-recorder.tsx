@@ -84,10 +84,12 @@ export function ShortcutRecorder({
         data-has-shortcut={hasShortcut}
         data-shortcut-recorder={recording ? 'true' : undefined}
       >
+        {/* Recording and saved states are shown inside the button so the
+            layout never shifts. */}
         {recording && keys.length === 0 ? (
-          'Press shortcut…'
+          <span className="shortcut-recorder-hint">Press shortcut…</span>
         ) : !hasShortcut ? (
-          'Record Shortcut'
+          'Record shortcut'
         ) : (
           <div className="shortcut-recorder-keys">
             {keys.map((key) => (
@@ -95,23 +97,30 @@ export function ShortcutRecorder({
             ))}
           </div>
         )}
-        {hasShortcut && (
-          <div
-            className="shortcut-recorder-clear-button"
-            role="button"
-            onClick={clear}
-            onFocus={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                clear()
-                e.stopPropagation()
-              }
-            }}
-            aria-label="Clear shortcut"
-            tabIndex={0}
-          >
-            <IconCross />
-          </div>
+        {success && !recording ? (
+          <span className="shortcut-recorder-saved" aria-hidden>
+            Saved
+          </span>
+        ) : (
+          hasShortcut &&
+          !recording && (
+            <div
+              className="shortcut-recorder-clear-button"
+              role="button"
+              onClick={clear}
+              onFocus={(e) => e.stopPropagation()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  clear()
+                  e.stopPropagation()
+                }
+              }}
+              aria-label="Clear shortcut"
+              tabIndex={0}
+            >
+              <IconCross />
+            </div>
+          )
         )}
       </button>
       <span className="shortcut-recorder-status-message" role="status">
@@ -254,7 +263,6 @@ export const SHORTCUT_RECORDER_STYLES = css`
     justify-content: center;
     flex-direction: column;
     align-items: flex-end;
-    gap: 6px;
     position: relative;
     font-family: var(--font-stack-sans);
 
@@ -340,11 +348,23 @@ export const SHORTCUT_RECORDER_STYLES = css`
     }
   }
 
+  /* Announced to screen readers; the visible state is inside the button. */
   .shortcut-recorder-status-message {
-    max-width: 200px;
-    font-size: var(--size-12);
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .shortcut-recorder-hint {
     color: var(--color-gray-900);
-    text-align: right;
+  }
+
+  .shortcut-recorder-saved {
+    font-size: var(--size-13);
+    color: var(--color-gray-900);
   }
 
   .shortcut-recorder-keys {

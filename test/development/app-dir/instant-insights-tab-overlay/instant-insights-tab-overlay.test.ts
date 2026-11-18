@@ -271,8 +271,13 @@ describe('instant insights tab overlay', () => {
     const pill = await getIndicatorPillState(browser)
     expect(pill?.hasError).toBe(true)
     expect(pill?.insightsOnly).toBe(false)
-    // Issues and Insights are separate buttons in the badge.
-    expect(pill?.text).toMatch(/1\s*Issue\s*1\s*Insight/i)
+    expect(
+      await evalInPortal(browser, (root) =>
+        Array.from(root.querySelectorAll('[data-issues-open]'), (button) =>
+          button.getAttribute('aria-label')
+        )
+      )
+    ).toEqual(['Open 1 issue', 'Open 1 Insight'])
 
     expect(await getErrorOverlayTabs(browser)).toEqual([
       { variant: 'errors', disabled: false, active: true },
@@ -338,7 +343,9 @@ describe('instant insights tab overlay', () => {
       )
     })
     await toggleDevToolsIndicatorPopover(browser)
-    await browser.locator('[role="menuitem"]', { hasText: 'Insight' }).click()
+    await browser
+      .locator('[role="menuitem"]', { hasText: 'Diagnostics' })
+      .click()
     await retry(async () => {
       expect((await getIndicatorPillState(browser))?.text).toMatch(
         /1\s*Insight/i
