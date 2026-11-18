@@ -110,6 +110,8 @@ class NextRootCommand extends Command {
       // its caller's environment instead of forcing all child commands into
       // production mode merely because they were launched through this CLI.
       if (commandName !== 'upgrade' || !event.getOptionValue('agent')) {
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
         process.env.NEXT_RUNTIME = 'nodejs'
       }
@@ -917,7 +919,7 @@ internal
 internal
   .command('static-routes-info')
   .description(
-    'Analyze a built Next.js app and report per-route bundle sizes across server bundled JS, server source maps, server unbundled, client JS, client source maps, and client CSS categories.'
+    'Analyze a built Next.js app and report per-route bundle sizes across server bundled JS, server source maps, server unbundled, client JS, client source maps, and client CSS categories. Loads executable build manifests. Only analyze builds you trust.'
   )
   .argument(
     '[directory]',

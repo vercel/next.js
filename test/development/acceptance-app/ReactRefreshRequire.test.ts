@@ -29,11 +29,15 @@ describe('ReactRefreshRequire app', () => {
       `window.log.push('init BarV1'); export default function Bar() { return null; };`
     )
 
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     await session.evaluate(() => ((window as any).log = []))
     await session.patch(
       'index.js',
       `require('./foo'); export default function Noop() { return null; };`
     )
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(await session.evaluate(() => (window as any).log)).toEqual([
       'init FooV1',
       'init BarV1',
@@ -41,22 +45,30 @@ describe('ReactRefreshRequire app', () => {
 
     // We only edited Bar, and it accepted.
     // So we expect it to re-run alone.
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     await session.evaluate(() => ((window as any).log = []))
     await session.patch(
       './bar.js',
       `window.log.push('init BarV2'); export default function Bar() { return null; };`
     )
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(await session.evaluate(() => (window as any).log)).toEqual([
       'init BarV2',
     ])
 
     // We only edited Bar, and it accepted.
     // So we expect it to re-run alone.
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     await session.evaluate(() => ((window as any).log = []))
     await session.patch(
       './bar.js',
       `window.log.push('init BarV3'); export default function Bar() { return null; };`
     )
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(await session.evaluate(() => (window as any).log)).toEqual([
       'init BarV3',
     ])
@@ -89,12 +101,16 @@ describe('ReactRefreshRequire app', () => {
 
     await session.write('./bar.js', `window.log.push('init BarV1');`)
 
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     await session.evaluate(() => ((window as any).log = []))
     await session.patch(
       'index.js',
       `require('./foo'); export default function Noop() { return null; };`
     )
 
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(await session.evaluate(() => (window as any).log)).toEqual([
       'init FooV1',
       'init BarV1',
@@ -102,8 +118,12 @@ describe('ReactRefreshRequire app', () => {
 
     // We edited Bar, but it doesn't accept.
     // So we expect it to re-run together with Foo which does.
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     await session.evaluate(() => ((window as any).log = []))
     await session.patch('./bar.js', `window.log.push('init BarV2');`)
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(await session.evaluate(() => (window as any).log)).toEqual([
       // // FIXME: Metro order:
       // 'init BarV2',
@@ -117,8 +137,12 @@ describe('ReactRefreshRequire app', () => {
 
     // We edited Bar, but it doesn't accept.
     // So we expect it to re-run together with Foo which does.
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     await session.evaluate(() => ((window as any).log = []))
     await session.patch('./bar.js', `window.log.push('init BarV3');`)
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(await session.evaluate(() => (window as any).log)).toEqual([
       // // FIXME: Metro order:
       // 'init BarV3',
@@ -132,6 +156,8 @@ describe('ReactRefreshRequire app', () => {
 
     // We edited Bar so that it accepts itself.
     // We still re-run Foo because the exports of Bar changed.
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     await session.evaluate(() => ((window as any).log = []))
     await session.patch(
       './bar.js',
@@ -141,6 +167,8 @@ describe('ReactRefreshRequire app', () => {
         export default function Bar() {};
       `
     )
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(await session.evaluate(() => (window as any).log)).toEqual([
       // // FIXME: Metro order:
       // 'init BarV3',
@@ -153,6 +181,8 @@ describe('ReactRefreshRequire app', () => {
     ])
 
     // Further edits to Bar don't re-run Foo.
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     await session.evaluate(() => ((window as any).log = []))
     await session.patch(
       './bar.js',
@@ -161,6 +191,8 @@ describe('ReactRefreshRequire app', () => {
         export default function Bar() {};
       `
     )
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(await session.evaluate(() => (window as any).log)).toEqual([
       'init BarV4',
     ])
@@ -237,12 +269,16 @@ describe('ReactRefreshRequire app', () => {
     )
 
     // Bootstrap:
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     await session.evaluate(() => ((window as any).log = []))
     await session.patch(
       'index.js',
       `require('./root'); export default function Noop() { return null; };`
     )
 
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(await session.evaluate(() => (window as any).log)).toEqual([
       'init LeafV1',
       'init MiddleAV1',
@@ -253,11 +289,15 @@ describe('ReactRefreshRequire app', () => {
 
     // We edited Leaf, but it doesn't accept.
     // So we expect it to re-run together with MiddleA and MiddleB which do.
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     await session.evaluate(() => ((window as any).log = []))
     await session.patch(
       'leaf.js',
       `log.push('init LeafV2'); export default {};`
     )
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(await session.evaluate(() => (window as any).log)).toEqual([
       'init LeafV2',
       'init MiddleAV1',
@@ -265,11 +305,15 @@ describe('ReactRefreshRequire app', () => {
     ])
 
     // Let's try the same one more time.
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     await session.evaluate(() => ((window as any).log = []))
     await session.patch(
       'leaf.js',
       `log.push('init LeafV3'); export default {};`
     )
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(await session.evaluate(() => (window as any).log)).toEqual([
       'init LeafV3',
       'init MiddleAV1',
@@ -277,6 +321,8 @@ describe('ReactRefreshRequire app', () => {
     ])
 
     // Now edit MiddleB. It should accept and re-run alone.
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     await session.evaluate(() => ((window as any).log = []))
     await session.patch(
       'middleB.js',
@@ -288,17 +334,23 @@ describe('ReactRefreshRequire app', () => {
         export default function MiddleB() {};
       `
     )
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(await session.evaluate(() => (window as any).log)).toEqual([
       'init MiddleBV2',
     ])
 
     // Finally, edit MiddleC. It didn't accept so it should bubble to Root.
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     await session.evaluate(() => ((window as any).log = []))
 
     await session.patch(
       'middleC.js',
       `log.push('init MiddleCV2'); export default {};`
     )
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(await session.evaluate(() => (window as any).log)).toEqual([
       'init MiddleCV2',
       'init RootV1',
@@ -386,6 +438,8 @@ describe('ReactRefreshRequire app', () => {
       'index.js',
       `;(typeof global !== 'undefined' ? global : window).log = []; require('./foo'); export default () => null;`
     )
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(await session.evaluate(() => (window as any).log)).toEqual([
       'init BarV1',
       'init FooV1',
@@ -393,6 +447,8 @@ describe('ReactRefreshRequire app', () => {
 
     let didFullRefresh = false
     // Verify the child can accept itself:
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     await session.evaluate(() => ((window as any).log = []))
     didFullRefresh =
       didFullRefresh ||
@@ -400,12 +456,16 @@ describe('ReactRefreshRequire app', () => {
         './bar.js',
         `window.log.push('init BarV1.1'); export default function Bar() {};`
       ))
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(await session.evaluate(() => (window as any).log)).toEqual([
       'init BarV1.1',
     ])
 
     // Now let's change the child to *not* accept itself.
     // We'll expect that now the parent will handle the evaluation.
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     await session.evaluate(() => ((window as any).log = []))
     didFullRefresh =
       didFullRefresh ||
@@ -422,6 +482,8 @@ describe('ReactRefreshRequire app', () => {
     // We re-run Bar and expect to stop there. However,
     // it didn't export a component, so we go higher.
     // We stop at Foo which currently _does_ export a component.
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(await session.evaluate(() => (window as any).log)).toEqual([
       // Bar evaluates twice:
       // 1. To invalidate itself once it realizes it's no longer acceptable.
@@ -432,6 +494,8 @@ describe('ReactRefreshRequire app', () => {
     ])
 
     // Change it back so that the child accepts itself.
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     await session.evaluate(() => ((window as any).log = []))
     didFullRefresh =
       didFullRefresh ||
@@ -441,6 +505,8 @@ describe('ReactRefreshRequire app', () => {
       ))
     // Since the export list changed, we have to re-run both the parent
     // and the child.
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(await session.evaluate(() => (window as any).log)).toEqual([
       'init BarV2',
       'init FooV1',
@@ -453,6 +519,8 @@ describe('ReactRefreshRequire app', () => {
     expect(didFullRefresh).toBe(false)
 
     // But editing the child alone now doesn't reevaluate the parent.
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     await session.evaluate(() => ((window as any).log = []))
     didFullRefresh =
       didFullRefresh ||
@@ -460,6 +528,8 @@ describe('ReactRefreshRequire app', () => {
         './bar.js',
         `window.log.push('init BarV3'); export default function Bar() {};`
       ))
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(await session.evaluate(() => (window as any).log)).toEqual([
       'init BarV3',
     ])

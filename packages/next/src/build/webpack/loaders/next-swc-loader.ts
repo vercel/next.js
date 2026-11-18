@@ -208,6 +208,8 @@ async function loaderTransform(
       this.mode === 'development'
   }
 
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   return transform(source as any, programmaticOptions).then(
     (
       output: {

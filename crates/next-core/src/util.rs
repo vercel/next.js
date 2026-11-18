@@ -5,7 +5,7 @@ use bincode::{Decode, Encode};
 use next_taskless::{expand_next_js_template, expand_next_js_template_no_imports};
 use serde::{Deserialize, de::DeserializeOwned};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, NonLocalValue, Vc, fxindexset, turbobail};
+use turbo_tasks::{NonLocalValue, OrderedAutoMap, Vc, fxindexset, turbobail};
 use turbo_tasks_fs::{File, FileContent, FileJsonContent, FileSystem, FileSystemPath, rope::Rope};
 use turbopack::module_options::RuleCondition;
 use turbopack_core::{
@@ -30,12 +30,10 @@ const NEXT_TEMPLATE_PATH: &str = "dist/esm/build/templates";
 /// As opposed to [`EnvMap`], this map allows for `None` values, which means that the variables
 /// should be replace with undefined.
 #[turbo_tasks::value(transparent)]
-pub struct OptionEnvMap(
-    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, Option<RcStr>>,
-);
+pub struct OptionEnvMap(OrderedAutoMap<RcStr, Option<RcStr>>);
 
-pub fn defines(define_env: &FxIndexMap<RcStr, Option<RcStr>>) -> CompileTimeDefines {
-    let mut defines = FxIndexMap::default();
+pub fn defines(define_env: &OrderedAutoMap<RcStr, Option<RcStr>>) -> CompileTimeDefines {
+    let mut defines = OrderedAutoMap::default();
 
     for (k, v) in define_env {
         defines
@@ -167,7 +165,7 @@ pub fn free_var_references_with_vercel_system_env_warnings(
         "NEXT_PUBLIC_VERCEL_URL",
     );
 
-    let mut entries: FxIndexMap<_, _> = entries
+    let mut entries: OrderedAutoMap<_, _> = entries
         .map(|(k, value)| {
             let value = if let &[
                 DefinableNameSegment::Name(a),

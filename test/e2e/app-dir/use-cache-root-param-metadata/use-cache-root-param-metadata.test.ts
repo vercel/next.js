@@ -39,6 +39,7 @@ describe('use-cache-root-param-metadata', () => {
       expected: RootParamDependencies
     ) => {
       for (const entry of matchingEntries(name)) {
+        expect(entry.durability).toBeUndefined()
         const workers = Object.values<any>(entry.workers)
         expect(workers.length).toBeGreaterThan(0)
         for (const worker of workers) {

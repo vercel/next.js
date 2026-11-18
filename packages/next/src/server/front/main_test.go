@@ -434,3 +434,79 @@ func TestKeepsConcurrentLargeBodiesIntact(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+// startFrontFor runs newServer and newProxy as main does, in front of an
+// upstream answering with handler.
+func startFrontFor(t *testing.T, handler http.HandlerFunc) string {
+	t.Helper()
+	upstream := httptest.NewServer(handler)
+	t.Cleanup(upstream.Close)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxy := newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second)
+	front := newServer(proxy, 5*time.Second, 5*time.Second, 0)
+	go front.Serve(ln)
+	t.Cleanup(func() { front.Close() })
+	return ln.Addr().String()
+}
+
+// Node can answer while the client is still uploading, for example with a 403
+// after reading only the headers. The front must pass that answer on without
+// waiting for the rest of the body.
+func TestAnswersBeforeTheUploadFinishes(t *testing.T) {
+	done := make(chan struct{})
+	t.Cleanup(func() { close(done) })
+	addr := startFrontFor(t, func(w http.ResponseWriter, r *http.Request) {
+		// Answer the way Node does, without reading the body, and keep the
+		// connection open as Node would while the upload is still coming.
+		conn, buf, _ := w.(http.Hijacker).Hijack()
+		defer conn.Close()
+		io.WriteString(buf, "HTTP/1.1 403 Forbidden\r\nContent-Length: 6\r\n\r\ndenied")
+		buf.Flush()
+		<-done
+	})
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	// Headers announce a 10-byte body; only 1 byte is sent.
+	io.WriteString(conn, "POST /upload HTTP/1.1\r\nHost: shop.example.com\r\nContent-Length: 10\r\n\r\nx")
+	conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+	res, err := http.ReadResponse(bufio.NewReader(conn), nil)
+	if err != nil {
+		t.Fatalf("no response while the upload was unfinished: %v", err)
+	}
+	body := make([]byte, 6)
+	if _, err := io.ReadFull(res.Body, body); err != nil {
+		t.Fatalf("reading the body: %v", err)
+	}
+	if res.StatusCode != http.StatusForbidden || string(body) != "denied" {
+		t.Errorf("got %d %q, want 403 \"denied\"", res.StatusCode, body)
+	}
+}
+
+// A response with a custom reason phrase goes through writeCustomStatusLine.
+// The trailers Node sends after a chunked body must still reach the client.
+func TestKeepsTrailersOnACustomStatusLine(t *testing.T) {
+	addr := startFrontFor(t, func(w http.ResponseWriter, r *http.Request) {
+		conn, buf, _ := w.(http.Hijacker).Hijack()
+		defer conn.Close()
+		io.WriteString(buf, "HTTP/1.1 400 Custom Reason\r\nTransfer-Encoding: chunked\r\nTrailer: X-Checksum\r\n\r\n"+
+			"5\r\nhello\r\n0\r\nX-Checksum: abc123\r\n\r\n")
+		buf.Flush()
+	})
+	res := rawRoundTrip(t, addr, get("/"))
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != "400 Custom Reason" || string(body) != "hello" {
+		t.Errorf("got %q %q, want \"400 Custom Reason\" \"hello\"", res.Status, body)
+	}
+	if got := res.Trailer.Get("X-Checksum"); got != "abc123" {
+		t.Errorf("trailer X-Checksum = %q, want %q", got, "abc123")
+	}
+}

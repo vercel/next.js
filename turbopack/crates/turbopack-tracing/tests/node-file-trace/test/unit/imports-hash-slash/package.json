@@ -1,0 +1,7 @@
+{
+  "name": "imports-hash-slash",
+  "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  }
+}

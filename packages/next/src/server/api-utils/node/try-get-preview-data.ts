@@ -32,6 +32,8 @@ export function tryGetPreviewData(
   // Read cached preview data if present
   // TODO: use request metadata instead of a symbol
   if (SYMBOL_PREVIEW_DATA in req) {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     return req[SYMBOL_PREVIEW_DATA] as any
   }
 

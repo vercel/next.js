@@ -263,12 +263,19 @@ export class TurbopackManifestLoader {
       other: ActionEntries
     ): void {
       for (const key in other) {
+        const otherEntry = other[key]
         const action = (actionEntries[key] ??= {
           workers: {},
         })
-        action.filename = other[key].filename
-        action.exportedName = other[key].exportedName
-        Object.assign(action.workers, other[key].workers)
+        action.filename = otherEntry.filename
+        action.exportedName = otherEntry.exportedName
+        Object.assign(action.workers, otherEntry.workers)
+        // The durability metadata is keyed by a hash of the metadata itself, so
+        // equal keys have equal metadata and it can be merged without
+        // deduplication.
+        if (otherEntry.durability) {
+          Object.assign((action.durability ??= {}), otherEntry.durability)
+        }
       }
     }
 
@@ -279,10 +286,16 @@ export class TurbopackManifestLoader {
     for (const key in manifest.node) {
       const entry = manifest.node[key]
       entry.workers = sortObjectByKey(entry.workers)
+      if (entry.durability) {
+        entry.durability = sortObjectByKey(entry.durability)
+      }
     }
     for (const key in manifest.edge) {
       const entry = manifest.edge[key]
       entry.workers = sortObjectByKey(entry.workers)
+      if (entry.durability) {
+        entry.durability = sortObjectByKey(entry.durability)
+      }
     }
 
     return manifest
