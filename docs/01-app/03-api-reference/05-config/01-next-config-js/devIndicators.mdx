@@ -7,7 +7,9 @@ Use `devIndicators` in `next.config` to set the initial position of the Next.js 
 
 See the [Next.js DevTools guide](/docs/app/guides/devtools) to open DevTools, move the indicator, and collapse diagnostic badges.
 
-Set `devIndicators.position` in `next.config.ts` to choose where the indicator appears. The default is `bottom-left`.
+## Position
+
+Set `devIndicators.position` in `next.config.ts` to choose where the indicator initially appears. The default is `bottom-left`.
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'
@@ -20,6 +22,10 @@ const nextConfig: NextConfig = {
 
 export default nextConfig
 ```
+
+To move the badge from the browser, use the [Position preference](/docs/app/guides/devtools#position) or drag the Next.js logo.
+
+## Hide the indicator
 
 To hide the idle indicator, set `devIndicators` to `false`. Compile errors, runtime errors, and Insights still appear, and you can open the DevTools menu whenever a diagnostic badge is visible. To hide the indicator temporarily from the browser, use [Show indicator](/docs/app/guides/devtools#show-indicator) in Preferences.
 
