@@ -68,6 +68,15 @@ describe('resolveAbsoluteUrlWithPathname', () => {
         'https://example.com/?foo=bar'
       )
     })
+
+    it('should keep query and hash of ./ urls on the current pathname', () => {
+      expect(
+        resolveAbsoluteUrlWithPathname('./?page=2', metadataBase, '/blog', opts)
+      ).toBe('https://example.com/blog?page=2')
+      expect(
+        resolveAbsoluteUrlWithPathname('./#top', metadataBase, '/blog', opts)
+      ).toBe('https://example.com/blog#top')
+    })
   })
 
   describe('trailingSlash is true', () => {
@@ -122,6 +131,12 @@ describe('resolveAbsoluteUrlWithPathname', () => {
       expect(resolver(new URL('/?foo=bar', metadataBase))).toBe(
         'https://example.com/?foo=bar'
       )
+    })
+
+    it('should not add trailing slash to ./ url with query', () => {
+      expect(
+        resolveAbsoluteUrlWithPathname('./?page=2', metadataBase, '/blog', opts)
+      ).toBe('https://example.com/blog?page=2')
     })
 
     it('should not add trailing slash to relative url that matches file pattern', () => {
