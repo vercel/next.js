@@ -238,6 +238,107 @@ describe('config', () => {
     expect(config.experimental.turbopackRustReactCompiler).toBe(true)
   })
 
+  describe('turbopackRustReactCompiler default', () => {
+    let originalTurbopack: string | undefined
+    beforeEach(() => {
+      originalTurbopack = process.env.TURBOPACK
+    })
+    afterEach(() => {
+      if (originalTurbopack === undefined) {
+        delete process.env.TURBOPACK
+      } else {
+        process.env.TURBOPACK = originalTurbopack
+      }
+    })
+
+    async function resolve(
+      customConfig: Record<string, unknown>,
+      { turbopack, stable }: { turbopack: boolean; stable: boolean }
+    ) {
+      if (turbopack) {
+        process.env.TURBOPACK = '1'
+      } else {
+        delete process.env.TURBOPACK
+      }
+      jest.resetModules()
+      jest.doMock(
+        'next/dist/shared/lib/errors/canary-only-config-error',
+        () => ({
+          ...jest.requireActual(
+            'next/dist/shared/lib/errors/canary-only-config-error'
+          ),
+          isStableBuild: () => stable,
+        })
+      )
+      try {
+        const { default: load } = await import('next/dist/server/config')
+        const config = await load(
+          PHASE_DEVELOPMENT_SERVER,
+          '<rootDir>-rust-react-compiler',
+          { customConfig }
+        )
+        return config.experimental.turbopackRustReactCompiler
+      } finally {
+        jest.dontMock('next/dist/shared/lib/errors/canary-only-config-error')
+      }
+    }
+
+    it('is enabled on canary with Turbopack and reactCompiler', async () => {
+      expect(
+        await resolve(
+          { reactCompiler: true },
+          { turbopack: true, stable: false }
+        )
+      ).toBe(true)
+      expect(
+        await resolve(
+          { reactCompiler: { compilationMode: 'annotation' } },
+          { turbopack: true, stable: false }
+        )
+      ).toBe(true)
+    })
+
+    it('respects an explicit opt-out', async () => {
+      expect(
+        await resolve(
+          {
+            reactCompiler: true,
+            experimental: { turbopackRustReactCompiler: false },
+          },
+          { turbopack: true, stable: false }
+        )
+      ).toBe(false)
+    })
+
+    it('is disabled on stable builds', async () => {
+      expect(
+        await resolve(
+          { reactCompiler: true },
+          { turbopack: true, stable: true }
+        )
+      ).toBe(false)
+    })
+
+    it('is disabled with webpack', async () => {
+      expect(
+        await resolve(
+          { reactCompiler: true },
+          { turbopack: false, stable: false }
+        )
+      ).toBe(false)
+    })
+
+    it('is disabled without reactCompiler', async () => {
+      expect(await resolve({}, { turbopack: true, stable: false })).toBe(false)
+      expect(
+        await resolve(
+          { reactCompiler: false },
+          { turbopack: true, stable: false }
+        )
+      ).toBe(false)
+    })
+  })
+
   it('Should allow setting objects which do not have defaults', async () => {
     const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
       customConfig: {
