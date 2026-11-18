@@ -4,27 +4,40 @@ use std::{
 };
 
 use anyhow::Result;
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+    impl_borrow_decode,
+};
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Serialize;
+use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, OperationValue, ReadRef, ResolvedVc, State,
+    TransientInstance, TryJoinIterExt, Vc,
     debug::ValueDebugFormat,
     message_queue::{CompilationEvent, Severity},
     turbo_tasks,
 };
-use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
 use turbopack_core::{
+    chunk::ModuleId,
     update_instruction::UpdateInstruction,
-    version::{PartialUpdate, Update, Version},
+    version::{Version, VersionedContent},
 };
-use turbopack_ecmascript::chunk_list::{
-    merged_update::EcmascriptMergedUpdate,
-    update::{ChunkListUpdate, ChunkUpdate, EcmascriptUpdateInstruction},
-    version::ChunkListVersion,
+use turbopack_ecmascript::{
+    chunk_list::{
+        merged_update::{
+            EcmascriptMergedChunkPartial, EcmascriptMergedChunkUpdate, EcmascriptMergedUpdate,
+            EcmascriptModuleEntry,
+        },
+        update::ChunkListUpdate,
+    },
+    hmr::{EcmascriptHmrChunkContent, version::EcmascriptChunkVersion},
 };
-use turbopack_nodejs::ecmascript::node::entry::chunk_list_content::{
-    EcmascriptBuildNodeChunkListContent, compute_update_from_version_operation,
-};
+use turbopack_nodejs::ecmascript::node::entry::chunk_list_content::EcmascriptBuildNodeChunkListContent;
 
 #[derive(Clone, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
 pub struct ServerHmrChunkList {
@@ -51,117 +64,123 @@ impl ServerHmrChunkLists {
     }
 }
 
-#[turbo_tasks::value(serialization = "skip", shared)]
-#[derive(Debug)]
-pub struct ServerHmrChunkListVersion {
-    pub versions_by_chunk_list_path: FxIndexMap<RcStr, ReadRef<ChunkListVersion>>,
+/// What the server runtimes have loaded, as far as server HMR knows: the modules of every route
+/// pulled since the server modules were last fully re-evaluated, and the modules shipped to the
+/// runtimes since then.
+///
+/// Held in a project-global `State`. It describes the running process, so it is never persisted:
+/// it encodes to nothing and decodes empty.
+#[derive(Clone, Debug, Default, PartialEq, Eq, NonLocalValue, OperationValue)]
+pub struct ServerHmrLoadedState {
+    /// Module content hashes, keyed by runtime directory (the chunks' output directory, which is
+    /// how updates are routed to a runtime) and module id.
+    modules: FxHashMap<(RcStr, ModuleId), u128>,
+    /// Version ids of chunks that can't be expanded into modules, by chunk path.
+    opaque_chunks: FxHashMap<RcStr, RcStr>,
+    /// The routes pulled, by sorted entry paths.
+    pulled_routes: FxHashSet<Vec<RcStr>>,
 }
 
-#[turbo_tasks::value_impl]
-impl Version for ServerHmrChunkListVersion {
-    #[turbo_tasks::function]
-    async fn id(&self) -> Result<Vc<RcStr>> {
-        let mut hasher = Xxh3Hash64Hasher::new();
-        hasher.write_value(self.versions_by_chunk_list_path.len());
-        for (path, version) in &self.versions_by_chunk_list_path {
-            hasher.write_value(path.as_str());
-            hasher.write_value(version.id.as_str());
-        }
-        Ok(Vc::cell(encode_base64(hasher.finish()).into()))
+impl Encode for ServerHmrLoadedState {
+    fn encode<E: Encoder>(&self, _encoder: &mut E) -> Result<(), EncodeError> {
+        Ok(())
     }
 }
 
-impl ServerHmrChunkListVersion {
+impl<Context> Decode<Context> for ServerHmrLoadedState {
+    fn decode<D: Decoder<Context = Context>>(_decoder: &mut D) -> Result<Self, DecodeError> {
+        Ok(Self::default())
+    }
+}
+
+impl_borrow_decode!(ServerHmrLoadedState);
+
+#[derive(Clone, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
+pub struct ServerHmrRouteChunk {
+    pub content: ResolvedVc<Box<dyn EcmascriptHmrChunkContent>>,
+    pub version: ReadRef<EcmascriptChunkVersion>,
+}
+
+/// A route's chunks, expanded into modules.
+#[turbo_tasks::value(serialization = "skip", shared)]
+pub struct ServerHmrRouteModules {
+    pub chunks: Vec<ServerHmrRouteChunk>,
+    /// Chunks that can't be expanded into modules, as (chunk path, version id).
+    pub opaque_chunks: Vec<(RcStr, RcStr)>,
+}
+
+impl ServerHmrRouteModules {
     pub async fn from_chunk_lists(chunk_lists: &[ServerHmrChunkList]) -> Result<Self> {
-        let versions_by_chunk_list_path = chunk_lists
-            .iter()
-            .map(|chunk_list| {
-                let relative_path = chunk_list.relative_path.clone();
-                let versioned_content = chunk_list.versioned_content;
-                async move {
-                    let version = versioned_content.version().await?;
-                    anyhow::Ok((relative_path, version))
-                }
+        let mut contents = FxIndexMap::default();
+        for chunk_list in chunk_lists {
+            let chunk_list = chunk_list.versioned_content.await?;
+            for (path, content) in chunk_list.chunks_contents() {
+                contents.insert(path.clone(), *content);
+            }
+        }
+
+        let mut ecmascript = Vec::new();
+        let mut opaque = Vec::new();
+        for (path, content) in contents {
+            match ResolvedVc::try_sidecast::<Box<dyn EcmascriptHmrChunkContent>>(content) {
+                Some(content) => ecmascript.push(content),
+                None => opaque.push((RcStr::from(path), content)),
+            }
+        }
+
+        let chunks = ecmascript
+            .into_iter()
+            .map(async |content| {
+                Ok(ServerHmrRouteChunk {
+                    content,
+                    version: content.ecmascript_chunk_version().await?,
+                })
             })
             .try_join()
-            .await?
+            .await?;
+        let opaque_chunks = opaque
             .into_iter()
-            .collect();
+            .map(async |(path, content)| Ok((path, content.version().id().owned().await?)))
+            .try_join()
+            .await?;
         Ok(Self {
-            versions_by_chunk_list_path,
+            chunks,
+            opaque_chunks,
         })
     }
 }
 
-#[derive(Default)]
-pub struct ChunkListUpdateBuilder {
-    chunks: FxIndexMap<RcStr, ChunkUpdate>,
-    merged: FxIndexSet<EcmascriptMergedUpdate>,
+/// Shipped modules with the hash of the code that is shipped.
+#[turbo_tasks::value(transparent, serialization = "skip")]
+struct ServerHmrModuleEntries(Vec<(ModuleId, u128, EcmascriptModuleEntry)>);
+
+#[turbo_tasks::function(operation, root)]
+async fn server_hmr_module_entries_operation(
+    content: ResolvedVc<Box<dyn EcmascriptHmrChunkContent>>,
+    chunk_path: RcStr,
+    ids: TransientInstance<Vec<ModuleId>>,
+) -> Result<Vc<ServerHmrModuleEntries>> {
+    let entries = content.entries().await?;
+    let entries = ids
+        .iter()
+        .filter_map(|id| entries.get(id).map(|entry| (id, entry)))
+        .map(async |(id, entry)| {
+            let hash = *entry.hash.await?;
+            let entry = EcmascriptModuleEntry::from_code(id, *entry.code, &chunk_path).await?;
+            Ok((id.clone(), hash, entry))
+        })
+        .try_join()
+        .await?;
+    Ok(Vc::cell(entries))
 }
 
-impl ChunkListUpdateBuilder {
-    pub fn add_instruction(&mut self, instruction: &UpdateInstruction) {
-        let instruction = instruction
-            .downcast_ref::<EcmascriptUpdateInstruction>()
-            .expect("aggregate HMR only accepts ECMAScript update instructions");
-
-        match instruction {
-            EcmascriptUpdateInstruction::ChunkList(update) => {
-                for (chunk_path, update) in &update.chunks {
-                    self.chunks.insert(chunk_path.clone(), update.clone());
-                }
-                for update in &update.merged {
-                    self.push_merged(update);
-                }
-            }
-            EcmascriptUpdateInstruction::Merged(update) => self.push_merged(update),
-        }
-    }
-
-    fn push_merged(&mut self, update: &EcmascriptMergedUpdate) {
-        self.merged.insert(update.clone());
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.chunks.is_empty() && self.merged.is_empty()
-    }
-
-    pub fn build(self) -> UpdateInstruction {
-        ChunkListUpdate {
-            chunks: self.chunks,
-            merged: self.merged.into_iter().collect(),
-        }
-        .into_instruction()
-    }
-}
-
-/// An update plus the baseline for the next pull.
 #[derive(Debug)]
 pub enum ServerHmrUpdate {
-    /// No runtime update and the graph is equivalent. However, `to` may still advance the pull
-    /// version.
-    NoRuntimeUpdate {
-        to: Option<ReadRef<ServerHmrChunkListVersion>>,
-    },
-    FullReevaluation {
-        to: ReadRef<ServerHmrChunkListVersion>,
-    },
-    Partial {
-        to: ReadRef<ServerHmrChunkListVersion>,
-        instruction: UpdateInstruction,
-    },
-}
-
-struct DiffResult {
-    chunk_updates: Vec<ReadRef<Update>>,
-    membership: ChunkListMembershipChange,
-}
-
-/// Chunk lists that appeared or vanished relative to the pull baseline.
-#[derive(Default, Clone, Copy)]
-struct ChunkListMembershipChange {
-    has_new: bool,
-    has_removed: bool,
+    /// Nothing to ship.
+    None,
+    /// The runtimes can't be updated in place, so all server modules need to be re-evaluated.
+    FullReevaluation,
+    Partial(UpdateInstruction),
 }
 
 static TRACE_DIFFING: LazyLock<bool> = LazyLock::new(|| {
@@ -199,321 +218,177 @@ impl CompilationEvent for ServerHmrChunkListDiffEvent {
     }
 }
 
-async fn diff_chunks_against(
+/// The directory of a chunk's path, which identifies the runtime that loads it.
+fn runtime_dir(chunk_path: &str) -> RcStr {
+    chunk_path
+        .rsplit_once('/')
+        .map_or("", |(dir, _)| dir)
+        .into()
+}
+
+/// The modules of one chunk to ship, and which of them the runtime doesn't have yet.
+#[derive(Default)]
+struct ChunkShipment {
+    ids: Vec<ModuleId>,
+    added: FxIndexSet<ModuleId>,
+}
+
+/// Computes the update that brings the server runtimes up to date for a requested route, by
+/// diffing the route's modules against the modules the runtimes have loaded, and records the
+/// route's modules as loaded.
+///
+/// Only the route's own modules are shipped, so modules of other routes are still evaluated
+/// lazily, on their next request. Per runtime directory, a route module is shipped when the
+/// runtime has it at different code. A module the runtime doesn't have yet is shipped when the
+/// route was pulled before (its code is already running and may now import it), or when anything
+/// else is shipped to that runtime (a re-run self-accepting module may import it). Otherwise the
+/// route's chunks install it when they load.
+///
+/// Kept outside Turbo Tasks: the loaded state is not a task input.
+pub async fn compute_server_hmr_update(
     chunk_lists: &[ServerHmrChunkList],
-    from: &ServerHmrChunkListVersion,
-) -> Result<DiffResult> {
-    let current_chunk_list_paths = chunk_lists
-        .iter()
-        .map(|chunk_list| &chunk_list.relative_path)
-        .collect::<FxIndexSet<_>>();
-    let has_removed_chunk_lists = from
-        .versions_by_chunk_list_path
-        .keys()
-        .any(|path| !current_chunk_list_paths.contains(path));
-    let mut has_new_chunk_lists = false;
-    let chunk_updates = chunk_lists
-        .iter()
-        .filter_map(
-            |ServerHmrChunkList {
-                 relative_path,
-                 versioned_content,
-             }| {
-                if *TRACE_DIFFING {
-                    turbo_tasks().send_compilation_event(Arc::new(ServerHmrChunkListDiffEvent {
-                        chunk_list_path: relative_path.clone(),
-                    }));
+    route: &ServerHmrRouteModules,
+    mut entry_paths: Vec<RcStr>,
+    loaded: &State<ServerHmrLoadedState>,
+) -> Result<ServerHmrUpdate> {
+    if *TRACE_DIFFING {
+        for chunk_list in chunk_lists {
+            turbo_tasks().send_compilation_event(Arc::new(ServerHmrChunkListDiffEvent {
+                chunk_list_path: chunk_list.relative_path.clone(),
+            }));
+        }
+    }
+    entry_paths.sort();
+    if route.chunks.is_empty() && route.opaque_chunks.is_empty() {
+        // Nothing of the route is built (e.g. its endpoint is gone), so nothing loads either.
+        return Ok(ServerHmrUpdate::None);
+    }
+
+    let mut shipments = FxIndexMap::<usize, ChunkShipment>::default();
+    {
+        let loaded = loaded.get_untracked();
+
+        // Non-ECMAScript chunks can't be updated in place.
+        if route.opaque_chunks.iter().any(|(path, id)| {
+            loaded
+                .opaque_chunks
+                .get(path)
+                .is_some_and(|loaded_id| loaded_id != id)
+        }) {
+            return Ok(ServerHmrUpdate::FullReevaluation);
+        }
+
+        let route_was_pulled = loaded.pulled_routes.contains(&entry_paths);
+        let mut seen = FxHashMap::default();
+        // Per runtime directory: the outdated modules, and the modules it doesn't have yet.
+        let mut by_dir = FxIndexMap::<RcStr, (Vec<_>, Vec<_>)>::default();
+        for (index, chunk) in route.chunks.iter().enumerate() {
+            let dir = runtime_dir(&chunk.version.chunk_path);
+            for (id, hash) in &chunk.version.entries_hashes {
+                if let Some(seen_hash) = seen.insert((dir.clone(), id), *hash) {
+                    if seen_hash != *hash {
+                        // Chunks of a runtime disagree about a module's code.
+                        return Ok(ServerHmrUpdate::FullReevaluation);
+                    }
+                    continue;
                 }
-                let Some(prev) = from.versions_by_chunk_list_path.get(relative_path).cloned()
-                else {
-                    has_new_chunk_lists = true;
-                    return None;
-                };
-                Some((*versioned_content, prev))
-            },
-        )
-        .map(|(content, prev)| async move {
-            compute_update_from_version_operation(
-                content,
-                turbo_tasks::TransientInstance::new(prev),
+                let (outdated, missing) = by_dir.entry(dir.clone()).or_default();
+                match loaded.modules.get(&(dir.clone(), id.clone())) {
+                    Some(loaded_hash) if loaded_hash == hash => {}
+                    Some(_) => outdated.push((index, id)),
+                    None => missing.push((index, id)),
+                }
+            }
+        }
+
+        for (outdated, missing) in by_dir.into_values() {
+            let ship_missing = route_was_pulled || !outdated.is_empty();
+            for (index, id) in outdated {
+                shipments.entry(index).or_default().ids.push(id.clone());
+            }
+            if ship_missing {
+                for (index, id) in missing {
+                    let shipment = shipments.entry(index).or_default();
+                    shipment.ids.push(id.clone());
+                    shipment.added.insert(id.clone());
+                }
+            }
+        }
+    }
+
+    // The code is read after the module hashes were snapshotted, and a file may have changed in
+    // between. Don't record or ship a plan whose code no longer matches.
+    let shipped_chunks = shipments
+        .into_iter()
+        .map(async |(index, ChunkShipment { ids, added })| {
+            let chunk = &route.chunks[index];
+            let entries = server_hmr_module_entries_operation(
+                chunk.content,
+                chunk.version.chunk_path.clone(),
+                TransientInstance::new(ids.clone()),
             )
             .read_strongly_consistent()
-            .await
+            .await?;
+            Ok((chunk, ids, entries, added))
         })
         .try_join()
         .await?;
-    Ok(DiffResult {
-        chunk_updates,
-        membership: ChunkListMembershipChange {
-            has_new: has_new_chunk_lists,
-            has_removed: has_removed_chunk_lists,
-        },
-    })
-}
 
-enum ServerHmrChunkUpdate<'a> {
-    None,
-    Missing,
-    Total,
-    Partial(&'a UpdateInstruction),
-}
-
-impl<'a> From<&'a Update> for ServerHmrChunkUpdate<'a> {
-    fn from(update: &'a Update) -> Self {
-        match update {
-            Update::None => Self::None,
-            Update::Missing => Self::Missing,
-            Update::Total(_) => Self::Total,
-            Update::Partial(PartialUpdate { instruction, .. }) => Self::Partial(instruction),
+    let mut merged_by_dir = FxIndexMap::<RcStr, (FxIndexMap<_, _>, FxIndexMap<_, _>)>::default();
+    for (chunk, ids, entries, added) in shipped_chunks {
+        if entries.len() != ids.len()
+            || entries
+                .iter()
+                .zip(&ids)
+                .any(|((id, hash, _), requested_id)| {
+                    id != requested_id || chunk.version.entries_hashes.get(id) != Some(hash)
+                })
+        {
+            return Ok(ServerHmrUpdate::FullReevaluation);
         }
-    }
-}
-
-fn classify_server_hmr_update<'a>(
-    chunk_updates: impl IntoIterator<Item = ServerHmrChunkUpdate<'a>>,
-    membership: ChunkListMembershipChange,
-    to: ReadRef<ServerHmrChunkListVersion>,
-) -> ServerHmrUpdate {
-    if membership.has_removed {
-        return ServerHmrUpdate::FullReevaluation { to };
-    }
-
-    let mut builder = ChunkListUpdateBuilder::default();
-    for update in chunk_updates {
-        match update {
-            ServerHmrChunkUpdate::None => {}
-            ServerHmrChunkUpdate::Missing | ServerHmrChunkUpdate::Total => {
-                return ServerHmrUpdate::FullReevaluation { to };
-            }
-            ServerHmrChunkUpdate::Partial(instruction) => builder.add_instruction(instruction),
+        let (merged_entries, merged_chunks) = merged_by_dir
+            .entry(runtime_dir(&chunk.version.chunk_path))
+            .or_default();
+        for (id, _, entry) in entries.iter() {
+            merged_entries.insert(id.clone(), entry.clone());
         }
-    }
-
-    // New chunks load on demand but must advance the baseline.
-    if builder.is_empty() {
-        return ServerHmrUpdate::NoRuntimeUpdate {
-            to: membership.has_new.then_some(to),
-        };
-    }
-
-    ServerHmrUpdate::Partial {
-        to,
-        instruction: builder.build(),
-    }
-}
-
-/// Kept outside Turbo Tasks so old pull baselines cannot reactivate.
-pub async fn compute_server_hmr_update(
-    chunk_lists: &[ServerHmrChunkList],
-    from: Option<&ServerHmrChunkListVersion>,
-    to: ReadRef<ServerHmrChunkListVersion>,
-) -> Result<ServerHmrUpdate> {
-    if chunk_lists.is_empty() {
-        return Ok(ServerHmrUpdate::NoRuntimeUpdate { to: None });
-    }
-
-    let Some(from) = from else {
-        return Ok(ServerHmrUpdate::NoRuntimeUpdate { to: Some(to) });
-    };
-
-    let DiffResult {
-        chunk_updates,
-        membership,
-    } = diff_chunks_against(chunk_lists, from).await?;
-
-    Ok(classify_server_hmr_update(
-        chunk_updates
-            .iter()
-            .map(|update| ServerHmrChunkUpdate::from(&**update)),
-        membership,
-        to,
-    ))
-}
-
-#[cfg(test)]
-mod tests {
-    use turbo_tasks::{FxIndexMap, FxIndexSet, ReadRef};
-    use turbopack_core::update_instruction::UpdateInstruction;
-    use turbopack_ecmascript::chunk_list::{
-        merged_update::{
-            EcmascriptMergedChunkDeleted, EcmascriptMergedChunkUpdate, EcmascriptMergedUpdate,
-        },
-        update::{ChunkListUpdate, ChunkUpdate, EcmascriptUpdateInstruction},
-    };
-
-    use super::{
-        ChunkListMembershipChange, ChunkListUpdateBuilder, ServerHmrChunkListVersion,
-        ServerHmrChunkUpdate, ServerHmrUpdate, classify_server_hmr_update,
-    };
-
-    fn version() -> ReadRef<ServerHmrChunkListVersion> {
-        ReadRef::new_owned(ServerHmrChunkListVersion {
-            versions_by_chunk_list_path: Default::default(),
-        })
-    }
-
-    fn unchanged_membership() -> ChunkListMembershipChange {
-        ChunkListMembershipChange::default()
-    }
-
-    fn added_chunk_lists() -> ChunkListMembershipChange {
-        ChunkListMembershipChange {
-            has_new: true,
-            has_removed: false,
-        }
-    }
-
-    fn removed_chunk_lists() -> ChunkListMembershipChange {
-        ChunkListMembershipChange {
-            has_new: false,
-            has_removed: true,
-        }
-    }
-
-    fn merged(chunk_path: &str) -> EcmascriptMergedUpdate {
-        EcmascriptMergedUpdate {
-            entries: Default::default(),
-            chunks: [(
-                chunk_path.into(),
-                EcmascriptMergedChunkUpdate::Deleted(EcmascriptMergedChunkDeleted {
-                    modules: Default::default(),
-                }),
-            )]
-            .into_iter()
-            .collect(),
-        }
-    }
-
-    #[test]
-    fn unchanged_chunks_produce_no_runtime_update() {
-        assert!(matches!(
-            classify_server_hmr_update(
-                [ServerHmrChunkUpdate::None],
-                unchanged_membership(),
-                version()
-            ),
-            ServerHmrUpdate::NoRuntimeUpdate { to: None }
-        ));
-    }
-
-    #[test]
-    fn missing_chunk_produces_full_reevaluation() {
-        assert!(matches!(
-            classify_server_hmr_update(
-                [ServerHmrChunkUpdate::Missing],
-                unchanged_membership(),
-                version()
-            ),
-            ServerHmrUpdate::FullReevaluation { .. }
-        ));
-    }
-
-    #[test]
-    fn total_update_produces_full_reevaluation() {
-        assert!(matches!(
-            classify_server_hmr_update(
-                [ServerHmrChunkUpdate::Total],
-                unchanged_membership(),
-                version()
-            ),
-            ServerHmrUpdate::FullReevaluation { .. }
-        ));
-    }
-
-    #[test]
-    fn partial_instructions_are_combined() {
-        let chunk_list = ChunkListUpdate {
-            chunks: FxIndexMap::from_iter([("a.js".into(), ChunkUpdate::Added)]),
-            merged: vec![],
-        }
-        .into_instruction();
-        let merged_instruction =
-            UpdateInstruction::new(EcmascriptUpdateInstruction::Merged(merged("b.js")));
-
-        let ServerHmrUpdate::Partial { instruction, .. } = classify_server_hmr_update(
-            [
-                ServerHmrChunkUpdate::Partial(&chunk_list),
-                ServerHmrChunkUpdate::Partial(&merged_instruction),
-            ],
-            unchanged_membership(),
-            version(),
-        ) else {
-            panic!("partial instructions should produce a partial aggregate update");
-        };
-        let instruction = instruction
-            .downcast_ref::<EcmascriptUpdateInstruction>()
-            .expect("aggregate instruction is ECMAScript");
-        let EcmascriptUpdateInstruction::ChunkList(update) = instruction else {
-            panic!("aggregate instruction should be a chunk-list update");
-        };
-        assert_eq!(update.chunks["a.js"], ChunkUpdate::Added);
-        assert_eq!(update.merged, [merged("b.js")]);
-    }
-
-    #[test]
-    fn new_chunk_lists_advance_baseline_without_runtime_update() {
-        assert!(matches!(
-            classify_server_hmr_update([], added_chunk_lists(), version()),
-            ServerHmrUpdate::NoRuntimeUpdate { to: Some(_) }
-        ));
-    }
-
-    #[test]
-    fn removed_chunk_lists_produce_full_reevaluation() {
-        assert!(matches!(
-            classify_server_hmr_update([], removed_chunk_lists(), version()),
-            ServerHmrUpdate::FullReevaluation { .. }
-        ));
-    }
-
-    #[test]
-    fn deduplicates_merged_updates_in_first_seen_order() {
-        let first = merged("first.js");
-        let second = merged("second.js");
-        let mut builder = ChunkListUpdateBuilder::default();
-
-        builder.add_instruction(&UpdateInstruction::new(
-            EcmascriptUpdateInstruction::Merged(first.clone()),
-        ));
-        builder.add_instruction(&UpdateInstruction::new(
-            EcmascriptUpdateInstruction::Merged(second.clone()),
-        ));
-        builder.add_instruction(&UpdateInstruction::new(
-            EcmascriptUpdateInstruction::Merged(first.clone()),
-        ));
-
-        assert_eq!(builder.merged, FxIndexSet::from_iter([first, second]));
-    }
-
-    #[test]
-    fn chunk_updates_use_last_writer_and_stable_order() {
-        let mut builder = ChunkListUpdateBuilder::default();
-        let first = ChunkListUpdate {
-            chunks: FxIndexMap::from_iter([
-                ("a.js".into(), ChunkUpdate::Total),
-                ("b.js".into(), ChunkUpdate::Added),
-            ]),
-            merged: vec![],
-        };
-        let second = ChunkListUpdate {
-            chunks: FxIndexMap::from_iter([
-                ("a.js".into(), ChunkUpdate::Deleted),
-                ("c.js".into(), ChunkUpdate::Total),
-            ]),
-            merged: vec![],
-        };
-
-        builder.add_instruction(&first.into_instruction());
-        builder.add_instruction(&second.into_instruction());
-
-        assert_eq!(
-            builder
-                .chunks
-                .keys()
-                .map(|path| path.as_str())
-                .collect::<Vec<_>>(),
-            ["a.js", "b.js", "c.js"]
+        merged_chunks.insert(
+            chunk.version.chunk_path.clone(),
+            EcmascriptMergedChunkUpdate::Partial(EcmascriptMergedChunkPartial {
+                added: FrozenSet::from(added),
+                deleted: FrozenSet::default(),
+            }),
         );
-        assert_eq!(builder.chunks["a.js"], ChunkUpdate::Deleted);
     }
+
+    loaded.update_conditionally(|loaded| {
+        for chunk in &route.chunks {
+            let dir = runtime_dir(&chunk.version.chunk_path);
+            for (id, hash) in &chunk.version.entries_hashes {
+                loaded.modules.insert((dir.clone(), id.clone()), *hash);
+            }
+        }
+        for (path, id) in &route.opaque_chunks {
+            loaded.opaque_chunks.insert(path.clone(), id.clone());
+        }
+        loaded.pulled_routes.insert(entry_paths);
+        true
+    });
+
+    if merged_by_dir.is_empty() {
+        return Ok(ServerHmrUpdate::None);
+    }
+    Ok(ServerHmrUpdate::Partial(
+        ChunkListUpdate {
+            chunks: Default::default(),
+            merged: merged_by_dir
+                .into_values()
+                .map(|(entries, chunks)| EcmascriptMergedUpdate {
+                    entries: FrozenMap::from(entries),
+                    chunks: FrozenMap::from(chunks),
+                })
+                .collect(),
+        }
+        .into_instruction(),
+    ))
 }

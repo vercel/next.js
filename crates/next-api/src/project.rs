@@ -120,7 +120,7 @@ use crate::{
     additional_roots::{
         AdditionalDiskFileSystem, BuiltinRootsConfig, create_additional_root_file_systems,
     },
-    aggregate_hmr::ServerHmrChunkLists,
+    aggregate_hmr::{ServerHmrChunkLists, ServerHmrLoadedState},
     app::{AppProject, CLIENT_TRANSITION_NAME, OptionAppProject},
     empty::EmptyEndpoint,
     entrypoints::Entrypoints,
@@ -469,6 +469,8 @@ pub struct ProjectContainer {
     options_state: State<Option<ProjectOptions>>,
     file_systems_state: State<Option<ProjectFileSystemState>>,
     additional_roots_state: State<Vec<(RcStr, AdditionalDiskFileSystem)>>,
+    /// What the server runtimes have loaded, for server HMR.
+    server_hmr_loaded_state: State<ServerHmrLoadedState>,
     #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip)]
     fs_map_init_lock: tokio::sync::Mutex<()>,
@@ -493,6 +495,7 @@ impl ProjectContainer {
             options_state: State::new(None),
             file_systems_state: State::new(None),
             additional_roots_state: State::new(Vec::new()),
+            server_hmr_loaded_state: State::new(ServerHmrLoadedState::default()),
             fs_map_init_lock: tokio::sync::Mutex::new(()),
         }
         .cell())
@@ -500,6 +503,12 @@ impl ProjectContainer {
 }
 
 impl ProjectContainer {
+    /// What the server runtimes have loaded, for server HMR. It must be cleared whenever all
+    /// server modules are re-evaluated.
+    pub fn server_hmr_loaded_state(&self) -> &State<ServerHmrLoadedState> {
+        &self.server_hmr_loaded_state
+    }
+
     /// Attach process-local cleanup after resolving the container. Shutdown hooks must not be
     /// task inputs: making the container transient also prevents its project graph from persisting.
     pub fn register_shutdown_hooks(&self, shutdown: &crate::shutdown::ShutdownHooks) {
@@ -2959,7 +2968,7 @@ impl Project {
         }
     }
 
-    /// Server entry chunks shared by all pull baselines.
+    /// Server entry chunk lists that server HMR pulls select from.
     #[turbo_tasks::function]
     pub async fn server_hmr_chunks(self: Vc<Self>) -> Result<Vc<ServerHmrChunkLists>> {
         let Some(map) = self.await?.versioned_content_map else {

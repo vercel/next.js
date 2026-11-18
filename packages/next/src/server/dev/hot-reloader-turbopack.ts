@@ -32,7 +32,6 @@ import type {
   Project,
   Entrypoints,
   NodeJsPartialHmrUpdate,
-  ServerHmrVersion,
 } from '../../build/swc/types'
 import { createDefineEnv, getBindingsSync } from '../../build/swc'
 import * as Log from '../../build/output/log'
@@ -259,15 +258,17 @@ function setupServerHmr(
   }
 ) {
   let pending = Promise.resolve()
-  // Each pull snapshots only the requested endpoint's entries. Keep independent
-  // baselines so building one route does not discard another route's version.
-  const versions = new Map<string, ServerHmrVersion>()
+  // What the server runtimes have loaded lives in Turbopack, which diffs each
+  // requested route against it.
   let needsReEvaluation = false
 
-  async function recover() {
+  async function recover(entryPaths: string[]) {
     try {
       await reEvaluateAllModulesExpensive()
-      versions.clear()
+      await project.clearServerHmrState()
+      // The requested route loads from scratch next, so record its modules as
+      // loaded. With nothing recorded, this pull has nothing to ship.
+      await project.getServerHmrUpdate(entryPaths)
       needsReEvaluation = false
     } catch (error) {
       console.error('[Server HMR] Re-evaluating modules failed:', error)
@@ -277,22 +278,15 @@ function setupServerHmr(
   function apply(entryPaths: string[]): Promise<void> {
     const applyPromise = pending.then(async () => {
       if (needsReEvaluation) {
-        await recover()
+        await recover(entryPaths)
         return
       }
 
       try {
-        const versionKey = [...entryPaths].sort().join('\0')
         // `issues` is intentionally dropped: this pull scans project-wide chunk
         // lists, so its issues may belong to an unrelated or removed route, and
         // endpoint writes already report route-scoped issues.
-        const { value: update } = await project.getServerHmrUpdate(
-          versions.get(versionKey),
-          entryPaths
-        )
-        if (update.version) {
-          versions.set(versionKey, update.version)
-        }
+        const { value: update } = await project.getServerHmrUpdate(entryPaths)
         switch (update.kind) {
           case 'none':
             return
@@ -300,17 +294,25 @@ function setupServerHmr(
             const handlers = globalThis.__turbopack_server_hmr_handlers__
             if (!handlers || handlers.size === 0) return
 
-            const payload: NodeJsPartialHmrUpdate = {
-              type: 'partial',
-              instruction: update.instruction,
-            }
+            // Each merged update targets one runtime directory. Apply them
+            // separately, so that each is routed only to its own runtime.
+            const instructions =
+              update.instruction.type === 'ChunkListUpdate'
+                ? (update.instruction.merged ?? [])
+                : [update.instruction]
             if (typeof __turbopack_server_hmr_apply__ === 'function') {
               try {
-                __turbopack_server_hmr_apply__(payload)
-                mirrorModuleStateToDevValidationWorker({
-                  type: 'apply',
-                  update: payload,
-                })
+                for (const instruction of instructions) {
+                  const payload: NodeJsPartialHmrUpdate = {
+                    type: 'partial',
+                    instruction,
+                  }
+                  __turbopack_server_hmr_apply__(payload)
+                  mirrorModuleStateToDevValidationWorker({
+                    type: 'apply',
+                    update: payload,
+                  })
+                }
 
                 const updatedChunkPaths = collectUpdatedChunkPaths(
                   update.instruction
@@ -338,16 +340,22 @@ function setupServerHmr(
       }
 
       needsReEvaluation = true
-      await recover()
+      await recover(entryPaths)
     })
     pending = applyPromise
     return applyPromise
   }
 
   function reset(): Promise<void> {
-    const resetState = () => {
-      versions.clear()
+    const resetState = async () => {
       needsReEvaluation = false
+      try {
+        await project.clearServerHmrState()
+      } catch (error) {
+        // Keep the queue usable; the next pull re-evaluates everything instead.
+        needsReEvaluation = true
+        console.error('[Server HMR] Clearing the loaded state failed:', error)
+      }
     }
     const resetPromise = pending.then(resetState, resetState)
     pending = resetPromise
