@@ -400,8 +400,8 @@ export function createAppPageEntrypoint({
     // We extract it here so the RDC is available for the re-render after the action completes.
     const resumeStateLengthHeader = req.headers[NEXT_RESUME_STATE_LENGTH_HEADER]
     if (
-      !getRequestMeta(req, 'postponed') &&
       isMinimalMode &&
+      !getRequestMeta(req, 'postponed') &&
       isPPREnabled &&
       isPossibleServerAction &&
       resumeStateLengthHeader &&
@@ -638,11 +638,11 @@ export function createAppPageEntrypoint({
 
     const canRenderDynamicRSCForPPRRoute =
       // Prerendered PPR routes served by next start.
+      !isMinimalMode &&
       isPPREnabled &&
       isSSG &&
       !routeModule.isDev &&
       !isDraftMode &&
-      !isMinimalMode &&
       // Navigations and runtime prefetches.
       req.method === 'GET' &&
       isRSCRequest &&
@@ -1264,10 +1264,10 @@ export function createAppPageEntrypoint({
           // skip on-demand revalidate if cache is not present and
           // revalidate-if-generated is set
           if (
+            !isMinimalMode &&
             isOnDemandRevalidate &&
             revalidateOnlyGenerated &&
-            !previousIncrementalCacheEntry &&
-            !isMinimalMode
+            !previousIncrementalCacheEntry
           ) {
             if (routerServerContext?.render404) {
               await routerServerContext.render404(req, res)
@@ -1332,11 +1332,11 @@ export function createAppPageEntrypoint({
           }
 
           if (
+            !isMinimalMode &&
             // Ordinary dev requests always use the request-specific render
             // below. Only production, forced background work, and explicit
             // shell debugging may enter fallback prerender handling.
             (isProduction || forceStaticRender || isDebugPrerender) &&
-            !isMinimalMode &&
             fallbackMode !== FallbackMode.BLOCKING_STATIC_RENDER &&
             staticPathKey &&
             !didRespond &&
@@ -1430,7 +1430,6 @@ export function createAppPageEntrypoint({
               // Otherwise, if we did get a fallback response, we should return it.
               if (fallbackResponse) {
                 if (
-                  !isMinimalMode &&
                   isPPREnabled &&
                   // Upgrading a fallback shell into a more specific ISR entry is
                   // only done when Partial Prefetching is enabled, mirroring the
@@ -1518,6 +1517,7 @@ export function createAppPageEntrypoint({
           let hasFullyStaticCacheEntry = false
 
           if (
+            !isMinimalMode &&
             // Dynamic RSC and Server Action requests reuse the RDC from cached
             // postponed state to keep cached values consistent with the
             // prerender. Draft mode requests render fresh values without this
@@ -1525,7 +1525,6 @@ export function createAppPageEntrypoint({
             isPPREnabled &&
             !isDraftMode &&
             process.env.NEXT_RUNTIME !== 'edge' &&
-            !isMinimalMode &&
             incrementalCache &&
             // Include both dynamic RSC requests (navigations) and server actions
             (isDynamicRSCRequest || isPossibleServerAction) &&
@@ -2507,13 +2506,13 @@ export function createAppPageEntrypoint({
         // If there's no postponed state, we should just serve the HTML. This
         // should also be the case for a resume request because it's completed
         // as a server render (rather than a static render).
-        if (!didPostpone || isMinimalMode || isRSCRequest) {
+        if (isMinimalMode || !didPostpone || isRSCRequest) {
           // If we're in test mode, we should add a sentinel chunk to the response
           // that's between the static and dynamic parts so we can compare the
           // chunks and add assertions.
           if (
-            process.env.__NEXT_TEST_MODE &&
             isMinimalMode &&
+            process.env.__NEXT_TEST_MODE &&
             isPPREnabled &&
             body.contentType === HTML_CONTENT_TYPE_HEADER
           ) {
