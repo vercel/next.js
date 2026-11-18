@@ -1,0 +1,4 @@
+.back {
+  composes: cyc from './cycle-a.module.css';
+  color: blue;
+}

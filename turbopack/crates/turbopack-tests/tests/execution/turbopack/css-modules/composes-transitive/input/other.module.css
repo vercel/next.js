@@ -1,0 +1,8 @@
+.base {
+  color: red;
+}
+
+.imported {
+  composes: base;
+  color: blue;
+}

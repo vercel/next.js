@@ -1,0 +1,4 @@
+.top {
+  composes: c from './chain.module.css';
+  color: green;
+}

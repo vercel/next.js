@@ -9,6 +9,7 @@ pub mod embed;
 pub mod emit_options;
 mod lifetime_util;
 mod module_asset;
+mod module_composes;
 pub(crate) mod process;
 pub(crate) mod references;
 
