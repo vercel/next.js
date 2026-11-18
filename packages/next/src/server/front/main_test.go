@@ -742,11 +742,16 @@ func TestClosesARequestWhoseBodyNeverFinishes(t *testing.T) {
 
 			conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 			start := time.Now()
-			if _, err := io.ReadAll(conn); err != nil {
+			answer, err := io.ReadAll(conn)
+			if err != nil {
 				t.Fatalf("connection not closed by the server: %v", err)
 			}
 			if elapsed := time.Since(start); elapsed > 3*time.Second {
 				t.Errorf("closed after %v, want about the 300ms request timeout", elapsed)
+			}
+			// Node answers a request that hits its requestTimeout with 408.
+			if !strings.HasPrefix(string(answer), "HTTP/1.1 408 Request Timeout\r\n") {
+				t.Errorf("answered %q, want 408 Request Timeout", answer)
 			}
 		})
 	}

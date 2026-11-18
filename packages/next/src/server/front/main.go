@@ -31,6 +31,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -295,7 +296,13 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) 
 			if r.ContentLength != 0 {
 				w.Header().Set("Connection", "close")
 			}
-			w.WriteHeader(http.StatusBadGateway)
+			// When the client's upload hit the request timeout, answer as Node
+			// does: 408 Request Timeout. Every other failure is a 502.
+			status := http.StatusBadGateway
+			if body, ok := r.Context().Value(requestBodyKey{}).(*requestBody); ok && body.timedOut() {
+				status = http.StatusRequestTimeout
+			}
+			w.WriteHeader(status)
 		},
 		ErrorLog: proxyErrorLog,
 	}
@@ -311,12 +318,12 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) 
 		// sends any of the response. Node doesn't: it can answer (a 403, or a
 		// streamed response) while the client is still uploading. Full-duplex
 		// mode lets the response go out as Node sends it. It fails only for
-		// HTTP/2, which the front doesn't serve.
-		http.NewResponseController(w).EnableFullDuplex()
+		// HTTP/2, which the front doesn't serve, so the error is ignored.
+		_ = http.NewResponseController(w).EnableFullDuplex()
 		if r.ContentLength != 0 && r.Body != nil && r.Body != http.NoBody {
 			// Track whether the body is read to its end before Node answers;
 			// ModifyResponse closes the connection if it isn't.
-			body := &requestBody{ReadCloser: r.Body}
+			body := newRequestBody(r.Body)
 			r = r.WithContext(context.WithValue(r.Context(), requestBodyKey{}, body))
 			r.Body = body
 		}
@@ -326,21 +333,52 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) 
 
 type requestBodyKey struct{}
 
-// requestBody records whether the client's request body was read to a clean
-// end. Any other error, such as broken chunked framing or a timeout, leaves
-// readToEnd false. The transport reads the body on its own goroutine while
-// ModifyResponse checks it, hence the atomic.
+// requestBody records how reading the client's request body ended: at a clean
+// end (readToEnd), on the request timeout (deadline), or with another error
+// such as broken chunked framing. The transport reads the body on its own
+// goroutine while ModifyResponse and ErrorHandler check it, hence the atomics.
 type requestBody struct {
 	io.ReadCloser
 	readToEnd atomic.Bool
+	deadline  atomic.Bool
+	ended     chan struct{} // closed once a read returns any error, io.EOF included
+	endOnce   sync.Once
+}
+
+func newRequestBody(body io.ReadCloser) *requestBody {
+	return &requestBody{
+		ReadCloser: body,
+		readToEnd:  atomic.Bool{},
+		deadline:   atomic.Bool{},
+		ended:      make(chan struct{}),
+		endOnce:    sync.Once{},
+	}
 }
 
 func (b *requestBody) Read(p []byte) (int, error) {
 	n, err := b.ReadCloser.Read(p)
-	if err == io.EOF {
-		b.readToEnd.Store(true)
+	if err != nil {
+		if err == io.EOF {
+			b.readToEnd.Store(true)
+		} else if errors.Is(err, os.ErrDeadlineExceeded) {
+			b.deadline.Store(true)
+		}
+		b.endOnce.Do(func() { close(b.ended) })
 	}
 	return n, err
+}
+
+// timedOut reports whether the body read stopped at the request timeout.
+// When the timeout fires, Go's server cancels the request before the read
+// that hit the deadline has returned here, so the proxy can report the
+// cancellation first; waiting a moment for that read keeps the two in order.
+// A body that isn't being read never ends, so the wait is bounded.
+func (b *requestBody) timedOut() bool {
+	select {
+	case <-b.ended:
+	case <-time.After(50 * time.Millisecond):
+	}
+	return b.deadline.Load()
 }
 
 var proxyErrorLog = log.New(os.Stderr, "next-front: ", 0)
