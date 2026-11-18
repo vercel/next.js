@@ -931,3 +931,77 @@ func TestAbsoluteFormTargetReachesNodeAsAPathWithTheTargetsHost(t *testing.T) {
 		t.Errorf("Node saw %q with Host %q, want %q with Host %q", got.requestURI, got.host, "/p?q=1", "other.example")
 	}
 }
+
+// When Node answers before the client has finished its upload, the rest of
+// the body is still on the connection. The front must close the connection
+// after the answer, so those bytes are never read as another request.
+func TestClosesTheConnectionAfterAnAnswerThatCameBeforeTheBodyEnded(t *testing.T) {
+	done := make(chan struct{})
+	t.Cleanup(func() { close(done) })
+	seen := make(chan string, 4)
+	addr := startFrontFor(t, func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.RequestURI
+		// Answer the way Node does for /_next/static/ misses, without reading
+		// the body, and keep the connection open.
+		conn, buf, _ := w.(http.Hijacker).Hijack()
+		defer conn.Close()
+		io.WriteString(buf, "HTTP/1.1 404 Not Found\r\nContent-Length: 9\r\n\r\nNot Found")
+		buf.Flush()
+		<-done
+	})
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	// A chunked upload whose last chunk hasn't been sent yet.
+	io.WriteString(conn, "POST /_next/static/x HTTP/1.1\r\nHost: shop.example.com\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n")
+	conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+	reader := bufio.NewReader(conn)
+	res, err := http.ReadResponse(reader, nil)
+	if err != nil {
+		t.Fatalf("no answer: %v", err)
+	}
+	io.Copy(io.Discard, res.Body)
+	if res.StatusCode != http.StatusNotFound || !res.Close {
+		t.Errorf("got %d with Close=%v, want 404 with Connection: close", res.StatusCode, res.Close)
+	}
+	// What the client sends next must not reach Node as a request.
+	io.WriteString(conn, "0\r\n\r\nGET /second HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
+	if _, err := reader.ReadByte(); err != io.EOF {
+		t.Errorf("connection still open after the answer: err = %v", err)
+	}
+	<-seen
+	select {
+	case uri := <-seen:
+		t.Errorf("Node got a second request %q from the same connection", uri)
+	case <-time.After(200 * time.Millisecond):
+	}
+}
+
+// An upload Node has read in full doesn't need the connection closed; it
+// stays open for the next request, as without the front.
+func TestKeepsTheConnectionOpenAfterACompleteUpload(t *testing.T) {
+	addr := startFrontFor(t, func(w http.ResponseWriter, r *http.Request) {
+		io.Copy(io.Discard, r.Body)
+		io.WriteString(w, "ok")
+	})
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+	reader := bufio.NewReader(conn)
+	for i := 0; i < 2; i++ {
+		io.WriteString(conn, "POST /upload HTTP/1.1\r\nHost: shop.example.com\r\nContent-Length: 5\r\n\r\nhello")
+		res, err := http.ReadResponse(reader, nil)
+		if err != nil {
+			t.Fatalf("request %d: %v", i+1, err)
+		}
+		io.Copy(io.Discard, res.Body)
+		if res.Close {
+			t.Errorf("request %d: connection closed after a complete upload", i+1)
+		}
+	}
+}

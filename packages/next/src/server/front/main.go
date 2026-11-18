@@ -31,6 +31,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -265,6 +266,17 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) 
 			DisableCompression:    true,
 			ExpectContinueTimeout: 1 * time.Second,
 		},
+		// Node can answer before the client has finished sending the request
+		// body. If the body hasn't been read cleanly to its end by then, the
+		// rest of it is still on the client connection, and Go's server could
+		// read those bytes as the next request. Close the connection after
+		// such a response instead of reusing it.
+		ModifyResponse: func(res *http.Response) error {
+			if body, ok := res.Request.Context().Value(requestBodyKey{}).(*requestBody); ok && !body.readToEnd.Load() {
+				res.Header.Set("Connection", "close")
+			}
+			return nil
+		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			// When the request was cancelled on the client's side (the client
 			// went away, as with a cancelled prefetch, or its upload hit the
@@ -301,8 +313,34 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) 
 		// mode lets the response go out as Node sends it. It fails only for
 		// HTTP/2, which the front doesn't serve.
 		http.NewResponseController(w).EnableFullDuplex()
+		if r.ContentLength != 0 && r.Body != nil && r.Body != http.NoBody {
+			// Track whether the body is read to its end before Node answers;
+			// ModifyResponse closes the connection if it isn't.
+			body := &requestBody{ReadCloser: r.Body}
+			r = r.WithContext(context.WithValue(r.Context(), requestBodyKey{}, body))
+			r.Body = body
+		}
 		proxy.ServeHTTP(w, r)
 	})
+}
+
+type requestBodyKey struct{}
+
+// requestBody records whether the client's request body was read to a clean
+// end. Any other error, such as broken chunked framing or a timeout, leaves
+// readToEnd false. The transport reads the body on its own goroutine while
+// ModifyResponse checks it, hence the atomic.
+type requestBody struct {
+	io.ReadCloser
+	readToEnd atomic.Bool
+}
+
+func (b *requestBody) Read(p []byte) (int, error) {
+	n, err := b.ReadCloser.Read(p)
+	if err == io.EOF {
+		b.readToEnd.Store(true)
+	}
+	return n, err
 }
 
 var proxyErrorLog = log.New(os.Stderr, "next-front: ", 0)
