@@ -1,0 +1,9 @@
+.f {
+  composes: g from './entry-cycle.module.css';
+  color: blue;
+}
+
+.h {
+  composes: ext2 from './entry-cycle-external-2.module.css';
+  color: orange;
+}

@@ -8,6 +8,15 @@ import moduleCycleA from './module-cycle-a.module.css'
 import moduleCycleB from './module-cycle-b.module.css'
 import selfCycle from './self-cycle.module.css'
 import ordering from './ordering.module.css'
+import deepCycleX from './deep-cycle-x.module.css'
+import deepCycleY from './deep-cycle-y.module.css'
+// Imported in the opposite order, so the cycle is entered from the other module.
+import deepCycleReversedY from './deep-cycle-reversed-y.module.css'
+import deepCycleReversedX from './deep-cycle-reversed-x.module.css'
+import entryCycle from './entry-cycle.module.css'
+import entryCyclePeer from './entry-cycle-peer.module.css'
+import entryCycleExternal from './entry-cycle-external.module.css'
+import entryCycleExternal2 from './entry-cycle-external-2.module.css'
 
 // The class name generated for `name` itself, without any composed classes.
 function own(styles, name) {
@@ -74,6 +83,51 @@ it('flattens module cycles that have no class cycle', () => {
   expect(classes(moduleCycleB, 'z')).toEqual([
     own(moduleCycleB, 'z'),
     own(moduleCycleA, 'w'),
+  ])
+})
+
+it('fully expands composed classes inside module cycles', () => {
+  for (const [x, y] of [
+    [deepCycleX, deepCycleY],
+    [deepCycleReversedX, deepCycleReversedY],
+  ]) {
+    expect(classes(x, 'a')).toEqual([
+      own(x, 'a'),
+      own(y, 'b'),
+      own(x, 'c'),
+      own(x, 'd'),
+    ])
+    expect(classes(y, 'b')).toEqual([own(y, 'b'), own(x, 'c'), own(x, 'd')])
+  }
+})
+
+// Both modules of the cycle compose from an external module after their edge into the cycle, so
+// whichever module the traversal enters the cycle through, one external dependency is only
+// reached after the other module of the cycle is finished.
+it('uses complete external results inside module cycles', () => {
+  expect(classes(entryCycle, 'e')).toEqual([
+    own(entryCycle, 'e'),
+    own(entryCyclePeer, 'f'),
+    own(entryCycle, 'g'),
+    own(entryCycleExternal, 'ext'),
+    own(entryCycleExternal, 'extbase'),
+  ])
+  expect(classes(entryCyclePeer, 'f')).toEqual([
+    own(entryCyclePeer, 'f'),
+    own(entryCycle, 'g'),
+    own(entryCycleExternal, 'ext'),
+    own(entryCycleExternal, 'extbase'),
+  ])
+  expect(classes(entryCycle, 'i')).toEqual([
+    own(entryCycle, 'i'),
+    own(entryCyclePeer, 'h'),
+    own(entryCycleExternal2, 'ext2'),
+    own(entryCycleExternal2, 'ext2base'),
+  ])
+  expect(classes(entryCyclePeer, 'h')).toEqual([
+    own(entryCyclePeer, 'h'),
+    own(entryCycleExternal2, 'ext2'),
+    own(entryCycleExternal2, 'ext2base'),
   ])
 })
 
