@@ -2006,6 +2006,30 @@ function canCacheFillTimeOut(
 }
 
 /**
+ * Creates an error whose stack starts at the caller of `cache`. Must be called
+ * synchronously from `cache`.
+ */
+function createErrorAtCacheCallSite<T extends Error>(
+  ErrorClass: new (route: string) => T,
+  route: string
+): T {
+  // Capturing a stack trace is the expensive part of creating an error, and
+  // the one that the constructor captures would be replaced right away by the
+  // one that starts at the caller of `cache`. So only capture the latter.
+  const stackTraceLimit = Error.stackTraceLimit
+  Error.stackTraceLimit = 0
+  let error: T
+  try {
+    error = new ErrorClass(route)
+  } finally {
+    Error.stackTraceLimit = stackTraceLimit
+  }
+  Error.captureStackTrace(error, cache)
+  applyOwnerStack(error)
+  return error
+}
+
+/**
  * Whether the dev-server's hang-detection probe scheduler (the only thrower of
  * the `UseCacheDeadlockError`) can be set up for a cache fill started from this
  * context. This must stay in sync with `generateCacheEntryImpl`.
@@ -2143,15 +2167,10 @@ export async function cache(
 
   let timeoutError: UseCacheTimeoutError | undefined
   if (canCacheFillTimeOut(workStore, workUnitStore)) {
-    // Capturing a stack trace is the expensive part of creating an error, and
-    // the one that the constructor captures is replaced right away by the one
-    // that starts at the caller of `cache`. So only capture the latter.
-    const stackTraceLimit = Error.stackTraceLimit
-    Error.stackTraceLimit = 0
-    timeoutError = new UseCacheTimeoutError(workStore.route)
-    Error.stackTraceLimit = stackTraceLimit
-    Error.captureStackTrace(timeoutError, cache)
-    applyOwnerStack(timeoutError)
+    timeoutError = createErrorAtCacheCallSite(
+      UseCacheTimeoutError,
+      workStore.route
+    )
   }
 
   // Only ever thrown by the dev-server's hang-detection probe scheduler, which
@@ -2160,9 +2179,10 @@ export async function cache(
   // runtime bundle.
   let deadlockError: UseCacheDeadlockError | undefined
   if (process.env.__NEXT_DEV_SERVER && canCacheFillDeadlock(workUnitStore)) {
-    deadlockError = new UseCacheDeadlockError(workStore.route)
-    Error.captureStackTrace(deadlockError, cache)
-    applyOwnerStack(deadlockError)
+    deadlockError = createErrorAtCacheCallSite(
+      UseCacheDeadlockError,
+      workStore.route
+    )
   }
 
   const wrapAsInvalidDynamicUsageError = (error: Error) => {
