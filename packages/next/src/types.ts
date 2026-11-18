@@ -32,6 +32,7 @@ export { NextConfig } from './server/config'
 export type {
   NextAdapter,
   NextAdapterCapabilities,
+  PrerenderBypassCondition,
   AdapterOutput,
 } from './build/adapter/build-complete'
 

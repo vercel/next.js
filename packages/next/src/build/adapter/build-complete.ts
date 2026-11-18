@@ -76,6 +76,7 @@ import {
 import { getRouteCacheKey } from '../../server/lib/route-cache-key'
 import { RouteKind } from '../../server/route-kind'
 import { getRscPrerenderCompleteness } from '../../server/lib/prerender-rsc-completeness'
+import { HTML_LIMITED_BOT_UA_RE_STRING } from '../../shared/lib/router/utils/is-bot'
 
 interface SharedRouteFields {
   /**
@@ -251,6 +252,13 @@ function orderAppPageKeysByEntry(appPageKeys: readonly string[]): string[] {
   return orderedAppPageKeys
 }
 
+export type PrerenderBypassCondition =
+  | RouteHas
+  | {
+      type: 'method'
+      value: string
+    }
+
 export interface AdapterOutput {
   /**
    * `PAGES` represents all the React pages that are under `pages/`.
@@ -374,7 +382,7 @@ export interface AdapterOutput {
        * bypass for is a list of has conditions the cache
        * should be bypassed and invoked directly e.g. action header
        */
-      bypassFor?: RouteHas[]
+      bypassFor?: PrerenderBypassCondition[]
       /**
        * renderingMode signals PPR or not for a prerender
        */
@@ -565,6 +573,11 @@ export interface NextAdapterCapabilities {
    * in the initial HTML `<head>`.
    */
   handlesHtmlLimitedBotPrerenders?: boolean
+  /**
+   * The deployment target supports HTTP method conditions in prerender cache
+   * bypass rules.
+   */
+  supportsPrerenderMethodBypass?: boolean
 }
 
 export interface NextAdapter {
@@ -729,14 +742,52 @@ export async function handleBuildComplete({
 
   if (typeof adapterMod.onBuildComplete === 'function') {
     const capabilities = adapterMod.getCapabilities?.()
-    const filterHtmlLimitedBotsBypass = (bypassFor: RouteHas[] | undefined) => {
-      if (capabilities?.handlesHtmlLimitedBotPrerenders !== true) {
+    const htmlLimitedBotsPattern = `.*(?:${
+      config.htmlLimitedBots || HTML_LIMITED_BOT_UA_RE_STRING
+    }).*`
+    const isActionHeaderBypass = (condition: RouteHas) =>
+      condition.type === 'header' &&
+      condition.key.toLowerCase() === 'next-action' &&
+      condition.value === undefined
+    const isMultipartBypass = (condition: RouteHas) =>
+      condition.type === 'header' &&
+      condition.key.toLowerCase() === 'content-type' &&
+      condition.value === 'multipart/form-data;.*'
+    const getPrerenderBypassFor = (
+      bypassFor: RouteHas[] | undefined,
+      isAppPageOutput: boolean
+    ): PrerenderBypassCondition[] | undefined => {
+      if (
+        !isAppPageOutput ||
+        !bypassFor ||
+        (!capabilities?.handlesHtmlLimitedBotPrerenders &&
+          !capabilities?.supportsPrerenderMethodBypass)
+      ) {
         return bypassFor
       }
 
-      return bypassFor?.filter(
-        (bypass) => bypass.type !== 'header' || bypass.key !== 'user-agent'
-      )
+      const useMethodBypass =
+        capabilities.supportsPrerenderMethodBypass === true &&
+        bypassFor.some(isActionHeaderBypass) &&
+        bypassFor.some(isMultipartBypass)
+      const conditions = bypassFor.filter((condition) => {
+        if (
+          capabilities.handlesHtmlLimitedBotPrerenders === true &&
+          condition.type === 'header' &&
+          condition.key.toLowerCase() === 'user-agent' &&
+          condition.value === htmlLimitedBotsPattern
+        ) {
+          return false
+        }
+        return (
+          !useMethodBypass ||
+          (!isActionHeaderBypass(condition) && !isMultipartBypass(condition))
+        )
+      })
+
+      return useMethodBypass
+        ? [{ type: 'method', value: 'POST' }, ...conditions]
+        : conditions
     }
 
     const syntheticSymlinks = createAdapterSyntheticSymlinkDirectory(distDir)
@@ -1907,7 +1958,10 @@ export async function handleBuildComplete({
             renderingMode,
             bypassFor:
               isAppPage && srcRoute !== '/_not-found'
-                ? filterHtmlLimitedBotsBypass(experimentalBypassFor)
+                ? getPrerenderBypassFor(
+                    experimentalBypassFor,
+                    appOutputMap[srcRoute]?.type === AdapterOutputType.APP_PAGE
+                  )
                 : undefined,
             bypassToken: previewProps.previewModeId,
           },
@@ -2175,7 +2229,10 @@ export async function handleBuildComplete({
             renderingMode,
             partialFallback: canEmitPartialFallback || undefined,
             bypassFor: isAppPage
-              ? filterHtmlLimitedBotsBypass(experimentalBypassFor)
+              ? getPrerenderBypassFor(
+                  experimentalBypassFor,
+                  appOutputMap[srcRoute]?.type === AdapterOutputType.APP_PAGE
+                )
               : undefined,
             bypassToken: previewProps.previewModeId,
           },

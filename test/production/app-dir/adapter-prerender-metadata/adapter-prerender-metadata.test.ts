@@ -694,18 +694,20 @@ describe('adapter-prerender-metadata', () => {
 
 // The adapter output and legacy manifest serve different deployment paths.
 describe.each([
-  { mode: 'empty', enabled: false },
-  { mode: 'disabled', enabled: false },
-  { mode: 'sync', enabled: true },
-])('HTML-limited bot capability: $mode', ({ mode, enabled }) => {
+  { mode: 'empty', bots: false, methods: false },
+  { mode: 'disabled', bots: false, methods: false },
+  { mode: 'bots', bots: true, methods: false },
+  { mode: 'methods', bots: false, methods: true },
+  { mode: 'both', bots: true, methods: true },
+])('prerender bypass capabilities: $mode', ({ mode, bots, methods }) => {
   const { next } = nextTestSetup({
     files: __dirname,
     env: {
-      NEXT_TEST_HTML_LIMITED_BOT_CAPABILITY: mode,
+      NEXT_TEST_PRERENDER_BYPASS_CAPABILITIES: mode,
     },
   })
 
-  it('keeps action bypasses and delegates bot handling only after opt-in', async () => {
+  it('emits opted-in rules and preserves the legacy manifest', async () => {
     const { outputs }: AdapterBuildContext = await next.readJSON(
       'build-complete.json'
     )
@@ -725,17 +727,48 @@ describe.each([
       },
     ]
 
-    for (const pathname of ['/ppr-shell', '/blog/[slug]']) {
+    const expectedConditions = [
+      ...(methods ? [{ type: 'method', value: 'POST' }] : actionRules),
+      ...(bots ? [] : [botRule]),
+    ]
+
+    for (const pathname of [
+      '/static',
+      '/ppr-shell',
+      '/ppr-shell.rsc',
+      '/blog/first',
+      '/blog/[slug]',
+      '/blog/[slug].rsc',
+    ]) {
       const output = outputs.prerenders.find(
         (entry) => entry.pathname === pathname
       )
       expect(output).toBeDefined()
-      expect(output.config.bypassFor).toEqual(
-        enabled ? actionRules : [...actionRules, botRule]
-      )
+      expect(output.config.bypassFor).toEqual(expectedConditions)
+      const legacyPathname = pathname.replace(/\.rsc$/, '')
       const legacyRoute =
-        manifest.routes[pathname] ?? manifest.dynamicRoutes[pathname]
-      expect(legacyRoute.experimentalBypassFor).toContainEqual(botRule)
+        manifest.routes[legacyPathname] ??
+        manifest.dynamicRoutes[legacyPathname]
+      expect(legacyRoute.experimentalBypassFor).toEqual([
+        ...actionRules,
+        botRule,
+      ])
+    }
+
+    const nonAppPageParents = new Set(
+      [...outputs.pages, ...outputs.appRoutes].map((output) => output.id)
+    )
+    for (const output of outputs.prerenders) {
+      if (nonAppPageParents.has(output.parentOutputId)) {
+        const legacyRoute =
+          manifest.routes[output.route] ?? manifest.dynamicRoutes[output.route]
+        expect(output.config.bypassFor).toEqual(
+          legacyRoute?.experimentalBypassFor
+        )
+      }
+      if (output.pathname.includes('.segments/')) {
+        expect(output.config.bypassFor).toBeUndefined()
+      }
     }
   })
 })

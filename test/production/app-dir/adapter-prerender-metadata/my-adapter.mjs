@@ -1,15 +1,24 @@
 import fs from 'fs/promises'
 
 let capabilityCalls = 0
-const capabilityMode = process.env.NEXT_TEST_HTML_LIMITED_BOT_CAPABILITY
+const capabilityMode = process.env.NEXT_TEST_PRERENDER_BYPASS_CAPABILITIES
 
 function getCapabilities() {
   capabilityCalls++
-  return capabilityMode === 'empty'
-    ? {}
-    : {
-        handlesHtmlLimitedBotPrerenders: capabilityMode !== 'disabled',
-      }
+  const capabilities = {
+    empty: {},
+    disabled: {
+      handlesHtmlLimitedBotPrerenders: false,
+      supportsPrerenderMethodBypass: false,
+    },
+    bots: { handlesHtmlLimitedBotPrerenders: true },
+    methods: { supportsPrerenderMethodBypass: true },
+    both: {
+      handlesHtmlLimitedBotPrerenders: true,
+      supportsPrerenderMethodBypass: true,
+    },
+  }
+  return capabilities[capabilityMode] ?? {}
 }
 
 /** @type {import('next').NextAdapter } */
