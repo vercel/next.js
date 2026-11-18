@@ -508,6 +508,8 @@ export default function Page() {
 
 A list of transition types to apply to the navigation. These types are passed to [`React.addTransitionType`](https://react.dev/reference/react/addTransitionType) inside the navigation transition, enabling [`<ViewTransition>`](https://react.dev/reference/react/ViewTransition) components to apply different animations based on the type of navigation.
 
+These types apply when following the link. Returning through browser Back or Forward does not trigger view transition animations. See [view transitions during browser history navigation](/docs/app/guides/view-transitions#browser-history-navigation).
+
 ```tsx filename="app/page.tsx" switcher
 import Link from 'next/link'
 

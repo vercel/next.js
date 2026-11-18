@@ -12,6 +12,15 @@ There are two ways to set Open Graph and Twitter images:
 - [Using image files (.jpg, .png, .gif)](#image-files-jpg-png-gif)
 - [Using code to generate images (.js, .ts, .tsx)](#generate-images-using-code-js-ts-tsx)
 
+## Precedence with metadata exports
+
+These rules apply to both static image files and generated images, following [metadata ordering](/docs/app/api-reference/functions/generate-metadata#ordering):
+
+- **Page metadata**: A page's explicit `openGraph.images` or `twitter.images` from its [`metadata` object or `generateMetadata` function](/docs/app/api-reference/functions/generate-metadata) overrides the corresponding `opengraph-image` or `twitter-image` file. This includes files in the same segment and images inherited from parent segments.
+- **Layout metadata**: A page's colocated image file can replace images configured by a layout in the same or a parent segment. This applies when the page omits the corresponding `images` property.
+
+For example, if `app/blog/page.tsx` sets `openGraph.images` to `['/custom-og.png']`, the page uses `/custom-og.png` even when `app/blog/opengraph-image.png` exists.
+
 ## Image files (.jpg, .png, .gif)
 
 Use an image file to set a route segment's shared image by placing an `opengraph-image` or `twitter-image` image file in the segment.
@@ -520,6 +529,22 @@ export default async function Image() {
   )
 }
 ```
+
+## Troubleshooting
+
+### A file-based image isn't used
+
+If a page uses a different image from its colocated `opengraph-image` or `twitter-image` file:
+
+1. Inspect the page's rendered `og:image` or `twitter:image` meta tag to find the selected image URL. A file-based image route can still serve an image even when the page's metadata points elsewhere.
+2. Check for `openGraph.images` or `twitter.images` in the page's [metadata export](#precedence-with-metadata-exports), including properties copied from shared objects.
+3. Omit the corresponding `images` property entirely to use the colocated file.
+
+> **Good to know**: Setting `images` to `[]`, `null`, or `undefined` still overrides the file-based image. For Twitter, only `[]` also suppresses fallback to resolved Open Graph images.
+
+### An inherited image disappears
+
+When a child route defines `openGraph` or `twitter` without `images` and has no colocated image file, it can lose inherited images. See [metadata merging](/docs/app/api-reference/functions/generate-metadata#merging) for how to retain inherited fields.
 
 ## Version History
 

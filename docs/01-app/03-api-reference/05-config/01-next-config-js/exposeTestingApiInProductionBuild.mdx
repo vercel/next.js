@@ -10,7 +10,7 @@ related:
     - app/guides/instant-navigation
 ---
 
-`experimental.exposeTestingApiInProductionBuild` includes the Instant Navigation testing API in a production build. The [`instant()` helper from `@next/playwright`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) uses this API to pause request-time content while an end-to-end test asserts on the UI available immediately.
+Use `experimental.exposeTestingApiInProductionBuild` to include the Instant Navigation testing API in a production build. The [`instant()` helper from `@next/playwright`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) uses this API to pause request-time content while an end-to-end test asserts on the UI available immediately.
 
 Enable the option only for a dedicated test build:
 
@@ -43,12 +43,14 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-Set the condition when running `next build`, then serve that build with `next start`:
+Set `EXPOSE_TESTING_API=1` when you build and start the test server.
 
 ```bash filename="Terminal"
 EXPOSE_TESTING_API=1 pnpm build
-pnpm start
+EXPOSE_TESTING_API=1 pnpm start
 ```
+
+The server reloads `next.config` at startup, so keep the option enabled when you run `next start`. If you disable the option at startup, `instant()` allows initial page loads to render request-time content while continuing to pause client navigations.
 
 Setting the condition only for `next start` does not add the testing API to an existing build.
 

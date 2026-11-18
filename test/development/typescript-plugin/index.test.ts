@@ -23,7 +23,7 @@ function documentationText(quickInfo: ts.QuickInfo | undefined) {
   return quickInfo?.documentation?.map((part) => part.text) || []
 }
 
-const noNativeQuickInfoPosition = positionOf('true')
+const noNativeQuickInfoPosition = positionOf('false')
 
 describe('typescript-plugin', () => {
   let languageService: PluginLanguageService
@@ -105,6 +105,17 @@ describe('typescript-plugin', () => {
     )
   })
 
+  it('documents Cache Components availability on the dynamicParams config name', () => {
+    const result = quickInfo.getQuickInfoAtPosition(
+      quickInfoFile,
+      positionOf('dynamicParams')
+    )
+
+    expect(documentationText(result).join(' ')).toContain(
+      'not available when Cache Components is enabled'
+    )
+  })
+
   it('keeps synthesized quick info when TypeScript has none', () => {
     const result = quickInfo.getQuickInfoAtPosition(
       quickInfoFile,
@@ -114,7 +125,10 @@ describe('typescript-plugin', () => {
     expect(result?.kind).toBe(ts.ScriptElementKind.enumElement)
     expect(result?.canIncreaseVerbosityLevel).toBeUndefined()
     expect(documentationText(result).join(' ')).toContain(
-      'Allow rendering dynamic params'
+      'Disallow rendering dynamic params'
+    )
+    expect(documentationText(result).join(' ')).toContain(
+      'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/dynamicParams'
     )
   })
 

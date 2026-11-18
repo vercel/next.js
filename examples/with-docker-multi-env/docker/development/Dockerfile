@@ -23,7 +23,9 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# This will do the trick, use the corresponding env file for each environment.
+# Use the env file for this environment. `next build` inlines its NEXT_PUBLIC_
+# values into the bundle, and standalone output copies the file into the image,
+# so it must only hold public, non-secret values. Pass secrets at run time.
 COPY .env.development.sample .env.production
 RUN npm run build
 
@@ -39,7 +41,7 @@ RUN adduser -S nextjs -u 1001
 COPY --from=builder /app/public ./public
 
 # Automatically leverage output traces to reduce image size
-# https://nextjs.org/docs/advanced-features/output-file-tracing
+# https://nextjs.org/docs/pages/api-reference/config/next-config-js/output
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
