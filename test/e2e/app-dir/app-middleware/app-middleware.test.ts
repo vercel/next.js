@@ -308,8 +308,14 @@ describe('app-dir with middleware', () => {
     await browser.elementById('submit-server-action').click()
 
     await retry(async () => {
-      expect(await browser.elementById('action-result').text()).toMatch(
-        /Action Result: \d+\.\d+/
+      const actionResult = await browser.elementById('action-result').text()
+      expect(actionResult).toMatch(/Action Result: \d+\.\d+/)
+
+      // Middleware changed the cookies, so the action revalidates the page,
+      // which re-renders with the cookie value that the action read.
+      const cookie1 = actionResult.replace('Action Result: ', '')
+      expect(await browser.elementById('rsc-cookie-1').text()).toBe(
+        `Cookie 1: ${cookie1}`
       )
     })
 

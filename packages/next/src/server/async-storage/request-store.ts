@@ -68,14 +68,6 @@ function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   )
 }
 
-function getMutableCookies(
-  headers: Headers | IncomingHttpHeaders,
-  onUpdateCookies?: (cookies: string[]) => void
-): ResponseCookies {
-  const cookies = new RequestCookies(HeadersAdapter.from(headers))
-  return MutableRequestCookiesAdapter.wrap(cookies, onUpdateCookies)
-}
-
 export type WrapperRenderOpts = Partial<Pick<RenderOpts, 'onUpdateCookies'>> & {
   previewProps?: __ApiPreviewProps
 }
@@ -156,7 +148,7 @@ export type RequestStoreInputs = {
  * Pages and Server Actions get Node.js `IncomingHttpHeaders`, while Route
  * Handlers get Web `Headers`, so both shapes must be read.
  */
-function getMiddlewareCookies(headers: Headers | IncomingHttpHeaders) {
+export function getMiddlewareCookies(headers: Headers | IncomingHttpHeaders) {
   const setCookieValue =
     headers instanceof Headers
       ? headers.get('x-middleware-set-cookie')
@@ -178,24 +170,22 @@ function getMiddlewareCookies(headers: Headers | IncomingHttpHeaders) {
  * Returns the cookies of the `Cookie` request header, with the cookies that
  * Proxy set on this request applied on top.
  */
-function getRequestCookies(headers: Headers | IncomingHttpHeaders) {
+function getRequestCookies(
+  headers: Headers | IncomingHttpHeaders
+): RequestCookies {
+  const requestCookies = new RequestCookies(HeadersAdapter.from(headers))
   const middlewareCookies = getMiddlewareCookies(headers)
-
-  // `RequestCookies.set` writes the merged `Cookie` header back to the headers
-  // it wraps. For Web `Headers`, those are the `NextRequest.headers` of a Route
-  // Handler, which must keep reflecting the actual request. So we merge into a
-  // copy.
-  const requestCookies = new RequestCookies(
-    headers instanceof Headers && middlewareCookies.length > 0
-      ? new Headers(headers)
-      : HeadersAdapter.from(headers)
-  )
-
-  for (const cookie of middlewareCookies) {
-    requestCookies.set(cookie)
+  if (middlewareCookies.length === 0) {
+    return requestCookies
   }
 
-  return requestCookies
+  // `RequestCookies.set` writes the `Cookie` header of the headers it wraps, so
+  // merge into a copy. The request headers keep the cookies the client sent.
+  const mergedCookies = new RequestCookies(new Headers())
+  for (const cookie of [...requestCookies.getAll(), ...middlewareCookies]) {
+    mergedCookies.set(cookie)
+  }
+  return mergedCookies
 }
 
 export function createRequestStoreForRender(
@@ -323,24 +313,10 @@ export function createRequestStore(inputs: RequestStoreInputs): RequestStore {
     },
     get mutableCookies() {
       if (!cache.mutableCookies) {
-        if (headers instanceof Headers) {
-          // Route Handlers: Proxy already sent its cookies with `Set-Cookie`,
-          // so they're part of the incoming cookies, not modifications.
-          // Otherwise every response would repeat them.
-          cache.mutableCookies = MutableRequestCookiesAdapter.wrap(
-            getRequestCookies(headers),
-            onUpdateCookies
-          )
-        } else {
-          // Pages and Server Actions record the Proxy cookies as
-          // modifications, so a Server Action sends them again and reports a
-          // cookie revalidation.
-          const mutableCookies = getMutableCookies(headers, onUpdateCookies)
-          for (const cookie of getMiddlewareCookies(headers)) {
-            mutableCookies.set(cookie)
-          }
-          cache.mutableCookies = mutableCookies
-        }
+        cache.mutableCookies = MutableRequestCookiesAdapter.wrap(
+          getRequestCookies(headers),
+          onUpdateCookies
+        )
       }
       return cache.mutableCookies
     },
