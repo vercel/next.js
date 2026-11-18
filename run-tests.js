@@ -436,7 +436,7 @@ const handleCancelSignal = async (signal) => {
   const cancelledAt = Date.now()
   const killed = Promise.all([
     ...cancelledRuns.map(
-      ([child]) =>
+      ([child, _]) =>
         new Promise((resolve) => {
           if (child.pid === undefined) return resolve(undefined)
           // Don't kill the jest process on its own first: its descendants
@@ -505,9 +505,6 @@ const cleanUpAndExit = async (code) => {
   if (process.env.CI) {
     await maybeLogSummary()
   }
-  // A cancellation signal can arrive while this cleanup is in progress. Its
-  // handler owns the exit code and waits for the buffered output to flush.
-  if (cancelSignal) return
   process.exit(code)
 }
 
@@ -862,7 +859,7 @@ ${ENDGROUP}`)
       process.env.BROWSER_NAME || 'chrome',
       { headless: true } // matches per-test env below
     )
-    const browserServer = await browserType.launchServer({
+    sharedBrowserServer = await browserType.launchServer({
       ...launchOptions,
       // Playwright's own handlers would exit on SIGINT, or close the browser
       // and keep running on SIGTERM, before the buffered test output is
@@ -870,12 +867,6 @@ ${ENDGROUP}`)
       handleSIGINT: false,
       handleSIGTERM: false,
     })
-    if (cancelSignal) {
-      // Cancelled while the browser was starting: the handler couldn't see it.
-      await browserServer.kill()
-      return false
-    }
-    sharedBrowserServer = browserServer
     process.env.NEXT_TEST_BROWSER_WS_ENDPOINT = sharedBrowserServer.wsEndpoint()
   }
 
