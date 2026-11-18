@@ -495,8 +495,11 @@ export interface NapiRoute {
 
 export interface NapiServerHmrUpdate {
   kind: 'none' | 'partial' | 'restart'
-  /** `unknown` forces the TypeScript boundary to narrow the payload. */
-  instruction?: unknown
+  /**
+   * For `partial`: one merged update per runtime directory, each touching only chunks of its
+   * runtime. `unknown` forces the TypeScript boundary to narrow the payload.
+   */
+  updates?: unknown
 }
 
 export interface NapiSource {
@@ -606,14 +609,6 @@ export declare function projectActivateLazyChunk(
   chunkPath: RcStr
 ): Promise<boolean>
 
-/**
- * Forgets what the server runtimes have loaded. Must be called whenever all server modules are
- * re-evaluated.
- */
-export declare function projectClearServerHmrState(project: {
-  __napiType: 'Project'
-}): Promise<void>
-
 export declare function projectClientHmrChunkNamesSubscribe(
   project: { __napiType: 'Project' },
   func: (err: Error, value: TurbopackResult<HmrChunkNames>) => void
@@ -707,6 +702,16 @@ export declare function projectNew(
 export declare function projectOnExit(project: {
   __napiType: 'Project'
 }): Promise<void>
+
+/**
+ * Forgets what the server runtimes have loaded. Must be called whenever all server modules are
+ * re-evaluated. When the runtimes load a route next, pass its entries to record its modules as
+ * loaded.
+ */
+export declare function projectResetServerHmrState(
+  project: { __napiType: 'Project' },
+  entryPaths?: Array<RcStr> | undefined | null
+): Promise<void>
 
 /**
  * Runs resource cleanup, stops Turbo Tasks, and then flushes the project's exit handlers.

@@ -783,8 +783,8 @@ function bindingToApi(
       ) as Promise<TurbopackResult<ServerHmrUpdate>>
     }
 
-    async clearServerHmrState(): Promise<void> {
-      await binding.projectClearServerHmrState(this._nativeProject)
+    async resetServerHmrState(entryPaths?: string[]): Promise<void> {
+      await binding.projectResetServerHmrState(this._nativeProject, entryPaths)
     }
 
     clientHmrEvents(

@@ -216,37 +216,6 @@ declare global {
     | undefined
 }
 
-/**
- * Collects the output chunk paths touched by a partial HMR update. Both
- * single-chunk `EcmascriptMergedUpdate`s and `ChunkListUpdate`s (which nest
- * per-chunk deltas inside `merged`) are flattened so the manifest cache can be
- * invalidated for every affected chunk after a successful apply.
- */
-function collectUpdatedChunkPaths(
-  instruction: NodeJsPartialHmrUpdate['instruction']
-): string[] {
-  const paths = new Set<string>()
-  if (instruction.type === 'EcmascriptMergedUpdate') {
-    for (const chunkPath of Object.keys(instruction.chunks ?? {})) {
-      paths.add(chunkPath)
-    }
-  } else if (instruction.type === 'ChunkListUpdate') {
-    for (const chunkPath of Object.keys(instruction.chunks ?? {})) {
-      paths.add(chunkPath)
-    }
-    for (const merged of instruction.merged ?? []) {
-      for (const chunkPath of Object.keys(merged.chunks ?? {})) {
-        paths.add(chunkPath)
-      }
-    }
-  } else {
-    throw new Error(
-      `[Server HMR] unreachable: unknown HMR instruction type ${(instruction as { type: string }).type}`
-    )
-  }
-  return Array.from(paths)
-}
-
 function setupServerHmr(
   project: Project,
   {
@@ -265,10 +234,8 @@ function setupServerHmr(
   async function recover(entryPaths: string[]) {
     try {
       await reEvaluateAllModulesExpensive()
-      await project.clearServerHmrState()
-      // The requested route loads from scratch next, so record its modules as
-      // loaded. With nothing recorded, this pull has nothing to ship.
-      await project.getServerHmrUpdate(entryPaths)
+      // The requested route loads from scratch next.
+      await project.resetServerHmrState(entryPaths)
       needsReEvaluation = false
     } catch (error) {
       console.error('[Server HMR] Re-evaluating modules failed:', error)
@@ -294,15 +261,11 @@ function setupServerHmr(
             const handlers = globalThis.__turbopack_server_hmr_handlers__
             if (!handlers || handlers.size === 0) return
 
-            // Each merged update targets one runtime directory. Apply them
-            // separately, so that each is routed only to its own runtime.
-            const instructions =
-              update.instruction.type === 'ChunkListUpdate'
-                ? (update.instruction.merged ?? [])
-                : [update.instruction]
             if (typeof __turbopack_server_hmr_apply__ === 'function') {
               try {
-                for (const instruction of instructions) {
+                // Each update targets one runtime directory, so it is routed
+                // only to its own runtime.
+                for (const instruction of update.updates) {
                   const payload: NodeJsPartialHmrUpdate = {
                     type: 'partial',
                     instruction,
@@ -314,8 +277,8 @@ function setupServerHmr(
                   })
                 }
 
-                const updatedChunkPaths = collectUpdatedChunkPaths(
-                  update.instruction
+                const updatedChunkPaths = update.updates.flatMap(
+                  (instruction) => Object.keys(instruction.chunks ?? {})
                 )
                 if (updatedChunkPaths.length > 0) {
                   await onApplied(updatedChunkPaths)
@@ -350,7 +313,7 @@ function setupServerHmr(
     const resetState = async () => {
       needsReEvaluation = false
       try {
-        await project.clearServerHmrState()
+        await project.resetServerHmrState()
       } catch (error) {
         // Keep the queue usable; the next pull re-evaluates everything instead.
         needsReEvaluation = true

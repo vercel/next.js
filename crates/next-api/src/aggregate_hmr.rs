@@ -3,14 +3,7 @@ use std::{
     sync::{Arc, LazyLock},
 };
 
-use anyhow::Result;
-use bincode::{
-    Decode, Encode,
-    de::Decoder,
-    enc::Encoder,
-    error::{DecodeError, EncodeError},
-    impl_borrow_decode,
-};
+use anyhow::{Result, bail};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Serialize;
 use turbo_frozenmap::{FrozenMap, FrozenSet};
@@ -24,16 +17,12 @@ use turbo_tasks::{
 };
 use turbopack_core::{
     chunk::ModuleId,
-    update_instruction::UpdateInstruction,
     version::{Version, VersionedContent},
 };
 use turbopack_ecmascript::{
-    chunk_list::{
-        merged_update::{
-            EcmascriptMergedChunkPartial, EcmascriptMergedChunkUpdate, EcmascriptMergedUpdate,
-            EcmascriptModuleEntry,
-        },
-        update::ChunkListUpdate,
+    chunk_list::merged_update::{
+        EcmascriptMergedChunkPartial, EcmascriptMergedChunkUpdate, EcmascriptMergedUpdate,
+        EcmascriptModuleEntry,
     },
     hmr::{EcmascriptHmrChunkContent, version::EcmascriptChunkVersion},
 };
@@ -68,8 +57,8 @@ impl ServerHmrChunkLists {
 /// pulled since the server modules were last fully re-evaluated, and the modules shipped to the
 /// runtimes since then.
 ///
-/// Held in a project-global `State`. It describes the running process, so it is never persisted:
-/// it encodes to nothing and decodes empty.
+/// Held in a project-global `State` that is never persisted, since it describes the running
+/// process.
 #[derive(Clone, Debug, Default, PartialEq, Eq, NonLocalValue, OperationValue)]
 pub struct ServerHmrLoadedState {
     /// Module content hashes, by runtime directory (the chunks' output directory, which is how
@@ -82,19 +71,29 @@ pub struct ServerHmrLoadedState {
     pulled_routes: FxHashSet<Vec<RcStr>>,
 }
 
-impl Encode for ServerHmrLoadedState {
-    fn encode<E: Encoder>(&self, _encoder: &mut E) -> Result<(), EncodeError> {
-        Ok(())
+impl ServerHmrLoadedState {
+    /// Records a route's modules as loaded. Returns whether anything changed.
+    fn record(&mut self, route: &ServerHmrRouteModules, entry_paths: Vec<RcStr>) -> bool {
+        let mut changed = self.pulled_routes.insert(entry_paths);
+        for runtime in &route.runtimes {
+            if runtime.modules.is_empty() {
+                continue;
+            }
+            let modules = self.modules.entry(runtime.dir.clone()).or_default();
+            for (id, module) in &runtime.modules {
+                changed |= modules.insert(id.clone(), module.hash) != Some(module.hash);
+            }
+        }
+        for opaque in &route.opaque_chunks {
+            changed |= self
+                .opaque_chunks
+                .insert(opaque.path.clone(), opaque.version_id.clone())
+                .as_ref()
+                != Some(&opaque.version_id);
+        }
+        changed
     }
 }
-
-impl<Context> Decode<Context> for ServerHmrLoadedState {
-    fn decode<D: Decoder<Context = Context>>(_decoder: &mut D) -> Result<Self, DecodeError> {
-        Ok(Self::default())
-    }
-}
-
-impl_borrow_decode!(ServerHmrLoadedState);
 
 #[derive(Clone, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
 pub struct ServerHmrRouteChunk {
@@ -102,12 +101,36 @@ pub struct ServerHmrRouteChunk {
     pub version: ReadRef<EcmascriptChunkVersion>,
 }
 
-/// A route's chunks, expanded into modules.
+/// A module of a route, in one runtime.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
+pub struct ServerHmrRouteModule {
+    /// The index of the chunk (in [`ServerHmrRouteRuntime::chunks`]) that ships the module.
+    pub chunk: usize,
+    pub hash: u128,
+}
+
+/// A route's chunks that one runtime loads, expanded into modules.
+#[derive(Clone, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
+pub struct ServerHmrRouteRuntime {
+    /// The chunks' output directory, which identifies the runtime.
+    pub dir: RcStr,
+    pub chunks: Vec<ServerHmrRouteChunk>,
+    /// Each module of the chunks, once.
+    pub modules: FxIndexMap<ModuleId, ServerHmrRouteModule>,
+}
+
+/// A chunk that can't be expanded into modules.
+#[derive(Clone, Debug, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
+pub struct ServerHmrOpaqueChunk {
+    pub path: RcStr,
+    pub version_id: RcStr,
+}
+
+/// A route's chunks, by runtime.
 #[turbo_tasks::value(serialization = "skip", shared)]
 pub struct ServerHmrRouteModules {
-    pub chunks: Vec<ServerHmrRouteChunk>,
-    /// Chunks that can't be expanded into modules, as (chunk path, version id).
-    pub opaque_chunks: Vec<(RcStr, RcStr)>,
+    pub runtimes: Vec<ServerHmrRouteRuntime>,
+    pub opaque_chunks: Vec<ServerHmrOpaqueChunk>,
 }
 
 impl ServerHmrRouteModules {
@@ -139,51 +162,81 @@ impl ServerHmrRouteModules {
             })
             .try_join()
             .await?;
+        let mut runtimes = FxIndexMap::<RcStr, ServerHmrRouteRuntime>::default();
+        for chunk in chunks {
+            let dir = runtime_dir(&chunk.version.chunk_path);
+            let runtime = runtimes
+                .entry(dir.clone())
+                .or_insert_with(|| ServerHmrRouteRuntime {
+                    dir,
+                    chunks: Vec::new(),
+                    modules: FxIndexMap::default(),
+                });
+            let index = runtime.chunks.len();
+            for (id, &hash) in &chunk.version.entries_hashes {
+                let module = runtime
+                    .modules
+                    .entry(id.clone())
+                    .or_insert(ServerHmrRouteModule { chunk: index, hash });
+                if module.hash != hash {
+                    bail!(
+                        "Chunks of server runtime {} disagree about the code of module {}",
+                        runtime.dir,
+                        id
+                    );
+                }
+            }
+            runtime.chunks.push(chunk);
+        }
+
         let opaque_chunks = opaque
             .into_iter()
-            .map(async |(path, content)| Ok((path, content.version().id().owned().await?)))
+            .map(async |(path, content)| {
+                Ok(ServerHmrOpaqueChunk {
+                    path,
+                    version_id: content.version().id().owned().await?,
+                })
+            })
             .try_join()
             .await?;
         Ok(Self {
-            chunks,
+            runtimes: runtimes.into_values().collect(),
             opaque_chunks,
         })
     }
 }
 
-/// A shipped module, with the hash of the code that is shipped.
-#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue)]
-struct ServerHmrModuleEntry {
-    id: ModuleId,
-    hash: u128,
-    entry: EcmascriptModuleEntry,
-}
-
+/// The code of the requested modules, or `None` when any of them is gone or no longer has the
+/// requested hash.
 #[turbo_tasks::value(transparent, serialization = "skip")]
-struct ServerHmrModuleEntries(Vec<ServerHmrModuleEntry>);
+struct ServerHmrModuleEntries(Option<FxIndexMap<ModuleId, EcmascriptModuleEntry>>);
 
 #[turbo_tasks::function(operation, root)]
 async fn server_hmr_module_entries_operation(
     content: ResolvedVc<Box<dyn EcmascriptHmrChunkContent>>,
     chunk_path: RcStr,
-    ids: TransientInstance<Vec<ModuleId>>,
+    hashes: TransientInstance<FxIndexMap<ModuleId, u128>>,
 ) -> Result<Vc<ServerHmrModuleEntries>> {
     let entries = content.entries().await?;
-    let entries = ids
-        .iter()
-        .filter_map(|id| entries.get(id).map(|entry| (id, entry)))
+    let Some(entries) = hashes
+        .keys()
+        .map(|id| entries.get(id).map(|entry| (id, entry)))
+        .collect::<Option<Vec<_>>>()
+    else {
+        return Ok(Vc::cell(None));
+    };
+    let entries = entries
+        .into_iter()
         .map(async |(id, entry)| {
-            let hash = *entry.hash.await?;
+            if *entry.hash.await? != hashes[id] {
+                return Ok(None);
+            }
             let entry = EcmascriptModuleEntry::from_code(id, *entry.code, &chunk_path).await?;
-            Ok(ServerHmrModuleEntry {
-                id: id.clone(),
-                hash,
-                entry,
-            })
+            Ok(Some((id.clone(), entry)))
         })
         .try_join()
         .await?;
-    Ok(Vc::cell(entries))
+    Ok(Vc::cell(entries.into_iter().collect()))
 }
 
 #[derive(Debug)]
@@ -192,7 +245,8 @@ pub enum ServerHmrUpdate {
     None,
     /// The runtimes can't be updated in place, so all server modules need to be re-evaluated.
     FullReevaluation,
-    Partial(UpdateInstruction),
+    /// One update per runtime directory. Each update only touches chunks of its runtime.
+    Partial(Vec<EcmascriptMergedUpdate>),
 }
 
 static TRACE_DIFFING: LazyLock<bool> = LazyLock::new(|| {
@@ -238,11 +292,95 @@ fn runtime_dir(chunk_path: &str) -> RcStr {
         .into()
 }
 
-/// The modules of one chunk to ship, and which of them the runtime doesn't have yet.
+/// The modules of one chunk to ship.
 #[derive(Default)]
 struct ChunkShipment {
-    ids: Vec<ModuleId>,
+    /// The modules to ship, with the hash they're shipped at.
+    hashes: FxIndexMap<ModuleId, u128>,
+    /// Which of them the runtime doesn't have yet.
     added: FxIndexSet<ModuleId>,
+}
+
+/// The modules to ship to one runtime, by chunk index.
+///
+/// A module is shipped when the runtime has it at different code. A module the runtime doesn't
+/// have yet is shipped when the route was pulled before (its code is already running and may now
+/// import it), or when anything else is shipped to the runtime (a re-run self-accepting module may
+/// import it). Otherwise the route's chunks install it when they load.
+fn plan_runtime(
+    runtime: &ServerHmrRouteRuntime,
+    loaded: Option<&FxHashMap<ModuleId, u128>>,
+    route_was_pulled: bool,
+) -> FxIndexMap<usize, ChunkShipment> {
+    let loaded_hash = |id: &ModuleId| loaded.and_then(|modules| modules.get(id));
+    let any_outdated = runtime
+        .modules
+        .iter()
+        .any(|(id, module)| loaded_hash(id).is_some_and(|hash| *hash != module.hash));
+    let ship_missing = route_was_pulled || any_outdated;
+
+    let mut shipments = FxIndexMap::<usize, ChunkShipment>::default();
+    for (id, module) in &runtime.modules {
+        let missing = match loaded_hash(id) {
+            Some(hash) if *hash == module.hash => continue,
+            Some(_) => false,
+            None if ship_missing => true,
+            None => continue,
+        };
+        let shipment = shipments.entry(module.chunk).or_default();
+        shipment.hashes.insert(id.clone(), module.hash);
+        if missing {
+            shipment.added.insert(id.clone());
+        }
+    }
+    shipments
+}
+
+/// Reads the code of the planned modules into one update for the runtime, or `None` when the code
+/// no longer matches the plan.
+async fn runtime_update(
+    runtime: &ServerHmrRouteRuntime,
+    shipments: FxIndexMap<usize, ChunkShipment>,
+) -> Result<Option<EcmascriptMergedUpdate>> {
+    let chunks = shipments
+        .into_iter()
+        .map(async |(index, ChunkShipment { hashes, added })| {
+            let chunk = &runtime.chunks[index];
+            let entries = server_hmr_module_entries_operation(
+                chunk.content,
+                chunk.version.chunk_path.clone(),
+                TransientInstance::new(hashes),
+            )
+            .read_strongly_consistent()
+            .await?;
+            Ok((chunk, entries, added))
+        })
+        .try_join()
+        .await?;
+
+    let mut entries = FxIndexMap::default();
+    let mut chunk_updates = FxIndexMap::default();
+    for (chunk, chunk_entries, added) in chunks {
+        let Some(chunk_entries) = &*chunk_entries else {
+            return Ok(None);
+        };
+        entries.extend(
+            chunk_entries
+                .iter()
+                .map(|(id, entry)| (id.clone(), entry.clone())),
+        );
+        chunk_updates.insert(
+            chunk.version.chunk_path.clone(),
+            EcmascriptMergedChunkUpdate::Partial(EcmascriptMergedChunkPartial {
+                added: FrozenSet::from(added),
+                deleted: FrozenSet::default(),
+            }),
+        );
+    }
+    Ok(Some(EcmascriptMergedUpdate {
+        entries: FrozenMap::from(entries),
+        chunks: FrozenMap::from(chunk_updates),
+    }))
 }
 
 /// Computes the update that brings the server runtimes up to date for a requested route, by
@@ -250,11 +388,7 @@ struct ChunkShipment {
 /// route's modules as loaded.
 ///
 /// Only the route's own modules are shipped, so modules of other routes are still evaluated
-/// lazily, on their next request. Per runtime directory, a route module is shipped when the
-/// runtime has it at different code. A module the runtime doesn't have yet is shipped when the
-/// route was pulled before (its code is already running and may now import it), or when anything
-/// else is shipped to that runtime (a re-run self-accepting module may import it). Otherwise the
-/// route's chunks install it when they load.
+/// lazily, on their next request. See [`plan_runtime`] for which modules are shipped.
 ///
 /// Kept outside Turbo Tasks: the loaded state is not a task input.
 pub async fn compute_server_hmr_update(
@@ -271,140 +405,66 @@ pub async fn compute_server_hmr_update(
         }
     }
     entry_paths.sort();
-    if route.chunks.is_empty() && route.opaque_chunks.is_empty() {
+    if route.runtimes.is_empty() && route.opaque_chunks.is_empty() {
         // Nothing of the route is built (e.g. its endpoint is gone), so nothing loads either.
         return Ok(ServerHmrUpdate::None);
     }
 
-    let mut shipments = FxIndexMap::<usize, ChunkShipment>::default();
-    {
+    let plans = {
         let loaded = loaded.get_untracked();
 
         // Non-ECMAScript chunks can't be updated in place.
-        if route.opaque_chunks.iter().any(|(path, id)| {
+        if route.opaque_chunks.iter().any(|opaque| {
             loaded
                 .opaque_chunks
-                .get(path)
-                .is_some_and(|loaded_id| loaded_id != id)
+                .get(&opaque.path)
+                .is_some_and(|version_id| *version_id != opaque.version_id)
         }) {
             return Ok(ServerHmrUpdate::FullReevaluation);
         }
 
         let route_was_pulled = loaded.pulled_routes.contains(&entry_paths);
-        let mut seen = FxHashMap::<RcStr, FxHashMap<_, _>>::default();
-        // Per runtime directory: the outdated modules, and the modules it doesn't have yet.
-        let mut by_dir = FxIndexMap::<RcStr, (Vec<_>, Vec<_>)>::default();
-        for (index, chunk) in route.chunks.iter().enumerate() {
-            let dir = runtime_dir(&chunk.version.chunk_path);
-            let seen = seen.entry(dir.clone()).or_default();
-            let loaded_modules = loaded.modules.get(&dir);
-            let (outdated, missing) = by_dir.entry(dir).or_default();
-            for (id, hash) in &chunk.version.entries_hashes {
-                if let Some(seen_hash) = seen.insert(id, *hash) {
-                    if seen_hash != *hash {
-                        // Chunks of a runtime disagree about a module's code.
-                        return Ok(ServerHmrUpdate::FullReevaluation);
-                    }
-                    continue;
-                }
-                match loaded_modules.and_then(|modules| modules.get(id)) {
-                    Some(loaded_hash) if loaded_hash == hash => {}
-                    Some(_) => outdated.push((index, id)),
-                    None => missing.push((index, id)),
-                }
-            }
-        }
-
-        for (outdated, missing) in by_dir.into_values() {
-            let ship_missing = route_was_pulled || !outdated.is_empty();
-            for (index, id) in outdated {
-                shipments.entry(index).or_default().ids.push(id.clone());
-            }
-            if ship_missing {
-                for (index, id) in missing {
-                    let shipment = shipments.entry(index).or_default();
-                    shipment.ids.push(id.clone());
-                    shipment.added.insert(id.clone());
-                }
-            }
-        }
-    }
+        route
+            .runtimes
+            .iter()
+            .map(|runtime| {
+                let shipments =
+                    plan_runtime(runtime, loaded.modules.get(&runtime.dir), route_was_pulled);
+                (runtime, shipments)
+            })
+            .filter(|(_, shipments)| !shipments.is_empty())
+            .collect::<Vec<_>>()
+    };
 
     // The code is read after the module hashes were snapshotted, and a file may have changed in
     // between. Don't record or ship a plan whose code no longer matches.
-    let shipped_chunks = shipments
+    let updates = plans
         .into_iter()
-        .map(async |(index, ChunkShipment { ids, added })| {
-            let chunk = &route.chunks[index];
-            let entries = server_hmr_module_entries_operation(
-                chunk.content,
-                chunk.version.chunk_path.clone(),
-                TransientInstance::new(ids.clone()),
-            )
-            .read_strongly_consistent()
-            .await?;
-            Ok((chunk, ids, entries, added))
-        })
+        .map(async |(runtime, shipments)| runtime_update(runtime, shipments).await)
         .try_join()
         .await?;
+    let Some(updates) = updates.into_iter().collect::<Option<Vec<_>>>() else {
+        return Ok(ServerHmrUpdate::FullReevaluation);
+    };
 
-    let mut merged_by_dir = FxIndexMap::<RcStr, (FxIndexMap<_, _>, FxIndexMap<_, _>)>::default();
-    for (chunk, ids, entries, added) in shipped_chunks {
-        if entries.len() != ids.len()
-            || entries.iter().zip(&ids).any(
-                |(ServerHmrModuleEntry { id, hash, .. }, requested_id)| {
-                    id != requested_id || chunk.version.entries_hashes.get(id) != Some(hash)
-                },
-            )
-        {
-            return Ok(ServerHmrUpdate::FullReevaluation);
-        }
-        let (merged_entries, merged_chunks) = merged_by_dir
-            .entry(runtime_dir(&chunk.version.chunk_path))
-            .or_default();
-        for ServerHmrModuleEntry { id, entry, .. } in entries.iter() {
-            merged_entries.insert(id.clone(), entry.clone());
-        }
-        merged_chunks.insert(
-            chunk.version.chunk_path.clone(),
-            EcmascriptMergedChunkUpdate::Partial(EcmascriptMergedChunkPartial {
-                added: FrozenSet::from(added),
-                deleted: FrozenSet::default(),
-            }),
-        );
-    }
+    loaded.update_conditionally(|loaded| loaded.record(route, entry_paths));
 
-    loaded.update_conditionally(|loaded| {
-        for chunk in &route.chunks {
-            let modules = loaded
-                .modules
-                .entry(runtime_dir(&chunk.version.chunk_path))
-                .or_default();
-            for (id, hash) in &chunk.version.entries_hashes {
-                modules.insert(id.clone(), *hash);
-            }
-        }
-        for (path, id) in &route.opaque_chunks {
-            loaded.opaque_chunks.insert(path.clone(), id.clone());
-        }
-        loaded.pulled_routes.insert(entry_paths);
-        true
-    });
-
-    if merged_by_dir.is_empty() {
+    if updates.is_empty() {
         return Ok(ServerHmrUpdate::None);
     }
-    Ok(ServerHmrUpdate::Partial(
-        ChunkListUpdate {
-            chunks: Default::default(),
-            merged: merged_by_dir
-                .into_values()
-                .map(|(entries, chunks)| EcmascriptMergedUpdate {
-                    entries: FrozenMap::from(entries),
-                    chunks: FrozenMap::from(chunks),
-                })
-                .collect(),
-        }
-        .into_instruction(),
-    ))
+    Ok(ServerHmrUpdate::Partial(updates))
+}
+
+/// Forgets what the server runtimes have loaded, and optionally records a route's modules as
+/// loaded (the route the runtimes load next).
+pub fn reset_server_hmr_state(
+    loaded: &State<ServerHmrLoadedState>,
+    route: Option<(&ServerHmrRouteModules, Vec<RcStr>)>,
+) {
+    let mut state = ServerHmrLoadedState::default();
+    if let Some((route, mut entry_paths)) = route {
+        entry_paths.sort();
+        state.record(route, entry_paths);
+    }
+    loaded.set(state);
 }

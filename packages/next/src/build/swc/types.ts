@@ -279,7 +279,8 @@ export type ServerHmrUpdate =
   | { kind: 'restart' }
   | {
       kind: 'partial'
-      instruction: NodeJsPartialHmrUpdate['instruction']
+      /** One update per runtime directory, each touching only its chunks. */
+      updates: NodeJsEcmascriptMergedUpdate[]
     }
 
 export interface HmrChunkNames {
@@ -362,9 +363,10 @@ export interface Project {
 
   /**
    * Forgets what the server runtimes have loaded. Must be called whenever all
-   * server modules are re-evaluated.
+   * server modules are re-evaluated. When the runtimes load a route next, pass
+   * its entries to record its modules as loaded.
    */
-  clearServerHmrState(): Promise<void>
+  resetServerHmrState(entryPaths?: string[]): Promise<void>
 
   clientHmrEvents(
     identifier: string

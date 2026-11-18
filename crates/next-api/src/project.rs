@@ -469,7 +469,9 @@ pub struct ProjectContainer {
     options_state: State<Option<ProjectOptions>>,
     file_systems_state: State<Option<ProjectFileSystemState>>,
     additional_roots_state: State<Vec<(RcStr, AdditionalDiskFileSystem)>>,
-    /// What the server runtimes have loaded, for server HMR.
+    /// What the server runtimes have loaded, for server HMR. It describes the running process, so
+    /// it is never persisted.
+    #[bincode(skip)]
     server_hmr_loaded_state: State<ServerHmrLoadedState>,
     #[turbo_tasks(debug_ignore, unsafe_ignore)]
     #[bincode(skip)]
