@@ -970,12 +970,14 @@ describe('request insights', () => {
     await rm(distDir, { recursive: true, force: true })
   })
 
-  it('resets session history on initialization and stores the journal directly in distDir', async () => {
+  it('resets session history and recreates the journal after startup cleanup', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     startRequestInsight({ requestId: 'history' })
     const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
     await initializeRequestInsightsJournal(distDir)
     configureJournalProvider(distDir)
+    // The bundler cleans its output after journal initialization.
+    await rm(path.join(distDir, 'request-insights.ndjson'))
 
     recordSpan({
       name: 'GET /history',

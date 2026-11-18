@@ -292,6 +292,7 @@ class RequestInsightsJournal {
   async initialize(): Promise<void> {
     await this.flush()
     this.writer.rotate()
+    this.writer.close()
     this.sequence = 0
     this.summaries.clear()
     this.sessionId = createSessionId()
