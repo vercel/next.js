@@ -170,6 +170,7 @@ Keep the whole review under 40KB. On a large PR, list the escalating findings in
 - React internals: request an owner of `react` (the React maintainers) as well as the owners of the areas the code is in.
 - Never request the PR author. If the author is the only owner of an area, fall back to the default owners.
 - Never request someone who's only listed under `[team-members]`: they don't own an area.
+- On a draft PR, write owners as plain GitHub usernames without `@` (`someuser`, not `@someuser`). An `@` mention subscribes them to the PR and emails them on every push, before the author has asked for review. On a PR that's ready for review, `@`-mention them as usual.
 
 ## Areas
 
