@@ -655,6 +655,8 @@ async function loadRewrites(config: NextConfig) {
     afterFiles = _rewrites.afterFiles || []
     fallback = _rewrites.fallback || []
   } else {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     afterFiles = _rewrites as any
   }
   // check before we process the routes and after to ensure

@@ -41,7 +41,7 @@ command, platform, or env var below as a requirement.
   up once; every later optimization is then verifiable by construction. The
   loop is the deliverable, not any one route.
 - **The mechanism: `@next/playwright` `instant()`.** This skill uses
-  [`instant()`](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests)
+  [`instant()`](https://nextjs.org/docs/app/guides/testing/playwright#testing-instant-navigations)
   as a ruler, not a stopwatch (phase A). It comes from
   `@next/playwright` (installed alongside `@playwright/test`, on the same
   release line as `next`), so it isn't tied to any host. Keep it. Timing a

@@ -267,7 +267,11 @@ export class NextServer implements NextWrapperServer {
   async logErrorWithOriginalStack(err: unknown, type: string) {
     const server = await this.getServer()
     // this is only available on dev server
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     if ((server as any).logErrorWithOriginalStack) {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       return (server as any).logErrorWithOriginalStack(err, type)
     }
   }
@@ -504,6 +508,8 @@ class NextCustomServer implements NextWrapperServer {
   ) {
     if (!this.didWebSocketSetup) {
       this.didWebSocketSetup = true
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       customServer = customServer || (_req?.socket as any)?.server
 
       if (customServer) {
@@ -640,11 +646,15 @@ function createServer(
   if (
     options &&
     'typescript' in options &&
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     'version' in (options as any).typescript
   ) {
     const pluginMod: typeof import('./next-typescript') =
       require('./next-typescript') as typeof import('./next-typescript')
     return pluginMod.createTSPlugin(
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       options as any
     ) as unknown as NextWrapperServer
   }

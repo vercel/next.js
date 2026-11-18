@@ -6,7 +6,7 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::FxIndexMap;
+use turbo_tasks::OrderedAutoMap;
 
 use crate::resolve::{
     alias_map::{AliasKey, AliasMap, AliasMapIter, AliasPattern, AliasTemplate},
@@ -539,10 +539,10 @@ fn expand_folder_shorthand(key: &str, value: &mut SubpathValue) -> Result<AliasP
 #[derive(Default)]
 pub struct ResolveAliasMap(#[turbo_tasks(unsafe_ignore)] AliasMap<SubpathValue>);
 
-impl TryFrom<&FxIndexMap<RcStr, Value>> for ResolveAliasMap {
+impl TryFrom<&OrderedAutoMap<RcStr, Value>> for ResolveAliasMap {
     type Error = anyhow::Error;
 
-    fn try_from(object: &FxIndexMap<RcStr, Value>) -> Result<Self> {
+    fn try_from(object: &OrderedAutoMap<RcStr, Value>) -> Result<Self> {
         let mut map = AliasMap::new();
 
         for (key, value) in object.iter() {

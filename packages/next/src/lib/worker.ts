@@ -21,6 +21,8 @@ const CPU_PROFILE_FLUSH_TIMEOUT_MS = 60_000
 
 const cleanupWorkers = async (worker: JestWorker): Promise<void> => {
   const children: ChildProcess[] = []
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   for (const curWorker of ((worker as any)._workerPool?._workers || []) as {
     _child?: ChildProcess
   }[]) {
@@ -206,6 +208,8 @@ export class Worker {
        * But this property is not available in NodeThreadWorker, so we need to check if we are using ChildProcessWorker
        */
       if (!farmOptions.enableWorkerThreads) {
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         for (const worker of ((this._worker as any)._workerPool?._workers ||
           []) as {
           _child?: ChildProcess
@@ -295,7 +299,10 @@ export class Worker {
       : (args: any[]) => args
 
     for (const method of farmOptions.exposedMethods) {
-      if (method.startsWith('_')) continue
+      if (method.startsWith('_'))
+        continue
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
       ;(this as any)[method] = timeout
         ? // eslint-disable-next-line no-loop-func
           async (...args: any[]) => {
@@ -306,6 +313,8 @@ export class Worker {
               for (;;) {
                 onActivityImpl()
                 const result = await Promise.race([
+                  // TODO(as-any): pre-existing cast, not yet reviewed
+                  // eslint-disable-next-line @next/internal/no-as-any
                   (this._worker as any)[method](...sanitizedArgs),
                   restartPromise,
                 ])
@@ -318,6 +327,8 @@ export class Worker {
             }
           }
         : (...args: any[]) =>
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             (this._worker as any)[method](...sanitizeArgs(args))
     }
   }

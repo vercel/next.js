@@ -4,9 +4,7 @@ import { createRouterAct } from 'router-act'
 import type * as Playwright from 'playwright'
 
 // The legacy builder omits the RSC continuation for static build outputs.
-//
-// TODO: Enable `next start` coverage in #101357.
-// @force-gate deploy && adapter
+// @force-gate prefetching && (!deploy || adapter)
 describe('static-to-partial RSC', () => {
   const { next } = nextTestSetup({ files: __dirname })
 

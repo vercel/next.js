@@ -119,9 +119,17 @@ pub(crate) fn decompress_into_rc(
     Ok(buffer)
 }
 
-/// Computes a CRC32 checksum of a byte slice.
-pub fn checksum_block(data: &[u8]) -> u32 {
-    crc32fast::hash(data)
+/// Computes the CRC32 checksum stored in a block or blob header.
+///
+/// The checksum covers the header's big-endian `uncompressed_length` followed by the on-disk
+/// (possibly compressed) `data`. Readers verify it before decompressing, so a corrupt length is
+/// rejected before it sizes a decompression buffer, and a corrupt compressed/uncompressed
+/// sentinel is rejected before the data is used.
+pub fn checksum_block(uncompressed_length: u32, data: &[u8]) -> u32 {
+    let mut hasher = crc32fast::Hasher::new();
+    hasher.update(&uncompressed_length.to_be_bytes());
+    hasher.update(data);
+    hasher.finalize()
 }
 
 /// Reusable compressor for a stream of blocks using the same family configuration.
@@ -210,5 +218,21 @@ mod tests {
             let output = decompress_into_arc(compression, input.len() as u32, &compressed).unwrap();
             assert_eq!(&*output, input);
         }
+    }
+
+    #[test]
+    fn checksum_covers_uncompressed_length() {
+        let data = b"block data";
+        // The checksum is the CRC32 of the big-endian length followed by the data.
+        for (length, data) in [(0, &data[..]), (10, data), (u32::MAX, data), (7, &[][..])] {
+            let mut prefixed = length.to_be_bytes().to_vec();
+            prefixed.extend_from_slice(data);
+            assert_eq!(checksum_block(length, data), crc32fast::hash(&prefixed));
+        }
+        // Changing only the length changes the checksum.
+        assert_ne!(checksum_block(0, data), checksum_block(1, data));
+        assert_ne!(checksum_block(10, data), checksum_block(11, data));
+        assert_ne!(checksum_block(10, data), checksum_block(u32::MAX, data));
+        assert_ne!(checksum_block(0, &[]), checksum_block(1, &[]));
     }
 }

@@ -665,7 +665,7 @@ The page now renders useful UI immediately while request-specific content stream
 
 ### Step 4: Verify the instant UI
 
-Use [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) to hold back request-time server content and assert which parts of the page are available immediately. Playwright makes these assertions after hydration, so Client Components that can resolve without server content may already be visible inside the callback.
+Use [`instant()`](/docs/app/guides/testing/playwright#testing-instant-navigations) to hold back request-time server content and assert which parts of the page are available immediately. See [initial page loads](/docs/app/guides/testing/playwright#initial-page-loads) for how hydration affects these assertions.
 
 ```ts filename="e2e/settings-navigation.test.ts" highlight={7-10,17,20-21,26-27}
 import { expect, test, type Page } from '@playwright/test'
@@ -700,7 +700,7 @@ test('shows settings UI before request-time work completes', async ({
 
 Inside the callback, the heading and cached plan options stay visible. Hydration has already rendered the tabs from the browser URL, while `instant()` keeps the request-time form behind `SettingsFormSkeleton`. The final assertions confirm that the completed form replaces its loading state after the pause is released.
 
-The testing API is available automatically in `next dev`. When running the test against a production build with `next start`, enable [`experimental.exposeTestingApiInProductionBuild`](/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild) for the test build.
+For tests against `next start`, follow the [production setup](/docs/app/guides/testing/playwright#production-builds).
 
 The completed route should have the same settings data, redirects, error states, and interactions as the original route.
 

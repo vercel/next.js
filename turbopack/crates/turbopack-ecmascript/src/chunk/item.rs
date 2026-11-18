@@ -12,9 +12,9 @@ use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
-        ChunkingContextExt, ModuleId, SourceMapSourceType,
+        ChunkingContextExt, MinifyType, ModuleId, SourceMapSourceType,
     },
-    code_builder::{CodeBuilder, PersistedCode},
+    code_builder::{Code, CodeBuilder, PersistedCode},
     ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue},
     module::Module,
@@ -29,7 +29,10 @@ use turbopack_core::{
 
 use crate::{
     EcmascriptModuleContent,
-    chunk::{chunk_type::EcmascriptChunkType, placeable::EcmascriptChunkPlaceable},
+    chunk::{
+        chunk_type::EcmascriptChunkType, minified_module_factory,
+        placeable::EcmascriptChunkPlaceable,
+    },
     references::async_module::{AsyncModuleOptions, OptionAsyncModuleOptions},
     runtime_functions::TURBOPACK_ASYNC_MODULE,
     utils::StringifyJs,
@@ -125,7 +128,9 @@ impl EcmascriptChunkItemContent {
 }
 
 impl EcmascriptChunkItemContent {
-    async fn module_factory(&self) -> Result<ResolvedVc<PersistedCode>> {
+    /// Builds the module factory without storing it in a cell, so a caller that only needs a
+    /// derived form (e.g. the minified factory) doesn't persist a second copy of it.
+    pub(crate) async fn module_factory(&self) -> Result<Code> {
         let mut code = CodeBuilder::new(false, self.source_maps.generation_options());
         for additional_id in self.additional_ids.iter() {
             writeln!(code, "{}, ", StringifyJs(&additional_id))?;
@@ -200,7 +205,7 @@ impl EcmascriptChunkItemContent {
 
         code += "})";
 
-        Ok(code.build().cell_persisted())
+        Ok(code.build())
     }
 }
 
@@ -265,6 +270,46 @@ pub trait EcmascriptChunkItem: ChunkItem + OutputAssetsReference {
     ) -> Result<Vc<EcmascriptChunkItemContent>>;
 }
 
+/// A chunk item's content in the form a chunk is made of, see [`chunk_item_factory_content`].
+pub(crate) enum ChunkItemFactoryContent {
+    /// Not minified per item: the content as the module produced it. Its factory is built (and
+    /// cached) by [`EcmascriptChunkItemExt::code`], or the whole chunk is minified later.
+    Unminified(Vc<EcmascriptChunkItemContent>),
+    /// Minified per item: the minified module factory and whether it must run in strict mode.
+    Minified { factory: Vc<Code>, strict: bool },
+}
+
+/// The content of a chunk item as it goes into a chunk, so that chunk size estimation and code
+/// generation agree on what a chunk item is: minified per item when `minify` asks for it
+/// (see [`ChunkMinification::per_item`](crate::chunk::ChunkMinification)), the raw content
+/// otherwise.
+///
+/// Fails if the content failed to generate. Callers decide what that means: sizing counts the item
+/// as empty, code generation falls back to [`EcmascriptChunkItemExt::code`], which reports the
+/// error.
+pub(crate) async fn chunk_item_factory_content(
+    chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
+    async_module_info: Option<Vc<AsyncModuleInfo>>,
+    estimated: bool,
+    minify: MinifyType,
+    source_maps: bool,
+) -> Result<ChunkItemFactoryContent> {
+    let content = chunk_item
+        .into_trait_ref()
+        .await?
+        .content_with_async_module_info(async_module_info, estimated)
+        .await?;
+    Ok(match minify {
+        MinifyType::Minify { mangle } => ChunkItemFactoryContent::Minified {
+            // Reading the content here surfaces a generation error before minifying rather than
+            // inside it.
+            strict: content.await?.options.strict,
+            factory: minified_module_factory(content, source_maps, mangle.is_some()),
+        },
+        MinifyType::NoMinify => ChunkItemFactoryContent::Unminified(content),
+    })
+}
+
 #[turbo_tasks::value]
 pub struct EcmascriptChunkItemCode {
     pub code: ResolvedVc<PersistedCode>,
@@ -310,7 +355,13 @@ async fn module_factory_with_code_generation_issue(
     }
 
     let (code, strict) = match get_content(chunk_item, async_module_info).await {
-        Ok(content) => (content.module_factory().await, content.options.strict),
+        Ok(content) => (
+            content
+                .module_factory()
+                .await
+                .map(|factory| factory.cell_persisted()),
+            content.options.strict,
+        ),
         Err(error) => (Err(error), false),
     };
     let code = match code {

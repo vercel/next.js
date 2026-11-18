@@ -3,6 +3,8 @@ import { isNextDeploy, nextTestSetup } from 'e2e-utils'
 describe('next-config-ts-type-error-cjs', () => {
   // Deploy builds use the fixture's Node version, not the test runner's.
   // TODO: Remove this local check once we bump minimum Node.js version to v22
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   if (!isNextDeploy && !(process.features as any).typescript) {
     it.skip('requires `process.features.typescript` to feature detect Node.js native TS', () => {})
     return

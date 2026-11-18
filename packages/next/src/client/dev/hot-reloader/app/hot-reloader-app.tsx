@@ -151,13 +151,28 @@ function tryApplyUpdatesWebpack(
   // owes the matching `onRefresh`.
   isRefreshPending = false
 ) {
-  if (!isUpdateAvailable() || !canApplyUpdates()) {
+  const updateAvailable = isUpdateAvailable()
+  const canApply = canApplyUpdates()
+  if (!updateAvailable || !canApply) {
     if (isRefreshPending) {
       dispatcher.onRefresh()
     }
     resolvePendingHotUpdateWebpack()
     dispatcher.onBuildOk()
     reportHmrLatency(sendMessage, [], webpackStartMsSinceEpoch!, Date.now())
+
+    // A successful build can restore the running client hash, e.g. after a
+    // build error is fixed. Resolve the test callback when nothing is pending;
+    // otherwise, the active apply resolves it after it finishes.
+    if (
+      process.env.__NEXT_TEST_MODE &&
+      !updateAvailable &&
+      canApply &&
+      self.__NEXT_HMR_CB
+    ) {
+      self.__NEXT_HMR_CB()
+      self.__NEXT_HMR_CB = null
+    }
     return
   }
 

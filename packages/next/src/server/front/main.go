@@ -271,6 +271,15 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) 
 				return
 			}
 			proxyErrorLog.Printf("proxy error: %v", err)
+			// If the request had a body, part of it may still be unread (the
+			// request timed out mid-upload, or Node went away). In full-duplex
+			// mode Go's server keeps the connection open after this answer, and
+			// would read the rest of the body as the next request. Closing the
+			// connection avoids that, as Go's server does by itself without
+			// full-duplex mode.
+			if r.ContentLength != 0 {
+				w.Header().Set("Connection", "close")
+			}
 			w.WriteHeader(http.StatusBadGateway)
 		},
 		ErrorLog: proxyErrorLog,
@@ -283,6 +292,12 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) 
 		// without one. When Node sends one, the proxy's copyHeader adds
 		// Node's value to this entry before the headers are written.
 		w.Header()["Content-Type"] = nil
+		// Go's HTTP/1 server reads the rest of the request body before it
+		// sends any of the response. Node doesn't: it can answer (a 403, or a
+		// streamed response) while the client is still uploading. Full-duplex
+		// mode lets the response go out as Node sends it. It fails only for
+		// HTTP/2, which the front doesn't serve.
+		http.NewResponseController(w).EnableFullDuplex()
 		proxy.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), responseWriterKey{}, w)))
 	})
 }
@@ -330,18 +345,37 @@ func writeCustomStatusLine(res *http.Response) error {
 
 	header := res.Header.Clone()
 	header.Set("Connection", "close")
-	// The Transport removed chunked framing; the closed connection ends the
-	// body unless Node sent its length.
+	// The Transport removed Node's chunked framing and moved its trailers to
+	// res.Trailer. When Node sent the body chunked, send it chunked again, so
+	// the trailers can follow it. Otherwise the closed connection ends the
+	// body, unless Node sent its length.
+	chunked := res.Request.Method != http.MethodHead && len(res.TransferEncoding) > 0 && res.TransferEncoding[0] == "chunked"
 	header.Del("Transfer-Encoding")
-	if res.ContentLength >= 0 {
+	if chunked {
+		header.Set("Transfer-Encoding", "chunked")
+	} else if res.ContentLength >= 0 {
 		header.Set("Content-Length", strconv.FormatInt(res.ContentLength, 10))
 	}
 	fmt.Fprintf(buf, "HTTP/1.1 %s\r\n", res.Status)
 	header.Write(buf)
 	buf.WriteString("\r\n")
-	if err := buf.Flush(); err == nil && res.Request.Method != http.MethodHead {
-		io.Copy(conn, res.Body)
+	if err := buf.Flush(); err != nil || res.Request.Method == http.MethodHead {
+		return errResponseWritten
 	}
+	if !chunked {
+		io.Copy(conn, res.Body)
+		return errResponseWritten
+	}
+	// Each read from Node becomes one chunk, written straight to the client.
+	chunks := httputil.NewChunkedWriter(conn)
+	if _, err := io.Copy(chunks, res.Body); err != nil {
+		return errResponseWritten
+	}
+	// Close writes the last, empty chunk; the trailers (filled in once the
+	// body has been read) and a blank line end the response.
+	chunks.Close()
+	res.Trailer.Write(conn)
+	io.WriteString(conn, "\r\n")
 	return errResponseWritten
 }
 

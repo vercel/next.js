@@ -91,7 +91,7 @@ the deployed commit before trusting RED or GREEN.
 
 ## What `instant()` can verify
 
-See: [`instant()`](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests).
+See: [`instant()`](https://nextjs.org/docs/app/guides/testing/playwright#testing-instant-navigations).
 
 The public helper accepts a page, callback, and optional `baseURL`:
 
