@@ -690,6 +690,10 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             .emit_option(ResolvedVc::upcast(css_opts.resolved_cell()));
     }
 
+    if options.scope_hoisting {
+        builder = builder.merged_modules(module_graph.merged_modules().await?.groups);
+    }
+
     if options.remove_unused_imports {
         builder = builder.unused_references(
             binding_usage

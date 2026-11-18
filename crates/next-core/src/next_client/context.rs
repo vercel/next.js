@@ -22,7 +22,8 @@ use turbopack_core::{
     free_var_references,
     issue::IssueSeverity,
     module_graph::{
-        binding_usage_info::OptionBindingUsageInfo, style_groups::StyleGroupsAlgorithm,
+        binding_usage_info::OptionBindingUsageInfo, merged_modules::MergedModuleGroups,
+        style_groups::StyleGroupsAlgorithm,
     },
     resolve::{parse::Request, pattern::Pattern},
     source_map::{OptionSourceMapType, SourceMapGenerationOptions},
@@ -494,6 +495,7 @@ pub struct ClientChunkingContextOptions {
     pub module_id_strategy: Vc<ModuleIdStrategy>,
     pub export_usage: Vc<OptionBindingUsageInfo>,
     pub unused_references: Vc<UnusedReferences>,
+    pub merged_modules: Vc<MergedModuleGroups>,
     pub minify: Vc<bool>,
     pub emitted_source_map_type: Vc<OptionSourceMapType>,
     pub source_map_generation_options: Vc<SourceMapGenerationOptions>,
@@ -550,6 +552,7 @@ pub async fn get_client_chunking_context(
         module_id_strategy,
         export_usage,
         unused_references,
+        merged_modules,
         minify,
         emitted_source_map_type,
         source_map_generation_options,
@@ -610,6 +613,7 @@ pub async fn get_client_chunking_context(
     .chunk_load_retry(NEXT_CHUNK_LOAD_RETRY)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
+    .merged_modules(merged_modules.to_resolved().await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .debug_ids(*debug_ids.await?)
     .worker_asset_prefix(worker_asset_prefix.owned().await?)

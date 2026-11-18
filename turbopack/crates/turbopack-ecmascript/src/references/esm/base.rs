@@ -43,7 +43,7 @@ use turbopack_core::{
 use turbopack_resolve::ecmascript::esm_resolve;
 
 use crate::{
-    EcmascriptModuleAsset, EcmascriptParsable, ModuleMergingAnalysis, ScopeHoistingContext,
+    EcmascriptModuleAsset, EcmascriptParsable, ScopeHoistingContext,
     analyzer::imports::{ImportAnnotations, ImportedSymbol},
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
@@ -292,24 +292,16 @@ impl ReferencedAsset {
     pub async fn prepare_binding(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        module_merging: ModuleMergingAnalysis,
         export: Option<RcStr>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<PreparedBinding> {
-        self.prepare_binding_inner(
-            chunking_context,
-            module_merging,
-            export,
-            scope_hoisting_context,
-            None,
-        )
-        .await
+        self.prepare_binding_inner(chunking_context, export, scope_hoisting_context, None)
+            .await
     }
 
     async fn prepare_binding_inner(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        module_merging: ModuleMergingAnalysis,
         export: Option<RcStr>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
         initial: Option<&ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
@@ -366,7 +358,6 @@ impl ReferencedAsset {
                             return Ok(
                                 match Box::pin(referenced_asset.prepare_binding_inner(
                                     chunking_context,
-                                    module_merging,
                                     imported,
                                     scope_hoisting_context,
                                     Some(asset),
@@ -408,23 +399,21 @@ impl ReferencedAsset {
                     }
                 }
 
-                let target = if let Some(group) =
-                    *flat_export_group(**asset, chunking_context, module_merging).await?
-                {
-                    group.await?.entry
-                } else {
-                    *asset
-                };
+                let target =
+                    if let Some(group) = *flat_export_group(**asset, chunking_context).await? {
+                        group.await?.entry
+                    } else {
+                        *asset
+                    };
                 let import_source = ImportSource::new_module(target, chunking_context).await?;
                 PreparedBinding::Module {
                     ctxt: None,
                     // Allocate against the original module, not the shared factory target,
                     // using the same mapping as the producing module.
                     export: match &export {
-                        Some(export) => Some(
-                            generated_export_key(*asset, chunking_context, module_merging, export)
-                                .await?,
-                        ),
+                        Some(export) => {
+                            Some(generated_export_key(*asset, chunking_context, export).await?)
+                        }
                         None => None,
                     },
                     import_source,
@@ -908,7 +897,6 @@ impl EsmAssetReference {
     pub(crate) async fn code_generation(
         self: ResolvedVc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        module_merging: ModuleMergingAnalysis,
         scope_hoisting_context: ScopeHoistingContext<'_>,
         // References a compact re-export registration (`TURBOPACK_ESM_REEXPORT`) already imports
         // for itself. Emitting them here too would instantiate the module twice.
@@ -985,7 +973,6 @@ impl EsmAssetReference {
                             let ident = referenced_asset
                                 .prepare_binding(
                                     chunking_context,
-                                    module_merging,
                                     this.export_name
                                         .as_ref()
                                         .and_then(ModulePart::get_export)

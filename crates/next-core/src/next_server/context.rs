@@ -23,7 +23,8 @@ use turbopack_core::{
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
     issue::IssueSeverity,
     module_graph::{
-        binding_usage_info::OptionBindingUsageInfo, style_groups::StyleGroupsAlgorithm,
+        binding_usage_info::OptionBindingUsageInfo, merged_modules::MergedModuleGroups,
+        style_groups::StyleGroupsAlgorithm,
     },
     source_map::{OptionSourceMapType, SourceMapGenerationOptions},
     target::CompileTarget,
@@ -1026,6 +1027,7 @@ pub struct ServerChunkingContextOptions {
     pub module_id_strategy: Vc<ModuleIdStrategy>,
     pub export_usage: Vc<OptionBindingUsageInfo>,
     pub unused_references: Vc<UnusedReferences>,
+    pub merged_modules: Vc<MergedModuleGroups>,
     pub minify: Vc<bool>,
     pub emitted_source_map_type: Vc<OptionSourceMapType>,
     pub source_map_generation_options: Vc<SourceMapGenerationOptions>,
@@ -1065,6 +1067,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         module_id_strategy,
         export_usage,
         unused_references,
+        merged_modules,
         minify,
         emitted_source_map_type,
         source_map_generation_options,
@@ -1121,6 +1124,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
+    .merged_modules(merged_modules.to_resolved().await?)
     .debug_ids(*debug_ids.await?)
     .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
@@ -1188,6 +1192,7 @@ pub async fn get_server_chunking_context(
         module_id_strategy,
         export_usage,
         unused_references,
+        merged_modules,
         minify,
         emitted_source_map_type,
         source_map_generation_options,
@@ -1248,6 +1253,7 @@ pub async fn get_server_chunking_context(
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
+    .merged_modules(merged_modules.to_resolved().await?)
     .debug_ids(*debug_ids.await?)
     .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
