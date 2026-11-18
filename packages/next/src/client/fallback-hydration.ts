@@ -124,7 +124,6 @@ export async function resolveFallbackHydration(
   }
 
   const documentUrl = new URL(location.href)
-  const documentHash = documentUrl.hash
   documentUrl.hash = ''
   const result = await fetchServerResponse(documentUrl, {
     flightRouterState: ['', {}, null, 'refetch'],
@@ -141,7 +140,7 @@ export async function resolveFallbackHydration(
     return navigateToDocument(location.href)
   }
   if (!result.canonicalUrl.hash) {
-    result.canonicalUrl.hash = documentHash
+    result.canonicalUrl.hash = location.hash
   }
   history.replaceState(history.state, '', result.canonicalUrl)
   return {

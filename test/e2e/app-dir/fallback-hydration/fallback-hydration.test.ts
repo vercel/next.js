@@ -389,6 +389,55 @@ describe('fallback-hydration', () => {
       })
     }
 
+    for (const hash of ['', '#updated-fragment']) {
+      it(`uses the current fragment after recovery when it becomes ${hash || 'empty'}`, async () => {
+        let updated = false
+        const { browser, requests, page } = await openFallback(
+          '/fallback-hydration/offer/fragment-cleanup?mismatch=locale#private-fragment',
+          {
+            async beforePageLoad(browserPage) {
+              await browserPage.route('**/*', async (route) => {
+                if (!route.request().headers()['next-router-state-tree']) {
+                  await route.fallback()
+                  return
+                }
+                const response = await route.fetch()
+                await browserPage.evaluate((nextHash) => {
+                  if (location.hash !== '#private-fragment') {
+                    throw new Error(
+                      'The initial fragment was not present during recovery.'
+                    )
+                  }
+                  history.replaceState(
+                    history.state,
+                    '',
+                    location.pathname + location.search + nextHash
+                  )
+                }, hash)
+                updated = true
+                await route.fulfill({ response })
+              })
+            },
+          }
+        )
+        expect(updated).toBe(true)
+        expect(new URL(page.url()).hash).toBe(hash)
+        expect(await browser.elementById('server-locale').text()).toBe(
+          'Server locale: de'
+        )
+        expect(JSON.parse(await browser.elementById('params').text())).toEqual({
+          locale: 'de',
+          slug: 'fragment-cleanup',
+        })
+        expect(
+          requests.filter((request) => request.tree !== undefined)
+        ).toHaveLength(1)
+        await browser.elementById('counter').click()
+        expect(await browser.elementById('counter').text()).toBe('1')
+        await assertNoConsoleErrors(browser)
+      })
+    }
+
     for (const responseKind of ['non-flight', 'mpa']) {
       it(`preserves only the external destination fragment for a ${responseKind} response`, async () => {
         const destination = `${external.origin}/non-flight${responseKind === 'mpa' ? '#destination-fragment' : ''}`
