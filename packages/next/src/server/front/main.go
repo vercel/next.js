@@ -18,7 +18,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"flag"
@@ -32,7 +31,6 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 )
@@ -132,8 +130,8 @@ func main() {
 // newServer is the public server. It times out what Node times out: idle
 // keep-alive connections, request headers, and whole requests. Responses
 // aren't limited, so long streams aren't cut off, as in Node.
-func newServer(handler http.Handler, idleTimeout, headerTimeout, requestTimeout time.Duration) *frontServer {
-	return &frontServer{&http.Server{
+func newServer(handler http.Handler, idleTimeout, headerTimeout, requestTimeout time.Duration) *http.Server {
+	return &http.Server{
 		Handler:           handler,
 		IdleTimeout:       idleTimeout,
 		ReadHeaderTimeout: headerTimeout,
@@ -146,133 +144,7 @@ func newServer(handler http.Handler, idleTimeout, headerTimeout, requestTimeout 
 		// instead, as without the front.
 		DisableGeneralOptionsHandler: true,
 		ErrorLog:                     log.New(os.Stderr, "next-front: ", 0),
-		ConnContext: func(ctx context.Context, conn net.Conn) context.Context {
-			return context.WithValue(ctx, statusConnKey{}, conn)
-		},
-	}}
-}
-
-// Keep net/http in charge of request bodies, cancellation and shutdown. The
-// connection adapter only replaces the reason phrase in a response status line.
-type frontServer struct{ *http.Server }
-
-func (s *frontServer) Serve(ln net.Listener) error {
-	return s.Server.Serve(statusListener{ln})
-}
-
-type statusListener struct{ net.Listener }
-
-func (ln statusListener) Accept() (net.Conn, error) {
-	conn, err := ln.Listener.Accept()
-	if err != nil {
-		return nil, err
 	}
-	return &statusConn{Conn: conn}, nil
-}
-
-type statusConnKey struct{}
-
-type statusConn struct {
-	net.Conn
-	mu       sync.Mutex
-	status   string
-	header   []byte
-	writeErr error
-}
-
-func (c *statusConn) setStatus(status string) {
-	c.mu.Lock()
-	c.status = status
-	c.mu.Unlock()
-}
-
-func (c *statusConn) Write(p []byte) (int, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.writeErr != nil {
-		return 0, c.writeErr
-	}
-	if c.status == "" {
-		return c.Conn.Write(p)
-	}
-
-	buffered := len(c.header)
-	c.header = append(c.header, p...)
-	consumed, rewriteAt, oldLineLen, newLineLen := 0, -1, 0, 0
-	var wire []byte
-	for consumed < len(c.header) {
-		remaining := c.header[consumed:]
-		lineEnd := bytes.Index(remaining, []byte("\r\n"))
-		if lineEnd < 0 {
-			break
-		}
-		line := remaining[:lineEnd]
-		if len(line) >= 12 && bytes.HasPrefix(line, []byte("HTTP/1.")) && line[8] == ' ' {
-			if string(line[9:12]) == c.status[:3] {
-				rewriteAt = consumed
-				oldLineLen, newLineLen = lineEnd+2, 9+len(c.status)+2
-				wire = append(wire, c.header[:consumed+9]...)
-				wire = append(wire, c.status...)
-				wire = append(wire, remaining[lineEnd:]...)
-				consumed = len(c.header)
-				c.status = ""
-				break
-			}
-			if line[9] == '1' && string(line[9:12]) != "101" {
-				// An automatic 100 Continue can race with the final response.
-				// Skip its entire header block, never looking inside its fields.
-				end := bytes.Index(remaining, []byte("\r\n\r\n"))
-				if end < 0 {
-					break
-				}
-				consumed += end + 4
-				continue
-			}
-		}
-		// An unexpected final response must pass through unchanged. Never scan
-		// its headers or body for something that resembles a status line.
-		consumed = len(c.header)
-		c.status = ""
-		break
-	}
-	if wire == nil {
-		wire = c.header[:consumed]
-	}
-	if len(wire) == 0 {
-		return len(p), nil
-	}
-	buffers := net.Buffers{wire}
-	written, err := buffers.WriteTo(c.Conn)
-	if err == nil && written != int64(len(wire)) {
-		err = io.ErrShortWrite
-	}
-	if err != nil {
-		c.writeErr = err
-		// Counts refer to the caller's input, even when the reason phrase grew
-		// or shrank. A partly written replacement line isn't consumed yet.
-		n := int(written)
-		if rewriteAt >= 0 && n > rewriteAt {
-			if n < rewriteAt+newLineLen {
-				n = rewriteAt
-			} else {
-				n += oldLineLen - newLineLen
-			}
-		}
-		return max(0, min(len(p), n-buffered)), err
-	}
-	c.header = c.header[consumed:]
-	if c.status == "" {
-		c.header = nil
-	}
-	return len(p), nil
-}
-
-// ReverseProxy uses TCP half-close to finish upgraded connections.
-func (c *statusConn) CloseWrite() error {
-	if conn, ok := c.Conn.(interface{ CloseWrite() error }); ok {
-		return conn.CloseWrite()
-	}
-	return errors.New("connection does not support CloseWrite")
 }
 
 // stopRequested is closed on stdin EOF, SIGINT or SIGTERM, whichever comes
@@ -300,9 +172,9 @@ func stopRequested() <-chan struct{} {
 // listens on; upstreamIdle is how long an idle connection to Node stays
 // pooled.
 //
-// Node should receive the same request, and the client the same response, as
-// without the front. Go's server and proxy change a few things on their own;
-// the comments below say what each one is and how the code undoes it.
+// Preserve request targets, application headers and response bodies. Ordinary
+// response reason phrases use Go's built-in text. The options below compensate
+// for other defaults in Go's server and proxy.
 func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) http.Handler {
 	publicPort := strconv.Itoa(public.Port)
 	// Go reports an IPv4 client as plain IPv4 (10.0.0.5), but Node, listening
@@ -358,7 +230,6 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) 
 			DisableCompression:    true,
 			ExpectContinueTimeout: 1 * time.Second,
 		},
-		ModifyResponse: keepStatusLine,
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			proxyErrorLog.Printf("proxy error: %v", err)
 			// If the request had a body, part of it may still be unread (the
@@ -393,23 +264,6 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) 
 }
 
 var proxyErrorLog = log.New(os.Stderr, "next-front: ", 0)
-
-// Go chooses its own reason phrase. Preserve Node's at the connection boundary
-// while leaving all HTTP framing and connection management to net/http.
-func keepStatusLine(res *http.Response) error {
-	// ReverseProxy's upgrade handler already preserves the reason phrase and
-	// relays bytes in both directions. A 101 must reach that handler.
-	if res.StatusCode == http.StatusSwitchingProtocols {
-		return nil
-	}
-	if res.Status == fmt.Sprintf("%d %s", res.StatusCode, http.StatusText(res.StatusCode)) {
-		return nil
-	}
-	if conn, ok := res.Request.Context().Value(statusConnKey{}).(*statusConn); ok {
-		conn.setStatus(res.Status)
-	}
-	return nil
-}
 
 // keepRequestTarget makes the outgoing request line carry the target exactly
 // as the client sent it. Go writes the request line from the

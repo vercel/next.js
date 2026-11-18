@@ -2,9 +2,7 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -14,126 +12,6 @@ import (
 	"testing"
 	"time"
 )
-
-type statusWriteConn struct {
-	net.Conn
-	output    bytes.Buffer
-	remaining int
-	err       error
-}
-
-func (c *statusWriteConn) Write(p []byte) (int, error) {
-	n := min(len(p), c.remaining)
-	c.remaining -= n
-	c.output.Write(p[:n])
-	return n, c.err
-}
-
-func TestStatusLineAcrossWrites(t *testing.T) {
-	interim := "HTTP/1.1 100 Continue\r\nX-Status: HTTP/1.1 400 Bad Request\r\n\r\n"
-	for _, tc := range []struct {
-		name, status, input, want string
-	}{
-		{"longer", "400 Custom Reason", "HTTP/1.1 400 Bad Request\r\n\r\nbody", "HTTP/1.1 400 Custom Reason\r\n\r\nbody"},
-		{"shorter", "200 X", "HTTP/1.1 200 OK\r\n\r\nbody", "HTTP/1.1 200 X\r\n\r\nbody"},
-		{"http10", "400 Custom Reason", "HTTP/1.0 400 Bad Request\r\n\r\nbody", "HTTP/1.0 400 Custom Reason\r\n\r\nbody"},
-		{"interim", "400 Custom Reason", interim + "HTTP/1.1 400 Bad Request\r\n\r\nbody", interim + "HTTP/1.1 400 Custom Reason\r\n\r\nbody"},
-		{"body", "400 Custom Reason", "HTTP/1.1 400 Bad Request\r\n\r\nHTTP/1.1 400 Bad Request\r\n", "HTTP/1.1 400 Custom Reason\r\n\r\nHTTP/1.1 400 Bad Request\r\n"},
-		{"unexpected status", "400 Custom Reason", "HTTP/1.1 500 Internal Server Error\r\n\r\nHTTP/1.1 400 Bad Request\r\n", "HTTP/1.1 500 Internal Server Error\r\n\r\nHTTP/1.1 400 Bad Request\r\n"},
-	} {
-		for _, size := range []int{1, len(tc.input)} {
-			t.Run(fmt.Sprintf("%s/%d", tc.name, size), func(t *testing.T) {
-				output := &statusWriteConn{remaining: len(tc.want)}
-				conn := &statusConn{Conn: output}
-				conn.setStatus(tc.status)
-				for rest := tc.input; rest != ""; {
-					next := rest[:min(size, len(rest))]
-					n, err := conn.Write([]byte(next))
-					if err != nil || n != len(next) {
-						t.Fatalf("Write = %d, %v, want %d, nil", n, err, len(next))
-					}
-					rest = rest[len(next):]
-				}
-				if got := output.output.String(); got != tc.want {
-					t.Errorf("wire = %q, want %q", got, tc.want)
-				}
-			})
-		}
-	}
-}
-
-func TestStatusLineWriteErrors(t *testing.T) {
-	failure := errors.New("write failed")
-	input := "HTTP/1.1 400 Bad Request\r\nX-Kept: yes\r\n\r\nbody"
-	oldLineLen := len("HTTP/1.1 400 Bad Request\r\n")
-	for _, status := range []string{"400 X", "400 A much longer reason"} {
-		for _, buffered := range []int{0, 5} {
-			for _, afterLine := range []bool{false, true} {
-				t.Run(fmt.Sprintf("%s/%d/%t", status, buffered, afterLine), func(t *testing.T) {
-					limit, want := 5, 0
-					if afterLine {
-						limit = len("HTTP/1.1 "+status+"\r\n") + 3
-						want = oldLineLen + 3 - buffered
-					}
-					output := &statusWriteConn{remaining: limit, err: failure}
-					conn := &statusConn{Conn: output}
-					conn.setStatus(status)
-					if buffered != 0 {
-						if n, err := conn.Write([]byte(input[:buffered])); err != nil || n != buffered {
-							t.Fatalf("buffered Write = %d, %v", n, err)
-						}
-					}
-					n, err := conn.Write([]byte(input[buffered:]))
-					if !errors.Is(err, failure) || n != want {
-						t.Errorf("Write = %d, %v, want %d, %v", n, err, want, failure)
-					}
-					if n, err := conn.Write([]byte("next")); n != 0 || !errors.Is(err, failure) {
-						t.Errorf("Write after failure = %d, %v", n, err)
-					}
-				})
-			}
-		}
-	}
-	t.Run("short write", func(t *testing.T) {
-		conn := &statusConn{Conn: &statusWriteConn{remaining: 5}}
-		conn.setStatus("400 Custom Reason")
-		if _, err := conn.Write([]byte(input)); !errors.Is(err, io.ErrShortWrite) {
-			t.Errorf("Write error = %v, want %v", err, io.ErrShortWrite)
-		}
-	})
-}
-
-func TestStatusConnectionHalfClose(t *testing.T) {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer ln.Close()
-	client, err := net.Dial("tcp", ln.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer client.Close()
-	server, err := ln.Accept()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer server.Close()
-	server.SetDeadline(time.Now().Add(5 * time.Second))
-	client.SetDeadline(time.Now().Add(5 * time.Second))
-	conn := &statusConn{Conn: server}
-	if err := conn.CloseWrite(); err != nil {
-		t.Fatal(err)
-	}
-	var data [4]byte
-	if _, err := client.Read(data[:]); err != io.EOF {
-		t.Fatalf("client read = %v, want EOF", err)
-	}
-	io.WriteString(client, "ping")
-	if _, err := io.ReadFull(conn, data[:]); err != nil || string(data[:]) != "ping" {
-		t.Fatalf("read after CloseWrite = %q, %v", data, err)
-	}
-}
 
 // received is what the stub upstream saw.
 type received struct {
@@ -381,13 +259,22 @@ func TestClientIP(t *testing.T) {
 	}
 }
 
-func TestKeepsNodesStatusLine(t *testing.T) {
-	for _, status := range []string{"400 Invalid JSON", "413 Payload Too Large", "200 OK", "404 Not Found"} {
-		t.Run(status, func(t *testing.T) {
+func TestUsesStandardStatusText(t *testing.T) {
+	for _, tc := range []struct {
+		status string
+		code   int
+	}{
+		{"400 Invalid JSON", http.StatusBadRequest},
+		{"413 Payload Too Large", http.StatusRequestEntityTooLarge},
+		{"200 Custom Reason", http.StatusOK},
+		{"200 OK", http.StatusOK},
+		{"404 Not Found", http.StatusNotFound},
+	} {
+		t.Run(tc.status, func(t *testing.T) {
 			addr, _ := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
 				conn, buf, _ := w.(http.Hijacker).Hijack()
 				defer conn.Close()
-				fmt.Fprintf(buf, "HTTP/1.1 %s\r\nContent-Length: 5\r\nX-Kept: yes\r\n\r\nhello", status)
+				fmt.Fprintf(buf, "HTTP/1.1 %s\r\nContent-Length: 5\r\nX-Kept: yes\r\n\r\nhello", tc.status)
 				buf.Flush()
 			})
 			conn, err := net.Dial("tcp", addr)
@@ -401,8 +288,9 @@ func TestKeepsNodesStatusLine(t *testing.T) {
 				t.Fatal(err)
 			}
 			body, _ := io.ReadAll(res.Body)
-			if res.Status != status || string(body) != "hello" || res.Header.Get("X-Kept") != "yes" {
-				t.Errorf("got %q %q %q, want %q hello yes", res.Status, body, res.Header.Get("X-Kept"), status)
+			want := fmt.Sprintf("%d %s", tc.code, http.StatusText(tc.code))
+			if res.Status != want || string(body) != "hello" || res.Header.Get("X-Kept") != "yes" {
+				t.Errorf("got %q %q %q, want %q hello yes", res.Status, body, res.Header.Get("X-Kept"), want)
 			}
 		})
 	}
@@ -420,8 +308,8 @@ func TestKeepsTrailersWithACustomStatusLine(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Status != "400 Custom Reason" || string(body) != "body" {
-		t.Fatalf("got %q %q, want 400 Custom Reason body", res.Status, body)
+	if res.Status != "400 Bad Request" || string(body) != "body" {
+		t.Fatalf("got %q %q, want 400 Bad Request body", res.Status, body)
 	}
 	if got := strings.Join(res.Trailer.Values("X-Checksum"), "|"); got != "abc123|second" {
 		t.Errorf("X-Checksum trailer = %q, want abc123|second", got)
@@ -450,7 +338,7 @@ func TestKeepsACustomStatusConnectionAlive(t *testing.T) {
 	conn.SetDeadline(time.Now().Add(5 * time.Second))
 	reader := bufio.NewReader(conn)
 	for _, tc := range []struct{ path, status, body string }{
-		{"/custom", "400 Custom Reason", "hello"},
+		{"/custom", "400 Bad Request", "hello"},
 		{"/standard", "200 OK", "HTTP/1.1 400 Bad Request\r\n"},
 	} {
 		fmt.Fprintf(conn, "GET %s HTTP/1.1\r\nHost: shop.example.com\r\n\r\n", tc.path)
@@ -488,8 +376,8 @@ func TestKeepsHeadSemanticsWithACustomStatusLine(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Status != "400 Custom Reason" || res.ContentLength != 5 {
-		t.Fatalf("got %q with length %d, want 400 Custom Reason with length 5", res.Status, res.ContentLength)
+	if res.Status != "400 Bad Request" || res.ContentLength != 5 {
+		t.Fatalf("got %q with length %d, want 400 Bad Request with length 5", res.Status, res.ContentLength)
 	}
 	// Read the wire, rather than res.Body, which a HEAD client always treats
 	// as empty even if the server incorrectly writes bytes after the headers.
@@ -684,7 +572,7 @@ func TestStreamsACustomStatusDuringAnUpload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Status != "200 Custom Reason" || string(first[:])+string(rest) != "first-last" {
+	if res.Status != "200 OK" || string(first[:])+string(rest) != "first-last" {
 		t.Errorf("got %q %q%q", res.Status, first, rest)
 	}
 }
@@ -914,8 +802,7 @@ func TestAnswersBeforeTheUploadFinishes(t *testing.T) {
 	}
 }
 
-// A response with a custom reason phrase goes through keepStatusLine.
-// The trailers Node sends after a chunked body must still reach the client.
+// An upstream custom reason phrase must not affect the response trailers.
 func TestKeepsTrailersOnACustomStatusLine(t *testing.T) {
 	addr := startFrontFor(t, func(w http.ResponseWriter, r *http.Request) {
 		conn, buf, _ := w.(http.Hijacker).Hijack()
@@ -929,8 +816,8 @@ func TestKeepsTrailersOnACustomStatusLine(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Status != "400 Custom Reason" || string(body) != "hello" {
-		t.Errorf("got %q %q, want \"400 Custom Reason\" \"hello\"", res.Status, body)
+	if res.Status != "400 Bad Request" || string(body) != "hello" {
+		t.Errorf("got %q %q, want \"400 Bad Request\" \"hello\"", res.Status, body)
 	}
 	if got := res.Trailer.Get("X-Checksum"); got != "abc123" {
 		t.Errorf("trailer X-Checksum = %q, want %q", got, "abc123")
