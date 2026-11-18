@@ -61,6 +61,7 @@ minimumReleaseAgeExclude:
   - satori@0.33.5
   - scheduler
   - turbo
+  - '@swc/helpers@0.5.24'
 
 # Caution: `file://./scripts/sync-react.js` updates the React entries in place using a regex as part
 # of a GH Action. If you update this section, make sure you also update that script.
@@ -78,10 +79,10 @@ overrides:
   '@types/react-dom': 19.2.4
   '@types/retry': 0.12.0
   jest-snapshot: 30.0.0-alpha.6
-  react: 'npm:react@19.3.0-canary-e84e1492-20261031'
-  react-dom: 'npm:react-dom@19.3.0-canary-e84e1492-20261031'
-  react-is: 'npm:react-is@19.3.0-canary-e84e1492-20261031'
-  scheduler: 'npm:scheduler@0.28.0-canary-e84e1492-20261031'
+  react: 'npm:react@19.3.0-canary-df6aa4ec-20261112'
+  react-dom: 'npm:react-dom@19.3.0-canary-df6aa4ec-20261112'
+  react-is: 'npm:react-is@19.3.0-canary-df6aa4ec-20261112'
+  scheduler: 'npm:scheduler@0.28.0-canary-df6aa4ec-20261112'
 
 packageExtensions:
   # alex requires supports-color from its CLI but does not declare it. v9 is ESM-only.

@@ -75,31 +75,56 @@ function normalizeAppPageEntryPathname(appPath: string): string {
 }
 
 /**
- * Selects the app path that owns the compiled entry for a normalized route.
- * Catch-all normalization can add app paths from other routes, so only direct
- * paths are candidates. Among those, compareAppPaths deterministically prefers
- * the children/root page, or a stable slot when the route only has slots.
+ * Builds a lookup that selects the app path owning the compiled entry for a
+ * normalized route. Catch-all normalization can add app paths from other
+ * routes, so only direct paths are candidates. Among those, compareAppPaths
+ * deterministically prefers the children/root page, or a stable slot when the
+ * route only has slots.
+ *
+ * Reuse the returned lookup when resolving many pathnames against the same app
+ * paths: each app path is normalized once up front instead of once per lookup,
+ * which turns resolving every route from O(routes * appPaths) into
+ * O(routes + appPaths).
+ */
+export function createAppPageEntryLookup(
+  appPaths: readonly string[],
+  normalizePathname: (appPath: string) => string = normalizeAppPageEntryPathname
+): (pathname: string) => string {
+  const entries = new Map<string, string>()
+
+  for (const appPath of appPaths) {
+    const pathname = normalizePathname(appPath)
+    const entry = entries.get(pathname)
+
+    if (entry === undefined || compareAppPaths(entry, appPath) < 0) {
+      entries.set(pathname, appPath)
+    }
+  }
+
+  return (pathname) => {
+    const entry = entries.get(pathname)
+
+    if (entry === undefined) {
+      throw new Error(
+        `Invariant: no direct app page entry found for ${pathname}`
+      )
+    }
+
+    return entry
+  }
+}
+
+/**
+ * Selects the app path that owns the compiled entry for a single normalized
+ * route. See `createAppPageEntryLookup`, which should be used instead when
+ * resolving many pathnames against the same app paths.
  */
 export function selectAppPageEntry(
   pathname: string,
   appPaths: readonly string[],
   normalizePathname: (appPath: string) => string = normalizeAppPageEntryPathname
 ): string {
-  let entry: string | undefined
-
-  for (const appPath of appPaths) {
-    if (normalizePathname(appPath) !== pathname) continue
-
-    if (entry === undefined || compareAppPaths(entry, appPath) < 0) {
-      entry = appPath
-    }
-  }
-
-  if (entry === undefined) {
-    throw new Error(`Invariant: no direct app page entry found for ${pathname}`)
-  }
-
-  return entry
+  return createAppPageEntryLookup(appPaths, normalizePathname)(pathname)
 }
 
 /**

@@ -2,7 +2,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, OperationValue, OperationVc, ResolvedVc, Vc,
+    NonLocalValue, OperationValue, OperationVc, OrderedAutoMap, ResolvedVc, Vc,
     debug::ValueDebugFormat, take_effects,
 };
 use turbopack_core::issue::CollectibleIssuesExt;
@@ -22,8 +22,7 @@ use crate::{
 /// This is needed to call `write_to_disk` which expects an `OperationVc<Endpoint>`.
 #[turbo_tasks::value(shared)]
 pub struct EntrypointsOperation {
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub routes: FxIndexMap<RcStr, RouteOperation>,
+    pub routes: OrderedAutoMap<RcStr, RouteOperation>,
     pub middleware: Option<MiddlewareOperation>,
     pub instrumentation: Option<InstrumentationOperation>,
     pub pages_document_endpoint: OperationVc<OptionEndpoint>,
@@ -113,6 +112,10 @@ fn pick_route(entrypoints: OperationVc<Entrypoints>, key: RcStr, route: &Route) 
                 })
                 .collect(),
         ),
+        Route::AppGoRoute { original_name, .. } => RouteOperation::AppGoRoute {
+            original_name: original_name.clone(),
+            endpoint: pick_endpoint(entrypoints, EndpointSelector::RouteAppRoute(key)),
+        },
         Route::AppRoute {
             original_name,
             has_action_manifest,
@@ -200,7 +203,9 @@ async fn pick_endpoint(
             }
         }
         EndpointSelector::RouteAppRoute(name) => {
-            if let Some(Route::AppRoute { endpoint, .. }) = endpoints.routes.get(&name) {
+            if let Some(Route::AppRoute { endpoint, .. } | Route::AppGoRoute { endpoint, .. }) =
+                endpoints.routes.get(&name)
+            {
                 Some(*endpoint)
             } else {
                 None
@@ -233,6 +238,10 @@ pub enum RouteOperation {
         endpoint: OperationVc<OptionEndpoint>,
     },
     AppPage(Vec<AppPageRouteOperation>),
+    AppGoRoute {
+        original_name: RcStr,
+        endpoint: OperationVc<OptionEndpoint>,
+    },
     AppRoute {
         original_name: RcStr,
         endpoint: OperationVc<OptionEndpoint>,

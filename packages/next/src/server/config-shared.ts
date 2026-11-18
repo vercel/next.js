@@ -12,6 +12,8 @@ import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
 import { INFINITE_CACHE } from '../lib/constants'
+import { cloneObject } from './lib/clone-object'
+import { deepFreeze } from '../shared/lib/deep-freeze'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
 import type { CacheLife } from './use-cache/cache-life'
@@ -80,8 +82,8 @@ export type NextConfigComplete = Required<
       instantInsights: { validationLevel: ValidationLevel }
       // Normalized by finalized config with a default and the expected type
       turbopackMemoryEvictionMode: MemoryEvictionMode
-      // Normalized by config.ts: `false`/unset becomes `undefined` (GC off),
-      // `true` becomes `{}` (GC on with default timings)
+      // Normalized by config.ts: `false` becomes `undefined` (GC off),
+      // `true`/unset becomes `{}` (GC on with default timings)
       turbopackGcOptions: TurbopackGcOptions | undefined
     }
     // The root directory of the distDir. In development mode, this is the parent directory of `distDir`
@@ -509,11 +511,17 @@ export interface DeprecatedConfig {
 }
 
 export interface ExperimentalConfig {
-  /** Nudge coding agents about security upgrades, stable releases, or Future Defaults. */
+  /** Enable native Go route handlers and proxies. Requires Turbopack. */
+  goRoutes?: boolean
+  /**
+   * Nudge coding agents about security upgrades, stable releases, or Future Defaults.
+   * `next dev` manages upgrade instructions in AGENTS.md using this policy.
+   */
   agentUpgrade?: 'security' | 'latest' | 'experimental-future' | false
   /**
    * Adds managed instructions to AGENTS.md that let AI coding agents prepare
-   * anonymized Next.js feedback for user review.
+   * anonymized Next.js feedback for user review. Written by `next dev` when
+   * enabled. Requires telemetry and does not run in CI.
    */
   agentFeedback?: boolean
   /**
@@ -631,8 +639,8 @@ export interface ExperimentalConfig {
   externalMiddlewareRewritesResolve?: boolean
   externalProxyRewritesResolve?: boolean
   /**
-   * Exposes the Instant Navigation Testing API in production builds. This
-   * API is always available in development mode.
+   * Exposes the Instant Navigation Testing API in production builds. This API
+   * requires Cache Components. It is enabled by default in development.
    *
    * The testing API allows e2e tests to control navigation timing, enabling
    * deterministic assertions on prefetched/cached UI before dynamic data
@@ -840,9 +848,8 @@ export interface ExperimentalConfig {
    * Enables Turbopack's garbage collector, which deletes unreachable
    * tasks from the persistent cache and from memory.
    *
-   *
-   * - `false` (default): never collect.
-   * - `true`: collect
+   * - `false`: never collect.
+   * - `true` (default): collect
    * - An object: collect, overriding individual timings.
    *   - `minProgressMs`: how long a GC pass runs before it will honour an
    *     interrupt. Defaults to 100ms.
@@ -901,7 +908,9 @@ export interface ExperimentalConfig {
   /**
    * Minify each module separately instead of each finished chunk, so minification runs in
    * parallel and is cached per module. The trade-off is slightly worse compression.
-   * Defaults to false. Only applies to production builds.
+   * Chunking then sizes modules by their minified code, see `turbopackChunking`.
+   * Defaults to true on canary releases and false on stable releases. Only applies to
+   * production builds.
    */
   turbopackMinifyBeforeChunking?: boolean
 
@@ -915,6 +924,10 @@ export interface ExperimentalConfig {
   /**
    * (`next --turbopack` only) These options change the assumptions Turbopack makes when
    * making chunk merging decisions and the raw size thresholds it uses.
+   *
+   * Sizes are measured on unminified code, or on minified code when
+   * `turbopackMinifyBeforeChunking` applies. In that case the default sizes and request cost
+   * below are scaled down to match; values set here are used as-is.
    */
   turbopackChunking?: {
     /**
@@ -1092,6 +1105,14 @@ export interface ExperimentalConfig {
    * Enable extraction of source maps from input files. Defaults to true.
    */
   turbopackInputSourceMaps?: boolean
+
+  /**
+   * Enable file tracing (NFT) in the Turbopack dev server. File references in
+   * server code and externals are traced and included in the module graph,
+   * but no `.nft.json` files are written. This option does not change
+   * production builds. Defaults to false.
+   */
+  turbopackFileTracingForDev?: boolean
 
   /**
    * Currently in active development. This splits modules into fragments and
@@ -1670,19 +1691,6 @@ export interface ExperimentalConfig {
   exposeRuntimeErrorsToHMR?: boolean
 
   /**
-   * Acquires a lockfile at `<distDir>/lock` when starting `next dev` or `next
-   * build`. Failing to acquire the lock causes the process to exit with an
-   * error message.
-   *
-   * This is because if multiple processes write to the same `distDir` at the
-   * same time, it can mangle the state of the directory. Disabling this option
-   * is not recommended.
-   *
-   * @default true
-   */
-  lockDistDir?: boolean
-
-  /**
    * Hide logs that occur after a render has already aborted.
    * This can help reduce noise in the console when dealing with aborted renders.
    *
@@ -1991,6 +1999,15 @@ export interface NextConfig {
    */
   instrumentationClientInject?: string[]
 
+  /**
+   * Module specifiers compiled into the server `instrumentation` slot, ahead
+   * of the project's own `instrumentation.{ts,js}` file. Every entry's
+   * `register` and `onRequestError` run in array order, then the project
+   * file's. A hook that throws does not stop the others. Each entry may be a bare
+   * npm package name, a path relative to the project root, or an absolute path.
+   */
+  instrumentationInject?: string[]
+
   /** @see [Compression documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/compress) */
   compress?: boolean
 
@@ -2261,10 +2278,9 @@ export interface NextConfig {
   expireTime?: number
 
   /**
-   * When `next dev` detects an AI coding agent and no managed
-   * agent-rules block is present, Next.js auto-generates `AGENTS.md` at the
-   * project root so the agent reads version-matched docs from
-   * `node_modules/next/dist/docs/` instead of stale training data. Set to
+   * When `next dev` runs, Next.js creates or updates the managed agent-rules
+   * block in `AGENTS.md` at the project root so coding agents read version-matched
+   * docs from `node_modules/next/dist/docs/` instead of stale training data. Set to
    * `false` to disable this behavior.
    *
    * @default true
@@ -2366,6 +2382,7 @@ export const defaultConfig = Object.freeze({
   generateEtags: true,
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   instrumentationClientInject: [],
+  instrumentationInject: [],
   poweredByHeader: true,
   compress: true,
   images: imageConfigDefault,
@@ -2545,7 +2562,6 @@ export const defaultConfig = Object.freeze({
     explicitParallelRouteChildren: true,
     strictRouteMatching: true,
     browserDebugInfoInTerminal: 'warn',
-    lockDistDir: true,
     disableResumeDataCacheCompression: false,
     proxyClientMaxBodySize: 10_485_760, // 10MB
     hideLogsAfterAbort: false,
@@ -2566,9 +2582,24 @@ export const defaultConfig = Object.freeze({
   bundlePagesRouterDependencies: false,
 } satisfies NextConfig)
 
+// In tests, deeply freeze the shared defaults (this also covers
+// `imageConfigDefault`, which `defaultConfig.images` points to). A write to
+// them would leak into every later `loadConfig` in the process, so make it
+// throw instead. `defaultConfig` itself is already shallowly frozen, which
+// makes `deepFreeze` stop at the top level, so freeze what it contains.
+if (process.env.__NEXT_TEST_MODE) {
+  for (const value of Object.values(defaultConfig)) {
+    if (value && typeof value === 'object') deepFreeze(value)
+  }
+}
+
 export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {
-    config = config(phase, { defaultConfig })
+    // Pass a copy so a config function that writes into the nested defaults
+    // (e.g. `defaultConfig.images`) cannot change them for later loads.
+    config = config(phase, {
+      defaultConfig: Object.freeze(cloneObject(defaultConfig)),
+    })
   }
   // Support `new Promise` and `async () =>` as return values of the config export
   return await config
@@ -2626,6 +2657,7 @@ export interface NextConfigRuntime {
 
   experimental: Pick<
     NextConfigComplete['experimental'],
+    | 'goRoutes'
     | 'taint'
     | 'agentFeedback'
     | 'serverActions'
@@ -2750,6 +2782,7 @@ export function getNextConfigRuntime(
     requestInsights: ex.requestInsights,
     externalBrowserRuntime: ex.externalBrowserRuntime,
 
+    goRoutes: ex.goRoutes,
     trustHostHeader: ex.trustHostHeader,
     isExperimentalCompile: ex.isExperimentalCompile,
   } satisfies Requiredish<NextConfigRuntime['experimental']>

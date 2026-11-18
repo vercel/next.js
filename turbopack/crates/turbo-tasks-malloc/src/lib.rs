@@ -1,6 +1,24 @@
+mod base;
 mod counter;
+mod eager_purge;
 mod memory_footprint;
 mod memory_pressure;
+#[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
+mod option_override;
+
+/// Overrides mimalloc's `arena_purge_min_size` option (in KiB) with one arena slice, see
+/// [`TurboMalloc::collect_and_purge_all`]. mimalloc reads it afresh on every purge, and it only
+/// decides which free ranges are purged, so changing it at runtime is benign (see
+/// [`option_override`]). 0, the default, picks the size automatically (2 MiB with transparent huge
+/// pages); any other value was set explicitly and is left alone.
+///
+/// Don't override `allow_thp` instead: it also decides whether new memory uses huge pages.
+#[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
+static PURGE_SMALL_RANGES: option_override::OptionOverride = option_override::OptionOverride::new(
+    mimalloc::sys::mi_option_arena_purge_min_size,
+    64,
+    |previous| previous == 0,
+);
 
 use std::{
     alloc::{GlobalAlloc, Layout},
@@ -9,6 +27,7 @@ use std::{
 };
 
 use self::counter::{add, flush, remove, update};
+pub use self::eager_purge::EagerPurgeGuard;
 
 #[derive(Default, Clone, Debug)]
 pub struct AllocationInfo {
@@ -92,7 +111,7 @@ impl TurboMalloc {
     ///
     /// See `current_commit` in [`mi_process_info`], which documents each figure mimalloc reports.
     ///
-    /// [`mi_process_info`]: https://docs.rs/libmimalloc-sys/latest/libmimalloc_sys/fn.mi_process_info.html
+    /// [`mi_process_info`]: https://github.com/microsoft/mimalloc/blob/main3/include/mimalloc.h
     ///
     /// Without the `custom_allocator` feature this is a process-wide live-bytes counter instead,
     /// which is approximate because threads buffer their updates.
@@ -105,7 +124,7 @@ impl TurboMalloc {
             let mut current_commit = 0usize;
             // Safety: every out-param is either null or a valid `usize` we own.
             unsafe {
-                libmimalloc_sys::mi_process_info(
+                mimalloc::sys::mi_process_info(
                     /* elapsed_msecs */ std::ptr::null_mut(),
                     /* user_msecs */ std::ptr::null_mut(),
                     /* system_msecs */ std::ptr::null_mut(),
@@ -139,15 +158,72 @@ impl TurboMalloc {
     ///    only operates on thread local data and should be fast
     /// force=true: do all the work of `process=false` and then process global shared structures and
     /// return memory to the OS if possible, this is much slower and should only be done rarely.
+    /// This works from any thread, including one that never allocated before.
     pub fn collect(force: bool) {
         #[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
-        unsafe {
-            libmimalloc_sys::mi_collect(force);
+        {
+            if force {
+                // `mi_collect` does nothing, not even the process-wide purge, when the calling
+                // thread's heap isn't initialized yet, which is the case for a thread that never
+                // allocated (e.g. a freshly spawned thread of a thread pool). This is a no-op when
+                // the heap is already initialized.
+                // Safety: initializes the calling thread's mimalloc state, has no preconditions.
+                unsafe { mimalloc::sys::mi_thread_init() };
+            }
+            mimalloc::collect(force);
         }
         #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri))))]
         {
             let _ = force;
         }
+    }
+
+    /// Makes the allocator return memory to the OS as soon as it's freed, until the returned guard
+    /// is dropped. Guards can overlap; the previous behavior is restored when the last one is
+    /// dropped.
+    ///
+    /// By default mimalloc delays returning freed pages to the OS, so they can be reused cheaply.
+    /// Use this while freeing a lot of memory that won't be reused soon (e.g. when dropping caches
+    /// at shutdown), so it doesn't stay resident. Don't use it during normal operation: returning
+    /// and recommitting memory often is expensive.
+    ///
+    /// Freed memory whose return was already scheduled before entering this mode is returned once
+    /// the mode ends (when the delay expires, or with [`TurboMalloc::collect(true)`]), and forced
+    /// collects don't return it while the mode is active.
+    ///
+    /// Has no effect without mimalloc, or if returning memory is disabled (a negative
+    /// `MIMALLOC_PURGE_DELAY`).
+    ///
+    /// This changes a process-wide mimalloc option while other threads use the allocator, which
+    /// mimalloc doesn't formally support; it only affects purge timing, see [`EagerPurgeGuard`].
+    ///
+    /// [`TurboMalloc::collect(true)`]: TurboMalloc::collect
+    pub fn enter_eager_purge_mode() -> EagerPurgeGuard {
+        EagerPurgeGuard::new()
+    }
+
+    /// Like [`TurboMalloc::collect(true)`], but also returns freed memory to the OS that lies in
+    /// small free ranges between memory that's still in use.
+    ///
+    /// mimalloc only returns free ranges of a minimal size to the OS. On Linux with transparent
+    /// huge pages available, mimalloc v3 sets that size to the huge page size (2 MiB), to avoid
+    /// breaking up huge pages. After freeing most of a large, fragmented heap, most free ranges are
+    /// smaller than that, so [`TurboMalloc::collect(true)`] leaves them resident. This lowers the
+    /// minimal size to one arena slice (64 KiB) for the duration of the collect, unless it was set
+    /// explicitly (`MIMALLOC_ARENA_PURGE_MIN_SIZE`).
+    ///
+    /// Breaking up huge pages makes memory that's still in use slower to access, so only use this
+    /// when the remaining heap is small or won't be used much any more (e.g. after shutting down).
+    ///
+    /// This changes a process-wide mimalloc option while other threads use the allocator, which
+    /// mimalloc doesn't formally support; it only affects which free ranges are returned to the
+    /// OS, see the `option_override` module.
+    ///
+    /// [`TurboMalloc::collect(true)`]: TurboMalloc::collect
+    pub fn collect_and_purge_all() {
+        #[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
+        let _override = PURGE_SMALL_RANGES.enter();
+        Self::collect(true);
     }
 
     pub fn allocation_counters() -> AllocationCounters {
@@ -189,56 +265,35 @@ impl TurboMalloc {
     }
 }
 
-/// Get the allocator for this platform that we should wrap with TurboMalloc.
-#[inline]
-fn base_alloc() -> &'static impl GlobalAlloc {
-    #[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
-    return &mimalloc::MiMalloc;
-    #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri))))]
-    return &std::alloc::System;
-}
-
-#[allow(unused_variables)]
-unsafe fn base_alloc_size(ptr: *const u8, layout: Layout) -> usize {
-    #[cfg(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri)))]
-    return unsafe { mimalloc::MiMalloc.usable_size(ptr) };
-    #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"), not(miri))))]
-    return layout.size();
-}
-
 unsafe impl GlobalAlloc for TurboMalloc {
+    #[inline]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let ret = unsafe { base_alloc().alloc(layout) };
+        let (ret, size) = unsafe { base::alloc(layout) };
         if !ret.is_null() {
-            let size = unsafe { base_alloc_size(ret, layout) };
             add(size);
         }
         ret
     }
 
+    #[inline]
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        let size = unsafe { base_alloc_size(ptr, layout) };
-        unsafe { base_alloc().dealloc(ptr, layout) };
+        let size = unsafe { base::dealloc(ptr, layout) };
         remove(size);
     }
 
+    #[inline]
     unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
-        let ret = unsafe { base_alloc().alloc_zeroed(layout) };
+        let (ret, size) = unsafe { base::alloc_zeroed(layout) };
         if !ret.is_null() {
-            let size = unsafe { base_alloc_size(ret, layout) };
             add(size);
         }
         ret
     }
 
+    #[inline]
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
-        let old_size = unsafe { base_alloc_size(ptr, layout) };
-        let ret = unsafe { base_alloc().realloc(ptr, layout, new_size) };
+        let (ret, old_size, new_size) = unsafe { base::realloc(ptr, layout, new_size) };
         if !ret.is_null() {
-            // SAFETY: the caller must ensure that the `new_size` does not overflow.
-            // `layout.align()` comes from a `Layout` and is thus guaranteed to be valid.
-            let new_layout = unsafe { Layout::from_size_align_unchecked(new_size, layout.align()) };
-            let new_size = unsafe { base_alloc_size(ret, new_layout) };
             update(old_size, new_size);
         }
         ret
@@ -247,6 +302,8 @@ unsafe impl GlobalAlloc for TurboMalloc {
 
 #[cfg(test)]
 mod tests {
+    use std::alloc::{GlobalAlloc, Layout};
+
     use super::TurboMalloc;
 
     // `memory_usage` reports what *this* allocator has committed, so the test binary has to
@@ -254,6 +311,72 @@ mod tests {
     // system allocator and mimalloc's counter never moves.
     #[global_allocator]
     static ALLOC: TurboMalloc = TurboMalloc;
+
+    /// The sizes reported on allocation and on deallocation must match. Otherwise the counters
+    /// drift. Covers every size class and alignment path, including reallocation in place, moving
+    /// reallocation and over-aligned reallocation.
+    #[test]
+    fn allocation_counters_balance() {
+        // Small, at and above the small-size limit, medium, and huge.
+        // Huge is skipped under Miri because it's too slow there.
+        #[cfg(not(miri))]
+        const SIZES: [usize; 6] = [1, 24, 1024, 1025, 64 * 1024, 8 * 1024 * 1024];
+        #[cfg(miri)]
+        const SIZES: [usize; 5] = [1, 24, 1024, 1025, 64 * 1024];
+        const ALIGNS: [usize; 4] = [1, 16, 64, 4096];
+
+        // No other allocation may happen on this thread between `before` and `after`, so collect
+        // all layouts up front.
+        let mut layouts = [Layout::new::<u8>(); SIZES.len() * ALIGNS.len()];
+        for (i, (size, align)) in SIZES
+            .iter()
+            .flat_map(|size| ALIGNS.iter().map(move |align| (*size, *align)))
+            .enumerate()
+        {
+            layouts[i] = Layout::from_size_align(size, align).unwrap();
+        }
+
+        let before = TurboMalloc::allocation_counters();
+        for layout in layouts {
+            for zeroed in [false, true] {
+                unsafe {
+                    let ptr = if zeroed {
+                        ALLOC.alloc_zeroed(layout)
+                    } else {
+                        ALLOC.alloc(layout)
+                    };
+                    assert!(!ptr.is_null());
+                    assert_eq!(ptr as usize % layout.align(), 0);
+                    if zeroed {
+                        assert_eq!(*ptr, 0);
+                        assert_eq!(*ptr.add(layout.size() - 1), 0);
+                    }
+                    ptr.write_bytes(0xab, layout.size());
+
+                    // Shrink a little (usually in place), then grow a lot (moves).
+                    let mut layout = layout;
+                    let mut ptr = ptr;
+                    for new_size in [layout.size().div_ceil(2).max(1), layout.size() * 3] {
+                        ptr = ALLOC.realloc(ptr, layout, new_size);
+                        assert!(!ptr.is_null());
+                        assert_eq!(ptr as usize % layout.align(), 0);
+                        let kept = layout.size().min(new_size);
+                        assert_eq!(*ptr, 0xab);
+                        assert_eq!(*ptr.add(kept - 1), 0xab);
+                        layout = Layout::from_size_align(new_size, layout.align()).unwrap();
+                        ptr.write_bytes(0xab, layout.size());
+                    }
+                    ALLOC.dealloc(ptr, layout);
+                }
+            }
+        }
+        let after = TurboMalloc::allocation_counters();
+
+        let allocated = after.allocations - before.allocations;
+        let deallocated = after.deallocations - before.deallocations;
+        assert!(allocated > 0);
+        assert_eq!(allocated, deallocated);
+    }
 
     /// Guards against the counter silently becoming unavailable.
     #[test]

@@ -24,3 +24,10 @@ it('keeps strictness in an all-strict chunk', async () => {
   expect(strictB).toBe(undefined)
   expect(strictC).toBe(undefined)
 })
+
+it('keeps strictness of exported mixed-chunk functions', async () => {
+  const { callableA, callableB, callableC } = await import('./mixed/index.js')
+  for (const callable of [callableA, callableB, callableC]) {
+    expect(Reflect.apply(callable, undefined, [1, 2])).toEqual([undefined, 2])
+  }
+})

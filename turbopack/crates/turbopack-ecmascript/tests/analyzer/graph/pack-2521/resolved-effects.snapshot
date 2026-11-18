@@ -5,7 +5,7 @@
 
 0 -> 4 call = module<./libvips, {}>["runtimePlatformArch"]()
 
-0 -> 6 free var = FreeVar(console)
+5 -> 6 free var = FreeVar(console)
 
 0 -> 7 member call = ???*0*["log"]("runtimePlatform:", module<./libvips, {}>["runtimePlatformArch"]())
 - *0* FreeVar(console)

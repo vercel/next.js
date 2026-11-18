@@ -11,6 +11,8 @@ export function getCssError(
   if (
     !(
       (err.name === 'CssSyntaxError' || err.name === 'SyntaxError') &&
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       (err as any).stack === false &&
       !(err instanceof SyntaxError)
     )

@@ -18,7 +18,7 @@ use next_core::{
         BuildManifest, ClientBuildManifest, EdgeFunctionDefinition, MiddlewaresManifestV2,
         PagesManifest, ProxyMatcher, Regions,
     },
-    next_pages::create_page_ssr_entry_module,
+    next_pages::{PagesEntryKind, create_page_ssr_entry_module},
     next_server::{
         ServerContextType, get_server_module_options_context, get_server_resolve_options_context,
     },
@@ -34,7 +34,7 @@ use smallvec::smallvec;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, ReadRef, ResolvedVc, ValueToString, Vc, fxindexmap, fxindexset,
+    Completion, FxIndexMap, OrderedAutoMap, ReadRef, ResolvedVc, ValueToString, Vc, fxindexset,
 };
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
@@ -62,7 +62,7 @@ use turbopack_core::{
     },
     output::{OptionOutputAsset, OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
-    reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
+    reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
     source::Source,
     virtual_output::VirtualOutputAsset,
@@ -119,7 +119,7 @@ impl PagesProject {
             has_user_pages: _,
             should_create_pages_entries,
         } = &*pages_structure.await?;
-        let mut routes = FxIndexMap::default();
+        let mut routes = OrderedAutoMap::default();
 
         // If pages entries shouldn't be created (build mode with no pages), return empty routes
         if !should_create_pages_entries {
@@ -127,7 +127,7 @@ impl PagesProject {
         }
 
         async fn add_page_to_routes(
-            routes: &mut FxIndexMap<RcStr, Route>,
+            routes: &mut OrderedAutoMap<RcStr, Route>,
             page: Vc<PagesStructureItem>,
             make_route: impl Fn(
                 RcStr,
@@ -148,7 +148,7 @@ impl PagesProject {
         }
 
         async fn add_dir_to_routes(
-            routes: &mut FxIndexMap<RcStr, Route>,
+            routes: &mut OrderedAutoMap<RcStr, Route>,
             dir: Vc<PagesDirectoryStructure>,
             make_route: impl Fn(
                 RcStr,
@@ -383,6 +383,7 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().encryption_key(),
+            self.project().client_source_map_generation_options(),
         ))
     }
 
@@ -470,7 +471,8 @@ impl PagesProject {
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
-            *self.project().should_write_nft_manifests().await?,
+            *self.project().should_trace().await?,
+            self.project().server_source_map_generation_options(),
         ))
     }
 
@@ -490,6 +492,7 @@ impl PagesProject {
             self.project().client_compile_time_info().environment(),
             // There is no NFT on edge,
             false,
+            self.project().server_source_map_generation_options(),
         ))
     }
 
@@ -507,7 +510,8 @@ impl PagesProject {
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
-            *self.project().should_write_nft_manifests().await?,
+            *self.project().should_trace().await?,
+            self.project().server_source_map_generation_options(),
         ))
     }
 
@@ -527,6 +531,7 @@ impl PagesProject {
             self.project().client_compile_time_info().environment(),
             // There is no NFT on edge
             false,
+            self.project().server_source_map_generation_options(),
         ))
     }
 
@@ -1008,21 +1013,21 @@ impl PageEndpoint {
     async fn internal_ssr_chunk_module(self: Vc<Self>) -> Result<Vc<InternalSsrChunkModule>> {
         let this = self.await?;
 
-        let (reference_type, project_root, module_context, edge_module_context) = match this.ty {
+        let (kind, project_root, module_context, edge_module_context) = match this.ty {
             PageEndpointType::Html | PageEndpointType::SsrOnly => (
-                ReferenceType::Entry(EntryReferenceSubType::Page),
+                PagesEntryKind::Page,
                 this.pages_project.project().project_path().owned().await?,
                 this.pages_project.ssr_module_context(),
                 this.pages_project.edge_ssr_module_context(),
             ),
             PageEndpointType::Data => (
-                ReferenceType::Entry(EntryReferenceSubType::PageData),
+                PagesEntryKind::Data,
                 this.pages_project.project().project_path().owned().await?,
                 this.pages_project.ssr_module_context(),
                 this.pages_project.edge_ssr_module_context(),
             ),
             PageEndpointType::Api => (
-                ReferenceType::Entry(EntryReferenceSubType::PagesApi),
+                PagesEntryKind::Api,
                 this.pages_project.project().project_path().owned().await?,
                 this.pages_project.api_module_context(),
                 this.pages_project.edge_api_module_context(),
@@ -1040,7 +1045,7 @@ impl PageEndpoint {
             // rendering for edge is part of the page bundle.
             if this.pathname == "/_app" || this.pathname == "/_document" {
                 let ssr_module = module_context
-                    .process(self.source(), reference_type)
+                    .process(self.source(), kind.reference_type())
                     .module();
                 InternalSsrChunkModule {
                     ssr_module: ssr_module.to_resolved().await?,
@@ -1057,7 +1062,7 @@ impl PageEndpoint {
             } else {
                 let modules = create_page_ssr_entry_module(
                     this.pathname.clone(),
-                    reference_type,
+                    kind,
                     project_root,
                     if runtime == NextRuntime::Edge {
                         Vc::upcast(edge_module_context)
@@ -1416,14 +1421,14 @@ impl PageEndpoint {
         let (pages, pages_chunk_group_bootstrap_params) =
             if pages_structure.should_create_pages_entries {
                 (
-                    fxindexmap!(self.pathname.clone() => client_chunks),
+                    OrderedAutoMap::from_iter([(self.pathname.clone(), client_chunks)]),
                     chunk_group_bootstrap_params
-                        .map(|params| fxindexmap!(self.pathname.clone() => params))
+                        .map(|params| OrderedAutoMap::from_iter([(self.pathname.clone(), params)]))
                         .unwrap_or_default(),
                 )
             } else {
                 // Empty when no user pages should be created
-                (fxindexmap![], fxindexmap![])
+                (OrderedAutoMap::default(), OrderedAutoMap::default())
             };
 
         let chunk_loading_global = (*self
@@ -1469,9 +1474,9 @@ impl PageEndpoint {
         // Check if we should include pages in the manifest
         let pages_structure = self.pages_structure.await?;
         let pages = if pages_structure.should_create_pages_entries {
-            fxindexmap!(self.pathname.clone() => page_loader)
+            OrderedAutoMap::from_iter([(self.pathname.clone(), page_loader)])
         } else {
-            fxindexmap![] // Empty pages when no user pages should be created
+            OrderedAutoMap::default() // Empty pages when no user pages should be created
         };
 
         let manifest_path_prefix = get_asset_prefix_from_pathname(&self.pathname);
@@ -1720,7 +1725,14 @@ impl PageEndpoint {
                         entrypoint,
                         regions,
                         matchers: vec![matchers],
-                        env: this.pages_project.project().edge_env().owned().await?,
+                        env: this
+                            .pages_project
+                            .project()
+                            .edge_env()
+                            .owned()
+                            .await?
+                            .into_iter()
+                            .collect(),
                     };
                     let middleware_manifest_v2 = MiddlewaresManifestV2 {
                         sorted_middleware: vec![this.pathname.clone()],

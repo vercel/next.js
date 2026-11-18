@@ -30,6 +30,8 @@ describe('Script component with beforeInteractive strategy CSS class rendering',
 
     // Check that the script executed by looking for its side effects
     const hasExecuted = await browser.eval(() => {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       return (window as any).beforeInteractiveExecuted === true
     })
 

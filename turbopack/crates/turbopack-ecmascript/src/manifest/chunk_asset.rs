@@ -1,6 +1,6 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{
@@ -174,10 +174,6 @@ impl ManifestAsyncModule {
     }
 }
 
-fn manifest_chunk_reference_description() -> RcStr {
-    rcstr!("manifest chunk")
-}
-
 #[turbo_tasks::value_impl]
 impl Module for ManifestAsyncModule {
     #[turbo_tasks::function]
@@ -187,7 +183,7 @@ impl Module for ManifestAsyncModule {
             .ident()
             .owned()
             .await?
-            .with_modifier(manifest_chunk_reference_description());
+            .with_modifier(rcstr!("manifest chunk"));
         // Requesting the manifest chunk of a lazily compiled dynamic import is what activates it,
         // so the key has to survive into the file name, and the path is the only part of an ident
         // that appears there literally. It must not move to the proxy's own ident, which also

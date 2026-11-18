@@ -8,7 +8,7 @@ use std::{
     ops::RangeInclusive,
     path::{Path, PathBuf},
     sync::{
-        OnceLock,
+        Arc, OnceLock,
         atomic::{AtomicBool, AtomicU32, Ordering},
     },
 };
@@ -39,7 +39,6 @@ use crate::{
     arc_bytes::ArcBytes,
     compaction::selector::{Compactable, MergeJob, plan_compaction},
     compression::{Compression, checksum_block, decompress_into_arc},
-    concurrent_slice::ConcurrentSlice,
     constants::{
         DATA_THRESHOLD_PER_COMPACTED_FILE, KEY_BLOCK_AVG_SIZE, KEY_BLOCK_CACHE_SIZE,
         MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE, VALUE_BLOCK_CACHE_SIZE,
@@ -47,7 +46,7 @@ use crate::{
     key::{StoreKey, hash_key},
     lookup_entry::{IterValue, LookupEntry, LookupValue},
     merge_iter::MergeIter,
-    meta_file::{MetaEntryFlags, MetaFile, MetaLookupResult, StaticSortedFileRange},
+    meta_file::{EagerSstOpen, MetaEntryFlags, MetaFile, MetaLookupResult, StaticSortedFileRange},
     meta_file_builder::MetaFileBuilder,
     parallel_scheduler::ParallelScheduler,
     rc_bytes::RcBytes,
@@ -314,6 +313,11 @@ const PARALLEL_BATCH_GET_THRESHOLD: usize = 2048;
 /// that the scheduler can run at the same time, like `turbo_tasks::util::good_chunk_size`.
 const BATCH_GET_CHUNKS_PER_TASK: usize = 4;
 
+/// Eagerly opening SST files spawns up to this many background tasks per task that the scheduler
+/// can run at the same time. An open is a few dependent reads, so it waits on I/O rather than
+/// using the CPU, and more tasks than the parallelism keep more reads in flight.
+const EAGER_SST_OPEN_TASKS_PER_PARALLELISM: usize = 4;
+
 /// The number of `usize` blocks that the `SmallVec` storage of [`BatchGetResolved`] holds inline:
 /// enough for the positions of 256 keys on every target.
 const BATCH_GET_RESOLVED_INLINE_BLOCKS: usize = 256 / usize::BITS as usize;
@@ -557,7 +561,8 @@ impl<S: ParallelScheduler + Default, const FAMILIES: usize> TurboPersistence<S, 
     }
 
     /// Open a TurboPersistence database at the given path in read only mode.
-    /// This will read the directory. No Cleanup is performed.
+    /// This will read the directory. No cleanup is performed and nothing on disk is created,
+    /// modified or deleted: the directory and its `CURRENT` file must already exist.
     pub fn open_read_only_with_config(path: PathBuf, config: DbConfig<FAMILIES>) -> Result<Self> {
         Self::open_read_only_with_parallel_scheduler(path, config, Default::default())
     }
@@ -608,6 +613,52 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
     }
 
+    /// Opens the SST files of `meta_files` that aren't open yet in the background, so that lookups
+    /// usually find them open. Called once the database has loaded its meta files, where the SST
+    /// files may be on slow (e.g. network attached) storage and opening them one at a time as
+    /// lookups first reach them would serialize their dependent reads.
+    ///
+    /// The opens are spread over several [`ParallelScheduler::spawn_blocking`] tasks that run in
+    /// parallel, and this returns without waiting for them. Newer meta files are opened first,
+    /// since lookups consult them first. See [`EagerSstOpen`] for how an open interacts with
+    /// lookups and with entries that are dropped in the meantime. Disabled on WASI, where SST files
+    /// are only opened lazily.
+    fn spawn_eager_sst_opens<'l>(&self, meta_files: impl DoubleEndedIterator<Item = &'l MetaFile>) {
+        if cfg!(target_os = "wasi") {
+            // WASI runtimes that run each thread as its own instance (like the Node based test
+            // host in `scripts/wasi-test-host`) give every thread its own file descriptor table.
+            // An SST file opened on a background thread would hold a file descriptor that is
+            // invalid on the threads that look keys up, failing lookups with `EBADF`.
+            return;
+        }
+        let mut opens = Vec::new();
+        for meta_file in meta_files.rev() {
+            meta_file.collect_eager_sst_opens(&mut opens);
+        }
+        if opens.is_empty() {
+            return;
+        }
+        let task_count = opens.len().min(
+            self.parallel_scheduler.parallelism().max(1) * EAGER_SST_OPEN_TASKS_PER_PARALLELISM,
+        );
+        // Deal the opens out round-robin, so that every task starts with one of the newest files.
+        let mut tasks: Vec<Vec<EagerSstOpen>> = (0..task_count)
+            .map(|_| Vec::with_capacity(opens.len().div_ceil(task_count)))
+            .collect();
+        for (index, open) in opens.into_iter().enumerate() {
+            tasks[index % task_count].push(open);
+        }
+        let db_path: Arc<Path> = self.path.as_path().into();
+        for task in tasks {
+            let db_path = db_path.clone();
+            self.parallel_scheduler.spawn_blocking(move || {
+                for open in task {
+                    open.run(&db_path);
+                }
+            });
+        }
+    }
+
     /// Open a TurboPersistence database at the given path.
     /// This will read the directory and might performance cleanup when the database was not closed
     /// properly. Cleanup only requires to read a few bytes from a few files and to delete
@@ -633,7 +684,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     }
 
     /// Open a TurboPersistence database at the given path in read only mode.
-    /// This will read the directory. No Cleanup is performed.
+    /// This will read the directory. No cleanup is performed and nothing on disk is created,
+    /// modified or deleted: the directory and its `CURRENT` file must already exist.
     fn open_read_only_with_parallel_scheduler(
         path: PathBuf,
         config: DbConfig<FAMILIES>,
@@ -645,7 +697,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             parallel_scheduler,
             config,
         });
-        db.open_directory(false)?;
+        db.open_directory(true)?;
         Ok(db)
     }
 
@@ -683,7 +735,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         commit_current(&self.path, 0)
     }
 
-    /// Loads an existing database directory and performs cleanup if necessary.
+    /// Loads an existing database directory and performs cleanup if necessary (and non
+    /// `read_only`).
     fn load_directory(&mut self, entries: ReadDir, read_only: bool) -> Result<bool> {
         let mut meta_files = Vec::new();
         let current = match read_current_version(&self.path)? {
@@ -808,6 +861,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         rebuild_shard_index(&self.config, inner);
         inner.current_sequence_number = current;
         self.is_empty.store(inner.is_empty(), Ordering::Relaxed);
+        self.spawn_eager_sst_opens(self.inner.read().meta_files_by_family.iter().flatten());
         Ok(true)
     }
 
@@ -851,8 +905,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             .context("Failed to read uncompressed length from blob file")?;
         let expected_checksum = reader.read_u32::<BE>()?;
 
-        // Verify checksum on the compressed on-disk data before decompression.
-        let actual_checksum = checksum_block(reader);
+        // Verify the checksum, which covers the length header and the compressed on-disk data,
+        // before the length is used to size the decompression buffer.
+        let actual_checksum = checksum_block(uncompressed_length, reader);
         if actual_checksum != expected_checksum {
             bail!(
                 "Cache corruption detected: checksum mismatch in blob file {:08}.blob (expected \
@@ -974,14 +1029,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
         if let Some(cache) = self.value_block_cache.get() {
             cache.clear();
-        }
-    }
-
-    /// Prefetches all SST files which are usually lazy loaded. This can be used to reduce latency
-    /// for the first queries after opening the database.
-    pub fn prepare_all_sst_caches(&self) {
-        for meta in self.inner.write().meta_files_by_family.iter_mut().flatten() {
-            meta.prepare_sst_cache();
         }
     }
 
@@ -1255,7 +1302,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             seq += 1;
         }
 
-        self.parallel_scheduler.block_in_place(|| {
+        {
             if has_delete_file {
                 sst_seq_numbers_to_delete.sort_unstable();
                 for seqs in &mut meta_seq_numbers_to_delete {
@@ -1369,9 +1416,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             })() {
                 eprintln!("turbo-persistence: failed to write LOG after commit {seq:08}: {e:#}");
             }
+        }
 
-            anyhow::Ok(())
-        })?;
+        // The SST files of the new meta files are not opened eagerly: they were written moments
+        // ago, so they are usually still in the page cache and opening them lazily is cheap.
 
         // ── Phase C: structurally update inner (CURRENT is already durable). ──
         //
@@ -1682,8 +1730,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     };
 
                     // The keys read recently: the used keys of the meta files written by commits
-                    // that are still alive, i.e. whose SST files were not all merged yet. We only
-                    // capture this for bottom compactions.
+                    // that are still alive, i.e. whose SST files were not all merged yet, and the
+                    // ones carried forward by intermediate merges (see below). We only capture
+                    // this for bottom compactions.
                     let used_key_hashes = if merge_jobs.iter().any(|job| {
                         job.bottom
                             && (job.members.len() > 1 || !sst_strictly_in_shard(job.members[0]))
@@ -1691,6 +1740,29 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         union_used_key_hashes(meta_files)?
                     } else {
                         None
+                    };
+
+                    // An intermediate merge can merge the last SST file of a commit that recorded
+                    // used keys, which retires its meta file, while the merged entries are not
+                    // bottom merged yet, e.g. when the rewrite quota or `max_merge_jobs` leaves
+                    // the bottom merge of their shard for later. The new meta file therefore
+                    // carries the used keys of the meta files of all intermediate merge inputs
+                    // forward, so that a later bottom merge still knows them. They are carried
+                    // even if such a meta file stays alive, as it can be retired later by a merge
+                    // of other files, e.g. by the bottom merge of another shard, while the outputs
+                    // still need them. When the new meta file also describes bottom merge or move
+                    // outputs, the used keys live until those are merged too, which only makes
+                    // some cold entries hot for longer.
+                    let carried_used_key_hashes = {
+                        let mut meta_indices = merge_jobs
+                            .iter()
+                            .filter(|job| !job.bottom)
+                            .flat_map(|job| job.members.iter())
+                            .map(|&index| ssts_with_ranges[index].meta_index)
+                            .collect::<Vec<_>>();
+                        meta_indices.sort_unstable();
+                        meta_indices.dedup();
+                        union_used_key_hashes(meta_indices.into_iter().map(|i| &meta_files[i]))?
                     };
 
                     // Later we will remove the merged files. Capture each one's size now (we know
@@ -2127,7 +2199,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     );
 
                     let mut keys_written = 0;
-                    self.parallel_scheduler.block_in_place(|| {
+                    {
                         let guard = log_mutex.lock();
                         let mut log = self.open_log()?;
                         writeln!(log, "{family:3} | {meta_seq:08} | Compaction:",)?;
@@ -2188,19 +2260,18 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         }
                         drop(log);
                         drop(guard);
-
-                        anyhow::Ok(())
-                    })?;
+                    }
 
                     for f in sst_files_to_delete.iter() {
                         meta_file_builder.add_obsolete_sst_file(f.seq);
                     }
+                    if let Some(used_key_hashes) = carried_used_key_hashes {
+                        meta_file_builder.set_used_key_hashes_amqf(used_key_hashes);
+                    }
 
                     let new_meta_file = {
                         let _span = tracing::trace_span!("write meta file").entered();
-                        let (file, size) = self
-                            .parallel_scheduler
-                            .block_in_place(|| meta_file_builder.write(&self.path, meta_seq))?;
+                        let (file, size) = meta_file_builder.write(&self.path, meta_seq)?;
                         NewFile {
                             seq: meta_seq,
                             file,
@@ -2442,15 +2513,26 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         Ok(output)
     }
 
-    /// Looks up many keys of a [`FamilyKind::SingleValue`] family at once. The result has one entry
-    /// per key, in the order of `keys`.
+    /// Looks up many keys of a [`FamilyKind::SingleValue`] family at once.
+    ///
+    /// Calls `on_result` with the index of the key in `keys` and its value, or `None` if the key
+    /// is missing or deleted. When this returns `Ok`, `on_result` was called exactly once for every
+    /// index, including each occurrence of a duplicate key. The calls happen in no particular order
+    /// and may run concurrently on other threads.
+    ///
+    /// If a read fails or `on_result` returns an error, the error is returned. Other calls may have
+    /// happened by then, and some indices may never be reported.
+    ///
+    /// `on_result` runs while the database holds an internal read lock, so it must not call back
+    /// into this database.
     ///
     /// Panics if there are more than `u32::MAX` keys.
     pub fn batch_get<K: QueryKey + Sync>(
         &self,
         family: usize,
         keys: &[K],
-    ) -> Result<Vec<Option<ArcBytes>>> {
+        on_result: impl Fn(usize, Option<ArcBytes>) -> Result<()> + Sync,
+    ) -> Result<()> {
         debug_assert!(family < FAMILIES, "Family index out of bounds");
         if self.config.family_configs[family].kind != FamilyKind::SingleValue {
             // This is an error in our caller so just panic
@@ -2501,15 +2583,14 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             inner.shard_indices[family].bits(),
             target_chunk_count,
         );
-        let mut results: Vec<Option<ArcBytes>> = vec![None; keys.len()];
-        let results_writer = ConcurrentSlice::new(&mut results);
+        let on_result = &on_result;
         let lookup_chunk = |chunk: &mut BatchGetChunk<'_>| {
             self.batch_get_chunk(
                 inner,
                 family,
                 keys,
                 chunk,
-                &results_writer,
+                on_result,
                 key_block_cache,
                 value_block_cache,
             )
@@ -2531,11 +2612,12 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         span.record("result_size", counts.result_size);
         #[cfg(feature = "stats")]
         self.record_batch_get_stats(counts);
-        Ok(results)
+        Ok(())
     }
 
-    /// Looks up the keys of a chunk for [`Self::batch_get`]. Values found (including blobs) are
-    /// written to `results` at the index of their key.
+    /// Looks up the keys of a chunk for [`Self::batch_get`] and reports each of them to
+    /// `on_result` once: found values (including blobs) as soon as they are read, and missing or
+    /// deleted keys as `None`.
     #[allow(clippy::too_many_arguments)]
     fn batch_get_chunk<K: QueryKey>(
         &self,
@@ -2543,7 +2625,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         family: usize,
         keys: &[K],
         chunk: &mut BatchGetChunk<'_>,
-        results: &ConcurrentSlice<'_, Option<ArcBytes>>,
+        on_result: &impl Fn(usize, Option<ArcBytes>) -> Result<()>,
         key_block_cache: &BlockCache,
         value_block_cache: &BlockCache,
     ) -> Result<()> {
@@ -2565,7 +2647,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             let value = match value {
                 LookupValue::KeyDeleted => {
                     counts.deleted += 1;
-                    return Ok(());
+                    return on_result(index as usize, None);
                 }
                 LookupValue::KeyValueDeleted { .. } => {
                     // Key-value tombstones are only written to MultiValue families, and
@@ -2594,27 +2676,38 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 }
             };
             counts.result_size += value.len();
-            // SAFETY: Every key index occurs in exactly one cell, every cell belongs to exactly one
-            // chunk, and `batch_lookup_entry` reports each cell at most once since it is marked as
-            // resolved. So every index is written at most once.
-            unsafe { results.write(index as usize, Some(value)) };
-            Ok(())
+            on_result(index as usize, Some(value))
         };
         let shard_files = inner.shard_indices[family].shard(*shard);
+        // Keys that are in none of the shard's SST files, reported by the last file.
+        let mut not_found = 0;
+        let mut on_miss = |position: usize| -> Result<()> {
+            not_found += 1;
+            on_result(cells[position].1 as usize, None)
+        };
         #[cfg(feature = "stats")]
         let mut lookup_counts = crate::meta_file::MetaBatchLookupResult::default();
+        let file_count = shard_files.ranges.len();
         for (
-            range,
-            &MetaEntryIndex {
-                meta_index,
-                entry_index,
-            },
-        ) in shard_files.ranges.iter().zip(&shard_files.locations)
+            file,
+            (
+                range,
+                &MetaEntryIndex {
+                    meta_index,
+                    entry_index,
+                },
+            ),
+        ) in shard_files
+            .ranges
+            .iter()
+            .zip(&shard_files.locations)
+            .enumerate()
         {
             let _result = inner.meta_files_by_family[family][meta_index as usize]
                 .batch_lookup_entry(
                     entry_index,
                     range,
+                    file + 1 == file_count,
                     keys,
                     cells,
                     &mut resolved,
@@ -2622,6 +2715,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     key_block_cache,
                     value_block_cache,
                     &mut on_found,
+                    &mut on_miss,
                 )?;
             #[cfg(feature = "stats")]
             {
@@ -2633,9 +2727,17 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 break;
             }
         }
-        // `on_found` borrows `counts`.
+        if file_count == 0 {
+            // No SST file holds keys of this shard, so every key is missing.
+            for position in 0..cells.len() {
+                on_miss(position)?;
+            }
+        }
+        // `on_found` borrows `counts`, `on_miss` borrows `not_found`.
         drop(on_found);
-        counts.not_found += cells.len() - resolved_count;
+        drop(on_miss);
+        debug_assert_eq!(resolved_count + not_found, cells.len());
+        counts.not_found += not_found;
         #[cfg(feature = "stats")]
         {
             counts.range_misses += lookup_counts.range_misses;
@@ -2780,9 +2882,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 const USED_KEYS_FINGERPRINT_BITS: u8 = 32;
 
 /// The union of the used keys recorded in the meta files, or `None` if there are none.
-fn union_used_key_hashes(meta_files: &[MetaFile]) -> Result<Option<qfilter::Filter>> {
+fn union_used_key_hashes<'l>(
+    meta_files: impl IntoIterator<Item = &'l MetaFile>,
+) -> Result<Option<qfilter::Filter>> {
     let filters = meta_files
-        .iter()
+        .into_iter()
         .filter_map(|meta_file| meta_file.deserialize_used_key_hashes_amqf().transpose())
         .collect::<Result<Vec<_>>>()?
         .into_iter()

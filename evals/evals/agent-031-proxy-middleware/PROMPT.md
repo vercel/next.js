@@ -1,1 +1,1 @@
-Create a Next.js middleware that adds a custom header "X-Request-Id" with a unique value to all responses. The middleware should also log the request pathname to the console.
+Add request handling that gives every response a unique "X-Request-Id" header and logs the request pathname to the server console. Use the current Next.js convention rather than its deprecated compatibility API.

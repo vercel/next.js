@@ -154,6 +154,8 @@ export const buildCustomRoute = <T>(
     strict: true,
     removeUnnamedParams: true,
     regexModifier: (regex: string) => {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       if (!(item as any).internal) {
         regex = modifyRouteRegex(
           regex,
@@ -478,7 +480,9 @@ export async function setupFsCheck(opts: {
     for (const page of appRouteHandlers) {
       const pathname = appNormalizers.pathname.normalize(page)
       setRouteDefinition('appFile', pathname, {
-        kind: RouteKind.APP_ROUTE,
+        kind: appPathsManifest[page].endsWith('.native.json')
+          ? RouteKind.APP_ROUTE_GO
+          : RouteKind.APP_ROUTE,
         pathname,
         page,
         bundlePath: appNormalizers.bundlePath.normalize(page),

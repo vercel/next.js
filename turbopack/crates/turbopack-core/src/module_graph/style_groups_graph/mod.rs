@@ -68,7 +68,7 @@ use std::{
 use anyhow::Result;
 use indexmap::map::Entry;
 use petgraph::graph::NodeIndex;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::{Instrument, instrument};
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
 
@@ -129,7 +129,7 @@ pub async fn compute_style_groups_graph(
         .await?;
 
     if modules_in_order.is_empty() {
-        return Ok(make_style_groups(FxIndexMap::default()));
+        return Ok(make_style_groups(FxHashMap::default()));
     }
 
     // 2. Resolve each module's `ChunkItemWithAsyncModuleInfo` and byte size in parallel.
@@ -290,11 +290,11 @@ async fn assemble_style_groups(
     chunks: &[(Vec<usize>, Option<f32>)],
     module_data: &[ModuleData],
 ) -> Result<Vc<StyleGroups>> {
-    let mut shared_chunk_items: FxIndexMap<ChunkItemWithAsyncModuleInfo, StyleItemInfo> =
-        FxIndexMap::default();
+    let mut shared_chunk_items: FxHashMap<ChunkItemWithAsyncModuleInfo, StyleItemInfo> =
+        FxHashMap::default();
     let mut order_counter: u32 = 0;
     let mut push =
-        |map: &mut FxIndexMap<ChunkItemWithAsyncModuleInfo, StyleItemInfo>,
+        |map: &mut FxHashMap<ChunkItemWithAsyncModuleInfo, StyleItemInfo>,
          chunk_item: ChunkItemWithAsyncModuleInfo,
          batch: Option<ResolvedVc<ChunkItemBatchWithAsyncModuleInfo>>| {
             map.insert(
@@ -351,7 +351,7 @@ async fn collect_chunk_groups(
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<(Vec<Vec<usize>>, Vec<StyleModuleRef>)> {
-    let chunk_group_info = module_graph.chunk_group_info().await?;
+    let all_chunk_groups = module_graph.chunk_group_info().chunk_groups().await?;
     let batches_graph = module_graph
         .module_batches(chunking_context.batching_config())
         .await?;
@@ -364,8 +364,8 @@ async fn collect_chunk_groups(
     let mut next_css_id: usize = 0;
     let mut chunk_groups: Vec<Vec<usize>> = Vec::new();
 
-    for (i, chunk_group) in chunk_group_info.chunk_groups.iter().enumerate() {
-        let ordered_entries = batches_graph.get_ordered_entries(&chunk_group_info, i);
+    for (i, chunk_group) in all_chunk_groups.iter().enumerate() {
+        let ordered_entries = batches_graph.get_ordered_entries(chunk_group, i)?;
         let mut entries = Vec::with_capacity(chunk_group.entries_count());
         for entry in ordered_entries {
             entries.push(batches_graph.get_entry_index(entry).await?);
