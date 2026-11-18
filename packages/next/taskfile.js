@@ -1149,8 +1149,14 @@ export async function ncc_comment_json(task, opts) {
 }
 externals['compression'] = 'next/dist/compiled/compression'
 export async function ncc_compression(task, opts) {
-  // Keep the front server's response policy on the middleware's MIME database.
   const compression = require.resolve('compression')
+  await task
+    .source(relative(__dirname, compression))
+    .ncc({ packageName: 'compression', externals })
+    .target('src/compiled/compression')
+
+  // target() recreates the directory cleared by ncc before writing the MIME
+  // policy from the middleware's database for the front server.
   const compressible = require.resolve('compressible', {
     paths: [dirname(compression)],
   })
@@ -1166,10 +1172,6 @@ export async function ncc_compression(task, opts) {
         .map(([type, value]) => [type, value.compressible])
     )
   )
-  await task
-    .source(relative(__dirname, compression))
-    .ncc({ packageName: 'compression', externals })
-    .target('src/compiled/compression')
 }
 externals['conf'] = 'next/dist/compiled/conf'
 export async function ncc_conf(task, opts) {
