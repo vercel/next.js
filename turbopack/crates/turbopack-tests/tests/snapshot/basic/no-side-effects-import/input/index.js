@@ -8,7 +8,8 @@ namespace.annotated()
 const alias = annotated
 alias()
 
-const parenthesizedAlias = annotated
+// prettier-ignore
+const parenthesizedAlias = (annotated)
 parenthesizedAlias()
 
 unannotated()

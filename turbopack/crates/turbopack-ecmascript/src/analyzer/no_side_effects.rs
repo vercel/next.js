@@ -55,7 +55,7 @@ impl NoSideEffectsCollector<'_> {
 }
 
 impl Visit for NoSideEffectsCollector<'_> {
-    noop_visit_type!(fail);
+    noop_visit_type!();
 
     fn visit_export_decl(&mut self, export: &ExportDecl) {
         export.visit_children_with(self);
@@ -108,5 +108,57 @@ impl Visit for NoSideEffectsCollector<'_> {
                 self.info.bindings.insert(binding.id.to_id());
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use swc_core::{
+        common::{FileName, GLOBALS, SourceMap, comments::SingleThreadedComments},
+        ecma::{
+            ast::EsVersion,
+            parser::{Syntax, TsSyntax, parse_file_as_program},
+        },
+    };
+
+    use super::*;
+
+    #[test]
+    fn collects_annotations_without_visiting_typescript_nodes() {
+        GLOBALS.set(&Default::default(), || {
+            let source_map = SourceMap::default();
+            let source = source_map.new_source_file(
+                FileName::Custom("fixture.ts".into()).into(),
+                r#"
+                    interface Shape { value: string }
+                    type Alias = Shape["value"]
+
+                    export const annotated: (value: Alias) => Alias =
+                        /*#__NO_SIDE_EFFECTS__*/ function (value: Alias): Alias { return value }
+
+                    export default /*#__NO_SIDE_EFFECTS__*/ function (value: Alias): Alias {
+                        return value
+                    }
+                "#,
+            );
+            let comments = SingleThreadedComments::default();
+            let mut errors = Vec::new();
+            let program = parse_file_as_program(
+                &source,
+                Syntax::Typescript(TsSyntax::default()),
+                EsVersion::EsNext,
+                Some(&comments),
+                &mut errors,
+            )
+            .expect("TypeScript fixture should parse");
+            assert!(errors.is_empty(), "fixture should not contain parse errors");
+
+            let info = collect_no_side_effects(&program, Some(&comments));
+            assert!(
+                info.bindings.iter().any(|(name, _)| name == "annotated"),
+                "annotated TypeScript binding should be collected"
+            );
+            assert!(info.default_export());
+        });
     }
 }
