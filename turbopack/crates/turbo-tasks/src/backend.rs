@@ -592,6 +592,15 @@ pub enum VerificationMode {
     Skip,
 }
 
+/// Outcome of [`Backend::try_read_settled_task_result`].
+pub enum SettledTaskResult {
+    NotSettled,
+    /// The output is a cell of the task itself; its content was read with the settled check.
+    OwnCell(TypedCellContent),
+    /// The output points to another task.
+    Other,
+}
+
 pub trait Backend: Sized + Sync + Send {
     #[allow(unused_variables)]
     fn startup(&self, turbo_tasks: &TurboTasks<Self>) {}
@@ -664,6 +673,19 @@ pub trait Backend: Sized + Sync + Send {
         options: ReadOutputOptions,
         turbo_tasks: &TurboTasks<Self>,
     ) -> Result<ReadOutcome<RawVc>>;
+
+    /// Reads the task's result only if it is settled right now: not dirty, no dirty containers, and
+    /// not scheduled, in progress, or canceled. When the output is a cell of the same task, that
+    /// cell is read under the same check, giving one consistent snapshot of the task's result.
+    /// Never waits, schedules, executes, or tracks. The default conservatively reports every task
+    /// as unsettled.
+    fn try_read_settled_task_result(
+        &self,
+        _task: TaskId,
+        _turbo_tasks: &TurboTasks<Self>,
+    ) -> Result<SettledTaskResult> {
+        Ok(SettledTaskResult::NotSettled)
+    }
 
     /// INVALIDATION: Be careful with this, when reader is None, it will not track dependencies, so
     /// using it could break cache invalidation.

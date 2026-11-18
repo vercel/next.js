@@ -91,7 +91,7 @@ pub use crate::{
     effect::{
         ApplyError, CapturedEffect, Effect, EffectError, EffectExt, EffectStateStorage, Effects,
         EffectsError, read_strongly_consistent_and_apply_effects,
-        resolve_strongly_consistent_and_take_and_apply_effects, take_effects,
+        read_strongly_consistent_and_apply_effects_in_task, take_effects,
     },
     error::PrettyPrintError,
     fixint::{FixintU64, FixintU128},

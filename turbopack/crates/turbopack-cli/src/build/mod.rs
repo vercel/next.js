@@ -767,3 +767,177 @@ pub async fn build(args: &BuildArguments, exit: &ExitHandler) -> Result<()> {
 
     result
 }
+
+#[cfg(test)]
+mod publication_tests {
+    use std::{collections::BTreeMap, path::Path, time::Duration};
+
+    use turbo_rcstr::rcstr;
+    use turbo_tasks::ReadRef;
+    use turbo_tasks_fs::DiskFileSystem;
+
+    use super::*;
+
+    #[turbo_tasks::function(operation, root)]
+    async fn source_fs(root: RcStr) -> Result<Vc<DiskFileSystem>> {
+        let fs = project_fs(root, false, rcstr!("dist"))
+            .to_resolved()
+            .await?;
+        let fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(fs)
+            .context("CLI project filesystem must be a disk filesystem")?;
+        Ok(*fs)
+    }
+
+    fn compile(root: RcStr, target: Target) -> OperationVc<Effects> {
+        extract_effects_operation(build_internal(
+            root.clone(),
+            root,
+            vec![EntryRequest::Relative(rcstr!("./src/entry.js"))],
+            rcstr!("last 1 Chrome versions"),
+            None,
+            false,
+            target,
+            false,
+            false,
+            None,
+        ))
+    }
+
+    fn files(dir: &Path) -> Result<BTreeMap<PathBuf, Vec<u8>>> {
+        fn visit(root: &Path, dir: &Path, files: &mut BTreeMap<PathBuf, Vec<u8>>) -> Result<()> {
+            for entry in std::fs::read_dir(dir)? {
+                let path = entry?.path();
+                if path.is_dir() {
+                    visit(root, &path, files)?;
+                } else {
+                    files.insert(path.strip_prefix(root)?.to_owned(), std::fs::read(path)?);
+                }
+            }
+            Ok(())
+        }
+        let mut result = BTreeMap::new();
+        visit(dir, dir, &mut result)?;
+        Ok(result)
+    }
+
+    async fn run_entry(root: &Path) -> Result<String> {
+        let output = tokio::time::timeout(
+            Duration::from_secs(10),
+            tokio::process::Command::new("node")
+                .arg("-e")
+                .arg(
+                    "require(process.argv[1]); \
+                     process.stdout.write(globalThis.__turbopack_publication)",
+                )
+                .arg(root.join("dist/entry.entry.js"))
+                .current_dir(root)
+                .kill_on_drop(true)
+                .output(),
+        )
+        .await??;
+        anyhow::ensure!(
+            output.status.success(),
+            "compiled entry failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        Ok(String::from_utf8(output.stdout)?)
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn publication_keeps_newest_real_turbopack_output() {
+        for target in [Target::Node, Target::Browser] {
+            let dir = tempfile::tempdir().unwrap();
+            let root = std::fs::canonicalize(dir.path()).unwrap();
+            std::fs::create_dir(root.join("src")).unwrap();
+            std::fs::write(
+                root.join("src/entry.js"),
+                include_str!("../../tests/fixtures/publication/src/entry.js"),
+            )
+            .unwrap();
+            std::fs::write(
+                root.join("src/version.js"),
+                include_str!("../../tests/fixtures/publication/src/version.js"),
+            )
+            .unwrap();
+            let tt = TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions {
+                    storage_mode: None,
+                    ..Default::default()
+                },
+                noop_backing_storage(),
+            ));
+            let result = tokio::time::timeout(
+                Duration::from_secs(90),
+                tt.run_once(async move {
+                    let root_string: RcStr = root.to_str().unwrap().into();
+                    let source_fs = source_fs(root_string.clone())
+                        .read_strongly_consistent()
+                        .await?;
+                    let op = compile(root_string.clone(), target);
+                    read_strongly_consistent_and_apply_effects(op, |e| e).await?;
+                    let old_plan: ReadRef<Effects> = op.read_strongly_consistent().await?;
+                    let old_files = files(&root.join("dist"))?;
+                    if matches!(target, Target::Node) {
+                        assert_eq!(run_entry(&root).await?, "PUBLICATION_OLD");
+                    }
+
+                    // Republishing an unchanged build is a no-op.
+                    read_strongly_consistent_and_apply_effects(op, |e| e).await?;
+                    assert_eq!(files(&root.join("dist"))?, old_files);
+
+                    std::fs::write(
+                        root.join("src/version.js"),
+                        "export const version = 'PUBLICATION_NEW'\n",
+                    )?;
+                    source_fs.invalidate();
+                    read_strongly_consistent_and_apply_effects(op, |e| e).await?;
+                    let new_files = files(&root.join("dist"))?;
+                    assert!(
+                        new_files.values().any(|bytes| bytes
+                            .windows(b"PUBLICATION_NEW".len())
+                            .any(|part| part == b"PUBLICATION_NEW")),
+                        "the compiler must really emit the changed source"
+                    );
+                    let changed_common = old_files
+                        .iter()
+                        .any(|(path, bytes)| new_files.get(path).is_some_and(|new| new != bytes));
+                    eprintln!(
+                        "publication target={target:?}: old_files={} new_files={} \
+                         changed_common={changed_common}",
+                        old_files.len(),
+                        new_files.len()
+                    );
+                    if matches!(target, Target::Node) {
+                        assert_eq!(run_entry(&root).await?, "PUBLICATION_NEW");
+                        assert!(
+                            changed_common,
+                            "the Node build must exercise a mutable common output path"
+                        );
+                    }
+
+                    // Publishing again validates against the current plan, so the edit stays.
+                    read_strongly_consistent_and_apply_effects(op, |e| e).await?;
+                    assert_eq!(files(&root.join("dist"))?, new_files);
+
+                    // Negative control: applying the retained old plan directly bypasses
+                    // publication and really restores stale compiler output.
+                    if changed_common {
+                        old_plan.apply_for_testing().await?;
+                        let stale_files = files(&root.join("dist"))?;
+                        assert!(
+                            old_files.iter().any(|(path, bytes)| {
+                                new_files.get(path).is_some_and(|new| new != bytes)
+                                    && stale_files.get(path) == Some(bytes)
+                            }),
+                            "the negative control must really restore stale compiler output"
+                        );
+                    }
+                    anyhow::Ok(())
+                }),
+            )
+            .await;
+            tt.stop_and_wait().await;
+            result.unwrap().unwrap();
+        }
+    }
+}
