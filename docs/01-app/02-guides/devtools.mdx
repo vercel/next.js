@@ -15,96 +15,43 @@ Next.js DevTools helps you inspect errors, route information, and loading states
 
 ## Open DevTools
 
-The indicator expands into a badge when your app has Issues or Insights:
+When you start `next dev`, the **Next.js DevTools button** appears as a circular **N** logo:
 
-{/* TODO: upload to Blob. These temporary light/dark screenshots are for PR review. Replace the picture elements with Image srcLight/srcDark after uploading. */}
+<Image
+  srcLight="/docs/light/devtools-guide-idle.png"
+  srcDark="/docs/dark/devtools-guide-idle.png"
+  alt="The default Next.js development indicator, a circular N button"
+  width="52"
+  height="53"
+/>
 
-<picture>
-  <source
-    media="(prefers-color-scheme: dark)"
-    srcSet="https://gist.githubusercontent.com/aurorascharff/76a1e2c1c05060df471c6c0c204b8417/raw/a7c14034c03af4b53dbd910e0eef92d2288b438b/docs-devtools-badge-dark.png"
-  />
-  <img
-    src="https://gist.githubusercontent.com/aurorascharff/76a1e2c1c05060df471c6c0c204b8417/raw/a7c14034c03af4b53dbd910e0eef92d2288b438b/docs-devtools-badge-light.png"
-    alt="DevTools badge, from left to right: N menu button, 1 Issue, 1 Insight, and collapse chevron"
-    width="244"
-    height="61"
-  />
-</picture>
-
-From left to right:
-
-1. **N** opens the DevTools menu. You can also drag this button to [move the badge](#move-the-badge).
-2. **Issues** opens the error overlay's Issues tab to inspect errors.
-3. **Insights** opens the Insights tab to investigate work that prevents [instant navigation](/docs/app/guides/instant-navigation#fixing-a-navigation-that-blocks).
-4. **The chevron (‹)** [collapses the badge](#collapse-the-badge), keeping the diagnostic count visible.
-
-Issues and Insights appear only when there are diagnostics. While Next.js compiles or renders, the badge shows status text beside **N**.
-
-### Collapse the badge
-
-Click the chevron at the end of the badge to reduce it to **N** with a count:
-
-<picture>
-  <source
-    media="(prefers-color-scheme: dark)"
-    srcSet="https://gist.githubusercontent.com/aurorascharff/76a1e2c1c05060df471c6c0c204b8417/raw/a7c14034c03af4b53dbd910e0eef92d2288b438b/docs-devtools-collapsed-dark.png"
-  />
-  <img
-    src="https://gist.githubusercontent.com/aurorascharff/76a1e2c1c05060df471c6c0c204b8417/raw/a7c14034c03af4b53dbd910e0eef92d2288b438b/docs-devtools-collapsed-light.png"
-    alt="Collapsed red N badge with a diagnostic count"
-    width="60"
-    height="61"
-  />
-</picture>
-
-Click **N** to expand the badge again, then click **Issues** or **Insights** to reopen its tab. Click **N** again to open the menu.
-
-When the idle indicator is [hidden](#show-indicator), **×** replaces the chevron and dismisses the diagnostic badge until a new diagnostic appears. Build errors remain available until you fix them.
-
-### Move the badge
-
-Close any open DevTools panels, then drag **N** to another corner. You can also choose a corner under [**Position**](#position) in Preferences. To set the starting corner for your project, configure [`devIndicators.position`](/docs/app/api-reference/config/next-config-js/devIndicators#position).
-
-For browser automation, collapse or move an obstructing badge instead of setting `instant = false`, which disables Instant Navigation validation for the route. For example, in Playwright:
-
-```ts filename="tests/navigation.spec.ts"
-const collapse = page.getByRole('button', { name: 'Collapse issues badge' })
-if (await collapse.isVisible()) {
-  await collapse.click()
-}
-```
+Click the Next.js DevTools button to open the menu, or drag it to another corner if it covers a control in your app. While Next.js compiles or renders, status text appears beside the button.
 
 ## Explore the menu
 
-Click **N** to open the menu:
+The DevTools menu gives you access to route information, debugging tools, and Preferences:
 
-<picture>
-  <source
-    media="(prefers-color-scheme: dark)"
-    srcSet="https://gist.githubusercontent.com/aurorascharff/76a1e2c1c05060df471c6c0c204b8417/raw/a7c14034c03af4b53dbd910e0eef92d2288b438b/docs-devtools-menu-dark.png"
-  />
-  <img
-    src="https://gist.githubusercontent.com/aurorascharff/76a1e2c1c05060df471c6c0c204b8417/raw/a7c14034c03af4b53dbd910e0eef92d2288b438b/docs-devtools-menu-light.png"
-    alt="DevTools menu above the badge, showing Diagnostics, Bundler, Cache Components, Navigation Inspector, Route Info, and Preferences"
-    width="272"
-    height="312"
-  />
-</picture>
+<Image
+  srcLight="/docs/light/devtools-guide-menu.png"
+  srcDark="/docs/dark/devtools-guide-menu.png"
+  alt="DevTools menu, from top to bottom: Bundler, Cache Components, Navigation Inspector, Route Info, and Preferences"
+  width="264"
+  height="223"
+/>
 
 The entries shown above, from top to bottom:
 
 | Entry                    | What it does                                                                                                                                                                                            |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Diagnostics**          | Shows red Issue and amber Insight counts. Opens Issues if there are errors, otherwise Insights. See [validation messages](/docs/messages/instant-navigation-validation) for help with Insights.         |
 | **Bundler**              | Shows the bundler running your app, such as [Turbopack](/docs/app/api-reference/config/next-config-js/turbopack).                                                                                       |
 | **Cache Components**     | Confirms that [Cache Components](/docs/app/getting-started/caching) is enabled.                                                                                                                         |
 | **Navigation Inspector** | Pauses page loads and navigations so you can inspect loading states. See the [Navigation Inspector walkthrough](/docs/app/guides/instant-navigation#visualize-loading-states-with-the-nextjs-devtools). |
 | **Route Info**           | Shows the current route's layouts and page. Open files in your editor, or preview existing loading, error, and not-found boundaries. Clear the preview to return to normal rendering.                   |
 | **Preferences**          | Opens appearance, indicator visibility, and dev server settings. To hide the indicator, use **Show indicator** here.                                                                                    |
 
-Some entries depend on your app's configuration:
+Some entries appear only when relevant, in this order:
 
+- **Diagnostics**, at the top, shows red Issue and amber Insight counts. It opens Issues when there are errors, otherwise Insights. See [Issues and Insights](#issues-and-insights).
 - **Route**, above **Bundler**, shows Static or Dynamic when Cache Components is off. See [Route information](#route-information).
 - **Request Insights**, below **Navigation Inspector**, shows request timelines, server fetches, and cache activity when `experimental.requestInsights` is enabled. Agents can read this data using the [MCP runtime tools](/docs/app/guides/mcp#runtime-tools).
 - **Cache**, above **Route Info**, explains a **Disabled** or **Cold** cache state. Disabled means the load bypassed caches, for example after a hard reload. Cold means the load filled empty caches; reload to see the loading sequence with warm caches.
@@ -122,22 +69,63 @@ If you expected a static route:
 
 With [Cache Components](/docs/app/getting-started/caching), the Static/Dynamic entry is hidden because a route can combine prerendered and request-time content. Use Navigation Inspector to inspect its loading states.
 
+## Issues and Insights
+
+The indicator expands to show **Issues** when Next.js reports errors in your app, or **Insights** when navigation validation finds work to investigate:
+
+<Image
+  srcLight="/docs/light/devtools-guide-badge.png"
+  srcDark="/docs/dark/devtools-guide-badge.png"
+  alt="DevTools badge, from left to right: DevTools button, 2 Issues, 1 Insight, and collapse chevron"
+  width="243"
+  height="53"
+/>
+
+- **Issues** opens the error overlay's Issues tab, where you can inspect the error and its source location.
+- **Insights** opens the Insights tab. With [Cache Components](/docs/app/getting-started/caching), [Instant Navigation validation](/docs/app/guides/instant-navigation#validate-instant-navigation) checks what can render before and during navigation. Insights can point to uncached data or a missing Suspense boundary. Each message explains the cause and possible fixes. See [validation messages](/docs/messages/instant-navigation-validation) for details.
+
+Each button shows its diagnostic count. You can also open diagnostics from the **Diagnostics** menu entry.
+
+### Collapse the badge
+
+Click the chevron (‹) at the end of the badge to collapse it to the DevTools button with a diagnostic count:
+
+<Image
+  srcLight="/docs/light/devtools-guide-collapsed.png"
+  srcDark="/docs/dark/devtools-guide-collapsed.png"
+  alt="Collapsed red N badge with a diagnostic count"
+  width="52"
+  height="53"
+/>
+
+Click the Next.js DevTools button to expand the badge again, then click **Issues** or **Insights** to reopen its tab.
+
+When the idle indicator is [hidden](#show-indicator), **×** replaces the chevron and dismisses the diagnostic badge until a new diagnostic appears. Build errors remain available until you fix them.
+
+## Move the badge
+
+Close any open DevTools panels, then drag the Next.js DevTools button to another corner. You can also choose a corner under [**Position**](#position) in Preferences. To set the starting corner for your project, configure [`devIndicators.position`](/docs/app/api-reference/config/next-config-js/devIndicators#position).
+
+For browser automation, collapse or move an obstructing badge instead of setting `instant = false`, which disables Instant Navigation validation for the route. For example, in Playwright:
+
+```ts filename="tests/navigation.spec.ts"
+const collapse = page.getByRole('button', { name: 'Collapse issues badge' })
+if (await collapse.isVisible()) {
+  await collapse.click()
+}
+```
+
 ## Preferences
 
 Open **Preferences** from the menu. Each **?** links to the matching section of this guide.
 
-<picture>
-  <source
-    media="(prefers-color-scheme: dark)"
-    srcSet="https://gist.githubusercontent.com/aurorascharff/76a1e2c1c05060df471c6c0c204b8417/raw/a7c14034c03af4b53dbd910e0eef92d2288b438b/docs-devtools-preferences-dark.png"
-  />
-  <img
-    src="https://gist.githubusercontent.com/aurorascharff/76a1e2c1c05060df471c6c0c204b8417/raw/a7c14034c03af4b53dbd910e0eef92d2288b438b/docs-devtools-preferences-light.png"
-    alt="Full Preferences panel and badge, with Appearance, Indicator, and Dev server settings"
-    width="536"
-    height="670"
-  />
-</picture>
+<Image
+  srcLight="/docs/light/devtools-guide-preferences.png"
+  srcDark="/docs/dark/devtools-guide-preferences.png"
+  alt="Preferences panel, with Appearance, Indicator, and Dev server settings"
+  width="528"
+  height="617"
+/>
 
 The settings below follow the panel from top to bottom.
 
@@ -147,7 +135,7 @@ Under **Appearance**, choose **System**, **Light**, or **Dark** for DevTools.
 
 ### Position
 
-Choose one of the four corners for the badge. Dragging **N** updates the same setting. See [`devIndicators.position`](/docs/app/api-reference/config/next-config-js/devIndicators#position) to configure the starting corner in `next.config`.
+Choose one of the four corners for the badge. Dragging the DevTools button updates the same setting. See [`devIndicators.position`](/docs/app/api-reference/config/next-config-js/devIndicators#position) to configure the starting corner in `next.config`.
 
 ### Size
 
@@ -157,20 +145,15 @@ Choose **Small**, **Medium**, or **Large** to scale the badge and DevTools panel
 
 Under **Indicator**, turn off **Show indicator** to hide the idle badge and dismiss the current diagnostics. New errors and Insights still appear, and build errors remain available.
 
-<picture>
-  <source
-    media="(prefers-color-scheme: dark)"
-    srcSet="https://gist.githubusercontent.com/aurorascharff/76a1e2c1c05060df471c6c0c204b8417/raw/a7c14034c03af4b53dbd910e0eef92d2288b438b/docs-devtools-hidden-dark.png"
-  />
-  <img
-    src="https://gist.githubusercontent.com/aurorascharff/76a1e2c1c05060df471c6c0c204b8417/raw/a7c14034c03af4b53dbd910e0eef92d2288b438b/docs-devtools-hidden-light.png"
-    alt="Indicator hidden confirmation with an Undo button and instructions to restart the dev server"
-    width="352"
-    height="84"
-  />
-</picture>
+<Image
+  srcLight="/docs/light/devtools-guide-hidden.png"
+  srcDark="/docs/dark/devtools-guide-hidden.png"
+  alt="Indicator hidden confirmation with an Undo button and instructions to restart the dev server"
+  width="345"
+  height="76"
+/>
 
-Click **Undo** in the temporary confirmation to bring the indicator back. You can also use your [recorded shortcut](#keyboard-shortcut) or restart the dev server. If a new diagnostic appears, open **N → Preferences** and turn **Show indicator** back on.
+Click **Undo** in the temporary confirmation to bring the indicator back. You can also use your [recorded shortcut](#keyboard-shortcut) or restart the dev server. If a new diagnostic appears, open **DevTools → Preferences** and turn **Show indicator** back on.
 
 Hiding lasts until the dev server restarts or one day passes. Reload the page after that time to show the indicator again. To hide the idle indicator through configuration, set [`devIndicators: false`](/docs/app/api-reference/config/next-config-js/devIndicators#hide-the-indicator). Change that setting to restore the idle indicator for the project.
 
