@@ -8,7 +8,6 @@ import type {
   AdaptiveTaskInput,
 } from './types'
 import type { ExportPathEntry } from '../types'
-import { retry } from 'next-test-utils'
 
 const MB = 1024 * 1024
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -188,6 +187,10 @@ function run(
 }
 
 describe('runAdaptiveStaticGeneration', () => {
+  afterEach(() => {
+    jest.useRealTimers()
+  })
+
   it('renders every page once and returns results in input order', async () => {
     const workers = [new FakeWorker(0), new FakeWorker(1), new FakeWorker(2)]
     const paths = exportPaths(100)
@@ -440,6 +443,7 @@ describe('runAdaptiveStaticGeneration', () => {
   ])(
     'stops queued exports after $error with concurrency $concurrency',
     async ({ concurrency, error }) => {
+      jest.useFakeTimers()
       const started: string[] = []
       const worker = new FakeWorker(0, {
         onPageStart: (path) => {
@@ -465,9 +469,8 @@ describe('runAdaptiveStaticGeneration', () => {
       // The timer and any pages already rendering may still finish after
       // the error, but neither should restart the queued exports.
       session.tick()
-      await retry(async () => {
-        expect(session.status().running).toBe(0)
-      })
+      await jest.runAllTimersAsync()
+      expect(session.status().running).toBe(0)
       expect(started).toEqual(expectedStarted)
 
       // Keep the first error, including an undefined rejection, and refuse

@@ -127,9 +127,13 @@ describe('StaticGenerationProfiler', () => {
     distDir = fs.mkdtempSync(path.join(os.tmpdir(), 'static-gen-profile-'))
     process.env[STATIC_GENERATION_PROFILE_ENV] = '1'
     jest.isolateModules(() => {
-      profiler = (
+      const enabledProfiler = (
         require('./static-generation-profile') as typeof import('./static-generation-profile')
       ).getStaticGenerationProfiler()
+      if (!enabledProfiler) {
+        throw new Error('Expected static generation profiling to be enabled')
+      }
+      profiler = enabledProfiler
     })
   })
 
