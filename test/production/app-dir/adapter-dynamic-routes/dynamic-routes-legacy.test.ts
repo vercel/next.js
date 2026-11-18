@@ -45,7 +45,7 @@ describe('adapter dynamic routes (legacy)', () => {
      /legacy/[id]
        ^/_next/data/test\\-build\\-id[/]?/legacy/(?<nxtPid>[^/]+?)\\.json(?:/)?$
        -> /_next/data/test-build-id/legacy/[id].json?nxtPid=$nxtPid
-       [has cookie __prerender_bypass, has cookie __next_preview_data]
+       [has cookie __prerender_bypass]
 
      /static-one
        ^/_next/data/test\\-build\\-id[/]?/static\\-one\\.json(?:/)?$
@@ -78,7 +78,7 @@ describe('adapter dynamic routes (legacy)', () => {
      /legacy/[id]
        ^[/]?/legacy/(?<nxtPid>[^/]+?)(?:/)?$
        -> /legacy/[id]?nxtPid=$nxtPid
-       [has cookie __prerender_bypass, has cookie __next_preview_data]"
+       [has cookie __prerender_bypass]"
     `)
   })
 })

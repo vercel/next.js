@@ -9,17 +9,32 @@ export class OptionalPeerDependencyResolverPlugin {
       'OptionalPeerDependencyResolverPlugin',
       (request, resolveContext, callback) => {
         // if we've already recursed into this plugin, we want to skip it
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         if ((request as any)[pluginSymbol]) {
           return callback()
         }
 
-        // popping the stack to prevent the recursion check
-        resolveContext.stack?.delete(Array.from(resolveContext.stack).pop()!)
+        // Pop the stack to prevent the recursion check. Webpack's bundled
+        // resolver exposes a Set while external resolver versions can expose
+        // a stack with a pop method.
+        if (resolveContext.stack) {
+          const stack = resolveContext.stack as typeof resolveContext.stack & {
+            pop?: () => unknown
+          }
+          if (typeof stack.delete === 'function') {
+            stack.delete(Array.from(stack).pop()!)
+          } else {
+            stack.pop?.()
+          }
+        }
 
         resolver.doResolve(
           target,
           // when we call doResolve again, we need to make sure we don't
           // recurse into this plugin again
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           { ...request, [pluginSymbol]: true } as any,
           null,
           resolveContext,

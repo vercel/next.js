@@ -53,7 +53,7 @@ export default function Layout({ children }: LayoutProps<'/products'>) {
 }
 ```
 
-See the [complete provider setup in the demo source](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/react-query) or learn about provider options in the [TanStack Query Advanced SSR guide](https://tanstack.com/query/latest/docs/framework/react/guides/advanced-ssr).
+See the [complete provider setup in the demo source](https://github.com/nextjs/next-spa-patterns/tree/main/app/react-query) or learn about provider options in the [TanStack Query Advanced SSR guide](https://tanstack.com/query/latest/docs/framework/react/guides/advanced-ssr).
 
 ## Fetch data on the client
 
@@ -655,4 +655,4 @@ async function ProductData({ id }) {
 
 > **Good to know:** The timestamp must advance whenever the hydrated data changes. The helper suits tag-driven server data because both use the same tags. For time-driven server data, derive the data and hydration timestamp from the same cached snapshot instead of maintaining unrelated time windows.
 
-See the [live `next-spa-patterns` demo](https://next-spa-patterns.labs.vercel.dev/react-query) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/react-query). Learn more about [TanStack Query optimistic updates](https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates) and the [TanStack Query documentation](https://tanstack.com/query/latest/docs/framework/react/overview).
+See the [live `next-spa-patterns` demo](https://next-spa-patterns.labs.vercel.dev/react-query) and its [source code](https://github.com/nextjs/next-spa-patterns/tree/main/app/react-query). Learn more about [TanStack Query optimistic updates](https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates) and the [TanStack Query documentation](https://tanstack.com/query/latest/docs/framework/react/overview).

@@ -1,7 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// This test checks workspace-root inference from pnpm-workspace.yaml.
+// Vercel's builder sets NEXT_PRIVATE_OUTPUT_TRACE_ROOT, bypassing that inference.
+// Successful imports and absent warnings would not verify workspace detection.
+// @force-gate !deploy
 describe('pnpm-workspace-root', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: {
       'app/layout.tsx': `
         import { ReactNode } from 'react'
@@ -44,12 +48,7 @@ describe('pnpm-workspace-root', () => {
     },
     // So that parent files don't leave the isolated testDir
     subDir: 'test',
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should detect root directory from pnpm-workspace.yaml and allow imports from outside app dir', async () => {
     // The app should start successfully when pnpm-workspace.yaml is present

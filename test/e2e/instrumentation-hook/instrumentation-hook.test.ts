@@ -4,15 +4,12 @@ import path from 'path'
 
 const describeCase = (
   caseName: string,
-  callback: (context: ReturnType<typeof nextTestSetup>) => void,
-  { skipDeployment = false }: { skipDeployment?: boolean } = {}
+  callback: (context: ReturnType<typeof nextTestSetup>) => void
 ) => {
   describe(caseName, () => {
     const context = nextTestSetup({
       files: path.join(__dirname, caseName),
-      skipDeployment,
     })
-    if (context.skipped) return
 
     callback(context)
   })

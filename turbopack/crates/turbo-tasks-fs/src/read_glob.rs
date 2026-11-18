@@ -1,4 +1,5 @@
 use anyhow::{Result, bail};
+use auto_hash_map::AutoMap;
 use futures::try_join;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
@@ -212,7 +213,7 @@ async fn track_glob_internal(
     glob: Vc<Glob>,
     include_dot_files: bool,
 ) -> Result<Vc<Completion>> {
-    let dir = directory.read_dir().await?;
+    let dir = read_dir_for_track_glob(directory.clone(), include_dot_files).await?;
     let glob_value = glob.await?;
     let fs = directory.fs().to_resolved().await?;
     let mut reads = Vec::new();
@@ -221,9 +222,6 @@ async fn track_glob_internal(
     match &*dir {
         DirectoryContent::Entries(entries) => {
             for (segment, entry) in entries.iter() {
-                if !include_dot_files && segment.starts_with('.') {
-                    continue;
-                }
                 // This is redundant with logic inside of `read_dir` but here we track it separately
                 // so we don't follow symlinks.
                 let entry_path = if prefix.is_empty() {
@@ -274,6 +272,29 @@ async fn track_glob_internal(
         completions.iter().try_join()
     )?;
     Ok(Completion::new())
+}
+
+// This task shields callers that want to ignore dot files from being invalidated when they change
+#[turbo_tasks::function(fs)]
+async fn read_dir_for_track_glob(
+    directory: FileSystemPath,
+    include_dot_files: bool,
+) -> Result<Vc<DirectoryContent>> {
+    let read_dir = directory.read_dir();
+    if include_dot_files {
+        return Ok(read_dir);
+    }
+
+    Ok(match &*read_dir.await? {
+        DirectoryContent::Entries(entries) => DirectoryContent::new(
+            entries
+                .iter()
+                .filter(|(segment, _)| !segment.starts_with('.'))
+                .map(|(segment, entry)| (segment.clone(), entry.clone()))
+                .collect::<AutoMap<_, _>>(),
+        ),
+        DirectoryContent::NotFound => read_dir,
+    })
 }
 
 #[cfg(test)]
@@ -785,6 +806,27 @@ pub mod tests {
             )
             .await?;
 
+            let read_dir2 = track_star_star_glob(dir.clone())
+                .read_strongly_consistent()
+                .await?;
+            assert!(ReadRef::ptr_eq(&read_dir, &read_dir2));
+
+            // Creating or deleting a dotfile should not invalidate the filtered glob.
+            read_strongly_consistent_and_apply_effects(
+                extract_effects_operation(write(root.join("dir/sub/.ignored")?, rcstr!("ignored"))),
+                |e| e,
+            )
+            .await?;
+            let read_dir2 = track_star_star_glob(dir.clone())
+                .read_strongly_consistent()
+                .await?;
+            assert!(ReadRef::ptr_eq(&read_dir, &read_dir2));
+
+            read_strongly_consistent_and_apply_effects(
+                extract_effects_operation(delete(root.join("dir/sub/.ignored")?)),
+                |e| e,
+            )
+            .await?;
             let read_dir2 = track_star_star_glob(dir.clone())
                 .read_strongly_consistent()
                 .await?;

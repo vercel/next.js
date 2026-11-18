@@ -26,10 +26,12 @@ Compared to a custom React error boundary, `catchError` is designed to work with
 import { catchError, type ErrorInfo } from 'next/error'
 
 function ErrorFallback(props: { title: string }, { error, retry }: ErrorInfo) {
+  const message = error instanceof Error ? error.message : String(error)
+
   return (
     <div>
       <h2>{props.title}</h2>
-      <p>{error.message}</p>
+      <p>{message}</p>
       <button onClick={() => retry()}>Try again</button>
     </div>
   )
@@ -44,10 +46,12 @@ export default catchError(ErrorFallback)
 import { catchError } from 'next/error'
 
 function ErrorFallback(props, { error, retry }) {
+  const message = error instanceof Error ? error.message : String(error)
+
   return (
     <div>
       <h2>{props.title}</h2>
-      <p>{error.message}</p>
+      <p>{message}</p>
       <button onClick={() => retry()}>Try again</button>
     </div>
   )
@@ -71,10 +75,12 @@ Compared to a custom React error boundary, `catchError` is designed to work with
 import { catchError, type ErrorInfo } from 'next/error'
 
 function ErrorFallback(props: { title: string }, { error, reset }: ErrorInfo) {
+  const message = error instanceof Error ? error.message : String(error)
+
   return (
     <div>
       <h2>{props.title}</h2>
-      <p>{error.message}</p>
+      <p>{message}</p>
       <button onClick={() => reset()}>Try again</button>
     </div>
   )
@@ -87,10 +93,12 @@ export default catchError(ErrorFallback)
 import { catchError } from 'next/error'
 
 function ErrorFallback(props, { error, reset }) {
+  const message = error instanceof Error ? error.message : String(error)
+
   return (
     <div>
       <h2>{props.title}</h2>
-      <p>{error.message}</p>
+      <p>{message}</p>
       <button onClick={() => reset()}>Try again</button>
     </div>
   )
@@ -120,11 +128,11 @@ A function that renders the error UI when an error is caught. It receives two ar
 
 <AppOnly>
 
-| Property | Type                                                                                        | Description                                                                                                                                     |
-| -------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `error`  | [`Error`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Error) | The error instance that was caught.                                                                                                             |
-| `retry`  | `() => void`                                                                                | Re-fetches and re-renders the error boundary's children. If successful, the fallback is replaced with the re-rendered result.                   |
-| `reset`  | `() => void`                                                                                | Resets the error state and re-renders without re-fetching. Use [`retry()`](/docs/app/api-reference/file-conventions/error#retry) in most cases. |
+| Property | Type         | Description                                                                                                                                     |
+| -------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `error`  | `unknown`    | The value that was thrown. Narrow it, for example with `instanceof Error`, before reading properties like `message`.                            |
+| `retry`  | `() => void` | Re-fetches and re-renders the error boundary's children. If successful, the fallback is replaced with the re-rendered result.                   |
+| `reset`  | `() => void` | Resets the error state and re-renders without re-fetching. Use [`retry()`](/docs/app/api-reference/file-conventions/error#retry) in most cases. |
 
 The `fallback` function must be a Client Component (or defined in a `'use client'` module).
 
@@ -132,10 +140,10 @@ The `fallback` function must be a Client Component (or defined in a `'use client
 
 <PagesOnly>
 
-| Property | Type                                                                                        | Description                                                          |
-| -------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `error`  | [`Error`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Error) | The error instance that was caught.                                  |
-| `reset`  | `() => void`                                                                                | Resets the error state and re-renders the error boundary's children. |
+| Property | Type         | Description                                                                                                          |
+| -------- | ------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `error`  | `unknown`    | The value that was thrown. Narrow it, for example with `instanceof Error`, before reading properties like `message`. |
+| `reset`  | `() => void` | Resets the error state and re-renders the error boundary's children.                                                 |
 
 </PagesOnly>
 
@@ -207,9 +215,11 @@ In most cases, use `retry()` instead of `reset()`. The `reset()` function only c
 import { catchError, type ErrorInfo } from 'next/error'
 
 function ErrorFallback(props: {}, { error, retry, reset }: ErrorInfo) {
+  const message = error instanceof Error ? error.message : String(error)
+
   return (
     <div>
-      <p>{error.message}</p>
+      <p>{message}</p>
       <button onClick={() => retry()}>Try again</button>
       <button onClick={() => reset()}>Reset</button>
     </div>
@@ -225,9 +235,11 @@ export default catchError(ErrorFallback)
 import { catchError } from 'next/error'
 
 function ErrorFallback(props, { error, retry, reset }) {
+  const message = error instanceof Error ? error.message : String(error)
+
   return (
     <div>
-      <p>{error.message}</p>
+      <p>{message}</p>
       <button onClick={() => retry()}>Try again</button>
       <button onClick={() => reset()}>Reset</button>
     </div>
@@ -247,9 +259,11 @@ Use `reset()` to prompt the user to recover from the error. When called, the fun
 import { catchError, type ErrorInfo } from 'next/error'
 
 function ErrorFallback(props: {}, { error, reset }: ErrorInfo) {
+  const message = error instanceof Error ? error.message : String(error)
+
   return (
     <div>
-      <p>{error.message}</p>
+      <p>{message}</p>
       <button onClick={() => reset()}>Try again</button>
     </div>
   )
@@ -262,9 +276,11 @@ export default catchError(ErrorFallback)
 import { catchError } from 'next/error'
 
 function ErrorFallback(props, { error, reset }) {
+  const message = error instanceof Error ? error.message : String(error)
+
   return (
     <div>
-      <p>{error.message}</p>
+      <p>{message}</p>
       <button onClick={() => reset()}>Try again</button>
     </div>
   )

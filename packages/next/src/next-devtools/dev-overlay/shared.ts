@@ -12,11 +12,13 @@ import type { DevIndicatorServerState } from '../../server/dev/dev-indicator-ser
 import { parseStack } from '../../server/lib/parse-stack'
 import { isConsoleError } from '../shared/console-error'
 import type { CacheIndicatorState } from './cache-indicator'
-import type {
-  RequestInsight,
-  RequestInsightsSnapshot,
+import {
+  getRequestInsightKey,
+  MAX_LIVE_COMPLETED_REQUEST_INSIGHTS,
+  type RequestInsight,
+  type RequestInsightDelta,
+  type RequestInsightsSnapshot,
 } from '../shared/request-insights'
-import { getRequestInsightKey } from '../shared/request-insights'
 import { readInstantNavCookieState } from './components/instant-navs/instant-nav-cookie'
 import { isBlockingRouteInNavError } from './container/errors'
 import { isDynamicRoute } from '../../shared/lib/router/utils/is-dynamic'
@@ -95,6 +97,7 @@ export interface OverlayState {
     showInternal: boolean
     verbose: boolean
   }>
+  readonly hasVulnerabilityInsight: boolean
 }
 type DevtoolsPanelName = string
 export type OverlayDispatch = React.Dispatch<DispatcherEvent>
@@ -131,17 +134,70 @@ export const ACTION_INSTANT_NAVS_RESET = 'instant-navs-reset'
 export const ACTION_INSTANT_ERRORS_CLEAR = 'instant-errors-clear'
 export const ACTION_REQUEST_INSIGHTS_SNAPSHOT = 'request-insights-snapshot'
 export const ACTION_REQUEST_INSIGHTS_UPDATE = 'request-insights-update'
+export const ACTION_VULNERABILITY_INSIGHT = 'vulnerability-insight'
 
 export function updateRequestInsights(
   currentRequests: readonly RequestInsight[],
-  insight: RequestInsight
+  update: RequestInsight | RequestInsightDelta
 ): RequestInsight[] {
-  const insightKey = getRequestInsightKey(insight)
-  const requests = currentRequests.filter(
-    (request) => getRequestInsightKey(request) !== insightKey
+  const insightKey = getRequestInsightKey(update)
+  const index = currentRequests.findIndex(
+    (request) => getRequestInsightKey(request) === insightKey
   )
-  requests.push(insight)
-  return requests.slice(-100)
+  const previous = currentRequests[index]
+  let insight: RequestInsight
+  if ('spanOffset' in update) {
+    const { spanOffset, fetchOffset, ...metadata } = update
+    const spans = previous?.spans ?? []
+    const fetches = previous?.fetches ?? []
+    // Updates can arrive before the initial snapshot while HMR connects.
+    if (spanOffset > spans.length || fetchOffset > fetches.length) {
+      return [...currentRequests]
+    }
+    const addedSpans = update.spans.slice(spans.length - spanOffset)
+    const addedFetches = update.fetches.slice(fetches.length - fetchOffset)
+    insight = {
+      ...metadata,
+      completedAt: previous?.completedAt ?? update.completedAt,
+      status: previous?.status === 'error' ? 'error' : update.status,
+      spans: addedSpans.length > 0 ? [...spans, ...addedSpans] : spans,
+      fetches:
+        addedFetches.length > 0 ? [...fetches, ...addedFetches] : fetches,
+    }
+  } else {
+    insight = update
+  }
+  const requests = [...currentRequests]
+  if (index === -1) {
+    requests.push(insight)
+  } else if (
+    previous.completedAt === undefined &&
+    insight.completedAt !== undefined
+  ) {
+    requests.splice(index, 1)
+    requests.push(insight)
+  } else {
+    requests[index] = insight
+  }
+
+  let completedCount = requests.reduce(
+    (count, request) => count + (request.completedAt === undefined ? 0 : 1),
+    0
+  )
+  if (completedCount <= MAX_LIVE_COMPLETED_REQUEST_INSIGHTS) {
+    return requests
+  }
+
+  return requests.filter((request) => {
+    if (
+      request.completedAt === undefined ||
+      completedCount <= MAX_LIVE_COMPLETED_REQUEST_INSIGHTS
+    ) {
+      return true
+    }
+    completedCount--
+    return false
+  })
 }
 
 export const STORAGE_KEY_PANEL_POSITION_PREFIX =
@@ -281,7 +337,12 @@ interface RequestInsightsSnapshotAction {
 
 interface RequestInsightsUpdateAction {
   type: typeof ACTION_REQUEST_INSIGHTS_UPDATE
-  insight: RequestInsight
+  insight: RequestInsightDelta
+}
+
+interface VulnerabilityInsightAction {
+  type: typeof ACTION_VULNERABILITY_INSIGHT
+  hasVulnerabilityInsight: boolean
 }
 
 export type DispatcherEvent =
@@ -314,6 +375,7 @@ export type DispatcherEvent =
   | InstantErrorsClearAction
   | RequestInsightsSnapshotAction
   | RequestInsightsUpdateAction
+  | VulnerabilityInsightAction
 
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
   // 1st group: new frame + v8
@@ -401,6 +463,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   instantNavs: hasInstantNavsCookie,
   requestInsights: [],
   requestInsightsConfig: { showInternal: false, verbose: false },
+  hasVulnerabilityInsight: false,
 }
 
 function getInitialState(
@@ -700,6 +763,12 @@ export function useErrorOverlayReducer(
         }
         case ACTION_REQUEST_INSIGHTS_SNAPSHOT: {
           return { ...state, requestInsights: action.snapshot.requests }
+        }
+        case ACTION_VULNERABILITY_INSIGHT: {
+          return {
+            ...state,
+            hasVulnerabilityInsight: action.hasVulnerabilityInsight,
+          }
         }
         case ACTION_REQUEST_INSIGHTS_UPDATE: {
           return {

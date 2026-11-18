@@ -2,7 +2,7 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
 import { splitResponseWithPPRSentinel } from 'e2e-utils/ppr'
 import { links } from './components/links'
 import cheerio from 'cheerio'
-import { getCacheHeader, retry } from 'next-test-utils'
+import { expectDirectives, getCacheHeader, retry } from 'next-test-utils'
 import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 
 type Page = {
@@ -67,23 +67,10 @@ const addCacheBustingSearchParam = async (
   return url.pathname + url.search
 }
 
-/**
- * Expects that the cache-control header contains the given directives in any
- * order.
- *
- * @param header The cache-control header to check.
- * @param directives The directives to expect.
- */
-const expectDirectives = (header: string, directives: string[]) => {
-  const split = header.split(',').map((directive) => directive.trim())
-  for (const directive of directives) {
-    expect(split).toContain(directive)
-  }
-  expect(split.length).toEqual(directives.length)
-}
-
 // TODO(NAR-423): Migrate to Cache Components.
-describe.skip('ppr-full', () => {
+// The legacy route segment configs must be migrated before the fixture can build.
+// @force-gate FIXME
+describe('ppr-full', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })

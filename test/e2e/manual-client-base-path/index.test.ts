@@ -5,12 +5,9 @@ import http from 'http'
 import assert from 'assert'
 import { check, renderViaHTTP, waitFor } from 'next-test-utils'
 
+// Deploy mode exclusion: This suite runs an in-test HTTP proxy in front of the local Next.js server.
+// @force-gate !deploy
 describe('manual-client-base-path', () => {
-  if ((global as any).isNextDeploy) {
-    it('should skip deploy', () => {})
-    return
-  }
-
   let server: http.Server
   let appPort: string
   const basePath = '/docs-proxy'
@@ -106,7 +103,7 @@ describe('manual-client-base-path', () => {
     ['/dynamic/first', '/dynamic/[slug]', { slug: 'first' }],
     ['/dynamic/second', '/dynamic/[slug]', { slug: 'second' }],
   ]) {
-    // eslint-disable-next-line
+    // eslint-disable-next-line no-loop-func
     it(`should not update with basePath on mount ${asPath}`, async () => {
       const fullAsPath = (asPath as string) + '?update=1'
       const browser = await next.browser(fullAsPath, { baseUrl: appPort })
@@ -123,6 +120,8 @@ describe('manual-client-base-path', () => {
             pathname: pathname || asPath,
             query: {
               update: '1',
+              // TODO(as-any): pre-existing cast, not yet reviewed
+              // eslint-disable-next-line @next/internal/no-as-any
               ...((query as any) || {}),
             },
             basePath,

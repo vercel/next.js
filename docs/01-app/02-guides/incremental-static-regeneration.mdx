@@ -313,7 +313,7 @@ export async function createPost() {
 }
 ```
 
-[View a demo](https://on-demand-isr.vercel.app) and [explore the source code](https://github.com/vercel/on-demand-isr).
+[View a demo](https://on-demand-isr.vercel.app) and [explore the source code](https://github.com/nextjs/on-demand-isr).
 
 ### On-demand revalidation with `revalidateTag`
 

@@ -1,3 +1,3 @@
 export default function (req, res) {
-  res.json(req.query)
+  res.json({ route: 'users', query: req.query })
 }

@@ -150,6 +150,8 @@ Choose this fix when the segment is intentionally not rendered in certain states
 
 Add the export to the page or layout file of the segment that was dropped from rendering.
 
+If the diagnostic names a child page, setting `instant = false` on its parent layout does not opt that page out of validation. For example, if the dropped segment is `app/dashboard/page.tsx`, add the export to that file, even if `app/dashboard/layout.tsx` already exports `instant = false`.
+
 ```jsx filename="app/dashboard/@modal/page.js"
 export const instant = false
 
@@ -160,13 +162,15 @@ export default function ModalPage() {
 
 Learn more: [Route segment `instant` config](/docs/app/api-reference/file-conventions/route-segment-config/instant).
 
+The `instant` export requires a Server Component module. If the dropped page uses `'use client'`, move its client UI into a separate file and render it from a Server Component page that exports `instant = false`. See the [Client Component page example](/docs/app/api-reference/file-conventions/route-segment-config/instant#client-component-pages).
+
 ### Trade-off
 
 The segment is exempt from instant-navigation validation. If it has issues that would block navigation (uncached data outside Suspense, runtime APIs), those issues won't be caught during development.
 
 ### Gotchas
 
-- The export must be on the **dropped segment's own file** (page or layout), not on a parent. The framework walks top-down and the first explicit config wins.
+- Put the export in the **dropped segment's own file** (page or layout). A layout opt-out allows navigations entering that layout to block, while navigations between child pages beneath the shared layout remain validated.
 - Setting [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` does not disable [prerendering](/docs/app/glossary#prerendering). The segment still prerenders if it can. It only disables the validation error.
 
 ## Verifying the fix
@@ -186,18 +190,4 @@ See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the 
 
 ## Related Insights
 
-- [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
-- [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)
-- [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook)
-- [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
-- [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)
-- [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
-- [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
-- [`Math.random()` while prerendering](/docs/messages/blocking-prerender-random)
-- [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client)
-- [`Date.now()` while prerendering](/docs/messages/blocking-prerender-current-time)
-- [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
-- [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
-- [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
-- [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
-- [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
+See [Instant Navigation validation errors](/docs/messages/instant-navigation-validation) for the complete reference.

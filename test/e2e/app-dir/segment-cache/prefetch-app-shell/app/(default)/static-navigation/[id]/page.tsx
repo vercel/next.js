@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { unstable_navigation as navigation } from 'next/cache'
+import { navigation } from 'next/cache'
 import { connection } from 'next/server'
 
 export async function generateStaticParams() {

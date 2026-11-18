@@ -3,7 +3,6 @@ import { nextTestSetup } from 'e2e-utils'
 describe('proxy-mixed-page-extensions', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   it('should detect proxy.page.tsx when pageExtensions mixes compound and simple', async () => {

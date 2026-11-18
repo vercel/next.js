@@ -1,3 +1,11 @@
+const formatToExtension = new Map([
+  ['woff', 'woff'],
+  ['woff2', 'woff2'],
+  ['truetype', 'ttf'],
+  ['opentype', 'otf'],
+  ['embedded-opentype', 'eot'],
+])
+
 /**
  * Find all font files in the CSS response and determine which files should be preloaded.
  * In Google Fonts responses, the @font-face's subset is above it in a comment.
@@ -8,6 +16,7 @@ export function findFontFilesInCss(css: string, subsetsToPreload?: string[]) {
   const fontFiles: Array<{
     googleFontFileUrl: string
     preloadFontFile: boolean
+    ext: string
   }> = []
 
   // Keep track of the current subset
@@ -25,10 +34,20 @@ export function findFontFilesInCss(css: string, subsetsToPreload?: string[]) {
           (foundFile) => foundFile.googleFontFileUrl === googleFontFileUrl
         )
       ) {
-        // Found the font file in the @font-face declaration.
+        // Google can return extensionless /l/font?kit=... URLs. Prefer the
+        // pathname extension, then the CSS format hint. Our Chrome user agent
+        // requests WOFF2, so use that when neither specifies a supported type.
+        const pathname = googleFontFileUrl.split(/[?#]/, 1)[0]
+        const format = /format\(['"](.+?)['"]\)/.exec(line)?.[1]
+        const ext =
+          /\.(woff|woff2|eot|ttf|otf)$/.exec(pathname)?.[1] ??
+          formatToExtension.get(format ?? '') ??
+          'woff2'
+
         fontFiles.push({
           googleFontFileUrl,
           preloadFontFile: !!subsetsToPreload?.includes(currentSubset),
+          ext,
         })
       }
     }

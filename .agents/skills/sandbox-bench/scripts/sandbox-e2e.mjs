@@ -469,7 +469,7 @@ echo "tree ${a.name} ready"`
     await sbExec(
       vm,
       '55m',
-      `set -e\nnpm i -g pnpm@10.33.0 >/dev/null 2>&1\n` +
+      `set -e\nnpm i -g pnpm@12.9.1 >/dev/null 2>&1\n` +
         `(while true; do echo "hb mem=$(free -m | awk '/^Mem/{print $3}')MB"; sleep 30; done) & HB=$!\n` +
         `${extractCached}\n${installs}\n${builds}\n${waits}\n${verifies}\nkill $HB\n` +
         `echo "PHASE done $(date +%s)"\n` +

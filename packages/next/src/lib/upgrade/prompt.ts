@@ -5,11 +5,17 @@ import { bold, cyan } from '../picocolors'
 
 export type UpgradeAction = 'update' | 'skip' | 'dismiss' | 'interrupt'
 
-export async function promptUpgrade(
-  message: string,
-  signal: AbortSignal,
-  canUpdate: boolean = true
-): Promise<UpgradeAction> {
+export async function promptUpgrade({
+  message,
+  signal,
+  canUpdate,
+  onShown,
+}: {
+  message: string
+  signal: AbortSignal
+  canUpdate: boolean
+  onShown: (() => void) | null
+}): Promise<UpgradeAction> {
   if (signal.aborted) {
     return 'skip'
   }
@@ -31,11 +37,18 @@ export async function promptUpgrade(
   let cancelled = false
   let resized = false
   let selectedIndex = 0
+  let shown = false
   const renderValue = (value: string, selected: boolean) => {
     if (value === labels[0]) {
       // We own this screen. Redraw from the top instead of relying on
       // cli-select's one-row-per-choice cursor movement when choices wrap.
       terminal.write(`\x1b[H\x1b[2J${heading}`)
+
+      // Redraws must not count the same rendered menu as another nudge.
+      if (!shown) {
+        shown = true
+        onShown?.()
+      }
     }
     if (selected) {
       selectedIndex = labels.indexOf(value)

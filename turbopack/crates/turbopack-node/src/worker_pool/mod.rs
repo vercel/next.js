@@ -17,11 +17,13 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, duration_span};
 use turbo_tasks_fs::FileSystemPath;
 
+#[cfg(all(test, feature = "process_pool", not(target_family = "wasm")))]
+use crate::pool_stats::PoolStatsSnapshot;
 use crate::{
     AssetsForSourceMapping,
     backend::{CreatePoolFuture, CreatePoolOptions, NodeBackend},
     evaluate::{EvaluateOperation, EvaluatePool, Operation},
-    pool_stats::{AcquiredPermits, PoolStatsSnapshot},
+    pool_stats::AcquiredPermits,
     worker_pool::{
         operation::{
             PoolState, TaskChannels, WORKER_POOL_OPERATION, WorkerOperation, WorkerOptions,
@@ -43,12 +45,12 @@ static OPERATION_TASK_ID: AtomicU32 = AtomicU32::new(1);
     eq = "manual",
     shared
 )]
-pub(crate) struct WorkerThreadPool {
+struct WorkerThreadPool {
     worker_options: Arc<WorkerOptions>,
     concurrency: usize,
-    pub(crate) assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
-    pub(crate) assets_root: FileSystemPath,
-    pub(crate) project_dir: FileSystemPath,
+    assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
+    assets_root: FileSystemPath,
+    project_dir: FileSystemPath,
     #[turbo_tasks(unsafe_ignore, debug_ignore)]
     state: Arc<PoolState>,
     #[turbo_tasks(unsafe_ignore, debug_ignore)]
@@ -58,7 +60,7 @@ pub(crate) struct WorkerThreadPool {
 }
 
 impl WorkerThreadPool {
-    pub(crate) async fn create(
+    async fn create(
         cwd: PathBuf,
         entrypoint: PathBuf,
         // The worker thread will inherit env from parent process, so it's not needed
@@ -207,11 +209,11 @@ impl NodeBackend for WorkerThreadsBackend {
 }
 
 impl WorkerThreadPool {
-    pub fn scale_down() {
+    fn scale_down() {
         let _ = WORKER_POOL_OPERATION.scale_down();
     }
 
-    pub fn scale_zero() {
+    fn scale_zero() {
         let _ = WORKER_POOL_OPERATION.scale_zero();
     }
 }
@@ -220,7 +222,7 @@ impl WorkerThreadPool {
 impl EvaluateOperation for WorkerThreadPool {
     async fn operation(&self) -> Result<Box<dyn Operation>> {
         let operation = {
-            let _guard = duration_span!("Node.js operation");
+            let _guard = duration_span!("Node.js operation", blocking = true);
             let worker_options = self.worker_options.clone();
 
             let task_id = OPERATION_TASK_ID.fetch_add(1, Ordering::Release);
@@ -262,6 +264,7 @@ impl EvaluateOperation for WorkerThreadPool {
     }
 
     /// Returns a snapshot of the pool's internal statistics.
+    #[cfg(all(test, feature = "process_pool", not(target_family = "wasm")))]
     fn stats(&self) -> PoolStatsSnapshot {
         self.state.stats.lock().snapshot()
     }

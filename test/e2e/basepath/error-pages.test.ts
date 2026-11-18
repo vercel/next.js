@@ -60,6 +60,8 @@ describe('basePath', () => {
     // could be a platform default 404 page on deploy
     if (!isNextDeploy) {
       const pathname = await browser.eval(() => window.location.pathname)
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       expect(await browser.eval(() => (window as any).next.router.asPath)).toBe(
         '/missing'
       )
@@ -73,6 +75,8 @@ describe('basePath', () => {
     // the custom 404 only shows inside of the basePath so this
     // could be a platform default 404 page on deploy
     if (!isNextDeploy) {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       expect(await browser.eval(() => (window as any).next.router.asPath)).toBe(
         `${basePath}hello`
       )
@@ -87,7 +91,11 @@ describe('basePath', () => {
   // correct or not.
   it.skip('should navigate back to a non-basepath 404 that starts with basepath', async () => {
     const browser = await next.browser(`${basePath}hello`)
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     await browser.eval(() => ((window as any).navigationMarker = true))
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     await browser.eval(() => (window as any).next.router.push('/hello'))
     await browser.waitForElementByCss('#pathname')
     await browser.back()
@@ -95,9 +103,13 @@ describe('basePath', () => {
       () => browser.eval(() => window.location.pathname),
       `${basePath}hello`
     )
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(await browser.eval(() => (window as any).next.router.asPath)).toBe(
       `${basePath}hello`
     )
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(await browser.eval(() => (window as any).navigationMarker)).toBe(
       true
     )

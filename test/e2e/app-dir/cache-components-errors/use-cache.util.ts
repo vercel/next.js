@@ -72,11 +72,11 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
               expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/use-cache-cookies": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
                  Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at a (app/use-cache-cookies/page.tsx:22:11)
+                     at a (app/use-cache-cookies/page.tsx:22:18)
                    20 |   // in userland.
                    21 |   try {
                  > 22 |     await cookies()
-                      |           ^
+                      |                  ^
                    23 |   } catch {}
                    24 |
                    25 |   return null
@@ -297,11 +297,11 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
               expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/use-cache-headers": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
                  Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at a (app/use-cache-headers/page.tsx:21:11)
+                     at a (app/use-cache-headers/page.tsx:21:18)
                    19 |   // to ensure that this error is shown even when it's caught in userland.
                    20 |   try {
                  > 21 |     await headers()
-                      |           ^
+                      |                  ^
                    22 |   } catch {}
                    23 |
                    24 |   return null
@@ -408,11 +408,11 @@ export function registerUseCacheTests(ctx: CacheComponentsErrorsContext) {
               expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/use-cache-connection": \`connection()\` can't be called inside \`"use cache"\` because cached functions may run during prerendering, without an incoming request. Call it outside the cached function.
                  Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
-                     at a (app/use-cache-connection/page.tsx:21:11)
+                     at a (app/use-cache-connection/page.tsx:21:21)
                    19 |   // here to ensure that this error is shown even when it's caught in userland.
                    20 |   try {
                  > 21 |     await connection()
-                      |           ^
+                      |                     ^
                    22 |   } catch {}
                    23 |
                    24 |   return null
@@ -778,7 +778,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-low-expire/nested": A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a longer \`expire\` or keep it dynamic with a short \`expire\`.
                    Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
-                       at async k (app/use-cache-low-expire/nested/page.tsx:20:14)
+                       at async (app/use-cache-low-expire/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
                    > 20 |     result = await outerCache()
@@ -1175,7 +1175,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-revalidate-0/nested": A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a non-zero \`revalidate\` or keep it dynamic with \`revalidate: 0\`.
                    Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
-                       at async k (app/use-cache-revalidate-0/nested/page.tsx:20:14)
+                       at async (app/use-cache-revalidate-0/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
                    > 20 |     result = await outerCache()
@@ -1453,7 +1453,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             expect(output).toMatchInlineSnapshot(`
              "⨯ Error: Kaputt!
                  at a (<next-dist-dir>)
-                 at b (<next-dist-dir>) {
+                 at b (<next-dist-dir>)
+                 at <next-internal> {
                digest: '<error-digest>'
              }"
             `)
@@ -1522,7 +1523,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
             expect(output).toMatchInlineSnapshot(`
              "⨯ Error: Kaputt!
                  at a (<next-dist-dir>)
-                 at b (<next-dist-dir>) {
+                 at b (<next-dist-dir>)
+                 at <next-internal> {
                digest: '<error-digest>'
              }
              [Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {

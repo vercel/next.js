@@ -1,5 +1,11 @@
 import { Suspense } from 'react'
-import { cacheLife, cacheTag, revalidatePath, updateTag } from 'next/cache'
+import {
+  cacheLife,
+  cacheTag,
+  revalidatePath,
+  revalidateTag,
+  updateTag,
+} from 'next/cache'
 import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
 import React from 'react'
@@ -8,7 +14,7 @@ async function getData() {
   'use cache'
 
   cacheLife({ revalidate: 6 })
-  cacheTag('modern')
+  cacheTag('use-cache-custom-handler:modern')
 
   return new Date().toISOString()
 }
@@ -33,7 +39,7 @@ export default async function Home() {
           formAction={async () => {
             'use server'
 
-            updateTag('modern')
+            updateTag('use-cache-custom-handler:modern')
           }}
         >
           Revalidate Tag
@@ -53,11 +59,22 @@ export default async function Home() {
           formAction={async () => {
             'use server'
 
-            updateTag('modern')
+            updateTag('use-cache-custom-handler:modern')
             redirect('/')
           }}
         >
           Revalidate Tag & Redirect
+        </button>{' '}
+        <button
+          id="revalidate-multiple-profiles"
+          formAction={async () => {
+            'use server'
+
+            updateTag('use-cache-custom-handler:modern')
+            revalidateTag('use-cache-custom-handler:other', { expire: 0 })
+          }}
+        >
+          Revalidate Tags With Different Profiles
         </button>
       </form>
     </main>

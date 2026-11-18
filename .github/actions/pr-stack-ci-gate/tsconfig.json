@@ -3,6 +3,7 @@
     "target": "es2024",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "isolatedModules": true,
     "rootDir": "./src",
     "strict": true,
     "skipLibCheck": false,

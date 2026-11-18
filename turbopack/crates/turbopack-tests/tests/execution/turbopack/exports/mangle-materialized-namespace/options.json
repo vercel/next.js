@@ -1,5 +1,6 @@
 {
   "mangleExportNames": true,
+  "mangleViaMaterializedNamespaceObject": false,
   "minify": true,
   "scopeHoisting": false
 }

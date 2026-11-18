@@ -38,5 +38,5 @@ describe('Lazy Module Init', () => {
 
     $ = await next.render$('/serial-client-sync-io')
     expect($('#id').text().length).toBeGreaterThan(0)
-  })
+  }, 120_000) // Remote builds and deployments can exceed the default 60s.
 })

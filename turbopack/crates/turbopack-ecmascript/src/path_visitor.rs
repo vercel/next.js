@@ -19,7 +19,7 @@ const ROOT: u32 = 0;
 
 /// The modifiers to run, indexed for a single downward walk of the AST.
 pub struct Visitors<'a> {
-    /// Indexed by [`NodeId`]
+    /// Indexed by node id (`u32`)
     /// Maps kinds to indices in children and modifiers
     /// Traversal starts from `[ROOT]`
     /// This structure is a little memory intensive but the visitors are short lived.

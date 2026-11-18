@@ -154,7 +154,10 @@ export async function runTransform(
   const execaChildProcess = execa(jscodeshiftExecutable, args, {
     // include ANSI color codes
     // Note: execa merges env with existing env by default.
-    env: process.stdout.isTTY ? { FORCE_COLOR: 'true' } : {},
+    env: {
+      ...process.env,
+      ...(process.stdout.isTTY ? { FORCE_COLOR: 'true' } : {}),
+    },
   })
 
   // "\n" + "a\n" + "b\n"

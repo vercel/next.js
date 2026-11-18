@@ -48,9 +48,16 @@ export function deregisterHook() {
 }
 
 export function requireFromString(code: string, filename: string) {
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   const paths = (Module as any)._nodeModulePaths(dirname(filename))
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   const m = new Module(filename, module.parent!) as any
   m.paths = paths
+  // Without a filename, Node.js resolves relative requires against
+  // process.cwd() instead of dirname(filename).
+  m.filename = filename
   m._compile(code, filename)
   return m.exports
 }

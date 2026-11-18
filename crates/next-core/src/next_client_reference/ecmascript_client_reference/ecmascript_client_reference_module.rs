@@ -22,6 +22,7 @@ use turbopack_core::{
     reference_type::ReferenceType,
     resolve::{BindingUsage, ExportUsage, ImportUsage, ModuleResolveResult},
     source::OptionSource,
+    source_map::SourceMapGenerationOptions,
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
@@ -33,6 +34,8 @@ use turbopack_ecmascript::{
     runtime_functions::TURBOPACK_EXPORT_NAMESPACE,
     utils::StringifyJs,
 };
+
+use crate::next_client_reference::{CLIENT_MERGE_TAG, SSR_MERGE_TAG};
 
 /// A [`EcmascriptClientReferenceModule`] is used in RSC to represent
 /// a client or SSR asset.
@@ -72,7 +75,7 @@ impl EcmascriptClientReferenceModule {
 
     #[turbo_tasks::function]
     async fn proxy_module(&self) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
-        let mut code = CodeBuilder::default();
+        let mut code = CodeBuilder::new(false, SourceMapGenerationOptions::NONE);
         let is_esm: bool;
 
         let server_module_path = &*self.server_ident.to_string().await?;
@@ -153,20 +156,23 @@ impl EcmascriptClientReferenceModule {
         let proxy_module_content =
             AssetContent::file(FileContent::Content(File::from(code.source_code().clone())).cell());
 
-        let proxy_source = VirtualSource::new(
-            self.server_ident.await?.path.join(
-                // We choose the extension based on the original file because we're placing the
-                // virtual module next to the original code, so its parsing will be
-                // affected by `type` fields in package.json -- a bare `proxy.js`
-                // may end up being unexpectedly parsed as the wrong format.
-                // The name special cased later to always ignore-list this module.
-                &format!(
-                    "__nextjs-internal-proxy.{}",
-                    if is_esm { "mjs" } else { "cjs" }
-                ),
-            )?,
-            proxy_module_content,
-        );
+        let proxy_path = self.server_ident.await?.path.join(
+            // We choose the extension based on the original file because we're placing the
+            // virtual module next to the original code, so its parsing will be
+            // affected by `type` fields in package.json -- a bare `proxy.js`
+            // may end up being unexpectedly parsed as the wrong format.
+            // The name special cased later to always ignore-list this module.
+            &format!(
+                "__nextjs-internal-proxy.{}",
+                if is_esm { "mjs" } else { "cjs" }
+            ),
+        )?;
+
+        // Proxy contents include the part-specific server ident, so it must affect identity.
+        let proxy_ident = AssetIdent::from_path(proxy_path)
+            .with_asset(rcstr!("server"), self.server_ident)
+            .into_vc();
+        let proxy_source = VirtualSource::new_with_ident(proxy_ident, proxy_module_content);
 
         let proxy_module = self
             .server_asset_context
@@ -181,13 +187,6 @@ impl EcmascriptClientReferenceModule {
 
         Ok(*proxy_module)
     }
-}
-
-pub fn ecmascript_client_reference_merge_tag() -> RcStr {
-    rcstr!("client")
-}
-pub fn ecmascript_client_reference_merge_tag_ssr() -> RcStr {
-    rcstr!("ssr")
 }
 
 #[turbo_tasks::value_impl]
@@ -226,7 +225,7 @@ impl Module for EcmascriptClientReferenceModule {
                 EcmascriptClientReference::new(
                     *ResolvedVc::upcast(*client_module),
                     ChunkGroupType::Evaluated,
-                    Some(ecmascript_client_reference_merge_tag()),
+                    Some(CLIENT_MERGE_TAG.clone()),
                     rcstr!("ecmascript client reference to client"),
                 )
                 .to_resolved()
@@ -236,7 +235,7 @@ impl Module for EcmascriptClientReferenceModule {
                 EcmascriptClientReference::new(
                     *ResolvedVc::upcast(*ssr_module),
                     ChunkGroupType::Entry,
-                    Some(ecmascript_client_reference_merge_tag_ssr()),
+                    Some(SSR_MERGE_TAG.clone()),
                     rcstr!("ecmascript client reference to ssr"),
                 )
                 .to_resolved()

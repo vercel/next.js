@@ -463,6 +463,8 @@ export interface CacheFs {
   readFile: typeof fs.promises.readFile
   readFileSync: typeof fs.readFileSync
   writeFile(f: string, d: any): Promise<void>
+  /** Publish a complete file without replacing an existing destination. */
+  writeFileAtomic?(f: string, d: any): Promise<boolean>
   mkdir(dir: string): Promise<void | string>
   stat(f: string): Promise<{ mtime: Date }>
 }

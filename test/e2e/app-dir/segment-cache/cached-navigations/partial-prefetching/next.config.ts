@@ -5,8 +5,7 @@ const nextConfig: NextConfig = {
   productionBrowserSourceMaps: true,
   // Enabling Partial Prefetching globally opts every route into runtime Cached
   // Navigations, even without a per-segment `prefetch` config.
-  // `cachedNavigations` is left at its default (`true`, the static stage), so
-  // the runtime stage here comes solely from `partialPrefetching`.
+  // `cachedNavigations` is left at its default (`true`).
   partialPrefetching: true,
   experimental: {
     prefetchInlining: false,

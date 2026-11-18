@@ -3,14 +3,14 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { REQUEST_API_NAMES } from './app/request-apis-in-promise/common'
 
+// Deploy mode exclusion: This suite asserts local CLI or runtime logs that deployments do not expose.
+// reading runtime logs is not supported in deploy tests
+// @force-gate !deploy
 describe('nextjs APIs in after()', () => {
-  const { next, skipped, isNextDev } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true, // reading runtime logs is not supported in deploy tests
   })
-
-  if (skipped) return
 
   let currentCliOutputIndex = 0
 

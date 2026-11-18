@@ -26,6 +26,8 @@ Replacing `<transform>` and `<path>` with appropriate values.
 
 Upgrades your Next.js application, automatically running codemods and updating Next.js, React, and React DOM.
 
+To have a coding agent run the codemods, complete the remaining migration work, and verify the app, run `npx next@canary upgrade --agent=latest` instead. See [Upgrade with a coding agent](/docs/app/guides/upgrading/agent-upgrade) for details.
+
 ```bash filename="Terminal"
 npx @next/codemod upgrade [revision]
 ```
@@ -34,6 +36,8 @@ npx @next/codemod upgrade [revision]
 
 - `revision` (optional): Specify the upgrade type (`patch`, `minor`, `major`), an NPM dist tag (e.g. `latest`, `canary`, `rc`), or an exact version (e.g. `15.0.0`). Defaults to `minor` for stable versions.
 - `--verbose`: Show more detailed output during the upgrade process.
+- `--skip-react-upgrade`: Preserve React dependencies, types, and overrides, and skip React codemods.
+- `--skip-eslint-upgrade`: Preserve `eslint`, `eslint-config-next`, `@next/eslint-plugin-next`, and skip `next-lint-to-eslint-cli`. Complete required lint migrations manually before verification.
 - `-y, --yes`: Skip every interactive prompt and accept its default (upgrade React past 18, enable Turbopack, apply all recommended codemods, run the React 19 codemods). Also auto-enabled when stdin is not a TTY (CI, an AI coding agent, or any non-interactive shell), so you usually don't need to pass it explicitly.
 
 For example:
@@ -61,6 +65,7 @@ npx @next/codemod upgrade canary --yes
 > **Good to know**:
 >
 > - If the target version is the same as or lower than your current version, the command exits without making changes.
+> - The skip flags do not bypass the target's peer dependency requirements. If installation previously failed, repair the dependencies and retry the same exact target with the relevant flag. If Next.js already matches the target, run any skipped migrations individually using the guides below.
 > - During the upgrade, you may be prompted to choose which Next.js codemods to apply and run React 19 codemods if upgrading React.
 > - When invoked by an AI coding agent or in CI (anywhere stdin isn't a TTY), the upgrade runs non-interactively and accepts every default. Pass `--yes` to force this behavior even from a terminal.
 

@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { LinkAccordion } from '../../components/link-accordion'
+import { PrefetchButton } from '../../components/prefetch-button'
 
 export default function Page() {
   return (
@@ -146,6 +147,20 @@ export default function Page() {
           >
             Runtime navigation post "speculative-1" (prefetch=true)
           </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion
+            href="/runtime-navigation/speculative-2"
+            prefetch="navigation"
+          >
+            Runtime navigation post "speculative-2" (prefetch=navigation)
+          </LinkAccordion>
+        </li>
+        <li>
+          <PrefetchButton href="/runtime-navigation/speculative-3" />{' '}
+          <Link href="/runtime-navigation/speculative-3" prefetch={false}>
+            Runtime navigation post "speculative-3" (router.prefetch)
+          </Link>
         </li>
       </ul>
 

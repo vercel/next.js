@@ -8,6 +8,7 @@ import loadConfig from '../server/config'
 import { printAndExit } from '../server/lib/utils'
 import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
 import { getProjectDir } from '../lib/get-project-dir'
+import { warnMissingReactDependencies } from '../lib/warn-missing-react-dependencies'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { verifyAndRunTypeScript } from '../lib/verify-typescript-setup'
 import { discoverRoutes } from '../build/route-discovery'
@@ -21,6 +22,7 @@ import {
 import { writeCacheLifeTypes } from '../server/lib/router-utils/cache-life-type-utils'
 import { writeRootParamsTypes } from '../server/lib/router-utils/root-params-type-utils'
 import { installBindings } from '../build/swc/install-bindings'
+import { removeStaleDevTypes } from '../lib/typescript/remove-stale-dev-types'
 
 export type NextTypegenOptions = {
   dir?: string
@@ -31,6 +33,7 @@ const nextTypegen = async (options: NextTypegenOptions, directory?: string) => {
   parseBundlerArgs(options)
 
   const baseDir = getProjectDir(directory)
+  warnMissingReactDependencies(baseDir)
 
   // Check if the provided directory exists
   if (!existsSync(baseDir)) {
@@ -119,6 +122,10 @@ const nextTypegen = async (options: NextTypegenOptions, directory?: string) => {
     routeTypesManifest,
     join(distDir, 'types', 'root-params.d.ts')
   )
+
+  // Types left behind by a stopped `next dev` would otherwise fail type checking
+  // after routes are moved or deleted.
+  await removeStaleDevTypes({ distDirRoot: distDir })
 
   console.log('✓ Types generated successfully')
 }

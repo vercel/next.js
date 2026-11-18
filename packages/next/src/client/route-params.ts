@@ -29,7 +29,7 @@ export function normalizeRenderedSearch(search: string): NormalizedSearch {
 }
 
 export function getRenderedSearch(
-  response: RSCResponse<unknown> | Response
+  response: RSCResponse | Response
 ): NormalizedSearch {
   // If the server performed a rewrite, the search params used to render the
   // page will be different from the params in the request URL. In this case,
@@ -46,7 +46,7 @@ export function getRenderedSearch(
 }
 
 export function getRenderedPathname(
-  response: RSCResponse<unknown> | Response
+  response: RSCResponse | Response
 ): NormalizedPathname {
   // If the server performed a rewrite, the pathname used to render the
   // page will be different from the pathname in the request URL. In this case,

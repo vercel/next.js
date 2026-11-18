@@ -2,12 +2,13 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import fs from 'fs'
 import { join } from 'path'
+import { RouteKind } from 'next/dist/server/route-kind'
 
 // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
 // Assertions don't apply to deploy mode (output differs vs. local Next.js server).
 // @force-gate !deploy
 describe('Fallback path encoding', () => {
-  const { next, isNextDev, isNextStart } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
 
@@ -43,90 +44,119 @@ describe('Fallback path encoding', () => {
 
   const modePaths = ['fallback-blocking', 'fallback-false', 'fallback-true']
 
-  if (isNextStart) {
-    it('should output paths correctly', async () => {
-      const pagesDir = join(next.testDir, '.next/server/pages')
-      for (const path of prerenderedPaths) {
-        for (const mode of modePaths) {
-          expect(fs.existsSync(join(pagesDir, mode, path + '.html'))).toBe(true)
-          expect(fs.existsSync(join(pagesDir, mode, path + '.json'))).toBe(true)
-        }
-      }
-    })
-  }
-
-  if (isNextStart) {
-    it('should handle non-prerendered paths correctly', async () => {
-      const newUrlPaths = [
-        '%2Fanother-post%2F',
-        '%2Banother-post%2B',
-        '%3Fanother-post%3F',
-        '%26another-post%26',
-        encodeURIComponent('商業日語商業日語'),
-      ]
-
-      const newPrerenderedPaths = [
-        '%2Fanother-post%2F',
-        '+another-post+',
-        '%3Fanother-post%3F',
-        '&another-post&',
-        '商業日語商業日語',
-      ]
-
+  // Inspects files produced by the local production build.
+  // @force-gate start
+  it('should output paths correctly', async () => {
+    const pagesDir = join(next.testDir, '.next/server/pages')
+    for (const path of prerenderedPaths) {
       for (const mode of modePaths) {
-        for (let i = 0; i < newUrlPaths.length; i++) {
-          const testSlug = newUrlPaths[i]
+        expect(fs.existsSync(join(pagesDir, mode, path + '.html'))).toBe(true)
+        expect(fs.existsSync(join(pagesDir, mode, path + '.json'))).toBe(true)
+      }
+    }
+  })
 
-          const res = await next.fetch(
-            `/_next/data/${next.buildId}/${mode}/${testSlug}.json`
+  // Checks the local ISR artifacts written for fallback requests.
+  // @force-gate start
+  it('should handle non-prerendered paths correctly', async () => {
+    const newUrlPaths = [
+      '%2Fanother-post%2F',
+      '%2Banother-post%2B',
+      '%3Fanother-post%3F',
+      '%26another-post%26',
+      encodeURIComponent('商業日語商業日語'),
+    ]
+
+    const newPrerenderedPaths = [
+      '%2Fanother-post%2F',
+      '+another-post+',
+      '%3Fanother-post%3F',
+      '&another-post&',
+      '商業日語商業日語',
+    ]
+
+    for (const mode of modePaths) {
+      for (let i = 0; i < newUrlPaths.length; i++) {
+        const testSlug = newUrlPaths[i]
+
+        const res = await next.fetch(
+          `/_next/data/${next.buildId}/${mode}/${testSlug}.json`
+        )
+
+        if (mode === 'fallback-false') {
+          expect(res.status).toBe(404)
+        } else {
+          expect(res.status).toBe(200)
+
+          const { pageProps: props } = await res.json()
+
+          expect(props.params).toEqual({
+            slug: decodeURIComponent(testSlug),
+          })
+
+          const prerenderedPath = newPrerenderedPaths[i]
+          await retry(async () => {
+            expect(
+              fs.existsSync(
+                join(
+                  next.testDir,
+                  next.getPrerenderFilePath(
+                    `/${mode}/${prerenderedPath}`,
+                    '.html',
+                    {
+                      router: 'pages',
+                      route: {
+                        kind: RouteKind.PAGES,
+                        sourceRoute: `/${mode}/[slug]`,
+                      },
+                    }
+                  )
+                )
+              )
+            ).toBe(true)
+          })
+          await retry(async () => {
+            expect(
+              fs.existsSync(
+                join(
+                  next.testDir,
+                  next.getPrerenderFilePath(
+                    `/${mode}/${prerenderedPath}`,
+                    '.json',
+                    {
+                      router: 'pages',
+                      route: {
+                        kind: RouteKind.PAGES,
+                        sourceRoute: `/${mode}/[slug]`,
+                      },
+                    }
+                  )
+                )
+              )
+            ).toBe(true)
+          })
+
+          const browser = await next.browser(`/${mode}/${testSlug}`)
+
+          expect(
+            JSON.parse(await browser.elementByCss('#props').text()).params
+          ).toEqual({
+            slug: decodeURIComponent(testSlug),
+          })
+
+          const browserRouter = JSON.parse(
+            await browser.elementByCss('#router').text()
           )
 
-          if (mode === 'fallback-false') {
-            expect(res.status).toBe(404)
-          } else {
-            expect(res.status).toBe(200)
-
-            const { pageProps: props } = await res.json()
-
-            expect(props.params).toEqual({
-              slug: decodeURIComponent(testSlug),
-            })
-
-            const pagesDir = join(next.testDir, '.next/server/pages')
-            const prerenderedPath = newPrerenderedPaths[i]
-            await retry(async () => {
-              expect(
-                fs.existsSync(join(pagesDir, mode, prerenderedPath + '.html'))
-              ).toBe(true)
-            })
-            await retry(async () => {
-              expect(
-                fs.existsSync(join(pagesDir, mode, prerenderedPath + '.json'))
-              ).toBe(true)
-            })
-
-            const browser = await next.browser(`/${mode}/${testSlug}`)
-
-            expect(
-              JSON.parse(await browser.elementByCss('#props').text()).params
-            ).toEqual({
-              slug: decodeURIComponent(testSlug),
-            })
-
-            const browserRouter = JSON.parse(
-              await browser.elementByCss('#router').text()
-            )
-
-            expect(browserRouter.pathname).toBe(`/${mode}/[slug]`)
-            expect(browserRouter.asPath).toBe(`/${mode}/${testSlug}`)
-            expect(browserRouter.query).toEqual({
-              slug: decodeURIComponent(testSlug),
-            })
-          }
+          expect(browserRouter.pathname).toBe(`/${mode}/[slug]`)
+          expect(browserRouter.asPath).toBe(`/${mode}/${testSlug}`)
+          expect(browserRouter.query).toEqual({
+            slug: decodeURIComponent(testSlug),
+          })
         }
       }
-    })
-  }
+    }
+  })
 
   it('should respond with the prerendered pages correctly', async () => {
     for (let i = 0; i < urlPaths.length; i++) {

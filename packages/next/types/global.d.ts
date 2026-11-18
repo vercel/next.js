@@ -149,6 +149,8 @@ interface ImportMeta {
 }
 
 interface Window {
+  /** @internal - Initial document baseline, supplied only by Turbopack dev HMR. */
+  __nextHmrInitialVersion?: string
   MSInputMethodContext?: unknown
   /** @internal */
   __NEXT_HMR_CB?: null | ((message?: string) => void)

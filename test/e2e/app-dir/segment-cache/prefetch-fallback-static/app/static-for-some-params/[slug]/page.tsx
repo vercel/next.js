@@ -1,4 +1,4 @@
-import { unstable_navigation } from 'next/cache'
+import { navigation } from 'next/cache'
 import { cookies } from 'next/headers'
 import { Suspense } from 'react'
 
@@ -66,6 +66,6 @@ async function ConditionalCookiesUse({ slug }: { slug: string }) {
 }
 
 async function NavigationContent({ slug }: { slug: string }) {
-  await unstable_navigation()
+  await navigation()
   return <div>{`Navigation content on ${slug}`}</div>
 }

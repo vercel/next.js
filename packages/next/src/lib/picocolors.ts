@@ -23,6 +23,13 @@ const enabled =
   !env.NO_COLOR &&
   (env.FORCE_COLOR || (stdout?.isTTY && !env.CI && env.TERM !== 'dumb'))
 
+export const isColorSupported = Boolean(enabled)
+
+// Whether stdout ends up on a terminal: directly, or through the CLI, which
+// pipes a child's output while the upgrade menu is open.
+export const stdoutIsTerminal =
+  Boolean(stdout?.isTTY) || env.NEXT_PRIVATE_PROMPT_OUTPUT === '1'
+
 const replaceClose = (
   str: string,
   close: string,

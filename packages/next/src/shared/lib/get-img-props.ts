@@ -1,10 +1,9 @@
 import { getAssetToken, getDeploymentId } from './deployment-id'
 import { getImageBlurSvg } from './image-blur-svg'
-import { imageConfigDefault } from './image-config'
 import type {
-  ImageConfigComplete,
   ImageLoaderProps,
   ImageLoaderPropsWithConfig,
+  PreparedImageConfig,
 } from './image-config'
 
 import type { CSSProperties, JSX } from 'react'
@@ -24,10 +23,11 @@ export interface StaticRequire {
 
 export type StaticImport = StaticRequire | StaticImageData
 
-export type ImageProps = Omit<
-  JSX.IntrinsicElements['img'],
-  'src' | 'srcSet' | 'ref' | 'alt' | 'width' | 'height' | 'loading'
-> & {
+export interface ImageProps
+  extends Omit<
+    JSX.IntrinsicElements['img'],
+    'src' | 'srcSet' | 'ref' | 'alt' | 'width' | 'height' | 'loading'
+  > {
   src: string | StaticImport
   alt: string
   width?: number | `${number}`
@@ -95,10 +95,7 @@ const INVALID_BACKGROUND_SIZE_VALUES = [
   undefined,
 ]
 type LoadingValue = (typeof VALID_LOADING_VALUES)[number]
-type ImageConfig = ImageConfigComplete & {
-  allSizes: number[]
-  output?: 'standalone' | 'export'
-}
+type ImageConfig = PreparedImageConfig
 
 export type ImageLoader = (p: ImageLoaderProps) => string
 
@@ -144,7 +141,7 @@ function isStaticImport(src: string | StaticImport): src is StaticImport {
 
 const allImgs = new Map<
   string,
-  { src: string; loading: LoadingValue; placeholder: PlaceholderValue }
+  { src: string; placeholder: PlaceholderValue }
 >()
 let perfObserver: PerformanceObserver | undefined
 
@@ -313,7 +310,7 @@ export function getImgProps(
   }: ImageProps,
   _state: {
     defaultLoader: ImageLoaderWithConfig
-    imgConf: ImageConfigComplete
+    imgConf: ImageConfig
     showAltText?: boolean
     blurComplete?: boolean
   }
@@ -326,17 +323,7 @@ export function getImgProps(
     fill: boolean
   }
 } {
-  const { imgConf, showAltText, blurComplete, defaultLoader } = _state
-  let config: ImageConfig
-  let c = imgConf || imageConfigDefault
-  if ('allSizes' in c) {
-    config = c as ImageConfig
-  } else {
-    const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
-    const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
-    const qualities = c.qualities?.sort((a, b) => a - b)
-    config = { ...c, allSizes, deviceSizes, qualities }
-  }
+  const { imgConf: config, showAltText, blurComplete, defaultLoader } = _state
 
   if (typeof defaultLoader === 'undefined') {
     throw new Error(
@@ -347,6 +334,8 @@ export function getImgProps(
 
   // Remove property so it's not spread on <img> element
   delete rest.loader
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   delete (rest as any).srcSet
 
   // This special value indicates that the user
@@ -653,11 +642,13 @@ export function getImgProps(
       perfObserver = new PerformanceObserver((entryList) => {
         for (const entry of entryList.getEntries()) {
           // @ts-ignore - missing "LargestContentfulPaint" class with "element" prop
-          const imgSrc = entry?.element?.src || ''
+          const imgElement = entry?.element
+          const imgSrc = imgElement?.src || ''
           const lcpImage = allImgs.get(imgSrc)
           if (
             lcpImage &&
-            lcpImage.loading === 'lazy' &&
+            // Images sharing a URL can have different loading attributes.
+            imgElement?.getAttribute('loading') === 'lazy' &&
             lcpImage.placeholder === 'empty' &&
             !lcpImage.src.startsWith('data:') &&
             !lcpImage.src.startsWith('blob:')
@@ -763,7 +754,7 @@ export function getImgProps(
       } catch (e) {
         fullUrl = new URL(imgAttributes.src, window.location.href)
       }
-      allImgs.set(fullUrl.href, { src, loading: loadingFinal, placeholder })
+      allImgs.set(fullUrl.href, { src, placeholder })
     }
   }
 

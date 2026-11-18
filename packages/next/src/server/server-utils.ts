@@ -14,6 +14,7 @@ import {
   prepareDestination,
 } from '../shared/lib/router/utils/prepare-destination'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
+import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { normalizeRscURL } from '../shared/lib/router/utils/app-paths'
 import {
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
@@ -66,6 +67,8 @@ export function normalizeCdnUrl(
   if (!_parsedUrl) {
     return req.url
   }
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   delete (_parsedUrl as any).search
   filterInternalQuery(_parsedUrl.query, paramKeys)
 
@@ -310,6 +313,8 @@ export function getServerUtils({
 
         Object.assign(rewriteParams, destQuery, params)
         Object.assign(rewrittenParsedUrl.query, parsedDestination.query)
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         delete (parsedDestination as any).query
 
         Object.assign(rewrittenParsedUrl, parsedDestination)
@@ -318,7 +323,7 @@ export function getServerUtils({
         if (!fsPathname) return false
 
         if (basePath) {
-          fsPathname = fsPathname.replace(new RegExp(`^${basePath}`), '') || '/'
+          fsPathname = removePathPrefix(fsPathname, basePath)
         }
 
         if (i18n) {

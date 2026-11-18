@@ -2,14 +2,14 @@ import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// Assertions don't apply to deploy mode (output differs vs. local Next.js server).
+// @force-gate !deploy
 describe('edge-runtime-streaming-error', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     disableAutoSkewProtection: true,
-    // Assertions don't apply to deploy mode (output differs vs. local Next.js server).
-    skipDeployment: true,
   })
-  if (skipped) return
 
   it('logs the error correctly', async () => {
     const res = await next.fetch('/api/test')

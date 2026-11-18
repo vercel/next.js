@@ -1,4 +1,5 @@
 import { createSandbox } from 'development-sandbox'
+import { outdent } from 'outdent'
 import { runRscBuildErrorsTests } from './rsc-build-errors.util'
 
 runRscBuildErrorsTests(({ next, isTurbopack, isRspack }) => {
@@ -81,6 +82,56 @@ runRscBuildErrorsTests(({ next, isTurbopack, isRspack }) => {
       expect(await session.getRedboxSource()).toInclude(
         `'next/root-params' cannot be imported from a Client Component module. It should only be used from a Server Component.`
       )
+    })
+  })
+
+  describe("importing 'next/headers' in a client component", () => {
+    it('errors when the module is outside the app directory', async () => {
+      await using sandbox = await createSandbox(
+        next,
+        new Map([
+          [
+            'lib/server-only.js',
+            outdent`
+              import { cookies } from 'next/headers'
+
+              export function getTheme() {
+                return cookies().get('theme')
+              }
+            `,
+          ],
+          [
+            'lib/shared.js',
+            outdent`
+              import './server-only'
+
+              export const greeting = 'hello'
+            `,
+          ],
+          [
+            'app/next-headers-in-client/page.js',
+            outdent`
+              'use client'
+
+              import { greeting } from '../../lib/shared'
+
+              export default function Page() {
+                return <p>{greeting}</p>
+              }
+            `,
+          ],
+        ]),
+        '/next-headers-in-client'
+      )
+      const { session } = sandbox
+      await session.waitForRedbox()
+      // The module lives outside `app/`, but a Client Component pulled it
+      // into the App Router graph. The Pages Router is not involved.
+      const source = await session.getRedboxSource()
+      expect(source).toInclude(
+        `You're importing a module that depends on "next/headers" into a React Client Component module. This API is only available in Server Components but one of its parents is marked with "use client", so this module is also a Client Component.`
+      )
+      expect(source).not.toInclude('Pages Router')
     })
   })
 })

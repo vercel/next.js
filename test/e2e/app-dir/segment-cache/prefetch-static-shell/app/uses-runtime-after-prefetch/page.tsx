@@ -1,10 +1,10 @@
-// A page that calls cookies and headers after awaiting `unstable_prefetch()`.
+// A page that calls cookies and headers after awaiting `prefetch()`.
 // Unlike `navigation()`, `prefetch()` doesn't stop runtime-data tracking — the
 // reads below it still count — so the tree hint stays unset and this route
 // can't be prefetched statically.
 
 import { cookies, headers } from 'next/headers'
-import { unstable_prefetch } from 'next/cache'
+import { prefetch } from 'next/cache'
 import { Suspense } from 'react'
 
 export default async function Page() {
@@ -21,7 +21,7 @@ export default async function Page() {
 }
 
 async function Prefetch() {
-  await unstable_prefetch()
+  await prefetch()
 
   return (
     <>

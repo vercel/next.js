@@ -60,8 +60,8 @@ export function ErrorOverlay({
     )
   }
 
-  // No Runtime Errors.
-  if (!runtimeErrors.length) {
+  // No runtime errors or upgrade insight to display.
+  if (!runtimeErrors.length && !state.hasVulnerabilityInsight) {
     return null
   }
 
@@ -83,6 +83,7 @@ export function ErrorOverlay({
         debugInfo={state.debugInfo}
         getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
         runtimeErrors={runtimeErrors}
+        hasVulnerabilityInsight={state.hasVulnerabilityInsight}
         onClose={() => {
           dispatch({ type: ACTION_ERROR_OVERLAY_CLOSE })
         }}

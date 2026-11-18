@@ -17,6 +17,7 @@ import {
   type DebugAddress,
 } from '../server/lib/utils'
 import { getProjectDir } from '../lib/get-project-dir'
+import { warnMissingReactDependencies } from '../lib/warn-missing-react-dependencies'
 import {
   getReservedPortExplanation,
   isPortIsReserved,
@@ -41,6 +42,7 @@ export type NextStartOptions = {
  */
 const nextStart = async (options: NextStartOptions, directory?: string) => {
   const dir = getProjectDir(directory)
+  warnMissingReactDependencies(dir)
   const hostname = options.hostname
   const inspect = options.inspect
   const port = options.port

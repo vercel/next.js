@@ -15,9 +15,7 @@ import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
       const html = await next.render('/hello')
       expect(html).toMatch(errorRegex)
     })
-  }
-
-  if (!isNextDev) {
+  } else {
     it('should catch it in server build mode', async () => {
       await expect(next.start()).rejects.toThrow()
       const cliOutput = next.cliOutput

@@ -8,7 +8,7 @@ import {
   fetchViaRawHttp,
   retry,
 } from 'next-test-utils'
-import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
 
 function runTests({
   next,
@@ -351,16 +351,21 @@ function runTests({
           item.as ? `, "${item.as}"` : ''
         })`
       )
+      // Pushing to a missing page triggers a hard navigation, so the
+      // document may still be the old page (or mid-navigation) here. Wait for
+      // the navigation's end state instead of a one-shot read.
       await retry(async () => {
-        const readyState = await browser.eval('document.readyState')
-        expect(readyState).toMatch(/interactive|complete/)
+        expect(await browser.eval('window.location.pathname')).toBe(
+          item.pathname
+        )
+        expect(await browser.eval('window.location.search')).toBe(
+          item.search || ''
+        )
+        expect(await browser.eval('window.location.hash')).toBe(item.hash || '')
+        expect(await browser.eval('window.next?.router?.pathname')).toBe(
+          item.page
+        )
       })
-      expect(await browser.eval('window.location.pathname')).toBe(item.pathname)
-      expect(await browser.eval('window.location.search')).toBe(
-        item.search || ''
-      )
-      expect(await browser.eval('window.location.hash')).toBe(item.hash || '')
-      expect(await browser.eval('window.next.router.pathname')).toBe(item.page)
     }
   })
 
@@ -421,21 +426,22 @@ function runTests({
 
 describe('404 handling', () => {
   describe('custom _error', () => {
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely mutates files in the isolated local fixture after setup.
+    // @force-gate !deploy
     describe('server mode', () => {
-      const { next, isNextDeploy } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: path.join(__dirname, 'app'),
-        skipDeployment: true,
       })
-      if (isNextDeploy) return
 
       runTests({ next, isDev: isNextDev, isPages404: false })
     })
-    ;(isNextStart ? describe : describe.skip)('export mode', () => {
-      const { next, skipped } = nextTestSetup({
+    // @force-gate start
+    describe('export mode', () => {
+      const { next } = nextTestSetup({
         files: path.join(__dirname, 'app'),
         skipStart: true,
       })
-      if (skipped) return
 
       let staticServer: any
       let staticPort: number
@@ -473,13 +479,14 @@ describe('404 handling', () => {
   })
 
   describe('pages/404', () => {
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // It likely mutates files in the isolated local fixture after setup.
+    // @force-gate !deploy
     describe('server mode', () => {
-      const { next, skipped } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: path.join(__dirname, 'app'),
         skipStart: true,
-        skipDeployment: true,
       })
-      if (skipped) return
 
       beforeAll(async () => {
         await next.deleteFile('pages/_error.js')
@@ -503,12 +510,12 @@ describe('404 handling', () => {
 
       runTests({ next, isDev: isNextDev, isPages404: true })
     })
-    ;(isNextStart ? describe : describe.skip)('pages/404 export mode', () => {
-      const { next, skipped } = nextTestSetup({
+    // @force-gate start
+    describe('pages/404 export mode', () => {
+      const { next } = nextTestSetup({
         files: path.join(__dirname, 'app'),
         skipStart: true,
       })
-      if (skipped) return
 
       let staticServer: any
       let staticPort: number

@@ -6,7 +6,7 @@ export default async function Page() {
     'https://next-data-api-endpoint.vercel.app/api/random',
     {
       next: {
-        tags: ['data'],
+        tags: ['revalidatetag-rsc:data'],
         revalidate: false,
       },
     }
@@ -15,8 +15,11 @@ export default async function Page() {
   return (
     <div>
       <span id="data">{data}</span>
-      <RevalidateViaForm tag="data" />
-      <Link href="/revalidate_via_page?tag=data" id="revalidate-via-page">
+      <RevalidateViaForm tag="revalidatetag-rsc:data" />
+      <Link
+        href="/revalidate_via_page?tag=revalidatetag-rsc:data"
+        id="revalidate-via-page"
+      >
         Revalidate via page
       </Link>
       <Link href="/revalidate_via_cache" id="revalidate-via-cache">

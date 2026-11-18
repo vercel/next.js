@@ -1,3 +1,12 @@
+# These tests launch Go compiler processes and hash the SDK. Limit concurrent owners
+# so cold SDK/build caches do not starve startup and shutdown deadlines on CI runners.
+[test-groups.go-compiler]
+max-threads = 2
+
+[[profile.default.overrides]]
+filter = 'package(turbopack-cli) | package(turbopack-go)'
+test-group = 'go-compiler'
+
 [profile.tp-test-linux.junit]
 path = "junit.xml"
 report-name = "Turbopack tests (Linux)"

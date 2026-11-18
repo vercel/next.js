@@ -1,6 +1,6 @@
 ---
 title: turbopackChunking
-description: Configure how Turbopack splits your client-side JavaScript into chunks in production.
+description: Configure how Turbopack splits your client-side and server-side JavaScript into chunks in production.
 version: experimental
 ---
 
@@ -101,8 +101,8 @@ module.exports = nextConfig
 
 ## Size Thresholds
 
-The following options control how aggressively Turbopack merges chunks and how large a chunk is
-allowed to grow. Sizes are in bytes of uncompressed, unminified code (roughly 5x
+The following options control how aggressively Turbopack merges client-side chunks and how large
+a chunk is allowed to grow. Sizes are in bytes of uncompressed, unminified code (roughly 5x
 the size of the compressed, minified output).
 
 - **`minChunkSize`** (default `50000`): Turbopack will avoid creating more
@@ -121,6 +121,40 @@ the size of the compressed, minified output).
 When merging chunks, the trade-off being made is an improvement to performance on initial page
 loads at the cost of navigation performance. This is because each additional network request
 being made is costly, however, smaller chunks are more likely to be re-usable across pages.
+
+> **Good to know**: The size thresholds depend on the experimental
+> `experimental.turbopackMinifyBeforeChunking` option, which is enabled by default on canary
+> releases. When it is enabled (and minification is on),
+> Turbopack minifies each module before chunking and measures sizes in bytes of minified code
+> instead. The default thresholds and `requestCost`, including the server chunk thresholds below,
+> are then scaled down to 40% of the values listed here. Values you set explicitly are used as-is,
+> so you may need to lower them when enabling the option.
+
+## Server Chunks
+
+The size thresholds above only apply to client-side JavaScript. Server-side JavaScript for the
+Node.js runtime uses separate thresholds:
+
+- **`minServerChunkSize`** (default `4000`): Turbopack will avoid creating more than one server
+  chunk smaller than this size by merging small chunks into larger ones.
+- **`maxMergeServerChunkSize`** (default `100000`): Turbopack never merges a server chunk larger
+  than this size with other chunks.
+
+These options don't apply to the Edge runtime, whose chunking is not configurable.
+
+```js filename="next.config.js"
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    turbopackChunking: {
+      minServerChunkSize: 10000,
+      maxMergeServerChunkSize: 200000,
+    },
+  },
+}
+
+module.exports = nextConfig
+```
 
 <AppOnly>
 

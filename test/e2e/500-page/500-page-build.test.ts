@@ -1,15 +1,17 @@
-import { isNextDev, nextTestSetup } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
 // This test exercises `next build` outputs and `next start` behaviour, so it
 // is meaningless in dev mode where the dev server bypasses production build
 // artifacts (e.g. statically prerendered 500.html from getStaticProps).
-;(isNextDev ? describe.skip : describe)('500 Page build validation', () => {
-  const { next, skipped } = nextTestSetup({
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
+// @force-gate !dev
+describe('500 Page build validation', () => {
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   const gip500Err =
     /`pages\/500` can not have getInitialProps\/getServerSideProps/

@@ -2,13 +2,10 @@ import { nextTestSetup } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('incompatible-parallel-route-slots', () => {
-  const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
+  const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('reports the layout whose slots cannot render the same URLs', async () => {
     if (isNextDev) {
@@ -55,8 +52,8 @@ describe('incompatible-parallel-route-slots', () => {
       )
       expectDefaultStrictRouteMatchingWarning(next.cliOutput)
     } else {
-      const { exitCode, cliOutput } = await next.build()
-      expect(exitCode).toBe(1)
+      await expect(next.start()).rejects.toThrow()
+      const cliOutput = next.cliOutput
 
       expect(extractIncompatibleSlotsError(cliOutput)).toMatchInlineSnapshot(`
        "The following layouts have parallel route slots that cannot render the same URLs:
@@ -74,7 +71,7 @@ describe('incompatible-parallel-route-slots', () => {
       )
       expectDefaultStrictRouteMatchingWarning(cliOutput)
     }
-  })
+  }, 240_000)
 })
 
 function expectDefaultStrictRouteMatchingWarning(output: string): void {

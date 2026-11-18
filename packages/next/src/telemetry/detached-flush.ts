@@ -2,34 +2,29 @@ import fs from 'fs'
 import path from 'path'
 import type { TelemetryEvent } from './storage'
 import { Telemetry } from './storage'
-import loadConfig from '../server/config'
 import { getProjectDir } from '../lib/get-project-dir'
-import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
+
+// A detached process has no parent left to clean it up if work never settles.
+// Leave normal exit (including draining debug output) to Node, but bound its lifetime.
+setTimeout(() => process.exit(0), 10 * 60 * 1000).unref()
 
 // this process should be started with following arg order
 // 1. mode e.g. dev, export, start
 // 2. project dir
-// 3. events filename (optional, defaults to _events.json)
+// 3. events filename
+// 4. resolved dist directory
 ;(async () => {
-  const args = [...process.argv]
-  const eventsFile = args.pop()
-  let dir = args.pop()
-  const mode = args.pop()
+  const [mode, inputDir, eventsFile, suppliedDistDir] = process.argv.slice(2)
 
-  if (!dir || mode !== 'dev') {
+  if (!inputDir || mode !== 'dev' || !eventsFile || !suppliedDistDir) {
     throw new Error(
-      `Invalid flags should be run as node detached-flush dev ./path-to/project [eventsFile]`
+      `Invalid flags should be run as node detached-flush dev <projectDir> <eventsFile> <distDir>`
     )
   }
-  dir = getProjectDir(dir)
+  getProjectDir(inputDir)
 
-  const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
-  const distDir = path.join(dir, config.distDir || '.next')
-  // Support both old format (no eventsFile arg) and new format (with eventsFile arg)
-  const eventsPath = path.join(
-    distDir,
-    eventsFile && !eventsFile.includes('/') ? eventsFile : '_events.json'
-  )
+  const distDir = path.resolve(suppliedDistDir)
+  const eventsPath = path.join(distDir, 'cache', eventsFile)
 
   let events: TelemetryEvent[]
   try {

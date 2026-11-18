@@ -442,31 +442,59 @@ export async function POST(request) {
 
 ## Proxying to a backend
 
-You can use a Route Handler as a `proxy` to another backend. Add validation logic before forwarding the request.
+To forward requests to another backend, use [`rewrites`](/docs/app/api-reference/config/next-config-js/rewrites) in `next.config.js` or a [`proxy` rewrite](#proxy). When you need to validate requests, authenticate with the backend, or transform its response, use a Route Handler.
+
+Send the backend only the headers and credentials it needs. Copying every incoming header also forwards the user's `Cookie` and `Authorization` values. If you attach a credential, make sure the request cannot reach another server.
+
+This Route Handler exposes a fixed set of backend endpoints, validates the incoming JSON request, calls the backend with a server-side token, and transforms the response before returning it. Because the upstream path comes from the `ENDPOINTS` map rather than from the request URL, a caller cannot point the request, or its token, at another destination.
 
 ```ts filename="/app/api/[...slug]/route.ts" switcher
 import { isValidRequest } from '@/lib/utils'
 
+const BACKEND_ORIGIN = 'https://api.example.com'
+
+const ENDPOINTS = new Map([
+  ['checkout', '/v1/checkout'],
+  ['orders/preview', '/v1/orders/preview'],
+])
+
 export async function POST(request: Request, { params }) {
-  const clonedRequest = request.clone()
-  const isValid = await isValidRequest(clonedRequest)
+  const { slug } = await params
+  const path = ENDPOINTS.get(slug.join('/'))
+
+  if (!path) {
+    return new Response(null, { status: 404, statusText: 'Not Found' })
+  }
+
+  const isValid = await isValidRequest(request.clone())
 
   if (!isValid) {
     return new Response(null, { status: 400, statusText: 'Bad Request' })
   }
 
-  const { slug } = await params
-  const pathname = slug.join('/')
-  const proxyURL = new URL(pathname, 'https://nextjs.org')
-  const proxyRequest = new Request(proxyURL, request)
-
   try {
-    return fetch(proxyRequest)
-  } catch (reason) {
-    const message =
-      reason instanceof Error ? reason.message : 'Unexpected exception'
+    const upstream = await fetch(new URL(path, BACKEND_ORIGIN), {
+      method: 'POST',
+      redirect: 'error',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.API_TOKEN}`,
+      },
+      body: await request.text(),
+    })
 
-    return new Response(message, { status: 500 })
+    if (!upstream.ok) {
+      return Response.json(
+        { error: 'Upstream request failed' },
+        { status: 502 }
+      )
+    }
+
+    const data = await upstream.json()
+
+    return Response.json({ ...data, source: 'proxied-through-nextjs' })
+  } catch {
+    return Response.json({ error: 'Bad Gateway' }, { status: 502 })
   }
 }
 ```
@@ -474,34 +502,55 @@ export async function POST(request: Request, { params }) {
 ```js filename="/app/api/[...slug]/route.js" switcher
 import { isValidRequest } from '@/lib/utils'
 
+const BACKEND_ORIGIN = 'https://api.example.com'
+
+const ENDPOINTS = new Map([
+  ['checkout', '/v1/checkout'],
+  ['orders/preview', '/v1/orders/preview'],
+])
+
 export async function POST(request, { params }) {
-  const clonedRequest = request.clone()
-  const isValid = await isValidRequest(clonedRequest)
+  const { slug } = await params
+  const path = ENDPOINTS.get(slug.join('/'))
+
+  if (!path) {
+    return new Response(null, { status: 404, statusText: 'Not Found' })
+  }
+
+  const isValid = await isValidRequest(request.clone())
 
   if (!isValid) {
     return new Response(null, { status: 400, statusText: 'Bad Request' })
   }
 
-  const { slug } = await params
-  const pathname = slug.join('/')
-  const proxyURL = new URL(pathname, 'https://nextjs.org')
-  const proxyRequest = new Request(proxyURL, request)
-
   try {
-    return fetch(proxyRequest)
-  } catch (reason) {
-    const message =
-      reason instanceof Error ? reason.message : 'Unexpected exception'
+    const upstream = await fetch(new URL(path, BACKEND_ORIGIN), {
+      method: 'POST',
+      redirect: 'error',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.API_TOKEN}`,
+      },
+      body: await request.text(),
+    })
 
-    return new Response(message, { status: 500 })
+    if (!upstream.ok) {
+      return Response.json(
+        { error: 'Upstream request failed' },
+        { status: 502 }
+      )
+    }
+
+    const data = await upstream.json()
+
+    return Response.json({ ...data, source: 'proxied-through-nextjs' })
+  } catch {
+    return Response.json({ error: 'Bad Gateway' }, { status: 502 })
   }
 }
 ```
 
-Or use:
-
-- `proxy` [rewrites](#proxy)
-- [`rewrites`](/docs/app/api-reference/config/next-config-js/rewrites) in `next.config.js`.
+> **Good to know**: This example reads the entire request and upstream response into memory. For large payloads or streaming responses, use rewrites instead.
 
 ## NextRequest and NextResponse
 
@@ -721,12 +770,12 @@ export function proxy(request) {
 }
 ```
 
-You can also proxy requests using `proxy`:
+You can also proxy requests using `proxy`. This example reads `request.nextUrl`, so `request` is typed as [`NextRequest`](#nextrequest-and-nextresponse):
 
 ```ts filename="proxy.ts" switcher
-import { NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 
-export function proxy(request: Request) {
+export function proxy(request: NextRequest) {
   if (request.nextUrl.pathname === '/proxy-this-path') {
     const rewriteUrl = new URL('https://nextjs.org')
     return NextResponse.rewrite(rewriteUrl)
@@ -748,9 +797,9 @@ export function proxy(request) {
 Another type of response `proxy` can produce are redirects:
 
 ```ts filename="proxy.ts" switcher
-import { NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 
-export function proxy(request: Request) {
+export function proxy(request: NextRequest) {
   if (request.nextUrl.pathname === '/v1/docs') {
     request.nextUrl.pathname = '/v2/docs'
     return NextResponse.redirect(request.nextUrl)
@@ -814,6 +863,8 @@ export async function POST(request) {
 }
 ```
 
+A rate limiter that keeps its counts in memory tracks each server instance separately, and the counts reset when an instance restarts. When your app runs on more than one instance, keep the counts in a shared data store or use your host's rate limiting.
+
 ### Verify payloads
 
 Never trust incoming request data. Validate content type and size, and sanitize against XSS before use.
@@ -825,6 +876,8 @@ Store user-generated static assets in dedicated services. When possible, upload 
 ### Access to protected resources
 
 Always verify credentials before granting access. Do not rely on proxy alone for authentication and authorization.
+
+Checks in a Route Handler run only when the handler runs. When a response sets `Cache-Control: public` with a `max-age` or `s-maxage`, a CDN can store it and serve later requests for the same URL without calling the handler. Which headers a CDN reads, and what it includes in the cache key, depends on your host. Credential checks and rate limits do not apply to requests served from the cache, so cache only responses that are safe to serve to anyone with the URL.
 
 Remove sensitive or unnecessary data from responses and backend logs.
 

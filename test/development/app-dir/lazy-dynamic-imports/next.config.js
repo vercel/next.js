@@ -3,7 +3,9 @@
  */
 const nextConfig = {
   experimental: {
+    disableOptimizedLoading: true,
     turbopackLazyDynamicImports: true,
+    turbopackLazyDynamicImportsSSR: true,
   },
 }
 

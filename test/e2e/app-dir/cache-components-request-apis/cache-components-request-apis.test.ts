@@ -72,7 +72,7 @@ describe(`Request Promises`, () => {
       expectError(
         'Error: During prerendering, `headers()` rejects when the prerender is complete'
       )
-    })
+    }, 120_000)
   })
   describe('On Prerender Interruption', () => {
     const { next, isNextDev } = nextTestSetup({

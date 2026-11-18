@@ -31,7 +31,7 @@ use crate::{
     generated_code_source::GeneratedCodeSource,
     ident::{AssetIdent, Layer},
     source::Source,
-    source_map::{GenerateSourceMap, SourceMap, TokenWithSource},
+    source_map::{GenerateSourceMap, SourceMap, SourceMapType, TokenWithSource},
     source_pos::SourcePos,
 };
 
@@ -607,6 +607,27 @@ impl IssueSource {
         Ok(self.source.ident().await?.path.clone())
     }
 
+    /// The source that the range is in.
+    pub fn source(&self) -> ResolvedVc<Box<dyn Source>> {
+        self.source
+    }
+
+    /// The position the range starts at, in the coordinates of [`Self::source`] itself
+    /// (the source map of the source, if any, is not applied).
+    pub async fn start_pos(&self) -> Result<Option<SourcePos>> {
+        Ok(match self.range {
+            Some(SourceRange::LineColumn(start, _)) => Some(start),
+            Some(SourceRange::ByteOffset(start, _)) => {
+                if let FileLinesContent::Lines(lines) = &*self.source.content().lines().await? {
+                    Some(find_line_and_column(lines.as_ref(), start))
+                } else {
+                    None
+                }
+            }
+            None => None,
+        })
+    }
+
     /// If this source implements `GenerateSourceMap`, returns an
     /// `AdditionalIssueSource` that wraps the source in a `GeneratedCodeSource`
     /// (stripping source-map support) so the generated code is shown alongside
@@ -663,7 +684,7 @@ async fn source_pos(
         return Ok(None);
     };
 
-    let srcmap = generator.generate_source_map();
+    let srcmap = generator.generate_source_map(SourceMapType::Full);
     let Some(srcmap) = &*SourceMap::new_from_rope_cached(srcmap).await? else {
         return Ok(None);
     };
@@ -904,7 +925,7 @@ pub struct PlainIssue {
 
 /// A collection of [`PlainIssue`]s collected from a single source.
 ///
-/// Returned by [`collect_issues`] so that the (plain) issues can be read strongly
+/// Returned by `collect_issues` so that the (plain) issues can be read strongly
 /// consistently from a top-level task and handed to a non-turbo-task [`IssueReporter`].
 #[turbo_tasks::value(serialization = "skip")]
 #[derive(Debug)]
@@ -1075,7 +1096,7 @@ pub trait IssueReporter {
     /// (program-ending) issues were present.
     ///
     /// This is intentionally *not* a `#[turbo_tasks::function]`: it performs no turbo-tasks
-    /// reads of its own (the issues are collected ahead of time by [`collect_issues`]), so it
+    /// reads of its own (the issues are collected ahead of time by `collect_issues`), so it
     /// is safe to call from a top-level task.
     ///
     /// # Arguments:

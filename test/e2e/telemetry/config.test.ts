@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-standalone-expect */
 import type { ChildProcess } from 'child_process'
 import fs from 'fs-extra'
 import path from 'path'
@@ -11,12 +10,10 @@ import {
 } from 'next-test-utils'
 
 describe('config telemetry', () => {
-  const { next, isNextStart, isTurbopack, skipped } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   async function launchDevServer(
     port: number,
@@ -62,7 +59,9 @@ describe('config telemetry', () => {
     return { child, exit }
   }
 
-  ;(isNextStart ? describe : describe.skip)('production mode', () => {
+  // These tests invoke local builds to inspect their telemetry output.
+  // @force-gate start
+  describe('production mode', () => {
     it('detects rewrites, headers, and redirects for next build', async () => {
       await fs.rename(
         path.join(next.testDir, 'next.config.custom-routes'),
@@ -241,68 +240,66 @@ describe('config telemetry', () => {
     })
 
     // Turbopack intentionally does not support these events
-    ;(isTurbopack ? it.skip : it)(
-      'emits telemetry for usage of swc',
-      async () => {
-        await fs.remove(path.join(next.testDir, 'next.config.js'))
-        await fs.remove(path.join(next.testDir, 'jsconfig.json'))
-        await fs.rename(
-          path.join(next.testDir, 'next.config.swc'),
-          path.join(next.testDir, 'next.config.js')
-        )
-        await fs.rename(
-          path.join(next.testDir, 'jsconfig.swc'),
-          path.join(next.testDir, 'jsconfig.json')
-        )
-        const { cliOutput } = await next.build({
-          env: { NEXT_TELEMETRY_DEBUG: '1' },
-        })
-        await fs.rename(
-          path.join(next.testDir, 'next.config.js'),
-          path.join(next.testDir, 'next.config.swc')
-        )
-        await fs.rename(
-          path.join(next.testDir, 'jsconfig.json'),
-          path.join(next.testDir, 'jsconfig.swc')
-        )
-        const featureUsageEvents = findAllTelemetryEvents(
-          cliOutput,
-          'NEXT_BUILD_FEATURE_USAGE'
-        )
-        expect(featureUsageEvents).toEqual(
-          expect.arrayContaining([
-            {
-              featureName: 'swcLoader',
-              invocationCount: 1,
-            },
-            {
-              featureName: 'swcRelay',
-              invocationCount: 1,
-            },
-            {
-              featureName: 'swcStyledComponents',
-              invocationCount: 1,
-            },
-            {
-              featureName: 'swcReactRemoveProperties',
-              invocationCount: 1,
-            },
-            {
-              featureName: 'swcExperimentalDecorators',
-              invocationCount: 1,
-            },
-            {
-              featureName: 'swcRemoveConsole',
-              invocationCount: 1,
-            },
-            {
-              featureName: 'swcImportSource',
-              invocationCount: 0,
-            },
-          ])
-        )
-      }
-    )
+    // @force-gate !turbopack
+    it('emits telemetry for usage of swc', async () => {
+      await fs.remove(path.join(next.testDir, 'next.config.js'))
+      await fs.remove(path.join(next.testDir, 'jsconfig.json'))
+      await fs.rename(
+        path.join(next.testDir, 'next.config.swc'),
+        path.join(next.testDir, 'next.config.js')
+      )
+      await fs.rename(
+        path.join(next.testDir, 'jsconfig.swc'),
+        path.join(next.testDir, 'jsconfig.json')
+      )
+      const { cliOutput } = await next.build({
+        env: { NEXT_TELEMETRY_DEBUG: '1' },
+      })
+      await fs.rename(
+        path.join(next.testDir, 'next.config.js'),
+        path.join(next.testDir, 'next.config.swc')
+      )
+      await fs.rename(
+        path.join(next.testDir, 'jsconfig.json'),
+        path.join(next.testDir, 'jsconfig.swc')
+      )
+      const featureUsageEvents = findAllTelemetryEvents(
+        cliOutput,
+        'NEXT_BUILD_FEATURE_USAGE'
+      )
+      expect(featureUsageEvents).toEqual(
+        expect.arrayContaining([
+          {
+            featureName: 'swcLoader',
+            invocationCount: 1,
+          },
+          {
+            featureName: 'swcRelay',
+            invocationCount: 1,
+          },
+          {
+            featureName: 'swcStyledComponents',
+            invocationCount: 1,
+          },
+          {
+            featureName: 'swcReactRemoveProperties',
+            invocationCount: 1,
+          },
+          {
+            featureName: 'swcExperimentalDecorators',
+            invocationCount: 1,
+          },
+          {
+            featureName: 'swcRemoveConsole',
+            invocationCount: 1,
+          },
+          {
+            featureName: 'swcImportSource',
+            invocationCount: 0,
+          },
+        ])
+      )
+    })
 
     it('emits telemetry for usage of `experimental/cacheComponents`', async () => {
       await fs.rename(
@@ -331,33 +328,31 @@ describe('config telemetry', () => {
 
     // `experimental.optimizeCss` is a webpack-only feature that relies on
     // `critters`; Turbopack does not emit this feature usage event.
-    ;(isTurbopack ? it.skip : it)(
-      'emits telemetry for usage of `optimizeCss`',
-      async () => {
-        await fs.rename(
-          path.join(next.testDir, 'next.config.optimize-css'),
-          path.join(next.testDir, 'next.config.js')
-        )
+    // @force-gate !turbopack
+    it('emits telemetry for usage of `optimizeCss`', async () => {
+      await fs.rename(
+        path.join(next.testDir, 'next.config.optimize-css'),
+        path.join(next.testDir, 'next.config.js')
+      )
 
-        const { cliOutput } = await next.build({
-          env: { NEXT_TELEMETRY_DEBUG: '1' },
-        })
+      const { cliOutput } = await next.build({
+        env: { NEXT_TELEMETRY_DEBUG: '1' },
+      })
 
-        await fs.rename(
-          path.join(next.testDir, 'next.config.js'),
-          path.join(next.testDir, 'next.config.optimize-css')
-        )
+      await fs.rename(
+        path.join(next.testDir, 'next.config.js'),
+        path.join(next.testDir, 'next.config.optimize-css')
+      )
 
-        const events = findAllTelemetryEvents(
-          cliOutput,
-          'NEXT_BUILD_FEATURE_USAGE'
-        )
-        expect(events).toContainEqual({
-          featureName: 'experimental/optimizeCss',
-          invocationCount: 1,
-        })
-      }
-    )
+      const events = findAllTelemetryEvents(
+        cliOutput,
+        'NEXT_BUILD_FEATURE_USAGE'
+      )
+      expect(events).toContainEqual({
+        featureName: 'experimental/optimizeCss',
+        invocationCount: 1,
+      })
+    })
 
     it('emits telemetry for usage of `nextScriptWorkers`', async () => {
       await fs.rename(
@@ -435,161 +430,151 @@ describe('config telemetry', () => {
     })
 
     // Turbopack intentionally does not support these events
-    ;(isTurbopack ? it.skip : it)(
-      'emits telemetry for usage of swc plugins',
-      async () => {
-        const originalPkg = await fs.readFile(
-          path.join(next.testDir, 'package.json'),
-          'utf8'
-        )
-        const swcPluginsPkg = await fs.readFile(
-          path.join(next.testDir, 'package.swc-plugins'),
-          'utf8'
-        )
+    // @force-gate !turbopack
+    it('emits telemetry for usage of swc plugins', async () => {
+      const originalPkg = await fs.readFile(
+        path.join(next.testDir, 'package.json'),
+        'utf8'
+      )
+      const swcPluginsPkg = await fs.readFile(
+        path.join(next.testDir, 'package.swc-plugins'),
+        'utf8'
+      )
 
-        // Merge the swc plugins fields into the existing package.json so we
-        // keep `packageManager` and other generated fields.
-        const merged = JSON.stringify({
-          ...JSON.parse(originalPkg),
-          ...JSON.parse(swcPluginsPkg),
-        })
-        await fs.writeFile(path.join(next.testDir, 'package.json'), merged)
-        await fs.rename(
-          path.join(next.testDir, 'next.config.swc-plugins'),
-          path.join(next.testDir, 'next.config.js')
-        )
+      // Merge the swc plugins fields into the existing package.json so we
+      // keep `packageManager` and other generated fields.
+      const merged = JSON.stringify({
+        ...JSON.parse(originalPkg),
+        ...JSON.parse(swcPluginsPkg),
+      })
+      await fs.writeFile(path.join(next.testDir, 'package.json'), merged)
+      await fs.rename(
+        path.join(next.testDir, 'next.config.swc-plugins'),
+        path.join(next.testDir, 'next.config.js')
+      )
 
-        const { cliOutput } = await next.build({
-          env: { NEXT_TELEMETRY_DEBUG: '1' },
-        })
+      const { cliOutput } = await next.build({
+        env: { NEXT_TELEMETRY_DEBUG: '1' },
+      })
 
-        await fs.rename(
-          path.join(next.testDir, 'next.config.js'),
-          path.join(next.testDir, 'next.config.swc-plugins')
-        )
-        await fs.writeFile(path.join(next.testDir, 'package.json'), originalPkg)
+      await fs.rename(
+        path.join(next.testDir, 'next.config.js'),
+        path.join(next.testDir, 'next.config.swc-plugins')
+      )
+      await fs.writeFile(path.join(next.testDir, 'package.json'), originalPkg)
 
-        const pluginDetectedEvents = findAllTelemetryEvents(
-          cliOutput,
-          'NEXT_SWC_PLUGIN_DETECTED'
-        )
-        expect(pluginDetectedEvents).toEqual([
-          {
-            pluginName: 'swc-plugin-coverage-instrument',
-            pluginVersion: '0.0.6',
-          },
-          {
-            pluginName: '@swc/plugin-relay',
-            pluginVersion: '0.2.0',
-          },
-          {
-            pluginName: '/test/absolute_path/plugin.wasm',
-          },
-        ])
-      }
-    )
+      const pluginDetectedEvents = findAllTelemetryEvents(
+        cliOutput,
+        'NEXT_SWC_PLUGIN_DETECTED'
+      )
+      expect(pluginDetectedEvents).toEqual([
+        {
+          pluginName: 'swc-plugin-coverage-instrument',
+          pluginVersion: '0.0.6',
+        },
+        {
+          pluginName: '@swc/plugin-relay',
+          pluginVersion: '0.2.0',
+        },
+        {
+          pluginName: '/test/absolute_path/plugin.wasm',
+        },
+      ])
+    })
 
     // Turbopack intentionally does not support these events
-    ;(isTurbopack ? it.skip : it)(
-      'emits telemetry for usage of next/legacy/image',
-      async () => {
-        const { cliOutput } = await next.build({
-          env: { NEXT_TELEMETRY_DEBUG: '1' },
-        })
-        const featureUsageEvents = findAllTelemetryEvents(
-          cliOutput,
-          'NEXT_BUILD_FEATURE_USAGE'
-        )
-        expect(featureUsageEvents).toContainEqual({
-          featureName: 'next/legacy/image',
-          invocationCount: 2,
-        })
-        expect(featureUsageEvents).toContainEqual({
-          featureName: 'next/image',
-          invocationCount: 2,
-        })
-      }
-    )
+    // @force-gate !turbopack
+    it('emits telemetry for usage of next/legacy/image', async () => {
+      const { cliOutput } = await next.build({
+        env: { NEXT_TELEMETRY_DEBUG: '1' },
+      })
+      const featureUsageEvents = findAllTelemetryEvents(
+        cliOutput,
+        'NEXT_BUILD_FEATURE_USAGE'
+      )
+      expect(featureUsageEvents).toContainEqual({
+        featureName: 'next/legacy/image',
+        invocationCount: 2,
+      })
+      expect(featureUsageEvents).toContainEqual({
+        featureName: 'next/image',
+        invocationCount: 2,
+      })
+    })
 
     // Turbopack intentionally does not support these events
-    ;(isTurbopack ? it.skip : it)(
-      'emits telemetry for usage of @vercel/og',
-      async () => {
-        const { cliOutput } = await next.build({
-          env: { NEXT_TELEMETRY_DEBUG: '1' },
-        })
-        const featureUsageEvents = findAllTelemetryEvents(
-          cliOutput,
-          'NEXT_BUILD_FEATURE_USAGE'
-        )
-        expect(featureUsageEvents).toContainEqual({
-          featureName: 'vercelImageGeneration',
-          invocationCount: 1,
-        })
-      }
-    )
+    // @force-gate !turbopack
+    it('emits telemetry for usage of @vercel/og', async () => {
+      const { cliOutput } = await next.build({
+        env: { NEXT_TELEMETRY_DEBUG: '1' },
+      })
+      const featureUsageEvents = findAllTelemetryEvents(
+        cliOutput,
+        'NEXT_BUILD_FEATURE_USAGE'
+      )
+      expect(featureUsageEvents).toContainEqual({
+        featureName: 'vercelImageGeneration',
+        invocationCount: 1,
+      })
+    })
 
     // Turbopack intentionally does not support these events
-    ;(isTurbopack ? it.skip : it)(
-      'emits telemetry for transpilePackages',
-      async () => {
-        await fs.rename(
-          path.join(next.testDir, 'next.config.transpile-packages'),
-          path.join(next.testDir, 'next.config.js')
-        )
+    // @force-gate !turbopack
+    it('emits telemetry for transpilePackages', async () => {
+      await fs.rename(
+        path.join(next.testDir, 'next.config.transpile-packages'),
+        path.join(next.testDir, 'next.config.js')
+      )
 
-        const { cliOutput } = await next.build({
-          env: { NEXT_TELEMETRY_DEBUG: '1' },
-        })
+      const { cliOutput } = await next.build({
+        env: { NEXT_TELEMETRY_DEBUG: '1' },
+      })
 
-        await fs.rename(
-          path.join(next.testDir, 'next.config.js'),
-          path.join(next.testDir, 'next.config.transpile-packages')
-        )
+      await fs.rename(
+        path.join(next.testDir, 'next.config.js'),
+        path.join(next.testDir, 'next.config.transpile-packages')
+      )
 
-        const featureUsageEvents = findAllTelemetryEvents(
-          cliOutput,
-          'NEXT_BUILD_FEATURE_USAGE'
-        )
-        expect(featureUsageEvents).toContainEqual({
-          featureName: 'transpilePackages',
-          invocationCount: 1,
-        })
-      }
-    )
+      const featureUsageEvents = findAllTelemetryEvents(
+        cliOutput,
+        'NEXT_BUILD_FEATURE_USAGE'
+      )
+      expect(featureUsageEvents).toContainEqual({
+        featureName: 'transpilePackages',
+        invocationCount: 1,
+      })
+    })
 
     // Turbopack intentionally does not support these events
-    ;(isTurbopack ? it.skip : it)(
-      'emits telemetry for middleware related options',
-      async () => {
-        await fs.rename(
-          path.join(next.testDir, 'next.config.middleware-options'),
-          path.join(next.testDir, 'next.config.js')
-        )
+    // @force-gate !turbopack
+    it('emits telemetry for middleware related options', async () => {
+      await fs.rename(
+        path.join(next.testDir, 'next.config.middleware-options'),
+        path.join(next.testDir, 'next.config.js')
+      )
 
-        const { cliOutput } = await next.build({
-          env: { NEXT_TELEMETRY_DEBUG: '1' },
-        })
+      const { cliOutput } = await next.build({
+        env: { NEXT_TELEMETRY_DEBUG: '1' },
+      })
 
-        await fs.rename(
-          path.join(next.testDir, 'next.config.js'),
-          path.join(next.testDir, 'next.config.middleware-options')
-        )
+      await fs.rename(
+        path.join(next.testDir, 'next.config.js'),
+        path.join(next.testDir, 'next.config.middleware-options')
+      )
 
-        const featureUsageEvents = findAllTelemetryEvents(
-          cliOutput,
-          'NEXT_BUILD_FEATURE_USAGE'
-        )
-        expect(featureUsageEvents).toContainEqual({
-          featureName: 'skipProxyUrlNormalize',
-          invocationCount: 1,
-        })
-        expect(featureUsageEvents).toContainEqual({
-          featureName: 'skipTrailingSlashRedirect',
-          invocationCount: 1,
-        })
-      }
-    )
+      const featureUsageEvents = findAllTelemetryEvents(
+        cliOutput,
+        'NEXT_BUILD_FEATURE_USAGE'
+      )
+      expect(featureUsageEvents).toContainEqual({
+        featureName: 'skipProxyUrlNormalize',
+        invocationCount: 1,
+      })
+      expect(featureUsageEvents).toContainEqual({
+        featureName: 'skipTrailingSlashRedirect',
+        invocationCount: 1,
+      })
+    })
 
     it('emits telemetry for default React Compiler options', async () => {
       const { cliOutput } = await next.build({
@@ -673,58 +658,56 @@ describe('config telemetry', () => {
     })
 
     // TODO: support use cache tracking in Turbopack
-    ;(isTurbopack ? it.skip : it)(
-      'emits telemetry for useCache directive',
-      async () => {
-        // use cache depends on cacheComponents flag
-        await fs.rename(
-          path.join(next.testDir, 'next.config.use-cache'),
-          path.join(next.testDir, 'next.config.js')
-        )
+    // @gate !turbopack
+    it('emits telemetry for useCache directive', async () => {
+      // use cache depends on cacheComponents flag
+      await fs.rename(
+        path.join(next.testDir, 'next.config.use-cache'),
+        path.join(next.testDir, 'next.config.js')
+      )
 
-        await fs.move(
-          path.join(next.testDir, 'app'),
-          path.join(next.testDir, '~app')
-        )
-        await fs.move(
-          path.join(next.testDir, '_app'),
-          path.join(next.testDir, 'app')
-        )
+      await fs.move(
+        path.join(next.testDir, 'app'),
+        path.join(next.testDir, '~app')
+      )
+      await fs.move(
+        path.join(next.testDir, '_app'),
+        path.join(next.testDir, 'app')
+      )
 
-        const { cliOutput } = await next.build({
-          env: { NEXT_TELEMETRY_DEBUG: '1' },
-        })
+      const { cliOutput } = await next.build({
+        env: { NEXT_TELEMETRY_DEBUG: '1' },
+      })
 
-        await fs.rename(
-          path.join(next.testDir, 'next.config.js'),
-          path.join(next.testDir, 'next.config.use-cache')
-        )
+      await fs.rename(
+        path.join(next.testDir, 'next.config.js'),
+        path.join(next.testDir, 'next.config.use-cache')
+      )
 
-        await fs.move(
-          path.join(next.testDir, 'app'),
-          path.join(next.testDir, '_app')
-        )
-        await fs.move(
-          path.join(next.testDir, '~app'),
-          path.join(next.testDir, 'app')
-        )
+      await fs.move(
+        path.join(next.testDir, 'app'),
+        path.join(next.testDir, '_app')
+      )
+      await fs.move(
+        path.join(next.testDir, '~app'),
+        path.join(next.testDir, 'app')
+      )
 
-        const featureUsageEvents = findAllTelemetryEvents(
-          cliOutput,
-          'NEXT_BUILD_FEATURE_USAGE'
-        )
+      const featureUsageEvents = findAllTelemetryEvents(
+        cliOutput,
+        'NEXT_BUILD_FEATURE_USAGE'
+      )
 
-        expect(featureUsageEvents).toContainEqual({
-          featureName: 'useCache/default',
-          invocationCount: 2,
-        })
+      expect(featureUsageEvents).toContainEqual({
+        featureName: 'useCache/default',
+        invocationCount: 2,
+      })
 
-        expect(featureUsageEvents).toContainEqual({
-          featureName: 'useCache/custom',
-          invocationCount: 3,
-        })
-      }
-    )
+      expect(featureUsageEvents).toContainEqual({
+        featureName: 'useCache/custom',
+        invocationCount: 3,
+      })
+    })
 
     it('emits telemetry for filesystem cache in build mode', async () => {
       await fs.rename(

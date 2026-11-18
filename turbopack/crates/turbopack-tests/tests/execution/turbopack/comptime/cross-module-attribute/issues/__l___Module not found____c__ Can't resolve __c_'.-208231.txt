@@ -1,0 +1,21 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/comptime/cross-module-attribute/input/index.js:21:12  Module not found: Can't resolve './missing-upper'
+  
+      17 | function readUpper() {
+      18 |   if (UPPER === 'UPPER') {
+      19 |     return UPPER
+      20 |   } else {
+         +            v------------------------v
+      21 +     return require('./missing-upper')
+         +            ^------------------------^
+      22 |   }
+      23 | }
+      24 | 
+      25 | function readNonConstant() {
+  
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: relative './missing-upper'
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/comptime/cross-module-attribute/input/index.js
+  | Type of request: commonjs request
+  |

@@ -3,15 +3,11 @@ import { nextTestSetup } from 'e2e-utils'
 describe('standalone mode - tracing-unparsable', () => {
   const dependencies = require('./package.json').dependencies
 
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     dependencies,
     skipStart: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should not error when dynamic require includes non-JS files', async () => {
     let { exitCode } = await next.build()

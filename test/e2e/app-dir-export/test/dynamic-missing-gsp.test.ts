@@ -1,6 +1,8 @@
 import { isNextDev } from 'e2e-utils'
 import { runTests } from './utils'
 
+// These cases patch fixture files and manually run local builds.
+// @force-gate !deploy
 describe('app dir - with output export - dynamic missing gsp', () => {
   describe('should error when dynamic route is missing generateStaticParams', () => {
     runTests({

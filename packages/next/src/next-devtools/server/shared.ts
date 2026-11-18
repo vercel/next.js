@@ -1,4 +1,5 @@
 import { codeFrameColumns } from '../../shared/lib/errors/code-frame'
+import { stdoutIsTerminal } from '../../lib/picocolors'
 import type { StackFrame } from '../../server/lib/parse-stack'
 import { ignoreListAnonymousStackFramesIfSandwiched as ignoreListAnonymousStackFramesIfSandwichedGeneric } from '../../server/lib/source-maps'
 
@@ -72,8 +73,7 @@ export function ignoreListAnonymousStackFramesIfSandwiched(
 export function getOriginalCodeFrame(
   frame: IgnorableStackFrame,
   source: string | null,
-  colorsOrOptions: boolean | CodeFrameRenderOptions = process.stdout?.isTTY ??
-    false
+  colorsOrOptions: boolean | CodeFrameRenderOptions = stdoutIsTerminal
 ): string | null {
   if (!source || frame.line1 == null) {
     return null
@@ -83,7 +83,7 @@ export function getOriginalCodeFrame(
     typeof colorsOrOptions === 'boolean'
       ? { colors: colorsOrOptions, maxWidth: undefined }
       : {
-          colors: colorsOrOptions.colors ?? process.stdout?.isTTY ?? false,
+          colors: colorsOrOptions.colors ?? stdoutIsTerminal,
           maxWidth: colorsOrOptions.maxWidth,
         }
 

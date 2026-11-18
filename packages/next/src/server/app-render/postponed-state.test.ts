@@ -42,7 +42,7 @@ describe('getDynamicHTMLPostponedState', () => {
         entry: {
           value: streamFromString('hello'),
           tags: [],
-          stale: 0,
+          stale: 30,
           timestamp: 0,
           expire: 300,
           revalidate: 1,
@@ -55,6 +55,8 @@ describe('getDynamicHTMLPostponedState', () => {
     )
 
     const state = await getDynamicHTMLPostponedState(
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       { key: 'slug|d', nested: { key: 'slug|d' } } as any,
       DynamicHTMLPreludeState.Full,
       fallbackRouteParams,
@@ -106,6 +108,8 @@ describe('getDynamicHTMLPostponedState', () => {
 
   it('serializes a HTML postponed state without fallback params', async () => {
     const state = await getDynamicHTMLPostponedState(
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       { key: 'value' } as any,
       DynamicHTMLPreludeState.Full,
       null,
@@ -126,6 +130,8 @@ describe('getDynamicHTMLPostponedState', () => {
         replayNodes: [['Context.Provider', `slug|${paramType}`, [], null]],
       }
       const state = await getDynamicHTMLPostponedState(
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         postponed as any,
         DynamicHTMLPreludeState.Full,
         fallbackRouteParams,
@@ -294,6 +300,8 @@ describe('isEmptyHTMLPrelude', () => {
         }),
       ]) {
         const state = await getDynamicHTMLPostponedState(
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           { key: 'category|d' } as any,
           preludeState,
           fallbackRouteParams,
@@ -328,7 +336,7 @@ describe('parseResumeDataCacheFromPostponedState', () => {
         entry: {
           value: streamFromString('cached value'),
           tags: [],
-          stale: 0,
+          stale: 30,
           timestamp: 0,
           expire: 300,
           revalidate: 1,
@@ -341,6 +349,8 @@ describe('parseResumeDataCacheFromPostponedState', () => {
     )
 
     const state = await getDynamicHTMLPostponedState(
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       { [key]: key } as any,
       DynamicHTMLPreludeState.Full,
       fallbackRouteParams,

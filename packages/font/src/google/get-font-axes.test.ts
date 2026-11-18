@@ -10,6 +10,8 @@ describe('getFontAxes errors', () => {
   })
 
   test('Invalid axes value', async () => {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(() => getFontAxes('Inter', ['variable'], [], true as any))
       .toThrowErrorMatchingInlineSnapshot(`
       "Invalid axes value for font \`Inter\`, expected an array of axes.

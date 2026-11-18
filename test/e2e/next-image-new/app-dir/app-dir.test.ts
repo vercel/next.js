@@ -11,13 +11,14 @@ import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { existsSync } from 'fs'
 import { join } from 'path'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely inspects local build artifacts that deploy tests do not expose.
+// @force-gate !deploy
 describe('Image Component App Dir Tests', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     disableAutoSkewProtection: true,
   })
-  if (skipped) return
 
   let dpl: string
   let assetDpl: string
@@ -770,10 +771,10 @@ describe('Image Component App Dir Tests', () => {
         .map((log) => log.message)
         .join('\n')
       expect(warnings).toMatch(
-        /Image with src "\/wide.png" has either width or height modified, but not the other./gm
+        /Image with src "\/wide.png" is rendered with a different aspect ratio than its intrinsic dimensions./gm
       )
       expect(warnings).not.toMatch(
-        /Image with src "\/test.png" has either width or height modified, but not the other./gm
+        /Image with src "\/test.png" is rendered with a different aspect ratio than its intrinsic dimensions./gm
       )
     }
   })
@@ -1679,6 +1680,8 @@ describe('Image Component App Dir Tests', () => {
       format: 'json',
       isLocal: true,
       validator: 'whatwg',
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
     })) as any
     expect(result.isValid).toBe(true)
     expect(result.errors).toEqual([])

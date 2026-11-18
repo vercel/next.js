@@ -53,6 +53,7 @@ export default globalIgnores([
   'test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/sourcemapped.js',
   'test/e2e/app-dir/server-source-maps/fixtures/default/external-pkg/sourcemapped.js',
   'test/development/next-lint-eslint-formatter-compact/**/*.js',
+  'test/production/eslint-config-next/fixture/**/*',
   'test/e2e/app-dir/app-external/app/mixed/import/mixed-mod.mjs',
   'turbopack/crates/*/tests/**/*',
   'turbopack/crates/*/js/src/compiled',

@@ -21,7 +21,7 @@ This guide adds responsive feedback to a task management app called _Taskboard_.
 
 The patterns build in order: stream slow data behind loading boundaries, add an instant priority toggle, build a reusable filter with a callback prop, show comments before they're confirmed, move cards between columns on drop, manage form lifecycle in a create dialog, and signal pending deletion to a parent. The final step caches the reusable reads so navigations stay instant.
 
-The companion [Taskboard demo](https://async-react-demo.labs.vercel.dev) ([source](https://github.com/vercel-labs/async-react-demo)) lets you see each pattern from this guide in action.
+The companion [Taskboard demo](https://async-react-demo.labs.vercel.dev) ([source](https://github.com/nextjs/async-react-demo)) lets you see each pattern from this guide in action.
 
 The app is organized by feature. Everything for the task domain (queries, Server Functions, and components) lives under `features/task/`. Shared UI primitives live in `components/ui/`, and pages in `app/` compose feature components. The file paths throughout this guide follow that structure.
 

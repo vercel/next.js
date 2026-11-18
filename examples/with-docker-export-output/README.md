@@ -92,6 +92,7 @@ nextjs-docker/
 ├── postcss.config.js       # PostCSS configuration for Tailwind CSS
 ├── tsconfig.json           # TypeScript configuration
 ├── package.json            # Dependencies and scripts
+├── pnpm-workspace.yaml     # pnpm dependency build approvals
 └── README.md              # This file
 ```
 

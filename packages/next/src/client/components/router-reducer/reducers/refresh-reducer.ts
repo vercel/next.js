@@ -114,6 +114,8 @@ export function refreshDynamicData(
     // mismatch occurs, the retry handler will traverse the known route tree
     // to find and mark the entry.
     null,
-    signal
+    signal,
+    // Not part of a prepared navigation.
+    null
   )
 }

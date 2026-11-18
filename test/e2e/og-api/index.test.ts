@@ -1,16 +1,16 @@
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup, isNextStart, isNextDev } from 'e2e-utils'
 import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import { randomUUID } from 'crypto'
 import fs from 'fs-extra'
 import { join } from 'path'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy || !standaloneOutput
 describe('og-api', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: new FileRef(join(__dirname, 'app')),
-    skipDeployment: process.env.TEST_OUTPUT_STANDALONE === 'true',
   })
-
-  if (skipped) return
 
   it('should respond from index', async () => {
     const html = await renderViaHTTP(next.url, '/')
@@ -64,10 +64,7 @@ describe('og-api', () => {
     expect(body.size).toBeGreaterThan(0)
   })
 
-  if (
-    (global as any).isNextStart &&
-    process.env.TEST_OUTPUT_STANDALONE === 'true'
-  ) {
+  if (isNextStart && process.env.TEST_OUTPUT_STANDALONE === 'true') {
     it('should copy files correctly', async () => {
       expect(next.cliOutput).not.toContain('Failed to copy traced files')
 
@@ -90,7 +87,7 @@ describe('og-api', () => {
     })
   }
 
-  if ((global as any).isNextDev) {
+  if (isNextDev) {
     it('should throw error when returning a response object in pages/api in node runtime', async () => {
       const res = await fetchViaHTTP(next.url, '/api/og-wrong-runtime')
       expect(res.status).toBe(500)

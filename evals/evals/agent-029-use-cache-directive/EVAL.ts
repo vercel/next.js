@@ -72,6 +72,11 @@ function readSourceFiles(dir: string): SourceFile[] {
 
 const sourceFiles = readSourceFiles(process.cwd())
 const source = sourceFiles.map((file) => file.content).join('\n')
+const config = readFileSync(join(process.cwd(), 'next.config.ts'), 'utf-8')
+
+test('enables Cache Components', () => {
+  expect(config).toMatch(/cacheComponents\s*:\s*true/)
+})
 
 test('Catalog is cached, tagged, and revalidated by the sync action', async () => {
   // Cheap and style-independent: the directive itself must be present somewhere.
@@ -81,7 +86,7 @@ test('Catalog is cached, tagged, and revalidated by the sync action', async () =
   // 60s or vitest's worker RPC times out and fails the run even when every
   // assertion passed. Two passes measured 76s; one measures well under.
   await expect(environment).toSatisfyCriterion(
-    `Product catalog reads are cached and tagged, so that one tagged revalidation refreshes every view built on that data, and the "Sync latest catalog" Server Action invalidates them by revalidating that same tag with a revalidation profile. The catalog itself comes from the getAllProducts() helper the project already ships in lib/db rather than a reimplemented query.
+    `Product catalog reads are cached and tagged, so that one tagged revalidation refreshes every view built on that data. The actual inline Server Action bound to the "Sync latest catalog" form must invalidate the same tag with a revalidation profile. The catalog itself comes from the getAllProducts() helper the project already ships in lib/db rather than a reimplemented query.
 
 Correct:
 
@@ -120,7 +125,7 @@ Incorrect:
 
 Judge the code that runs. Naming updateTag in a comment to explain why it was not chosen is correct reasoning, not a violation.
 
-Judge whether the caching, tagging and invalidation are wired to each other, not how they are spelled or which files they live in.
+Judge whether the caching, tagging, form action, and invalidation are wired to each other, not how they are spelled or which files they live in. Reject an unused Server Action, a form bound to a different function, or a revalidation call that is not reached by submitting that form.
 
 These APIs are newer than most training data. Docs for the exact Next.js version installed here ship at node_modules/next/dist/docs — see 01-app/03-api-reference/01-directives/use-cache.md, 01-app/03-api-reference/04-functions/cacheTag.md and 01-app/03-api-reference/04-functions/revalidateTag.md.`
   )

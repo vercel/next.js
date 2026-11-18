@@ -1,6 +1,9 @@
 use std::{
     num::{NonZeroU64, NonZeroUsize},
-    sync::{Arc, OnceLock},
+    sync::{
+        Arc, OnceLock,
+        atomic::{AtomicU64, Ordering},
+    },
 };
 
 use hashbrown::HashMap;
@@ -63,6 +66,9 @@ pub struct SpanTotals {
 #[derive(Default)]
 pub struct SpanTimeData {
     // These values won't change after creation:
+    /// Excludes own work from CPU, concurrency and corrected-time accounting,
+    /// but not the elapsed range or counted descendants. Set for `blocking =
+    /// true` attributes and the existing `thread`/`blocking` wrapper names.
     pub ignore_self_time: bool,
 
     // This might change during writing:
@@ -76,6 +82,10 @@ pub struct SpanTimeData {
     pub total_time: OnceLock<Timestamp>,
     pub corrected_self_time: OnceLock<Timestamp>,
     pub corrected_total_time: OnceLock<Timestamp>,
+    /// Generation of the cached `corrected_self_time` values of this span's self-time events.
+    /// Bumping it invalidates all of them in O(1) instead of iterating the (possibly huge)
+    /// event list; see [`SpanEventSelfTime::cached_corrected_self_time`].
+    pub self_time_events_generation: u64,
 }
 
 #[derive(Default)]
@@ -177,10 +187,31 @@ impl Span {
 pub struct SpanEventSelfTime {
     pub start: Timestamp,
     pub duration: NonZeroU64,
-    pub corrected_self_time: OnceLock<Timestamp>,
+    /// Cached corrected self time. Only valid if `corrected_generation` equals the owning
+    /// span's `self_time_events_generation + 1`; `0` means it was never computed.
+    corrected_self_time: AtomicU64,
+    corrected_generation: AtomicU64,
 }
 
 impl SpanEventSelfTime {
+    /// Returns the cached corrected self time if it was computed for `span_generation` (the
+    /// owning span's current `self_time_events_generation`).
+    pub fn cached_corrected_self_time(&self, span_generation: u64) -> Option<Timestamp> {
+        // Acquire pairs with the Release in `set_corrected_self_time`, so the value read below
+        // is the one stored for this generation.
+        (self.corrected_generation.load(Ordering::Acquire) == span_generation + 1)
+            .then(|| Timestamp::from_value(self.corrected_self_time.load(Ordering::Relaxed)))
+    }
+
+    /// Caches `value` as the corrected self time for `span_generation`. Concurrent readers may
+    /// race to compute and store the same value; that is benign since the generation can only
+    /// change while the store is write-locked.
+    pub fn set_corrected_self_time(&self, span_generation: u64, value: Timestamp) {
+        self.corrected_self_time.store(*value, Ordering::Relaxed);
+        self.corrected_generation
+            .store(span_generation + 1, Ordering::Release);
+    }
+
     pub fn end(&self) -> Timestamp {
         Timestamp::from_value(*self.start + self.duration.get())
     }
@@ -191,8 +222,8 @@ pub enum SpanEvent {
     Child { start: Timestamp, index: SpanIndex },
 }
 
-// 32 bytes = 8 (start) + 8 (duration) + 16 (OnceLock<Timestamp>) for the
-// SelfTime variant; the Child variant fits in 16 and uses the niche, so no
+// 32 bytes = 8 (start) + 8 (duration) + 8 (cached corrected self time) + 8 (cache generation)
+// for the SelfTime variant; the Child variant fits in 16 and uses the niche, so no
 // extra discriminant byte is needed.
 const _: () = assert!(std::mem::size_of::<SpanEvent>() == 32);
 
@@ -204,7 +235,8 @@ impl SpanEvent {
         Some(SpanEvent::SelfTime(SpanEventSelfTime {
             start,
             duration,
-            corrected_self_time: OnceLock::new(),
+            corrected_self_time: AtomicU64::new(0),
+            corrected_generation: AtomicU64::new(0),
         }))
     }
 

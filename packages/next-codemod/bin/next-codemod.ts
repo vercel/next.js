@@ -75,6 +75,16 @@ program
     'Skip optional feature-adoption codemods while applying version migrations.',
     false
   )
+  .option(
+    '--skip-react-upgrade',
+    'Keep React dependencies, types, and overrides unchanged and skip React codemods.',
+    false
+  )
+  .option(
+    '--skip-eslint-upgrade',
+    'Keep ESLint dependencies unchanged and skip the next-lint-to-eslint-cli codemod.',
+    false
+  )
   .action(async (revision, options) => {
     try {
       await runUpgrade(revision, options)

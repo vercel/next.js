@@ -15,12 +15,14 @@ const reactDependencies = {
   'react-dom': '19.3.0-canary-fef12a01-20260413',
 }
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely mutates files in the isolated local fixture after setup.
+// @force-gate !deploy
 describe('CLI Usage', () => {
   const { next, isNextStart } = nextTestSetup({
     files: join(__dirname, 'basic'),
     skipStart: true,
     dependencies: reactDependencies,
-    skipDeployment: true,
   })
 
   /**

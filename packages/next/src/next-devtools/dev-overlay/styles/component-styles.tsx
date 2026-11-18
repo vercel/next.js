@@ -1,3 +1,4 @@
+import { OPEN_IN_EDITOR_BUTTON_STYLES } from '../components/open-in-editor-button'
 import { CODE_FRAME_STYLES } from '../components/code-frame/code-frame'
 import { styles as dialog } from '../components/dialog'
 import { styles as errorLayout } from '../components/errors/error-overlay-layout/error-overlay-layout'
@@ -34,6 +35,7 @@ export function ComponentStyles() {
         ${CODE_FRAME_STYLES}
         ${TERMINAL_STYLES}
         ${EDITOR_LINK_STYLES}
+        ${OPEN_IN_EDITOR_BUTTON_STYLES}
         ${buildErrorStyles}
         ${containerErrorStyles}
         ${containerRuntimeErrorStyles}

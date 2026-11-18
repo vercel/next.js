@@ -8,7 +8,7 @@ export async function GET() {
     {
       next: {
         revalidate: 360,
-        tags: ['thankyounext'],
+        tags: ['app-static:thankyounext'],
       },
     }
   ).then((res) => res.text())
@@ -18,7 +18,7 @@ export async function GET() {
     {
       next: {
         revalidate: 10,
-        tags: ['thankyounext'],
+        tags: ['app-static:thankyounext'],
       },
     }
   ).then((res) => res.text())

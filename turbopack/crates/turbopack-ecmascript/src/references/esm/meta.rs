@@ -3,19 +3,21 @@ use std::borrow::Cow;
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::{
+    atoms::atom,
     common::DUMMY_SP,
     ecma::ast::{Expr, Ident},
     quote,
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat};
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat};
+use turbo_tasks_fs::{DiskFileSystem, FileSystemPath};
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
     ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::{CodeGen, CodeGeneration},
-    create_visitor, magic_identifier,
+    create_visitor,
+    magic_identifier::MAGIC_IDENTIFIER_IMPORT_META_STR,
     runtime_functions::{TURBOPACK_MODULE, TURBOPACK_RESOLVE_FILE_URL},
 };
 
@@ -57,10 +59,16 @@ impl ImportMetaBinding {
         _trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
-        let rel_path = chunking_context
-            .root_path()
-            .await?
-            .get_relative_path_to(&self.path);
+        let root_path = chunking_context.root_path().await?;
+        // A module from another disk filesystem (such as an additional root) isn't inside the root
+        // path, so the runtime returns a placeholder URL named after that filesystem.
+        let (root, rel_path) = if self.path.fs != root_path.fs
+            && let Some(fs) = ResolvedVc::try_downcast_type::<DiskFileSystem>(self.path.fs)
+        {
+            (Some(fs.await?.name().clone()), Some(self.path.path.clone()))
+        } else {
+            (None, root_path.get_relative_path_to(&self.path))
+        };
         let path = rel_path.map_or_else(
             || {
                 quote!(
@@ -73,11 +81,20 @@ impl ImportMetaBinding {
                 // we embed `formatted` into. The runtime helper (`TURBOPACK_RESOLVE_FILE_URL`)
                 // is responsible for producing the final, properly URL-encoded `file://` URI.
                 let formatted = encode_path(path.trim_start_matches("./")).to_string();
-                quote!(
-                    "$turbopack_resolve_file_url($formatted)" as Expr,
-                    turbopack_resolve_file_url: Expr = TURBOPACK_RESOLVE_FILE_URL.into(),
-                    formatted: Expr = formatted.into()
-                )
+                if let Some(root) = &root {
+                    quote!(
+                        "$turbopack_resolve_file_url($formatted, $root)" as Expr,
+                        turbopack_resolve_file_url: Expr = TURBOPACK_RESOLVE_FILE_URL.into(),
+                        formatted: Expr = formatted.into(),
+                        root: Expr = root.as_str().into()
+                    )
+                } else {
+                    quote!(
+                        "$turbopack_resolve_file_url($formatted)" as Expr,
+                        turbopack_resolve_file_url: Expr = TURBOPACK_RESOLVE_FILE_URL.into(),
+                        formatted: Expr = formatted.into()
+                    )
+                }
             },
         );
 
@@ -165,7 +182,7 @@ impl From<ImportMetaRef> for CodeGen {
 }
 
 /// URL encodes special chars that would appear in the "pathname" portion.
-/// https://github.com/nodejs/node/blob/3bed5f11e039153eff5cbfd9513b8f55fd53fc43/lib/internal/url.js#L1513-L1526
+/// <https://github.com/nodejs/node/blob/3bed5f11e039153eff5cbfd9513b8f55fd53fc43/lib/internal/url.js#L1513-L1526>
 fn encode_path(path: &'_ str) -> Cow<'_, str> {
     let mut encoded = String::new();
     let mut start = 0;
@@ -197,7 +214,7 @@ fn encode_path(path: &'_ str) -> Cow<'_, str> {
 
 fn meta_ident() -> Ident {
     Ident::new(
-        magic_identifier::mangle("import.meta").into(),
+        atom!(MAGIC_IDENTIFIER_IMPORT_META_STR),
         DUMMY_SP,
         Default::default(),
     )

@@ -1,7 +1,4 @@
-import {
-  unstable_prefetch as prefetch,
-  unstable_navigation as navigation,
-} from 'next/cache'
+import { prefetch, navigation } from 'next/cache'
 import { cookies } from 'next/headers'
 import { Suspense } from 'react'
 

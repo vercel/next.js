@@ -1,14 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely inspects local build artifacts that deploy tests do not expose.
+// @force-gate !deploy
 describe('app-dir - bun externals', () => {
-  const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
+  const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should handle bun builtins as external modules', async () => {
     const $ = await next.render$('/')

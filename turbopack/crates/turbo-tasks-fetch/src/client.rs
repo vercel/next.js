@@ -70,7 +70,7 @@ impl FetchClientConfig {
     /// The reqwest client fails to construct if the TLS backend cannot be initialized, or the
     /// resolver cannot load the system configuration. These failures should be treated as
     /// cached for some amount of time, but ultimately transient (e.g. using
-    /// [`turbo_tasks::function(session_dependent)`]).
+    /// `#[turbo_tasks::function(session_dependent)]`).
     pub fn try_get_cached_reqwest_client(
         self: ReadRef<FetchClientConfig>,
     ) -> reqwest::Result<reqwest::Client> {
@@ -185,12 +185,17 @@ impl FetchClientConfig {
             }
 
             let response = {
-                let _span = duration_span!("fetch request", url = url_ref);
+                let _span = duration_span!("fetch request", blocking = true, url = url_ref);
                 let mut attempt = 0;
                 loop {
                     let request = builder.try_clone().expect("request should be cloneable");
                     let result = {
-                        let _span = duration_span!("fetch attempt", url = url_ref, attempt);
+                        let _span = duration_span!(
+                            "fetch attempt",
+                            blocking = true,
+                            url = url_ref,
+                            attempt
+                        );
                         request.send().await.and_then(|r| r.error_for_status())
                     };
                     match result {
@@ -213,7 +218,7 @@ impl FetchClientConfig {
             let max_age = parse_cache_control(response.headers());
 
             let body = {
-                let _span = duration_span!("fetch response", url = url_ref);
+                let _span = duration_span!("fetch response", blocking = true, url = url_ref);
                 response.bytes().await?
             }
             .to_vec();

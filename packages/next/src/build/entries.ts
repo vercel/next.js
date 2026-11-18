@@ -19,7 +19,7 @@ import {
 } from '../lib/constants'
 import { isAPIRoute } from '../lib/is-api-route'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
-import { APP_CLIENT_INTERNALS, RSC_MODULE_TYPES } from '../shared/lib/constants'
+import { APP_CLIENT_INTERNALS } from '../shared/lib/constants'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
@@ -292,6 +292,8 @@ export function getAppLoader() {
 
 export function getAppEntry(opts: Readonly<AppLoaderOptions>) {
   if (process.env.NEXT_RSPACK && process.env.BUILTIN_APP_LOADER) {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     ;(opts as any).projectRoot = normalize(join(__dirname, '../../..'))
   }
   return {
@@ -596,10 +598,6 @@ export async function createEntrypoints(
         page,
       })
 
-      // TODO(timneutkens): remove this
-      const isServerComponent =
-        isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
-
       if (isMiddlewareFile(page)) {
         middlewareMatchers = staticInfo.middleware?.matchers ?? [
           { regexp: '.*', originalSource: '/:path*' },
@@ -627,8 +625,8 @@ export async function createEntrypoints(
         pageRuntime: staticInfo.runtime,
         pageType: pagesType,
         onClient: () => {
-          if (isServerComponent || isInsideAppDir) {
-            // We skip the initial entries for server component pages and let the
+          if (isInsideAppDir) {
+            // We skip the initial entries for app pages and let the
             // server compiler inject them instead.
           } else {
             client[clientBundlePath] = getClientEntry({
@@ -678,7 +676,7 @@ export async function createEntrypoints(
               absolutePagePath: absolutePagePath,
               bundlePath: clientBundlePath,
               isDev: false,
-              isServerComponent,
+              isServerComponent: isInsideAppDir,
               page,
               middleware: staticInfo?.middleware,
               pagesType,
@@ -761,7 +759,7 @@ export async function createEntrypoints(
               absolutePagePath: absolutePagePath,
               bundlePath: clientBundlePath,
               isDev: false,
-              isServerComponent,
+              isServerComponent: isInsideAppDir,
               page,
               middleware: staticInfo?.middleware,
               pagesType,

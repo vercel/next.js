@@ -1,0 +1,26 @@
+error - [bindings] /turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export-already-imported/input/separate-declaration.js:4:1  Export Kittenx doesn't exist in target module
+  
+       1 | // `Kitten` is only imported by a separate declaration, so it is still suggested
+       2 | // for `Kittenx`.
+       3 | import { Kitten } from './module'
+         + v--------------------------------v
+       4 + import { Kittenx } from './module'
+         + ^--------------------------------^
+       5 | 
+       6 | export default [Kitten, Kittenx]
+       7 | 
+  
+  The export Kittenx was not found in module [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export-already-imported/input/module.js [test] (ecmascript).
+  
+  Did you mean to import Kitten?
+  
+  All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+  
+  
+  | These are the exports of the module:
+  | Kit, Kitten, Mitten
+  | 
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export-already-imported/input/separate-declaration.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export-already-imported/input/index.js

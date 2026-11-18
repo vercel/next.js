@@ -18,7 +18,7 @@ The development insights and the preservation tests are two different paths. Ins
 
 ## preservation gate
 
-When using test-backed preservation, the first implementation milestone is a passing flag-off `instant()` suite. Set up the production test rig, write the selected assertions, run them with `partialPrefetching` disabled, and record the command and exit status. Test-only configuration required by the rig is allowed, but until that baseline passes, do not enable `partialPrefetching` or edit the destination, cache boundaries, or Link props. Installing missing test dependencies is part of reaching the baseline, not a reason to adopt first. Use the manual path only when `rig-template.md` identifies a concrete blocker the repository cannot resolve, and record the blocker and deferred test coverage.
+When using test-backed preservation, the first implementation milestone is a passing flag-off `instant()` suite. Set up the production test rig, write the selected assertions, run them with `partialPrefetching` disabled, and record the command and exit status. Test-only configuration required by the rig, including [`experimental.exposeTestingApiInProductionBuild`](https://nextjs.org/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild), is allowed, but until that baseline passes, do not enable `partialPrefetching` or edit the destination, cache boundaries, or Link props. Installing missing test dependencies is part of reaching the baseline, not a reason to adopt first. Use the manual path only when `rig-template.md` identifies a concrete blocker the repository cannot resolve, and record the blocker and deferred test coverage.
 
 Talk to the user in terms of what they'll see — PRs, features, and how the app behaves after — never the insight slugs or step labels. Before you start, tell them briefly what Partial Prefetching changes: links to a route prefetch one shared App Shell, and `prefetch={true}` can also resolve cached URL-specific content. The audit determines which UI from the legacy full prefetch to preserve.
 
@@ -73,11 +73,18 @@ Before writing tests or editing destinations, follow the guide's [migration guid
 
 Group equivalent navigations. Summarize what will be ready immediately and what will stream. When a proposal is ambiguous, show the navigation in the running app and ask the user to confirm it. If they are unavailable, follow the guide and record the assumption.
 
-After the target UI is settled, inspect the existing test setup. The `instant()` helper comes from the separate [`@next/playwright`](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) package, not `next/experimental/testmode/playwright`.
+After the target UI is settled, inspect the existing test setup. The `instant()` helper comes from the separate [`@next/playwright`](https://nextjs.org/docs/app/guides/testing/playwright#testing-instant-navigations) package, not `next/experimental/testmode/playwright`.
 
 - **Applicable production-mode suite:** use test-backed preservation by default. Reuse the project's `@next/playwright` tests, production scripts, authentication, and existing `instant-nav.rig.md`. Follow the guide's [prefetched UI test workflow](https://nextjs.org/docs/app/guides/adopting-partial-prefetching#verify-prefetched-ui-with-tests) and make the complete flag-off suite green before adoption. The unchanged assertions drive the migration and stay as regression coverage.
 - **No applicable production-mode suite:** set up the production-mode rig in **`rig-template.md`** using the project's package manager and test conventions. This is part of test-backed adoption and does not require a user to be present.
 - **Rig cannot run reliably:** work through **`rig-template.md`** setup and liveness checks. Fall back to manual preservation only for a concrete blocker the repository cannot resolve, such as unavailable credentials or an inaccessible production environment. Record the blocker and the deferred test coverage; do not claim test-backed verification.
+
+Keep the production Link and its existing `href` in the test, including when
+the destination redirects. Verify the final pathname and query after the
+redirect. For repeat and browser-back contracts, follow the
+[visibility-aware selector guidance](https://nextjs.org/docs/app/guides/preserving-ui-state#testing)
+so hidden preserved routes cannot satisfy the assertions. When the contract
+contains independently suspended regions, assert each one separately.
 
 No user input is required to reuse an existing suite or create the rig. Ask only when the repository cannot answer an environment question or when the target UI itself is a product decision. If no user is available, use the guide's safe product default and reserve manual verification for a concrete rig blocker. Treat new prefetched UI as step 7 work; verify any deliberate removal separately after adoption.
 
@@ -180,5 +187,5 @@ Finally, show any effective `prefetch={false}` links in a concise `Navigation | 
 ## further reading
 
 - [Instant navigation](https://nextjs.org/docs/app/guides/instant-navigation) — the broader validation model and loading-state tooling.
-- [Prevent regressions with e2e tests](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) — use the `@next/playwright` `instant()` helper to build the flag-off baseline suite, then keep it as the CI regression guard.
+- [Testing instant navigations](https://nextjs.org/docs/app/guides/testing/playwright#testing-instant-navigations) — use the `@next/playwright` `instant()` helper to build the flag-off baseline suite, then keep it as the CI regression guard.
 - [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer) — grows each route's static shell so the App Shell carries more.

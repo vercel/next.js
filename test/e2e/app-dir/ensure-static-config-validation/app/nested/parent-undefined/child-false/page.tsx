@@ -1,4 +1,4 @@
-export const unstable_ensureStatic = false
+export const ensureStatic = false
 
 export default function Page() {
   return <main>Page</main>

@@ -108,38 +108,6 @@ function pushRow<Row extends DiffRow>(
 }
 
 /**
- * Diffs two route lists. Routes are compared by their page path. Without
- * per-route data loaded (which would be N round-trips), the size columns are
- * left at zero; the table view fills them in lazily as the user expands rows.
- */
-export function diffRouteLists(
-  routesA: string[] | null,
-  routesB: string[]
-): DiffSummary {
-  const summary = emptySummary()
-  const setA = new Set(routesA ?? [])
-  const setB = new Set(routesB)
-  const all = new Set<string>([...setA, ...setB])
-  const sorted = Array.from(all).sort()
-
-  for (const route of sorted) {
-    const inA = setA.has(route)
-    const inB = setB.has(route)
-    pushRow(summary, {
-      key: route,
-      name: route,
-      status: statusFor(0, 0, inA, inB),
-      sizeA: 0,
-      sizeB: 0,
-      compressedA: 0,
-      compressedB: 0,
-    })
-  }
-
-  return summary
-}
-
-/**
  * Per-route size aggregates contributed by a single side (A or B). When a
  * route is missing from the corresponding map entirely, it's treated as
  * "not present in that build".
@@ -147,6 +115,16 @@ export function diffRouteLists(
 export interface RouteSizeTotals {
   size: number
   compressedSize: number
+}
+
+export interface RouteSummary {
+  route: string
+  size: number
+  compressed_size: number
+  client: {
+    size: number
+    compressed_size: number
+  }
 }
 
 /**
@@ -171,25 +149,15 @@ export function totalsFromAnalyzeData(
   return { size, compressedSize }
 }
 
-/**
- * Size-aware variant of {@link diffRouteLists}. When `sizesA`/`sizesB` are
- * provided, routes get real `changed`/`identical` classification based on
- * their summed source sizes — not just name-presence.
- *
- * A route is `added` if it is missing from `sizesA`, `removed` if missing
- * from `sizesB`. `sizesA == null` means the baseline is still loading and we
- * fall back to the name-only diff (`diffRouteLists`).
- */
+/** Diffs route sizes across two builds. */
 export function diffRoutesWithSizes(
-  routesA: string[] | null,
+  routesA: string[],
   routesB: string[],
-  sizesA: ReadonlyMap<string, RouteSizeTotals> | null,
+  sizesA: ReadonlyMap<string, RouteSizeTotals>,
   sizesB: ReadonlyMap<string, RouteSizeTotals>
 ): DiffSummary {
-  if (!sizesA) return diffRouteLists(routesA, routesB)
-
   const summary = emptySummary()
-  const setA = new Set(routesA ?? [])
+  const setA = new Set(routesA)
   const setB = new Set(routesB)
   const all = new Set<string>([...setA, ...setB])
   const sorted = Array.from(all).sort()

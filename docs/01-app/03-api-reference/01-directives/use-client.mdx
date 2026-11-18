@@ -11,7 +11,7 @@ The `'use client'` directive declares an entry point for the components to be re
 
 ## Usage
 
-To declare an entry point for the Client Components, add the `'use client'` directive **at the top of the file**, before any imports:
+To declare an entry point for the Client Components, add the `'use client'` directive **at the top of the file**, before any imports. The directive applies to the entire module and cannot be placed inside a component or function:
 
 ```tsx filename="app/components/counter.tsx" highlight={1} switcher
 'use client'

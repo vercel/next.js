@@ -8,16 +8,16 @@ import {
   getClientBuildManifestLoaderChunkUrlPath,
 } from 'next-test-utils'
 
+// This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
+// @force-gate !deploy
 describe('Prefetching Links in viewport', () => {
-  const { next, isTurbopack, skipped } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
     dependencies: {
       'http-proxy': '1.18.1',
     },
   })
-  if (skipped) return
 
   let proxyChild: ChildProcess
   let proxyPort: number
@@ -75,8 +75,14 @@ describe('Prefetching Links in viewport', () => {
     await resetDataRequests()
     const browser = await next.browser('/', { baseUrl: proxyPort })
     await browser.eval(function navigate() {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       ;(window as any).next.router.push('/ssg/slow')
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       ;(window as any).next.router.push('/ssg/slow')
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       ;(window as any).next.router.push('/ssg/slow')
     })
     await browser.waitForElementByCss('#content')

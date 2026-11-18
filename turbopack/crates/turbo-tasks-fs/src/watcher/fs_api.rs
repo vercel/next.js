@@ -23,6 +23,7 @@ pub(crate) trait DiskFileSystemWatcherApi: Send + Sync + 'static {
     fn tokio_handle(&self) -> &Handle;
     fn invalidator_map(&self) -> &InvalidatorMap;
     fn dir_invalidator_map(&self) -> &InvalidatorMap;
+    fn metadata_invalidator_map(&self) -> &InvalidatorMap;
     fn invalidation_lock(&self) -> &RwLock<()>;
     fn invalidate_all(&self);
     fn invalidate_all_with_reason<R: InvalidationReason + Clone>(
@@ -58,6 +59,10 @@ impl DiskFileSystemWatcherApi for DiskFileSystemInner {
 
     fn dir_invalidator_map(&self) -> &InvalidatorMap {
         &self.dir_invalidator_map
+    }
+
+    fn metadata_invalidator_map(&self) -> &InvalidatorMap {
+        &self.metadata_invalidator_map
     }
 
     fn invalidation_lock(&self) -> &RwLock<()> {

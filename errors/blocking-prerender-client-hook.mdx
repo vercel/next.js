@@ -1,6 +1,6 @@
 ---
 title: Next.js encountered URL data in a Client Component outside of Suspense
-kind: insight
+kind: error
 ---
 
 <div
@@ -14,7 +14,7 @@ kind: insight
     lineHeight: '1.6',
   }}
 >
-  This Insight is part of the [Instant
+  This error is part of the [Instant
   Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
   introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
   instant navigations](/docs/app/guides/instant-navigation) guide for an
@@ -70,7 +70,7 @@ export default function Page() {
   return (
     <main>
       <h1>Dashboard</h1>
-      <Suspense fallback={<p>Loading search...</p>}>
+      <Suspense fallback={<p>Loading search…</p>}>
         <Search />
       </Suspense>
     </main>
@@ -192,7 +192,7 @@ The sibling renders nothing visible, so an empty fallback is correct. There is n
 
 ### Trade-off
 
-The user sees the fallback on the first paint of the suspended region, then it swaps to the real value once the hook resolves after hydration. Choose a fallback shape that matches the final layout so the swap doesn't cause a layout shift. See [minimizing layout shift](/docs/app/guides/streaming#cls-cumulative-layout-shift).
+The user sees the fallback on the first paint of the suspended region. When the rest of the route is prerendered, the fallback swaps to the real value once the hook resolves after hydration. If any component on the route reads request data, such as [`cookies()`](/docs/app/api-reference/functions/cookies), Next.js renders the boundary on the server at request time instead, so put browser-only reads, such as `localStorage`, behind [`use(browser())`](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser). Choose a fallback shape that matches the final layout so the swap doesn't cause a layout shift. See [minimizing layout shift](/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
 ### Gotchas
 
@@ -201,7 +201,7 @@ The user sees the fallback on the first paint of the suspended region, then it s
 - Do not pass `{children}` through in the fallback. Child pages may include dynamic reads (for example, `/_not-found` calling [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers)) that propagate into what should be a static fallback. Render a placeholder that doesn't include `{children}`.
 - A nav rendered in a layout suspends on any page below it that reads URL data the layout's static shell doesn't know. Push the hook read down to the smallest leaf that needs the value so the rest of the nav stays prerendered.
 - The static shell does not include the active state. The fallback paints first, then the indicator hydrates and the active style appears. For active-link patterns where the flash is visible, add an [inline script that runs before paint](/docs/app/guides/preventing-flash-before-hydration) to set the active attribute from `location.pathname` so the correct link is styled on the first paint.
-- [`usePathname`](/docs/app/api-reference/functions/use-pathname#avoid-hydration-mismatch-with-rewrites) reads the source path on the server when the request was rewritten in `next.config` or middleware, while the browser sees the rewritten path. The active state on a rewritten route resolves to the wrong link on the server and corrects itself on hydration. If your app uses rewrites, defer the read until after mount as the [docs recommend](/docs/app/api-reference/functions/use-pathname#avoid-hydration-mismatch-with-rewrites).
+- [`usePathname`](/docs/app/api-reference/functions/use-pathname#avoid-hydration-mismatch-with-rewrites) reads the rewrite destination on the server when the request was rewritten in `next.config` or middleware, while the browser sees the URL it requested. The active state on a rewritten route resolves to the wrong link on the server and corrects itself on hydration. If your app uses rewrites, defer the read until after mount as the [docs recommend](/docs/app/api-reference/functions/use-pathname#avoid-hydration-mismatch-with-rewrites).
 
 ## Allow blocking route
 
@@ -268,20 +268,6 @@ Instant-navigation validation runs by default in [Cache Components](/docs/app/ap
 
 See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
 
-## Related Insights
+## Related validation errors
 
-- [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
-- [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)
-- [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
-- [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)
-- [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
-- [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
-- [`Math.random()` while prerendering](/docs/messages/blocking-prerender-random)
-- [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client)
-- [`Date.now()` while prerendering](/docs/messages/blocking-prerender-current-time)
-- [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
-- [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
-- [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
-- [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
-- [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
-- [Unrendered segment](/docs/messages/instant-unrendered-segment)
+See [Instant Navigation validation errors](/docs/messages/instant-navigation-validation) for the complete reference.

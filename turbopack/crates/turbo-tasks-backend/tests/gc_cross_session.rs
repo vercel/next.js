@@ -15,17 +15,22 @@ use std::{
 };
 
 use anyhow::Result;
-use turbo_tasks::{GcRoot, ResolvedVc, TurboTasks, Vc};
+use turbo_tasks::{GcRoot, OperationVc, ResolvedVc, TaskId, TurboTasks, Vc};
 use turbo_tasks_backend::TurboTasksBackend;
 
 use crate::{
-    gc_fixture::{Constant, Selector, create_constant, create_selector, diamond_root_op},
+    gc_fixture::{
+        Constant, Selector, create_constant, create_other_constant, create_selector,
+        diamond_root_op,
+    },
     util::{create_persistence_dir, reopen_tt_with_gc, reopen_tt_with_gc_ttl},
 };
 
 /// Counts executions of [`orphan_leaf`], keyed by its argument. A collected task re-executes when
 /// next requested; a merely evicted one restores from disk without executing.
-static LEAF_EXECUTIONS: [AtomicU32; 3] = [AtomicU32::new(0), AtomicU32::new(0), AtomicU32::new(0)];
+///
+/// Each test uses its own keys, since the tests in this binary run concurrently.
+static LEAF_EXECUTIONS: [AtomicU32; 8] = [const { AtomicU32::new(0) }; 8];
 
 fn leaf_executions(n: u32) -> u32 {
     LEAF_EXECUTIONS[n as usize].load(Ordering::Relaxed)
@@ -350,4 +355,430 @@ async fn shared_cell_target_collected_before_its_second_reader() {
         .unwrap();
         tt.stop_and_wait().await;
     }
+}
+
+/// The stale-mapper shape: the target arrives as an argument (so this task is not its parent), and
+/// `other` is a second, unrelated dependency that can invalidate it.
+#[turbo_tasks::function]
+async fn stale_reader(target: ResolvedVc<u32>, other: ResolvedVc<Constant>) -> Result<Vc<u32>> {
+    let other = *other.await?.get();
+    Ok(Vc::cell(other + *target.await?))
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn stale_reader_root(
+    target: ResolvedVc<u32>,
+    other: ResolvedVc<Constant>,
+) -> Result<Vc<u32>> {
+    Ok(Vc::cell(*stale_reader(*target, *other).await?))
+}
+
+/// A dependent holding a collected task's `Vc` in its arguments fails with an error, rather than a
+/// panic, when an unrelated dependency invalidates it before its parent drops it.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn reading_a_collected_task_is_an_error() {
+    let dir = create_persistence_dir("reading_a_collected_task_is_an_error");
+    let tt = reopen_tt_with_gc(&dir);
+    let (reader_op, other) = turbo_tasks::run_once(tt.clone(), async move {
+        let selector_op = create_selector(false);
+        let selector_vc = selector_op.resolve().strongly_consistent().await?;
+        let selector = selector_op.read_strongly_consistent().await?;
+
+        let constant_op = create_constant();
+        let constant_vc = constant_op.resolve().strongly_consistent().await?;
+
+        // A second `Constant` cell, distinct from the owning side's, as the unrelated dependency.
+        let other_op = create_other_constant();
+        let other_vc = other_op.resolve().strongly_consistent().await?;
+        let other = other_op.read_strongly_consistent().await?;
+
+        let owning = select_owning(selector_vc, constant_vc);
+        let target = owning.resolve().strongly_consistent().await?;
+        assert_eq!(*target.await?, 41);
+
+        let reader = stale_reader_root(target, other_vc);
+        assert_eq!(*reader.read_strongly_consistent().await?, 41);
+
+        // Drop the owning subtree cleanly: no invalidation, so the target keeps its edges.
+        selector.set(true);
+        assert_eq!(*owning.read_strongly_consistent().await?, 0);
+        anyhow::Ok((reader, other))
+    })
+    .await
+    .unwrap();
+
+    // Pin the reader root so only the owning side is collectible.
+    let pin = GcRoot::pin(tt.clone(), reader_op);
+    let collected = gc_until_collected(&tt, 3).await;
+    assert!(
+        collected >= 3,
+        "the owning subtree, reader 1 and the shared target should be collected (got {collected})"
+    );
+
+    // Invalidate the reader through its other dependency, so it re-executes while it is still
+    // alive (here the pin keeps it; in a build its stale parent would).
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        other.set(1);
+        reader_op.read_strongly_consistent().await?;
+        anyhow::Ok(())
+    })
+    .await;
+    let err = result.expect_err("the reader reads a collected task, so the root must fail");
+    assert!(
+        format!("{err:?}").contains("garbage collected"),
+        "expected the collected-task read error, got: {err:?}"
+    );
+
+    drop(pin);
+    tt.stop_and_wait().await;
+}
+
+/// The operation the connect tests hand out; [`select_owned_op`] is its only parent.
+#[turbo_tasks::function(operation)]
+async fn owned_op(constant: ResolvedVc<Constant>) -> Result<Vc<u32>> {
+    Ok(Vc::cell(*constant.await?.get() + 7))
+}
+
+#[turbo_tasks::value(transparent)]
+struct OptionOp(Option<OperationVc<u32>>);
+
+/// Calls [`owned_op`] (becoming its parent) and hands it out, until the selector drops it.
+#[turbo_tasks::function(operation, root)]
+async fn select_owned_op(
+    selector: ResolvedVc<Selector>,
+    constant: ResolvedVc<Constant>,
+) -> Result<Vc<OptionOp>> {
+    if !*selector.await?.get() {
+        let op = owned_op(constant);
+        op.connect().await?;
+        Ok(Vc::cell(Some(op)))
+    } else {
+        Ok(Vc::cell(None))
+    }
+}
+
+/// Holds an `OperationVc` in its arguments but only connects it once `other` is bumped, so it is
+/// not the operation's parent when the operation is collected.
+#[turbo_tasks::function(operation, root)]
+async fn lazy_connector_root(op: OperationVc<u32>, other: ResolvedVc<Constant>) -> Result<Vc<u32>> {
+    if *other.await?.get() == 0 {
+        return Ok(Vc::cell(0));
+    }
+    Ok(Vc::cell(*op.connect().await?))
+}
+
+/// A task that holds a collected operation in its arguments and connects it later. Whether the
+/// operation is still soft-deleted or already evicted, the connect fails the connecting task with
+/// the missing-pin panic, and nothing is materialized for the collected operation.
+/// The error is formatted before the backend stops: formatting resolves task names through it.
+async fn connect_collected_operation(name: &str, evict: bool) -> Result<u32, String> {
+    let dir = create_persistence_dir(name);
+    let tt = reopen_tt_with_gc(&dir);
+    let (connector_op, selector) = turbo_tasks::run_once(tt.clone(), async move {
+        let selector_op = create_selector(false);
+        let selector_vc = selector_op.resolve().strongly_consistent().await?;
+        let selector = selector_op.read_strongly_consistent().await?;
+        let constant_op = create_constant();
+        let constant_vc = constant_op.resolve().strongly_consistent().await?;
+        let other_op = create_other_constant();
+        let other_vc = other_op.resolve().strongly_consistent().await?;
+
+        let owner = select_owned_op(selector_vc, constant_vc);
+        let op = owner.read_strongly_consistent().await?.unwrap();
+        let connector = lazy_connector_root(op, other_vc);
+        assert_eq!(*connector.read_strongly_consistent().await?, 0);
+        anyhow::Ok((connector, selector))
+    })
+    .await
+    .unwrap();
+    let pin = GcRoot::pin(tt.clone(), connector_op);
+
+    // Drop the operation from its only parent and collect it.
+    turbo_tasks::run_once(tt.clone(), async move {
+        selector.set(true);
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap();
+    let collected = gc_until_collected(&tt, 1).await;
+    assert!(
+        collected >= 1,
+        "owned_op should be collected (got {collected})"
+    );
+    if evict {
+        tt.backend().snapshot_and_evict_for_testing(&tt);
+    }
+
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        // Re-read the state: after eviction a `ReadRef` from before would hold a stale copy.
+        let other = create_other_constant().read_strongly_consistent().await?;
+        other.set(1);
+        anyhow::Ok(*connector_op.read_strongly_consistent().await?)
+    })
+    .await;
+    let result = result.map_err(|e| format!("{e:?}"));
+    drop(pin);
+    tt.stop_and_wait().await;
+    result
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn connecting_a_soft_deleted_operation_is_an_error() {
+    let err = connect_collected_operation("connecting_a_soft_deleted_operation_is_an_error", false)
+        .await
+        .expect_err("the operation was collected, so connecting it must fail");
+    assert!(
+        err.contains("was held without a pin"),
+        "expected the missing-pin panic, got: {err}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn connecting_an_evicted_collected_operation_is_an_error() {
+    let err = connect_collected_operation(
+        "connecting_an_evicted_collected_operation_is_an_error",
+        true,
+    )
+    .await
+    .expect_err("the operation is gone, so connecting it must fail");
+    assert!(
+        err.contains("was held without a pin"),
+        "expected the missing-pin panic, got: {err}"
+    );
+}
+
+/// Connecting a collected operation from outside any task (a top-level `run`, as NAPI code holding
+/// an unpinned `OperationVc` would) used to materialize a blank entry for it and schedule it. Its
+/// execution then failed outside the per-task panic boundary and aborted the process.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn parentless_connect_of_an_evicted_operation_does_not_abort() {
+    let dir = create_persistence_dir("parentless_connect_of_an_evicted_operation_does_not_abort");
+    let tt = reopen_tt_with_gc(&dir);
+    let (op, selector) = turbo_tasks::run_once(tt.clone(), async move {
+        let selector_op = create_selector(false);
+        let selector_vc = selector_op.resolve().strongly_consistent().await?;
+        let selector = selector_op.read_strongly_consistent().await?;
+        let constant_op = create_constant();
+        let constant_vc = constant_op.resolve().strongly_consistent().await?;
+        let owner = select_owned_op(selector_vc, constant_vc);
+        let op = owner.read_strongly_consistent().await?.unwrap();
+        anyhow::Ok((op, selector))
+    })
+    .await
+    .unwrap();
+    turbo_tasks::run_once(tt.clone(), async move {
+        selector.set(true);
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap();
+    let collected = gc_until_collected(&tt, 1).await;
+    assert!(
+        collected >= 1,
+        "owned_op should be collected (got {collected})"
+    );
+    tt.backend().snapshot_and_evict_for_testing(&tt);
+
+    let resident_before = tt.backend().resident_task_count_for_testing();
+    let err = tt
+        .run(async move { anyhow::Ok(*op.read_strongly_consistent().await?) })
+        .await
+        .expect_err("the operation is gone, so connecting it must fail");
+    assert!(
+        format!("{err:?}").contains("was held without a pin"),
+        "expected the missing-pin panic, got: {err:?}"
+    );
+    assert_eq!(
+        tt.backend().resident_task_count_for_testing(),
+        resident_before,
+        "no entry may be materialized for the collected operation"
+    );
+    tt.stop_and_wait().await;
+}
+
+// --- Root map TTL vs. residency ---
+//
+// Once a root is recorded in the root map it stays protected until its TTL expires, no matter what
+// makes it resident in the meantime (in a real session, startup invalidation propagating through
+// the aggregation graph restores most of them) or whether it was released in this session. And a
+// root that is pinned must never be dropped from the map, even when eviction has dropped its
+// `Meta`.
+
+fn in_root_map(tt: &Arc<TurboTasks<TurboTasksBackend>>, id: TaskId) -> bool {
+    tt.backend()
+        .persisted_gc_roots_for_testing()
+        .iter()
+        .any(|(root, _)| *root == id)
+}
+
+/// Session 1 of the cross-session tests below: computes `root_with_child(n)` and keeps it pinned
+/// through shutdown, so the shutdown pass persists it in the root map as `MostRecent`. Returns its
+/// id; the later sessions never call the op function again, since looking it up would restore it.
+async fn persist_pinned_root(dir: &tempfile::TempDir, n: u32) -> TaskId {
+    let tt = reopen_tt_with_gc(dir);
+    let op = turbo_tasks::run_once(tt.clone(), async move {
+        let op = root_with_child(n);
+        assert_eq!(*op.read_strongly_consistent().await?, n + 1);
+        anyhow::Ok(op)
+    })
+    .await
+    .unwrap();
+    let pin = GcRoot::pin(tt.clone(), op);
+    tt.backend().gc_for_testing(&tt);
+    assert!(
+        in_root_map(&tt, op.task_id()),
+        "the pinned root is recorded"
+    );
+    tt.stop_and_wait().await;
+    // Unpinning after `stop` is a no-op, so the shutdown pass above saw it pinned.
+    drop(pin);
+    op.task_id()
+}
+
+/// Re-requests `root_with_child(n)` in a fresh session and returns how many times its leaf
+/// executed meanwhile: 0 if the cached subtree survived, 1 if it had been collected.
+async fn rerun_leaf_executions(dir: &tempfile::TempDir, n: u32) -> u32 {
+    let tt = reopen_tt_with_gc_ttl(dir, Duration::from_secs(3600));
+    let before = leaf_executions(n);
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        assert_eq!(*root_with_child(n).read_strongly_consistent().await?, n + 1);
+        anyhow::Ok(())
+    })
+    .await;
+    tt.stop_and_wait().await;
+    result.unwrap();
+    leaf_executions(n) - before
+}
+
+/// A prior-session root that becomes resident without being pinned again is still within its TTL,
+/// so it must not be collected. It only goes once it ages out.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn resident_prior_root_survives_until_ttl() {
+    const N: u32 = 3;
+    let dir = create_persistence_dir("resident_prior_root_survives_until_ttl");
+    let root = persist_pinned_root(&dir, N).await;
+
+    // Session 2: restore the root without pinning or re-connecting it, then collect. The TTL is
+    // far away.
+    {
+        let tt = reopen_tt_with_gc_ttl(&dir, Duration::from_secs(3600));
+        tt.backend().assert_task_exists_for_testing(root, &tt);
+        let collected = tt.backend().gc_for_testing(&tt);
+        assert_eq!(
+            collected, 0,
+            "a resident, unpinned prior root is protected by its TTL"
+        );
+        assert!(
+            in_root_map(&tt, root),
+            "the protected root stays in the map"
+        );
+        tt.stop_and_wait().await;
+    }
+
+    // Session 3: the TTL has expired and nothing pinned it, so it ages out with its
+    // leaf.
+    {
+        let tt = reopen_tt_with_gc_ttl(&dir, Duration::ZERO);
+        let collected = gc_until_collected(&tt, 2).await;
+        assert!(
+            collected >= 2,
+            "the aged-out root and its leaf are collected"
+        );
+        tt.stop_and_wait().await;
+    }
+
+    assert_eq!(
+        rerun_leaf_executions(&dir, N).await,
+        1,
+        "the aged-out subtree must rebuild"
+    );
+}
+
+/// A pinned root whose `Meta` was evicted after a snapshot is still pinned: it must stay in
+/// the root map, even though a pass cannot judge an evicted task as a root.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn pinned_root_with_evicted_meta_stays_in_root_map() {
+    const N: u32 = 4;
+    let dir = create_persistence_dir("pinned_root_with_evicted_meta_stays_in_root_map");
+    let tt = reopen_tt_with_gc(&dir);
+    let op = turbo_tasks::run_once(tt.clone(), async move {
+        let op = root_with_child(N);
+        assert_eq!(*op.read_strongly_consistent().await?, N + 1);
+        anyhow::Ok(op)
+    })
+    .await
+    .unwrap();
+    let pin = GcRoot::pin(tt.clone(), op);
+
+    // The snapshot's own pass records the root, then eviction drops its `Meta`.
+    tt.backend().snapshot_and_evict_for_testing(&tt);
+    assert!(in_root_map(&tt, op.task_id()));
+
+    let collected = tt.backend().gc_for_testing(&tt);
+    assert_eq!(collected, 0);
+    assert!(
+        in_root_map(&tt, op.task_id()),
+        "a pinned root must not fall out of the root map when its Meta is evicted"
+    );
+
+    drop(pin);
+    tt.stop_and_wait().await;
+}
+
+/// Calls the root op, becoming a persistent parent of a task that was a root last session.
+#[turbo_tasks::function]
+async fn root_holder(n: u32) -> Result<Vc<u32>> {
+    Ok(Vc::cell(*root_with_child(n).connect().await? + 100))
+}
+
+/// Selector-gated parent of [`root_holder`]: flipping the selector disconnects the holder.
+#[turbo_tasks::function(operation, root)]
+async fn select_root_holder(selector: ResolvedVc<Selector>, n: u32) -> Result<Vc<u32>> {
+    if !*selector.await?.get() {
+        Ok(root_holder(n))
+    } else {
+        Ok(Vc::cell(0))
+    }
+}
+
+/// A protected prior root must also survive being reached by a cascade: here a new-session parent
+/// connects it and is then collected, which drops the root's last persistent parent mid-pass.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn cascade_does_not_collect_protected_prior_root() {
+    const N: u32 = 5;
+    let dir = create_persistence_dir("cascade_does_not_collect_protected_prior_root");
+    let root = persist_pinned_root(&dir, N).await;
+
+    // Session 2: connect the root under a holder, disconnect the holder, collect.
+    {
+        let tt = reopen_tt_with_gc_ttl(&dir, Duration::from_secs(3600));
+        turbo_tasks::run_once(tt.clone(), async move {
+            let selector_op = create_selector(false);
+            let selector_vc = selector_op.resolve().strongly_consistent().await?;
+            let selector = selector_op.read_strongly_consistent().await?;
+            let holder_root = select_root_holder(selector_vc, N);
+            assert_eq!(*holder_root.read_strongly_consistent().await?, N + 101);
+
+            selector.set(true);
+            assert_eq!(*holder_root.read_strongly_consistent().await?, 0);
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+        assert_eq!(tt.backend().parent_count_for_testing(root), 1);
+
+        let collected = tt.backend().gc_for_testing(&tt);
+        assert_eq!(collected, 1, "only the disconnected holder is collected");
+        assert!(
+            in_root_map(&tt, root),
+            "the protected root stays in the map"
+        );
+        tt.stop_and_wait().await;
+    }
+
+    assert_eq!(
+        rerun_leaf_executions(&dir, N).await,
+        0,
+        "the protected root's subtree must still be cached"
+    );
 }

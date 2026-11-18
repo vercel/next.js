@@ -1,13 +1,14 @@
 import { nextTestSetup, isNextDev, type Playwright } from 'e2e-utils'
 import cheerio from 'cheerio'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('Build Error Tests', () => {
-  const { next, isTurbopack, isRspack, isNextDeploy } = nextTestSetup({
+  const { next, isTurbopack, isRspack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (isNextDeploy) return
 
   if (isNextDev) {
     it('no-op in dev', () => {})
@@ -40,12 +41,13 @@ describe('Build Error Tests', () => {
   })
 })
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('Static Image Component Tests for basePath', () => {
-  const { next, isTurbopack, skipped } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   let browser: Playwright
   let $: ReturnType<typeof cheerio.load>
@@ -100,7 +102,11 @@ describe('Static Image Component Tests for basePath', () => {
   }
 
   it('should have <head> containing <meta name="viewport"> followed by <link rel="preload"> for priority image', async () => {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     let metaViewport = { index: 0, attribs: {} as any }
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     let linkPreload = { index: 0, attribs: {} as any }
     $('head')
       .children()
@@ -117,9 +123,13 @@ describe('Static Image Component Tests for basePath', () => {
           linkPreload = { index, attribs }
         }
       })
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect((metaViewport.attribs as any).content).toContain(
       'width=device-width'
     )
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     expect(normalizeURL((linkPreload.attribs as any).imagesrcset)).toMatch(
       /%2F_next%2Fstatic%2Fmedia%2Ftest-rect\.(.*)\.jpg/g
     )

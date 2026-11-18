@@ -59,6 +59,15 @@ export async function resolveEnsureStaticLevel(
   tree: LoaderTree,
   partialPrefetching: boolean
 ): Promise<EnsureStaticLevel> {
+  return getEnsureStaticLevel(
+    await resolveEnsureStaticConfig(tree, partialPrefetching)
+  )
+}
+
+export async function resolveEnsureStaticConfig(
+  tree: LoaderTree,
+  partialPrefetching: boolean
+): Promise<Exclude<EnsureStatic, false>> {
   let { config, filePath } = await resolveEnsureStaticConfigImpl(tree)
 
   if (!partialPrefetching) {
@@ -95,15 +104,12 @@ export async function resolveEnsureStaticLevel(
     }
   }
 
-  if (config === 'navigation') {
-    throw new Error(
-      `\`${formatEnsureStaticExport(config)}\` is not implemented yet.` +
-        `\n  (from: ${filePath})` +
-        ``
-    )
+  if (config === false) {
+    // `false` and "auto" are equivalent once resolved.
+    return 'auto'
+  } else {
+    return config
   }
-
-  return getEnsureStaticLevel(config)
 }
 
 type EnsureStaticWithSource = {
@@ -150,7 +156,7 @@ async function resolveEnsureStaticConfigImpl(
         case Comparison.LessConstrained:
         case Comparison.MoreConstrained: {
           throw new Error(
-            `Parallel slots cannot have incompatible \`unstable_ensureStatic\`.` +
+            `Parallel slots cannot have incompatible \`ensureStatic\`.` +
               `\n  ${formatParallelSlot(slotResultKey!)}: ` +
               `\n    ${formatEnsureStaticExport(slotsResult.config)}` +
               `\n    (from: ${slotsResult.filePath})` +
@@ -160,8 +166,8 @@ async function resolveEnsureStaticConfigImpl(
               `\n    (from: ${childResult.filePath})` +
               `\n` +
               `\n Possible fixes:` +
-              `\n - Remove one of the \`unstable_ensureStatic\` exports` +
-              `\n - Change one of the  \`unstable_ensureStatic\` exports to match the other`
+              `\n - Remove one of the \`ensureStatic\` exports` +
+              `\n - Change one of the  \`ensureStatic\` exports to match the other`
           )
         }
       }
@@ -194,8 +200,8 @@ async function resolveEnsureStaticConfigImpl(
       case Comparison.Incompatible: {
         throw new Error(
           (comparison === Comparison.LessConstrained
-            ? `A child segment cannot override a parent segment with a less-constrained \`unstable_ensureStatic\`.`
-            : `A child segment cannot override a parent segment with an incompatible \`unstable_ensureStatic\`.`) +
+            ? `A child segment cannot override a parent segment with a less-constrained \`ensureStatic\`.`
+            : `A child segment cannot override a parent segment with an incompatible \`ensureStatic\`.`) +
             `\n  Parent has: ` +
             `\n    ${formatEnsureStaticExport(parentResult.config)}` +
             `\n    (from: ${parentResult.filePath})` +
@@ -204,8 +210,8 @@ async function resolveEnsureStaticConfigImpl(
             `\n    (from: ${slotsResult.filePath})` +
             `\n` +
             `\n Possible fixes:` +
-            `\n - Remove one of the \`unstable_ensureStatic\` exports` +
-            `\n - Change one of the  \`unstable_ensureStatic\` exports to match the other`
+            `\n - Remove one of the \`ensureStatic\` exports` +
+            `\n - Change one of the  \`ensureStatic\` exports to match the other`
         )
       }
     }
@@ -217,7 +223,7 @@ function formatParallelSlot(slot: string) {
 }
 
 function formatEnsureStaticExport(config: EnsureStatic) {
-  return `export const unstable_ensureStatic = ${JSON.stringify(config)}`
+  return `export const ensureStatic = ${JSON.stringify(config)}`
 }
 
 enum Comparison {
@@ -263,8 +269,5 @@ function compareEnsureStatic(
 function getEnsureStaticConfigForModule(
   mod: Record<string, any> | undefined
 ): EnsureStatic {
-  return (
-    (mod ? (mod as AppSegmentConfig).unstable_ensureStatic : undefined) ??
-    'auto'
-  )
+  return (mod ? (mod as AppSegmentConfig).ensureStatic : undefined) ?? 'auto'
 }

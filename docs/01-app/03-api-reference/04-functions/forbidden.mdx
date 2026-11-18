@@ -10,7 +10,7 @@ related:
     - app/api-reference/config/next-config-js/authInterrupts
 ---
 
-The `forbidden` function throws an error that renders a Next.js 403 page. It's useful for handling authorization errors in your application. You can customize the UI using the [`forbidden.js` file](/docs/app/api-reference/file-conventions/forbidden).
+The `forbidden` function throws an error that renders the forbidden UI. It's useful for handling authorization errors in your application. You can customize the UI using the [`forbidden.js` file](/docs/app/api-reference/file-conventions/forbidden).
 
 Invoking `forbidden()` throws a `NEXT_HTTP_ERROR_FALLBACK;403` error and terminates rendering of the route segment where it was thrown. Next.js also injects a `<meta name="robots" content="noindex" />` tag so the page is not indexed. Because it works by throwing, call it in the render path: a component, or a function a component `await`s. A call left in an un-awaited promise throws where nothing catches it, and no forbidden UI renders.
 
@@ -184,7 +184,7 @@ export default function Forbidden() {
 
 The response starts streaming from the `<Suspense>` boundary before `forbidden()` runs, so it keeps its `200` status. Next.js adds a `noindex` tag.
 
-Calling `forbidden()` before streaming starts returns a `403`. A page that reaches `forbidden()` during prerendering can remain `○` Static and serve a `403`. A request-time check can run in [Proxy](/docs/app/api-reference/file-conventions/proxy) before the page renders. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
+`forbidden()` returns a `403` when it runs before the response starts, including during prerendering. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
 
 ### Role-based route protection
 

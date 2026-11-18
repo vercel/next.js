@@ -15,16 +15,14 @@ import {
 import { logQueue } from '../../../../next-devtools/userspace/app/forward-logs'
 import { InvariantError } from '../../../../shared/lib/invariant-error'
 import { WEB_SOCKET_MAX_RECONNECTIONS } from '../../../../lib/constants'
+import { assetPrefix } from './asset-prefix'
 
 let reconnections = 0
 let reloading = false
 let serverSessionId: number | null = null
 let mostRecentCompilationHash: string | null = null
 
-export function createWebSocket(
-  assetPrefix: string,
-  staticIndicatorState: StaticIndicatorState
-) {
+export function createWebSocket(staticIndicatorState: StaticIndicatorState) {
   if (!self.__next_r) {
     throw new InvariantError(
       `Expected a request ID to be defined for the document via self.__next_r.`
@@ -201,6 +199,7 @@ export function createProcessTurbopackMessage(
     '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts'
   ).then(({ connect }) => {
     connect({
+      initialHmrVersion: self.__nextHmrInitialVersion,
       addMessageListener(cb: (msg: TurbopackMessageSentToBrowser) => void) {
         callback = cb
 

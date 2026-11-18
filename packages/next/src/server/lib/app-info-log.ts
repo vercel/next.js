@@ -4,9 +4,11 @@ import * as Log from '../../build/output/log'
 import { bold, purple, strikethrough } from '../../lib/picocolors'
 import type { ConfiguredExperimentalFeature } from '../config'
 import { experimentalSchema } from '../config-schema'
-import { getAgentName } from '../../telemetry/agent-name'
 import { bundlerName, getBundlerFromEnv } from '../../lib/bundler'
 import {
+  hasCurrentAgentUpgrade,
+  removeAgentUpgradeFiles,
+  writeAgentUpgradeFiles,
   hasCurrentAgentFeedback,
   hasCurrentAgentRules,
   removeAgentFeedbackFiles,
@@ -118,35 +120,49 @@ export function logExperimentalInfo({
 }
 
 /**
- * Keep the agent-rules block in sync with next.config. Enabling it still
- * requires a detected agent; disabling it removes only that managed block,
- * even when no agent is currently detected.
+ * Keep the agent-rules block in sync with next.config.
+ * Disabling it removes only that managed block.
  */
 export async function syncAgentRulesForDev(
   dir: string,
   enabled: boolean
 ): Promise<AgentFilesResult | null> {
   if (!enabled) return removeAgentRulesFiles(dir)
-  if ((await getAgentName()) === null) return null
   if (hasCurrentAgentRules(dir)) return null
 
   return writeAgentFiles(dir)
 }
 
 /**
- * Keep the opt-in agent-feedback block in sync with next.config. Enabling it
- * still requires a detected agent; disabling it removes only that managed
- * block, even when no agent is currently detected.
+ * Keep the opt-in agent-feedback block in sync with next.config.
+ * Disabling it removes only that managed block.
  */
 export async function syncAgentFeedbackForDev(
   dir: string,
   enabled: boolean
 ): Promise<AgentFilesResult | null> {
   if (!enabled) return removeAgentFeedbackFiles(dir)
-  if ((await getAgentName()) === null) return null
   if (hasCurrentAgentFeedback(dir)) return null
 
   return writeAgentFeedbackFiles(dir)
+}
+
+/**
+ * Sync upgrade delegation using the reminder policy independently of agentRules.
+ * Disabling reminders removes only this managed block.
+ */
+export async function syncAgentUpgradeForDev(
+  dir: string,
+  enabled: boolean
+): Promise<AgentFilesResult | null> {
+  if (!enabled) {
+    return removeAgentUpgradeFiles(dir)
+  }
+  if (hasCurrentAgentUpgrade(dir)) {
+    return null
+  }
+
+  return writeAgentUpgradeFiles(dir)
 }
 
 /**

@@ -1,15 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+// Deploy mode exclusion: This suite asserts local server CLI output after
+// aborting a response stream.
+// @force-gate !deploy
 describe('on-request-error - client-abort', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should not report an aborted RSC stream but still report render errors', async () => {
     const controller = new AbortController()

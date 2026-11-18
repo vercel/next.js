@@ -7,9 +7,11 @@
   "scripts": {
     "typescript": "pnpm check",
     "check": "run-p check:*",
-    "check:nodejs": "tsc -p src/nodejs",
+    "check:nodejs-build": "tsc -p src/nodejs/tsconfig.build.json",
+    "check:nodejs-dev": "tsc -p src/nodejs/tsconfig.dev.json",
     "check:browser-dev-client": "tsc -p src/browser/dev/hmr-client",
-    "check:browser-runtime-base": "tsc -p src/browser/runtime/base",
+    "check:browser-runtime-base-build": "tsc -p src/browser/runtime/base/tsconfig.build.json",
+    "check:browser-runtime-base-dev": "tsc -p src/browser/runtime/base/tsconfig.dev.json",
     "check:browser-runtime-dom": "tsc -p src/browser/runtime/dom",
     "check:browser-runtime-self-contained": "tsc -p src/browser/runtime/self-contained"
   },

@@ -8,6 +8,13 @@ const nextConfig = {
   output: 'standalone',
   outputHashSalt: 'adapter-symlink-test',
   serverExternalPackages: ['sibling'],
+  turbopack: {
+    rules: {
+      '*.loader.js': {
+        loaders: [path.join(__dirname, 'additional-root-dependency-loader.js')],
+      },
+    },
+  },
   experimental: {
     turbopackAdditionalRoots: {
       linkedPackages: {

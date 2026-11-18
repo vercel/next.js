@@ -3,10 +3,10 @@ import { nextTestSetup } from 'e2e-utils'
 const METADATA_BASE_WARN_STRING =
   'metadataBase property in metadata export is not set for resolving social open graph or twitter images,'
 
+// @force-gate !deploy
 describe('app dir - metadata missing metadataBase', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   if (skipped) {

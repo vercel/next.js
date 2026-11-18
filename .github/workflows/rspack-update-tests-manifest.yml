@@ -1,4 +1,4 @@
-# A recurring workflow which updates the passing/failing/skipped integration tests for Turbopack.
+# A recurring workflow which updates the passing/failing/skipped integration tests for Rspack.
 name: Update Rspack test manifest
 
 on:
@@ -7,11 +7,20 @@ on:
     - cron: '0 7 * * *'
   workflow_dispatch:
 
+env:
+  COREPACK_VERSION: 0.34.7
+
+permissions: {}
+
 jobs:
   update_dev_manifest:
     name: Update and upload Rspack development test manifest
-    if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
+    environment: bot-autonomous
+    permissions:
+      # Used by `gh api` in test/update-bundler-manifest.js to list and download
+      # test result artifacts.
+      actions: read
     steps:
       - name: Create GitHub App token
         id: release-app-token
@@ -49,7 +58,7 @@ jobs:
 
       - name: Setup corepack
         run: |
-          npm i -g corepack@0.31
+          npm i -g "corepack@${COREPACK_VERSION}"
           corepack enable
 
       - name: Install dependencies
@@ -60,6 +69,9 @@ jobs:
         shell: bash
         run: node scripts/automated-update-workflow.js
         env:
+          # Used by `gh api` in test/update-bundler-manifest.js to download test
+          # result artifacts. Branch and PR creation use RELEASE_GITHUB_TOKEN.
+          GH_TOKEN: ${{ github.token }}
           RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
           RELEASE_GITHUB_APP_SLUG: ${{ steps.release-app-token.outputs.app-slug }}
           RELEASE_GITHUB_APP_USER_ID: ${{ steps.release-app-user.outputs.user-id }}
@@ -73,8 +85,12 @@ jobs:
           PR_BODY: This auto-generated PR updates the development integration test manifest used when testing Rspack.
   update_build_manifest:
     name: Update and upload Rspack production test manifest
-    if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
+    environment: bot-autonomous
+    permissions:
+      # Used by `gh api` in test/update-bundler-manifest.js to list and download
+      # test result artifacts.
+      actions: read
     steps:
       - name: Create GitHub App token
         id: release-app-token
@@ -112,7 +128,7 @@ jobs:
 
       - name: Setup corepack
         run: |
-          npm i -g corepack@0.31
+          npm i -g "corepack@${COREPACK_VERSION}"
           corepack enable
 
       - name: Install dependencies
@@ -123,6 +139,9 @@ jobs:
         shell: bash
         run: node scripts/automated-update-workflow.js
         env:
+          # Used by `gh api` in test/update-bundler-manifest.js to download test
+          # result artifacts. Branch and PR creation use RELEASE_GITHUB_TOKEN.
+          GH_TOKEN: ${{ github.token }}
           RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
           RELEASE_GITHUB_APP_SLUG: ${{ steps.release-app-token.outputs.app-slug }}
           RELEASE_GITHUB_APP_USER_ID: ${{ steps.release-app-user.outputs.user-id }}

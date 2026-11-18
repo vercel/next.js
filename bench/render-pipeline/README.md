@@ -3,6 +3,7 @@
 This benchmark targets the full App Router render path (`renderToHTMLOrFlight`) via real HTTP requests through `bench/next-minimal-server`.
 
 It supports:
+
 - Node streams mode benchmarking
 - route-based stress suites for streaming SSR
 - CPU/heap profiling for the server process
@@ -76,6 +77,7 @@ bench/render-pipeline/artifacts/<timestamp>/
 ```
 
 Per run this includes:
+
 - `<mode>.cpuprofile` (if `--capture-cpu=true`)
 - `<mode>.heapprofile` (if `--capture-heap=true`)
 - `<mode>-trace-*.json` (if `--capture-trace=true`)
@@ -105,6 +107,7 @@ payload unrealistically small compared to production apps.
 ## Stress routes
 
 Default routes:
+
 - `/`
 - `/attributes` (attribute and inline-style serialization)
 - `/tailwind` (realistic utility-class-heavy dashboard)
@@ -137,7 +140,7 @@ Each run reports, per route, alongside latency:
   Byte totals are deterministic per build (fixture data is seeded), so any
   delta in an A/B comparison is a real payload change — no repeat runs needed.
   They also double as a check that both sides of a comparison rendered the
-  same output. The script *count* is not stable: Fizz wraps whatever Flight
+  same output. The script _count_ is not stable: Fizz wraps whatever Flight
   rows are pending into one script per flush, so the count varies with write
   timing. Compare bytes, not counts.
 

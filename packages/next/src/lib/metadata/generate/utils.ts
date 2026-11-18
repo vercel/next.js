@@ -1,16 +1,20 @@
 function resolveArray<T>(value: T | T[]): T[] {
   if (Array.isArray(value)) {
-    return value as any
+    return value
   }
-  return [value] as any
+  return [value]
 }
 
 function resolveAsArrayOrUndefined<T>(
   value: T | T[] | undefined | null
 ): T extends undefined | null ? undefined : T[] {
   if (typeof value === 'undefined' || value === null) {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     return undefined as any
   }
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   return resolveArray(value) as any
 }
 

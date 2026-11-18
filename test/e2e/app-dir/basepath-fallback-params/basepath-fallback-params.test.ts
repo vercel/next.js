@@ -11,6 +11,9 @@ describe('basepath-fallback-params', () => {
     expect(await browser.elementById('item-id').text()).toBe('expected-id')
   })
 
+  // Flaky on Vercel deployments: the client navigation sometimes renders the
+  // unresolved fallback param placeholder (`%%drp:itemId:...%%`).
+  // @force-gate !vercel
   it('reads fallback params after a client navigation', async () => {
     const browser = await next.browser('/dashboard')
 

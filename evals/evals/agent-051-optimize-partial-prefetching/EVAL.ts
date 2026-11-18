@@ -2,7 +2,7 @@
  * Optimize one Partial Prefetching navigation
  *
  * The fixture starts after Cache Components and Partial Prefetching adoption.
- * The agent must turn one accepted, URL-specific product goal into an
+ * The agent must turn one accepted, URL-specific session goal into an
  * instant() RED-to-GREEN loop without expanding the cost to every card.
  */
 
@@ -52,7 +52,13 @@ test('adds reusable cached work', () => {
 })
 
 test('uses the navigation stage', () => {
-  expect(source).toMatch(/\b(?:unstable_)?navigation\s*\(/)
+  const navigationImport = source.match(
+    /import\s*\{[^}]*\bnavigation\b(?:\s+as\s+([A-Za-z_$][\w$]*))?[^}]*\}\s*from\s*['"]next\/cache['"]/
+  )
+  expect(navigationImport).not.toBeNull()
+
+  const localName = navigationImport?.[1] ?? 'navigation'
+  expect(source).toMatch(new RegExp(`await\\s+${localName}\\s*\\(`))
 })
 
 test('optimizes only the selected featured navigation', async () => {

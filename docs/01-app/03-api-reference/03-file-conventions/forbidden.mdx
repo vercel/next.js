@@ -45,6 +45,8 @@ export default function Forbidden() {
 
 `forbidden.js` components do not accept any props.
 
+> **Good to know**: Next.js sends each `forbidden.js` file with every route under its segment, even when `forbidden()` is never called, and loads the Client Components it imports on those pages. Prefer Server Components and [`<Link>`](/docs/app/api-reference/components/link) there over interactive UI.
+
 ## Version History
 
 | Version   | Changes                    |

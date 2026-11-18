@@ -6,13 +6,14 @@ use either::Either;
 use indoc::writedoc;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{NonLocalValue, OrderedAutoMap, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
+    source_map::SourceMapGenerationOptions,
     version::{Update, Version, VersionedContent},
 };
 use turbopack_ecmascript::{
@@ -37,8 +38,7 @@ enum CurrentChunkMethodWithData {
 #[turbo_tasks::value]
 pub struct EcmascriptDevChunkListContent {
     current_chunk_method: CurrentChunkMethodWithData,
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub(super) chunks_contents: FxIndexMap<String, ResolvedVc<Box<dyn VersionedContent>>>,
+    pub(super) chunks_contents: OrderedAutoMap<String, ResolvedVc<Box<dyn VersionedContent>>>,
     source: EcmascriptDevChunkListSource,
     /// The global variable name used for chunk loading (derived from chunkLoadingGlobal config).
     chunk_loading_global: RcStr,
@@ -120,7 +120,7 @@ impl EcmascriptDevChunkListContent {
             }
         };
 
-        let mut code = CodeBuilder::default();
+        let mut code = CodeBuilder::new(false, SourceMapGenerationOptions::NONE);
 
         // When loaded, JS chunks must register themselves with the `TURBOPACK` global
         // variable. Similarly, we register the chunk list with the
