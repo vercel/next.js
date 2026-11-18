@@ -34,7 +34,7 @@ pub async fn uri_from_file(root: FileSystemPath, path: Option<&str>) -> Result<S
 
     // `to_sys_path` returns a win32 path on Windows. `Url::from_file_path` can also handle
     // verbatim (`\\?\`-prefixed) disk and UNC paths, in case that conversion failed.
-    let sys_path = root_fs.to_sys_path(&path);
+    let sys_path = root_fs.to_sys_path(&path).await?;
     Ok(String::from(Url::from_file_path(&sys_path).map_err(
         |_| anyhow!("path {sys_path:?} cannot be converted to a file:// URI"),
     )?))

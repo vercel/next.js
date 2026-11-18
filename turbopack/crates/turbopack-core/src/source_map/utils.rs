@@ -128,7 +128,9 @@ pub async fn resolve_source_map_sources(
                     if let Some(disk_fs_vc) = disk_fs_vc {
                         let disk_fs =
                             get_or_try_init(&disk_fs, async || Ok(disk_fs_vc.await?)).await?;
-                        disk_fs.try_from_sys_path(disk_fs_vc, &sys_path, Some(origin))
+                        disk_fs
+                            .try_from_sys_path(disk_fs_vc, &sys_path, Some(origin))
+                            .await?
                     } else {
                         None
                     }
@@ -309,12 +311,13 @@ pub async fn absolute_fileify_source_map(
     let context_fs = &*ResolvedVc::try_downcast_type::<DiskFileSystem>(context_path.fs)
         .context("Expected the chunking context to have a DiskFileSystem")?
         .await?;
+    let context_root = context_fs.root().await?;
     transform_relative_files(map, &prefix, |src_rest| {
         let path = context_path.join(src_rest)?;
 
         // `to_sys_path` returns a win32 path on Windows. `Url::from_file_path` can also handle
         // verbatim (`\\?\`-prefixed) disk and UNC paths, in case that conversion failed.
-        let sys_path = context_fs.to_sys_path(&path);
+        let sys_path = DiskFileSystem::to_sys_path_with_root(context_root, &path);
         Ok(Url::from_file_path(&sys_path)
             .map_err(|()| {
                 anyhow::anyhow!("path {sys_path:?} cannot be converted to a file:// URI")
