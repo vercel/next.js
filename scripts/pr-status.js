@@ -258,17 +258,24 @@ function getBranchInfo(prNumberArg) {
   return { prNumber: null, branchName, headSha: null }
 }
 
-function getWorkflowRuns({ branchName, headSha }) {
-  // A PR's runs are looked up by its head commit, not its branch name: fork PRs
-  // often share a branch name (two forks pushing `fix/foo`), and runs for fork
-  // PRs list no pull_requests, so a branch query can return another PR's run.
+/**
+ * Returns the API path that lists a PR's or branch's workflow runs. A PR's runs
+ * are looked up by its head commit, not its branch name: fork PRs often share a
+ * branch name (two forks pushing `fix/foo`), and runs for fork PRs list no
+ * pull_requests, so a branch query can return another PR's run.
+ */
+function workflowRunsPath({ branchName, headSha }) {
   const runFilter = headSha
     ? `head_sha=${headSha}`
     : `branch=${encodeURIComponent(branchName)}`
+  return `repos/vercel/next.js/actions/runs?${runFilter}&per_page=10`
+}
+
+function getWorkflowRuns(branchInfo) {
   const jqQuery =
     '.workflow_runs[] | select(.name == "build-and-test") | {id, run_attempt, status, conclusion}'
   const output = exec(
-    `gh api "repos/vercel/next.js/actions/runs?${runFilter}&per_page=10" --jq '${jqQuery}'`
+    `gh api "${workflowRunsPath(branchInfo)}" --jq '${jqQuery}'`
   )
 
   if (!output.trim()) return []
@@ -390,11 +397,15 @@ function getGhApiRawOutputFlags() {
     } catch {
       // Leave the flag out; the request itself reports what went wrong.
     }
-    ghApiRawOutputFlags = help.includes('--allow-escape-sequences')
-      ? ['--allow-escape-sequences']
-      : []
+    ghApiRawOutputFlags = rawOutputFlagsFromHelp(help)
   }
   return ghApiRawOutputFlags
+}
+
+function rawOutputFlagsFromHelp(ghApiHelp) {
+  return ghApiHelp.includes('--allow-escape-sequences')
+    ? ['--allow-escape-sequences']
+    : []
 }
 
 function describeCommandError(error) {
@@ -409,13 +420,17 @@ function describeCommandError(error) {
  * Returns `{ logs, error }`: the job's log with terminal escape sequences
  * stripped, or an empty log and gh's error message when it can't be fetched.
  * The flag turns off gh's own escape-sequence guard, so everything parsed or
- * written to the output files goes through `stripAnsi` here.
+ * written to the output files goes through `stripAnsi` here. Tests pass
+ * `runGh` and `flags` in place of the real gh.
  */
-async function getJobLogs(jobId) {
+async function getJobLogs(
+  jobId,
+  { runGh = execAsync, flags = getGhApiRawOutputFlags() } = {}
+) {
   try {
-    const logs = await execAsync('gh', [
+    const logs = await runGh('gh', [
       'api',
-      ...getGhApiRawOutputFlags(),
+      ...flags,
       `repos/vercel/next.js/actions/jobs/${jobId}/logs`,
     ])
     return { logs: stripAnsi(logs), error: null }
@@ -1890,7 +1905,19 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error(err)
-  process.exit(1)
-})
+// Run only when invoked as a script, so tests can load the helpers below.
+if (require.main === module) {
+  main().catch((err) => {
+    console.error(err)
+    process.exit(1)
+  })
+}
+
+module.exports = {
+  generateIndexMd,
+  generateJobMd,
+  getJobLogs,
+  rawOutputFlagsFromHelp,
+  stripAnsi,
+  workflowRunsPath,
+}
