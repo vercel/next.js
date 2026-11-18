@@ -89,5 +89,8 @@
     "publish": false,
     "timeout": 1800,
     "metrics": "pokedex"
+  },
+  "agent-063-react-query-navigation-cache": {
+    "timeout": 900
   }
 }

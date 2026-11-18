@@ -1,4 +1,8 @@
 {
+  "audit": [
+    "agent-063-react-query-navigation-cache",
+    "agent-064-cache-components-navigation-cache"
+  ],
   "regression": [
     "agent-000-app-router-migration-simple",
     "agent-021-avoid-fetch-in-effect",
