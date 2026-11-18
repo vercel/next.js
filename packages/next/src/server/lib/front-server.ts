@@ -2,6 +2,7 @@ import { spawn } from 'child_process'
 import fs from 'fs'
 import readline from 'readline'
 import type { Readable } from 'stream'
+import setupDebug from 'next/dist/compiled/debug'
 import * as Log from '../../build/output/log'
 import {
   startServer,
@@ -10,9 +11,15 @@ import {
   type StartServerResult,
 } from './start-server'
 import { findFrontBinary } from './front-binary'
+import type { FrontRouteTable } from './front-route-table'
+import { observeNativeRouteWorkers } from './native-route.external'
 import { FRONT_SERVER_ENV } from './front-server-env'
 import { formatHostname } from './format-hostname'
 import { printAndExit } from './utils'
+
+// DEBUG=next:front-server shows what Node tells the front: whether it may
+// route route.go requests directly (or why not), and each worker.
+const debug = setupDebug('next:front-server')
 
 /**
  * `next start` with __NEXT_EXPERIMENTAL_FRONT_SERVER=1: a Go process
@@ -123,6 +130,34 @@ function spawnFront(
     front.stdin.end()
     return exited
   }
+  // Control messages to the front, one JSON object per line on its stdin
+  // (src/server/front/control.go): the route table once the router has
+  // loaded, then each route.go worker as Node starts or retires it.
+  const send = (message: object) => {
+    if (!closing) front.stdin.write(JSON.stringify(message) + '\n')
+  }
+  const setRouteTable = (table: FrontRouteTable) => {
+    debug(
+      'reason' in table
+        ? 'route table: every request goes to Node (%s)'
+        : 'route table: %d static and %d dynamic route.go routes',
+      ...('reason' in table
+        ? [table.reason]
+        : [
+            Object.keys(table.goExact).length,
+            table.dynamic.filter((route) => route.go).length,
+          ])
+    )
+    send({ event: 'table', table })
+    observeNativeRouteWorkers((event) => {
+      debug(
+        'route.go worker %s: %s',
+        event.event,
+        event.event === 'worker' ? event.page : event.address
+      )
+      send(event)
+    })
+  }
 
   return new Promise<PublicServer>((resolve, reject) => {
     let ready = false
@@ -145,7 +180,7 @@ function spawnFront(
     })
     readFrontStdout(front.stdout, (port) => {
       ready = true
-      resolve({ hostname: options.hostname, port, close })
+      resolve({ hostname: options.hostname, port, close, setRouteTable })
     })
   })
 }

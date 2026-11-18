@@ -169,6 +169,11 @@ export type PublicServer = {
   port: number
   /** Stops accepting connections and resolves once in-flight requests end. */
   close: () => Promise<void>
+  /**
+   * Gives the front server the route table, once the router has loaded the
+   * app. Until then the front sends every request to this Node server.
+   */
+  setRouteTable?: (table: import('./front-route-table').FrontRouteTable) => void
 }
 
 export async function getRequestHandlers({
@@ -583,6 +588,9 @@ export async function startServer(
         upgradeHandler = initResult.upgradeHandler
         nextServer = initResult.server
         closeUpgraded = initResult.closeUpgraded
+        if (publicServer?.setRouteTable && initResult.frontRouteTable) {
+          publicServer.setRouteTable(initResult.frontRouteTable())
+        }
 
         // Log experimental features after config is loaded
         if (isDev) {

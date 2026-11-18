@@ -1342,5 +1342,15 @@ export async function initialize(opts: {
       ? development.config.experimental.agentUpgrade !== false
       : undefined,
     devMemoryThresholdRestart,
+    frontRouteTable: () => {
+      const { collectFrontRouteTable } =
+        require('./front-route-table-input') as typeof import('./front-route-table-input')
+      return collectFrontRouteTable({
+        dir: opts.dir,
+        dev: opts.dev,
+        config,
+        fsChecker,
+      })
+    },
   }
 }
