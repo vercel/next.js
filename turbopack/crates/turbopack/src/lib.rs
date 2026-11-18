@@ -159,7 +159,7 @@ async fn apply_module_type(
             let mut builder = EcmascriptModuleAsset::builder(
                 source,
                 ResolvedVc::upcast(context_for_module),
-                concat_transforms(ResolvedVc::deref_vec(vec![
+                EcmascriptInputTransforms::concat(ResolvedVc::deref_vec(vec![
                     *preprocess,
                     *main,
                     *postprocess,
@@ -482,19 +482,6 @@ async fn process_default(
     .await
 }
 
-/// Concatenates the given transform lists (in order) into a single interned
-/// [`EcmascriptInputTransforms`] cell.
-#[turbo_tasks::function]
-async fn concat_transforms(
-    parts: Vec<ResolvedVc<EcmascriptInputTransforms>>,
-) -> Result<Vc<EcmascriptInputTransforms>> {
-    let mut transforms = Vec::new();
-    for part in parts {
-        transforms.extend(part.await?.iter().cloned());
-    }
-    Ok(EcmascriptInputTransforms::new(transforms))
-}
-
 /// Apply collected transforms to a module type.
 /// For Ecmascript/Typescript variants: merge collected transforms into the module type.
 /// For Custom: call extend_ecmascript_transforms() if any transforms exist.
@@ -544,35 +531,42 @@ async fn apply_module_rule_transforms(
             // Apply collected preprocess/main in order, then module type's transforms
             if !collected_preprocess.is_empty() {
                 collected_preprocess.push(*preprocess);
-                *preprocess = concat_transforms(ResolvedVc::deref_vec(take(collected_preprocess)))
-                    .to_resolved()
-                    .await?;
+                *preprocess = EcmascriptInputTransforms::concat(ResolvedVc::deref_vec(take(
+                    collected_preprocess,
+                )))
+                .to_resolved()
+                .await?;
             }
 
             if !collected_main.is_empty() {
                 collected_main.push(*main);
-                *main = concat_transforms(ResolvedVc::deref_vec(take(collected_main)))
-                    .to_resolved()
-                    .await?;
+                *main =
+                    EcmascriptInputTransforms::concat(ResolvedVc::deref_vec(take(collected_main)))
+                        .to_resolved()
+                        .await?;
             }
 
             // Apply module type's postprocess first, then collected postprocess
             if !collected_postprocess.is_empty() {
                 collected_postprocess.insert(0, *postprocess);
-                *postprocess =
-                    concat_transforms(ResolvedVc::deref_vec(take(collected_postprocess)))
-                        .to_resolved()
-                        .await?;
+                *postprocess = EcmascriptInputTransforms::concat(ResolvedVc::deref_vec(take(
+                    collected_postprocess,
+                )))
+                .to_resolved()
+                .await?;
             }
         }
         ModuleType::Custom(custom_module_type) => {
             if has_transforms {
                 // Combine collected transforms into single Vcs
-                let combined_preprocess =
-                    concat_transforms(ResolvedVc::deref_vec(take(collected_preprocess)));
-                let combined_main = concat_transforms(ResolvedVc::deref_vec(take(collected_main)));
-                let combined_postprocess =
-                    concat_transforms(ResolvedVc::deref_vec(take(collected_postprocess)));
+                let combined_preprocess = EcmascriptInputTransforms::concat(ResolvedVc::deref_vec(
+                    take(collected_preprocess),
+                ));
+                let combined_main =
+                    EcmascriptInputTransforms::concat(ResolvedVc::deref_vec(take(collected_main)));
+                let combined_postprocess = EcmascriptInputTransforms::concat(
+                    ResolvedVc::deref_vec(take(collected_postprocess)),
+                );
 
                 match custom_module_type
                     .extend_ecmascript_transforms(

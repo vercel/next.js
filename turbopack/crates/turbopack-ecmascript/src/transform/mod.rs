@@ -188,6 +188,16 @@ impl EcmascriptInputTransforms {
     pub fn new(transforms: Vec<EcmascriptInputTransform>) -> Vc<Self> {
         Vc::cell(transforms)
     }
+
+    /// Concatenates the given transform lists (in order) into a single interned cell.
+    #[turbo_tasks::function]
+    pub async fn concat(parts: Vec<ResolvedVc<Self>>) -> Result<Vc<Self>> {
+        let mut transforms = Vec::new();
+        for part in parts {
+            transforms.extend(part.await?.iter().cloned());
+        }
+        Ok(Self::new(transforms))
+    }
 }
 
 pub struct TransformContext<'a> {
