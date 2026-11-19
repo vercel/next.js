@@ -35,7 +35,7 @@ function expectOptionalCatchallParams(html: string) {
               })
               console.log(
                 'HTML_LIMITED_BOT_PRERENDERS_CAPABILITY: ' +
-                  (capabilities?.handlesHtmlLimitedBotPrerenders === true)
+                  (capabilities?.supportsHtmlLimitedBotPrerenders === true)
               )
             }
             return { cacheComponents: true }

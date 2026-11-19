@@ -573,7 +573,7 @@ export interface NextAdapterCapabilities {
    * serving prerendered pages. Matching user agents receive complete metadata
    * in the initial HTML `<head>`.
    */
-  handlesHtmlLimitedBotPrerenders?: boolean
+  supportsHtmlLimitedBotPrerenders?: boolean
   /**
    * The deployment target supports HTTP method conditions in prerender cache
    * bypass rules.
@@ -773,7 +773,7 @@ export async function handleBuildComplete({
       if (
         !isAppPageOutput ||
         !bypassFor ||
-        (!capabilities?.handlesHtmlLimitedBotPrerenders &&
+        (!capabilities?.supportsHtmlLimitedBotPrerenders &&
           !capabilities?.supportsPrerenderMethodBypass)
       ) {
         return bypassFor
@@ -785,7 +785,7 @@ export async function handleBuildComplete({
         bypassFor.some(isMultipartBypass)
       const conditions = bypassFor.filter((condition) => {
         if (
-          capabilities.handlesHtmlLimitedBotPrerenders === true &&
+          capabilities.supportsHtmlLimitedBotPrerenders === true &&
           condition.type === 'header' &&
           condition.key.toLowerCase() === 'user-agent' &&
           condition.value === htmlLimitedBotsPattern

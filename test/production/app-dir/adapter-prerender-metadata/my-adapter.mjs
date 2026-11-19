@@ -17,13 +17,13 @@ function getCapabilities({ config }) {
   const capabilities = {
     empty: {},
     disabled: {
-      handlesHtmlLimitedBotPrerenders: false,
+      supportsHtmlLimitedBotPrerenders: false,
       supportsPrerenderMethodBypass: false,
     },
-    bots: { handlesHtmlLimitedBotPrerenders: true },
+    bots: { supportsHtmlLimitedBotPrerenders: true },
     methods: { supportsPrerenderMethodBypass: true },
     both: {
-      handlesHtmlLimitedBotPrerenders: true,
+      supportsHtmlLimitedBotPrerenders: true,
       supportsPrerenderMethodBypass: true,
     },
   }
