@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 
 interface Options {
-  enterDelay?: number
+  enterDelay?: number | 'after-paint'
   exitDelay?: number
   onUnmount?: () => void
 }
@@ -39,13 +39,18 @@ export function useDelayedRender(active = false, options: Options = {}) {
 
   const { enterDelay = 1, exitDelay = 0 } = options
   useEffect(() => {
+    let renderFrame: number | undefined
     let renderTimeout: Timeout | undefined
     let unmountTimeout: Timeout | undefined
 
     if (active) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional cascading update
       setMounted(true)
-      if (enterDelay <= 0) {
+      if (enterDelay === 'after-paint') {
+        renderFrame = requestAnimationFrame(() => {
+          renderFrame = requestAnimationFrame(() => setRendered(true))
+        })
+      } else if (enterDelay <= 0) {
         setRendered(true)
       } else {
         renderTimeout = setTimeout(() => {
@@ -64,6 +69,7 @@ export function useDelayedRender(active = false, options: Options = {}) {
     }
 
     return () => {
+      if (renderFrame !== undefined) cancelAnimationFrame(renderFrame)
       clearTimeout(renderTimeout)
       clearTimeout(unmountTimeout)
     }

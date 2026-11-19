@@ -1,67 +1,38 @@
-import { forwardRef, useEffect, useState } from 'react'
+import { forwardRef, useEffect, useState, type Key } from 'react'
 
 export const Resizer = forwardRef(function Resizer(
   {
     children,
-    measure,
+    contentKey,
     ...props
-  }: {
-    children: React.ReactNode
-    measure: boolean
-  } & React.HTMLProps<HTMLDivElement>,
+  }: React.HTMLProps<HTMLDivElement> & { contentKey?: Key },
   resizerRef: React.Ref<HTMLDivElement | null>
 ) {
   const [element, setElement] = useState<HTMLDivElement | null>(null)
-  const [height, measuring] = useMeasureHeight(element, measure)
-
-  return (
-    <div
-      {...props}
-      ref={resizerRef}
-      // [x] Don't animate on initial load
-      // [x] No duplicate elements
-      // [x] Responds to content growth
-      style={{
-        height: measuring ? 'auto' : height,
-        transition: measuring ? 'none' : 'height 250ms var(--timing-swift)',
-      }}
-    >
-      <div ref={setElement}>{children}</div>
-    </div>
-  )
-})
-
-function useMeasureHeight(
-  element: HTMLDivElement | null,
-  measure: boolean
-): [number, boolean] {
-  const [height, setHeight] = useState<number>(0)
-  const [measuring, setMeasuring] = useState<boolean>(true)
+  const [measurement, setMeasurement] = useState<{
+    height: number
+    contentKey: Key | undefined
+  }>()
 
   useEffect(() => {
-    if (!measure) {
-      return
-    }
-
-    let timerId: number
-
     if (!element) {
       return
     }
 
     const observer = new ResizeObserver(([{ contentRect }]) => {
-      clearTimeout(timerId)
-
-      timerId = window.setTimeout(() => {
-        setMeasuring(false)
-      }, 100)
-
-      setHeight(contentRect.height)
+      setMeasurement({ height: contentRect.height, contentKey })
     })
 
     observer.observe(element)
     return () => observer.disconnect()
-  }, [measure, element])
+  }, [element, contentKey])
 
-  return [height, measuring]
-}
+  const height =
+    measurement?.contentKey === contentKey ? measurement?.height : undefined
+
+  return (
+    <div {...props} ref={resizerRef} style={{ height }}>
+      <div ref={setElement}>{children}</div>
+    </div>
+  )
+})

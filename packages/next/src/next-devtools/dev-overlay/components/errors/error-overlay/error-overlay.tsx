@@ -38,6 +38,7 @@ export function ErrorOverlay({
 
   // This hook lets us do an exit animation before unmounting the component
   const { mounted, rendered } = useDelayedRender(state.isErrorOverlayOpen, {
+    enterDelay: 'after-paint',
     exitDelay: transitionDurationMs,
   })
 

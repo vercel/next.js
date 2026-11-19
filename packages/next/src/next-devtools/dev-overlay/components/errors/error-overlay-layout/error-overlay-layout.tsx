@@ -92,31 +92,13 @@ export function ErrorOverlayLayout({
     } as React.CSSProperties,
   }
 
-  const [animating, setAnimating] = React.useState(
-    Boolean(transitionDurationMs)
-  )
-
   const dialogRef = React.useRef<HTMLDivElement | null>(null)
   useFocusTrap(dialogRef, null, rendered)
-
-  function onTransitionEnd({ propertyName, target }: React.TransitionEvent) {
-    // We can only measure height after the `scale` transition ends,
-    // otherwise we will measure height as a multiple of the animating value
-    // which will give us an incorrect value.
-    if (propertyName === 'scale' && target === dialogRef.current) {
-      setAnimating(false)
-    }
-  }
 
   return (
     <ErrorOverlayOverlay {...animationProps}>
       <OverlayBackdrop fixed={isBuildError} />
-      <div
-        data-nextjs-dialog-root
-        onTransitionEnd={onTransitionEnd}
-        ref={dialogRef}
-        {...animationProps}
-      >
+      <div data-nextjs-dialog-root ref={dialogRef} {...animationProps}>
         <ErrorOverlayNav
           runtimeErrors={runtimeErrors}
           activeIdx={activeIdx}
@@ -131,7 +113,7 @@ export function ErrorOverlayLayout({
         <ErrorOverlayDialog onClose={onClose}>
           <Resizer
             ref={dialogResizerRef}
-            measure={!animating}
+            contentKey={runtimeErrors?.[activeIdx ?? 0]?.id}
             data-nextjs-dialog-sizer
           >
             <DialogContent>

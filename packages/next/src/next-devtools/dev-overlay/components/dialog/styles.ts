@@ -18,14 +18,17 @@ export const styles = css`
     max-width: var(--next-dialog-max-width);
     margin-right: auto;
     margin-left: auto;
-    scale: 0.97;
+    transform-origin: top center;
+    translate: 0 -8px;
+    scale: 0.985;
     opacity: 0;
-    transition-property: scale, opacity;
+    transition-property: translate, scale, opacity;
     transition-duration: var(--transition-duration);
     transition-timing-function: var(--timing-overlay);
 
     &[data-rendered='true'] {
       opacity: 1;
+      translate: 0 0;
       scale: 1;
     }
   }
@@ -46,6 +49,18 @@ export const styles = css`
   [data-nextjs-dialog-overlay][data-rendered='true']
     [data-nextjs-dialog-backdrop] {
     opacity: 1;
+  }
+
+  [data-nextjs-dialog-sizer] {
+    transition: height 250ms var(--timing-swift);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-nextjs-dialog-root],
+    [data-nextjs-dialog-backdrop],
+    [data-nextjs-dialog-sizer] {
+      transition: none;
+    }
   }
 
   [data-nextjs-dialog-content] {
