@@ -47,9 +47,11 @@ func (t *Table) Decide(r Request) Decision {
 	if why := t.checkRequest(r); why != "" {
 		return node(why)
 	}
-	path, _, hasQuery := strings.Cut(r.Target, "?")
+	path, query, hasQuery := strings.Cut(r.Target, "?")
 	if hasQuery {
-		return node("query")
+		if why := checkQuery(query); why != "" {
+			return node(why)
+		}
 	}
 	logical, segments, why := t.logicalPath(path)
 	if why != "" {
@@ -120,6 +122,58 @@ func plain(s string) bool {
 		}
 	}
 	return true
+}
+
+// objectPrototypeKeys are names Node's query object already has (it is a
+// plain JavaScript object), so a query key with one of these names comes out
+// changed or missing.
+var objectPrototypeKeys = map[string]bool{
+	"__proto__": true, "constructor": true, "hasOwnProperty": true,
+	"isPrototypeOf": true, "propertyIsEnumerable": true, "toLocaleString": true,
+	"toString": true, "valueOf": true, "__defineGetter__": true,
+	"__defineSetter__": true, "__lookupGetter__": true, "__lookupSetter__": true,
+}
+
+// checkQuery accepts a query that Node's parse-then-write gives back
+// unchanged: key=value pairs of plain characters, no key that JavaScript
+// objects order or treat specially, and repeats of a key next to each other
+// (Node groups repeats under the first one).
+func checkQuery(query string) string {
+	if query == "" {
+		return "empty query"
+	}
+	seen := map[string]bool{}
+	previous := ""
+	for _, pair := range strings.Split(query, "&") {
+		key, value, ok := strings.Cut(pair, "=")
+		if !ok || key == "" {
+			return "query pair without key=value"
+		}
+		if !plain(key) || !plain(value) {
+			return "query characters"
+		}
+		if isDigits(key) {
+			return "integer query key"
+		}
+		if objectPrototypeKeys[key] {
+			return "query key " + key
+		}
+		if seen[key] && key != previous {
+			return "query key repeated apart"
+		}
+		seen[key] = true
+		previous = key
+	}
+	return ""
+}
+
+func isDigits(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return s != ""
 }
 
 // logicalPath checks the path and returns it and its segments, or why the
