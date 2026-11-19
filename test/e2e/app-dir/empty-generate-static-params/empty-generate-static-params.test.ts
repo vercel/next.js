@@ -49,6 +49,7 @@ describe('empty-generate-static-params', () => {
       `)
     })
   } else {
+    // Build-failure diagnostics are covered by local build/start runs.
     // @force-gate !deploy
     describe('literal empty array', () => {
       const { next, isTurbopack } = nextTestSetup({
@@ -99,6 +100,7 @@ describe('empty-generate-static-params', () => {
       }, 240_000)
     })
 
+    // Build-failure diagnostics are covered by local build/start runs.
     // @force-gate !deploy
     describe('computed empty array', () => {
       const { next, isTurbopack } = nextTestSetup({

@@ -2,6 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import path from 'path'
 
+// Build-failure diagnostics are covered by local build/start runs.
 // @force-gate !deploy
 describe.each(['layout', 'page', 'fetch', 'unstable-cache'])(
   'app-invalid-revalidate (%s)',

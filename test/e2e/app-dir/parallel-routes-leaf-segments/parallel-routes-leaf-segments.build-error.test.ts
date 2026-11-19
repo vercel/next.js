@@ -2,6 +2,7 @@ import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import { waitForRedbox, retry } from 'next-test-utils'
 
+// Build-failure diagnostics are covered by local build/start runs.
 // @force-gate !deploy
 describe('parallel-routes-leaf-segments-build-error', () => {
   const { next, isNextDev } = nextTestSetup({

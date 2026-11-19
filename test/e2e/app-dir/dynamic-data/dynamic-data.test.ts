@@ -148,6 +148,7 @@ describe('dynamic-data', () => {
   }
 })
 
+// Build-failure diagnostics are covered by local build/start runs.
 // @force-gate !deploy
 describe('dynamic-data with dynamic = "error"', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -267,6 +268,7 @@ describe('dynamic-data with dynamic = "error"', () => {
   }
 })
 
+// Build-failure diagnostics are covered by local build/start runs.
 // @force-gate !deploy
 describe('dynamic-data inside cache scope', () => {
   const { isTurbopack, next, isNextDev, skipped } = nextTestSetup({

@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// Build-failure diagnostics are covered by local build/start runs.
 // @force-gate !deploy
 describe('next-image-src-with-query-without-local-patterns', () => {
   const { next, isNextDev } = nextTestSetup({

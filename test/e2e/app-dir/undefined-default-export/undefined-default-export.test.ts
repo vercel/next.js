@@ -50,6 +50,7 @@ describe('Undefined default export', () => {
       `)
     })
   } else {
+    // Build-failure diagnostics are covered by local build/start runs.
     // @force-gate !deploy
     it('errors the build with helpful error messages', async () => {
       await expect(next.start()).rejects.toThrow()

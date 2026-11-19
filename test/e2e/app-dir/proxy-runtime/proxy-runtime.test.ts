@@ -7,6 +7,7 @@ describe('proxy-runtime', () => {
     skipStart: true,
   })
 
+  // Build-failure diagnostics are covered by local build/start runs.
   // @force-gate !deploy
   it('should error when proxy file has runtime config export', async () => {
     let cliOutput: string

@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
 
+// Build-failure diagnostics are covered by local build/start runs.
 // @force-gate !deploy
 describe('canonical-interception-routes', () => {
   const { next, isNextDev, isTurbopack } = nextTestSetup({

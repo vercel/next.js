@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+// Build-failure diagnostics are covered by local build/start runs.
 // @force-gate !deploy
 describe('proxy-and-middleware-conflict', () => {
   const { next, isNextDev } = nextTestSetup({

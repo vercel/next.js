@@ -118,6 +118,7 @@ describe('app-dir - error-on-next-codemod-comment', () => {
       )
     })
   } else {
+    // Build-failure diagnostics are covered by local build/start runs.
     // @force-gate !deploy
     it('should fail the build with next build', async () => {
       await expect(next.start()).rejects.toThrow()

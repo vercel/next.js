@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// Build-failure diagnostics are covered by local build/start runs.
 // @force-gate !deploy
 describe('metadata-invalid-image-file', () => {
   const { next, isTurbopack, isNextDev, isRspack } = nextTestSetup({

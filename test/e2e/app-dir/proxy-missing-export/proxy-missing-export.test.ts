@@ -39,6 +39,7 @@ describe('proxy-missing-export', () => {
     })
   })
 
+  // Build-failure diagnostics are covered by local build/start runs.
   // @force-gate !deploy
   describe.each(['named-middleware', 'aliased-handler'])(
     '%s export',

@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// Build-failure diagnostics are covered by local build/start runs.
 // @force-gate !deploy
 describe('next-config-ts-type-error-esm', () => {
   // TODO: Remove this local check once we bump minimum Node.js version to v22

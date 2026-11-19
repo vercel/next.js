@@ -196,6 +196,7 @@ import stripAnsi from 'strip-ansi'
         })
       })
     } else {
+      // Build-failure diagnostics are covered by local build/start runs.
       // @force-gate !deploy
       describe('build', () => {
         const { next } = nextTestSetup({

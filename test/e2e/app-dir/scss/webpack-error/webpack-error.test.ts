@@ -6,6 +6,7 @@ describe('SCSS Support', () => {
     files: __dirname,
     skipStart: true,
   })
+  // These diagnostics require a local production build, not dev or deploy.
   // @force-gate start
   describe('Friendly Webpack Error', () => {
     it('should be a friendly error successfully', async () => {
