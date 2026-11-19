@@ -1182,21 +1182,18 @@ pub(crate) fn go_proxy_endpoint(
 
 /// Renders the Go proxy handler with the configuration that proxy.ts URL
 /// normalization depends on.
-fn go_proxy_handler_source(base_path: &str, skip_proxy_url_normalize: bool) -> Result<String> {
+fn go_proxy_handler_source(skip_proxy_url_normalize: bool) -> Result<String> {
     let source = include_str!("templates/go_proxy_handler.go");
-    let base_path_placeholder = "\"__NEXT_GO_BASE_PATH__\"";
-    let skip_placeholder = "const nextGoSkipProxyURLNormalize = false";
+    let placeholder = "const nextGoSkipProxyURLNormalize = false";
     ensure!(
-        source.contains(base_path_placeholder) && source.contains(skip_placeholder),
-        "Go proxy template is missing a configuration placeholder"
+        source.contains(placeholder),
+        "Go proxy template is missing the skipProxyUrlNormalize placeholder"
     );
-    Ok(source
-        .replacen(base_path_placeholder, &serde_json::to_string(base_path)?, 1)
-        .replacen(
-            skip_placeholder,
-            &format!("const nextGoSkipProxyURLNormalize = {skip_proxy_url_normalize}"),
-            1,
-        ))
+    Ok(source.replacen(
+        placeholder,
+        &format!("const nextGoSkipProxyURLNormalize = {skip_proxy_url_normalize}"),
+        1,
+    ))
 }
 
 /// proxy.go only supports App Router applications. Pages Router routing (data
@@ -1383,10 +1380,7 @@ impl Endpoint for GoEndpoint {
         let base_path = project.next_config().base_path().await?;
         let route_pattern = format!("{}{pathname}", base_path.as_deref().unwrap_or(""));
         let handler = if is_proxy {
-            go_proxy_handler_source(
-                base_path.as_deref().unwrap_or(""),
-                *project.next_config().skip_proxy_url_normalize().await?,
-            )?
+            go_proxy_handler_source(*project.next_config().skip_proxy_url_normalize().await?)?
         } else {
             include_str!("templates/go_route_handler.go").replace(
                 "\"__NEXT_GO_ROUTE_PATTERN__\"",
@@ -3142,13 +3136,9 @@ mod tests {
 
     #[test]
     fn renders_go_proxy_handler_configuration() {
-        let source = go_proxy_handler_source("", false).unwrap();
-        assert!(!source.contains("__NEXT_GO_"));
-        assert!(source.contains("const nextGoBasePath = \"\"\n"));
+        let source = go_proxy_handler_source(false).unwrap();
         assert!(source.contains("const nextGoSkipProxyURLNormalize = false\n"));
-
-        let source = go_proxy_handler_source("/docs\"", true).unwrap();
-        assert!(source.contains(r#"const nextGoBasePath = "/docs\"""#));
+        let source = go_proxy_handler_source(true).unwrap();
         assert!(source.contains("const nextGoSkipProxyURLNormalize = true\n"));
     }
 }

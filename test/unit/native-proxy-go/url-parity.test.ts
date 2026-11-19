@@ -37,7 +37,6 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 
 type testCase struct {
 	Path string
-	Data bool
 }
 
 func main() {
@@ -48,9 +47,6 @@ func main() {
 	results := make([]*[2]string, len(cases))
 	for i, c := range cases {
 		raw := "GET " + c.Path + " HTTP/1.1\\r\\nHost: example.test\\r\\n"
-		if c.Data {
-			raw += "x-nextjs-data: 1\\r\\n"
-		}
 		r, err := http.ReadRequest(bufio.NewReader(strings.NewReader(raw + "\\r\\n")))
 		if err != nil {
 			// net/http rejects the request before it reaches Proxy.
@@ -72,16 +68,15 @@ func main() {
 }
 `
 
-type TestCase = { path: string; data: boolean }
-
-function generateCases(basePath: string): TestCase[] {
-  const prefixes = ['', '/docsx', ...(basePath ? [basePath] : [])]
+// Pages Router data URLs (/_next/data/<build ID>/<page>.json) are left out:
+// proxy.go only supports App Router applications, which do not serve them, so
+// it does not normalize them like proxy.ts does.
+function generateCases(): string[] {
+  const prefixes = ['', '/docs', '/docsx']
   const middles = [
     '',
     '/en',
     '/index',
-    '/_next/data/build',
-    '/_next/data/build/_next/data/other',
     '/%5Fnext/data/build',
     '/a%2Fb',
     '/a%20b',
@@ -132,15 +127,11 @@ function generateCases(basePath: string): TestCase[] {
     `/page?x='"`,
     '/page?&&a=&=b',
   ]
-  const cases: TestCase[] = []
+  const cases: string[] = []
   for (const prefix of prefixes) {
     for (const middle of middles) {
       for (const suffix of suffixes) {
-        const path = prefix + middle + suffix || '/'
-        cases.push({ path, data: false })
-        if (suffix.includes('.json') || middle === '/index' || !suffix) {
-          cases.push({ path, data: true })
-        }
+        cases.push(prefix + middle + suffix || '/')
       }
     }
   }
@@ -148,7 +139,7 @@ function generateCases(basePath: string): TestCase[] {
 }
 
 async function proxyTsURL(
-  { path, data }: TestCase,
+  path: string,
   nextConfig: { basePath?: string; trailingSlash?: boolean },
   skipProxyUrlNormalize: boolean
 ) {
@@ -162,10 +153,7 @@ async function proxyTsURL(
     },
     request: {
       url: 'http://example.test' + path,
-      headers: {
-        host: 'example.test',
-        ...(data ? { 'x-nextjs-data': '1' } : {}),
-      },
+      headers: { host: 'example.test' },
       method: 'GET',
       nextConfig,
       signal: new AbortController().signal,
@@ -183,30 +171,20 @@ describe('proxy.go request URLs', () => {
     rmSync(directory, { recursive: true, force: true })
   })
 
-  it.each([
-    { basePath: '', skipProxyUrlNormalize: false },
-    { basePath: '/docs', skipProxyUrlNormalize: false },
-    { basePath: '', skipProxyUrlNormalize: true },
-    { basePath: '/docs', skipProxyUrlNormalize: true },
-  ])(
-    'match proxy.ts with basePath "$basePath" and skipProxyUrlNormalize $skipProxyUrlNormalize',
-    async ({ basePath, skipProxyUrlNormalize }) => {
-      const variant = join(
-        directory,
-        `${basePath ? 'base-path' : 'root'}-${skipProxyUrlNormalize}`
-      )
+  it.each([false, true])(
+    'match proxy.ts with skipProxyUrlNormalize %s',
+    async (skipProxyUrlNormalize) => {
+      const variant = join(directory, `skip-${skipProxyUrlNormalize}`)
       mkdirSync(variant)
       writeFileSync(join(variant, 'go.mod'), 'module proxy\n\ngo 1.22\n')
       writeFileSync(join(variant, 'main.go'), harness)
       // Mirrors go_proxy_handler_source in crates/next-api/src/app.rs.
       writeFileSync(
         join(variant, 'handler.go'),
-        template
-          .replace('"__NEXT_GO_BASE_PATH__"', JSON.stringify(basePath))
-          .replace(
-            'const nextGoSkipProxyURLNormalize = false',
-            `const nextGoSkipProxyURLNormalize = ${skipProxyUrlNormalize}`
-          )
+        template.replace(
+          'const nextGoSkipProxyURLNormalize = false',
+          `const nextGoSkipProxyURLNormalize = ${skipProxyUrlNormalize}`
+        )
       )
       const binary = join(
         variant,
@@ -218,36 +196,36 @@ describe('proxy.go request URLs', () => {
         stdio: 'inherit',
       })
 
-      const cases = generateCases(basePath)
+      const cases = generateCases()
       const goResults: Array<[string, string] | null> = JSON.parse(
         execFileSync(binary, {
-          input: JSON.stringify(
-            cases.map(({ path, data }) => ({ Path: path, Data: data }))
-          ),
+          input: JSON.stringify(cases.map((path) => ({ Path: path }))),
           maxBuffer: 64 * 1024 * 1024,
         }).toString()
       )
 
-      // trailingSlash does not change the URL, so the Go handler does not
-      // need it.
-      const configs = [false, true].map((trailingSlash) => ({
-        ...(basePath ? { basePath } : {}),
-        trailingSlash,
-      }))
+      // basePath and trailingSlash do not change the URL proxy.ts receives
+      // for App Router requests, so the Go handler does not need them.
+      const configs = [
+        {},
+        { trailingSlash: true },
+        { basePath: '/docs' },
+        { basePath: '/docs', trailingSlash: true },
+      ]
       const mismatches: unknown[] = []
       let compared = 0
-      for (const [i, testCase] of cases.entries()) {
+      for (const [i, path] of cases.entries()) {
         const go = goResults[i]
         if (!go) continue
         for (const nextConfig of configs) {
           compared++
           const expected = await proxyTsURL(
-            testCase,
+            path,
             nextConfig,
             skipProxyUrlNormalize
           )
           if (go[0] !== expected || go[1].startsWith('inconsistent')) {
-            mismatches.push({ ...testCase, nextConfig, expected, go })
+            mismatches.push({ path, nextConfig, expected, go })
           }
         }
       }

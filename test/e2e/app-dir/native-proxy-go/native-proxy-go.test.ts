@@ -721,8 +721,6 @@ describe.each([
       '/native-proxy/a%2Fb',
       '/native-proxy/inspect.segments/_tree.segment.rsc',
       '/native-proxy/inspect.segments/$c$children/__PAGE__.segment.rsc',
-      '/_next/data/build-id/native-proxy/inspect.json',
-      '/_next/data/build-id/index/native-proxy/inspect.json',
       '/en/native-proxy/inspect',
       '/index.rsc',
       '/native-proxy/x/../inspect',

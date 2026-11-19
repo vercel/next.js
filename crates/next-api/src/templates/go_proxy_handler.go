@@ -173,15 +173,14 @@ func nextGoForwardedProto(value string) string {
 }
 
 // Proxy configuration, replaced when the proxy is compiled.
-const nextGoBasePath = "__NEXT_GO_BASE_PATH__"
 const nextGoSkipProxyURLNormalize = false
 
 // nextGoNormalizeURL rewrites the request URL to the one the JavaScript
-// adapter passes to proxy.ts as request.url. That URL is parsed as a WHATWG
-// URL (resolving dot segments, for example), has its RSC suffix removed and,
-// unless skipProxyUrlNormalize is set, is normalized by NextURL twice (once
-// by the adapter and once by NextRequest) with internal query parameters
-// removed.
+// adapter passes to proxy.ts as request.url: it is parsed as a WHATWG URL
+// (resolving dot segments, for example), has its RSC suffix removed and,
+// unless skipProxyUrlNormalize is set, has internal query parameters removed.
+// Pages Router data URLs are not normalized: proxy.go only supports App Router
+// applications, which do not serve them.
 func nextGoNormalizeURL(r *http.Request) {
 	target := r.RequestURI
 	if !strings.HasPrefix(target, "/") {
@@ -198,8 +197,6 @@ func nextGoNormalizeURL(r *http.Request) {
 	if nextGoSkipProxyURLNormalize {
 		query = nextGoPercentEncode(rawQuery, nextGoQueryEscape)
 	} else {
-		path = nextGoFormatPathname(path, false, len(r.Header.Values("x-nextjs-data")) > 0)
-		path = nextGoFormatPathname(path, true, false)
 		query = nextGoNormalizeQuery(rawQuery)
 		hasQuery = query != ""
 	}
@@ -281,65 +278,6 @@ func nextGoParsePath(raw string) string {
 		}
 	}
 	return "/" + strings.Join(segments, "/")
-}
-
-func nextGoRemoveTrailingSlash(path string) string {
-	if len(path) > 1 && strings.HasSuffix(path, "/") {
-		return path[:len(path)-1]
-	}
-	return path
-}
-
-// nextGoFormatPathname matches parsing and formatting a pathname with
-// NextURL. The adapter clears the build ID of Pages data URLs, and NextRequest
-// keeps it.
-func nextGoFormatPathname(pathname string, keepBuildID bool, isDataRequest bool) string {
-	trailingSlash := pathname != "/" && strings.HasSuffix(pathname, "/")
-	hasBasePath := nextGoBasePath != "" &&
-		(pathname == nextGoBasePath || strings.HasPrefix(pathname, nextGoBasePath+"/"))
-	if hasBasePath {
-		pathname = pathname[len(nextGoBasePath):]
-		if !strings.HasPrefix(pathname, "/") {
-			pathname = "/" + pathname
-		}
-	}
-	buildID := ""
-	if strings.HasPrefix(pathname, "/_next/data/") && strings.HasSuffix(pathname, ".json") {
-		parts := strings.Split(strings.TrimSuffix(strings.TrimPrefix(pathname, "/_next/data/"), ".json"), "/")
-		buildID = parts[0]
-		if len(parts) > 1 && parts[1] == "index" {
-			pathname = "/"
-		} else {
-			pathname = "/" + strings.Join(parts[1:], "/")
-		}
-	}
-	if !keepBuildID {
-		buildID = ""
-		if isDataRequest && pathname == "/index" {
-			pathname = "/"
-		}
-	}
-	formatted := pathname
-	if buildID != "" || !trailingSlash {
-		formatted = nextGoRemoveTrailingSlash(formatted)
-	}
-	if buildID != "" {
-		suffix := ".json"
-		if pathname == "/" {
-			suffix = "index.json"
-		}
-		formatted = "/_next/data/" + buildID + formatted + suffix
-	}
-	if hasBasePath {
-		formatted = nextGoBasePath + formatted
-	}
-	if buildID == "" && trailingSlash {
-		if !strings.HasSuffix(formatted, "/") {
-			formatted += "/"
-		}
-		return formatted
-	}
-	return nextGoRemoveTrailingSlash(formatted)
 }
 
 type nextGoQueryParam struct{ name, value string }
