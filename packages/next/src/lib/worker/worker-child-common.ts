@@ -50,7 +50,14 @@ export function createMessageHandler(
   }
 
   function reportSuccess(requestId: number, result: unknown): void {
-    transport.send([PARENT_MESSAGE_OK, requestId, result])
+    try {
+      transport.send([PARENT_MESSAGE_OK, requestId, result])
+    } catch (err) {
+      // The result can't be serialized (e.g. a BigInt or circular data for a
+      // child process, a function for a worker thread). Fail only this call;
+      // the worker and its other calls are fine.
+      reportClientError(requestId, err)
+    }
   }
 
   /** Normalize an unknown thrown value into a structured error descriptor */
@@ -59,9 +66,6 @@ export function createMessageHandler(
     message: string
     stack: string | undefined
   } {
-    if (error == null) {
-      error = new Error('"null" or "undefined" thrown')
-    }
     const err = error as Error
     return {
       name: err.constructor?.name ?? 'Error',
@@ -71,25 +75,43 @@ export function createMessageHandler(
   }
 
   function reportClientError(requestId: number, error: unknown): void {
+    if (error == null) {
+      error = new Error('"null" or "undefined" thrown')
+    }
     const e = normalizeError(error)
-    transport.send([
-      PARENT_MESSAGE_CLIENT_ERROR,
-      requestId,
-      e.name,
-      e.message,
-      e.stack,
-      // Spread extra properties from the original error (e.g. `code`, `digest`)
-      typeof error === 'object' ? { ...error } : error,
-    ])
+    try {
+      transport.send([
+        PARENT_MESSAGE_CLIENT_ERROR,
+        requestId,
+        e.name,
+        e.message,
+        e.stack,
+        // Extra properties of the original error (e.g. `code`, `digest`), or
+        // a thrown non-object value (e.g. a string) itself.
+        typeof error === 'object' ? { ...error } : error,
+      ])
+    } catch {
+      // The error's extra properties can't be serialized (e.g. a function, or
+      // circular data). Send what can always be serialized, so the call still
+      // fails with its error instead of crashing the worker.
+      transport.send([
+        PARENT_MESSAGE_CLIENT_ERROR,
+        requestId,
+        String(e.name),
+        String(e.message),
+        e.stack === undefined ? undefined : String(e.stack),
+        {},
+      ])
+    }
   }
 
   function reportInitializeError(error: unknown): void {
-    const e = normalizeError(error)
+    const e = normalizeError(error ?? new Error('"null" or "undefined" thrown'))
     transport.send([PARENT_MESSAGE_SETUP_ERROR, e.name, e.message, e.stack])
   }
 
   function reportLoadError(error: unknown): void {
-    const e = normalizeError(error)
+    const e = normalizeError(error ?? new Error('"null" or "undefined" thrown'))
     transport.send([PARENT_MESSAGE_LOAD_ERROR, e.name, e.message, e.stack])
   }
 

@@ -688,6 +688,18 @@ export class WorkerPool {
     // Handle spawn/communication errors so they don't become unhandled
     // 'error' events. Common causes: ENOMEM, EMFILE, invalid execPath.
     handle.onError((error: Error) => {
+      if (enableWorkerThreads) {
+        // A worker thread emits 'error' for an uncaught exception (e.g. thrown
+        // from a timer) and then exits, so it's a crash: the 'exit' handler
+        // rejects its calls with WorkerExitError and replaces it, like for a
+        // crashed child process. Unlike a child process, Node.js doesn't print
+        // the exception for a thread, so print it like a crashing process
+        // would.
+        this._stderr.write(
+          `${error instanceof Error && error.stack ? error.stack : String(error)}\n`
+        )
+        return
+      }
       this._handleSpawnError(worker, error)
     })
 
@@ -829,20 +841,24 @@ export class WorkerPool {
   /**
    * Reconstruct an Error from a CLIENT_ERROR message.
    * If the child sent errorProperties (extra fields like `code`), they are
-   * copied onto the error instance.
+   * copied onto the error instance. A thrown non-object value (e.g. a string)
+   * is passed through as-is.
    */
   private _deserializeError(
     message: Extract<
       ParentMessage,
       [typeof PARENT_MESSAGE_CLIENT_ERROR, ...any]
     >
-  ): Error {
+  ): unknown {
     const [, , errorName, errorMessage, errorStack, errorProperties] = message
+
+    if (errorProperties === null || typeof errorProperties !== 'object') {
+      // e.g. `throw 'message'`: the child sends the value itself.
+      return errorProperties
+    }
 
     // Use the named global constructor (e.g. TypeError, RangeError) when available
     const ErrorConstructor =
-      errorProperties != null &&
-      typeof errorProperties === 'object' &&
       typeof (globalThis as Record<string, unknown>)[errorName] === 'function'
         ? ((globalThis as Record<string, unknown>)[
             errorName
@@ -854,9 +870,7 @@ export class WorkerPool {
     error.stack = errorStack
 
     // Copy extra properties (e.g. `code`, `digest`) onto the error
-    if (errorProperties != null && typeof errorProperties === 'object') {
-      Object.assign(error, errorProperties)
-    }
+    Object.assign(error, errorProperties)
 
     return error
   }

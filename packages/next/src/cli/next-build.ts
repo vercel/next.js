@@ -12,6 +12,7 @@ import {
   printAndExit,
 } from '../server/lib/utils'
 import isError from '../lib/is-error'
+import { WorkerExitError } from '../lib/worker/worker-pool'
 import { getProjectDir } from '../lib/get-project-dir'
 import { warnMissingReactDependencies } from '../lib/warn-missing-react-dependencies'
 import { enableMemoryDebuggingMode } from '../lib/memory/startup'
@@ -179,6 +180,13 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
         (err as { isPrerenderEarlyExit?: boolean }).isPrerenderEarlyExit
       ) {
         printAndExit(err.message)
+      }
+      // A build worker that exited (e.g. `process.exit(78)` while
+      // prerendering) ends the build with the worker's exit code and a
+      // one-line message (e.g. "Next.js static worker exited with code: 78
+      // and signal: null"), as before the worker pool rewrite.
+      if (err instanceof WorkerExitError) {
+        printAndExit(err.message, err.code || 1)
       }
       console.error('')
       if (

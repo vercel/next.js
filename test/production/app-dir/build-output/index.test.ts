@@ -56,10 +56,12 @@ describe('production - app dir - build output', () => {
         }          
         `
     )
-    const { cliOutput } = await next.build()
+    const { cliOutput, exitCode } = await next.build()
     await next.deleteFile('app/out-of-band-dynamic-api/page.tsx')
 
     expect(cliOutput).toContain('Next.js static worker exited with code: 78')
+    // The build exits with the worker's exit code.
+    expect(exitCode).toBe(78)
   })
 
   it('should fail the build if you use a dynamic API outside of a render context - headers', async () => {

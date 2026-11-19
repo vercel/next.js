@@ -140,7 +140,9 @@ function replyClientError(
   errorName: string,
   errorMessage: string,
   stack?: string,
-  properties?: Record<string, unknown>
+  // The child always sends an object (the thrown error's own properties)
+  // when an Error was thrown.
+  properties: Record<string, unknown> = {}
 ): void {
   proc.emit('message', [
     PARENT_MESSAGE_CLIENT_ERROR,
