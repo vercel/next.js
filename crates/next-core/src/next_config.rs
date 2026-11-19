@@ -1256,6 +1256,7 @@ pub struct ExperimentalConfig {
     /// route.
     strict_route_matching: Option<bool>,
     go_routes: Option<bool>,
+    img_opt_safe_mode: Option<ImgOptSafeMode>,
     /// Experimental Rust React compiler (Turbopack only); requires `reactCompiler`.
     turbopack_rust_react_compiler: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
@@ -1307,6 +1308,33 @@ pub struct SubResourceIntegrity {
 pub struct LightningCssFeatures {
     pub include: Option<Vec<RcStr>>,
     pub exclude: Option<Vec<RcStr>>,
+}
+
+/// `experimental.imgOptSafeMode`. `assignDefaultsAndValidate` normalizes this to the object form
+/// with both fields set, but the boolean form is accepted too.
+#[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
+#[serde(untagged)]
+pub enum ImgOptSafeMode {
+    Bool(bool),
+    #[serde(rename_all = "camelCase")]
+    Options {
+        next_image: Option<bool>,
+        image_response: Option<bool>,
+    },
+}
+
+impl ImgOptSafeMode {
+    /// Whether `@next/safe-image-optimization` is used by any feature. The defaults for omitted
+    /// fields match `assignDefaultsAndValidate`.
+    fn is_enabled(&self) -> bool {
+        match self {
+            ImgOptSafeMode::Bool(enabled) => *enabled,
+            ImgOptSafeMode::Options {
+                next_image,
+                image_response,
+            } => next_image.unwrap_or(true) || image_response.unwrap_or(false),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode)]
@@ -1987,6 +2015,16 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn go_routes(&self) -> Vc<bool> {
         Vc::cell(self.experimental.go_routes.unwrap_or_default())
+    }
+
+    #[turbo_tasks::function]
+    pub fn img_opt_safe_mode_enabled(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .img_opt_safe_mode
+                .as_ref()
+                .is_some_and(ImgOptSafeMode::is_enabled),
+        )
     }
 
     #[turbo_tasks::function]
