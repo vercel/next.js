@@ -23,6 +23,50 @@ import { createRequire } from 'module'
 
 export type { IpcInfoMessage, IpcRequestMessage } from './transforms'
 
+const contextRelativePaths = new Map<string, string>()
+
+// Build dependencies are reported relative to the context directory, which keeps them portable
+// task inputs and lets transforms by the same loaders share one tracking task.
+function contextRelative(filename: string): string {
+  let relative = contextRelativePaths.get(filename)
+  if (relative === undefined) {
+    relative = path.relative(contextDir, filename) || '.'
+    contextRelativePaths.set(filename, relative)
+  }
+  return relative
+}
+
+type PackageInfo = { name: string; root: string } | null
+const packageInfoByDirectory = new Map<string, PackageInfo>()
+
+// The package that owns `filename`: its nearest `package.json` with a name. Workspace and linked
+// packages are loaded from their real paths, so the name cannot be read from a node_modules path.
+function packageInfo(filename: string): PackageInfo {
+  const visited: string[] = []
+  let directory = path.dirname(filename)
+  let info: PackageInfo | undefined
+  while ((info = packageInfoByDirectory.get(directory)) === undefined) {
+    visited.push(directory)
+    try {
+      const { name } = JSON.parse(
+        fs.readFileSync(path.join(directory, 'package.json'), 'utf8')
+      )
+      if (typeof name === 'string') {
+        info = { name, root: directory }
+        break
+      }
+    } catch {}
+    const parent = path.dirname(directory)
+    if (parent === directory) {
+      info = null
+      break
+    }
+    directory = parent
+  }
+  for (const directory of visited) packageInfoByDirectory.set(directory, info)
+  return info
+}
+
 type LoaderConfig =
   | string
   | {
@@ -35,6 +79,46 @@ const {
 }: typeof import('loader-runner') = require('@vercel/turbopack/loader-runner')
 
 const contextDir = process.cwd()
+
+type ModuleLookups = {
+  childCount: number
+  packageLookups: Array<[string, [string, string, string]]>
+}
+const moduleLookupsCache = new WeakMap<NodeJS.Module, ModuleLookups>()
+
+// The lookups Node made for a cached module's children. Node only appends to `children`, so the
+// result stays valid until another child is added.
+function moduleLookups(
+  loadedModule: NodeJS.Module,
+  filename: string
+): ModuleLookups {
+  const cached = moduleLookupsCache.get(loadedModule)
+  if (cached?.childCount === loadedModule.children.length) return cached
+  const lookups: ModuleLookups = {
+    childCount: loadedModule.children.length,
+    packageLookups: [],
+  }
+  const parentPackage = packageInfo(filename)
+  for (const child of loadedModule.children) {
+    if (!child.filename) continue
+    // Cached children expose filenames, not the requests that resolved to them.
+    const childPackage = packageInfo(child.filename)
+    if (childPackage && childPackage.root !== parentPackage?.root) {
+      // A child in another package was found by a node_modules lookup from the parent.
+      const lookupPath = path.dirname(filename)
+      lookups.packageLookups.push([
+        `${lookupPath}\0${childPackage.name}\0${childPackage.root}`,
+        [
+          contextRelative(lookupPath),
+          childPackage.name,
+          contextRelative(childPackage.root),
+        ],
+      ])
+    }
+  }
+  moduleLookupsCache.set(loadedModule, lookups)
+  return lookups
+}
 
 const LogType = Object.freeze({
   error: 'error',
@@ -572,11 +656,14 @@ const transform = async (
           logs.length = 0
         }
         const pendingBuildDependencies = [...buildDependencies]
-        let hasCachedBuildDependencies = false
+        const buildPackageLookups = new Map<string, [string, string, string]>()
         for (const dependency of pendingBuildDependencies) {
           const loadedModule = nodeRequire.cache[dependency]
           if (!loadedModule) continue
-          hasCachedBuildDependencies ||= loadedModule.children.length > 0
+          const lookups = moduleLookups(loadedModule, dependency)
+          for (const [key, lookup] of lookups.packageLookups) {
+            buildPackageLookups.set(key, lookup)
+          }
           for (const child of loadedModule.children) {
             if (!child.filename) continue
             if (!buildDependencies.has(child.filename)) {
@@ -596,8 +683,8 @@ const transform = async (
             ...result.missingDependencies,
           ],
           directories: result.contextDependencies.map((dep) => [dep, '**']),
-          buildFilePaths: [...buildDependencies],
-          buildModulePaths: buildModuleDependencies,
+          buildFilePaths: [...buildDependencies].map(contextRelative),
+          buildModulePaths: buildModuleDependencies.map(contextRelative),
           buildDependencyRequests: [...buildDependencyRequests]
             .map((dependency) => {
               // Webpack identifies directory build dependencies by a trailing slash or backslash.
@@ -618,7 +705,10 @@ const transform = async (
               return [request, isDirectory] as [string, boolean]
             })
             .sort(([a], [b]) => a.localeCompare(b)),
-          hasCachedBuildDependencies,
+          // Sorted so identical dependency sets share a task.
+          buildPackageLookups: [...buildPackageLookups.keys()]
+            .sort()
+            .map((key) => buildPackageLookups.get(key)!),
         })
         if (err) {
           // Include resolved loader paths in the error message using

@@ -15,7 +15,7 @@ export type IpcInfoMessage =
       buildFilePaths?: string[]
       buildDependencyRequests?: Array<[string, boolean]>
       buildModulePaths?: string[]
-      hasCachedBuildDependencies?: boolean
+      buildPackageLookups?: Array<[string, string, string]>
     }
   | {
       type: 'emittedError'

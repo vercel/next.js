@@ -371,6 +371,175 @@ async fn loaders_changed(
     Ok(Vc::<Completions>::cell(completions).completed())
 }
 
+/// Tracks the build dependencies a loader evaluation reported. Paths are relative to `cwd` or
+/// absolute; webpack loaders report them relative so they stay valid task inputs across machines.
+#[turbo_tasks::function]
+async fn build_dependencies_changed(
+    cwd: FileSystemPath,
+    tracing_context: Vc<Box<dyn AssetContext>>,
+    file_paths: Vec<RcStr>,
+    module_paths: Vec<RcStr>,
+    package_lookups: Vec<(RcStr, RcStr, RcStr)>,
+) -> Result<Vc<Completion>> {
+    let file_paths = build_dependency_paths(&cwd, &file_paths).await?;
+    let files = async {
+        build_files_changed(file_paths.clone()).await?;
+        Ok::<_, anyhow::Error>(())
+    };
+    let modules = async {
+        build_modules_changed(
+            tracing_context,
+            build_dependency_paths(&cwd, &module_paths).await?,
+        )
+        .await?;
+        Ok::<_, anyhow::Error>(())
+    };
+    let lookups = async {
+        let lookups = async {
+            let package_lookups = package_lookups
+                .iter()
+                .map(async |(lookup_path, package, package_root)| {
+                    Ok::<_, anyhow::Error>(
+                        match (
+                            build_dependency_path(&cwd, lookup_path).await?,
+                            build_dependency_path(&cwd, package_root).await?,
+                        ) {
+                            (Some(directory), Some(package_root)) => Some(PackageLookup {
+                                directory,
+                                package: package.clone(),
+                                package_root,
+                            }),
+                            _ => None,
+                        },
+                    )
+                })
+                .try_flat_join()
+                .await?;
+            // Every reached file may have been loaded through a relative request.
+            build_lookups_changed(package_lookups, file_paths.clone()).await?;
+            Ok::<_, anyhow::Error>(())
+        };
+        // Lookup tracking only avoids re-evaluating after a restart. Failing to track a lookup
+        // Node itself skipped, such as an unreadable directory, must not fail the transform.
+        if lookups.await.is_err() {
+            Completion::session_dependent().await?;
+        }
+        Ok::<_, anyhow::Error>(())
+    };
+    try_join!(files, modules, lookups)?;
+    Ok(Completion::new())
+}
+
+#[turbo_tasks::task_input]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Encode, Decode)]
+struct PackageLookup {
+    directory: FileSystemPath,
+    package: RcStr,
+    package_root: FileSystemPath,
+}
+
+/// Groups the resolution tracking of cached CommonJS children, so transforms that reach the same
+/// modules share one task.
+#[turbo_tasks::function]
+async fn build_lookups_changed(
+    package_lookups: Vec<PackageLookup>,
+    relative_lookups: Vec<FileSystemPath>,
+) -> Result<Vc<Completion>> {
+    let package_lookups = package_lookups
+        .into_iter()
+        .map(async |lookup| {
+            node_modules_lookup_changed(lookup.directory, lookup.package, lookup.package_root)
+                .await?;
+            Ok::<_, anyhow::Error>(())
+        })
+        .try_join();
+    let relative_lookups = relative_lookups
+        .into_iter()
+        .map(async |path| {
+            relative_lookup_changed(path).await?;
+            Ok::<_, anyhow::Error>(())
+        })
+        .try_join();
+    try_join!(package_lookups, relative_lookups)?;
+    Ok(Completion::new())
+}
+
+/// Tracks Node's lookup of a bare `package` request from `directory` that loaded the package at
+/// `package_root`: every `node_modules/<package>` candidate before the one Node used, including
+/// symlinks, manifests, and contents. Installing a nearer copy, retargeting a link, or changing
+/// `exports`/`main` invalidates it.
+#[turbo_tasks::function]
+async fn node_modules_lookup_changed(
+    directory: FileSystemPath,
+    package: RcStr,
+    package_root: FileSystemPath,
+) -> Result<Vc<Completion>> {
+    // The name comes from the package's manifest. One that is not a plain package path cannot be
+    // looked up, so fall back to re-evaluating after a restart.
+    if package.contains('\\')
+        || package
+            .split('/')
+            .any(|segment| segment.is_empty() || segment == "." || segment == "..")
+    {
+        Completion::session_dependent().await?;
+        return Ok(Completion::new());
+    }
+    let mut directory = directory;
+    loop {
+        if directory.file_name() != "node_modules" {
+            let candidate = directory.join(&format!("node_modules/{package}"))?;
+            let realpath = candidate.realpath_with_links().await?;
+            for symlink in realpath.symlinks.iter() {
+                symlink.read_link().await?;
+            }
+            if let Ok(path) = &realpath.path_result
+                && matches!(&*path.get_type().await?, FileSystemEntryType::Directory)
+            {
+                path.join("package.json")?.read().await?;
+                if *path == package_root {
+                    return Ok(Completion::new());
+                }
+                // Node skips a candidate that lacks the requested file.
+                path.read_dir().await?;
+            }
+        }
+        if directory.is_root() {
+            break;
+        }
+        directory = directory.parent();
+    }
+    // Node found the package somewhere this lookup does not model, such as `NODE_PATH`.
+    Completion::session_dependent().await?;
+    Ok(Completion::new())
+}
+
+/// Tracks the candidates Node tries before `path` for a relative request: the extensionless file
+/// for `./name`, and for a directory index, the directory's own file candidates and manifest.
+#[turbo_tasks::function]
+async fn relative_lookup_changed(path: FileSystemPath) -> Result<Vc<Completion>> {
+    const EXTENSIONS: [&str; 3] = [".js", ".json", ".node"];
+    let name = path.file_name();
+    if let Some(extension) = EXTENSIONS
+        .iter()
+        .find(|extension| name.ends_with(*extension))
+    {
+        let stem = &name[..name.len() - extension.len()];
+        let directory = path.parent();
+        directory.join(stem)?.get_type().await?;
+        if stem == "index" && !directory.is_root() {
+            let base = directory.parent();
+            let directory_name = directory.file_name();
+            for extension in ["", ".js", ".json", ".node"] {
+                base.join(&format!("{directory_name}{extension}"))?
+                    .get_type()
+                    .await?;
+            }
+            directory.join("package.json")?.read().await?;
+        }
+    }
+    Ok(Completion::new())
+}
+
 #[turbo_tasks::function]
 async fn build_modules_changed(
     asset_context: Vc<Box<dyn AssetContext>>,
@@ -775,7 +944,7 @@ pub(super) enum InfoMessage {
         #[serde(default)]
         build_module_paths: Vec<RcStr>,
         #[serde(default)]
-        has_cached_build_dependencies: bool,
+        build_package_lookups: Vec<(RcStr, RcStr, RcStr)>,
     },
     EmittedError {
         severity: IssueSeverity,
@@ -969,17 +1138,11 @@ impl EvaluateContext for WebpackLoaderContext {
                 build_file_paths,
                 build_dependency_requests,
                 build_module_paths,
-                has_cached_build_dependencies,
+                build_package_lookups,
             } => {
                 // We only process these dependencies to help with tracking, so if it is disabled
                 // dont bother.
                 if turbo_tasks::turbo_tasks().is_tracking_dependencies() {
-                    // Cached children expose filenames, not the requests that resolved to them.
-                    // Re-evaluate after a restart rather than persisting incomplete resolution
-                    // tracking.
-                    if has_cached_build_dependencies {
-                        Completion::session_dependent().await?;
-                    }
                     // Canonicalize dependency sets so their ordering does not create new task keys.
                     let normalize = |mut paths: Vec<RcStr>| {
                         paths.sort_unstable();
@@ -987,7 +1150,6 @@ impl EvaluateContext for WebpackLoaderContext {
                         paths
                     };
                     let build_file_paths = normalize(build_file_paths);
-                    let build_module_paths = normalize(build_module_paths);
 
                     // Track dependencies of the loader task
                     // TODO: Because these are reported _after_ the loader actually read the
@@ -1004,28 +1166,30 @@ impl EvaluateContext for WebpackLoaderContext {
                         .iter()
                         .map(async |p| loader_path(&self.cwd, p).await?.read().await)
                         .try_join();
-                    let build_file_subscriptions = async {
-                        let paths = build_dependency_paths(&self.cwd, &build_file_paths).await?;
-                        build_files_changed(paths).await?;
-                        Ok::<_, anyhow::Error>(())
-                    };
-                    let build_module_subscriptions = async {
-                        build_modules_changed(
+                    // Transforms by the same loaders report the same build dependencies, so they
+                    // share one task instead of each converting every path.
+                    let build_dependency_subscriptions = async {
+                        build_dependencies_changed(
+                            self.cwd.clone(),
                             *self.build_dependency_context,
-                            build_dependency_paths(&self.cwd, &build_module_paths).await?,
+                            build_file_paths.clone(),
+                            normalize(build_module_paths),
+                            build_package_lookups,
                         )
                         .await?;
                         Ok::<_, anyhow::Error>(())
                     };
                     let build_dependency_request_subscriptions = async {
-                        build_dependency_requests_changed(
-                            self.cwd.clone(),
-                            build_dependency_requests,
-                            *self.context_source_for_issue,
-                            *self.build_dependency_context,
-                            build_dependency_paths(&self.cwd, &build_file_paths).await?,
-                        )
-                        .await?;
+                        if !build_dependency_requests.is_empty() {
+                            build_dependency_requests_changed(
+                                self.cwd.clone(),
+                                build_dependency_requests,
+                                *self.context_source_for_issue,
+                                *self.build_dependency_context,
+                                build_dependency_paths(&self.cwd, &build_file_paths).await?,
+                            )
+                            .await?;
+                        }
                         Ok::<_, anyhow::Error>(())
                     };
                     let directory_subscriptions = directories
@@ -1040,8 +1204,7 @@ impl EvaluateContext for WebpackLoaderContext {
                     try_join!(
                         env_subscriptions,
                         file_subscriptions,
-                        build_file_subscriptions,
-                        build_module_subscriptions,
+                        build_dependency_subscriptions,
                         build_dependency_request_subscriptions,
                         directory_subscriptions
                     )?;
