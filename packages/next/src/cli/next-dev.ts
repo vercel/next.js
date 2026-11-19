@@ -507,12 +507,27 @@ const nextDev = async (
         nodeOptions['enable-source-maps'] = true
       }
 
-      const nodeDebugType = getNodeDebugType(nodeOptions)
+      // `--inspect-wait` is moved to the server process like the other
+      // debugger flags; otherwise the server inherits it on the parent's port,
+      // fails to bind and doesn't wait. (Handled here rather than in the shared
+      // `getNodeDebugType`, which also decides which build workers attach a
+      // debugger.)
+      const inspectWait =
+        nodeOptions['inspect-wait'] ?? nodeOptions['inspect_wait']
+      const nodeDebugType =
+        getNodeDebugType(nodeOptions) ??
+        (inspectWait !== undefined ? 'inspect-wait' : undefined)
       const originalAddress =
-        nodeDebugType === undefined ? undefined : nodeOptions[nodeDebugType]
+        nodeDebugType === 'inspect-wait'
+          ? inspectWait
+          : nodeDebugType === undefined
+            ? undefined
+            : nodeOptions[nodeDebugType]
       delete nodeOptions.inspect
       delete nodeOptions['inspect-brk']
       delete nodeOptions['inspect_brk']
+      delete nodeOptions['inspect-wait']
+      delete nodeOptions['inspect_wait']
       if (nodeDebugType !== undefined) {
         const address = getParsedDebugAddress(originalAddress)
         address.port = address.port === 0 ? 0 : address.port + 1

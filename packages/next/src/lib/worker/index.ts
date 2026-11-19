@@ -4,9 +4,9 @@ import os from 'os'
 import {
   formatDebugAddress,
   formatNodeOptions,
-  getNodeDebugType,
+  getEffectiveDebugOptions,
   getParsedDebugAddress,
-  getParsedNodeOptions,
+  getParsedNodeOptionsWithoutInspect,
   type DebugAddress,
 } from '../../server/lib/utils'
 import { WorkerPool, WorkerExitError } from './worker-pool'
@@ -19,10 +19,23 @@ export interface WorkerOptions {
    * e.g. "Next.js build worker" produces "Next.js build worker exited with code: ..."
    */
   workerName?: string
-  /** Extra environment variables to merge into the worker process environment */
+  /**
+   * Options for the worker processes/threads. Workers always inherit the
+   * parent's environment and flags the way Node.js passes them to a child
+   * (CLI flags as CLI flags, `NODE_OPTIONS` as `NODE_OPTIONS`), without
+   * debugger flags. These are added on top.
+   */
   forkOptions?: {
+    /**
+     * Environment variables merged into the worker environment. A
+     * `NODE_OPTIONS` here replaces the inherited one (debugger flags are still
+     * removed); `NODE_OPTIONS: undefined` removes it.
+     */
     env?: Partial<NodeJS.ProcessEnv> | undefined
-    /** Extra Node.js flags appended to the worker's `execArgv` */
+    /**
+     * Extra Node.js flags appended to the worker's `execArgv`. Worker threads
+     * reject V8 and per-process flags here (ERR_WORKER_INVALID_EXEC_ARGV).
+     */
     execArgv?: string[]
   }
   /**
@@ -37,16 +50,25 @@ export interface WorkerOptions {
    */
   concurrencyPerWorker?: number
   /**
-   * Offset added to the parent's debugger port for worker processes.
-   * When set (including 0), workers attach a debugger at
-   * `parentPort + 1 + debuggerPortOffset`. When `undefined`, workers
-   * do not attach a debugger. (default: undefined)
+   * Offset added to the parent's debugger port for child-process workers.
+   * When set (including 0) and the parent is debugged with `--inspect` or
+   * `--inspect-brk`, workers get the same flag at
+   * `parentPort + 1 + debuggerPortOffset` (the command-line address wins over
+   * `NODE_OPTIONS`, as in Node.js), plus the parent's `--inspect-publish-uid`.
+   * Worker threads never get a debugger flag; they're debugged through the
+   * parent's inspector. When `undefined`, workers do not attach a debugger.
+   * (default: undefined)
    */
   debuggerPortOffset?: number
-  /** If true, passes `--enable-source-maps` to worker processes (default: false) */
+  /**
+   * If true, passes `--enable-source-maps` to workers, overriding an
+   * inherited `--no-enable-source-maps` (default: false)
+   */
   enableSourceMaps?: boolean
   /**
-   * If true, strips `--max-old-space-size` from NODE_OPTIONS (default: false)
+   * If true, child-process workers don't inherit the parent's
+   * `--max-old-space-size` (from NODE_OPTIONS or the CLI). Has no effect on
+   * worker threads, which share the parent's V8 flags. (default: false)
    */
   isolatedMemory?: boolean
   /**
@@ -77,83 +99,108 @@ export interface WorkerOptions {
    * Passed through to WorkerPool. (default: Math.ceil(maxWorkers / 4))
    */
   maxBootingWorkers?: number
-  /**
-   * If true, don't rewrite NODE_OPTIONS: workers get the environment as is
-   * (including `forkOptions.env.NODE_OPTIONS`), and the parent's own CLI
-   * flags are forwarded separately, like `jest-worker` did. Child processes
-   * get `process.execArgv` without `--inspect`/`--debug` flags; worker
-   * threads inherit the parent's flags. CLI flags therefore keep precedence
-   * over NODE_OPTIONS, and flags that NODE_OPTIONS doesn't allow (e.g.
-   * `--prof`) keep working. Can't be combined with `debuggerPortOffset`,
-   * `enableSourceMaps` or `isolatedMemory`, which work by rewriting
-   * NODE_OPTIONS. (default: false)
-   */
-  inheritParentExecArgv?: boolean
 }
 
 interface BuildWorkerEnvOptions {
   debuggerPortOffset?: number
   enableSourceMaps?: boolean
   isolatedMemory?: boolean
-  inheritParentExecArgv?: boolean
+  enableWorkerThreads?: boolean
   forkOptions?: { env?: Partial<NodeJS.ProcessEnv>; execArgv?: string[] }
 }
 
+/** Debugger flags (`--inspect*`, `--debug*`); workers never inherit them. */
+const DEBUGGER_FLAG = /^--(debug|inspect)/
+/** Debugger flags that can take their value as a separate argument. */
+const DEBUGGER_FLAG_WITH_VALUE =
+  /^--(inspect[-_]port|debug[-_]port|inspect[-_]publish[-_]uid)$/
+const MAX_OLD_SPACE_SIZE_FLAG = /^--max[-_]old[-_]space[-_]size(=|$)/
+const NO_SOURCE_MAPS_FLAG = /^--no[-_]enable[-_]source[-_]maps$/
+
 /**
- * Build the environment variables for worker processes. This handles:
- * - Forwarding NODE_OPTIONS (stripping debugger flags and --max-old-space-size)
- * - Re-attaching the debugger on a different port when inspectable
- * - Enabling source maps
- * - Propagating color support (mirroring picocolors' heuristic)
+ * Remove flags from an argv array. A removed flag written as `--flag value`
+ * (no `=`) also loses its value when `takesValue` says it has one. (V8 flags
+ * such as `--max-old-space-size` only accept the `=` form.)
+ */
+function removeFlags(
+  argv: readonly string[],
+  shouldRemove: (arg: string) => boolean,
+  takesValue: (arg: string) => boolean
+): string[] {
+  const result: string[] = []
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i]
+    if (!shouldRemove(arg)) {
+      result.push(arg)
+    } else if (
+      !arg.includes('=') &&
+      takesValue(arg) &&
+      i + 1 < argv.length &&
+      !argv[i + 1].startsWith('-')
+    ) {
+      i++
+    }
+  }
+  return result
+}
+
+/**
+ * Build the environment and flags for workers, the way Node.js itself would
+ * pass them on to a child, minus what must not be inherited:
+ * - The parent's CLI flags (`process.execArgv`) stay CLI flags, so they keep
+ *   precedence over NODE_OPTIONS and flags NODE_OPTIONS rejects (e.g.
+ *   `--prof`) keep working.
+ * - NODE_OPTIONS is the one the worker would inherit (`forkOptions.env`
+ *   included).
+ * - Debugger flags are removed from both, and re-added on another port for
+ *   child processes when `debuggerPortOffset` is set.
+ * - `isolatedMemory` removes `--max-old-space-size` from both.
+ * - `enableSourceMaps` overrides an inherited `--no-enable-source-maps`.
+ * - Propagates color support (mirroring picocolors' heuristic).
+ *
+ * `inheritedExecArgv` is the part of `execArgv` inherited from the parent; the
+ * rest was requested by the options. WorkerPool uses it to decide which flags
+ * rejected by a worker thread can be dropped (see `_createThread`).
  */
 function buildWorkerEnv(options: BuildWorkerEnvOptions): {
   env: Record<string, string | undefined>
-  /** `undefined` lets WorkerPool apply the parent's flags (see `inheritParentExecArgv`) */
-  execArgv: string[] | undefined
+  execArgv: string[]
+  inheritedExecArgv: string[]
 } {
   const {
     debuggerPortOffset,
     enableSourceMaps,
     isolatedMemory,
-    inheritParentExecArgv,
+    enableWorkerThreads,
     forkOptions,
   } = options
 
-  if (inheritParentExecArgv) {
-    if (
-      debuggerPortOffset != null ||
-      enableSourceMaps ||
-      isolatedMemory === true
-    ) {
-      throw new Error(
-        '`inheritParentExecArgv` cannot be combined with `debuggerPortOffset`, `enableSourceMaps` or `isolatedMemory`'
-      )
-    }
-    return {
-      env: withColorSupport({
-        ...process.env,
-        ...(forkOptions?.env || {}),
-        IS_NEXT_WORKER: 'true',
-      }),
-      execArgv: forkOptions?.execArgv,
-    }
+  const env: Record<string, string | undefined> = {
+    ...process.env,
+    ...(forkOptions?.env || {}),
+    IS_NEXT_WORKER: 'true',
   }
 
-  const nodeOptions = getParsedNodeOptions()
-  const originalOptions = { ...nodeOptions }
-  delete nodeOptions.inspect
-  delete nodeOptions['inspect-brk']
-  delete nodeOptions['inspect_brk']
-  // Not re-attached on another port below, so workers never inherit it.
-  delete nodeOptions['inspect-wait']
-  delete nodeOptions['inspect_wait']
+  // `?? ''`: an explicit `NODE_OPTIONS: undefined` in forkOptions.env removes
+  // the parent's value instead of falling back to it.
+  const nodeOptions = getParsedNodeOptionsWithoutInspect(env.NODE_OPTIONS ?? '')
+  const inheritedExecArgv = removeFlags(
+    process.execArgv,
+    (arg) =>
+      DEBUGGER_FLAG.test(arg) ||
+      (isolatedMemory === true && MAX_OLD_SPACE_SIZE_FLAG.test(arg)) ||
+      // An inherited CLI flag would outrank the NODE_OPTIONS added below.
+      (enableSourceMaps === true && NO_SOURCE_MAPS_FLAG.test(arg)),
+    (arg) => DEBUGGER_FLAG_WITH_VALUE.test(arg)
+  )
 
-  if (debuggerPortOffset != null) {
-    const nodeDebugType = getNodeDebugType(originalOptions)
+  // Worker threads can't have their own debugger port; they're debuggable
+  // through the parent's inspector.
+  if (debuggerPortOffset != null && !enableWorkerThreads) {
+    const parentDebugger = getEffectiveDebugOptions()
+    const nodeDebugType = parentDebugger.type
     if (nodeDebugType) {
-      const debuggerAddress = getParsedDebugAddress(
-        originalOptions[nodeDebugType]
-      )
+      const debuggerAddress = getParsedDebugAddress(parentDebugger.address)
       const address: DebugAddress = {
         host: debuggerAddress.host,
         port:
@@ -165,6 +212,10 @@ function buildWorkerEnv(options: BuildWorkerEnvOptions): {
               debuggerAddress.port + 1 + debuggerPortOffset,
       }
       nodeOptions[nodeDebugType] = formatDebugAddress(address)
+      // Keep the parent's restriction on where the inspector URL is published.
+      if (parentDebugger.publishUid !== undefined) {
+        nodeOptions['inspect-publish-uid'] = parentDebugger.publishUid
+      }
     }
   }
 
@@ -177,21 +228,15 @@ function buildWorkerEnv(options: BuildWorkerEnvOptions): {
     delete nodeOptions['max_old_space_size']
   }
 
-  const { nodeOptions: formattedNodeOptions, execArgv } =
-    formatNodeOptions(nodeOptions)
+  const formatted = formatNodeOptions(nodeOptions)
+  env.NODE_OPTIONS = formatted.nodeOptions
+  const execArgv = [
+    ...inheritedExecArgv,
+    ...formatted.execArgv,
+    ...(forkOptions?.execArgv ?? []),
+  ]
 
-  const env = withColorSupport({
-    ...process.env,
-    ...(forkOptions?.env || {}),
-    IS_NEXT_WORKER: 'true',
-    NODE_OPTIONS: formattedNodeOptions,
-  })
-
-  // Don't append the parent's `process.execArgv`: those flags are already in
-  // NODE_OPTIONS (without `--inspect`, and without `--max-old-space-size` when
-  // `isolatedMemory` is set). Passing them again would undo those filters, and
-  // worker_threads reject per-process flags in `execArgv`.
-  return { env, execArgv: [...execArgv, ...(forkOptions?.execArgv ?? [])] }
+  return { env: withColorSupport(env), execArgv, inheritedExecArgv }
 }
 
 function withColorSupport(
@@ -261,18 +306,20 @@ export class Worker {
       concurrencyPerWorker,
       forkOptions,
       maxBootingWorkers,
-      inheritParentExecArgv,
     } = options
 
     this._onActivity = onActivity
     this._onActivityAbort = onActivityAbort
 
-    // Built first: it validates the options and may throw.
-    const { env: workerEnv, execArgv } = buildWorkerEnv({
+    const {
+      env: workerEnv,
+      execArgv,
+      inheritedExecArgv,
+    } = buildWorkerEnv({
       debuggerPortOffset,
       enableSourceMaps,
       isolatedMemory,
-      inheritParentExecArgv,
+      enableWorkerThreads,
       forkOptions,
     })
 
@@ -302,6 +349,7 @@ export class Worker {
         env: workerEnv,
         execArgv,
       },
+      inheritedExecArgv,
       onCustomMessage: (data) => {
         if (
           data &&

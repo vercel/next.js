@@ -65,6 +65,14 @@ export interface WorkerPoolOptions {
     env?: Partial<NodeJS.ProcessEnv>
     execArgv?: string[]
   }
+  /**
+   * The leading part of `forkOptions.execArgv` that is inherited from the
+   * parent's `process.execArgv` (the rest was requested by the caller). A
+   * worker thread that rejects some of these flags is created again without
+   * them, since they already apply to the whole process. Rejected requested
+   * flags are an error. (default: none inherited)
+   */
+  inheritedExecArgv?: readonly string[]
   /** Arguments passed to the optional setup() function in the worker module */
   setupArgs?: unknown[]
   /**
@@ -330,7 +338,16 @@ export class WorkerPool {
       // start one but enqueue the task — the worker may take a while to
       // spawn and another worker could become ready first.
       if (this._canSpawnWorker()) {
-        this._spawnWorker()
+        try {
+          this._spawnWorker()
+        } catch (err) {
+          // The worker can't be created (e.g. a worker thread rejected its
+          // flags). Queue the task only if an existing worker can run it.
+          if (this._allWorkers.size === 0) {
+            reject(err)
+            return
+          }
+        }
       }
 
       // Queue the task; it will be dispatched when a worker becomes ready
@@ -494,6 +511,110 @@ export class WorkerPool {
     return first.done ? null : first.value
   }
 
+  /**
+   * `execArgv` for worker threads, once known to be accepted. `null` until the
+   * first thread is created.
+   */
+  private _threadExecArgv: string[] | undefined | null = null
+
+  /**
+   * Create a worker thread. Threads reject V8 and per-process flags in an
+   * explicit `execArgv` (ERR_WORKER_INVALID_EXEC_ARGV), although they accept
+   * them when inheriting the parent's flags (`execArgv: undefined`). When all
+   * rejected flags are inherited from the parent (`inheritedExecArgv`), they
+   * already apply to the whole process, so they're dropped and the thread is
+   * created once more. Anything else (a rejected flag the caller requested,
+   * an unrecognized error message, or a rejected retry) is thrown: falling
+   * back to inheriting would silently drop requested flags and bring back
+   * debugger flags.
+   */
+  private _createThread(threadChildPath: string): NodeWorker {
+    const { forkOptions } = this._options
+    let execArgv = this._threadExecArgv
+    if (execArgv === null) {
+      execArgv = forkOptions?.execArgv
+      const inherited = this._options.inheritedExecArgv ?? []
+      if (
+        execArgv &&
+        execArgv.length === inherited.length &&
+        execArgv.length === process.execArgv.length &&
+        execArgv.every((arg, i) => arg === process.execArgv[i])
+      ) {
+        // Nothing requested and nothing removed from the parent's flags:
+        // inherit them, which can't fail execArgv validation.
+        execArgv = undefined
+      }
+    }
+    try {
+      return this._newThread(threadChildPath, execArgv)
+    } catch (err) {
+      const retryExecArgv = this._withoutRejectedInheritedFlags(execArgv, err)
+      if (!retryExecArgv) {
+        throw err
+      }
+      return this._newThread(threadChildPath, retryExecArgv)
+    }
+  }
+
+  private _newThread(
+    threadChildPath: string,
+    execArgv: string[] | undefined
+  ): NodeWorker {
+    const worker = new NodeWorker(threadChildPath, {
+      eval: false,
+      stderr: true,
+      stdout: true,
+      env: this._options.forkOptions?.env,
+      execArgv,
+    })
+    this._threadExecArgv = execArgv
+    return worker
+  }
+
+  /**
+   * If `err` rejects only flags in the inherited part of `execArgv`, returns
+   * `execArgv` without them; otherwise `undefined`.
+   */
+  private _withoutRejectedInheritedFlags(
+    execArgv: string[] | undefined | null,
+    err: unknown
+  ): string[] | undefined {
+    if (
+      !execArgv ||
+      (err as NodeJS.ErrnoException)?.code !== 'ERR_WORKER_INVALID_EXEC_ARGV'
+    ) {
+      return undefined
+    }
+    const match = /invalid execArgv flags: (.*)$/.exec((err as Error).message)
+    if (!match) {
+      return undefined
+    }
+    const rejected = new Set(match[1].split(', '))
+    const inheritedCount = this._options.inheritedExecArgv?.length ?? 0
+    const inherited = execArgv.slice(0, inheritedCount)
+    const requested = execArgv.slice(inheritedCount)
+    if (
+      requested.some((arg) => rejected.has(arg)) ||
+      [...rejected].some((flag) => !inherited.includes(flag))
+    ) {
+      return undefined
+    }
+    const kept: string[] = []
+    for (let i = 0; i < inherited.length; i++) {
+      if (!rejected.has(inherited[i])) {
+        kept.push(inherited[i])
+      } else if (
+        !inherited[i].includes('=') &&
+        i + 1 < inherited.length &&
+        !inherited[i + 1].startsWith('-')
+      ) {
+        // `--flag value`: drop the value too.
+        i++
+      }
+    }
+    return [...kept, ...requested]
+  }
+
   /** Spawn a new worker process/thread and register it with the pool. */
   private _spawnWorker(): PoolWorker {
     const { workerPath, enableWorkerThreads, forkOptions, setupArgs } =
@@ -503,12 +624,7 @@ export class WorkerPool {
 
     if (enableWorkerThreads) {
       const threadChildPath = path.resolve(__dirname, 'worker-thread-child.js')
-      proc = new NodeWorker(threadChildPath, {
-        eval: false,
-        stderr: true,
-        stdout: true,
-        ...forkOptions,
-      })
+      proc = this._createThread(threadChildPath)
     } else {
       const processChildPath = path.resolve(
         __dirname,
@@ -901,7 +1017,18 @@ export class WorkerPool {
       !this._ending &&
       this._canSpawnWorker()
     ) {
-      this._spawnWorker()
+      try {
+        this._spawnWorker()
+      } catch (err) {
+        // The worker can't be created (e.g. a worker thread rejected its
+        // flags), and retrying would fail the same way.
+        if (this._allWorkers.size === 0) {
+          for (const task of this._taskQueue.splice(0)) {
+            task.reject(err)
+          }
+        }
+        return
+      }
     }
   }
 

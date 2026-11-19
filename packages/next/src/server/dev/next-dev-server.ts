@@ -48,7 +48,6 @@ import {
 } from '../../trace'
 import { traceGlobals } from '../../trace/shared'
 import { findPageFile } from '../lib/find-page-file'
-import { getFormattedNodeOptionsWithoutInspect } from '../lib/utils'
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
 import {
   loadDefaultErrorComponents,
@@ -183,19 +182,6 @@ export default class DevServer extends Server {
       concurrencyPerWorker: 1,
       exposedMethods: ['loadStaticPaths'],
       enableWorkerThreads: this.nextConfig.experimental.workerThreads,
-      // Keep the NODE_OPTIONS below as is and forward the parent's CLI flags
-      // separately, so CLI flags keep precedence over NODE_OPTIONS.
-      inheritParentExecArgv: true,
-      forkOptions: {
-        env: {
-          ...process.env,
-          // discard --inspect/--inspect-brk flags from process.env.NODE_OPTIONS. Otherwise multiple Node.js debuggers
-          // would be started if user launch Next.js in debugging mode. The number of debuggers is linked to
-          // the number of workers Next.js tries to launch. The only worker users are interested in debugging
-          // is the main Next.js one
-          NODE_OPTIONS: getFormattedNodeOptionsWithoutInspect(),
-        },
-      },
     }) as Worker & {
       loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
     }

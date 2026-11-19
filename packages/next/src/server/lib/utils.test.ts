@@ -4,6 +4,7 @@ import {
   formatNodeOptions,
   tokenizeArgs,
   getParsedNodeOptions,
+  getEffectiveDebugOptions,
   getMemoryRestartStats,
 } from './utils'
 
@@ -139,6 +140,60 @@ describe('getParsedDebugAddress', () => {
     const nodeOptions = getParsedNodeOptions()
     const result = getParsedDebugAddress(nodeOptions.inspect)
     expect(result).toEqual({ host: undefined, port: 1234 })
+  })
+})
+
+describe('getEffectiveDebugOptions', () => {
+  const withExecArgv = (execArgv: string[], fn: () => void) => {
+    const originalExecArgv = process.execArgv
+    process.execArgv = execArgv
+    try {
+      fn()
+    } finally {
+      process.execArgv = originalExecArgv
+    }
+  }
+
+  it('prefers command-line flags over NODE_OPTIONS', () => {
+    process.env.NODE_OPTIONS =
+      '--inspect=127.0.0.1:9500 --inspect-publish-uid=http --conditions=foo'
+    withExecArgv(['--inspect=127.0.0.1:9300'], () => {
+      expect(getEffectiveDebugOptions()).toEqual({
+        type: 'inspect',
+        address: '127.0.0.1:9300',
+        publishUid: 'http',
+      })
+    })
+  })
+
+  it('applies --inspect-port and aliases in order', () => {
+    process.env.NODE_OPTIONS = '--inspect-publish-uid=stderr'
+    withExecArgv(
+      [
+        '--inspect_brk=127.0.0.1:9300',
+        '--inspect-port',
+        '9304',
+        '--inspect_publish_uid=http',
+      ],
+      () => {
+        expect(getEffectiveDebugOptions()).toEqual({
+          type: 'inspect-brk',
+          address: '127.0.0.1:9304',
+          publishUid: 'http',
+        })
+      }
+    )
+  })
+
+  it('supports a separate value in NODE_OPTIONS', () => {
+    process.env.NODE_OPTIONS = '--inspect 1234'
+    withExecArgv([], () => {
+      expect(getEffectiveDebugOptions()).toEqual({
+        type: 'inspect',
+        address: '1234',
+        publishUid: undefined,
+      })
+    })
   })
 })
 

@@ -14,7 +14,6 @@ import type {
 import { Worker } from '../../lib/worker/index'
 import { setDevValidationWorker } from '../app-render/dev-validation-worker-globals'
 import { onCacheInvalidation } from './require-cache'
-import { getFormattedNodeOptionsWithoutInspect } from '../lib/utils'
 import { needsExperimentalReact } from '../../lib/needs-experimental-react'
 
 interface InstallOptions {
@@ -138,10 +137,6 @@ export function installDevValidationWorker(options: InstallOptions): void {
     if (pool) {
       return pool
     }
-    // Strip `--inspect` from any inherited `NODE_OPTIONS` so the worker doesn't
-    // fight the parent for the same debug port.
-    const workerNodeOptions = getFormattedNodeOptionsWithoutInspect()
-
     // The worker is shipped as four pre-bundled dev-only artifacts
     // ({webpack,turbopack} × {stable,experimental}), one per combination of the
     // user's bundler and vendored React channel. Pick the matching artifact
@@ -184,15 +179,6 @@ export function installDevValidationWorker(options: InstallOptions): void {
         'applyHmrUpdate',
         'invalidateCaches',
       ],
-      // Keep the NODE_OPTIONS below as is; the worker thread inherits the
-      // parent's CLI flags.
-      inheritParentExecArgv: true,
-      forkOptions: {
-        env: {
-          ...process.env,
-          NODE_OPTIONS: workerNodeOptions,
-        },
-      },
     }) as Worker & ValidationPool
     pool = worker
     return worker

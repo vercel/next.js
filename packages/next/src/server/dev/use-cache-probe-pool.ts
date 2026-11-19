@@ -8,7 +8,6 @@ import type {
 import { Worker } from '../../lib/worker/index'
 import { setUseCacheProbe } from '../use-cache/use-cache-probe-globals'
 import { onCacheInvalidation } from './require-cache'
-import { getFormattedNodeOptionsWithoutInspect } from '../lib/utils'
 import { needsExperimentalReact } from '../../lib/needs-experimental-react'
 
 interface InstallOptions {
@@ -81,10 +80,6 @@ export function installUseCacheProbe(options: InstallOptions): void {
     if (pool) {
       return pool
     }
-    // Strip `--inspect` from any inherited `NODE_OPTIONS` so the worker doesn't
-    // fight the parent for the same debug port.
-    const probeNodeOptions = getFormattedNodeOptionsWithoutInspect()
-
     // The worker is shipped as four pre-bundled dev-only artifacts —
     // {webpack,turbopack} × {stable,experimental} — so the bundler aliases and
     // react-server layer resolve correctly at Next-build time. Pick the
@@ -110,15 +105,6 @@ export function installUseCacheProbe(options: InstallOptions): void {
       // loading it in the parent would eagerly initialize bindings that should
       // only run in the isolated worker.
       exposedMethods: ['probeUseCache'],
-      // Keep the NODE_OPTIONS below as is and forward the parent's CLI flags
-      // separately, so CLI flags keep precedence over NODE_OPTIONS.
-      inheritParentExecArgv: true,
-      forkOptions: {
-        env: {
-          ...process.env,
-          NODE_OPTIONS: probeNodeOptions,
-        },
-      },
     }) as Worker & ProbePool
     pool = worker
     return worker

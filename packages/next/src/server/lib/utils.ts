@@ -286,14 +286,86 @@ export function getParsedNodeOptions(): NodeOptions {
   return parseNodeArgs(args)
 }
 
+export interface EffectiveDebugOptions {
+  /** `--inspect` or `--inspect-brk`, if the process is debugged with one */
+  type: NodeInspectType
+  /** The effective `[host:]port`, if one was given */
+  address: string | undefined
+  /** The effective `--inspect-publish-uid` value, if one was given */
+  publishUid: string | undefined
+}
+
 /**
- * Get the node options from the `NODE_OPTIONS` environment variable and parse
- * them into an object without the inspect options.
+ * The debugger settings this process runs with, resolved like Node.js does:
+ * `NODE_OPTIONS` first, then the command line, with the last occurrence
+ * winning. `--inspect-port` sets the address too, a port-only value keeps the
+ * earlier host, and `_` / `-` spellings are equivalent.
+ */
+export function getEffectiveDebugOptions(): EffectiveDebugOptions {
+  const result: EffectiveDebugOptions = {
+    type: undefined,
+    address: undefined,
+    publishUid: undefined,
+  }
+  let host: string | undefined
+  let port: string | undefined
+  const setAddress = (value: string) => {
+    const separator = value.lastIndexOf(':')
+    if (separator === -1) {
+      port = value
+    } else {
+      host = value.slice(0, separator)
+      port = value.slice(separator + 1)
+    }
+  }
+  for (const [args, separateValues] of [
+    // NODE_OPTIONS also accepts `--inspect 9229` (see `getParsedDebugAddress`).
+    [getNodeOptionsArgs(), true],
+    [process.execArgv, false],
+  ] as const) {
+    for (let i = 0; i < args.length; i++) {
+      const match = /^--([^=]+)(?:=(.*))?$/.exec(args[i])
+      if (!match) continue
+      const name = match[1].replace(/_/g, '-')
+      let value: string | undefined = match[2]
+      const takesSeparateValue =
+        name === 'inspect-port' ||
+        name === 'inspect-publish-uid' ||
+        (separateValues && (name === 'inspect' || name === 'inspect-brk'))
+      if (
+        value === undefined &&
+        takesSeparateValue &&
+        i + 1 < args.length &&
+        !args[i + 1].startsWith('-')
+      ) {
+        value = args[++i]
+      }
+      if (name === 'inspect' || name === 'inspect-brk') {
+        result.type = name
+        if (value !== undefined) setAddress(value)
+      } else if (name === 'inspect-port' || name === 'debug-port') {
+        if (value !== undefined) setAddress(value)
+      } else if (name === 'inspect-publish-uid') {
+        result.publishUid = value
+      }
+    }
+  }
+  if (port !== undefined) {
+    result.address = host ? `${host}:${port}` : port
+  }
+  return result
+}
+
+/**
+ * Get the node options from the `NODE_OPTIONS` environment variable (or the
+ * given string) and parse them into an object without the inspect options.
  *
  * @returns An object with the parsed node options.
  */
-export function getParsedNodeOptionsWithoutInspect() {
-  const args = getNodeOptionsArgs()
+export function getParsedNodeOptionsWithoutInspect(
+  nodeOptions: string | undefined = process.env.NODE_OPTIONS
+) {
+  const args = nodeOptions ? tokenizeArgs(nodeOptions) : []
   if (args.length === 0) return {}
 
   const parsed = parseNodeArgs(args)

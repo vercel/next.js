@@ -539,52 +539,50 @@ describe('lib/worker env configuration', () => {
     expect(latestPoolOptions?.forkOptions?.env?.IS_NEXT_WORKER).toBe('true')
   })
 
-  it('keeps NODE_OPTIONS and leaves execArgv to the pool with inheritParentExecArgv', () => {
+  it("keeps the parent's CLI flags as execArgv and NODE_OPTIONS as NODE_OPTIONS", () => {
     const originalExecArgv = process.execArgv
-    process.execArgv = ['--max-old-space-size=3000', '--prof']
-    process.env.NODE_OPTIONS = '--max-old-space-size=2048 --inspect'
+    process.execArgv = ['--max-old-space-size=3000', '--prof', '--inspect']
+    process.env.NODE_OPTIONS = '--max-old-space-size=2048 --inspect-wait'
     try {
       const { Worker } = require('./worker') as typeof import('./worker')
 
-      const worker = new Worker(__filename, {
-        ...noopOptions,
-        inheritParentExecArgv: true,
-        forkOptions: {
-          env: { NODE_OPTIONS: '--max-old-space-size=2048' },
-        },
-      })
+      const worker = new Worker(__filename, noopOptions)
       worker.shutdownNow()
 
-      // NODE_OPTIONS from the caller is passed through unchanged, and the
-      // parent's CLI flags are not moved into it.
+      // CLI flags stay CLI flags (so they keep precedence over NODE_OPTIONS,
+      // and flags NODE_OPTIONS rejects keep working), minus debugger flags.
+      expect(latestPoolOptions?.forkOptions?.execArgv).toEqual([
+        '--max-old-space-size=3000',
+        '--prof',
+      ])
       const env = latestPoolOptions?.forkOptions?.env
       expect(env?.NODE_OPTIONS).toBe('--max-old-space-size=2048')
       expect(env?.IS_NEXT_WORKER).toBe('true')
-      // `undefined` makes WorkerPool forward process.execArgv (child
-      // processes) or inherit it (worker threads), like jest-worker.
-      expect(latestPoolOptions?.forkOptions?.execArgv).toBeUndefined()
     } finally {
       process.execArgv = originalExecArgv
     }
   })
 
-  it('rejects inheritParentExecArgv combined with NODE_OPTIONS rewriting', () => {
+  it('sanitizes NODE_OPTIONS passed in forkOptions.env', () => {
+    process.env.NODE_OPTIONS = '--conditions=parent'
     const { Worker } = require('./worker') as typeof import('./worker')
 
-    for (const extra of [
-      { isolatedMemory: true },
-      { enableSourceMaps: true },
-      { debuggerPortOffset: 0 },
-    ]) {
-      expect(
-        () =>
-          new Worker(__filename, {
-            ...noopOptions,
-            inheritParentExecArgv: true,
-            ...extra,
-          })
-      ).toThrow('`inheritParentExecArgv` cannot be combined')
-    }
+    let worker = new Worker(__filename, {
+      ...noopOptions,
+      forkOptions: { env: { NODE_OPTIONS: '--conditions=own --inspect' } },
+    })
+    worker.shutdownNow()
+    expect(latestPoolOptions?.forkOptions?.env?.NODE_OPTIONS).toBe(
+      '--conditions=own'
+    )
+
+    // An explicit `undefined` removes the parent's NODE_OPTIONS.
+    worker = new Worker(__filename, {
+      ...noopOptions,
+      forkOptions: { env: { NODE_OPTIONS: undefined } },
+    })
+    worker.shutdownNow()
+    expect(latestPoolOptions?.forkOptions?.env?.NODE_OPTIONS).toBe('')
   })
 
   it('strips --inspect-wait from NODE_OPTIONS and execArgv', () => {
@@ -642,9 +640,15 @@ describe('lib/worker env configuration', () => {
     expect(nodeOptions).toContain('enable-source-maps')
   })
 
-  it("does not pass the parent's execArgv to workers", () => {
+  it('strips --max-old-space-size and debugger flags (with separate values) from the CLI flags', () => {
     const originalExecArgv = process.execArgv
-    process.execArgv = ['--max-old-space-size=4096', '--enable-source-maps']
+    process.execArgv = [
+      '--max-old-space-size=4096',
+      '--enable-source-maps',
+      '--max_old_space_size=1',
+      '--inspect-port',
+      '9229',
+    ]
     try {
       const { Worker } = require('./worker') as typeof import('./worker')
 
@@ -654,13 +658,9 @@ describe('lib/worker env configuration', () => {
       })
       worker.shutdownNow()
 
-      // The parent's flags reach the worker through NODE_OPTIONS, where
-      // isolatedMemory has removed --max-old-space-size.
-      expect(latestPoolOptions?.forkOptions?.execArgv).toEqual([])
-      const nodeOptions =
-        latestPoolOptions?.forkOptions?.env?.NODE_OPTIONS ?? ''
-      expect(nodeOptions).not.toContain('max-old-space-size')
-      expect(nodeOptions).toContain('enable-source-maps')
+      expect(latestPoolOptions?.forkOptions?.execArgv).toEqual([
+        '--enable-source-maps',
+      ])
     } finally {
       process.execArgv = originalExecArgv
     }
@@ -692,6 +692,101 @@ describe('lib/worker env configuration', () => {
 
     const nodeOptions = latestPoolOptions?.forkOptions?.env?.NODE_OPTIONS ?? ''
     expect(nodeOptions).toContain('enable-source-maps')
+  })
+
+  it('lets enableSourceMaps win over an inherited --no-enable-source-maps', () => {
+    const originalExecArgv = process.execArgv
+    process.execArgv = ['--no-enable-source-maps', '--conditions=foo']
+    try {
+      const { Worker } = require('./worker') as typeof import('./worker')
+
+      const worker = new Worker(__filename, {
+        ...noopOptions,
+        enableSourceMaps: true,
+      })
+      worker.shutdownNow()
+
+      expect(latestPoolOptions?.forkOptions?.execArgv).toEqual([
+        '--conditions=foo',
+      ])
+      expect(latestPoolOptions?.forkOptions?.env?.NODE_OPTIONS).toBe(
+        '--enable-source-maps'
+      )
+    } finally {
+      process.execArgv = originalExecArgv
+    }
+  })
+
+  it('re-attaches the debugger using the CLI address and publish-uid', () => {
+    const originalExecArgv = process.execArgv
+    process.execArgv = [
+      '--inspect=127.0.0.1:9300',
+      '--inspect-publish-uid=http',
+    ]
+    process.env.NODE_OPTIONS = '--inspect=127.0.0.1:9500'
+    try {
+      const { Worker } = require('./worker') as typeof import('./worker')
+
+      let worker = new Worker(__filename, {
+        ...noopOptions,
+        debuggerPortOffset: 2,
+      })
+      worker.shutdownNow()
+
+      // CLI flags take precedence over NODE_OPTIONS, as in Node itself.
+      expect(latestPoolOptions?.forkOptions?.env?.NODE_OPTIONS).toBe(
+        '--inspect=127.0.0.1:9303 --inspect-publish-uid=http'
+      )
+      expect(latestPoolOptions?.forkOptions?.execArgv).toEqual([])
+
+      // Worker threads can't own a debugger port.
+      worker = new Worker(__filename, {
+        ...noopOptions,
+        debuggerPortOffset: 2,
+        enableWorkerThreads: true,
+      })
+      worker.shutdownNow()
+      expect(latestPoolOptions?.forkOptions?.env?.NODE_OPTIONS).toBe('')
+      expect(latestPoolOptions?.forkOptions?.execArgv).toEqual([])
+
+      // `--inspect-port` changes the parent's effective port (keeping the host).
+      process.execArgv = ['--inspect=127.0.0.1:9300', '--inspect-port', '9310']
+      worker = new Worker(__filename, {
+        ...noopOptions,
+        debuggerPortOffset: 0,
+      })
+      worker.shutdownNow()
+      expect(latestPoolOptions?.forkOptions?.env?.NODE_OPTIONS).toBe(
+        '--inspect=127.0.0.1:9311'
+      )
+      expect(latestPoolOptions?.forkOptions?.execArgv).toEqual([])
+    } finally {
+      process.execArgv = originalExecArgv
+    }
+  })
+
+  it('tells the pool which flags are inherited from the parent', () => {
+    const originalExecArgv = process.execArgv
+    process.execArgv = ['--max-old-space-size=3000', '--inspect']
+    try {
+      const { Worker } = require('./worker') as typeof import('./worker')
+
+      const worker = new Worker(__filename, {
+        ...noopOptions,
+        forkOptions: { execArgv: ['--stack-size=1200'] },
+      })
+      worker.shutdownNow()
+
+      expect(latestPoolOptions?.forkOptions?.execArgv).toEqual([
+        '--max-old-space-size=3000',
+        '--stack-size=1200',
+      ])
+      expect(latestPoolOptions?.inheritedExecArgv).toEqual([
+        '--max-old-space-size=3000',
+      ])
+    } finally {
+      process.execArgv = originalExecArgv
+    }
   })
 })
 

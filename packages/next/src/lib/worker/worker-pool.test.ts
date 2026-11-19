@@ -67,6 +67,11 @@ class FakeChildProcess extends EventEmitter {
 // Mock child_process.fork to return controllable FakeChildProcess instances
 // ---------------------------------------------------------------------------
 let spawnedProcesses: FakeChildProcess[] = []
+/**
+ * Errors the worker_threads.Worker double throws from its constructor, one per
+ * construction, before it starts succeeding again.
+ */
+let mockThreadConstructorErrors: Error[] = []
 
 jest.mock('child_process', () => ({
   fork: jest.fn(() => {
@@ -81,6 +86,10 @@ jest.mock('worker_threads', () => {
   // takes its thread code path), messages go through postMessage, it is
   // stopped with terminate(), and 'exit' carries only an exit code.
   const Worker = jest.fn().mockImplementation(() => {
+    const error = mockThreadConstructorErrors.shift()
+    if (error) {
+      throw error
+    }
     const thread = new FakeChildProcess()
     thread.isFakeThread = true
     thread.postMessage = (msg: unknown) => {
@@ -185,10 +194,16 @@ function replyReady(proc: FakeChildProcess): void {
 describe('WorkerPool', () => {
   beforeEach(() => {
     spawnedProcesses = []
+    mockThreadConstructorErrors = []
     ;(
       (require('child_process') as typeof import('child_process'))
         .fork as jest.Mock
     ).mockClear()
+    jest
+      .mocked(
+        (require('worker_threads') as typeof import('worker_threads')).Worker
+      )
+      .mockClear()
   })
 
   // -----------------------------------------------------------------------
@@ -1271,6 +1286,127 @@ describe('WorkerPool', () => {
   // worker_threads handle
   // -----------------------------------------------------------------------
   describe('worker_threads', () => {
+    const threadMock = () =>
+      jest.mocked(
+        (require('worker_threads') as typeof import('worker_threads')).Worker
+      )
+    const invalidExecArgv = (flags: string) =>
+      Object.assign(
+        new Error(`Initiated Worker with invalid execArgv flags: ${flags}`),
+        { code: 'ERR_WORKER_INVALID_EXEC_ARGV' }
+      )
+    const withExecArgv = async (execArgv: string[], fn: () => unknown) => {
+      const original = process.execArgv
+      process.execArgv = execArgv
+      try {
+        await fn()
+      } finally {
+        process.execArgv = original
+      }
+    }
+
+    it('inherits the parent flags when nothing is requested', () =>
+      withExecArgv(['--max-old-space-size=3000'], () => {
+        const pool = new WorkerPool({
+          workerPath: '/fake/worker.js',
+          maxWorkers: 1,
+          enableWorkerThreads: true,
+          forkOptions: { execArgv: ['--max-old-space-size=3000'] },
+          inheritedExecArgv: ['--max-old-space-size=3000'],
+        })
+        pool.dispatch('doWork', []).catch(() => {})
+        expect(threadMock().mock.calls[0][1].execArgv).toBeUndefined()
+        pool.shutdownNow()
+      }))
+
+    it('retries once without rejected inherited flags and reuses the result', () =>
+      withExecArgv(['--max-old-space-size=3000', '--inspect'], () => {
+        mockThreadConstructorErrors.push(
+          invalidExecArgv('--max-old-space-size=3000')
+        )
+        const pool = new WorkerPool({
+          workerPath: '/fake/worker.js',
+          maxWorkers: 2,
+          maxBootingWorkers: 2,
+          enableWorkerThreads: true,
+          forkOptions: {
+            execArgv: ['--max-old-space-size=3000', '--conditions=foo'],
+          },
+          inheritedExecArgv: ['--max-old-space-size=3000'],
+        })
+        pool.dispatch('doWork', []).catch(() => {})
+        pool.dispatch('doWork', []).catch(() => {})
+        const calls = threadMock().mock.calls.map((c) => c[1].execArgv)
+        expect(calls).toEqual([
+          ['--max-old-space-size=3000', '--conditions=foo'],
+          ['--conditions=foo'],
+          // The second thread reuses the accepted flags without a retry.
+          ['--conditions=foo'],
+        ])
+        pool.shutdownNow()
+      }))
+
+    it('rejects a requested flag the thread does not accept', () =>
+      withExecArgv(['--stack-size=1200'], async () => {
+        mockThreadConstructorErrors.push(invalidExecArgv('--stack-size=1200'))
+        const pool = new WorkerPool({
+          workerPath: '/fake/worker.js',
+          maxWorkers: 1,
+          enableWorkerThreads: true,
+          // Requested by the caller, even though the parent has it too.
+          forkOptions: { execArgv: ['--stack-size=1200', '--conditions=foo'] },
+          inheritedExecArgv: [],
+        })
+        await expect(pool.dispatch('doWork', [])).rejects.toThrow(
+          'invalid execArgv flags: --stack-size=1200'
+        )
+        expect(threadMock()).toHaveBeenCalledTimes(1)
+        expect(spawnedProcesses).toHaveLength(0)
+        pool.shutdownNow()
+      }))
+
+    it('rejects unparseable errors and a rejected retry without inheriting', () =>
+      withExecArgv(
+        ['--max-old-space-size=3000', '--inspect-wait'],
+        async () => {
+          const options = {
+            workerPath: '/fake/worker.js',
+            maxWorkers: 1,
+            enableWorkerThreads: true,
+            forkOptions: { execArgv: ['--max-old-space-size=3000'] },
+            inheritedExecArgv: ['--max-old-space-size=3000'],
+          }
+
+          mockThreadConstructorErrors.push(
+            Object.assign(new Error('something else'), {
+              code: 'ERR_WORKER_INVALID_EXEC_ARGV',
+            })
+          )
+          let pool = new WorkerPool(options)
+          await expect(pool.dispatch('doWork', [])).rejects.toThrow(
+            'something else'
+          )
+          pool.shutdownNow()
+
+          mockThreadConstructorErrors.push(
+            invalidExecArgv('--max-old-space-size=3000'),
+            invalidExecArgv('--conditions=foo')
+          )
+          pool = new WorkerPool({
+            ...options,
+            forkOptions: {
+              execArgv: ['--max-old-space-size=3000', '--conditions=foo'],
+            },
+          })
+          await expect(pool.dispatch('doWork', [])).rejects.toThrow(
+            'invalid execArgv flags: --conditions=foo'
+          )
+          const calls = threadMock().mock.calls.map((c) => c[1].execArgv)
+          expect(calls).not.toContainEqual(undefined)
+          expect(spawnedProcesses).toHaveLength(0)
+          pool.shutdownNow()
+        }
+      ))
     it('messages threads with postMessage', async () => {
       const pool = new WorkerPool({
         workerPath: '/fake/worker.js',
