@@ -1,0 +1,13 @@
+{
+  "name": "server-external-packages-workspace-link-web",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "my-wasm-pkg": "workspace:*"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "start": "next start",
+    "build": "next build"
+  }
+}

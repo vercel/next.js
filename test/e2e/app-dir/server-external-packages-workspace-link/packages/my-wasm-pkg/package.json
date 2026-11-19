@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "exports": {
-    "./node": "./node/index.js"
+  "main": "./node/index.js",
+  "dependencies": {
+    "my-wasm-dep": "workspace:*"
   }
 }

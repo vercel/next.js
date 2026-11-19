@@ -1077,10 +1077,24 @@ impl AssetContext for ModuleAssetContext {
                             let replacement = if replace_externals {
                                 // Determine the package folder, `target` is the full path to the
                                 // resolved file.
-                                let target = if let Some(target) = target {
-                                    external_package_folder(target, &name).await?
+                                let (target, trace_request) = if let Some(file) = target {
+                                    match external_package_folder(file.clone(), &name).await? {
+                                        ExternalPackageFolder::InNodeModules(folder) => {
+                                            (Some(folder), None)
+                                        }
+                                        // The package can't necessarily be resolved by its name
+                                        // from its own folder (e.g. when it has no `exports`
+                                        // field), so trace the resolved file directly instead.
+                                        ExternalPackageFolder::OutsideNodeModules(folder) => {
+                                            let trace_request = folder
+                                                .get_path_to(&file)
+                                                .map(|p| RcStr::from(format!("./{p}")));
+                                            (Some(folder), trace_request)
+                                        }
+                                        ExternalPackageFolder::Unknown => (None, None),
+                                    }
                                 } else {
-                                    None
+                                    (None, None)
                                 };
 
                                 let analyze_mode = if traced == ExternalTraced::Traced
@@ -1112,6 +1126,7 @@ impl AssetContext for ModuleAssetContext {
                                     );
                                     CachedExternalTracingMode::Traced {
                                         origin: ResolvedVc::upcast(origin.to_resolved().await?),
+                                        request: trace_request,
                                     }
                                 } else {
                                     CachedExternalTracingMode::Untraced
@@ -1223,17 +1238,23 @@ pub async fn emit_assets_into_dir_operation(
     Ok(())
 }
 
+enum ExternalPackageFolder {
+    InNodeModules(FileSystemPath),
+    OutsideNodeModules(FileSystemPath),
+    Unknown,
+}
+
 /// Determines the folder of the package that contains `file`, the full path to the resolved file
 /// of the external `request`.
 ///
 /// Inside of `node_modules` this is the direct child of `node_modules` (or of
 /// `node_modules/@scope`). Outside of `node_modules` (e.g. a symlinked workspace package that
 /// was resolved to its real path) this is the closest ancestor with a `package.json` whose `name`
-/// matches the package name of `request`. Returns `None` if no package folder can be determined.
+/// matches the package name of `request`.
 async fn external_package_folder(
     file: FileSystemPath,
     request: &str,
-) -> Result<Option<FileSystemPath>> {
+) -> Result<ExternalPackageFolder> {
     let mut folder = file.clone();
     loop {
         let parent = folder.parent();
@@ -1244,7 +1265,7 @@ async fn external_package_folder(
             || (parent.file_name().starts_with('@')
                 && parent.parent().file_name() == "node_modules")
         {
-            return Ok(Some(folder));
+            return Ok(ExternalPackageFolder::InNodeModules(folder));
         }
         folder = parent;
     }
@@ -1262,10 +1283,10 @@ async fn external_package_folder(
             &*folder.join("package.json")?.read_json().await?
             && package_json["name"].as_str() == Some(&*package_name)
         {
-            return Ok(Some(folder));
+            return Ok(ExternalPackageFolder::OutsideNodeModules(folder));
         }
         if folder.is_root() {
-            return Ok(None);
+            return Ok(ExternalPackageFolder::Unknown);
         }
         folder = folder.parent();
     }
