@@ -2601,6 +2601,31 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
         quote! { #ref_expr.iter() }
     };
 
+    // Generate take body: removes the whole map. Only tracks modification if the map is non-empty
+    // (tracking is a no-op for transient fields).
+    let take_name = field.prefixed_ident("take");
+    let take_body = if is_option {
+        let extractor = field.lazy_extractor_closure();
+        let unwraper = field.lazy_unwrap_closure();
+        quote! {
+            let (idx, val) = self.typed().find_lazy_ref(#extractor)?;
+            if val.is_empty() {
+                return None;
+            }
+            #track_modification
+            Some(self.typed_mut().lazy_take_at(idx, #unwraper))
+        }
+    } else {
+        let typed_take_name = field.take_ident();
+        quote! {
+            if self.#is_empty_name() {
+                return None;
+            }
+            #track_modification
+            Some(self.typed_mut().#typed_take_name())
+        }
+    };
+
     // Generate signed-type-specific methods only for i32
     let signed_methods = if is_signed {
         let update_positive_crossing_name = field.infixed_ident("update", "positive_crossing");
@@ -2843,6 +2868,13 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
         fn #iter_name(&self) -> impl Iterator<Item = (&#key_type, &#value_type)> + '_ {
             #check_access
             #iter_body
+        }
+
+        #[doc = "Remove the full counter map and return it."]
+        #[doc = "Only tracks modification if the map is non-empty."]
+        fn #take_name(&mut self) -> Option<#field_type> {
+            #check_access
+            #take_body
         }
 
         #signed_methods

@@ -899,6 +899,8 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     delete FILE_TYPES['global-not-found']
   }
 
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   const buildInfo = getModuleBuildInfo((this as any)._module)
   const collectedDeclarations: [string, string][] = []
 

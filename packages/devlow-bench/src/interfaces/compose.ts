@@ -12,6 +12,8 @@ export default function compose(...ifaces: Interface[]): Interface {
     if (key.startsWith('filter')) {
       composed[key] = async (items: any, ...args: any[]) => {
         for (const iface of ifaces) {
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           const anyIface = iface as any
           if (anyIface[key]) {
             items = await anyIface[key](items, ...args)
@@ -22,6 +24,8 @@ export default function compose(...ifaces: Interface[]): Interface {
     } else {
       composed[key] = async (...args: any[]) => {
         for (const iface of ifaces) {
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           const anyIface = iface as any
           if (anyIface[key]) {
             await anyIface[key](...args)

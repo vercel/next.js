@@ -1195,6 +1195,7 @@ pub struct ExperimentalConfig {
     turbopack_plugin_runtime_strategy: Option<TurbopackPluginRuntimeStrategy>,
     turbopack_source_maps: Option<bool>,
     turbopack_input_source_maps: Option<bool>,
+    turbopack_file_tracing_for_dev: Option<bool>,
     turbopack_module_fragments: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
     turbopack_minify_before_chunking: Option<bool>,
@@ -2653,6 +2654,17 @@ impl NextConfig {
             self.experimental
                 .turbopack_input_source_maps
                 .unwrap_or(true),
+        )
+    }
+
+    /// Whether file tracing should be performed in development (without writing `.nft.json`
+    /// files). This option does not change production builds.
+    #[turbo_tasks::function]
+    pub fn turbopack_file_tracing_for_dev(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_file_tracing_for_dev
+                .unwrap_or(false),
         )
     }
 

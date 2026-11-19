@@ -56,8 +56,14 @@ export function generateClientManifest(
 
   return genClientManifestSpan?.traceFn(() => {
     const clientManifest: ClientBuildManifest = {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       __rewrites: normalizeRewritesForBuildManifest(rewrites) as any,
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       __routerFilterStatic: clientRouterFilters?.staticFilter as any,
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       __routerFilterDynamic: clientRouterFilters?.dynamicFilter as any,
     }
     const appDependencies = new Set(assetMap.pages['/_app'])
@@ -231,7 +237,7 @@ export default class BuildManifestPlugin {
       assetMap.pages = Object.keys(assetMap.pages)
         .sort()
         .reduce(
-          // eslint-disable-next-line
+          // eslint-disable-next-line no-sequences
           (a, c) => ((a[c] = assetMap.pages[c]), a),
           {} as typeof assetMap.pages
         )

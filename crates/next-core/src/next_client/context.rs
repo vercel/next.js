@@ -501,6 +501,7 @@ pub struct ClientChunkingContextOptions {
     pub minify_before_chunking: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
     pub shared_runtime: Vc<bool>,
+    pub external_browser_runtime: Vc<bool>,
     pub per_page_module_graph: Vc<bool>,
     pub lazy_dynamic_imports: Vc<bool>,
     pub debug_ids: Vc<bool>,
@@ -553,6 +554,7 @@ pub async fn get_client_chunking_context(
         minify_before_chunking,
         nested_async_chunking,
         shared_runtime,
+        external_browser_runtime,
         per_page_module_graph,
         lazy_dynamic_imports,
         debug_ids,
@@ -669,7 +671,10 @@ pub async fn get_client_chunking_context(
             .chunk_content_hashing(ContentHashing::Direct { length: 13 })
             .module_merging(*scope_hoisting.await?)
             .minify_before_chunking(*minify_before_chunking.await?)
-            .shared_runtime(*shared_runtime.await?);
+            .shared_runtime(*shared_runtime.await?)
+            .bootstrap_metadata_attribute(
+                (*external_browser_runtime.await?).then(|| rcstr!("data-next-turbopack")),
+            );
     }
 
     Ok(Vc::upcast(builder.build()))

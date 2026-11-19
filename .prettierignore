@@ -32,6 +32,7 @@ crates/next-custom-transforms/tests/fixture/optimize-barrel/normal/4/input.js
 crates/next-custom-transforms/tests/fixture/react-server-components/client-graph/client-entry/input.js
 crates/next-custom-transforms/tests/fixture/react-server-components/server-graph/client-entry/input.js
 packages/next-swc/native/**/*
+packages/tracing-napi/native/**/*
 packages/next-swc/docs/assets/**/*
 
 packages/next-codemod/transforms/__testfixtures__/**

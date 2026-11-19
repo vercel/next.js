@@ -511,7 +511,7 @@ export interface DeprecatedConfig {
 }
 
 export interface ExperimentalConfig {
-  /** Native Go App Router handlers. Turbopack and self-hosted next start only. */
+  /** Enable native Go route handlers and proxies. Requires Turbopack. */
   goRoutes?: boolean
   /**
    * Nudge coding agents about security upgrades, stable releases, or Future Defaults.
@@ -1105,6 +1105,14 @@ export interface ExperimentalConfig {
    * Enable extraction of source maps from input files. Defaults to true.
    */
   turbopackInputSourceMaps?: boolean
+
+  /**
+   * Enable file tracing (NFT) in the Turbopack dev server. File references in
+   * server code and externals are traced and included in the module graph,
+   * but no `.nft.json` files are written. This option does not change
+   * production builds. Defaults to false.
+   */
+  turbopackFileTracingForDev?: boolean
 
   /**
    * Currently in active development. This splits modules into fragments and

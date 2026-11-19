@@ -143,7 +143,7 @@ export default function BlogNavLink({ slug, children }) {
 
 ```tsx filename="app/blog/layout.tsx" switcher
 // Import the Client Component into a parent Layout (Server Component)
-import { BlogNavLink } from './blog-nav-link'
+import BlogNavLink from './blog-nav-link'
 import getFeaturedPosts from './get-featured-posts'
 
 export default async function Layout({
@@ -167,7 +167,7 @@ export default async function Layout({
 
 ```jsx filename="app/blog/layout.js" switcher
 // Import the Client Component into a parent Layout (Server Component)
-import { BlogNavLink } from './blog-nav-link'
+import BlogNavLink from './blog-nav-link'
 import getFeaturedPosts from './get-featured-posts'
 
 export default async function Layout({ children }) {

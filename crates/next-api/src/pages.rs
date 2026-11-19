@@ -471,7 +471,7 @@ impl PagesProject {
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
-            *self.project().should_write_nft_manifests().await?,
+            *self.project().should_trace().await?,
             self.project().server_source_map_generation_options(),
         ))
     }
@@ -510,7 +510,7 @@ impl PagesProject {
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
-            *self.project().should_write_nft_manifests().await?,
+            *self.project().should_trace().await?,
             self.project().server_source_map_generation_options(),
         ))
     }

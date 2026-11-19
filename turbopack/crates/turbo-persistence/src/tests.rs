@@ -41,6 +41,10 @@ impl ParallelScheduler for RayonParallelScheduler {
         rayon::current_num_threads()
     }
 
+    fn spawn_blocking(&self, f: impl FnOnce() + Send + 'static) {
+        rayon::spawn(f);
+    }
+
     fn parallel_for_each<T>(&self, items: &[T], f: impl Fn(&T) + Send + Sync)
     where
         T: Sync,

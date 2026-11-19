@@ -668,9 +668,17 @@ const config = {
               } else if (
                 ts.isNumericLiteral(value) ||
                 (ts.isPrefixUnaryExpression(value) &&
+                  // TODO(as-any): pre-existing cast, not yet reviewed
+                  // eslint-disable-next-line @next/internal/no-as-any
                   ts.isMinusToken((value as any).operator) &&
+                  // TODO(as-any): pre-existing cast, not yet reviewed
+                  // eslint-disable-next-line @next/internal/no-as-any
                   (ts.isNumericLiteral((value as any).operand.kind) ||
+                    // TODO(as-any): pre-existing cast, not yet reviewed
+                    // eslint-disable-next-line @next/internal/no-as-any
                     (ts.isIdentifier((value as any).operand.kind) &&
+                      // TODO(as-any): pre-existing cast, not yet reviewed
+                      // eslint-disable-next-line @next/internal/no-as-any
                       (value as any).operand.kind.getText() === 'Infinity'))) ||
                 (ts.isIdentifier(value) && value.getText() === 'Infinity')
               ) {
