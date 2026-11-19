@@ -15,3 +15,12 @@ export const BUILD_SWITCHYARD_ENV = 'NEXT_BUILD_SWITCHYARD'
 
 /** Passed only to the child process, never on its command line. */
 export const SWITCHYARD_TOKEN_ENV = '__NEXT_PRIVATE_SWITCHYARD_TOKEN'
+
+/**
+ * The most threads each route.go worker runs Go code on at once (the
+ * worker's GOMAXPROCS) when Switchyard is on. It limits the workers, which run
+ * the app's own handlers, not Switchyard's process. See
+ * switchyard-route-go-threads.ts for the default.
+ */
+export const SWITCHYARD_ROUTE_GO_MAXPROCS_ENV =
+  '__NEXT_EXPERIMENTAL_SWITCHYARD_ROUTE_GO_MAXPROCS'

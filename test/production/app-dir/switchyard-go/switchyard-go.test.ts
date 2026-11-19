@@ -1,3 +1,4 @@
+import { availableParallelism } from 'os'
 import { gunzipSync, inflateSync } from 'zlib'
 import { nextTestSetup } from 'e2e-utils'
 import { SWITCHYARD_ENV } from 'next/dist/server/lib/switchyard-env'
@@ -180,6 +181,20 @@ describe('switchyard-go', () => {
       const got = await received(sent)
       expect(got.requestURI).toBe(expected)
       expect(got.params.id).toBe(id)
+    })
+  })
+
+  describe('the worker process', () => {
+    // route.go workers run the app's own Go code. Under Switchyard they run it
+    // on at most 4 threads at once by default, so they don't compete with
+    // Switchyard and Node for every core; Switchyard's own process has a
+    // separate limit. Without Switchyard, Go picks one thread per core.
+    it('limits the threads a route.go worker runs Go code on', async () => {
+      const { goMaxProcs } = await received('/go/echo')
+      const cores = availableParallelism()
+      expect(goMaxProcs).toBe(
+        process.env[SWITCHYARD_ENV] === '1' ? Math.min(4, cores) : cores
+      )
     })
   })
 
