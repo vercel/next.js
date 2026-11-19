@@ -2487,9 +2487,16 @@ mod variant_tests {
             Some(SourceMapType::Shallow),
         ] {
             let path_ty = emitted.unwrap_or(SourceMapType::Full);
-            let composed_file = composed
-                .to_file_with_magic_comments(emitted, || map_asset(path_ty))
-                .await;
+            let composed_file = async {
+                let content = composed
+                    .to_content_with_magic_comments(emitted, || map_asset(path_ty))
+                    .await?;
+                let FileContent::Content(file) = &*content.file_content().await? else {
+                    anyhow::bail!("{emitted:?} composed file is missing");
+                };
+                anyhow::Ok(file.content().clone())
+            }
+            .await;
             let flat_file = flat
                 .to_rope_with_magic_comments(emitted, || map_asset(path_ty))
                 .await;
@@ -2500,7 +2507,7 @@ mod variant_tests {
                         "emitting a missing {emitted:?} variant must fail"
                     );
                     ensure!(
-                        *composed_file.content() == flat_file,
+                        composed_file == flat_file,
                         "{emitted:?} composed file differs"
                     );
                     let text = flat_file.to_str()?;
