@@ -122,12 +122,11 @@ describe('segment cache prefetch fallback retry', () => {
   it('retries a static fallback prefetch a bounded number of times, then stops', async () => {
     const { browser, page, act } = await startBrowserWithFakeClock('/')
 
-    // Pin the server so it can never upgrade this route's ISR fallback to a
-    // concrete version — the client keeps receiving the fallback shell on every
-    // retry. (Uses its own un-enumerated param so it doesn't share an ISR entry
-    // with the recovery test above.)
+    // The fixture's cache handler prevents this route's ISR fallback from
+    // upgrading. Its own un-enumerated param keeps it separate from the
+    // recovery test above.
     const { getRequestCount, getRuntimeRequestCount, restore } =
-      simulateNeverUpgradingIsrEntries(page, '/posts/retry-limit')
+      observePrefetchRequests(page, '/posts/retry-limit')
 
     try {
       await act(async () => {
@@ -226,22 +225,7 @@ describe('segment cache prefetch fallback retry', () => {
   })
 })
 
-/**
- * Intercepts the per-segment prefetch requests for `pathname` and, after the
- * first response for a given segment, replays that same response for every
- * later request to it — without contacting the server again.
- *
- * This simulates a deployment whose server never upgrades its ISR fallback
- * entries to concrete versions: the client keeps receiving the fallback shell
- * no matter how many times it retries. (Normally an upgradeable route
- * regenerates in the background, so a retry would eventually pick up the
- * concrete version — which is exactly what we want to prevent when testing the
- * retry *limit*.)
- *
- * Returns getters for the number of intercepted segment-bundle requests, and
- * the number of runtime prefetches for the same page.
- */
-function simulateNeverUpgradingIsrEntries(
+function observePrefetchRequests(
   page: Playwright.Page,
   pathname: string
 ): {
@@ -249,49 +233,28 @@ function simulateNeverUpgradingIsrEntries(
   getRuntimeRequestCount: () => number
   restore: () => void
 } {
-  const cachedResponses = new Map<string, Promise<Playwright.APIResponse>>()
   let requestCount = 0
   let runtimeRequestCount = 0
-  const fetch = page.request.fetch.bind(page.request)
-  // Replay at router-act's forwarding layer so it can still intercept, await,
-  // and fulfill every browser request. A separate page.route handler would
-  // bypass either router-act or this replay, depending on handler order.
-  const fetchSpy = jest
-    .spyOn(page.request, 'fetch')
-    .mockImplementation((request, options) => {
-      if (typeof request === 'string') {
-        return fetch(request, options)
-      }
-      const headers = request.headers()
-      const segmentKey = headers['next-router-segment-prefetch']
-      if (
-        headers['next-router-prefetch'] === '2' &&
-        new URL(request.url()).pathname === pathname
-      ) {
-        runtimeRequestCount++
-      }
-      const isSegmentBundlePrefetch =
-        headers['next-router-prefetch'] !== undefined &&
-        segmentKey !== undefined &&
-        // The route-tree request (`/_tree`) is not a segment bundle.
-        segmentKey !== '/_tree' &&
-        new URL(request.url()).pathname === pathname
-      if (!isSegmentBundlePrefetch) {
-        return fetch(request, options)
-      }
-
+  const onRequest = (request: Playwright.Request) => {
+    if (new URL(request.url()).pathname !== pathname) return
+    const headers = request.headers()
+    const segmentKey = headers['next-router-segment-prefetch']
+    if (headers['next-router-prefetch'] === '2') {
+      runtimeRequestCount++
+    }
+    if (
+      headers['next-router-prefetch'] !== undefined &&
+      segmentKey !== undefined &&
+      // The route-tree request (`/_tree`) is not a segment bundle.
+      segmentKey !== '/_tree'
+    ) {
       requestCount++
-      let cached = cachedResponses.get(segmentKey)
-      if (cached === undefined) {
-        // First request for this segment: capture the real (fallback) response.
-        cached = fetch(request, options)
-        cachedResponses.set(segmentKey, cached)
-      }
-      return cached
-    })
+    }
+  }
+  page.on('request', onRequest)
   return {
     getRequestCount: () => requestCount,
     getRuntimeRequestCount: () => runtimeRequestCount,
-    restore: () => fetchSpy.mockRestore(),
+    restore: () => page.off('request', onRequest),
   }
 }
