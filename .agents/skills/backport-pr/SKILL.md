@@ -1,12 +1,8 @@
 ---
 name: backport-pr
 description: >
-  Backport a merged Next.js pull request from canary to an LTS release branch
-  (releases/lts/active or releases/lts/maintenance). Use when the user asks to
-  backport, cherry-pick, or open a backport PR from a PR number to an older
-  Next.js version. Covers finding the merged PR commit, creating a backport
-  branch from the target release branch, cherry-picking from canary,
-  validating, and opening the PR with the release branch as the base.
+  Backport or cherry-pick a merged Next.js PR from `canary` to an older release,
+  including `releases/lts/active` and `releases/lts/maintenance`.
 metadata:
   internal: true
 ---
@@ -91,9 +87,9 @@ branch.
 
 7. Open the backport PR using `$create-pr`.
 
-   Override the normal `$create-pr` base branch: use `--base <target-branch>`,
-   not `canary`. Keep the PR as a draft unless the user explicitly asks
-   otherwise.
+   Use `--base <target-branch>` and follow the shared
+   [PR publishing rules](../create-pr/references/pr-publishing.md), except for
+   the body format, which [PR Shape](#pr-shape) replaces.
 
 ## PR Shape
 
@@ -111,7 +107,8 @@ or
 [lts-maintenance] <original PR title>
 ```
 
-Use a concise PR body:
+Use this concise PR body. It overrides the `What?` / `Why?` / `How?` and
+`Verification` sections from the publishing rules:
 
 ```markdown
 Backports <original PR title/link> to `<target-branch>`.
