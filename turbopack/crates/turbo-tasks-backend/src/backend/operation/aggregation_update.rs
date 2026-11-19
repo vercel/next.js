@@ -6846,6 +6846,7 @@ mod follower_debt_tests {
     /// The backend stops only after the operation that settles a pending addition ran the removal
     /// that waited for it, even though the operation that parked the removal is done.
     #[tokio::test(flavor = "multi_thread")]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn stopping_waits_for_parked_removals() {
         use std::{
             sync::atomic::{AtomicBool, Ordering},
