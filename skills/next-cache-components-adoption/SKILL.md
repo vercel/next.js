@@ -79,6 +79,10 @@ Every blocking error has a docs page — open it. Both the dev overlay and the b
 
 A passing build or a cleared overlay isn't proof the route actually behaves — Cache Components is a runtime concern (a static shell with streamed data). Verify after every fix, not only at the end.
 
+Reuse an already running `next dev` server if it serves the checkout you're changing. For a manual client navigation check with Cache Components enabled, open Next.js DevTools → **Navigation Inspector** → **Pause on navigations**, then click the actual source link. Inspect the prefetched UI and loading fallbacks, then resume to verify the streamed content. Turn the toggle off when done. See the [Instant Navigation guide](https://nextjs.org/docs/app/guides/instant-navigation#visualize-loading-states-with-the-nextjs-devtools).
+
+For automated before/after checks, run the same [`@next/playwright` `instant()` test](https://nextjs.org/docs/app/guides/testing/playwright#testing-instant-navigations) against `next dev`. Click the link inside the callback: the helper triggers the link's configured prefetch even though ordinary automatic prefetching is disabled in dev. Assert what is immediately visible inside the callback and check the settled UI after it returns. Save `next build` for the feature's final prerender check; use a production server when the behavior under test is production-specific (for example, automatic viewport prefetch).
+
 In preference order:
 
 1. **[`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop) — strongly preferred.** Cross-checks `/_next/mcp` against the live browser via `agent-browser` and surfaces both compile and runtime issues in one pass. The diagnostics (React tree, suspense boundaries, console + network) are richer than poking at `next dev` by hand.
@@ -218,7 +222,7 @@ Checklist before checking in with the user:
 
 - `next build` completes without blocking-route errors.
 - No bare TODOs in the feature: `grep -rn "TODO: Cache Components adoption"` finds both the codemod's opt-out comments and the sync-IO unblocks from the pre-step. Any `instant = false` left behind is a deliberate, documented Block — comment rewritten to a reason (see [references/per-page-decisions.md](./references/per-page-decisions.md) → "when to leave a Block in place"). Any `await io()` or `await connection()` left behind has been reviewed and kept on purpose, not left over from the pre-step.
-- Each route visited in the browser: confirm the static shell renders first and every `<Suspense>` fallback resolves to its real content. Capture both states if you can — the fallback (mid-stream) and the final paint — so you have a streaming-experience demo to show the user. Throttle the network in the browser if streaming is too fast to observe.
+- Each route visited in the browser: confirm the static shell renders first and every `<Suspense>` fallback resolves to its real content. Use the Navigation Inspector in dev to capture the paused shell and the final paint for the demo.
 - After populating any new cache whose data can be updated, a mutation check confirms the next read returns the expected data.
 - If runtime verification fails, reproduce the same route on the pre-adoption branch or with its opt-out restored. A failure that already exists is an environment or data problem, not an adoption regression.
 
