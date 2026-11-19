@@ -71,7 +71,7 @@ With [Cache Components](/docs/app/getting-started/caching), the Static/Dynamic e
 
 ## Issues and Insights
 
-The indicator expands to show **Issues** when Next.js reports errors in your app, or **Insights** when navigation validation finds work to investigate:
+The indicator expands when Next.js has something to report. **Issues** shows errors in your app. **Insights** shows guidance, for example when uncached data blocks a navigation in an app with [Cache Components](/docs/app/getting-started/caching).
 
 <Image
   srcLight="/docs/light/devtools-guide-badge.png"
@@ -81,10 +81,46 @@ The indicator expands to show **Issues** when Next.js reports errors in your app
   height="53"
 />
 
-- **Issues** opens the error overlay's Issues tab, where you can inspect the error and its source location.
-- **Insights** opens the Insights tab. With [Cache Components](/docs/app/getting-started/caching), [Instant Navigation validation](/docs/app/guides/instant-navigation#validate-instant-navigation) checks what can render before and during navigation. Insights can point to uncached data or a missing Suspense boundary. Each message explains the cause and possible fixes. See [validation messages](/docs/messages/instant-navigation-validation) for details.
+Select a count to open its tab in the diagnostics panel. You can also open the panel from **Diagnostics** in the DevTools menu.
 
-Each button shows its diagnostic count. You can also open diagnostics from the **Diagnostics** menu entry.
+### Inside the diagnostics panel
+
+Use the arrows at the top of the panel, or the left and right arrow keys, to move between reports. The top-right corner shows the Next.js version and bundler.
+
+DevTools lists runtime Issues in the order it receives them, including unhandled promise rejections in the browser. If several Issues appear together, the first one you see may be a symptom. For example, after a [hydration mismatch](/docs/messages/react-hydration-error), React can render the affected tree again on the client and warn about an inline `<script>`. Fixing the mismatch can clear both messages.
+
+- **Error message and toolbar:** **Copy Error Info** copies the message and any available stack trace and code snippet. The book icon opens related documentation when available. To [debug the server in Chrome](/docs/app/guides/debugging#inspect-server-errors-with-browser-devtools), use the Node.js icon to attach the inspector, then click it to copy the DevTools URL.
+- **Source:** When DevTools can locate the source, it highlights the relevant line. Choose **Open in Editor** to jump to that line in your project. Navigation Insights can also show [fix cards](#fix-cards-in-navigation-insights) below the snippet.
+- **Call Stack:** Each frame shows a function call. Use its editor icon to open the source, or choose **Show** next to the frame count to include ignore-listed calls from dependencies. If an error wraps another error using `cause`, look under **Caused by** for the original message and stack.
+
+#### Fix cards in navigation Insights
+
+When [Instant Navigation validation](/docs/app/guides/instant-navigation#validate-instant-navigation) finds a blocking operation, look for **Ways to fix this** below the source. The cards depend on what blocked the route. For example, if a request needs fresh data, **Stream** lets the rest of the page render while it loads. If you can reuse the result, choose **Cache**.
+
+<FixCardGrid>
+  <FixCard
+    group="stream"
+    title="Wrap in or move into Suspense"
+    href="/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense"
+    snippets={[
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <DataChild />' },
+      { text: '</Suspense>', highlight: true },
+    ]}
+  />
+  <FixCard
+    group="cache"
+    title="Cache the component or data"
+    href="/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data"
+    snippets={[
+      { text: 'async function Posts() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return <List items={…} />' },
+    ]}
+  />
+</FixCardGrid>
+
+Click a card to read its walkthrough. In the panel, **Copy prompt** copies instructions for that fix and the diagnostic details to share with a coding agent. See the [Instant Navigation walkthrough](/docs/app/guides/instant-navigation#fixing-a-navigation-that-blocks) for an example that uses both streaming and caching, or browse the [validation messages](/docs/messages/instant-navigation-validation).
 
 ### Collapse the badge
 
