@@ -30,7 +30,7 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
 };
 use turbopack_core::{
-    chunk::{ChunkableModule, ChunkingContext, availability_info::AvailabilityInfo},
+    chunk::{ChunkGroupResult, ChunkableModule, ChunkingContext},
     module::Module,
     module_graph::{ModuleGraph, ModuleGraphLayer},
     output::{OutputAssetsReference, OutputAssetsWithReferenced},
@@ -39,11 +39,12 @@ use turbopack_ecmascript::async_chunk::module::AsyncLoaderModule;
 
 use crate::module_graph::DynamicImportEntriesWithImporter;
 
+/// The chunk groups whose async loaders load the `next/dynamic` imports at runtime.
 pub(crate) enum NextDynamicChunkAvailability<'a> {
-    /// In App Router, the client references
+    /// In App Router, the chunk group of the client reference containing the import
     ClientReferences(&'a ClientReferencesChunks),
-    /// In Pages Router, the base page chunk group
-    AvailabilityInfo(AvailabilityInfo),
+    /// In Pages Router, the page's client chunk group
+    ChunkGroup(&'a ChunkGroupResult),
 }
 
 pub(crate) async fn collect_next_dynamic_chunks(
@@ -60,8 +61,10 @@ pub(crate) async fn collect_next_dynamic_chunks(
         .map(async |(dynamic_entry, parent_client_reference)| {
             let module = ResolvedVc::upcast::<Box<dyn ChunkableModule>>(*dynamic_entry);
 
-            // This is the availability info for the parent chunk group, i.e. the client reference
-            // containing the next/dynamic imports
+            // Use the availability that chunking created the emitted async loader of this import
+            // with, so the manifest lists the chunks that loader loads. Don't re-derive it here:
+            // it depends on which of the concatenated chunk groups (e.g. a layout's or the page's)
+            // created the loader, and on chunking options.
             let availability_info = match chunking_availability {
                 NextDynamicChunkAvailability::ClientReferences(client_reference_chunks) => {
                     client_reference_chunks
@@ -73,17 +76,13 @@ pub(crate) async fn collect_next_dynamic_chunks(
                         )
                         .context("Client reference chunk group not found for next/dynamic import")?
                         .await?
-                        .availability_info
+                        .async_loader_availability_info(module)
+                        .await?
                 }
-                NextDynamicChunkAvailability::AvailabilityInfo(availability_info) => {
-                    *availability_info
+                NextDynamicChunkAvailability::ChunkGroup(chunk_group) => {
+                    chunk_group.async_loader_availability_info(module).await?
                 }
             };
-            // Only pass on what the dynamically imported chunk group can observe, so the loader
-            // isn't unique per parent chunk group.
-            let availability_info = availability_info
-                .canonicalize_for_async_loader(module_graph, ResolvedVc::upcast(module))
-                .await?;
 
             // The react-loadable manifest needs the final CSS and JavaScript files so
             // next/dynamic can preload them during SSR. Do not use a lazy manifest loader here.
