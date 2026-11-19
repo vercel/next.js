@@ -32,7 +32,7 @@ use crate::{
     chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType, MergeableModule, TracedMode},
     ident::AssetIdent,
     issue::{ImportTracer, ImportTraces, Issue, IssueExt, IssueSeverity, analyze::AnalyzeIssue},
-    module::{ActivatableModule, Module, ModuleSideEffects},
+    module::{Module, ModuleSideEffects},
     module_graph::{
         async_module_info::{AsyncModulesInfo, compute_async_module_info},
         binding_usage_info::{BindingUsageInfo, UnusedReferenceEdges},
@@ -319,6 +319,8 @@ pub struct ModuleGraphOptions {
     ///
     /// This only affects this graph. It doesn't change the activation state, so other graphs that
     /// contain the same modules still see them as inactive until they are really activated.
+    ///
+    /// [`ActivatableModule`]: crate::module::ActivatableModule
     pub force_activated: bool,
 }
 
@@ -2457,14 +2459,11 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
         async move {
             // Issued before resolving the node data so both run concurrently.
             let refs_cell = if !is_traced {
-                // Only activatable modules get the flag, so other modules share the task with
-                // graphs built without `force_activated`.
                 primary_chunkable_referenced_modules(
                     *module,
                     include_traced,
                     include_binding_usage,
-                    force_activated
-                        && ResolvedVc::try_sidecast::<Box<dyn ActivatableModule>>(module).is_some(),
+                    force_activated,
                 )
             } else {
                 // Currently we don't care about the binding usage of traced references
