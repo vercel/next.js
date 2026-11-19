@@ -833,16 +833,8 @@ describe('request insights', () => {
       .trim()
       .split('\n')
       .map((line) => JSON.parse(line))
-    // More than one bounded batch, but still much smaller than per-line gzip.
-    expect(compressed.length - initialBytes).toBeGreaterThan(
-      gzipSync(
-        records
-          .slice(1)
-          .map((record) => JSON.stringify(record) + '\n')
-          .join('')
-      ).length
-    )
-    expect(compressed.length - initialBytes).toBeLessThan(
+    // Late deltas are independent gzip members; completed requests still batch.
+    expect(compressed.length - initialBytes).toBe(
       records
         .slice(1)
         .reduce(
@@ -857,64 +849,6 @@ describe('request insights', () => {
     ])
     await resetRequestInsightsJournalForTest()
     await rm(distDir, { recursive: true, force: true })
-  })
-
-  it('preserves completed-request ordering across a late update', async () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
-    const distDir = await mkdtemp(
-      path.join(tmpdir(), 'request-insights-batch-')
-    )
-    await initializeRequestInsightsJournal(distDir)
-    configureJournalProvider(distDir)
-    try {
-      for (let i = 0; i < 8; i++) {
-        const identity = { requestId: `batch-${i}` }
-        startRequestInsight(identity)
-        recordSpan({ name: 'render', requestId: identity.requestId })
-        completeRequestInsight(identity)
-      }
-      recordSpan({ name: 'late work one', requestId: 'batch-0' })
-      recordSpan({ name: 'late work two', requestId: 'batch-0' })
-      recordSpan({ name: 'other work one', requestId: 'batch-1' })
-      recordSpan({ name: 'other work two', requestId: 'batch-1' })
-      recordSpan({ name: 'late work three', requestId: 'batch-0' })
-      startRequestInsight({ requestId: 'last' })
-      recordSpan({ name: 'render', requestId: 'last' })
-      completeRequestInsight({ requestId: 'last' })
-      await closeRequestInsightsJournal()
-
-      const compressed = await readFile(
-        path.join(distDir, 'request-insights.ndjson.gz')
-      )
-      const records = gunzipSync(compressed)
-        .toString('utf8')
-        .trim()
-        .split('\n')
-        .map((line) => JSON.parse(line))
-      expect(compressed.length).toBeLessThan(
-        records.reduce(
-          (bytes, record) =>
-            bytes + gzipSync(JSON.stringify(record) + '\n').length,
-          0
-        )
-      )
-      expect(records.map((record) => record.request.requestId)).toEqual([
-        ...Array.from({ length: 8 }, (_, i) => `batch-${i}`),
-        'batch-0',
-        'batch-0',
-        'batch-1',
-        'batch-1',
-        'batch-0',
-        'last',
-      ])
-      expect(
-        (await readRequestInsightsJournal(distDir, { requestId: 'batch-0' }))[0]
-          .spans
-      ).toHaveLength(4)
-    } finally {
-      await resetRequestInsightsJournalForTest()
-      await rm(distDir, { recursive: true, force: true })
-    }
   })
 
   it('preserves ordering across live/journal sources, identities and explicit flushes', async () => {
