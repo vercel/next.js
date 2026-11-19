@@ -8,10 +8,9 @@ import type { ReadyErrorCause } from '../../utils/get-error-by-type'
 
 type ErrorCauseProps = {
   cause: ReadyErrorCause
-  dialogResizerRef: React.RefObject<HTMLDivElement | null>
 }
 
-export function ErrorCause({ cause, dialogResizerRef }: ErrorCauseProps) {
+export function ErrorCause({ cause }: ErrorCauseProps) {
   const frames = React.use(cause.frames())
   const trimmedMessage = cause.error.message.trim()
 
@@ -45,22 +44,12 @@ export function ErrorCause({ cause, dialogResizerRef }: ErrorCauseProps) {
         />
       )}
 
-      {frames.length > 0 && (
-        <ErrorOverlayCallStack
-          dialogResizerRef={dialogResizerRef}
-          frames={frames}
-        />
-      )}
+      {frames.length > 0 && <ErrorOverlayCallStack frames={frames} />}
 
-      {cause.cause && (
-        <ErrorCause cause={cause.cause} dialogResizerRef={dialogResizerRef} />
-      )}
+      {cause.cause && <ErrorCause cause={cause.cause} />}
 
       {'aggregateErrors' in cause && cause.aggregateErrors !== null && (
-        <ErrorAggregateErrors
-          errors={cause.aggregateErrors}
-          dialogResizerRef={dialogResizerRef}
-        />
+        <ErrorAggregateErrors errors={cause.aggregateErrors} />
       )}
     </div>
   )

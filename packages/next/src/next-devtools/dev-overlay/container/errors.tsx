@@ -3,7 +3,6 @@ import React, {
   Suspense,
   useCallback,
   useMemo,
-  useRef,
   useState,
 } from 'react'
 import { VulnerabilityInsight } from '../components/vulnerability-insight/vulnerability-insight'
@@ -55,8 +54,8 @@ interface ErrorsProps extends ErrorBaseProps {
   debugInfo: DebugInfo
   onClose: () => void
   hasVulnerabilityInsight: boolean
-  /** Tab requested by the badge or menu entry that opened the overlay. */
-  initialTab?: ErrorTab | null
+  activeTab: ErrorTab | null
+  onTabChange: (tab: ErrorTab) => void
 }
 
 function matchLinkType(text: string): string | null {
@@ -321,7 +320,6 @@ function InstantRuntimeError({
   explanation,
   cause,
   showExplanation = true,
-  dialogResizerRef,
   generateErrorInfo,
 }: {
   error: ReadyRuntimeError
@@ -330,7 +328,6 @@ function InstantRuntimeError({
   explanation?: string
   cause?: string
   showExplanation?: boolean
-  dialogResizerRef: React.RefObject<HTMLDivElement | null>
   generateErrorInfo: () => Promise<string>
 }) {
   const frames = useFrames(error)
@@ -365,19 +362,12 @@ function InstantRuntimeError({
         showExplanation={showExplanation}
         generateErrorInfo={generateErrorInfo}
       />
-      {frames.length > 0 && (
-        <ErrorOverlayCallStack
-          dialogResizerRef={dialogResizerRef}
-          frames={frames}
-        />
-      )}
+      {frames.length > 0 && <ErrorOverlayCallStack frames={frames} />}
 
       {/* Instant errors are always single errors, never AggregateError.
           Each blocking data access is tracked individually via
           dynamicValidation.dynamicErrors and surfaced one at a time. */}
-      {error.cause && (
-        <ErrorCause cause={error.cause} dialogResizerRef={dialogResizerRef} />
-      )}
+      {error.cause && <ErrorCause cause={error.cause} />}
     </>
   )
 }
@@ -713,11 +703,10 @@ export function Errors({
   debugInfo,
   onClose,
   hasVulnerabilityInsight,
-  initialTab,
+  activeTab,
+  onTabChange,
   ...props
 }: ErrorsProps) {
-  const dialogResizerRef = useRef<HTMLDivElement | null>(null)
-
   const { normalErrors, instantErrors } = useMemo(() => {
     const normal: ReadyRuntimeError[] = []
     const instant: ReadyRuntimeError[] = []
@@ -733,21 +722,14 @@ export function Errors({
 
   const insightCount = instantErrors.length + (hasVulnerabilityInsight ? 1 : 0)
 
-  const [activeTab, setActiveTab] = useState<ErrorTab>(
-    () => initialTab ?? (normalErrors.length > 0 ? 'errors' : 'instant')
-  )
   const [activeIndices, setActiveIndices] = useState<Record<ErrorTab, number>>({
     errors: 0,
     instant: 0,
   })
   const effectiveActiveTab =
-    activeTab === 'errors'
-      ? normalErrors.length > 0
-        ? 'errors'
-        : 'instant'
-      : insightCount > 0
-        ? 'instant'
-        : 'errors'
+    insightCount > 0 && (activeTab === 'instant' || normalErrors.length === 0)
+      ? 'instant'
+      : 'errors'
   const activeErrors =
     effectiveActiveTab === 'instant' ? instantErrors : normalErrors
   const errorActiveIdx = Math.max(
@@ -806,7 +788,7 @@ export function Errors({
           activeTab={effectiveActiveTab}
           onTabChange={(tab) => {
             startTransition(() => {
-              setActiveTab(tab)
+              onTabChange(tab)
             })
           }}
           errorCount={normalErrors.length}
@@ -847,7 +829,7 @@ export function Errors({
           }
 
           if (normalErrors.length > 0) {
-            setActiveTab('errors')
+            onTabChange('errors')
             setActiveIndices((previous) => ({
               ...previous,
               errors: Math.max(0, normalErrors.length - 1),
@@ -867,7 +849,7 @@ export function Errors({
             }
 
             if (insightCount > 0) {
-              setActiveTab('instant')
+              onTabChange('instant')
               setActiveIndices((previous) => ({
                 ...previous,
                 instant: 0,
@@ -1028,7 +1010,6 @@ export function Errors({
           runtimeErrors={activeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
-          dialogResizerRef={dialogResizerRef}
           generateErrorInfo={generateErrorInfo}
           {...props}
         >
@@ -1038,7 +1019,6 @@ export function Errors({
               error={activeError}
               variant={errorDetails.variant}
               showExplanation={false}
-              dialogResizerRef={dialogResizerRef}
               generateErrorInfo={generateErrorInfo}
             />
           </Suspense>
@@ -1068,7 +1048,6 @@ export function Errors({
           runtimeErrors={activeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
-          dialogResizerRef={dialogResizerRef}
           generateErrorInfo={generateErrorInfo}
           {...props}
         >
@@ -1080,7 +1059,6 @@ export function Errors({
               kind="client-hook"
               cause={errorDetails.expression}
               showExplanation={false}
-              dialogResizerRef={dialogResizerRef}
               generateErrorInfo={generateErrorInfo}
             />
           </Suspense>
@@ -1113,7 +1091,6 @@ export function Errors({
           runtimeErrors={activeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
-          dialogResizerRef={dialogResizerRef}
           generateErrorInfo={generateErrorInfo}
           {...props}
         >
@@ -1124,7 +1101,6 @@ export function Errors({
               variant={errorDetails.variant}
               kind={errorDetails.kind}
               showExplanation={false}
-              dialogResizerRef={dialogResizerRef}
               generateErrorInfo={generateErrorInfo}
             />
           </Suspense>
@@ -1197,7 +1173,6 @@ export function Errors({
           runtimeErrors={activeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
-          dialogResizerRef={dialogResizerRef}
           generateErrorInfo={generateErrorInfo}
           {...props}
         >
@@ -1208,7 +1183,6 @@ export function Errors({
               variant={errorDetails.variant}
               kind="metadata"
               showExplanation={false}
-              dialogResizerRef={dialogResizerRef}
               generateErrorInfo={generateErrorInfo}
             />
           </Suspense>
@@ -1282,7 +1256,6 @@ export function Errors({
           runtimeErrors={activeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
-          dialogResizerRef={dialogResizerRef}
           generateErrorInfo={generateErrorInfo}
           {...props}
         >
@@ -1293,7 +1266,6 @@ export function Errors({
               variant={errorDetails.variant}
               kind="viewport"
               showExplanation={false}
-              dialogResizerRef={dialogResizerRef}
               generateErrorInfo={generateErrorInfo}
             />
           </Suspense>
@@ -1327,7 +1299,6 @@ export function Errors({
           runtimeErrors={activeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
-          dialogResizerRef={dialogResizerRef}
           generateErrorInfo={generateErrorInfo}
           {...props}
         >
@@ -1339,7 +1310,6 @@ export function Errors({
               kind="sync-io"
               cause={errorDetails.cause}
               showExplanation={false}
-              dialogResizerRef={dialogResizerRef}
               generateErrorInfo={generateErrorInfo}
             />
           </Suspense>
@@ -1372,7 +1342,6 @@ export function Errors({
           runtimeErrors={activeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
-          dialogResizerRef={dialogResizerRef}
           generateErrorInfo={generateErrorInfo}
           {...props}
         >
@@ -1384,7 +1353,6 @@ export function Errors({
               kind="sync-io-client"
               cause={errorDetails.cause}
               showExplanation={false}
-              dialogResizerRef={dialogResizerRef}
               generateErrorInfo={generateErrorInfo}
             />
           </Suspense>
@@ -1409,7 +1377,6 @@ export function Errors({
           runtimeErrors={activeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
-          dialogResizerRef={dialogResizerRef}
           generateErrorInfo={generateErrorInfo}
           {...props}
         >
@@ -1443,7 +1410,6 @@ export function Errors({
           runtimeErrors={activeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
-          dialogResizerRef={dialogResizerRef}
           generateErrorInfo={generateErrorInfo}
           {...props}
         >
@@ -1454,7 +1420,6 @@ export function Errors({
               variant="runtime"
               kind="link-prefetch-partial"
               showExplanation={false}
-              dialogResizerRef={dialogResizerRef}
               generateErrorInfo={generateErrorInfo}
             />
           </Suspense>
@@ -1482,18 +1447,13 @@ export function Errors({
       runtimeErrors={activeErrors}
       activeIdx={activeIdx}
       setActiveIndex={setActiveIndex}
-      dialogResizerRef={dialogResizerRef}
       generateErrorInfo={generateErrorInfo}
       {...props}
     >
       {maybeNotes}
       {maybeDiff}
       <Suspense fallback={<div data-nextjs-error-suspended />}>
-        <RuntimeError
-          key={activeError.id.toString()}
-          error={activeError}
-          dialogResizerRef={dialogResizerRef}
-        />
+        <RuntimeError key={activeError.id.toString()} error={activeError} />
       </Suspense>
     </ErrorOverlayLayout>
   )

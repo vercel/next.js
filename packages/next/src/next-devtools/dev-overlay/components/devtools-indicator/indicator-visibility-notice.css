@@ -34,7 +34,7 @@
     display: inline-flex;
     gap: 3px;
     margin: 0 2px;
-    vertical-align: -3px;
+    vertical-align: middle;
   }
 
   kbd {

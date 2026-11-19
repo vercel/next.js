@@ -284,10 +284,52 @@ describe('instant insights tab overlay', () => {
       { variant: 'instant', disabled: false, active: false },
     ])
 
+    if (
+      !(await evalInPortal(browser, (root: ShadowRoot) =>
+        Boolean(
+          root.querySelector('[data-nextjs-dialog-root][data-rendered="true"]')
+        )
+      ))
+    ) {
+      await clickIndicatorPill(browser)
+    }
+    await retry(async () => {
+      expect(
+        await evalInPortal(browser, (root: ShadowRoot) =>
+          Boolean(
+            root.querySelector(
+              '[data-nextjs-dialog-root][data-rendered="true"]'
+            )
+          )
+        )
+      ).toBe(true)
+    })
+    await evalInPortal(browser, (root: ShadowRoot) => {
+      root
+        .querySelector('[data-nextjs-dialog-root]')
+        ?.setAttribute('data-test-open-dialog', '')
+    })
+
     await clickInsightsTab(browser)
     await retry(async () => {
       expect(await getActiveErrorOverlayTab(browser)).toBe('instant')
     })
+
+    for (const tab of ['errors', 'instant']) {
+      await browser.elementByCss(`[data-issues-tab="${tab}"]`).click()
+      await retry(async () => {
+        expect(await getActiveErrorOverlayTab(browser)).toBe(tab)
+        expect(
+          await evalInPortal(browser, (root: ShadowRoot) =>
+            Boolean(
+              root.querySelector(
+                '[data-test-open-dialog][data-rendered="true"]'
+              )
+            )
+          )
+        ).toBe(true)
+      })
+    }
   })
 
   it('should clear the Insight when navigating away from the offending route', async () => {

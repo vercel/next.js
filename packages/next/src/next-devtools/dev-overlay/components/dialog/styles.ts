@@ -18,18 +18,20 @@ export const styles = css`
     max-width: var(--next-dialog-max-width);
     margin-right: auto;
     margin-left: auto;
-    transform-origin: top center;
-    translate: 0 -8px;
-    scale: 0.985;
+    scale: 0.97;
     opacity: 0;
-    transition-property: translate, scale, opacity;
+    transition-property: scale, opacity;
     transition-duration: var(--transition-duration);
     transition-timing-function: var(--timing-overlay);
 
     &[data-rendered='true'] {
       opacity: 1;
-      translate: 0 0;
       scale: 1;
+
+      @starting-style {
+        opacity: 0;
+        scale: 0.97;
+      }
     }
   }
 
@@ -49,16 +51,15 @@ export const styles = css`
   [data-nextjs-dialog-overlay][data-rendered='true']
     [data-nextjs-dialog-backdrop] {
     opacity: 1;
-  }
 
-  [data-nextjs-dialog-sizer] {
-    transition: height 250ms var(--timing-swift);
+    @starting-style {
+      opacity: 0;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
     [data-nextjs-dialog-root],
-    [data-nextjs-dialog-backdrop],
-    [data-nextjs-dialog-sizer] {
+    [data-nextjs-dialog-backdrop] {
       transition: none;
     }
   }
