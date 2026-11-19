@@ -49,6 +49,57 @@ export interface ParsedRequestHeaders {
   readonly htmlRequestId: string | undefined
 }
 
+/**
+ * Whether the router state header is read for this request. Prefetches of
+ * PPR-enabled routes don't depend on the client's router state.
+ */
+function shouldProvideFlightRouterState(
+  isRSCRequest: boolean,
+  isPrefetchRequest: boolean,
+  isRoutePPREnabled: boolean
+): boolean {
+  return isRSCRequest && (!isPrefetchRequest || !isRoutePPREnabled)
+}
+
+/**
+ * Returns true when the request carries a router state header that would be
+ * used for rendering but can't be accepted (sent more than once, too large,
+ * unparseable, or not matching the expected schema, e.g. because it was sent
+ * by a client still running an older build after a deployment).
+ *
+ * This is invalid client input, so request handlers use this to respond with
+ * a 400 before rendering instead of failing the render with a 500.
+ */
+export function hasInvalidFlightRouterStateHeader(
+  headers: IncomingHttpHeaders,
+  options: Pick<ParseRequestHeadersOptions, 'isRoutePPREnabled'>
+): boolean {
+  const stateHeader = headers[NEXT_ROUTER_STATE_TREE_HEADER]
+  if (stateHeader === undefined) {
+    return false
+  }
+
+  const isRSCRequest = isRSCRequestHeader(headers[RSC_HEADER])
+  const isPrefetchRequest =
+    isRSCRequest && headers[NEXT_ROUTER_PREFETCH_HEADER] === '1'
+  if (
+    !shouldProvideFlightRouterState(
+      isRSCRequest,
+      isPrefetchRequest,
+      options.isRoutePPREnabled
+    )
+  ) {
+    return false
+  }
+
+  try {
+    parseAndValidateFlightRouterState(stateHeader)
+    return false
+  } catch {
+    return true
+  }
+}
+
 export function parseRequestHeaders(
   headers: IncomingHttpHeaders,
   options: ParseRequestHeadersOptions
@@ -81,10 +132,14 @@ export function parseRequestHeaders(
 
   const isHmrRefresh = headers[NEXT_HMR_REFRESH_HEADER] !== undefined
 
-  const shouldProvideFlightRouterState =
-    isRSCRequest && (!isPrefetchRequest || !options.isRoutePPREnabled)
-
-  const flightRouterState = shouldProvideFlightRouterState
+  // Request handlers reject invalid headers with a 400 before rendering (see
+  // `hasInvalidFlightRouterStateHeader`), so this only throws for callers that
+  // don't perform that check.
+  const flightRouterState = shouldProvideFlightRouterState(
+    isRSCRequest,
+    isPrefetchRequest,
+    options.isRoutePPREnabled
+  )
     ? parseAndValidateFlightRouterState(headers[NEXT_ROUTER_STATE_TREE_HEADER])
     : undefined
 
