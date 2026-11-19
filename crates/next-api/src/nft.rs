@@ -81,11 +81,24 @@ async fn endpoint_modules(
 
 /// Reads source content to collect files emitted by transforms.
 #[turbo_tasks::function(operation, root)]
-async fn read_module_sources_operation(modules: ResolvedVc<Modules>) -> Result<Vc<Completion>> {
+async fn read_module_sources_operation(
+    modules: ResolvedVc<Modules>,
+    exclude_glob: Option<ResolvedVc<Glob>>,
+) -> Result<Vc<Completion>> {
+    let exclude_glob = match exclude_glob {
+        Some(glob) => Some(glob.await?),
+        None => None,
+    };
     modules
         .await?
         .iter()
         .map(async |module| {
+            // Traced modules can point to files that the endpoint explicitly excludes.
+            if let Some(glob) = &exclude_glob
+                && glob.matches(&module.ident().await?.path.path)
+            {
+                return Ok(());
+            }
             if let Some(source) = *module.source().await? {
                 source.content().await?;
             }
@@ -118,15 +131,15 @@ pub async fn trace_endpoint(
         let output_file_tracing_includes = next_config
             .output_file_tracing_includes(project_path.clone())
             .await?;
+        let exclude_glob =
+            *tracing_exclude_glob(page_name.clone(), project_path.clone(), next_config).await?;
 
         // Collect referenced assets and externals from module graph
         let all_modules = traced_modules_for_entries(
             *module_graph,
             entry_modules,
             traced_entries,
-            tracing_exclude_glob(page_name.clone(), project_path.clone(), next_config)
-                .await?
-                .map(|v| *v),
+            exclude_glob.map(|v| *v),
             Some(next_config.config_file_path(project_path.clone())),
         )
         .await?;
@@ -209,6 +222,7 @@ pub async fn trace_endpoint(
             endpoint_modules(*module_graph, entry_modules)
                 .to_resolved()
                 .await?,
+            exclude_glob,
         );
         sources.connect().await?;
         let emitted_assets = loader_emitted_assets(*project, sources).await?;
