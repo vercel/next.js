@@ -145,6 +145,13 @@ const FORCE_EXIT_DELAY = 5000
 const CPU_PROFILE_FORCE_EXIT_DELAY = 60_000
 
 /**
+ * How many workers in a row may exit (or time out) before becoming ready
+ * before the pool stops replacing them and rejects the calls waiting for
+ * them (see `_handleBootFailure`).
+ */
+const MAX_CONSECUTIVE_BOOT_FAILURES = 3
+
+/**
  * A worker abstraction that wraps `ChildProcess` and `NodeWorker`,
  * exposing a uniform interface for message passing, exit handling, and
  * lifecycle management. This avoids repeated `instanceof` checks
@@ -258,6 +265,11 @@ export class WorkerPool {
   private _ending = false
   /** Number of workers currently in the booting state */
   private _bootingCount = 0
+  /**
+   * Workers that exited or timed out before PARENT_MESSAGE_READY since the
+   * last one that became ready. Bounds respawning when workers can't boot.
+   */
+  private _consecutiveBootFailures = 0
   /** Merged stdout from all workers, piped through a PassThrough stream */
   private _stdout: PassThrough
   /** Merged stderr from all workers, piped through a PassThrough stream */
@@ -801,6 +813,7 @@ export class WorkerPool {
         this._reportActivity(worker)
         worker.state = WorkerState.RUNNING
         this._bootingCount--
+        this._consecutiveBootFailures = 0
         this._onWorkerReady(worker)
         break
       }
@@ -862,7 +875,8 @@ export class WorkerPool {
     code: number | null,
     signal: string | null
   ): void {
-    if (worker.state === WorkerState.BOOTING) {
+    const wasBooting = worker.state === WorkerState.BOOTING
+    if (wasBooting) {
       this._bootingCount--
     }
 
@@ -880,15 +894,42 @@ export class WorkerPool {
     this._options.onWorkerExit?.(code, signal)
 
     // Reject all in-flight requests and remove from pool
-    this._rejectActiveRequests(worker, new WorkerExitError(code, signal))
+    const error = new WorkerExitError(code, signal)
+    this._rejectActiveRequests(worker, error)
 
     this._allWorkers.delete(worker)
     this._availableWorkers.delete(worker)
 
-    // Tasks are only queued while no worker is available, so queued tasks
-    // need a new worker.
-    if (!this._ending) {
+    if (wasBooting) {
+      this._handleBootFailure(error)
+    } else if (!this._ending) {
+      // Tasks are only queued while no worker is available, so queued tasks
+      // need a new worker.
       this._spawnForQueuedTasks()
+    }
+  }
+
+  /**
+   * A worker exited or timed out before PARENT_MESSAGE_READY. A booting
+   * worker has no requests yet, so the calls waiting for it are still queued.
+   * Replace it, up to MAX_CONSECUTIVE_BOOT_FAILURES times in a row. After
+   * that, stop respawning: queued tasks wait for a worker that is still alive
+   * (e.g. a healthy running one), or are rejected with `error` when none is
+   * left, so the caller (e.g. Worker's `maxRetries`) can decide what to do.
+   */
+  private _handleBootFailure(error: Error): void {
+    this._consecutiveBootFailures++
+    if (this._ending) {
+      return
+    }
+    if (this._consecutiveBootFailures < MAX_CONSECUTIVE_BOOT_FAILURES) {
+      this._spawnForQueuedTasks()
+      return
+    }
+    if (this._allWorkers.size === 0) {
+      // Give a later dispatch (e.g. a retry) a fresh budget.
+      this._consecutiveBootFailures = 0
+      this._rejectQueueIfNoWorkers(error)
     }
   }
 
@@ -1074,11 +1115,13 @@ export class WorkerPool {
    * removes it from the pool, and spawns replacements for any queued tasks.
    */
   private _handleWorkerTimeout(worker: PoolWorker): void {
-    if (worker.state === WorkerState.BOOTING) {
+    const wasBooting = worker.state === WorkerState.BOOTING
+    if (wasBooting) {
       this._bootingCount--
     }
     worker.state = WorkerState.SHUTTING_DOWN
-    this._rejectActiveRequests(worker, new Error('Worker timed out'))
+    const error = new Error('Worker timed out')
+    this._rejectActiveRequests(worker, error)
     this._availableWorkers.delete(worker)
     this._allWorkers.delete(worker)
 
@@ -1087,8 +1130,13 @@ export class WorkerPool {
 
     worker.handle.forceKill()
 
-    // Spawn replacement workers for any queued tasks
-    this._spawnForQueuedTasks()
+    if (wasBooting) {
+      // A worker that hangs while booting (e.g. in setup()) likely hangs again.
+      this._handleBootFailure(new WorkerExitError(null, 'SIGKILL'))
+    } else {
+      // Spawn replacement workers for any queued tasks
+      this._spawnForQueuedTasks()
+    }
   }
 
   /** Stop the timeout check interval */

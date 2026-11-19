@@ -2472,6 +2472,28 @@ describe('WorkerPool', () => {
 
       pool.shutdownNow()
     })
+
+    it('stops replacing workers that keep timing out while booting', async () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        timeout: 1000,
+      })
+
+      const promise = pool.dispatch('test', [])
+      for (let i = 0; i < 5; i++) {
+        jest.advanceTimersByTime(1500)
+      }
+
+      // Three attempts, then the queued call is rejected so the caller's
+      // retry policy can act.
+      expect(spawnedProcesses).toHaveLength(3)
+      expect(spawnedProcesses.every((p) => p.killed)).toBe(true)
+      await expect(promise).rejects.toBeInstanceOf(WorkerExitError)
+      expect(pool.getWorkerCount()).toBe(0)
+
+      pool.shutdownNow()
+    })
   })
 
   // -----------------------------------------------------------------------
