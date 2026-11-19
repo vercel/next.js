@@ -674,10 +674,11 @@ export interface ExperimentalConfig {
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
   /**
-   * The maximum number of images to optimize in parallel. With `sharp`, this
-   * is the size of libvips's thread pool. With
-   * `imgOptSafeMode`, this is the size of the worker process
-   * pool.
+   * With `sharp`, this is the number of libvips threads used to process each
+   * image. The number of images processed in parallel is bounded by
+   * `UV_THREADPOOL_SIZE`. With `imgOptSafeMode`, this is the size of the
+   * worker process pool, which is the maximum number of images optimized in
+   * parallel.
    *
    * `null` selects a default. With `sharp`, this is a fraction of the
    * available CPUs, depending on `NODE_ENV`. With
@@ -691,9 +692,9 @@ export interface ExperimentalConfig {
   imgOptMozjpeg?: boolean
   /**
    * Uses `@next/safe-image-optimization` instead of `sharp`. This utilizes
-   * memory-safe image decoders written Rust combined with OS-level sandboxing
-   * on Linux. It does not support some uncommon image formats, and it may
-   * sacrifice some performance.
+   * memory-safe image decoders written in Rust combined with OS-level
+   * sandboxing on Linux. It does not support some uncommon image formats, and
+   * it may sacrifice some performance.
    *
    * This will have no effect in production if your hosting platform (e.g.
    * Vercel) provides image optimization as a service by overriding the
@@ -704,8 +705,8 @@ export interface ExperimentalConfig {
    * optimizer is not used.
    *
    * `true` enables it everywhere. An object enables it individually for
-   * `next/image` (`nextImage`, default `true`) and `ImageResponse`
-   * (`imageResponse`, default `false`).
+   * `next/image` (`nextImage`) and `ImageResponse` (`imageResponse`). Omitted
+   * keys default to `false`.
    *
    * Currently, only `nextImage` is implemented. `imageResponse` has no effect
    * yet.

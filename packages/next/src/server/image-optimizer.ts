@@ -341,7 +341,7 @@ export class ImageOptimizerCache {
     }
 
     let supportedFormats: string[] = formats || []
-    if (nextConfig.experimental.imgOptSafeMode.nextImage) {
+    if (nextConfig.experimental?.imgOptSafeMode?.nextImage) {
       // `config.ts` warns about the formats that are filtered out
       supportedFormats = supportedFormats.filter((format) =>
         NSIO_OUTPUT_MIME_TYPES.includes(format)

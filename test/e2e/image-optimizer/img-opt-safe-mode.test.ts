@@ -16,8 +16,7 @@ describe('with experimental.imgOptSafeMode', () => {
       files: join(__dirname, 'app'),
       nextConfig: {
         images: { formats: ['image/avif'] },
-        // `nextImage` defaults to `true` in the object form
-        experimental: { imgOptSafeMode: {} },
+        experimental: { imgOptSafeMode: { nextImage: true } },
       },
     })
 
