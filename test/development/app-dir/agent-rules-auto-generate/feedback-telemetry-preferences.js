@@ -2,12 +2,10 @@ const confPath = require.resolve('next/dist/compiled/conf', {
   paths: [process.cwd()],
 })
 const Conf = require(confPath)
-const { Module } = require('module')
+const Module = require('module')
 
 // Model Linux's XDG preference lookup independently of the host OS or container.
-// Conf removes itself from the cache, so install a replacement module explicitly.
-const preferencesModule = new Module(confPath)
-preferencesModule.exports = class extends Conf {
+class TelemetryPreferences extends Conf {
   constructor(options) {
     super({
       ...options,
@@ -17,7 +15,16 @@ preferencesModule.exports = class extends Conf {
     })
   }
 }
-require.cache[confPath] = preferencesModule
+
+// Match the import rather than its resolved filename: Windows' short and long
+// paths can give this preload and the CLI different cache keys for the same file.
+const originalRequire = Module.prototype.require
+Module.prototype.require = function (request) {
+  if (request === 'next/dist/compiled/conf') {
+    return TelemetryPreferences
+  }
+  return originalRequire.apply(this, arguments)
+}
 
 const blockedFetch = globalThis.fetch
 globalThis.fetch = (...args) => {

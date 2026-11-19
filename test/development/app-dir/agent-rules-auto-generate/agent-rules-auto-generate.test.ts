@@ -591,8 +591,10 @@ describe('agent-feedback CLI with project telemetry opt-out', () => {
             'Redirected telemetry environment'
           )
         } else {
-          expect(result.exitCode).toBe(0)
-          expect(result.stderr).toBe('')
+          expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({
+            exitCode: 0,
+            stderr: '',
+          })
         }
       } finally {
         await next.deleteFile('.env.local')
