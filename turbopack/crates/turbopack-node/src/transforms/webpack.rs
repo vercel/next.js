@@ -1248,7 +1248,9 @@ impl EvaluateContext for WebpackLoaderContext {
                         });
                     };
                     let parent = path.parent();
-                    let relative = parent.get_relative_request_to(&path).unwrap();
+                    let relative = parent
+                        .get_relative_request_to(&path)
+                        .context("loader path must be on its parent's filesystem")?;
                     (
                         vec![parent],
                         Request::relative(
