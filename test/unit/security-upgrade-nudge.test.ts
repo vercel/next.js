@@ -17,6 +17,7 @@ import { getAgentName } from 'next/dist/telemetry/agent-name'
 import { getUpgradeAssessment } from 'next/dist/lib/upgrade/prepare-upgrade'
 import { warn } from 'next/dist/build/output/log'
 import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
+import { captureOriginalEnv } from '../../packages/next/src/lib/upgrade/original-env'
 import { defaultConfig } from 'next/dist/server/config-shared'
 
 jest.mock('next/dist/cli/next-upgrade', () => ({
@@ -1288,5 +1289,109 @@ describe('human upgrade nudge', () => {
     })
     await run('experimental-future', controller.signal)
     expect(promptUpgrade).toHaveBeenCalledTimes(0)
+  })
+})
+
+// https://github.com/vercel/next.js/issues/101989
+describe('upgrade handoff environment', () => {
+  const keys = [
+    'NODE_ENV',
+    'NEXT_RUNTIME',
+    'DOTENV_DEV_ONLY',
+    'USER_SHELL_VAR',
+  ] as const
+  type Key = (typeof keys)[number]
+  const env = process.env as Record<string, string | undefined>
+  const saved = Object.fromEntries(keys.map((key) => [key, env[key]]))
+
+  function setEnv(values: Partial<Record<Key, string | undefined>>) {
+    for (const [key, value] of Object.entries(values)) {
+      if (value === undefined) {
+        delete env[key]
+      } else {
+        env[key] = value
+      }
+    }
+  }
+
+  // What bin/next does to its own process before running a command.
+  function simulateCli(command: 'dev' | 'build') {
+    captureOriginalEnv()
+    setEnv({
+      NODE_ENV:
+        env.NODE_ENV || (command === 'dev' ? 'development' : 'production'),
+      NEXT_RUNTIME: 'nodejs',
+    })
+  }
+
+  // next dev then loads .env files into the CLI process. initialEnv is
+  // captured after bin/next ran, so it holds bin/next's defaults but not the
+  // .env values.
+  function simulateDevEnvLoad() {
+    processEnv([], directory)
+    updateInitialEnv({
+      NODE_ENV: env.NODE_ENV,
+      NEXT_RUNTIME: env.NEXT_RUNTIME,
+      USER_SHELL_VAR: env.USER_SHELL_VAR,
+      DOTENV_DEV_ONLY: undefined,
+    })
+    setEnv({ DOTENV_DEV_ONLY: '1' })
+  }
+
+  // The environment the upgrade CLI, and the coding agent it launches,
+  // inherit from the CLI process.
+  async function envAtHandoff() {
+    let handoff: Record<string, string | undefined> | undefined
+    jest.mocked(spawnNextUpgrade).mockImplementationOnce(async () => {
+      handoff = Object.fromEntries(keys.map((key) => [key, env[key]]))
+    })
+    await runUpgrade(directory, 'security', null)
+    expect(spawnNextUpgrade).toHaveBeenCalledTimes(1)
+    return handoff
+  }
+
+  beforeEach(() => {
+    jest.mocked(spawnNextUpgrade).mockReset()
+    setEnv({
+      NODE_ENV: undefined,
+      NEXT_RUNTIME: undefined,
+      DOTENV_DEV_ONLY: undefined,
+      USER_SHELL_VAR: 'kept',
+    })
+  })
+
+  afterEach(() => {
+    setEnv(saved)
+    updateInitialEnv(saved)
+  })
+
+  it('starts an upgrade from next dev with the user environment', async () => {
+    simulateCli('dev')
+    simulateDevEnvLoad()
+
+    expect(await envAtHandoff()).toEqual({
+      NODE_ENV: undefined,
+      NEXT_RUNTIME: undefined,
+      DOTENV_DEV_ONLY: undefined,
+      USER_SHELL_VAR: 'kept',
+    })
+  })
+
+  it('starts an upgrade from next build with the user environment', async () => {
+    // The build runs in a child, so the CLI process never loads .env files.
+    simulateCli('build')
+
+    const handoff = await envAtHandoff()
+    expect(handoff?.NODE_ENV).toBeUndefined()
+    expect(handoff?.NEXT_RUNTIME).toBeUndefined()
+  })
+
+  it('keeps a NODE_ENV the user set', async () => {
+    // Same value next dev would default to, so only the user's intent differs.
+    setEnv({ NODE_ENV: 'development' })
+    simulateCli('dev')
+    simulateDevEnvLoad()
+
+    expect((await envAtHandoff())?.NODE_ENV).toBe('development')
   })
 })
