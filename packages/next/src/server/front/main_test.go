@@ -4,136 +4,17 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
-
-type statusWriteConn struct {
-	net.Conn
-	output    bytes.Buffer
-	remaining int
-	err       error
-}
-
-func (c *statusWriteConn) Write(p []byte) (int, error) {
-	n := min(len(p), c.remaining)
-	c.remaining -= n
-	c.output.Write(p[:n])
-	return n, c.err
-}
-
-func TestStatusLineAcrossWrites(t *testing.T) {
-	interim := "HTTP/1.1 100 Continue\r\nX-Status: HTTP/1.1 400 Bad Request\r\n\r\n"
-	for _, tc := range []struct {
-		name, status, input, want string
-	}{
-		{"longer", "400 Custom Reason", "HTTP/1.1 400 Bad Request\r\n\r\nbody", "HTTP/1.1 400 Custom Reason\r\n\r\nbody"},
-		{"shorter", "200 X", "HTTP/1.1 200 OK\r\n\r\nbody", "HTTP/1.1 200 X\r\n\r\nbody"},
-		{"http10", "400 Custom Reason", "HTTP/1.0 400 Bad Request\r\n\r\nbody", "HTTP/1.0 400 Custom Reason\r\n\r\nbody"},
-		{"interim", "400 Custom Reason", interim + "HTTP/1.1 400 Bad Request\r\n\r\nbody", interim + "HTTP/1.1 400 Custom Reason\r\n\r\nbody"},
-		{"body", "400 Custom Reason", "HTTP/1.1 400 Bad Request\r\n\r\nHTTP/1.1 400 Bad Request\r\n", "HTTP/1.1 400 Custom Reason\r\n\r\nHTTP/1.1 400 Bad Request\r\n"},
-		{"unexpected status", "400 Custom Reason", "HTTP/1.1 500 Internal Server Error\r\n\r\nHTTP/1.1 400 Bad Request\r\n", "HTTP/1.1 500 Internal Server Error\r\n\r\nHTTP/1.1 400 Bad Request\r\n"},
-	} {
-		for _, size := range []int{1, len(tc.input)} {
-			t.Run(fmt.Sprintf("%s/%d", tc.name, size), func(t *testing.T) {
-				output := &statusWriteConn{remaining: len(tc.want)}
-				conn := &statusConn{Conn: output}
-				conn.setStatus(tc.status)
-				for rest := tc.input; rest != ""; {
-					next := rest[:min(size, len(rest))]
-					n, err := conn.Write([]byte(next))
-					if err != nil || n != len(next) {
-						t.Fatalf("Write = %d, %v, want %d, nil", n, err, len(next))
-					}
-					rest = rest[len(next):]
-				}
-				if got := output.output.String(); got != tc.want {
-					t.Errorf("wire = %q, want %q", got, tc.want)
-				}
-			})
-		}
-	}
-}
-
-func TestStatusLineWriteErrors(t *testing.T) {
-	failure := errors.New("write failed")
-	input := "HTTP/1.1 400 Bad Request\r\nX-Kept: yes\r\n\r\nbody"
-	oldLineLen := len("HTTP/1.1 400 Bad Request\r\n")
-	for _, status := range []string{"400 X", "400 A much longer reason"} {
-		for _, buffered := range []int{0, 5} {
-			for _, afterLine := range []bool{false, true} {
-				t.Run(fmt.Sprintf("%s/%d/%t", status, buffered, afterLine), func(t *testing.T) {
-					limit, want := 5, 0
-					if afterLine {
-						limit = len("HTTP/1.1 "+status+"\r\n") + 3
-						want = oldLineLen + 3 - buffered
-					}
-					output := &statusWriteConn{remaining: limit, err: failure}
-					conn := &statusConn{Conn: output}
-					conn.setStatus(status)
-					if buffered != 0 {
-						if n, err := conn.Write([]byte(input[:buffered])); err != nil || n != buffered {
-							t.Fatalf("buffered Write = %d, %v", n, err)
-						}
-					}
-					n, err := conn.Write([]byte(input[buffered:]))
-					if !errors.Is(err, failure) || n != want {
-						t.Errorf("Write = %d, %v, want %d, %v", n, err, want, failure)
-					}
-					if n, err := conn.Write([]byte("next")); n != 0 || !errors.Is(err, failure) {
-						t.Errorf("Write after failure = %d, %v", n, err)
-					}
-				})
-			}
-		}
-	}
-	t.Run("short write", func(t *testing.T) {
-		conn := &statusConn{Conn: &statusWriteConn{remaining: 5}}
-		conn.setStatus("400 Custom Reason")
-		if _, err := conn.Write([]byte(input)); !errors.Is(err, io.ErrShortWrite) {
-			t.Errorf("Write error = %v, want %v", err, io.ErrShortWrite)
-		}
-	})
-}
-
-func TestStatusConnectionHalfClose(t *testing.T) {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer ln.Close()
-	client, err := net.Dial("tcp", ln.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer client.Close()
-	server, err := ln.Accept()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer server.Close()
-	server.SetDeadline(time.Now().Add(5 * time.Second))
-	client.SetDeadline(time.Now().Add(5 * time.Second))
-	conn := &statusConn{Conn: server}
-	if err := conn.CloseWrite(); err != nil {
-		t.Fatal(err)
-	}
-	var data [4]byte
-	if _, err := client.Read(data[:]); err != io.EOF {
-		t.Fatalf("client read = %v, want EOF", err)
-	}
-	io.WriteString(client, "ping")
-	if _, err := io.ReadFull(conn, data[:]); err != nil || string(data[:]) != "ping" {
-		t.Fatalf("read after CloseWrite = %q, %v", data, err)
-	}
-}
 
 // received is what the stub upstream saw.
 type received struct {
@@ -381,13 +262,22 @@ func TestClientIP(t *testing.T) {
 	}
 }
 
-func TestKeepsNodesStatusLine(t *testing.T) {
-	for _, status := range []string{"400 Invalid JSON", "413 Payload Too Large", "200 OK", "404 Not Found"} {
-		t.Run(status, func(t *testing.T) {
+func TestUsesStandardStatusText(t *testing.T) {
+	for _, tc := range []struct {
+		status string
+		code   int
+	}{
+		{"400 Invalid JSON", http.StatusBadRequest},
+		{"413 Payload Too Large", http.StatusRequestEntityTooLarge},
+		{"200 Custom Reason", http.StatusOK},
+		{"200 OK", http.StatusOK},
+		{"404 Not Found", http.StatusNotFound},
+	} {
+		t.Run(tc.status, func(t *testing.T) {
 			addr, _ := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
 				conn, buf, _ := w.(http.Hijacker).Hijack()
 				defer conn.Close()
-				fmt.Fprintf(buf, "HTTP/1.1 %s\r\nContent-Length: 5\r\nX-Kept: yes\r\n\r\nhello", status)
+				fmt.Fprintf(buf, "HTTP/1.1 %s\r\nContent-Length: 5\r\nX-Kept: yes\r\n\r\nhello", tc.status)
 				buf.Flush()
 			})
 			conn, err := net.Dial("tcp", addr)
@@ -401,8 +291,9 @@ func TestKeepsNodesStatusLine(t *testing.T) {
 				t.Fatal(err)
 			}
 			body, _ := io.ReadAll(res.Body)
-			if res.Status != status || string(body) != "hello" || res.Header.Get("X-Kept") != "yes" {
-				t.Errorf("got %q %q %q, want %q hello yes", res.Status, body, res.Header.Get("X-Kept"), status)
+			want := fmt.Sprintf("%d %s", tc.code, http.StatusText(tc.code))
+			if res.Status != want || string(body) != "hello" || res.Header.Get("X-Kept") != "yes" {
+				t.Errorf("got %q %q %q, want %q hello yes", res.Status, body, res.Header.Get("X-Kept"), want)
 			}
 		})
 	}
@@ -420,8 +311,8 @@ func TestKeepsTrailersWithACustomStatusLine(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Status != "400 Custom Reason" || string(body) != "body" {
-		t.Fatalf("got %q %q, want 400 Custom Reason body", res.Status, body)
+	if res.Status != "400 Bad Request" || string(body) != "body" {
+		t.Fatalf("got %q %q, want 400 Bad Request body", res.Status, body)
 	}
 	if got := strings.Join(res.Trailer.Values("X-Checksum"), "|"); got != "abc123|second" {
 		t.Errorf("X-Checksum trailer = %q, want abc123|second", got)
@@ -450,7 +341,7 @@ func TestKeepsACustomStatusConnectionAlive(t *testing.T) {
 	conn.SetDeadline(time.Now().Add(5 * time.Second))
 	reader := bufio.NewReader(conn)
 	for _, tc := range []struct{ path, status, body string }{
-		{"/custom", "400 Custom Reason", "hello"},
+		{"/custom", "400 Bad Request", "hello"},
 		{"/standard", "200 OK", "HTTP/1.1 400 Bad Request\r\n"},
 	} {
 		fmt.Fprintf(conn, "GET %s HTTP/1.1\r\nHost: shop.example.com\r\n\r\n", tc.path)
@@ -488,8 +379,8 @@ func TestKeepsHeadSemanticsWithACustomStatusLine(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Status != "400 Custom Reason" || res.ContentLength != 5 {
-		t.Fatalf("got %q with length %d, want 400 Custom Reason with length 5", res.Status, res.ContentLength)
+	if res.Status != "400 Bad Request" || res.ContentLength != 5 {
+		t.Fatalf("got %q with length %d, want 400 Bad Request with length 5", res.Status, res.ContentLength)
 	}
 	// Read the wire, rather than res.Body, which a HEAD client always treats
 	// as empty even if the server incorrectly writes bytes after the headers.
@@ -684,7 +575,7 @@ func TestStreamsACustomStatusDuringAnUpload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Status != "200 Custom Reason" || string(first[:])+string(rest) != "first-last" {
+	if res.Status != "200 OK" || string(first[:])+string(rest) != "first-last" {
 		t.Errorf("got %q %q%q", res.Status, first, rest)
 	}
 }
@@ -851,11 +742,16 @@ func TestClosesARequestWhoseBodyNeverFinishes(t *testing.T) {
 
 			conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 			start := time.Now()
-			if _, err := io.ReadAll(conn); err != nil {
+			answer, err := io.ReadAll(conn)
+			if err != nil {
 				t.Fatalf("connection not closed by the server: %v", err)
 			}
 			if elapsed := time.Since(start); elapsed > 3*time.Second {
 				t.Errorf("closed after %v, want about the 300ms request timeout", elapsed)
+			}
+			// Node answers a request that hits its requestTimeout with 408.
+			if !strings.HasPrefix(string(answer), "HTTP/1.1 408 Request Timeout\r\n") {
+				t.Errorf("answered %q, want 408 Request Timeout", answer)
 			}
 		})
 	}
@@ -914,8 +810,7 @@ func TestAnswersBeforeTheUploadFinishes(t *testing.T) {
 	}
 }
 
-// A response with a custom reason phrase goes through keepStatusLine.
-// The trailers Node sends after a chunked body must still reach the client.
+// An upstream custom reason phrase must not affect the response trailers.
 func TestKeepsTrailersOnACustomStatusLine(t *testing.T) {
 	addr := startFrontFor(t, func(w http.ResponseWriter, r *http.Request) {
 		conn, buf, _ := w.(http.Hijacker).Hijack()
@@ -929,10 +824,189 @@ func TestKeepsTrailersOnACustomStatusLine(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Status != "400 Custom Reason" || string(body) != "hello" {
-		t.Errorf("got %q %q, want \"400 Custom Reason\" \"hello\"", res.Status, body)
+	if res.Status != "400 Bad Request" || string(body) != "hello" {
+		t.Errorf("got %q %q, want \"400 Bad Request\" \"hello\"", res.Status, body)
 	}
 	if got := res.Trailer.Get("X-Checksum"); got != "abc123" {
 		t.Errorf("trailer X-Checksum = %q, want %q", got, "abc123")
+	}
+}
+
+// HTTP/1.0 allows a request without a Host header. Node must see the public
+// address, not the front's connection to Node.
+func TestUsesThePublicAddressWhenTheRequestHasNoHost(t *testing.T) {
+	addr, seen := startProxy(t, nil)
+	rawRoundTrip(t, addr, "GET /health HTTP/1.0\r\n\r\n")
+	if got := (<-seen).host; got != addr {
+		t.Errorf("Node saw Host %q, want the public address %q", got, addr)
+	}
+}
+
+// lockedBuffer is a bytes.Buffer safe to write from the server's goroutines.
+type lockedBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *lockedBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *lockedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+// A client that leaves before Node answers, like a cancelled prefetch, isn't
+// an error worth logging; Node logs nothing either.
+func TestLogsNothingWhenTheClientLeavesEarly(t *testing.T) {
+	var logged lockedBuffer
+	proxyErrorLog.SetOutput(&logged)
+	t.Cleanup(func() { proxyErrorLog.SetOutput(os.Stderr) })
+
+	cancelled := make(chan struct{})
+	addr, _ := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+		close(cancelled)
+	})
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	io.WriteString(conn, get("/slow"))
+	time.Sleep(100 * time.Millisecond)
+	conn.Close()
+
+	select {
+	case <-cancelled:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Node never saw the request cancelled")
+	}
+	// Give the front's error handler time to run after the cancellation.
+	time.Sleep(200 * time.Millisecond)
+	if got := logged.String(); got != "" {
+		t.Errorf("logged %q, want nothing", got)
+	}
+}
+
+// Go reads 0 differently from Node for the client idle timeout and the pool
+// idle time, so those are refused; 0 header and request timeouts mean no
+// limit, as in Node.
+func TestRejectsTimeoutsGoWouldReadDifferently(t *testing.T) {
+	base := map[string]string{"--listen": ":0", "--upstream": "127.0.0.1:1", "--idle-timeout-ms": "65000", "--header-timeout-ms": "60000", "--request-timeout-ms": "300000", "--upstream-idle-ms": "4000"}
+	args := func(name, value string) []string {
+		var out []string
+		for k, v := range base {
+			if k == name {
+				v = value
+			}
+			out = append(out, k, v)
+		}
+		return out
+	}
+	for _, c := range []struct {
+		name, value string
+		ok          bool
+	}{
+		{"--idle-timeout-ms", "0", false},
+		{"--upstream-idle-ms", "0", false},
+		{"--header-timeout-ms", "-1", false},
+		{"--request-timeout-ms", "-1", false},
+		{"--header-timeout-ms", "0", true},
+		{"--request-timeout-ms", "0", true},
+	} {
+		_, err := parseConfig(args(c.name, c.value))
+		if (err == nil) != c.ok {
+			t.Errorf("%s %s: err = %v, want ok=%v", c.name, c.value, err, c.ok)
+		}
+	}
+}
+
+// A target in absolute form isn't passed on as sent: Go's server takes the
+// Host from the target and drops the client's Host header, and Node gets the
+// path. This pins down that known difference from plain next start.
+func TestAbsoluteFormTargetReachesNodeAsAPathWithTheTargetsHost(t *testing.T) {
+	addr, seen := startProxy(t, nil)
+	rawRoundTrip(t, addr, "GET http://other.example/p?q=1 HTTP/1.1\r\nHost: shop.example.com\r\nConnection: close\r\n\r\n")
+	got := <-seen
+	if got.requestURI != "/p?q=1" || got.host != "other.example" {
+		t.Errorf("Node saw %q with Host %q, want %q with Host %q", got.requestURI, got.host, "/p?q=1", "other.example")
+	}
+}
+
+// When Node answers before the client has finished its upload, the rest of
+// the body is still on the connection. The front must close the connection
+// after the answer, so those bytes are never read as another request.
+func TestClosesTheConnectionAfterAnAnswerThatCameBeforeTheBodyEnded(t *testing.T) {
+	done := make(chan struct{})
+	t.Cleanup(func() { close(done) })
+	seen := make(chan string, 4)
+	addr := startFrontFor(t, func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.RequestURI
+		// Answer the way Node does for /_next/static/ misses, without reading
+		// the body, and keep the connection open.
+		conn, buf, _ := w.(http.Hijacker).Hijack()
+		defer conn.Close()
+		io.WriteString(buf, "HTTP/1.1 404 Not Found\r\nContent-Length: 9\r\n\r\nNot Found")
+		buf.Flush()
+		<-done
+	})
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	// A chunked upload whose last chunk hasn't been sent yet.
+	io.WriteString(conn, "POST /_next/static/x HTTP/1.1\r\nHost: shop.example.com\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n")
+	conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+	reader := bufio.NewReader(conn)
+	res, err := http.ReadResponse(reader, nil)
+	if err != nil {
+		t.Fatalf("no answer: %v", err)
+	}
+	io.Copy(io.Discard, res.Body)
+	if res.StatusCode != http.StatusNotFound || !res.Close {
+		t.Errorf("got %d with Close=%v, want 404 with Connection: close", res.StatusCode, res.Close)
+	}
+	// What the client sends next must not reach Node as a request.
+	io.WriteString(conn, "0\r\n\r\nGET /second HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
+	if _, err := reader.ReadByte(); err != io.EOF {
+		t.Errorf("connection still open after the answer: err = %v", err)
+	}
+	<-seen
+	select {
+	case uri := <-seen:
+		t.Errorf("Node got a second request %q from the same connection", uri)
+	case <-time.After(200 * time.Millisecond):
+	}
+}
+
+// An upload Node has read in full doesn't need the connection closed; it
+// stays open for the next request, as without the front.
+func TestKeepsTheConnectionOpenAfterACompleteUpload(t *testing.T) {
+	addr := startFrontFor(t, func(w http.ResponseWriter, r *http.Request) {
+		io.Copy(io.Discard, r.Body)
+		io.WriteString(w, "ok")
+	})
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+	reader := bufio.NewReader(conn)
+	for i := 0; i < 2; i++ {
+		io.WriteString(conn, "POST /upload HTTP/1.1\r\nHost: shop.example.com\r\nContent-Length: 5\r\n\r\nhello")
+		res, err := http.ReadResponse(reader, nil)
+		if err != nil {
+			t.Fatalf("request %d: %v", i+1, err)
+		}
+		io.Copy(io.Discard, res.Body)
+		if res.Close {
+			t.Errorf("request %d: connection closed after a complete upload", i+1)
+		}
 	}
 }

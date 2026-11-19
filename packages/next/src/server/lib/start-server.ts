@@ -492,19 +492,22 @@ export async function startServer(
 
             // first, stop accepting new connections and finish pending requests,
             // because they might affect `nextServer.close()` (e.g. by scheduling an `after`)
-            await Promise.all([
-              new Promise<void>((res) => {
-                server.close((err) => {
-                  if (err) console.error(err)
-                  res()
-                })
-                if (isDev) {
-                  server.closeAllConnections()
-                  closeUpgraded?.()
-                }
-              }),
-              publicServer?.close(),
-            ])
+            //
+            // With the Go front on, it stops first: it stops accepting and
+            // finishes the requests it already has, which still need Node.
+            // Closing Node's server at the same time would refuse the front's
+            // new connections to Node and turn those requests into 502s.
+            await publicServer?.close()
+            await new Promise<void>((res) => {
+              server.close((err) => {
+                if (err) console.error(err)
+                res()
+              })
+              if (isDev) {
+                server.closeAllConnections()
+                closeUpgraded?.()
+              }
+            })
 
             // now that no new requests can come in, clean up the rest
             await Promise.all([
