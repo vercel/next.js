@@ -989,6 +989,7 @@ impl ModuleOptions {
                     RuleCondition::all(vec![module_css_condition.clone()]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::CssModule {
                         source_map_generation_options: css_source_map_generation_options,
+                        mangle_export_names,
                     })],
                 ),
                 ModuleRule::new_all(

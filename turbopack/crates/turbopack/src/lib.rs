@@ -243,11 +243,13 @@ async fn apply_module_type(
         }
         ModuleType::CssModule {
             source_map_generation_options,
+            mangle_export_names,
         } => ResolvedVc::upcast(
             EcmascriptCssModule::new(
                 *source,
                 Vc::upcast(module_asset_context),
                 *source_map_generation_options,
+                *mangle_export_names,
             )
             .to_resolved()
             .await?,

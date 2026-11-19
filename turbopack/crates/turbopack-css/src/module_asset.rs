@@ -24,7 +24,8 @@ use turbopack_ecmascript::{
         EcmascriptExports, ecmascript_chunk_item,
     },
     parse::generate_js_source_map,
-    runtime_functions::TURBOPACK_EXPORT_VALUE,
+    references::esm::{EsmExport, EsmExports, Liveness, generated_export_key},
+    runtime_functions::TURBOPACK_ESM,
     utils::StringifyJs,
 };
 
@@ -46,6 +47,9 @@ pub struct EcmascriptCssModule {
     /// The path of `source`, precomputed so that `ResolveOrigin::origin_path` is synchronous.
     origin_path: FileSystemPath,
     source_map_generation_options: SourceMapGenerationOptions,
+    /// Whether the keys the exports are emitted under may be shortened, see
+    /// [`EsmExports::mangle_export_names`].
+    mangle_export_names: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -55,14 +59,22 @@ impl EcmascriptCssModule {
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
         source_map_generation_options: SourceMapGenerationOptions,
+        mangle_export_names: bool,
     ) -> Result<Vc<Self>> {
         Ok(Self::cell(EcmascriptCssModule {
             origin_path: source.ident().await?.path.clone(),
             source,
             asset_context,
             source_map_generation_options,
+            mangle_export_names,
         }))
     }
+}
+
+/// Whether the class `name` is also exported as a named export. Every class is a key of the default
+/// export object, but `default` is that object itself and `__esModule` is defined by the runtime.
+fn is_named_export(name: &str) -> bool {
+    name != "default" && name != "__esModule"
 }
 
 #[turbo_tasks::value_impl]
@@ -270,9 +282,34 @@ impl ChunkableModule for EcmascriptCssModule {
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for EcmascriptCssModule {
+    /// The default export is the object of all class names, and every class is also a named
+    /// export (see [`is_named_export`]), including names that aren't identifiers, like `foo-bar`.
     #[turbo_tasks::function]
-    fn get_exports(&self) -> Vc<EcmascriptExports> {
-        EcmascriptExports::Value.cell()
+    async fn get_exports(self: Vc<Self>) -> Result<Vc<EcmascriptExports>> {
+        let classes = self.classes().await?;
+        let exports = std::iter::once(rcstr!("default"))
+            .chain(
+                classes
+                    .keys()
+                    .filter(|name| is_named_export(name))
+                    .map(|name| RcStr::from(name.as_str())),
+            )
+            .map(|name| {
+                (
+                    name.clone(),
+                    EsmExport::LocalBinding(name, Liveness::Constant),
+                )
+            })
+            .collect();
+        Ok(EcmascriptExports::EsmExports(
+            EsmExports {
+                exports,
+                star_exports: vec![],
+                mangle_export_names: self.await?.mangle_export_names,
+            }
+            .resolved_cell(),
+        )
+        .cell())
     }
 
     #[turbo_tasks::function]
@@ -295,16 +332,45 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
             );
         };
 
-        let mut code = format!("{TURBOPACK_EXPORT_VALUE}({{\n");
+        // Like other ESM modules, only the used exports are emitted, under the keys their
+        // importers read (which are shortened when the exports are mangled). The generated code
+        // doesn't import anything at runtime (the `composes` references only order stylesheets),
+        // so it can't be part of an import cycle and its exports can be plain values.
+        let module = ResolvedVc::upcast::<Box<dyn EcmascriptChunkPlaceable>>(self);
+        let export_usage = chunking_context
+            .module_export_usage(*ResolvedVc::upcast(self))
+            .await?
+            .export_usage
+            .await?;
+        let mut code = format!("{TURBOPACK_ESM}([\n");
+        let default = rcstr!("default");
+        if export_usage.is_export_used(&default) {
+            let key = generated_export_key(module, chunking_context, &default).await?;
+            writeln!(code, "  {}, 0, {{", StringifyJs(&key))?;
+            for (export_name, class_names) in &classes.0 {
+                writeln!(
+                    code,
+                    "    {}: {},",
+                    StringifyJs(export_name),
+                    StringifyJs(&class_names.join(" "))
+                )?;
+            }
+            code += "  },\n";
+        }
         for (export_name, class_names) in &classes.0 {
+            let export_name = RcStr::from(export_name.as_str());
+            if !is_named_export(&export_name) || !export_usage.is_export_used(&export_name) {
+                continue;
+            }
+            let key = generated_export_key(module, chunking_context, &export_name).await?;
             writeln!(
                 code,
-                "  {}: {},",
-                StringifyJs(export_name),
+                "  {}, 0, {},",
+                StringifyJs(&key),
                 StringifyJs(&class_names.join(" "))
             )?;
         }
-        code += "});\n";
+        code += "]);\n";
         let generation = self.await?.source_map_generation_options;
         let map = if generation.should_generate_any_source_maps() {
             Some(generate_minimal_source_map(

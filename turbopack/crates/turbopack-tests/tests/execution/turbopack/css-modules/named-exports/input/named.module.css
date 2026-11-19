@@ -1,0 +1,16 @@
+.usedBaseClassName {
+  color: red;
+}
+
+.usedComposedClassName {
+  composes: usedBaseClassName;
+  color: blue;
+}
+
+.used-dashed-class-name {
+  color: green;
+}
+
+.unusedClassName {
+  color: gray;
+}
