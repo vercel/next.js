@@ -31,20 +31,32 @@ describe('Rendering next/head', () => {
     })
 
     it('should warn when an invalid tag is placed inside next/head', () => {
-      // Dynamically require warn-once so we can spy on warnOnce
+      // Dynamically require warn-once and HeadManagerContext so we can spy on warnOnce and provide headManager
       jest.isolateModules(() => {
         const warnOnceModule = require('next/dist/shared/lib/utils/warn-once')
+        const {
+          HeadManagerContext,
+        } = require('next/dist/shared/lib/head-manager-context.shared-runtime')
         const warnOnceSpy = jest
           .spyOn(warnOnceModule, 'warnOnce')
           .mockImplementation(() => {})
 
+        const headManager = {
+          mountedInstances: new Set(),
+          updateHead: jest.fn(),
+        }
+
         ReactDOM.renderToString(
           React.createElement(
-            Head,
-            {},
-            // <html> is an invalid tag inside <Head>
-            React.createElement('html', { lang: 'en' }),
-            React.createElement('title', {}, 'Test Page')
+            HeadManagerContext.Provider,
+            { value: headManager },
+            React.createElement(
+              Head,
+              {},
+              // <html> is an invalid tag inside <Head>
+              React.createElement('html', { lang: 'en' }),
+              React.createElement('title', {}, 'Test Page')
+            )
           )
         )
 
@@ -59,17 +71,32 @@ describe('Rendering next/head', () => {
     it('should NOT warn when valid tags are placed inside next/head', () => {
       jest.isolateModules(() => {
         const warnOnceModule = require('next/dist/shared/lib/utils/warn-once')
+        const {
+          HeadManagerContext,
+        } = require('next/dist/shared/lib/head-manager-context.shared-runtime')
         const warnOnceSpy = jest
           .spyOn(warnOnceModule, 'warnOnce')
           .mockImplementation(() => {})
 
+        const headManager = {
+          mountedInstances: new Set(),
+          updateHead: jest.fn(),
+        }
+
         ReactDOM.renderToString(
           React.createElement(
-            Head,
-            {},
-            React.createElement('title', {}, 'Valid Page'),
-            React.createElement('meta', { name: 'description', content: 'ok' }),
-            React.createElement('link', { rel: 'canonical', href: '/page' })
+            HeadManagerContext.Provider,
+            { value: headManager },
+            React.createElement(
+              Head,
+              {},
+              React.createElement('title', {}, 'Valid Page'),
+              React.createElement('meta', {
+                name: 'description',
+                content: 'ok',
+              }),
+              React.createElement('link', { rel: 'canonical', href: '/page' })
+            )
           )
         )
 
