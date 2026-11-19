@@ -34,13 +34,27 @@ If you could swap "Next.js" for "any React framework" and the code is unchanged,
 
 ### 4. Maintenance is part of the contract
 
-Publishing an example is an implicit promise to maintain it. An example becomes an eviction candidate when any of the following is true:
+Publishing an example is an implicit promise to maintain it. An example becomes an eviction candidate when any of the following is true and there is no maintainer stepping forward:
 
 - It depends on a library or vendor that has been archived, sunset, or officially deprecated.
 - It breaks on the current Next.js release.
 - It teaches a pattern the framework has since absorbed or moved past.
 
 Removed examples remain in git history and can always be resurrected if the need returns.
+
+## Submitting a new example
+
+Before opening a PR, confirm:
+
+1. The example clears every filter above.
+2. There is no existing example in the same category (see "one canonical example per category").
+3. You, your team, or the vendor behind the integration can commit to maintaining it.
+
+If the criteria are not met, consider one of these alternatives instead:
+
+- A docs page or guide in the main Next.js documentation.
+- Publishing the example in your own repo and linking to it from your integration docs.
+- Submitting to the Vercel templates gallery.
 
 ## Using Next.js with X
 
@@ -60,3 +74,5 @@ If you are looking for an example that has been removed:
 2. **Check the [Using Next.js with X](#using-nextjs-with-x) section above.** Many integrations now live upstream in the vendor's docs.
 3. **Check the library or service's own documentation.** For most third-party integrations (auth providers, CMSes, analytics, UI libraries, ORMs, hosting platforms), the vendor maintains a Next.js quickstart or starter that is fresher and more accurate than anything we used to ship here.
 4. **Check the Vercel templates gallery.** Product-shaped starters increasingly live there rather than in this directory.
+
+If the missing example is one you would have used and you are willing to maintain it on an ongoing basis, see the submission criteria above and open a PR.
