@@ -100,10 +100,12 @@ impl OutputValue {
     }
 }
 
+/// The rarely needed part of a task's activeness: root and active-until-clean state, the event to
+/// wait for the subgraph to become clean, and the active count while it doesn't fit the inline
+/// `active_count`. Most tasks are active only through their active count, which lives inline in
+/// the task storage; see `ActivenessAccessors`.
 #[derive(Debug)]
 pub struct ActivenessState {
-    /// When this counter is > 0, the task is active.
-    pub active_counter: i32,
     /// The task is a root or once task and is active due to that.
     pub root_ty: Option<RootType>,
     /// The subgraph is active as long it's dirty. Once it become clean, it will unset this flag.
@@ -114,6 +116,9 @@ pub struct ActivenessState {
     /// It also happens when a task is strongly consistently read. We need the `all_clean_event` in
     /// that case and want to keep the task active to not stale the task.
     pub active_until_clean: bool,
+    /// The active count while it doesn't fit the inline `active_count`, which then holds
+    /// `ACTIVE_COUNT_SPILLED`.
+    pub spilled_active_count: Option<i32>,
     /// An event which is notifies when the subgraph is no longer dirty. It must be combined with
     /// `active_until_clean` to avoid staling the task.
     pub all_clean_event: Event,
@@ -122,9 +127,9 @@ pub struct ActivenessState {
 impl ActivenessState {
     pub fn new(id: TaskId) -> Self {
         Self {
-            active_counter: 0,
             root_ty: None,
             active_until_clean: false,
+            spilled_active_count: None,
             all_clean_event: Event::new(move || {
                 move || format!("ActivenessState::all_clean_event {id:?}")
             }),
@@ -145,18 +150,6 @@ impl ActivenessState {
         self.active_until_clean = true;
     }
 
-    /// Increment the active counter and return true if the counter was 0 before.
-    pub fn increment_active_counter(&mut self) -> bool {
-        self.active_counter += 1;
-        self.active_counter == 1
-    }
-
-    /// Decrement the active counter and return true if the counter is 0 after.
-    pub fn decrement_active_counter(&mut self) -> bool {
-        self.active_counter -= 1;
-        self.active_counter == 0
-    }
-
     pub fn unset_root_type(&mut self) {
         self.root_ty = None;
     }
@@ -165,8 +158,9 @@ impl ActivenessState {
         self.active_until_clean = false;
     }
 
+    /// Whether this holds nothing, so the task's activeness is just its inline active count.
     pub fn is_empty(&self) -> bool {
-        self.root_ty.is_none() && !self.active_until_clean && self.active_counter == 0
+        self.root_ty.is_none() && !self.active_until_clean && self.spilled_active_count.is_none()
     }
 }
 

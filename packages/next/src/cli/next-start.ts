@@ -11,6 +11,10 @@ import '../server/lib/cpu-profile'
 import { saveCpuProfile } from '../server/lib/cpu-profile'
 import { startServer } from '../server/lib/start-server'
 import {
+  isFrontServerEnabled,
+  startFrontServer,
+} from '../server/lib/front-server'
+import {
   getParsedDebugAddress,
   formatDebugAddress,
   printAndExit,
@@ -83,7 +87,8 @@ const nextStart = async (options: NextStartOptions, directory?: string) => {
     process.on('SIGINT', () => saveCpuProfile())
   }
 
-  await startServer({
+  const start = isFrontServerEnabled() ? startFrontServer : startServer
+  await start({
     dir,
     isDev: false,
     hostname,

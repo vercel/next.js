@@ -123,7 +123,7 @@ async fn service_worker_chunk(
                 // The service-worker chunking context doesn't enable module merging (scope
                 // hoisting), so `compute_merged_modules` never runs on this graph.
                 include_mergeable: false,
-                include_traced: *project.should_write_nft_manifests().await?,
+                include_traced: *project.should_trace().await?,
                 include_binding_usage: is_production,
             },
         )],

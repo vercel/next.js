@@ -111,7 +111,7 @@ const classificationKey = ({ routeType, response, compute }: Classification) =>
       expect(omittedFallback).not.toHaveProperty('compute')
     })
 
-    it('exposes classification only on canonical responses', async () => {
+    it('classifies full-route App Router RSC without classifying Pages Router data', async () => {
       const prerenders = await getPrerenders()
       const completePage = prerenders.find((output) => output.pathname === '/')
       const blockingPage = prerenders.find(
@@ -142,10 +142,34 @@ const classificationKey = ({ routeType, response, compute }: Classification) =>
       expect(route).not.toHaveProperty('htmlSize')
 
       expect(rsc).toBeDefined()
-      expect(rsc).not.toHaveProperty('routeType')
-      expect(rsc).not.toHaveProperty('response')
-      expect(rsc).not.toHaveProperty('compute')
+      expect(rsc).toMatchObject({
+        routeType: 'page',
+        response: 'complete',
+        compute: 'static',
+      })
       expect(rsc).not.toHaveProperty('htmlSize')
+
+      const templateRsc = prerenders.find(
+        (output) => output.pathname === '/products/[slug].rsc'
+      )
+      expect(templateRsc).toBeDefined()
+      expect(templateRsc).toMatchObject({
+        routeType: 'page',
+        response: 'empty',
+        compute: 'blocking',
+      })
+      expect(templateRsc).not.toHaveProperty('htmlSize')
+
+      const pagesData = prerenders.filter((output) =>
+        output.pathname.endsWith('.json')
+      )
+      expect(pagesData.length).toBeGreaterThan(0)
+      for (const output of pagesData) {
+        expect(output).not.toHaveProperty('routeType')
+        expect(output).not.toHaveProperty('response')
+        expect(output).not.toHaveProperty('compute')
+        expect(output).not.toHaveProperty('htmlSize')
+      }
     })
   }
 )

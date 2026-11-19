@@ -19,6 +19,13 @@
 # members picked at random by scripts/review-context.mjs, from the people
 # listed here who committed in the past week.
 # TODO: request the Next.js oncall instead, once Vercel Agent supports it.
+#
+# [team-members] isn't an area. It lists people on the team who don't own an
+# area yet, so the agent treats them as team members when they author a PR.
+# It takes no globs and no rubric, and its members are never requested as
+# reviewers.
+
+[team-members] @jimmyhmiller
 
 # ----------------------------------------------------------------------
 # App Router runtime
@@ -775,6 +782,22 @@ scripts/sync-react.js
 .agents/skills/{react-vendoring,react-sync}/**
 test/lib/react-channel-require-hook.js
 test/e2e/app-dir/{taint,temporary-references,view-transitions,gesture-transitions}/**
+
+[react] @acdlite @eps1lon @unstubbable
+packages/next/src/compiled/react/**
+packages/next/src/compiled/react-dom/**
+packages/next/src/compiled/react-experimental/**
+packages/next/src/compiled/react-dom-experimental/**
+packages/next/src/compiled/react-is/**
+packages/next/src/compiled/react-server-dom-webpack/**
+packages/next/src/compiled/react-server-dom-webpack-experimental/**
+packages/next/src/compiled/react-server-dom-turbopack/**
+packages/next/src/compiled/react-server-dom-turbopack-experimental/**
+packages/next/src/compiled/scheduler*/**
+packages/next/src/server/route-modules/app-page/vendored/**
+packages/next/src/server/app-render/entry-base.ts
+packages/next/src/server/app-render/react-server.node.ts
+scripts/sync-react.js
 
 [next-package-build] @eps1lon @timneutkens
 packages/next/src/compiled/**

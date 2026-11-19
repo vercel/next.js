@@ -60,13 +60,13 @@ impl NextServerComponentModule {
     }
 }
 
-const NEXT_JS_SERVER_COMPONENT: RcStr = rcstr!("Next.js Server Component");
+static NEXT_JS_SERVER_COMPONENT: RcStr = rcstr!("Next.js Server Component");
 
 impl NextServerComponentModule {
     fn module_reference(&self) -> Vc<Box<dyn ModuleReference>> {
         Vc::upcast(SingleChunkableModuleReference::new(
             Vc::upcast(*self.module),
-            NEXT_JS_SERVER_COMPONENT,
+            NEXT_JS_SERVER_COMPONENT.clone(),
             ExportUsage::passthrough(true),
         ))
     }
@@ -81,7 +81,7 @@ impl Module for NextServerComponentModule {
             .ident()
             .owned()
             .await?
-            .with_modifier(NEXT_JS_SERVER_COMPONENT)
+            .with_modifier(NEXT_JS_SERVER_COMPONENT.clone())
             .into_vc())
     }
 

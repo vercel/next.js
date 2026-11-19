@@ -694,6 +694,8 @@ class NextTracerImpl implements NextTracer {
   public startSpan(type: SpanTypes, options: TracerSpanOptions): Span
   public startSpan(...args: Array<any>): Span {
     const [type, passedOptions]: [string, TracerSpanOptions | undefined] =
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       args as any
     const options: TracerSpanOptions = passedOptions
       ? {

@@ -31,7 +31,7 @@ use next_api::{
     project::{
         AdditionalRootConfig, AdditionalRootName, DebugBuildPaths, DefineEnv, DraftModeOptions,
         PartialProjectOptions, Project, ProjectContainer, ProjectOptions, WatchOptions,
-        activate_lazy_chunk_operation,
+        activate_lazy_chunk_operation, compute_whole_app_client_style_groups_early,
     },
     project_asset_hashes_manifest::immutable_hashes_manifest_asset_if_enabled,
     route::{Endpoint, EndpointGroupKey, Route},
@@ -57,6 +57,7 @@ use turbo_tasks::{
     Effects, FxIndexSet, GcRoot, OperationValue, OperationVc, PrettyPrintError, ReadRef,
     ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi, UpdateInfo,
     Vc, mark_top_level_task,
+    memory::release_freed_memory,
     message_queue::{CompilationEvent, Severity, TraceEvent},
     read_strongly_consistent_and_apply_effects, take_effects, turbo_tasks,
     unmark_top_level_task_may_leak_eventually_consistent_state,
@@ -68,6 +69,7 @@ use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystem, FileSystemPath, canonicalize_to_rcstr, invalidation,
     util::uri_from_file,
 };
+use turbo_tasks_malloc::TurboMalloc;
 use turbo_unix_path::{get_relative_path_to, unix_to_sys};
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
@@ -897,6 +899,12 @@ async fn run_shutdown_hooks(project: &ProjectInstance) {
 
 /// Runs resource cleanup, stops Turbo Tasks, and then flushes the project's exit handlers.
 ///
+/// Stopping persists and drops the turbo-tasks storage, which is most of the process's heap. The
+/// allocator is in eager purge mode meanwhile (see [`TurboMalloc::enter_eager_purge_mode`]), so
+/// that memory is returned to the OS progressively while it's freed, and before resolving, this
+/// also returns the rest (see [`release_freed_memory`]). That way it isn't held while the caller
+/// does other memory-hungry work (e.g. static generation workers), during or after the shutdown.
+///
 /// This is used in builds where it's important that we completely persist turbo-tasks to disk, but
 /// it's skipped in the development server (`project_on_exit` is used instead with a short timeout),
 /// where we prioritize fast exit and user responsiveness over all else.
@@ -906,9 +914,18 @@ pub async fn project_shutdown(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
 ) -> napi::Result<()> {
     let tt = project.turbopack_ctx.turbo_tasks();
+    let eager_purge = TurboMalloc::enter_eager_purge_mode();
     run_shutdown_hooks(project).await;
     tt.stop_and_wait().await;
     run_exit_handlers(&project.exit_receiver).await;
+    // End eager purge mode before `release_freed_memory`, they can't overlap. Memory freed before
+    // eager purge mode started is scheduled to be returned to the OS after the usual delay. With
+    // a purge delay of 0, mimalloc skips scheduled returns entirely (it assumes nothing is
+    // scheduled), even in the forced collect, so that memory would stay resident.
+    drop(eager_purge);
+    release_freed_memory()
+        .instrument(tracing::info_span!("release freed memory"))
+        .await;
     Ok(())
 }
 
@@ -1817,8 +1834,13 @@ async fn output_assets_operation(
     let endpoint_assets = endpoints
         .iter()
         .map(async |endpoint| endpoint.output().await?.output_assets.await)
-        .try_join()
-        .await?;
+        .try_join();
+    // Start the whole-app style groups while the endpoints are being chunked, rather than when
+    // the first endpoint's CSS chunking asks for them.
+    let (endpoint_assets, ()) = futures_util::try_join!(
+        endpoint_assets,
+        compute_whole_app_client_style_groups_early(project)
+    )?;
 
     let output_assets: FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>> = endpoint_assets
         .iter()

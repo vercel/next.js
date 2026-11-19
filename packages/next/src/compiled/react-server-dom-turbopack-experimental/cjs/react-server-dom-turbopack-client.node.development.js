@@ -1490,6 +1490,15 @@
         return "";
       }
     }
+    function createReactMetadata(requestId, kind, outcome, environment) {
+      return {
+        version: 1,
+        requestId: requestId,
+        kind: kind,
+        outcome: outcome,
+        environment: environment
+      };
+    }
     function markAllTracksInOrder() {
       supportsUserTiming &&
         (console.timeStamp(
@@ -1568,7 +1577,8 @@
       startTime,
       endTime,
       rootEnv,
-      value
+      value,
+      requestId
     ) {
       if (supportsUserTiming && 0 < endTime) {
         var description = getIODescription(value),
@@ -1587,7 +1597,7 @@
             ? addObjectToProperties(value, properties, 0, "")
             : void 0 !== value &&
               addValueToProperties("awaited value", value, properties, 0, "");
-          asyncInfo = getIOLongName(
+          rootEnv = getIOLongName(
             asyncInfo.awaited,
             description,
             asyncInfo.env,
@@ -1603,8 +1613,14 @@
                   track: trackNames[trackIdx],
                   trackGroup: "Server Components \u269b",
                   properties: properties,
-                  tooltipText: asyncInfo
-                }
+                  tooltipText: rootEnv
+                },
+                react: createReactMetadata(
+                  requestId,
+                  "await",
+                  "completed",
+                  asyncInfo.env
+                )
               }
             })
           );
@@ -2177,9 +2193,11 @@
         var response = unwrapWeakResponse(weakResponse);
         response._closed = !0;
         response._closedReason = error;
-        response._chunks.forEach(function (chunk) {
+        response._chunks.forEach(function (chunk, id) {
           "pending" === chunk.status
-            ? triggerErrorOnChunk(response, chunk, error)
+            ? (null !== response._missingChunks &&
+                response._missingChunks.add(id),
+              triggerErrorOnChunk(response, chunk, error))
             : "pending_weak" === chunk.status
               ? haltChunk(response, chunk)
               : "fulfilled" === chunk.status &&
@@ -2291,11 +2309,13 @@
       var chunks = response._chunks,
         chunk = chunks.get(id);
       chunk ||
-        ((chunk = response._closed
-          ? response._allowPartialStream
-            ? new ReactPromise("halted", null, null)
-            : new ReactPromise("rejected", null, response._closedReason)
-          : createPendingChunk(response)),
+        (response._closed
+          ? (null !== response._missingChunks &&
+              response._missingChunks.add(id),
+            (chunk = response._allowPartialStream
+              ? new ReactPromise("halted", null, null)
+              : new ReactPromise("rejected", null, response._closedReason)))
+          : (chunk = createPendingChunk(response)),
         chunks.set(id, chunk));
       return chunk;
     }
@@ -2694,54 +2714,67 @@
       }
     }
     function getOutlinedModel(response, reference, parentObject, key, map) {
-      var id = parseInt(reference, 16);
-      reference =
-        -1 === reference.indexOf(":")
-          ? EMPTY_REFERENCE_PATH
-          : reference.split(":");
-      id = getChunk(response, id);
+      var id = parseInt(reference, 16),
+        path =
+          -1 === reference.indexOf(":")
+            ? EMPTY_REFERENCE_PATH
+            : reference.split(":");
+      reference = getChunk(response, id);
+      if (
+        response._closed &&
+        parentObject[0] === REACT_ELEMENT_TYPE &&
+        ("4" === key || "5" === key)
+      ) {
+        var missingChunks = response._missingChunks;
+        if (null !== missingChunks && missingChunks.has(id)) return null;
+      }
       null !== initializingChunk &&
         isArrayImpl(initializingChunk._children) &&
-        initializingChunk._children.push(id);
-      switch (id.status) {
+        initializingChunk._children.push(reference);
+      switch (reference.status) {
         case "resolved_model":
-          initializeModelChunk(id);
+          initializeModelChunk(reference);
           break;
         case "resolved_module":
-          initializeModuleChunk(id);
+          initializeModuleChunk(reference);
       }
-      switch (id.status) {
+      switch (reference.status) {
         case "fulfilled":
-          for (var value = id.value, i = 1; i < reference.length; i++) {
+          id = reference.value;
+          for (
+            missingChunks = 1;
+            missingChunks < path.length;
+            missingChunks++
+          ) {
             for (
               ;
-              "object" === typeof value &&
-              null !== value &&
-              value.$$typeof === REACT_LAZY_TYPE;
+              "object" === typeof id &&
+              null !== id &&
+              id.$$typeof === REACT_LAZY_TYPE;
 
             ) {
-              value = value._payload;
-              switch (value.status) {
+              id = id._payload;
+              switch (id.status) {
                 case "resolved_model":
-                  initializeModelChunk(value);
+                  initializeModelChunk(id);
                   break;
                 case "resolved_module":
-                  initializeModuleChunk(value);
+                  initializeModuleChunk(id);
               }
-              switch (value.status) {
+              switch (id.status) {
                 case "fulfilled":
-                  value = value.value;
+                  id = id.value;
                   break;
                 case "blocked":
                 case "pending":
                 case "pending_weak":
                   return waitForReference(
-                    value,
+                    id,
                     parentObject,
                     key,
                     response,
                     map,
-                    reference.slice(i - 1),
+                    path.slice(missingChunks - 1),
                     isInitializingDebugInfo
                   );
                 case "halted":
@@ -2765,12 +2798,12 @@
                       ? ((parentObject = initializingHandler),
                         (parentObject.errored = !0),
                         (parentObject.value = null),
-                        (parentObject.reason = value.reason))
+                        (parentObject.reason = id.reason))
                       : (initializingHandler = {
                           parent: null,
                           chunk: null,
                           value: null,
-                          reason: value.reason,
+                          reason: id.reason,
                           deps: 0,
                           errored: !0
                         }),
@@ -2778,57 +2811,57 @@
                   );
               }
             }
-            var name = reference[i];
+            var name = path[missingChunks];
             if (
-              "object" !== typeof value ||
-              null === value ||
-              (getPrototypeOf(value) !== ObjectPrototype &&
-                getPrototypeOf(value) !== ArrayPrototype) ||
-              !hasOwnProperty.call(value, name)
+              "object" !== typeof id ||
+              null === id ||
+              (getPrototypeOf(id) !== ObjectPrototype &&
+                getPrototypeOf(id) !== ArrayPrototype) ||
+              !hasOwnProperty.call(id, name)
             )
               throw Error("Invalid reference.");
-            value = value[name];
+            id = id[name];
           }
           for (
             ;
-            "object" === typeof value &&
-            null !== value &&
-            value.$$typeof === REACT_LAZY_TYPE;
+            "object" === typeof id &&
+            null !== id &&
+            id.$$typeof === REACT_LAZY_TYPE;
 
           ) {
-            reference = value._payload;
-            switch (reference.status) {
+            path = id._payload;
+            switch (path.status) {
               case "resolved_model":
-                initializeModelChunk(reference);
+                initializeModelChunk(path);
                 break;
               case "resolved_module":
-                initializeModuleChunk(reference);
+                initializeModuleChunk(path);
             }
-            switch (reference.status) {
+            switch (path.status) {
               case "fulfilled":
-                value = reference.value;
+                id = path.value;
                 continue;
             }
             break;
           }
-          response = map(response, value, parentObject, key);
+          response = map(response, id, parentObject, key);
           if (
             parentObject[0] !== REACT_ELEMENT_TYPE ||
             ("4" !== key && "5" !== key)
           )
             isInitializingDebugInfo ||
-              transferReferencedDebugInfo(initializingChunk, id);
+              transferReferencedDebugInfo(initializingChunk, reference);
           return response;
         case "pending":
         case "pending_weak":
         case "blocked":
           return waitForReference(
-            id,
+            reference,
             parentObject,
             key,
             response,
             map,
-            reference,
+            path,
             isInitializingDebugInfo
           );
         case "halted":
@@ -2851,12 +2884,12 @@
               ? ((parentObject = initializingHandler),
                 (parentObject.errored = !0),
                 (parentObject.value = null),
-                (parentObject.reason = id.reason))
+                (parentObject.reason = reference.reason))
               : (initializingHandler = {
                   parent: null,
                   chunk: null,
                   value: null,
-                  reason: id.reason,
+                  reason: reference.reason,
                   deps: 0,
                   errored: !0
                 }),
@@ -3163,7 +3196,8 @@
       environmentName,
       debugStartTime,
       debugEndTime,
-      debugChannel
+      debugChannel,
+      debugRequestId
     ) {
       var chunks = new Map();
       this._bundlerConfig = bundlerConfig;
@@ -3181,6 +3215,8 @@
       this._timeOrigin = 0;
       this._pendingInitialRender = null;
       this._pendingChunks = 0;
+      this._missingChunks =
+        void 0 !== debugChannel && debugChannel.hasReadable ? null : new Set();
       this._weakResponse = { weak: new WeakRef(this), response: this };
       this._debugRootOwner = bundlerConfig =
         void 0 === ReactSharedInteralsServer ||
@@ -3199,6 +3235,7 @@
       this._debugIOStarted = !1;
       setTimeout(markIOStarted.bind(this), 0);
       this._debugEndTime = void 0 === debugEndTime ? null : debugEndTime;
+      this._debugRequestId = debugRequestId;
       this._debugFindSourceMapURL = findSourceMapURL;
       this._debugChannel = debugChannel;
       this._blockedConsole = null;
@@ -3224,7 +3261,8 @@
       environmentName,
       debugStartTime,
       debugEndTime,
-      debugChannel
+      debugChannel,
+      debugRequestId
     ) {
       checkEvalAvailabilityOnceDev();
       bundlerConfig = new ResponseInstance(
@@ -3241,7 +3279,8 @@
         environmentName,
         debugStartTime,
         debugEndTime,
-        debugChannel
+        debugChannel,
+        debugRequestId
       )._weakResponse;
       return bundlerConfig;
     }
@@ -4236,7 +4275,8 @@
                       trackIdx$jscomp$1 = trackIdx$jscomp$0,
                       startTime$jscomp$2 = startTime$jscomp$1,
                       childrenEndTime$jscomp$1 = childrenEndTime$jscomp$0,
-                      error = root.reason;
+                      error = root.reason,
+                      requestId = response._debugRequestId;
                     if (supportsUserTiming) {
                       var env = componentInfo$jscomp$2.env,
                         name = componentInfo$jscomp$2.name,
@@ -4281,7 +4321,13 @@
                             trackGroup: "Server Components \u269b",
                             tooltipText: entryName$jscomp$0 + " Errored",
                             properties: properties
-                          }
+                          },
+                          react: createReactMetadata(
+                            requestId,
+                            "component",
+                            "errored",
+                            env
+                          )
                         }
                       });
                       performance.clearMeasures(measureName);
@@ -4290,7 +4336,8 @@
                     var componentInfo$jscomp$3 = componentInfo$jscomp$1,
                       trackIdx$jscomp$2 = trackIdx$jscomp$0,
                       startTime$jscomp$3 = startTime$jscomp$1,
-                      childrenEndTime$jscomp$2 = childrenEndTime$jscomp$0;
+                      childrenEndTime$jscomp$2 = childrenEndTime$jscomp$0,
+                      requestId$jscomp$0 = response._debugRequestId;
                     if (
                       supportsUserTiming &&
                       0 <= childrenEndTime$jscomp$2 &&
@@ -4353,7 +4400,13 @@
                                   track: trackNames[trackIdx$jscomp$2],
                                   trackGroup: "Server Components \u269b",
                                   properties: properties$jscomp$0
-                                }
+                                },
+                                react: createReactMetadata(
+                                  requestId$jscomp$0,
+                                  "component",
+                                  "completed",
+                                  env$jscomp$0
+                                )
                               }
                             }
                           )
@@ -4391,7 +4444,8 @@
                           time,
                           endTime,
                           env$jscomp$1,
-                          thenable.value
+                          thenable.value,
+                          response$jscomp$0._debugRequestId
                         );
                         break;
                       case "rejected":
@@ -4400,7 +4454,9 @@
                           startTime$jscomp$4 = time,
                           endTime$jscomp$0 = endTime,
                           rootEnv = env$jscomp$1,
-                          error$jscomp$0 = thenable.reason;
+                          error$jscomp$0 = thenable.reason,
+                          requestId$jscomp$1 =
+                            response$jscomp$0._debugRequestId;
                         if (supportsUserTiming && 0 < endTime$jscomp$0) {
                           var description = getIODescription(error$jscomp$0),
                             entryName$jscomp$1 =
@@ -4449,7 +4505,13 @@
                                       trackGroup: "Server Components \u269b",
                                       properties: properties$jscomp$1,
                                       tooltipText: tooltipText
-                                    }
+                                    },
+                                    react: createReactMetadata(
+                                      requestId$jscomp$1,
+                                      "await",
+                                      "errored",
+                                      asyncInfo$jscomp$0.env
+                                    )
                                   }
                                 }
                               )
@@ -4473,7 +4535,8 @@
                           time,
                           endTime,
                           env$jscomp$1,
-                          void 0
+                          void 0,
+                          response$jscomp$0._debugRequestId
                         );
                     }
                   } else
@@ -4483,7 +4546,8 @@
                       time,
                       endTime,
                       env$jscomp$1,
-                      void 0
+                      void 0,
+                      response$jscomp$0._debugRequestId
                     );
                 }
               }
@@ -4499,7 +4563,8 @@
                     componentInfo$jscomp$4 = _componentInfo,
                     trackIdx$jscomp$4 = trackIdx$jscomp$6,
                     startTime$jscomp$5 = time,
-                    childrenEndTime$jscomp$3 = childrenEndTime;
+                    childrenEndTime$jscomp$3 = childrenEndTime,
+                    requestId$jscomp$2 = response$jscomp$0._debugRequestId;
                   if (supportsUserTiming) {
                     var env$jscomp$2 = componentInfo$jscomp$4.env,
                       name$jscomp$1 = componentInfo$jscomp$4.name,
@@ -4539,7 +4604,13 @@
                           trackGroup: "Server Components \u269b",
                           tooltipText: entryName$jscomp$2 + " Aborted",
                           properties: properties$jscomp$2
-                        }
+                        },
+                        react: createReactMetadata(
+                          requestId$jscomp$2,
+                          "component",
+                          "aborted",
+                          env$jscomp$2
+                        )
                       }
                     });
                     performance.clearMeasures(measureName$jscomp$1);
@@ -4560,7 +4631,8 @@
                     trackIdx$jscomp$5 = trackIdx$jscomp$6,
                     startTime$jscomp$6 = time,
                     endTime$jscomp$1 = endTime,
-                    rootEnv$jscomp$0 = _env2;
+                    rootEnv$jscomp$0 = _env2,
+                    requestId$jscomp$3 = response$jscomp$0._debugRequestId;
                   if (supportsUserTiming && 0 < endTime$jscomp$1) {
                     var entryName$jscomp$3 =
                         "await " +
@@ -4601,7 +4673,13 @@
                                   ]
                                 ],
                                 tooltipText: tooltipText$jscomp$0
-                              }
+                              },
+                              react: createReactMetadata(
+                                requestId$jscomp$3,
+                                "await",
+                                "aborted",
+                                asyncInfo$jscomp$1.env
+                              )
                             }
                           }
                         )
@@ -5145,9 +5223,11 @@
         var response = unwrapWeakResponse(weakResponse);
         response._allowPartialStream
           ? ((response._closed = !0),
-            response._chunks.forEach(function (chunk) {
+            response._chunks.forEach(function (chunk, id) {
               "pending" === chunk.status || "pending_weak" === chunk.status
-                ? haltChunk(response, chunk)
+                ? (null !== response._missingChunks &&
+                    response._missingChunks.add(id),
+                  haltChunk(response, chunk))
                 : "fulfilled" === chunk.status &&
                   null !== chunk.reason &&
                   chunk.reason.close('"$undefined"');
@@ -5190,7 +5270,8 @@
               hasReadable: void 0 !== options.debugChannel.readable,
               callback: null
             }
-          : void 0
+          : void 0,
+        options ? options.unstable_requestId : void 0
       );
     }
     function startReadingFromStream$1(response, stream, onDone, debugValue) {
@@ -5623,7 +5704,8 @@
         options && null != options.endTime ? options.endTime : void 0,
         options && void 0 !== options.debugChannel
           ? { hasReadable: !0, callback: null }
-          : void 0
+          : void 0,
+        options ? options.unstable_requestId : void 0
       );
       if (options && options.debugChannel) {
         var streamEndedCount = 0;
