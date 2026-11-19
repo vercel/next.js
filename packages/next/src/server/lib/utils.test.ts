@@ -153,77 +153,75 @@ describe('getEffectiveDebugOptions', () => {
       process.execArgv = originalExecArgv
     }
   }
+  const url = (address: string) => `ws://${address}/0f0e4d2b-uuid`
 
-  it('prefers command-line flags over NODE_OPTIONS', () => {
+  it('takes the address from the running inspector', () => {
+    // The flags say wildcard; Node.js resolved a later override to loopback.
     process.env.NODE_OPTIONS =
-      '--inspect=127.0.0.1:9500 --inspect-publish-uid=http --conditions=foo'
-    withExecArgv(['--inspect=127.0.0.1:9300'], () => {
-      expect(getEffectiveDebugOptions()).toEqual({
+      '--inspect=0.0.0.0:9500 --inspect-publish-uid=http --conditions=foo'
+    withExecArgv(['--inspect-port=localhost'], () => {
+      expect(
+        getEffectiveDebugOptions({ inspectorUrl: url('localhost:9229') })
+      ).toEqual({
         type: 'inspect',
-        address: '127.0.0.1:9300',
+        address: { host: 'localhost', port: 9229 },
         publishUid: 'http',
       })
     })
   })
 
-  it('applies --inspect-port and aliases in order', () => {
+  it('reports nothing when the inspector is not running', () => {
+    // e.g. `--no-inspect` on the command line.
+    process.env.NODE_OPTIONS = '--inspect=0.0.0.0:9500'
+    withExecArgv(['--no-inspect'], () => {
+      expect(
+        getEffectiveDebugOptions({ includeWait: true, inspectorUrl: undefined })
+      ).toEqual({ type: undefined, address: undefined, publishUid: undefined })
+    })
+  })
+
+  it('reads the flag type and publish-uid in order, with aliases', () => {
     process.env.NODE_OPTIONS = '--inspect-publish-uid=stderr'
     withExecArgv(
-      [
-        '--inspect_brk=127.0.0.1:9300',
-        '--inspect-port',
-        '9304',
-        '--inspect_publish_uid=http',
-      ],
+      ['--inspect_brk=127.0.0.1:9300', '--inspect_publish_uid=http'],
       () => {
-        expect(getEffectiveDebugOptions()).toEqual({
+        expect(
+          getEffectiveDebugOptions({ inspectorUrl: url('127.0.0.1:9300') })
+        ).toEqual({
           type: 'inspect-brk',
-          address: '127.0.0.1:9304',
+          address: { host: '127.0.0.1', port: 9300 },
           publishUid: 'http',
         })
       }
     )
   })
 
-  it('supports a separate value in NODE_OPTIONS', () => {
-    process.env.NODE_OPTIONS = '--inspect 1234'
-    withExecArgv([], () => {
-      expect(getEffectiveDebugOptions()).toEqual({
-        type: 'inspect',
-        address: '1234',
-        publishUid: undefined,
-      })
+  it('keeps a requested random port and IPv6 brackets', () => {
+    process.env.NODE_OPTIONS = ''
+    withExecArgv(['--inspect=[::1]:0'], () => {
+      expect(
+        getEffectiveDebugOptions({ inspectorUrl: url('[::1]:41234') }).address
+      ).toEqual({ host: '[::1]', port: 0 })
+    })
+    // A separate `--debug-port` value is consumed, not taken as a script.
+    withExecArgv(['--inspect', '--debug_port', '0'], () => {
+      expect(
+        getEffectiveDebugOptions({ inspectorUrl: url('127.0.0.1:41235') })
+          .address
+      ).toEqual({ host: '127.0.0.1', port: 0 })
     })
   })
 
-  it('applies a later loopback --debug-port with a separate value', () => {
-    process.env.NODE_OPTIONS = ''
-    withExecArgv(
-      [
-        '--inspect',
-        '--inspect-port=0.0.0.0:9300',
-        '--debug_port',
-        '127.0.0.1:9301',
-      ],
-      () => {
-        expect(getEffectiveDebugOptions()).toEqual({
-          type: 'inspect',
-          address: '127.0.0.1:9301',
-          publishUid: undefined,
-        })
-      }
-    )
-  })
-
-  it('applies a later loopback --inspect-port to --inspect-wait', () => {
-    process.env.NODE_OPTIONS =
-      '--inspect-wait=0.0.0.0:9300 --inspect-port=127.0.0.1:9300'
+  it('only reports --inspect-wait when asked for', () => {
+    process.env.NODE_OPTIONS = '--inspect-wait=127.0.0.1:9300'
     withExecArgv([], () => {
-      // Only reported as the debug type when asked for.
-      expect(getEffectiveDebugOptions().type).toBeUndefined()
-      expect(getEffectiveDebugOptions({ includeWait: true })).toEqual({
+      const inspectorUrl = url('127.0.0.1:9300')
+      expect(getEffectiveDebugOptions({ inspectorUrl }).type).toBeUndefined()
+      expect(
+        getEffectiveDebugOptions({ includeWait: true, inspectorUrl })
+      ).toEqual({
         type: 'inspect-wait',
-        address: '127.0.0.1:9300',
+        address: { host: '127.0.0.1', port: 9300 },
         publishUid: undefined,
       })
     })

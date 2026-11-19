@@ -717,8 +717,12 @@ describe('lib/worker env configuration', () => {
     }
   })
 
-  it('re-attaches the debugger using the CLI address and publish-uid', () => {
+  it('re-attaches the debugger where the parent inspector listens, with publish-uid', () => {
     const originalExecArgv = process.execArgv
+    const inspectorUrl = jest.spyOn(
+      require('inspector') as typeof import('inspector'),
+      'url'
+    )
     process.execArgv = [
       '--inspect=127.0.0.1:9300',
       '--inspect-publish-uid=http',
@@ -727,13 +731,13 @@ describe('lib/worker env configuration', () => {
     try {
       const { Worker } = require('./worker') as typeof import('./worker')
 
+      inspectorUrl.mockReturnValue('ws://127.0.0.1:9300/uuid')
       let worker = new Worker(__filename, {
         ...noopOptions,
         debuggerPortOffset: 2,
       })
       worker.shutdownNow()
 
-      // CLI flags take precedence over NODE_OPTIONS, as in Node itself.
       expect(latestPoolOptions?.forkOptions?.env?.NODE_OPTIONS).toBe(
         '--inspect=127.0.0.1:9303 --inspect-publish-uid=http'
       )
@@ -749,20 +753,8 @@ describe('lib/worker env configuration', () => {
       expect(latestPoolOptions?.forkOptions?.env?.NODE_OPTIONS).toBe('')
       expect(latestPoolOptions?.forkOptions?.execArgv).toEqual([])
 
-      // `--inspect-port` changes the parent's effective port (keeping the host).
-      process.execArgv = ['--inspect=127.0.0.1:9300', '--inspect-port', '9310']
-      worker = new Worker(__filename, {
-        ...noopOptions,
-        debuggerPortOffset: 0,
-      })
-      worker.shutdownNow()
-      expect(latestPoolOptions?.forkOptions?.env?.NODE_OPTIONS).toBe(
-        '--inspect=127.0.0.1:9311'
-      )
-      expect(latestPoolOptions?.forkOptions?.execArgv).toEqual([])
-
-      // A later loopback `--debug-port` (separate value) wins over a wildcard
-      // `--inspect-port`, and no stale address reaches the worker.
+      // The flags say wildcard, but Node.js resolved the later overrides to
+      // loopback: the worker follows Node.js, and no stale address reaches it.
       process.execArgv = [
         '--inspect',
         '--inspect-port=0.0.0.0:9320',
@@ -770,6 +762,7 @@ describe('lib/worker env configuration', () => {
         '127.0.0.1:9330',
       ]
       process.env.NODE_OPTIONS = '--inspect-port=0.0.0.0:9340'
+      inspectorUrl.mockReturnValue('ws://127.0.0.1:9330/uuid')
       worker = new Worker(__filename, {
         ...noopOptions,
         debuggerPortOffset: 0,
@@ -779,8 +772,22 @@ describe('lib/worker env configuration', () => {
         '--inspect=127.0.0.1:9331'
       )
       expect(latestPoolOptions?.forkOptions?.execArgv).toEqual([])
+
+      // An inspector that isn't running (e.g. `--no-inspect`) isn't re-attached.
+      process.execArgv = ['--no-inspect']
+      process.env.NODE_OPTIONS = '--inspect=0.0.0.0:9350'
+      inspectorUrl.mockReturnValue(undefined)
+      worker = new Worker(__filename, {
+        ...noopOptions,
+        debuggerPortOffset: 0,
+      })
+      worker.shutdownNow()
+      expect(latestPoolOptions?.forkOptions?.env?.NODE_OPTIONS).toBe('')
+      // The negation itself is kept, which only disables the inspector.
+      expect(latestPoolOptions?.forkOptions?.execArgv).toEqual(['--no-inspect'])
     } finally {
       process.execArgv = originalExecArgv
+      inspectorUrl.mockRestore()
     }
   })
 

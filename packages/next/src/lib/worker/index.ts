@@ -5,7 +5,6 @@ import {
   formatDebugAddress,
   formatNodeOptions,
   getEffectiveDebugOptions,
-  getParsedDebugAddress,
   getParsedNodeOptionsWithoutInspect,
   type DebugAddress,
 } from '../../server/lib/utils'
@@ -207,8 +206,8 @@ function buildWorkerEnv(options: BuildWorkerEnvOptions): {
   if (debuggerPortOffset != null && !enableWorkerThreads) {
     const parentDebugger = getEffectiveDebugOptions()
     const nodeDebugType = parentDebugger.type
-    if (nodeDebugType) {
-      const debuggerAddress = getParsedDebugAddress(parentDebugger.address)
+    if (nodeDebugType && parentDebugger.address) {
+      const debuggerAddress = parentDebugger.address
       const address: DebugAddress = {
         host: debuggerAddress.host,
         port:

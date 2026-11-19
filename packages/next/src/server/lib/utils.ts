@@ -288,44 +288,48 @@ export function getParsedNodeOptions(): NodeOptions {
 
 export interface EffectiveDebugOptions {
   /**
-   * `--inspect` or `--inspect-brk`, if the process is debugged with one, or
-   * `--inspect-wait` when `includeWait` is set and neither is given
+   * `--inspect` or `--inspect-brk` if this process's inspector is running and
+   * was started with one, or `--inspect-wait` when `includeWait` is set and
+   * neither is given. `undefined` when the inspector isn't running (e.g.
+   * disabled with `--no-inspect`).
    */
   type: NodeInspectType | 'inspect-wait'
-  /** The effective `[host:]port`, if one was given */
-  address: string | undefined
+  /**
+   * The address the running inspector listens on, as reported by Node.js.
+   * The port is 0 when a random port was requested.
+   */
+  address: DebugAddress | undefined
   /** The effective `--inspect-publish-uid` value, if one was given */
   publishUid: string | undefined
 }
 
 /**
- * The debugger settings this process runs with, resolved like Node.js does:
- * `NODE_OPTIONS` first, then the command line, with the last occurrence
- * winning. Every address flag (`--inspect`, `--inspect-brk`,
- * `--inspect-wait`, `--inspect-port` and its `--debug-port` alias) sets the
- * address, a port-only value keeps the earlier host, and `_` / `-` spellings
- * are equivalent.
+ * The debugger settings this process runs with. Whether the inspector runs
+ * and where it listens come from Node.js itself (`inspector.url()`), since
+ * its option grammar (negations, host-only and port-only values, aliases) is
+ * easy to get subtly wrong. The flags are only used for what Node.js doesn't
+ * report: which flag started it, the publish-uid setting, and whether a random
+ * port (0) was requested. Flags are read like Node.js does: `NODE_OPTIONS`
+ * first, then the command line, last occurrence winning.
+ *
+ * @param inspectorUrl The running inspector's URL (for tests).
  */
 export function getEffectiveDebugOptions({
   includeWait = false,
-}: { includeWait?: boolean } = {}): EffectiveDebugOptions {
+  inspectorUrl = (require('inspector') as typeof import('inspector')).url(),
+}: {
+  includeWait?: boolean
+  inspectorUrl?: string | undefined
+} = {}): EffectiveDebugOptions {
   const result: EffectiveDebugOptions = {
     type: undefined,
     address: undefined,
     publishUid: undefined,
   }
+  let flagType: NodeInspectType
   let sawWait = false
-  let host: string | undefined
-  let port: string | undefined
-  const setAddress = (value: string) => {
-    const separator = value.lastIndexOf(':')
-    if (separator === -1) {
-      port = value
-    } else {
-      host = value.slice(0, separator)
-      port = value.slice(separator + 1)
-    }
-  }
+  // The last address value given, to detect a requested random port.
+  let lastAddress: string | undefined
   for (const [args, separateValues] of [
     // NODE_OPTIONS also accepts `--inspect 9229` (see `getParsedDebugAddress`).
     [getNodeOptionsArgs(), true],
@@ -352,23 +356,34 @@ export function getEffectiveDebugOptions({
         value = args[++i]
       }
       if (name === 'inspect' || name === 'inspect-brk') {
-        result.type = name
-        if (value !== undefined) setAddress(value)
+        flagType = name
+        if (value !== undefined) lastAddress = value
       } else if (name === 'inspect-wait') {
         sawWait = true
-        if (value !== undefined) setAddress(value)
+        if (value !== undefined) lastAddress = value
       } else if (name === 'inspect-port') {
-        if (value !== undefined) setAddress(value)
+        if (value !== undefined) lastAddress = value
       } else if (name === 'inspect-publish-uid') {
         result.publishUid = value
       }
     }
   }
-  if (result.type === undefined && includeWait && sawWait) {
-    result.type = 'inspect-wait'
+
+  if (!inspectorUrl) {
+    // Not running, whatever the flags say.
+    return result
   }
-  if (port !== undefined) {
-    result.address = host ? `${host}:${port}` : port
+  const url = new URL(inspectorUrl)
+  result.type =
+    flagType ?? (includeWait && sawWait ? 'inspect-wait' : undefined)
+  result.address = {
+    // Keeps the brackets of an IPv6 address.
+    host: url.hostname,
+    port:
+      lastAddress !== undefined && /(^|:)0$/.test(lastAddress)
+        ? 0
+        : // An empty port is the ws: default.
+          parseInt(url.port || '80', 10),
   }
   return result
 }
