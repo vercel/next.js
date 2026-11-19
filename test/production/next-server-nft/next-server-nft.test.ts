@@ -326,6 +326,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/require-instrumentation-client.js",
            "/node_modules/next/dist/lib/resolve-build-paths.js",
            "/node_modules/next/dist/lib/resolve-from.js",
+           "/node_modules/next/dist/lib/rotating-file.js",
            "/node_modules/next/dist/lib/route-pattern-normalizer.js",
            "/node_modules/next/dist/lib/scheduler.js",
            "/node_modules/next/dist/lib/server-external-packages.jsonc",
