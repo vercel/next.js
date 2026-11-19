@@ -1118,9 +1118,9 @@ func TestKeepsTheConnectionOpenAfterACompleteUpload(t *testing.T) {
 }
 
 // startCountingProxy runs Switchyard in front of an upstream that counts its
-// open connections. upstreamIdle is long, so a connection to Node left idle
+// open connections. With a long upstreamIdle, a connection to Node left idle
 // would still be open when the test looks.
-func startCountingProxy(t *testing.T) (string, func() int, <-chan received) {
+func startCountingProxy(t *testing.T, upstreamIdle time.Duration) (string, func() int, <-chan received) {
 	t.Helper()
 	var mu sync.Mutex
 	open := 0
@@ -1145,7 +1145,7 @@ func startCountingProxy(t *testing.T) (string, func() int, <-chan received) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	switchyard := newServer(newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), time.Minute, testToken), time.Minute, 5*time.Second, 0, 16<<10)
+	switchyard := newServer(newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), upstreamIdle, testToken), time.Minute, 5*time.Second, 0, 16<<10)
 	go switchyard.Serve(ln)
 	t.Cleanup(func() { switchyard.Close() })
 	count := func() int {
@@ -1160,7 +1160,7 @@ func startCountingProxy(t *testing.T) (string, func() int, <-chan received) {
 // up must take its connection to Node with it, instead of leaving it idle in
 // a pool no other client can use.
 func TestClosesConnectionsToNodeWhenTheirClientsLeave(t *testing.T) {
-	addr, openToNode, _ := startCountingProxy(t)
+	addr, openToNode, _ := startCountingProxy(t, time.Minute)
 	for i := 0; i < 20; i++ {
 		conn, err := net.Dial("tcp", addr)
 		if err != nil {
@@ -1186,7 +1186,7 @@ func TestClosesConnectionsToNodeWhenTheirClientsLeave(t *testing.T) {
 // One client's requests still share one connection to Node, as Node's own
 // keep-alive would.
 func TestReusesOneConnectionToNodeForOneClient(t *testing.T) {
-	addr, openToNode, seen := startCountingProxy(t)
+	addr, openToNode, seen := startCountingProxy(t, time.Minute)
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		t.Fatal(err)
@@ -1218,7 +1218,7 @@ func TestCapsConnectionsToNodeKeptAcrossClients(t *testing.T) {
 	previous := maxKeptUpstreams
 	maxKeptUpstreams = 2
 	t.Cleanup(func() { maxKeptUpstreams = previous })
-	addr, openToNode, _ := startCountingProxy(t)
+	addr, openToNode, _ := startCountingProxy(t, time.Minute)
 
 	var clients []net.Conn
 	t.Cleanup(func() {
@@ -1249,5 +1249,54 @@ func TestCapsConnectionsToNodeKeptAcrossClients(t *testing.T) {
 	}
 	if n := openToNode(); n > 2 {
 		t.Errorf("%d connections to Node open for 5 idle clients, want at most 2", n)
+	}
+}
+
+// A slot belongs to an open connection to Node, not to a client: when a
+// client's connection to Node idles out, its slot is free again for other
+// clients, even though the client itself is still connected.
+func TestFreesSlotsWhenConnectionsToNodeIdleOut(t *testing.T) {
+	previous := maxKeptUpstreams
+	maxKeptUpstreams = 2
+	t.Cleanup(func() { maxKeptUpstreams = previous })
+	addr, openToNode, seen := startCountingProxy(t, 200*time.Millisecond)
+
+	get := func(conn net.Conn, reader *bufio.Reader) string {
+		t.Helper()
+		io.WriteString(conn, "GET / HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
+		res, err := http.ReadResponse(reader, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		io.Copy(io.Discard, res.Body)
+		return (<-seen).remoteAddr
+	}
+	// Two clients take both slots and stay connected.
+	for i := 0; i < 2; i++ {
+		conn, err := net.Dial("tcp", addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { conn.Close() })
+		get(conn, bufio.NewReader(conn))
+	}
+	// Their connections to Node idle out after upstreamIdle.
+	deadline := time.Now().Add(3 * time.Second)
+	for openToNode() > 0 && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+	if n := openToNode(); n > 0 {
+		t.Fatalf("%d connections to Node still open after upstreamIdle", n)
+	}
+	// A third client can keep its connection to Node between requests.
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	reader := bufio.NewReader(conn)
+	first, second := get(conn, reader), get(conn, reader)
+	if first != second {
+		t.Errorf("third client's requests reached Node from %s and %s, want one kept connection", first, second)
 	}
 }

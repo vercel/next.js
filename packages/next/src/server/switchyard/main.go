@@ -300,11 +300,7 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 		// responses of unknown length). -1 writes each chunk to the client as
 		// soon as Node sends it, as without Switchyard.
 		FlushInterval: -1,
-		Transport: clientTransport{
-			shared:       newUpstreamTransport(upstream, upstreamIdle, int(maxKeptUpstreams)),
-			newTransport: func() *http.Transport { return newUpstreamTransport(upstream, upstreamIdle, 1) },
-			kept:         &keptUpstreams{count: atomic.Int64{}, limit: maxKeptUpstreams},
-		},
+		Transport:     newClientTransport(upstream, upstreamIdle),
 		// Node can answer before the client has finished sending the request
 		// body. If the body hasn't been read cleanly to its end by then, the
 		// rest of it is still on the client connection, and Go's server could
@@ -422,15 +418,20 @@ func (b *requestBody) timedOut() bool {
 var proxyErrorLog = log.New(os.Stderr, "switchyard: ", 0)
 
 // newUpstreamTransport connects to Node at upstream, keeping up to maxIdle
-// idle connections for upstreamIdle.
-func newUpstreamTransport(upstream string, upstreamIdle time.Duration, maxIdle int) *http.Transport {
+// idle connections for upstreamIdle. When wrap isn't nil, every connection
+// the transport opens passes through it.
+func newUpstreamTransport(upstream string, upstreamIdle time.Duration, maxIdle int, wrap func(net.Conn) net.Conn) *http.Transport {
 	return &http.Transport{
 		// Connect to Node directly, never through an HTTP_PROXY. A new
 		// Transport already does that (only http.DefaultTransport reads
 		// HTTP_PROXY); this says so.
 		Proxy: nil,
 		DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
-			return (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}).DialContext(ctx, network, upstream)
+			conn, err := (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}).DialContext(ctx, network, upstream)
+			if err != nil || wrap == nil {
+				return conn, err
+			}
+			return wrap(conn), nil
 		},
 		MaxIdleConns:        maxIdle,
 		MaxIdleConnsPerHost: maxIdle,
@@ -445,16 +446,16 @@ func newUpstreamTransport(upstream string, upstreamIdle time.Duration, maxIdle i
 
 type clientUpstreamKey struct{}
 
-// maxKeptUpstreams is how many connections to Node all clients together may
-// keep open between requests, as Go's shared pool allowed before connections
-// to Node were split per client. A variable so tests can lower it.
+// maxKeptUpstreams is how many connections to Node may be open at once with
+// keep-alive across all clients, as Go's shared pool allowed before
+// connections to Node were split per client. A variable so tests can lower
+// it.
 var maxKeptUpstreams int64 = 512
 
-// keptUpstreams counts the clients that may keep their connection to Node
-// open between requests. Each such client holds one slot until its own
-// connection closes. Once all slots are taken, other clients' requests are
-// sent with Connection: close, so their connections to Node end with the
-// response instead of waiting idle.
+// keptUpstreams counts the connections to Node that are open and allowed to
+// stay open between requests. A connection takes a slot when it is opened and
+// gives it back when it closes, whether its client left, it sat idle too
+// long, or Node closed it, so the count always matches real connections.
 type keptUpstreams struct {
 	count atomic.Int64
 	limit int64
@@ -470,6 +471,21 @@ func (k *keptUpstreams) take() bool {
 
 func (k *keptUpstreams) release() { k.count.Add(-1) }
 
+func (k *keptUpstreams) full() bool { return k.count.Load() >= k.limit }
+
+// keptConn is a connection to Node holding a slot in keptUpstreams. Close
+// gives the slot back once, however many times the transport calls it.
+type keptConn struct {
+	net.Conn
+	once    sync.Once
+	release func()
+}
+
+func (c *keptConn) Close() error {
+	c.once.Do(c.release)
+	return c.Conn.Close()
+}
+
 // clientUpstream holds one client connection's connections to Node. Go's
 // HTTP/1 server handles one request at a time per client connection, so one
 // idle connection to Node is enough to reuse between that client's requests.
@@ -479,48 +495,33 @@ func (k *keptUpstreams) release() { k.count.Add(-1) }
 type clientUpstream struct {
 	mu        sync.Mutex
 	transport *http.Transport
-	// The keptUpstreams this client holds a slot in, or nil.
-	slot *keptUpstreams
+	// Whether this client has a connection to Node holding a slot.
+	kept atomic.Bool
 }
 
 func newClientUpstream() *clientUpstream {
-	return &clientUpstream{mu: sync.Mutex{}, transport: nil, slot: nil}
-}
-
-// keep reports whether this client's connection to Node may stay open after
-// the current request, taking a slot in kept the first time.
-func (u *clientUpstream) keep(kept *keptUpstreams) bool {
-	u.mu.Lock()
-	defer u.mu.Unlock()
-	if u.slot == nil && kept.take() {
-		u.slot = kept
-	}
-	return u.slot != nil
+	return &clientUpstream{mu: sync.Mutex{}, transport: nil, kept: atomic.Bool{}}
 }
 
 // get returns the client's transport, creating it on first use.
-func (u *clientUpstream) get(newTransport func() *http.Transport) *http.Transport {
+func (u *clientUpstream) get(newTransport func(*clientUpstream) *http.Transport) *http.Transport {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	if u.transport == nil {
-		u.transport = newTransport()
+		u.transport = newTransport(u)
 	}
 	return u.transport
 }
 
-// close drops the client's idle connection to Node. A connection still
-// serving a response when the client leaves isn't idle yet: the client's
-// request context is cancelled then, and the transport closes that
-// connection instead of keeping it.
+// close drops the client's idle connection to Node, which gives its slot
+// back. A connection still serving a response when the client leaves isn't
+// idle yet: the client's request context is cancelled then, and the
+// transport closes that connection instead of keeping it.
 func (u *clientUpstream) close() {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	if u.transport != nil {
 		u.transport.CloseIdleConnections()
-	}
-	if u.slot != nil {
-		u.slot.release()
-		u.slot = nil
 	}
 }
 
@@ -529,15 +530,40 @@ func (u *clientUpstream) close() {
 // through newServer.
 type clientTransport struct {
 	shared       *http.Transport
-	newTransport func() *http.Transport
+	newTransport func(*clientUpstream) *http.Transport
 	kept         *keptUpstreams
+}
+
+func newClientTransport(upstream string, upstreamIdle time.Duration) clientTransport {
+	kept := &keptUpstreams{count: atomic.Int64{}, limit: maxKeptUpstreams}
+	return clientTransport{
+		shared: newUpstreamTransport(upstream, upstreamIdle, int(maxKeptUpstreams), nil),
+		newTransport: func(u *clientUpstream) *http.Transport {
+			return newUpstreamTransport(upstream, upstreamIdle, 1, func(conn net.Conn) net.Conn {
+				if !kept.take() {
+					return conn
+				}
+				u.kept.Store(true)
+				return &keptConn{Conn: conn, once: sync.Once{}, release: func() {
+					kept.release()
+					u.kept.Store(false)
+				}}
+			})
+		},
+		kept: kept,
+	}
 }
 
 func (t clientTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	if u, ok := r.Context().Value(clientUpstreamKey{}).(*clientUpstream); ok {
-		if !u.keep(t.kept) {
-			// The request to Node is the proxy's own copy, so this doesn't
-			// change what the client is told about its own connection.
+		// When this client has no connection to Node holding a slot and all
+		// slots are taken, its connection to Node ends with the response.
+		// The request to Node is the proxy's own copy, so this doesn't change
+		// what the client is told about its own connection. Two clients
+		// dialing at once can both pass this check for the last slot; the one
+		// that loses keeps an unslotted connection until it idles out
+		// (upstreamIdle) or its client leaves.
+		if !u.kept.Load() && t.kept.full() {
 			r.Close = true
 		}
 		return u.get(t.newTransport).RoundTrip(r)
