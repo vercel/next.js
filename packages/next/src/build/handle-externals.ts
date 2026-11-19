@@ -24,6 +24,16 @@ const externalPattern = new RegExp(
 )
 
 const nodeModulesRegex = /node_modules[/\\].*\.[mc]?js$/
+const jsFileRegex = /\.[mc]?js$/
+
+/**
+ * Returns the package name of a bare module request, e.g. `pkg` for
+ * `pkg/subpath` and `@scope/pkg` for `@scope/pkg/subpath`.
+ */
+function getPackageName(request: string): string {
+  const parts = request.split('/')
+  return request.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0]
+}
 
 export function isResourceInPackages(
   resource: string,
@@ -132,17 +142,22 @@ export async function resolveExternal(
 
 export function makeExternalHandler({
   config,
+  optOutBundlingPackages,
   optOutBundlingPackageRegex,
   transpiledPackages,
   dir,
 }: {
   config: NextConfigComplete
+  optOutBundlingPackages: string[]
   optOutBundlingPackageRegex: RegExp
   transpiledPackages: string[]
   dir: string
 }) {
   let resolvedExternalPackageDirs: Map<string, string>
   const looseEsmExternals = config.experimental?.esmExternals === 'loose'
+  const externalizeOutsideNodeModules =
+    config.experimental?.serverExternalPackagesMonorepo !== false
+  const optOutBundlingPackageSet = new Set(optOutBundlingPackages)
 
   return async function handleExternals(
     context: string,
@@ -290,7 +305,21 @@ export function makeExternalHandler({
       return
     }
 
-    const isOptOutBundling = optOutBundlingPackageRegex.test(res)
+    const isOptOutBundlingInNodeModules = optOutBundlingPackageRegex.test(res)
+    // Packages that opted out of bundling but resolve to a path outside of
+    // node_modules, e.g. workspace packages that are symlinked into
+    // node_modules and resolve to their real path. Only applies where
+    // dependencies are bundled by default, like Turbopack.
+    const isOptOutBundlingOutsideNodeModules =
+      externalizeOutsideNodeModules &&
+      (isAppLayer || !!config.bundlePagesRouterDependencies) &&
+      !isLocal &&
+      !isOptOutBundlingInNodeModules &&
+      !nodeModulesRegex.test(res) &&
+      jsFileRegex.test(res) &&
+      optOutBundlingPackageSet.has(getPackageName(request))
+    const isOptOutBundling =
+      isOptOutBundlingInNodeModules || isOptOutBundlingOutsideNodeModules
     // Apply bundling rules to all app layers.
     // Since handleExternals only handle the server layers, we don't need to exclude client here
     if (!isOptOutBundling && isAppLayer) {
@@ -351,6 +380,7 @@ export function makeExternalHandler({
       isAppLayer,
       externalType,
       isOptOutBundling,
+      isOptOutBundlingOutsideNodeModules,
       request,
       transpiledPackages,
     })
@@ -370,6 +400,7 @@ function resolveBundlingOptOutPackages({
   isAppLayer,
   externalType,
   isOptOutBundling,
+  isOptOutBundlingOutsideNodeModules,
   request,
   transpiledPackages,
 }: {
@@ -379,10 +410,14 @@ function resolveBundlingOptOutPackages({
   isAppLayer: boolean
   externalType: string
   isOptOutBundling: boolean
+  isOptOutBundlingOutsideNodeModules: boolean
   request: string
   transpiledPackages: string[]
 }) {
-  if (nodeModulesRegex.test(resolvedRes)) {
+  if (
+    nodeModulesRegex.test(resolvedRes) ||
+    isOptOutBundlingOutsideNodeModules
+  ) {
     const shouldBundlePages =
       !isAppLayer && config.bundlePagesRouterDependencies && !isOptOutBundling
 

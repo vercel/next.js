@@ -53,21 +53,20 @@ impl ExternalCjsModulesResolvePlugin {
     pub async fn new(
         predicate: ResolvedVc<ExternalPredicate>,
         import_externals: bool,
+        externalize_outside_node_modules: bool,
     ) -> Result<Vc<Self>> {
         let node_modules_glob = Glob::new(rcstr!("**/node_modules/**"), GlobOptions::default());
         let condition = match &*predicate.await? {
-            ExternalPredicate::AllExcept(_) => {
-                AfterResolvePluginCondition::new_with_glob(None, node_modules_glob)
-            }
             // Explicitly listed packages are also handled when they resolve to a path outside of
             // node_modules, e.g. symlinked (workspace) packages that resolve to their real path.
-            ExternalPredicate::Only(externals) => {
+            ExternalPredicate::Only(externals) if externalize_outside_node_modules => {
                 AfterResolvePluginCondition::new_with_glob_or_modules(
                     None,
                     node_modules_glob,
                     **externals,
                 )
             }
+            _ => AfterResolvePluginCondition::new_with_glob(None, node_modules_glob),
         }
         .to_resolved()
         .await?;

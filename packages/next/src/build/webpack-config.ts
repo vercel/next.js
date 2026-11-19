@@ -917,6 +917,7 @@ export default async function getBaseWebpackConfig(
 
   const handleExternals = makeExternalHandler({
     config,
+    optOutBundlingPackages,
     optOutBundlingPackageRegex,
     transpiledPackages: finalTranspilePackages,
     dir,

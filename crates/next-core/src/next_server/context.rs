@@ -192,6 +192,7 @@ pub async fn get_server_resolve_options_context(
     let server_external_packages_plugin = ExternalCjsModulesResolvePlugin::new(
         ExternalPredicate::Only(ResolvedVc::cell(external_packages)).cell(),
         *next_config.import_externals().await?,
+        *next_config.server_external_packages_monorepo().await?,
     )
     .to_resolved()
     .await?;
@@ -216,6 +217,7 @@ pub async fn get_server_resolve_options_context(
         ExternalCjsModulesResolvePlugin::new(
             ExternalPredicate::AllExcept(ResolvedVc::cell(transpiled_packages)).cell(),
             *next_config.import_externals().await?,
+            false,
         )
         .to_resolved()
         .await?
