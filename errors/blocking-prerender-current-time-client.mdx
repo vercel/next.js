@@ -22,13 +22,22 @@ kind: error
   come back here for the specific fix.
 </div>
 
-A [Client Component](/docs/app/getting-started/server-and-client-components#using-client-components) called [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now), [`Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date), or [`new Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date) inline during render, and the surrounding tree had no [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary. Client Components are server-side rendered on first load, so Next.js can't bake "now" into the prerendered HTML. The SSR timestamp won't match the value the client computes on hydration, so you need to choose: defer the value behind a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary so SSR can stream it, or move the call into [`useEffect`](https://react.dev/reference/react/useEffect) (or an event handler) so it only runs on the client.
+A [Client Component](/docs/app/getting-started/server-and-client-components#using-client-components) called [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now), [`Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date), or [`new Date()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date) inline during render, and the surrounding tree had no [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary. Client Components also render on the server, where this read interrupts [prerendering](/docs/app/glossary#prerendering). A parent `<Suspense>` boundary provides a fallback for that interruption. It does not make the component browser-only or ensure that a server-generated timestamp matches the first browser render.
 
 An imported library can also read the current time during render. In that case, the stack trace may point to the hook or component that initializes the library instead of its internal `Date.now()` call.
 
 The Server Component case is handled at [`Date.now()` during prerendering](/docs/messages/blocking-prerender-current-time). Other unpredictable client-side APIs ([`Math.random()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random), [`crypto.randomUUID()`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID)) have parallel error pages: [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client) and [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client).
 
 ## Ways to fix this
+
+Choose based on where the value belongs:
+
+| When you need the value                                                 | Approach                                                                                                                                 |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Only in the browser, including inside a third-party widget              | [`use(browser())` inside `<Suspense>`](#render-the-value-only-in-the-browser)                                                            |
+| In server-rendered HTML and the first browser render                    | Generate it in a Server Component and pass it as a prop. [Cache it](/docs/messages/blocking-prerender-current-time) if it can be reused. |
+| Inside a library that already preserves its server result for hydration | [`use(io())` inside `<Suspense>`](#keep-a-hydration-aware-library-server-rendered)                                                       |
+| After an interaction, or while synchronizing with an external system    | [An event handler or effect](#move-into-effect-or-event-handler)                                                                         |
 
 <FixCardGrid>
   <FixCard
@@ -65,51 +74,79 @@ The Server Component case is handled at [`Date.now()` during prerendering](/docs
 
 ## Wrap in or move into Suspense
 
-Choose this fix when the timestamp is part of the rendered output and a brief fallback during SSR is acceptable. Wrap the consuming Client Component in [`<Suspense>`](https://react.dev/reference/react/Suspense) from its parent. The fallback ships in the prerendered HTML, and Next.js fills in the real component when the browser hydrates.
+Choose this fix when the component can show a fallback until its content is ready. Place the boundary above the Client Component that reads the value. A boundary provides a place to show the fallback; the component must also suspend or request browser rendering. See [What activates a Suspense boundary](https://react.dev/reference/react/Suspense#what-activates-a-suspense-boundary).
+
+Adding the boundary can clear this error because Next.js interrupts prerendering when it detects the synchronous read. That does not prevent the read from running during a later request-time server render.
 
 ### Patterns
 
-#### Wrap from a Server Component parent
+#### Render the value only in the browser
 
-Place the [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary in the Server Component that renders the Client Component. The fallback prerenders. The inner Client Component runs in the browser.
+Call [`use(browser())`](https://react.dev/reference/react-dom/browser) before the read when the timestamp belongs in the browser. This skips both static prerendering and request-time server rendering. React 19.3 includes `browser` from `react-dom`.
 
-```jsx filename="app/article.js"
+```jsx filename="app/page.js"
 import { Suspense } from 'react'
-import { RelativeTime } from './relative-time'
+import { DateDisplay } from './date-display'
 
-export default function Article({ timestamp }) {
+export default function Page() {
   return (
-    <article>
-      <Suspense fallback={<time>…</time>}>
-        <RelativeTime timestamp={timestamp} />
-      </Suspense>
-    </article>
+    <Suspense fallback={<time>Loading time…</time>}>
+      <DateDisplay />
+    </Suspense>
   )
 }
 ```
 
-```jsx filename="app/relative-time.js"
+```jsx filename="app/date-display.js"
 'use client'
 
-export function RelativeTime({ timestamp }) {
-  const now = Date.now()
-  return (
-    <time suppressHydrationWarning>{computeTimeAgo({ timestamp, now })}</time>
-  )
+import { use, useState } from 'react'
+import { browser } from 'react-dom'
+
+export function DateDisplay() {
+  use(browser())
+  const [time] = useState(() => new Date().toLocaleTimeString())
+  return <time>{time}</time>
 }
 ```
 
-Learn more: [Streaming](/docs/app/guides/streaming).
+The state initializer runs after `use(browser())`, so the value is created in the browser and stays the same across re-renders. For a third-party widget that should only render in the browser, call `use(browser())` in a Client Component wrapper before returning the widget.
+
+#### Keep a hydration-aware library server-rendered
+
+<span id="suspend-with-useio" />
+
+Call [`use(io())`](/docs/app/api-reference/functions/io) before rendering a third-party widget when its library already supports server rendering and preserves the server result for the first browser render. This explicitly suspends during static prerendering, so the boundary's fallback becomes part of the static shell. During request-time server rendering, `io()` resolves and the widget can render on the server.
+
+For example, if `Widget` from `./widget` is a hydration-aware Client Component that reads the clock internally:
+
+```jsx filename="app/deferred-widget.js"
+'use client'
+
+import { use } from 'react'
+import { io } from 'next/cache'
+import { Widget } from './widget'
+
+export function DeferredWidget() {
+  use(io())
+  return <Widget />
+}
+```
+
+Wrap `<DeferredWidget />` in `<Suspense>` from its parent, as in the first example.
+
+The library's hydration support is required. `use(io())` does not transfer an arbitrary synchronous timestamp from the server to the browser. If a dynamic server render reaches the read, for example after [`await connection()`](/docs/app/api-reference/functions/connection) in a parent, the browser can compute a different value and cause a hydration mismatch. If you control the read and need its result in server-rendered HTML, generate the value in a Server Component and pass it to the Client Component as a prop.
 
 ### Trade-off
 
-The component shows the fallback during SSR and the first paint. For above-the-fold UI this can be visible. Pick a fallback that matches the final layout so it doesn't cause a layout shift when the component hydrates. See [minimizing layout shift](/docs/app/guides/streaming#cls-cumulative-layout-shift).
+With `use(browser())`, the server sends the fallback and the component appears after JavaScript loads. With `use(io())`, the fallback appears in the static shell and the component can stream from the server. Choose a fallback that keeps the surrounding page useful and matches the final layout. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration).
 
 ### Gotchas
 
 - Any UI rendered as part of the prerender shell must be deterministic, including [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](/docs/app/api-reference/file-conventions/loading), [`error.js`](/docs/app/api-reference/file-conventions/error), [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-error). Calling [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) in any of them raises this same error. Use stable placeholder content.
-- The inner Client Component still runs during SSR, behind the boundary. If you need to guarantee the timestamp only runs in the browser, use [Move into effect or event handler](#move-into-effect-or-event-handler) instead.
-- A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary only fixes the prerender/hydration mismatch, not client re-renders. If the component using [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) re-renders on the client (a parent state change, a context update), it reads a fresh timestamp each time. To stabilize the value across re-renders, capture [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) once in a [`useState`](https://react.dev/reference/react/useState) initializer or [`useRef`](https://react.dev/reference/react/useRef), or compute it on the server and pass it down as a prop.
+- Adding `use client` or `<Suspense>` alone does not guarantee browser-only rendering. Use `use(browser())` before the read when that is the intended behavior.
+- A lazy `useState` initializer or a `useRef` does not defer a read past server rendering. The browser-only examples above work because `use(browser())` runs first.
+- Keep browser-only wrappers close to the widget. Wrapping a layout's `children` can prevent nested pages from rendering on the server. See [unrendered segments](/docs/messages/instant-unrendered-segment).
 
 ## Move into effect or event handler
 
@@ -173,8 +210,9 @@ The user sees the placeholder briefly before the real timestamp. For interaction
 
 ### Gotchas
 
+- For a one-time browser value, consider [`use(browser())`](#render-the-value-only-in-the-browser) to avoid an extra state update after mount. Use effects for ongoing synchronization with external systems.
 - Don't compute the timestamp inline during render with a lazy initializer like `useState(() => Date.now())`. The initializer still runs during SSR and triggers the error.
-- If the value needs to be hydration-stable, use [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) instead.
+- If the value must appear in server-rendered HTML, generate it in a Server Component and pass the serialized result as a prop.
 - When you call `setState` from inside [`useEffect`](https://react.dev/reference/react/useEffect), wrap it in [`startTransition`](https://react.dev/reference/react/startTransition). Cascading state updates during hydration can cause an outer [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary's fallback to briefly flash. `startTransition` marks the update as non-blocking so React keeps the existing UI in place while the new value resolves.
 
 ## For telemetry, use a timing API
@@ -242,41 +280,11 @@ export default async function Layout({ children }) {
 
 Learn more: [`Date.now()` during prerendering](/docs/messages/blocking-prerender-current-time).
 
-### Suspend with `use(io())`
-
-When the read genuinely needs to happen per visit and you can't move it to an effect or event, call [`io()`](/docs/app/api-reference/functions/io) from `next/cache` before the read with React's [`use`](https://react.dev/reference/react/use) hook. Client Components prerender on the server during SSR, where the read would otherwise be included in the static shell. `use(io())` suspends the prerender so the component is excluded from the shell and rendered on every request from the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary.
-
-```jsx filename="app/components/last-updated.js"
-'use client'
-import { use } from 'react'
-import { io } from 'next/cache'
-
-export function LastUpdated() {
-  use(io())
-  return <span>Updated at {new Date().toLocaleTimeString()}</span>
-}
-```
-
-Wrap the component in `<Suspense>` so the surrounding shell stays prerendered.
-
-```jsx filename="app/page.js"
-import { Suspense } from 'react'
-import { LastUpdated } from './components/last-updated'
-
-export default function Page() {
-  return (
-    <Suspense fallback={null}>
-      <LastUpdated />
-    </Suspense>
-  )
-}
-```
-
-Learn more: [`io`](/docs/app/api-reference/functions/io).
-
 ## Verifying the fix
 
 After applying a fix, reload the route and confirm the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary placed around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+
+If the component can also render at request time, test that path and check the browser console for hydration errors. A successful static build does not verify that a server-generated value matches the first browser render.
 
 In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
