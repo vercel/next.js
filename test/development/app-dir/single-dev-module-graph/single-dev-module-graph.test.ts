@@ -90,18 +90,20 @@ describe('single-dev-module-graph', () => {
   })
 
   it('does not compile routes that are never requested', async () => {
-    // A route with a syntax error that is never requested.
-    await next.patchFile(
-      'app/never-visited/page.tsx',
-      `export default function Page() { return <p>{never visited</p> }`,
-      async () => {
+    // Routes with a syntax error that are never requested. `pages/_app+/_document` checks that a
+    // route's activation can't collide with the activation `/_app` and `/_document` share.
+    const broken = `export default function Page() { return <p>{never visited</p> }`
+    await next.patchFile('pages/_app+/_document.tsx', broken, async () => {
+      await next.patchFile('app/never-visited/page.tsx', broken, async () => {
         const outputIndex = next.cliOutput.length
         for (const pathname of ['/a', '/b', '/legacy', '/api/hello']) {
           expect((await next.fetch(pathname)).status).toBe(200)
         }
-        expect(next.cliOutput.slice(outputIndex)).not.toContain('never-visited')
-      }
-    )
+        const output = next.cliOutput.slice(outputIndex)
+        expect(output).not.toContain('never-visited')
+        expect(output).not.toContain('_app+')
+      })
+    })
   })
 
   it('reports issues of routes that are not requested yet through the MCP tool', async () => {

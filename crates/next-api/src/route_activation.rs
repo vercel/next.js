@@ -53,7 +53,13 @@ pub fn route_activation_state(
 /// read, as a separate operation, since a state can't be set by a task that depends on it.
 #[turbo_tasks::function(operation, root)]
 pub async fn activate_endpoint_operation(endpoint: OperationVc<OptionEndpoint>) -> Result<Vc<()>> {
-    let Some(endpoint) = *endpoint.connect().await? else {
+    // When the endpoint can't be resolved (e.g. the entrypoints fail to compute), there is nothing
+    // to activate. The endpoint read that follows reports that error with its usual handling
+    // (issues instead of a fatal error), so it must not be returned here.
+    let Ok(endpoint) = endpoint.connect().await else {
+        return Ok(Vc::cell(()));
+    };
+    let Some(endpoint) = *endpoint else {
         return Ok(Vc::cell(()));
     };
     let project = endpoint.project().to_resolved().await?;

@@ -2079,7 +2079,8 @@ impl Endpoint for PageEndpoint {
     /// activates them with it.
     #[turbo_tasks::function]
     fn activation_keys(&self) -> Vc<Vec<RcStr>> {
-        let app_and_document = rcstr!("pages:/_app+/_document");
+        // Not in the `pages:` namespace, so it can't collide with the key of a user route.
+        let app_and_document = rcstr!("pages-shell:/_app+/_document");
         Vc::cell(match (&*self.pathname, self.ty) {
             ("/_app" | "/_document", _) => vec![app_and_document],
             (pathname, PageEndpointType::Api) => vec![format!("pages:{pathname}").into()],
