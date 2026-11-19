@@ -1768,28 +1768,47 @@ impl Project {
     /// The endpoints whose entries are part of the whole-app module graph.
     ///
     /// With the single development module graph, only the activated endpoints are included (see
-    /// [`route_activation_state`]), unless `include_inactive` is set. Endpoints without an
-    /// [`Endpoint::activation_key`] are always included.
+    /// [`route_activation_state`] and [`Endpoint::activation_keys`]), unless `include_inactive` is
+    /// set.
     #[turbo_tasks::function]
     async fn module_graph_endpoints(
         self: ResolvedVc<Self>,
         include_inactive: bool,
     ) -> Result<Vc<Endpoints>> {
-        let endpoints = self.get_all_endpoints(false);
-        if include_inactive || !*self.single_dev_module_graph().await? {
+        let endpoints = self.get_all_endpoints(/* app_dir_only */ false);
+        if !*self.single_dev_module_graph().await? {
             return Ok(endpoints);
         }
+        let mut endpoints = endpoints.owned().await?;
+        // The Pages Router `/_error`, `/_app` and `/_document` endpoints are also used to render
+        // the fallback error page when there is no `pages` directory, but `get_all_endpoints` only
+        // lists them when there are Pages Router routes. With the single development graph they
+        // must be able to join the shared graph either way (once activated).
+        let entrypoints = self.entrypoints().await?;
+        for endpoint in [
+            entrypoints.pages_error_endpoint,
+            entrypoints.pages_app_endpoint,
+            entrypoints.pages_document_endpoint,
+        ] {
+            if !endpoints.contains(&endpoint) {
+                endpoints.push(endpoint);
+            }
+        }
+        if include_inactive {
+            return Ok(Vc::cell(endpoints));
+        }
         let active = endpoints
-            .await?
-            .iter()
-            .map(async |&endpoint| {
-                Ok(match endpoint.activation_key().owned().await? {
-                    Some(key) => route_activation_state(*self, key)
+            .into_iter()
+            .map(async |endpoint| {
+                for key in endpoint.activation_keys().await?.iter() {
+                    if !route_activation_state(*self, key.clone())
                         .await?
                         .is_active()
-                        .then_some(endpoint),
-                    None => Some(endpoint),
-                })
+                    {
+                        return Ok(None);
+                    }
+                }
+                Ok(Some(endpoint))
             })
             .try_flat_join()
             .await?;
@@ -1904,7 +1923,8 @@ impl Project {
     pub async fn whole_app_module_graphs_without_dropping_issues(
         self: ResolvedVc<Self>,
     ) -> Result<Vc<BaseAndFullModuleGraph>> {
-        let module_graphs_op = whole_app_module_graph_operation(self, true);
+        let module_graphs_op =
+            whole_app_module_graph_operation(self, /* include_inactive */ true);
         let module_graphs_vc = module_graphs_op.connect();
         scale_down_node_pool(self).await?;
         Ok(module_graphs_vc)
@@ -1916,7 +1936,8 @@ impl Project {
     pub async fn whole_app_module_graphs(
         self: ResolvedVc<Self>,
     ) -> Result<Vc<BaseAndFullModuleGraph>> {
-        let module_graphs_op = whole_app_module_graph_operation(self, false);
+        let module_graphs_op =
+            whole_app_module_graph_operation(self, /* include_inactive */ false);
         let module_graphs_vc = if self.next_mode().await?.is_production() {
             module_graphs_op.connect()
         } else {

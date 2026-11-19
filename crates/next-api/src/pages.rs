@@ -2074,30 +2074,17 @@ impl Endpoint for PageEndpoint {
         self.trace_result().all_files()
     }
 
-    /// The HTML and data endpoints of a page share the key.
+    /// The HTML and data endpoints of a page share the key. Rendering a page (or the `/_error`
+    /// fallback page) also uses `/_app` and `/_document`, so it also has their shared key, which
+    /// activates them with it.
     #[turbo_tasks::function]
-    fn activation_key(&self) -> Vc<Option<RcStr>> {
-        Vc::cell(Some(format!("pages:{}", self.pathname).into()))
-    }
-
-    /// Rendering a page also uses `/_app` and `/_document`, so they are activated with it.
-    #[turbo_tasks::function]
-    async fn activation_keys(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
-        let this = self.await?;
-        let mut keys: Vec<RcStr> = self.activation_key().owned().await?.into_iter().collect();
-        if this.ty != PageEndpointType::Api {
-            for endpoint in [
-                this.pages_project.app_endpoint(),
-                this.pages_project.document_endpoint(),
-            ] {
-                if let Some(key) = endpoint.activation_key().owned().await?
-                    && !keys.contains(&key)
-                {
-                    keys.push(key);
-                }
-            }
-        }
-        Ok(Vc::cell(keys))
+    fn activation_keys(&self) -> Vc<Vec<RcStr>> {
+        let app_and_document = rcstr!("pages:/_app+/_document");
+        Vc::cell(match (&*self.pathname, self.ty) {
+            ("/_app" | "/_document", _) => vec![app_and_document],
+            (pathname, PageEndpointType::Api) => vec![format!("pages:{pathname}").into()],
+            (pathname, _) => vec![format!("pages:{pathname}").into(), app_and_document],
+        })
     }
 }
 

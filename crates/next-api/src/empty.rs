@@ -1,5 +1,6 @@
 use anyhow::{Result, bail};
 use next_core::app_structure::FileSystemPathVec;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{Completion, ResolvedVc, Vc};
 use turbopack_core::module_graph::GraphEntries;
 
@@ -55,6 +56,11 @@ impl Endpoint for EmptyEndpoint {
 
     #[turbo_tasks::function]
     fn traced_files(self: Vc<Self>) -> Vc<FileSystemPathVec> {
+        Vc::cell(vec![])
+    }
+    /// Contributes no entries.
+    #[turbo_tasks::function]
+    fn activation_keys(self: Vc<Self>) -> Vc<Vec<RcStr>> {
         Vc::cell(vec![])
     }
 }

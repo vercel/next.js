@@ -383,4 +383,9 @@ impl Endpoint for MiddlewareEndpoint {
     fn traced_files(self: Vc<Self>) -> Vc<FileSystemPathVec> {
         self.trace_result().all_files()
     }
+    /// Middleware runs for every request, so it is always part of the graph.
+    #[turbo_tasks::function]
+    fn activation_keys(self: Vc<Self>) -> Vc<Vec<RcStr>> {
+        Vc::cell(vec![])
+    }
 }

@@ -127,22 +127,14 @@ pub trait Endpoint {
     #[turbo_tasks::function]
     fn traced_files(self: Vc<Self>) -> Vc<FileSystemPathVec>;
 
-    /// The key of the route activation that gates this endpoint's entries in the single
-    /// development module graph (see [`crate::route_activation`]). `None` means the endpoint is
-    /// always part of the graph.
+    /// The keys of the route activations (see [`crate::route_activation`]) that gate this
+    /// endpoint's entries in the single development module graph. Using the endpoint activates
+    /// all of them, and the endpoint is part of the graph once all of them are active. Endpoints
+    /// that share a key (e.g. the HTML and HMR endpoints of a page) are activated together, and an
+    /// endpoint can activate the endpoints it depends on by including their key. An empty list
+    /// means the endpoint is always part of the graph.
     #[turbo_tasks::function]
-    fn activation_key(self: Vc<Self>) -> Vc<Option<RcStr>> {
-        Vc::cell(None)
-    }
-
-    /// The route activations to activate when this endpoint is used: its own
-    /// [`Endpoint::activation_key`] plus those of the endpoints it depends on.
-    #[turbo_tasks::function]
-    async fn activation_keys(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
-        Ok(Vc::cell(
-            self.activation_key().owned().await?.into_iter().collect(),
-        ))
-    }
+    fn activation_keys(self: Vc<Self>) -> Vc<Vec<RcStr>>;
 }
 
 #[derive(PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode)]

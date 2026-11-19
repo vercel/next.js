@@ -14,6 +14,7 @@ use turbo_tasks::{OperationVc, ResolvedVc, State, Vc};
 
 use crate::{operation::OptionEndpoint, project::Project, route::Endpoint};
 
+/// We don't serialize this because we don't want activation state to be sticky across sessions
 #[turbo_tasks::value(serialization = "skip", evict = "never")]
 pub struct RouteActivationState {
     active: State<bool>,
@@ -30,7 +31,7 @@ impl RouteActivationState {
 }
 
 /// The activation state of the route identified by `key` (see
-/// [`crate::route::Endpoint::activation_key`]) in `project`.
+/// [`crate::route::Endpoint::activation_keys`]) in `project`.
 ///
 /// Memoized per project and key, so every reader of a given route observes the same bit. The state
 /// is not serialized. Invalidate cached readers in each new session so they subscribe to the

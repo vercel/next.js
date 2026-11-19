@@ -1503,6 +1503,11 @@ impl Endpoint for GoEndpoint {
     fn traced_files(self: Vc<Self>) -> Vc<FileSystemPathVec> {
         Vc::cell(vec![])
     }
+
+    #[turbo_tasks::function]
+    fn activation_keys(&self) -> Vc<Vec<RcStr>> {
+        Vc::cell(vec![format!("go:{}", self.path.path).into()])
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]
@@ -3009,8 +3014,8 @@ impl Endpoint for AppEndpoint {
     /// The HTML and RSC HMR endpoints of a page share the key: they have the same entries, and
     /// only the HTML endpoint contributes them to the module graph.
     #[turbo_tasks::function]
-    fn activation_key(&self) -> Vc<Option<RcStr>> {
-        Vc::cell(Some(format!("app:{}", self.page).into()))
+    fn activation_keys(&self) -> Vc<Vec<RcStr>> {
+        Vc::cell(vec![format!("app:{}", self.page).into()])
     }
 }
 
