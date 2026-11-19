@@ -166,6 +166,24 @@ func TestAddsNoContentTypeNodeDidNotSend(t *testing.T) {
 	}
 }
 
+func TestAddsNoContentTypeAfterAnEarlyHint(t *testing.T) {
+	addr, _ := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Link", "</a.css>; rel=preload")
+		w.WriteHeader(http.StatusEarlyHints)
+		w.Header()["Content-Type"] = nil
+		w.Write([]byte("<html>hello</html>"))
+	})
+	// Go's client skips the 103 and returns the final response.
+	res, err := http.Get("http://" + addr + "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if v, ok := res.Header["Content-Type"]; ok {
+		t.Errorf("Content-Type %q, want none", v)
+	}
+}
+
 func TestForwardsAResponseBeforeTheUploadFinishes(t *testing.T) {
 	for _, status := range []int{http.StatusOK, http.StatusForbidden} {
 		t.Run(http.StatusText(status), func(t *testing.T) {
