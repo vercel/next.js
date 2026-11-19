@@ -1,5 +1,6 @@
 import http from 'http'
 import net from 'net'
+import os from 'os'
 import { createHash, randomBytes } from 'crypto'
 import { once } from 'events'
 import WebSocket from 'ws'
@@ -130,6 +131,102 @@ describe('switchyard', () => {
         'x-custom': 'one, two',
         x_underscore: 'kept',
       })
+    })
+  })
+
+  describe('client identity', () => {
+    function peerRequest(
+      hostname: string,
+      agent: http.Agent,
+      policy = '',
+      headers: http.OutgoingHttpHeaders = {}
+    ) {
+      return new Promise<{
+        status: number
+        clientPort: number
+        peer: {
+          remoteAddress: string
+          remotePort: number
+          remoteFamily: string
+          connectionAddress: string
+          responseAddress: string
+          internalHeaderPresent: boolean
+        }
+      }>((resolve, reject) => {
+        const request = http.get(
+          {
+            hostname,
+            port: next.appPort,
+            path: `/api/peer?policy=${policy}`,
+            agent,
+            headers,
+          },
+          (response) => {
+            const clientPort = request.socket!.localPort!
+            const chunks: Buffer[] = []
+            response.on('data', (chunk) => chunks.push(chunk))
+            response.on('error', reject)
+            response.on('end', () =>
+              resolve({
+                status: response.statusCode!,
+                clientPort,
+                peer: JSON.parse(Buffer.concat(chunks).toString()),
+              })
+            )
+          }
+        )
+        request.on('error', reject)
+      })
+    }
+
+    it('keeps external callers out of loopback-only API routes, including forged forwarding headers', async () => {
+      const external = Object.values(os.networkInterfaces())
+        .flat()
+        .find((address) => address?.family === 'IPv4' && !address.internal)
+      if (!external)
+        throw new Error('The test needs a non-loopback IPv4 address')
+      const agent = new http.Agent({ keepAlive: true })
+      try {
+        for (const policy of ['loopback', 'forwarded']) {
+          const result = await peerRequest(external.address, agent, policy, {
+            'x-forwarded-for': '127.0.0.1',
+          })
+          expect(result.status).toBe(403)
+          expect(result.peer).toEqual({
+            remoteAddress: `::ffff:${external.address}`,
+            remotePort: result.clientPort,
+            remoteFamily: 'IPv6',
+            connectionAddress: `::ffff:${external.address}`,
+            responseAddress: `::ffff:${external.address}`,
+            internalHeaderPresent: false,
+          })
+        }
+      } finally {
+        agent.destroy()
+      }
+    })
+
+    it('keeps the correct peer on reused connections from different clients', async () => {
+      const agents = [
+        new http.Agent({ keepAlive: true }),
+        new http.Agent({ keepAlive: true }),
+      ]
+      try {
+        for (let round = 0; round < 3; round++) {
+          const results = await Promise.all(
+            agents.map((agent) => peerRequest('127.0.0.1', agent, 'loopback'))
+          )
+          expect(results[0].clientPort).not.toBe(results[1].clientPort)
+          for (const result of results) {
+            expect(result.status).toBe(200)
+            expect(result.peer.remoteAddress).toBe('::ffff:127.0.0.1')
+            expect(result.peer.remotePort).toBe(result.clientPort)
+            expect(result.peer.internalHeaderPresent).toBe(false)
+          }
+        }
+      } finally {
+        agents.forEach((agent) => agent.destroy())
+      }
     })
   })
 

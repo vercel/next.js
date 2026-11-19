@@ -12,3 +12,6 @@ export const SWITCHYARD_BINARY_ENV = '__NEXT_EXPERIMENTAL_SWITCHYARD_BINARY'
 
 /** `1` makes `next`'s build compile switchyard into dist/server/switchyard. */
 export const BUILD_SWITCHYARD_ENV = 'NEXT_BUILD_SWITCHYARD'
+
+/** Passed only to the child process, never on its command line. */
+export const SWITCHYARD_TOKEN_ENV = '__NEXT_PRIVATE_SWITCHYARD_TOKEN'

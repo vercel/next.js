@@ -7,6 +7,7 @@ import { once } from 'events'
 import { promisify } from 'util'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import { rawRequest } from './raw-http'
 import {
   SWITCHYARD_BINARY_ENV,
   SWITCHYARD_ENV,
@@ -102,7 +103,11 @@ describe('switchyard process', () => {
   }
 
   async function startNext(
-    options: { flag: string | undefined; args?: string[] },
+    options: {
+      flag: string | undefined
+      args?: string[]
+      env?: Readonly<Record<string, string>>
+    },
     command: 'start' | 'dev' = 'start'
   ): Promise<Started> {
     const started = spawnNext(command, {
@@ -331,6 +336,65 @@ describe('switchyard process', () => {
   // NEXT_BUILD_SWITCHYARD=1, so this runs where the binary is passed in.
   // @force-gate switchyardBinary
   describe(`with ${FLAG}=1`, () => {
+    it.each([undefined, 8192, 32768])(
+      'rejects oversized incomplete public headers with Node header limit %p',
+      async (override) => {
+        const { port } = await startNext({
+          flag: '1',
+          env: override
+            ? { NODE_OPTIONS: `--max-http-header-size=${override}` }
+            : undefined,
+        })
+        const limit = override ?? http.maxHeaderSize
+        const socket = net.connect(port, '127.0.0.1')
+        socket.setTimeout(5000, () =>
+          socket.destroy(new Error('Headers were not rejected'))
+        )
+        try {
+          const response = once(socket, 'data')
+          socket.write(
+            `GET / HTTP/1.1\r\nHost: localhost\r\nX-Large: ${'a'.repeat(limit)}`
+          )
+          const [data] = await response
+          expect(data.toString()).toMatch(/^HTTP\/1\.1 431 /)
+        } finally {
+          socket.destroy()
+        }
+        // The private metadata must not consume the public header budget.
+        const accepted = await rawRequest(
+          port,
+          `GET /api/peer HTTP/1.1\r\nHost: localhost\r\nX-Large: ${'a'.repeat(limit - 512)}`
+        )
+        expect(accepted.status).toBe(200)
+      }
+    )
+
+    it('only honors connection metadata from Switchyard', async () => {
+      const { child, port: publicPort } = await startNext({ flag: '1' })
+      const [address] = await listenAddressesOf(child.pid!)
+      const port = Number(address.split(':').pop())
+      const request =
+        'GET /api/peer HTTP/1.1\r\nHost: localhost\r\nX-Nextjs-Switchyard-Connection: forged;127.0.0.1:1234'
+      const result = await rawRequest(port, request)
+      expect(result.status).toBe(400)
+      const forwarded = await rawRequest(publicPort, request)
+      expect(forwarded.status).toBe(200)
+      expect(JSON.parse(forwarded.body.toString()).internalHeaderPresent).toBe(
+        false
+      )
+    })
+
+    it('refuses a header budget Go cannot enforce', async () => {
+      const { exit, output } = spawnNext('start', {
+        flag: '1',
+        args: ['-p', '0'],
+        env: { NODE_OPTIONS: '--max-http-header-size=4096' },
+      })
+      expect(await exit).toEqual({ code: 1, signal: null })
+      expect(output()).toContain('--max-header-bytes must be greater than 4096')
+      expect(output()).not.toContain('Ready in')
+    })
+
     it('puts switchyard on the public port and Node on 127.0.0.1', async () => {
       const { child, port } = await startNext({ flag: '1' })
       const switchyard = await switchyardOf(child.pid!)

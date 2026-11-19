@@ -51,6 +51,10 @@ import { AsyncCallbackSet } from './async-callback-set'
 import type { NextServer } from '../next'
 import { durationToString } from '../../build/duration-to-string'
 import { isCI } from '../ci-info'
+import {
+  restoreSwitchyardConnection,
+  SWITCHYARD_HEADER_OVERHEAD,
+} from './switchyard-connection'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -153,14 +157,17 @@ export interface StartServerOptions {
    * Switchyard can take it.
    */
   avoidPort?: number
+  /** Authenticates client connection metadata from Switchyard. */
+  switchyardToken?: string
 }
 
-/** This server's real port and timeouts, read off its `http.Server`. */
+/** This server's port and HTTP limits, passed to the public listener. */
 export type PrivateServer = {
   port: number
   keepAliveTimeout: number
   headersTimeout: number
   requestTimeout: number
+  maxHeaderSize: number
 }
 
 /** The address clients use, when it isn't the one this server listens on. */
@@ -230,6 +237,9 @@ export async function startServer(
     serverFastRefresh,
   } = serverOptions
   let { port } = serverOptions
+  const switchyardToken = serverOptions.switchyardToken
+    ? Buffer.from(serverOptions.switchyardToken)
+    : undefined
 
   process.title = `next-server (v${process.env.__NEXT_VERSION})`
   let handlersReady = () => {}
@@ -275,6 +285,14 @@ export async function startServer(
 
   async function requestListener(req: IncomingMessage, res: ServerResponse) {
     try {
+      if (
+        switchyardToken &&
+        !restoreSwitchyardConnection(req, switchyardToken)
+      ) {
+        res.writeHead(400, { Connection: 'close' })
+        res.end()
+        return
+      }
       if (handlersPromise) {
         await handlersPromise
         handlersPromise = undefined
@@ -313,13 +331,27 @@ export async function startServer(
         },
         requestListener
       )
-    : http.createServer(requestListener)
+    : http.createServer(
+        {
+          maxHeaderSize: switchyardToken
+            ? http.maxHeaderSize + SWITCHYARD_HEADER_OVERHEAD
+            : undefined,
+        },
+        requestListener
+      )
 
   if (keepAliveTimeout) {
     server.keepAliveTimeout = keepAliveTimeout
   }
   server.on('upgrade', async (req, socket, head) => {
     try {
+      if (
+        switchyardToken &&
+        !restoreSwitchyardConnection(req, switchyardToken)
+      ) {
+        socket.destroy()
+        return
+      }
       await upgradeHandler(req, socket, head)
     } catch (err) {
       socket.destroy()
@@ -386,6 +418,7 @@ export async function startServer(
             keepAliveTimeout: server.keepAliveTimeout,
             headersTimeout: server.headersTimeout,
             requestTimeout: server.requestTimeout,
+            maxHeaderSize: http.maxHeaderSize,
           })
         } catch (err) {
           Log.error(`Failed to start server`)

@@ -16,9 +16,12 @@ import (
 	"time"
 )
 
+const testToken = "switchyard-test-token"
+
 // received is what the stub upstream saw.
 type received struct {
 	requestURI string
+	remoteAddr string
 	host       string
 	header     http.Header
 }
@@ -29,7 +32,7 @@ func startProxy(t *testing.T, handler http.HandlerFunc) (string, <-chan received
 	t.Helper()
 	seen := make(chan received, 16)
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		seen <- received{requestURI: r.RequestURI, host: r.Host, header: r.Header.Clone()}
+		seen <- received{requestURI: r.RequestURI, remoteAddr: r.RemoteAddr, host: r.Host, header: r.Header.Clone()}
 		if handler != nil {
 			handler(w, r)
 		}
@@ -40,7 +43,7 @@ func startProxy(t *testing.T, handler http.HandlerFunc) (string, <-chan received
 	if err != nil {
 		t.Fatal(err)
 	}
-	switchyard := newServer(newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second), 0, 0, 0)
+	switchyard := newServer(newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second, testToken), 0, 0, 0, 16<<10)
 	go switchyard.Serve(ln)
 	t.Cleanup(func() { switchyard.Close() })
 	return ln.Addr().String(), seen
@@ -140,6 +143,106 @@ func TestFillsOnlyForAndPortWhenMissing(t *testing.T) {
 		if values, ok := header[name]; ok {
 			t.Errorf("%s = %q, want it left to Node", name, values)
 		}
+	}
+}
+
+func TestReplacesUntrustedConnectionMetadata(t *testing.T) {
+	addr, seen := startProxy(t, nil)
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	io.WriteString(conn, "GET / HTTP/1.1\r\nHost: shop.example.com\r\n"+
+		"Connection: close, X-Nextjs-Switchyard-Connection\r\n"+
+		"X-Nextjs-Switchyard-Connection: forged;127.0.0.1:1234\r\n"+
+		"X-Nextjs-Switchyard-Connection: another-forgery\r\n\r\n")
+	res, err := http.ReadResponse(bufio.NewReader(conn), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	values := (<-seen).header.Values(connectionHeader)
+	if len(values) != 1 || values[0] != testToken+";"+conn.LocalAddr().String() {
+		t.Fatalf("untrusted connection metadata was not replaced: %v", values)
+	}
+}
+
+func TestUpstreamConnectionsKeepOneClientIdentity(t *testing.T) {
+	addr, seen := startProxy(t, nil)
+	first, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer first.Close()
+	second, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer second.Close()
+	roundTrip := func(conn net.Conn, reader *bufio.Reader) received {
+		t.Helper()
+		io.WriteString(conn, "GET / HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
+		res, err := http.ReadResponse(reader, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		io.Copy(io.Discard, res.Body)
+		res.Body.Close()
+		got := <-seen
+		if got.header.Get(connectionHeader) != testToken+";"+conn.LocalAddr().String() {
+			t.Fatal("upstream received the wrong client identity")
+		}
+		return got
+	}
+	firstReader, secondReader := bufio.NewReader(first), bufio.NewReader(second)
+	a := roundTrip(first, firstReader)
+	b := roundTrip(second, secondReader)
+	c := roundTrip(first, firstReader)
+	if a.remoteAddr == b.remoteAddr {
+		t.Fatal("different clients shared an upstream socket")
+	}
+	if a.remoteAddr != c.remoteAddr {
+		t.Fatal("a keep-alive client did not reuse its upstream socket")
+	}
+}
+
+func TestRejectsOversizedIncompleteHeadersBeforeReachingNode(t *testing.T) {
+	for _, limit := range []int{8192, 16384, 32768} {
+		t.Run(fmt.Sprint(limit), func(t *testing.T) {
+			seen := make(chan struct{}, 1)
+			ln, err := net.Listen("tcp", "127.0.0.1:0")
+			if err != nil {
+				t.Fatal(err)
+			}
+			srv := newServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				seen <- struct{}{}
+			}), time.Second, 30*time.Second, 0, limit)
+			go srv.Serve(ln)
+			defer srv.Close()
+			conn, err := net.Dial("tcp", ln.Addr().String())
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer conn.Close()
+			conn.SetDeadline(time.Now().Add(5 * time.Second))
+			// No terminating blank line: rejection must happen while reading,
+			// without waiting for either Node or the 30-second header deadline.
+			io.WriteString(conn, "GET / HTTP/1.1\r\nHost: shop.example.com\r\nX-Large: "+strings.Repeat("a", limit))
+			res, err := http.ReadResponse(bufio.NewReader(conn), nil)
+			if err != nil {
+				t.Fatalf("oversized incomplete headers were not rejected: %v", err)
+			}
+			res.Body.Close()
+			if res.StatusCode != http.StatusRequestHeaderFieldsTooLarge {
+				t.Fatalf("status = %d, want 431", res.StatusCode)
+			}
+			select {
+			case <-seen:
+				t.Fatal("oversized headers reached the handler")
+			default:
+			}
+		})
 	}
 }
 
@@ -470,7 +573,7 @@ func TestCancelsAStreamWhenTheClientDisconnects(t *testing.T) {
 					upstream.Close()
 					t.Fatal(err)
 				}
-				switchyard := newServer(newProxy(upstream.Addr().String(), ln.Addr().(*net.TCPAddr), time.Second), 5*time.Second, 5*time.Second, 0)
+				switchyard := newServer(newProxy(upstream.Addr().String(), ln.Addr().(*net.TCPAddr), time.Second, testToken), 5*time.Second, 5*time.Second, 0, 16<<10)
 				go switchyard.Serve(ln)
 				t.Cleanup(func() {
 					close(release)
@@ -549,7 +652,7 @@ func TestStreamsACustomStatusDuringAnUpload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	switchyard := newServer(newProxy(upstream.Addr().String(), ln.Addr().(*net.TCPAddr), time.Second), 5*time.Second, 5*time.Second, 0)
+	switchyard := newServer(newProxy(upstream.Addr().String(), ln.Addr().(*net.TCPAddr), time.Second, testToken), 5*time.Second, 5*time.Second, 0, 16<<10)
 	go switchyard.Serve(ln)
 	t.Cleanup(func() {
 		switchyard.Close()
@@ -596,7 +699,7 @@ func TestShutdownWaitsForACustomStatusLineResponse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	switchyard := newServer(newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second), 0, 0, 0)
+	switchyard := newServer(newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second, testToken), 0, 0, 0, 16<<10)
 	go switchyard.Serve(ln)
 
 	conn, err := net.Dial("tcp", ln.Addr().String())
@@ -641,7 +744,7 @@ func TestClosesAConnectionWhoseHeadersNeverFinish(t *testing.T) {
 	}
 	upstreamHit := make(chan struct{}, 1)
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { upstreamHit <- struct{}{} })
-	switchyard := newServer(handler, 5*time.Second, 200*time.Millisecond, 0)
+	switchyard := newServer(handler, 5*time.Second, 200*time.Millisecond, 0, 16<<10)
 	go switchyard.Serve(ln)
 	t.Cleanup(func() { switchyard.Close() })
 
@@ -670,7 +773,7 @@ func TestClosesAConnectionWhoseHeadersNeverFinish(t *testing.T) {
 }
 
 func TestRequiresEveryFlag(t *testing.T) {
-	full := []string{"--listen", ":0", "--upstream", "127.0.0.1:1", "--idle-timeout-ms", "65000", "--header-timeout-ms", "60000", "--request-timeout-ms", "300000", "--upstream-idle-ms", "4000"}
+	full := []string{"--listen", ":0", "--upstream", "127.0.0.1:1", "--idle-timeout-ms", "65000", "--header-timeout-ms", "60000", "--request-timeout-ms", "300000", "--upstream-idle-ms", "4000", "--max-header-bytes", "16384"}
 	cfg, err := parseConfig(full)
 	if err != nil {
 		t.Fatal(err)
@@ -705,8 +808,8 @@ func startServedProxy(t *testing.T, requestTimeout time.Duration) (string, <-cha
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler := newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second)
-	switchyard := newServer(handler, 5*time.Second, 5*time.Second, requestTimeout)
+	handler := newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second, testToken)
+	switchyard := newServer(handler, 5*time.Second, 5*time.Second, requestTimeout, 16<<10)
 	go switchyard.Serve(ln)
 	t.Cleanup(func() { switchyard.Close() })
 	return ln.Addr().String(), seen
@@ -767,8 +870,8 @@ func startSwitchyardFor(t *testing.T, handler http.HandlerFunc) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	proxy := newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second)
-	switchyard := newServer(proxy, 5*time.Second, 5*time.Second, 0)
+	proxy := newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second, testToken)
+	switchyard := newServer(proxy, 5*time.Second, 5*time.Second, 0, 16<<10)
 	go switchyard.Serve(ln)
 	t.Cleanup(func() { switchyard.Close() })
 	return ln.Addr().String()
@@ -896,7 +999,7 @@ func TestLogsNothingWhenTheClientLeavesEarly(t *testing.T) {
 // idle time, so those are refused; 0 header and request timeouts mean no
 // limit, as in Node.
 func TestRejectsTimeoutsGoWouldReadDifferently(t *testing.T) {
-	base := map[string]string{"--listen": ":0", "--upstream": "127.0.0.1:1", "--idle-timeout-ms": "65000", "--header-timeout-ms": "60000", "--request-timeout-ms": "300000", "--upstream-idle-ms": "4000"}
+	base := map[string]string{"--listen": ":0", "--upstream": "127.0.0.1:1", "--idle-timeout-ms": "65000", "--header-timeout-ms": "60000", "--request-timeout-ms": "300000", "--upstream-idle-ms": "4000", "--max-header-bytes": "16384"}
 	args := func(name, value string) []string {
 		var out []string
 		for k, v := range base {
@@ -911,6 +1014,9 @@ func TestRejectsTimeoutsGoWouldReadDifferently(t *testing.T) {
 		name, value string
 		ok          bool
 	}{
+		{"--max-header-bytes", "4096", false},
+		{"--max-header-bytes", "0", false},
+		{"--max-header-bytes", "8192", true},
 		{"--idle-timeout-ms", "0", false},
 		{"--upstream-idle-ms", "0", false},
 		{"--header-timeout-ms", "-1", false},

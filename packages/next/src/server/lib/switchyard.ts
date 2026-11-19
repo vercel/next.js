@@ -1,5 +1,6 @@
 import { spawn } from 'child_process'
 import fs from 'fs'
+import { randomBytes } from 'crypto'
 import readline from 'readline'
 import type { Readable } from 'stream'
 import * as Log from '../../build/output/log'
@@ -10,7 +11,7 @@ import {
   type StartServerResult,
 } from './start-server'
 import { findSwitchyardBinary } from './switchyard-binary'
-import { SWITCHYARD_ENV } from './switchyard-env'
+import { SWITCHYARD_ENV, SWITCHYARD_TOKEN_ENV } from './switchyard-env'
 import { formatHostname } from './format-hostname'
 import { printAndExit } from './utils'
 
@@ -43,6 +44,7 @@ export async function startSwitchyard(
   // Start the Node server, on a private loopback port instead of the public
   // one. Once it listens, startServer calls beforeStartLog below, which starts
   // Switchyard on the public port.
+  const token = randomBytes(32).toString('hex')
   return startServer({
     ...options,
     hostname: '127.0.0.1',
@@ -53,6 +55,7 @@ export async function startSwitchyard(
     // Switchyard owns client keep-alive; the Node server keeps Node's
     // default.
     keepAliveTimeout: undefined,
+    switchyardToken: token,
     // Start Switchyard: it takes the public port and forwards to
     // the Node server above.
     beforeStartLog: (privateServer) =>
@@ -60,6 +63,8 @@ export async function startSwitchyard(
         hostname: options.hostname,
         port: options.port,
         privatePort: privateServer.port,
+        token,
+        maxHeaderBytes: privateServer.maxHeaderSize,
         // Every value Switchyard uses comes from Node, so it has no defaults
         // of its own: client keep-alive as without Switchyard (--keepAliveTimeout
         // or Node's), Node's header and request timeouts, and a pool idle time
@@ -82,6 +87,8 @@ function spawnSwitchyard(
     hostname: string | undefined
     port: number
     privatePort: number
+    token: string
+    maxHeaderBytes: number
     idleTimeoutMs: number
     headerTimeoutMs: number
     requestTimeoutMs: number
@@ -104,9 +111,12 @@ function spawnSwitchyard(
       String(options.requestTimeoutMs),
       '--upstream-idle-ms',
       String(options.upstreamIdleMs),
+      '--max-header-bytes',
+      String(options.maxHeaderBytes),
     ],
     {
       stdio: ['pipe', 'pipe', 'inherit'],
+      env: { ...process.env, [SWITCHYARD_TOKEN_ENV]: options.token },
       // Its own process group: Ctrl+C reaches only Node, whose shutdown then
       // closes Switchyard's stdin. Signals always go through Node's handlers,
       // including NEXT_MANUAL_SIG_HANDLE ones.

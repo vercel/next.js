@@ -6,10 +6,11 @@
 //
 //		switchyard --listen :3000 --upstream 127.0.0.1:51234 \
 //		  --idle-timeout-ms 5000 --header-timeout-ms 60000 \
-//		  --request-timeout-ms 300000 --upstream-idle-ms 4000
+//		  --request-timeout-ms 300000 --upstream-idle-ms 4000 --max-header-bytes 16384
 //
 //	  - Every flag is required. Node passes every behavior value, read off its
 //	    own server, so Switchyard has no defaults of its own.
+//	  - Node passes the connection metadata secret in __NEXT_PRIVATE_SWITCHYARD_TOKEN.
 //	  - Once it listens, it prints `NEXT_SWITCHYARD_READY <port>` on stdout.
 //	  - If it can't listen, it prints the error on stderr and exits 1; Node
 //	    reports "Failed to start server".
@@ -58,7 +59,13 @@ type config struct {
 	// keep-alive, so a request never goes out on a connection Node is
 	// closing.
 	upstreamIdle time.Duration
+	// Node's effective public header budget, including --max-http-header-size.
+	maxHeaderBytes int
 }
+
+// net/http adds this read-buffer allowance to Server.MaxHeaderBytes.
+const headerReadAllowance = 4096
+const connectionHeader = "X-Nextjs-Switchyard-Connection"
 
 func parseConfig(args []string) (config, error) {
 	flags := flag.NewFlagSet("switchyard", flag.ContinueOnError)
@@ -68,6 +75,7 @@ func parseConfig(args []string) (config, error) {
 	headerMs := flags.Int("header-timeout-ms", 0, "how long a client may take to send request headers")
 	requestMs := flags.Int("request-timeout-ms", 0, "how long a client may take to send a whole request; 0 means no limit")
 	upstreamIdleMs := flags.Int("upstream-idle-ms", 0, "how long an idle connection to Node stays pooled")
+	maxHeaderBytes := flags.Int("max-header-bytes", 0, "Node's maximum request header size")
 	if err := flags.Parse(args); err != nil {
 		return config{}, err
 	}
@@ -81,6 +89,11 @@ func parseConfig(args []string) (config, error) {
 	})
 	if len(missing) > 0 {
 		return config{}, fmt.Errorf("missing %s", strings.Join(missing, ", "))
+	}
+	// A non-positive MaxHeaderBytes enables Go's 1 MiB default. Refuse budgets
+	// smaller than Go can enforce, rather than silently increasing Node's limit.
+	if *maxHeaderBytes <= headerReadAllowance {
+		return config{}, fmt.Errorf("--max-header-bytes must be greater than %d", headerReadAllowance)
 	}
 	// Go reads 0 differently from Node for two of these: an idle timeout of 0
 	// falls back to the request timeout, and an IdleConnTimeout of 0 keeps
@@ -108,6 +121,7 @@ func parseConfig(args []string) (config, error) {
 		headerTimeout:  ms(*headerMs),
 		requestTimeout: ms(*requestMs),
 		upstreamIdle:   ms(*upstreamIdleMs),
+		maxHeaderBytes: *maxHeaderBytes,
 	}, nil
 }
 
@@ -115,6 +129,11 @@ func main() {
 	cfg, err := parseConfig(os.Args[1:])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "switchyard:", err)
+		os.Exit(2)
+	}
+	token := os.Getenv("__NEXT_PRIVATE_SWITCHYARD_TOKEN")
+	if token == "" {
+		fmt.Fprintln(os.Stderr, "switchyard: missing connection authentication token")
 		os.Exit(2)
 	}
 
@@ -125,7 +144,7 @@ func main() {
 	}
 	addr := ln.Addr().(*net.TCPAddr)
 
-	srv := newServer(newProxy(cfg.upstream, addr, cfg.upstreamIdle), cfg.idleTimeout, cfg.headerTimeout, cfg.requestTimeout)
+	srv := newServer(newProxy(cfg.upstream, addr, cfg.upstreamIdle, token), cfg.idleTimeout, cfg.headerTimeout, cfg.requestTimeout, cfg.maxHeaderBytes)
 
 	fmt.Printf("NEXT_SWITCHYARD_READY %d\n", addr.Port)
 
@@ -152,11 +171,12 @@ func main() {
 // newServer is the public server. It times out what Node times out: idle
 // keep-alive connections, request headers, and whole requests. Responses
 // aren't limited, so long streams aren't cut off, as in Node.
-func newServer(handler http.Handler, idleTimeout, headerTimeout, requestTimeout time.Duration) *http.Server {
+func newServer(handler http.Handler, idleTimeout, headerTimeout, requestTimeout time.Duration, maxHeaderBytes int) *http.Server {
 	return &http.Server{
 		Handler:           handler,
 		IdleTimeout:       idleTimeout,
 		ReadHeaderTimeout: headerTimeout,
+		MaxHeaderBytes:    maxHeaderBytes - headerReadAllowance,
 		// Reading a request, body included, must finish within Node's
 		// requestTimeout. Go clears the deadline when a connection is taken
 		// over for a WebSocket upgrade, so those aren't cut off.
@@ -197,7 +217,7 @@ func stopRequested() <-chan struct{} {
 // Preserve request targets, application headers and response bodies. Ordinary
 // response reason phrases use Go's built-in text. The options below compensate
 // for other defaults in Go's server and proxy.
-func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) http.Handler {
+func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, token string) http.Handler {
 	publicPort := strconv.Itoa(public.Port)
 	// The Host Node sees for a request that came without one (HTTP/1.0
 	// allows that). Go would otherwise fill in Node's private address, which
@@ -219,7 +239,10 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) 
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			// Connect to Node.
 			pr.Out.URL.Scheme = "http"
-			pr.Out.URL.Host = upstream
+			// Key the transport's connection pool by the actual client, so an
+			// upstream socket never changes identity while application code is
+			// still using it. DialContext below always connects to Node.
+			pr.Out.URL.Host = pr.In.RemoteAddr
 			// Keep the client's Host header. pr.Out starts as a copy of
 			// pr.In, so it already has it; this guards against ProxyRequest's
 			// SetURL helper, which would clear it and make Go send Node's
@@ -239,6 +262,10 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) 
 			// With Rewrite, Go deletes the client's forwarded headers before
 			// this function runs; put them back, so Node sees them as before.
 			restoreForwardedHeaders(pr.Out.Header, pr.In.Header)
+			_, remotePort, _ := net.SplitHostPort(pr.In.RemoteAddr)
+			// Always replace caller-supplied metadata, including headers named
+			// in Connection. Node authenticates and removes this before routing.
+			pr.Out.Header.Set(connectionHeader, token+";"+net.JoinHostPort(clientIP(pr.In.RemoteAddr, mapIPv4), remotePort))
 			// Node now sees Switchyard's connection (127.0.0.1 and its private
 			// port) instead of the client's, so pass on the client's address
 			// and the public port when no proxy in front of us already did.
@@ -254,11 +281,13 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration) 
 			// Connect to Node directly, never through an HTTP_PROXY. A new
 			// Transport already does that (only http.DefaultTransport reads
 			// HTTP_PROXY); this says so.
-			Proxy:       nil,
-			DialContext: (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
-			// Go keeps only 2 idle connections per host by default, which
-			// opens and closes connections to Node under load.
-			MaxIdleConns:        0,
+			Proxy: nil,
+			DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
+				return (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}).DialContext(ctx, network, upstream)
+			},
+			// Bound the idle pool across clients, while keeping each
+			// upstream socket exclusive to one client address.
+			MaxIdleConns:        512,
 			MaxIdleConnsPerHost: 512,
 			IdleConnTimeout:     upstreamIdle,
 			// When the client sent no Accept-Encoding, Go adds "Accept-Encoding:
