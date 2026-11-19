@@ -117,6 +117,7 @@ describe('server-external-packages-workspace-link', () => {
             'packages/my-wasm-pkg/wasm/my_wasm.cjs',
             'packages/my-wasm-dep/index.js',
             'packages/my-dual-pkg/index.mjs',
+            'packages/my-dual-pkg/package.json',
           ])
         )
       })

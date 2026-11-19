@@ -12,6 +12,7 @@ use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, TracedMode},
+    file_source::FileSource,
     ident::{AssetIdent, Layer},
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
@@ -27,6 +28,7 @@ use turbopack_core::{
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
     },
+    source::Source,
 };
 use turbopack_resolve::ecmascript::{cjs_resolve, esm_resolve};
 
@@ -291,6 +293,15 @@ impl Module for CachedExternalModule {
         Ok(match &self.analyze_mode {
             CachedExternalTracingMode::Untraced => ModuleReferences::empty(),
             CachedExternalTracingMode::Traced { origin, request } => {
+                // When a file of the package is traced directly, Node.js still resolves the
+                // external by the package name at runtime, which needs the `package.json` of the
+                // package (e.g. for its `exports` or `main` field).
+                let package_json = if request.is_some() {
+                    let origin_path = origin.into_trait_ref().await?.origin_path();
+                    Some(origin_path.parent().join("package.json")?)
+                } else {
+                    None
+                };
                 let request = request.as_ref().unwrap_or(&self.request).clone();
                 let external_result = match self.external_type {
                     CachedExternalType::EcmaScriptViaImport => {
@@ -330,12 +341,17 @@ impl Module for CachedExternalModule {
                 let references = external_result
                     .affecting_sources
                     .iter()
+                    .map(|s| **s)
+                    .chain(
+                        package_json
+                            .map(|path| Vc::upcast::<Box<dyn Source>>(FileSource::new(path))),
+                    )
                     .map(|s| {
                         // Add a modifier
                         // it is possible to reference a module as an affecting source and as Module
                         // so this will distinguish them
                         Vc::upcast::<Box<dyn Module>>(RawModule::new_with_modifier(
-                            **s,
+                            s,
                             rcstr!("affecting source"),
                         ))
                     })
