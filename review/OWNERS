@@ -25,7 +25,7 @@
 # It takes no globs and no rubric, and its members are never requested as
 # reviewers.
 
-[team-members] @jimmyhmiller
+[team-members] @jimmyhmiller @samselikoff
 
 # ----------------------------------------------------------------------
 # App Router runtime
