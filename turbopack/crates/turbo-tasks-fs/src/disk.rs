@@ -1340,7 +1340,7 @@ impl FileSystem for DiskFileSystem {
         #[turbo_tasks::value_impl]
         impl Effect for WriteEffect {
             async fn capture(&self) -> Result<Box<dyn CapturedEffect>> {
-                // Untracked, a tracked read of this cell occurred in the write effect so if it
+                // INVALIDATION: a tracked read of this cell occurred in the write effect so if it
                 // somehow changes the effect will be re-emitted
                 let inner = (*self.fs).untracked().await?.inner.clone();
 
@@ -1357,7 +1357,7 @@ impl FileSystem for DiskFileSystem {
                 {
                     None
                 } else {
-                    // Untracked: the content cell is already captured via `content_hash`, and
+                    // INVALIDATION: the content cell is already captured via `content_hash`, and
                     // we don't want this `capture` to take a tracked dependency on the content
                     // cell — that would pin it and defeat the eviction this refactor enables.
                     Some((*self.content).untracked().await?)
@@ -1611,7 +1611,7 @@ impl FileSystem for DiskFileSystem {
         #[turbo_tasks::value_impl]
         impl Effect for WriteLinkEffect {
             async fn capture(&self) -> Result<Box<dyn CapturedEffect>> {
-                // Untracked, a tracked read of this cell occurred in the write effect so if it
+                // INVALIDATION: a tracked read of this cell occurred in the write effect so if it
                 // somehow changes the effect will be re-emitted
                 let inner = (*self.fs).untracked().await?.inner.clone();
 
