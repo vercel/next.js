@@ -189,13 +189,8 @@ of this step; the loop does not assume a pre-existing suite.
 Stand up the rig described by `instant-nav.rig.md`. Two invariants hold on
 every platform:
 
-1. **Use a production build for this workflow's final RED and GREEN.**
-   `next dev` supports loading-state inspection with `instant()` or the
-   [browser pause recipe](https://nextjs.org/docs/app/guides/instant-navigation#inspect-loading-states-with-browser-automation):
-   the lock triggers and waits for a prefetch before navigating. Reuse dev for
-   those checks while editing. It does not exercise production's automatic
-   prefetching, so complete this workflow's optimization verdict on the
-   production rig.
+1. **Run the RED and GREEN checks on a production build.** For a quick look
+   while editing, [inspect the prefetched UI on the dev server](https://nextjs.org/docs/app/guides/instant-navigation#inspect-loading-states-with-browser-automation).
 2. **The measured build must expose the testing API.** Otherwise `instant()`
    silently no-ops and the test passes vacuously (see
    `reference/red-test-robustness.md`). The lock-engagement proof is the phase-C

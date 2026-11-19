@@ -310,32 +310,19 @@ Toggle **Pause on navigations** off when you're done inspecting loading states. 
 
 ### Inspect loading states with browser automation
 
-An agent or browser automation tool can use the same pause as the Navigation Inspector by setting a cookie. With Cache Components enabled, this works against the running `next dev` server without additional configuration or a production build.
-
-Open the source page, then evaluate this JavaScript in the browser:
+With Cache Components enabled, a browser tool can pause navigation on your running `next dev` server. Open `/store/shoes` and set this cookie in the browser:
 
 ```js filename="Browser"
-document.cookie =
-  'next-instant-navigation-testing=' +
-  JSON.stringify([0, 'p' + Math.random()]) +
-  '; path=/'
+document.cookie = 'next-instant-navigation-testing=1; path=/'
 ```
 
-Click the actual `<Link>` to the destination. The pause triggers and waits for the link's configured prefetch, even though ordinary automatic prefetching is disabled in development. Wait for the exact destination URL, then inspect its visible content and loading fallbacks. Dynamic content stays paused, so do not wait for network idle.
+Click the link to `/store/hats` and wait for the destination URL. Next.js waits for the link's prefetch to finish, so you can see which content it provides. In this example, the product name and price appear alongside the inventory fallback, `Checking availability...`. To inspect the static shell on a page load, reload with the cookie set.
 
-To inspect an initial page load instead, set the cookie on the app's origin and reload or navigate directly to the target URL. This shows the static document shell rather than the UI prefetched for a client navigation.
-
-Clear the cookie to resume:
+Clear the cookie to resume, even if the inspection fails:
 
 ```js filename="Browser"
 document.cookie = 'next-instant-navigation-testing=; path=/; max-age=0'
 ```
-
-Confirm the cookie is gone and the deferred content appears. Always clear it in cleanup, including after a failed assertion or navigation timeout, and before saving browser state. Delete only this cookie so application cookies are preserved. The cookie applies to the hostname, including other ports in the same browser context.
-
-The browser must support the Cookie Store API in a secure context, such as localhost or HTTPS. Check that `typeof cookieStore !== 'undefined'` before using the pause.
-
-This inspection simulates a completed prefetch. It does not measure prefetch latency or whether prefetching finished before a real click. For repeatable tests, use [`instant()`](/docs/app/guides/testing/playwright#testing-instant-navigations), which handles the cookie lifecycle and cleanup.
 
 ## Prevent regressions with e2e tests
 

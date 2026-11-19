@@ -5,7 +5,6 @@ description: >
   skill to confirm a change actually works in a running app — not
   just that it compiles or type-checks. Combines /_next/mcp
   (Next.js's view) with agent-browser (the browser's view).
-  Includes inspecting instant navigation and loading states with Cache Components.
   Requires a running `next dev`.
 ---
 
@@ -118,7 +117,8 @@ Four failure modes. Check each:
 - **Runs without errors** — `/_next/mcp` (server and bubbled-up
   browser errors both surface here).
 - **Behaves as intended** — `agent-browser` drives the page; assert
-  what the user actually sees.
+  what the user actually sees. To inspect what a link prefetched in dev,
+  [pause the navigation in the browser](https://nextjs.org/docs/app/guides/instant-navigation#inspect-loading-states-with-browser-automation).
 - **React-level behavior** — `agent-browser` with react-devtools
   enabled exposes the component tree, props, state, and render
   counts. Anchor framework-level checks here (extra renders,
@@ -128,20 +128,6 @@ Four failure modes. Check each:
 
 Pick the specific tool from `tools/list` or the agent-browser
 manual rather than from memory.
-
-### inspect instant navigation and loading states
-
-With Cache Components enabled, inspect the initial shell or a link's prefetched
-UI on the running dev server. Read the [browser pause recipe](https://nextjs.org/docs/app/guides/instant-navigation#inspect-loading-states-with-browser-automation)
-for interactive inspection without writing a test or navigating DevTools menus,
-or use [`@next/playwright`'s `instant()`](https://nextjs.org/docs/app/guides/testing/playwright#testing-instant-navigations)
-for repeatable assertions. Ordinary automatic prefetching is disabled in dev,
-but the testing lock triggers the navigation's prefetch and waits for it.
-
-These checks simulate a completed prefetch; they do not measure prefetch timing.
-Always release the pause before waiting for completed content or network idle,
-and before saving browser state. Use a production build when the task requires
-production-specific prefetch behavior or final optimizer verification.
 
 ## gotchas
 
@@ -163,13 +149,11 @@ production-specific prefetch behavior or final optimizer verification.
   server say it rendered cleanly, a stale or misdirected browser
   session is the likelier cause than a real bug — reconcile the views
   before debugging the app.
-- Confirming a click or navigation: the page settles a beat later, so
+- After an ordinary navigation, the page settles a beat later, so
   wait with `wait --load networkidle` (no path to get wrong), then
   snapshot/read to confirm the page. Avoid `wait --url` unless you pass
   the link's exact href — a guessed or placeholder path won't match the
-  real URL and times out after 25s. While inspecting a paused instant navigation,
-  wait for that exact destination URL and its visible loading UI instead of
-  network idle; dynamic requests intentionally remain pending until release.
+  real URL and times out after 25s.
 - After a locator timeout, check the URL and a fresh snapshot before retrying.
 - A blank read, empty snapshot, `about:blank`, or a "no browser
   session" error — right after `open` or after a click (even if `open`
