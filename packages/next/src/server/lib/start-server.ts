@@ -614,7 +614,8 @@ export async function startServer(
               `Removed upgrade instructions from ${files} because \`experimental.agentUpgrade\` is disabled.`
           )
 
-          if (!isCI) {
+          // A temporary runtime opt-out must not change committed instructions.
+          if (!isCI && !process.env.NEXT_TELEMETRY_DISABLED) {
             const { traceGlobals } =
               require('../../trace/shared') as typeof import('../../trace/shared')
             const telemetry = traceGlobals.get('telemetry') as

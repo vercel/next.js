@@ -82,7 +82,7 @@ Submitting the form sends the content you reviewed, the agent name, and the Next
 
 Set `experimental.agentFeedback` to `false` or remove the option to stop `next dev` from creating or updating the managed block. The next `next dev` run removes the existing agent feedback block and preserves all other content. If the file contained only the managed block, Next.js deletes the file instead of leaving it empty.
 
-Disabling Next.js Telemetry also removes the managed feedback block the next time you run `next dev`. The feedback command does not return reporting instructions while telemetry is disabled.
+Disabling Next.js Telemetry with `next telemetry disable` also removes the managed feedback block the next time you run `next dev`. In CI or when `NEXT_TELEMETRY_DISABLED` is set, `next dev` leaves the feedback block unchanged. The feedback command does not return reporting instructions in CI or while telemetry is disabled.
 
 `experimental.agentFeedback` and top-level [`agentRules`](/docs/app/api-reference/config/next-config-js/agentRules) work independently. Changing one option does not affect the other.
 

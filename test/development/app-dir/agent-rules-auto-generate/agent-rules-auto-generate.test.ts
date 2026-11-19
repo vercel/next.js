@@ -423,6 +423,46 @@ describe('agent-feedback auto-generate on next dev (CI)', () => {
   })
 })
 
+describe.each([
+  {
+    name: 'temporary telemetry opt-out',
+    env: { ...NON_CI_ENV, NEXT_TELEMETRY_DISABLED: '1' },
+  },
+  { name: 'CI', env: { ...NON_CI_ENV, CI: '1' } },
+])('agent-feedback preservation on next dev ($name)', ({ env }) => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    env: { ...env, CLAUDECODE: '1' },
+    nextConfig: {
+      agentRules: false,
+      experimental: {
+        agentUpgrade: false,
+        agentFeedback: true,
+      },
+    },
+    skipStart: true,
+  })
+
+  it.each([
+    ['a file containing only feedback', `${staleAgentFeedbackBlock()}\n`],
+    [
+      'a file containing other instructions',
+      `# Team rules\n\n${staleAgentFeedbackBlock()}\n\n# More rules\n`,
+    ],
+  ])('preserves %s unchanged on startup', async (_name, content) => {
+    await next.patchFile('AGENTS.md', content)
+    await next.start()
+    try {
+      await next.fetch('/')
+      expect(
+        fs.readFileSync(path.join(next.testDir, 'AGENTS.md'), 'utf-8')
+      ).toBe(content)
+    } finally {
+      await next.stop()
+    }
+  })
+})
+
 // Disabling upgrade reminders must remove only their block, including without an agent.
 describe.each([
   ['agent detected', { ...NO_AGENT_ENV, CLAUDECODE: '1' }],
