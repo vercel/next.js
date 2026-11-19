@@ -48,6 +48,7 @@ import { PAGE_TYPES } from '../../lib/page-types'
 import { INSTRUMENTATION_HOOK_FILENAME } from '../../lib/constants'
 import { getNextFlightSegmentPath } from '../../client/flight-data-helpers'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
+import { handleBrowserPageResponse } from '../mcp/tools/utils/browser-communication'
 import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
 import { createRuntimeErrorStateHandler } from './runtime-error-state'
 
@@ -1149,6 +1150,15 @@ export function onDemandEntryHandler({
             handleErrorStateResponse(
               parsedData.requestId,
               parsedData.errorState,
+              parsedData.url
+            )
+          } else if (
+            parsedData.event ===
+            HMR_MESSAGE_SENT_TO_SERVER.MCP_NAVIGATION_RESPONSE
+          ) {
+            handleBrowserPageResponse(
+              parsedData.requestId,
+              parsedData.state,
               parsedData.url
             )
           } else if (

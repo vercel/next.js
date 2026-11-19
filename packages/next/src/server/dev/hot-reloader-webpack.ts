@@ -1740,6 +1740,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               pagesDir: this.pagesDir,
               appDir: this.appDir,
               sendHmrMessage: (message) => this.send(message),
+              getAppRouterClients: () =>
+                this.webpackHotMiddleware?.getAppRouterClients() ?? new Map(),
               getActiveConnectionCount: () =>
                 this.webpackHotMiddleware?.getClientCount() ?? 0,
               getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,

@@ -426,6 +426,9 @@ function processMessage(message: HmrMessageSentToBrowser) {
     case HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER:
       // Only relevant for app router.
       break
+    case HMR_MESSAGE_SENT_TO_BROWSER.INSPECT_NAVIGATION:
+      // Navigation inspection targets App Router documents only.
+      break
     case HMR_MESSAGE_SENT_TO_BROWSER.MIDDLEWARE_CHANGES:
     case HMR_MESSAGE_SENT_TO_BROWSER.CLIENT_CHANGES:
     case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ONLY_CHANGES:

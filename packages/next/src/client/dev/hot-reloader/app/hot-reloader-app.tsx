@@ -27,6 +27,11 @@ import type {
   TurbopackMessageSentToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
 import type { McpErrorStateResponse } from '../../../../shared/lib/mcp-error-types'
+import {
+  armInstantNavigation,
+  releaseInstantNavigation,
+  getInstantNavigationStatus,
+} from '../../instant-navigation'
 import type { McpPageMetadataResponse } from '../../../../shared/lib/mcp-page-metadata-types'
 import { useUntrackedPathname } from '../../../components/navigation-untracked'
 import reportHmrLatency from '../../report-hmr-latency'
@@ -586,6 +591,23 @@ export function processMessage(
         url: window.location.href,
       }
       sendMessage(JSON.stringify(response))
+      return
+    }
+    case HMR_MESSAGE_SENT_TO_BROWSER.INSPECT_NAVIGATION: {
+      const state = getInstantNavigationStatus()
+      if (state !== 'unsupported') {
+        if (message.action === 'arm' && state === 'idle') armInstantNavigation()
+        if (message.action === 'release' && state !== 'idle')
+          releaseInstantNavigation()
+      }
+      sendMessage(
+        JSON.stringify({
+          event: HMR_MESSAGE_SENT_TO_SERVER.MCP_NAVIGATION_RESPONSE,
+          requestId: message.requestId,
+          state: getInstantNavigationStatus(),
+          url: window.location.pathname,
+        })
+      )
       return
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_PAGE_METADATA: {

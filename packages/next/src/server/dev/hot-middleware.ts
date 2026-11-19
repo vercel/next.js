@@ -277,6 +277,10 @@ export class WebpackHotMiddleware {
     })
   }
 
+  getAppRouterClients(): ReadonlyMap<string, ws> {
+    return this.clientsByHtmlRequestId
+  }
+
   getClient = (htmlRequestId: string): ws | undefined => {
     return this.clientsByHtmlRequestId.get(htmlRequestId)
   }

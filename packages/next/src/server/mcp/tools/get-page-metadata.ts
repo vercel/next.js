@@ -6,7 +6,6 @@ import {
 import {
   createBrowserRequest,
   handleBrowserPageResponse,
-  DEFAULT_BROWSER_REQUEST_TIMEOUT_MS,
 } from './utils/browser-communication'
 import type {
   PageMetadata,
@@ -49,10 +48,12 @@ export function registerGetPageMetadataTool(
         }
 
         const responses = await createBrowserRequest<SegmentTrieData>(
-          HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_PAGE_METADATA,
-          sendHmrMessage,
-          getActiveConnectionCount,
-          DEFAULT_BROWSER_REQUEST_TIMEOUT_MS
+          connectionCount,
+          (requestId) =>
+            sendHmrMessage({
+              type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_PAGE_METADATA,
+              requestId,
+            })
         )
 
         if (responses.length === 0) {

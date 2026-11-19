@@ -5,12 +5,8 @@
  */
 
 import { nanoid } from 'next/dist/compiled/nanoid'
-import type {
-  HMR_MESSAGE_SENT_TO_BROWSER,
-  HmrMessageSentToBrowser,
-} from '../../../dev/hot-reloader-types'
 
-export const DEFAULT_BROWSER_REQUEST_TIMEOUT_MS = 5000
+const DEFAULT_BROWSER_REQUEST_TIMEOUT_MS = 5000
 
 export type BrowserResponse<T> = {
   url: string
@@ -28,50 +24,46 @@ type PendingRequest<T> = {
 const pendingRequests = new Map<string, PendingRequest<unknown>>()
 
 export function createBrowserRequest<T>(
-  messageType: HMR_MESSAGE_SENT_TO_BROWSER,
-  sendHmrMessage: (message: HmrMessageSentToBrowser) => void,
-  getActiveConnectionCount: () => number,
-  timeoutMs: number
+  connectionCount: number,
+  send: (requestId: string) => void,
+  timeoutMs = DEFAULT_BROWSER_REQUEST_TIMEOUT_MS
 ): Promise<BrowserResponse<T>[]> {
-  const connectionCount = getActiveConnectionCount()
   if (connectionCount === 0) {
     return Promise.resolve([])
   }
 
-  const requestId = `mcp-${messageType}-${nanoid()}`
+  const requestId = `mcp-${nanoid()}`
 
-  const responsePromise = new Promise<BrowserResponse<T>[]>(
-    (resolve, reject) => {
-      const timeout = setTimeout(() => {
-        const pending = pendingRequests.get(requestId)
-        if (pending && pending.responses.length > 0) {
-          resolve(pending.responses as BrowserResponse<T>[])
-        } else {
-          reject(
-            new Error(
-              `Timeout waiting for response from frontend. The browser may not be responding to HMR messages.`
-            )
+  return new Promise<BrowserResponse<T>[]>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      const pending = pendingRequests.get(requestId)
+      if (pending && pending.responses.length > 0) {
+        resolve(pending.responses as BrowserResponse<T>[])
+      } else {
+        reject(
+          new Error(
+            `Timeout waiting for response from frontend. The browser may not be responding to HMR messages.`
           )
-        }
-        pendingRequests.delete(requestId)
-      }, timeoutMs)
+        )
+      }
+      pendingRequests.delete(requestId)
+    }, timeoutMs)
 
-      pendingRequests.set(requestId, {
-        responses: [],
-        expectedCount: connectionCount,
-        resolve: resolve as (value: BrowserResponse<unknown>[]) => void,
-        reject,
-        timeout,
-      })
+    pendingRequests.set(requestId, {
+      responses: [],
+      expectedCount: connectionCount,
+      resolve: resolve as (value: BrowserResponse<unknown>[]) => void,
+      reject,
+      timeout,
+    })
+    try {
+      send(requestId)
+    } catch (error) {
+      clearTimeout(timeout)
+      pendingRequests.delete(requestId)
+      reject(error)
     }
-  )
-
-  sendHmrMessage({
-    type: messageType,
-    requestId,
-  } as HmrMessageSentToBrowser)
-
-  return responsePromise
+  })
 }
 
 export function handleBrowserPageResponse<T>(

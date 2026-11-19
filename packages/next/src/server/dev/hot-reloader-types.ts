@@ -45,6 +45,7 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   VERSION_INFO = 'versionInfo',
   REQUEST_CURRENT_ERROR_STATE = 'requestCurrentErrorState',
   RUNTIME_ERRORS = 'runtimeErrors',
+  INSPECT_NAVIGATION = 'inspectNavigation',
   REQUEST_PAGE_METADATA = 'requestPageMetadata',
   REQUEST_INSIGHTS_UPDATE = 'requestInsightsUpdate',
 
@@ -57,6 +58,7 @@ export const enum HMR_MESSAGE_SENT_TO_SERVER {
   // JSON messages:
   MCP_ERROR_STATE_RESPONSE = 'mcp-error-state-response',
   RUNTIME_ERRORS = 'runtimeErrors',
+  MCP_NAVIGATION_RESPONSE = 'mcp-navigation-response',
   MCP_PAGE_METADATA_RESPONSE = 'mcp-page-metadata-response',
   PING = 'ping',
 }
@@ -252,6 +254,12 @@ export interface RuntimeErrorStateMessage {
   errors: FormattedRuntimeError[]
 }
 
+export interface InspectNavigationMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.INSPECT_NAVIGATION
+  requestId: string
+  action: 'arm' | 'status' | 'release'
+}
+
 export interface RequestPageMetadataMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_PAGE_METADATA
   requestId: string
@@ -305,6 +313,7 @@ export type HmrMessageSentToBrowser =
   | ReactDebugChunkMessage
   | RequestCurrentErrorStateMessage
   | RuntimeErrorStateMessage
+  | InspectNavigationMessage
   | RequestPageMetadataMessage
   | CacheIndicatorMessage
   | RequestInsightsUpdateMessage

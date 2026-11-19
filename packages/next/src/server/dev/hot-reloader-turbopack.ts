@@ -152,6 +152,7 @@ import {
 } from '../lib/trace/request-insights'
 import { resolvePathToRoute } from '../mcp/tools/utils/resolve-path-to-route'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
+import { handleBrowserPageResponse } from '../mcp/tools/utils/browser-communication'
 import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
 import { createRuntimeErrorStateHandler } from './runtime-error-state'
@@ -1393,6 +1394,7 @@ export async function createHotReloaderTurbopack(
             pagesDir: opts.pagesDir,
             appDir: opts.appDir,
             sendHmrMessage: (message) => hotReloader.send(message),
+            getAppRouterClients: () => clientsByHtmlRequestId,
             getActiveConnectionCount: () =>
               clientsWithoutHtmlRequestId.size + clientsByHtmlRequestId.size,
             getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,
@@ -1824,6 +1826,13 @@ export async function createHotReloaderTurbopack(
               break
             }
 
+            case HMR_MESSAGE_SENT_TO_SERVER.MCP_NAVIGATION_RESPONSE:
+              handleBrowserPageResponse(
+                parsedData.requestId,
+                parsedData.state,
+                parsedData.url
+              )
+              break
             case 'mcp-page-metadata-response': {
               handlePageMetadataResponse(
                 parsedData.requestId,
