@@ -1,29 +1,24 @@
 use turbopack_core::chunk::chunking::DEFAULT_ESTIMATED_REQUEST_COST_BYTES;
 
-/// Scale of the default chunk size limits and request cost when chunk items are minified before
-/// chunking, in percent of the unminified defaults.
+/// Scale of the default chunk size limits and request cost when chunk items are minified, in
+/// percent of the unminified defaults.
 const MINIFIED_PERCENT: u64 = 40;
 
 /// Defaults for the production chunking size limits and request cost.
 ///
-/// The defaults are tuned for chunk items measured by their unminified code. When chunk items are
-/// minified one by one before chunking (`turbopackMinifyBeforeChunking`, which only applies when
-/// minification is enabled), chunking measures their minified code instead, which is a few times
-/// smaller, so the defaults are scaled down to match. Values set explicitly in the config are used
-/// as-is.
+/// The defaults are tuned for chunk items measured by their unminified code. When minification is
+/// enabled, chunk items are minified one by one before chunking and chunking measures their
+/// minified code instead, which is a few times smaller, so the defaults are scaled down to match.
+/// Values set explicitly in the config are used as-is.
 #[derive(Clone, Copy, Debug)]
 pub struct ChunkSizeDefaults {
     percent: u64,
 }
 
 impl ChunkSizeDefaults {
-    pub fn new(minify: bool, minify_before_chunking: bool) -> Self {
+    pub fn new(minify: bool) -> Self {
         ChunkSizeDefaults {
-            percent: if minify && minify_before_chunking {
-                MINIFIED_PERCENT
-            } else {
-                100
-            },
+            percent: if minify { MINIFIED_PERCENT } else { 100 },
         }
     }
 
@@ -63,13 +58,9 @@ mod tests {
 
     #[test]
     fn maximum_defaults_follow_the_sizing_mode_but_overrides_do_not() {
-        for (minify, before_chunking, client, server) in [
-            (false, false, 1_000_000, 10_000_000),
-            (false, true, 1_000_000, 10_000_000),
-            (true, false, 1_000_000, 10_000_000),
-            (true, true, 400_000, 4_000_000),
-        ] {
-            let defaults = ChunkSizeDefaults::new(minify, before_chunking);
+        for (minify, client, server) in [(false, 1_000_000, 10_000_000), (true, 400_000, 4_000_000)]
+        {
+            let defaults = ChunkSizeDefaults::new(minify);
             assert_eq!(defaults.client_max_chunk_size(None), client);
             assert_eq!(defaults.server_max_chunk_size(None), server);
             for value in [0, 50_000, 1_000_000, 10_000_000] {
@@ -81,7 +72,7 @@ mod tests {
 
     #[test]
     fn normalization_uses_the_scaled_minimum_and_resolved_maximum() {
-        let defaults = ChunkSizeDefaults::new(true, true);
+        let defaults = ChunkSizeDefaults::new(true);
         let client = ChunkingConfig {
             min_chunk_size: defaults.size(50_000),
             max_merge_chunk_size: defaults.size(200_000),
