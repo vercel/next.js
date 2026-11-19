@@ -809,28 +809,51 @@ describe('request insights', () => {
     Object.defineProperty(request.spans[0], 'toJSON', { value: serialize })
     completeRequestInsight({ requestId: 'delta' })
     await getRequestInsightsHistory(distDir)
+    const initialBytes = (
+      await fileStat(path.join(distDir, 'request-insights.ndjson.gz'))
+    ).size
     serialize.mockClear()
-    for (let i = 0; i < 10; i++) {
+    const updateCount = 400
+    for (let i = 0; i < updateCount; i++) {
       recordSpan({ name: 'late work', requestId: 'delta' })
     }
     expect(
       (await readRequestInsightsJournal(distDir, { requestId: 'delta' }))[0]
         .spans
-    ).toHaveLength(11)
+    ).toHaveLength(updateCount + 1)
     expect(
       (await getRequestInsightsHistory(distDir)).requests[0].spanCount
-    ).toBe(11)
+    ).toBe(updateCount + 1)
     expect(serialize).not.toHaveBeenCalled()
-    const records = gunzipSync(
-      await readFile(path.join(distDir, 'request-insights.ndjson.gz'))
+    const compressed = await readFile(
+      path.join(distDir, 'request-insights.ndjson.gz')
     )
+    const records = gunzipSync(compressed)
       .toString('utf8')
       .trim()
       .split('\n')
       .map((line) => JSON.parse(line))
+    // More than one bounded batch, but still much smaller than per-line gzip.
+    expect(compressed.length - initialBytes).toBeGreaterThan(
+      gzipSync(
+        records
+          .slice(1)
+          .map((record) => JSON.stringify(record) + '\n')
+          .join('')
+      ).length
+    )
+    expect(compressed.length - initialBytes).toBeLessThan(
+      records
+        .slice(1)
+        .reduce(
+          (bytes, record) =>
+            bytes + gzipSync(JSON.stringify(record) + '\n').length,
+          0
+        )
+    )
     expect(records.map((record) => record.version)).toEqual([
       1,
-      ...Array(10).fill(2),
+      ...Array(updateCount).fill(2),
     ])
     await resetRequestInsightsJournalForTest()
     await rm(distDir, { recursive: true, force: true })
@@ -850,80 +873,102 @@ describe('request insights', () => {
         recordSpan({ name: 'render', requestId: identity.requestId })
         completeRequestInsight(identity)
       }
-      recordSpan({ name: 'late work', requestId: 'batch-0' })
+      recordSpan({ name: 'late work one', requestId: 'batch-0' })
+      recordSpan({ name: 'late work two', requestId: 'batch-0' })
+      recordSpan({ name: 'other work one', requestId: 'batch-1' })
+      recordSpan({ name: 'other work two', requestId: 'batch-1' })
+      recordSpan({ name: 'late work three', requestId: 'batch-0' })
       startRequestInsight({ requestId: 'last' })
       recordSpan({ name: 'render', requestId: 'last' })
       completeRequestInsight({ requestId: 'last' })
       await closeRequestInsightsJournal()
 
-      const records = gunzipSync(
-        await readFile(path.join(distDir, 'request-insights.ndjson.gz'))
+      const compressed = await readFile(
+        path.join(distDir, 'request-insights.ndjson.gz')
       )
+      const records = gunzipSync(compressed)
         .toString('utf8')
         .trim()
         .split('\n')
         .map((line) => JSON.parse(line))
+      expect(compressed.length).toBeLessThan(
+        records.reduce(
+          (bytes, record) =>
+            bytes + gzipSync(JSON.stringify(record) + '\n').length,
+          0
+        )
+      )
       expect(records.map((record) => record.request.requestId)).toEqual([
         ...Array.from({ length: 8 }, (_, i) => `batch-${i}`),
+        'batch-0',
+        'batch-0',
+        'batch-1',
+        'batch-1',
         'batch-0',
         'last',
       ])
       expect(
         (await readRequestInsightsJournal(distDir, { requestId: 'batch-0' }))[0]
           .spans
-      ).toHaveLength(2)
+      ).toHaveLength(4)
     } finally {
       await resetRequestInsightsJournalForTest()
       await rm(distDir, { recursive: true, force: true })
     }
   })
 
-  it('rotates between records inside a completed-request batch', async () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
-    startRequestInsight({ requestId: 'seed' })
-    recordSpan({ name: 'render', requestId: 'seed' })
-    const request = getRequestInsightsSnapshot().requests[0]
-    const records = ['one', 'two', 'tri'].map((requestId) => ({
-      ...request,
-      requestId,
-    }))
-    const firstLineBytes = gzipSync(
-      JSON.stringify({ version: 1, request: records[0] }) + '\n'
-    ).length
-    const distDir = await mkdtemp(
-      path.join(tmpdir(), 'request-insights-batch-')
-    )
-    const fs = require('fs/promises') as typeof import('fs/promises')
-    await initializeRequestInsightsJournal(distDir)
-    const currentStat = await fs.stat(
-      path.join(distDir, 'request-insights.ndjson.gz')
-    )
-    const stat = jest.spyOn(fs, 'stat').mockResolvedValueOnce({
-      ...currentStat,
-      size: 50 * 1024 * 1024 - firstLineBytes,
-    })
-    try {
-      await configureRequestInsightsJournal(distDir)
-      stat.mockRestore()
-      for (const record of records) appendRequestInsightToJournal(record)
+  it.each([false, true])(
+    'truncates only before a whole compressed batch, exceeds: %s',
+    async (exceeds) => {
+      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+      startRequestInsight({ requestId: 'seed' })
+      recordSpan({ name: 'render', requestId: 'seed' })
+      const request = getRequestInsightsSnapshot().requests[0]
+      const records = ['one', 'two', 'tri'].map((requestId) => ({
+        ...request,
+        requestId,
+      }))
+      const batchBytes = gzipSync(
+        records
+          .map((entry) => JSON.stringify({ version: 1, request: entry }) + '\n')
+          .join('')
+      ).length
+      const distDir = await mkdtemp(
+        path.join(tmpdir(), 'request-insights-batch-')
+      )
+      const fs = require('fs/promises') as typeof import('fs/promises')
+      await initializeRequestInsightsJournal(distDir)
+      const currentStat = await fs.stat(
+        path.join(distDir, 'request-insights.ndjson.gz')
+      )
+      const stat = jest.spyOn(fs, 'stat').mockResolvedValueOnce({
+        ...currentStat,
+        size: 50 * 1024 * 1024 - batchBytes + (exceeds ? 1 : 0),
+      })
+      try {
+        await configureRequestInsightsJournal(distDir)
+        stat.mockRestore()
+        for (const record of records) appendRequestInsightToJournal(record)
 
-      const history = await getRequestInsightsHistory(distDir)
-      expect(history.truncated).toBe(true)
-      expect(history.requests.map((entry) => entry.requestId)).toEqual([
-        'tri',
-        'two',
-      ])
-      expect(
-        (await readRequestInsightsJournal(distDir)).map(
-          (entry) => entry.requestId
-        )
-      ).toEqual(['two', 'tri'])
-    } finally {
-      stat.mockRestore()
-      await resetRequestInsightsJournalForTest()
-      await rm(distDir, { recursive: true, force: true })
+        const history = await getRequestInsightsHistory(distDir)
+        expect(history.truncated).toBe(exceeds)
+        expect(history.requests.map((entry) => entry.requestId)).toEqual([
+          'tri',
+          'two',
+          'one',
+        ])
+        expect(
+          (await readRequestInsightsJournal(distDir)).map(
+            (entry) => entry.requestId
+          )
+        ).toEqual(['one', 'two', 'tri'])
+      } finally {
+        stat.mockRestore()
+        await resetRequestInsightsJournalForTest()
+        await rm(distDir, { recursive: true, force: true })
+      }
     }
-  })
+  )
 
   it('uses actual compressed file size when reopening and truncating', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
@@ -1037,6 +1082,10 @@ describe('request insights', () => {
       await initializeRequestInsightsJournal(distDir)
       configureJournalProvider(distDir)
       recordSpan({ name: 'original', requestId: 'rotated' })
+      recordRequestInsightFetch(
+        { requestId: 'rotated' },
+        { url: 'https://example.com/original' }
+      )
       completeRequestInsight({ requestId: 'rotated' })
       await getRequestInsightsHistory(distDir)
       if (archive) clearRequestInsightsForTest()
@@ -1053,6 +1102,9 @@ describe('request insights', () => {
         stat.mockRestore()
       }
       recordSpan({ name: 'late one', requestId: 'rotated' })
+      const lateFetch = { url: 'https://example.com/late', index: 1 }
+      recordRequestInsightFetch({ requestId: 'rotated' }, lateFetch)
+      recordRequestInsightFetch({ requestId: 'rotated' }, lateFetch)
       recordSpan({ name: 'late two', requestId: 'rotated' })
       const [stored] = await readRequestInsightsJournal(distDir, {
         requestId: 'rotated',
@@ -1062,10 +1114,15 @@ describe('request insights', () => {
         'late one',
         'late two',
       ])
+      expect(stored.fetches.map((fetch) => fetch.url)).toEqual([
+        'https://example.com/original',
+        'https://example.com/late',
+      ])
       const history = await getRequestInsightsHistory(distDir)
       expect(history.truncated).toBe(true)
       expect(history.requests).toHaveLength(1)
       expect(history.requests[0].spanCount).toBe(3)
+      expect(history.requests[0].fetchCount).toBe(2)
       await resetRequestInsightsJournalForTest()
       await rm(distDir, { recursive: true, force: true })
     }
