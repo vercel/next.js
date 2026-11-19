@@ -7,20 +7,21 @@
   },
   "dependencies": {
     "@mux/mux-node": "^8",
-    "@mux/mux-player-react": "^2",
     "@mux/mux-uploader-react": "^1.0.0-beta.15",
+    "@videojs/mux-data": "^10.3.0",
+    "@videojs/mux-video": "^10.3.0",
+    "@videojs/react": "^10.3.0",
     "next": "latest",
     "react": "^18",
     "react-dom": "^18",
     "swr": "^2.0.0"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^18.11.10",
     "@types/react": "^18",
     "@types/react-dom": "^18",
-    "typescript": "^5",
-    "autoprefixer": "^10",
-    "postcss": "^8",
-    "tailwindcss": "^3.4"
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }

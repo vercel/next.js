@@ -50,7 +50,7 @@ export default function Layout({
         </Link>
         .
       </p>
-      <hr className="my-8 bg-gray-500" />
+      <hr className="my-8 border-gray-200" />
       {children}
     </>
   );
