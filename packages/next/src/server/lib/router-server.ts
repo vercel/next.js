@@ -1342,5 +1342,14 @@ export async function initialize(opts: {
       ? development.config.experimental.agentUpgrade !== false
       : undefined,
     devMemoryThresholdRestart,
+    switchyardRouteTable: () => {
+      const { collectSwitchyardRouteTable } =
+        require('./switchyard-route-table-input') as typeof import('./switchyard-route-table-input')
+      return collectSwitchyardRouteTable({
+        dir: opts.dir,
+        config,
+        fsChecker,
+      })
+    },
   }
 }
