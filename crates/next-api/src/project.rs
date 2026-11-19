@@ -1283,7 +1283,7 @@ impl Project {
                 .turbopack_remove_unused_imports(next_mode)
                 .await?,
             include_mergeable: *self.next_config().turbo_scope_hoisting(next_mode).await?,
-            include_traced: *self.should_write_nft_manifests().await?,
+            include_traced: *self.should_trace().await?,
             include_binding_usage: self.next_mode().await?.is_production(),
         })
     }
@@ -1444,11 +1444,36 @@ impl Project {
         Ok(Vc::cell(self.write_routes_hashes_manifest))
     }
 
+    /// Whether `.nft.json` file-trace manifests should be emitted for server entrypoints.
+    ///
+    /// This only controls writing the manifests; whether the tracing work itself is performed is
+    /// controlled by [`Project::should_trace`].
     #[turbo_tasks::function]
     pub(super) async fn should_write_nft_manifests(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(
             self.mode.await?.is_production()
                 && *self.next_config.output().await? != Some(OutputType::Export),
+        ))
+    }
+
+    /// Whether file tracing should be performed: server code analysis creates `Traced` references
+    /// for file accesses (`trace_file_references`), externals are traced
+    /// (`enable_externals_tracing`), and module graphs follow `Traced` edges (`include_traced`).
+    ///
+    /// This is separate from [`Project::should_write_nft_manifests`] so that tracing can be enabled
+    /// without emitting `.nft.json` files: tracing is performed in production builds, and in
+    /// development when `experimental.turbopackFileTracingForDev` is enabled (never with
+    /// `output: 'export'`).
+    #[turbo_tasks::function]
+    pub(super) async fn should_trace(&self) -> Result<Vc<bool>> {
+        if *self.next_config.output().await? == Some(OutputType::Export) {
+            return Ok(Vc::cell(false));
+        }
+        let mode = self.mode.await?;
+        Ok(Vc::cell(
+            mode.is_production()
+                || (mode.is_development()
+                    && *self.next_config.turbopack_file_tracing_for_dev().await?),
         ))
     }
 
@@ -1890,6 +1915,7 @@ impl Project {
                 .next_config()
                 .turbo_nested_async_chunking(self.next_mode(), true),
             shared_runtime: self.next_config().turbo_shared_runtime(self.next_mode()),
+            external_browser_runtime: self.next_config().enable_external_browser_runtime(),
             per_page_module_graph: self.per_page_module_graph(),
             lazy_dynamic_imports: self
                 .next_config()
@@ -1908,6 +1934,7 @@ impl Project {
             chunking_min_chunk_size: turbopack_chunking.min_chunk_size,
             chunking_max_chunk_count_per_group: turbopack_chunking.max_chunk_count_per_group,
             chunking_max_merge_chunk_size: turbopack_chunking.max_merge_chunk_size,
+            chunking_max_chunk_size: turbopack_chunking.max_chunk_size,
             chunking_min_component_chunk_size: turbopack_chunking.min_component_chunk_size,
             generate_component_chunks: self.next_config().turbopack_generate_component_chunks(),
         }))
@@ -2008,6 +2035,7 @@ impl Project {
                     .await?,
             chunking_min_chunk_size: turbopack_chunking.min_server_chunk_size,
             chunking_max_merge_chunk_size: turbopack_chunking.max_merge_server_chunk_size,
+            chunking_max_chunk_size: turbopack_chunking.max_server_chunk_size,
         };
         Ok(if client_assets {
             get_server_chunking_context_with_client_assets(options)
@@ -2051,6 +2079,11 @@ impl Project {
             hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
             cross_origin: self.next_config().cross_origin(),
             style_groups_algorithm: self.next_config().css_chunking().owned().await?,
+            chunking_max_chunk_size: self
+                .next_config()
+                .turbopack_chunking()
+                .await?
+                .max_server_chunk_size,
         };
         Ok(if client_assets {
             get_edge_chunking_context_with_client_assets(options)
@@ -2382,7 +2415,7 @@ impl Project {
         };
 
         Ok(Entrypoints {
-            routes,
+            routes: routes.into(),
             middleware,
             instrumentation,
             pages_document_endpoint,
@@ -2501,7 +2534,7 @@ impl Project {
                 self.encryption_key(),
                 self.server_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
-                *self.should_write_nft_manifests().await?,
+                *self.should_trace().await?,
                 self.server_source_map_generation_options(),
             ),
             get_server_resolve_options_context(
@@ -2520,10 +2553,13 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn find_middleware(self: Vc<Self>) -> Result<Vc<FindContextFileResult>> {
+    pub(crate) async fn find_middleware(self: Vc<Self>) -> Result<Vc<FindContextFileResult>> {
         Ok(find_context_file(
             self.project_path().owned().await?,
-            middleware_files(self.next_config().page_extensions()),
+            middleware_files(
+                self.next_config().page_extensions(),
+                self.next_config().go_routes(),
+            ),
             // our callers do not care about affecting sources
             false,
         ))
@@ -2535,6 +2571,12 @@ impl Project {
         let FindContextFileResult::Found(fs_path, _) = &*middleware.await? else {
             return Ok(Vc::upcast(EmptyEndpoint::new(self)));
         };
+        if fs_path.file_name() == "proxy.go" {
+            return Ok(crate::app::go_proxy_endpoint(
+                self.to_resolved().await?,
+                fs_path.clone(),
+            ));
+        }
         let source = Vc::upcast(FileSource::new(fs_path.clone()));
         let app_dir = find_app_dir(self.project_path().owned().await?)
             .owned()
@@ -2617,7 +2659,7 @@ impl Project {
                 self.encryption_key(),
                 self.server_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
-                *self.should_write_nft_manifests().await?,
+                *self.should_trace().await?,
                 self.server_source_map_generation_options(),
             ),
             get_server_resolve_options_context(
@@ -3249,22 +3291,26 @@ async fn whole_app_module_graph_operation(
         );
 
         if !span.is_disabled() {
+            // INVALIDATION: This count is only used for tracing
             let base_module_count = base_single_module_graph
                 .connect()
                 .module_count()
                 .untracked()
                 .await?;
+            // INVALIDATION: This count is only used for tracing
             let additional_module_count = additional_module_graph
                 .connect()
                 .module_count()
                 .untracked()
                 .await?;
             span.record("modules", *base_module_count + *additional_module_count);
+            // INVALIDATION: This count is only used for tracing
             let base_edge_count = base_single_module_graph
                 .connect()
                 .edge_count()
                 .untracked()
                 .await?;
+            // INVALIDATION: This count is only used for tracing
             let additional_edge_count = additional_module_graph
                 .connect()
                 .edge_count()

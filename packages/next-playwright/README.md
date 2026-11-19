@@ -1,9 +1,12 @@
 # @next/playwright
 
 > - **Status:** Experimental. This API is not yet stable.
-> - **Requires:** [Cache Components](https://nextjs.org/docs) to be enabled.
+> - **Requires:** [Cache Components](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents) to be enabled.
 
 Playwright helpers for testing Next.js applications.
+
+See the [Playwright guide](https://nextjs.org/docs/app/guides/testing/playwright#testing-instant-navigations)
+for installation, parameters, initial page loads, and navigation caveats.
 
 ## Instant Navigation Testing
 
@@ -22,12 +25,15 @@ data is available. This way you're testing whether the route is _structured
 correctly_ for instant navigation, independent of network timing. If content you
 expected to be cached is missing inside the callback, it points to a problem — a
 missing `use cache` directive, a misplaced Suspense boundary, or a similar gap.
+For [same-page search-parameter updates](https://nextjs.org/docs/app/guides/testing/playwright#search-parameter-updates),
+waiting for fresh data can be intentional.
 
 ### Examples
 
 **Loading shell appears instantly** (dynamic content behind a Suspense boundary):
 
 ```ts
+import { expect, test } from '@playwright/test'
 import { instant } from '@next/playwright'
 
 test('shows loading shell during navigation', async ({ page }) => {
@@ -35,6 +41,7 @@ test('shows loading shell during navigation', async ({ page }) => {
 
   await instant(page, async () => {
     await page.click('a[href="/dashboard"]')
+    await page.waitForURL((url) => url.pathname === '/dashboard')
 
     // The loading shell is visible — dynamic data is deferred
     await expect(page.locator('[data-testid="loading"]')).toBeVisible()
@@ -48,11 +55,15 @@ test('shows loading shell during navigation', async ({ page }) => {
 **Fully instant navigation** (all content is cached):
 
 ```ts
+import { expect, test } from '@playwright/test'
+import { instant } from '@next/playwright'
+
 test('navigates to profile instantly', async ({ page }) => {
   await page.goto('/')
 
   await instant(page, async () => {
     await page.click('a[href="/profile"]')
+    await page.waitForURL((url) => url.pathname === '/profile')
 
     // All content renders immediately
     await expect(page.locator('[data-testid="profile-name"]')).toBeVisible()
@@ -64,11 +75,13 @@ test('navigates to profile instantly', async ({ page }) => {
 ### Enabling in production builds
 
 In development (`next dev`), the testing API is available by default. In
-production builds, it is disabled unless you explicitly opt in:
+production builds, it is disabled unless you explicitly opt in during both
+`next build` and `next start`:
 
 ```js
 // next.config.js
 module.exports = {
+  cacheComponents: true,
   experimental: {
     exposeTestingApiInProductionBuild: true,
   },
@@ -105,3 +118,6 @@ document.cookie = 'next-instant-navigation-testing=1; path=/'
 // Clear the cookie to resume normal behavior
 document.cookie = 'next-instant-navigation-testing=; path=/; max-age=0'
 ```
+
+See the [helper implementation](https://github.com/vercel/next.js/blob/canary/packages/next-playwright/src/index.ts)
+for browser-context cookie handling and cleanup when assertions fail.

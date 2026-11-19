@@ -5,6 +5,7 @@ import { promisify } from 'util'
 import fs from 'fs-extra'
 import globOrig from 'glob'
 import {
+  gate,
   waitForRedbox,
   getRedboxHeader,
   getRedboxSource,
@@ -440,9 +441,17 @@ export function runTests({
 
       if (!isNextDev) {
         let outputDir = join(next.testDir, 'out')
-        const expected = trailingSlash
-          ? expectedWhenTrailingSlashTrue
-          : expectedWhenTrailingSlashFalse
+        const cacheComponents = await gate((c) => c.cacheComponents)
+        const expected = (
+          trailingSlash
+            ? expectedWhenTrailingSlashTrue
+            : expectedWhenTrailingSlashFalse
+        ).filter(
+          (file) =>
+            cacheComponents ||
+            typeof file !== 'string' ||
+            !file.endsWith('__next._full.txt')
+        )
         const actualFiles = await getFiles(outputDir)
         expect(actualFiles).toEqual(expect.arrayContaining(expected))
         expect(actualFiles).toHaveLength(expected.length)

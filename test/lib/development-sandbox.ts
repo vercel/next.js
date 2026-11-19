@@ -18,10 +18,14 @@ import type { Playwright } from './browsers/playwright'
 export async function waitForHydration(browser: Playwright) {
   await browser.eval(() => {
     return new Promise<void>((resolve) => {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       if ((window as any).__NEXT_HYDRATED) {
         resolve()
       } else {
         var timeout = setTimeout(resolve, 30 * 1000)
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(window as any).__NEXT_HYDRATED_CB = function () {
           clearTimeout(timeout)
           resolve()
@@ -82,13 +86,21 @@ export async function createSandbox(
         async patch(filename, content) {
           // Register an event for HMR completion
           await browser.eval(function () {
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             ;(window as any).__HMR_STATE = 'pending'
 
             var timeout = setTimeout(() => {
+              // TODO(as-any): pre-existing cast, not yet reviewed
+              // eslint-disable-next-line @next/internal/no-as-any
               ;(window as any).__HMR_STATE = 'timeout'
             }, 30 * 1000)
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             ;(window as any).__NEXT_HMR_CB = function () {
               clearTimeout(timeout)
+              // TODO(as-any): pre-existing cast, not yet reviewed
+              // eslint-disable-next-line @next/internal/no-as-any
               ;(window as any).__HMR_STATE = 'success'
             }
           })
@@ -96,6 +108,8 @@ export async function createSandbox(
           await this.write(filename, content)
 
           for (;;) {
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             const status = await browser.eval(() => (window as any).__HMR_STATE)
             if (!status) {
               await waitFor(750)

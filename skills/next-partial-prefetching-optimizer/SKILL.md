@@ -12,7 +12,7 @@ description: >
 
 Optimize each requested source link and destination as its own contract. Turn
 the requested prefetched UI, navigation-only UI, and trigger into a production
-[`instant()`](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests)
+[`instant()`](https://nextjs.org/docs/app/guides/testing/playwright#testing-instant-navigations)
 test. Record the current behavior, make the smallest optimization, verify the
 differential, and keep the passing test as regression coverage.
 

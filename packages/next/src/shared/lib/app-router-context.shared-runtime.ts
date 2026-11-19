@@ -141,6 +141,8 @@ export const GlobalLayoutRouterContext = React.createContext<{
   scrollRef: ScrollHandlerRef
   nextUrl: string | null
   previousNextUrl: string | null
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
 }>(null as any)
 
 export const TemplateContext = React.createContext<React.ReactNode>(null)

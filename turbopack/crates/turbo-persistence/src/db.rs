@@ -8,7 +8,7 @@ use std::{
     ops::RangeInclusive,
     path::{Path, PathBuf},
     sync::{
-        OnceLock,
+        Arc, OnceLock,
         atomic::{AtomicBool, AtomicU32, Ordering},
     },
 };
@@ -46,7 +46,7 @@ use crate::{
     key::{StoreKey, hash_key},
     lookup_entry::{IterValue, LookupEntry, LookupValue},
     merge_iter::MergeIter,
-    meta_file::{MetaEntryFlags, MetaFile, MetaLookupResult, StaticSortedFileRange},
+    meta_file::{EagerSstOpen, MetaEntryFlags, MetaFile, MetaLookupResult, StaticSortedFileRange},
     meta_file_builder::MetaFileBuilder,
     parallel_scheduler::ParallelScheduler,
     rc_bytes::RcBytes,
@@ -313,6 +313,11 @@ const PARALLEL_BATCH_GET_THRESHOLD: usize = 2048;
 /// that the scheduler can run at the same time, like `turbo_tasks::util::good_chunk_size`.
 const BATCH_GET_CHUNKS_PER_TASK: usize = 4;
 
+/// Eagerly opening SST files spawns up to this many background tasks per task that the scheduler
+/// can run at the same time. An open is a few dependent reads, so it waits on I/O rather than
+/// using the CPU, and more tasks than the parallelism keep more reads in flight.
+const EAGER_SST_OPEN_TASKS_PER_PARALLELISM: usize = 4;
+
 /// The number of `usize` blocks that the `SmallVec` storage of [`BatchGetResolved`] holds inline:
 /// enough for the positions of 256 keys on every target.
 const BATCH_GET_RESOLVED_INLINE_BLOCKS: usize = 256 / usize::BITS as usize;
@@ -556,7 +561,8 @@ impl<S: ParallelScheduler + Default, const FAMILIES: usize> TurboPersistence<S, 
     }
 
     /// Open a TurboPersistence database at the given path in read only mode.
-    /// This will read the directory. No Cleanup is performed.
+    /// This will read the directory. No cleanup is performed and nothing on disk is created,
+    /// modified or deleted: the directory and its `CURRENT` file must already exist.
     pub fn open_read_only_with_config(path: PathBuf, config: DbConfig<FAMILIES>) -> Result<Self> {
         Self::open_read_only_with_parallel_scheduler(path, config, Default::default())
     }
@@ -607,6 +613,52 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
     }
 
+    /// Opens the SST files of `meta_files` that aren't open yet in the background, so that lookups
+    /// usually find them open. Called once the database has loaded its meta files, where the SST
+    /// files may be on slow (e.g. network attached) storage and opening them one at a time as
+    /// lookups first reach them would serialize their dependent reads.
+    ///
+    /// The opens are spread over several [`ParallelScheduler::spawn_blocking`] tasks that run in
+    /// parallel, and this returns without waiting for them. Newer meta files are opened first,
+    /// since lookups consult them first. See [`EagerSstOpen`] for how an open interacts with
+    /// lookups and with entries that are dropped in the meantime. Disabled on WASI, where SST files
+    /// are only opened lazily.
+    fn spawn_eager_sst_opens<'l>(&self, meta_files: impl DoubleEndedIterator<Item = &'l MetaFile>) {
+        if cfg!(target_os = "wasi") {
+            // WASI runtimes that run each thread as its own instance (like the Node based test
+            // host in `scripts/wasi-test-host`) give every thread its own file descriptor table.
+            // An SST file opened on a background thread would hold a file descriptor that is
+            // invalid on the threads that look keys up, failing lookups with `EBADF`.
+            return;
+        }
+        let mut opens = Vec::new();
+        for meta_file in meta_files.rev() {
+            meta_file.collect_eager_sst_opens(&mut opens);
+        }
+        if opens.is_empty() {
+            return;
+        }
+        let task_count = opens.len().min(
+            self.parallel_scheduler.parallelism().max(1) * EAGER_SST_OPEN_TASKS_PER_PARALLELISM,
+        );
+        // Deal the opens out round-robin, so that every task starts with one of the newest files.
+        let mut tasks: Vec<Vec<EagerSstOpen>> = (0..task_count)
+            .map(|_| Vec::with_capacity(opens.len().div_ceil(task_count)))
+            .collect();
+        for (index, open) in opens.into_iter().enumerate() {
+            tasks[index % task_count].push(open);
+        }
+        let db_path: Arc<Path> = self.path.as_path().into();
+        for task in tasks {
+            let db_path = db_path.clone();
+            self.parallel_scheduler.spawn_blocking(move || {
+                for open in task {
+                    open.run(&db_path);
+                }
+            });
+        }
+    }
+
     /// Open a TurboPersistence database at the given path.
     /// This will read the directory and might performance cleanup when the database was not closed
     /// properly. Cleanup only requires to read a few bytes from a few files and to delete
@@ -632,7 +684,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     }
 
     /// Open a TurboPersistence database at the given path in read only mode.
-    /// This will read the directory. No Cleanup is performed.
+    /// This will read the directory. No cleanup is performed and nothing on disk is created,
+    /// modified or deleted: the directory and its `CURRENT` file must already exist.
     fn open_read_only_with_parallel_scheduler(
         path: PathBuf,
         config: DbConfig<FAMILIES>,
@@ -644,7 +697,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             parallel_scheduler,
             config,
         });
-        db.open_directory(false)?;
+        db.open_directory(true)?;
         Ok(db)
     }
 
@@ -682,7 +735,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         commit_current(&self.path, 0)
     }
 
-    /// Loads an existing database directory and performs cleanup if necessary.
+    /// Loads an existing database directory and performs cleanup if necessary (and non
+    /// `read_only`).
     fn load_directory(&mut self, entries: ReadDir, read_only: bool) -> Result<bool> {
         let mut meta_files = Vec::new();
         let current = match read_current_version(&self.path)? {
@@ -807,6 +861,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         rebuild_shard_index(&self.config, inner);
         inner.current_sequence_number = current;
         self.is_empty.store(inner.is_empty(), Ordering::Relaxed);
+        self.spawn_eager_sst_opens(self.inner.read().meta_files_by_family.iter().flatten());
         Ok(true)
     }
 
@@ -850,8 +905,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             .context("Failed to read uncompressed length from blob file")?;
         let expected_checksum = reader.read_u32::<BE>()?;
 
-        // Verify checksum on the compressed on-disk data before decompression.
-        let actual_checksum = checksum_block(reader);
+        // Verify the checksum, which covers the length header and the compressed on-disk data,
+        // before the length is used to size the decompression buffer.
+        let actual_checksum = checksum_block(uncompressed_length, reader);
         if actual_checksum != expected_checksum {
             bail!(
                 "Cache corruption detected: checksum mismatch in blob file {:08}.blob (expected \
@@ -973,14 +1029,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
         if let Some(cache) = self.value_block_cache.get() {
             cache.clear();
-        }
-    }
-
-    /// Prefetches all SST files which are usually lazy loaded. This can be used to reduce latency
-    /// for the first queries after opening the database.
-    pub fn prepare_all_sst_caches(&self) {
-        for meta in self.inner.write().meta_files_by_family.iter_mut().flatten() {
-            meta.prepare_sst_cache();
         }
     }
 
@@ -1370,6 +1418,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             }
         }
 
+        // The SST files of the new meta files are not opened eagerly: they were written moments
+        // ago, so they are usually still in the page cache and opening them lazily is cheap.
+
         // ── Phase C: structurally update inner (CURRENT is already durable). ──
         //
         // Between Phase A's read-lock drop and this point no other writer can
@@ -1679,8 +1730,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     };
 
                     // The keys read recently: the used keys of the meta files written by commits
-                    // that are still alive, i.e. whose SST files were not all merged yet. We only
-                    // capture this for bottom compactions.
+                    // that are still alive, i.e. whose SST files were not all merged yet, and the
+                    // ones carried forward by intermediate merges (see below). We only capture
+                    // this for bottom compactions.
                     let used_key_hashes = if merge_jobs.iter().any(|job| {
                         job.bottom
                             && (job.members.len() > 1 || !sst_strictly_in_shard(job.members[0]))
@@ -1688,6 +1740,29 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         union_used_key_hashes(meta_files)?
                     } else {
                         None
+                    };
+
+                    // An intermediate merge can merge the last SST file of a commit that recorded
+                    // used keys, which retires its meta file, while the merged entries are not
+                    // bottom merged yet, e.g. when the rewrite quota or `max_merge_jobs` leaves
+                    // the bottom merge of their shard for later. The new meta file therefore
+                    // carries the used keys of the meta files of all intermediate merge inputs
+                    // forward, so that a later bottom merge still knows them. They are carried
+                    // even if such a meta file stays alive, as it can be retired later by a merge
+                    // of other files, e.g. by the bottom merge of another shard, while the outputs
+                    // still need them. When the new meta file also describes bottom merge or move
+                    // outputs, the used keys live until those are merged too, which only makes
+                    // some cold entries hot for longer.
+                    let carried_used_key_hashes = {
+                        let mut meta_indices = merge_jobs
+                            .iter()
+                            .filter(|job| !job.bottom)
+                            .flat_map(|job| job.members.iter())
+                            .map(|&index| ssts_with_ranges[index].meta_index)
+                            .collect::<Vec<_>>();
+                        meta_indices.sort_unstable();
+                        meta_indices.dedup();
+                        union_used_key_hashes(meta_indices.into_iter().map(|i| &meta_files[i]))?
                     };
 
                     // Later we will remove the merged files. Capture each one's size now (we know
@@ -2189,6 +2264,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
                     for f in sst_files_to_delete.iter() {
                         meta_file_builder.add_obsolete_sst_file(f.seq);
+                    }
+                    if let Some(used_key_hashes) = carried_used_key_hashes {
+                        meta_file_builder.set_used_key_hashes_amqf(used_key_hashes);
                     }
 
                     let new_meta_file = {
@@ -2804,9 +2882,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 const USED_KEYS_FINGERPRINT_BITS: u8 = 32;
 
 /// The union of the used keys recorded in the meta files, or `None` if there are none.
-fn union_used_key_hashes(meta_files: &[MetaFile]) -> Result<Option<qfilter::Filter>> {
+fn union_used_key_hashes<'l>(
+    meta_files: impl IntoIterator<Item = &'l MetaFile>,
+) -> Result<Option<qfilter::Filter>> {
     let filters = meta_files
-        .iter()
+        .into_iter()
         .filter_map(|meta_file| meta_file.deserialize_used_key_hashes_amqf().transpose())
         .collect::<Result<Vec<_>>>()?
         .into_iter()

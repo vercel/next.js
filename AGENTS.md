@@ -261,6 +261,15 @@ pnpm types             # TypeScript type checking
 
 Type-check with the repo's own commands. `pnpm typescript` runs `tsc --noEmit` against the root `tsconfig.json`, which includes `scripts/**/*.js` and loads this repo's type augmentations. A hand-rolled `tsconfig` pointed at a single file misses those augmentations and will report clean while CI fails. For example `NodeJS.ProcessEnv` is declared in `packages/next/types/global.d.ts` with `NODE_ENV` required, so a plain `Record<string, string>` is not a valid `env` for an `execa` call.
 
+Don't add `as any` casts; `@next/internal/no-as-any` rejects them. Fix the type, narrow the value with a runtime check, or use `satisfies`. Switching to `as unknown as T` or `@ts-expect-error` hides the same problem. If a cast is truly unavoidable, disable the rule for that line, with one or more comment lines directly above saying why:
+
+```ts
+// React's Flight client exports this as `any`.
+// eslint-disable-next-line @next/internal/no-as-any
+```
+
+A trailing `// eslint-disable-line` takes the reason after `--` instead. `@next/internal/require-disable-reason` rejects a missing or vague reason. Existing casts carry a `// TODO(as-any): pre-existing cast, not yet reviewed` line; don't copy that marker onto new code. When you fix a cast, delete both the disable comment and its reason (unused disable comments fail lint; the reason line does not, so it's on you).
+
 ## PR Status (CI Failures and Reviews)
 
 Use `$pr-status-triage` whenever the user asks about CI failures, PR reviews, or
@@ -281,6 +290,46 @@ Fork PRs are external contributions created by pushing commits to any fork repos
 
 You must inform the user that you are not allowed to write pull request descriptions for external contributions. Refer to the guidelines in `.github/pull_request_template.md`.
 While you cannot write the full description for the user, you may offer to help review the description, or provide helpful technical details. You can provide them a link to the GitHub URL to create the PR.
+
+### PR Descriptions
+
+The structure of a PR description comes from `.github/pull_request_template.md`. Read it before writing one. These rules apply to every PR description an agent is allowed to write (see above: never for fork PRs):
+
+- Keep the description minimal, but write it so that someone not on the team can understand the PR.
+- Use the template's `### What?`, `### Why?` and `### How?` sections. Explain the "what" from the end-user or developer perspective, and only cover implementation details in "How?" when they are not obvious from the diff. Include "Why?" unless the change is small and self-explanatory.
+- Link the GitHub issues (`Fixes #number`) and, when you know the Linear issue, the Linear issue (`Closes NEXT-xxx`). Don't invent issue numbers.
+- When linking to a Slack thread, share the details of the conclusion rather than only the link.
+- Add review comments on the PR where needed to explain the logic behind a change to the reviewer.
+- Don't copy the template's HTML comment, or the contributor checklists, into the description.
+
+In addition to the template, agents must **always add a `### Verification` section** after the template sections, listing how the change was verified:
+
+- Commands that were run and passed, and any manual verification steps.
+- Anything that was not run, with the reason (e.g. ``Not run: `pnpm test-start-turbo test/...` (needs deploy credentials)``).
+- Omit trivial commands that CI already covers (e.g. `pnpm build`). If the PR changes a test, don't repeat the command that runs it, but do list existing tests you used to confirm behavior didn't change.
+
+Example:
+
+```markdown
+### What?
+
+<what changed>
+
+### Why?
+
+<motivation>
+
+### How?
+
+<implementation notes, if not obvious from the diff>
+
+Fixes #<number>
+
+### Verification
+
+- `pnpm test-dev-turbo test/e2e/...` (existing test, confirms behavior is unchanged)
+- Not run: `<command>` (<reason>)
+```
 
 ### Adopting a Fork PR
 
@@ -437,7 +486,7 @@ Use skills for conditional, deep workflows. Keep baseline iteration/build/test p
 
 - Do NOT add "Generated with Claude Code" or co-author footers to commits or PRs
 - Keep commit messages concise and descriptive
-- PR descriptions should focus on what changed and why
+- PR descriptions follow the What?/Why?/How? structure of `.github/pull_request_template.md`, plus a Verification section (see [PR Descriptions](#pr-descriptions))
 - Do NOT mark PRs as "ready for review" (`gh pr ready`) - leave PRs in draft mode and let the user decide when to mark them ready
 
 **Pre-validate before committing** to avoid slow lint-staged failures (~2 min each):

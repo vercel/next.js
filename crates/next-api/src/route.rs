@@ -3,10 +3,13 @@ use std::{fmt::Display, future::Future};
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use itertools::Itertools;
-use next_core::app_structure::FileSystemPathVec;
+use next_core::{
+    app_structure::FileSystemPathVec, next_app::ClientReferencesChunks,
+    next_client_reference::ClientReferenceGraphResult,
+};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    Completion, FxIndexMap, FxIndexSet, JoinIterExt, NonLocalValue, OperationVc, ResolvedVc,
+    Completion, FxIndexSet, JoinIterExt, NonLocalValue, OperationVc, OrderedAutoMap, ResolvedVc,
     TryJoinIterExt, Vc, debug::ValueDebugFormat,
 };
 use turbopack_core::{
@@ -330,6 +333,24 @@ pub struct EndpointOutput {
     pub output_assets: ResolvedVc<OutputAssets>,
     pub output_paths: ResolvedVc<EndpointOutputPaths>,
     pub project: ResolvedVc<Project>,
+    /// The chunks the endpoint's page loads on first load, for the route bundle stats of
+    /// production builds. `None` for endpoints that don't render a page, and outside of production
+    /// builds.
+    pub first_load_chunks: Option<FirstLoadChunks>,
+}
+
+/// The already computed values the chunks a page loads on first load are derived from. See
+/// [`crate::route_bundle_stats`].
+#[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
+pub enum FirstLoadChunks {
+    /// An App Router page.
+    AppPage {
+        client_references: ResolvedVc<ClientReferenceGraphResult>,
+        client_references_chunks: ResolvedVc<ClientReferencesChunks>,
+        client_shared_chunks: ResolvedVc<OutputAssets>,
+    },
+    /// A Pages Router page: the chunks listed in its build manifest.
+    PagesPage(ResolvedVc<OutputAssets>),
 }
 
 #[turbo_tasks::value(shared)]
@@ -361,7 +382,7 @@ pub enum EndpointOutputPaths {
 /// The routes as map from pathname to route. (pathname includes the leading
 /// slash)
 #[turbo_tasks::value(transparent)]
-pub struct Routes(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, Route>);
+pub struct Routes(OrderedAutoMap<RcStr, Route>);
 
 /// Accept endpoint output using the native compiler's live-input validation contract.
 /// JavaScript and edge output require no additional validation.

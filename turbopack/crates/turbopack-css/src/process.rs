@@ -26,7 +26,7 @@ use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     SOURCE_URL_PROTOCOL,
     asset::{Asset, AssetContent},
-    chunk::{ChunkingContext, MinifyType},
+    chunk::ChunkingContext,
     environment::Environment,
     issue::{
         AdditionalIssueSource, Issue, IssueExt, IssueSeverity, IssueSource, IssueStage,
@@ -106,7 +106,7 @@ async fn get_lightningcss_browser_targets(
 async fn stylesheet_to_css(
     ss: &StyleSheet<'_>,
     code: &str,
-    minify_type: MinifyType,
+    minify: bool,
     generation: SourceMapGenerationOptions,
     handle_nesting: bool,
     mut origin_source_map: Option<parcel_sourcemap::SourceMap>,
@@ -127,7 +127,7 @@ async fn stylesheet_to_css(
     .await?;
 
     let result = ss.to_css(PrinterOptions {
-        minify: matches!(minify_type, MinifyType::Minify { .. }),
+        minify,
         source_map: srcmap.as_mut(),
         targets,
         analyze_dependencies: None,
@@ -256,7 +256,7 @@ pub async fn process_css_with_placeholder(
             let (result, _) = stylesheet_to_css(
                 stylesheet,
                 &code,
-                MinifyType::NoMinify,
+                false,
                 SourceMapGenerationOptions::NONE,
                 false,
                 None,
@@ -291,7 +291,7 @@ pub async fn process_css_with_placeholder(
 pub async fn finalize_css(
     result: Vc<CssWithPlaceholderResult>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    minify_type: MinifyType,
+    minify: bool,
     origin_source_map: Vc<FileContent>,
     source_map_generation_options: SourceMapGenerationOptions,
     environment: Option<ResolvedVc<Environment>>,
@@ -346,7 +346,7 @@ pub async fn finalize_css(
             let (result, source_maps) = stylesheet_to_css(
                 &stylesheet,
                 &code,
-                minify_type,
+                minify,
                 source_map_generation_options,
                 true,
                 origin_source_map,
@@ -381,7 +381,7 @@ pub trait ProcessCss: ParseCss {
     async fn finalize_css(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        minify_type: MinifyType,
+        minify: bool,
     ) -> Result<Vc<FinalCssResult>>;
 }
 
