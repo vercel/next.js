@@ -2,7 +2,7 @@
 
 use anyhow::Result;
 use rustc_hash::{FxHashMap, FxHashSet};
-use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, ValueToStringRef, Vc};
+use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToStringRef, Vc};
 use turbopack_core::{module::Module, output::OutputAsset};
 use turbopack_ecmascript::references::service_worker::service_worker_chunk_filename;
 
@@ -78,7 +78,7 @@ async fn record_groups(
             output_indices.extend(indices.iter().copied());
         }
         let trigger_module_index = if let Some(module) = group.trigger {
-            let ident = module.ident().to_string().owned().await?;
+            let ident = module.ident_string().owned().await?;
             Some(*module_index.by_ident.get(&ident).ok_or_else(|| {
                 anyhow::anyhow!(
                     "{} group trigger {ident} is missing from the analyzer module index",
@@ -131,7 +131,7 @@ async fn record_worker_groups(
                     if !seen.insert(module) {
                         continue;
                     }
-                    let ident = module.ident().to_string().owned().await?;
+                    let ident = module.ident_string().owned().await?;
                     let mut found = false;
                     if let Some(&index) = module_index.by_ident.get(&ident) {
                         found = builder.output_files.iter().enumerate().any(|(i, file)| {

@@ -1934,6 +1934,7 @@ impl Project {
             chunking_min_chunk_size: turbopack_chunking.min_chunk_size,
             chunking_max_chunk_count_per_group: turbopack_chunking.max_chunk_count_per_group,
             chunking_max_merge_chunk_size: turbopack_chunking.max_merge_chunk_size,
+            chunking_max_chunk_size: turbopack_chunking.max_chunk_size,
             chunking_min_component_chunk_size: turbopack_chunking.min_component_chunk_size,
             generate_component_chunks: self.next_config().turbopack_generate_component_chunks(),
         }))
@@ -2034,6 +2035,7 @@ impl Project {
                     .await?,
             chunking_min_chunk_size: turbopack_chunking.min_server_chunk_size,
             chunking_max_merge_chunk_size: turbopack_chunking.max_merge_server_chunk_size,
+            chunking_max_chunk_size: turbopack_chunking.max_server_chunk_size,
         };
         Ok(if client_assets {
             get_server_chunking_context_with_client_assets(options)
@@ -2077,6 +2079,11 @@ impl Project {
             hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
             cross_origin: self.next_config().cross_origin(),
             style_groups_algorithm: self.next_config().css_chunking().owned().await?,
+            chunking_max_chunk_size: self
+                .next_config()
+                .turbopack_chunking()
+                .await?
+                .max_server_chunk_size,
         };
         Ok(if client_assets {
             get_edge_chunking_context_with_client_assets(options)
@@ -3284,22 +3291,26 @@ async fn whole_app_module_graph_operation(
         );
 
         if !span.is_disabled() {
+            // INVALIDATION: This count is only used for tracing
             let base_module_count = base_single_module_graph
                 .connect()
                 .module_count()
                 .untracked()
                 .await?;
+            // INVALIDATION: This count is only used for tracing
             let additional_module_count = additional_module_graph
                 .connect()
                 .module_count()
                 .untracked()
                 .await?;
             span.record("modules", *base_module_count + *additional_module_count);
+            // INVALIDATION: This count is only used for tracing
             let base_edge_count = base_single_module_graph
                 .connect()
                 .edge_count()
                 .untracked()
                 .await?;
+            // INVALIDATION: This count is only used for tracing
             let additional_edge_count = additional_module_graph
                 .connect()
                 .edge_count()

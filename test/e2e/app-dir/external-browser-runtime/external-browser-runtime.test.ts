@@ -162,6 +162,19 @@ describe('external-browser-runtime', () => {
         }
         release()
 
+        // Wait on the raw page for the hydration marker, like the default
+        // `next.browser()` hydration wait does. `browser.eval()` reads the flag
+        // and only then waits for the `load` event. In dev, that can take most
+        // of the `retry()` budget, so the only read happens right after
+        // `commit`, before hydration, and the retry gives up. The predicate is a
+        // function because production responses here forbid string evaluation
+        // through `Content-Security-Policy: script-src 'self'`.
+        await page.waitForFunction(
+          () => '__NEXT_HYDRATED' in window && window.__NEXT_HYDRATED === true,
+          null,
+          { timeout: 10_000 }
+        )
+
         await retry(async () => {
           expect(await browser.eval('!!window.__NEXT_HYDRATED')).toBe(true)
         })

@@ -20,6 +20,10 @@ describe('instant-testing-api-exposure', () => {
   )
 })
 
+// This suite expects the build to be rejected. In deploy mode, `next.start()`
+// is a full Vercel deployment, which exceeds the default test timeout before
+// the build failure is observed.
+// @force-gate !deploy
 describe('instant-testing-api-exposure without Cache Components', () => {
   const { next, isNextDev } = nextTestSetup({
     files: {
