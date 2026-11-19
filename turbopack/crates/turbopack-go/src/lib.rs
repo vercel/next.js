@@ -494,14 +494,16 @@ struct Module {
     main: bool,
     #[serde(default)]
     go_mod: String,
-    replace: Option<serde_json::Value>,
+    #[serde(default)]
+    version: String,
+    replace: Option<Box<Module>>,
 }
 
 #[derive(Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
 struct ModuleConfig {
     module: Option<Module>,
-    replace: Option<Vec<serde_json::Value>>,
+    replace: Option<Vec<ModuleReplacement>>,
     #[serde(default)]
     // Go 1.24 emits null for an empty requirement slice.
     require: Option<Vec<Requirement>>,
@@ -511,7 +513,49 @@ struct ModuleConfig {
 #[serde(rename_all = "PascalCase")]
 struct Requirement {
     path: String,
+    #[serde(default)]
     version: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct ModuleReplacement {
+    old: Requirement,
+    new: Requirement,
+}
+
+/// Resolves a directory replacement's target, relative to the main module, inside the source
+/// boundary. In a monorepo the boundary is the workspace root, so a module in an application
+/// directory can map a package installed in the workspace's `node_modules`. Only directory
+/// replacements are supported: they are tracked like module sources and need no download.
+fn replacement_directory(
+    boundary: &Path,
+    project: &Path,
+    replacement: &ModuleReplacement,
+) -> Result<PathBuf> {
+    ensure!(
+        replacement.new.version.is_empty(),
+        "versioned Go module replacements are not supported in this release: {}",
+        replacement.old.path
+    );
+    // Normalize lexically; source path validation rejects symlinks when inputs are tracked.
+    let mut directory = PathBuf::new();
+    for part in project.join(&replacement.new.path).components() {
+        match part {
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir => {
+                directory.pop();
+            }
+            part => directory.push(part),
+        }
+    }
+    ensure!(
+        directory.starts_with(boundary) && !project.starts_with(&directory),
+        "Go module replacements must point to a directory inside the project root: {} => {}",
+        replacement.old.path,
+        replacement.new.path
+    );
+    Ok(directory)
 }
 
 // Go's module cache escapes uppercase ASCII as ! followed by its lowercase form.
@@ -786,11 +830,11 @@ async fn observe_assembly_includes(
         .collect())
 }
 
+/// `roots` maps the main module and each directory-replaced module to its directory.
 async fn observe_packages(
     tracker: &mut Tracker<'_>,
     packages: &[Package],
-    project: &Path,
-    module: &str,
+    roots: &[(&str, PathBuf)],
     goroot: &Path,
 ) -> Result<BTreeMap<RcStr, RcStr>> {
     let mut assembly_flags = BTreeMap::new();
@@ -801,21 +845,23 @@ async fn observe_packages(
         // Track unresolved local imports and their nearest existing ancestors, so creation of a
         // previously missing package invalidates discovery without walking unrelated subtrees.
         for import in pkg.imports.iter().chain(std::iter::once(&pkg.import_path)) {
-            if let Some(relative) = import
-                .strip_prefix(module)
-                .and_then(|path| {
-                    // An import equal to the module path refers to its root package.
-                    // Missing packages have no Dir in go list's output, so this is also
-                    // needed to watch for the first source file appearing there.
-                    if path.is_empty() {
-                        Some(path)
-                    } else {
-                        path.strip_prefix('/')
-                    }
-                })
-                .filter(|_| !module.is_empty())
-            {
-                tracker.parents(&project.join(relative)).await?;
+            for (module, root) in roots {
+                if let Some(relative) = import
+                    .strip_prefix(module)
+                    .and_then(|path| {
+                        // An import equal to the module path refers to its root package.
+                        // Missing packages have no Dir in go list's output, so this is also
+                        // needed to watch for the first source file appearing there.
+                        if path.is_empty() {
+                            Some(path)
+                        } else {
+                            path.strip_prefix('/')
+                        }
+                    })
+                    .filter(|_| !module.is_empty())
+                {
+                    tracker.parents(&root.join(relative)).await?;
+                }
             }
         }
         if pkg.dir.is_empty() {
@@ -824,10 +870,16 @@ async fn observe_packages(
         let dir = Path::new(&pkg.dir);
         tracker.dir(dir).await?;
         if let Some(module) = &pkg.module {
-            ensure!(
-                module.replace.is_none(),
-                "Go module replacements are not supported in this release"
-            );
+            if let Some(replacement) = &module.replace {
+                // The module configuration already admitted only directory replacements.
+                ensure!(
+                    replacement.version.is_empty(),
+                    "versioned Go module replacements are not supported in this release"
+                );
+                if !replacement.go_mod.is_empty() {
+                    tracker.file(Path::new(&replacement.go_mod)).await?;
+                }
+            }
             if !module.go_mod.is_empty() {
                 tracker.file(Path::new(&module.go_mod)).await?;
             }
@@ -907,6 +959,7 @@ async fn observe_packages(
 #[turbo_tasks::function(session_dependent)]
 async fn discover(
     root: FileSystemPath,
+    boundary: FileSystemPath,
     files: Vec<RcStr>,
     go_session: ResolvedVc<GoBuildSession>,
     generated: BTreeMap<RcStr, RcStr>,
@@ -919,7 +972,17 @@ async fn discover(
     let project = to_sys_path(root.clone())
         .await?
         .context("Go inputs require a disk filesystem")?;
-    let mut tracker = Tracker::new(&root, &project, &go_context);
+    // Directory replacements may live outside the module but inside the boundary, so inputs
+    // are tracked relative to the boundary. The module itself is always inside it.
+    let boundary_path = to_sys_path(boundary.clone())
+        .await?
+        .context("Go inputs require a disk filesystem")?;
+    ensure!(
+        project.starts_with(&boundary_path),
+        "Go module is outside its boundary: {}",
+        project.display()
+    );
+    let mut tracker = Tracker::new(&boundary, &boundary_path, &go_context);
     let run = async {
         validate_build_cache(&project, &go_context)?;
         let directory = entry_directory(&project, &files)?;
@@ -946,14 +1009,36 @@ async fn discover(
         )
         .await?;
         let config: ModuleConfig = serde_json::from_str(&config)?;
-        ensure!(
-            config.replace.as_ref().is_none_or(Vec::is_empty),
-            "Go module replacements are not supported in this release"
-        );
+        let replacements = config.replace.as_deref().unwrap_or_default();
+        let module = config.module.as_ref().map_or("", |m| m.path.as_str());
+        let mut roots = vec![(module, project.clone())];
         // Even an unresolved dependency needs cache dependencies. Downloading a module can
         // repair it without changing go.mod/go.sum, so retain reads for its future cache entries.
         let cache = Path::new(go_context.module_cache.as_str());
         for requirement in config.require.iter().flatten() {
+            // Go applies a version-specific replacement before a path-wide one, and ignores
+            // replacements of modules that are not required.
+            let replacement = replacements
+                .iter()
+                .find(|replacement| {
+                    replacement.old.path == requirement.path
+                        && replacement.old.version == requirement.version
+                })
+                .or_else(|| {
+                    replacements.iter().find(|replacement| {
+                        replacement.old.path == requirement.path
+                            && replacement.old.version.is_empty()
+                    })
+                });
+            if let Some(replacement) = replacement {
+                // A directory replacement resolves from its own go.mod and sources, never the
+                // module cache. Observe its go.mod so creating or editing it invalidates
+                // discovery; its packages are tracked like module sources below.
+                let directory = replacement_directory(&boundary_path, &project, replacement)?;
+                tracker.file(&directory.join("go.mod")).await?;
+                roots.push((requirement.path.as_str(), directory));
+                continue;
+            }
             ensure!(
                 Path::new(&requirement.path)
                     .components()
@@ -974,14 +1059,12 @@ async fn discover(
                 .file(&download.join(format!("{version}.ziphash")))
                 .await?;
         }
-        let module = config.module.as_ref().map_or("", |m| m.path.as_str());
         let registered = (tracker.inputs.files.len(), tracker.inputs.directories.len());
         let packages = list(&directory, &files, &go_context, &project, &generated).await?;
         let assembly_flags = observe_packages(
             &mut tracker,
             &packages,
-            &project,
-            module,
+            &roots,
             Path::new(go_context.goroot.as_str()),
         )
         .await?;
@@ -1233,6 +1316,7 @@ impl GoBundleResult {
 #[turbo_tasks::function]
 async fn bundle(
     root: FileSystemPath,
+    boundary: FileSystemPath,
     mut files: Vec<RcStr>,
     go_session: ResolvedVc<GoBuildSession>,
     generated: BTreeMap<RcStr, RcStr>,
@@ -1241,7 +1325,7 @@ async fn bundle(
     files.extend(generated.keys().cloned());
     files.sort();
     files.dedup();
-    let discovery = discover(root.clone(), files, *go_session, generated).await?;
+    let discovery = discover(root.clone(), boundary, files, *go_session, generated).await?;
     let outcome = match &discovery.outcome {
         DiscoveryOutcome::Ready(plan) => {
             let project = to_sys_path(root.clone())
@@ -1293,7 +1377,13 @@ pub fn go_bundle(
     files: Vec<RcStr>,
     go_context: GoBuildContext,
 ) -> Vc<GoBundleResult> {
-    bundle(root, files, shared_session(go_context), BTreeMap::new())
+    bundle(
+        root.clone(),
+        root,
+        files,
+        shared_session(go_context),
+        BTreeMap::new(),
+    )
 }
 
 /// Compile named sources with additional generated files in the same directory. Generated
@@ -1305,7 +1395,13 @@ pub fn go_bundle_with_generated_files(
     go_context: GoBuildContext,
     generated: BTreeMap<RcStr, RcStr>,
 ) -> Vc<GoBundleResult> {
-    bundle(root, files, shared_session(go_context), generated)
+    bundle(
+        root.clone(),
+        root,
+        files,
+        shared_session(go_context),
+        generated,
+    )
 }
 
 /// Session-valued entrypoint for persistent compiler consumers. Generated source
@@ -1317,7 +1413,7 @@ pub fn go_bundle_with_session(
     session: ResolvedVc<GoBuildSession>,
     generated: BTreeMap<RcStr, RcStr>,
 ) -> Vc<GoBundleResult> {
-    bundle(root, files, *session, generated)
+    bundle(root.clone(), root, files, *session, generated)
 }
 
 #[cfg(test)]
