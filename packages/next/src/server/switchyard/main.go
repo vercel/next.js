@@ -172,8 +172,28 @@ func main() {
 // keep-alive connections, request headers, and whole requests. Responses
 // aren't limited, so long streams aren't cut off, as in Node.
 func newServer(handler http.Handler, idleTimeout, headerTimeout, requestTimeout time.Duration, maxHeaderBytes int) *http.Server {
+	// Each client connection gets its own connections to Node (see
+	// clientUpstream). ConnContext hands the request handler that client's
+	// set, and ConnState closes the set's idle connections to Node as soon
+	// as the client's connection closes or is taken over for an upgrade.
+	var upstreams sync.Map // net.Conn -> *clientUpstream
 	return &http.Server{
-		Handler:           handler,
+		Handler: handler,
+		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
+			upstream := newClientUpstream()
+			upstreams.Store(c, upstream)
+			return context.WithValue(ctx, clientUpstreamKey{}, upstream)
+		},
+		ConnState: func(c net.Conn, state http.ConnState) {
+			if state != http.StateClosed && state != http.StateHijacked {
+				return
+			}
+			if upstream, ok := upstreams.LoadAndDelete(c); ok {
+				if u, ok := upstream.(*clientUpstream); ok {
+					u.close()
+				}
+			}
+		},
 		IdleTimeout:       idleTimeout,
 		ReadHeaderTimeout: headerTimeout,
 		MaxHeaderBytes:    maxHeaderBytes - headerReadAllowance,
@@ -239,9 +259,12 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			// Connect to Node.
 			pr.Out.URL.Scheme = "http"
-			// Key the transport's connection pool by the actual client, so an
-			// upstream socket never changes identity while application code is
-			// still using it. DialContext below always connects to Node.
+			// Node sees the client's address on the socket it reads the request
+			// from (restoreSwitchyardConnection), so a connection to Node must
+			// only ever carry one client's requests. Each client connection has
+			// its own transport for that (clientTransport); using the client's
+			// address as the URL host keeps the shared fallback transport
+			// keyed the same way. DialContext below always connects to Node.
 			pr.Out.URL.Host = pr.In.RemoteAddr
 			// Keep the client's Host header. pr.Out starts as a copy of
 			// pr.In, so it already has it; this guards against ProxyRequest's
@@ -277,24 +300,9 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 		// responses of unknown length). -1 writes each chunk to the client as
 		// soon as Node sends it, as without Switchyard.
 		FlushInterval: -1,
-		Transport: &http.Transport{
-			// Connect to Node directly, never through an HTTP_PROXY. A new
-			// Transport already does that (only http.DefaultTransport reads
-			// HTTP_PROXY); this says so.
-			Proxy: nil,
-			DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
-				return (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}).DialContext(ctx, network, upstream)
-			},
-			// Bound the idle pool across clients, while keeping each
-			// upstream socket exclusive to one client address.
-			MaxIdleConns:        512,
-			MaxIdleConnsPerHost: 512,
-			IdleConnTimeout:     upstreamIdle,
-			// When the client sent no Accept-Encoding, Go adds "Accept-Encoding:
-			// gzip" to the request to Node and unzips the response itself. This
-			// turns that off, so compression stays between the client and Node.
-			DisableCompression:    true,
-			ExpectContinueTimeout: 1 * time.Second,
+		Transport: clientTransport{
+			shared:       newUpstreamTransport(upstream, upstreamIdle, 512),
+			newTransport: func() *http.Transport { return newUpstreamTransport(upstream, upstreamIdle, 1) },
 		},
 		// Node can answer before the client has finished sending the request
 		// body. If the body hasn't been read cleanly to its end by then, the
@@ -411,6 +419,82 @@ func (b *requestBody) timedOut() bool {
 }
 
 var proxyErrorLog = log.New(os.Stderr, "switchyard: ", 0)
+
+// newUpstreamTransport connects to Node at upstream, keeping up to maxIdle
+// idle connections for upstreamIdle.
+func newUpstreamTransport(upstream string, upstreamIdle time.Duration, maxIdle int) *http.Transport {
+	return &http.Transport{
+		// Connect to Node directly, never through an HTTP_PROXY. A new
+		// Transport already does that (only http.DefaultTransport reads
+		// HTTP_PROXY); this says so.
+		Proxy: nil,
+		DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
+			return (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}).DialContext(ctx, network, upstream)
+		},
+		MaxIdleConns:        maxIdle,
+		MaxIdleConnsPerHost: maxIdle,
+		IdleConnTimeout:     upstreamIdle,
+		// When the client sent no Accept-Encoding, Go adds "Accept-Encoding:
+		// gzip" to the request to Node and unzips the response itself. This
+		// turns that off, so compression stays between the client and Node.
+		DisableCompression:    true,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+}
+
+type clientUpstreamKey struct{}
+
+// clientUpstream holds one client connection's connections to Node. Go's
+// HTTP/1 server handles one request at a time per client connection, so one
+// idle connection to Node is enough to reuse between that client's requests.
+// When the client's connection closes, close drops it at once instead of
+// leaving it idle until IdleConnTimeout, so connections to Node never outlive
+// the clients they serve.
+type clientUpstream struct {
+	mu        sync.Mutex
+	transport *http.Transport
+}
+
+func newClientUpstream() *clientUpstream {
+	return &clientUpstream{mu: sync.Mutex{}, transport: nil}
+}
+
+// get returns the client's transport, creating it on first use.
+func (u *clientUpstream) get(newTransport func() *http.Transport) *http.Transport {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	if u.transport == nil {
+		u.transport = newTransport()
+	}
+	return u.transport
+}
+
+// close drops the client's idle connection to Node. A connection still
+// serving a response when the client leaves isn't idle yet: the client's
+// request context is cancelled then, and the transport closes that
+// connection instead of keeping it.
+func (u *clientUpstream) close() {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	if u.transport != nil {
+		u.transport.CloseIdleConnections()
+	}
+}
+
+// clientTransport sends each request on its client connection's own
+// transport (clientUpstream), or on shared when the request didn't come
+// through newServer.
+type clientTransport struct {
+	shared       *http.Transport
+	newTransport func() *http.Transport
+}
+
+func (t clientTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	if u, ok := r.Context().Value(clientUpstreamKey{}).(*clientUpstream); ok {
+		return u.get(t.newTransport).RoundTrip(r)
+	}
+	return t.shared.RoundTrip(r)
+}
 
 // keepRequestTarget makes the outgoing request line carry the target exactly
 // as the client sent it. Go writes the request line from the

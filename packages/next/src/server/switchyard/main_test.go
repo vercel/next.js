@@ -1116,3 +1116,97 @@ func TestKeepsTheConnectionOpenAfterACompleteUpload(t *testing.T) {
 		}
 	}
 }
+
+// startCountingProxy runs Switchyard in front of an upstream that counts its
+// open connections. upstreamIdle is long, so a connection to Node left idle
+// would still be open when the test looks.
+func startCountingProxy(t *testing.T) (string, func() int, <-chan received) {
+	t.Helper()
+	var mu sync.Mutex
+	open := 0
+	seen := make(chan received, 64)
+	upstream := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- received{requestURI: r.RequestURI, remoteAddr: r.RemoteAddr, host: r.Host, header: nil}
+		io.WriteString(w, "ok")
+	}))
+	upstream.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		mu.Lock()
+		defer mu.Unlock()
+		switch state {
+		case http.StateNew:
+			open++
+		case http.StateClosed, http.StateHijacked:
+			open--
+		}
+	}
+	upstream.Start()
+	t.Cleanup(upstream.Close)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	switchyard := newServer(newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), time.Minute, testToken), time.Minute, 5*time.Second, 0, 16<<10)
+	go switchyard.Serve(ln)
+	t.Cleanup(func() { switchyard.Close() })
+	count := func() int {
+		mu.Lock()
+		defer mu.Unlock()
+		return open
+	}
+	return ln.Addr().String(), count, seen
+}
+
+// Each client connection has its own connections to Node, so one that hangs
+// up must take its connection to Node with it, instead of leaving it idle in
+// a pool no other client can use.
+func TestClosesConnectionsToNodeWhenTheirClientsLeave(t *testing.T) {
+	addr, openToNode, _ := startCountingProxy(t)
+	for i := 0; i < 20; i++ {
+		conn, err := net.Dial("tcp", addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		io.WriteString(conn, "GET / HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
+		res, err := http.ReadResponse(bufio.NewReader(conn), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		io.Copy(io.Discard, res.Body)
+		conn.Close()
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for openToNode() > 0 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if n := openToNode(); n > 0 {
+		t.Errorf("%d connections to Node still open after all 20 clients left", n)
+	}
+}
+
+// One client's requests still share one connection to Node, as Node's own
+// keep-alive would.
+func TestReusesOneConnectionToNodeForOneClient(t *testing.T) {
+	addr, openToNode, seen := startCountingProxy(t)
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	reader := bufio.NewReader(conn)
+	var upstreamPeers []string
+	for i := 0; i < 3; i++ {
+		io.WriteString(conn, "GET / HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
+		res, err := http.ReadResponse(reader, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		io.Copy(io.Discard, res.Body)
+		upstreamPeers = append(upstreamPeers, (<-seen).remoteAddr)
+	}
+	if upstreamPeers[0] != upstreamPeers[1] || upstreamPeers[1] != upstreamPeers[2] {
+		t.Errorf("requests reached Node from %v, want one connection", upstreamPeers)
+	}
+	if n := openToNode(); n != 1 {
+		t.Errorf("%d connections to Node open, want 1", n)
+	}
+}
