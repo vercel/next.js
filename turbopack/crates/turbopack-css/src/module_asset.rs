@@ -283,7 +283,8 @@ impl ChunkableModule for EcmascriptCssModule {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkPlaceable for EcmascriptCssModule {
     /// The default export is the object of all class names, and every class is also a named
-    /// export (see [`is_named_export`]), including names that aren't identifiers, like `foo-bar`.
+    /// export (except `default` and `__esModule`), including names that aren't identifiers, like
+    /// `foo-bar`.
     #[turbo_tasks::function]
     async fn get_exports(self: Vc<Self>) -> Result<Vc<EcmascriptExports>> {
         let classes = self.classes().await?;
