@@ -5,12 +5,13 @@ import { once } from 'events'
 import WebSocket from 'ws'
 import { nextTestSetup } from 'e2e-utils'
 import { findPort, retry } from 'next-test-utils'
+import { FRONT_SERVER_ENV } from 'next/dist/server/lib/front-server-env'
 import { getHeader, rawRequest } from './raw-http'
 
 // What `next start` does with requests that a proxy in front of it could
 // change: request targets, headers, bodies, streaming, upgrades, server actions
-// that call the server itself, and keep-alive. Every expectation is today's
-// behavior, so the suite passes with or without anything in front of Node.
+// that call the server itself, and keep-alive. The front uses Go's built-in
+// reason phrases; the other expectations apply with and without the front.
 describe('front-server', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
@@ -174,7 +175,8 @@ describe('front-server', () => {
 
     // Raw non-ASCII bytes in the target aren't covered here: Node 24.22
     // rejects them with 400 and Node 20.9 routes them, so today's behavior
-    // depends on the Node version.
+    // depends on the Node version. The front forwards them byte for byte
+    // (packages/next/src/server/front/main_test.go).
     it('rejects a malformed escape', async () => {
       const res = await rawRequest(
         Number(next.appPort),
@@ -243,16 +245,31 @@ describe('front-server', () => {
 
   describe('status line', () => {
     it.each([
-      { query: '', statusLine: 'HTTP/1.1 400 Custom Reason' },
-      { query: '?code=413', statusLine: 'HTTP/1.1 413 Payload Too Large' },
-    ])('sends $statusLine as Node writes it', async ({ query, statusLine }) => {
-      const res = await rawRequest(
-        Number(next.appPort),
-        `GET /api/status${query} HTTP/1.1\r\nHost: localhost:${next.appPort}`
-      )
-      expect(res.statusLine).toBe(statusLine)
-      expect(res.body.toString()).toBe('status')
-    })
+      {
+        query: '',
+        code: 400,
+        nodeReason: 'Custom Reason',
+        goReason: 'Bad Request',
+      },
+      {
+        query: '?code=413',
+        code: 413,
+        nodeReason: 'Payload Too Large',
+        goReason: 'Request Entity Too Large',
+      },
+    ])(
+      'returns $code with the active server’s reason phrase',
+      async ({ query, code, nodeReason, goReason }) => {
+        const res = await rawRequest(
+          Number(next.appPort),
+          `GET /api/status${query} HTTP/1.1\r\nHost: localhost:${next.appPort}`
+        )
+        const reason =
+          process.env[FRONT_SERVER_ENV] === '1' ? goReason : nodeReason
+        expect(res.statusLine).toBe(`HTTP/1.1 ${code} ${reason}`)
+        expect(res.body.toString()).toBe('status')
+      }
+    )
   })
 
   describe('streaming', () => {
