@@ -54,10 +54,21 @@ impl ExternalCjsModulesResolvePlugin {
         predicate: ResolvedVc<ExternalPredicate>,
         import_externals: bool,
     ) -> Result<Vc<Self>> {
-        let condition = AfterResolvePluginCondition::new_with_glob(
-            None,
-            Glob::new(rcstr!("**/node_modules/**"), GlobOptions::default()),
-        )
+        let node_modules_glob = Glob::new(rcstr!("**/node_modules/**"), GlobOptions::default());
+        let condition = match &*predicate.await? {
+            ExternalPredicate::AllExcept(_) => {
+                AfterResolvePluginCondition::new_with_glob(None, node_modules_glob)
+            }
+            // Explicitly listed packages are also handled when they resolve to a path outside of
+            // node_modules, e.g. symlinked (workspace) packages that resolve to their real path.
+            ExternalPredicate::Only(externals) => {
+                AfterResolvePluginCondition::new_with_glob_or_modules(
+                    None,
+                    node_modules_glob,
+                    **externals,
+                )
+            }
+        }
         .to_resolved()
         .await?;
         Ok(ExternalCjsModulesResolvePlugin {

@@ -21,7 +21,7 @@ pub use runtime_asset_context::get_runtime_asset_context;
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
-use turbo_tasks_fs::{FileSystemPath, glob::Glob};
+use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob};
 pub use turbopack_core::condition;
 use turbopack_core::{
     asset::Asset,
@@ -1077,23 +1077,8 @@ impl AssetContext for ModuleAssetContext {
                             let replacement = if replace_externals {
                                 // Determine the package folder, `target` is the full path to the
                                 // resolved file.
-                                let target = if let Some(mut target) = target {
-                                    loop {
-                                        let parent = target.parent();
-                                        if parent.is_root() {
-                                            break;
-                                        }
-                                        if parent.file_name() == "node_modules" {
-                                            break;
-                                        }
-                                        if parent.file_name().starts_with("@")
-                                            && parent.parent().file_name() == "node_modules"
-                                        {
-                                            break;
-                                        }
-                                        target = parent;
-                                    }
-                                    Some(target)
+                                let target = if let Some(target) = target {
+                                    external_package_folder(target, &name).await?
                                 } else {
                                     None
                                 };
@@ -1236,6 +1221,54 @@ pub async fn emit_assets_into_dir_operation(
         .as_side_effect()
         .await?;
     Ok(())
+}
+
+/// Determines the folder of the package that contains `file`, the full path to the resolved file
+/// of the external `request`.
+///
+/// Inside of `node_modules` this is the direct child of `node_modules` (or of
+/// `node_modules/@scope`). Outside of `node_modules` (e.g. a symlinked workspace package that
+/// was resolved to its real path) this is the closest ancestor with a `package.json` whose `name`
+/// matches the package name of `request`. Returns `None` if no package folder can be determined.
+async fn external_package_folder(
+    file: FileSystemPath,
+    request: &str,
+) -> Result<Option<FileSystemPath>> {
+    let mut folder = file.clone();
+    loop {
+        let parent = folder.parent();
+        if parent.is_root() {
+            break;
+        }
+        if parent.file_name() == "node_modules"
+            || (parent.file_name().starts_with('@')
+                && parent.parent().file_name() == "node_modules")
+        {
+            return Ok(Some(folder));
+        }
+        folder = parent;
+    }
+
+    // `pkg/subpath` -> `pkg`, `@scope/pkg/subpath` -> `@scope/pkg`
+    let package_name = if request.starts_with('@') {
+        request.splitn(3, '/').take(2).collect::<Vec<_>>().join("/")
+    } else {
+        request.split('/').next().unwrap_or_default().to_string()
+    };
+
+    let mut folder = file.parent();
+    loop {
+        if let FileJsonContent::Content(package_json) =
+            &*folder.join("package.json")?.read_json().await?
+            && package_json["name"].as_str() == Some(&*package_name)
+        {
+            return Ok(Some(folder));
+        }
+        if folder.is_root() {
+            return Ok(None);
+        }
+        folder = folder.parent();
+    }
 }
 
 /// Replaces the externals in the result with `ExternalModuleAsset` instances.

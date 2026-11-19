@@ -1877,10 +1877,11 @@ async fn handle_after_resolve_plugins(
         lookup_path: FileSystemPath,
         reference_type: ReferenceType,
         request: Vc<Request>,
+        request_value: &Request,
         plugins_with_conditions: &[AfterResolvePluginWithCondition],
     ) -> Result<Option<Vc<ResolveResult>>> {
         for (plugin, after_resolve_condition) in plugins_with_conditions {
-            if after_resolve_condition.matches(&path)
+            if after_resolve_condition.matches_resolved(&path, request_value)
                 && let Some(result) = *plugin
                     .after_resolve(
                         path.clone(),
@@ -1898,6 +1899,7 @@ async fn handle_after_resolve_plugins(
 
     let mut changed = false;
     let result_value = result.await?;
+    let request_value = request.await?;
 
     let mut new_primary = FxIndexMap::default();
     let mut new_affecting_sources = Vec::new();
@@ -1910,6 +1912,7 @@ async fn handle_after_resolve_plugins(
                 lookup_path.clone(),
                 reference_type.clone(),
                 request,
+                &request_value,
                 &resolved_conditions,
             )
             .await?
