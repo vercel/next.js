@@ -990,6 +990,23 @@ describe('human upgrade nudge', () => {
     }
   )
 
+  it('clears defaulted NODE_ENV when launching an upgrade from dev', async () => {
+    process.env.NODE_ENV = 'development'
+    process.env.__NEXT_DEFAULT_NODE_ENV = 'true'
+    updateInitialEnv({
+      NODE_ENV: 'development',
+      __NEXT_DEFAULT_NODE_ENV: 'true',
+    })
+    jest.mocked(spawnNextUpgrade).mockImplementationOnce(async () => {
+      expect(process.env.NODE_ENV).toBeUndefined()
+      expect(process.env.__NEXT_DEFAULT_NODE_ENV).toBeUndefined()
+      resetEnv()
+      expect(process.env.NODE_ENV).toBeUndefined()
+      expect(process.env.__NEXT_DEFAULT_NODE_ENV).toBeUndefined()
+    })
+    await runUpgrade(directory, 'security', null)
+  })
+
   it.each(['blocked', 'unknown'] as const)(
     'does not force a nudge when the target is %s',
     async (status) => {
