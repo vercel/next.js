@@ -14,6 +14,7 @@
 
 pub mod backend;
 mod capture_future;
+mod changes;
 mod collectibles;
 mod completion;
 pub mod debug;
@@ -76,6 +77,8 @@ use rustc_hash::FxHasher;
 pub use shrink_to_fit::ShrinkToFit;
 pub use turbo_tasks_macros::{DeterministicHash, turbobail, turbofmt};
 
+#[doc(hidden)]
+pub use crate::changes::ChangeInProgress;
 #[cfg(feature = "inline_execution_stats")]
 pub use crate::manager::InlineExecutionStats;
 #[cfg(feature = "task_dirty_cause")]

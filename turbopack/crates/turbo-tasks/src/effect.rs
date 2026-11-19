@@ -27,6 +27,7 @@ use crate::{
     self as turbo_tasks, CollectiblesSource, JoinHandle, NonLocalValue, OperationVc, ReadRef,
     ResolvedVc, TryJoinIterExt, Upcast, VcRead, VcValueType,
     backend::SettledTaskResult,
+    changes::{change_epoch, wait_for_change_to_end},
     emit,
     event::Event,
     invalidation::{Invalidator, get_invalidator},
@@ -900,26 +901,40 @@ fn read_settled<T: VcValueType>(op: OperationVc<T>) -> Result<Option<ReadRef<T>>
 
 /// Returns the current value of `op` if it is settled and its plan is `plan`, the plan of
 /// `captured`.
+enum Currentness<T> {
+    Current(T),
+    Obsolete,
+    /// A change was in progress (see [`ChangeInProgress`][crate::ChangeInProgress]); check again
+    /// once it ended.
+    ChangeInProgress,
+}
+
 fn read_current<T, F>(
     op: OperationVc<T>,
     get_effects: &F,
     captured: &ReadRef<T>,
     plan: &[PlannedEffect],
-) -> Result<Option<ReadRef<T>>>
+) -> Result<Currentness<ReadRef<T>>>
 where
     T: VcValueType,
     F: Fn(&<<T as VcValueType>::Read as VcRead<T>>::Target) -> &Effects,
 {
-    let Some(value) = read_settled(op)? else {
-        return Ok(None);
+    // While a change is in progress, a root that depends on the old value can still look settled
+    // although other tasks already see the new value. So the check only counts if no change was
+    // in progress, and none started or ended, while it ran.
+    let Some(epoch) = change_epoch() else {
+        return Ok(Currentness::ChangeInProgress);
     };
-    if ReadRef::ptr_eq(&value, captured) {
-        return Ok(Some(value));
-    }
-    let current = forbid_task_reads(|| get_effects(&*value).plan());
-    Ok(current
-        .is_ok_and(|current| current == plan)
-        .then_some(value))
+    let Some(value) = read_settled(op)? else {
+        return Ok(Currentness::Obsolete);
+    };
+    let current = ReadRef::ptr_eq(&value, captured)
+        || forbid_task_reads(|| get_effects(&*value).plan()).is_ok_and(|current| current == plan);
+    Ok(match change_epoch() {
+        None => Currentness::ChangeInProgress,
+        Some(now) if current && now == epoch => Currentness::Current(value),
+        Some(_) => Currentness::Obsolete,
+    })
 }
 
 /// Strongly-consistent read of `op`, then publish its effects.
@@ -965,16 +980,22 @@ where
 /// and roots that are current at the same time agree on shared keys. Writes from separate
 /// storages to one physical location are not coordinated.
 ///
-/// "Current" means settled as of the dirtiness that has reached the root. An invalidation that has
-/// already marked a dependency dirty but is still propagating to the root does not make that root
-/// obsolete yet, so its older plan can still be written over a newer one published by a root that
-/// recomputed the dependency in the meantime. Once the propagation finishes, that root is dirty
-/// again and publishing it writes the newer plan.
+/// "Current" means settled as of the dirtiness that has reached the root. A change counts as in
+/// progress (see [`ChangeInProgress`][crate::ChangeInProgress]) from before its new value is
+/// readable or a task is marked dirty until that dirtiness has reached the aggregating ancestors,
+/// and the check only counts if no change was in progress, and none started or ended, while it
+/// ran. So a newer value another root could already read always makes this root obsolete. If a
+/// change is in progress, publication releases its claims, waits for a change to end, and counts
+/// the attempt like an obsolete plan. A change that is only reported through an [`Invalidator`]
+/// after its new value became readable elsewhere (e.g. an untracked read of external state) is
+/// not covered.
 ///
 /// [`EffectsError::Retry`] (content elided at capture time, storage diverged before apply) is
 /// retried with bounded attempts. If inputs keep changing during publication, it gives up checking
-/// currentness after a bounded number of obsolete plans: it warns, writes the latest plan under
-/// its claims, and returns that plan's value. Must not be called from inside an effect's
+/// currentness after a bounded number of obsolete plans and checks that found a change in
+/// progress: it warns, writes the latest plan under
+/// its claims without checking it or waiting for changes in progress, and returns that plan's
+/// value. Must not be called from inside an effect's
 /// [`CapturedEffect::apply`].
 pub async fn read_strongly_consistent_and_apply_effects<T, F>(
     op: OperationVc<T>,
@@ -1021,10 +1042,21 @@ where
         let plan = effects.plan()?;
         let check_current = obsolete < MAX_OBSOLETE_PLANS;
         let mut publication = effects.claim().await;
-        if check_current && read_current(op, &get_effects, &value, &plan)?.is_none() {
-            drop(publication);
-            handle_obsolete_plan(&mut obsolete);
-            continue;
+        if check_current {
+            match read_current(op, &get_effects, &value, &plan)? {
+                Currentness::Current(_) => {}
+                Currentness::Obsolete => {
+                    drop(publication);
+                    handle_obsolete_plan(&mut obsolete);
+                    continue;
+                }
+                Currentness::ChangeInProgress => {
+                    drop(publication);
+                    wait_for_change_to_end().await;
+                    handle_obsolete_plan(&mut obsolete);
+                    continue;
+                }
+            }
         }
         let result = {
             // Restores the previous marking even if applying unwinds or is cancelled.
@@ -1056,21 +1088,26 @@ where
             // Another publication changed a key. Rerun the producer so the next capture
             // materializes content instead of eliding it against the old storage state.
             effects.invalidate_producer();
-            None
+            Currentness::Obsolete
         };
         drop(claims);
         match current {
-            Some(value) => return Ok(value),
-            None => handle_obsolete_plan(&mut obsolete),
+            Currentness::Current(value) => return Ok(value),
+            Currentness::Obsolete => handle_obsolete_plan(&mut obsolete),
+            Currentness::ChangeInProgress => {
+                wait_for_change_to_end().await;
+                handle_obsolete_plan(&mut obsolete)
+            }
         }
     }
 }
 
-/// Obsolete plans after which publication stops checking currentness and writes the latest plan.
+/// Obsolete plans, and checks that found a change in progress, after which publication stops
+/// checking currentness and writes the latest plan.
 const MAX_OBSOLETE_PLANS: usize = 16;
 
-/// Counts a restart caused by inputs changing between a capture and its validation or commit, and
-/// warns once publication will stop checking currentness.
+/// Counts a restart caused by inputs changing, or a change being in progress, between a capture and
+/// its validation or commit, and warns once publication will stop checking currentness.
 fn handle_obsolete_plan(obsolete: &mut usize) {
     *obsolete += 1;
     if *obsolete == MAX_OBSOLETE_PLANS {

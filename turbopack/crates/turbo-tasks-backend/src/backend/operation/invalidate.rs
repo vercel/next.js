@@ -97,6 +97,10 @@ pub(super) fn make_task_dirty_without_scheduling(
     queue: &mut AggregationUpdateQueue,
     ctx: &mut ExecuteContext<'_>,
 ) -> Option<TaskPriority> {
+    // Before the task is observably dirty: until `queue` has propagated the dirtiness, a root above
+    // the task may still look settled.
+    queue.start_change();
+
     // There must be no way to invalidate immutable tasks. If there would be a way the task is not
     // immutable.
     #[cfg(any(debug_assertions, feature = "verify_immutable"))]
