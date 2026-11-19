@@ -124,21 +124,17 @@ export function onRequestError(
 
 ### Specifying the runtime
 
-The `instrumentation.js` file works in both the Node.js and Edge runtime, however, you can use `process.env.NEXT_RUNTIME` to target a specific runtime.
+The `instrumentation.js` file works in all runtimes; however, you can use `process.env.NEXT_RUNTIME` to target a specific runtime.
 
 ```js filename="instrumentation.js"
 export function register() {
-  if (process.env.NEXT_RUNTIME === 'edge') {
-    return require('./register.edge')
-  } else {
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
     return require('./register.node')
   }
 }
 
 export function onRequestError() {
-  if (process.env.NEXT_RUNTIME === 'edge') {
-    return require('./on-request-error.edge')
-  } else {
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
     return require('./on-request-error.node')
   }
 }
