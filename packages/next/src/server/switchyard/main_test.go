@@ -16,20 +16,23 @@ import (
 	"time"
 )
 
+const testToken = "switchyard-test-token"
+
 // received is what the stub upstream saw.
 type received struct {
 	requestURI string
+	remoteAddr string
 	host       string
 	header     http.Header
 }
 
-// startProxy runs the proxy in front of an upstream that records each request
+// startProxy runs the proxy in switchyard of an upstream that records each request
 // and answers with handler. It returns the proxy's address.
 func startProxy(t *testing.T, handler http.HandlerFunc) (string, <-chan received) {
 	t.Helper()
 	seen := make(chan received, 16)
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		seen <- received{requestURI: r.RequestURI, host: r.Host, header: r.Header.Clone()}
+		seen <- received{requestURI: r.RequestURI, remoteAddr: r.RemoteAddr, host: r.Host, header: r.Header.Clone()}
 		if handler != nil {
 			handler(w, r)
 		}
@@ -40,9 +43,9 @@ func startProxy(t *testing.T, handler http.HandlerFunc) (string, <-chan received
 	if err != nil {
 		t.Fatal(err)
 	}
-	front := newServer(newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second), 0, 0, 0)
-	go front.Serve(ln)
-	t.Cleanup(func() { front.Close() })
+	switchyard := newServer(newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second, testToken), 0, 0, 0, 16<<10)
+	go switchyard.Serve(ln)
+	t.Cleanup(func() { switchyard.Close() })
 	return ln.Addr().String(), seen
 }
 
@@ -140,6 +143,106 @@ func TestFillsOnlyForAndPortWhenMissing(t *testing.T) {
 		if values, ok := header[name]; ok {
 			t.Errorf("%s = %q, want it left to Node", name, values)
 		}
+	}
+}
+
+func TestReplacesUntrustedConnectionMetadata(t *testing.T) {
+	addr, seen := startProxy(t, nil)
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	io.WriteString(conn, "GET / HTTP/1.1\r\nHost: shop.example.com\r\n"+
+		"Connection: close, X-Nextjs-Switchyard-Connection\r\n"+
+		"X-Nextjs-Switchyard-Connection: forged;127.0.0.1:1234\r\n"+
+		"X-Nextjs-Switchyard-Connection: another-forgery\r\n\r\n")
+	res, err := http.ReadResponse(bufio.NewReader(conn), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	values := (<-seen).header.Values(connectionHeader)
+	if len(values) != 1 || values[0] != testToken+";"+conn.LocalAddr().String() {
+		t.Fatalf("untrusted connection metadata was not replaced: %v", values)
+	}
+}
+
+func TestUpstreamConnectionsKeepOneClientIdentity(t *testing.T) {
+	addr, seen := startProxy(t, nil)
+	first, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer first.Close()
+	second, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer second.Close()
+	roundTrip := func(conn net.Conn, reader *bufio.Reader) received {
+		t.Helper()
+		io.WriteString(conn, "GET / HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
+		res, err := http.ReadResponse(reader, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		io.Copy(io.Discard, res.Body)
+		res.Body.Close()
+		got := <-seen
+		if got.header.Get(connectionHeader) != testToken+";"+conn.LocalAddr().String() {
+			t.Fatal("upstream received the wrong client identity")
+		}
+		return got
+	}
+	firstReader, secondReader := bufio.NewReader(first), bufio.NewReader(second)
+	a := roundTrip(first, firstReader)
+	b := roundTrip(second, secondReader)
+	c := roundTrip(first, firstReader)
+	if a.remoteAddr == b.remoteAddr {
+		t.Fatal("different clients shared an upstream socket")
+	}
+	if a.remoteAddr != c.remoteAddr {
+		t.Fatal("a keep-alive client did not reuse its upstream socket")
+	}
+}
+
+func TestRejectsOversizedIncompleteHeadersBeforeReachingNode(t *testing.T) {
+	for _, limit := range []int{8192, 16384, 32768} {
+		t.Run(fmt.Sprint(limit), func(t *testing.T) {
+			seen := make(chan struct{}, 1)
+			ln, err := net.Listen("tcp", "127.0.0.1:0")
+			if err != nil {
+				t.Fatal(err)
+			}
+			srv := newServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				seen <- struct{}{}
+			}), time.Second, 30*time.Second, 0, limit)
+			go srv.Serve(ln)
+			defer srv.Close()
+			conn, err := net.Dial("tcp", ln.Addr().String())
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer conn.Close()
+			conn.SetDeadline(time.Now().Add(5 * time.Second))
+			// No terminating blank line: rejection must happen while reading,
+			// without waiting for either Node or the 30-second header deadline.
+			io.WriteString(conn, "GET / HTTP/1.1\r\nHost: shop.example.com\r\nX-Large: "+strings.Repeat("a", limit))
+			res, err := http.ReadResponse(bufio.NewReader(conn), nil)
+			if err != nil {
+				t.Fatalf("oversized incomplete headers were not rejected: %v", err)
+			}
+			res.Body.Close()
+			if res.StatusCode != http.StatusRequestHeaderFieldsTooLarge {
+				t.Fatalf("status = %d, want 431", res.StatusCode)
+			}
+			select {
+			case <-seen:
+				t.Fatal("oversized headers reached the handler")
+			default:
+			}
+		})
 	}
 }
 
@@ -399,7 +502,7 @@ func TestKeepsAnUpgradeWithACustomStatusLine(t *testing.T) {
 			addr, _ := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
 				conn, buf, _ := w.(http.Hijacker).Hijack()
 				defer conn.Close()
-				fmt.Fprintf(buf, "HTTP/1.1 %s\r\nConnection: Upgrade\r\nUpgrade: front-test\r\n\r\n", status)
+				fmt.Fprintf(buf, "HTTP/1.1 %s\r\nConnection: Upgrade\r\nUpgrade: switchyard-test\r\n\r\n", status)
 				buf.Flush()
 				io.Copy(conn, buf)
 			})
@@ -409,13 +512,13 @@ func TestKeepsAnUpgradeWithACustomStatusLine(t *testing.T) {
 			}
 			defer conn.Close()
 			conn.SetDeadline(time.Now().Add(5 * time.Second))
-			io.WriteString(conn, "GET / HTTP/1.1\r\nHost: shop.example.com\r\nConnection: Upgrade\r\nUpgrade: front-test\r\n\r\n")
+			io.WriteString(conn, "GET / HTTP/1.1\r\nHost: shop.example.com\r\nConnection: Upgrade\r\nUpgrade: switchyard-test\r\n\r\n")
 			reader := bufio.NewReader(conn)
 			res, err := http.ReadResponse(reader, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if res.Status != status || res.Header.Get("Upgrade") != "front-test" {
+			if res.Status != status || res.Header.Get("Upgrade") != "switchyard-test" {
 				t.Fatalf("got %q with Upgrade %q", res.Status, res.Header.Get("Upgrade"))
 			}
 			io.WriteString(conn, "ping")
@@ -470,12 +573,12 @@ func TestCancelsAStreamWhenTheClientDisconnects(t *testing.T) {
 					upstream.Close()
 					t.Fatal(err)
 				}
-				front := newServer(newProxy(upstream.Addr().String(), ln.Addr().(*net.TCPAddr), time.Second), 5*time.Second, 5*time.Second, 0)
-				go front.Serve(ln)
+				switchyard := newServer(newProxy(upstream.Addr().String(), ln.Addr().(*net.TCPAddr), time.Second, testToken), 5*time.Second, 5*time.Second, 0, 16<<10)
+				go switchyard.Serve(ln)
 				t.Cleanup(func() {
 					close(release)
 					upstream.Close()
-					front.Close()
+					switchyard.Close()
 					<-upstreamDone
 				})
 				client, err := net.Dial("tcp", ln.Addr().String())
@@ -549,10 +652,10 @@ func TestStreamsACustomStatusDuringAnUpload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	front := newServer(newProxy(upstream.Addr().String(), ln.Addr().(*net.TCPAddr), time.Second), 5*time.Second, 5*time.Second, 0)
-	go front.Serve(ln)
+	switchyard := newServer(newProxy(upstream.Addr().String(), ln.Addr().(*net.TCPAddr), time.Second, testToken), 5*time.Second, 5*time.Second, 0, 16<<10)
+	go switchyard.Serve(ln)
 	t.Cleanup(func() {
-		front.Close()
+		switchyard.Close()
 		<-upstreamDone
 	})
 	client, err := net.Dial("tcp", ln.Addr().String())
@@ -596,8 +699,8 @@ func TestShutdownWaitsForACustomStatusLineResponse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	front := newServer(newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second), 0, 0, 0)
-	go front.Serve(ln)
+	switchyard := newServer(newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second, testToken), 0, 0, 0, 16<<10)
+	go switchyard.Serve(ln)
 
 	conn, err := net.Dial("tcp", ln.Addr().String())
 	if err != nil {
@@ -614,7 +717,7 @@ func TestShutdownWaitsForACustomStatusLineResponse(t *testing.T) {
 	// Drain the way main does, while the body is still streaming.
 	stopped := make(chan struct{})
 	go func() {
-		front.Shutdown(context.Background())
+		switchyard.Shutdown(context.Background())
 		close(stopped)
 	}()
 	select {
@@ -641,9 +744,9 @@ func TestClosesAConnectionWhoseHeadersNeverFinish(t *testing.T) {
 	}
 	upstreamHit := make(chan struct{}, 1)
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { upstreamHit <- struct{}{} })
-	front := newServer(handler, 5*time.Second, 200*time.Millisecond, 0)
-	go front.Serve(ln)
-	t.Cleanup(func() { front.Close() })
+	switchyard := newServer(handler, 5*time.Second, 200*time.Millisecond, 0, 16<<10)
+	go switchyard.Serve(ln)
+	t.Cleanup(func() { switchyard.Close() })
 
 	conn, err := net.Dial("tcp", ln.Addr().String())
 	if err != nil {
@@ -670,7 +773,7 @@ func TestClosesAConnectionWhoseHeadersNeverFinish(t *testing.T) {
 }
 
 func TestRequiresEveryFlag(t *testing.T) {
-	full := []string{"--listen", ":0", "--upstream", "127.0.0.1:1", "--idle-timeout-ms", "65000", "--header-timeout-ms", "60000", "--request-timeout-ms", "300000", "--upstream-idle-ms", "4000"}
+	full := []string{"--listen", ":0", "--upstream", "127.0.0.1:1", "--idle-timeout-ms", "65000", "--header-timeout-ms", "60000", "--request-timeout-ms", "300000", "--upstream-idle-ms", "4000", "--max-header-bytes", "16384"}
 	cfg, err := parseConfig(full)
 	if err != nil {
 		t.Fatal(err)
@@ -687,7 +790,7 @@ func TestRequiresEveryFlag(t *testing.T) {
 	}
 }
 
-// startServedProxy runs newServer and newProxy as main does, in front of an
+// startServedProxy runs newServer and newProxy as main does, in switchyard of an
 // upstream that records the request target and method it receives.
 func startServedProxy(t *testing.T, requestTimeout time.Duration) (string, <-chan string) {
 	t.Helper()
@@ -705,10 +808,10 @@ func startServedProxy(t *testing.T, requestTimeout time.Duration) (string, <-cha
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler := newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second)
-	front := newServer(handler, 5*time.Second, 5*time.Second, requestTimeout)
-	go front.Serve(ln)
-	t.Cleanup(func() { front.Close() })
+	handler := newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second, testToken)
+	switchyard := newServer(handler, 5*time.Second, 5*time.Second, requestTimeout, 16<<10)
+	go switchyard.Serve(ln)
+	t.Cleanup(func() { switchyard.Close() })
 	return ln.Addr().String(), seen
 }
 
@@ -757,9 +860,9 @@ func TestClosesARequestWhoseBodyNeverFinishes(t *testing.T) {
 	}
 }
 
-// startFrontFor runs newServer and newProxy as main does, in front of an
+// startSwitchyardFor runs newServer and newProxy as main does, in switchyard of an
 // upstream answering with handler.
-func startFrontFor(t *testing.T, handler http.HandlerFunc) string {
+func startSwitchyardFor(t *testing.T, handler http.HandlerFunc) string {
 	t.Helper()
 	upstream := httptest.NewServer(handler)
 	t.Cleanup(upstream.Close)
@@ -767,20 +870,20 @@ func startFrontFor(t *testing.T, handler http.HandlerFunc) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	proxy := newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second)
-	front := newServer(proxy, 5*time.Second, 5*time.Second, 0)
-	go front.Serve(ln)
-	t.Cleanup(func() { front.Close() })
+	proxy := newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second, testToken)
+	switchyard := newServer(proxy, 5*time.Second, 5*time.Second, 0, 16<<10)
+	go switchyard.Serve(ln)
+	t.Cleanup(func() { switchyard.Close() })
 	return ln.Addr().String()
 }
 
 // Node can answer while the client is still uploading, for example with a 403
-// after reading only the headers. The front must pass that answer on without
+// after reading only the headers. Switchyard must pass that answer on without
 // waiting for the rest of the body.
 func TestAnswersBeforeTheUploadFinishes(t *testing.T) {
 	done := make(chan struct{})
 	t.Cleanup(func() { close(done) })
-	addr := startFrontFor(t, func(w http.ResponseWriter, r *http.Request) {
+	addr := startSwitchyardFor(t, func(w http.ResponseWriter, r *http.Request) {
 		// Answer the way Node does, without reading the body, and keep the
 		// connection open as Node would while the upload is still coming.
 		conn, buf, _ := w.(http.Hijacker).Hijack()
@@ -812,7 +915,7 @@ func TestAnswersBeforeTheUploadFinishes(t *testing.T) {
 
 // An upstream custom reason phrase must not affect the response trailers.
 func TestKeepsTrailersOnACustomStatusLine(t *testing.T) {
-	addr := startFrontFor(t, func(w http.ResponseWriter, r *http.Request) {
+	addr := startSwitchyardFor(t, func(w http.ResponseWriter, r *http.Request) {
 		conn, buf, _ := w.(http.Hijacker).Hijack()
 		defer conn.Close()
 		io.WriteString(buf, "HTTP/1.1 400 Custom Reason\r\nTransfer-Encoding: chunked\r\nTrailer: X-Checksum\r\n\r\n"+
@@ -833,7 +936,7 @@ func TestKeepsTrailersOnACustomStatusLine(t *testing.T) {
 }
 
 // HTTP/1.0 allows a request without a Host header. Node must see the public
-// address, not the front's connection to Node.
+// address, not Switchyard's connection to Node.
 func TestUsesThePublicAddressWhenTheRequestHasNoHost(t *testing.T) {
 	addr, seen := startProxy(t, nil)
 	rawRoundTrip(t, addr, "GET /health HTTP/1.0\r\n\r\n")
@@ -885,7 +988,7 @@ func TestLogsNothingWhenTheClientLeavesEarly(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("Node never saw the request cancelled")
 	}
-	// Give the front's error handler time to run after the cancellation.
+	// Give Switchyard's error handler time to run after the cancellation.
 	time.Sleep(200 * time.Millisecond)
 	if got := logged.String(); got != "" {
 		t.Errorf("logged %q, want nothing", got)
@@ -896,7 +999,7 @@ func TestLogsNothingWhenTheClientLeavesEarly(t *testing.T) {
 // idle time, so those are refused; 0 header and request timeouts mean no
 // limit, as in Node.
 func TestRejectsTimeoutsGoWouldReadDifferently(t *testing.T) {
-	base := map[string]string{"--listen": ":0", "--upstream": "127.0.0.1:1", "--idle-timeout-ms": "65000", "--header-timeout-ms": "60000", "--request-timeout-ms": "300000", "--upstream-idle-ms": "4000"}
+	base := map[string]string{"--listen": ":0", "--upstream": "127.0.0.1:1", "--idle-timeout-ms": "65000", "--header-timeout-ms": "60000", "--request-timeout-ms": "300000", "--upstream-idle-ms": "4000", "--max-header-bytes": "16384"}
 	args := func(name, value string) []string {
 		var out []string
 		for k, v := range base {
@@ -911,6 +1014,9 @@ func TestRejectsTimeoutsGoWouldReadDifferently(t *testing.T) {
 		name, value string
 		ok          bool
 	}{
+		{"--max-header-bytes", "4096", false},
+		{"--max-header-bytes", "0", false},
+		{"--max-header-bytes", "8192", true},
 		{"--idle-timeout-ms", "0", false},
 		{"--upstream-idle-ms", "0", false},
 		{"--header-timeout-ms", "-1", false},
@@ -938,13 +1044,13 @@ func TestAbsoluteFormTargetReachesNodeAsAPathWithTheTargetsHost(t *testing.T) {
 }
 
 // When Node answers before the client has finished its upload, the rest of
-// the body is still on the connection. The front must close the connection
+// the body is still on the connection. Switchyard must close the connection
 // after the answer, so those bytes are never read as another request.
 func TestClosesTheConnectionAfterAnAnswerThatCameBeforeTheBodyEnded(t *testing.T) {
 	done := make(chan struct{})
 	t.Cleanup(func() { close(done) })
 	seen := make(chan string, 4)
-	addr := startFrontFor(t, func(w http.ResponseWriter, r *http.Request) {
+	addr := startSwitchyardFor(t, func(w http.ResponseWriter, r *http.Request) {
 		seen <- r.RequestURI
 		// Answer the way Node does for /_next/static/ misses, without reading
 		// the body, and keep the connection open.
@@ -985,9 +1091,9 @@ func TestClosesTheConnectionAfterAnAnswerThatCameBeforeTheBodyEnded(t *testing.T
 }
 
 // An upload Node has read in full doesn't need the connection closed; it
-// stays open for the next request, as without the front.
+// stays open for the next request, as without Switchyard.
 func TestKeepsTheConnectionOpenAfterACompleteUpload(t *testing.T) {
-	addr := startFrontFor(t, func(w http.ResponseWriter, r *http.Request) {
+	addr := startSwitchyardFor(t, func(w http.ResponseWriter, r *http.Request) {
 		io.Copy(io.Discard, r.Body)
 		io.WriteString(w, "ok")
 	})
@@ -1008,5 +1114,289 @@ func TestKeepsTheConnectionOpenAfterACompleteUpload(t *testing.T) {
 		if res.Close {
 			t.Errorf("request %d: connection closed after a complete upload", i+1)
 		}
+	}
+}
+
+// startCountingProxy runs Switchyard in front of an upstream that counts its
+// open connections. With a long upstreamIdle, a connection to Node left idle
+// would still be open when the test looks.
+func startCountingProxy(t *testing.T, upstreamIdle time.Duration) (string, func() int, <-chan received) {
+	t.Helper()
+	return startCountingProxyWith(t, upstreamIdle, func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, "ok")
+	})
+}
+
+func startCountingProxyWith(t *testing.T, upstreamIdle time.Duration, handler http.HandlerFunc) (string, func() int, <-chan received) {
+	t.Helper()
+	var mu sync.Mutex
+	open := 0
+	seen := make(chan received, 64)
+	upstream := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- received{requestURI: r.RequestURI, remoteAddr: r.RemoteAddr, host: r.Host, header: nil}
+		handler(w, r)
+	}))
+	upstream.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		mu.Lock()
+		defer mu.Unlock()
+		switch state {
+		case http.StateNew:
+			open++
+		case http.StateClosed, http.StateHijacked:
+			open--
+		}
+	}
+	upstream.Start()
+	t.Cleanup(upstream.Close)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	switchyard := newServer(newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), upstreamIdle, testToken), time.Minute, 5*time.Second, 0, 16<<10)
+	go switchyard.Serve(ln)
+	t.Cleanup(func() { switchyard.Close() })
+	count := func() int {
+		mu.Lock()
+		defer mu.Unlock()
+		return open
+	}
+	return ln.Addr().String(), count, seen
+}
+
+// Each client connection has its own connections to Node, so one that hangs
+// up must take its connection to Node with it, instead of leaving it idle in
+// a pool no other client can use.
+func TestClosesConnectionsToNodeWhenTheirClientsLeave(t *testing.T) {
+	addr, openToNode, _ := startCountingProxy(t, time.Minute)
+	for i := 0; i < 20; i++ {
+		conn, err := net.Dial("tcp", addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		io.WriteString(conn, "GET / HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
+		res, err := http.ReadResponse(bufio.NewReader(conn), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		io.Copy(io.Discard, res.Body)
+		conn.Close()
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for openToNode() > 0 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if n := openToNode(); n > 0 {
+		t.Errorf("%d connections to Node still open after all 20 clients left", n)
+	}
+}
+
+// One client's requests still share one connection to Node, as Node's own
+// keep-alive would.
+func TestReusesOneConnectionToNodeForOneClient(t *testing.T) {
+	addr, openToNode, seen := startCountingProxy(t, time.Minute)
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	reader := bufio.NewReader(conn)
+	var upstreamPeers []string
+	for i := 0; i < 3; i++ {
+		io.WriteString(conn, "GET / HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
+		res, err := http.ReadResponse(reader, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		io.Copy(io.Discard, res.Body)
+		upstreamPeers = append(upstreamPeers, (<-seen).remoteAddr)
+	}
+	if upstreamPeers[0] != upstreamPeers[1] || upstreamPeers[1] != upstreamPeers[2] {
+		t.Errorf("requests reached Node from %v, want one connection", upstreamPeers)
+	}
+	if n := openToNode(); n != 1 {
+		t.Errorf("%d connections to Node open, want 1", n)
+	}
+}
+
+// All clients together keep at most maxKeptUpstreams connections to Node
+// open between requests. Clients beyond that are still served, but their
+// connections to Node close with each response.
+func TestCapsConnectionsToNodeKeptAcrossClients(t *testing.T) {
+	previous := maxKeptUpstreams
+	maxKeptUpstreams = 2
+	t.Cleanup(func() { maxKeptUpstreams = previous })
+	addr, openToNode, _ := startCountingProxy(t, time.Minute)
+
+	var clients []net.Conn
+	t.Cleanup(func() {
+		for _, c := range clients {
+			c.Close()
+		}
+	})
+	for i := 0; i < 5; i++ {
+		conn, err := net.Dial("tcp", addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		clients = append(clients, conn)
+		// Keep-alive: each client stays connected after its response.
+		io.WriteString(conn, "GET / HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
+		res, err := http.ReadResponse(bufio.NewReader(conn), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		io.Copy(io.Discard, res.Body)
+		if res.StatusCode != http.StatusOK || res.Close {
+			t.Errorf("client %d: got %d with Close=%v, want 200 on a kept connection", i+1, res.StatusCode, res.Close)
+		}
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for openToNode() > 2 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if n := openToNode(); n > 2 {
+		t.Errorf("%d connections to Node open for 5 idle clients, want at most 2", n)
+	}
+}
+
+// A slot belongs to an open connection to Node, not to a client: when a
+// client's connection to Node idles out, its slot is free again for other
+// clients, even though the client itself is still connected.
+func TestFreesSlotsWhenConnectionsToNodeIdleOut(t *testing.T) {
+	previous := maxKeptUpstreams
+	maxKeptUpstreams = 2
+	t.Cleanup(func() { maxKeptUpstreams = previous })
+	addr, openToNode, seen := startCountingProxy(t, 200*time.Millisecond)
+
+	get := func(conn net.Conn, reader *bufio.Reader) string {
+		t.Helper()
+		io.WriteString(conn, "GET / HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
+		res, err := http.ReadResponse(reader, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		io.Copy(io.Discard, res.Body)
+		return (<-seen).remoteAddr
+	}
+	// Two clients take both slots and stay connected.
+	for i := 0; i < 2; i++ {
+		conn, err := net.Dial("tcp", addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { conn.Close() })
+		get(conn, bufio.NewReader(conn))
+	}
+	// Their connections to Node idle out after upstreamIdle.
+	deadline := time.Now().Add(3 * time.Second)
+	for openToNode() > 0 && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+	if n := openToNode(); n > 0 {
+		t.Fatalf("%d connections to Node still open after upstreamIdle", n)
+	}
+	// A third client can keep its connection to Node between requests.
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	reader := bufio.NewReader(conn)
+	first, second := get(conn, reader), get(conn, reader)
+	if first != second {
+		t.Errorf("third client's requests reached Node from %s and %s, want one kept connection", first, second)
+	}
+}
+
+// Clients that open connections to Node at the same moment can't keep more
+// of them between requests than there are slots.
+func TestCapsConnectionsToNodeDialedAtOnce(t *testing.T) {
+	previous := maxKeptUpstreams
+	maxKeptUpstreams = 2
+	t.Cleanup(func() { maxKeptUpstreams = previous })
+	addr, openToNode, _ := startCountingProxyWith(t, time.Minute, func(w http.ResponseWriter, r *http.Request) {
+		// Hold every request long enough that all ten dial before any ends.
+		time.Sleep(200 * time.Millisecond)
+		io.WriteString(w, "ok")
+	})
+	var wg sync.WaitGroup
+	conns := make([]net.Conn, 10)
+	for i := range conns {
+		conn, err := net.Dial("tcp", addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		conns[i] = conn
+		t.Cleanup(func() { conn.Close() })
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			io.WriteString(conn, "GET / HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
+			if res, err := http.ReadResponse(bufio.NewReader(conn), nil); err == nil {
+				io.Copy(io.Discard, res.Body)
+			}
+		}()
+	}
+	wg.Wait()
+	deadline := time.Now().Add(2 * time.Second)
+	for openToNode() > 2 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if n := openToNode(); n > 2 {
+		t.Errorf("%d connections to Node kept after 10 simultaneous requests, want at most 2", n)
+	}
+}
+
+// A connection to Node that has been upgraded (to a WebSocket, say) leaves
+// HTTP, so it gives its slot back while the tunnel stays open.
+func TestUpgradedConnectionsGiveTheirSlotBack(t *testing.T) {
+	previous := maxKeptUpstreams
+	maxKeptUpstreams = 1
+	t.Cleanup(func() { maxKeptUpstreams = previous })
+	tunnelDone := make(chan struct{})
+	t.Cleanup(func() { close(tunnelDone) })
+	addr, _, seen := startCountingProxyWith(t, time.Minute, func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Upgrade") == "" {
+			io.WriteString(w, "ok")
+			return
+		}
+		conn, buf, _ := w.(http.Hijacker).Hijack()
+		defer conn.Close()
+		io.WriteString(buf, "HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n")
+		buf.Flush()
+		<-tunnelDone
+	})
+
+	tunnel, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tunnel.Close()
+	io.WriteString(tunnel, "GET /socket HTTP/1.1\r\nHost: shop.example.com\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n")
+	res, err := http.ReadResponse(bufio.NewReader(tunnel), nil)
+	if err != nil || res.StatusCode != http.StatusSwitchingProtocols {
+		t.Fatalf("upgrade: %v %v", res, err)
+	}
+	<-seen
+
+	// With the tunnel still open, another client can keep its connection.
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	reader := bufio.NewReader(conn)
+	var peers []string
+	for i := 0; i < 2; i++ {
+		io.WriteString(conn, "GET / HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
+		res, err := http.ReadResponse(reader, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		io.Copy(io.Discard, res.Body)
+		peers = append(peers, (<-seen).remoteAddr)
+	}
+	if peers[0] != peers[1] {
+		t.Errorf("requests reached Node from %v while a tunnel was open, want one kept connection", peers)
 	}
 }
