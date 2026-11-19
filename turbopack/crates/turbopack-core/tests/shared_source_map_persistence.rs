@@ -29,6 +29,7 @@ use turbo_tasks_fs::{
     CellRope, CellRopePart, DiskFileSystem, File, FileContent, FileSystem, rope::Rope,
 };
 use turbopack_core::{
+    asset::AssetContent,
     code_builder::{CodeBuilder, CodeCells, CodeComposition, CodeCompositionBuilder, ComposedCode},
     source_map::{
         SourceMapGenerationOptions, SourceMapType, SourceMaps,
@@ -190,8 +191,8 @@ async fn code_content(input: ResolvedVc<Input>) -> Result<Vc<FileContent>> {
 }
 
 #[turbo_tasks::function]
-async fn map_content(input: ResolvedVc<Input>, ty: SourceMapType) -> Result<Vc<FileContent>> {
-    composed(*input).await?.source_map_file_content(ty).await
+async fn map_content(input: ResolvedVc<Input>, ty: SourceMapType) -> Result<Vc<AssetContent>> {
+    composed(*input).await?.source_map_content(ty).await
 }
 
 #[turbo_tasks::function(operation, root)]
@@ -199,8 +200,8 @@ async fn write_operation(fs: ResolvedVc<DiskFileSystem>, input: ResolvedVc<Input
     let root = fs.root().owned().await?;
     root.join("out.js")?.write(code_content(*input)).await?;
     for (ty, source) in VARIANTS {
-        root.join(&format!("{source}.map"))?
-            .write(map_content(*input, ty))
+        map_content(*input, ty)
+            .write(root.join(&format!("{source}.map"))?)
             .await?;
     }
     Ok(())
