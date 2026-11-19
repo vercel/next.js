@@ -1134,7 +1134,7 @@ pub async fn compute_chunk_group_info(
                     buckets
                         .entry(key.iter().collect::<Vec<_>>())
                         .or_insert(BTreeSet::new())
-                        .insert(module.ident().to_string().await?);
+                        .insert(module.ident_string().await?);
                 }
             }
 

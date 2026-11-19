@@ -2,13 +2,16 @@ use anyhow::{Result, bail};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueDefault, ValueToString, Vc};
 use turbopack_core::chunk::{
     AsyncModuleInfo, Chunk, ChunkItem, ChunkItemBatchGroup, ChunkItemOrBatchWithAsyncModuleInfo,
-    ChunkType, ChunkingContext, MinifyType, round_chunk_item_size,
+    ChunkType, ChunkingContext, round_chunk_item_size,
 };
 
 use super::{ChunkMinification, EcmascriptChunk, EcmascriptChunkContent, EcmascriptChunkItem};
-use crate::chunk::{
-    batch::{EcmascriptChunkItemBatchGroup, EcmascriptChunkItemOrBatchWithAsyncInfo},
-    item::{ChunkItemFactoryContent, chunk_item_factory_content},
+use crate::{
+    chunk::{
+        batch::{EcmascriptChunkItemBatchGroup, EcmascriptChunkItemOrBatchWithAsyncInfo},
+        item::{ChunkItemFactoryContent, chunk_item_factory_content},
+    },
+    emit_options::EcmascriptEmitOptions,
 };
 
 #[turbo_tasks::value]
@@ -72,11 +75,11 @@ impl ChunkType for EcmascriptChunkType {
         // Asked the same way as code generation does (see the chunk content implementations),
         // so both share one minification.
         let source_maps = match minify {
-            MinifyType::Minify { .. } => match chunking_context.emitted_source_map_type().await {
+            Some(_) => match chunking_context.emitted_source_map_type().await {
                 Ok(ty) => ty.is_some(),
                 Err(_) => return Ok(Vc::cell(0)),
             },
-            MinifyType::NoMinify => false,
+            None => false,
         };
         Ok(Vc::cell(
             rounded_chunk_item_size(
@@ -96,7 +99,7 @@ impl ChunkType for EcmascriptChunkType {
 pub(crate) async fn rounded_chunk_item_size(
     chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
     async_module_info: Option<Vc<AsyncModuleInfo>>,
-    minify: MinifyType,
+    minify: Option<Vc<EcmascriptEmitOptions>>,
     source_maps: bool,
 ) -> usize {
     estimated_chunk_item_size(chunk_item, async_module_info, minify, source_maps)
@@ -106,11 +109,12 @@ pub(crate) async fn rounded_chunk_item_size(
 
 /// The size of a chunk item as it goes into a chunk (see [`chunk_item_factory_content`]), before
 /// rounding: its minified factory when chunk items are minified one by one, its raw code
-/// otherwise. Fails if the content failed to generate.
+/// otherwise. `minify` is `Some` only when chunk items are minified one by one, see
+/// [`ChunkMinification::per_item`]. Fails if the content failed to generate.
 pub(crate) async fn estimated_chunk_item_size(
     chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
     async_module_info: Option<Vc<AsyncModuleInfo>>,
-    minify: MinifyType,
+    minify: Option<Vc<EcmascriptEmitOptions>>,
     source_maps: bool,
 ) -> Result<usize> {
     Ok(

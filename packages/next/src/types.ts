@@ -29,7 +29,12 @@ export type ServerRuntime = 'nodejs' | 'experimental-edge' | 'edge' | undefined
 // @ts-ignore This path is generated at build time and conflicts otherwise
 export { NextConfig } from './server/config'
 
-export type { NextAdapter, AdapterOutput } from './build/adapter/build-complete'
+export type {
+  NextAdapter,
+  NextAdapterCapabilities,
+  PrerenderBypassCondition,
+  AdapterOutput,
+} from './build/adapter/build-complete'
 
 export type {
   Metadata,
