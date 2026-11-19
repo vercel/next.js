@@ -15,6 +15,7 @@ use next_api::{
         endpoint_server_changed_operation, endpoint_write_to_disk_operation,
         read_with_validated_endpoint,
     },
+    route_activation::activate_endpoint_operation,
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
@@ -143,6 +144,16 @@ async fn issue_filter_from_endpoint(
     }
 }
 
+/// Activates the routes `endpoint_op` uses in the single development module graph, before the
+/// endpoint is read. An endpoint that no longer exists activates nothing; it is reported by the
+/// endpoint read that follows.
+async fn activate_endpoint(endpoint_op: OperationVc<OptionEndpoint>) -> Result<()> {
+    activate_endpoint_operation(endpoint_op)
+        .read_strongly_consistent()
+        .await?;
+    Ok(())
+}
+
 #[turbo_tasks::value(serialization = "skip")]
 struct WrittenEndpointWithIssues {
     written: Option<ReadRef<EndpointOutputPaths>>,
@@ -176,6 +187,7 @@ pub async fn endpoint_write_to_disk(
     let (written, issues) = ctx
         .turbo_tasks()
         .run(async move {
+            activate_endpoint(endpoint_op).await?;
             let written_entrypoint_with_issues_op =
                 get_written_endpoint_with_issues_operation(endpoint_op);
             let read = read_with_validated_endpoint(
@@ -218,6 +230,7 @@ pub fn endpoint_server_changed_subscribe(
         &func,
         move || {
             async move {
+                activate_endpoint(endpoint).await?;
                 let issues_and_diags_op = subscribe_issues_and_diags_operation(endpoint, issues);
                 let result =
                     read_strongly_consistent_and_apply_effects(issues_and_diags_op, |v| &v.effects)
@@ -330,6 +343,7 @@ pub fn endpoint_client_changed_subscribe(
         &func,
         move || {
             async move {
+                activate_endpoint(endpoint_op).await?;
                 let changed_op = endpoint_client_changed_with_issues_operation(endpoint_op);
                 // This must be a *read*, not just a resolve, because we need the root task created
                 // by `subscribe` to re-run when the `Completion`'s value changes (via equality),

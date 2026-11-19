@@ -2398,9 +2398,11 @@ impl AppEndpoint {
                     // A manual shared chunk for the server utilities, created for development
                     // only.
                     //
-                    // In development every endpoint gets its own module graph (see
+                    // In development every endpoint usually gets its own module graph (see
                     // `per_page_module_graph`), so without this the layout segments would share
-                    // very little across pages.
+                    // very little across pages. It is also kept with the single development graph
+                    // (`experimental.turbopackSingleDevModuleGraph`), to keep the development
+                    // chunking policy the same.
                     //
                     // It must not be created in production. The group is the merged child of
                     // *this* endpoint's entry chunk group, and that parent is part of a merged
@@ -2409,7 +2411,7 @@ impl AppEndpoint {
                     // That makes each shared layout segment re-chunk once per descendant
                     // endpoint. In production a single whole-app module graph already shares
                     // these modules, so they are chunked as part of the entry instead.
-                    if *project.per_page_module_graph().await? {
+                    if project.next_mode().await?.is_development() {
                         let chunk_group_info = module_graph.chunk_group_info();
                         let span = tracing::trace_span!("server utils");
                         async {
@@ -3002,6 +3004,13 @@ impl Endpoint for AppEndpoint {
     #[turbo_tasks::function]
     fn traced_files(self: Vc<Self>) -> Vc<FileSystemPathVec> {
         self.trace_result().all_files()
+    }
+
+    /// The HTML and RSC HMR endpoints of a page share the key: they have the same entries, and
+    /// only the HTML endpoint contributes them to the module graph.
+    #[turbo_tasks::function]
+    fn activation_key(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(Some(format!("app:{}", self.page).into()))
     }
 }
 

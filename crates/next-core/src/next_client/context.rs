@@ -503,7 +503,9 @@ pub struct ClientChunkingContextOptions {
     pub nested_async_chunking: Vc<bool>,
     pub shared_runtime: Vc<bool>,
     pub external_browser_runtime: Vc<bool>,
-    pub per_page_module_graph: Vc<bool>,
+    /// Whether the module graphs used with this context only cover part of the app (per-page
+    /// graphs, or a development graph that only contains the requested routes).
+    pub partial_module_graph: Vc<bool>,
     pub lazy_dynamic_imports: Vc<bool>,
     pub debug_ids: Vc<bool>,
     pub worker_asset_prefix: Vc<Option<RcStr>>,
@@ -559,7 +561,7 @@ pub async fn get_client_chunking_context(
         nested_async_chunking,
         shared_runtime,
         external_browser_runtime,
-        per_page_module_graph,
+        partial_module_graph,
         lazy_dynamic_imports,
         debug_ids,
         worker_asset_prefix,
@@ -626,9 +628,9 @@ pub async fn get_client_chunking_context(
         builder = builder.chunk_loading_global(g.clone());
     }
 
-    // Per-page graphs each see only one page, so none of them can decide what the shared runtime
-    // chunk may leave out.
-    builder = builder.shared_runtime_chunk(*per_page_module_graph.await?);
+    // A partial graph (per-page graphs, or a development graph that only contains the requested
+    // routes) can't decide what the shared runtime chunk may leave out.
+    builder = builder.shared_runtime_chunk(*partial_module_graph.await?);
 
     if next_mode.is_development() {
         builder = builder

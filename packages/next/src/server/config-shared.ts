@@ -1088,6 +1088,15 @@ export interface ExperimentalConfig {
   turbopackLazyDynamicImportsSSR?: boolean
 
   /**
+   * Use a single module graph for all routes in development. Only routes that
+   * have been requested contribute to the graph, so unrequested routes are
+   * still not compiled. Experimental.
+   *
+   * Defaults to `false`.
+   */
+  turbopackSingleDevModuleGraph?: boolean
+
+  /**
    * Enable filesystem cache for the turbopack dev server.
    *
    * Defaults to `true`.
