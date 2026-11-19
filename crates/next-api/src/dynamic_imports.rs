@@ -19,7 +19,7 @@
 //!      to wait until all the dynamic components are being loaded, this ensures hydration mismatch
 //!      won't occur
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use either::Either;
 use next_core::{
@@ -40,14 +40,16 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::async_chunk::module::AsyncLoaderModule;
 
-use crate::module_graph::{DynamicImportEntriesWithImporter, DynamicImportEntryWithImporter};
+use crate::module_graph::{
+    AsyncModuleNode, DynamicImportEntriesWithImporter, DynamicImportEntryWithImporter,
+};
 
 /// The chunk groups whose async loaders load the `next/dynamic` imports at runtime.
 pub(crate) enum NextDynamicChunkAvailability<'a> {
     /// In App Router, the chunk group of the client reference containing the import
-    ClientReferences(&'a ClientReferencesChunks),
+    AppRouterClientReferences(&'a ClientReferencesChunks),
     /// In Pages Router, the page's client chunk group
-    ChunkGroup(&'a ChunkGroupResult),
+    PagesRouterClientEntry(&'a ChunkGroupResult),
 }
 
 pub(crate) async fn collect_next_dynamic_chunks(
@@ -56,60 +58,66 @@ pub(crate) async fn collect_next_dynamic_chunks(
     dynamic_import_entries: ReadRef<DynamicImportEntriesWithImporter>,
     chunking_availability: NextDynamicChunkAvailability<'_>,
 ) -> Result<ResolvedVc<DynamicImportedChunks>> {
-    let chunking_availability = &chunking_availability;
     let module_graph = module_graph.to_resolved().await?;
     let chunking_context = chunking_context.to_resolved().await?;
-    let dynamic_import_chunks = dynamic_import_entries
-        .iter()
-        .map(
-            async |DynamicImportEntryWithImporter {
-                       dynamic_entry,
-                       parent_client_reference,
-                       async_modules,
-                   }| {
-                let module = ResolvedVc::upcast::<Box<dyn ChunkableModule>>(*dynamic_entry);
+    let mut resolver = AsyncLoaderResolver {
+        async_modules: &dynamic_import_entries.async_modules,
+        async_chunk_groups: vec![None; dynamic_import_entries.async_modules.len()],
+        chunking_context,
+        module_graph,
+    };
 
-                let parent_chunk_group = match chunking_availability {
-                    NextDynamicChunkAvailability::ClientReferences(client_reference_chunks) => {
-                        Either::Left(
-                            client_reference_chunks
-                                .client_component_client_chunks
-                                .get(&parent_client_reference.context(
-                                    "Parent client reference not found for next/dynamic import",
-                                )?)
-                                .context(
-                                    "Client reference chunk group not found for next/dynamic \
-                                     import",
-                                )?
-                                .await?,
+    // Resolve the imports one by one: they share the async chunk groups of the plain `import()`s
+    // on their paths, which are resolved once each.
+    let mut imports_with_availability = Vec::with_capacity(dynamic_import_entries.entries.len());
+    for DynamicImportEntryWithImporter {
+        dynamic_entry,
+        parent_client_reference,
+        async_module,
+    } in &dynamic_import_entries.entries
+    {
+        // The parent chunk group, i.e. the chunk group of the client reference containing the
+        // next/dynamic import (App Router) or the page's client chunk group (Pages Router).
+        let parent_chunk_group = match &chunking_availability {
+            NextDynamicChunkAvailability::AppRouterClientReferences(client_reference_chunks) => {
+                Either::Left(
+                    client_reference_chunks
+                        .client_component_client_chunks
+                        .get(
+                            &parent_client_reference.context(
+                                "Parent client reference not found for next/dynamic import",
+                            )?,
                         )
-                    }
-                    NextDynamicChunkAvailability::ChunkGroup(chunk_group) => {
-                        Either::Right(*chunk_group)
-                    }
-                };
-                let availability_info = async_loader_availability_info(
-                    &parent_chunk_group,
-                    async_modules,
-                    module,
-                    chunking_context,
-                    module_graph,
+                        .context("Client reference chunk group not found for next/dynamic import")?
+                        .await?,
                 )
-                .await?;
+            }
+            NextDynamicChunkAvailability::PagesRouterClientEntry(chunk_group) => {
+                Either::Right(*chunk_group)
+            }
+        };
+        let module = ResolvedVc::upcast::<Box<dyn ChunkableModule>>(*dynamic_entry);
+        let availability_info = resolver
+            .availability_info(&parent_chunk_group, *async_module, module)
+            .await?;
+        imports_with_availability.push((*dynamic_entry, availability_info));
+    }
 
-                // The react-loadable manifest needs the final CSS and JavaScript files so
-                // next/dynamic can preload them during SSR. Do not use a lazy manifest loader
-                // here.
-                let async_loader =
-                    AsyncLoaderModule::new(*module, *chunking_context, availability_info)
-                        .to_resolved()
-                        .await?
-                        .as_chunk_item(*module_graph, *chunking_context);
-                let async_chunk_group = async_loader.references().to_resolved().await?;
+    let dynamic_import_chunks = imports_with_availability
+        .into_iter()
+        .map(async |(dynamic_entry, availability_info)| {
+            let module = ResolvedVc::upcast::<Box<dyn ChunkableModule>>(dynamic_entry);
+            // The react-loadable manifest needs the final CSS and JavaScript files so
+            // next/dynamic can preload them during SSR. Do not use a lazy manifest loader here.
+            let async_loader =
+                AsyncLoaderModule::new(*module, *chunking_context, availability_info)
+                    .to_resolved()
+                    .await?
+                    .as_chunk_item(*module_graph, *chunking_context);
+            let async_chunk_group = async_loader.references().to_resolved().await?;
 
-                Ok((*dynamic_entry, (*dynamic_entry, async_chunk_group)))
-            },
-        )
+            Ok((dynamic_entry, (dynamic_entry, async_chunk_group)))
+        })
         .try_join()
         .await?;
 
@@ -118,84 +126,141 @@ pub(crate) async fn collect_next_dynamic_chunks(
     )))
 }
 
-/// The availability chunking created the emitted async loader of `module` (a `next/dynamic`
-/// import) with, so the manifest lists the chunks that loader loads.
+/// Finds the availability that chunking created the emitted async loader of a `next/dynamic`
+/// import with, so the manifest lists the chunks that loader loads.
 ///
 /// Don't re-derive it here: it depends on which chunk group created the loader (e.g. a layout's or
 /// the page's in a concatenated chunk group, or the async chunk group of a plain `import()` on the
-/// way to the import), and on chunking options. Starting at `parent_chunk_group`, follow the async
-/// chunk groups of `async_modules` (outermost first) until one of the chunk groups followed so far
-/// created the loader. Each async chunk group is the one its emitted loader loads, created with the
-/// recorded availability.
+/// way to the import), and on chunking options. Instead, search the recorded availabilities of the
+/// chunk groups on the path: the parent chunk group, then the async chunk groups of the plain
+/// `import()`s, outermost first. The first chunk group that created the loader wins, as it is
+/// loaded first (see [`ChunkGroupResult::find_async_loader_availability_info`]). A chunk group
+/// doesn't create an async loader that an available (outer) chunk group already created, so all
+/// chunk groups on the path are searched, not only the innermost one.
 ///
-/// All chunk groups followed so far are searched, not only the innermost one: a chunk group
-/// doesn't create an async loader that an available (outer) chunk group already created.
-async fn async_loader_availability_info(
-    parent_chunk_group: &ChunkGroupResult,
-    async_modules: &[ResolvedVc<Box<dyn Module>>],
-    module: ResolvedVc<Box<dyn ChunkableModule>>,
+/// Each async chunk group is the one its emitted loader loads, created with the recorded
+/// availability. It is resolved at most once and only when an import needs it.
+struct AsyncLoaderResolver<'a> {
+    async_modules: &'a [AsyncModuleNode],
+    /// For each node of `async_modules`, once resolved: its async chunk group, or `None` when the
+    /// module is already available, so its loader loads nothing.
+    async_chunk_groups: Vec<Option<Option<ReadRef<ChunkGroupResult>>>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     module_graph: ResolvedVc<ModuleGraph>,
-) -> Result<AvailabilityInfo> {
-    let mut async_chunk_groups: Vec<ReadRef<ChunkGroupResult>> = vec![];
-    async fn find(
+}
+
+impl AsyncLoaderResolver<'_> {
+    /// The availability of the async loader of `module` (a `next/dynamic` import) whose innermost
+    /// enclosing plain `import()` is `async_module`.
+    async fn availability_info(
+        &mut self,
         parent_chunk_group: &ChunkGroupResult,
-        async_chunk_groups: &[ReadRef<ChunkGroupResult>],
+        async_module: Option<u32>,
         module: ResolvedVc<Box<dyn ChunkableModule>>,
-    ) -> Result<Option<AvailabilityInfo>> {
-        for chunk_group in
-            std::iter::once(parent_chunk_group).chain(async_chunk_groups.iter().map(|c| &**c))
+    ) -> Result<AvailabilityInfo> {
+        // The plain `import()`s on the path, outermost first.
+        let mut path = vec![];
+        let mut node = async_module;
+        while let Some(index) = node {
+            let parent = self
+                .async_modules
+                .get(index as usize)
+                .context("Plain import() on the path to a next/dynamic import not found")?
+                .parent;
+            if parent.is_some_and(|parent| parent >= index) {
+                bail!("Plain import()s on the path to a next/dynamic import form a cycle");
+            }
+            path.push(index);
+            node = parent;
+        }
+        path.reverse();
+
+        if let Some(availability_info) = parent_chunk_group
+            .find_async_loader_availability_info(module)
+            .await?
         {
+            return Ok(availability_info);
+        }
+        let mut async_chunk_groups: Vec<ReadRef<ChunkGroupResult>> = vec![];
+        for index in path {
+            let chunk_group = match &self.async_chunk_groups[index as usize] {
+                Some(chunk_group) => chunk_group.clone(),
+                None => {
+                    let chunk_group = self
+                        .resolve_async_chunk_group(
+                            parent_chunk_group,
+                            &async_chunk_groups,
+                            self.async_modules[index as usize].module,
+                            module,
+                        )
+                        .await?;
+                    self.async_chunk_groups[index as usize] = Some(chunk_group.clone());
+                    chunk_group
+                }
+            };
+            // `None`: the module is already available, so the async loaders it needs were created
+            // by the chunk groups on the path so far.
+            let Some(chunk_group) = chunk_group else {
+                continue;
+            };
             if let Some(availability_info) = chunk_group
                 .find_async_loader_availability_info(module)
                 .await?
             {
-                return Ok(Some(availability_info));
+                return Ok(availability_info);
             }
+            async_chunk_groups.push(chunk_group);
         }
-        Ok(None)
+        turbobail!(
+            "No async loader for the next/dynamic import {} was created by the {} chunk group \
+             result(s) followed",
+            module.ident(),
+            async_chunk_groups.len() + 1
+        )
     }
 
-    for &async_module in async_modules {
-        if let Some(availability_info) =
-            find(parent_chunk_group, &async_chunk_groups, module).await?
-        {
-            return Ok(availability_info);
-        }
+    /// The async chunk group the emitted loader of `async_module` loads, or `None` when it is
+    /// already available. Its loader was created by `parent_chunk_group` or one of
+    /// `async_chunk_groups` (outermost first).
+    async fn resolve_async_chunk_group(
+        &self,
+        parent_chunk_group: &ChunkGroupResult,
+        async_chunk_groups: &[ReadRef<ChunkGroupResult>],
+        async_module: ResolvedVc<Box<dyn Module>>,
+        dynamic_import: ResolvedVc<Box<dyn ChunkableModule>>,
+    ) -> Result<Option<ReadRef<ChunkGroupResult>>> {
         let async_module = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(async_module)
             .context("Async module on the path to a next/dynamic import isn't chunkable")?;
-        let Some(availability_info) =
-            find(parent_chunk_group, &async_chunk_groups, async_module).await?
-        else {
+        let mut availability_info = None;
+        for chunk_group in
+            std::iter::once(parent_chunk_group).chain(async_chunk_groups.iter().map(|c| &**c))
+        {
+            availability_info = chunk_group
+                .find_async_loader_availability_info(async_module)
+                .await?;
+            if availability_info.is_some() {
+                break;
+            }
+        }
+        let Some(availability_info) = availability_info else {
             turbobail!(
                 "No async loader for {} on the path to the next/dynamic import {} was created by \
                  the {} chunk group result(s) followed",
                 async_module.ident(),
-                module.ident(),
+                dynamic_import.ident(),
                 async_chunk_groups.len() + 1
             );
         };
-        let Some(next_chunk_group) =
-            *AsyncLoaderModule::new(*async_module, *chunking_context, availability_info)
-                .chunk_group_result(*module_graph)
+        Ok(
+            match *AsyncLoaderModule::new(*async_module, *self.chunking_context, availability_info)
+                .chunk_group_result(*self.module_graph)
                 .await?
-        else {
-            // The async module is already available, so its loader loads nothing: the async
-            // loaders it needs were created by the chunk group it is available in, so continue
-            // with the chunk groups followed so far.
-            continue;
-        };
-        async_chunk_groups.push(next_chunk_group.await?);
+            {
+                Some(chunk_group) => Some(chunk_group.await?),
+                None => None,
+            },
+        )
     }
-    if let Some(availability_info) = find(parent_chunk_group, &async_chunk_groups, module).await? {
-        return Ok(availability_info);
-    }
-    turbobail!(
-        "No async loader for the next/dynamic import {} was created by the {} chunk group \
-         result(s) followed",
-        module.ident(),
-        async_chunk_groups.len() + 1
-    )
 }
 
 #[turbo_tasks::value(transparent)]

@@ -680,7 +680,7 @@ async fn page_next_dynamic_chunks(
             endpoint.client_module_graph(),
             client_chunking_context,
             next_dynamic_imports,
-            NextDynamicChunkAvailability::ChunkGroup(client_chunk_group),
+            NextDynamicChunkAvailability::PagesRouterClientEntry(client_chunk_group),
         )
         .await;
     }
@@ -700,30 +700,36 @@ async fn page_next_dynamic_chunks(
         .get_next_dynamic_imports_for_endpoint(app_endpoint.client_module())
         .await?;
     let app_dynamic_entries = app_next_dynamic_imports
+        .entries
         .iter()
         .map(|import| import.dynamic_entry)
         .collect::<FxHashSet<_>>();
-    let page_next_dynamic_imports = Vc::<DynamicImportEntriesWithImporter>::cell(
-        next_dynamic_imports
+    let page_next_dynamic_imports = DynamicImportEntriesWithImporter {
+        entries: next_dynamic_imports
+            .entries
             .iter()
             .filter(|import| !app_dynamic_entries.contains(&import.dynamic_entry))
             .cloned()
             .collect(),
-    )
+        async_modules: next_dynamic_imports.async_modules.clone(),
+    }
+    .cell()
     .await?;
 
     let page_chunks = collect_next_dynamic_chunks(
         endpoint.client_module_graph(),
         client_chunking_context,
         page_next_dynamic_imports,
-        NextDynamicChunkAvailability::ChunkGroup(client_chunk_group),
+        NextDynamicChunkAvailability::PagesRouterClientEntry(client_chunk_group),
     )
     .await?;
     let app_chunks = collect_next_dynamic_chunks(
         app_module_graph,
         client_chunking_context,
         app_next_dynamic_imports,
-        NextDynamicChunkAvailability::ChunkGroup(&*app_endpoint.client_chunk_group().await?),
+        NextDynamicChunkAvailability::PagesRouterClientEntry(
+            &*app_endpoint.client_chunk_group().await?,
+        ),
     )
     .await?;
 

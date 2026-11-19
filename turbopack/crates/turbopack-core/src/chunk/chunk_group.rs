@@ -6,8 +6,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, JoinIterExt, OrderedAutoSet, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, Vc,
+    FxIndexSet, JoinIterExt, OrderedAutoSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
 };
 
 use super::{
@@ -171,7 +170,7 @@ pub async fn make_chunk_group(
         async_loaders_with_availability
             .iter()
             .map(|&(module, availability_info, _)| (module, availability_info))
-            .collect::<FxIndexMap<_, _>>(),
+            .collect::<FxHashMap<_, _>>(),
     );
     let async_loaders = async_loaders_with_availability
         .into_iter()

@@ -4,7 +4,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, Upcast, Vc, turbobail};
+use turbo_tasks::{ResolvedVc, Upcast, Vc, turbobail};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
@@ -108,8 +108,7 @@ pub enum ChunkGroupType {
 /// doesn't create an async loader for a module when an available chunk group already did.
 #[turbo_tasks::value(transparent, cell = "keyed")]
 pub struct AsyncLoaderAvailabilityMap(
-    #[bincode(with = "turbo_bincode::indexmap")]
-    FxIndexMap<ResolvedVc<Box<dyn ChunkableModule>>, AvailabilityInfo>,
+    FxHashMap<ResolvedVc<Box<dyn ChunkableModule>>, AvailabilityInfo>,
 );
 
 #[turbo_tasks::value(shared)]
@@ -121,8 +120,10 @@ pub struct ChunkGroupResult {
     pub availability_info: AvailabilityInfo,
     pub chunk_group_bootstrap_params: Option<RcJsonRawValue>,
     /// The availability of the async loaders created by the chunk groups this result consists of,
-    /// one map per chunk group, in the order the chunk groups are loaded (see
-    /// [`ChunkGroupResult::concatenate`]).
+    /// one keyed map per chunk group, in the order the chunk groups are loaded (see
+    /// [`ChunkGroupResult::concatenate`]). It has one entry per concatenated chunk group. The maps
+    /// aren't merged: concatenation only copies the references, while merging would read and copy
+    /// every entry of every map for each concatenated result.
     pub async_loader_availability: Vec<ResolvedVc<AsyncLoaderAvailabilityMap>>,
 }
 
@@ -158,8 +159,12 @@ impl ChunkGroupResult {
     /// a module they load), or the caller's module graph and this result are momentarily out of
     /// sync during recomputation.
     ///
-    /// The first chunk group that created an async loader for `module` wins: later chunk groups
-    /// see it as available and don't create their own.
+    /// The first chunk group, in load order, that created an async loader for `module` wins.
+    /// Usually only one did: a chunk group doesn't create an async loader that an available chunk
+    /// group already created. But a later chunk group doesn't always see an earlier one as
+    /// available, so several can create one. All of these loaders share one module id, and the
+    /// runtime keeps the first module factory registered for an id, so the loader of the first
+    /// chunk group loaded is the one used.
     pub async fn find_async_loader_availability_info(
         &self,
         module: ResolvedVc<Box<dyn ChunkableModule>>,
