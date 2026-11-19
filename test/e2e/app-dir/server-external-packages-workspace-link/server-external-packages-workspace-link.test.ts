@@ -28,9 +28,26 @@ function setup(serverExternalPackagesMonorepo: boolean | undefined) {
     },
     overrideFiles: {
       'apps/web/next.config.js': `
+        const path = require('path')
+
         /** @type {import('next').NextConfig} */
         module.exports = {
-          serverExternalPackages: ['my-wasm-pkg'],
+          serverExternalPackages: ['my-wasm-pkg', 'my-blocked-pkg'],
+          // Aliases must be respected even for external workspace packages.
+          turbopack: {
+            resolveAlias: {
+              'my-blocked-pkg': false,
+              'my-blocked-pkg/redirected': './stub.js',
+            },
+          },
+          webpack(config) {
+            config.resolve.alias = {
+              ...config.resolve.alias,
+              'my-blocked-pkg$': false,
+              'my-blocked-pkg/redirected$': path.join(__dirname, 'stub.js'),
+            }
+            return config
+          },
           ${experimental}
         }
       `,
@@ -61,6 +78,14 @@ describe('server-external-packages-workspace-link', () => {
       expect(wasmPath).toMatch(
         /packages[/\\]my-wasm-pkg[/\\]wasm[/\\]my_wasm_bg\.wasm$/
       )
+    })
+
+    it('should respect aliases of external workspace packages', async () => {
+      // Both requests are aliased (to `false` and to another file), so the
+      // throwing files of the workspace package must not be loaded.
+      const res = await next.fetch('/api/blocked')
+      expect(res.status).toBe(200)
+      expect(await res.json()).toEqual({ blocked: 'object', stub: true })
     })
 
     if (isNextStart) {

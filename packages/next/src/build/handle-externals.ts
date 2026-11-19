@@ -376,8 +376,20 @@ export function makeExternalHandler({
           context,
           packageName
         )
-        isOptOutBundlingOutsideNodeModules =
-          packageDir !== null && res.startsWith(packageDir + path.sep)
+        if (packageDir !== null && res.startsWith(packageDir + path.sep)) {
+          // Externals are resolved without aliases. Make sure the request
+          // resolves to the same file with the regular resolver, so aliases
+          // (e.g. to `false` or to another file) are respected.
+          let regularRes: string | null = null
+          try {
+            ;[regularRes] = await getResolve({
+              dependencyType: isEsmRequested ? 'esm' : 'commonjs',
+            })(context, request)
+          } catch {
+            regularRes = null
+          }
+          isOptOutBundlingOutsideNodeModules = regularRes === res
+        }
       }
     }
     const isOptOutBundling =

@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "dependencies": {
+    "my-blocked-pkg": "workspace:*",
     "my-wasm-pkg": "workspace:*"
   },
   "scripts": {

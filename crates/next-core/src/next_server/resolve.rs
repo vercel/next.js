@@ -26,6 +26,7 @@ use turbopack_core::{
     },
     source::Source,
 };
+use turbopack_resolve::{resolve::resolve_options, resolve_options_context::ResolveOptionsContext};
 
 /// The predicated based on which the [ExternalCjsModulesResolvePlugin] decides
 /// whether to mark a module as external.
@@ -157,6 +158,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             request_str,
             must_be_external,
             self.import_externals,
+            None,
         )
         .await
     }
@@ -171,15 +173,23 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
 pub(crate) struct ExternalSymlinkedPackagesResolvePlugin {
     externals: ResolvedVc<Vec<RcStr>>,
     import_externals: bool,
+    /// The resolve options context without this plugin, used to resolve requests normally before
+    /// externalizing them.
+    resolve_options_context: ResolvedVc<ResolveOptionsContext>,
 }
 
 #[turbo_tasks::value_impl]
 impl ExternalSymlinkedPackagesResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(externals: ResolvedVc<Vec<RcStr>>, import_externals: bool) -> Vc<Self> {
+    pub fn new(
+        externals: ResolvedVc<Vec<RcStr>>,
+        import_externals: bool,
+        resolve_options_context: ResolvedVc<ResolveOptionsContext>,
+    ) -> Vc<Self> {
         ExternalSymlinkedPackagesResolvePlugin {
             externals,
             import_externals,
+            resolve_options_context,
         }
         .cell()
     }
@@ -220,6 +230,22 @@ impl BeforeResolvePlugin for ExternalSymlinkedPackagesResolvePlugin {
             return Ok(ResolveResultOption::none());
         }
 
+        // Resolve the request like it would be resolved without this plugin, so import map entries
+        // (e.g. aliases to `false` or to another file) are respected. Only externalize the request
+        // when it resolves to a single file, and Node.js resolves it to the same file.
+        let options = resolve_options(lookup_path.clone(), *self.resolve_options_context);
+        let result = resolve(
+            lookup_path.clone(),
+            reference_type.clone(),
+            request,
+            options,
+        )
+        .await?;
+        let [(_, ResolveResultItem::Source(source))] = &*result.primary else {
+            return Ok(ResolveResultOption::none());
+        };
+        let resolved_path = source.ident().await?.path.clone();
+
         externalize(
             lookup_path,
             reference_type,
@@ -229,6 +255,7 @@ impl BeforeResolvePlugin for ExternalSymlinkedPackagesResolvePlugin {
             request_str,
             true,
             self.import_externals,
+            Some(&resolved_path),
         )
         .await
     }
@@ -266,7 +293,8 @@ async fn find_symlinked_package_outside_node_modules(
 }
 
 /// Marks `request` as external if it can be resolved by Node.js from `lookup_path`. Otherwise, it
-/// is bundled, with a warning if `must_be_external` is set.
+/// is bundled, with a warning if `must_be_external` is set. If `expected_path` is set, `request` is
+/// only marked as external when Node.js resolves it to that path.
 #[allow(clippy::too_many_arguments)]
 async fn externalize(
     lookup_path: FileSystemPath,
@@ -277,6 +305,7 @@ async fn externalize(
     request_str: RcStr,
     must_be_external: bool,
     import_externals: bool,
+    expected_path: Option<&FileSystemPath>,
 ) -> Result<Vc<ResolveResultOption>> {
     let is_esm = import_externals
         && ReferenceTypeCondition::EcmaScriptModules(None).includes(&reference_type);
@@ -381,6 +410,10 @@ async fn externalize(
 
     let ident = result_from_original_location.ident().await?;
     let path = &ident.path;
+    if expected_path.is_some_and(|expected_path| expected_path != path) {
+        // The request is resolved to a different file, e.g. because of an alias. Bundle it.
+        return Ok(ResolveResultOption::none());
+    }
     let file_type = get_file_type(path, path).await?;
 
     let external_type = match (file_type, is_esm) {

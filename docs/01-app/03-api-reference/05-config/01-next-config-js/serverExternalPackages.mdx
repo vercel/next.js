@@ -34,7 +34,7 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-With this option enabled, a listed package that resolves to a path outside of `node_modules` is externalized only when it is a symlink in `node_modules`. At runtime, Node.js loads it from its real location, and its files are included in the [output file tracing](/docs/app/api-reference/config/next-config-js/output). Packages that resolve outside of `node_modules` in other ways, for example through import aliases, are still bundled.
+With this option enabled, a listed package that resolves to a path outside of `node_modules` is externalized only when it is a symlink in `node_modules`. At runtime, Node.js loads it from its real location, and its files are included in the [output file tracing](/docs/app/api-reference/config/next-config-js/output). Packages that resolve outside of `node_modules` in other ways, for example through import aliases, are still bundled. Aliases of a symlinked package (for example, [`turbopack.resolveAlias`](/docs/app/api-reference/config/next-config-js/turbopack#resolving-aliases)) are respected: an aliased request is not externalized.
 
 ## Default packages
 

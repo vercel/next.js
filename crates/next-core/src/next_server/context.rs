@@ -231,20 +231,12 @@ pub async fn get_server_resolve_options_context(
     // Packages listed in `serverExternalPackages` that are symlinked into `node_modules`, but
     // resolve to a path outside of it (e.g. workspace packages in a monorepo). Applies wherever
     // the explicit list of external packages is used.
-    let before_resolve_plugins = if *next_config.server_external_packages_monorepo().await?
+    let externalize_symlinked_packages = *next_config.server_external_packages_monorepo().await?
         && (bundle_pages_router_dependencies
             || !matches!(
                 ty,
                 ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. }
-            )) {
-        vec![ResolvedVc::upcast(
-            ExternalSymlinkedPackagesResolvePlugin::new(*external_packages, import_externals)
-                .to_resolved()
-                .await?,
-        )]
-    } else {
-        vec![]
-    };
+            ));
 
     let next_external_plugin = NextExternalResolvePlugin::new().to_resolved().await?;
     let next_node_shared_runtime_plugin = NextNodeSharedRuntimeResolvePlugin::new(ty.clone())
@@ -288,7 +280,6 @@ pub async fn get_server_resolve_options_context(
         // A request starting with `/` is resolved from the project directory, which is not
         // necessarily the root of the filesystem (e.g. in a monorepo).
         server_relative_root: Some(project_path.clone()),
-        before_resolve_plugins,
         after_resolve_plugins,
         ..Default::default()
     };
@@ -302,7 +293,7 @@ pub async fn get_server_resolve_options_context(
             .unwrap_or(&rcstr!("tsconfig.json")),
     )?;
 
-    Ok(ResolveOptionsContext {
+    let resolve_options_context = ResolveOptionsContext {
         enable_typescript: true,
         enable_react: true,
         enable_mjs_extension: true,
@@ -312,6 +303,24 @@ pub async fn get_server_resolve_options_context(
             foreign_code_context_condition,
             resolve_options_context.clone().resolved_cell(),
         )],
+        ..resolve_options_context
+    };
+
+    if !externalize_symlinked_packages {
+        return Ok(resolve_options_context.cell());
+    }
+
+    // The plugin first resolves requests with the regular resolve options (without the plugin
+    // itself), so import map entries (e.g. `turbopack.resolveAlias`) are respected.
+    let plugin = ExternalSymlinkedPackagesResolvePlugin::new(
+        *external_packages,
+        import_externals,
+        resolve_options_context.clone().cell(),
+    )
+    .to_resolved()
+    .await?;
+    Ok(ResolveOptionsContext {
+        before_resolve_plugins: vec![ResolvedVc::upcast(plugin)],
         ..resolve_options_context
     }
     .cell())
