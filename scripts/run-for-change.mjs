@@ -65,9 +65,8 @@ const CHANGE_ITEM_GROUPS = {
   // only when one of these changes; canary pushes always run it.
   switchyard: [
     'packages/next/src/server/switchyard',
-    'packages/next/src/server/lib/switchyard.ts',
-    'packages/next/src/server/lib/switchyard-binary.ts',
-    'packages/next/src/server/lib/switchyard-env.ts',
+    // Matches by prefix: switchyard.ts and every switchyard-*.ts module.
+    'packages/next/src/server/lib/switchyard',
     'packages/next/src/server/lib/start-server.ts',
     'packages/next/src/cli/next-start.ts',
     'test/production/app-dir/switchyard',
