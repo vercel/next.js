@@ -3,6 +3,7 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import execa from 'execa'
+import Conf from 'next/dist/compiled/conf'
 import { writeAgentFiles } from 'next/dist/server/lib/generate-agent-files'
 
 const AGENT_RULES_MARKER = '<!-- BEGIN:nextjs-agent-rules -->'
@@ -480,7 +481,7 @@ describe('agent-feedback CLI with project telemetry opt-out', () => {
     await next.patchFile('AGENTS.md', existingInstructions)
   })
 
-  function runFeedbackInstructions() {
+  function runFeedbackInstructions(savedPreferencesDir?: string) {
     const env: NodeJS.ProcessEnv = {
       ...process.env,
       ...NON_CI_ENV,
@@ -491,11 +492,23 @@ describe('agent-feedback CLI with project telemetry opt-out', () => {
     delete env.NEXT_TELEMETRY_DISABLED
     delete env.__NEXT_PROCESSED_ENV
 
+    const preloadArgs = [
+      '--require',
+      path.join(__dirname, 'block-feedback-network.js'),
+    ]
+    if (savedPreferencesDir) {
+      delete env.XDG_CONFIG_HOME
+      env.NEXT_TEST_TELEMETRY_CONFIG_DIR = savedPreferencesDir
+      preloadArgs.push(
+        '--require',
+        path.join(__dirname, 'feedback-telemetry-preferences.js')
+      )
+    }
+
     return execa(
       process.execPath,
       [
-        '--require',
-        path.join(__dirname, 'block-feedback-network.js'),
+        ...preloadArgs,
         require.resolve('next/dist/bin/next', { paths: [next.testDir] }),
         'internal',
         'agent-feedback-instructions',
@@ -525,6 +538,42 @@ describe('agent-feedback CLI with project telemetry opt-out', () => {
         ).toBe(existingInstructions)
       } finally {
         await next.deleteFile(envFile)
+      }
+    }
+  )
+
+  it.each([false, true])(
+    'preserves the saved telemetry preference (enabled: %s) when dotenv redirects XDG_CONFIG_HOME',
+    async (enabled) => {
+      const savedPreferencesDir = path.join(next.testDir, 'saved-preferences')
+      const preferences = new Conf({
+        projectName: 'nextjs',
+        cwd: savedPreferencesDir,
+      })
+      preferences.set('telemetry.enabled', enabled)
+
+      const redirectedDir = path
+        .join(next.testDir, 'redirected-preferences')
+        .replace(/\\/g, '/')
+      await next.patchFile('.env.local', `XDG_CONFIG_HOME="${redirectedDir}"\n`)
+      try {
+        const result = await runFeedbackInstructions(savedPreferencesDir)
+        expect(result.stdout).toBe('')
+        if (enabled) {
+          expect(result.exitCode).toBe(1)
+          expect(result.stderr).toContain('Original telemetry environment')
+          expect(result.stderr).toContain(
+            'Unexpected agent feedback network request'
+          )
+          expect(result.stderr).not.toContain(
+            'Redirected telemetry environment'
+          )
+        } else {
+          expect(result.exitCode).toBe(0)
+          expect(result.stderr).toBe('')
+        }
+      } finally {
+        await next.deleteFile('.env.local')
       }
     }
   )

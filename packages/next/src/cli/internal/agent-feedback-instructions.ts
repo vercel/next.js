@@ -50,12 +50,26 @@ function isAgentFeedbackLocallyEnabled(): boolean {
   if (isCI) return false
 
   const dir = process.cwd()
-  loadEnvConfig(dir, true)
+  // Resolve saved preferences before project dotenv settings can change their
+  // storage location (for example, through XDG_CONFIG_HOME).
+  if (
+    !new Telemetry({
+      distDir: path.join(dir, '.next'),
+      skipNotify: true,
+    }).isEnabled
+  ) {
+    return false
+  }
 
-  return new Telemetry({
-    distDir: path.join(dir, '.next'),
-    skipNotify: true,
-  }).isEnabled
+  const originalEnv = process.env
+  try {
+    // Read the project opt-out without applying unrelated dotenv settings to
+    // the remote gate request. This CLI loads dotenv synchronously.
+    process.env = { ...originalEnv }
+    return !loadEnvConfig(dir, true).combinedEnv.NEXT_TELEMETRY_DISABLED
+  } finally {
+    process.env = originalEnv
+  }
 }
 
 export async function agentFeedbackInstructionsCli(
