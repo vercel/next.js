@@ -213,7 +213,8 @@ impl TurboMalloc {
     /// explicitly (`MIMALLOC_ARENA_PURGE_MIN_SIZE`).
     ///
     /// Breaking up huge pages makes memory that's still in use slower to access, so only use this
-    /// when the remaining heap is small or won't be used much any more (e.g. after shutting down).
+    /// when the remaining heap is small or won't be used much any more (e.g. after shutting down,
+    /// or after evicting most of the cached data).
     ///
     /// This changes a process-wide mimalloc option while other threads use the allocator, which
     /// mimalloc doesn't formally support; it only affects which free ranges are returned to the
