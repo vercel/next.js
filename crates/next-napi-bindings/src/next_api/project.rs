@@ -35,6 +35,7 @@ use next_api::{
     },
     project_asset_hashes_manifest::immutable_hashes_manifest_asset_if_enabled,
     route::{Endpoint, EndpointGroupKey, Route},
+    route_bundle_stats::route_bundle_stats_asset_if_enabled,
     routes_hashes_manifest::routes_hashes_manifest_asset_if_enabled,
     shutdown::ShutdownHooks,
 };
@@ -1859,6 +1860,7 @@ async fn output_assets_operation(
     let routes_hashes_manifest = routes_hashes_manifest_asset_if_enabled(project).await?;
     let immutable_hashes_manifest_asset =
         immutable_hashes_manifest_asset_if_enabled(project).await?;
+    let route_bundle_stats = route_bundle_stats_asset_if_enabled(project, app_dir_only).await?;
 
     Ok(Vc::cell(
         output_assets
@@ -1866,6 +1868,7 @@ async fn output_assets_operation(
             .chain(nft.iter().copied())
             .chain(routes_hashes_manifest.iter().copied())
             .chain(immutable_hashes_manifest_asset.iter().copied())
+            .chain(route_bundle_stats.iter().copied())
             .collect(),
     ))
 }

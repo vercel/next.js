@@ -1608,7 +1608,6 @@ export default abstract class Server<
 
       if (pathnameInfo.locale) {
         req.url = formatUrl(url)
-        addRequestMeta(req, 'didStripLocale', true)
       }
 
       // If we aren't in minimal mode or there is no locale in the query

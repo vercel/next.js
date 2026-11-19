@@ -45,7 +45,7 @@
 
 import type { ResolvedNextConfig } from './resolved-config'
 import { getGateTestContext } from './test-context'
-import { FRONT_SERVER_BINARY_ENV } from 'next/dist/server/lib/front-server-env'
+import { SWITCHYARD_BINARY_ENV } from 'next/dist/server/lib/switchyard-env'
 
 export type ConditionValue = unknown
 
@@ -184,9 +184,9 @@ export const conditions: Record<string, Condition> = {
     'the test run uses the Turbopack production build (`TURBOPACK_BUILD`)',
     () => Boolean(process.env.TURBOPACK_BUILD)
   ),
-  frontServerBinary: staticCondition(
-    'a next-front build is available through `__NEXT_EXPERIMENTAL_FRONT_SERVER_BINARY` (the test-front-server-prod CI job builds one)',
-    () => Boolean(process.env[FRONT_SERVER_BINARY_ENV])
+  switchyardBinary: staticCondition(
+    'a switchyard build is available through `__NEXT_EXPERIMENTAL_SWITCHYARD_BINARY` (the test-switchyard-prod CI job builds one)',
+    () => Boolean(process.env[SWITCHYARD_BINARY_ENV])
   ),
 
   // Always false, so `// @gate FIXME` marks a test as a known failure without

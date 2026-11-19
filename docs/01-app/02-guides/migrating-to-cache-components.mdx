@@ -820,9 +820,9 @@ async function Results({ searchParams }) {
 
 ## Route Handlers (`GET`)
 
-**Replace `dynamic = 'force-static'` with `use cache`.**
+**Replace `dynamic = 'force-static'` and `revalidate` with `use cache` and `cacheLife`.**
 
-Without Cache Components, a `GET` [Route Handler](/docs/app/api-reference/file-conventions/route) is dynamic unless you opt into caching with `export const dynamic = 'force-static'`. With Cache Components, `GET` handlers follow the same model as pages: they prerender when they don't access uncached or runtime data, and you cache uncached data with `use cache`. Remove the `dynamic` config and move the data access into a separate function marked with `use cache`. The directive can't be applied to the `GET` export itself, so the handler calls a cached helper.
+With Cache Components, `GET` [Route Handlers](/docs/app/api-reference/file-conventions/route) follow the same model as pages: they prerender when they don't access uncached or runtime data. Remove the `dynamic` and `revalidate` configs and move data access that should be cached into a separate function marked with `use cache`. Set its revalidation time with [`cacheLife`](/docs/app/api-reference/functions/cacheLife). The directive can't be applied to the `GET` export itself, so the handler calls a cached helper.
 
 ```ts filename="app/api/products/route.ts" switcher
 // Before

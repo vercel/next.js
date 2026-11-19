@@ -232,6 +232,14 @@ async function CachedForm({ action }: { action: () => Promise<void> }) {
 }
 ```
 
+### Thrown errors
+
+Errors thrown inside a cached function cross a serialization boundary, even when caught by another function on the server. The caller receives a reconstructed error. Custom error classes and properties, such as `code` or `status`, are not preserved, so checks like `error instanceof CustomError` fail.
+
+In development, the error retains its original `name`, `message`, and stack for debugging. In production, the original name and message are replaced with a generic error, and a `digest` is included to correlate it with the original error in server logs.
+
+For [expected failures](/docs/app/getting-started/error-handling#handling-expected-errors), return a serializable value, such as `{ ok: false, code: 'NOT_FOUND' }`, and branch on the returned value in the caller.
+
 ## Constraints
 
 Cached functions execute in an isolated environment. The following constraints ensure cache behavior remains predictable and secure.
