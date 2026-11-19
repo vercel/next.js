@@ -1392,6 +1392,15 @@ export function createAppPageEntrypoint({
 
               // We use the response cache here to handle the revalidation and
               // management of the fallback shell.
+              const dynamicRoute =
+                prerenderManifest.dynamicRoutes[normalizedSrcPage] ??
+                prerenderManifest.dynamicRoutes[cacheKey]
+              const allowEmptyStaticShell =
+                isInstantNavigationTest ||
+                (dynamicRoute?.throwOnEmptyStaticShell === false
+                  ? true
+                  : undefined)
+
               const fallbackResponse = await routeModule.handleResponse({
                 cacheKey,
                 req,
@@ -1417,7 +1426,7 @@ export function createAppPageEntrypoint({
                       ? fallbackRouteParams
                       : incomingStagedFallbackParams,
                     renderOperation: 'prerender',
-                    allowEmptyStaticShell: isInstantNavigationTest || undefined,
+                    allowEmptyStaticShell,
                   }),
                 waitUntil: ctx.waitUntil,
                 isMinimalMode,
@@ -1476,6 +1485,7 @@ export function createAppPageEntrypoint({
                                 : null,
                             stagedFallbackParams: incomingStagedFallbackParams,
                             renderOperation: 'prerender',
+                            allowEmptyStaticShell,
                           })
                         },
                         // We don't have a prior entry for this param-specific shell.
@@ -1813,6 +1823,9 @@ export function createAppPageEntrypoint({
             !isDebugPrerender &&
             (supportsDynamicResponse || isPossibleServerAction)
 
+          const dynamicRoute =
+            prerenderManifest.dynamicRoutes[normalizedSrcPage]
+
           // Perform the render.
           const result = await doRender({
             span,
@@ -1820,7 +1833,12 @@ export function createAppPageEntrypoint({
             fallbackRouteParams,
             stagedFallbackParams,
             renderOperation: isRequestSpecificRender ? 'render' : 'prerender',
-            allowEmptyStaticShell: isInstantNavigationTest || undefined,
+            allowEmptyStaticShell:
+              isInstantNavigationTest ||
+              (!isRequestSpecificRender &&
+              dynamicRoute?.throwOnEmptyStaticShell === false
+                ? true
+                : undefined),
           })
 
           // The response cache already served the stale entry, so response
