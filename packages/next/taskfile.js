@@ -3,6 +3,8 @@ const glob = require('glob')
 const fs = require('fs/promises')
 const resolveFrom = require('resolve-from')
 const execa = require('execa')
+// Taskr evaluates this file without a `process` global.
+const nodeProcess = require('process')
 const recast = require('recast')
 
 export async function next__polyfill_nomodule(task, opts) {
@@ -2467,10 +2469,83 @@ export async function next_compile(task, opts) {
       'shared_re_exported',
       'shared_re_exported_esm',
       'server_wasm',
+      'switchyard',
       'experimental_testing',
       'experimental_testmode',
     ],
     opts
+  )
+}
+
+// Switchyard, the Go server `next start` runs in front of Node with __NEXT_EXPERIMENTAL_SWITCHYARD=1
+// (src/server/switchyard, launched by src/server/lib/switchyard.ts). While it is
+// experimental, the binaries are built into dist/server/switchyard only with
+// NEXT_BUILD_SWITCHYARD=1 (named in src/server/lib/switchyard-env.ts), so
+// `next` doesn't grow and its build doesn't need Go. The launcher finds them
+// there, or wherever __NEXT_EXPERIMENTAL_SWITCHYARD_BINARY points
+// (src/server/lib/switchyard-binary.ts). Only this machine's binary is built: the
+// opt-in is for trying Switchyard locally, and nothing ships these files yet.
+// Shipping them would mean a release build that makes every target in
+// src/server/switchyard/targets.json (for example one npm package per platform,
+// as @next/swc-* does). The file names come from targets.json; the minimum
+// Go version from its go.mod.
+export async function switchyard(task, opts) {
+  // switchyard-binary.ts reads this at runtime, with or without the binaries.
+  await task
+    .source('src/server/switchyard/targets.json')
+    .target('dist/server/switchyard')
+  if (nodeProcess.env.NEXT_BUILD_SWITCHYARD !== '1') {
+    return
+  }
+
+  const switchyardDir = join(__dirname, 'src/server/switchyard')
+  const targets = require('./src/server/switchyard/targets.json')
+  const goMod = await fs.readFile(join(switchyardDir, 'go.mod'), 'utf8')
+  const [minMajor, minMinor] = /^go (\d+)\.(\d+)/m
+    .exec(goMod)
+    .slice(1)
+    .map(Number)
+  const go = nodeProcess.env.TURBOPACK_GO || 'go'
+  const goVersion = await execa(go, ['env', 'GOVERSION'], { reject: false })
+  const [major, minor] = (/^go(\d+)\.(\d+)/.exec(goVersion.stdout ?? '') || [])
+    .slice(1)
+    .map(Number)
+  const hasGo =
+    goVersion.exitCode === 0 &&
+    (major > minMajor || (major === minMajor && minor >= minMinor))
+  if (!hasGo) {
+    throw new Error(
+      `NEXT_BUILD_SWITCHYARD=1 needs Go ${minMajor}.${minMinor}+ (packages/next/src/server/switchyard/go.mod), which wasn't found (tried "${go}"; set TURBOPACK_GO to pick another).`
+    )
+  }
+
+  const os = nodeProcess.platform
+  const arch = targets.goArch[nodeProcess.arch]
+  if (!targets.targets.some((t) => t.os === os && t.arch === arch)) {
+    throw new Error(
+      `NEXT_BUILD_SWITCHYARD=1: switchyard has no build for ${nodeProcess.platform}/${nodeProcess.arch} (packages/next/src/server/switchyard/targets.json).`
+    )
+  }
+  await execa(
+    go,
+    [
+      'build',
+      '-trimpath',
+      '-buildvcs=false',
+      '-ldflags=-s -w',
+      '-o',
+      join(
+        __dirname,
+        'dist/server/switchyard',
+        targets.binaryName.replace('{os}', os).replace('{arch}', arch)
+      ),
+      '.',
+    ],
+    {
+      cwd: switchyardDir,
+      env: { CGO_ENABLED: '0', GOOS: os, GOARCH: arch, GOTOOLCHAIN: 'local' },
+      stdio: 'inherit',
+    }
   )
 }
 
@@ -2791,6 +2866,9 @@ export default async function (task) {
   await task.watch('src/bin', 'bin', opts)
   await task.watch('src/pages', 'pages', opts)
   await task.watch('src/server', ['server', 'server_esm', 'server_wasm'], opts)
+  // task.watch watches a directory (it doesn't expand globs), so a pattern
+  // like switchyard/*.go would never fire.
+  await task.watch('src/server/switchyard', 'switchyard', opts)
   await task.watch('src/api', 'api_esm', opts)
   await task.watch(
     'src/build',

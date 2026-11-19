@@ -1,17 +1,19 @@
 import http from 'http'
 import net from 'net'
+import os from 'os'
 import { createHash, randomBytes } from 'crypto'
 import { once } from 'events'
 import WebSocket from 'ws'
 import { nextTestSetup } from 'e2e-utils'
 import { findPort, retry } from 'next-test-utils'
+import { SWITCHYARD_ENV } from 'next/dist/server/lib/switchyard-env'
 import { getHeader, rawRequest } from './raw-http'
 
 // What `next start` does with requests that a proxy in front of it could
 // change: request targets, headers, bodies, streaming, upgrades, server actions
-// that call the server itself, and keep-alive. Every expectation is today's
-// behavior, so the suite passes with or without anything in front of Node.
-describe('front-server', () => {
+// that call the server itself, and keep-alive. Switchyard uses Go's built-in
+// reason phrases; the other expectations apply with and without Switchyard.
+describe('switchyard', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
@@ -37,7 +39,7 @@ describe('front-server', () => {
     externalServer.listen(externalPort)
     await once(externalServer, 'listening')
 
-    const env = { FRONT_SERVER_TEST_EXTERNAL_PORT: String(externalPort) }
+    const env = { SWITCHYARD_TEST_EXTERNAL_PORT: String(externalPort) }
     const { exitCode, cliOutput } = await next.build({ env })
     if (exitCode !== 0) throw new Error(`next build failed:\n${cliOutput}`)
     await next.start({ skipBuild: true, env })
@@ -116,7 +118,7 @@ describe('front-server', () => {
         [
           'GET /echo HTTP/1.1',
           `Host: localhost:${next.appPort}`,
-          'User-Agent: front-server-test',
+          'User-Agent: switchyard-test',
           'Accept-Encoding: br',
           'X-Custom: one',
           'X-Custom: two',
@@ -124,11 +126,107 @@ describe('front-server', () => {
         ].join('\r\n')
       )
       expect(json.headers).toMatchObject({
-        'user-agent': 'front-server-test',
+        'user-agent': 'switchyard-test',
         'accept-encoding': 'br',
         'x-custom': 'one, two',
         x_underscore: 'kept',
       })
+    })
+  })
+
+  describe('client identity', () => {
+    function peerRequest(
+      hostname: string,
+      agent: http.Agent,
+      policy = '',
+      headers: http.OutgoingHttpHeaders = {}
+    ) {
+      return new Promise<{
+        status: number
+        clientPort: number
+        peer: {
+          remoteAddress: string
+          remotePort: number
+          remoteFamily: string
+          connectionAddress: string
+          responseAddress: string
+          internalHeaderPresent: boolean
+        }
+      }>((resolve, reject) => {
+        const request = http.get(
+          {
+            hostname,
+            port: next.appPort,
+            path: `/api/peer?policy=${policy}`,
+            agent,
+            headers,
+          },
+          (response) => {
+            const clientPort = request.socket!.localPort!
+            const chunks: Buffer[] = []
+            response.on('data', (chunk) => chunks.push(chunk))
+            response.on('error', reject)
+            response.on('end', () =>
+              resolve({
+                status: response.statusCode!,
+                clientPort,
+                peer: JSON.parse(Buffer.concat(chunks).toString()),
+              })
+            )
+          }
+        )
+        request.on('error', reject)
+      })
+    }
+
+    it('keeps external callers out of loopback-only API routes, including forged forwarding headers', async () => {
+      const external = Object.values(os.networkInterfaces())
+        .flat()
+        .find((address) => address?.family === 'IPv4' && !address.internal)
+      if (!external)
+        throw new Error('The test needs a non-loopback IPv4 address')
+      const agent = new http.Agent({ keepAlive: true })
+      try {
+        for (const policy of ['loopback', 'forwarded']) {
+          const result = await peerRequest(external.address, agent, policy, {
+            'x-forwarded-for': '127.0.0.1',
+          })
+          expect(result.status).toBe(403)
+          expect(result.peer).toEqual({
+            remoteAddress: `::ffff:${external.address}`,
+            remotePort: result.clientPort,
+            remoteFamily: 'IPv6',
+            connectionAddress: `::ffff:${external.address}`,
+            responseAddress: `::ffff:${external.address}`,
+            internalHeaderPresent: false,
+          })
+        }
+      } finally {
+        agent.destroy()
+      }
+    })
+
+    it('keeps the correct peer on reused connections from different clients', async () => {
+      const agents = [
+        new http.Agent({ keepAlive: true }),
+        new http.Agent({ keepAlive: true }),
+      ]
+      try {
+        for (let round = 0; round < 3; round++) {
+          const results = await Promise.all(
+            agents.map((agent) => peerRequest('127.0.0.1', agent, 'loopback'))
+          )
+          expect(results[0].clientPort).not.toBe(results[1].clientPort)
+          for (const result of results) {
+            expect(result.status).toBe(200)
+            expect(result.peer.remoteAddress).toBe('::ffff:127.0.0.1')
+            expect(result.peer.remotePort).toBe(result.clientPort)
+            expect(result.peer.internalHeaderPresent).toBe(false)
+          }
+        }
+      } finally {
+        agents.forEach((agent) => agent.destroy())
+      }
     })
   })
 
@@ -174,7 +272,8 @@ describe('front-server', () => {
 
     // Raw non-ASCII bytes in the target aren't covered here: Node 24.22
     // rejects them with 400 and Node 20.9 routes them, so today's behavior
-    // depends on the Node version.
+    // depends on the Node version. Switchyard forwards them byte for byte
+    // (packages/next/src/server/switchyard/main_test.go).
     it('rejects a malformed escape', async () => {
       const res = await rawRequest(
         Number(next.appPort),
@@ -243,16 +342,31 @@ describe('front-server', () => {
 
   describe('status line', () => {
     it.each([
-      { query: '', statusLine: 'HTTP/1.1 400 Custom Reason' },
-      { query: '?code=413', statusLine: 'HTTP/1.1 413 Payload Too Large' },
-    ])('sends $statusLine as Node writes it', async ({ query, statusLine }) => {
-      const res = await rawRequest(
-        Number(next.appPort),
-        `GET /api/status${query} HTTP/1.1\r\nHost: localhost:${next.appPort}`
-      )
-      expect(res.statusLine).toBe(statusLine)
-      expect(res.body.toString()).toBe('status')
-    })
+      {
+        query: '',
+        code: 400,
+        nodeReason: 'Custom Reason',
+        goReason: 'Bad Request',
+      },
+      {
+        query: '?code=413',
+        code: 413,
+        nodeReason: 'Payload Too Large',
+        goReason: 'Request Entity Too Large',
+      },
+    ])(
+      'returns $code with the active server’s reason phrase',
+      async ({ query, code, nodeReason, goReason }) => {
+        const res = await rawRequest(
+          Number(next.appPort),
+          `GET /api/status${query} HTTP/1.1\r\nHost: localhost:${next.appPort}`
+        )
+        const reason =
+          process.env[SWITCHYARD_ENV] === '1' ? goReason : nodeReason
+        expect(res.statusLine).toBe(`HTTP/1.1 ${code} ${reason}`)
+        expect(res.body.toString()).toBe('status')
+      }
+    )
   })
 
   describe('streaming', () => {

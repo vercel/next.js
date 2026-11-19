@@ -390,13 +390,13 @@ impl ModuleOptions {
             // specific order with typescript, then apply decorators to app_transforms.
             //
             // Append so ReactCompilerRust (needs original source text) runs before decorators.
-            ecma_preprocess.push(decorators_transform.clone());
+            ecma_preprocess.push(*decorators_transform);
         }
 
-        let ecma_preprocess = ResolvedVc::cell(ecma_preprocess);
-        let main = ResolvedVc::<EcmascriptInputTransforms>::cell(vec![]);
-        let postprocess = ResolvedVc::cell(postprocess);
-        let empty = ResolvedVc::<EcmascriptInputTransforms>::cell(vec![]);
+        let ecma_preprocess = ResolvedVc::cell(ecma_preprocess.into_boxed_slice());
+        let main = ResolvedVc::<EcmascriptInputTransforms>::cell(Box::default());
+        let postprocess = ResolvedVc::cell(postprocess.into_boxed_slice());
+        let empty = ResolvedVc::<EcmascriptInputTransforms>::cell(Box::default());
 
         let mut rules = vec![];
 
@@ -768,7 +768,7 @@ impl ModuleOptions {
             let ts_preprocess = ResolvedVc::cell(
                 extra_preprocess
                     .into_iter()
-                    .chain(decorators_transform.clone())
+                    .chain(decorators_transform)
                     .chain(std::iter::once(EcmascriptInputTransform::TypeScript {
                         use_define_for_class_fields: options.use_define_for_class_fields,
                         verbatim_module_syntax: options.verbatim_module_syntax,

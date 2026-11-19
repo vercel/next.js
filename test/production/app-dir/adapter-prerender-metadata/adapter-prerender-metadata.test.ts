@@ -1,5 +1,6 @@
-import { stat } from 'fs/promises'
+import { readFile, stat } from 'fs/promises'
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 import type { NextAdapter } from 'next'
 
 type AdapterBuildContext = Parameters<NextAdapter['onBuildComplete']>[0]
@@ -45,6 +46,87 @@ describe('adapter-prerender-metadata', () => {
   async function getPrerenderManifest() {
     return next.readJSON('.next/prerender-manifest.json')
   }
+
+  it('preserves bot bypasses when the adapter omits getCapabilities', async () => {
+    const prerenders = await getPrerenders()
+    expect(await next.readJSON('capability-calls.json')).toBe(0)
+
+    for (const pathname of ['/ppr-shell', '/blog/[slug]']) {
+      const output = prerenders.find((entry) => entry.pathname === pathname)
+      expect(output).toBeDefined()
+      expect(output.config.bypassFor).toContainEqual({
+        type: 'header',
+        key: 'user-agent',
+        value: '.*(?:MyHTMLLimitedBot).*',
+      })
+    }
+  })
+
+  it('preserves the metadata marker through prerender regeneration', async () => {
+    const prerenders = await getPrerenders()
+    const shell = prerenders.find((output) => output.pathname === '/ppr-shell')
+    expect(shell?.fallback?.initialHeaders?.['x-next-prelude-metadata']).toBe(
+      '0'
+    )
+
+    if (!shell?.fallback?.filePath) {
+      throw new Error('Expected a cached HTML fallback for /ppr-shell')
+    }
+    const metadataPath = shell.fallback.filePath.replace(/\.html$/, '.meta')
+    const previousMetadata = await stat(metadataPath)
+    const { previewModeId } = await next.readJSON(
+      '.next/server/preview-props.json'
+    )
+    const response = await next.fetch('/ppr-shell', {
+      headers: { 'x-prerender-revalidate': previewModeId },
+    })
+    expect(response.status).toBe(200)
+    expect(response.headers.get('x-next-prelude-metadata')).toBe('0')
+    await retry(async () => {
+      expect((await stat(metadataPath)).mtimeMs).toBeGreaterThan(
+        previousMetadata.mtimeMs
+      )
+    })
+    const regenerated = JSON.parse(await readFile(metadataPath, 'utf8'))
+    expect(regenerated.headers['x-next-prelude-metadata']).toBe('0')
+    expect(
+      (await next.fetch('/ppr-shell')).headers.get('x-next-prelude-metadata')
+    ).toBe('0')
+  })
+
+  it('omits the HTML metadata marker during on-demand RSC regeneration', async () => {
+    const { previewModeId } = await next.readJSON(
+      '.next/server/preview-props.json'
+    )
+    const response = await next.fetch('/ppr-shell', {
+      headers: { rsc: '1', 'x-prerender-revalidate': previewModeId },
+    })
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toContain('text/x-component')
+    expect(response.headers.get('x-next-prelude-metadata')).toBeNull()
+    await response.text()
+    const html = await next.fetch('/ppr-shell')
+    expect(html.headers.get('x-next-prelude-metadata')).toBe('0')
+    await html.text()
+  })
+
+  it('keeps the HTML metadata marker off RSC and segment fallbacks', async () => {
+    const prerenders = await getPrerenders()
+    const rscOutputs = prerenders.filter((output) =>
+      output.pathname.endsWith('.rsc')
+    )
+    expect(
+      rscOutputs.some((output) => output.pathname.includes('.segments/'))
+    ).toBe(true)
+    expect(
+      rscOutputs.some((output) => output.pathname === '/ppr-shell.rsc')
+    ).toBe(true)
+    for (const output of rscOutputs) {
+      expect(
+        output.fallback?.initialHeaders?.['x-next-prelude-metadata']
+      ).toBeUndefined()
+    }
+  })
 
   it('provides existing files for every prerender fallback', async () => {
     const prerenders = await getPrerenders()
@@ -640,6 +722,92 @@ describe('adapter-prerender-metadata', () => {
     for (const segment of segments) {
       expect(segment.route).toBe('/blog/[slug]')
       expectUnclassified(segment)
+    }
+  })
+})
+
+// The adapter output and legacy manifest serve different deployment paths.
+describe.each([
+  { mode: 'empty', bots: false, methods: false },
+  { mode: 'disabled', bots: false, methods: false },
+  { mode: 'bots', bots: true, methods: false },
+  { mode: 'methods', bots: false, methods: true },
+  { mode: 'both', bots: true, methods: true },
+])('prerender bypass capabilities: $mode', ({ mode, bots, methods }) => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    env: {
+      NEXT_TEST_PRERENDER_BYPASS_CAPABILITIES: mode,
+    },
+  })
+
+  it('emits opted-in rules and preserves the legacy manifest', async () => {
+    const { outputs }: AdapterBuildContext = await next.readJSON(
+      'build-complete.json'
+    )
+    const manifest = await next.readJSON('.next/prerender-manifest.json')
+    expect(await next.readJSON('capability-calls.json')).toBe(1)
+    expect(await next.readJSON('capability-config.json')).toEqual({
+      htmlLimitedBots: 'MyHTMLLimitedBot',
+      cacheComponents: true,
+      modified: 'applied',
+    })
+    const botRule = {
+      type: 'header',
+      key: 'user-agent',
+      value: '.*(?:MyHTMLLimitedBot).*',
+    }
+    const actionRules = [
+      { type: 'header', key: 'next-action' },
+      {
+        type: 'header',
+        key: 'content-type',
+        value: 'multipart/form-data;.*',
+      },
+    ]
+
+    const expectedConditions = [
+      ...(methods ? [{ type: 'method', value: 'POST' }] : actionRules),
+      ...(bots ? [] : [botRule]),
+    ]
+
+    for (const pathname of [
+      '/static',
+      '/ppr-shell',
+      '/ppr-shell.rsc',
+      '/blog/first',
+      '/blog/[slug]',
+      '/blog/[slug].rsc',
+    ]) {
+      const output = outputs.prerenders.find(
+        (entry) => entry.pathname === pathname
+      )
+      expect(output).toBeDefined()
+      expect(output.config.bypassFor).toEqual(expectedConditions)
+      const legacyPathname = pathname.replace(/\.rsc$/, '')
+      const legacyRoute =
+        manifest.routes[legacyPathname] ??
+        manifest.dynamicRoutes[legacyPathname]
+      expect(legacyRoute.experimentalBypassFor).toEqual([
+        ...actionRules,
+        botRule,
+      ])
+    }
+
+    const nonAppPageParents = new Set(
+      [...outputs.pages, ...outputs.appRoutes].map((output) => output.id)
+    )
+    for (const output of outputs.prerenders) {
+      if (nonAppPageParents.has(output.parentOutputId)) {
+        const legacyRoute =
+          manifest.routes[output.route] ?? manifest.dynamicRoutes[output.route]
+        expect(output.config.bypassFor).toEqual(
+          legacyRoute?.experimentalBypassFor
+        )
+      }
+      if (output.pathname.includes('.segments/')) {
+        expect(output.config.bypassFor).toBeUndefined()
+      }
     }
   })
 })
