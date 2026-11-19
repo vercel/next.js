@@ -348,11 +348,12 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 			setIfMissing(pr.Out.Header, "X-Forwarded-For", clientIP(pr.In.RemoteAddr, mapIPv4))
 			setIfMissing(pr.Out.Header, "X-Forwarded-Port", publicPort)
 		},
-		// By default the proxy only passes response bytes on when Go's write
-		// buffer fills or the response ends (except for event streams and
-		// responses of unknown length). -1 writes each chunk to the client as
-		// soon as Node sends it, as without Switchyard.
-		FlushInterval: -1,
+		// Each chunk Node sends must reach the client as soon as it arrives,
+		// as without Switchyard: clientWriter flushes after every write.
+		// (FlushInterval -1 does that too, but through a timer it starts per
+		// response, on another goroutine, which costs more and can send the
+		// headers in a write of their own.)
+		FlushInterval: 0,
 		Transport:     newClientTransport(upstream, upstreamIdle),
 		// Node can answer before the client has finished sending the request
 		// body. If the body hasn't been read cleanly to its end by then, the
@@ -431,6 +432,21 @@ func (c *clientWriter) WriteHeader(code int) {
 		c.Header()["Content-Type"] = nil
 	}
 	c.ResponseWriter.WriteHeader(code)
+}
+
+// Write sends each chunk to the client as soon as Node sends it, as Node's
+// pipe does. The headers wait in Go's buffer until then, so they go out with
+// the first chunk, and a one-chunk response in a single write.
+func (c *clientWriter) Write(p []byte) (int, error) {
+	n, err := c.ResponseWriter.Write(p)
+	c.Flush()
+	return n, err
+}
+
+func (c *clientWriter) Flush() {
+	if f, ok := c.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
 }
 
 func (c *clientWriter) Unwrap() http.ResponseWriter { return c.ResponseWriter }
