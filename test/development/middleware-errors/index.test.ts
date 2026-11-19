@@ -47,9 +47,9 @@ describe('middleware - development errors', () => {
         ).toContain(
           '\n⨯ Error: boom' +
             '\n    at __rspack_default_export (middleware.js:3:15)' +
-            '\n    at eval (<next-src>/server/web/adapter.ts:413:17)' +
-            '\n    at eval (<next-src>/server/web/adapter.ts:412:28)' +
-            '\n    at async adapter (<next-src>/server/web/adapter.ts:308:14)' +
+            '\n    at eval (<next-src>/server/web/adapter.ts:435:17)' +
+            '\n    at eval (<next-src>/server/web/adapter.ts:434:28)' +
+            '\n    at async adapter (<next-src>/server/web/adapter.ts:330:14)' +
             '\n  1 |'
         )
       } else {
@@ -163,9 +163,9 @@ describe('middleware - development errors', () => {
           '\n⨯ unhandledRejection: Error: async boom!' +
             '\n    at throwError (middleware.js:4:15)' +
             '\n    at __rspack_default_export (middleware.js:7:9)' +
-            '\n    at eval (<next-src>/server/web/adapter.ts:413:17)' +
-            '\n    at eval (<next-src>/server/web/adapter.ts:412:28)' +
-            '\n    at async adapter (<next-src>/server/web/adapter.ts:308:14)' +
+            '\n    at eval (<next-src>/server/web/adapter.ts:435:17)' +
+            '\n    at eval (<next-src>/server/web/adapter.ts:434:28)' +
+            '\n    at async adapter (<next-src>/server/web/adapter.ts:330:14)' +
             "\n  2 |       import { NextResponse } from 'next/server'"
         )
       } else {
