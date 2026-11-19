@@ -150,7 +150,7 @@ func main() {
 	}
 	addr := ln.Addr().(*net.TCPAddr)
 
-	f := newFront(newProxy(cfg.upstream, addr, cfg.upstreamIdle, token), addr, cfg.upstreamIdle)
+	f := newSwitchyard(newProxy(cfg.upstream, addr, cfg.upstreamIdle, token), addr, cfg.upstreamIdle)
 	srv := newServer(f, cfg.idleTimeout, cfg.headerTimeout, cfg.requestTimeout, cfg.maxHeaderBytes)
 
 	fmt.Printf("NEXT_SWITCHYARD_READY %d\n", addr.Port)

@@ -5,11 +5,11 @@ import { getHeader, rawRequest } from '../switchyard/raw-http'
 
 // What a route.go handler receives, and what its client gets back, under
 // `next start`. Every expectation is today's behavior, so the suite passes
-// with or without a front server in front of Node, whichever of them ends up
+// with or without Switchyard in front of Node, whichever of them ends up
 // calling the Go worker.
 // route.go is only supported by Turbopack.
 // @force-gate turbopack
-describe('front-server-go', () => {
+describe('switchyard-go', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,

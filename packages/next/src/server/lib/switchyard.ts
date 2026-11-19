@@ -12,7 +12,7 @@ import {
   type StartServerResult,
 } from './start-server'
 import { findSwitchyardBinary } from './switchyard-binary'
-import type { FrontRouteTable } from './front-route-table'
+import type { SwitchyardRouteTable } from './switchyard-route-table'
 import { SWITCHYARD_ENV, SWITCHYARD_TOKEN_ENV } from './switchyard-env'
 import { formatHostname } from './format-hostname'
 import { printAndExit } from './utils'
@@ -147,7 +147,7 @@ function spawnSwitchyard(
   const send = (message: object) => {
     if (!closing) switchyard.stdin.write(JSON.stringify(message) + '\n')
   }
-  const setRouteTable = (table: FrontRouteTable) => {
+  const setRouteTable = (table: SwitchyardRouteTable) => {
     debug(
       'route table: %s',
       'reason' in table

@@ -32,9 +32,9 @@ export type ServerInitResult = {
   agentUpgrade: boolean | undefined
   // Whether the development server memory threshold restart is enabled
   devMemoryThresholdRestart: boolean
-  // The route table for the experimental front server (front-server.ts),
+  // The route table for Switchyard (switchyard.ts),
   // built from what the router loaded
-  frontRouteTable?: () => import('./front-route-table').FrontRouteTable
+  switchyardRouteTable?: () => import('./switchyard-route-table').SwitchyardRouteTable
 }
 
 let initializations: Record<string, Promise<ServerInitResult> | undefined> = {}

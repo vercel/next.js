@@ -67,13 +67,11 @@ const CHANGE_ITEM_GROUPS = {
     'packages/next/src/server/switchyard',
     // Matches by prefix: switchyard.ts and every switchyard-*.ts module.
     'packages/next/src/server/lib/switchyard',
-    'packages/next/src/server/lib/front-route-table.ts',
-    'packages/next/src/server/lib/front-route-table-input.ts',
     'packages/next/src/server/lib/native-route.external.ts',
     'packages/next/src/server/lib/start-server.ts',
     'packages/next/src/cli/next-start.ts',
+    // Also matches by prefix: switchyard-go, the route.go suite.
     'test/production/app-dir/switchyard',
-    'test/production/app-dir/front-server-go',
     'test/e2e/app-dir/native-route-go',
   ],
   // Changes confined to these paths cannot affect a webpack build.

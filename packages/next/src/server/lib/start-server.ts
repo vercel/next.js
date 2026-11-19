@@ -180,7 +180,9 @@ export type PublicServer = {
    * Gives Switchyard the route table, once the router has loaded the
    * app. Until then Switchyard sends every request to this Node server.
    */
-  setRouteTable?: (table: import('./front-route-table').FrontRouteTable) => void
+  setRouteTable?: (
+    table: import('./switchyard-route-table').SwitchyardRouteTable
+  ) => void
 }
 
 export async function getRequestHandlers({
@@ -624,8 +626,8 @@ export async function startServer(
         upgradeHandler = initResult.upgradeHandler
         nextServer = initResult.server
         closeUpgraded = initResult.closeUpgraded
-        if (publicServer?.setRouteTable && initResult.frontRouteTable) {
-          publicServer.setRouteTable(initResult.frontRouteTable())
+        if (publicServer?.setRouteTable && initResult.switchyardRouteTable) {
+          publicServer.setRouteTable(initResult.switchyardRouteTable())
         }
 
         // Log experimental features after config is loaded

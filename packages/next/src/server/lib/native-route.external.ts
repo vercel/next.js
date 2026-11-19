@@ -67,7 +67,7 @@ interface Worker {
 /**
  * What NativeRouteManager reports about its workers: a worker is ready to
  * serve a page, or a worker takes no new requests (it exited, or is being
- * retired). The experimental front server (front-server.ts) uses this to send
+ * retired). Switchyard (switchyard.ts) uses this to send
  * route.go requests to workers itself.
  */
 export type NativeRouteWorkerEvent =

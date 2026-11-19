@@ -17,9 +17,9 @@ func GET(w http.ResponseWriter, r *http.Request) {
 		"json":       "application/json",
 		"text":       "text/plain",
 		"svg":        "image/svg+xml",
-		"customjson": "application/x-front-server-go+json",
+		"customjson": "application/x-switchyard-go+json",
 		"png":        "image/png",
-		"unknown":    "application/x-front-server-go",
+		"unknown":    "application/x-switchyard-go",
 	}[r.URL.Query().Get("type")]
 	if typ == "" {
 		typ = "application/json"

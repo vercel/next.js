@@ -1271,8 +1271,8 @@ jobs:
           # route.go suite, whose proxy.ts and rewrites keep it on Node.
           NEXT_TEST_MODE=start IS_TURBOPACK_TEST=1 TURBOPACK_BUILD=1 \
             node run-tests.js \
-              test/production/app-dir/front-server-go/front-server-go.test.ts \
-              test/production/app-dir/front-server-go/front-server-go-direct.test.ts \
+              test/production/app-dir/switchyard-go/switchyard-go.test.ts \
+              test/production/app-dir/switchyard-go/switchyard-go-direct.test.ts \
               test/e2e/app-dir/native-route-go/native-route-go.test.ts
         fi
       stepName: 'test-switchyard-prod-${{ matrix.group }}'

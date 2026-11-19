@@ -1,14 +1,14 @@
 import {
-  frontRouteTable,
+  switchyardRouteTable,
   patternOf,
-  type FrontRouteTableInput,
-} from 'next/dist/server/lib/front-route-table'
+  type SwitchyardRouteTableInput,
+} from 'next/dist/server/lib/switchyard-route-table'
 import { RouteKind } from 'next/dist/server/route-kind'
 
-// The route table Node sends the experimental front server: page paths
+// The route table Node sends Switchyard: page paths
 // become the segment lists Switchyard matches, and an app gets no direct
 // routes when a rule Node runs before routing could apply.
-describe('front-route-table', () => {
+describe('switchyard-route-table', () => {
   describe('patternOf', () => {
     it.each([
       ['/', []],
@@ -36,14 +36,14 @@ describe('front-route-table', () => {
     })
   })
 
-  describe('frontRouteTable', () => {
+  describe('switchyardRouteTable', () => {
     const goPages: Record<string, string> = {
       '/api/health': '/api/health/route',
       '/api/users/[id]': '/api/users/[id]/route',
     }
     const input = (
-      overrides: Partial<FrontRouteTableInput> = {}
-    ): FrontRouteTableInput => ({
+      overrides: Partial<SwitchyardRouteTableInput> = {}
+    ): SwitchyardRouteTableInput => ({
       goRoutes: true,
       basePath: '',
       hasI18n: false,
@@ -76,7 +76,7 @@ describe('front-route-table', () => {
     })
 
     it("splits Node's routes into Node's and route.go's, in Node's order", () => {
-      const table = frontRouteTable(input())
+      const table = switchyardRouteTable(input())
       expect(table).toMatchObject({
         contract: { version: 1 },
         nodeExact: ['/', '/api/users/new', '/favicon.ico', '/legacy'],
@@ -91,7 +91,7 @@ describe('front-route-table', () => {
       })
     })
 
-    it.each<[string, Partial<FrontRouteTableInput>]>([
+    it.each<[string, Partial<SwitchyardRouteTableInput>]>([
       ['experimental.goRoutes is off', { goRoutes: false }],
       ['proxy', { hasMiddleware: true }],
       ['instrumentation', { hasInstrumentation: true }],
@@ -107,14 +107,14 @@ describe('front-route-table', () => {
       ],
       ['no route.go routes', { appRoute: () => undefined }],
     ])('gives no direct routes because of %s', (reason, overrides) => {
-      expect(frontRouteTable(input(overrides))).toEqual({
+      expect(switchyardRouteTable(input(overrides))).toEqual({
         contract: { version: 1 },
         reason,
       })
     })
 
     it('sends requests with a header a header rule reads to Node', () => {
-      const table = frontRouteTable(
+      const table = switchyardRouteTable(
         input({
           onMatchHeaders: [
             { source: '/:path*', has: [{ type: 'header', key: 'RSC' }] },

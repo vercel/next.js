@@ -5,7 +5,10 @@ import type { NextConfigComplete, NextConfigRuntime } from '../config-shared'
 import type { setupFsCheck } from './router-utils/filesystem'
 import { INSTRUMENTATION_HOOK_FILENAME } from '../../lib/constants'
 import { INTERNAL_HEADERS } from './server-ipc/utils'
-import { frontRouteTable, type FrontRouteTable } from './front-route-table'
+import {
+  switchyardRouteTable,
+  type SwitchyardRouteTable,
+} from './switchyard-route-table'
 
 type FsChecker = Awaited<ReturnType<typeof setupFsCheck>>
 
@@ -13,16 +16,16 @@ type FsChecker = Awaited<ReturnType<typeof setupFsCheck>>
  * Builds Switchyard's route table from what the router loaded at
  * startup, so Switchyard and Node route from the same data.
  */
-export function collectFrontRouteTable(
+export function collectSwitchyardRouteTable(
   opts: Readonly<{
     dir: string
     config: NextConfigComplete | NextConfigRuntime
     fsChecker: FsChecker
   }>
-): FrontRouteTable {
+): SwitchyardRouteTable {
   const { config, fsChecker } = opts
   const serverDir = path.join(opts.dir, config.distDir, 'server')
-  return frontRouteTable({
+  return switchyardRouteTable({
     goRoutes: Boolean(config.experimental.goRoutes),
     basePath: config.basePath,
     hasI18n: Boolean(config.i18n),

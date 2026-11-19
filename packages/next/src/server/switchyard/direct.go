@@ -20,13 +20,13 @@ import (
 	"github.com/vercel/next.js/packages/next/src/server/switchyard/routing"
 )
 
-// front is the public handler. Each request goes either to Node, exactly as
-// in step 1, or straight to a route.go worker when Node's route table says
+// switchyard is the public handler. Each request goes either to Node, exactly
+// as in step 1, or straight to a route.go worker when Node's route table says
 // Node would have sent it there unchanged (see the routing package).
 //
-//	client ──► front ──► Node              (default)
-//	               └───► route.go worker   (direct)
-type front struct {
+//	client ──► switchyard ──► Node              (default)
+//	                    └───► route.go worker   (direct)
+type switchyard struct {
 	node http.Handler
 	// Forwards direct requests, to whichever worker the request's
 	// directAttempt names.
@@ -61,14 +61,14 @@ type goUpstream struct {
 	token       []string // as a header value, set as is on each request
 }
 
-func newFront(node http.Handler, public *net.TCPAddr, upstreamIdle time.Duration) *front {
-	f := &front{node: node}
+func newSwitchyard(node http.Handler, public *net.TCPAddr, upstreamIdle time.Duration) *switchyard {
+	f := &switchyard{node: node}
 	f.direct = f.newDirectProxy(public, upstreamIdle)
 	f.state.Store(&directState{workers: map[string]*goUpstream{}})
 	return f
 }
 
-func (f *front) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (f *switchyard) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s := f.state.Load()
 	if up := s.choose(r); up != nil {
 		f.serveDirect(w, r, s, up)
@@ -97,7 +97,7 @@ func (s *directState) choose(r *http.Request) *goUpstream {
 }
 
 // apply updates the state from one control message.
-func (f *front) apply(msg controlMessage) {
+func (f *switchyard) apply(msg controlMessage) {
 	next := *f.state.Load()
 	switch msg.Event {
 	case "table":
@@ -188,7 +188,7 @@ type directAttempt struct {
 	body *guardedBody
 }
 
-func (f *front) serveDirect(w http.ResponseWriter, r *http.Request, s *directState, up *goUpstream) {
+func (f *switchyard) serveDirect(w http.ResponseWriter, r *http.Request, s *directState, up *goUpstream) {
 	attempt := &directAttempt{ResponseWriter: w, state: s, up: up, request: r}
 	ctx := context.WithValue(r.Context(), directAttemptKey{}, attempt)
 	// Node never guesses a Content-Type (see newProxy).
@@ -214,7 +214,7 @@ func attemptOf(ctx context.Context) *directAttempt {
 // newDirectProxy forwards to route.go workers. The worker must get the
 // request Node would have sent it (native-route-proxy.ts), and the client the
 // response Node would have written.
-func (f *front) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Duration) *httputil.ReverseProxy {
+func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Duration) *httputil.ReverseProxy {
 	publicPort := strconv.Itoa(public.Port)
 	mapIPv4 := public.IP.To4() == nil
 	return &httputil.ReverseProxy{

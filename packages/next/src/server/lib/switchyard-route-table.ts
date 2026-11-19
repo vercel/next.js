@@ -4,9 +4,9 @@ import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param
 import { INTERCEPTION_ROUTE_MARKERS } from '../../shared/lib/router/utils/interception-routes'
 
 /**
- * The route table Node sends Switchyard (src/server/switchyard/routing). It tells
- * Switchyard which requests it may send straight to a route.go worker. The
- * front goes direct only when Node would have passed the request to that
+ * The route table Node sends Switchyard (src/server/switchyard/routing). It
+ * tells Switchyard which requests it may send straight to a route.go worker.
+ * Switchyard goes direct only when Node would have passed the request to that
  * worker unchanged; everything else still goes to Node.
  *
  * An app gets an empty table (a `reason`) when anything Node runs before
@@ -14,7 +14,7 @@ import { INTERCEPTION_ROUTE_MARKERS } from '../../shared/lib/router/utils/interc
  * redirects or rewrites, i18n, or an instrumentation hook, whose tracing
  * direct requests would skip.
  */
-export type FrontRouteTable =
+export type SwitchyardRouteTable =
   | Readonly<{ contract: { version: 1 }; reason: string }>
   | Readonly<{
       contract: { version: 1 }
@@ -43,7 +43,7 @@ export type PatternEntry =
   | Readonly<{ param: string }>
   | Readonly<{ rest: string; min: 0 | 1 }>
 
-export type FrontRouteTableInput = Readonly<{
+export type SwitchyardRouteTableInput = Readonly<{
   goRoutes: boolean
   basePath: string
   hasI18n: boolean
@@ -76,7 +76,9 @@ export type FrontRouteTableInput = Readonly<{
 
 const VERSION = 1
 
-export function frontRouteTable(input: FrontRouteTableInput): FrontRouteTable {
+export function switchyardRouteTable(
+  input: SwitchyardRouteTableInput
+): SwitchyardRouteTable {
   const reason = ineligibleReason(input)
   if (reason) return { contract: { version: VERSION }, reason }
 
@@ -145,7 +147,9 @@ export function frontRouteTable(input: FrontRouteTableInput): FrontRouteTable {
   }
 }
 
-function ineligibleReason(input: FrontRouteTableInput): string | undefined {
+function ineligibleReason(
+  input: SwitchyardRouteTableInput
+): string | undefined {
   if (!input.goRoutes) return 'experimental.goRoutes is off'
   if (input.hasMiddleware) return 'proxy'
   if (input.hasInstrumentation) return 'instrumentation'

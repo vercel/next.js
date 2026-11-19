@@ -61,7 +61,7 @@ type entry struct {
 	text string // the literal; unused for the other kinds
 }
 
-// tableJSON is the wire format Node writes (see front-route-table.ts).
+// tableJSON is the wire format Node writes (see switchyard-route-table.ts).
 type tableJSON struct {
 	Contract struct {
 		Version int `json:"version"`

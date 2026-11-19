@@ -1,5 +1,5 @@
 // Package echo answers with what the Go worker received, so tests can compare
-// the request a route.go sees with and without the front server.
+// the request a route.go sees with and without Switchyard.
 package echo
 
 import (

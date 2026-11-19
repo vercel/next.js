@@ -14,10 +14,10 @@ import (
 	"time"
 )
 
-// directFixture is a front with a stub Node and a stub route.go worker.
+// directFixture is Switchyard with a stub Node and a stub route.go worker.
 type directFixture struct {
 	addr       string
-	front      *front
+	switchyard *switchyard
 	workerAddr string
 	node       chan *http.Request // requests Node saw
 	worker     chan *http.Request
@@ -58,20 +58,20 @@ func startDirect(t *testing.T, worker http.HandlerFunc) *directFixture {
 		t.Fatal(err)
 	}
 	public := ln.Addr().(*net.TCPAddr)
-	fx.front = newFront(newProxy(node.Listener.Addr().String(), public, 4*time.Second, testToken), public, 4*time.Second)
-	srv := newServer(fx.front, 4*time.Second, time.Minute, time.Minute, 16<<10)
+	fx.switchyard = newSwitchyard(newProxy(node.Listener.Addr().String(), public, 4*time.Second, testToken), public, 4*time.Second)
+	srv := newServer(fx.switchyard, 4*time.Second, time.Minute, time.Minute, 16<<10)
 	go srv.Serve(ln)
 	t.Cleanup(func() { srv.Close() })
 	fx.addr = ln.Addr().String()
 
-	fx.front.apply(controlMessage{Event: "table", Table: json.RawMessage(testTable)})
+	fx.switchyard.apply(controlMessage{Event: "table", Table: json.RawMessage(testTable)})
 	fx.announce(fx.workerAddr, "/api/echo/route", "/api/users/[id]/route")
 	return fx
 }
 
 func (fx *directFixture) announce(address string, pages ...string) {
 	for _, page := range pages {
-		fx.front.apply(controlMessage{Event: "worker", Page: page, Network: "tcp",
+		fx.switchyard.apply(controlMessage{Event: "worker", Page: page, Network: "tcp",
 			Address: address, TokenHeader: "x-next-internal-go-token", Token: "secret"})
 	}
 }
@@ -127,7 +127,7 @@ func TestRequestsOutsideTheGateGoToNode(t *testing.T) {
 
 func TestFirstRequestGoesToNodeUntilTheWorkerIsAnnounced(t *testing.T) {
 	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "go") })
-	fx.front.apply(controlMessage{Event: "gone", Address: fx.workerAddr})
+	fx.switchyard.apply(controlMessage{Event: "gone", Address: fx.workerAddr})
 	if res := fx.raw(t, "GET /api/echo HTTP/1.1"); !strings.HasSuffix(res, "node") {
 		t.Fatalf("after gone: %q", res)
 	}

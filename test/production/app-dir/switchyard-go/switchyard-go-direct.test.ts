@@ -7,7 +7,7 @@ import { SWITCHYARD_ENV } from 'next/dist/server/lib/switchyard-env'
 // route.go requires Turbopack, and this suite also needs a switchyard build.
 // @force-gate turbopack
 // @force-gate switchyardBinary
-describe('front-server-go direct path', () => {
+describe('switchyard-go direct path', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,

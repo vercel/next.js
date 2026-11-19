@@ -8,7 +8,7 @@ import (
 )
 
 // controlMessage is one line Node writes to Switchyard's stdin
-// (packages/next/src/server/lib/front-server.ts):
+// (packages/next/src/server/lib/switchyard.ts):
 //
 //	{"event":"table","table":{...}}      the route table, once the router loaded
 //	{"event":"worker","page":"/api/users/[id]/route","network":"tcp",

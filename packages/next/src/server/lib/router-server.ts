@@ -1342,10 +1342,10 @@ export async function initialize(opts: {
       ? development.config.experimental.agentUpgrade !== false
       : undefined,
     devMemoryThresholdRestart,
-    frontRouteTable: () => {
-      const { collectFrontRouteTable } =
-        require('./front-route-table-input') as typeof import('./front-route-table-input')
-      return collectFrontRouteTable({
+    switchyardRouteTable: () => {
+      const { collectSwitchyardRouteTable } =
+        require('./switchyard-route-table-input') as typeof import('./switchyard-route-table-input')
+      return collectSwitchyardRouteTable({
         dir: opts.dir,
         config,
         fsChecker,

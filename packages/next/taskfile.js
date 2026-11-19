@@ -1156,7 +1156,7 @@ export async function ncc_compression(task, opts) {
     .target('src/compiled/compression')
 
   // target() recreates the directory cleared by ncc before writing the MIME
-  // policy from the middleware's database for the front server.
+  // policy from the middleware's database for Switchyard.
   const compressible = require.resolve('compressible', {
     paths: [dirname(compression)],
   })
