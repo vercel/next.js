@@ -1,3 +1,4 @@
+import { Agent, get } from 'http'
 import { gunzipSync } from 'zlib'
 import { nextTestSetup } from 'e2e-utils'
 import { SWITCHYARD_ENV } from 'next/dist/server/lib/switchyard-env'
@@ -365,11 +366,53 @@ describe('switchyard-go', () => {
       }
     })
 
+    it('runs a handler that panics once per request', async () => {
+      // The first request starts the worker through Node; the next ones can
+      // go to the worker directly and leave connections to it idle, for the
+      // panicking request to reuse.
+      for (let i = 0; i < 3; i++) {
+        await send('/go/counted')
+      }
+      expect((await send('/go/counted?mode=panic')).status).toBe(500)
+      expect((await send('/go/counted')).body.toString()).toBe('1')
+    })
+
     it('sends the first chunk of a streaming response before it ends', async () => {
       const first = await firstChunk(Number(next.appPort), '/go/stream')
       expect(first).toBe('first')
     })
   })
+
+  describe('a Node handler that drops the connection', () => {
+    it('runs once', async () => {
+      // Both requests go over one client connection, so with Switchyard the
+      // second one reuses the connection to Node that the first left idle.
+      const agent = new Agent({ keepAlive: true, maxSockets: 1 })
+      try {
+        expect(await getText(agent, '/api/hang-up')).toBe('0')
+        // Without Switchyard the client's connection is dropped; with it,
+        // Switchyard answers 502. Either way the handler ran once.
+        await getText(agent, '/api/hang-up?mode=hangup').catch(() => {})
+      } finally {
+        agent.destroy()
+      }
+      expect((await send('/api/hang-up')).body.toString()).toBe('1')
+    })
+  })
+
+  function getText(agent: Agent, path: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+      get(
+        { host: '127.0.0.1', port: Number(next.appPort), path, agent },
+        (res) => {
+          const chunks: Buffer[] = []
+          res.on('data', (chunk: Buffer) => chunks.push(chunk))
+          res.on('error', reject)
+          res.on('end', () => resolve(Buffer.concat(chunks).toString()))
+        }
+      ).on('error', reject)
+    })
+  }
 })
 
 /** Reads the body's first chunk of a response that never ends, then closes. */
