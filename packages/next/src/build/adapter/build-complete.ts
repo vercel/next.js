@@ -76,7 +76,12 @@ import {
 } from './synthetic-symlinks'
 import { getRouteCacheKey } from '../../server/lib/route-cache-key'
 import { RouteKind } from '../../server/route-kind'
-import { getRscPrerenderCompleteness } from '../../server/lib/prerender-rsc-completeness'
+import {
+  createDynamicPrerenderClassifier,
+  getPrerenderClassification,
+  getRscPrerenderClassification,
+  type PrerenderClassification,
+} from '../prerender-classification'
 
 interface SharedRouteFields {
   /**
@@ -163,63 +168,6 @@ interface SharedRouteFields {
     env?: Record<string, string>
   }
 }
-
-/**
- * Classification metadata for a prerendered response. App Router HTML and
- * full-route RSC outputs have independent classifications. Pages Router data
- * and static segment-prefetch outputs omit these fields.
- */
-type PrerenderClassification =
-  | {
-      /**
-       * Which kind of canonical response this output represents.
-       *
-       * - `route`: a non-UI route, such as a Route Handler.
-       * - `page`: a page whose URL has no missing prerenderable params.
-       * - `shell`: the most specific reusable page shell for its URL class.
-       * - `fallback`: a reusable page response that can be specialized by
-       *   filling more prerenderable params.
-       */
-      routeType: 'route' | 'fallback' | 'shell' | 'page'
-
-      /**
-       * How complete the response is before any request-time work.
-       *
-       * - `empty`: no initial page response can be served.
-       * - `initial`: an initial response can be served, but it is not the
-       *   completed page UI.
-       * - `complete`: the response is complete. This can still describe a
-       *   zero-byte response body, such as a 204 Route Handler response.
-       */
-      response: 'empty' | 'initial' | 'complete'
-
-      /**
-       * The request-time compute mode for serving this output.
-       *
-       * - `blocking`: wait for a usable prerender before serving the response.
-       * - `dynamic`: request-time rendering produces the first response bytes.
-       * - `resuming`: initial content is served while postponed work resumes.
-       * - `static`: generated output needs no per-request server rendering.
-       *
-       * A blocking output requires generation or revalidation when no usable
-       * cached prerender exists. The result can still be partial. A dynamic
-       * render can reuse cached postponed state and stream without waiting for
-       * a separate prerender first.
-       */
-      compute: 'blocking' | 'dynamic' | 'resuming' | 'static'
-
-      /**
-       * The byte size of the prerendered HTML shell. Only the HTML output
-       * exposes this; sibling RSC/data/segment outputs omit it.
-       */
-      htmlSize?: number
-    }
-  | {
-      routeType?: never
-      response?: never
-      compute?: never
-      htmlSize?: never
-    }
 
 // App paths sharing a pathname collapse into one Adapter output. Put the
 // canonical entry first because later paths only merge assets into that output.
@@ -462,71 +410,6 @@ function hasRevalidation(prerender: PrerenderManifestRoute): boolean {
   const tags =
     prerender.initialHeaders?.[NEXT_CACHE_TAGS_HEADER]?.split(',') ?? []
   return tags.some((tag) => tag && !tag.startsWith(NEXT_CACHE_IMPLICIT_TAG_ID))
-}
-
-function getPrerenderClassification(
-  route: string,
-  routeType: PrerenderManifestRoute['routeType'],
-  response: PrerenderManifestRoute['response'],
-  compute: PrerenderManifestRoute['compute'],
-  htmlSize: PrerenderManifestRoute['htmlSize']
-): PrerenderClassification {
-  if (
-    routeType === undefined &&
-    response === undefined &&
-    compute === undefined &&
-    htmlSize === undefined
-  ) {
-    return {}
-  }
-
-  if (
-    routeType === undefined ||
-    response === undefined ||
-    compute === undefined
-  ) {
-    throw new InvariantError(
-      `Expected complete prerender classification for route "${route}"`
-    )
-  }
-
-  return {
-    routeType,
-    response,
-    compute,
-    ...(typeof htmlSize === 'number' && { htmlSize }),
-  }
-}
-
-function getRscPrerenderClassification(
-  route: PrerenderManifestRoute | DynamicPrerenderManifestRoute | undefined
-): PrerenderClassification {
-  if (
-    route === undefined ||
-    route.routeType === undefined ||
-    route.routeType === 'route' ||
-    route.compute === undefined
-  ) {
-    return {}
-  }
-
-  const response = getRscPrerenderCompleteness(route)
-  if (response === undefined) {
-    return {}
-  }
-
-  const compute =
-    response === 'complete' || route._isEnsureStaticPage
-      ? 'static'
-      : route.compute === 'blocking'
-        ? 'blocking'
-        : 'dynamic'
-
-  return {
-    routeType: route.routeType,
-    response,
-    compute,
-  }
 }
 
 type RewriteItem = {
@@ -1682,6 +1565,11 @@ export async function handleBuildComplete({
         return newCheck
       }
 
+      const { classifyDynamicPrerender } = createDynamicPrerenderClassifier(
+        prerenderManifest,
+        routesManifest
+      )
+
       for (const route in prerenderManifest.routes) {
         const {
           initialExpireSeconds: initialExpiration,
@@ -1977,6 +1865,7 @@ export async function handleBuildComplete({
           continue
         }
 
+        const manifestRoute = prerenderManifest.dynamicRoutes[dynamicRoute]
         const {
           fallback,
           fallbackExpire,
@@ -1994,7 +1883,7 @@ export async function handleBuildComplete({
           compute,
           htmlSize,
           experimentalBypassFor,
-        } = prerenderManifest.dynamicRoutes[dynamicRoute]
+        } = manifestRoute
 
         const srcRoute = fallbackSourceRoute || dynamicRoute
         const parentOutput = getParentOutput(srcRoute, dynamicRoute)
@@ -2102,12 +1991,18 @@ export async function handleBuildComplete({
               )
             : undefined
 
-        const classification = getPrerenderClassification(
+        const classification = classifyDynamicPrerender(
           dynamicRoute,
-          routeType,
-          response,
-          compute,
-          htmlSize
+          manifestRoute,
+          getPrerenderClassification(
+            dynamicRoute,
+            routeType,
+            response,
+            compute,
+            htmlSize
+          ),
+          'html',
+          htmlAllowQuery
         )
 
         const initialOutput: AdapterOutput['PRERENDER'] = {
@@ -2208,6 +2103,16 @@ export async function handleBuildComplete({
               'private, no-store, no-cache, max-age=0, must-revalidate'
           }
 
+          const rscClassification = classifyDynamicPrerender(
+            dynamicRoute,
+            manifestRoute,
+            getRscPrerenderClassification(
+              isAppPage ? manifestRoute : undefined
+            ),
+            'rsc',
+            dataAllowQuery
+          )
+
           if (isAppPage) {
             await handleAppMeta(dynamicRoute, initialOutput, meta, {
               htmlAllowQuery,
@@ -2218,9 +2123,7 @@ export async function handleBuildComplete({
           if (renderingMode === RenderingMode.PARTIALLY_STATIC) {
             outputs.prerenders.push({
               ...initialOutput,
-              ...getRscPrerenderClassification(
-                prerenderManifest.dynamicRoutes[dynamicRoute]
-              ),
+              ...rscClassification,
               id: `${dynamicRoute}.rsc`,
               pathname: `${dynamicRoute}.rsc`,
               fallback: {
@@ -2246,11 +2149,7 @@ export async function handleBuildComplete({
           } else if (dataRoute) {
             outputs.prerenders.push({
               ...initialOutput,
-              ...getRscPrerenderClassification(
-                isAppPage
-                  ? prerenderManifest.dynamicRoutes[dynamicRoute]
-                  : undefined
-              ),
+              ...rscClassification,
               id: dataRoute,
               pathname: dataRoute,
               fallback: undefined,

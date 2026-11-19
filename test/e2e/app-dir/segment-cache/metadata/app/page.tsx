@@ -52,6 +52,14 @@ export default function Page() {
             Page with per-tenant head (en/initech, prefetch=false)
           </LinkAccordion>
         </li>
+        <li>
+          <LinkAccordion
+            prefetch={false}
+            href="/page-with-per-tenant-head/en/globex"
+          >
+            Page with per-tenant head (en/globex, prefetch=false)
+          </LinkAccordion>
+        </li>
       </ul>
     </>
   )

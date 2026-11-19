@@ -255,6 +255,7 @@ import { buildCustomRoute } from '../lib/build-custom-route'
 import { validateAppPaths } from './validate-app-paths'
 import { throwMissingGspErrorInStaticRoute } from '../shared/lib/errors/ensure-static-gsp-errors'
 import { isEmptyParams } from '../server/lib/params-utils'
+import { addRscPrerenderCompute } from './prerender-classification'
 
 type Fallback = null | boolean | string
 
@@ -355,6 +356,17 @@ export interface DynamicPrerenderManifestRoute
   dataRouteRegex: string | null
   experimentalBypassFor?: RouteHas[]
   fallback: Fallback
+
+  /**
+   * The RSC compute mode for each `next start` regeneration target. A completed
+   * shell resolves only remaining prerenderable params into its cache key.
+   * Completed shells keep their original mode when slot-only params stay
+   * deferred.
+   */
+  rscCompute?: {
+    resolvedPathname: PrerenderCompute
+    completedShell: PrerenderCompute
+  }
 
   /**
    * A configured blocking policy must not be replaced by on-demand fallback
@@ -4679,6 +4691,7 @@ export default async function build(
           }
         }
 
+        addRscPrerenderCompute(prerenderManifest, routesManifest)
         await writePrerenderManifest(distDir, prerenderManifest)
         await writeManifest(
           path.join(distDir, SERVER_DIRECTORY, PREFETCH_HINTS),

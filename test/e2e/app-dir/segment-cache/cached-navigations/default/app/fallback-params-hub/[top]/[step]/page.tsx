@@ -56,13 +56,31 @@ async function Hub({
           Fully static page with Partial Prefetching
         </LinkAccordion>
       </div>
-      {top === 'time' ? (
-        <LinkAccordion
-          href="/fully-static-params/time#full-prefetch"
-          prefetch={true}
-        >
-          Full prefetch
+      <div>
+        <LinkAccordion href={`/dynamic-miss/${top}`} prefetch={false}>
+          Dynamic miss
         </LinkAccordion>
+      </div>
+      <div>
+        <LinkAccordion href={`/partial-dynamic-miss/${top}`} prefetch={false}>
+          Dynamic miss with Partial Prefetching
+        </LinkAccordion>
+      </div>
+      {top === 'time' ? (
+        <>
+          <LinkAccordion
+            href="/fully-static-params/time#full-prefetch"
+            prefetch={true}
+          >
+            Full prefetch
+          </LinkAccordion>
+          <LinkAccordion
+            href="/dynamic-miss/time#full-prefetch"
+            prefetch={true}
+          >
+            Full dynamic prefetch
+          </LinkAccordion>
+        </>
       ) : null}
     </>
   )

@@ -1,6 +1,13 @@
 import { Metadata } from 'next'
+import { cacheTag } from 'next/cache'
 
 type Params = { locale: string; tenant: string }
+
+async function getTenantTitle(tenant: string) {
+  'use cache'
+  cacheTag('segment-cache-metadata:tenant:' + tenant)
+  return `Tenant: ${tenant}`
+}
 
 // Only one tenant is prerendered. Any other tenant is rendered on demand, so
 // its head is missing from the cache while the body, which reads only the
@@ -16,7 +23,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { tenant } = await params
   return {
-    title: `Tenant: ${tenant}`,
+    title: await getTenantTitle(tenant),
   }
 }
 

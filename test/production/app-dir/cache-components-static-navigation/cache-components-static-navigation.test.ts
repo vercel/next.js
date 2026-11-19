@@ -300,12 +300,13 @@ describe('Cache Components static navigation', () => {
 
   for (const state of ['stale', 'expired'] as const) {
     it(
-      'renders dynamic RSC after tag revalidation marks the cached value ' +
-        state,
+      state === 'expired'
+        ? 'serves a regenerated static RSC response after tag expiry'
+        : 'renders dynamic RSC while a stale tagged entry revalidates',
       async () => {
         const slug = state + '-' + randomUUID()
         const path = pathname('static', slug)
-        await warm(path)
+        const { value } = await warm(path)
         const response = await next.fetch(
           '/cache-components-static-navigation/revalidate',
           {
@@ -322,8 +323,20 @@ describe('Cache Components static navigation', () => {
         const navigation = await navigate(path)
         try {
           for (const response of navigation.responses) {
-            expect(response.headers['x-nextjs-prerender']).toBeUndefined()
-            expect(response.headers['x-nextjs-cache']).toBeUndefined()
+            if (state === 'expired') {
+              expect(response.headers['x-nextjs-prerender']).toBe('1')
+              expect(response.headers['x-nextjs-cache']).toBeDefined()
+            } else {
+              expect(response.headers['x-nextjs-prerender']).toBeUndefined()
+              expect(response.headers['x-nextjs-cache']).toBeUndefined()
+            }
+          }
+          if (state === 'expired') {
+            const freshValue = await navigation.browser
+              .elementById('value')
+              .text()
+            expect(freshValue).not.toBe(value)
+            expect((await warm(path)).value).toBe(freshValue)
           }
         } finally {
           await navigation.browser.close()

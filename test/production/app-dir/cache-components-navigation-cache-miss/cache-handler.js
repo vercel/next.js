@@ -19,6 +19,7 @@ module.exports = class CacheHandler {
   async get(key, context) {
     if (this.testCase && this.isRSCRequest && !context?.isFallback) {
       casesByKey.set(key, this.testCase)
+      writeFileSync(this.testCase + '.cache-key', key)
     }
     if (this.shellCase && context?.isFallback) {
       writeFileSync(this.shellCase + '.shell-held', '')
@@ -39,17 +40,22 @@ module.exports = class CacheHandler {
       this.isRSCRequest &&
       this.testCase &&
       existsSync(this.testCase + '.expired')
-    if (expired) {
+    const stale =
+      entry !== null &&
+      this.isRSCRequest &&
+      this.testCase &&
+      existsSync(this.testCase + '.stale')
+    if (expired || stale) {
       entry = {
         ...entry,
         lastModified: Date.now() - 3000,
-        cacheControl: { revalidate: 1, expire: 2 },
+        cacheControl: { revalidate: 1, expire: expired ? 2 : 120 },
       }
     }
     if (this.testCase && this.isRSCRequest && !context?.isFallback) {
       writeFileSync(
         this.testCase + '.lookup-' + this.caller,
-        entry === null ? 'miss' : expired ? 'expired' : 'hit'
+        entry === null ? 'miss' : expired ? 'expired' : stale ? 'stale' : 'hit'
       )
     }
     return entry
@@ -61,6 +67,9 @@ module.exports = class CacheHandler {
     if (testCase) {
       if (existsSync(testCase + '.expired')) {
         unlinkSync(testCase + '.expired')
+      }
+      if (existsSync(testCase + '.stale')) {
+        unlinkSync(testCase + '.stale')
       }
       const writes = (writesByCase.get(testCase) ?? 0) + 1
       writesByCase.set(testCase, writes)

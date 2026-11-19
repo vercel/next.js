@@ -1,5 +1,9 @@
 import { stat } from 'fs/promises'
+import { spawn } from 'child_process'
+import { once } from 'events'
+import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
+import { findPort, retry } from 'next-test-utils'
 import type { NextAdapter } from 'next'
 
 type AdapterBuildContext = Parameters<NextAdapter['onBuildComplete']>[0]
@@ -427,6 +431,338 @@ describe('adapter-prerender-metadata', () => {
     })
   })
 
+  it.each([
+    ['static', 'blocking'],
+    ['mixed', 'blocking'],
+    ['not-found', 'blocking'],
+    ['mixed-not-found', 'blocking'],
+    ['client-only', 'blocking'],
+    ['partial', 'dynamic'],
+  ])(
+    'classifies empty on-demand matchers from %s build-time results',
+    async (name, compute) => {
+      const prerenders = await getPrerenders()
+      const manifest = await getPrerenderManifest()
+      const pathname = `/on-miss/${name}/[slug]`
+
+      expect(manifest.dynamicRoutes[pathname]).toMatchObject({
+        response: 'empty',
+        compute: 'dynamic',
+        remainingPrerenderableParams: [{ paramName: 'slug' }],
+        rscCompute: { resolvedPathname: compute, completedShell: compute },
+      })
+      for (const suffix of ['', '.rsc']) {
+        const output = prerenders.find(
+          (output) => output.pathname === pathname + suffix
+        )
+        expect(output).toMatchObject({
+          route: pathname,
+          response: 'empty',
+          compute,
+        })
+      }
+    }
+  )
+
+  it('preserves concrete classifications when selecting an unknown-param miss policy', async () => {
+    const prerenders = await getPrerenders()
+    for (const [pathname, compute] of [
+      ['/on-miss/static/known', 'static'],
+      ['/on-miss/mixed/static', 'static'],
+      ['/on-miss/mixed/partial', 'resuming'],
+      ['/on-miss/partial/first', 'resuming'],
+      ['/on-miss/partial/second', 'resuming'],
+    ]) {
+      expect(
+        prerenders.find((output) => output.pathname === pathname)
+      ).toMatchObject({ routeType: 'page', compute })
+    }
+    expect(
+      prerenders.find(
+        (output) => output.pathname === '/on-miss/client-only/known'
+      )
+    ).toMatchObject({
+      routeType: 'page',
+      response: 'initial',
+      compute: 'static',
+    })
+  })
+
+  it('includes static not-found prerenders in the build-time results', async () => {
+    const prerenders = await getPrerenders()
+    const manifest = await getPrerenderManifest()
+    for (const name of ['not-found', 'mixed-not-found']) {
+      const pathname = `/on-miss/${name}/not-found`
+      expect(manifest.routes[pathname]).toMatchObject({
+        routeType: 'page',
+        response: 'complete',
+        compute: 'static',
+      })
+      for (const suffix of ['', '.rsc']) {
+        expect(
+          prerenders.find((output) => output.pathname === pathname + suffix)
+        ).toMatchObject({ response: 'complete', compute: 'static' })
+      }
+    }
+  })
+
+  it('uses terminal prerender results only for matching unresolved params', async () => {
+    const prerenders = await getPrerenders()
+    const source = '/on-miss/shells/[category]/[item]'
+    const find = (pathname: string) =>
+      prerenders.find((output) => output.pathname === pathname)
+
+    for (const category of ['first', 'second']) {
+      expect(find(`/on-miss/shells/${category}/[item]`)).toMatchObject({
+        route: source,
+        routeType: 'shell',
+        response: 'complete',
+        compute: 'static',
+      })
+      expect(find(`/on-miss/shells/${category}/[item].rsc`)).toMatchObject({
+        route: source,
+        response: 'empty',
+        compute: 'blocking',
+        config: { allowQuery: ['nxtPitem'] },
+      })
+    }
+    expect(find(source)).toMatchObject({
+      response: 'empty',
+      compute: 'blocking',
+    })
+    expect(find(source + '.rsc')).toMatchObject({
+      response: 'empty',
+      compute: 'dynamic',
+      config: { allowQuery: ['nxtPcategory'] },
+    })
+  })
+
+  it('waits when the cache key resolves more params than the terminal prerenders', async () => {
+    const prerenders = await getPrerenders()
+    const manifest = await getPrerenderManifest()
+    const source = '/on-miss/complete-fallback/[category]/[item]'
+    for (const pathname of [
+      source,
+      '/on-miss/complete-fallback/first/[item]',
+      '/on-miss/complete-fallback/second/[item]',
+    ]) {
+      expect(
+        prerenders.find((output) => output.pathname === pathname)
+      ).toMatchObject({ response: 'complete', compute: 'static' })
+      expect(
+        prerenders.find((output) => output.pathname === pathname + '.rsc')
+      ).toMatchObject({ response: 'empty', compute: 'blocking' })
+      expect(manifest.dynamicRoutes[pathname].rscCompute).toEqual({
+        resolvedPathname: 'blocking',
+        completedShell: 'dynamic',
+      })
+    }
+  })
+
+  it.each([
+    ['/[slug]', 'dynamic'],
+    ['/s/[id]', 'blocking'],
+    ['/photo/[id]', 'blocking'],
+  ])(
+    'compares URL params for matchers with a parallel slot: %s',
+    async (suffix, compute) => {
+      const source = '/on-miss/slot' + suffix
+      const manifest = await getPrerenderManifest()
+      const prerenders = await getPrerenders()
+      expect(manifest.dynamicRoutes[source].fallbackRouteParams).toEqual(
+        expect.arrayContaining([
+          { paramName: 'catchAll', paramType: 'catchall' },
+        ])
+      )
+      expect(manifest.dynamicRoutes[source].rscCompute).toEqual({
+        resolvedPathname: compute,
+        completedShell: 'dynamic',
+      })
+      for (const extension of ['', '.rsc']) {
+        expect(
+          prerenders.find((output) => output.pathname === source + extension)
+        ).toMatchObject({ response: 'empty', compute })
+      }
+    }
+  )
+
+  it('classifies the intercepting route from its own static prerender', async () => {
+    const prerenders = await getPrerenders()
+    for (const extension of ['', '.rsc']) {
+      expect(
+        prerenders.find(
+          (output) =>
+            output.pathname === '/on-miss/slot/(.)photo/[id]' + extension
+        )
+      ).toMatchObject({ response: 'empty', compute: 'blocking' })
+      expect(
+        prerenders.find(
+          (output) =>
+            output.pathname === '/on-miss/slot/(.)photo/known' + extension
+        )
+      ).toMatchObject({ response: 'complete', compute: 'static' })
+    }
+  })
+
+  it('resolves concrete URL and slot params through the adapter handler', async () => {
+    const port = await findPort()
+    const launcher = spawn(
+      'node',
+      [path.join(next.testDir, 'adapter-launcher.js')],
+      {
+        cwd: next.testDir,
+        env: { ...process.env, NODE_ENV: 'production', PORT: String(port) },
+        stdio: 'pipe',
+      }
+    )
+    let output = ''
+    launcher.stdout?.on('data', (chunk) => (output += chunk))
+    launcher.stderr?.on('data', (chunk) => (output += chunk))
+    try {
+      await retry(async () => {
+        expect(output).toContain('adapter launcher ready')
+      })
+      const source = '/on-miss/complete-fallback/[category]/[item]'
+      const { previewModeId } = await next.readJSON(
+        '.next/server/preview-props.json'
+      )
+      for (const {
+        pathname,
+        matchedPath,
+        query,
+        resolvedParam,
+        marker,
+        content,
+        slotValue,
+      } of [
+        {
+          pathname: source,
+          matchedPath: source,
+          query: 'nxtPcategory=third&nxtPitem=x',
+          resolvedParam: 'x',
+          marker: '#',
+          content: 'Complete static content',
+          slotValue: null,
+        },
+        {
+          pathname: '/on-miss/complete-fallback/first/[item]',
+          matchedPath: source,
+          query: 'nxtPitem=y',
+          resolvedParam: 'y',
+          marker: '#',
+          content: 'Complete static content',
+          slotValue: null,
+        },
+        {
+          pathname: '/on-miss/slot/[slug]',
+          matchedPath: '/on-miss/slot/[slug]',
+          query: 'nxtPslug=third',
+          resolvedParam: 'third',
+          marker: '~',
+          content: 'Partial result: ',
+          slotValue: 'third',
+        },
+        {
+          pathname: '/on-miss/slot/s/[id]',
+          matchedPath: '/on-miss/slot/s/[id]',
+          query: 'nxtPid=other',
+          resolvedParam: 'other',
+          marker: '#',
+          content: 'Static:',
+          slotValue: 's/other',
+        },
+        {
+          pathname: '/on-miss/slot/photo/[id]',
+          matchedPath: '/on-miss/slot/photo/[id]',
+          query: 'nxtPid=other',
+          resolvedParam: 'other',
+          marker: '#',
+          content: 'Canonical photo:',
+          slotValue: 'photo/other',
+        },
+      ]) {
+        const response = await fetch(
+          `http://localhost:${port}${pathname}.rsc?${query}`,
+          {
+            headers: {
+              rsc: '1',
+              'x-matched-path': matchedPath,
+              'x-prerender-revalidate': previewModeId,
+            },
+          }
+        )
+        const body = await response.text()
+        expect(response.status).toBe(200)
+        if (marker === '#') {
+          expect(response.headers.get('x-nextjs-prerender')).toBe('1')
+        }
+        expect(body.startsWith(marker)).toBe(true)
+        expect(body).toContain('"k":' + JSON.stringify(resolvedParam))
+        expect(body).toContain(content)
+        if (slotValue !== null) {
+          expect(body).toContain(
+            '"n":"catchAll","t":"c","k":' + JSON.stringify(slotValue)
+          )
+          expect(body).not.toContain('Intercepted photo:')
+        }
+      }
+    } finally {
+      if (launcher.exitCode === null && launcher.signalCode === null) {
+        const exited = once(launcher, 'exit')
+        launcher.kill()
+        await exited
+      }
+    }
+  })
+
+  it('includes empty terminal shells among results requiring continuation', async () => {
+    const prerenders = await getPrerenders()
+    const manifest = await getPrerenderManifest()
+    const source = '/on-miss/empty-shells/[category]/[item]'
+    for (const category of ['first', 'second']) {
+      const pathname = `/on-miss/empty-shells/${category}/[item]`
+      expect(manifest.dynamicRoutes[pathname].fallback).toEqual(
+        expect.any(String)
+      )
+      for (const suffix of ['', '.rsc']) {
+        expect(
+          prerenders.find((output) => output.pathname === pathname + suffix)
+        ).toMatchObject({ response: 'empty', compute: 'dynamic' })
+      }
+    }
+    for (const suffix of ['', '.rsc']) {
+      expect(
+        prerenders.find((output) => output.pathname === source + suffix)
+      ).toMatchObject({ response: 'empty', compute: 'dynamic' })
+    }
+  })
+
+  it('preserves shared HTML and RSC fallbacks that keep params unresolved', async () => {
+    const prerenders = await getPrerenders()
+    const source = '/on-miss/nonempty/[slug]'
+    expect(
+      prerenders.find((output) => output.pathname === source)
+    ).toMatchObject({
+      response: 'initial',
+      compute: 'resuming',
+      config: { allowQuery: [] },
+    })
+    expect(
+      prerenders.find((output) => output.pathname === source + '.rsc')
+    ).toMatchObject({
+      response: 'empty',
+      compute: 'dynamic',
+      config: { allowQuery: [] },
+    })
+    for (const suffix of ['', '.rsc']) {
+      expect(
+        prerenders.find(
+          (output) => output.pathname === '/on-miss/nonempty/known' + suffix
+        )
+      ).toMatchObject({ response: 'complete', compute: 'static' })
+    }
+  })
+
   it('classifies static Route Handler bodies as complete routes', async () => {
     const prerenders = await getPrerenders()
 
@@ -597,7 +933,7 @@ describe('adapter-prerender-metadata', () => {
       pathname: '/combinations/shell-complete-static/[slug]',
       routeType: 'shell',
       response: 'empty',
-      compute: 'dynamic',
+      compute: 'blocking',
     },
   ])(
     'classifies the full-route RSC output for $pathname',
