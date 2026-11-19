@@ -51,6 +51,7 @@ export const INTERNAL_HEADERS = [
   'x-matched-path',
   'x-nextjs-data',
   'x-next-internal-go-token',
+  'x-nextjs-switchyard-connection',
   'x-next-resume-state-length',
   'next-resume',
 ]

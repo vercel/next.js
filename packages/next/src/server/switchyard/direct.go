@@ -17,7 +17,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/vercel/next.js/packages/next/src/server/front/routing"
+	"github.com/vercel/next.js/packages/next/src/server/switchyard/routing"
 )
 
 // front is the public handler. Each request goes either to Node, exactly as
@@ -37,7 +37,7 @@ type front struct {
 	state atomic.Pointer[directState]
 }
 
-// directState is what the front knows from Node: the route table, what Node
+// directState is what Switchyard knows from Node: the route table, what Node
 // changes on the way to and from a worker, and the workers that are ready.
 type directState struct {
 	table *routing.Table
@@ -298,8 +298,8 @@ func (f *front) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Duration) 
 				return
 			}
 			proxyErrorLog.Printf("route.go worker %s: %v", attempt.up.address, err)
-			// TODO: answer with Node's error page, as without the front. Node
-			// renders it per request, so the front must hand the request back
+			// TODO: answer with Node's error page, as without Switchyard. Node
+			// renders it per request, so Switchyard must hand the request back
 			// and have Node trust that the worker failed, which needs the
 			// token on Node's listener (step 5's routing contract). Until then
 			// the client gets a plain 500 here, where Node sends its page.
@@ -380,7 +380,7 @@ func addCompressionVary(header http.Header, s *directState) {
 	header.Set("Vary", vary+"Accept-Encoding")
 }
 
-// writeInternalError is the front's own answer when a worker fails after it
+// writeInternalError is Switchyard's own answer when a worker fails after it
 // may have received the request: a plain 500.
 func writeInternalError(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")

@@ -6,7 +6,7 @@ import {
 import { RouteKind } from 'next/dist/server/route-kind'
 
 // The route table Node sends the experimental front server: page paths
-// become the segment lists the front matches, and an app gets no direct
+// become the segment lists Switchyard matches, and an app gets no direct
 // routes when a rule Node runs before routing could apply.
 describe('front-route-table', () => {
   describe('patternOf', () => {

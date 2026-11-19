@@ -58,8 +58,8 @@ func startDirect(t *testing.T, worker http.HandlerFunc) *directFixture {
 		t.Fatal(err)
 	}
 	public := ln.Addr().(*net.TCPAddr)
-	fx.front = newFront(newProxy(node.Listener.Addr().String(), public, 4*time.Second), public, 4*time.Second)
-	srv := newServer(fx.front, 4*time.Second, time.Minute, time.Minute)
+	fx.front = newFront(newProxy(node.Listener.Addr().String(), public, 4*time.Second, testToken), public, 4*time.Second)
+	srv := newServer(fx.front, 4*time.Second, time.Minute, time.Minute, 16<<10)
 	go srv.Serve(ln)
 	t.Cleanup(func() { srv.Close() })
 	fx.addr = ln.Addr().String()
@@ -215,7 +215,7 @@ func TestDirectCompressionVary(t *testing.T) {
 	}
 }
 
-// The front uses Go's reason phrases, as on the Node path (newProxy).
+// Switchyard uses Go's reason phrases, as on the Node path (newProxy).
 func TestReasonPhrasesTrailersAndEarlyHints(t *testing.T) {
 	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Query().Get("case") {

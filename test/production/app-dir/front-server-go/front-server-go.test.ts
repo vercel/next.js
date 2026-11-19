@@ -1,7 +1,7 @@
 import { gunzipSync } from 'zlib'
 import { nextTestSetup } from 'e2e-utils'
-import { FRONT_SERVER_ENV } from 'next/dist/server/lib/front-server-env'
-import { getHeader, rawRequest } from '../front-server/raw-http'
+import { SWITCHYARD_ENV } from 'next/dist/server/lib/switchyard-env'
+import { getHeader, rawRequest } from '../switchyard/raw-http'
 
 // What a route.go handler receives, and what its client gets back, under
 // `next start`. Every expectation is today's behavior, so the suite passes
@@ -271,7 +271,7 @@ describe('front-server-go', () => {
       }
     })
 
-    // Like the front-server suite: the front writes Go's reason phrase, Node
+    // Like the switchyard suite: Switchyard writes Go's reason phrase, Node
     // its own.
     it.each([
       { code: 201, nodeReason: 'Created', goReason: 'Created' },
@@ -286,7 +286,7 @@ describe('front-server-go', () => {
       async ({ code, nodeReason, goReason }) => {
         const res = await send(`/go/status/${code}`)
         const reason =
-          process.env[FRONT_SERVER_ENV] === '1' ? goReason : nodeReason
+          process.env[SWITCHYARD_ENV] === '1' ? goReason : nodeReason
         expect(res.statusLine).toBe(`HTTP/1.1 ${code} ${reason}`)
         expect(res.body.toString()).toBe('status')
       }
@@ -331,11 +331,11 @@ describe('front-server-go', () => {
       expect(getHeader(options, 'allow')).toBe('GET, HEAD, OPTIONS, POST')
     })
 
-    // TODO: with the front server, a direct request whose worker fails gets
-    // a plain 500 instead of Node's error page. Matching Node needs the front
+    // TODO: with Switchyard, a direct request whose worker fails gets
+    // a plain 500 instead of Node's error page. Matching Node needs Switchyard
     // to hand the request back and Node to trust that the worker failed,
     // which waits for the token on Node's private listener.
-    // @gate !frontServer
+    // @gate !switchyard
     it('answers Node’s error page when the handler panics', async () => {
       // The first request to a route.go starts its worker through Node; the
       // second can go to the worker directly.

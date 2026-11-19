@@ -1,17 +1,17 @@
 import { request } from 'http'
 import { nextTestSetup } from 'e2e-utils'
-import { FRONT_SERVER_ENV } from 'next/dist/server/lib/front-server-env'
+import { SWITCHYARD_ENV } from 'next/dist/server/lib/switchyard-env'
 
-// Only self-hosted next start uses the front server. Pausing its Node process
+// Only self-hosted next start uses Switchyard. Pausing its Node process
 // after warming the workers proves direct requests do not need Node to run.
-// route.go requires Turbopack, and this suite also needs a next-front build.
+// route.go requires Turbopack, and this suite also needs a switchyard build.
 // @force-gate turbopack
-// @force-gate frontServerBinary
+// @force-gate switchyardBinary
 describe('front-server-go direct path', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
-    env: { [FRONT_SERVER_ENV]: '1' },
+    env: { [SWITCHYARD_ENV]: '1' },
   })
   if (skipped) return
 

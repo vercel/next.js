@@ -1,6 +1,6 @@
 // Package routing decides which route answers a request, from a route table
 // that Next.js builds. It knows nothing about connections, upstreams or how
-// a route is served: a host (next-front, or another server) asks Decide and
+// a route is served: a host (switchyard, or another server) asks Decide and
 // does the serving itself. It imports nothing from net/http, so any HTTP
 // implementation can call it.
 //

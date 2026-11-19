@@ -4,8 +4,8 @@ import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param
 import { INTERCEPTION_ROUTE_MARKERS } from '../../shared/lib/router/utils/interception-routes'
 
 /**
- * The route table Node sends next-front (src/server/front/routing). It tells
- * the front which requests it may send straight to a route.go worker. The
+ * The route table Node sends Switchyard (src/server/switchyard/routing). It tells
+ * Switchyard which requests it may send straight to a route.go worker. The
  * front goes direct only when Node would have passed the request to that
  * worker unchanged; everything else still goes to Node.
  *
@@ -27,7 +27,7 @@ export type FrontRouteTable =
       goExact: Readonly<Record<string, string>>
       dynamic: ReadonlyArray<{ path: readonly PatternEntry[]; go?: string }>
       /**
-       * How the front sends a direct request and its response, for the
+       * How Switchyard sends a direct request and its response, for the
        * host's HTTP code. The routing package reads only the fields above.
        */
       direct: Readonly<{
@@ -157,7 +157,7 @@ function ineligibleReason(input: FrontRouteTableInput): string | undefined {
     return 'rewrites'
   }
   // With trailingSlash: false, Next adds its own redirects that remove a
-  // trailing slash; the front sends every path ending in "/" to Node.
+  // trailing slash; Switchyard sends every path ending in "/" to Node.
   if (input.trailingSlash) return 'trailingSlash'
   if (input.redirects.some((redirect) => !redirect.internal)) {
     return 'redirects'
@@ -167,7 +167,7 @@ function ineligibleReason(input: FrontRouteTableInput): string | undefined {
 
 /**
  * Turns a route's page path into a segment list, or undefined when a segment
- * isn't one of the forms the front can match exactly as Node does. Segments
+ * isn't one of the forms Switchyard can match exactly as Node does. Segments
  * are read with getSegmentParam, the parser the router itself uses.
  */
 export function patternOf(page: string): PatternEntry[] | undefined {
@@ -179,7 +179,7 @@ export function patternOf(page: string): PatternEntry[] | undefined {
     if (!param) {
       // A literal segment. Brackets getSegmentParam didn't read as a
       // parameter ("a[b]"), and interception markers ("(..)photo"), are
-      // forms the front doesn't match.
+      // forms Switchyard doesn't match.
       if (
         segment === '' ||
         /[[\]]/.test(segment) ||

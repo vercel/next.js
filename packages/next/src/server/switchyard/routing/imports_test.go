@@ -10,7 +10,7 @@ import (
 )
 
 // TestNoNetworkImports keeps this package free of HTTP and network code, so
-// hosts other than next-front can use it with their own HTTP handling.
+// hosts other than switchyard can use it with their own HTTP handling.
 // net/textproto is allowed: it only formats header names.
 func TestNoNetworkImports(t *testing.T) {
 	files, err := filepath.Glob("*.go")

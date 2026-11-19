@@ -10,8 +10,8 @@ import { frontRouteTable, type FrontRouteTable } from './front-route-table'
 type FsChecker = Awaited<ReturnType<typeof setupFsCheck>>
 
 /**
- * Builds the front server's route table from what the router loaded at
- * startup, so the front and Node route from the same data.
+ * Builds Switchyard's route table from what the router loaded at
+ * startup, so Switchyard and Node route from the same data.
  */
 export function collectFrontRouteTable(
   opts: Readonly<{

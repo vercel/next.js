@@ -7,7 +7,7 @@ import (
 	"io"
 )
 
-// controlMessage is one line Node writes to the front's stdin
+// controlMessage is one line Node writes to Switchyard's stdin
 // (packages/next/src/server/lib/front-server.ts):
 //
 //	{"event":"table","table":{...}}      the route table, once the router loaded
@@ -27,7 +27,7 @@ type controlMessage struct {
 }
 
 // readControl calls apply for each line on r until r ends. A line that isn't
-// a message is reported and skipped, so one bad line can't stop the front.
+// a message is reported and skipped, so one bad line can't stop Switchyard.
 func readControl(r io.Reader, apply func(controlMessage), report func(error)) {
 	lines := bufio.NewReader(r)
 	for {
