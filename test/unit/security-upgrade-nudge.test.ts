@@ -1299,6 +1299,7 @@ describe('upgrade handoff environment', () => {
     'NEXT_RUNTIME',
     'DOTENV_DEV_ONLY',
     'USER_SHELL_VAR',
+    'NEXT_TELEMETRY_DISABLED',
   ] as const
   type Key = (typeof keys)[number]
   const env = process.env as Record<string, string | undefined>
@@ -1357,6 +1358,7 @@ describe('upgrade handoff environment', () => {
       NEXT_RUNTIME: undefined,
       DOTENV_DEV_ONLY: undefined,
       USER_SHELL_VAR: 'kept',
+      NEXT_TELEMETRY_DISABLED: undefined,
     })
   })
 
@@ -1393,5 +1395,14 @@ describe('upgrade handoff environment', () => {
     simulateDevEnvLoad()
 
     expect((await envAtHandoff())?.NODE_ENV).toBe('development')
+  })
+
+  it('keeps a telemetry opt-out read after startup', async () => {
+    simulateCli('dev')
+    // next dev sets this from next.config or .env (next-dev.ts).
+    setEnv({ NEXT_TELEMETRY_DISABLED: '1' })
+    simulateDevEnvLoad()
+
+    expect((await envAtHandoff())?.NEXT_TELEMETRY_DISABLED).toBe('1')
   })
 })
