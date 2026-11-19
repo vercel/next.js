@@ -502,6 +502,7 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
             source_map,
             globals,
             program_source,
+            source_content,
             ..
         } => {
             // If the script file is a common js file, we cannot split the module
@@ -584,6 +585,7 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
                         eval_context,
                         source_mapping_url: None,
                         program_source: program_source.clone(),
+                        source_content: *source_content,
                     })
                 })
                 .collect();
@@ -630,6 +632,7 @@ pub(crate) async fn part_of_module(
                     globals,
                     source_map,
                     program_source,
+                    source_content,
                     ..
                 } = &*modules[0].await?
                 {
@@ -713,6 +716,7 @@ pub(crate) async fn part_of_module(
                         source_map: source_map.clone(),
                         source_mapping_url: None,
                         program_source: program_source.clone(),
+                        source_content: *source_content,
                     }
                     .cell());
                 } else {
