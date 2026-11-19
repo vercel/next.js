@@ -202,12 +202,16 @@ describe('runAdaptiveStaticGeneration', () => {
   })
 
   it('spreads a run of slow pages across workers', async () => {
+    // Preserve the relative render times regardless of the host's timer
+    // resolution or how long the test process is descheduled.
+    jest.useFakeTimers()
     const slow = (path: string) => (Number(path.split('/')[2]) >= 40 ? 30 : 1)
     const workers = [
       new FakeWorker(0, { renderMs: slow }),
       new FakeWorker(1, { renderMs: slow }),
     ]
     const { promise } = run(workers, exportPaths(60))
+    await jest.runAllTimersAsync()
     await promise
     const slowCount = (w: FakeWorker) =>
       w.rendered.filter((r) => Number(r.path.split('/')[2]) >= 40).length

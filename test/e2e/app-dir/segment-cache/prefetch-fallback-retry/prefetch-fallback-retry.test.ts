@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('segment cache prefetch fallback retry', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
@@ -120,35 +120,50 @@ describe('segment cache prefetch fallback retry', () => {
   })
 
   it('retries a static fallback prefetch a bounded number of times, then stops', async () => {
-    const { browser, page } = await startBrowserWithFakeClock('/')
+    const { browser, page, act } = await startBrowserWithFakeClock('/')
 
     // Pin the server so it can never upgrade this route's ISR fallback to a
     // concrete version — the client keeps receiving the fallback shell on every
     // retry. (Uses its own un-enumerated param so it doesn't share an ISR entry
     // with the recovery test above.)
-    const { getRequestCount, getRuntimeRequestCount } =
-      await simulateNeverUpgradingIsrEntries(page, '/posts/retry-limit')
+    const { getRequestCount, getRuntimeRequestCount, restore } =
+      simulateNeverUpgradingIsrEntries(page, '/posts/retry-limit')
 
-    await browser
-      .elementByCss('input[data-link-accordion="/posts/retry-limit"]')
-      .click()
+    try {
+      await act(async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/posts/retry-limit"]')
+          .click()
+      })
 
-    // Advance the clock far past any number of retry intervals. The retry loop
-    // is bounded, so even though we pump the clock much more than it could ever
-    // need, only a handful of requests are ever issued.
-    for (let i = 0; i < 20; i++) {
-      await page.clock.fastForward(1000)
-      // Let any in-flight retry settle and re-arm its next timer before the
-      // next advance.
-      await waitFor(100)
+      // Each response must settle and re-arm the next timer before advancing
+      // the clock. Advancing while a response is in flight can spend the
+      // entire fake-time budget before the retry loop finishes.
+      for (let i = 0; i < 2; i++) {
+        await act(async () => {
+          await page.clock.fastForward(2000)
+        })
+      }
+
+      // After the third fallback retry, the link still needs more than the
+      // shell, so it falls back to one runtime request.
+      await act(
+        async () => {
+          await page.clock.fastForward(2000)
+        },
+        { includes: 'Post body for retry-limit', kind: 'runtime' }
+      )
+
+      // The retry loop stays stopped even well past its retry intervals.
+      await act(async () => {
+        await page.clock.fastForward(20000)
+      }, 'no-requests')
+
+      expect(getRequestCount()).toBeLessThan(5)
+      expect(getRuntimeRequestCount()).toBe(1)
+    } finally {
+      restore()
     }
-
-    // The initial prefetch plus a small, fixed number of retries — never a
-    // runaway loop.
-    expect(getRequestCount()).toBeLessThan(5)
-    // The link asks for more than the shell, so once the retries give up, it
-    // sends one runtime request instead.
-    expect(getRuntimeRequestCount()).toBe(1)
   })
 
   it('sends a runtime prefetch right away when a static prefetch fails', async () => {
@@ -226,61 +241,57 @@ describe('segment cache prefetch fallback retry', () => {
  * Returns getters for the number of intercepted segment-bundle requests, and
  * the number of runtime prefetches for the same page.
  */
-async function simulateNeverUpgradingIsrEntries(
+function simulateNeverUpgradingIsrEntries(
   page: Playwright.Page,
   pathname: string
-): Promise<{
+): {
   getRequestCount: () => number
   getRuntimeRequestCount: () => number
-}> {
-  const cachedResponses = new Map<
-    string,
-    { body: Buffer; headers: Record<string, string>; status: number }
-  >()
+  restore: () => void
+} {
+  const cachedResponses = new Map<string, Promise<Playwright.APIResponse>>()
   let requestCount = 0
   let runtimeRequestCount = 0
-  await page.route('**/*', async (route) => {
-    const request = route.request()
-    const headers = request.headers()
-    const segmentKey = headers['next-router-segment-prefetch']
-    if (
-      headers['next-router-prefetch'] === '2' &&
-      new URL(request.url()).pathname === pathname
-    ) {
-      runtimeRequestCount++
-    }
-    const isSegmentBundlePrefetch =
-      headers['next-router-prefetch'] !== undefined &&
-      segmentKey !== undefined &&
-      // The route-tree request (`/_tree`) is not a segment bundle.
-      segmentKey !== '/_tree' &&
-      new URL(request.url()).pathname === pathname
-    if (!isSegmentBundlePrefetch) {
-      route.continue()
-      return
-    }
-
-    requestCount++
-    let cached = cachedResponses.get(segmentKey)
-    if (cached === undefined) {
-      // First request for this segment: capture the real (fallback) response.
-      // Mirrors router-act's internal fetch pattern.
-      const original = await page.request.fetch(request, { maxRedirects: 0 })
-      const responseHeaders = original.headers()
-      // Buffered replay doesn't stream; drop the chunked-encoding header to
-      // avoid net::ERR_INCOMPLETE_CHUNKED_ENCODING (see router-act).
-      delete responseHeaders['transfer-encoding']
-      cached = {
-        body: await original.body(),
-        headers: responseHeaders,
-        status: original.status(),
+  const fetch = page.request.fetch.bind(page.request)
+  // Replay at router-act's forwarding layer so it can still intercept, await,
+  // and fulfill every browser request. A separate page.route handler would
+  // bypass either router-act or this replay, depending on handler order.
+  const fetchSpy = jest
+    .spyOn(page.request, 'fetch')
+    .mockImplementation((request, options) => {
+      if (typeof request === 'string') {
+        return fetch(request, options)
       }
-      cachedResponses.set(segmentKey, cached)
-    }
-    await route.fulfill(cached)
-  })
+      const headers = request.headers()
+      const segmentKey = headers['next-router-segment-prefetch']
+      if (
+        headers['next-router-prefetch'] === '2' &&
+        new URL(request.url()).pathname === pathname
+      ) {
+        runtimeRequestCount++
+      }
+      const isSegmentBundlePrefetch =
+        headers['next-router-prefetch'] !== undefined &&
+        segmentKey !== undefined &&
+        // The route-tree request (`/_tree`) is not a segment bundle.
+        segmentKey !== '/_tree' &&
+        new URL(request.url()).pathname === pathname
+      if (!isSegmentBundlePrefetch) {
+        return fetch(request, options)
+      }
+
+      requestCount++
+      let cached = cachedResponses.get(segmentKey)
+      if (cached === undefined) {
+        // First request for this segment: capture the real (fallback) response.
+        cached = fetch(request, options)
+        cachedResponses.set(segmentKey, cached)
+      }
+      return cached
+    })
   return {
     getRequestCount: () => requestCount,
     getRuntimeRequestCount: () => runtimeRequestCount,
+    restore: () => fetchSpy.mockRestore(),
   }
 }
