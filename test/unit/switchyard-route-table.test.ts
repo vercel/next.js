@@ -101,7 +101,6 @@ describe('switchyard-route-table', () => {
       ['rewrites', { afterFilesRewrites: [{}] }],
       ['trailingSlash', { trailingSlash: true }],
       ['redirects', { redirects: [{ internal: true }, {}] }],
-      ['basePath', { basePath: '/shop' }],
       ['compress', { compress: true }],
       [
         'unsupported route pattern /feed/(.)[id]',

@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/textproto"
+	"strings"
 )
 
 // Version is the route table format this package reads.
@@ -24,13 +25,14 @@ const Version = 1
 type Table struct {
 	// Why the app gets no direct routes; empty when it does.
 	reason         string
+	basePath       string
 	maxHeaderBytes int
 	nodePrefixes   []string
 	// Request headers (canonical names) whose presence sends a request to
 	// Node, because a rule Node runs before routing reads them.
 	nodeHeaders []string
-	// Exact paths that Node answers: public files, app and pages routes that
-	// aren't route.go.
+	// Exact paths (basePath removed) that Node answers: public files, app
+	// and pages routes that aren't route.go.
 	nodeExact map[string]struct{}
 	// Exact paths answered by a static route.go, to its route id.
 	goExact map[string]string
@@ -64,6 +66,7 @@ type tableJSON struct {
 		Version int `json:"version"`
 	} `json:"contract"`
 	Reason         string            `json:"reason"`
+	BasePath       string            `json:"basePath"`
 	MaxHeaderBytes int               `json:"maxHeaderBytes"`
 	NodePrefixes   []string          `json:"nodePrefixes"`
 	NodeHeaders    []string          `json:"nodeRequestHeaders"`
@@ -88,10 +91,14 @@ func Load(data []byte) (*Table, error) {
 	if raw.Reason != "" {
 		return &Table{reason: raw.Reason}, nil
 	}
+	if raw.BasePath != "" && (!strings.HasPrefix(raw.BasePath, "/") || strings.HasSuffix(raw.BasePath, "/")) {
+		return nil, fmt.Errorf("route table: invalid basePath %q", raw.BasePath)
+	}
 	if raw.MaxHeaderBytes <= 0 {
 		return nil, fmt.Errorf("route table: maxHeaderBytes must be positive")
 	}
 	t := &Table{
+		basePath:       raw.BasePath,
 		maxHeaderBytes: raw.MaxHeaderBytes,
 		nodePrefixes:   raw.NodePrefixes,
 		nodeHeaders:    make([]string, len(raw.NodeHeaders)),

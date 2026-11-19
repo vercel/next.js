@@ -176,11 +176,19 @@ func isDigits(s string) bool {
 	return s != ""
 }
 
-// logicalPath checks the path and returns it and its segments, or why the
-// request goes to Node.
+// logicalPath checks the path and returns it and its segments with the
+// basePath removed, or why the request goes to Node.
 func (t *Table) logicalPath(path string) (string, []string, string) {
 	if !strings.HasPrefix(path, "/") {
 		return "", nil, "target not in origin form"
+	}
+	if t.basePath != "" {
+		rest, ok := strings.CutPrefix(path, t.basePath)
+		// Node sends the basePath root to the worker as "basePath/".
+		if !ok || !strings.HasPrefix(rest, "/") || rest == "/" {
+			return "", nil, "outside basePath or its root"
+		}
+		path = rest
 	}
 	for _, prefix := range t.nodePrefixes {
 		if strings.HasPrefix(path, prefix) {
