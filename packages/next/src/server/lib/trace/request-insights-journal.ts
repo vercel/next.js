@@ -3,6 +3,9 @@ import { stat } from 'fs/promises'
 import { RotatingFile } from '../../../lib/rotating-file'
 import path from 'path'
 import { createInterface } from 'readline'
+import { pipeline } from 'stream/promises'
+import { promisify } from 'util'
+import { createGunzip, gzip } from 'zlib'
 import {
   getRequestInsightKey,
   getRequestInsightKind,
@@ -24,7 +27,8 @@ import {
 
 const JOURNAL_SIZE_LIMIT = 50 * 1024 * 1024
 const JOURNAL_WRITE_BATCH_BYTES = 64 * 1024
-const JOURNAL_FILENAME = 'request-insights.ndjson'
+const JOURNAL_FILENAME = 'request-insights.ndjson.gz'
+const compress = promisify(gzip)
 const REQUEST_INSIGHTS_JOURNAL_KEY = Symbol.for(
   `@next/request-insights-journal@${process.env.__NEXT_VERSION}`
 )
@@ -56,7 +60,6 @@ type IndexedSummary = {
 
 type PendingAppend = {
   line: string
-  byteLength: number
   key: string
   summary: RequestInsightSummary
 }
@@ -119,31 +122,31 @@ class RequestInsightsJournal {
           }
         })
     }
-    batch.records.push({ line, byteLength, key, summary })
+    batch.records.push({ line, key, summary })
     batch.byteLength += byteLength
   }
 
   private async appendRequests(records: PendingAppend[]): Promise<void> {
+    // Complete gzip members can be appended and read before the journal closes.
+    // Encode each record once so truncation uses its actual stored byte length.
+    const chunks = await Promise.all(records.map(({ line }) => compress(line)))
     let index = 0
     while (index < records.length) {
       if (
         this.writer.size > 0 &&
-        this.writer.wouldExceed(records[index].byteLength)
+        this.writer.wouldExceed(chunks[index].length)
       ) {
         this.rotate()
       }
       const start = index
       let byteLength = 0
-      let lines = ''
       do {
-        const record = records[index++]
-        lines += record.line
-        byteLength += record.byteLength
+        byteLength += chunks[index++].length
       } while (
         index < records.length &&
-        !this.writer.wouldExceed(byteLength + records[index].byteLength)
+        !this.writer.wouldExceed(byteLength + chunks[index].length)
       )
-      this.writer.write(Buffer.from(lines, 'utf8'))
+      this.writer.write(Buffer.concat(chunks.slice(start, index), byteLength))
       for (let i = start; i < index; i++) {
         const record = records[i]
         this.summaries.set(record.key, {
@@ -212,7 +215,9 @@ class RequestInsightsJournal {
           spans: span ? [span] : [],
           fetches: fetch ? [fetch] : [],
         })
-        let line = `${JSON.stringify({ version: 2, request: metadata, span, fetch } satisfies JournalRecord)}\n`
+        let data = await compress(
+          `${JSON.stringify({ version: 2, request: metadata, span, fetch } satisfies JournalRecord)}\n`
+        )
         let updatedSummary: RequestInsightSummary = {
           ...summary,
           spanCount: spanCount ?? (previous?.spanCount ?? 0) + (span ? 1 : 0),
@@ -246,10 +251,7 @@ class RequestInsightsJournal {
           updatedSummary.statusCode = canonicalSummary.statusCode
           updatedSummary.isRsc = canonicalSummary.isRsc
         }
-        if (
-          !previous ||
-          this.writer.wouldExceed(Buffer.byteLength(line, 'utf8'))
-        ) {
+        if (!previous || this.writer.wouldExceed(data.length)) {
           let fullRequest: RequestInsight
           if (snapshot) {
             fullRequest = {
@@ -264,14 +266,15 @@ class RequestInsightsJournal {
             if (span) fullRequest.spans.push(span)
             if (fetch) fullRequest.fetches.push(fetch)
           }
-          line = `${JSON.stringify({ version: 1, request: fullRequest } satisfies JournalRecord)}\n`
+          data = await compress(
+            `${JSON.stringify({ version: 1, request: fullRequest } satisfies JournalRecord)}\n`
+          )
           updatedSummary = summarizeRequestInsight(fullRequest)
         }
-        const byteLength = Buffer.byteLength(line, 'utf8')
-        if (this.writer.size > 0 && this.writer.wouldExceed(byteLength)) {
+        if (this.writer.size > 0 && this.writer.wouldExceed(data.length)) {
           this.rotate()
         }
-        this.writer.write(Buffer.from(line, 'utf8'))
+        this.writer.write(data)
         this.summaries.set(key, {
           sequence: this.summaries.get(key)?.sequence ?? ++this.sequence,
           request: updatedSummary,
@@ -459,41 +462,42 @@ async function readJournalFile(
   if (filter.limit !== undefined && filter.limit <= 0) return []
   const matches = new Map<string, RequestInsight>()
   try {
-    const lines = createInterface({
-      input: createReadStream(file, { encoding: 'utf8' }),
-      crlfDelay: Infinity,
+    // Initialization leaves an empty file until the first completed record.
+    if ((await stat(file)).size === 0) return []
+    const input = createGunzip()
+    await pipeline(createReadStream(file), input, async () => {
+      const lines = createInterface({ input, crlfDelay: Infinity })
+      for await (const line of lines) {
+        const record = parseJournalLine(line)
+        if (!record) continue
+        const request = record.request
+        if (
+          (filter.requestId !== undefined &&
+            request.requestId !== filter.requestId) ||
+          (filter.htmlRequestId !== undefined &&
+            request.htmlRequestId !== filter.htmlRequestId) ||
+          (filter.kind !== undefined &&
+            getRequestInsightKind(request) !== filter.kind)
+        ) {
+          continue
+        }
+
+        const key = getRequestInsightKey(request)
+        if (record.version === 1) {
+          matches.set(key, record.request)
+          if (filter.limit !== undefined && matches.size > filter.limit) {
+            matches.delete(matches.keys().next().value!)
+          }
+        } else {
+          const stored = matches.get(key)
+          if (stored) {
+            Object.assign(stored, request)
+            if (record.span) stored.spans.push(record.span)
+            if (record.fetch) stored.fetches.push(record.fetch)
+          }
+        }
+      }
     })
-
-    for await (const line of lines) {
-      const record = parseJournalLine(line)
-      if (!record) continue
-      const request = record.request
-      if (
-        (filter.requestId !== undefined &&
-          request.requestId !== filter.requestId) ||
-        (filter.htmlRequestId !== undefined &&
-          request.htmlRequestId !== filter.htmlRequestId) ||
-        (filter.kind !== undefined &&
-          getRequestInsightKind(request) !== filter.kind)
-      ) {
-        continue
-      }
-
-      const key = getRequestInsightKey(request)
-      if (record.version === 1) {
-        matches.set(key, record.request)
-        if (filter.limit !== undefined && matches.size > filter.limit) {
-          matches.delete(matches.keys().next().value!)
-        }
-      } else {
-        const stored = matches.get(key)
-        if (stored) {
-          Object.assign(stored, request)
-          if (record.span) stored.spans.push(record.span)
-          if (record.fetch) stored.fetches.push(record.fetch)
-        }
-      }
-    }
   } catch (error: any) {
     if (error.code !== 'ENOENT') {
       console.warn('Failed to read Request Insights journal', error)

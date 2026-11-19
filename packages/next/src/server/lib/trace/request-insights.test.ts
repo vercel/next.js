@@ -28,7 +28,17 @@ import {
   resolveRequestInsightsIdentity,
   runWithRequestInsightsIdentity,
 } from './request-insights-identity'
-import { mkdtemp, readFile, rm } from 'fs/promises'
+import {
+  appendFile,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  stat as fileStat,
+  writeFile,
+} from 'fs/promises'
+import { randomBytes } from 'crypto'
+import { gunzipSync, gzipSync } from 'zlib'
 import { tmpdir } from 'os'
 import path from 'path'
 import { MAX_LIVE_COMPLETED_REQUEST_INSIGHTS } from '../../../shared/lib/request-insights'
@@ -583,9 +593,21 @@ describe('request insights', () => {
     })
 
     clearRequestInsightsForTest()
-    expect(
-      await readRequestInsightsJournal(distDir, { requestId: 'journaled' })
-    ).toEqual([
+    const persisted = await readRequestInsightsJournal(distDir, {
+      requestId: 'journaled',
+    })
+    const compressed = await readFile(
+      path.join(distDir, 'request-insights.ndjson.gz')
+    )
+    expect(await readdir(distDir)).toEqual(['request-insights.ndjson.gz'])
+    expect(compressed.subarray(0, 2).toString('hex')).toBe('1f8b')
+    expect(JSON.parse(gunzipSync(compressed).toString('utf8')).request).toEqual(
+      persisted[0]
+    )
+    await expect(
+      readFile(path.join(distDir, 'request-insights.ndjson'))
+    ).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(persisted).toEqual([
       expect.objectContaining({
         requestId: 'journaled',
         htmlRequestId: 'document',
@@ -738,7 +760,7 @@ describe('request insights', () => {
 
         const fs = require('fs/promises') as typeof import('fs/promises')
         const currentStat = await fs.stat(
-          path.join(distDir, 'request-insights.ndjson')
+          path.join(distDir, 'request-insights.ndjson.gz')
         )
         const stat = jest.spyOn(fs, 'stat')
         stat.mockResolvedValueOnce({ ...currentStat, size: 50 * 1024 * 1024 })
@@ -799,6 +821,17 @@ describe('request insights', () => {
       (await getRequestInsightsHistory(distDir)).requests[0].spanCount
     ).toBe(11)
     expect(serialize).not.toHaveBeenCalled()
+    const records = gunzipSync(
+      await readFile(path.join(distDir, 'request-insights.ndjson.gz'))
+    )
+      .toString('utf8')
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line))
+    expect(records.map((record) => record.version)).toEqual([
+      1,
+      ...Array(10).fill(2),
+    ])
     await resetRequestInsightsJournalForTest()
     await rm(distDir, { recursive: true, force: true })
   })
@@ -823,9 +856,10 @@ describe('request insights', () => {
       completeRequestInsight({ requestId: 'last' })
       await closeRequestInsightsJournal()
 
-      const records = (
-        await readFile(path.join(distDir, 'request-insights.ndjson'), 'utf8')
+      const records = gunzipSync(
+        await readFile(path.join(distDir, 'request-insights.ndjson.gz'))
       )
+        .toString('utf8')
         .trim()
         .split('\n')
         .map((line) => JSON.parse(line))
@@ -853,16 +887,16 @@ describe('request insights', () => {
       ...request,
       requestId,
     }))
-    const firstLineBytes = Buffer.byteLength(
+    const firstLineBytes = gzipSync(
       JSON.stringify({ version: 1, request: records[0] }) + '\n'
-    )
+    ).length
     const distDir = await mkdtemp(
       path.join(tmpdir(), 'request-insights-batch-')
     )
     const fs = require('fs/promises') as typeof import('fs/promises')
     await initializeRequestInsightsJournal(distDir)
     const currentStat = await fs.stat(
-      path.join(distDir, 'request-insights.ndjson')
+      path.join(distDir, 'request-insights.ndjson.gz')
     )
     const stat = jest.spyOn(fs, 'stat').mockResolvedValueOnce({
       ...currentStat,
@@ -891,6 +925,109 @@ describe('request insights', () => {
     }
   })
 
+  it('uses actual compressed file size when reopening and truncating', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    startRequestInsight({ requestId: 'seed' })
+    recordSpan({ name: 'render', requestId: 'seed' })
+    const request = getRequestInsightsSnapshot().requests[0]
+    const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+    const file = path.join(distDir, 'request-insights.ndjson.gz')
+    const sizeLimit = 50 * 1024 * 1024
+    try {
+      await initializeRequestInsightsJournal(distDir)
+      // Valid gzip/NDJSON padding, streamed in bounded chunks. Leave less room
+      // than the raw request takes, but more than its compressed representation.
+      const padding = gzipSync(
+        JSON.stringify({ padding: ' '.repeat(64 * 1024) }) + '\n',
+        { level: 0 }
+      )
+      const paddingCount = Math.floor((sizeLimit - 256 * 1024) / padding.length)
+      for (let i = 0; i < paddingCount; i++) await appendFile(file, padding)
+      const initialSize = (await fileStat(file)).size
+      await configureRequestInsightsJournal(distDir)
+      for (const requestId of ['compressible-one', 'compressible-two']) {
+        appendRequestInsightToJournal({
+          ...request,
+          requestId,
+          spans: [
+            {
+              ...request.spans[0],
+              attributes: { padding: 'x'.repeat(512 * 1024) },
+            },
+          ],
+        })
+      }
+      const firstPage = await getRequestInsightsHistory(distDir, { limit: 1 })
+      expect(firstPage.truncated).toBe(false)
+      expect(firstPage.nextCursor).toBeDefined()
+      const storedSize = (await fileStat(file)).size
+      expect(storedSize).toBeGreaterThan(initialSize)
+      expect(storedSize).toBeLessThan(sizeLimit)
+      expect(
+        (await readRequestInsightsJournal(distDir)).map(
+          (entry) => entry.requestId
+        )
+      ).toEqual(['compressible-one', 'compressible-two'])
+
+      const incompressible = {
+        ...request,
+        requestId: 'incompressible',
+        spans: [
+          {
+            ...request.spans[0],
+            attributes: { padding: randomBytes(512 * 1024).toString('base64') },
+          },
+        ],
+      }
+      const encodedLength = gzipSync(
+        JSON.stringify({ version: 1, request: incompressible }) + '\n'
+      ).length
+      expect(storedSize + encodedLength).toBeGreaterThan(sizeLimit)
+      appendRequestInsightToJournal(incompressible)
+      const history = await getRequestInsightsHistory(distDir)
+      expect(history.truncated).toBe(true)
+      expect(history.requests.map((entry) => entry.requestId)).toEqual([
+        'incompressible',
+      ])
+      expect((await fileStat(file)).size).toBe(encodedLength)
+      expect(
+        (await readRequestInsightsJournal(distDir)).map(
+          (entry) => entry.requestId
+        )
+      ).toEqual(['incompressible'])
+      await expect(
+        getRequestInsightsHistory(distDir, { cursor: firstPage.nextCursor })
+      ).rejects.toBeInstanceOf(StaleRequestInsightsHistoryCursorError)
+    } finally {
+      await resetRequestInsightsJournalForTest()
+      await rm(distDir, { recursive: true, force: true })
+    }
+  })
+
+  it('handles missing, empty and damaged gzip journals without rejecting reads', async () => {
+    const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+    const file = path.join(distDir, 'request-insights.ndjson.gz')
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      await expect(readRequestInsightsJournal(distDir)).resolves.toEqual([])
+      await writeFile(file, '')
+      await expect(readRequestInsightsJournal(distDir)).resolves.toEqual([])
+      expect(warn).not.toHaveBeenCalled()
+      for (const data of [
+        Buffer.from('not gzip'),
+        gzipSync('not a record\n').subarray(0, -4),
+      ]) {
+        await writeFile(file, data)
+        await expect(readRequestInsightsJournal(distDir)).resolves.toEqual([])
+      }
+      expect(warn).toHaveBeenCalledTimes(2)
+    } finally {
+      warn.mockRestore()
+      await resetRequestInsightsJournalForTest()
+      await rm(distDir, { recursive: true, force: true })
+    }
+  })
+
   it.each([false, true])(
     'keeps a complete request when a late update rotates the journal, archived: %s',
     async (archive) => {
@@ -906,7 +1043,7 @@ describe('request insights', () => {
 
       const fs = require('fs/promises') as typeof import('fs/promises')
       const currentStat = await fs.stat(
-        path.join(distDir, 'request-insights.ndjson')
+        path.join(distDir, 'request-insights.ndjson.gz')
       )
       const stat = jest.spyOn(fs, 'stat')
       stat.mockResolvedValueOnce({ ...currentStat, size: 50 * 1024 * 1024 })
@@ -977,7 +1114,7 @@ describe('request insights', () => {
     await initializeRequestInsightsJournal(distDir)
     configureJournalProvider(distDir)
     // The bundler cleans its output after journal initialization.
-    await rm(path.join(distDir, 'request-insights.ndjson'))
+    await rm(path.join(distDir, 'request-insights.ndjson.gz'))
 
     recordSpan({
       name: 'GET /history',
@@ -993,7 +1130,9 @@ describe('request insights', () => {
       })
     )
     expect(
-      await readFile(path.join(distDir, 'request-insights.ndjson'), 'utf8')
+      gunzipSync(
+        await readFile(path.join(distDir, 'request-insights.ndjson.gz'))
+      ).toString('utf8')
     ).toContain('"requestId":"history"')
 
     await initializeRequestInsightsJournal(distDir)
