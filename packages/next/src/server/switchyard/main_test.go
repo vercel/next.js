@@ -1122,12 +1122,19 @@ func TestKeepsTheConnectionOpenAfterACompleteUpload(t *testing.T) {
 // would still be open when the test looks.
 func startCountingProxy(t *testing.T, upstreamIdle time.Duration) (string, func() int, <-chan received) {
 	t.Helper()
+	return startCountingProxyWith(t, upstreamIdle, func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, "ok")
+	})
+}
+
+func startCountingProxyWith(t *testing.T, upstreamIdle time.Duration, handler http.HandlerFunc) (string, func() int, <-chan received) {
+	t.Helper()
 	var mu sync.Mutex
 	open := 0
 	seen := make(chan received, 64)
 	upstream := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		seen <- received{requestURI: r.RequestURI, remoteAddr: r.RemoteAddr, host: r.Host, header: nil}
-		io.WriteString(w, "ok")
+		handler(w, r)
 	}))
 	upstream.Config.ConnState = func(_ net.Conn, state http.ConnState) {
 		mu.Lock()
@@ -1298,5 +1305,98 @@ func TestFreesSlotsWhenConnectionsToNodeIdleOut(t *testing.T) {
 	first, second := get(conn, reader), get(conn, reader)
 	if first != second {
 		t.Errorf("third client's requests reached Node from %s and %s, want one kept connection", first, second)
+	}
+}
+
+// Clients that open connections to Node at the same moment can't keep more
+// of them between requests than there are slots.
+func TestCapsConnectionsToNodeDialedAtOnce(t *testing.T) {
+	previous := maxKeptUpstreams
+	maxKeptUpstreams = 2
+	t.Cleanup(func() { maxKeptUpstreams = previous })
+	addr, openToNode, _ := startCountingProxyWith(t, time.Minute, func(w http.ResponseWriter, r *http.Request) {
+		// Hold every request long enough that all ten dial before any ends.
+		time.Sleep(200 * time.Millisecond)
+		io.WriteString(w, "ok")
+	})
+	var wg sync.WaitGroup
+	conns := make([]net.Conn, 10)
+	for i := range conns {
+		conn, err := net.Dial("tcp", addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		conns[i] = conn
+		t.Cleanup(func() { conn.Close() })
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			io.WriteString(conn, "GET / HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
+			if res, err := http.ReadResponse(bufio.NewReader(conn), nil); err == nil {
+				io.Copy(io.Discard, res.Body)
+			}
+		}()
+	}
+	wg.Wait()
+	deadline := time.Now().Add(2 * time.Second)
+	for openToNode() > 2 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if n := openToNode(); n > 2 {
+		t.Errorf("%d connections to Node kept after 10 simultaneous requests, want at most 2", n)
+	}
+}
+
+// A connection to Node that has been upgraded (to a WebSocket, say) leaves
+// HTTP, so it gives its slot back while the tunnel stays open.
+func TestUpgradedConnectionsGiveTheirSlotBack(t *testing.T) {
+	previous := maxKeptUpstreams
+	maxKeptUpstreams = 1
+	t.Cleanup(func() { maxKeptUpstreams = previous })
+	tunnelDone := make(chan struct{})
+	t.Cleanup(func() { close(tunnelDone) })
+	addr, _, seen := startCountingProxyWith(t, time.Minute, func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Upgrade") == "" {
+			io.WriteString(w, "ok")
+			return
+		}
+		conn, buf, _ := w.(http.Hijacker).Hijack()
+		defer conn.Close()
+		io.WriteString(buf, "HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n")
+		buf.Flush()
+		<-tunnelDone
+	})
+
+	tunnel, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tunnel.Close()
+	io.WriteString(tunnel, "GET /socket HTTP/1.1\r\nHost: shop.example.com\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n")
+	res, err := http.ReadResponse(bufio.NewReader(tunnel), nil)
+	if err != nil || res.StatusCode != http.StatusSwitchingProtocols {
+		t.Fatalf("upgrade: %v %v", res, err)
+	}
+	<-seen
+
+	// With the tunnel still open, another client can keep its connection.
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	reader := bufio.NewReader(conn)
+	var peers []string
+	for i := 0; i < 2; i++ {
+		io.WriteString(conn, "GET / HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
+		res, err := http.ReadResponse(reader, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		io.Copy(io.Discard, res.Body)
+		peers = append(peers, (<-seen).remoteAddr)
+	}
+	if peers[0] != peers[1] {
+		t.Errorf("requests reached Node from %v while a tunnel was open, want one kept connection", peers)
 	}
 }

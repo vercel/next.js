@@ -27,6 +27,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/http/httptrace"
 	"net/http/httputil"
 	"os"
 	"os/signal"
@@ -452,10 +453,12 @@ type clientUpstreamKey struct{}
 // it.
 var maxKeptUpstreams int64 = 512
 
-// keptUpstreams counts the connections to Node that are open and allowed to
-// stay open between requests. A connection takes a slot when it is opened and
-// gives it back when it closes, whether its client left, it sat idle too
-// long, or Node closed it, so the count always matches real connections.
+// keptUpstreams counts the connections to Node that may stay open for reuse
+// between requests. A connection takes a slot when it is opened, if one is
+// free, and gives it back when it closes (its client left, it sat idle too
+// long, or Node closed it) or when it leaves HTTP for an upgrade. A connection
+// without a slot is closed as soon as the transport would park it as idle, so
+// at most limit connections to Node are ever kept between requests.
 type keptUpstreams struct {
 	count atomic.Int64
 	limit int64
@@ -469,20 +472,32 @@ func (k *keptUpstreams) take() bool {
 	return false
 }
 
-func (k *keptUpstreams) release() { k.count.Add(-1) }
-
-func (k *keptUpstreams) full() bool { return k.count.Load() >= k.limit }
-
-// keptConn is a connection to Node holding a slot in keptUpstreams. Close
-// gives the slot back once, however many times the transport calls it.
+// keptConn is a connection to Node. slotted reports whether it still holds a
+// slot; release gives the slot back once, however often it is called.
 type keptConn struct {
 	net.Conn
+	kept    *keptUpstreams
 	once    sync.Once
-	release func()
+	slotted atomic.Bool
+}
+
+func newKeptConn(conn net.Conn, kept *keptUpstreams) *keptConn {
+	c := &keptConn{Conn: conn, kept: kept, once: sync.Once{}, slotted: atomic.Bool{}}
+	c.slotted.Store(kept.take())
+	return c
+}
+
+func (c *keptConn) release() {
+	if c.slotted.Load() {
+		c.once.Do(func() {
+			c.slotted.Store(false)
+			c.kept.count.Add(-1)
+		})
+	}
 }
 
 func (c *keptConn) Close() error {
-	c.once.Do(c.release)
+	c.release()
 	return c.Conn.Close()
 }
 
@@ -495,20 +510,18 @@ func (c *keptConn) Close() error {
 type clientUpstream struct {
 	mu        sync.Mutex
 	transport *http.Transport
-	// Whether this client has a connection to Node holding a slot.
-	kept atomic.Bool
 }
 
 func newClientUpstream() *clientUpstream {
-	return &clientUpstream{mu: sync.Mutex{}, transport: nil, kept: atomic.Bool{}}
+	return &clientUpstream{mu: sync.Mutex{}, transport: nil}
 }
 
 // get returns the client's transport, creating it on first use.
-func (u *clientUpstream) get(newTransport func(*clientUpstream) *http.Transport) *http.Transport {
+func (u *clientUpstream) get(newTransport func() *http.Transport) *http.Transport {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	if u.transport == nil {
-		u.transport = newTransport(u)
+		u.transport = newTransport()
 	}
 	return u.transport
 }
@@ -530,45 +543,53 @@ func (u *clientUpstream) close() {
 // through newServer.
 type clientTransport struct {
 	shared       *http.Transport
-	newTransport func(*clientUpstream) *http.Transport
-	kept         *keptUpstreams
+	newTransport func() *http.Transport
 }
 
 func newClientTransport(upstream string, upstreamIdle time.Duration) clientTransport {
 	kept := &keptUpstreams{count: atomic.Int64{}, limit: maxKeptUpstreams}
 	return clientTransport{
 		shared: newUpstreamTransport(upstream, upstreamIdle, int(maxKeptUpstreams), nil),
-		newTransport: func(u *clientUpstream) *http.Transport {
+		newTransport: func() *http.Transport {
 			return newUpstreamTransport(upstream, upstreamIdle, 1, func(conn net.Conn) net.Conn {
-				if !kept.take() {
-					return conn
-				}
-				u.kept.Store(true)
-				return &keptConn{Conn: conn, once: sync.Once{}, release: func() {
-					kept.release()
-					u.kept.Store(false)
-				}}
+				return newKeptConn(conn, kept)
 			})
 		},
-		kept: kept,
 	}
 }
 
 func (t clientTransport) RoundTrip(r *http.Request) (*http.Response, error) {
-	if u, ok := r.Context().Value(clientUpstreamKey{}).(*clientUpstream); ok {
-		// When this client has no connection to Node holding a slot and all
-		// slots are taken, its connection to Node ends with the response.
-		// The request to Node is the proxy's own copy, so this doesn't change
-		// what the client is told about its own connection. Two clients
-		// dialing at once can both pass this check for the last slot; the one
-		// that loses keeps an unslotted connection until it idles out
-		// (upstreamIdle) or its client leaves.
-		if !u.kept.Load() && t.kept.full() {
-			r.Close = true
-		}
-		return u.get(t.newTransport).RoundTrip(r)
+	u, ok := r.Context().Value(clientUpstreamKey{}).(*clientUpstream)
+	if !ok {
+		return t.shared.RoundTrip(r)
 	}
-	return t.shared.RoundTrip(r)
+	transport := u.get(t.newTransport)
+	// The connection this request goes out on, and what happens to it after
+	// the response: a connection without a slot is closed when the transport
+	// parks it as idle, instead of being kept for this client's next request.
+	var conn atomic.Pointer[keptConn]
+	trace := &httptrace.ClientTrace{
+		GotConn: func(info httptrace.GotConnInfo) {
+			if c, ok := info.Conn.(*keptConn); ok {
+				conn.Store(c)
+			}
+		},
+		PutIdleConn: func(err error) {
+			if c := conn.Load(); err == nil && c != nil && !c.slotted.Load() {
+				transport.CloseIdleConnections()
+			}
+		},
+	}
+	res, err := transport.RoundTrip(r.WithContext(httptrace.WithClientTrace(r.Context(), trace)))
+	if err == nil && res.StatusCode == http.StatusSwitchingProtocols {
+		// The connection now carries the upgraded protocol, such as a
+		// WebSocket, and is never reused for HTTP, so its slot goes back. The
+		// connection itself stays open until the tunnel ends.
+		if c := conn.Load(); c != nil {
+			c.release()
+		}
+	}
+	return res, err
 }
 
 // keepRequestTarget makes the outgoing request line carry the target exactly
