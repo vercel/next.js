@@ -1344,7 +1344,7 @@ export function Errors({
           }
           headerChildren={
             <InstantHeaderExplanation
-              explanation="This value would be evaluated during the prerender, instead of recomputed on each visit."
+              explanation="Client Components also render on the server. This read interrupted prerendering. A Suspense boundary provides a fallback, but does not make the component browser-only or preserve its value for hydration."
               docsUrl={SYNC_IO_CLIENT_DOCS[errorDetails.cause]}
             />
           }

@@ -124,10 +124,10 @@ describe('build-output-prerender', () => {
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
            "Error: Route "/client": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-           This value would be evaluated during the prerender, instead of recomputed on each visit.
+           Client Components also render on the server. This read interrupted prerendering. A Suspense boundary provides a fallback, but does not make the component browser-only or preserve its value for hydration.
 
            Ways to fix this:
-             - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+             - [client] For browser-only values, call \`use(browser())\` before the read and wrap the component in \`<Suspense>\`
              - [defer] Move the read into a \`useEffect\` or event handler
              - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
@@ -149,10 +149,10 @@ describe('build-output-prerender', () => {
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
            "Error: Route "/client": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-           This value would be evaluated during the prerender, instead of recomputed on each visit.
+           Client Components also render on the server. This read interrupted prerendering. A Suspense boundary provides a fallback, but does not make the component browser-only or preserve its value for hydration.
 
            Ways to fix this:
-             - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+             - [client] For browser-only values, call \`use(browser())\` before the read and wrap the component in \`<Suspense>\`
              - [defer] Move the read into a \`useEffect\` or event handler
              - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
@@ -316,10 +316,10 @@ describe('build-output-prerender', () => {
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
            "Error: Route "/client": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-           This value would be evaluated during the prerender, instead of recomputed on each visit.
+           Client Components also render on the server. This read interrupted prerendering. A Suspense boundary provides a fallback, but does not make the component browser-only or preserve its value for hydration.
 
            Ways to fix this:
-             - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+             - [client] For browser-only values, call \`use(browser())\` before the read and wrap the component in \`<Suspense>\`
              - [defer] Move the read into a \`useEffect\` or event handler
              - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
@@ -340,7 +340,7 @@ describe('build-output-prerender', () => {
            Ways to fix this:
              - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
              - [cache] Prerender and cache the value with \`"use cache"\`
-             - [client] Render the value on the client with \`"use client"\`
+             - [client] For browser-only values, use \`"use client"\` and \`use(browser())\` inside a parent \`<Suspense>\`
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                at Page (app/server/page.tsx:13:27)
@@ -363,10 +363,10 @@ describe('build-output-prerender', () => {
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
            "Error: Route "/client": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-           This value would be evaluated during the prerender, instead of recomputed on each visit.
+           Client Components also render on the server. This read interrupted prerendering. A Suspense boundary provides a fallback, but does not make the component browser-only or preserve its value for hydration.
 
            Ways to fix this:
-             - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+             - [client] For browser-only values, call \`use(browser())\` before the read and wrap the component in \`<Suspense>\`
              - [defer] Move the read into a \`useEffect\` or event handler
              - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
@@ -388,7 +388,7 @@ describe('build-output-prerender', () => {
            Ways to fix this:
              - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
              - [cache] Prerender and cache the value with \`"use cache"\`
-             - [client] Render the value on the client with \`"use client"\`
+             - [client] For browser-only values, use \`"use client"\` and \`use(browser())\` inside a parent \`<Suspense>\`
 
            Learn more: https://nextjs.org/docs/messages/blocking-prerender-random
                at Page (webpack:///app/server/page.tsx:13:27)

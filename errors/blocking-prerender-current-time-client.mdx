@@ -32,22 +32,22 @@ The Server Component case is handled at [`Date.now()` during prerendering](/docs
 
 Choose based on where the value belongs:
 
-| When you need the value                                                 | Approach                                                                                                                                 |
-| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Only in the browser, including inside a third-party widget              | [`use(browser())` inside `<Suspense>`](#render-the-value-only-in-the-browser)                                                            |
-| In server-rendered HTML and the first browser render                    | Generate it in a Server Component and pass it as a prop. [Cache it](/docs/messages/blocking-prerender-current-time) if it can be reused. |
-| Inside a library that already preserves its server result for hydration | [`use(io())` inside `<Suspense>`](#keep-a-hydration-aware-library-server-rendered)                                                       |
-| After an interaction, or while synchronizing with an external system    | [An event handler or effect](#move-into-effect-or-event-handler)                                                                         |
+| When you need the value                                                 | Approach                                                                                                    |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Only in the browser                                                     | [`use(browser())` inside `<Suspense>`](#render-only-in-the-browser)                                         |
+| In server-rendered HTML and the first browser render                    | [Generate it in a Server Component and pass it as a prop](#render-the-same-value-on-the-server-and-browser) |
+| Inside a library that already preserves its server result for hydration | [Defer the library with `use(io())`](#keep-a-hydration-aware-library-server-rendered)                       |
+| After an interaction, or while synchronizing with an external system    | [An event handler or effect](#move-into-effect-or-event-handler)                                            |
 
 <FixCardGrid>
   <FixCard
-    group="stream"
-    title="Wrap in or move into Suspense"
-    href="#wrap-in-or-move-into-suspense"
+    group="client"
+    title="Render only in the browser"
+    href="#render-only-in-the-browser"
     snippets={[
-      { text: '<Suspense fallback={…}>', highlight: true },
-      { text: '  <DateDisplay />' },
-      { text: '</Suspense>', highlight: true },
+      { text: '"use client"', highlight: true },
+      { text: 'use(browser())', highlight: true },
+      { text: 'const [time] = useState(() => Date.now())' },
     ]}
   />
   <FixCard
@@ -72,17 +72,18 @@ Choose based on where the value belongs:
   />
 </FixCardGrid>
 
-## Wrap in or move into Suspense
+<span id="wrap-in-or-move-into-suspense" />
+<span id="render-the-value-only-in-the-browser" />
 
-Choose this fix when the component can show a fallback until its content is ready. Place the boundary above the Client Component that reads the value. A boundary provides a place to show the fallback; the component must also suspend or request browser rendering. See [What activates a Suspense boundary](https://react.dev/reference/react/Suspense#what-activates-a-suspense-boundary).
+## Render only in the browser
 
-Adding the boundary can clear this error because Next.js interrupts prerendering when it detects the synchronous read. That does not prevent the read from running during a later request-time server render.
+Choose this fix when the timestamp belongs in the browser. Call [`use(browser())`](https://react.dev/reference/react-dom/browser) before the read to skip both static prerendering and request-time server rendering. React 19.3 includes `browser` from `react-dom`.
 
 ### Patterns
 
-#### Render the value only in the browser
+#### Create a browser-owned value
 
-Call [`use(browser())`](https://react.dev/reference/react-dom/browser) before the read when the timestamp belongs in the browser. This skips both static prerendering and request-time server rendering. React 19.3 includes `browser` from `react-dom`.
+Place a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary above the component that calls `use(browser())`:
 
 ```jsx filename="app/page.js"
 import { Suspense } from 'react'
@@ -105,89 +106,33 @@ import { browser } from 'react-dom'
 
 export function DateDisplay() {
   use(browser())
-  const [time] = useState(() => new Date().toLocaleTimeString())
-  return <time>{time}</time>
+  const [time] = useState(() => Date.now())
+  return <time>{new Date(time).toLocaleTimeString()}</time>
 }
 ```
 
-The state initializer runs after `use(browser())`, so the value is created in the browser and stays the same across re-renders. For a third-party widget that should only render in the browser, call `use(browser())` in a Client Component wrapper before returning the widget.
-
-#### Keep a hydration-aware library server-rendered
-
-<span id="suspend-with-useio" />
-
-Call [`use(io())`](/docs/app/api-reference/functions/io) before rendering a third-party widget when its library already supports server rendering and preserves the server result for the first browser render. This explicitly suspends during static prerendering, so the boundary's fallback becomes part of the static shell. During request-time server rendering, `io()` resolves and the widget can render on the server.
-
-For example, if `Widget` from `./widget` is a hydration-aware Client Component that reads the clock internally:
-
-```jsx filename="app/deferred-widget.js"
-'use client'
-
-import { use } from 'react'
-import { io } from 'next/cache'
-import { Widget } from './widget'
-
-export function DeferredWidget() {
-  use(io())
-  return <Widget />
-}
-```
-
-Wrap `<DeferredWidget />` in `<Suspense>` from its parent, as in the first example.
-
-The library's hydration support is required. `use(io())` does not transfer an arbitrary synchronous timestamp from the server to the browser. If a dynamic server render reaches the read, for example after [`await connection()`](/docs/app/api-reference/functions/connection) in a parent, the browser can compute a different value and cause a hydration mismatch. If you control the read and need its result in server-rendered HTML, generate the value in a Server Component and pass it to the Client Component as a prop.
+The state initializer runs after `use(browser())`, so the value is created in the browser and stays the same across re-renders. For a third-party widget, call `use(browser())` in a Client Component wrapper before returning the widget.
 
 ### Trade-off
 
-With `use(browser())`, the server sends the fallback and the component appears after JavaScript loads. With `use(io())`, the fallback appears in the static shell and the component can stream from the server. Choose a fallback that keeps the surrounding page useful and matches the final layout. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration).
+The server sends the fallback, and the component appears after JavaScript loads. For useful server-rendered fallbacks and their trade-offs, see [Rendering client-specific content](/docs/app/guides/preventing-flash-before-hydration#rendering-client-specific-content).
 
 ### Gotchas
 
-- Any UI rendered as part of the prerender shell must be deterministic, including [`<Suspense>`](https://react.dev/reference/react/Suspense) fallbacks, [`loading.js`](/docs/app/api-reference/file-conventions/loading), [`error.js`](/docs/app/api-reference/file-conventions/error), [`not-found.js`](/docs/app/api-reference/file-conventions/not-found), and [`global-error.js`](/docs/app/api-reference/file-conventions/error#global-error). Calling [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) in any of them raises this same error. Use stable placeholder content.
-- Adding `use client` or `<Suspense>` alone does not guarantee browser-only rendering. Use `use(browser())` before the read when that is the intended behavior.
-- A lazy `useState` initializer or a `useRef` does not defer a read past server rendering. The browser-only examples above work because `use(browser())` runs first.
+- Adding `use client` or `<Suspense>` alone does not guarantee browser-only rendering. See [What activates a Suspense boundary](https://react.dev/reference/react/Suspense#what-activates-a-suspense-boundary).
+- A lazy `useState` initializer or a `useRef` does not defer a read past server rendering. The example works because `use(browser())` runs first.
+- Keep fallbacks deterministic. A time or random read in a fallback can raise this error again.
 - Keep browser-only wrappers close to the widget. Wrapping a layout's `children` can prevent nested pages from rendering on the server. See [unrendered segments](/docs/messages/instant-unrendered-segment).
 
 ## Move into effect or event handler
 
-Choose this fix when the timestamp isn't needed for the first paint. Move the [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) call into [`useEffect`](https://react.dev/reference/react/useEffect) (for first-paint-after-mount values) or an event handler (for interaction values). The initial render uses a deterministic placeholder, so SSR and hydration agree.
+Choose this fix when an interaction produces the timestamp, or an effect synchronizes with an external system such as a running timer.
 
 ### Patterns
 
-#### Use `useEffect` to initialize after mount
-
-For displays that should update over time (a relative-time label, a stopwatch). Initialize state to a deterministic placeholder, then assign the real value in [`useEffect`](https://react.dev/reference/react/useEffect).
-
-```jsx filename="app/clock.js"
-'use client'
-
-import { startTransition, useEffect, useState } from 'react'
-
-export function Clock() {
-  const [now, setNow] = useState(null)
-  useEffect(() => {
-    // Wrap in startTransition so that if any component below suspends
-    // during this update, React keeps the existing UI visible instead
-    // of flashing the nearest outer <Suspense> fallback.
-    startTransition(() => {
-      setNow(Date.now())
-    })
-    const id = setInterval(() => {
-      startTransition(() => {
-        setNow(Date.now())
-      })
-    }, 1000)
-    return () => clearInterval(id)
-  }, [])
-  return <time>{now ? new Date(now).toLocaleTimeString() : '…'}</time>
-}
-```
-
-Learn more: [`useEffect`](https://react.dev/reference/react/useEffect).
-
 #### Compute on user interaction
 
-When the timestamp is in response to a click ("mark as read", "snapshot now"), compute it in the event handler.
+Read the value in the event handler. If later events must reuse it, keep it in state or a ref.
 
 ```jsx filename="app/snapshot.js"
 'use client'
@@ -204,16 +149,16 @@ export function Snapshot() {
 }
 ```
 
+For a one-time browser value during initial rendering, prefer [`use(browser())`](#render-only-in-the-browser). The guide explains [the extra render and flash from mount effects](/docs/app/guides/preventing-flash-before-hydration#why-not-useeffect), and [subscriptions to browser values](/docs/app/guides/preventing-flash-before-hydration#subscribing-to-browser-values).
+
 ### Trade-off
 
-The user sees the placeholder briefly before the real timestamp. For interactions the wait is invisible, but for `useEffect`-based values there's a flash of the initial state. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
+An event-generated value appears after the interaction. An effect-based value uses a deterministic initial state until the effect runs. See [How to prevent flash before hydration](/docs/app/guides/preventing-flash-before-hydration).
 
 ### Gotchas
 
-- For a one-time browser value, consider [`use(browser())`](#render-the-value-only-in-the-browser) to avoid an extra state update after mount. Use effects for ongoing synchronization with external systems.
-- Don't compute the timestamp inline during render with a lazy initializer like `useState(() => Date.now())`. The initializer still runs during SSR and triggers the error.
-- If the value must appear in server-rendered HTML, generate it in a Server Component and pass the serialized result as a prop.
-- When you call `setState` from inside [`useEffect`](https://react.dev/reference/react/useEffect), wrap it in [`startTransition`](https://react.dev/reference/react/startTransition). Cascading state updates during hydration can cause an outer [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary's fallback to briefly flash. `startTransition` marks the update as non-blocking so React keeps the existing UI in place while the new value resolves.
+- Keep the initial render deterministic. A lazy state initializer still runs on the server unless `use(browser())` runs first.
+- If an effect update can suspend a descendant, use [`startTransition`](https://react.dev/reference/react/startTransition) to keep existing content visible while the update resolves.
 
 ## For telemetry, use a timing API
 
@@ -255,30 +200,32 @@ Learn more: [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/A
 
 ## Other options
 
-### Cache the value in a Server Component
+### Render the same value on the server and browser
 
-When the timestamp doesn't need to reflect the user's current visit and lives inside a Client Component only because of where it's rendered, lift the read into a Server Component above with [`use cache`](/docs/app/api-reference/directives/use-cache). The canonical case is a copyright year in a footer.
+Generate the timestamp in a Server Component and pass the serialized result as a prop. The Client Component renders that prop instead of reading its own value during hydration. Use [`use cache`](/docs/messages/blocking-prerender-current-time) if the value can be reused, or [`await io()`](/docs/app/api-reference/functions/io) before the server read to exclude it from static prerendering.
 
-```jsx filename="app/layout.js"
-import { cacheLife } from 'next/cache'
+For example, a copyright year can be cached on the server. For client-specific formatting of an existing timestamp, see [Rendering client-specific content](/docs/app/guides/preventing-flash-before-hydration#rendering-client-specific-content).
 
-async function getCurrentYear() {
-  'use cache'
-  cacheLife('max')
-  return new Date().getFullYear()
-}
+<span id="suspend-with-useio" />
 
-export default async function Layout({ children }) {
-  return (
-    <>
-      <main>{children}</main>
-      <footer>Copyright {await getCurrentYear()}</footer>
-    </>
-  )
+### Keep a hydration-aware library server-rendered
+
+Some libraries preserve their server result for the first browser render, such as a query library with a dehydrated cache. If a widget already supports this, call [`use(io())`](/docs/app/api-reference/functions/io) before returning it and wrap the wrapper in a parent `<Suspense>` boundary:
+
+```jsx filename="app/deferred-widget.js"
+'use client'
+
+import { use } from 'react'
+import { io } from 'next/cache'
+import { Widget } from './widget'
+
+export function DeferredWidget() {
+  use(io())
+  return <Widget />
 }
 ```
 
-Learn more: [`Date.now()` during prerendering](/docs/messages/blocking-prerender-current-time).
+The library makes hydration safe. The `io()` call suspends static prerendering and resolves during request-time server rendering. It does not preserve an arbitrary timestamp for hydration. Calling `use(io())` directly before `Date.now()` can still produce a hydration mismatch if the read runs on the server, for example after [`await connection()`](/docs/app/api-reference/functions/connection) in a parent.
 
 ## Verifying the fix
 

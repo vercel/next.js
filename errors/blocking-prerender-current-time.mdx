@@ -55,8 +55,8 @@ Other unpredictable APIs ([`Math.random()`](https://developer.mozilla.org/en-US/
     href="#render-on-the-client"
     snippets={[
       { text: '"use client"', highlight: true },
-      { text: '// runs in the browser' },
-      { text: 'const t = Date.now()' },
+      { text: 'use(browser())', highlight: true },
+      { text: 'const [time] = useState(() => Date.now())' },
     ]}
   />
   <FixCard
@@ -229,80 +229,37 @@ To keep the page prerendered, use a profile with a longer revalidate window such
 
 ## Render on the client
 
-Choose this fix when the timestamp belongs to the user's local clock or needs to update while they're on the page. A relative time label that ticks ("3 seconds ago"), a localized time display, a stopwatch. Move the component into a [Client Component](/docs/app/getting-started/server-and-client-components) so the value is produced after hydration.
+Choose this fix when the timestamp belongs only in the browser. Client Components also render on the server, so the [`use client`](/docs/app/api-reference/directives/use-client) directive alone does not defer the read.
 
 ### Patterns
 
-#### Move the component to the client
+#### Create the value after requesting browser rendering
 
-Add [`use client`](/docs/app/api-reference/directives/use-client) and compute the timestamp inside the component.
+Call [`use(browser())`](https://react.dev/reference/react-dom/browser) before the read. The state initializer then runs in the browser and preserves the value across re-renders:
 
-```jsx filename="app/now.js"
+```jsx filename="app/date-display.js"
 'use client'
 
-import { startTransition, useEffect, useState } from 'react'
+import { use, useState } from 'react'
+import { browser } from 'react-dom'
 
-export function Now() {
-  const [now, setNow] = useState(null)
-  useEffect(() => {
-    // Wrap in startTransition so that if any component below suspends
-    // during this update, React keeps the existing UI visible instead
-    // of flashing the nearest outer <Suspense> fallback.
-    startTransition(() => {
-      setNow(Date.now())
-    })
-    const id = setInterval(() => {
-      startTransition(() => {
-        setNow(Date.now())
-      })
-    }, 1000)
-    return () => clearInterval(id)
-  }, [])
-  return <time>{now ? new Date(now).toLocaleString() : '…'}</time>
+export function DateDisplay() {
+  use(browser())
+  const [time] = useState(() => Date.now())
+  return <time>{new Date(time).toLocaleTimeString()}</time>
 }
 ```
 
-Learn more: [Client Components](/docs/app/getting-started/server-and-client-components#using-client-components).
+Wrap `<DateDisplay />` in a parent [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary. See the [complete browser-only example](/docs/messages/blocking-prerender-current-time-client#render-only-in-the-browser).
 
 ### Trade-off
 
-The first paint shows the SSR fallback (often `null` or an em-dash), and the timestamp appears only after the browser hydrates the component. That's fine for time-of-day displays but wrong for timestamps that have to be in the prerendered HTML. See [Preventing flash before hydration](/docs/app/guides/preventing-flash-before-hydration) for techniques that eliminate the flash.
+The server sends the fallback, and the component appears after JavaScript loads. See [Rendering client-specific content](/docs/app/guides/preventing-flash-before-hydration#rendering-client-specific-content) for fallback design and hydration trade-offs.
 
 ### Gotchas
 
-- A Client Component that calls [`Date.now()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) inline during render still trips this error during SSR. See the dedicated [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client) page for the [`<Suspense>`](https://react.dev/reference/react/Suspense) and effect-based recipes.
-
-## For telemetry, use a timing API
-
-Choose this fix when the timestamp isn't user-visible at all. Logging, performance instrumentation, span correlation: all measurements that need a clock but don't render anything. Switch to [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/API/Performance/now), a high-resolution monotonic timer that doesn't carry the same semantic ("the current wall-clock time") that prevents prerendering.
-
-### Patterns
-
-#### Replace `Date.now()` with `performance.now()`
-
-Drop-in replacement for any elapsed-time calculation.
-
-```jsx filename="app/page.js"
-export default async function Page() {
-  const start = performance.now()
-  const data = await computeReport()
-  const elapsedMs = performance.now() - start
-  console.log(`computeReport took ${elapsedMs}ms`)
-  return <Report data={data} />
-}
-```
-
-Learn more: [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/API/Performance/now).
-
-### Trade-off
-
-[`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/API/Performance/now) returns a high-resolution timestamp relative to time origin, not a wall-clock time. It's the wrong tool if you actually need to know "what is today's date". Use it only for durations.
-
-### Gotchas
-
-- [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/API/Performance/now) values from the server can't be compared to values from the browser. Each environment has its own time origin.
-- Don't pass a [`performance.now()`](https://developer.mozilla.org/en-US/docs/Web/API/Performance/now) value into the rendered output or into a cached function. The high-resolution timestamp is non-deterministic and shouldn't influence what's prerendered.
-- For absolute time in an observability tool, use `performance.timeOrigin + performance.now()` to get a wall-clock timestamp without tripping this error.
+- Keep `use(browser())` before the state initializer. A lazy initializer alone still runs during server rendering.
+- If the value must appear in server-rendered HTML, generate it in a Server Component and pass it as a prop.
 
 ## Verifying the fix
 
