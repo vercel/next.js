@@ -87,6 +87,14 @@ Select a count to open its tab in the diagnostics panel. You can also open the p
 
 Use the arrows at the top of the panel, or the left and right arrow keys, to move between reports. The top-right corner shows the Next.js version and bundler.
 
+<Image
+  srcLight="/docs/light/devtools-guide-diagnostics.png"
+  srcDark="/docs/dark/devtools-guide-diagnostics.png"
+  alt="An Issue with the failing line highlighted, the Open in Editor button, and the call stack with ignore-listed frames hidden."
+  width="960"
+  height="663"
+/>
+
 DevTools lists runtime Issues in the order it receives them, including unhandled promise rejections in the browser. If several Issues appear together, the first one you see may be a symptom. For example, after a [hydration mismatch](/docs/messages/react-hydration-error), React can render the affected tree again on the client and warn about an inline `<script>`. Fixing the mismatch can clear both messages.
 
 - **Error message and toolbar:** **Copy Error Info** copies the message and any available stack trace and code snippet. The book icon opens related documentation when available. To [debug the server in Chrome](/docs/app/guides/debugging#inspect-server-errors-with-browser-devtools), use the Node.js icon to attach the inspector, then click it to copy the DevTools URL.
