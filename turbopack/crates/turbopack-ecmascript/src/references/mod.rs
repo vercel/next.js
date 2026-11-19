@@ -3700,7 +3700,7 @@ async fn handle_membership<'a>(
                         path,
                     ));
                 }
-                return Ok(());
+                return Ok(true);
             }
             // Exactly one name. We can potentially inline
             if has_member && let Some((mut name, false)) = obj_name.clone() {
