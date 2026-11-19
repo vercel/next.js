@@ -117,7 +117,22 @@ export async function requirePage(
   distDir: string,
   isAppPath: boolean
 ): Promise<any> {
-  const pagePath = getPagePath(page, distDir, undefined, isAppPath)
+  let pagePath = getPagePath(page, distDir, undefined, isAppPath)
+  if (
+    process.platform === 'win32' &&
+    typeof pagePath === 'string' &&
+    pagePath.length > 2 &&
+    pagePath[1] === ':'
+  ) {
+    const nextDrive = __dirname[0]
+    if (
+      nextDrive.toLowerCase() === pagePath[0].toLowerCase() &&
+      nextDrive !== pagePath[0]
+    ) {
+      pagePath = nextDrive + pagePath.slice(1)
+    }
+  }
+
   if (pagePath.endsWith('.html')) {
     return promises
       .readFile(/* turbopackIgnore: true */ pagePath, 'utf8')
