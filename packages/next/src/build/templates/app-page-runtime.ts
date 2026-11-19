@@ -52,6 +52,7 @@ import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app' wit
 import { getServerActionRequestMetadata } from '../../server/lib/server-action-request-meta' with { 'turbopack-transition': 'next-server-utility' }
 import {
   RSC_HEADER,
+  NEXT_PRELUDE_METADATA_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_PREFETCH_STATIC,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
@@ -1880,6 +1881,17 @@ export function createAppPageEntrypoint({
           ? (parseUrl(rawCacheEntryUrl)?.pathname ?? rawCacheEntryUrl)
           : undefined
 
+        const value = cacheEntry.value
+        if (
+          isRSCRequest &&
+          value?.kind === CachedRouteKind.APP_PAGE &&
+          value.headers?.[NEXT_PRELUDE_METADATA_HEADER] !== undefined
+        ) {
+          const headers = { ...value.headers }
+          delete headers[NEXT_PRELUDE_METADATA_HEADER]
+          cacheEntry = { ...cacheEntry, value: { ...value, headers } }
+        }
+
         return onCacheEntry(cacheEntry, { url: cacheEntryUrl })
       }
 
@@ -2363,6 +2375,9 @@ export function createAppPageEntrypoint({
 
         if (cachedData.headers) {
           const headers = { ...cachedData.headers }
+          if (isRSCRequest) {
+            delete headers[NEXT_PRELUDE_METADATA_HEADER]
+          }
 
           if (!isMinimalMode || !isSSG) {
             delete headers[NEXT_CACHE_TAGS_HEADER]

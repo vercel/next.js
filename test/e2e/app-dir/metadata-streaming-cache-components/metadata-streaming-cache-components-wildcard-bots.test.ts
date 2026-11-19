@@ -1,4 +1,7 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
+import type * as Playwright from 'playwright'
+import { createRouterAct } from 'router-act'
+import { gate } from 'next-test-utils'
 ;(isNextDev ? describe.skip : describe)(
   'metadata streaming with Cache Components and a wildcard bot list',
   () => {
@@ -12,6 +15,66 @@ import { isNextDev, nextTestSetup } from 'e2e-utils'
           }
         `,
       },
+    })
+
+    it('reuses cached segment prefetches when every user agent requires blocking metadata', async () => {
+      let page: Playwright.Page
+      const segments: Array<
+        Promise<{ status: number; headers: Record<string, string> }>
+      > = []
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+          page.on('response', (response) => {
+            const request = response.request()
+            if (
+              request.headers()['next-router-segment-prefetch'] !== undefined &&
+              new URL(request.url()).pathname.startsWith(
+                '/dynamic-metadata/partial'
+              )
+            ) {
+              segments.push(
+                response.allHeaders().then((headers) => ({
+                  status: response.status(),
+                  headers,
+                }))
+              )
+            }
+          })
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+      await act(
+        async () => {
+          await browser
+            .elementByCss(
+              'input[data-link-accordion="/dynamic-metadata/partial"]'
+            )
+            .click()
+        },
+        { includes: 'Suspenseful Layout', kind: 'static' }
+      )
+
+      const responses = await Promise.all(segments)
+      expect(responses.length).toBeGreaterThan(0)
+      for (const response of responses) {
+        expect(response.status).toBe(200)
+        expect(response.headers['x-next-prelude-metadata']).toBeUndefined()
+        if (await gate((conditions) => conditions.vercel)) {
+          expect(response.headers['x-nextjs-postponed']).toBe('2')
+          expect(response.headers['x-vercel-cache']).toBe('HIT')
+        }
+      }
+
+      await act(async () => {
+        await browser
+          .elementByCss('a[href="/dynamic-metadata/partial"]')
+          .click()
+      }, 'no-requests')
+      expect(await browser.elementByCss('h2').text()).toBe('Suspenseful Layout')
+      expect(await browser.elementByCss('.container').text()).toContain(
+        'suspended component'
+      )
     })
 
     it.each(['MyBrowser', 'Googlebot'])(

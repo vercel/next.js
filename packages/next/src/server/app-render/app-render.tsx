@@ -10778,6 +10778,11 @@ async function prerenderToStream(
           throw new StaticGenBailoutError()
         }
 
+        // The recovery payload omits metadata and viewport from its HTML head.
+        // Bots that require a complete head must bypass this cached shell.
+        metadata.headers ??= {}
+        metadata.headers[NEXT_PRELUDE_METADATA_HEADER] = '0'
+
         const getServerInsertedHTML = makeGetServerInsertedHTML({
           polyfills,
           renderServerInsertedHTML,

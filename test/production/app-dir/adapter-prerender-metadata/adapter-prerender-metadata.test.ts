@@ -94,6 +94,40 @@ describe('adapter-prerender-metadata', () => {
     ).toBe('0')
   })
 
+  it('omits the HTML metadata marker during on-demand RSC regeneration', async () => {
+    const { previewModeId } = await next.readJSON(
+      '.next/server/preview-props.json'
+    )
+    const response = await next.fetch('/ppr-shell', {
+      headers: { rsc: '1', 'x-prerender-revalidate': previewModeId },
+    })
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toContain('text/x-component')
+    expect(response.headers.get('x-next-prelude-metadata')).toBeNull()
+    await response.text()
+    const html = await next.fetch('/ppr-shell')
+    expect(html.headers.get('x-next-prelude-metadata')).toBe('0')
+    await html.text()
+  })
+
+  it('keeps the HTML metadata marker off RSC and segment fallbacks', async () => {
+    const prerenders = await getPrerenders()
+    const rscOutputs = prerenders.filter((output) =>
+      output.pathname.endsWith('.rsc')
+    )
+    expect(
+      rscOutputs.some((output) => output.pathname.includes('.segments/'))
+    ).toBe(true)
+    expect(
+      rscOutputs.some((output) => output.pathname === '/ppr-shell.rsc')
+    ).toBe(true)
+    for (const output of rscOutputs) {
+      expect(
+        output.fallback?.initialHeaders?.['x-next-prelude-metadata']
+      ).toBeUndefined()
+    }
+  })
+
   it('provides existing files for every prerender fallback', async () => {
     const prerenders = await getPrerenders()
     const files = prerenders.flatMap((output) =>
@@ -713,6 +747,11 @@ describe.each([
     )
     const manifest = await next.readJSON('.next/prerender-manifest.json')
     expect(await next.readJSON('capability-calls.json')).toBe(1)
+    expect(await next.readJSON('capability-config.json')).toEqual({
+      htmlLimitedBots: 'MyHTMLLimitedBot',
+      cacheComponents: true,
+      modified: 'applied',
+    })
     const botRule = {
       type: 'header',
       key: 'user-agent',

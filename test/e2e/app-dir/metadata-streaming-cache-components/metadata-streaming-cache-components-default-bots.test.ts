@@ -30,7 +30,9 @@ function expectOptionalCatchallParams(html: string) {
             if (defaultConfig.adapterPath) {
               const adapterModule = require(defaultConfig.adapterPath)
               const adapter = adapterModule.default ?? adapterModule
-              const capabilities = adapter.getCapabilities?.()
+              const capabilities = adapter.getCapabilities?.({
+                config: { ...defaultConfig, cacheComponents: true },
+              })
               console.log(
                 'HTML_LIMITED_BOT_PRERENDERS_CAPABILITY: ' +
                   (capabilities?.handlesHtmlLimitedBotPrerenders === true)
@@ -79,6 +81,33 @@ function expectOptionalCatchallParams(html: string) {
           expect(response.headers.get('x-vercel-cache')).toBe(
             supportsHtmlLimitedBotPrerenders() ? 'HIT' : 'BYPASS'
           )
+        }
+      })
+
+      it('bypasses a recovery shell whose metadata is absent from the head', async () => {
+        const pathname = '/metadata-recovery/not-found'
+        const warm = await next.fetch(pathname, {
+          headers: { 'user-agent': 'Mozilla/5.0' },
+        })
+        expect(warm.status).toBe(404)
+        expect(warm.headers.get('x-next-prelude-metadata')).toBe('0')
+        const shell = cheerio.load(await warm.text())
+        expect(shell('head title').text()).not.toBe('recovery metadata title')
+
+        for (const userAgent of ['Discordbot', 'discordbot']) {
+          const response = await next.fetch(pathname, {
+            headers: { 'user-agent': userAgent },
+          })
+          expect(response.status).toBe(404)
+          const $ = cheerio.load(await response.text())
+          expect($('head title').text()).toBe('recovery metadata title')
+          expect($('head meta[name="description"]').attr('content')).toBe(
+            'metadata from the recovery boundary'
+          )
+          expect($('body title')).toHaveLength(0)
+          if (await gate((conditions) => conditions.vercel)) {
+            expect(response.headers.get('x-vercel-cache')).toBe('BYPASS')
+          }
         }
       })
 

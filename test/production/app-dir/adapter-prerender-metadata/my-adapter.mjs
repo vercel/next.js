@@ -1,10 +1,19 @@
 import fs from 'fs/promises'
+import { writeFileSync } from 'fs'
 
 let capabilityCalls = 0
 const capabilityMode = process.env.NEXT_TEST_PRERENDER_BYPASS_CAPABILITIES
 
-function getCapabilities() {
+function getCapabilities({ config }) {
   capabilityCalls++
+  writeFileSync(
+    'capability-config.json',
+    JSON.stringify({
+      htmlLimitedBots: config.htmlLimitedBots,
+      cacheComponents: config.cacheComponents,
+      modified: config.env.ADAPTER_CAPABILITY_CONTEXT,
+    })
+  )
   const capabilities = {
     empty: {},
     disabled: {
@@ -24,6 +33,10 @@ function getCapabilities() {
 /** @type {import('next').NextAdapter } */
 export default {
   name: 'adapter-prerender-metadata',
+  modifyConfig(config) {
+    config.env = { ...config.env, ADAPTER_CAPABILITY_CONTEXT: 'applied' }
+    return config
+  },
   getCapabilities: capabilityMode === undefined ? undefined : getCapabilities,
   async onBuildComplete(ctx) {
     await fs.writeFile('build-complete.json', JSON.stringify(ctx, null, 2))

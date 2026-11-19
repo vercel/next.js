@@ -76,6 +76,7 @@ import {
 import { getRouteCacheKey } from '../../server/lib/route-cache-key'
 import { RouteKind } from '../../server/route-kind'
 import { getRscPrerenderCompleteness } from '../../server/lib/prerender-rsc-completeness'
+import { NEXT_PRELUDE_METADATA_HEADER } from '../../client/components/app-router-headers'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../../shared/lib/router/utils/is-bot'
 
 interface SharedRouteFields {
@@ -586,7 +587,12 @@ export interface NextAdapter {
    * Returns deployment capabilities before Next.js creates adapter outputs.
    * Omitted capabilities preserve the existing output behavior.
    */
-  getCapabilities?: () => NextAdapterCapabilities
+  getCapabilities?: (ctx: {
+    /**
+     * The resolved configuration, with modifyConfig applied.
+     */
+    config: NextConfigComplete
+  }) => NextAdapterCapabilities
   /**
    * modifyConfig is called for any CLI command that loads the next.config
    * to only apply for specific commands the "phase" should be used
@@ -741,7 +747,14 @@ export async function handleBuildComplete({
   ) as NextAdapter
 
   if (typeof adapterMod.onBuildComplete === 'function') {
-    const capabilities = adapterMod.getCapabilities?.()
+    const capabilities = adapterMod.getCapabilities?.({ config })
+    const getRscHeaders = (
+      initialHeaders: Record<string, string | string[]> | undefined
+    ) => {
+      const headers = { ...initialHeaders }
+      delete headers[NEXT_PRELUDE_METADATA_HEADER]
+      return headers
+    }
     const htmlLimitedBotsPattern = `.*(?:${
       config.htmlLimitedBots || HTML_LIMITED_BOT_UA_RE_STRING
     }).*`
@@ -1688,8 +1701,8 @@ export async function handleBuildComplete({
                 initialRevalidate: initialOutput.fallback?.initialRevalidate,
 
                 initialHeaders: {
-                  ...meta.headers,
-                  ...initialOutput.fallback?.initialHeaders,
+                  ...getRscHeaders(meta.headers),
+                  ...getRscHeaders(initialOutput.fallback?.initialHeaders),
                   vary: varyHeader,
                   'content-type': rscContentTypeHeader,
                   [didPostponeHeader]: '2',
@@ -2008,7 +2021,7 @@ export async function handleBuildComplete({
                 postponedState: postponed,
                 initialStatus: undefined,
                 initialHeaders: {
-                  ...initialOutput.fallback?.initialHeaders,
+                  ...getRscHeaders(initialOutput.fallback?.initialHeaders),
                   ...dataInitialHeaders,
                   'content-type': isAppPage
                     ? rscContentTypeHeader
@@ -2029,7 +2042,7 @@ export async function handleBuildComplete({
                     ...initialOutput.fallback,
                     initialStatus: undefined,
                     initialHeaders: {
-                      ...initialOutput.fallback?.initialHeaders,
+                      ...getRscHeaders(initialOutput.fallback?.initialHeaders),
                       ...dataInitialHeaders,
                       'content-type': isAppPage
                         ? rscContentTypeHeader
@@ -2313,7 +2326,7 @@ export async function handleBuildComplete({
                 postponedState: meta.postponed,
                 initialStatus: undefined,
                 initialHeaders: {
-                  ...initialOutput.fallback?.initialHeaders,
+                  ...getRscHeaders(initialOutput.fallback?.initialHeaders),
                   ...dataInitialHeaders,
                   'content-type': isAppPage
                     ? rscContentTypeHeader
