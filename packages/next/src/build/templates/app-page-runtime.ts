@@ -27,7 +27,7 @@ import {
 import { BaseServerSpan } from '../../server/lib/trace/constants' with { 'turbopack-transition': 'next-server-utility' }
 import { stripFlightHeaders } from '../../server/app-render/strip-flight-headers' with { 'turbopack-transition': 'next-server-utility' }
 import {
-  hasInvalidFlightRouterStateHeader,
+  isInvalidFlightRouterStateError,
   parseRequestHeaders,
   type ParsedRequestHeaders,
 } from '../../server/route-modules/app-page/parse-request-headers' with { 'turbopack-transition': 'next-server-utility' }
@@ -785,22 +785,6 @@ export function createAppPageEntrypoint({
       !canRenderDynamicRSCForPPRRoute
     ) {
       stripFlightHeaders(req.headers)
-    }
-
-    // A router state header that can't be accepted is invalid client input
-    // (e.g. a tab still running a previous build after a deployment). Reject it
-    // before rendering instead of failing the render with a 500. The client
-    // router falls back to a document navigation for non-OK responses.
-    if (hasInvalidFlightRouterStateHeader(req.headers, { isRoutePPREnabled })) {
-      res.statusCode = 400
-      res.setHeader(
-        'Cache-Control',
-        'private, no-cache, no-store, max-age=0, must-revalidate'
-      )
-      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
-      res.end('Bad Request')
-      ctx.waitUntil?.(Promise.resolve())
-      return null
     }
 
     const ComponentMod = {
@@ -1958,51 +1942,77 @@ export function createAppPageEntrypoint({
           throw new NoFallbackError()
         }
 
-        let cacheEntry = await routeModule.handleResponse({
-          cacheKey: ssgCacheKey,
-          responseGenerator: (c) =>
-            responseGenerator({
-              span,
-              ...c,
-            }),
-          routeKind: RouteKind.APP_PAGE,
-          isOnDemandRevalidate,
-          isRoutePPREnabled: isPPREnabled,
-          req,
-          nextConfig,
-          previewProps,
-          prerenderManifest,
-          waitUntil: ctx.waitUntil,
-          isMinimalMode,
-        })
+        let cacheEntry: Awaited<ReturnType<typeof routeModule.handleResponse>>
+        try {
+          cacheEntry = await routeModule.handleResponse({
+            cacheKey: ssgCacheKey,
+            responseGenerator: (c) =>
+              responseGenerator({
+                span,
+                ...c,
+              }),
+            routeKind: RouteKind.APP_PAGE,
+            isOnDemandRevalidate,
+            isRoutePPREnabled: isPPREnabled,
+            req,
+            nextConfig,
+            previewProps,
+            prerenderManifest,
+            waitUntil: ctx.waitUntil,
+            isMinimalMode,
+          })
 
-        // Render dynamic RSC when the shared cache result cannot serve this
-        // request. Keep this render outside the response cache so concurrent
-        // callers use their own cookies and router state.
-        if (
-          canRenderDynamicRSCForPPRRoute &&
-          !isDynamicRSCResponse &&
-          cacheEntry !== null &&
-          !('error' in cacheEntry) &&
-          cacheEntry.value?.kind === CachedRouteKind.APP_PAGE
-        ) {
-          const cachedData = cacheEntry.value
-          const isPartialPrerender = typeof cachedData.postponed === 'string'
-          const hasRSCResponse =
-            cachedData.rscData !== undefined ||
-            cachedData.html.contentType === RSC_CONTENT_TYPE_HEADER
+          // Render dynamic RSC when the shared cache result cannot serve this
+          // request. Keep this render outside the response cache so concurrent
+          // callers use their own cookies and router state.
+          if (
+            canRenderDynamicRSCForPPRRoute &&
+            !isDynamicRSCResponse &&
+            cacheEntry !== null &&
+            !('error' in cacheEntry) &&
+            cacheEntry.value?.kind === CachedRouteKind.APP_PAGE
+          ) {
+            const cachedData = cacheEntry.value
+            const isPartialPrerender = typeof cachedData.postponed === 'string'
+            const hasRSCResponse =
+              cachedData.rscData !== undefined ||
+              cachedData.html.contentType === RSC_CONTENT_TYPE_HEADER
 
-          if (cacheEntry.isFallback || isPartialPrerender || !hasRSCResponse) {
-            cacheEntry = await doRender({
-              span,
-              postponed: cachedData.postponed,
-              fallbackRouteParams: null,
-              stagedFallbackParams: null,
-              renderOperation: 'render',
-              supportsDynamicResponse: true,
-            })
-            isDynamicRSCResponse = true
+            if (
+              cacheEntry.isFallback ||
+              isPartialPrerender ||
+              !hasRSCResponse
+            ) {
+              cacheEntry = await doRender({
+                span,
+                postponed: cachedData.postponed,
+                fallbackRouteParams: null,
+                stagedFallbackParams: null,
+                renderOperation: 'render',
+                supportsDynamicResponse: true,
+              })
+              isDynamicRSCResponse = true
+            }
           }
+        } catch (err) {
+          // Request-specific renders, both through the response cache and the
+          // dynamic RSC render above, parse the router state header before they
+          // start. A header that can't be accepted is invalid client input
+          // (e.g. a tab still running a previous build after a deployment), not
+          // a server error, so answer with a 400 instead of reporting it. The
+          // client router falls back to a document navigation for non-OK
+          // responses.
+          if (isInvalidFlightRouterStateError(err) && !res.headersSent) {
+            res.statusCode = 400
+            res.setHeader(
+              'Cache-Control',
+              'private, no-cache, no-store, max-age=0, must-revalidate'
+            )
+            res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+            res.end('Bad Request')
+            return null
+          }
+          throw err
         }
 
         if (cacheEntry !== null && 'error' in cacheEntry) {
