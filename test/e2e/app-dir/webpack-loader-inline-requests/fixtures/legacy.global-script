@@ -1,0 +1,1 @@
+if (typeof window !== 'undefined') window.inlineLoaderScript = 'executed globally'
