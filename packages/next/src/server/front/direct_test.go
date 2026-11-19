@@ -379,3 +379,31 @@ func TestADirectAnswerSentMidUploadClosesTheConnection(t *testing.T) {
 		t.Fatalf("status %d, close %v", res.StatusCode, res.Close)
 	}
 }
+
+func TestBodylessRequestsWithAnIdempotencyKeyGoToNode(t *testing.T) {
+	// Go's Transport resends a request whose reused connection closes before
+	// a response arrives when it counts the request as replayable, which a
+	// bodyless request with an Idempotency-Key is. Node's client never does.
+	var mu sync.Mutex
+	seen := map[string]int{}
+	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		seen[r.Method]++
+		mu.Unlock()
+		if r.Method != "GET" {
+			panic(http.ErrAbortHandler)
+		}
+	})
+	// Leaves an idle connection to the worker for the next request to reuse.
+	if res := fx.raw(t, "GET /api/echo HTTP/1.1"); !strings.HasPrefix(res, "HTTP/1.1 200 ") {
+		t.Fatalf("%q", res)
+	}
+	for _, name := range []string{"Idempotency-Key", "X-Idempotency-Key"} {
+		fx.raw(t, "POST /api/echo HTTP/1.1\r\n"+name+": k\r\nContent-Length: 0")
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if seen["POST"] > 0 {
+		t.Errorf("the worker got the POST %d times, want it to go to Node", seen["POST"])
+	}
+}

@@ -62,8 +62,10 @@ func (t *Table) Decide(r Request) Decision {
 
 // headersNodeHandles are request headers that make Node or its HTTP client
 // do something a direct request wouldn't: upgrades, 100-continue, hop-by-hop
-// fields that Go's proxy and Node's client treat differently.
-var headersNodeHandles = []string{"Upgrade", "Expect", "Te", "Trailer", "Proxy-Connection"}
+// fields that Go's proxy and Node's client treat differently. With an
+// Idempotency-Key, Go's client may send a bodyless request again when the
+// worker closes a reused connection before answering; Node's never does.
+var headersNodeHandles = []string{"Upgrade", "Expect", "Te", "Trailer", "Proxy-Connection", "Idempotency-Key", "X-Idempotency-Key"}
 
 // headerMargin leaves room for how Node counts header bytes (the request
 // line, separators) beyond what checkRequest adds up.

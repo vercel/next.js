@@ -198,6 +198,20 @@
     },
     {
       "table": "app",
+      "method": "POST",
+      "target": "/api/echo",
+      "header": { "Idempotency-Key": ["k"] },
+      "node": "header Idempotency-Key"
+    },
+    {
+      "table": "app",
+      "method": "POST",
+      "target": "/api/echo",
+      "header": { "X-Idempotency-Key": ["k"] },
+      "node": "header X-Idempotency-Key"
+    },
+    {
+      "table": "app",
       "target": "/api/echo",
       "header": { "X-Repeated": ["a", "b"] },
       "node": "repeated header X-Repeated"
