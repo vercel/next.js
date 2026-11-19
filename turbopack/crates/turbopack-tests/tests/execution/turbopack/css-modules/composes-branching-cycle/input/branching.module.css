@@ -1,0 +1,122 @@
+/* Every class composes the next two classes, wrapping around, so all expansions run into a cycle
+   and each class is reachable through many different paths. */
+.c0 {
+  composes: c1 c2;
+}
+.c1 {
+  composes: c2 c3;
+}
+.c2 {
+  composes: c3 c4;
+}
+.c3 {
+  composes: c4 c5;
+}
+.c4 {
+  composes: c5 c6;
+}
+.c5 {
+  composes: c6 c7;
+}
+.c6 {
+  composes: c7 c8;
+}
+.c7 {
+  composes: c8 c9;
+}
+.c8 {
+  composes: c9 c10;
+}
+.c9 {
+  composes: c10 c11;
+}
+.c10 {
+  composes: c11 c12;
+}
+.c11 {
+  composes: c12 c13;
+}
+.c12 {
+  composes: c13 c14;
+}
+.c13 {
+  composes: c14 c15;
+}
+.c14 {
+  composes: c15 c16;
+}
+.c15 {
+  composes: c16 c17;
+}
+.c16 {
+  composes: c17 c18;
+}
+.c17 {
+  composes: c18 c19;
+}
+.c18 {
+  composes: c19 c20;
+}
+.c19 {
+  composes: c20 c21;
+}
+.c20 {
+  composes: c21 c22;
+}
+.c21 {
+  composes: c22 c23;
+}
+.c22 {
+  composes: c23 c24;
+}
+.c23 {
+  composes: c24 c25;
+}
+.c24 {
+  composes: c25 c26;
+}
+.c25 {
+  composes: c26 c27;
+}
+.c26 {
+  composes: c27 c28;
+}
+.c27 {
+  composes: c28 c29;
+}
+.c28 {
+  composes: c29 c30;
+}
+.c29 {
+  composes: c30 c31;
+}
+.c30 {
+  composes: c31 c32;
+}
+.c31 {
+  composes: c32 c33;
+}
+.c32 {
+  composes: c33 c34;
+}
+.c33 {
+  composes: c34 c35;
+}
+.c34 {
+  composes: c35 c36;
+}
+.c35 {
+  composes: c36 c37;
+}
+.c36 {
+  composes: c37 c38;
+}
+.c37 {
+  composes: c38 c39;
+}
+.c38 {
+  composes: c39 c0;
+}
+.c39 {
+  composes: c0 c1;
+}

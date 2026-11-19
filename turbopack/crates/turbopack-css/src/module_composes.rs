@@ -251,17 +251,14 @@ impl<'a> Flattener<'a> {
     /// Flattens all exports of `group`, which is either a single module outside of any cycle or
     /// all modules of a cycle.
     fn flatten(&mut self, group: &[ResolvedVc<EcmascriptCssModule>]) {
-        let mut expander = Expander::new(self, group);
+        let expander = Expander::new(self, group);
         let flattened: Vec<_> = group
             .iter()
             .filter_map(|module| {
                 let classes: &'a ExportClasses = self.modules.get(module)?;
                 let exports = classes
                     .keys()
-                    .map(|export| {
-                        let (names, _) = expander.visit(*module, export);
-                        (export.as_str(), names)
-                    })
+                    .map(|export| (export.as_str(), expander.expand(*module, export)))
                     .collect();
                 Some((*module, exports))
             })
@@ -272,6 +269,10 @@ impl<'a> Flattener<'a> {
 
 type ClassKey<'a> = (ResolvedVc<EcmascriptCssModule>, &'a str);
 
+/// The classes of an export that is being expanded, with their index, which still have to be
+/// processed.
+type PendingClasses<'a> = std::iter::Enumerate<std::slice::Iter<'a, ModuleCssClass>>;
+
 /// Expands exports depth-first within a group of modules, following local `composes` and
 /// `composes: ... from ...` between modules of the group, and using the already flattened classes
 /// of modules outside of it.
@@ -281,9 +282,6 @@ struct Expander<'f, 'a> {
     /// Maps each export's own (generated) class name back to the export name, per module, so that
     /// local `composes` references can be expanded.
     local_exports: FxHashMap<ResolvedVc<EcmascriptCssModule>, FxHashMap<&'a str, &'a str>>,
-    /// Expansions that did not encounter a cycle.
-    memo: FxHashMap<ClassKey<'a>, Vec<&'a str>>,
-    stack: FxIndexSet<ClassKey<'a>>,
 }
 
 impl<'f, 'a> Expander<'f, 'a> {
@@ -308,38 +306,30 @@ impl<'f, 'a> Expander<'f, 'a> {
             flattener,
             group: group.iter().copied().collect(),
             local_exports,
-            memo: FxHashMap::default(),
-            stack: FxIndexSet::default(),
         }
     }
 
-    /// Returns the expanded class names of `export` in `module`, and the lowest stack depth of a
-    /// class that was skipped because it is currently being expanded (a cycle), or `usize::MAX`.
-    fn visit(
-        &mut self,
-        module: ResolvedVc<EcmascriptCssModule>,
-        export: &'a str,
-    ) -> (Vec<&'a str>, usize) {
-        let key = (module, export);
-        if let Some(names) = self.memo.get(&key) {
-            return (names.clone(), usize::MAX);
-        }
-        if let Some(depth) = self.stack.get_index_of(&key) {
-            return (Vec::new(), depth);
-        }
+    /// Returns the expanded class names of `export` in `module`.
+    ///
+    /// This is an iterative depth-first traversal that emits class names in pre-order and expands
+    /// every export at most once. An export that was already reached contributes nothing again:
+    /// either it is still being expanded (a cycle), or its class names were already emitted. So
+    /// the work is linear in the class entries and `composes` edges reachable from `export` (plus
+    /// the lengths of the flattened class lists of modules outside of the group), even when cycles
+    /// make classes reachable through many different paths.
+    fn expand(&self, module: ResolvedVc<EcmascriptCssModule>, export: &'a str) -> Vec<&'a str> {
         let flattener = self.flattener;
-        let Some(classes) = flattener
-            .modules
-            .get(&module)
-            .and_then(|classes| classes.get(export))
-        else {
-            return (Vec::new(), usize::MAX);
-        };
-
-        self.stack.insert(key);
         let mut names = FxIndexSet::default();
-        let mut lowest = usize::MAX;
-        for (i, class) in classes.iter().enumerate() {
+        let mut reached = FxHashSet::default();
+        // The exports that are being expanded, innermost last.
+        let mut stack = Vec::new();
+        self.enter(module, export, &mut reached, &mut stack);
+        while let Some((module, classes)) = stack.last_mut() {
+            let module = *module;
+            let Some((i, class)) = classes.next() else {
+                stack.pop();
+                continue;
+            };
             match class {
                 ModuleCssClass::Local { name } => {
                     // The first entry is the export's own class name.
@@ -352,9 +342,7 @@ impl<'f, 'a> Expander<'f, 'a> {
                         })
                         .flatten();
                     if let Some(composed_export) = composed_export {
-                        let (composed, low) = self.visit(module, composed_export);
-                        lowest = lowest.min(low);
-                        names.extend(composed);
+                        self.enter(module, composed_export, &mut reached, &mut stack);
                     } else {
                         names.insert(name.as_str());
                     }
@@ -369,9 +357,7 @@ impl<'f, 'a> Expander<'f, 'a> {
                         continue;
                     };
                     if self.group.contains(&target) {
-                        let (composed, low) = self.visit(target, original);
-                        lowest = lowest.min(low);
-                        names.extend(composed);
+                        self.enter(target, original, &mut reached, &mut stack);
                     } else if let Some(composed) = flattener
                         .flattened
                         .get(&target)
@@ -383,15 +369,24 @@ impl<'f, 'a> Expander<'f, 'a> {
                 }
             }
         }
-        self.stack.pop();
+        names.into_iter().collect()
+    }
 
-        let names: Vec<_> = names.into_iter().collect();
-        // A cycle-broken expansion depends on which export started the traversal, so it can't be
-        // reused for another root without changing that root's pre-order.
-        if lowest == usize::MAX {
-            self.memo.insert(key, names.clone());
+    /// Starts expanding `export` in `module`, unless it was already reached.
+    fn enter(
+        &self,
+        module: ResolvedVc<EcmascriptCssModule>,
+        export: &'a str,
+        reached: &mut FxHashSet<ClassKey<'a>>,
+        stack: &mut Vec<(ResolvedVc<EcmascriptCssModule>, PendingClasses<'a>)>,
+    ) {
+        if !reached.insert((module, export)) {
+            return;
         }
-        (names, lowest)
+        let classes: Option<&'a ExportClasses> = self.flattener.modules.get(&module).map(|c| &**c);
+        if let Some(classes) = classes.and_then(|classes| classes.get(export)) {
+            stack.push((module, classes.iter().enumerate()));
+        }
     }
 }
 
