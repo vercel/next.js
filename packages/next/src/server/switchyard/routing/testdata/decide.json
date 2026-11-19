@@ -239,7 +239,25 @@
       "table": "app",
       "target": "/api/echo",
       "header": { "Accept-Encoding": ["gzip, deflate, br"] },
-      "node": "client accepts compression"
+      "route": "/api/echo/route"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo",
+      "header": { "Accept-Encoding": ["gzip;q=1.0, identity; q=0.5, *;q=0"] },
+      "node": "Accept-Encoding with parameters"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo",
+      "header": { "Accept-Encoding": ["gzip deflate"] },
+      "node": "Accept-Encoding with parameters"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo",
+      "header": { "Accept-Encoding": ["\u00a0gzip"] },
+      "node": "Accept-Encoding with parameters"
     },
     {
       "table": "app",
@@ -252,7 +270,7 @@
     {
       "table": "base",
       "target": "/shop/api/echo",
-      "header": { "Accept-Encoding": ["gzip"] },
+      "header": { "Accept-Encoding": ["gzip;q=0.5"] },
       "route": "/api/echo/route"
     },
     {

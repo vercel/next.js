@@ -114,7 +114,6 @@ func TestRequestsOutsideTheGateGoToNode(t *testing.T) {
 	for _, head := range []string{
 		"GET /api/users/42/ HTTP/1.1",
 		"GET /api/users/a%20b HTTP/1.1",
-		"GET /api/echo HTTP/1.1\r\nAccept-Encoding: gzip",
 		"GET /api/echo HTTP/1.1\r\nRsc: 1",
 		"GET / HTTP/1.1",
 	} {
