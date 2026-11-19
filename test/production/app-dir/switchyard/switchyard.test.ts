@@ -5,14 +5,14 @@ import { once } from 'events'
 import WebSocket from 'ws'
 import { nextTestSetup } from 'e2e-utils'
 import { findPort, retry } from 'next-test-utils'
-import { FRONT_SERVER_ENV } from 'next/dist/server/lib/front-server-env'
+import { SWITCHYARD_ENV } from 'next/dist/server/lib/switchyard-env'
 import { getHeader, rawRequest } from './raw-http'
 
 // What `next start` does with requests that a proxy in front of it could
 // change: request targets, headers, bodies, streaming, upgrades, server actions
-// that call the server itself, and keep-alive. The front uses Go's built-in
-// reason phrases; the other expectations apply with and without the front.
-describe('front-server', () => {
+// that call the server itself, and keep-alive. Switchyard uses Go's built-in
+// reason phrases; the other expectations apply with and without Switchyard.
+describe('switchyard', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
@@ -38,7 +38,7 @@ describe('front-server', () => {
     externalServer.listen(externalPort)
     await once(externalServer, 'listening')
 
-    const env = { FRONT_SERVER_TEST_EXTERNAL_PORT: String(externalPort) }
+    const env = { SWITCHYARD_TEST_EXTERNAL_PORT: String(externalPort) }
     const { exitCode, cliOutput } = await next.build({ env })
     if (exitCode !== 0) throw new Error(`next build failed:\n${cliOutput}`)
     await next.start({ skipBuild: true, env })
@@ -117,7 +117,7 @@ describe('front-server', () => {
         [
           'GET /echo HTTP/1.1',
           `Host: localhost:${next.appPort}`,
-          'User-Agent: front-server-test',
+          'User-Agent: switchyard-test',
           'Accept-Encoding: br',
           'X-Custom: one',
           'X-Custom: two',
@@ -125,7 +125,7 @@ describe('front-server', () => {
         ].join('\r\n')
       )
       expect(json.headers).toMatchObject({
-        'user-agent': 'front-server-test',
+        'user-agent': 'switchyard-test',
         'accept-encoding': 'br',
         'x-custom': 'one, two',
         x_underscore: 'kept',
@@ -175,8 +175,8 @@ describe('front-server', () => {
 
     // Raw non-ASCII bytes in the target aren't covered here: Node 24.22
     // rejects them with 400 and Node 20.9 routes them, so today's behavior
-    // depends on the Node version. The front forwards them byte for byte
-    // (packages/next/src/server/front/main_test.go).
+    // depends on the Node version. Switchyard forwards them byte for byte
+    // (packages/next/src/server/switchyard/main_test.go).
     it('rejects a malformed escape', async () => {
       const res = await rawRequest(
         Number(next.appPort),
@@ -265,7 +265,7 @@ describe('front-server', () => {
           `GET /api/status${query} HTTP/1.1\r\nHost: localhost:${next.appPort}`
         )
         const reason =
-          process.env[FRONT_SERVER_ENV] === '1' ? goReason : nodeReason
+          process.env[SWITCHYARD_ENV] === '1' ? goReason : nodeReason
         expect(res.statusLine).toBe(`HTTP/1.1 ${code} ${reason}`)
         expect(res.body.toString()).toBe('status')
       }

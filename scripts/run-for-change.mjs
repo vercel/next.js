@@ -60,17 +60,17 @@ const CHANGE_ITEM_GROUPS = {
     'test/production/create-next-app',
     'scripts/send-trace-to-jaeger',
   ],
-  // The experimental next start front server: its code, its launcher and the
-  // start path it hooks into, and its tests. PRs run test-front-server-prod
+  // Switchyard, the experimental next start server: its code, its launcher and the
+  // start path it hooks into, and its tests. PRs run test-switchyard-prod
   // only when one of these changes; canary pushes always run it.
-  'front-server': [
-    'packages/next/src/server/front',
-    'packages/next/src/server/lib/front-server.ts',
-    'packages/next/src/server/lib/front-binary.ts',
-    'packages/next/src/server/lib/front-server-env.ts',
+  switchyard: [
+    'packages/next/src/server/switchyard',
+    'packages/next/src/server/lib/switchyard.ts',
+    'packages/next/src/server/lib/switchyard-binary.ts',
+    'packages/next/src/server/lib/switchyard-env.ts',
     'packages/next/src/server/lib/start-server.ts',
     'packages/next/src/cli/next-start.ts',
-    'test/production/app-dir/front-server',
+    'test/production/app-dir/switchyard',
   ],
   // Changes confined to these paths cannot affect a webpack build.
   turbopack: [

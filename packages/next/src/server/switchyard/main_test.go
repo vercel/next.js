@@ -23,7 +23,7 @@ type received struct {
 	header     http.Header
 }
 
-// startProxy runs the proxy in front of an upstream that records each request
+// startProxy runs the proxy in switchyard of an upstream that records each request
 // and answers with handler. It returns the proxy's address.
 func startProxy(t *testing.T, handler http.HandlerFunc) (string, <-chan received) {
 	t.Helper()
@@ -40,9 +40,9 @@ func startProxy(t *testing.T, handler http.HandlerFunc) (string, <-chan received
 	if err != nil {
 		t.Fatal(err)
 	}
-	front := newServer(newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second), 0, 0, 0)
-	go front.Serve(ln)
-	t.Cleanup(func() { front.Close() })
+	switchyard := newServer(newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second), 0, 0, 0)
+	go switchyard.Serve(ln)
+	t.Cleanup(func() { switchyard.Close() })
 	return ln.Addr().String(), seen
 }
 
@@ -399,7 +399,7 @@ func TestKeepsAnUpgradeWithACustomStatusLine(t *testing.T) {
 			addr, _ := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
 				conn, buf, _ := w.(http.Hijacker).Hijack()
 				defer conn.Close()
-				fmt.Fprintf(buf, "HTTP/1.1 %s\r\nConnection: Upgrade\r\nUpgrade: front-test\r\n\r\n", status)
+				fmt.Fprintf(buf, "HTTP/1.1 %s\r\nConnection: Upgrade\r\nUpgrade: switchyard-test\r\n\r\n", status)
 				buf.Flush()
 				io.Copy(conn, buf)
 			})
@@ -409,13 +409,13 @@ func TestKeepsAnUpgradeWithACustomStatusLine(t *testing.T) {
 			}
 			defer conn.Close()
 			conn.SetDeadline(time.Now().Add(5 * time.Second))
-			io.WriteString(conn, "GET / HTTP/1.1\r\nHost: shop.example.com\r\nConnection: Upgrade\r\nUpgrade: front-test\r\n\r\n")
+			io.WriteString(conn, "GET / HTTP/1.1\r\nHost: shop.example.com\r\nConnection: Upgrade\r\nUpgrade: switchyard-test\r\n\r\n")
 			reader := bufio.NewReader(conn)
 			res, err := http.ReadResponse(reader, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if res.Status != status || res.Header.Get("Upgrade") != "front-test" {
+			if res.Status != status || res.Header.Get("Upgrade") != "switchyard-test" {
 				t.Fatalf("got %q with Upgrade %q", res.Status, res.Header.Get("Upgrade"))
 			}
 			io.WriteString(conn, "ping")
@@ -470,12 +470,12 @@ func TestCancelsAStreamWhenTheClientDisconnects(t *testing.T) {
 					upstream.Close()
 					t.Fatal(err)
 				}
-				front := newServer(newProxy(upstream.Addr().String(), ln.Addr().(*net.TCPAddr), time.Second), 5*time.Second, 5*time.Second, 0)
-				go front.Serve(ln)
+				switchyard := newServer(newProxy(upstream.Addr().String(), ln.Addr().(*net.TCPAddr), time.Second), 5*time.Second, 5*time.Second, 0)
+				go switchyard.Serve(ln)
 				t.Cleanup(func() {
 					close(release)
 					upstream.Close()
-					front.Close()
+					switchyard.Close()
 					<-upstreamDone
 				})
 				client, err := net.Dial("tcp", ln.Addr().String())
@@ -549,10 +549,10 @@ func TestStreamsACustomStatusDuringAnUpload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	front := newServer(newProxy(upstream.Addr().String(), ln.Addr().(*net.TCPAddr), time.Second), 5*time.Second, 5*time.Second, 0)
-	go front.Serve(ln)
+	switchyard := newServer(newProxy(upstream.Addr().String(), ln.Addr().(*net.TCPAddr), time.Second), 5*time.Second, 5*time.Second, 0)
+	go switchyard.Serve(ln)
 	t.Cleanup(func() {
-		front.Close()
+		switchyard.Close()
 		<-upstreamDone
 	})
 	client, err := net.Dial("tcp", ln.Addr().String())
@@ -596,8 +596,8 @@ func TestShutdownWaitsForACustomStatusLineResponse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	front := newServer(newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second), 0, 0, 0)
-	go front.Serve(ln)
+	switchyard := newServer(newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second), 0, 0, 0)
+	go switchyard.Serve(ln)
 
 	conn, err := net.Dial("tcp", ln.Addr().String())
 	if err != nil {
@@ -614,7 +614,7 @@ func TestShutdownWaitsForACustomStatusLineResponse(t *testing.T) {
 	// Drain the way main does, while the body is still streaming.
 	stopped := make(chan struct{})
 	go func() {
-		front.Shutdown(context.Background())
+		switchyard.Shutdown(context.Background())
 		close(stopped)
 	}()
 	select {
@@ -641,9 +641,9 @@ func TestClosesAConnectionWhoseHeadersNeverFinish(t *testing.T) {
 	}
 	upstreamHit := make(chan struct{}, 1)
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { upstreamHit <- struct{}{} })
-	front := newServer(handler, 5*time.Second, 200*time.Millisecond, 0)
-	go front.Serve(ln)
-	t.Cleanup(func() { front.Close() })
+	switchyard := newServer(handler, 5*time.Second, 200*time.Millisecond, 0)
+	go switchyard.Serve(ln)
+	t.Cleanup(func() { switchyard.Close() })
 
 	conn, err := net.Dial("tcp", ln.Addr().String())
 	if err != nil {
@@ -687,7 +687,7 @@ func TestRequiresEveryFlag(t *testing.T) {
 	}
 }
 
-// startServedProxy runs newServer and newProxy as main does, in front of an
+// startServedProxy runs newServer and newProxy as main does, in switchyard of an
 // upstream that records the request target and method it receives.
 func startServedProxy(t *testing.T, requestTimeout time.Duration) (string, <-chan string) {
 	t.Helper()
@@ -706,9 +706,9 @@ func startServedProxy(t *testing.T, requestTimeout time.Duration) (string, <-cha
 		t.Fatal(err)
 	}
 	handler := newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second)
-	front := newServer(handler, 5*time.Second, 5*time.Second, requestTimeout)
-	go front.Serve(ln)
-	t.Cleanup(func() { front.Close() })
+	switchyard := newServer(handler, 5*time.Second, 5*time.Second, requestTimeout)
+	go switchyard.Serve(ln)
+	t.Cleanup(func() { switchyard.Close() })
 	return ln.Addr().String(), seen
 }
 
@@ -757,9 +757,9 @@ func TestClosesARequestWhoseBodyNeverFinishes(t *testing.T) {
 	}
 }
 
-// startFrontFor runs newServer and newProxy as main does, in front of an
+// startSwitchyardFor runs newServer and newProxy as main does, in switchyard of an
 // upstream answering with handler.
-func startFrontFor(t *testing.T, handler http.HandlerFunc) string {
+func startSwitchyardFor(t *testing.T, handler http.HandlerFunc) string {
 	t.Helper()
 	upstream := httptest.NewServer(handler)
 	t.Cleanup(upstream.Close)
@@ -768,19 +768,19 @@ func startFrontFor(t *testing.T, handler http.HandlerFunc) string {
 		t.Fatal(err)
 	}
 	proxy := newProxy(upstream.Listener.Addr().String(), ln.Addr().(*net.TCPAddr), 4*time.Second)
-	front := newServer(proxy, 5*time.Second, 5*time.Second, 0)
-	go front.Serve(ln)
-	t.Cleanup(func() { front.Close() })
+	switchyard := newServer(proxy, 5*time.Second, 5*time.Second, 0)
+	go switchyard.Serve(ln)
+	t.Cleanup(func() { switchyard.Close() })
 	return ln.Addr().String()
 }
 
 // Node can answer while the client is still uploading, for example with a 403
-// after reading only the headers. The front must pass that answer on without
+// after reading only the headers. Switchyard must pass that answer on without
 // waiting for the rest of the body.
 func TestAnswersBeforeTheUploadFinishes(t *testing.T) {
 	done := make(chan struct{})
 	t.Cleanup(func() { close(done) })
-	addr := startFrontFor(t, func(w http.ResponseWriter, r *http.Request) {
+	addr := startSwitchyardFor(t, func(w http.ResponseWriter, r *http.Request) {
 		// Answer the way Node does, without reading the body, and keep the
 		// connection open as Node would while the upload is still coming.
 		conn, buf, _ := w.(http.Hijacker).Hijack()
@@ -812,7 +812,7 @@ func TestAnswersBeforeTheUploadFinishes(t *testing.T) {
 
 // An upstream custom reason phrase must not affect the response trailers.
 func TestKeepsTrailersOnACustomStatusLine(t *testing.T) {
-	addr := startFrontFor(t, func(w http.ResponseWriter, r *http.Request) {
+	addr := startSwitchyardFor(t, func(w http.ResponseWriter, r *http.Request) {
 		conn, buf, _ := w.(http.Hijacker).Hijack()
 		defer conn.Close()
 		io.WriteString(buf, "HTTP/1.1 400 Custom Reason\r\nTransfer-Encoding: chunked\r\nTrailer: X-Checksum\r\n\r\n"+
@@ -833,7 +833,7 @@ func TestKeepsTrailersOnACustomStatusLine(t *testing.T) {
 }
 
 // HTTP/1.0 allows a request without a Host header. Node must see the public
-// address, not the front's connection to Node.
+// address, not Switchyard's connection to Node.
 func TestUsesThePublicAddressWhenTheRequestHasNoHost(t *testing.T) {
 	addr, seen := startProxy(t, nil)
 	rawRoundTrip(t, addr, "GET /health HTTP/1.0\r\n\r\n")
@@ -885,7 +885,7 @@ func TestLogsNothingWhenTheClientLeavesEarly(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("Node never saw the request cancelled")
 	}
-	// Give the front's error handler time to run after the cancellation.
+	// Give Switchyard's error handler time to run after the cancellation.
 	time.Sleep(200 * time.Millisecond)
 	if got := logged.String(); got != "" {
 		t.Errorf("logged %q, want nothing", got)
@@ -938,13 +938,13 @@ func TestAbsoluteFormTargetReachesNodeAsAPathWithTheTargetsHost(t *testing.T) {
 }
 
 // When Node answers before the client has finished its upload, the rest of
-// the body is still on the connection. The front must close the connection
+// the body is still on the connection. Switchyard must close the connection
 // after the answer, so those bytes are never read as another request.
 func TestClosesTheConnectionAfterAnAnswerThatCameBeforeTheBodyEnded(t *testing.T) {
 	done := make(chan struct{})
 	t.Cleanup(func() { close(done) })
 	seen := make(chan string, 4)
-	addr := startFrontFor(t, func(w http.ResponseWriter, r *http.Request) {
+	addr := startSwitchyardFor(t, func(w http.ResponseWriter, r *http.Request) {
 		seen <- r.RequestURI
 		// Answer the way Node does for /_next/static/ misses, without reading
 		// the body, and keep the connection open.
@@ -985,9 +985,9 @@ func TestClosesTheConnectionAfterAnAnswerThatCameBeforeTheBodyEnded(t *testing.T
 }
 
 // An upload Node has read in full doesn't need the connection closed; it
-// stays open for the next request, as without the front.
+// stays open for the next request, as without Switchyard.
 func TestKeepsTheConnectionOpenAfterACompleteUpload(t *testing.T) {
-	addr := startFrontFor(t, func(w http.ResponseWriter, r *http.Request) {
+	addr := startSwitchyardFor(t, func(w http.ResponseWriter, r *http.Request) {
 		io.Copy(io.Discard, r.Body)
 		io.WriteString(w, "ok")
 	})

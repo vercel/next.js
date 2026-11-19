@@ -11,14 +11,14 @@ const requireFromNext = createRequire(
 )
 const Watchpack = requireFromNext('watchpack')
 
-describe('front server watch build', () => {
-  it('rebuilds the front after its Go source changes', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'next-front-watch-'))
-    const source = join(directory, 'src/server/front/main.go')
+describe('Switchyard watch build', () => {
+  it('rebuilds Switchyard after its Go source changes', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'switchyard-watch-'))
+    const source = join(directory, 'src/server/switchyard/main.go')
     const watcher = new Watchpack({ aggregateTimeout: 5, poll: 10 })
     const rebuilt = jest.fn()
     try {
-      await mkdir(join(directory, 'src/server/front'), { recursive: true })
+      await mkdir(join(directory, 'src/server/switchyard'), { recursive: true })
       await writeFile(source, 'original source')
       watcher.on('aggregated', () => {
         rebuilt(readFileSync(source, 'utf8'))
@@ -30,7 +30,7 @@ describe('front server watch build', () => {
         clear: async () => {},
         start: async () => {},
         watch: async (path: string, names: string | string[]) => {
-          if ([names].flat().includes('front_server')) {
+          if ([names].flat().includes('switchyard')) {
             watcher.watch({
               directories: [join(directory, path)],
               startTime: Date.now() - 10000,

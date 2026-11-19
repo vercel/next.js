@@ -8,19 +8,19 @@ import { promisify } from 'util'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import {
-  FRONT_SERVER_BINARY_ENV,
-  FRONT_SERVER_ENV,
-} from 'next/dist/server/lib/front-server-env'
+  SWITCHYARD_BINARY_ENV,
+  SWITCHYARD_ENV,
+} from 'next/dist/server/lib/switchyard-env'
 
 const execFileAsync = promisify(execFile)
-const FLAG = FRONT_SERVER_ENV
+const FLAG = SWITCHYARD_ENV
 
 // The processes `next start` runs with and without
-// __NEXT_EXPERIMENTAL_FRONT_SERVER: who owns the public port, startup and
+// __NEXT_EXPERIMENTAL_SWITCHYARD: who owns the public port, startup and
 // shutdown, and what happens when one of the processes dies. The suite starts
 // `next start` itself, so it sets the variable per test and ignores the value
 // it inherits.
-describe('front-server process', () => {
+describe('switchyard process', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
@@ -38,7 +38,7 @@ describe('front-server process', () => {
   afterEach(() => {
     for (const child of running) {
       try {
-        // The whole group, so a next-front child goes too.
+        // The whole group, so a switchyard child goes too.
         process.kill(-child.pid!, 'SIGKILL')
       } catch {
         // Already gone.
@@ -192,11 +192,11 @@ describe('front-server process', () => {
     return stdout.split('\n').filter(Boolean).map(Number)
   }
 
-  async function frontOf(nodePid: number): Promise<number> {
+  async function switchyardOf(nodePid: number): Promise<number> {
     for (const pid of await childrenOf(nodePid)) {
-      if ((await commandOf(pid)).startsWith('next-front')) return pid
+      if ((await commandOf(pid)).startsWith('switchyard')) return pid
     }
-    throw new Error(`next start (pid ${nodePid}) has no next-front child`)
+    throw new Error(`next start (pid ${nodePid}) has no switchyard child`)
   }
 
   function isAlive(pid: number) {
@@ -217,21 +217,21 @@ describe('front-server process', () => {
     })
   })
 
-  it('fails clearly when it finds no next-front binary', async () => {
-    const missing = path.join(next.testDir, 'no-such-next-front')
+  it('fails clearly when it finds no switchyard binary', async () => {
+    const missing = path.join(next.testDir, 'no-such-switchyard')
     const { exit, output } = spawnNext('start', {
       flag: '1',
       args: ['-p', '0'],
-      env: { [FRONT_SERVER_BINARY_ENV]: missing },
+      env: { [SWITCHYARD_BINARY_ENV]: missing },
     })
     expect(await exit).toEqual({ code: 1, signal: null })
     expect(output()).toContain(
-      `${FRONT_SERVER_BINARY_ENV} points at ${missing}, which doesn't exist`
+      `${SWITCHYARD_BINARY_ENV} points at ${missing}, which doesn't exist`
     )
     expect(output()).not.toContain('Ready in')
   })
 
-  // Behavior that must not change when the front is on.
+  // Behavior that must not change when Switchyard is on.
   function unchangedBehavior(flag: string | undefined) {
     it('exits 143 on SIGTERM', async () => {
       const { child, port, exit } = await startNext({ flag })
@@ -304,7 +304,7 @@ describe('front-server process', () => {
           args: ['-p', String(port)],
         })
         expect(await exit).toEqual({ code: 1, signal: null })
-        // Node reports it once; the front prints only the raw error.
+        // Node reports it once; Switchyard prints only the raw error.
         expect(output().match(/Failed to start server/g)).toHaveLength(1)
         expect(output()).not.toContain('Ready in')
       } finally {
@@ -327,14 +327,14 @@ describe('front-server process', () => {
     unchangedBehavior(undefined)
   })
 
-  // Needs a next-front build. `next` ships none unless built with
-  // NEXT_BUILD_FRONT_SERVER=1, so this runs where the binary is passed in.
-  // @force-gate frontServerBinary
+  // Needs a switchyard build. `next` ships none unless built with
+  // NEXT_BUILD_SWITCHYARD=1, so this runs where the binary is passed in.
+  // @force-gate switchyardBinary
   describe(`with ${FLAG}=1`, () => {
-    it('puts next-front on the public port and Node on 127.0.0.1', async () => {
+    it('puts switchyard on the public port and Node on 127.0.0.1', async () => {
       const { child, port } = await startNext({ flag: '1' })
-      const front = await frontOf(child.pid!)
-      expect(await listenersOf(port)).toEqual([front])
+      const switchyard = await switchyardOf(child.pid!)
+      expect(await listenersOf(port)).toEqual([switchyard])
 
       const nodeAddresses = await listenAddressesOf(child.pid!)
       expect(nodeAddresses).toHaveLength(1)
@@ -346,7 +346,7 @@ describe('front-server process', () => {
       expect(text).toContain('hello world')
     })
 
-    it("passes Node's timeouts to next-front", async () => {
+    it("passes Node's timeouts to switchyard", async () => {
       const { child } = await startNext({
         flag: '1',
         args: ['-p', '0', '--keepAliveTimeout', '65000'],
@@ -355,7 +355,7 @@ describe('front-server process', () => {
         '-o',
         'args=',
         '-p',
-        `${await frontOf(child.pid!)}`,
+        `${await switchyardOf(child.pid!)}`,
       ])
       // --keepAliveTimeout for clients; Node's own headersTimeout (60 s),
       // requestTimeout (300 s) and keepAliveTimeout (5 s, minus a second for
@@ -365,18 +365,18 @@ describe('front-server process', () => {
       )
     })
 
-    it('exits 1 when next-front dies', async () => {
+    it('exits 1 when switchyard dies', async () => {
       const { child, exit } = await startNext({ flag: '1' })
-      process.kill(await frontOf(child.pid!), 'SIGKILL')
+      process.kill(await switchyardOf(child.pid!), 'SIGKILL')
       expect(await exit).toEqual({ code: 1, signal: null })
     })
 
-    it('stops next-front when Node dies', async () => {
+    it('stops switchyard when Node dies', async () => {
       const { child, exit } = await startNext({ flag: '1' })
-      const front = await frontOf(child.pid!)
+      const switchyard = await switchyardOf(child.pid!)
       process.kill(child.pid!, 'SIGKILL')
       await exit
-      await retry(() => expect(isAlive(front)).toBe(false), 5_000, 100)
+      await retry(() => expect(isAlive(switchyard)).toBe(false), 5_000, 100)
     })
 
     unchangedBehavior('1')
@@ -386,13 +386,13 @@ describe('front-server process', () => {
     const { child, port } = await startNext({ flag: '1' }, 'dev')
     expect(await getText(port)).toMatchObject({ status: 200 })
     for (const pid of await listenersOf(port)) {
-      expect(await commandOf(pid)).not.toMatch(/^next-front/)
+      expect(await commandOf(pid)).not.toMatch(/^switchyard/)
     }
     // `next dev` serves from a child process; neither it nor the CLI process
-    // starts next-front.
+    // starts switchyard.
     for (const pid of [child.pid!, ...(await childrenOf(child.pid!))]) {
       for (const grandchild of await childrenOf(pid)) {
-        expect(await commandOf(grandchild)).not.toMatch(/^next-front/)
+        expect(await commandOf(grandchild)).not.toMatch(/^switchyard/)
       }
     }
   })

@@ -144,13 +144,13 @@ export interface StartServerOptions {
   serverFastRefresh?: boolean
   /**
    * Set when another process owns the public port and forwards to this
-   * server (see `front-server.ts`). Runs once this server listens, before the
+   * server (see `switchyard.ts`). Runs once this server listens, before the
    * URLs print, and returns the public address.
    */
   beforeStartLog?: (privateServer: PrivateServer) => Promise<PublicServer>
   /**
    * Bind again if the OS picks this port for a `port: 0` listener, so a
-   * front server can take it.
+   * Switchyard can take it.
    */
   avoidPort?: number
 }
@@ -363,20 +363,20 @@ export async function startServer(
 
       if (serverOptions.avoidPort && port === serverOptions.avoidPort) {
         debug(
-          'the OS gave the Node server port %d, which the front server needs as its public port; binding the Node server to another port',
+          'the OS gave the Node server port %d, which Switchyard needs as its public port; binding the Node server to another port',
           port
         )
         server.close(() => server.listen(0, hostname))
         return
       }
 
-      // With a front server (`beforeStartLog` set), start it now and switch to
+      // With Switchyard (`beforeStartLog` set), start it now and switch to
       // its public address: the URLs printed below, `PORT`, and the hostname
       // and port the router builds `request.url` from all use the public port,
-      // so the app sees the same values as without a front server. Only
+      // so the app sees the same values as without Switchyard. Only
       // `__NEXT_PRIVATE_ORIGIN` keeps the Node server's own address
       // (`privateAppUrl`), because Node uses it to send requests to itself
-      // (server actions), and those don't need to pass through the front.
+      // (server actions), and those don't need to pass through Switchyard.
       const privateAppUrl = `http://${actualHostname}:${port}`
       let publicServer: PublicServer | undefined
       if (serverOptions.beforeStartLog) {
@@ -488,9 +488,9 @@ export async function startServer(
             // first, stop accepting new connections and finish pending requests,
             // because they might affect `nextServer.close()` (e.g. by scheduling an `after`)
             //
-            // With the Go front on, it stops first: it stops accepting and
+            // With Switchyard on, it stops first: it stops accepting and
             // finishes the requests it already has, which still need Node.
-            // Closing Node's server at the same time would refuse the front's
+            // Closing Node's server at the same time would refuse Switchyard's
             // new connections to Node and turn those requests into 502s.
             await publicServer?.close()
             await new Promise<void>((res) => {
