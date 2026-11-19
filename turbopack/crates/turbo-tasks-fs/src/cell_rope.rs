@@ -198,6 +198,7 @@ impl CellRope {
                     let escaped = if tracked {
                         escaped.await?
                     } else {
+                        // INVALIDATION: only `read_untracked` gets here, see `Cell` above.
                         escaped.untracked().await?
                     };
                     builder.concat(&escaped);
