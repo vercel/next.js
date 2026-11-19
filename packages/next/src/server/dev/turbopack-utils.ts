@@ -437,19 +437,20 @@ export async function handleRouteType({
         // after an edit. Subscribing runs `subscribeToClientChanges`, which
         // bumps the `hmrHash` counter on each change; that counter is returned
         // by `getServerComponentsHmrRefreshHash` and folded into cache keys by
-        // `getHmrRefreshHash`. Unlike app pages there is no RSC for a connected
-        // browser to refetch, so `createMessage` returns nothing; the
-        // subscription exists only to advance the hash.
+        // `getHmrRefreshHash`. Go routes can render browser entries without a
+        // React router, so their development client reloads the document.
         hooks?.subscribeToChanges(
           key,
           /** includeIssues= */ true,
           route.endpoint,
-          () => undefined,
+          () =>
+            route.type === 'app-route-go'
+              ? { type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES }
+              : undefined,
           (error) => {
-            // This subscription only advances the refresh hash, so there is
-            // nothing to send the browser when it fails. `subscribeToChanges`
-            // drops the subscription on error and re-creates it the next time
-            // this route is ensured, so just log it.
+            // Route compilation errors use the normal issue reporting path.
+            // `subscribeToChanges` drops a failed subscription and re-creates
+            // it the next time this route is ensured.
             console.error(
               new Error(`Error in the "${page}" app-route HMR subscription`, {
                 cause: error,

@@ -66,7 +66,10 @@ interface Worker {
 export class NativeRouteManager {
   private workers = new Map<string, Promise<Worker>>()
   private routes = new Map<string, string>()
-  private executablePaths = new Map<string, string | Promise<string>>()
+  private executablePaths = new Map<
+    string,
+    Promise<{ executable: string; assets?: string }>
+  >()
   private closed = false
   private activePages: ReadonlySet<string> | undefined
   private allWorkers = new Set<Worker>()
@@ -76,7 +79,9 @@ export class NativeRouteManager {
     private readonly dev: boolean
   ) {}
 
-  private async readExecutable(entry: string): Promise<string> {
+  private async readExecutable(
+    entry: string
+  ): Promise<{ executable: string; assets?: string }> {
     const descriptor = JSON.parse(
       await fs.readFile(
         /* turbopackIgnore: true */ join(
@@ -111,7 +116,12 @@ export class NativeRouteManager {
     if (localPath.startsWith('..') || isAbsolute(localPath)) {
       throw new Error('Native route executable is outside the server output')
     }
-    return executable
+    return {
+      executable,
+      assets: descriptor.assets
+        ? Buffer.from(JSON.stringify(descriptor.assets)).toString('base64')
+        : undefined,
+    }
   }
 
   private async start(executable: string): Promise<Worker> {
@@ -241,19 +251,18 @@ export class NativeRouteManager {
     }
   }
 
-  private async getWorker(page: string, entry: string): Promise<Worker> {
+  private async getWorker(
+    page: string,
+    entry: string
+  ): Promise<{ worker: Worker; assets?: string }> {
     if (this.closed) throw new Error('Next.js server is closing')
     // Development output can change between requests; production output cannot.
-    let executable = this.dev ? undefined : this.executablePaths.get(entry)
-    if (!executable) {
-      executable = this.readExecutable(entry)
-      if (!this.dev) this.executablePaths.set(entry, executable)
+    let descriptor = this.dev ? undefined : this.executablePaths.get(entry)
+    if (!descriptor) {
+      descriptor = this.readExecutable(entry)
+      if (!this.dev) this.executablePaths.set(entry, descriptor)
     }
-    if (typeof executable !== 'string') {
-      const resolved = await executable
-      if (!this.dev) this.executablePaths.set(entry, resolved)
-      executable = resolved
-    }
+    const { executable, assets } = await descriptor
     if (this.closed) throw new Error('Next.js server is closing')
     if (this.activePages && !this.activePages.has(page)) {
       throw new Error('Native route was removed; retry the request')
@@ -285,7 +294,7 @@ export class NativeRouteManager {
       this.workers.delete(previous)
       old?.then((value) => this.retire(value)).catch(() => {})
     }
-    return worker
+    return { worker, assets }
   }
 
   async invoke(
@@ -295,13 +304,13 @@ export class NativeRouteManager {
     res: ServerResponse,
     url: string
   ): Promise<void> {
-    const worker = await this.getWorker(page, entry)
+    const { worker, assets } = await this.getWorker(page, entry)
     // Disconnects during descriptor resolution or startup predate the
     // transport listeners below. Do not dispatch those requests to Go.
     if (req.aborted || res.destroyed) return
     worker.active++
     try {
-      await proxyNativeRequest(req, res, url, worker)
+      await proxyNativeRequest(req, res, url, worker, assets)
     } finally {
       worker.active--
       if (worker.retired) this.retire(worker)
@@ -311,7 +320,7 @@ export class NativeRouteManager {
   /** Return a response to Next's middleware adapter without finishing the client response. */
   async invokeMiddleware(entry: string, req: Request): Promise<Response> {
     req.signal.throwIfAborted()
-    const worker = await this.getWorker('/_middleware', entry)
+    const { worker } = await this.getWorker('/_middleware', entry)
     req.signal.throwIfAborted()
     const url = new URL(req.url)
     const headers: Record<string, string> = Object.create(null)

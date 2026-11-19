@@ -107,6 +107,12 @@ package-level values, and syntax errors using Go's parser. Other package files a
 Values describe initializer syntax only: composite, string, integer and boolean literals are structural and every other
 expression is unsupported, so consumers can read static configuration without evaluating it. The parser tool is cached independently of application
 modules, and queries are keyed by their resolved source generation. It never loads application code.
+`go_declarations_with_assets` also discovers direct package-level `Browser("literal")`
+initializers for a configured SDK import in the parsed files. It honors named import aliases, reports source positions, and diagnoses
+unsupported calls within that boundary. Consumers choose file conventions, resolve
+browser paths and compile browser entrypoints; analysis does not inspect transitive
+Go packages or execute declarations.
+
 Consumers interpret names and generate their own entrypoints. Syntax errors are
 available while allowing the compiler to emit its usual diagnostics.
 

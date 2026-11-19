@@ -42,7 +42,8 @@ export function proxyNativeRequest(
   req: IncomingMessage,
   res: ServerResponse,
   url: string,
-  target: { port: number; agent: Agent; token: string }
+  target: { port: number; agent: Agent; token: string },
+  assets?: string
 ): Promise<void> {
   // Discard client-supplied internal Next.js headers.
   // Authenticate forwarded requests with this Go worker's token.
@@ -82,6 +83,7 @@ export function proxyNativeRequest(
     headers['transfer-encoding'] = 'chunked'
   }
   headers['x-next-internal-go-token'] = target.token
+  if (assets) headers['x-next-internal-go-assets'] = assets
   return new Promise<void>((resolve, reject) => {
     const upstream = request({
       hostname: '127.0.0.1',
