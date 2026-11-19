@@ -1887,6 +1887,9 @@ export function createAppPageEntrypoint({
           value?.kind === CachedRouteKind.APP_PAGE &&
           value.headers?.[NEXT_PRELUDE_METADATA_HEADER] !== undefined
         ) {
+          // Exclude the HTML metadata marker from RSC cache capture. Matching
+          // bots would otherwise bypass cached RSC responses. Clone the entry
+          // so the shared HTML cache entry retains its marker.
           const headers = { ...value.headers }
           delete headers[NEXT_PRELUDE_METADATA_HEADER]
           cacheEntry = { ...cacheEntry, value: { ...value, headers } }
@@ -2376,6 +2379,7 @@ export function createAppPageEntrypoint({
         if (cachedData.headers) {
           const headers = { ...cachedData.headers }
           if (isRSCRequest) {
+            // This HTML-only marker would make bot policies bypass cached RSC.
             delete headers[NEXT_PRELUDE_METADATA_HEADER]
           }
 

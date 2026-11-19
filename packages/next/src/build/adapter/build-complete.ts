@@ -687,6 +687,30 @@ function normalizePathnames(
   }
 }
 
+function isActionHeaderBypass(condition: RouteHas) {
+  return (
+    condition.type === 'header' &&
+    condition.key.toLowerCase() === 'next-action' &&
+    condition.value === undefined
+  )
+}
+
+function isMultipartBypass(condition: RouteHas) {
+  return (
+    condition.type === 'header' &&
+    condition.key.toLowerCase() === 'content-type' &&
+    condition.value === 'multipart/form-data;.*'
+  )
+}
+
+function getRscHeaders(
+  initialHeaders: Record<string, string | string[]> | undefined
+) {
+  const headers = { ...initialHeaders }
+  delete headers[NEXT_PRELUDE_METADATA_HEADER]
+  return headers
+}
+
 export async function handleBuildComplete({
   dir,
   config,
@@ -748,30 +772,13 @@ export async function handleBuildComplete({
 
   if (typeof adapterMod.onBuildComplete === 'function') {
     const capabilities = adapterMod.getCapabilities?.({ config })
-    const getRscHeaders = (
-      initialHeaders: Record<string, string | string[]> | undefined
-    ) => {
-      const headers = { ...initialHeaders }
-      delete headers[NEXT_PRELUDE_METADATA_HEADER]
-      return headers
-    }
     const htmlLimitedBotsPattern = `.*(?:${
       config.htmlLimitedBots || HTML_LIMITED_BOT_UA_RE_STRING
     }).*`
-    const isActionHeaderBypass = (condition: RouteHas) =>
-      condition.type === 'header' &&
-      condition.key.toLowerCase() === 'next-action' &&
-      condition.value === undefined
-    const isMultipartBypass = (condition: RouteHas) =>
-      condition.type === 'header' &&
-      condition.key.toLowerCase() === 'content-type' &&
-      condition.value === 'multipart/form-data;.*'
     const getPrerenderBypassFor = (
-      bypassFor: RouteHas[] | undefined,
-      isAppPageOutput: boolean
+      bypassFor: RouteHas[] | undefined
     ): PrerenderBypassCondition[] | undefined => {
       if (
-        !isAppPageOutput ||
         !bypassFor ||
         (!capabilities?.supportsHtmlLimitedBotPrerenders &&
           !capabilities?.supportsPrerenderMethodBypass)
@@ -1913,6 +1920,14 @@ export async function handleBuildComplete({
           htmlSize
         )
 
+        let bypassFor: PrerenderBypassCondition[] | undefined
+        if (isAppPage && srcRoute !== '/_not-found') {
+          bypassFor = experimentalBypassFor
+          if (appOutputMap[srcRoute]?.type === AdapterOutputType.APP_PAGE) {
+            bypassFor = getPrerenderBypassFor(experimentalBypassFor)
+          }
+        }
+
         const initialOutput: AdapterOutput['PRERENDER'] = {
           id: route,
           type: AdapterOutputType.PRERENDER,
@@ -1969,13 +1984,7 @@ export async function handleBuildComplete({
             allowQuery,
             allowHeader,
             renderingMode,
-            bypassFor:
-              isAppPage && srcRoute !== '/_not-found'
-                ? getPrerenderBypassFor(
-                    experimentalBypassFor,
-                    appOutputMap[srcRoute]?.type === AdapterOutputType.APP_PAGE
-                  )
-                : undefined,
+            bypassFor,
             bypassToken: previewProps.previewModeId,
           },
         }
@@ -2202,6 +2211,14 @@ export async function handleBuildComplete({
           htmlSize
         )
 
+        let bypassFor: PrerenderBypassCondition[] | undefined
+        if (isAppPage) {
+          bypassFor = experimentalBypassFor
+          if (appOutputMap[srcRoute]?.type === AdapterOutputType.APP_PAGE) {
+            bypassFor = getPrerenderBypassFor(experimentalBypassFor)
+          }
+        }
+
         const initialOutput: AdapterOutput['PRERENDER'] = {
           id: dynamicRoute,
           type: AdapterOutputType.PRERENDER,
@@ -2241,12 +2258,7 @@ export async function handleBuildComplete({
             allowHeader,
             renderingMode,
             partialFallback: canEmitPartialFallback || undefined,
-            bypassFor: isAppPage
-              ? getPrerenderBypassFor(
-                  experimentalBypassFor,
-                  appOutputMap[srcRoute]?.type === AdapterOutputType.APP_PAGE
-                )
-              : undefined,
+            bypassFor,
             bypassToken: previewProps.previewModeId,
           },
         }
