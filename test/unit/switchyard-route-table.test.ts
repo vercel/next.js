@@ -25,6 +25,7 @@ describe('switchyard-route-table', () => {
       hasInstrumentation: false,
       keepsInternalHeaders: false,
       headers: [],
+      onMatchHeaders: [],
       redirects: [{ internal: true }],
       beforeFilesRewrites: [],
       afterFilesRewrites: [],
@@ -35,6 +36,8 @@ describe('switchyard-route-table', () => {
         goPages[pathname]
           ? { kind: RouteKind.APP_ROUTE_GO, page: goPages[pathname] }
           : { kind: RouteKind.APP_PAGE, page: `${pathname}/page` },
+      internalHeaders: ['x-matched-path'],
+      maxHeaderBytes: 16384,
       ...overrides,
     })
 
@@ -65,6 +68,18 @@ describe('switchyard-route-table', () => {
         contract: { version: 1 },
         reason,
       })
+    })
+
+    it('sends requests with a header a header rule reads to Node', () => {
+      const table = switchyardRouteTable(
+        input({
+          onMatchHeaders: [
+            { source: '/:path*', has: [{ type: 'header', key: 'RSC' }] },
+            { source: '/_next/data/(.*)' },
+          ],
+        })
+      )
+      expect(table).toMatchObject({ nodeRequestHeaders: ['rsc'] })
     })
   })
 })

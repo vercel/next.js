@@ -1,8 +1,10 @@
 import fs from 'fs'
+import http from 'http'
 import path from 'path'
 import type { NextConfigComplete, NextConfigRuntime } from '../config-shared'
 import type { setupFsCheck } from './router-utils/filesystem'
 import { INSTRUMENTATION_HOOK_FILENAME } from '../../lib/constants'
+import { INTERNAL_HEADERS } from './server-ipc/utils'
 import {
   switchyardRouteTable,
   type SwitchyardRouteTable,
@@ -37,6 +39,7 @@ export function collectSwitchyardRouteTable(
     ),
     keepsInternalHeaders: Boolean(process.env.NEXT_PRIVATE_TEST_HEADERS),
     headers: fsChecker.headers,
+    onMatchHeaders: fsChecker.onMatchHeaders,
     redirects: fsChecker.redirects,
     beforeFilesRewrites: fsChecker.rewrites.beforeFiles,
     afterFilesRewrites: fsChecker.rewrites.afterFiles,
@@ -45,5 +48,7 @@ export function collectSwitchyardRouteTable(
     pageFiles: fsChecker.pageFiles,
     appRoute: (pathname) =>
       fsChecker.getRouteDefinition('appFile', pathname, undefined),
+    internalHeaders: INTERNAL_HEADERS,
+    maxHeaderBytes: http.maxHeaderSize,
   })
 }

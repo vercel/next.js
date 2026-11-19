@@ -12,6 +12,7 @@ package routing
 import (
 	"encoding/json"
 	"fmt"
+	"net/textproto"
 )
 
 // Version is the route table format this package reads.
@@ -21,8 +22,12 @@ const Version = 1
 // Table can serve concurrent calls to Decide.
 type Table struct {
 	// Why the app gets no direct routes; empty when it does.
-	reason       string
-	nodePrefixes []string
+	reason         string
+	maxHeaderBytes int
+	nodePrefixes   []string
+	// Request headers (canonical names) whose presence sends a request to
+	// Node, because a rule Node runs before routing reads them.
+	nodeHeaders []string
 	// Exact paths that Node answers: public files, app and pages routes that
 	// aren't route.go.
 	nodeExact map[string]struct{}
@@ -35,10 +40,12 @@ type tableJSON struct {
 	Contract struct {
 		Version int `json:"version"`
 	} `json:"contract"`
-	Reason       string            `json:"reason"`
-	NodePrefixes []string          `json:"nodePrefixes"`
-	NodeExact    []string          `json:"nodeExact"`
-	GoExact      map[string]string `json:"goExact"`
+	Reason         string            `json:"reason"`
+	MaxHeaderBytes int               `json:"maxHeaderBytes"`
+	NodePrefixes   []string          `json:"nodePrefixes"`
+	NodeHeaders    []string          `json:"nodeRequestHeaders"`
+	NodeExact      []string          `json:"nodeExact"`
+	GoExact        map[string]string `json:"goExact"`
 }
 
 // Load reads a route table. A table of another version is an error; the
@@ -54,10 +61,19 @@ func Load(data []byte) (*Table, error) {
 	if raw.Reason != "" {
 		return &Table{reason: raw.Reason}, nil
 	}
+	if raw.MaxHeaderBytes <= 0 {
+		return nil, fmt.Errorf("route table: maxHeaderBytes must be positive")
+	}
 	t := &Table{
-		nodePrefixes: raw.NodePrefixes,
-		nodeExact:    make(map[string]struct{}, len(raw.NodeExact)),
-		goExact:      make(map[string]string, len(raw.GoExact)),
+		maxHeaderBytes: raw.MaxHeaderBytes,
+		nodePrefixes:   raw.NodePrefixes,
+		nodeHeaders:    make([]string, len(raw.NodeHeaders)),
+		nodeExact:      make(map[string]struct{}, len(raw.NodeExact)),
+		goExact:        make(map[string]string, len(raw.GoExact)),
+	}
+	for i, name := range raw.NodeHeaders {
+		// "rsc" → "Rsc", how Go's HTTP server keys request headers.
+		t.nodeHeaders[i] = textproto.CanonicalMIMEHeaderKey(name)
 	}
 	for _, p := range raw.NodeExact {
 		t.nodeExact[p] = struct{}{}

@@ -15,9 +15,19 @@ export type SwitchyardRouteTable =
   | Readonly<{ contract: { version: 1 }; reason: string }>
   | Readonly<{
       contract: { version: 1 }
+      maxHeaderBytes: number
       nodePrefixes: readonly string[]
+      nodeRequestHeaders: readonly string[]
       nodeExact: readonly string[]
       goExact: Readonly<Record<string, string>>
+      /**
+       * How Switchyard sends a direct request and its response, for the
+       * host's HTTP code. The routing package reads only the fields above.
+       */
+      direct: Readonly<{
+        stripRequestHeaders: readonly string[]
+        stripRequestHeaderPrefixes: readonly string[]
+      }>
     }>
 
 export type SwitchyardRouteTableInput = Readonly<{
@@ -32,6 +42,10 @@ export type SwitchyardRouteTableInput = Readonly<{
   /** NEXT_PRIVATE_TEST_HEADERS: Node keeps internal headers then. */
   keepsInternalHeaders: boolean
   headers: readonly unknown[]
+  onMatchHeaders: ReadonlyArray<{
+    source: string
+    has?: ReadonlyArray<{ type: string; key?: string }>
+  }>
   redirects: ReadonlyArray<{ internal?: boolean }>
   beforeFilesRewrites: readonly unknown[]
   afterFilesRewrites: readonly unknown[]
@@ -41,6 +55,8 @@ export type SwitchyardRouteTableInput = Readonly<{
   pageFiles: Iterable<string>
   /** The app route registered for a pathname, as the router knows it. */
   appRoute: (pathname: string) => { kind: RouteKind; page: string } | undefined
+  internalHeaders: readonly string[]
+  maxHeaderBytes: number
 }>
 
 const VERSION = 1
@@ -50,6 +66,22 @@ export function switchyardRouteTable(
 ): SwitchyardRouteTable {
   const reason = ineligibleReason(input)
   if (reason) return { contract: { version: VERSION }, reason }
+
+  // Headers added when a rule matches (a deploymentId adds two). One that
+  // only applies under /_next/ never meets a direct request; one that
+  // depends on a request header sends requests with that header to Node.
+  const nodeRequestHeaders = new Set<string>()
+  for (const rule of input.onMatchHeaders) {
+    const source = rule.source.startsWith(input.basePath + '/')
+      ? rule.source.slice(input.basePath.length)
+      : rule.source
+    if (source.startsWith('/_next/')) continue
+    const header = rule.has?.find((condition) => condition.type === 'header')
+    if (!header?.key) {
+      return { contract: { version: VERSION }, reason: 'headers' }
+    }
+    nodeRequestHeaders.add(header.key.toLowerCase())
+  }
 
   const nodeExact = new Set<string>([...input.publicFiles, ...input.pageFiles])
   const goExact: Record<string, string> = {}
@@ -65,11 +97,17 @@ export function switchyardRouteTable(
 
   return {
     contract: { version: VERSION },
+    maxHeaderBytes: input.maxHeaderBytes,
     // Next.js's own files, and the legacy static/ folder, whose contents the
     // table doesn't list.
     nodePrefixes: ['/_next/', '/static/'],
+    nodeRequestHeaders: [...nodeRequestHeaders],
     nodeExact: [...nodeExact].sort(),
     goExact,
+    direct: {
+      stripRequestHeaders: [...input.internalHeaders],
+      stripRequestHeaderPrefixes: ['x-next-internal-'],
+    },
   }
 }
 

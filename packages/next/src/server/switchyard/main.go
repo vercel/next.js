@@ -1,7 +1,8 @@
-// switchyard owns `next start`'s public port and forwards every request,
-// unchanged, to the Node server on a private loopback port. Node also tells
-// it the app's route table and its route.go workers (direct.go), so that
-// later stages can send those requests to the workers directly.
+// switchyard owns `next start`'s public port and forwards requests, unchanged,
+// to the Node server on a private loopback port. Once Node sends it a route
+// table, it sends route.go requests that Node would pass on unchanged straight
+// to their Go workers instead (direct.go, and the routing package for the
+// decision).
 //
 // Contract with Node (packages/next/src/server/lib/switchyard.ts):
 //
@@ -149,7 +150,7 @@ func main() {
 	}
 	addr := ln.Addr().(*net.TCPAddr)
 
-	f := newSwitchyard(newProxy(cfg.upstream, addr, cfg.upstreamIdle, token))
+	f := newSwitchyard(newProxy(cfg.upstream, addr, cfg.upstreamIdle, token), addr, cfg.upstreamIdle)
 	srv := newServer(f, cfg.idleTimeout, cfg.headerTimeout, cfg.requestTimeout, cfg.maxHeaderBytes)
 
 	fmt.Printf("NEXT_SWITCHYARD_READY %d\n", addr.Port)
