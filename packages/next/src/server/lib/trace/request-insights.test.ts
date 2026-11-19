@@ -1049,6 +1049,82 @@ describe('request insights', () => {
     }
   })
 
+  it('does not replay the journal for unindexed detail identities', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    startRequestInsight({ requestId: 'indexed' })
+    recordSpan({ name: 'render', requestId: 'indexed' })
+    const request = getRequestInsightsSnapshot().requests[0]
+    const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+    const fs = require('fs') as typeof import('fs')
+    try {
+      await initializeRequestInsightsJournal(distDir)
+      appendRequestInsightToJournal(request)
+      await getRequestInsightsHistory(distDir)
+      const createReadStream = jest.spyOn(fs, 'createReadStream')
+      try {
+        for (let index = 0; index < 10; index++) {
+          for (const identity of [
+            { requestId: `missing-${index}` },
+            { requestId: 'indexed', kind: 'instant-insights' as const },
+          ]) {
+            const query = { ...identity, indexedOnly: true }
+            await expect(
+              readRequestInsightsJournal(distDir, query)
+            ).resolves.toEqual([])
+          }
+        }
+        expect(createReadStream).not.toHaveBeenCalled()
+
+        const query = { requestId: 'indexed', indexedOnly: true }
+        await expect(
+          readRequestInsightsJournal(distDir, query)
+        ).resolves.toEqual([request])
+        expect(createReadStream).toHaveBeenCalledTimes(1)
+      } finally {
+        createReadStream.mockRestore()
+      }
+    } finally {
+      await resetRequestInsightsJournalForTest()
+      await rm(distDir, { recursive: true, force: true })
+    }
+  })
+
+  it('includes pending writes and late updates in indexed detail reads', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    startRequestInsight({ requestId: 'pending' })
+    recordSpan({ name: 'render', requestId: 'pending' })
+    const request = getRequestInsightsSnapshot().requests[0]
+    const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+    try {
+      await initializeRequestInsightsJournal(distDir)
+      const internal = { ...request, kind: 'instant-insights' as const }
+      appendRequestInsightToJournal(request)
+      appendRequestInsightToJournal(internal)
+      const lateSpan = { ...request.spans[0], name: 'late render' }
+      const updated = { ...request, spans: [...request.spans, lateSpan] }
+      appendRequestInsightUpdateToJournal(updated, { span: lateSpan })
+
+      const query = { requestId: request.requestId, indexedOnly: true }
+      await expect(readRequestInsightsJournal(distDir, query)).resolves.toEqual(
+        [updated]
+      )
+      await expect(
+        readRequestInsightsJournal(distDir, {
+          ...query,
+          kind: 'instant-insights',
+        })
+      ).resolves.toEqual([internal])
+
+      await initializeRequestInsightsJournal(distDir)
+      await expect(readRequestInsightsJournal(distDir, query)).resolves.toEqual(
+        []
+      )
+    } finally {
+      await resetRequestInsightsJournalForTest()
+      await rm(distDir, { recursive: true, force: true })
+    }
+  })
+
   it('handles missing, empty and damaged gzip journals without rejecting reads', async () => {
     const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
     const file = path.join(distDir, 'request-insights.ndjson.gz')
@@ -1317,6 +1393,19 @@ describe('request insights', () => {
           (await fileStat(path.join(distDir, 'request-insights.ndjson.gz')))
             .size
         ).toBeLessThan(50 * 1024 * 1024)
+        // Detail reads only replay retained identities; low-level reads can
+        // still access records evicted from the index.
+        const fs = require('fs') as typeof import('fs')
+        const createReadStream = jest.spyOn(fs, 'createReadStream')
+        try {
+          const query = { requestId: 'bounded-0', indexedOnly: true }
+          await expect(
+            readRequestInsightsJournal(distDir, query)
+          ).resolves.toEqual([])
+          expect(createReadStream).not.toHaveBeenCalled()
+        } finally {
+          createReadStream.mockRestore()
+        }
         // Eviction only affects the index, not the journal or retained cursors.
         expect(
           await readRequestInsightsJournal(distDir, { requestId: 'bounded-0' })

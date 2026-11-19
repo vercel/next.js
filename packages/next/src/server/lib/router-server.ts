@@ -532,6 +532,7 @@ export async function initialize(opts: {
               requestId,
               kind,
               limit: 1,
+              indexedOnly: true,
             })
             res.statusCode = request ? 200 : 404
             res.end(

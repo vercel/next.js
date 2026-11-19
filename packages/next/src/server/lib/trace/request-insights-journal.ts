@@ -45,6 +45,7 @@ type JournalFilter = {
   htmlRequestId?: string
   kind?: RequestInsight['kind']
   limit?: number
+  indexedOnly?: boolean
 }
 
 type HistoryFilter = {
@@ -385,6 +386,22 @@ class RequestInsightsJournal {
     }
   }
 
+  async read(filter: JournalFilter): Promise<RequestInsight[]> {
+    await this.flush()
+    if (filter.indexedOnly) {
+      const { requestId } = filter
+      if (requestId === undefined) return []
+      const kind = getRequestInsightKind(filter)
+      // Detail misses must not replay the journal. Internal readers can still
+      // access disk records whose summaries were evicted from the index.
+      if (!this.summaries.has(getRequestInsightKey({ requestId, kind }))) {
+        return []
+      }
+      filter = { ...filter, kind }
+    }
+    return readJournalFile(this.file, filter)
+  }
+
   async getHistory(
     filter: HistoryFilter = {}
   ): Promise<RequestInsightsHistoryPage> {
@@ -520,9 +537,7 @@ export async function readRequestInsightsJournal(
   distDir: string,
   filter: JournalFilter = {}
 ): Promise<RequestInsight[]> {
-  const journal = getOrCreateRequestInsightsJournal(distDir)
-  await journal.flush()
-  return readJournalFile(journal.file, filter)
+  return getOrCreateRequestInsightsJournal(distDir).read(filter)
 }
 
 async function readJournalFile(

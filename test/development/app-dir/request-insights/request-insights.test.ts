@@ -230,6 +230,34 @@ describe('request insights', () => {
     })
   })
 
+  it('keeps known details available after missing detail lookups', async () => {
+    const response = await next.fetch('/api/source?detail-lookup=seed')
+    expect(response.status).toBe(200)
+    let requestId = ''
+    await retry(async () => {
+      const history = await next
+        .fetch('/_next/development/request-insights?view=history&limit=1')
+        .then((historyResponse) => historyResponse.json())
+      expect(history.requests).toHaveLength(1)
+      requestId = history.requests[0].requestId
+    })
+
+    for (const kind of ['request', 'instant-insights']) {
+      const missing = await next.fetch(
+        `/_next/development/request-insights?view=detail&requestId=missing-detail-id&kind=${kind}`
+      )
+      expect(missing.status).toBe(404)
+      expect(await missing.json()).toEqual({
+        error: 'Request insight not found',
+      })
+    }
+    const detail = await next.fetch(
+      `/_next/development/request-insights?view=detail&requestId=${encodeURIComponent(requestId)}&kind=request`
+    )
+    expect(detail.status).toBe(200)
+    expect((await detail.json()).request.requestId).toBe(requestId)
+  })
+
   it('returns a conflict for a history cursor from an old session', async () => {
     const cursor = Buffer.from(
       JSON.stringify({
