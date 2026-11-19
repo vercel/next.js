@@ -30,6 +30,29 @@ describe('server-hmr-async-loader-variants', () => {
     expect(next.cliOutput.slice(outputStart)).not.toContain('[Server HMR]')
   })
 
+  it('does not update routes with different async loader variants when alternating between them', async () => {
+    const outputStart = next.cliOutput.length
+    const render = async (path: string) => {
+      const $ = await next.render$(path)
+      return {
+        value: $('#value').text(),
+        evaluatedAt: $('#evaluated-at').text(),
+      }
+    }
+
+    const direct = await render('/direct')
+    const viaWrap = await render('/via-wrap')
+    expect(direct.value).toBe('dyn-v1:dep')
+    expect(viaWrap.value).toBe('wrap:dep:dyn-v1:dep')
+
+    // An update of the async loader would re-evaluate the page that imports it.
+    for (let i = 0; i < 3; i++) {
+      expect(await render('/direct')).toEqual(direct)
+      expect(await render('/via-wrap')).toEqual(viaWrap)
+    }
+    expect(next.cliOutput.slice(outputStart)).not.toContain('[Server HMR]')
+  })
+
   it('updates a route with async loader variants', async () => {
     const outputStart = next.cliOutput.length
     const initialEvaluatedAt = await evaluatedAt()
