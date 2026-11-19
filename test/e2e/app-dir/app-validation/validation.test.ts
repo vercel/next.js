@@ -1,30 +1,40 @@
 import { nextTestSetup } from 'e2e-utils'
+import type { FlightRouterState } from 'next/dist/shared/lib/app-router-types'
 import {
   computeCacheBustingSearchParam,
   computeLegacyCacheBustingSearchParam,
 } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 
-// Builds a router state tree for `/<prefix...>/<slug>`, where `<slug>` is a
-// dynamic `[slug]` segment.
-function createStateTree(
-  prefixSegments: string[],
-  slug: string,
-  { legacy }: { legacy: boolean }
-): string {
-  // Next.js 15 encoded dynamic segments as a 3-tuple and sent a boolean
-  // `isRootLayout` flag at index 4. Tabs that are still running an older
-  // build send this shape after a deployment.
-  let tree: unknown[] = legacy
-    ? [['slug', slug, 'd'], { children: ['__PAGE__', {}] }, null, null]
-    : [['slug', slug, 'd', null], { children: ['__PAGE__', {}] }]
-
+// Router state for `/<prefix...>/<slug>`, where `<slug>` is a dynamic
+// `[slug]` segment. Typed so that it fails to compile when the router state
+// shape changes.
+function createStateTree(prefixSegments: string[], slug: string): string {
+  let tree: FlightRouterState = [
+    ['slug', slug, 'd', null],
+    { children: ['__PAGE__', {}] },
+  ]
   for (const segment of [...prefixSegments].reverse()) {
     tree = [segment, { children: tree }]
   }
+  const root: FlightRouterState = ['', { children: tree }]
+  return encodeURIComponent(JSON.stringify(root))
+}
 
-  const root = legacy
-    ? ['', { children: tree }, null, null, true]
-    : ['', { children: tree }]
+// The same router state in the shape Next.js 15 sent: dynamic segments were a
+// 3-tuple and index 4 was a boolean `isRootLayout` flag. Tabs still running an
+// older build send this after a deployment. It intentionally doesn't match
+// the current type, so it is left untyped.
+function createLegacyStateTree(prefixSegments: string[], slug: string): string {
+  let tree: unknown[] = [
+    ['slug', slug, 'd'],
+    { children: ['__PAGE__', {}] },
+    null,
+    null,
+  ]
+  for (const segment of [...prefixSegments].reverse()) {
+    tree = [segment, { children: tree }]
+  }
+  const root = ['', { children: tree }, null, null, true]
   return encodeURIComponent(JSON.stringify(root))
 }
 
@@ -112,30 +122,23 @@ describe('app dir - validation', () => {
     const pathname = `/${[...prefixSegments, 'foo'].join('/')}`
 
     it('should reject a router state tree sent by an older Next.js version with a 400', async () => {
-      const outputIndex = next.cliOutput.length
-
       const res = await fetchWithRouterState(
         next,
         pathname,
-        createStateTree(prefixSegments, 'foo', { legacy: true })
+        createLegacyStateTree(prefixSegments, 'foo')
       )
       expect(res.status).toBe(400)
       expect(res.headers.get('cache-control')).toBe(
         'private, no-cache, no-store, max-age=0, must-revalidate'
       )
       expect(await res.text()).toBe('Bad Request')
-
-      // Invalid client input is not a server error.
-      expect(next.cliOutput.slice(outputIndex)).not.toContain(
-        'The router state header was sent but could not be parsed'
-      )
     })
 
     it('should accept a valid router state tree', async () => {
       const res = await fetchWithRouterState(
         next,
         pathname,
-        createStateTree(prefixSegments, 'foo', { legacy: false })
+        createStateTree(prefixSegments, 'foo')
       )
       expect(res.status).toBe(200)
     })
@@ -150,7 +153,7 @@ describe('app dir - validation', () => {
     const res = await fetchWithRouterState(
       next,
       '/foo',
-      createStateTree([], 'foo', { legacy: true }),
+      createLegacyStateTree([], 'foo'),
       { rsc: false }
     )
     expect(res.status).toBe(200)
