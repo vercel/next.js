@@ -327,15 +327,15 @@ where
 type HandedOverDependency = (TaskId, CellId, ProvisionalReadDependency);
 
 /// The shared read of [`ReadKeyedReaderVcFuture`] and [`ReadLazyReaderVcFuture`]: reads the cell
-/// with a separate provisional ([`CellKey::Provisional`](crate::CellKey::Provisional)) dependency
-/// that the resulting [`KeyedReadRef`] narrows, or the resulting [`LazyReadRef`] cancels, when
-/// it's dropped.
+/// with a separate provisional ([`CellKeyKind::Provisional`](crate::CellKeyKind::Provisional))
+/// dependency that the resulting [`KeyedReadRef`] narrows, or the resulting [`LazyReadRef`]
+/// cancels, when it's dropped.
 struct CancelableDependencyRead {
     raw: ReadRawVcFuture,
-    /// The [`CellKey::Provisional`](crate::CellKey::Provisional) dependency, registered as alive
-    /// in the execution that created this. `None` if the read isn't tracked that way (no current
-    /// task), once it was handed to the resulting ref, or once this was polled in a different
-    /// execution (then the registration is never released).
+    /// The [`CellKeyKind::Provisional`](crate::CellKeyKind::Provisional) dependency, registered as
+    /// alive in the execution that created this. `None` if the read isn't tracked that way (no
+    /// current task), once it was handed to the resulting ref, or once this was polled in a
+    /// different execution (then the registration is never released).
     dependency: Option<ProvisionalReadDependency>,
 }
 
@@ -401,7 +401,7 @@ impl CancelableDependencyRead {
 impl Drop for CancelableDependencyRead {
     fn drop(&mut self) {
         // Not completed (e.g. never awaited or cancelled). Dropping it within the creating
-        // execution is fine. A `CellKey::Provisional` dependency it might have registered is
+        // execution is fine. A `CellKeyKind::Provisional` dependency it might have registered is
         // converted to a normal dependency when the execution completes. Dropping it elsewhere
         // keeps it counted as leaked.
         if let Some(dependency) = self.dependency.take()

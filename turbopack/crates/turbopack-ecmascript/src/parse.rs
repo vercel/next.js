@@ -6,7 +6,6 @@ use bytes_str::BytesStr;
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     atoms::Atom,
-    base::SwcComments,
     common::{
         BytePos, FileName, GLOBALS, Globals, LineCol, Mark, SyntaxContext,
         errors::{HANDLER, Handler},
@@ -49,7 +48,7 @@ use crate::{
     EcmascriptInputTransform,
     analyzer::graph::EvalContext,
     magic_identifier,
-    swc_comments::ImmutableComments,
+    swc_comments::{ImmutableComments, MutableComments},
     transform::{EcmascriptInputTransforms, TransformContext},
 };
 
@@ -181,11 +180,11 @@ pub enum ParseResult {
 #[instrument(level = "info", name = "generate source map", skip_all)]
 pub fn generate_js_source_map<'a>(
     files_map: &impl Files,
-    mappings: Vec<(BytePos, LineCol)>,
+    mappings: &[(BytePos, LineCol)],
     original_source_maps: impl IntoIterator<Item = &'a Rope>,
     original_source_maps_complete: bool,
     inline_sources_content: bool,
-    names: FxHashMap<BytePos, Atom>,
+    names: &FxHashMap<BytePos, Atom>,
 ) -> Result<StructuredSourceMap> {
     let original_source_maps = original_source_maps
         .into_iter()
@@ -201,7 +200,7 @@ pub fn generate_js_source_map<'a>(
 
     let mut new_mappings = build_source_map(
         files_map,
-        &mappings,
+        mappings,
         None,
         &InlineSourcesContentConfig {
             // If we are going to adjust the source map, we are going to throw the source contents
@@ -243,12 +242,12 @@ pub fn generate_js_source_map<'a>(
 /// A config to generate a source map which includes the source content of every
 /// source file. SWC doesn't inline sources content by default when generating a
 /// sourcemap, so we need to provide a custom config to do it.
-pub struct InlineSourcesContentConfig {
+pub struct InlineSourcesContentConfig<'a> {
     inline_sources_content: bool,
-    names: FxHashMap<BytePos, Atom>,
+    names: &'a FxHashMap<BytePos, Atom>,
 }
 
-impl SourceMapGenConfig for InlineSourcesContentConfig {
+impl SourceMapGenConfig for InlineSourcesContentConfig<'_> {
     fn file_name_to_source(&self, f: &FileName) -> String {
         match f {
             FileName::Custom(s) => {
@@ -440,7 +439,7 @@ async fn parse_file_content(
             let file_name = FileName::Custom(ident.to_string());
             let fm = source_map.new_source_file(file_name.clone().into(), string);
 
-            let comments = SwcComments::default();
+            let comments = MutableComments::new();
 
             let mut parsed_program = {
                 let lexer = Lexer::new(

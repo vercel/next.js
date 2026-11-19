@@ -10,6 +10,7 @@ import type { CompilerNameValues } from '../../shared/lib/constants'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 
 import createDebug from 'next/dist/compiled/debug'
+import { INSTRUMENTATION_INJECT_STUB_PATH } from '../../build/next-dir-paths'
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
 import { runDependingOnPageType, isDeferredEntry } from '../../build/entries'
@@ -44,6 +45,7 @@ import { scheduleOnNextTick } from '../../lib/scheduler'
 import { Batcher } from '../../lib/batcher'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { PAGE_TYPES } from '../../lib/page-types'
+import { INSTRUMENTATION_HOOK_FILENAME } from '../../lib/constants'
 import { getNextFlightSegmentPath } from '../../client/flight-data-helpers'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
 import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
@@ -389,13 +391,17 @@ interface PagePathData {
 /**
  * Attempts to find a page file path from the given pages absolute directory,
  * a page and allowed extensions. If the page can't be found it will throw an
- * error. It defaults the `/_error` page to Next.js internal error page.
+ * error. It defaults the `/_error` page to Next.js internal error page. When
+ * `hasInstrumentationInject` is true, the instrumentation hook is its stub,
+ * which chains the project's instrumentation file after the injected entries.
  *
  * @param rootDir Absolute path to the project root.
  * @param page The page normalized (it will be denormalized).
  * @param extensions Array of page extensions.
  * @param pagesDir Absolute path to the pages folder with trailing `/pages`.
  * @param appDir Absolute path to the app folder with trailing `/app`.
+ * @param hasInstrumentationInject Whether `instrumentationInject` has entries.
+ * @param goRoutes Whether `experimental.goRoutes` enables root `proxy.go` files.
  */
 export async function findPagePathData(
   rootDir: string,
@@ -403,18 +409,28 @@ export async function findPagePathData(
   extensions: string[],
   pagesDir: string | undefined,
   appDir: string | undefined,
-  isGlobalNotFoundEnabled: boolean
+  isGlobalNotFoundEnabled: boolean,
+  hasInstrumentationInject = false,
+  goRoutes = false
 ): Promise<PagePathData> {
   const normalizedPagePath = tryToNormalizePagePath(page)
   let pagePath: string | null = null
 
   const isInstrumentation = isInstrumentationHookFile(normalizedPagePath)
+  if (isInstrumentation && hasInstrumentationInject) {
+    return {
+      filename: INSTRUMENTATION_INJECT_STUB_PATH,
+      bundlePath: INSTRUMENTATION_HOOK_FILENAME,
+      page: `/${INSTRUMENTATION_HOOK_FILENAME}`,
+    }
+  }
   if (isMiddlewareFile(normalizedPagePath) || isInstrumentation) {
     pagePath = await findPageFile(
       rootDir,
       normalizedPagePath,
       extensions,
-      false
+      false,
+      { goProxy: goRoutes }
     )
 
     if (!pagePath) {
@@ -423,7 +439,7 @@ export async function findPagePathData(
 
     const pageUrl = ensureLeadingSlash(
       removePagePathTail(normalizePathSep(pagePath), {
-        extensions,
+        extensions: pagePath.endsWith('.go') ? ['go'] : extensions,
       })
     )
 
@@ -547,6 +563,7 @@ export function onDemandEntryHandler({
   pagesDir,
   rootDir,
   appDir,
+  hasInstrumentationInject,
 }: {
   hotReloader: NextJsHotReloaderInterface
   maxInactiveAge: number
@@ -556,10 +573,13 @@ export function onDemandEntryHandler({
   pagesDir?: string
   rootDir: string
   appDir?: string
+  hasInstrumentationInject: boolean
 }) {
   const hasAppDir = !!appDir
   let curInvalidator: Invalidator = getInvalidator(
     multiCompiler.outputPath
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
   ) as any
   const curEntries = getEntries(multiCompiler.outputPath)
 
@@ -841,7 +861,9 @@ export function onDemandEntryHandler({
           nextConfig.pageExtensions,
           pagesDir,
           appDir,
-          !!nextConfig.experimental.globalNotFound
+          !!nextConfig.experimental.globalNotFound,
+          hasInstrumentationInject,
+          !!nextConfig.experimental.goRoutes
         )
       }
 

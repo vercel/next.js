@@ -10,7 +10,7 @@ use serde_json::Value as JsonValue;
 use turbo_esregex::{EsRegex, EsRegexSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, OperationValue, ResolvedVc, TryJoinIterExt, Vc,
+    NonLocalValue, OperationValue, OrderedAutoMap, ResolvedVc, TryJoinIterExt, Vc,
     debug::ValueDebugFormat,
 };
 use turbo_tasks_env::EnvMap;
@@ -24,12 +24,14 @@ use turbopack::module_options::{
     WebpackRules, module_options_context::MdxTransformOptions,
 };
 use turbopack_core::{
-    chunk::{CrossOrigin, SourceMapsType},
+    chunk::{ChunkingConfig, CrossOrigin},
     issue::{
         IgnoreIssue, IgnoreIssuePattern, Issue, IssueExt, IssueSeverity, IssueStage, StyledString,
     },
+    loader::{WebpackLoaderItem, WebpackLoaderItems},
     module_graph::{chunk_group_info::EntryHeuristics, style_groups::StyleGroupsAlgorithm},
     resolve::ResolveAliasMap,
+    source_map::{OptionSourceMapType, SourceMapType},
 };
 use turbopack_ecmascript::transform::{
     OptionReactCompilerTransformOptions, ReactCompilerCompilationMode, ReactCompilerTarget,
@@ -39,7 +41,6 @@ use turbopack_ecmascript_plugins::transform::{
     emotion::EmotionTransformConfig, relay::RelayConfig,
     styled_components::StyledComponentsTransformConfig,
 };
-use turbopack_node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems};
 
 use crate::{
     app_structure::FileSystemPathVec,
@@ -57,9 +58,7 @@ use crate::{
 pub const DIST_PROFILES_DIR_NAME: &str = ".next-profiles";
 
 #[turbo_tasks::value(transparent)]
-pub struct ModularizeImports(
-    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<String, ModularizeImportPackageConfig>,
-);
+pub struct ModularizeImports(OrderedAutoMap<String, ModularizeImportPackageConfig>);
 
 #[turbo_tasks::value(transparent)]
 #[derive(Clone, Debug)]
@@ -83,7 +82,7 @@ impl Default for CacheKinds {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct CacheHandlersMap(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, RcStr>);
+pub struct CacheHandlersMap(OrderedAutoMap<RcStr, RcStr>);
 
 #[turbo_tasks::value(eq = "manual")]
 #[derive(Clone, Debug, Default, PartialEq, Deserialize)]
@@ -101,19 +100,23 @@ pub struct NextConfig {
     /// custom path to a cache handler to use
     cache_handler: Option<RcStr>,
     #[bincode(with_serde)]
-    cache_handlers: Option<FxIndexMap<RcStr, RcStr>>,
-    #[bincode(with = "turbo_bincode::serde_self_describing")]
-    env: FxIndexMap<String, JsonValue>,
+    cache_handlers: Option<OrderedAutoMap<RcStr, RcStr>>,
+    /// See [`deserialize_env`].
+    #[serde(deserialize_with = "deserialize_env")]
+    env: OrderedAutoMap<RcStr, RcStr>,
     experimental: ExperimentalConfig,
     images: ImageConfig,
     page_extensions: Vec<RcStr>,
     instrumentation_client_inject: Option<Vec<RcStr>>,
+    /// Server instrumentation module specifiers. They run in order, before the project's own
+    /// instrumentation file. Next.js does not install the modules.
+    instrumentation_inject: Option<Vec<RcStr>>,
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,
     react_production_profiling: Option<bool>,
     react_strict_mode: Option<bool>,
     transpile_packages: Option<Vec<RcStr>>,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
-    modularize_imports: Option<FxIndexMap<String, ModularizeImportPackageConfig>>,
+    modularize_imports: Option<OrderedAutoMap<String, ModularizeImportPackageConfig>>,
     dist_dir: RcStr,
     dist_dir_root: RcStr,
     deployment_id: Option<RcStr>,
@@ -130,10 +133,12 @@ pub struct NextConfig {
     output: Option<OutputType>,
     turbopack: Option<TurbopackConfig>,
     production_browser_source_maps: bool,
-    #[bincode(with = "turbo_bincode::serde_self_describing")]
-    output_file_tracing_includes: Option<serde_json::Value>,
-    #[bincode(with = "turbo_bincode::serde_self_describing")]
-    output_file_tracing_excludes: Option<serde_json::Value>,
+    /// See [`deserialize_output_file_tracing_globs`].
+    #[serde(deserialize_with = "deserialize_output_file_tracing_globs")]
+    output_file_tracing_includes: Option<OrderedAutoMap<RcStr, Vec<RcStr>>>,
+    /// See [`deserialize_output_file_tracing_globs`].
+    #[serde(deserialize_with = "deserialize_output_file_tracing_globs")]
+    output_file_tracing_excludes: Option<OrderedAutoMap<RcStr, Vec<RcStr>>>,
     // TODO: This option is not respected, it uses Turbopack's root instead.
     output_file_tracing_root: Option<RcStr>,
 
@@ -170,9 +175,9 @@ pub struct NextConfig {
     on_demand_entries: OnDemandEntriesConfig,
     powered_by_header: bool,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
-    public_runtime_config: FxIndexMap<String, serde_json::Value>,
+    public_runtime_config: OrderedAutoMap<String, serde_json::Value>,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
-    server_runtime_config: FxIndexMap<String, serde_json::Value>,
+    server_runtime_config: OrderedAutoMap<String, serde_json::Value>,
     static_page_generation_timeout: f64,
     target: Option<String>,
     typescript: TypeScriptConfig,
@@ -187,17 +192,6 @@ pub struct NextConfig {
     // export_path_map: Option<serde_json::Value>,
     // generate_build_id: Option<serde_json::Value>,
     // webpack: Option<serde_json::Value>,
-}
-
-#[turbo_tasks::value_impl]
-impl NextConfig {
-    #[turbo_tasks::function]
-    pub fn with_analyze_config(&self) -> Vc<Self> {
-        let mut new = self.clone();
-        new.experimental.turbopack_source_maps = Some(true);
-        new.experimental.turbopack_input_source_maps = Some(false);
-        new.cell()
-    }
 }
 
 #[derive(
@@ -492,11 +486,12 @@ pub enum RemotePatternProtocol {
 )]
 #[serde(rename_all = "camelCase")]
 pub struct TurbopackConfig {
+    /// Ordered: rules are applied in config order, so reordering them changes which loaders run
+    /// and in which order.
     #[serde(default)]
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub rules: FxIndexMap<RcStr, RuleConfigCollection>,
+    pub rules: OrderedAutoMap<RcStr, RuleConfigCollection>,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
-    pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
+    pub resolve_alias: Option<OrderedAutoMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
     pub debug_ids: Option<bool>,
     pub chunk_loading_global: Option<RcStr>,
@@ -928,6 +923,9 @@ const DEFAULT_REQUEST_COST: f32 = 20_000.0;
 const DEFAULT_WEIGHT_DISTRIBUTION: f32 = 0.1;
 
 /// `experimental.turbopackChunking`: hints for Turbopack's production chunker.
+///
+/// The default sizes and request cost are scaled down when chunk items are minified before
+/// chunking, see `ChunkSizeDefaults`.
 #[derive(
     Clone, Debug, Default, PartialEq, Deserialize, NonLocalValue, OperationValue, Encode, Decode,
 )]
@@ -959,6 +957,16 @@ pub struct TurbopackChunkingConfig {
     /// Don't merge chunks bigger than this size, in bytes (default `200000`), with other
     /// chunks. This keeps code in big chunks from being duplicated across multiple chunks.
     max_merge_chunk_size: Option<usize>,
+    /// Best-effort maximum estimated size of a client JavaScript chunk, in uncompressed bytes
+    /// (default `1000000`, or `400000` when minifying before chunking). Chunks are never merged
+    /// into bigger chunks, and chunks that are bigger on their own are split deterministically
+    /// into smaller chunks, which may be smaller than `min_chunk_size` or exceed
+    /// `max_chunk_count_per_group`. Inconsistent values (smaller than 3 times `min_chunk_size`, or
+    /// than `max_merge_chunk_size`) are adjusted with a warning. `0` disables the limit.
+    max_chunk_size: Option<usize>,
+    /// Like `max_chunk_size`, but for Node.js server and edge JavaScript chunks (default
+    /// `10000000`, or `4000000` when minifying before chunking). `0` disables the limit.
+    max_server_chunk_size: Option<usize>,
     /// Emit each merged production chunk's constituent component chunks alongside it, so the
     /// browser runtime can load only the chunks it doesn't already have (default `false`).
     generate_component_chunks: Option<bool>,
@@ -992,6 +1000,11 @@ pub struct TurbopackChunking {
     pub max_chunk_count_per_group: Option<usize>,
     /// Override for the client JS `max_merge_chunk_size`, or `None` to use the default.
     pub max_merge_chunk_size: Option<usize>,
+    /// Override for the maximum client JS chunk size, or `None` to use the scaled default.
+    pub max_chunk_size: Option<usize>,
+    /// Override for the maximum Node.js server and edge JS chunk size, or `None` for the scaled
+    /// default.
+    pub max_server_chunk_size: Option<usize>,
     /// Override for the client JS `min_component_chunk_size`, or `None` to use the default.
     pub min_component_chunk_size: Option<usize>,
     /// Override for the Node.js server JS `min_chunk_size`, or `None` to use the default.
@@ -1197,6 +1210,7 @@ pub struct ExperimentalConfig {
     turbopack_plugin_runtime_strategy: Option<TurbopackPluginRuntimeStrategy>,
     turbopack_source_maps: Option<bool>,
     turbopack_input_source_maps: Option<bool>,
+    turbopack_file_tracing_for_dev: Option<bool>,
     turbopack_module_fragments: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
     turbopack_minify_before_chunking: Option<bool>,
@@ -1545,10 +1559,150 @@ pub struct OptionJsonValue(
     #[bincode(with = "turbo_bincode::serde_self_describing")] pub Option<serde_json::Value>,
 );
 
-fn turbopack_config_documentation_link() -> RcStr {
-    rcstr!(
-        "https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders"
-    )
+static TURBOPACK_CONFIG_DOCUMENTATION_LINK: RcStr = rcstr!(
+    "https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders"
+);
+
+/// How the size limits of a production JS chunking config map to Next.js config options, for
+/// [`warn_on_adjusted_chunking_config`].
+pub struct ChunkingConfigOptionNames {
+    /// The kind of chunks the config is for, e.g. `client`.
+    pub chunks: &'static str,
+    /// The option for `max_chunk_size`.
+    pub max_chunk_size: &'static str,
+    /// The option for `min_chunk_size`, or `None` when it is not configurable.
+    pub min_chunk_size: Option<&'static str>,
+    /// The option for `max_merge_chunk_size`, or `None` when it is not configurable.
+    pub max_merge_chunk_size: Option<&'static str>,
+}
+
+/// [`ChunkingConfigOptionNames`] of client chunks.
+pub const CLIENT_CHUNKING_CONFIG_OPTION_NAMES: ChunkingConfigOptionNames =
+    ChunkingConfigOptionNames {
+        chunks: "client",
+        max_chunk_size: "maxChunkSize",
+        min_chunk_size: Some("minChunkSize"),
+        max_merge_chunk_size: Some("maxMergeChunkSize"),
+    };
+
+/// [`ChunkingConfigOptionNames`] of Node.js server chunks.
+pub const SERVER_CHUNKING_CONFIG_OPTION_NAMES: ChunkingConfigOptionNames =
+    ChunkingConfigOptionNames {
+        chunks: "server",
+        max_chunk_size: "maxServerChunkSize",
+        min_chunk_size: Some("minServerChunkSize"),
+        max_merge_chunk_size: Some("maxMergeServerChunkSize"),
+    };
+
+/// [`ChunkingConfigOptionNames`] of edge server chunks.
+pub const EDGE_CHUNKING_CONFIG_OPTION_NAMES: ChunkingConfigOptionNames =
+    ChunkingConfigOptionNames {
+        chunks: "edge server",
+        max_chunk_size: "maxServerChunkSize",
+        min_chunk_size: None,
+        max_merge_chunk_size: None,
+    };
+
+/// Turbopack normalizes the size limits of a chunking config (see [`ChunkingConfig::normalized`]).
+/// Emits a warning when that adjusts the values of `config`, so that the user can fix the
+/// `experimental.turbopackChunking` options.
+pub fn warn_on_adjusted_chunking_config(
+    config: &ChunkingConfig,
+    names: &ChunkingConfigOptionNames,
+    file_path: FileSystemPath,
+) {
+    let normalized = config.normalized();
+    let option = |name: Option<&str>, fallback: &str| match name {
+        Some(name) => format!("`experimental.turbopackChunking.{name}`"),
+        None => fallback.to_string(),
+    };
+    let max_chunk_size = option(Some(names.max_chunk_size), "");
+    let mut adjustments = Vec::new();
+    if normalized.max_chunk_size != config.max_chunk_size {
+        adjustments.push(format!(
+            "{max_chunk_size} ({}) was increased to {} (3 times {} of {}).",
+            config.max_chunk_size,
+            normalized.max_chunk_size,
+            option(
+                names.min_chunk_size,
+                &format!("the minimum {} chunk size", names.chunks)
+            ),
+            config.min_chunk_size,
+        ));
+    }
+    if normalized.max_merge_chunk_size != config.max_merge_chunk_size {
+        adjustments.push(format!(
+            "{} ({}) was decreased to {}, the maximum chunk size from {max_chunk_size}.",
+            option(
+                names.max_merge_chunk_size,
+                &format!("The maximum merge size of {} chunks", names.chunks)
+            ),
+            if config.max_merge_chunk_size == 0 {
+                "unlimited".to_string()
+            } else {
+                config.max_merge_chunk_size.to_string()
+            },
+            normalized.max_merge_chunk_size,
+        ));
+    }
+    if adjustments.is_empty() {
+        return;
+    }
+    AdjustedChunkingConfigIssue {
+        file_path,
+        chunks: names.chunks.into(),
+        adjustments: adjustments.into_iter().map(RcStr::from).collect(),
+    }
+    .resolved_cell()
+    .emit();
+}
+
+#[turbo_tasks::value(shared)]
+struct AdjustedChunkingConfigIssue {
+    file_path: FileSystemPath,
+    chunks: RcStr,
+    adjustments: Vec<RcStr>,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for AdjustedChunkingConfigIssue {
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Warning
+    }
+
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Config
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(
+            format!(
+                "Inconsistent chunk size limits for {} chunks were adjusted",
+                self.chunks
+            )
+            .into(),
+        ))
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Stack(
+            std::iter::once(StyledString::Text(rcstr!(
+                "The maximum chunk size must be at least 3 times the minimum chunk size, and \
+                 chunks bigger than the maximum chunk size are never merged:"
+            )))
+            .chain(
+                self.adjustments
+                    .iter()
+                    .map(|adjustment| StyledString::Text(adjustment.clone())),
+            )
+            .collect(),
+        )))
+    }
 }
 
 #[turbo_tasks::value(shared)]
@@ -1583,7 +1737,7 @@ impl Issue for InvalidLoaderRuleRenameAsIssue {
     }
 
     fn documentation_link(&self) -> RcStr {
-        turbopack_config_documentation_link()
+        TURBOPACK_CONFIG_DOCUMENTATION_LINK.clone()
     }
 }
 
@@ -1623,29 +1777,26 @@ impl Issue for InvalidLoaderRuleConditionIssue {
     }
 
     fn documentation_link(&self) -> RcStr {
-        turbopack_config_documentation_link()
+        TURBOPACK_CONFIG_DOCUMENTATION_LINK.clone()
     }
 }
 
 #[turbo_tasks::value(transparent)]
 pub struct OutputFileTracingIncludesExcludes(
-    #[bincode(with = "turbo_bincode::indexmap")]
-    FxIndexMap<ResolvedVc<Glob>, Vec<(RcStr, FileSystemPath)>>,
+    OrderedAutoMap<ResolvedVc<Glob>, Vec<(RcStr, FileSystemPath)>>,
 );
 
 impl OutputFileTracingIncludesExcludes {
     pub async fn parse(
         project_path: FileSystemPath,
-        value: &Option<serde_json::Value>,
+        value: &Option<OrderedAutoMap<RcStr, Vec<RcStr>>>,
     ) -> Result<OutputFileTracingIncludesExcludes> {
-        if let Some(value) = value
-            && let Some(map) = value.as_object()
-        {
+        if let Some(map) = value {
             Ok(OutputFileTracingIncludesExcludes(
                 map.iter()
                     .map(async |(route_pattern, file_patterns)| {
                         let route_pattern = Glob::new(
-                            RcStr::from(route_pattern.clone()),
+                            route_pattern.clone(),
                             GlobOptions {
                                 contains: true,
                                 ..Default::default()
@@ -1654,10 +1805,7 @@ impl OutputFileTracingIncludesExcludes {
                         .to_resolved()
                         .await?;
                         let file_patterns = file_patterns
-                            .as_array()
                             .iter()
-                            .flat_map(|pattern| pattern.iter())
-                            .filter_map(|pattern| pattern.as_str())
                             .map(|pattern_str| {
                                 let (glob, root) = relativize_glob(pattern_str, &project_path)?;
                                 Ok((RcStr::from(glob), root))
@@ -1671,9 +1819,58 @@ impl OutputFileTracingIncludesExcludes {
                     .collect(),
             ))
         } else {
-            Ok(OutputFileTracingIncludesExcludes(FxIndexMap::default()))
+            Ok(OutputFileTracingIncludesExcludes(Default::default()))
         }
     }
+}
+
+/// Deserializes `env`. The config schema expects `Record<string, string>`, but it only warns about
+/// other values, and the JS side stringifies them. Do the same here: strings are kept as they are
+/// (`to_string` would wrap them in quotes) and anything else becomes its JSON text.
+fn deserialize_env<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<OrderedAutoMap<RcStr, RcStr>, D::Error> {
+    let env = OrderedAutoMap::<String, JsonValue>::deserialize(deserializer)?;
+    Ok(env
+        .into_iter()
+        .map(|(key, value)| {
+            let value = match value {
+                JsonValue::String(value) => value.into(),
+                value => value.to_string().into(),
+            };
+            (key.into(), value)
+        })
+        .collect())
+}
+
+/// Deserializes `outputFileTracingIncludes`/`outputFileTracingExcludes`, a
+/// `Record<string, string[]>` from route patterns to file globs. The config schema only warns about
+/// other shapes, so they are ignored: a value that isn't an object counts as absent, and a route's
+/// globs that aren't strings (or aren't in an array) are skipped.
+fn deserialize_output_file_tracing_globs<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<OrderedAutoMap<RcStr, Vec<RcStr>>>, D::Error> {
+    let Some(JsonValue::Object(routes)) = Option::<JsonValue>::deserialize(deserializer)? else {
+        return Ok(None);
+    };
+    Ok(Some(
+        routes
+            .into_iter()
+            .map(|(route, globs)| {
+                let globs = match globs {
+                    JsonValue::Array(globs) => globs
+                        .into_iter()
+                        .filter_map(|glob| match glob {
+                            JsonValue::String(glob) => Some(glob.into()),
+                            _ => None,
+                        })
+                        .collect(),
+                    _ => Vec::new(),
+                };
+                (route.into(), globs)
+            })
+            .collect(),
+    ))
 }
 
 #[turbo_tasks::value_impl]
@@ -1703,6 +1900,11 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn enable_react_production_profiling(&self) -> Vc<bool> {
         Vc::cell(self.react_production_profiling.unwrap_or_default())
+    }
+
+    #[turbo_tasks::function]
+    pub fn instrumentation_inject(&self) -> Vc<Vec<RcStr>> {
+        Vc::cell(self.instrumentation_inject.clone().unwrap_or_default())
     }
 
     #[turbo_tasks::function]
@@ -1741,26 +1943,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn env(&self) -> Vc<EnvMap> {
-        // The value expected for env is Record<String, String>, but config itself
-        // allows arbitrary object (https://github.com/vercel/next.js/blob/25ba8a74b7544dfb6b30d1b67c47b9cb5360cb4e/packages/next/src/server/config-schema.ts#L203)
-        // then stringifies it. We do the interop here as well.
-        let env = self
-            .env
-            .iter()
-            .map(|(k, v)| {
-                (
-                    k.as_str().into(),
-                    if let JsonValue::String(s) = v {
-                        // A string value is kept, calling `to_string` would wrap in to quotes.
-                        s.as_str().into()
-                    } else {
-                        v.to_string().into()
-                    },
-                )
-            })
-            .collect();
-
-        Vc::cell(env)
+        Vc::cell(self.env.clone())
     }
 
     #[turbo_tasks::function]
@@ -1994,6 +2177,8 @@ impl NextConfig {
             min_chunk_size: config.and_then(|c| c.min_chunk_size),
             max_chunk_count_per_group: config.and_then(|c| c.max_chunk_count_per_group),
             max_merge_chunk_size: config.and_then(|c| c.max_merge_chunk_size),
+            max_chunk_size: config.and_then(|c| c.max_chunk_size),
+            max_server_chunk_size: config.and_then(|c| c.max_server_chunk_size),
             min_component_chunk_size: config.and_then(|c| c.min_component_chunk_size),
             min_server_chunk_size: config.and_then(|c| c.min_server_chunk_size),
             max_merge_server_chunk_size: config.and_then(|c| c.max_merge_server_chunk_size),
@@ -2319,7 +2504,7 @@ impl NextConfig {
         let mut cache_kinds = CacheKinds::default();
 
         if let Some(handlers) = self.cache_handlers.as_ref() {
-            cache_kinds.extend(handlers.keys().cloned());
+            cache_kinds.extend(handlers.iter().map(|(key, _)| key.clone()));
         }
 
         cache_kinds.cell()
@@ -2623,7 +2808,27 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn client_source_maps(&self, mode: Vc<NextMode>) -> Result<Vc<SourceMapsType>> {
+    pub fn input_source_maps(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_input_source_maps
+                .unwrap_or(true),
+        )
+    }
+
+    /// Whether file tracing should be performed in development (without writing `.nft.json`
+    /// files). This option does not change production builds.
+    #[turbo_tasks::function]
+    pub fn turbopack_file_tracing_for_dev(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_file_tracing_for_dev
+                .unwrap_or(false),
+        )
+    }
+
+    #[turbo_tasks::function]
+    pub async fn client_source_maps(&self, mode: Vc<NextMode>) -> Result<Vc<OptionSourceMapType>> {
         let input_source_maps = self
             .experimental
             .turbopack_input_source_maps
@@ -2635,16 +2840,15 @@ impl NextConfig {
                 NextMode::Development => true,
                 NextMode::Build => self.production_browser_source_maps,
             });
-        Ok(match (source_maps, input_source_maps) {
-            (true, true) => SourceMapsType::Full,
-            (true, false) => SourceMapsType::Partial,
-            (false, _) => SourceMapsType::None,
-        }
-        .cell())
+        Ok(Vc::cell(match (source_maps, input_source_maps) {
+            (true, true) => Some(SourceMapType::Full),
+            (true, false) => Some(SourceMapType::Shallow),
+            (false, _) => None,
+        }))
     }
 
     #[turbo_tasks::function]
-    pub fn server_source_maps(&self) -> Result<Vc<SourceMapsType>> {
+    pub fn server_source_maps(&self) -> Result<Vc<OptionSourceMapType>> {
         let input_source_maps = self
             .experimental
             .turbopack_input_source_maps
@@ -2654,12 +2858,11 @@ impl NextConfig {
             .turbopack_source_maps
             .or(self.experimental.server_source_maps)
             .unwrap_or(true);
-        Ok(match (source_maps, input_source_maps) {
-            (true, true) => SourceMapsType::Full,
-            (true, false) => SourceMapsType::Partial,
-            (false, _) => SourceMapsType::None,
-        }
-        .cell())
+        Ok(Vc::cell(match (source_maps, input_source_maps) {
+            (true, true) => Some(SourceMapType::Full),
+            (true, false) => Some(SourceMapType::Shallow),
+            (false, _) => None,
+        }))
     }
 
     #[turbo_tasks::function]
@@ -2898,6 +3101,33 @@ pub fn lightningcss_feature_names_to_mask(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_env_and_output_file_tracing_deserialization() {
+        let config: NextConfig = serde_json::from_value(serde_json::json!({
+            "env": { "B": "two", "A": 1, "C": { "x": true } },
+            "outputFileTracingIncludes": { "/b": ["b/**", 1], "/a": "not-a-list" },
+            "outputFileTracingExcludes": "not-an-object",
+        }))
+        .unwrap();
+
+        let env: Vec<_> = config
+            .env
+            .iter()
+            .map(|(key, value)| (key.as_str(), value.as_str()))
+            .collect();
+        assert_eq!(env, [("B", "two"), ("A", "1"), ("C", r#"{"x":true}"#)]);
+
+        let includes: Vec<_> = config
+            .output_file_tracing_includes
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|(route, globs)| (route.as_str(), globs.iter().map(RcStr::as_str).collect()))
+            .collect();
+        assert_eq!(includes, [("/b", vec!["b/**"]), ("/a", vec![])]);
+        assert!(config.output_file_tracing_excludes.is_none());
+    }
 
     #[test]
     fn test_serde_rule_config_item_options() {

@@ -3,6 +3,37 @@
         arg: FreeVar(
             "x",
         ),
+        effects: [
+            FreeVar {
+                var: "x",
+                ast_path: [
+                    Program(
+                        Script,
+                    ),
+                    Script(
+                        Body(
+                            0,
+                        ),
+                    ),
+                    Stmt(
+                        Expr,
+                    ),
+                    ExprStmt(
+                        Expr,
+                    ),
+                    Expr(
+                        Unary,
+                    ),
+                    UnaryExpr(
+                        Arg,
+                    ),
+                    Expr(
+                        Ident,
+                    ),
+                ],
+                span: 8..9,
+            },
+        ],
         ast_path: [
             Program(
                 Script,
@@ -23,34 +54,5 @@
             ),
         ],
         span: 1..9,
-    },
-    FreeVar {
-        var: "x",
-        ast_path: [
-            Program(
-                Script,
-            ),
-            Script(
-                Body(
-                    0,
-                ),
-            ),
-            Stmt(
-                Expr,
-            ),
-            ExprStmt(
-                Expr,
-            ),
-            Expr(
-                Unary,
-            ),
-            UnaryExpr(
-                Arg,
-            ),
-            Expr(
-                Ident,
-            ),
-        ],
-        span: 8..9,
     },
 ]

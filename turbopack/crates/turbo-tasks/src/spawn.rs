@@ -19,6 +19,12 @@ pub struct JoinHandle<T> {
     join_handle: tokio::task::JoinHandle<Result<T, TurboTasksPanic>>,
 }
 
+impl<T> JoinHandle<T> {
+    pub(crate) fn new(join_handle: tokio::task::JoinHandle<Result<T, TurboTasksPanic>>) -> Self {
+        Self { join_handle }
+    }
+}
+
 impl<T: Send + 'static> JoinHandle<T> {
     pub fn join(self) -> T {
         block_for_future(self)

@@ -1,0 +1,11 @@
+{
+  "//": "Read by packages/next/taskfile.js (what to build) and src/server/lib/front-binary.ts (what to look for). The minimum Go version is go.mod's `go` line.",
+  "binaryName": "next-front-{os}-{arch}",
+  "goArch": { "x64": "amd64", "arm64": "arm64" },
+  "targets": [
+    { "os": "linux", "arch": "amd64" },
+    { "os": "linux", "arch": "arm64" },
+    { "os": "darwin", "arch": "amd64" },
+    { "os": "darwin", "arch": "arm64" }
+  ]
+}

@@ -12,6 +12,10 @@ import {
 import { DevBundlerServiceSpan } from './trace/constants'
 import { subscribeRequestInsights } from './trace/request-insights'
 import { getTracer } from './trace/tracer'
+import {
+  createRequestInsightDelta,
+  type RequestInsight,
+} from '../../shared/lib/request-insights'
 
 /**
  * The DevBundlerService provides an interface to perform tasks with the
@@ -45,11 +49,32 @@ export class DevBundlerService {
     this.sendErrorsToBrowser = hotReloader.sendErrorsToBrowser.bind(hotReloader)
 
     if (requestInsightsEnabled) {
+      const sent = new WeakMap<
+        RequestInsight,
+        { spanOffset: number; fetchOffset: number }
+      >()
       this.unsubscribeRequestInsights = subscribeRequestInsights((insight) => {
-        hotReloader.send({
-          type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE,
-          insight,
-        })
+        let offsets = sent.get(insight)
+        if (!offsets) {
+          offsets = { spanOffset: 0, fetchOffset: 0 }
+          sent.set(insight, offsets)
+        }
+        do {
+          const delta = createRequestInsightDelta(
+            insight,
+            offsets.spanOffset,
+            offsets.fetchOffset
+          )
+          offsets.spanOffset += delta.spans.length
+          offsets.fetchOffset += delta.fetches.length
+          hotReloader.send({
+            type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE,
+            insight: delta,
+          })
+        } while (
+          offsets.spanOffset < insight.spans.length ||
+          offsets.fetchOffset < insight.fetches.length
+        )
       })
     }
   }

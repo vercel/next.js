@@ -15,8 +15,8 @@ use turbopack::{
 };
 use turbopack_core::{
     chunk::{
-        AssetSuffix, ChunkingConfig, MangleType, MinifyType, SourceMapSourceType, SourceMapsType,
-        UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
+        AssetSuffix, ChunkingConfig, SourceMapSourceType, UnusedReferences, UrlBehavior,
+        chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_defines,
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReferences},
@@ -25,6 +25,7 @@ use turbopack_core::{
     module_graph::{
         binding_usage_info::OptionBindingUsageInfo, style_groups::StyleGroupsAlgorithm,
     },
+    source_map::{OptionSourceMapType, SourceMapGenerationOptions},
     target::CompileTarget,
 };
 use turbopack_css::chunk::CssChunkType;
@@ -44,9 +45,12 @@ use turbopack_resolve::resolve_options_context::{ResolveOptionsContext, TsConfig
 
 use crate::{
     app_structure::CollectedRootParams,
+    chunk_size_defaults::ChunkSizeDefaults,
     mode::NextMode,
     next_build::get_postcss_package_mapping,
-    next_config::NextConfig,
+    next_config::{
+        NextConfig, SERVER_CHUNKING_CONFIG_OPTION_NAMES, warn_on_adjusted_chunking_config,
+    },
     next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_server_import_map},
     next_server::{
         resolve::{ExternalCjsModulesResolvePlugin, ExternalPredicate},
@@ -72,8 +76,8 @@ use crate::{
     util::{
         NextRuntime, OptionEnvMap, defines, foreign_code_context_condition,
         free_var_references_with_vercel_system_env_warnings, get_transpiled_packages,
-        internal_assets_conditions, load_next_js_jsonc_file, module_styles_rule_condition,
-        worker_forwarded_globals,
+        internal_assets_conditions, load_next_js_jsonc_file, minify_emit_options,
+        module_styles_rule_condition, worker_forwarded_globals,
     },
 };
 
@@ -392,6 +396,7 @@ pub async fn get_server_module_options_context(
     environment: ResolvedVc<Environment>,
     client_environment: ResolvedVc<Environment>,
     enable_tracing: bool,
+    source_map_generation_options: Vc<SourceMapGenerationOptions>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
     let mut next_server_rules = get_next_server_transforms_rules(
@@ -536,14 +541,14 @@ pub async fn get_server_module_options_context(
     .flatten()
     .collect();
 
-    let source_maps = *next_config.server_source_maps().await?;
+    let source_map_generation_options = *source_map_generation_options.await?;
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: Some(TypeofWindow::Undefined),
             enable_import_as_bytes: *next_config.turbopack_import_type_bytes().await?,
             import_externals: *next_config.import_externals().await?,
             ignore_dynamic_requests: true,
-            source_maps,
+            source_map_generation_options,
             infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
             cjs_tree_shaking: *next_config.turbopack_cjs_tree_shaking().await?,
             mangle_export_names: *next_config.turbopack_mangle_export_names(mode).await?,
@@ -557,7 +562,7 @@ pub async fn get_server_module_options_context(
         execution_context: Some(execution_context),
         environment: Some(environment),
         css: CssOptionsContext {
-            source_maps,
+            source_map_generation_options,
             module_css_condition: Some(module_styles_rule_condition()),
             lightningcss_features: *next_config.lightningcss_feature_flags().await?,
             module_css_debuggable_idents: next_mode.is_development(),
@@ -1022,7 +1027,8 @@ pub struct ServerChunkingContextOptions {
     pub export_usage: Vc<OptionBindingUsageInfo>,
     pub unused_references: Vc<UnusedReferences>,
     pub minify: Vc<bool>,
-    pub source_maps: Vc<SourceMapsType>,
+    pub emitted_source_map_type: Vc<OptionSourceMapType>,
+    pub source_map_generation_options: Vc<SourceMapGenerationOptions>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
     pub minify_before_chunking: Vc<bool>,
@@ -1040,6 +1046,9 @@ pub struct ServerChunkingContextOptions {
     pub chunking_min_chunk_size: Option<usize>,
     /// Override for the production JS `max_merge_chunk_size` (default `100_000`).
     pub chunking_max_merge_chunk_size: Option<usize>,
+    /// Best-effort maximum JS chunk size override; `None` uses the scaled default, `0` disables
+    /// the limit.
+    pub chunking_max_chunk_size: Option<usize>,
 }
 
 /// Like `get_server_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -1057,7 +1066,8 @@ pub async fn get_server_chunking_context_with_client_assets(
         export_usage,
         unused_references,
         minify,
-        source_maps,
+        emitted_source_map_type,
+        source_map_generation_options,
         no_mangling,
         scope_hoisting,
         minify_before_chunking,
@@ -1073,7 +1083,9 @@ pub async fn get_server_chunking_context_with_client_assets(
         lazy_dynamic_imports,
         chunking_min_chunk_size,
         chunking_max_merge_chunk_size,
+        chunking_max_chunk_size,
     } = options;
+    let issue_file_path = root_path.clone();
     let css_url_suffix = css_url_suffix.to_resolved().await?;
 
     let next_mode = mode.await?;
@@ -1104,15 +1116,8 @@ pub async fn get_server_chunking_context_with_client_assets(
         suffix: AssetSuffix::Inferred,
         static_suffix: ResolvedVc::cell(None),
     })
-    .minify_type(if *minify.await? {
-        MinifyType::Minify {
-            // React needs deterministic function names to work correctly.
-            mangle: (!*no_mangling.await?).then_some(MangleType::Deterministic),
-        }
-    } else {
-        MinifyType::NoMinify
-    })
-    .source_maps(*source_maps.await?)
+    .emitted_source_map_type(*emitted_source_map_type.await?)
+    .source_map_generation_options(*source_map_generation_options.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
@@ -1123,7 +1128,9 @@ pub async fn get_server_chunking_context_with_client_assets(
     // chunk may leave out.
     .shared_runtime_chunk(*per_page_module_graph.await?)
     .worker_forwarded_globals(worker_forwarded_globals())
-    .manifest_chunks(lazy_dynamic_imports);
+    .manifest_chunks(lazy_dynamic_imports)
+    // React needs deterministic function names to work correctly.
+    .emit_options(minify_emit_options(minify, no_mangling, true).await?);
 
     builder = builder.source_map_source_type(if next_mode.is_development() {
         SourceMapSourceType::AbsoluteFileUri
@@ -1131,17 +1138,26 @@ pub async fn get_server_chunking_context_with_client_assets(
         SourceMapSourceType::RelativeUri
     });
     if next_mode.is_production() {
+        let defaults = ChunkSizeDefaults::new(*minify.await?, *minify_before_chunking.await?);
+        let ecmascript_chunking_config = ChunkingConfig {
+            // Server chunks are loaded with require(), not fetched over the network.
+            min_chunk_size: chunking_min_chunk_size.unwrap_or_else(|| defaults.size(4_000)),
+            max_chunk_count_per_group: 0,
+            max_merge_chunk_size: chunking_max_merge_chunk_size
+                .unwrap_or_else(|| defaults.size(100_000)),
+            max_chunk_size: defaults.server_max_chunk_size(chunking_max_chunk_size),
+            request_cost: Some(defaults.request_cost(10_000)),
+            ..Default::default()
+        };
+        warn_on_adjusted_chunking_config(
+            &ecmascript_chunking_config,
+            &SERVER_CHUNKING_CONFIG_OPTION_NAMES,
+            issue_file_path,
+        );
         builder = builder
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-                ChunkingConfig {
-                    // Server chunks are loaded with require(), not fetched over the network.
-                    min_chunk_size: chunking_min_chunk_size.unwrap_or(4_000),
-                    max_chunk_count_per_group: 0,
-                    max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(100_000),
-                    request_cost: Some(10_000),
-                    ..Default::default()
-                },
+                ecmascript_chunking_config,
             )
             .chunking_config(
                 Vc::<CssChunkType>::default().to_resolved().await?,
@@ -1173,7 +1189,8 @@ pub async fn get_server_chunking_context(
         export_usage,
         unused_references,
         minify,
-        source_maps,
+        emitted_source_map_type,
+        source_map_generation_options,
         no_mangling,
         scope_hoisting,
         minify_before_chunking,
@@ -1189,7 +1206,9 @@ pub async fn get_server_chunking_context(
         lazy_dynamic_imports,
         chunking_min_chunk_size,
         chunking_max_merge_chunk_size,
+        chunking_max_chunk_size,
     } = options;
+    let issue_file_path = root_path.clone();
     let css_url_suffix = css_url_suffix.to_resolved().await?;
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -1224,14 +1243,8 @@ pub async fn get_server_chunking_context(
         suffix: AssetSuffix::Inferred,
         static_suffix: ResolvedVc::cell(None),
     })
-    .minify_type(if *minify.await? {
-        MinifyType::Minify {
-            mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
-        }
-    } else {
-        MinifyType::NoMinify
-    })
-    .source_maps(*source_maps.await?)
+    .emitted_source_map_type(*emitted_source_map_type.await?)
+    .source_map_generation_options(*source_map_generation_options.await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
@@ -1242,23 +1255,33 @@ pub async fn get_server_chunking_context(
     // chunk may leave out.
     .shared_runtime_chunk(*per_page_module_graph.await?)
     .worker_forwarded_globals(worker_forwarded_globals())
-    .manifest_chunks(lazy_dynamic_imports);
+    .manifest_chunks(lazy_dynamic_imports)
+    .emit_options(minify_emit_options(minify, no_mangling, false).await?);
 
     if next_mode.is_development() {
         builder = builder.source_map_source_type(SourceMapSourceType::AbsoluteFileUri);
     } else {
+        let defaults = ChunkSizeDefaults::new(*minify.await?, *minify_before_chunking.await?);
+        let ecmascript_chunking_config = ChunkingConfig {
+            // Server chunks are loaded with require(), not fetched over the network.
+            min_chunk_size: chunking_min_chunk_size.unwrap_or_else(|| defaults.size(4_000)),
+            max_chunk_count_per_group: 0,
+            max_merge_chunk_size: chunking_max_merge_chunk_size
+                .unwrap_or_else(|| defaults.size(100_000)),
+            max_chunk_size: defaults.server_max_chunk_size(chunking_max_chunk_size),
+            request_cost: Some(defaults.request_cost(10_000)),
+            ..Default::default()
+        };
+        warn_on_adjusted_chunking_config(
+            &ecmascript_chunking_config,
+            &SERVER_CHUNKING_CONFIG_OPTION_NAMES,
+            issue_file_path,
+        );
         builder = builder
             .source_map_source_type(SourceMapSourceType::RelativeUri)
             .chunking_config(
                 Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-                ChunkingConfig {
-                    // Server chunks are loaded with require(), not fetched over the network.
-                    min_chunk_size: chunking_min_chunk_size.unwrap_or(4_000),
-                    max_chunk_count_per_group: 0,
-                    max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(100_000),
-                    request_cost: Some(10_000),
-                    ..Default::default()
-                },
+                ecmascript_chunking_config,
             )
             .chunking_config(
                 Vc::<CssChunkType>::default().to_resolved().await?,
