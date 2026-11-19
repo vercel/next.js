@@ -55,12 +55,20 @@ import { gate } from 'next-test-utils'
         { includes: 'Suspenseful Layout', kind: 'static' }
       )
 
+      const isVercel = await gate((conditions) => conditions.vercel)
+      const isLegacyVercelDeploy = await gate(
+        (conditions) => conditions.vercel && !conditions.adapter
+      )
       const responses = await Promise.all(segments)
       expect(responses.length).toBeGreaterThan(0)
       for (const response of responses) {
         expect(response.status).toBe(200)
-        expect(response.headers['x-next-prelude-metadata']).toBeUndefined()
-        if (await gate((conditions) => conditions.vercel)) {
+        // The legacy builder copies HTML metadata headers onto segment outputs.
+        // It does not emit the deployment policy that consumes this marker.
+        if (!isLegacyVercelDeploy) {
+          expect(response.headers['x-next-prelude-metadata']).toBeUndefined()
+        }
+        if (isVercel) {
           expect(response.headers['x-nextjs-postponed']).toBe('2')
           // The CDN reports seeded prerenders as PRERENDER.
           expect(['HIT', 'PRERENDER']).toContain(
@@ -69,7 +77,6 @@ import { gate } from 'next-test-utils'
         }
       }
 
-      const isVercel = await gate((conditions) => conditions.vercel)
       await act(
         async () => {
           await browser
