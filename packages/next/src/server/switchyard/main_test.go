@@ -867,15 +867,18 @@ func TestLimitsThreadsUnlessGOMAXPROCSIsSet(t *testing.T) {
 		want      int
 		set       bool
 	}{
-		{env: "", goDefault: 16, want: 2, set: true},
-		{env: "", goDefault: 2, set: false},
-		{env: "", goDefault: 1, set: false},
-		{env: "8", goDefault: 8, set: false},
-		{env: "1", goDefault: 1, set: false},
-		// Go ignores values that aren't a positive number, so the front's
+		{env: "", goDefault: 16, want: 4, set: true},
+		{env: "", goDefault: 8, want: 4, set: true},
+		{env: "", goDefault: 4, want: 0, set: false},
+		{env: "", goDefault: 2, want: 0, set: false},
+		{env: "", goDefault: 1, want: 0, set: false},
+		{env: "8", goDefault: 8, want: 0, set: false},
+		{env: "2", goDefault: 2, want: 0, set: false},
+		{env: "1", goDefault: 1, want: 0, set: false},
+		// Go ignores values that aren't a positive number, so Switchyard's
 		// limit still applies.
-		{env: "0", goDefault: 16, want: 2, set: true},
-		{env: "many", goDefault: 16, want: 2, set: true},
+		{env: "0", goDefault: 16, want: 4, set: true},
+		{env: "many", goDefault: 16, want: 4, set: true},
 	}
 	for _, c := range cases {
 		got, set := threadLimit(c.env, c.goDefault)

@@ -16,7 +16,7 @@
 //	    reports "Failed to start server".
 //	  - On stdin EOF (Node exited or asked it to stop), SIGINT or SIGTERM it
 //	    stops accepting, finishes in-flight requests and exits 0.
-//	  - It runs Go code on at most 2 threads at once; a GOMAXPROCS environment
+//	  - It runs Go code on at most 4 threads at once; a GOMAXPROCS environment
 //	    variable overrides that.
 package main
 
@@ -177,14 +177,16 @@ func main() {
 }
 
 // maxThreads is Switchyard's default limit on threads running Go code at once.
-const maxThreads = 2
+const maxThreads = 4
 
 // threadLimit returns the thread limit to set and true, or false to keep Go's.
 // Go runs Go code on as many threads at once as there are cores the process
-// may use (GOMAXPROCS). Switchyard's work per request is small next to Node's,
-// and Node handles requests on one thread, so on a machine with many cores
-// those threads mostly spend CPU waking each other and in the scheduler. Two
-// keep that overhead low and still forward many times what Next.js serves.
+// may use (GOMAXPROCS). On a machine with many cores, most of those threads
+// spend their CPU waking each other and in the scheduler, which costs more per
+// request than the forwarding itself. Four threads keep that overhead low and
+// still serve route.go requests, which Switchyard sends to the Go worker
+// without Node, as fast as no limit does; with two, Switchyard itself became
+// the bottleneck for those requests under load.
 // env is the GOMAXPROCS environment variable: when it holds a number Go
 // accepts, the user chose the limit and Go has already applied it.
 func threadLimit(env string, goDefault int) (int, bool) {
