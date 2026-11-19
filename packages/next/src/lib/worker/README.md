@@ -70,7 +70,7 @@ A `ForkServer` (`ForkServer.start()`) is a small helper process, started while t
 - In the worker, Node sets up its regular IPC channel on the message pipe (`NODE_CHANNEL_FD`, as `fork()` does), so `process.send()`, `process.on('message')`, `process.disconnect()` etc. work as in a forked worker (e.g. per-page activity in `export/worker.ts`). The main process speaks the same wire format on its end: newline-delimited JSON, Node's default `'json'` serialization. Only messages are supported on that channel; sending handles (sockets, servers) to the main process isn't (the pool never does).
 - A worker's exit is reported after its message pipe closed (bounded by a timeout), so messages written right before exiting are not lost.
 - The helper never keeps the main process alive while no workers are running, and exits when the main process disconnects. Workers it spawned exit when the main process goes away (their IPC channel closes), since they aren't its children.
-- If the helper is lost, workers it hadn't started yet are forked from the main process instead, and workers it started are killed and reported as crashed (the pool replaces them by forking). `shutdown()` stops the helper; shut down the pools using it first.
+- If the helper is lost, workers it hadn't started yet are forked from the main process instead, and workers it started are terminated and reported as crashed (the pool replaces them by forking). `shutdown()` stops the helper; shut down the pools using it first.
 - Not available on Windows (`ForkServer.start()` returns `undefined`, and callers fork as usual).
 
 `next build` uses it for the static workers with Turbopack (see `build/index.ts`).
