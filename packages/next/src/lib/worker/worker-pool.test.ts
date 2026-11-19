@@ -1307,6 +1307,50 @@ describe('WorkerPool', () => {
       }
     }
 
+    it('treats an uncaught thread error as a crash once the thread exits', async () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        enableWorkerThreads: true,
+      })
+      // Only wait for microtasks here: other tests in this file leave
+      // dispatches rejected by shutdownNow() unhandled, which a macrotask wait
+      // would report as failures of this test.
+      const write = jest.spyOn(pool.getStderr(), 'write')
+      const promise = pool.dispatch('doWork', [])
+      const thread = latestProcess()
+      replyReady(thread)
+
+      thread.emit('error', new Error('stray async error'))
+      // Not rejected by the 'error' itself; the exit that follows decides.
+      const settled = jest.fn()
+      promise.then(settled, settled)
+      await Promise.resolve()
+      expect(settled).not.toHaveBeenCalled()
+      expect(write).toHaveBeenCalledTimes(1)
+      expect(String(write.mock.calls[0][0])).toContain('stray async error')
+
+      thread.emit('exit', 1)
+      await expect(promise).rejects.toBeInstanceOf(WorkerExitError)
+      pool.shutdownNow()
+    })
+
+    it('does not write a thread error to the ended stderr after shutdownNow()', async () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        enableWorkerThreads: true,
+      })
+      const promise = pool.dispatch('doWork', []).catch(() => {})
+      const thread = latestProcess()
+      pool.shutdownNow()
+      const write = jest.spyOn(pool.getStderr(), 'write')
+
+      thread.emit('error', new Error('queued thread failure'))
+      await promise
+      expect(write).not.toHaveBeenCalled()
+    })
+
     it('inherits the parent flags when nothing is requested', () =>
       withExecArgv(['--max-old-space-size=3000'], () => {
         const pool = new WorkerPool({

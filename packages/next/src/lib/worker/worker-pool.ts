@@ -694,10 +694,13 @@ export class WorkerPool {
         // rejects its calls with WorkerExitError and replaces it, like for a
         // crashed child process. Unlike a child process, Node.js doesn't print
         // the exception for a thread, so print it like a crashing process
-        // would.
-        this._stderr.write(
-          `${error instanceof Error && error.stack ? error.stack : String(error)}\n`
-        )
+        // would (not once the pool is shutting it down, since the pool's
+        // stderr may already have ended).
+        if (worker.state !== WorkerState.SHUTTING_DOWN) {
+          this._stderr.write(
+            `${error instanceof Error && error.stack ? error.stack : String(error)}\n`
+          )
+        }
         return
       }
       this._handleSpawnError(worker, error)
