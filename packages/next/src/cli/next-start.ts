@@ -10,10 +10,7 @@ if (!process.env.NEXT_PRIVATE_START_TIME) {
 import '../server/lib/cpu-profile'
 import { saveCpuProfile } from '../server/lib/cpu-profile'
 import { startServer } from '../server/lib/start-server'
-import {
-  isFrontServerEnabled,
-  startFrontServer,
-} from '../server/lib/front-server'
+import { isSwitchyardEnabled, startSwitchyard } from '../server/lib/switchyard'
 import {
   getParsedDebugAddress,
   formatDebugAddress,
@@ -87,7 +84,7 @@ const nextStart = async (options: NextStartOptions, directory?: string) => {
     process.on('SIGINT', () => saveCpuProfile())
   }
 
-  const start = isFrontServerEnabled() ? startFrontServer : startServer
+  const start = isSwitchyardEnabled() ? startSwitchyard : startServer
   await start({
     dir,
     isDev: false,
