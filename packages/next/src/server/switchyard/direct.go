@@ -249,7 +249,9 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 		// One Transport for every worker: it keeps idle connections per
 		// address.
 		Transport: nodeHeaderLimitTransport{&http.Transport{
-			Proxy:               nil,
+			// Connects directly, and sends each request at most once, as
+			// Node's client does (see sendOnce).
+			Proxy:               sendAtMostOnce,
 			DialContext:         (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
 			MaxIdleConns:        0,
 			MaxIdleConnsPerHost: 512,
@@ -318,7 +320,7 @@ type nodeHeaderLimitTransport struct {
 }
 
 func (t nodeHeaderLimitTransport) RoundTrip(r *http.Request) (*http.Response, error) {
-	res, err := t.transport.RoundTrip(r)
+	res, err := t.transport.RoundTrip(sendOnce(r))
 	if err != nil {
 		return nil, err
 	}
