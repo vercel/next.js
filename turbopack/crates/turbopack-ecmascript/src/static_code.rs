@@ -48,10 +48,12 @@ impl StaticEcmascriptCode {
         let runtime_base_content = self.asset.module_content_without_analysis().await?;
         let mut code =
             CodeBuilder::new(false, runtime_base_content.source_maps.generation_options());
-        code.push_source(
-            &runtime_base_content.inner_code,
-            runtime_base_content.source_maps.clone(),
-        )?;
+        let source_maps = runtime_base_content
+            .source_maps
+            .clone()
+            .try_map_async(|map| async move { map.to_section_map(map.head().clone()).await })
+            .await?;
+        code.push_source(&runtime_base_content.inner_code, source_maps)?;
         Ok(Code::cell(code.build()))
     }
 }
