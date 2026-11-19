@@ -49,11 +49,9 @@ describe('empty-generate-static-params', () => {
       `)
     })
   } else {
-    // The Turbopack deploy snapshot matches Vercel's build logs, which omit
-    // leading indentation. Other hosts format their build logs differently.
-    // @force-gate !deploy || vercel
+    // @force-gate !deploy
     describe('literal empty array', () => {
-      const { next, isTurbopack, isNextDeploy } = nextTestSetup({
+      const { next, isTurbopack } = nextTestSetup({
         files: __dirname,
         skipStart: true,
         // Isolate this route's diagnostic and preserve its source code frame.
@@ -67,39 +65,7 @@ describe('empty-generate-static-params', () => {
       it('points the literal empty array build error at the array', async () => {
         await expect(next.start()).rejects.toThrow()
         const block = errorBlock(next.cliOutput)
-        if (isTurbopack && isNextDeploy) {
-          // Vercel build logs omit leading indentation from stack and code frames.
-          expect(block).toMatchInlineSnapshot(`
-           "When using Cache Components, all \`generateStaticParams\` functions must return at least one result. This is to ensure that we can perform build-time validation that there is no other dynamic accesses that would cause a runtime error.
-
-           Learn more: https://nextjs.org/docs/messages/empty-generate-static-params
-           at generateStaticParams (app/[slug]/page.tsx:10:10)
-           8 |
-           9 | export async function generateStaticParams() {
-           > 10 |   return []
-           |          ^
-           11 | }
-           12 |
-
-           > "
-          `)
-        } else if (isNextDeploy) {
-          // Vercel build logs omit leading indentation from stack and code frames.
-          expect(block).toMatchInlineSnapshot(`
-           "When using Cache Components, all \`generateStaticParams\` functions must return at least one result. This is to ensure that we can perform build-time validation that there is no other dynamic accesses that would cause a runtime error.
-
-           Learn more: https://nextjs.org/docs/messages/empty-generate-static-params
-           at generateStaticParams (webpack:///app/[slug]/page.tsx:10:10)
-           8 |
-           9 | export async function generateStaticParams() {
-           > 10 |   return []
-           |          ^
-           11 | }
-           12 |
-
-           > "
-          `)
-        } else if (isTurbopack) {
+        if (isTurbopack) {
           expect(block).toMatchInlineSnapshot(`
            "When using Cache Components, all \`generateStaticParams\` functions must return at least one result. This is to ensure that we can perform build-time validation that there is no other dynamic accesses that would cause a runtime error.
 
@@ -133,11 +99,9 @@ describe('empty-generate-static-params', () => {
       }, 240_000)
     })
 
-    // The Turbopack deploy snapshot matches Vercel's build logs, which omit
-    // leading indentation. Other hosts format their build logs differently.
-    // @force-gate !deploy || vercel
+    // @force-gate !deploy
     describe('computed empty array', () => {
-      const { next, isTurbopack, isNextDeploy } = nextTestSetup({
+      const { next, isTurbopack } = nextTestSetup({
         files: __dirname,
         skipStart: true,
         // Isolate this route's diagnostic and preserve its source code frame.
@@ -151,41 +115,7 @@ describe('empty-generate-static-params', () => {
       it('points the computed empty array build error at the declaration', async () => {
         await expect(next.start()).rejects.toThrow()
         const block = errorBlock(next.cliOutput)
-        if (isTurbopack && isNextDeploy) {
-          // Vercel build logs omit leading indentation from stack and code frames.
-          expect(block).toMatchInlineSnapshot(`
-           "When using Cache Components, all \`generateStaticParams\` functions must return at least one result. This is to ensure that we can perform build-time validation that there is no other dynamic accesses that would cause a runtime error.
-
-           Learn more: https://nextjs.org/docs/messages/empty-generate-static-params
-           at generateStaticParams (app/computed/[slug]/page.tsx:9:8)
-           7 | }
-           8 |
-           >  9 | export async function generateStaticParams() {
-           |        ^
-           10 |   // Empty at runtime but not statically analyzable, so it falls back to the
-           11 |   // factory stack anchored at the declaration.
-           12 |   const items: string[] = []
-
-           > "
-          `)
-        } else if (isNextDeploy) {
-          // Vercel build logs omit leading indentation from stack and code frames.
-          expect(block).toMatchInlineSnapshot(`
-           "When using Cache Components, all \`generateStaticParams\` functions must return at least one result. This is to ensure that we can perform build-time validation that there is no other dynamic accesses that would cause a runtime error.
-
-           Learn more: https://nextjs.org/docs/messages/empty-generate-static-params
-           at generateStaticParams (webpack:///app/computed/[slug]/page.tsx:9:8)
-           7 | }
-           8 |
-           >  9 | export async function generateStaticParams() {
-           |        ^
-           10 |   // Empty at runtime but not statically analyzable, so it falls back to the
-           11 |   // factory stack anchored at the declaration.
-           12 |   const items: string[] = []
-
-           > "
-          `)
-        } else if (isTurbopack) {
+        if (isTurbopack) {
           expect(block).toMatchInlineSnapshot(`
            "When using Cache Components, all \`generateStaticParams\` functions must return at least one result. This is to ensure that we can perform build-time validation that there is no other dynamic accesses that would cause a runtime error.
 

@@ -60,6 +60,8 @@ describe('use-cache-configured-timeout', () => {
       })
     })
   } else {
+    // Build-failure diagnostics are verified with a local build, not a deployment.
+    // @force-gate !deploy
     describe('when `experimental.useCacheTimeout` exceeds `staticPageGenerationTimeout` during prerendering', () => {
       it('should clamp the build timeout and fail both pages with a timeout error', async () => {
         await expect(next.start()).rejects.toThrow()

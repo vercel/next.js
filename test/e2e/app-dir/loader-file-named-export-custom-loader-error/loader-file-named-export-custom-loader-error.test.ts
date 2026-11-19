@@ -10,6 +10,7 @@ async function testDev(browser, errorRegex) {
 }
 
 describe('Error test if the loader file export a named function', () => {
+  // @force-gate dev
   describe('in Development', () => {
     const { next, isNextDev } = nextTestSetup({
       files: __dirname,
@@ -28,7 +29,7 @@ describe('Error test if the loader file export a named function', () => {
     })
   })
 
-  // @force-gate !dev
+  // @force-gate start
   describe('in Build and Start', () => {
     const { next } = nextTestSetup({
       skipStart: true,

@@ -10,24 +10,19 @@ import stripAnsi from 'strip-ansi'
 import { createSandbox } from 'development-sandbox'
 
 describe('use-cache-unknown-cache-kind', () => {
-  const { next, isNextDev, isNextDeploy, isTurbopack, isRspack } =
-    nextTestSetup({
-      files: __dirname,
-      skipStart: process.env.NEXT_TEST_MODE !== 'dev',
-    })
+  const { next, isNextDev, isTurbopack, isRspack } = nextTestSetup({
+    files: __dirname,
+    skipStart: process.env.NEXT_TEST_MODE !== 'dev',
+  })
 
   if (!isNextDev) {
+    // Build-failure diagnostics are verified with a local build, not a deployment.
+    // @force-gate !deploy
     it('should fail the build with an error', async () => {
       await expect(next.start()).rejects.toThrow()
       const buildOutput = getBuildOutput(next.cliOutput)
 
-      if (isNextDeploy) {
-        expect(next.cliOutput).toContain(
-          'Unknown cache kind "custom". Please configure a cache handler for this kind in the `cacheHandlers` object in your Next.js config.'
-        )
-        expect(next.cliOutput).toContain('./app/page.tsx')
-        expect(next.cliOutput).toContain("'use cache: custom'")
-      } else if (isTurbopack) {
+      if (isTurbopack) {
         expect(buildOutput).toMatchInlineSnapshot(`
          "Error: Turbopack build failed with 1 error:
          ./app/page.tsx:1:1
@@ -89,6 +84,8 @@ describe('use-cache-unknown-cache-kind', () => {
       }
     }, 240_000)
 
+    // This assertion inspects the same local failed build as the test above.
+    // @force-gate !deploy
     it('should not fail the build for default cache kinds', async () => {
       expect(next.cliOutput).not.toInclude('Unknown cache kind "remote"')
     })

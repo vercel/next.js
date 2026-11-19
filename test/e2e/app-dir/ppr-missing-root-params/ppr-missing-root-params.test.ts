@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import path from 'path'
 
+// @force-gate !deploy
 describe('ppr-missing-root-params (single)', () => {
   const { next, isNextDev } = nextTestSetup({
     files: path.join(__dirname, 'fixtures/single'),
@@ -21,6 +22,7 @@ describe('ppr-missing-root-params (single)', () => {
   }, 240_000)
 })
 
+// @force-gate !deploy
 describe('ppr-missing-root-params (multiple)', () => {
   const { next, isNextDev } = nextTestSetup({
     files: path.join(__dirname, 'fixtures/multiple'),
@@ -41,6 +43,7 @@ describe('ppr-missing-root-params (multiple)', () => {
   }, 240_000)
 })
 
+// @force-gate !deploy
 describe('ppr-missing-root-params (nested)', () => {
   const { next, isNextDev } = nextTestSetup({
     files: path.join(__dirname, 'fixtures/nested'),

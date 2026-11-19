@@ -13,6 +13,8 @@ describe('cache-components-segment-configs', () => {
     skipStart: true,
   })
 
+  // Build-failure diagnostics are verified with a local build, not a deployment.
+  // @force-gate !deploy
   it("it should error when using segment configs that aren't supported by cacheComponents", async () => {
     if (isNextDev) {
       await next.start()
@@ -103,6 +105,8 @@ describe('cache-components-segment-configs layout propagation', () => {
     skipStart: true,
   })
 
+  // Build-failure diagnostics are verified with a local build, not a deployment.
+  // @force-gate !deploy
   it('should propagate configurations from layouts to pages', async () => {
     if (isNextDev) {
       await next.start()

@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// @force-gate !deploy
 describe('metadata-invalid-image-file', () => {
   const { next, isTurbopack, isNextDev, isRspack } = nextTestSetup({
     files: __dirname,

@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+// @force-gate !deploy
 describe('proxy-with-middleware', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,

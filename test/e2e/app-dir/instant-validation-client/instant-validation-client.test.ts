@@ -7,6 +7,8 @@ describe('app dir - instant-validation-client', () => {
     skipStart: true,
   })
 
+  // Build-failure diagnostics are verified with a local build, not a deployment.
+  // @force-gate !deploy
   it('should error when a client component exports instant', async () => {
     const expectedErrMsg = `"instant" is a route segment config and can only be used when the segment is a Server Component module. Remove the "use client" directive`
 

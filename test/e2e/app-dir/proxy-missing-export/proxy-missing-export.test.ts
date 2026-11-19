@@ -39,6 +39,7 @@ describe('proxy-missing-export', () => {
     })
   })
 
+  // @force-gate !deploy
   describe.each(['named-middleware', 'aliased-handler'])(
     '%s export',
     (fixture) => {

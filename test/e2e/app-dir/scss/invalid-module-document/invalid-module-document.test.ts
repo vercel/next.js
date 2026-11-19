@@ -14,6 +14,7 @@ import { waitForRedbox, getRedboxSource } from 'next-test-utils'
     })
 
     if (!isNextDev) {
+      // @force-gate !deploy
       it('should fail to build', async () => {
         await expect(next.start()).rejects.toThrow()
         const cliOutput = next.cliOutput

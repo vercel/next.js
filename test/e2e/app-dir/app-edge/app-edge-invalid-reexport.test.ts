@@ -1,6 +1,7 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 
+// @force-gate !deploy
 describe('app-dir edge SSR invalid reexport', () => {
   const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: {

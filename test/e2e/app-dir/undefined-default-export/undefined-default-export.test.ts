@@ -50,6 +50,7 @@ describe('Undefined default export', () => {
       `)
     })
   } else {
+    // @force-gate !deploy
     it('errors the build with helpful error messages', async () => {
       await expect(next.start()).rejects.toThrow()
       const cliOutput = next.cliOutput

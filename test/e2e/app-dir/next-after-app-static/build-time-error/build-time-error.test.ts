@@ -1,10 +1,9 @@
 /* eslint-env jest */
-import { isNextDev, nextTestSetup } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
 // Static prerendering errors are only reported during production builds.
-const _describe = isNextDev ? describe.skip : describe
-
-_describe('after() in static pages - thrown errors', () => {
+// @force-gate start
+describe('after() in static pages - thrown errors', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,

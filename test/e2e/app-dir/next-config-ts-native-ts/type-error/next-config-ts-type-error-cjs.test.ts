@@ -1,11 +1,11 @@
-import { isNextDeploy, nextTestSetup } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
+// @force-gate !deploy
 describe('next-config-ts-type-error-cjs', () => {
-  // Deploy builds use the fixture's Node version, not the test runner's.
   // TODO: Remove this local check once we bump minimum Node.js version to v22
   // TODO(as-any): pre-existing cast, not yet reviewed
   // eslint-disable-next-line @next/internal/no-as-any
-  if (!isNextDeploy && !(process.features as any).typescript) {
+  if (!(process.features as any).typescript) {
     it.skip('requires `process.features.typescript` to feature detect Node.js native TS', () => {})
     return
   }
@@ -13,11 +13,6 @@ describe('next-config-ts-type-error-cjs', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    packageJson: isNextDeploy ? { engines: { node: '22.x' } } : {},
-    // Vercel environment keys cannot start with an underscore.
-    buildCommand: isNextDeploy
-      ? '__NEXT_NODE_NATIVE_TS_LOADER_ENABLED=true next build'
-      : undefined,
   })
 
   it('should throw with type error on build (CJS)', async () => {

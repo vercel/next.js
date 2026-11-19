@@ -148,18 +148,14 @@ describe('dynamic-data', () => {
   }
 })
 
+// @force-gate !deploy
 describe('dynamic-data with dynamic = "error"', () => {
-  const { next, isNextDev, isNextDeploy, skipped } = nextTestSetup({
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/require-static',
     skipStart: true,
   })
 
   if (skipped) {
-    return
-  }
-
-  if (isNextDeploy) {
-    it.skip('should not run in next deploy.', () => {})
     return
   }
 
@@ -247,11 +243,7 @@ describe('dynamic-data with dynamic = "error"', () => {
     })
   } else {
     it('error when the build when `dynamic = "error"` and dynamic data is read', async () => {
-      try {
-        await next.start()
-      } catch (err) {
-        // We expect this to fail
-      }
+      await expect(next.start()).rejects.toThrow()
       // Error: Page with `dynamic = "error"` couldn't be rendered statically because it used `headers`
       expect(next.cliOutput).toMatch(
         'Error: Route /cookies with `dynamic = "error"` couldn\'t be rendered statically because it used `cookies()`'
@@ -275,20 +267,14 @@ describe('dynamic-data with dynamic = "error"', () => {
   }
 })
 
+// @force-gate !deploy
 describe('dynamic-data inside cache scope', () => {
-  const { isTurbopack, next, isNextDev, isNextDeploy, skipped } = nextTestSetup(
-    {
-      files: __dirname + '/fixtures/cache-scoped',
-      skipStart: true,
-    }
-  )
+  const { isTurbopack, next, isNextDev, skipped } = nextTestSetup({
+    files: __dirname + '/fixtures/cache-scoped',
+    skipStart: true,
+  })
 
   if (skipped) {
-    return
-  }
-
-  if (isNextDeploy) {
-    it.skip('should not run in next deploy..', () => {})
     return
   }
 
@@ -363,11 +349,7 @@ describe('dynamic-data inside cache scope', () => {
     })
   } else {
     it('error when the build when accessing dynamic data inside a cache scope', async () => {
-      try {
-        await next.start()
-      } catch (err) {
-        // We expect this to fail
-      }
+      await expect(next.start()).rejects.toThrow()
       expect(next.cliOutput).toMatch(
         'Error: Route "/cookies": `cookies()` can\'t be read inside `unstable_cache()`. Read it outside the cached function and pass what you need as an argument.'
       )

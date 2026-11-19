@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// @force-gate !deploy
 describe('next-config-ts-type-error-esm', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,

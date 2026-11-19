@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// @force-gate !deploy
 describe('next-image-src-with-query-without-local-patterns', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,

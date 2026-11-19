@@ -10,7 +10,7 @@ function expectedTimeoutErrorMessage(route: string) {
 }
 
 describe('use-cache-hanging', () => {
-  const { next, isNextDev, isTurbopack, isNextDeploy } = nextTestSetup({
+  const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
   })
@@ -159,6 +159,8 @@ describe('use-cache-hanging', () => {
       })
     })
   } else {
+    // Build-failure diagnostics are verified with a local build, not a deployment.
+    // @force-gate !deploy
     describe('when a "use cache" fill hangs during prerendering', () => {
       it('should fail the build with a timeout error', async () => {
         await expect(next.start()).rejects.toThrow()
@@ -166,10 +168,7 @@ describe('use-cache-hanging', () => {
         if (isTurbopack) {
           const expected = `Error: ${expectedTimeoutErrorMessage('/static')}
     at <unknown> (app/static/page.tsx:1:1)`
-          // Vercel removes indentation from build log lines.
-          const normalize = (output: string) =>
-            isNextDeploy ? output.replace(/^[ \t]+/gm, '') : output
-          expect(normalize(next.cliOutput)).toContain(normalize(expected))
+          expect(next.cliOutput).toContain(expected)
         } else {
           // Webpack production builds don't have source maps by default.
           expect(next.cliOutput).toContain(

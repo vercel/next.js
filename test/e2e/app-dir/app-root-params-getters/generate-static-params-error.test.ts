@@ -29,6 +29,7 @@ describe('app-root-param-getters - generateStaticParams error', () => {
       `)
     })
   } else {
+    // @force-gate !deploy
     it('should error when reading a root param inside the generateStaticParams that defines it - build', async () => {
       await expect(next.start()).rejects.toThrow()
       expect(next.cliOutput).toContain(

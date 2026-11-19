@@ -22,6 +22,7 @@ describe('after() in generateStaticParams - thrown errors', () => {
       )
     })
   } else {
+    // @force-gate !deploy
     it('fails the build if an error is thrown inside after', async () => {
       await expect(next.start()).rejects.toThrow()
 

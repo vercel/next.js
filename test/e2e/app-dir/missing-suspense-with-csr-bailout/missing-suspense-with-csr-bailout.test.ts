@@ -26,6 +26,7 @@ describe('missing-suspense-with-csr-bailout', () => {
       ? 'https://nextjs.org/docs/messages/blocking-prerender-client-hook'
       : `useSearchParams() should be wrapped in a suspense boundary at page "/".`
 
+    // @force-gate !deploy
     describe('without Suspense', () => {
       const { next } = nextTestSetup({
         files: {

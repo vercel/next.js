@@ -16,6 +16,8 @@ const CASES = [
   ],
 ]
 
+// Build-failure diagnostics are covered by local build/start runs.
+// @force-gate !deploy
 describe('persistent-caching-migration', () => {
   for (const [option, error] of CASES) {
     describe(option, () => {

@@ -1,5 +1,7 @@
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 
+// Build-failure diagnostics are covered by local build/start runs.
+// @force-gate !deploy
 describe('Errors on conflict between public file and page file', () => {
   const { next } = nextTestSetup({
     files: __dirname,

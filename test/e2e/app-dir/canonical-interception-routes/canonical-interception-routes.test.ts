@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
 
+// @force-gate !deploy
 describe('canonical-interception-routes', () => {
   const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
