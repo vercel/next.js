@@ -4732,7 +4732,7 @@ mod follower_debt_tests {
     use std::{cell::RefCell, sync::Arc};
 
     use smallvec::{SmallVec, smallvec};
-    use turbo_tasks::{CellId, TaskId, TraitTypeId, TurboTasks, ValueTypeId};
+    use turbo_tasks::{CellId, TaskId, TraitTypeId, TurboTasks, ValueTypeId, event::Event};
 
     use super::{
         AggregationUpdateJob, AggregationUpdateQueue, InnerOfUppersLostFollowersJob,
@@ -4744,7 +4744,10 @@ mod follower_debt_tests {
             operation::ExecuteContext,
             storage_schema::{ActivenessAccessors, TaskStorageAccessors},
         },
-        data::{AggregationNumber, CellRef, CollectibleRef, Dirtyness, OutputValue},
+        data::{
+            AggregationNumber, CellRef, CollectibleRef, Dirtyness, InProgressState,
+            InProgressStateInner, OutputValue,
+        },
         noop_backing_storage,
     };
 
@@ -6034,6 +6037,968 @@ mod follower_debt_tests {
                 .await
                 .is_some()
         );
+    }
+
+    // Replays of races between a task's completion and the removal of one of its inner edges,
+    // with the queue handlers. The completion publishes an edge change under the task's lock and
+    // propagates it to the uppers it captured later, after releasing the lock. A removal in
+    // between can make such an upper look clean while that propagation is still queued, so a
+    // strongly consistent read of it could complete with wrong collectibles.
+    //
+    // The invariant checked: while an upper misses a collectible it should have, it has to block a
+    // strongly consistent read.
+
+    /// Marks `task_id` as in progress, as during the completion of its execution.
+    fn start_completion(tt: &TurboTasks<TurboTasksBackend>, task_id: u32) {
+        let mut ctx = ExecuteContext::new(tt);
+        let mut task = ctx.task(id(task_id), TaskDataCategory::All);
+        task.set_in_progress(InProgressState::InProgress(Box::new(
+            InProgressStateInner {
+                stale: false,
+                once_task: false,
+                marked_as_completed: false,
+                done_event: Event::new(|| || "test done_event".to_string()),
+                new_children: Default::default(),
+            },
+        )));
+    }
+
+    /// Ends the completion of `task_id` by taking its in-progress state.
+    fn end_completion(tt: &TurboTasks<TurboTasksBackend>, task_id: u32) {
+        let mut ctx = ExecuteContext::new(tt);
+        let mut task = ctx.task(id(task_id), TaskDataCategory::All);
+        let Some(InProgressState::InProgress(_)) = task.take_in_progress() else {
+            panic!("task {task_id} is not in progress");
+        };
+    }
+
+    /// Makes `task` dirty in the current session (not session dependent), so it blocks a strongly
+    /// consistent read of its uppers.
+    fn seed_current_session_dirty(tt: &TurboTasks<TurboTasksBackend>, task_id: u32) {
+        let mut ctx = ExecuteContext::new(tt);
+        let mut task = ctx.task(id(task_id), TaskDataCategory::All);
+        task.set_output(OutputValue::Cell(collectible().cell));
+        assert!(
+            task.update_dirty_state(Some(Dirtyness::Dirty {
+                parent_priority: turbo_tasks::TaskPriority::leaf(),
+                #[cfg(feature = "task_dirty_cause")]
+                cause: turbo_tasks::TaskDirtyCause::InitialDirty,
+            }))
+            .is_none()
+        );
+        assert_eq!(task.dirty_state(), (true, false));
+    }
+
+    /// Whether `upper` blocks a strongly consistent read: it or one of its containers is dirty in
+    /// the current session.
+    fn blocks_strong_read(tt: &TurboTasks<TurboTasksBackend>, upper: u32) -> bool {
+        let mut ctx = ExecuteContext::new(tt);
+        let task = ctx.task(id(upper), TaskDataCategory::All);
+        task.has_dirty_containers() || task.is_dirty().is_some()
+    }
+
+    /// Asserts the invariant: if `upper` misses the collectible, it blocks a strong read.
+    fn assert_missing_collectible_blocks_strong_read(
+        tt: &TurboTasks<TurboTasksBackend>,
+        upper: u32,
+    ) {
+        assert!(
+            aggregated(tt, upper) == 1 || blocks_strong_read(tt, upper),
+            "upper {upper} misses the collectible but doesn't block a strongly consistent read"
+        );
+    }
+
+    fn set_children(tt: &TurboTasks<TurboTasksBackend>, parent: u32, children: &[u32]) {
+        let mut ctx = ExecuteContext::new(tt);
+        ctx.task(id(parent), TaskDataCategory::All)
+            .extend_children(children.iter().map(|&c| id(c)));
+    }
+
+    /// Runs a queue that was filled earlier, e.g. the rest of a completion's propagation.
+    fn run_paused(tt: &TurboTasks<TurboTasksBackend>, mut queue: AggregationUpdateQueue) {
+        let mut ctx = ExecuteContext::new(tt);
+        queue.execute(&mut ctx);
+    }
+
+    /// Runs the next job of a paused queue, e.g. one step of a completion's propagation.
+    fn step(tt: &TurboTasks<TurboTasksBackend>, queue: &mut AggregationUpdateQueue) {
+        let mut ctx = ExecuteContext::new(tt);
+        queue.process(&mut ctx);
+    }
+
+    /// Connects `children` to the leaf `parent` like a completion does (`connect_children`), but
+    /// returns the queue with the propagation to the uppers, which hasn't run yet. Gives the
+    /// children an output first, so they aren't made dirty as new children without output.
+    fn publish_children(
+        tt: &TurboTasks<TurboTasksBackend>,
+        parent: u32,
+        children: &[u32],
+    ) -> AggregationUpdateQueue {
+        publish_children_with(&mut ExecuteContext::new(tt), parent, children)
+    }
+
+    /// Like [`publish_children`], in the operation of `ctx`.
+    fn publish_children_with(
+        ctx: &mut ExecuteContext<'_>,
+        parent: u32,
+        children: &[u32],
+    ) -> AggregationUpdateQueue {
+        for &child in children {
+            let mut child = ctx.task(id(child), TaskDataCategory::All);
+            if !child.has_output() {
+                child.set_output(OutputValue::Cell(collectible().cell));
+            }
+        }
+        let parent = ctx.task(id(parent), TaskDataCategory::All);
+        super::super::connect_children::connect_children_without_propagation(
+            ctx,
+            parent,
+            children.iter().map(|&c| id(c)).collect(),
+        )
+    }
+
+    /// The number of pending follower additions published by `task` and of the removals that
+    /// wait for them.
+    fn pending_counts(tt: &TurboTasks<TurboTasksBackend>, task: u32) -> (usize, usize) {
+        let mut ctx = ExecuteContext::new(tt);
+        let task = ctx.task(id(task), TaskDataCategory::Meta);
+        task.get_pending_follower_additions()
+            .map_or((0, 0), |pending| pending.counts())
+    }
+
+    fn set_aggregation_number(tt: &TurboTasks<TurboTasksBackend>, task: u32, number: u32) {
+        let mut ctx = ExecuteContext::new(tt);
+        ctx.task(id(task), TaskDataCategory::All)
+            .set_aggregation_number(AggregationNumber {
+                base: number,
+                distance: 0,
+                effective: number,
+            });
+    }
+
+    // Child snapshot race:
+    //
+    // - A, F's completion (`connect_children`): adds C to F's children and captures F's uppers
+    //   `[U]` under F's lock. It adds C to `U` only after releasing the lock.
+    // - B, another operation (e.g. a parent's completion that no longer connects F): removes F's
+    //   last inner edge to U. Under F's lock it sees F's new children, so it removes C from U.
+    // - B's removal of C runs before A's addition of C.
+    //
+    // C is also reachable from U through F2, so U has to keep C's collectible. Only C emits it.
+
+    /// 1 = U (aggregating), 2 = F (current-session dirty, completing), 3 = F2 (clean), 4 = C (only
+    /// emitter).
+    fn child_snapshot_base(
+        start_f: fn(&TurboTasks<TurboTasksBackend>, u32),
+    ) -> Arc<TurboTasks<TurboTasksBackend>> {
+        let tt = setup_with_data(&[(1, UPPER), (2, INNER), (3, INNER), (4, INNER)], false);
+        {
+            let mut ctx = ExecuteContext::new(&tt);
+            let mut c = ctx.task(id(4), TaskDataCategory::All);
+            let _ = c.update_collectibles_positive_crossing(collectible(), 1);
+        }
+        seed_current_session_dirty(&tt, 2);
+        start_f(&tt, 2);
+        set_children(&tt, 3, &[4]);
+        run(&tt, [add(1, 2), add(1, 3)]);
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+        assert_eq!(aggregated(&tt, 1), 1);
+        // U is dirty only because of F.
+        assert_eq!(effects(&tt, 1), (1, 0, 0));
+        assert!(blocks_strong_read(&tt, 1));
+        tt
+    }
+
+    fn child_snapshot_fixture(
+        start_f: fn(&TurboTasks<TurboTasksBackend>, u32),
+    ) -> (Arc<TurboTasks<TurboTasksBackend>>, AggregationUpdateQueue) {
+        let tt = child_snapshot_base(start_f);
+        // A: F's completion adds C to its children. Its addition of C to U is still queued.
+        let a_queue = publish_children(&tt, 2, &[4]);
+        // B: removes F's last inner edge to U before A's queue runs.
+        run(&tt, [remove(1, 2)]);
+        (tt, a_queue)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn child_snapshot_race_keeps_upper_dirty_until_completion_ends() {
+        let (tt, a_queue) = child_snapshot_fixture(start_completion);
+        assert_missing_collectible_blocks_strong_read(&tt, 1);
+        // A's queued addition lands.
+        run_paused(&tt, a_queue);
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+        assert_eq!(aggregated(&tt, 1), 1);
+        end_completion(&tt, 2);
+        assert!(!blocks_strong_read(&tt, 1));
+        tt.backend().verify_aggregation_edges();
+    }
+
+    // Follower entry race: like the child snapshot race, but the task that is detached isn't the
+    // completing one. P's completion connects C, which becomes a follower of the aggregating F.
+    //
+    // - A, P's completion: the handler for P's upper F writes `F.followers[C]` under F's lock,
+    //   captures F's uppers `[U']` and queues the addition of C to U'.
+    // - B: removes F's last inner edge to U' before that job runs. Its snapshot of F's followers
+    //   includes C, and it removes F's dirty contribution (which covers P) from U'.
+    //
+    // C is also reachable from U' through F2, so U' has to keep C's collectible.
+
+    /// 1 = U' (aggregating, 300), 2 = F (aggregating, 100, inner of U'), 3 = F2 (10, inner of U'),
+    /// 4 = C (200, only emitter, child of F2, so inner of U'), 5 = P (10, inner of F,
+    /// current-session dirty). `completing_task` is marked as completing.
+    ///
+    /// Returns the backend after B, and A's paused queue: A's step runs the real handler for F up
+    /// to the point where it has published the follower entry and queued the propagation.
+    fn follower_entry_fixture(
+        completing_task: u32,
+    ) -> (Arc<TurboTasks<TurboTasksBackend>>, AggregationUpdateQueue) {
+        let tt = setup_with_data(
+            &[(1, 300), (2, UPPER), (3, INNER), (4, FOLLOWER), (5, INNER)],
+            false,
+        );
+        {
+            let mut ctx = ExecuteContext::new(&tt);
+            let mut c = ctx.task(id(4), TaskDataCategory::All);
+            let _ = c.update_collectibles_positive_crossing(collectible(), 1);
+        }
+        set_children(&tt, 3, &[4]);
+        run(&tt, [add(1, 3), add(1, 2)]);
+        seed_current_session_dirty(&tt, 5);
+        start_completion(&tt, completing_task);
+        run(&tt, [add(2, 5)]);
+        assert_eq!(uppers(&tt, 2), vec![(id(1), 1)]);
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+        assert_eq!(uppers(&tt, 5), vec![(id(2), 1)]);
+        assert_eq!(aggregated(&tt, 1), 1);
+        // U' is dirty only through F, which aggregates P.
+        assert!(blocks_strong_read(&tt, 1));
+
+        // A: P gets child C (as `connect_children` writes it), then the handler for P's upper F
+        // places C. C (200) becomes a follower of F (100): F publishes `F.followers[C]` and
+        // captures its uppers. The propagation to U' stays in A's queue.
+        set_children(&tt, 5, &[4]);
+        let mut a_queue = AggregationUpdateQueue::new_without_optimizations();
+        {
+            let mut ctx = ExecuteContext::new(&tt);
+            a_queue.inner_of_upper_has_new_follower(&mut ctx, id(4), id(2), 1);
+        }
+        assert_eq!(followers(&tt, 2), vec![(id(4), 1)]);
+        // B: removes F's last inner edge to U' in its own queue.
+        run(&tt, [remove(1, 2)]);
+        (tt, a_queue)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn follower_entry_race_keeps_upper_dirty_while_propagation_is_queued() {
+        // P (the producer) is completing, F (the detached task) isn't.
+        let (tt, a_queue) = follower_entry_fixture(5);
+        assert_missing_collectible_blocks_strong_read(&tt, 1);
+        // A's queue continues: the addition of C to U' lands.
+        run_paused(&tt, a_queue);
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+        assert_eq!(aggregated(&tt, 1), 1);
+        end_completion(&tt, 5);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    // The tests below cover the same race with dirty followers. B must not remove the dirty
+    // container of a follower from an upper while the follower is still reachable from it,
+    // otherwise a strongly consistent read of the upper returns before the follower is clean.
+
+    /// Like the child snapshot race, but C is dirty and F is clean (but completing). After B, C is
+    /// still reachable from U through F2, so U has to keep counting it as a dirty container.
+    ///
+    /// 1 = U (aggregating), 2 = F (completing), 3 = F2, 4 = C (dirty).
+    fn dirty_child_snapshot_fixture() -> (Arc<TurboTasks<TurboTasksBackend>>, AggregationUpdateQueue)
+    {
+        let tt = setup_with_data(&[(1, UPPER), (2, INNER), (3, INNER), (4, INNER)], true);
+        seed_current_session_dirty(&tt, 4);
+        start_completion(&tt, 2);
+        set_children(&tt, 3, &[4]);
+        run(&tt, [add(1, 2), add(1, 3)]);
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+        assert!(blocks_strong_read(&tt, 1), "U is dirty through C");
+        // A: F's completion adds C to its children. Its addition of C to U is still queued.
+        let a_queue = publish_children(&tt, 2, &[4]);
+        // B: removes F's last inner edge to U before A's queue runs.
+        run(&tt, [remove(1, 2)]);
+        (tt, a_queue)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn child_snapshot_race_keeps_dirty_container() {
+        let (tt, a_queue) = dirty_child_snapshot_fixture();
+        assert_eq!(
+            uppers(&tt, 4),
+            vec![(id(1), 1)],
+            "C is still reachable through F2"
+        );
+        assert!(blocks_strong_read(&tt, 1), "C is still dirty");
+        run_paused(&tt, a_queue);
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+        assert!(blocks_strong_read(&tt, 1));
+        end_completion(&tt, 2);
+        assert_unblocks_when_clean(&tt, 1, &[4]);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// Makes the `dirty` tasks clean and asserts that `upper` doesn't block a strong read anymore:
+    /// nothing is counted in it too often after all work has landed.
+    fn assert_unblocks_when_clean(tt: &TurboTasks<TurboTasksBackend>, upper: u32, dirty: &[u32]) {
+        for &task in dirty {
+            make_clean(tt, task);
+        }
+        assert!(
+            !blocks_strong_read(tt, upper),
+            "upper {upper} still blocks a strong read after all tasks are clean"
+        );
+    }
+
+    /// Like [`child_snapshot_race_keeps_dirty_container`], with a strongly consistent read of U
+    /// that is started while the removal of C is parked. It must only complete when the collectible
+    /// of C is back and C is clean.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn child_snapshot_race_wakes_waiting_reader_when_clean() {
+        use futures::FutureExt;
+        use turbo_tasks::{ReadConsistency, ReadOutcome, ReadOutputOptions, ReadTracking};
+
+        let strong_read = |tt: &TurboTasks<TurboTasksBackend>| {
+            tt.backend()
+                .try_read_task_output(
+                    id(1),
+                    None,
+                    ReadOutputOptions {
+                        tracking: ReadTracking::Untracked,
+                        consistency: ReadConsistency::Strong,
+                    },
+                    tt,
+                )
+                .unwrap()
+        };
+
+        // 1 = U (aggregating), 2 = F (completing), 3 = F2, 4 = C (dirty, the only emitter).
+        let tt = setup_with_data(&[(1, UPPER), (2, INNER), (3, INNER), (4, INNER)], false);
+        {
+            let mut ctx = ExecuteContext::new(&tt);
+            let mut c = ctx.task(id(4), TaskDataCategory::All);
+            let _ = c.update_collectibles_positive_crossing(collectible(), 1);
+        }
+        seed_current_session_dirty(&tt, 4);
+        start_completion(&tt, 2);
+        set_children(&tt, 3, &[4]);
+        run(&tt, [add(1, 2), add(1, 3)]);
+        assert_eq!(aggregated(&tt, 1), 1);
+        {
+            // U has an output to read, and is already active until clean, so the read doesn't
+            // schedule the dirty tasks (they can't execute in this test). This is done after the
+            // graph is built, so U's new inner tasks aren't scheduled either.
+            let mut ctx = ExecuteContext::new(&tt);
+            let mut upper = ctx.task(id(1), TaskDataCategory::All);
+            upper.set_output(OutputValue::Cell(collectible().cell));
+            upper
+                .activeness_state_mut_or_insert(id(1))
+                .set_active_until_clean();
+        }
+
+        let a_queue = publish_children(&tt, 2, &[4]);
+        run(&tt, [remove(1, 2)]);
+        assert_eq!(pending_counts(&tt, 2), (1, 1), "the removal of C is parked");
+        // The reader starts while the removal is parked.
+        let mut listener = match strong_read(&tt) {
+            ReadOutcome::InProgress(listener) => listener,
+            ReadOutcome::Value(_) => panic!(
+                "the strong read completed while C is dirty (collectible count of U: {})",
+                aggregated(&tt, 1)
+            ),
+            ReadOutcome::Scheduled(_) => panic!("U isn't scheduled"),
+        };
+        assert!((&mut listener).now_or_never().is_none());
+        run_paused(&tt, a_queue);
+        assert_eq!(pending_counts(&tt, 2), (0, 0));
+        assert!((&mut listener).now_or_never().is_none(), "C is still dirty");
+        end_completion(&tt, 2);
+
+        make_clean(&tt, 4);
+        assert!(
+            (&mut listener).now_or_never().is_some(),
+            "the reader is woken when C is clean"
+        );
+        assert!(
+            matches!(strong_read(&tt), ReadOutcome::Value(_)),
+            "the strong read completes now"
+        );
+        assert_eq!(aggregated(&tt, 1), 1);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// Like the child snapshot race, but C is placed as a follower of U, which is an inner of R.
+    /// After B, C is still reachable from R through U and F2.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn child_snapshot_race_keeps_dirty_follower() {
+        // 1 = R (300), 2 = U (aggregating, 100), 3 = F (completing), 4 = F2, 5 = C (200, dirty).
+        let tt = setup_with_data(
+            &[(1, 300), (2, UPPER), (3, INNER), (4, INNER), (5, FOLLOWER)],
+            true,
+        );
+        seed_current_session_dirty(&tt, 5);
+        start_completion(&tt, 3);
+        set_children(&tt, 4, &[5]);
+        run(&tt, [add(1, 2), add(2, 4), add(2, 3)]);
+        assert_eq!(followers(&tt, 2), vec![(id(5), 1)]);
+        assert_eq!(uppers(&tt, 5), vec![(id(1), 1)]);
+        assert!(blocks_strong_read(&tt, 1), "R is dirty through C");
+
+        let a_queue = publish_children(&tt, 3, &[5]);
+        run(&tt, [remove(2, 3)]);
+        assert_eq!(
+            followers(&tt, 2),
+            vec![(id(5), 1)],
+            "C is still a follower of U"
+        );
+        assert_eq!(uppers(&tt, 5), vec![(id(1), 1)]);
+        assert!(blocks_strong_read(&tt, 1), "C is still dirty");
+
+        run_paused(&tt, a_queue);
+        assert_eq!(followers(&tt, 2), vec![(id(5), 1)]);
+        assert_eq!(uppers(&tt, 5), vec![(id(1), 1)]);
+        assert!(blocks_strong_read(&tt, 1));
+        end_completion(&tt, 3);
+        assert_unblocks_when_clean(&tt, 1, &[5]);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// The landing of A's addition of C to U publishes C's own child G (STEP 6e). B detaches F,
+    /// and with it C, before that addition of G lands. G is still reachable from U through F2.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn child_snapshot_race_keeps_dirty_grandchild() {
+        // 1 = U (aggregating), 2 = F (completing), 3 = C, 4 = F2, 5 = G (dirty).
+        let tt = setup_with_data(
+            &[(1, UPPER), (2, INNER), (3, INNER), (4, INNER), (5, INNER)],
+            true,
+        );
+        seed_current_session_dirty(&tt, 5);
+        start_completion(&tt, 2);
+        set_children(&tt, 3, &[5]);
+        set_children(&tt, 4, &[5]);
+        run(&tt, [add(1, 2), add(1, 4)]);
+        assert_eq!(uppers(&tt, 5), vec![(id(1), 1)]);
+        assert!(blocks_strong_read(&tt, 1), "U is dirty through G");
+
+        let mut a_queue = publish_children(&tt, 2, &[3]);
+        // A's first step: C becomes an inner of U and queues the addition of G to U.
+        step(&tt, &mut a_queue);
+        assert_eq!(uppers(&tt, 3), vec![(id(1), 1)]);
+        // B: F (and with it C) is detached from U.
+        run(&tt, [remove(1, 2)]);
+        assert_eq!(uppers(&tt, 3), vec![]);
+        assert_eq!(
+            uppers(&tt, 5),
+            vec![(id(1), 1)],
+            "G is still reachable through F2"
+        );
+        assert!(blocks_strong_read(&tt, 1), "G is still dirty");
+
+        run_paused(&tt, a_queue);
+        assert_eq!(uppers(&tt, 5), vec![(id(1), 1)]);
+        assert!(blocks_strong_read(&tt, 1));
+        end_completion(&tt, 2);
+        assert_unblocks_when_clean(&tt, 1, &[5]);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// F is attached to U twice and detached after each attachment, while the additions of F's
+    /// child C that the attachments publish (STEP 6e) are still queued. C is also reachable through
+    /// F2 all the time.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn repeated_attach_and_detach_keeps_dirty_child() {
+        // 1 = U (aggregating), 2 = F, 3 = F2, 4 = C (dirty).
+        let tt = setup_with_data(&[(1, UPPER), (2, INNER), (3, INNER), (4, INNER)], true);
+        seed_current_session_dirty(&tt, 4);
+        set_children(&tt, 2, &[4]);
+        set_children(&tt, 3, &[4]);
+        run(&tt, [add(1, 3)]);
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+
+        let attach = |tt: &TurboTasks<TurboTasksBackend>| {
+            let mut queue = AggregationUpdateQueue::new_without_optimizations();
+            queue.push(add(1, 2));
+            // F becomes an inner of U and queues the addition of C to U.
+            step(tt, &mut queue);
+            assert_eq!(uppers(tt, 2), vec![(id(1), 1)]);
+            queue
+        };
+        let check = |tt: &TurboTasks<TurboTasksBackend>, when: &str| {
+            assert!(
+                uppers(tt, 4).iter().any(|&(upper, _)| upper == id(1)),
+                "C is still reachable through F2 {when}"
+            );
+            assert!(blocks_strong_read(tt, 1), "C is still dirty {when}");
+        };
+
+        let first = attach(&tt);
+        run(&tt, [remove(1, 2)]);
+        check(&tt, "after the first detach");
+        let second = attach(&tt);
+        check(&tt, "after the second attach");
+        run(&tt, [remove(1, 2)]);
+        check(&tt, "after the second detach");
+        // The second attachment's addition lands first, the first one's afterwards.
+        run_paused(&tt, second);
+        check(&tt, "after the second addition");
+        run_paused(&tt, first);
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+        assert_eq!(uppers(&tt, 2), vec![]);
+        assert!(blocks_strong_read(&tt, 1));
+        assert_unblocks_when_clean(&tt, 1, &[4]);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// The removal waits only for the additions that were queued when F was detached. An addition
+    /// queued by a later attachment doesn't delay it.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn detach_waits_only_for_earlier_additions() {
+        // 1 = U (aggregating), 2 = F, 3 = F2, 4 = C (dirty).
+        let tt = setup_with_data(&[(1, UPPER), (2, INNER), (3, INNER), (4, INNER)], true);
+        seed_current_session_dirty(&tt, 4);
+        set_children(&tt, 2, &[4]);
+        set_children(&tt, 3, &[4]);
+        run(&tt, [add(1, 3)]);
+
+        let mut first = AggregationUpdateQueue::new_without_optimizations();
+        first.push(add(1, 2));
+        step(&tt, &mut first);
+        assert_eq!(
+            pending_counts(&tt, 2),
+            (1, 0),
+            "F's addition of C is pending"
+        );
+        run(&tt, [remove(1, 2)]);
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+        assert_eq!(
+            pending_counts(&tt, 2),
+            (1, 1),
+            "the removal of C waits for it"
+        );
+        // F is attached again; its addition of C stays queued.
+        let mut second = AggregationUpdateQueue::new_without_optimizations();
+        second.push(add(1, 2));
+        step(&tt, &mut second);
+        assert_eq!(pending_counts(&tt, 2), (2, 1));
+        // The first addition lands. The removal that waited for it runs as well, so only the
+        // path through F2 is left: the second addition hasn't landed yet.
+        run_paused(&tt, first);
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+        assert_eq!(pending_counts(&tt, 2), (1, 0));
+        run_paused(&tt, second);
+        assert_eq!(pending_counts(&tt, 2), (0, 0));
+        // F is attached once, and C is reachable through F and F2.
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 2)]);
+        assert_unblocks_when_clean(&tt, 1, &[4]);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// Two tasks that become inner of U in one batch both publish their child C, as one addition
+    /// of C with count 2. Only one of them is detached before that addition lands.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn batched_attach_and_detach_keeps_dirty_child() {
+        // 1 = U (aggregating), 2 = X1, 3 = X2, 4 = F2, 5 = C (dirty).
+        let tt = setup_with_data(
+            &[(1, UPPER), (2, INNER), (3, INNER), (4, INNER), (5, INNER)],
+            true,
+        );
+        seed_current_session_dirty(&tt, 5);
+        for parent in [2, 3, 4] {
+            set_children(&tt, parent, &[5]);
+        }
+        run(&tt, [add(1, 4)]);
+        assert_eq!(uppers(&tt, 5), vec![(id(1), 1)]);
+
+        let mut a_queue = AggregationUpdateQueue::new_without_optimizations();
+        a_queue.push(AggregationUpdateJob::InnerOfUpperHasNewFollowers {
+            upper_id: id(1),
+            new_follower_ids: smallvec![id(2), id(3)],
+        });
+        // X1 and X2 become inner of U and queue the addition of C to U with count 2.
+        step(&tt, &mut a_queue);
+        assert_eq!(uppers(&tt, 2), vec![(id(1), 1)]);
+        assert_eq!(uppers(&tt, 3), vec![(id(1), 1)]);
+        assert_eq!(uppers(&tt, 5), vec![(id(1), 1)]);
+        // Each of them published its own pending addition.
+        assert_eq!(pending_counts(&tt, 2), (1, 0));
+        assert_eq!(pending_counts(&tt, 3), (1, 0));
+
+        run(&tt, [remove(1, 2)]);
+        assert_eq!(
+            pending_counts(&tt, 2),
+            (1, 1),
+            "only X1's removal of C waits"
+        );
+        assert_eq!(pending_counts(&tt, 3), (1, 0));
+        assert_eq!(
+            uppers(&tt, 5),
+            vec![(id(1), 1)],
+            "C is still reachable through F2"
+        );
+        assert!(blocks_strong_read(&tt, 1));
+
+        run_paused(&tt, a_queue);
+        // C is reachable through X2 and F2.
+        assert_eq!(uppers(&tt, 5), vec![(id(1), 2)]);
+        assert!(blocks_strong_read(&tt, 1));
+        assert_unblocks_when_clean(&tt, 1, &[5]);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// The aggregating F gets the follower C and queues its addition to F's upper U'. Before it
+    /// lands, F loses C again (`remove_follower_edges`). C is still reachable from U' through F2.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn lost_follower_waits_for_its_addition_to_the_uppers() {
+        // 1 = U' (300), 2 = F (aggregating, 100), 3 = F2, 4 = C (200, dirty).
+        let tt = setup_with_data(&[(1, 300), (2, UPPER), (3, INNER), (4, FOLLOWER)], true);
+        seed_current_session_dirty(&tt, 4);
+        set_children(&tt, 3, &[4]);
+        run(&tt, [add(1, 3), add(1, 2)]);
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+
+        // A: C becomes a follower of F. Its addition to U' stays in A's queue.
+        let mut a_queue = AggregationUpdateQueue::new_without_optimizations();
+        {
+            let mut ctx = ExecuteContext::new(&tt);
+            a_queue.inner_of_upper_has_new_follower(&mut ctx, id(4), id(2), 1);
+        }
+        assert_eq!(followers(&tt, 2), vec![(id(4), 1)]);
+        assert_eq!(pending_counts(&tt, 2), (1, 0));
+        // B: F loses C again.
+        run(&tt, [remove(2, 4)]);
+        assert_eq!(followers(&tt, 2), vec![]);
+        assert_eq!(pending_counts(&tt, 2), (1, 1));
+        assert_eq!(
+            uppers(&tt, 4),
+            vec![(id(1), 1)],
+            "C is still reachable through F2"
+        );
+        assert!(blocks_strong_read(&tt, 1), "C is still dirty");
+
+        run_paused(&tt, a_queue);
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+        assert!(blocks_strong_read(&tt, 1));
+        assert_unblocks_when_clean(&tt, 1, &[4]);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// T becomes inner of U and queues the addition of its follower C to U. Before it lands, T
+    /// becomes a follower of U by balancing (`balance_edge` makes it a follower), which removes T's
+    /// followers from U. C is still reachable from U through F2.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn balancing_to_follower_waits_for_pending_additions() {
+        // 1 = R (300), 2 = U (aggregating, 100), 3 = T (aggregating, 50), 4 = F2, 5 = C (200,
+        // dirty).
+        let tt = setup_with_data(
+            &[(1, 300), (2, UPPER), (3, 50), (4, INNER), (5, FOLLOWER)],
+            true,
+        );
+        seed_current_session_dirty(&tt, 5);
+        set_children(&tt, 4, &[5]);
+        run(&tt, [add(3, 5), add(1, 2), add(2, 4)]);
+        assert_eq!(followers(&tt, 3), vec![(id(5), 1)]);
+        assert_eq!(followers(&tt, 2), vec![(id(5), 1)]);
+        assert_eq!(uppers(&tt, 5), vec![(id(1), 1)]);
+
+        // A: T becomes inner of U and queues the addition of C to U.
+        let mut a_queue = AggregationUpdateQueue::new_without_optimizations();
+        a_queue.push(add(2, 3));
+        step(&tt, &mut a_queue);
+        assert_eq!(uppers(&tt, 3), vec![(id(2), 1)]);
+        assert_eq!(pending_counts(&tt, 3), (1, 0));
+        // B: T is now aggregating above U, so it's balanced to a follower of U.
+        set_aggregation_number(&tt, 3, 150);
+        run(&tt, [balance(2, 3)]);
+        assert_eq!(uppers(&tt, 3), vec![(id(1), 1)]);
+        assert_eq!(pending_counts(&tt, 3), (1, 1));
+        assert!(
+            followers(&tt, 2).contains(&(id(5), 1)),
+            "C is still a follower of U through F2"
+        );
+        assert!(uppers(&tt, 5).iter().any(|&(upper, _)| upper == id(1)));
+        assert!(blocks_strong_read(&tt, 1), "C is still dirty");
+
+        run_paused(&tt, a_queue);
+        assert_eq!(pending_counts(&tt, 3), (0, 0));
+        assert!(followers(&tt, 2).contains(&(id(5), 1)));
+        assert!(blocks_strong_read(&tt, 1));
+        assert_unblocks_when_clean(&tt, 1, &[5]);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// U gets the follower T and queues the addition of T to U's upper R. Before it lands, T
+    /// becomes inner of U by balancing (`balance_edge` makes it inner), which removes T from R as a
+    /// follower of U. T is still reachable from R through F2.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn balancing_to_inner_waits_for_pending_additions() {
+        // 1 = R (300), 2 = U (aggregating, 100), 3 = T (200, dirty), 4 = F2.
+        let tt = setup_with_data(&[(1, 300), (2, UPPER), (3, FOLLOWER), (4, INNER)], true);
+        seed_current_session_dirty(&tt, 3);
+        set_children(&tt, 4, &[3]);
+        run(&tt, [add(1, 4), add(1, 2)]);
+        assert_eq!(uppers(&tt, 3), vec![(id(1), 1)]);
+
+        // A: T becomes a follower of U and queues the addition of T to R.
+        let mut a_queue = AggregationUpdateQueue::new_without_optimizations();
+        a_queue.push(add(2, 3));
+        step(&tt, &mut a_queue);
+        assert_eq!(followers(&tt, 2), vec![(id(3), 1)]);
+        assert_eq!(pending_counts(&tt, 2), (1, 0));
+        // B: T is now below U, so it's balanced to an inner of U.
+        set_aggregation_number(&tt, 3, 50);
+        run(&tt, [balance(2, 3)]);
+        assert_eq!(followers(&tt, 2), vec![]);
+        assert_eq!(pending_counts(&tt, 2), (1, 1));
+        assert!(
+            uppers(&tt, 3).contains(&(id(1), 1)),
+            "T is still reachable from R through F2"
+        );
+
+        run_paused(&tt, a_queue);
+        assert_eq!(pending_counts(&tt, 2), (0, 0));
+        assert_eq!(uppers(&tt, 3), vec![(id(1), 1), (id(2), 1)]);
+        assert!(blocks_strong_read(&tt, 1));
+        assert_unblocks_when_clean(&tt, 1, &[3]);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// Pending additions and parked removals are only kept in memory, so their tasks can't be
+    /// evicted.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn pending_additions_are_unevictable() {
+        use crate::backend::storage_schema::{UnevictableReason, ValueEvictability};
+
+        let is_in_progress = |tt: &TurboTasks<TurboTasksBackend>, task: u32| {
+            matches!(
+                tt.backend().storage.access_mut(id(task)).evictability().1,
+                ValueEvictability::Unevictable(UnevictableReason::InProgress)
+            )
+        };
+        let (tt, a_queue) = dirty_child_snapshot_fixture();
+        // F (2) is completing; end that first so only the pending state keeps it.
+        end_completion(&tt, 2);
+        assert_eq!(pending_counts(&tt, 2), (1, 1));
+        assert!(is_in_progress(&tt, 2));
+        run_paused(&tt, a_queue);
+        assert_eq!(pending_counts(&tt, 2), (0, 0));
+        assert!(!is_in_progress(&tt, 2));
+    }
+
+    /// A snapshot waits for the operation that settles a pending addition and runs the removal
+    /// that waited for it, even though the operation that parked the removal is done.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn snapshot_waits_for_parked_removals() {
+        use std::{
+            sync::atomic::{AtomicBool, Ordering},
+            time::Duration,
+        };
+
+        // 1 = U (aggregating), 2 = F (completing), 3 = F2, 4 = C (dirty).
+        let tt = setup_with_storage(
+            &[(1, UPPER), (2, INNER), (3, INNER), (4, INNER)],
+            true,
+            StorageMode::ReadWriteOnShutdown,
+        );
+        seed_current_session_dirty(&tt, 4);
+        start_completion(&tt, 2);
+        set_children(&tt, 3, &[4]);
+        run(&tt, [add(1, 2), add(1, 3)]);
+
+        // A: F's completion connects C, in an operation that is still running.
+        let mut a_ctx = ExecuteContext::new(&tt);
+        let mut a_queue = publish_children_with(&mut a_ctx, 2, &[4]);
+        // B: detaches F in its own operation, which finishes.
+        run(&tt, [remove(1, 2)]);
+        assert_eq!(pending_counts(&tt, 2), (1, 1));
+
+        // A snapshot starts on another thread.
+        let snapshotted = Arc::new(AtomicBool::new(false));
+        let snapshot = std::thread::spawn({
+            let tt = tt.clone();
+            let snapshotted = snapshotted.clone();
+            move || {
+                let phase = tt.backend().snapshot_coord.begin_snapshot(|_| {});
+                // Nothing is pending while the snapshot runs.
+                tt.backend().verify_aggregation_edges();
+                drop(phase);
+                snapshotted.store(true, Ordering::SeqCst);
+            }
+        });
+        std::thread::sleep(Duration::from_millis(100));
+        assert!(
+            !snapshotted.load(Ordering::SeqCst),
+            "the snapshot must wait for A's operation"
+        );
+
+        a_queue.execute(&mut a_ctx);
+        drop(a_ctx);
+        snapshot.join().unwrap();
+        assert!(snapshotted.load(Ordering::SeqCst));
+        assert_eq!(pending_counts(&tt, 2), (0, 0));
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+        end_completion(&tt, 2);
+    }
+
+    /// The backend stops only after the operation that settles a pending addition ran the removal
+    /// that waited for it, even though the operation that parked the removal is done.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn stopping_waits_for_parked_removals() {
+        use std::{
+            sync::atomic::{AtomicBool, Ordering},
+            time::Duration,
+        };
+
+        // 1 = U (aggregating), 2 = F (completing), 3 = F2, 4 = C (dirty).
+        let tt = setup_with_storage(
+            &[(1, UPPER), (2, INNER), (3, INNER), (4, INNER)],
+            true,
+            StorageMode::ReadWriteOnShutdown,
+        );
+        seed_current_session_dirty(&tt, 4);
+        start_completion(&tt, 2);
+        set_children(&tt, 3, &[4]);
+        run(&tt, [add(1, 2), add(1, 3)]);
+
+        // A: F's completion connects C, in an operation that holds off shutdown, like external
+        // calls into the backend do.
+        let mut a_ctx = tt
+            .backend()
+            .try_execute_context(&tt)
+            .expect("the backend isn't stopping");
+        let mut a_queue = publish_children_with(&mut a_ctx, 2, &[4]);
+        // B: detaches F in its own operation, which finishes.
+        run(&tt, [remove(1, 2)]);
+        assert_eq!(pending_counts(&tt, 2), (1, 1));
+
+        // The backend is stopped.
+        let stopped = Arc::new(AtomicBool::new(false));
+        let stop = tokio::spawn({
+            let tt = tt.clone();
+            let stopped = stopped.clone();
+            async move {
+                tt.stop_and_wait().await;
+                stopped.store(true, Ordering::SeqCst);
+            }
+        });
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        assert!(
+            !stopped.load(Ordering::SeqCst),
+            "stopping must wait for A's operation"
+        );
+
+        a_queue.execute(&mut a_ctx);
+        // A still holds off shutdown, so the storage is still there: nothing is pending anymore.
+        assert_eq!(pending_counts(&tt, 2), (0, 0));
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+        tt.backend().verify_aggregation_edges();
+        end_completion(&tt, 2);
+        drop(a_ctx);
+        stop.await.unwrap();
+        assert!(stopped.load(Ordering::SeqCst));
+    }
+
+    /// Makes `task` clean, like the end of its execution, and propagates it.
+    fn make_clean(tt: &TurboTasks<TurboTasksBackend>, task: u32) {
+        let mut ctx = ExecuteContext::new(tt);
+        let job = ctx
+            .task(id(task), TaskDataCategory::All)
+            .update_dirty_state(None);
+        let mut queue = AggregationUpdateQueue::new_without_optimizations();
+        queue.extend(job);
+        queue.execute(&mut ctx);
+    }
+
+    /// The setup of the second path tests: U (1) with the dirty, completing parents F1 (2) and F2
+    /// (3), and C (4) with the child G (5). C and G aren't in U yet.
+    ///
+    /// A: F1 connects C. A's first job makes C inner of U and queues the addition of C's child G
+    /// (STEP 6e). F2 connects C as well, which only increments C's existing inner edge, and
+    /// becomes clean. Then F1 is detached, which leaves C in U through F2.
+    ///
+    /// Returns A's queue, which still holds the addition of G.
+    fn second_path_fixture(
+        tt: &TurboTasks<TurboTasksBackend>,
+        dirty_g: bool,
+    ) -> AggregationUpdateQueue {
+        for parent in [2, 3] {
+            seed_current_session_dirty(tt, parent);
+            start_completion(tt, parent);
+        }
+        if dirty_g {
+            seed_current_session_dirty(tt, 5);
+        } else {
+            let mut ctx = ExecuteContext::new(tt);
+            let mut g = ctx.task(id(5), TaskDataCategory::All);
+            g.set_output(OutputValue::Cell(collectible().cell));
+            let _ = g.update_collectibles_positive_crossing(collectible(), 1);
+        }
+        set_children(tt, 4, &[5]);
+        run(tt, [add(1, 2), add(1, 3)]);
+        assert!(blocks_strong_read(tt, 1), "U is dirty through F1 and F2");
+
+        // A: F1 connects C. Only the first job runs: C becomes inner of U.
+        let mut a_queue = publish_children(tt, 2, &[4]);
+        step(tt, &mut a_queue);
+        assert_eq!(uppers(tt, 4), vec![(id(1), 1)]);
+        assert_eq!(uppers(tt, 5), vec![], "the addition of G is still queued");
+
+        // F2 connects C too and finishes.
+        run_paused(tt, publish_children(tt, 3, &[4]));
+        assert_eq!(uppers(tt, 4), vec![(id(1), 2)]);
+        make_clean(tt, 3);
+        end_completion(tt, 3);
+
+        // F1 is detached. C stays in U through F2.
+        run(tt, [remove(1, 2)]);
+        assert_eq!(uppers(tt, 4), vec![(id(1), 1)]);
+        a_queue
+    }
+
+    /// G is reachable from U through F2 and C, so while it's dirty, U must block a strong read,
+    /// even though the propagation of G to U is still queued in A.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn second_path_does_not_borrow_unfinished_subtree() {
+        // 1 = U (aggregating), 2 = F1, 3 = F2, 4 = C, 5 = G (dirty).
+        let tt = setup_with_data(
+            &[(1, UPPER), (2, INNER), (3, INNER), (4, INNER), (5, INNER)],
+            true,
+        );
+        let a_queue = second_path_fixture(&tt, true);
+        assert!(
+            blocks_strong_read(&tt, 1),
+            "G is dirty and reachable from U through F2 and C"
+        );
+
+        run_paused(&tt, a_queue);
+        assert_eq!(uppers(&tt, 5), vec![(id(1), 1)]);
+        assert!(blocks_strong_read(&tt, 1));
+        make_clean(&tt, 5);
+        end_completion(&tt, 2);
+        assert!(!blocks_strong_read(&tt, 1));
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// Like [`second_path_does_not_borrow_unfinished_subtree`], with a clean G that emits the
+    /// collectible: while U misses it, U must block a strong read.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn second_path_does_not_borrow_unfinished_collectibles() {
+        // 1 = U (aggregating), 2 = F1, 3 = F2, 4 = C, 5 = G (emits the collectible).
+        let tt = setup_with_data(
+            &[(1, UPPER), (2, INNER), (3, INNER), (4, INNER), (5, INNER)],
+            false,
+        );
+        let a_queue = second_path_fixture(&tt, false);
+        assert_missing_collectible_blocks_strong_read(&tt, 1);
+
+        run_paused(&tt, a_queue);
+        assert_eq!(aggregated(&tt, 1), 1);
+        end_completion(&tt, 2);
+        assert!(!blocks_strong_read(&tt, 1));
+        tt.backend().verify_aggregation_edges();
     }
 }
 

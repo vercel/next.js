@@ -270,3 +270,26 @@ fn execute(queue: &mut AggregationUpdateQueue, ctx: &mut ExecuteContext<'_>) {
     #[cfg(not(feature = "trace_aggregation_update_stats"))]
     queue.execute(ctx);
 }
+
+/// Like [`connect_children`] with fewer children than the parallelization threshold and without
+/// active count changes, but returns the queue that propagates the children instead of running
+/// it.
+#[cfg(test)]
+pub fn connect_children_without_propagation(
+    ctx: &mut ExecuteContext<'_>,
+    parent_task: TaskGuard<'_>,
+    new_children: FxHashSet<TaskId>,
+) -> AggregationUpdateQueue {
+    let parent_task_id = parent_task.id();
+    let mut chunks = publish_new_children(parent_task_id, parent_task, new_children);
+    assert_eq!(chunks.len(), 1, "too many children for a single queue");
+    let chunk = chunks.pop().unwrap();
+    prepare_new_children(
+        ctx,
+        AggregationUpdateQueue::new_without_optimizations(),
+        chunk,
+        parent_task_id,
+        false,
+        false,
+    )
+}
