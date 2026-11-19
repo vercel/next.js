@@ -370,6 +370,7 @@ exports.Suspense = REACT_SUSPENSE_TYPE;
 exports.ViewTransition = REACT_VIEW_TRANSITION_TYPE;
 exports.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
   ReactSharedInternals;
+exports.addToLedger = function () {};
 exports.cache = function (fn) {
   return function () {
     var dispatcher = ReactSharedInternals.A;
@@ -469,6 +470,9 @@ exports.createElement = function (type, config, children) {
       void 0 === props[propName] &&
         (props[propName] = childrenLength[propName]);
   return ReactElement(type, key, props);
+};
+exports.createMaskLedger = function () {
+  return { kind: 1 };
 };
 exports.createRef = function () {
   return { current: null };
@@ -579,4 +583,4 @@ exports.useId = function () {
 exports.useMemo = function (create, deps) {
   return ReactSharedInternals.H.useMemo(create, deps);
 };
-exports.version = "19.3.0-experimental-a8342585-20261117";
+exports.version = "19.3.0-experimental-e04279e7-20261119";
