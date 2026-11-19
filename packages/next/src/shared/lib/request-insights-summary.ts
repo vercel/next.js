@@ -18,6 +18,7 @@ export type RequestInsightFilter =
   | 'representation:unknown'
   | 'activity:proxy'
   | 'activity:instant-insights'
+  | 'activity:tooling'
   | 'status:error'
   | 'status:http-4xx'
   | 'status:http-5xx'
@@ -39,6 +40,7 @@ export const REQUEST_INSIGHT_FILTERS: readonly RequestInsightFilter[] = [
   'representation:unknown',
   'activity:proxy',
   'activity:instant-insights',
+  'activity:tooling',
   'status:error',
   'status:http-4xx',
   'status:http-5xx',
@@ -217,6 +219,7 @@ export function getRequestInsightTags(
       break
     case 'proxy':
     case 'instant-insights':
+    case 'tooling':
       break
   }
 
@@ -238,6 +241,9 @@ export function getRequestInsightTags(
   }
   if (getRequestInsightKind(request) === 'instant-insights') {
     tags.add('activity:instant-insights')
+  }
+  if (getRequestInsightKind(request) === 'tooling') {
+    tags.add('activity:tooling')
   }
 
   if (hasRequestInsightError(request)) {

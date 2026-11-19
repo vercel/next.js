@@ -112,11 +112,16 @@ export function getActiveLocalSpan(): Span | undefined {
   return getLocalSpanAsyncStorage().getStore()?.span
 }
 
+export function getLocalScopeParent(): Span | undefined {
+  const store = getLocalSpanAsyncStorage().getStore()
+  return store?.inheritParent ? store.span : undefined
+}
+
 export function getLocalParentSpan(
   publicContext: SpanContext | undefined
 ): Span | undefined {
   const store = getLocalSpanAsyncStorage().getStore()
-  if (!store) return undefined
+  if (!store || !store.inheritParent) return undefined
   if (isOpenTelemetryIsolatedSpan(store.span)) return store.span
 
   // An SDK span opened inside this local scope is the nearer parent.
@@ -177,9 +182,13 @@ export function isOpenTelemetryIsolatedSpan(span: Span): boolean {
 export function withLocalSpan<T>(
   span: Span,
   fn: () => T,
-  publicContext?: SpanContext
+  publicContext?: SpanContext,
+  inheritParent = true
 ): T {
-  return getLocalSpanAsyncStorage().run({ span, publicContext }, fn)
+  return getLocalSpanAsyncStorage().run(
+    { span, publicContext, inheritParent },
+    fn
+  )
 }
 
 type TraceLocalSpanOptions = Omit<RequestSpanOptions, 'parent'> & {
@@ -201,7 +210,7 @@ export function traceLocalSpan<T>(
   fn: (span: LocalRecordingSpan) => T | Promise<T>
 ): T | Promise<T> {
   const run = () => {
-    const parent = parentSpan === undefined ? getActiveLocalSpan() : parentSpan
+    const parent = parentSpan === undefined ? getLocalScopeParent() : parentSpan
     const span = createLocalSpan({
       ...options,
       parent,
@@ -259,18 +268,21 @@ export function registerLocalSpanRecorder({
 export function recordSpan<T>(
   options: TraceExistingLocalSpanOptions & {
     synchronous: true
+    scope?: boolean
   },
   fn: (span: LocalRecordingSpan) => T
 ): T
 export function recordSpan<T>(
   options: TraceExistingLocalSpanOptions & {
     synchronous?: false
+    scope?: boolean
   },
   fn: (span: LocalRecordingSpan) => T | Promise<T>
 ): Promise<T>
 export function recordSpan<T>(
   options: TraceExistingLocalSpanOptions & {
     synchronous?: boolean
+    scope?: boolean
   },
   fn: (span: LocalRecordingSpan) => T | Promise<T>
 ): T | Promise<T> {
@@ -282,19 +294,29 @@ export function recordSpan<T>(
       throw err
     }
 
-    let pending: Promise<T> | undefined
-    try {
-      const result = fn(span)
-      if (synchronous) return result
-      pending = Promise.resolve(result)
-        .catch(fail)
-        .finally(() => span.end())
-      return pending
-    } catch (err) {
-      return fail(err)
-    } finally {
-      if (!pending) span.end()
+    const execute = () => {
+      let pending: Promise<T> | undefined
+      try {
+        const result = fn(span)
+        if (synchronous) return result
+        pending = Promise.resolve(result)
+          .catch(fail)
+          .finally(() => span.end())
+        return pending
+      } catch (err) {
+        return fail(err)
+      } finally {
+        if (!pending) span.end()
+      }
     }
+    if (options.scope) {
+      const { api } = require('./otel-api') as typeof import('./otel-api')
+      const { context, ROOT_CONTEXT } = api
+      return context.with(ROOT_CONTEXT, () =>
+        withLocalSpan(span, execute, undefined, false)
+      )
+    }
+    return execute()
   }
 
   return synchronous ? run() : (async () => run())()
@@ -306,6 +328,7 @@ function getLocalSpanAsyncStorage() {
   return getOrCreateGlobalAsyncLocalStorage<{
     span: Span
     publicContext: SpanContext | undefined
+    inheritParent: boolean
   }>('local-span-storage')
 }
 
@@ -381,6 +404,17 @@ export class LocalRecordingSpan implements Span {
     this.startTime = getTimestamp(startTime)
     this.exception = undefined
     this.ended = false
+  }
+
+  addDelivery(deliver: LocalSpanDelivery): void {
+    const previous = this.recordSpans
+    this.recordSpans = (span, end) => {
+      try {
+        previous?.(span, end)
+      } finally {
+        deliver(span, end)
+      }
+    }
   }
 
   spanContext(): ReturnType<Span['spanContext']> {

@@ -1,6 +1,6 @@
+import type { Span } from '../trace'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { Telemetry } from '../telemetry/storage'
-import type { Span } from '../trace'
 
 import * as Log from './output/log'
 import { Worker } from '../lib/worker'
@@ -134,7 +134,10 @@ export async function startTypeChecking({
 
   try {
     const [verifyResult, typeCheckEnd] = await nextBuildSpan
-      .traceChild('run-typescript')
+      .traceChild('run-typescript', undefined, {
+        recordToInsights: true,
+        scope: true,
+      })
       .traceAsyncFn(() =>
         verifyAndRunTypeScript(
           dir,
