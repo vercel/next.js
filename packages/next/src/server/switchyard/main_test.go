@@ -901,6 +901,19 @@ func TestKeepsConcurrentLargeBodiesIntact(t *testing.T) {
 	wg.Wait()
 }
 
+// A buffer is zeroed when it goes back to the pool, so nothing from the
+// response that used it is left for the next one.
+func TestZeroesBuffersReturnedToThePool(t *testing.T) {
+	pool := bufferPool{pool: sync.Pool{}}
+	buf := pool.Get()
+	copy(buf, "an earlier response's body")
+	pool.Put(buf)
+	// Put clears the buffer in place, so buf shows what the pool now holds.
+	if bytes.ContainsFunc(buf, func(r rune) bool { return r != 0 }) {
+		t.Errorf("buffer still holds data after Put: %q", buf[:32])
+	}
+}
+
 // startSwitchyardFor runs newServer and newProxy as main does, in switchyard of an
 // upstream answering with handler.
 func startSwitchyardFor(t *testing.T, handler http.HandlerFunc) string {
