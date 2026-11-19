@@ -228,6 +228,13 @@
       "contentLength": 5,
       "node": "body on GET"
     },
+    {
+      "table": "app",
+      "target": "/api/echo",
+      "method": "POST",
+      "contentLength": -1,
+      "route": "/api/echo/route"
+    },
 
     { "table": "base", "target": "/shop/api/echo", "route": "/api/echo/route" },
     {
@@ -257,13 +264,6 @@
       "node": "outside basePath or its root"
     },
 
-    { "table": "proxy", "target": "/api/echo", "node": "app: proxy.ts" },
-    {
-      "table": "app",
-      "target": "/api/echo",
-      "method": "POST",
-      "contentLength": -1,
-      "node": "request body"
-    }
+    { "table": "proxy", "target": "/api/echo", "node": "app: proxy.ts" }
   ]
 }

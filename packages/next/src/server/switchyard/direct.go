@@ -170,6 +170,9 @@ type directAttempt struct {
 	up    *goUpstream
 	// The request as the client sent it, for handing it to Node.
 	request *http.Request
+	// The request body as the Transport sees it, so the error handler knows
+	// whether the worker could have seen the request.
+	body *guardedBody
 }
 
 func (f *switchyard) serveDirect(w http.ResponseWriter, r *http.Request, s *directState, up *goUpstream) {
@@ -177,7 +180,18 @@ func (f *switchyard) serveDirect(w http.ResponseWriter, r *http.Request, s *dire
 	ctx := context.WithValue(r.Context(), directAttemptKey{}, attempt)
 	// Node never guesses a Content-Type (see newProxy).
 	w.Header()["Content-Type"] = nil
-	f.direct.ServeHTTP(attempt, r.WithContext(ctx))
+	// As in newProxy: Node's proxy to the worker lets the worker answer while
+	// the client is still uploading; Go's server doesn't unless asked.
+	_ = http.NewResponseController(w).EnableFullDuplex()
+	out := r.WithContext(ctx)
+	if r.ContentLength != 0 && r.Body != nil && r.Body != http.NoBody {
+		// As in newProxy: track whether the body is read to its end before
+		// the worker answers, and whether reading it hit the request timeout.
+		body := newRequestBody(r.Body)
+		out = r.WithContext(context.WithValue(ctx, requestBodyKey{}, body))
+		out.Body = body
+	}
+	f.direct.ServeHTTP(attempt, out)
 }
 
 func attemptOf(ctx context.Context) *directAttempt {
@@ -212,6 +226,10 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 			setIfMissing(pr.Out.Header, "X-Forwarded-For", clientIP(pr.In.RemoteAddr, mapIPv4))
 			pr.Out.Header["Connection"] = keepAlive
 			pr.Out.Header[attempt.up.tokenHeader] = attempt.up.token
+			if pr.Out.Body != nil {
+				attempt.body = &guardedBody{body: pr.Out.Body}
+				pr.Out.Body = attempt.body
+			}
 		},
 		// directAttempt.Write flushes after every write, as Node does.
 		FlushInterval: 0,
@@ -235,6 +253,14 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 			DisableCompression:    true,
 			ExpectContinueTimeout: 1 * time.Second,
 		},
+		ModifyResponse: func(res *http.Response) error {
+			// As in newProxy: after an answer sent mid-upload, the rest of the
+			// body is still on the client connection; don't reuse it.
+			if body, ok := res.Request.Context().Value(requestBodyKey{}).(*requestBody); ok && !body.readToEnd.Load() {
+				res.Header.Set("Connection", "close")
+			}
+			return nil
+		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			if r.Context().Err() != nil {
 				return
@@ -242,8 +268,19 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 			attempt := attemptOf(r.Context())
 			// The worker is gone and never saw the request (Node hasn't told
 			// us yet): hand it to Node, as if the worker weren't ready.
-			if isDialError(err) {
+			if isDialError(err) && (attempt.body == nil || !attempt.body.read) {
 				f.node.ServeHTTP(attempt.ResponseWriter, attempt.request)
+				return
+			}
+			// As in newProxy: part of the body may still be unread, and Go's
+			// server, in full-duplex mode, would read it as the next request.
+			if r.ContentLength != 0 {
+				attempt.Header().Set("Connection", "close")
+			}
+			// As in newProxy: the client's upload hit the request timeout, so
+			// answer as Node does.
+			if body, ok := r.Context().Value(requestBodyKey{}).(*requestBody); ok && body.timedOut() {
+				attempt.WriteHeader(http.StatusRequestTimeout)
 				return
 			}
 			proxyErrorLog.Printf("route.go worker %s: %v", attempt.up.address, err)
@@ -281,6 +318,24 @@ func hasAnyPrefix(s string, prefixes []string) bool {
 	}
 	return false
 }
+
+// guardedBody is the request body as the Transport sees it. It records
+// whether anything was read, and ignores Close, so a request the worker
+// never received can still go to Node with its body.
+type guardedBody struct {
+	body io.ReadCloser
+	read bool
+}
+
+func (b *guardedBody) Read(p []byte) (int, error) {
+	n, err := b.body.Read(p)
+	if n > 0 {
+		b.read = true
+	}
+	return n, err
+}
+
+func (b *guardedBody) Close() error { return nil }
 
 // WriteHeader writes the status line and headers.
 func (a *directAttempt) WriteHeader(code int) {
