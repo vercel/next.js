@@ -91,7 +91,19 @@ type PendingUpdate = {
   | { kind: 'archived' }
 )
 
-type PendingWrite = AppendBatch | PendingUpdate
+type ArchivedUpdateBatch = {
+  kind: 'archived-batch'
+  key: string
+  updates: Array<Extract<PendingUpdate, { kind: 'archived' }>>
+  byteLength: number
+}
+
+type PendingWrite = AppendBatch | PendingUpdate | ArchivedUpdateBatch
+
+type ArchivedRequest = {
+  loaded: boolean
+  request: RequestInsight | undefined
+}
 
 type JournalCursor = {
   sessionId: string
@@ -101,7 +113,7 @@ type JournalCursor = {
 
 class RequestInsightsJournal {
   private writes = Promise.resolve()
-  private pending: AppendBatch | undefined
+  private pending: AppendBatch | ArchivedUpdateBatch | undefined
   private needsReset = false
   private readonly writer: RotatingFile
   private sequence = 0
@@ -140,7 +152,10 @@ class RequestInsightsJournal {
   }
 
   private enqueue(batch: PendingWrite): void {
-    this.pending = batch.kind === 'append' ? batch : undefined
+    this.pending =
+      batch.kind === 'append' || batch.kind === 'archived-batch'
+        ? batch
+        : undefined
     this.writes = this.writes.then(async () => {
       if (this.pending === batch) this.pending = undefined
       try {
@@ -151,7 +166,7 @@ class RequestInsightsJournal {
           this.needsReset = false
         }
         if (batch.kind === 'append') {
-          // Completed requests share a gzip dictionary; late deltas do not batch.
+          // Only completed requests share a gzip dictionary.
           this.write(
             await compress(batch.records.map(({ line }) => line).join(''))
           )
@@ -162,14 +177,20 @@ class RequestInsightsJournal {
             })
           }
         } else {
-          const prepared = await this.prepareUpdate(batch)
-          if (!prepared) return
-          this.write(prepared.data)
-          this.indexSummary(batch.key, {
-            sequence:
-              this.summaries.get(batch.key)?.sequence ?? ++this.sequence,
-            request: prepared.summary,
-          })
+          // Share lazy replay, not compression: each late delta stays a member.
+          const archive: ArchivedRequest = { loaded: false, request: undefined }
+          const updates =
+            batch.kind === 'archived-batch' ? batch.updates : [batch]
+          for (const update of updates) {
+            const prepared = await this.prepareUpdate(update, archive)
+            if (!prepared) continue
+            this.write(prepared.data)
+            this.indexSummary(update.key, {
+              sequence:
+                this.summaries.get(update.key)?.sequence ?? ++this.sequence,
+              request: prepared.summary,
+            })
+          }
         }
       } catch (error) {
         console.warn('Failed to write Request Insights journal', error)
@@ -226,12 +247,30 @@ class RequestInsightsJournal {
         fetchCount: request.fetches.length,
       })
     } else {
-      this.enqueue({ kind: 'archived', identity, key, update })
+      let byteLength: number
+      try {
+        // Include framing overhead so even empty updates consume the budget.
+        byteLength = Buffer.byteLength(JSON.stringify(update)) + 64
+      } catch {
+        return
+      }
+      let batch = this.pending
+      if (
+        batch?.kind !== 'archived-batch' ||
+        batch.key !== key ||
+        batch.byteLength + byteLength > JOURNAL_WRITE_BATCH_BYTES
+      ) {
+        batch = { kind: 'archived-batch', key, updates: [], byteLength: 0 }
+        this.enqueue(batch)
+      }
+      batch.updates.push({ kind: 'archived', identity, key, update })
+      batch.byteLength += byteLength
     }
   }
 
   private async prepareUpdate(
-    batch: PendingUpdate
+    batch: PendingUpdate,
+    archive: ArchivedRequest
   ): Promise<{ data: Buffer; summary: RequestInsightSummary } | undefined> {
     const previous = this.summaries.get(batch.key)?.request
     const request = batch.kind === 'live' ? batch.request : previous
@@ -239,15 +278,17 @@ class RequestInsightsJournal {
     if (!request) return
     const { span } = batch.update
     let { fetch } = batch.update
-    let archived: RequestInsight | undefined
     const loadArchived = async () => {
-      archived ??= (
-        await readJournalFile(this.file, {
-          requestId: batch.identity.requestId,
-          kind: getRequestInsightKind(batch.identity),
-        })
-      )[0]
-      return archived
+      if (!archive.loaded) {
+        archive.request = (
+          await readJournalFile(this.file, {
+            requestId: batch.identity.requestId,
+            kind: getRequestInsightKind(batch.identity),
+          })
+        )[0]
+        archive.loaded = true
+      }
+      return archive.request
     }
     if (batch.kind === 'archived' && fetch) {
       const stored = await loadArchived()
@@ -338,6 +379,13 @@ class RequestInsightsJournal {
         `${JSON.stringify({ version: 1, request: fullRequest } satisfies JournalRecord)}\n`
       )
       summary = summarizeRequestInsight(fullRequest)
+    }
+    // Earlier span-only updates are on disk before the first replay. Once
+    // loaded, keep the shared record current for deduplication and rotation.
+    if (archive.request) {
+      Object.assign(archive.request, metadata)
+      if (span) archive.request.spans.push(span)
+      if (fetch) archive.request.fetches.push(fetch)
     }
     return { data, summary }
   }

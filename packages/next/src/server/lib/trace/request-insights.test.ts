@@ -792,6 +792,194 @@ describe('request insights', () => {
     }
   )
 
+  it('shares one journal replay across a burst of archived fetch updates', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+    const fs = require('fs') as typeof import('fs')
+    try {
+      await initializeRequestInsightsJournal(distDir)
+      configureJournalProvider(distDir)
+      startRequestInsight({ requestId: 'archived-burst' })
+      recordSpan({ name: 'original', requestId: 'archived-burst' })
+      const fetch = { url: 'https://example.com/data', index: 0 }
+      recordRequestInsightFetch({ requestId: 'archived-burst' }, fetch)
+      completeRequestInsight({ requestId: 'archived-burst' })
+      await getRequestInsightsHistory(distDir)
+      clearRequestInsightsForTest()
+
+      const createReadStream = jest.spyOn(fs, 'createReadStream')
+      const write = jest.spyOn(fs, 'writeSync')
+      try {
+        // A span before the first lazy replay is already on disk when it loads.
+        recordSpan({ name: 'before fetches', requestId: 'archived-burst' })
+        for (let index = 0; index < 16; index++) {
+          const lateFetch = { ...fetch, index }
+          recordRequestInsightFetch({ requestId: 'archived-burst' }, lateFetch)
+          recordRequestInsightFetch({ requestId: 'archived-burst' }, lateFetch)
+        }
+        recordSpan({ name: 'after fetches', requestId: 'archived-burst' })
+        recordSpan({
+          name: 'GET /',
+          requestId: 'archived-burst',
+          attributes: {
+            'next.span_type': 'BaseServer.handleRequest',
+            'http.status_code': 200,
+          },
+        })
+        const history = await getRequestInsightsHistory(distDir)
+        expect(history.requests[0]).toMatchObject({
+          fetchCount: 16,
+          spanCount: 4,
+          statusCode: 200,
+        })
+        expect(createReadStream).toHaveBeenCalledTimes(1)
+        // Accepted late updates still have independent compressed writes.
+        expect(write).toHaveBeenCalledTimes(18)
+      } finally {
+        createReadStream.mockRestore()
+        write.mockRestore()
+      }
+      const [stored] = await readRequestInsightsJournal(distDir, {
+        requestId: 'archived-burst',
+      })
+      expect(stored.fetches).toEqual(
+        Array.from({ length: 16 }, (_, index) => ({ ...fetch, index }))
+      )
+      expect(stored.spans.map(({ name }) => name)).toEqual([
+        'original',
+        'before fetches',
+        'after fetches',
+        'GET /',
+      ])
+    } finally {
+      await resetRequestInsightsJournalForTest()
+      await rm(distDir, { recursive: true, force: true })
+    }
+  })
+
+  it.each(['bytes', 'identity', 'kind', 'append', 'live', 'flush'])(
+    'bounds archived replay sharing across %s boundaries',
+    async (boundary) => {
+      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+      startRequestInsight({ requestId: 'bounded-burst' })
+      recordSpan({ name: 'original', requestId: 'bounded-burst' })
+      const request = getRequestInsightsSnapshot().requests[0]
+      const other = {
+        ...request,
+        requestId: boundary === 'kind' ? request.requestId : 'other',
+        kind: 'instant-insights' as const,
+      }
+      const fetch = (index: number) => ({
+        url: 'https://example.com/data',
+        index,
+        cacheReason: boundary === 'bytes' ? 'x'.repeat(17 * 1024) : '',
+      })
+      const append = (index: number, identity = request) => {
+        expect(
+          appendArchivedRequestInsightUpdateToJournal(identity, {
+            fetch: fetch(index),
+          })
+        ).toBe(true)
+      }
+      const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+      const fs = require('fs') as typeof import('fs')
+      try {
+        await initializeRequestInsightsJournal(distDir)
+        appendRequestInsightToJournal(request)
+        appendRequestInsightToJournal(other)
+        await getRequestInsightsHistory(distDir)
+        const createReadStream = jest.spyOn(fs, 'createReadStream')
+        try {
+          append(0)
+          append(1)
+          if (boundary === 'identity' || boundary === 'kind') append(0, other)
+          if (boundary === 'append')
+            appendRequestInsightToJournal({ ...request, requestId: 'new' })
+          if (boundary === 'live') {
+            const span = { ...request.spans[0], name: 'live boundary' }
+            appendRequestInsightUpdateToJournal(
+              {
+                ...request,
+                spans: [...request.spans, span],
+                fetches: [fetch(0), fetch(1)],
+              },
+              { span }
+            )
+          }
+          if (boundary === 'flush') await getRequestInsightsHistory(distDir)
+          append(2)
+          append(3)
+          await getRequestInsightsHistory(distDir)
+          expect(createReadStream).toHaveBeenCalledTimes(
+            boundary === 'identity' || boundary === 'kind' ? 3 : 2
+          )
+        } finally {
+          createReadStream.mockRestore()
+        }
+        const [stored] = await readRequestInsightsJournal(distDir, {
+          requestId: request.requestId,
+          kind: 'request',
+        })
+        expect(stored.fetches).toEqual([fetch(0), fetch(1), fetch(2), fetch(3)])
+      } finally {
+        await resetRequestInsightsJournalForTest()
+        await rm(distDir, { recursive: true, force: true })
+      }
+    }
+  )
+
+  it('discards shared archived state after a torn update write', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    startRequestInsight({ requestId: 'torn-burst' })
+    recordSpan({ name: 'original', requestId: 'torn-burst' })
+    const request = getRequestInsightsSnapshot().requests[0]
+    const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+    const fs = require('fs') as typeof import('fs')
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      await initializeRequestInsightsJournal(distDir)
+      appendRequestInsightToJournal(request)
+      await getRequestInsightsHistory(distDir)
+      const originalWrite = fs.writeSync
+      const write = jest
+        .spyOn(fs, 'writeSync')
+        .mockImplementationOnce(originalWrite)
+        .mockImplementationOnce((fd, data) => {
+          if (!Buffer.isBuffer(data)) throw new Error('expected a gzip buffer')
+          originalWrite(fd, data, 0, 16)
+          throw new Error('simulated torn archived update')
+        })
+      const append = (index: number) => {
+        expect(
+          appendArchivedRequestInsightUpdateToJournal(request, {
+            fetch: { url: 'https://example.com/data', index },
+          })
+        ).toBe(true)
+      }
+      try {
+        append(0)
+        append(1)
+        append(2)
+        appendRequestInsightToJournal({ ...request, requestId: 'healthy' })
+        append(3)
+        const history = await getRequestInsightsHistory(distDir)
+        expect(history.requests.map(({ requestId }) => requestId)).toEqual([
+          'healthy',
+        ])
+        expect(warn).toHaveBeenCalledTimes(1)
+      } finally {
+        write.mockRestore()
+      }
+      expect(await readRequestInsightsJournal(distDir)).toEqual([
+        { ...request, requestId: 'healthy' },
+      ])
+    } finally {
+      warn.mockRestore()
+      await resetRequestInsightsJournalForTest()
+      await rm(distDir, { recursive: true, force: true })
+    }
+  })
+
   it('writes late spans without serializing previously stored spans again', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     startRequestInsight({ requestId: 'delta' })
@@ -1169,6 +1357,12 @@ describe('request insights', () => {
       } finally {
         stat.mockRestore()
       }
+      // An archived duplicate loads the shared state before the next update
+      // rotates, but must not be added to the replacement full snapshot again.
+      recordRequestInsightFetch(
+        { requestId: 'rotated' },
+        { url: 'https://example.com/original' }
+      )
       recordSpan({ name: 'late one', requestId: 'rotated' })
       const lateFetch = { url: 'https://example.com/late', index: 1 }
       recordRequestInsightFetch({ requestId: 'rotated' }, lateFetch)
