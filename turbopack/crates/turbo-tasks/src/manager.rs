@@ -1,5 +1,5 @@
 use std::{
-    borrow::Borrow,
+    borrow::{Borrow, Cow},
     cell::Cell,
     cmp::Reverse,
     fmt::{Debug, Display},
@@ -1822,7 +1822,7 @@ struct TurboTasksExecutor;
 /// as part of state management we have to abort
 ///
 /// A [`PersistentCacheUnreadablePanic`] doesn't necessarily indicate a bug, and its message
-/// (printed by the panic hook) explains what happened, so it's not reported as a bug.
+/// explains what happened, so it's not reported as a bug.
 ///
 /// [`PersistentCacheUnreadablePanic`]: crate::PersistentCacheUnreadablePanic
 async fn abort_on_panic<F: Future>(f: F) -> F::Output {
@@ -1836,14 +1836,25 @@ async fn abort_on_panic<F: Future>(f: F) -> F::Output {
 }
 
 /// The message printed by [`abort_on_panic`] for a panic with `payload`.
-fn abort_on_panic_message(payload: &(dyn std::any::Any + Send)) -> &'static str {
-    if payload.is::<crate::PersistentCacheUnreadablePanic>() {
-        "turbo-tasks: the persistent cache could not be read, see the error above."
+///
+/// The message of a [`PersistentCacheUnreadablePanic`] is included: Rust's default panic hook
+/// prints a custom payload like this one as `Box<dyn Any>`, so unless the embedder's panic hook
+/// printed it, it wouldn't be shown anywhere else.
+///
+/// [`PersistentCacheUnreadablePanic`]: crate::PersistentCacheUnreadablePanic
+fn abort_on_panic_message(payload: &(dyn std::any::Any + Send)) -> Cow<'static, str> {
+    if let Some(panic) = payload.downcast_ref::<crate::PersistentCacheUnreadablePanic>() {
+        format!(
+            "turbo-tasks: the persistent cache could not be read:\n\n{}",
+            panic.message
+        )
+        .into()
     } else {
         "turbo-tasks: an internal panic occurred outside the per-task panic boundary. This is a \
          bug in turbo-tasks/Turbopack — please report it at \
          https://github.com/vercel/next.js/discussions and include the panic message and stack \
          trace above."
+            .into()
     }
 }
 
@@ -3245,6 +3256,10 @@ mod tests {
             });
         let message = abort_on_panic_message(&*unreadable);
         assert!(message.contains("could not be read"), "{message}");
+        assert!(
+            message.contains("cache file 00000001.sst is missing"),
+            "{message}"
+        );
         assert!(!message.contains("report"), "{message}");
         assert!(!message.contains("bug"), "{message}");
 

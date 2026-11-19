@@ -4185,6 +4185,47 @@ fn blob_corrupted_after_open_is_unreadable(#[case] mmap: bool) -> Result<()> {
     Ok(())
 }
 
+/// A blob whose data passes its checksum but can't be decompressed was written that way, which is
+/// a bug rather than damage to the file, so it isn't reported as unreadable.
+// Writes a production-size blob, which is too slow under Miri.
+#[cfg(not(miri))]
+#[rstest]
+#[case::mmap(true)]
+#[case::file(false)]
+fn blob_failing_to_decompress_is_not_unreadable(#[case] mmap: bool) -> Result<()> {
+    use crate::compression::checksum_block;
+
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let blobs = write_single_value(path, vec![42u8; MAX_MEDIUM_VALUE_SIZE + 1], "blob")?;
+
+    let db = open_lazy_db(path, mmap)?;
+    for blob in &blobs {
+        // Truncate the compressed data and update the checksum to match, which keeps the header's
+        // uncompressed length.
+        let blob_path = path.join(blob);
+        let mut bytes = fs::read(&blob_path)?;
+        let data_len = (bytes.len() - 8) / 2;
+        bytes.truncate(8 + data_len);
+        let uncompressed_length = u32::from_be_bytes(bytes[0..4].try_into()?);
+        let checksum = checksum_block(uncompressed_length, &bytes[8..]);
+        bytes[4..8].copy_from_slice(&checksum.to_be_bytes());
+        fs::write(&blob_path, &bytes)?;
+    }
+    let error = db
+        .get(0, &vec![1u8])
+        .expect_err("decompressing the blob must fail");
+    assert!(
+        crate::CacheFileUnreadable::find(&error).is_none(),
+        "{error:?}"
+    );
+    assert!(
+        !format!("{error:?}").contains("checksum mismatch"),
+        "{error:?}"
+    );
+    Ok(())
+}
+
 /// Reads from a healthy database aren't reported as unreadable.
 #[rstest]
 #[case::mmap(true)]

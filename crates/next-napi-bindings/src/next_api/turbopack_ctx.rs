@@ -452,15 +452,18 @@ pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
     }
 
     let internal_error_str = PrettyPrintError(internal_error).to_string();
-    match write_panic_log(&internal_error_str, false) {
-        Ok(true) => {}
+    let panic_log_written = match write_panic_log(&internal_error_str, false) {
+        Ok(true) => true,
         // Throttled
         Ok(false) => return,
-        Err(error) => eprintln!(
-            "Failed to write the panic log {}: {error}",
-            PANIC_LOG.to_string_lossy()
-        ),
-    }
+        Err(error) => {
+            eprintln!(
+                "Failed to write the panic log {}: {error}",
+                PANIC_LOG.to_string_lossy()
+            );
+            false
+        }
+    };
 
     let title = format!(
         "Turbopack Error: {}",
@@ -485,11 +488,19 @@ pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
         format!("clicking here: {}", bug_report_url)
     };
 
+    // If the panic log couldn't be written, that was reported above.
+    let panic_log_message = if panic_log_written {
+        format!(
+            " A panic log has been written to {}.",
+            PANIC_LOG.to_string_lossy()
+        )
+    } else {
+        String::new()
+    };
     eprintln!(
-        "\n-----\n{}: An unexpected Turbopack error occurred. A panic log has been written to \
-         {}.\n\nTo help make Turbopack better, report this error by {}\n-----\n",
+        "\n-----\n{}: An unexpected Turbopack error occurred.{panic_log_message}\n\nTo help make \
+         Turbopack better, report this error by {}\n-----\n",
         "FATAL".red().bold(),
-        PANIC_LOG.to_string_lossy(),
         bug_report_message
     );
 }
