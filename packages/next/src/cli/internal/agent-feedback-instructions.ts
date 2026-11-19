@@ -1,5 +1,6 @@
 import { readFile } from 'fs/promises'
 import path from 'path'
+import { loadEnvConfig } from '@next/env'
 import { isAgentFeedbackEnabled } from './agent-feedback-status'
 import { isCI } from '../../server/ci-info'
 import { Telemetry } from '../../telemetry/storage'
@@ -48,8 +49,11 @@ export async function loadAgentFeedbackInstructions(
 function isAgentFeedbackLocallyEnabled(): boolean {
   if (isCI) return false
 
+  const dir = process.cwd()
+  loadEnvConfig(dir, true)
+
   return new Telemetry({
-    distDir: path.join(process.cwd(), '.next'),
+    distDir: path.join(dir, '.next'),
     skipNotify: true,
   }).isEnabled
 }

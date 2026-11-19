@@ -2,6 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
+import execa from 'execa'
 import { writeAgentFiles } from 'next/dist/server/lib/generate-agent-files'
 
 const AGENT_RULES_MARKER = '<!-- BEGIN:nextjs-agent-rules -->'
@@ -461,6 +462,72 @@ describe.each([
       await next.stop()
     }
   })
+})
+
+describe('agent-feedback CLI with project telemetry opt-out', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+    nextConfig: {
+      experimental: {
+        agentFeedback: true,
+      },
+    },
+  })
+  const existingInstructions = `# Team rules\n\n${staleAgentFeedbackBlock()}\n`
+
+  beforeAll(async () => {
+    await next.patchFile('AGENTS.md', existingInstructions)
+  })
+
+  function runFeedbackInstructions() {
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      ...NON_CI_ENV,
+      NODE_ENV: 'development',
+      NEXT_PRIVATE_SKIP_CANARY_CHECK: '1',
+    }
+    // Model a fresh agent shell that has not exported the project opt-out.
+    delete env.NEXT_TELEMETRY_DISABLED
+    delete env.__NEXT_PROCESSED_ENV
+
+    return execa(
+      process.execPath,
+      [
+        '--require',
+        path.join(__dirname, 'block-feedback-network.js'),
+        require.resolve('next/dist/bin/next', { paths: [next.testDir] }),
+        'internal',
+        'agent-feedback-instructions',
+      ],
+      { cwd: next.testDir, env, extendEnv: false, reject: false }
+    )
+  }
+
+  it.each(['.env.local', '.env.development.local'])(
+    'does not contact the remote gate when telemetry is disabled in %s',
+    async (envFile) => {
+      // First prove the command would contact the gate without the dotenv file.
+      const control = await runFeedbackInstructions()
+      expect(control.stderr).toContain(
+        'Unexpected agent feedback network request'
+      )
+      expect(control.exitCode).toBe(1)
+
+      await next.patchFile(envFile, 'NEXT_TELEMETRY_DISABLED=1\n')
+      try {
+        const result = await runFeedbackInstructions()
+        expect(result.exitCode).toBe(0)
+        expect(result.stdout).toBe('')
+        expect(result.stderr).toBe('')
+        expect(
+          fs.readFileSync(path.join(next.testDir, 'AGENTS.md'), 'utf-8')
+        ).toBe(existingInstructions)
+      } finally {
+        await next.deleteFile(envFile)
+      }
+    }
+  )
 })
 
 // Disabling upgrade reminders must remove only their block, including without an agent.
