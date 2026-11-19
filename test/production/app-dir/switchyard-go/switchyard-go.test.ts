@@ -277,9 +277,6 @@ describe('switchyard-go', () => {
       }
     })
 
-    // TODO: on the direct path, Switchyard doesn't apply Node's limit on
-    // the worker's response headers yet.
-    // @gate !switchyard
     it('rejects worker response headers larger than Node’s limit', async () => {
       // Both the first request through Node and subsequent direct requests
       // must fail, rather than returning 200 once the worker is announced.
@@ -322,9 +319,6 @@ describe('switchyard-go', () => {
       expect(getHeader(res, 'content-encoding')).toBeUndefined()
     })
 
-    // TODO: on the direct path, Switchyard passes on the trailer values,
-    // which Node drops.
-    // @gate !switchyard
     it('drops the trailer values the handler sends', async () => {
       const trailers = await responseTrailers(
         Number(next.appPort),
