@@ -475,9 +475,16 @@ export async function hydrate(
     })
   )
 
+  // When server rendering fails, the server sends an empty error shell instead
+  // of the app's HTML, and the client renders the app from scratch.
+  const isClientRenderFallback =
+    document.documentElement.id === '__next_error__'
+
   const reactEl = (
     <StrictModeIfEnabled>
-      <HeadManagerContext.Provider value={{ appDir: true }}>
+      <HeadManagerContext.Provider
+        value={{ appDir: true, isClientRenderFallback }}
+      >
         <Root>
           <ServerRoot
             initialRSCPayload={initialRSCPayload}
@@ -490,7 +497,7 @@ export async function hydrate(
     </StrictModeIfEnabled>
   )
 
-  if (document.documentElement.id === '__next_error__') {
+  if (isClientRenderFallback) {
     let element = reactEl
     // Server rendering failed, fall back to client-side rendering
     if (process.env.NODE_ENV !== 'production') {

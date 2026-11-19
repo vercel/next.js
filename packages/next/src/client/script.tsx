@@ -166,6 +166,45 @@ export function handleClientScriptLoad(props: ScriptProps) {
   }
 }
 
+let beforeInteractiveQueue: Promise<void> = Promise.resolve()
+
+/**
+ * Loads a `beforeInteractive` script that the server didn't send in the HTML.
+ * This happens when the app falls back to client rendering from the error
+ * shell, e.g. when `notFound()` is called while rendering a page. Scripts run
+ * one after another in the order they mount, waiting for each external script
+ * to load, the same way `appBootstrap` runs them on a normal page load.
+ */
+function loadBeforeInteractiveScript(props: ScriptProps) {
+  beforeInteractiveQueue = beforeInteractiveQueue.then(
+    () =>
+      new Promise<void>((resolve) => {
+        const { src, id, onLoad, onError } = props
+        const cacheKey = id || src
+
+        // Inline scripts run synchronously, and loaded scripts won't fire
+        // `load` again, so there's nothing to wait for.
+        if (!src || (cacheKey && LoadCache.has(cacheKey))) {
+          loadScript(props)
+          resolve()
+          return
+        }
+
+        loadScript({
+          ...props,
+          onLoad(e) {
+            onLoad?.call(this, e)
+            resolve()
+          },
+          onError(e) {
+            onError?.(e)
+            resolve()
+          },
+        })
+      })
+  )
+}
+
 function loadLazyScript(props: ScriptProps) {
   if (document.readyState === 'complete') {
     requestIdleCallback(() => loadScript(props))
@@ -210,8 +249,14 @@ function Script(props: ScriptProps): JSX.Element | null {
   } = props
 
   // Context is available only during SSR
-  let { updateScripts, scripts, getIsSsr, appDir, nonce } =
-    useContext(HeadManagerContext)
+  let {
+    updateScripts,
+    scripts,
+    getIsSsr,
+    appDir,
+    nonce,
+    isClientRenderFallback,
+  } = useContext(HeadManagerContext)
 
   // if a nonce is explicitly passed to the script tag, favor that over the automatic handling
   nonce = restProps.nonce || nonce
@@ -264,11 +309,19 @@ function Script(props: ScriptProps): JSX.Element | null {
         loadScript(props)
       } else if (strategy === 'lazyOnload') {
         loadLazyScript(props)
+      } else if (
+        strategy === 'beforeInteractive' &&
+        appDir &&
+        isClientRenderFallback
+      ) {
+        // The server sent the error shell, so this script was never in the
+        // HTML and `appBootstrap` didn't run it.
+        loadBeforeInteractiveScript({ ...props, nonce })
       }
 
       hasLoadScriptEffectCalled.current = true
     }
-  }, [props, strategy])
+  }, [props, strategy, appDir, isClientRenderFallback, nonce])
 
   if (strategy === 'beforeInteractive' || strategy === 'worker') {
     if (updateScripts) {
