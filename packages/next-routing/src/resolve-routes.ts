@@ -374,6 +374,38 @@ function matchDynamicRoute(
 }
 
 /**
+ * Matches dynamic routes, retrying unprefixed API paths with the default
+ * locale. With i18n, dynamic API routes' regexes require a locale segment,
+ * but locale prefixing is skipped for /api/ paths.
+ */
+function matchDynamicRouteWithApiLocale(
+  pathname: string,
+  route: Route,
+  caseSensitive: boolean,
+  basePath: string,
+  i18n: ResolveRoutesParams['i18n']
+): ReturnType<typeof matchDynamicRoute> {
+  const match = matchDynamicRoute(pathname, route, caseSensitive)
+  if (match.matched || !i18n) {
+    return match
+  }
+
+  const withoutBasePath =
+    basePath && pathname.startsWith(basePath)
+      ? pathname.slice(basePath.length)
+      : pathname
+  if (!withoutBasePath.startsWith('/api/')) {
+    return match
+  }
+
+  return matchDynamicRoute(
+    `${basePath}/${i18n.defaultLocale}${withoutBasePath}`,
+    route,
+    caseSensitive
+  )
+}
+
+/**
  * Applies headers from onMatch routes
  */
 function applyOnMatchHeaders(
@@ -427,7 +459,13 @@ function checkDynamicRoutes(
   }
 
   for (const route of dynamicRoutes) {
-    const match = matchDynamicRoute(checkUrl.pathname, route, caseSensitive)
+    const match = matchDynamicRouteWithApiLocale(
+      checkUrl.pathname,
+      route,
+      caseSensitive,
+      basePath,
+      i18n
+    )
 
     if (match.matched) {
       // Check has/missing conditions
@@ -979,7 +1017,13 @@ export async function resolveRoutes(
   let matchedPath = matchesPathname(currentUrl.pathname, pathnames)
   if (matchedPath) {
     for (const route of routes.dynamicRoutes) {
-      const match = matchDynamicRoute(currentUrl.pathname, route, caseSensitive)
+      const match = matchDynamicRouteWithApiLocale(
+        currentUrl.pathname,
+        route,
+        caseSensitive,
+        basePath,
+        i18n
+      )
 
       if (!match.matched) {
         continue
@@ -1184,7 +1228,13 @@ export async function resolveRoutes(
 
   // Check dynamic routes
   for (const route of routes.dynamicRoutes) {
-    const match = matchDynamicRoute(currentUrl.pathname, route, caseSensitive)
+    const match = matchDynamicRouteWithApiLocale(
+      currentUrl.pathname,
+      route,
+      caseSensitive,
+      basePath,
+      i18n
+    )
 
     if (match.matched) {
       // Check has/missing conditions
