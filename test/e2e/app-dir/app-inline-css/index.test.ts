@@ -93,5 +93,25 @@ describe('app dir - css - experimental inline css', () => {
       expect(res.status).toBe(200)
       expect(res.headers.get('content-type')).toContain('font')
     })
+
+    const LAYOUT_MARKER = '--inline-css-dedupe-marker'
+    const GLOBAL_ERROR_MARKER = '--inline-css-global-error-marker'
+
+    const countOccurrences = (haystack: string, needle: string) =>
+      haystack.split(needle).length - 1
+
+    it('should not re-inline stylesheets for the global-error boundary', async () => {
+      for (const pathname of ['/', '/a']) {
+        const html = await next.render(pathname)
+        const occurrences = countOccurrences(html, LAYOUT_MARKER)
+        expect({ pathname, occurrences }).toEqual({ pathname, occurrences: 2 })
+      }
+    })
+
+    it('should still inline stylesheets that only the global-error boundary uses', async () => {
+      const html = await next.render('/')
+
+      expect(countOccurrences(html, GLOBAL_ERROR_MARKER)).toBe(1)
+    })
   })
 })
