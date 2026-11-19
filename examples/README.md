@@ -26,7 +26,7 @@ If you could swap "Next.js" for "any React framework" and the code is unchanged,
 ### 3. It must survive these filters
 
 - **One canonical example per category.** We do not ship N vendor variants of the same thing (state managers, auth providers, form libraries, analytics, CMSes). Vendor-specific starters belong in the vendor's repo.
-- **Upstream does not do it better.** If the integration has a well-maintained official starter from the vendor, ours will drift and lose. Link to theirs from the docs instead, or add an entry to the [Using Next.js with X](#using-nextjs-with-x) section below.
+- **Upstream does not do it better.** If the integration has a well-maintained official starter from the vendor, ours will drift and lose. Link to theirs from the docs or the [Using Next.js with X](#using-nextjs-with-x) section below instead.
 - **Not redundant with `create-next-app`.** Anything the CNA wizard scaffolds via a flag (TypeScript, Tailwind, ESLint, App Router, src dir) does not need a dedicated `with-*` example.
 - **Not redundant with the framework.** Features Next.js has absorbed (built-in i18n, env vars, image optimization, MDX) live in the docs, not here.
 - **Reflects modern Next.js.** Pre-App-Router or pages-only examples need a specific reason to exist, such as documenting a migration path. Patterns now considered anti-patterns (custom servers, `getInitialProps`) need explicit justification.
@@ -34,32 +34,17 @@ If you could swap "Next.js" for "any React framework" and the code is unchanged,
 
 ### 4. Maintenance is part of the contract
 
-Publishing an example is an implicit promise to maintain it. An example becomes an eviction candidate when any of the following is true and there is no maintainer stepping forward:
+Publishing an example is an implicit promise to maintain it. An example becomes an eviction candidate when any of the following is true:
 
 - It depends on a library or vendor that has been archived, sunset, or officially deprecated.
 - It breaks on the current Next.js release.
 - It teaches a pattern the framework has since absorbed or moved past.
 
-Removed examples remain in git history and can always be resurrected if the need returns. If you maintain a tool whose example was removed and want to bring it back, see the submission criteria.
-
-## Submitting a new example
-
-Before opening a PR, confirm:
-
-1. The example clears every filter above.
-2. There is no existing example in the same category (see "one canonical example per category").
-3. You, your team, or the vendor behind the integration can commit to maintaining it.
-
-If the criteria are not met, consider one of these alternatives instead:
-
-- A docs page or guide in the main Next.js documentation.
-- Publishing the example in your own repo and linking to it from your integration docs.
-- Submitting to the Vercel templates gallery.
-- Adding an entry to the [Using Next.js with X](#using-nextjs-with-x) section below.
+Removed examples remain in git history and can always be resurrected if the need returns.
 
 ## Using Next.js with X
 
-When the canonical setup for a tool lives upstream (in the vendor's docs, framework adapter, or starter kit), this directory points there instead of shipping an in-tree example that drifts. The list below is a curated set of cornerstones, not an exhaustive directory. PRs that add an entry for a tool you maintain are welcome.
+When the canonical setup for a tool lives upstream (in the vendor's docs, framework adapter, or starter kit), this directory points there instead of shipping an in-tree example that drifts. The list below is a curated set of cornerstones, not an exhaustive directory.
 
 - **Storybook**: [`@storybook/nextjs`](https://storybook.js.org/docs/get-started/frameworks/nextjs) is the official framework adapter. Run `npx storybook init` inside your Next.js project to configure it.
 - **Tailwind CSS**: [Install Tailwind CSS with Next.js](https://tailwindcss.com/docs/guides/nextjs).
@@ -75,5 +60,3 @@ If you are looking for an example that has been removed:
 2. **Check the [Using Next.js with X](#using-nextjs-with-x) section above.** Many integrations now live upstream in the vendor's docs.
 3. **Check the library or service's own documentation.** For most third-party integrations (auth providers, CMSes, analytics, UI libraries, ORMs, hosting platforms), the vendor maintains a Next.js quickstart or starter that is fresher and more accurate than anything we used to ship here.
 4. **Check the Vercel templates gallery.** Product-shaped starters increasingly live there rather than in this directory.
-
-If the missing example is one you would have used and you are willing to maintain it on an ongoing basis, see the submission criteria above and open a PR.
