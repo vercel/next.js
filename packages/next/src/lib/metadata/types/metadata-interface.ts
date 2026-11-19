@@ -679,6 +679,27 @@ type RobotsRuleBase = {
   disallow?: string | string[] | undefined
   crawlDelay?: number | undefined
   /**
+   * Content Signals directives for declaring preferences about automated
+   * content usage.
+   *
+   * @example
+   * ```ts
+   * contentSignal: {
+   *   aiTrain: false,
+   *   search: true,
+   *   aiInput: false,
+   * }
+   *
+   * contentSignal: {
+   *   path: '/blog',
+   *   aiTrain: false,
+   *   search: true,
+   *   aiInput: true,
+   * }
+   * ```
+   */
+  contentSignal?: RobotsContentSignal | RobotsContentSignal[] | undefined
+  /**
    * Non-standard per-user-agent directives passed through verbatim to the
    * generated `robots.txt`. Keys preserve their casing and array values emit
    * one line per entry.
@@ -694,6 +715,13 @@ type RobotsRuleBase = {
    * ```
    */
   other?: Record<string, string | number | Array<string | number>> | undefined
+}
+
+type RobotsContentSignal = {
+  path?: string | string[] | undefined
+  aiTrain?: boolean | undefined
+  search?: boolean | undefined
+  aiInput?: boolean | undefined
 }
 
 type RobotsFile = {
