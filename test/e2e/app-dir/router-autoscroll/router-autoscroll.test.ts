@@ -275,6 +275,75 @@ describe('router autoscrolling on navigation', () => {
       await check(() => browser.eval('window.scrollY'), 0)
     })
 
+    it('should scroll to the loading fallback when the loading boundary is above the new segment', async () => {
+      const browser = await next.browser('/loading-above-segment')
+      await browser.eval(`document.getElementById("to-slow").scrollIntoView()`)
+      expect(await browser.eval('window.scrollY')).toBeGreaterThan(0)
+
+      await browser.elementByCss('#to-slow').click()
+      await browser.waitForElementByCss('#loading-above-segment-fallback')
+      await retry(async () => {
+        // The page is still loading, so this scroll came from the fallback.
+        expect(
+          await browser.eval('document.getElementById("slow-page") === null')
+        ).toBe(true)
+        expect(await browser.eval('window.scrollY')).toBe(0)
+      })
+
+      await browser.waitForElementByCss('#slow-page', 10000)
+      expect(await browser.eval('window.scrollY')).toBe(0)
+    })
+
+    it('should scroll to the loading fallback, then to the hash target once it mounts', async () => {
+      const browser = await next.browser('/loading-above-segment')
+      await browser.eval(
+        `document.getElementById("to-slow-hash").scrollIntoView()`
+      )
+      expect(await browser.eval('window.scrollY')).toBeGreaterThan(0)
+
+      await browser.elementByCss('#to-slow-hash').click()
+      await browser.waitForElementByCss('#loading-above-segment-fallback')
+      await retry(async () => {
+        // The page is still loading, so this scroll came from the fallback.
+        expect(
+          await browser.eval('document.getElementById("hash-target") === null')
+        ).toBe(true)
+        expect(await browser.eval('window.scrollY')).toBe(0)
+      })
+
+      await browser.waitForElementByCss('#hash-target', 10000)
+      await retry(async () => {
+        expect(
+          await browser.eval(
+            'Math.round(document.getElementById("hash-target").getBoundingClientRect().top)'
+          )
+        ).toBe(0)
+      })
+    })
+
+    it('should scroll to the loading fallback when a path param changes and the loading boundary is above it', async () => {
+      const browser = await next.browser('/loading-above-segment/dynamic/1')
+      await browser.eval(
+        `document.getElementById("to-dynamic-2").scrollIntoView()`
+      )
+      expect(await browser.eval('window.scrollY')).toBeGreaterThan(0)
+
+      await browser.elementByCss('#to-dynamic-2').click()
+      await browser.waitForElementByCss('#loading-above-dynamic-fallback')
+      await retry(async () => {
+        // The page is still loading, so this scroll came from the fallback.
+        expect(
+          await browser.eval('document.getElementById("dynamic-page") === null')
+        ).toBe(true)
+        expect(await browser.eval('window.scrollY')).toBe(0)
+      })
+
+      await retry(async () => {
+        expect(await browser.elementByCss('#dynamic-page').text()).toBe('2')
+      }, 10000)
+      expect(await browser.eval('window.scrollY')).toBe(0)
+    })
+
     it('should scroll to top when navigating to same page with different search params', async () => {
       const browser = await next.browser('/loading-scroll?skipSleep=1')
 
