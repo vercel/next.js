@@ -785,6 +785,18 @@ describe('lib/worker env configuration', () => {
       expect(latestPoolOptions?.forkOptions?.env?.NODE_OPTIONS).toBe('')
       // The negation itself is kept, which only disables the inspector.
       expect(latestPoolOptions?.forkOptions?.execArgv).toEqual(['--no-inspect'])
+
+      // Enabled but not started (e.g. port taken): Node's port, on loopback.
+      process.execArgv = []
+      process.env.NODE_OPTIONS = '--inspect'
+      worker = new Worker(__filename, {
+        ...noopOptions,
+        debuggerPortOffset: 0,
+      })
+      worker.shutdownNow()
+      expect(latestPoolOptions?.forkOptions?.env?.NODE_OPTIONS).toBe(
+        `--inspect=127.0.0.1:${process.debugPort + 1}`
+      )
     } finally {
       process.execArgv = originalExecArgv
       inspectorUrl.mockRestore()

@@ -180,6 +180,28 @@ describe('getEffectiveDebugOptions', () => {
     })
   })
 
+  it('falls back to the resolved port on loopback when it did not start', () => {
+    // e.g. the port was already taken.
+    process.env.NODE_OPTIONS = '--inspect=0.0.0.0:9500'
+    withExecArgv([], () => {
+      expect(
+        getEffectiveDebugOptions({ inspectorUrl: undefined, debugPort: 9500 })
+      ).toEqual({
+        type: 'inspect',
+        address: { host: '127.0.0.1', port: 9500 },
+        publishUid: undefined,
+      })
+    })
+    // `--no-inspect` only cancels `--inspect`, like in Node.js.
+    process.env.NODE_OPTIONS = '--inspect-brk'
+    withExecArgv(['--no-inspect'], () => {
+      expect(
+        getEffectiveDebugOptions({ inspectorUrl: undefined, debugPort: 9229 })
+          .type
+      ).toBe('inspect-brk')
+    })
+  })
+
   it('reads the flag type and publish-uid in order, with aliases', () => {
     process.env.NODE_OPTIONS = '--inspect-publish-uid=stderr'
     withExecArgv(

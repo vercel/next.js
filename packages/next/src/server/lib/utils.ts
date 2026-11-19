@@ -288,15 +288,15 @@ export function getParsedNodeOptions(): NodeOptions {
 
 export interface EffectiveDebugOptions {
   /**
-   * `--inspect` or `--inspect-brk` if this process's inspector is running and
-   * was started with one, or `--inspect-wait` when `includeWait` is set and
-   * neither is given. `undefined` when the inspector isn't running (e.g.
-   * disabled with `--no-inspect`).
+   * `--inspect-brk` or `--inspect` if this process's inspector is enabled by
+   * one, or `--inspect-wait` when `includeWait` is set and neither is given.
+   * `undefined` when it isn't enabled (e.g. `--inspect --no-inspect`).
    */
   type: NodeInspectType | 'inspect-wait'
   /**
-   * The address the running inspector listens on, as reported by Node.js.
-   * The port is 0 when a random port was requested.
+   * Where the inspector listens, as reported by Node.js. If it's enabled but
+   * not running (e.g. its port was taken), Node.js's resolved port on
+   * loopback. The port is 0 when a random port was requested.
    */
   address: DebugAddress | undefined
   /** The effective `--inspect-publish-uid` value, if one was given */
@@ -304,30 +304,35 @@ export interface EffectiveDebugOptions {
 }
 
 /**
- * The debugger settings this process runs with. Whether the inspector runs
- * and where it listens come from Node.js itself (`inspector.url()`), since
- * its option grammar (negations, host-only and port-only values, aliases) is
- * easy to get subtly wrong. The flags are only used for what Node.js doesn't
- * report: which flag started it, the publish-uid setting, and whether a random
- * port (0) was requested. Flags are read like Node.js does: `NODE_OPTIONS`
- * first, then the command line, last occurrence winning.
+ * The debugger settings this process runs with. Where the inspector listens
+ * comes from Node.js itself (`inspector.url()`, or `process.debugPort` when it
+ * failed to start), since its option grammar (host-only and port-only values,
+ * aliases) is easy to get subtly wrong. The flags are only used for what
+ * Node.js doesn't report: which flag enabled it (`--no-inspect` only cancels
+ * `--inspect`), the publish-uid setting, and whether a random port (0) was
+ * requested. Flags are read like Node.js does: `NODE_OPTIONS` first, then the
+ * command line, last occurrence winning.
  *
  * @param inspectorUrl The running inspector's URL (for tests).
+ * @param debugPort Node.js's resolved inspector port (for tests).
  */
 export function getEffectiveDebugOptions({
   includeWait = false,
   inspectorUrl = (require('inspector') as typeof import('inspector')).url(),
+  debugPort = process.debugPort,
 }: {
   includeWait?: boolean
   inspectorUrl?: string | undefined
+  debugPort?: number
 } = {}): EffectiveDebugOptions {
   const result: EffectiveDebugOptions = {
     type: undefined,
     address: undefined,
     publishUid: undefined,
   }
-  let flagType: NodeInspectType
-  let sawWait = false
+  let inspect = false
+  let inspectBrk = false
+  let inspectWait = false
   // The last address value given, to detect a requested random port.
   let lastAddress: string | undefined
   for (const [args, separateValues] of [
@@ -355,11 +360,16 @@ export function getEffectiveDebugOptions({
       ) {
         value = args[++i]
       }
-      if (name === 'inspect' || name === 'inspect-brk') {
-        flagType = name
+      if (name === 'inspect') {
+        inspect = true
+        if (value !== undefined) lastAddress = value
+      } else if (name === 'no-inspect') {
+        inspect = false
+      } else if (name === 'inspect-brk') {
+        inspectBrk = true
         if (value !== undefined) lastAddress = value
       } else if (name === 'inspect-wait') {
-        sawWait = true
+        inspectWait = true
         if (value !== undefined) lastAddress = value
       } else if (name === 'inspect-port') {
         if (value !== undefined) lastAddress = value
@@ -369,21 +379,35 @@ export function getEffectiveDebugOptions({
     }
   }
 
+  const enabled = inspect || inspectBrk || inspectWait
+  if (!enabled && !inspectorUrl) {
+    return result
+  }
+  result.type = inspectBrk
+    ? 'inspect-brk'
+    : inspect
+      ? 'inspect'
+      : includeWait && inspectWait
+        ? 'inspect-wait'
+        : undefined
+  const randomPort = lastAddress !== undefined && /(^|:)0$/.test(lastAddress)
   if (!inspectorUrl) {
-    // Not running, whatever the flags say.
+    // Enabled, but it didn't start (e.g. its port was taken). Node.js doesn't
+    // report the host it tried; loopback never widens it.
+    result.address = {
+      host: '127.0.0.1',
+      port: randomPort ? 0 : debugPort,
+    }
     return result
   }
   const url = new URL(inspectorUrl)
-  result.type =
-    flagType ?? (includeWait && sawWait ? 'inspect-wait' : undefined)
   result.address = {
     // Keeps the brackets of an IPv6 address.
     host: url.hostname,
-    port:
-      lastAddress !== undefined && /(^|:)0$/.test(lastAddress)
-        ? 0
-        : // An empty port is the ws: default.
-          parseInt(url.port || '80', 10),
+    port: randomPort
+      ? 0
+      : // An empty port is the ws: default.
+        parseInt(url.port || '80', 10),
   }
   return result
 }
