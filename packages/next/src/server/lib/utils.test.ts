@@ -170,6 +170,19 @@ describe('getEffectiveDebugOptions', () => {
     })
   })
 
+  it('ignores an inspector that was only opened at runtime', () => {
+    // e.g. `inspector.open('0.0.0.0')` or SIGUSR1, with no startup flag.
+    process.env.NODE_OPTIONS = '--inspect-port=0.0.0.0:9500'
+    withExecArgv([], () => {
+      expect(
+        getEffectiveDebugOptions({
+          includeWait: true,
+          inspectorUrl: url('0.0.0.0:9500'),
+        })
+      ).toEqual({ type: undefined, address: undefined, publishUid: undefined })
+    })
+  })
+
   it('reports nothing when the inspector is not running', () => {
     // e.g. `--no-inspect` on the command line.
     process.env.NODE_OPTIONS = '--inspect=0.0.0.0:9500'

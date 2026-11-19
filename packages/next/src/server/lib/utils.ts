@@ -334,6 +334,10 @@ export function getEffectiveDebugOptions({
   let inspect = false
   let inspectBrk = false
   let inspectWait = false
+  // Whether any startup flag enabled the inspector at all. An inspector that
+  // was only opened at runtime (e.g. `inspector.open()`, or SIGUSR1) isn't
+  // passed on, like before Next.js read Node.js's inspector state.
+  let activated = false
   // Whether any `--no-inspect*` negation was given. How they combine differs
   // between Node.js versions (e.g. `--inspect-brk --no-inspect` disables the
   // inspector in 20.9 but not in later versions).
@@ -365,6 +369,7 @@ export function getEffectiveDebugOptions({
       ) {
         value = args[++i]
       }
+      if (isActivation) activated = true
       if (name === 'inspect') {
         inspect = true
         if (value !== undefined) lastAddress = value
@@ -398,6 +403,9 @@ export function getEffectiveDebugOptions({
       : inspectWait
         ? 'inspect-wait'
         : undefined
+  if (!activated) {
+    return result
+  }
   if (!inspectorUrl) {
     // Not running. Only treat that as a failed start (e.g. its port was
     // taken) when the flags clearly enable it; otherwise it's disabled.
