@@ -54,20 +54,25 @@ describe('switchyard-go direct path', () => {
   }
 
   it('starts the worker on the first request', async () => {
-    expect(await received('/go/echo')).toMatchObject({
+    expect(await received('/go/users/first')).toMatchObject({
+      params: { id: 'first' },
       parentPid: expect.any(Number),
     })
   })
 
   it('sends plain requests directly while Node is paused', async () => {
     // Each route.go has its own worker, started by its first request.
-    for (const target of ['/go/echo']) {
+    for (const target of ['/go/users/warm-up', '/go/echo', '/go/files/x']) {
       await received(target)
     }
     const { parentPid } = await received('/go/echo')
     process.kill(parentPid, 'SIGSTOP')
     try {
-      for (const target of ['/go/echo']) {
+      for (const target of [
+        '/go/users/42?sort=asc',
+        '/go/echo',
+        '/go/files/a/b.txt',
+      ]) {
         expect((await received(target)).requestURI).toBe(target)
       }
     } finally {

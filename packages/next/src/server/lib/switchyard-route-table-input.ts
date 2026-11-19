@@ -46,6 +46,7 @@ export function collectSwitchyardRouteTable(
     publicFiles: fsChecker.publicFolderItems,
     appFiles: fsChecker.appFiles,
     pageFiles: fsChecker.pageFiles,
+    dynamicRoutes: fsChecker.getDynamicRoutes(),
     appRoute: (pathname) =>
       fsChecker.getRouteDefinition('appFile', pathname, undefined),
     internalHeaders: INTERNAL_HEADERS,
