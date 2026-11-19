@@ -28,15 +28,6 @@ The Server Component case is handled at [Crypto APIs during prerendering](/docs/
 
 ## Ways to fix this
 
-Choose based on where the value belongs:
-
-| When you need the value                                                 | Approach                                                                                                    |
-| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| Only in the browser                                                     | [`use(browser())` inside `<Suspense>`](#render-only-in-the-browser)                                         |
-| In server-rendered HTML and the first browser render                    | [Generate it in a Server Component and pass it as a prop](#render-the-same-value-on-the-server-and-browser) |
-| Inside a library that already preserves its server result for hydration | [Defer the library with `use(io())`](#keep-a-hydration-aware-library-server-rendered)                       |
-| After an interaction, or while synchronizing with an external system    | [An event handler or effect](#move-into-effect-or-event-handler)                                            |
-
 <FixCardGrid>
   <FixCard
     group="client"
@@ -109,6 +100,13 @@ The server sends the fallback, and the component appears after JavaScript loads.
 
 - Adding `use client` or `<Suspense>` alone does not guarantee browser-only rendering. See [What activates a Suspense boundary](https://react.dev/reference/react/Suspense#what-activates-a-suspense-boundary).
 - A lazy `useState` initializer or a `useRef` does not defer a read past server rendering. The example works because `use(browser())` runs first.
+- <span id="render-the-same-value-on-the-server-and-browser" /> If the value
+  must appear in server-rendered HTML, generate it in a Server Component and
+  pass the serialized result as a prop. Use [`use
+  cache`](/docs/messages/blocking-prerender-crypto) if the value can be reused,
+  or [`await io()`](/docs/app/api-reference/functions/io) before the server read
+  to exclude it from static prerendering.
+- <span id="suspend-with-useio" /><span id="keep-a-hydration-aware-library-server-rendered" /> If a library already preserves its server result for hydration, a wrapper with [`use(io())`](/docs/app/api-reference/functions/io#usage) inside a parent `<Suspense>` boundary allows request-time server rendering. It does not preserve an arbitrary value, so calling it directly before `crypto.randomUUID()` can still produce a hydration mismatch. See the `io` reference for the wrapper example.
 - Keep fallbacks deterministic. A time or random read in a fallback can raise this error again.
 - Keep browser-only wrappers close to the widget. Wrapping a layout's `children` can prevent nested pages from rendering on the server. See [unrendered segments](/docs/messages/instant-unrendered-segment).
 
@@ -147,18 +145,6 @@ An event-generated value appears after the interaction. An effect-based value us
 
 - Keep the initial render deterministic. A lazy state initializer still runs on the server unless `use(browser())` runs first.
 - If an effect update can suspend a descendant, use [`startTransition`](https://react.dev/reference/react/startTransition) to keep existing content visible while the update resolves.
-
-## Other options
-
-### Render the same value on the server and browser
-
-Generate the generated value in a Server Component and pass the serialized result as a prop. The Client Component renders that prop instead of reading its own value during hydration. Use [`use cache`](/docs/messages/blocking-prerender-crypto) if the value can be reused, or [`await io()`](/docs/app/api-reference/functions/io) before the server read to exclude it from static prerendering.
-
-<span id="suspend-with-useio" />
-
-### Keep a hydration-aware library server-rendered
-
-Call [`use(io())`](/docs/app/api-reference/functions/io) before a widget only when its library already preserves its server result for hydration. The call suspends static prerendering but allows request-time server rendering. It does not preserve an arbitrary generated value, so calling it directly before `crypto.randomUUID()` can still produce a hydration mismatch. See the [third-party widget wrapper](/docs/messages/blocking-prerender-current-time-client#keep-a-hydration-aware-library-server-rendered).
 
 ## Verifying the fix
 
