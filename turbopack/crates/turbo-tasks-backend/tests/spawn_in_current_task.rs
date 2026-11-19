@@ -143,3 +143,59 @@ async fn invalidates_while_deferred_dependencies_are_pending() {
     .await
     .unwrap()
 }
+
+/// Reads the cell twice in a spawned future, so the second deferred read finds the reverse edge
+/// already there.
+#[turbo_tasks::function]
+async fn deferred_reader(input: ResolvedVc<ChangingInput>, offset: u32) -> Result<Vc<u32>> {
+    let cell = value_of(*input).to_resolved().await?;
+    let value = spawn_in_current_task(async move {
+        let first = *cell.await?;
+        let second = *cell.await?;
+        assert_eq!(first, second);
+        anyhow::Ok(first + offset)
+    })
+    .await?;
+    Ok(Vc::cell(value))
+}
+
+/// More readers of one cell than an `EdgeSet` keeps as a scanned array, so the deferred reads
+/// switch its dependents to a hash table.
+const MANY_READERS: u32 = 64;
+
+#[turbo_tasks::function(operation, root)]
+async fn many_readers_operation(input: ResolvedVc<ChangingInput>) -> Result<Vc<u32>> {
+    let values = (0..MANY_READERS)
+        .map(|offset| deferred_reader(*input, offset))
+        .try_join()
+        .await?;
+    Ok(Vc::cell(values.iter().map(|value| **value).sum()))
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn invalidates_many_deferred_readers_of_one_cell() {
+    run_once(&REGISTRATION, async || {
+        let (values, vcs) = new_inputs(2);
+        let op = many_readers_operation(vcs[1]);
+        let offsets: u32 = (0..MANY_READERS).sum();
+        // Every reader must be re-executed on each change, including the second one, which reads
+        // edges that are outdated from the previous execution.
+        assert_eq!(
+            *op.read_strongly_consistent().await?,
+            MANY_READERS + offsets
+        );
+        values[1].state.set(10);
+        assert_eq!(
+            *op.read_strongly_consistent().await?,
+            10 * MANY_READERS + offsets
+        );
+        values[1].state.set(3);
+        assert_eq!(
+            *op.read_strongly_consistent().await?,
+            3 * MANY_READERS + offsets
+        );
+        Ok(())
+    })
+    .await
+    .unwrap()
+}

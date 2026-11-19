@@ -1225,11 +1225,14 @@ impl TurboTasksBackend {
                 return;
             }
             // Without the reader's lock, the reader's forward edges can't tell whether the
-            // reverse edge exists already, so look it up.
+            // reverse edge exists already, so look it up. Normal reads push reverse edges without
+            // a lookup, which keeps the set a flat array, and a hot cell can have tens of
+            // thousands of dependents. `add_cell_dependents` switches a large array to a hash
+            // table before looking up (see `EdgeSet::insert`), so repeated deferred reads of a hot
+            // cell don't each scan it. `evict_after_snapshot` flattens the set again after the next
+            // snapshot, like the sets that removals inflate.
             let reverse = CellRef { task: reader, cell };
-            if !task.cell_dependents_contains(&reverse) {
-                task.push_cell_dependents(reverse);
-            }
+            let _ = task.add_cell_dependents(reverse);
             drop(task);
             deferred.push(task_id, cell);
         }
