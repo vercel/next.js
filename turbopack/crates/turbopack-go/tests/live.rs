@@ -1397,9 +1397,11 @@ fn selected_sources(
 fn selected_declarations(
     sources: ResolvedVc<GoSourceSet>,
     options: GoBuildOptions,
+    files: Vec<RcStr>,
 ) -> Vc<GoDeclarations> {
     go_declarations(
         *sources,
+        files,
         GoBuildSession::persistent("source-set-test".into(), options),
     )
 }
@@ -1424,8 +1426,8 @@ async fn analyzed_sources_and_generated_dispatch_share_one_identity() -> Result<
     session
         .write(
             &format!("{directory}/handler.go"),
-            "package main\nfunc GET() string { return \"v1\" }\ntype Handler struct{}\nfunc \
-             (Handler) POST() {}\n",
+            "package main\nconst Version = \"v1\"\nfunc GET() string { return \"v1\" }\ntype \
+             Handler struct{}\nfunc (Handler) POST() {}\n",
         )
         .await?;
     session
@@ -1464,13 +1466,25 @@ async fn analyzed_sources_and_generated_dispatch_share_one_identity() -> Result<
         .run_once({
             let options = options.clone();
             async move {
-                selected_declarations(sources, options)
-                    .read_strongly_consistent()
-                    .await
+                selected_declarations(
+                    sources,
+                    options,
+                    vec![format!("{directory}/handler.go").into()],
+                )
+                .read_strongly_consistent()
+                .await
             }
         })
         .await?;
     assert_eq!(declarations.functions, vec![rcstr!("GET")]);
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&declarations.values["Version"])?["value"],
+        serde_json::json!({
+            "kind": "string",
+            "pos": format!("{directory}/handler.go:2:17"),
+            "value": "v1",
+        })
+    );
     assert!(declarations.syntax_errors.is_empty());
     let generated = BTreeMap::from([(
         RcStr::from(format!("{directory}/generated.go")),
@@ -1538,9 +1552,13 @@ async fn analyzed_sources_and_generated_dispatch_share_one_identity() -> Result<
                             .resolve()
                             .strongly_consistent()
                             .await?;
-                            let declarations = selected_declarations(sources, options.clone())
-                                .read_strongly_consistent()
-                                .await?;
+                            let declarations = selected_declarations(
+                                sources,
+                                options.clone(),
+                                vec![format!("{directory}/handler.go").into()],
+                            )
+                            .read_strongly_consistent()
+                            .await?;
                             assert_eq!(declarations.functions, vec![rcstr!("GET")]);
                             selected_bundle(sources, options.clone(), generated.clone())
                                 .read_strongly_consistent()
@@ -1585,21 +1603,32 @@ async fn analyzed_sources_and_generated_dispatch_share_one_identity() -> Result<
         })
         .await?;
     let current = capture().await?;
-    let declarations = session
+    let (both, entrypoint) = session
         .tt
         .run_once({
             let options = options.clone();
             async move {
-                selected_declarations(current, options)
+                let analyze = |files: &[&str]| {
+                    selected_declarations(
+                        current,
+                        options.clone(),
+                        files
+                            .iter()
+                            .map(|file| format!("{directory}/{file}").into())
+                            .collect(),
+                    )
                     .read_strongly_consistent()
-                    .await
+                };
+                anyhow::Ok((
+                    analyze(&["handler.go", "other_windows.go"]).await?,
+                    analyze(&["handler.go"]).await?,
+                ))
             }
         })
         .await?;
-    assert_eq!(
-        declarations.functions,
-        vec![rcstr!("DELETE"), rcstr!("GET")]
-    );
+    assert_eq!(both.functions, vec![rcstr!("DELETE"), rcstr!("GET")]);
+    // Selected siblings are compiled but only the requested files are parsed.
+    assert_eq!(entrypoint.functions, vec![rcstr!("GET")]);
     // Creating a nearer go.mod must reselect the module even though no source bytes changed.
     session
         .write(
