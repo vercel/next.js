@@ -319,6 +319,25 @@ describe('switchyard-go', () => {
       expect(getHeader(res, 'content-encoding')).toBeUndefined()
     })
 
+    it('passes on the hop-by-hop headers the handler sets', async () => {
+      // The first request starts the worker through Node; the second can go
+      // to the worker directly.
+      await send('/go/hop')
+      const res = await send('/go/hop')
+      expect(res.status).toBe(200)
+      expect(Object.fromEntries(res.headers)).toMatchObject({
+        'keep-alive': 'timeout=7',
+        'proxy-authenticate': 'Basic realm="switchyard"',
+        'proxy-authorization': 'Basic c3dpdGNoeWFyZA==',
+        'proxy-connection': 'keep-alive',
+        te: 'trailers',
+        upgrade: 'h2c',
+        'x-hop': 'listed',
+      })
+      expect(getHeader(res, 'connection')).toBe('close')
+      expect(res.body.toString()).toBe('hop')
+    })
+
     it('drops the trailer values the handler sends', async () => {
       const trailers = await responseTrailers(
         Number(next.appPort),
