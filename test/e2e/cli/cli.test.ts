@@ -697,6 +697,48 @@ describe('CLI Usage', () => {
       }
     })
 
+    test("--inspect keeps NODE_OPTIONS='--inspect-publish-uid=stderr'", async () => {
+      const port = await findPort()
+      const debuggerPort = await findPort()
+      let output = ''
+      let errOutput = ''
+      const { child, exit } = await launchDevServer(
+        [
+          'dev',
+          next.testDir,
+          '--port',
+          String(port),
+          '--inspect',
+          String(debuggerPort),
+        ],
+        {
+          onStdout(msg) {
+            output += stripAnsi(msg)
+          },
+          onStderr(msg) {
+            errOutput += stripAnsi(msg)
+          },
+          env: { NODE_OPTIONS: '--inspect-publish-uid=stderr' },
+        }
+      )
+      try {
+        await retry(() => {
+          expect(output).toMatch(
+            new RegExp(`- Debugger port:\\s+${debuggerPort}`)
+          )
+        })
+        await retry(() => {
+          expect(errOutput).toMatch(/Debugger listening on/)
+        })
+        // The debugger id is only published on stderr, not over HTTP.
+        const res = await fetch(`http://127.0.0.1:${debuggerPort}/json/list`)
+        expect(res.status).toBe(404)
+      } finally {
+        await killApp(child)
+        await exit.catch(() => {})
+      }
+    })
+
     test('--inspect [port]', async () => {
       const port = await findPort()
       let output = ''

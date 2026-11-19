@@ -532,15 +532,23 @@ const nextDev = async (
               : parentDebugger.address.port + 1,
         }
         nodeOptions[nodeDebugType] = formatDebugAddress(address)
-        if (parentDebugger.publishUid !== undefined) {
-          nodeOptions['inspect-publish-uid'] = parentDebugger.publishUid
-        }
       } else if (options.inspect) {
         const address: DebugAddress =
           options.inspect === true
             ? getParsedDebugAddress(true)
             : options.inspect
         nodeOptions.inspect = formatDebugAddress(address)
+      }
+      // Keep an inherited publish-uid restriction (e.g. stderr only) for
+      // whichever inspector the server gets.
+      if (
+        nodeOptions.inspect !== undefined ||
+        nodeOptions['inspect-brk'] !== undefined ||
+        nodeOptions['inspect-wait'] !== undefined
+      ) {
+        if (parentDebugger.publishUid !== undefined) {
+          nodeOptions['inspect-publish-uid'] = parentDebugger.publishUid
+        }
       }
 
       const { nodeOptions: formattedNodeOptions, execArgv } =

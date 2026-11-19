@@ -304,14 +304,15 @@ export interface EffectiveDebugOptions {
 }
 
 /**
- * The debugger settings this process runs with. Where the inspector listens
- * comes from Node.js itself (`inspector.url()`, or `process.debugPort` when it
- * failed to start), since its option grammar (host-only and port-only values,
- * aliases) is easy to get subtly wrong. The flags are only used for what
- * Node.js doesn't report: which flag enabled it (`--no-inspect` only cancels
- * `--inspect`), the publish-uid setting, and whether a random port (0) was
- * requested. Flags are read like Node.js does: `NODE_OPTIONS` first, then the
- * command line, last occurrence winning.
+ * The debugger settings this process runs with. Whether the inspector runs
+ * and where it listens come from Node.js itself (`inspector.url()`, or
+ * `process.debugPort` when it failed to start), since its option grammar
+ * (host-only and port-only values, aliases, negations that differ between
+ * Node.js versions) is easy to get subtly wrong. The flags are only used for
+ * what Node.js doesn't report: which flag enabled it, the publish-uid
+ * setting, and whether a random port (0) was requested. Flags are read like
+ * Node.js does: `NODE_OPTIONS` first, then the command line, last occurrence
+ * winning.
  *
  * @param inspectorUrl The running inspector's URL (for tests).
  * @param debugPort Node.js's resolved inspector port (for tests).
@@ -333,6 +334,10 @@ export function getEffectiveDebugOptions({
   let inspect = false
   let inspectBrk = false
   let inspectWait = false
+  // Whether any `--no-inspect*` negation was given. How they combine differs
+  // between Node.js versions (e.g. `--inspect-brk --no-inspect` disables the
+  // inspector in 20.9 but not in later versions).
+  let negated = false
   // The last address value given, to detect a requested random port.
   let lastAddress: string | undefined
   for (const [args, separateValues] of [
@@ -363,14 +368,21 @@ export function getEffectiveDebugOptions({
       if (name === 'inspect') {
         inspect = true
         if (value !== undefined) lastAddress = value
-      } else if (name === 'no-inspect') {
-        inspect = false
       } else if (name === 'inspect-brk') {
         inspectBrk = true
         if (value !== undefined) lastAddress = value
       } else if (name === 'inspect-wait') {
         inspectWait = true
         if (value !== undefined) lastAddress = value
+      } else if (name === 'no-inspect') {
+        inspect = false
+        negated = true
+      } else if (name === 'no-inspect-brk') {
+        inspectBrk = false
+        negated = true
+      } else if (name === 'no-inspect-wait') {
+        inspectWait = false
+        negated = true
       } else if (name === 'inspect-port') {
         if (value !== undefined) lastAddress = value
       } else if (name === 'inspect-publish-uid') {
@@ -379,17 +391,28 @@ export function getEffectiveDebugOptions({
     }
   }
 
-  const enabled = inspect || inspectBrk || inspectWait
-  if (!enabled && !inspectorUrl) {
-    return result
-  }
-  result.type = inspectBrk
+  const flagType = inspectBrk
     ? 'inspect-brk'
     : inspect
       ? 'inspect'
-      : includeWait && inspectWait
+      : inspectWait
         ? 'inspect-wait'
         : undefined
+  if (!inspectorUrl) {
+    // Not running. Only treat that as a failed start (e.g. its port was
+    // taken) when the flags clearly enable it; otherwise it's disabled.
+    if (flagType === undefined || negated) {
+      return result
+    }
+  }
+  result.type =
+    flagType === 'inspect-wait'
+      ? includeWait
+        ? 'inspect-wait'
+        : undefined
+      : // Running without an enabling flag left, e.g. `--inspect-brk
+        // --no-inspect-brk`, which still starts it without breaking.
+        (flagType ?? 'inspect')
   const randomPort = lastAddress !== undefined && /(^|:)0$/.test(lastAddress)
   if (!inspectorUrl) {
     // Enabled, but it didn't start (e.g. its port was taken). Node.js doesn't

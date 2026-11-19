@@ -192,14 +192,58 @@ describe('getEffectiveDebugOptions', () => {
         publishUid: undefined,
       })
     })
-    // `--no-inspect` only cancels `--inspect`, like in Node.js.
+    // When it's running, `--no-inspect` doesn't cancel `--inspect-brk` (as
+    // in Node.js 20.20+).
     process.env.NODE_OPTIONS = '--inspect-brk'
     withExecArgv(['--no-inspect'], () => {
       expect(
-        getEffectiveDebugOptions({ inspectorUrl: undefined, debugPort: 9229 })
-          .type
+        getEffectiveDebugOptions({ inspectorUrl: url('127.0.0.1:9229') }).type
       ).toBe('inspect-brk')
     })
+  })
+
+  it('treats a negated inspector that is not running as disabled', () => {
+    // Node.js versions disagree on which negations cancel which flag, so any
+    // negation means "not a failed start".
+    for (const [nodeOptions, execArgv] of [
+      ['--inspect-brk', ['--no-inspect']],
+      ['--inspect-brk', ['--no-inspect-brk']],
+      ['--inspect-brk', ['--no_inspect_brk']],
+      ['--inspect-wait', ['--no-inspect-wait']],
+      ['--inspect --inspect-brk', ['--no-inspect-brk']],
+    ] as const) {
+      process.env.NODE_OPTIONS = nodeOptions
+      withExecArgv([...execArgv], () => {
+        expect(
+          getEffectiveDebugOptions({
+            includeWait: true,
+            inspectorUrl: undefined,
+            debugPort: 9229,
+          })
+        ).toEqual({
+          type: undefined,
+          address: undefined,
+          publishUid: undefined,
+        })
+      })
+    }
+  })
+
+  it('reports a running inspector whose break or wait was negated as --inspect', () => {
+    for (const nodeOptions of [
+      '--inspect-brk=127.0.0.1:9300 --no-inspect-brk',
+      '--inspect-wait=127.0.0.1:9300 --no-inspect-wait',
+    ]) {
+      process.env.NODE_OPTIONS = nodeOptions
+      withExecArgv([], () => {
+        expect(
+          getEffectiveDebugOptions({
+            includeWait: true,
+            inspectorUrl: url('127.0.0.1:9300'),
+          }).type
+        ).toBe('inspect')
+      })
+    }
   })
 
   it('reads the flag type and publish-uid in order, with aliases', () => {
