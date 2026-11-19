@@ -1059,22 +1059,22 @@ export async function isPageStatic({
 
         const route = parseNormalizedAppRoute(page)
 
+        let pathname = normalizeAppPath(page)
+        if (pathname.endsWith('/route')) {
+          pathname = pathname.slice(0, -'/route'.length)
+        }
+
+        // A user's `route.ts` can share a static metadata file's pathname,
+        // e.g. `app/[site]/sitemap.xml/route.ts`, but it is not one.
+        isStaticMetadataFileRoute =
+          routeModule.definition.kind === RouteKind.APP_ROUTE &&
+          routeModule.definition.filename !== 'route' &&
+          isStaticMetadataFile(pathname)
+
         // If the page is dynamic and we're not in edge runtime, then we need to
         // build the static paths. The edge runtime doesn't support static
         // paths.
         if (route.dynamicSegments.length > 0 && !pathIsEdgeRuntime) {
-          let pathname = normalizeAppPath(page)
-          if (pathname.endsWith('/route')) {
-            pathname = pathname.slice(0, -'/route'.length)
-          }
-
-          // A user's `route.ts` can share a static metadata file's pathname,
-          // e.g. `app/[site]/sitemap.xml/route.ts`, but it is not one.
-          isStaticMetadataFileRoute =
-            routeModule.definition.kind === RouteKind.APP_ROUTE &&
-            routeModule.definition.filename !== 'route' &&
-            isStaticMetadataFile(pathname)
-
           if (isStaticMetadataFileRoute) {
             ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
               buildStaticMetadataStaticPaths(page))

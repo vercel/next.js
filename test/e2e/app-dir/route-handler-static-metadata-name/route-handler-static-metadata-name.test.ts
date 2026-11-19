@@ -1,9 +1,12 @@
+import type { NextAdapter } from 'next'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('route-handler-static-metadata-name', () => {
-  const { next, isNextStart, skipped } = nextTestSetup({
-    files: __dirname,
-  })
+  const { next, isNextStart, isNextDev, isNextDeploy, skipped } = nextTestSetup(
+    {
+      files: __dirname,
+    }
+  )
 
   if (skipped) {
     return
@@ -29,6 +32,35 @@ describe('route-handler-static-metadata-name', () => {
 
       // A real static metadata file still prerenders once to the placeholder.
       expect(routes).toContain('/-/static/sitemap.xml')
+    })
+  }
+
+  if (!isNextDev && !isNextDeploy) {
+    it('should classify route handlers named like static metadata files as route handlers in adapter outputs', async () => {
+      const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
+        await next.readJSON('build-complete.json')
+      const pathnames = (items: Array<{ pathname: string }>) =>
+        items.map((item) => item.pathname)
+
+      expect(pathnames(outputs.appRoutes)).toEqual(
+        expect.arrayContaining([
+          '/[siteName]/sitemap.xml',
+          '/[siteName]/gsp/sitemap.xml',
+        ])
+      )
+      expect(pathnames(outputs.prerenders)).toEqual(
+        expect.arrayContaining([
+          '/[siteName]/gsp/sitemap.xml',
+          '/a/gsp/sitemap.xml',
+          '/b/gsp/sitemap.xml',
+        ])
+      )
+      expect(pathnames(outputs.staticFiles)).toEqual(
+        expect.not.arrayContaining(['/a/gsp/sitemap.xml', '/b/gsp/sitemap.xml'])
+      )
+
+      // A real static metadata file is still emitted once as a static file.
+      expect(pathnames(outputs.staticFiles)).toContain('/-/static/sitemap.xml')
     })
   }
 

@@ -4842,6 +4842,7 @@ export default async function build(
               adapterPath,
               pageKeys: pageKeys.pages,
               appPageKeys: emittedAppPageKeys,
+              staticMetadataFilePages,
               routesManifest,
               prerenderManifest,
               middlewareManifest,
