@@ -1417,7 +1417,12 @@ export function createAppPageEntrypoint({
                       ? fallbackRouteParams
                       : incomingStagedFallbackParams,
                     renderOperation: 'prerender',
-                    allowEmptyStaticShell: isInstantNavigationTest || undefined,
+                    allowEmptyStaticShell:
+                      isInstantNavigationTest ||
+                      (typeof prerenderInfo?.throwOnEmptyStaticShell ===
+                      'boolean'
+                        ? !prerenderInfo.throwOnEmptyStaticShell
+                        : undefined),
                   }),
                 waitUntil: ctx.waitUntil,
                 isMinimalMode,
