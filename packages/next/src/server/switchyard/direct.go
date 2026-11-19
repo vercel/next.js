@@ -337,8 +337,12 @@ func (b *guardedBody) Read(p []byte) (int, error) {
 
 func (b *guardedBody) Close() error { return nil }
 
-// WriteHeader writes the status line and headers.
+// WriteHeader hides 1xx responses (such as 103 Early Hints) from the client:
+// Go's proxy passes them on, Node doesn't.
 func (a *directAttempt) WriteHeader(code int) {
+	if code >= 100 && code < 200 {
+		return
+	}
 	// The proxy clears the header map after each 1xx response, which also
 	// removes the marker that stops Go from guessing a Content-Type.
 	if _, ok := a.Header()["Content-Type"]; !ok {

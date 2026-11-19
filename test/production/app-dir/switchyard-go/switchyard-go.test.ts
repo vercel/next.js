@@ -260,9 +260,6 @@ describe('switchyard-go', () => {
       }
     )
 
-    // TODO: on the direct path, Switchyard passes on the 103 Early Hints
-    // response, which Node drops.
-    // @gate !switchyard
     it('drops early hints, keeps repeated Set-Cookie and the Trailer header', async () => {
       const res = await send('/go/extras')
       expect(res.status).toBe(200)

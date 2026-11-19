@@ -357,3 +357,20 @@ func TestADirectAnswerSentMidUploadClosesTheConnection(t *testing.T) {
 		t.Fatalf("status %d, close %v", res.StatusCode, res.Close)
 	}
 }
+
+func TestADirectResponseDropsEarlyHintsAsNodeDoes(t *testing.T) {
+	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Link", "</a.css>; rel=preload")
+		w.WriteHeader(http.StatusEarlyHints)
+		w.Header()["Content-Type"] = nil
+		io.WriteString(w, "<html>go</html>")
+	})
+	res := fx.raw(t, "GET /api/echo HTTP/1.1")
+	if !strings.HasPrefix(res, "HTTP/1.1 200 OK\r\n") {
+		t.Fatalf("first status line isn't the final response: %q", res)
+	}
+	// Go's server would guess text/html; Node sends no Content-Type.
+	if strings.Contains(res, "Content-Type") {
+		t.Errorf("Content-Type after an early hint: %q", res)
+	}
+}
