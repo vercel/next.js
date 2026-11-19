@@ -287,8 +287,11 @@ export function getParsedNodeOptions(): NodeOptions {
 }
 
 export interface EffectiveDebugOptions {
-  /** `--inspect` or `--inspect-brk`, if the process is debugged with one */
-  type: NodeInspectType
+  /**
+   * `--inspect` or `--inspect-brk`, if the process is debugged with one, or
+   * `--inspect-wait` when `includeWait` is set and neither is given
+   */
+  type: NodeInspectType | 'inspect-wait'
   /** The effective `[host:]port`, if one was given */
   address: string | undefined
   /** The effective `--inspect-publish-uid` value, if one was given */
@@ -298,15 +301,20 @@ export interface EffectiveDebugOptions {
 /**
  * The debugger settings this process runs with, resolved like Node.js does:
  * `NODE_OPTIONS` first, then the command line, with the last occurrence
- * winning. `--inspect-port` sets the address too, a port-only value keeps the
- * earlier host, and `_` / `-` spellings are equivalent.
+ * winning. Every address flag (`--inspect`, `--inspect-brk`,
+ * `--inspect-wait`, `--inspect-port` and its `--debug-port` alias) sets the
+ * address, a port-only value keeps the earlier host, and `_` / `-` spellings
+ * are equivalent.
  */
-export function getEffectiveDebugOptions(): EffectiveDebugOptions {
+export function getEffectiveDebugOptions({
+  includeWait = false,
+}: { includeWait?: boolean } = {}): EffectiveDebugOptions {
   const result: EffectiveDebugOptions = {
     type: undefined,
     address: undefined,
     publishUid: undefined,
   }
+  let sawWait = false
   let host: string | undefined
   let port: string | undefined
   const setAddress = (value: string) => {
@@ -326,12 +334,15 @@ export function getEffectiveDebugOptions(): EffectiveDebugOptions {
     for (let i = 0; i < args.length; i++) {
       const match = /^--([^=]+)(?:=(.*))?$/.exec(args[i])
       if (!match) continue
-      const name = match[1].replace(/_/g, '-')
+      let name = match[1].replace(/_/g, '-')
+      if (name === 'debug-port') name = 'inspect-port'
       let value: string | undefined = match[2]
+      const isActivation =
+        name === 'inspect' || name === 'inspect-brk' || name === 'inspect-wait'
       const takesSeparateValue =
         name === 'inspect-port' ||
         name === 'inspect-publish-uid' ||
-        (separateValues && (name === 'inspect' || name === 'inspect-brk'))
+        (separateValues && isActivation)
       if (
         value === undefined &&
         takesSeparateValue &&
@@ -343,12 +354,18 @@ export function getEffectiveDebugOptions(): EffectiveDebugOptions {
       if (name === 'inspect' || name === 'inspect-brk') {
         result.type = name
         if (value !== undefined) setAddress(value)
-      } else if (name === 'inspect-port' || name === 'debug-port') {
+      } else if (name === 'inspect-wait') {
+        sawWait = true
+        if (value !== undefined) setAddress(value)
+      } else if (name === 'inspect-port') {
         if (value !== undefined) setAddress(value)
       } else if (name === 'inspect-publish-uid') {
         result.publishUid = value
       }
     }
+  }
+  if (result.type === undefined && includeWait && sawWait) {
+    result.type = 'inspect-wait'
   }
   if (port !== undefined) {
     result.address = host ? `${host}:${port}` : port

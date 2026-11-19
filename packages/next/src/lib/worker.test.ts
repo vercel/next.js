@@ -760,6 +760,25 @@ describe('lib/worker env configuration', () => {
         '--inspect=127.0.0.1:9311'
       )
       expect(latestPoolOptions?.forkOptions?.execArgv).toEqual([])
+
+      // A later loopback `--debug-port` (separate value) wins over a wildcard
+      // `--inspect-port`, and no stale address reaches the worker.
+      process.execArgv = [
+        '--inspect',
+        '--inspect-port=0.0.0.0:9320',
+        '--debug-port',
+        '127.0.0.1:9330',
+      ]
+      process.env.NODE_OPTIONS = '--inspect-port=0.0.0.0:9340'
+      worker = new Worker(__filename, {
+        ...noopOptions,
+        debuggerPortOffset: 0,
+      })
+      worker.shutdownNow()
+      expect(latestPoolOptions?.forkOptions?.env?.NODE_OPTIONS).toBe(
+        '--inspect=127.0.0.1:9331'
+      )
+      expect(latestPoolOptions?.forkOptions?.execArgv).toEqual([])
     } finally {
       process.execArgv = originalExecArgv
     }

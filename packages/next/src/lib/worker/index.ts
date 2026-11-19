@@ -184,6 +184,14 @@ function buildWorkerEnv(options: BuildWorkerEnvOptions): {
   // `?? ''`: an explicit `NODE_OPTIONS: undefined` in forkOptions.env removes
   // the parent's value instead of falling back to it.
   const nodeOptions = getParsedNodeOptionsWithoutInspect(env.NODE_OPTIONS ?? '')
+  // Also drop the other debugger options (`--inspect-port`, `--debug-port`,
+  // `--inspect-publish-uid`, ...): a stale address must not outlive the one
+  // re-attached below.
+  for (const key of Object.keys(nodeOptions)) {
+    if (/^(debug|inspect)/.test(key)) {
+      delete nodeOptions[key]
+    }
+  }
   const inheritedExecArgv = removeFlags(
     process.execArgv,
     (arg) =>

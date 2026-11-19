@@ -195,6 +195,39 @@ describe('getEffectiveDebugOptions', () => {
       })
     })
   })
+
+  it('applies a later loopback --debug-port with a separate value', () => {
+    process.env.NODE_OPTIONS = ''
+    withExecArgv(
+      [
+        '--inspect',
+        '--inspect-port=0.0.0.0:9300',
+        '--debug_port',
+        '127.0.0.1:9301',
+      ],
+      () => {
+        expect(getEffectiveDebugOptions()).toEqual({
+          type: 'inspect',
+          address: '127.0.0.1:9301',
+          publishUid: undefined,
+        })
+      }
+    )
+  })
+
+  it('applies a later loopback --inspect-port to --inspect-wait', () => {
+    process.env.NODE_OPTIONS =
+      '--inspect-wait=0.0.0.0:9300 --inspect-port=127.0.0.1:9300'
+    withExecArgv([], () => {
+      // Only reported as the debug type when asked for.
+      expect(getEffectiveDebugOptions().type).toBeUndefined()
+      expect(getEffectiveDebugOptions({ includeWait: true })).toEqual({
+        type: 'inspect-wait',
+        address: '127.0.0.1:9300',
+        publishUid: undefined,
+      })
+    })
+  })
 })
 
 describe('getFormattedNodeOptionsWithoutInspect', () => {

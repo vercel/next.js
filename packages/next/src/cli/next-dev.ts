@@ -6,6 +6,7 @@ import type { StartServerOptions } from '../server/lib/start-server'
 import {
   RESTART_EXIT_CODE,
   getNodeDebugType,
+  getEffectiveDebugOptions,
   getParsedDebugAddress,
   getMaxOldSpaceSize,
   printAndExit,
@@ -512,23 +513,28 @@ const nextDev = async (
       // fails to bind and doesn't wait. (Handled here rather than in the shared
       // `getNodeDebugType`, which also decides which build workers attach a
       // debugger.)
-      const inspectWait =
-        nodeOptions['inspect-wait'] ?? nodeOptions['inspect_wait']
       const nodeDebugType =
         getNodeDebugType(nodeOptions) ??
-        (inspectWait !== undefined ? 'inspect-wait' : undefined)
-      const originalAddress =
-        nodeDebugType === 'inspect-wait'
-          ? inspectWait
-          : nodeDebugType === undefined
-            ? undefined
-            : nodeOptions[nodeDebugType]
+        (nodeOptions['inspect-wait'] !== undefined ||
+        nodeOptions['inspect_wait'] !== undefined
+          ? 'inspect-wait'
+          : undefined)
+      // The address Node.js actually uses for the parent, including later
+      // `--inspect-port` overrides, so the server keeps the same host.
+      const originalAddress = getEffectiveDebugOptions({
+        includeWait: true,
+      }).address
       delete nodeOptions.inspect
       delete nodeOptions['inspect-brk']
       delete nodeOptions['inspect_brk']
       delete nodeOptions['inspect-wait']
       delete nodeOptions['inspect_wait']
       if (nodeDebugType !== undefined) {
+        // Folded into the relocated flag below.
+        delete nodeOptions['inspect-port']
+        delete nodeOptions['inspect_port']
+        delete nodeOptions['debug-port']
+        delete nodeOptions['debug_port']
         const address = getParsedDebugAddress(originalAddress)
         address.port = address.port === 0 ? 0 : address.port + 1
         nodeOptions[nodeDebugType] = formatDebugAddress(address)
