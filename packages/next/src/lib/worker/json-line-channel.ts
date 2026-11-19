@@ -5,9 +5,9 @@
  * `JSON.stringify` per message, one message per line. JSON escapes newlines
  * inside strings, so a raw newline always ends a message.
  */
-import type { Socket } from 'net'
+import type { Duplex } from 'stream'
 
-export function writeJsonLine(socket: Socket, message: unknown): void {
+export function writeJsonLine(socket: Duplex, message: unknown): void {
   socket.write(JSON.stringify(message) + '\n')
 }
 
@@ -19,7 +19,7 @@ export function writeJsonLine(socket: Socket, message: unknown): void {
  * data handler.
  */
 export function readJsonLines(
-  socket: Socket,
+  socket: Duplex,
   onMessage: (message: unknown) => void
 ): void {
   let buffered = ''

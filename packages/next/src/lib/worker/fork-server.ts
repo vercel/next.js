@@ -19,11 +19,11 @@
  *
  * Only supported where pipe handles can be passed over IPC (not on Windows).
  */
-import { fork, type ChildProcess } from 'child_process'
+import { fork, type ChildProcess, type Serializable } from 'child_process'
 import { EventEmitter } from 'events'
 import type { Socket } from 'net'
 import path from 'path'
-import { PassThrough } from 'stream'
+import { PassThrough, type Duplex, type Readable } from 'stream'
 import { readJsonLines, writeJsonLine } from './json-line-channel'
 
 /**
@@ -81,11 +81,11 @@ export class ForkServerWorkerProcess extends EventEmitter {
   pid: number | undefined
 
   /** The pipes `stdout`/`stderr` are read from, once they arrived */
-  private _outputSources: Partial<Record<OutputName, Socket>> = {}
+  private _outputSources: Partial<Record<OutputName, WorkerPipe>> = {}
 
-  private _channel: Socket | undefined
+  private _channel: Duplex | undefined
   private _forked: ChildProcess | undefined
-  private _pendingMessages: unknown[] | undefined = []
+  private _pendingMessages: Serializable[] | undefined = []
   private _pendingKillSignal: NodeJS.Signals | undefined
   private _settled = false
 
@@ -106,12 +106,12 @@ export class ForkServerWorkerProcess extends EventEmitter {
   private _createOutput(name: OutputName): PassThrough & { unref(): void } {
     return Object.assign(new PassThrough(), {
       unref: () => {
-        this._outputSources[name]?.unref()
+        this._outputSources[name]?.unref?.()
       },
     })
   }
 
-  private _attachOutput(name: OutputName, source: Socket): void {
+  private _attachOutput(name: OutputName, source: WorkerPipe): void {
     this._outputSources[name] = source
     const output = this[name]
     source.pipe(output)
@@ -129,9 +129,12 @@ export class ForkServerWorkerProcess extends EventEmitter {
   }
 
   /** Same signature as `ChildProcess.send()`; the callback is never called with an error. */
-  send(message: unknown, callback?: (error: Error | null) => void): boolean {
+  send(
+    message: Serializable,
+    callback?: (error: Error | null) => void
+  ): boolean {
     if (this._forked) {
-      return this._forked.send(message as any, callback ?? (() => {}))
+      return this._forked.send(message, callback ?? (() => {}))
     }
     if (this._pendingMessages) {
       this._pendingMessages.push(message)
@@ -173,7 +176,10 @@ export class ForkServerWorkerProcess extends EventEmitter {
   }
 
   /** @internal */
-  _setChannel(channel: WorkerChannelName, socket: Socket): void {
+  _setChannel(
+    channel: WorkerChannelName,
+    socket: Duplex & Pick<WorkerPipe, 'unref'>
+  ): void {
     if (this._settled) {
       socket.destroy()
       return
@@ -251,7 +257,7 @@ export class ForkServerWorkerProcess extends EventEmitter {
     this._forked = child
     this.pid = child.pid
     for (const name of OUTPUT_NAMES) {
-      const source = child[name] as Socket | null
+      const source = child[name]
       if (source) this._attachOutput(name, source)
       else endStream(this[name])
     }
@@ -266,7 +272,7 @@ export class ForkServerWorkerProcess extends EventEmitter {
       this.emit('error', error)
     })
     for (const message of this._pendingMessages ?? []) {
-      child.send(message as any, () => {})
+      child.send(message, () => {})
     }
     this._pendingMessages = undefined
     if (this._pendingKillSignal) {
@@ -276,6 +282,12 @@ export class ForkServerWorkerProcess extends EventEmitter {
 }
 
 type OutputName = 'stdout' | 'stderr'
+
+/**
+ * A worker's stdout/stderr pipe: the socket passed from the fork server, or
+ * the stream of a forked fallback. Sockets can be unref'd.
+ */
+type WorkerPipe = Readable & { unref?(): unknown }
 const OUTPUT_NAMES: readonly OutputName[] = ['stdout', 'stderr']
 
 function endStream(stream: PassThrough): void {
