@@ -2,9 +2,6 @@ import { FileRef, nextTestSetup } from 'e2e-utils'
 import { gate, retry } from 'next-test-utils'
 import { join } from 'node:path'
 
-// The testing API exposure is decided by Next.js at build/render time, so
-// start mode covers it; deploy mode adds no coverage here.
-// @force-gate !deploy
 describe('instant-testing-api-exposure', () => {
   const { next } = nextTestSetup({ files: __dirname })
 
