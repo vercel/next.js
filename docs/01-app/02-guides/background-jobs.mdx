@@ -138,6 +138,8 @@ export const config = {
 }
 ```
 
+> **Good to know:** `withWorkflow` processes the `"use workflow"` and `"use step"` directives at build time, and the output runs like any other Route Handler. So you can deploy your app anywhere Next.js runs. See [Deploying](#deploying) for where Workflow SDK stores runs on each platform.
+
 ### Step 2: Write a workflow
 
 Create a workflow that signs up a user, sends a welcome email, and sends a follow-up three days later:
@@ -226,7 +228,7 @@ async function sendFollowUpEmail(email) {
 
 > **Good to know:**
 >
-> - The workflow function runs in a sandbox and is replayed to restore its state, so keep side effects such as database calls and network requests in steps.
+> - The workflow function runs in a deterministic Node.js VM inside your app, not on a separate machine, and is replayed to restore its state. Keep side effects such as database calls and network requests in steps. See [Workflows and steps](https://workflow-sdk.dev/docs/how-it-works/understanding-directives#workflows-and-steps-primer).
 > - Each step runs within a single function invocation, so split work that takes longer than your platform's maximum function duration into several steps.
 > - Workflow arguments and step results are saved, so they must be serializable.
 > - A step can run more than once, for example when it fails after writing to the database but before its result is saved. Write steps so that running them again is safe. See [Idempotency](https://workflow-sdk.dev/docs/foundations/idempotency).
@@ -413,7 +415,7 @@ Workflow SDK records every run, step, retry, and sleep. During development, run 
 npx workflow web
 ```
 
-When you deploy to Vercel, runs appear in your project's dashboard.
+When you deploy to Vercel, runs appear in your project's dashboard. Your hosting provider may have a dedicated dashboard for workflows.
 
 ## Deploying
 
