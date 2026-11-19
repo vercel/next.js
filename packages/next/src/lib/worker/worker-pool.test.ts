@@ -1315,7 +1315,7 @@ describe('WorkerPool', () => {
           inheritedExecArgv: ['--max-old-space-size=3000'],
         })
         pool.dispatch('doWork', []).catch(() => {})
-        expect(threadMock().mock.calls[0][1].execArgv).toBeUndefined()
+        expect(threadMock().mock.calls[0][1]?.execArgv).toBeUndefined()
         pool.shutdownNow()
       }))
 
@@ -1336,7 +1336,7 @@ describe('WorkerPool', () => {
         })
         pool.dispatch('doWork', []).catch(() => {})
         pool.dispatch('doWork', []).catch(() => {})
-        const calls = threadMock().mock.calls.map((c) => c[1].execArgv)
+        const calls = threadMock().mock.calls.map((c) => c[1]?.execArgv)
         expect(calls).toEqual([
           ['--max-old-space-size=3000', '--conditions=foo'],
           ['--conditions=foo'],
@@ -1401,7 +1401,7 @@ describe('WorkerPool', () => {
           await expect(pool.dispatch('doWork', [])).rejects.toThrow(
             'invalid execArgv flags: --conditions=foo'
           )
-          const calls = threadMock().mock.calls.map((c) => c[1].execArgv)
+          const calls = threadMock().mock.calls.map((c) => c[1]?.execArgv)
           expect(calls).not.toContainEqual(undefined)
           expect(spawnedProcesses).toHaveLength(0)
           pool.shutdownNow()
