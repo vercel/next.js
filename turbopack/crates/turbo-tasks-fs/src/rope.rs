@@ -48,11 +48,11 @@ pub struct Rope {
 /// An Arc container for ropes. This indirection allows for easily sharing the
 /// contents between Ropes (and also RopeBuilders/RopeReaders).
 #[derive(Clone, Debug)]
-pub(crate) struct InnerRope(Arc<Vec<RopeElem>>);
+struct InnerRope(Arc<Vec<RopeElem>>);
 
 /// Differentiates the types of stored bytes in a rope.
 #[derive(Clone, Debug)]
-pub(crate) enum RopeElem {
+enum RopeElem {
     /// Local bytes are owned directly by this rope.
     Local(Bytes),
 
@@ -68,7 +68,7 @@ pub(crate) enum RopeElem {
 /// Creating one only records the rope and the range. The sections covering the remaining bytes
 /// are computed the first time they are read, and cached.
 #[derive(Debug)]
-pub(crate) struct SkippedRope {
+struct SkippedRope {
     rope: InnerRope,
     range: Range<usize>,
     /// The number of remaining bytes. Never zero.
@@ -184,19 +184,6 @@ impl Rope {
                 len,
                 remaining: OnceLock::new(),
             }))]),
-        }
-    }
-
-    /// The rope's contents without its length. See [`crate::CellRope`].
-    pub(crate) fn into_inner(self) -> InnerRope {
-        self.data
-    }
-
-    /// Rebuilds a rope from contents taken with [`Rope::into_inner`].
-    pub(crate) fn from_inner(data: InnerRope) -> Self {
-        Rope {
-            length: data.byte_len(),
-            data,
         }
     }
 }
@@ -656,7 +643,7 @@ impl From<Vec<u8>> for Uncommitted {
 impl InnerRope {
     /// Total number of bytes, walking every section. Named so as not to shadow the element count
     /// `len` that `Deref` to the element vector provides.
-    pub(crate) fn byte_len(&self) -> usize {
+    fn byte_len(&self) -> usize {
         self.iter().map(|v| v.byte_len()).sum()
     }
 

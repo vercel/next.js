@@ -1,18 +1,12 @@
 //! [`CellRope`]: a rope whose contents are partly owned by other cells.
 
-use std::{future::Future, io::Write, pin::Pin};
+use std::io::Write;
 
 use anyhow::{Result, ensure};
-use bincode::{
-    Decode, Encode,
-    de::{Decoder, read::Reader as _},
-    enc::{Encoder, write::Writer as _},
-    error::{DecodeError, EncodeError},
-    impl_borrow_decode,
-};
-use turbo_tasks::{NonLocalValue, ResolvedVc, TryJoinIterExt};
+use bincode::{Decode, Encode};
+use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc};
 
-use crate::rope::{InnerRope, Rope, RopeBuilder};
+use crate::rope::{Rope, RopeBuilder};
 
 /// A rope made of inline bytes and references to [`Rope`] cells owned by other tasks.
 ///
@@ -39,7 +33,7 @@ pub struct CellRope {
 #[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 enum CellRopeSegment {
     /// Bytes owned by the `CellRope` itself (scaffolding between cells). Never empty.
-    Inline(InlineRope),
+    Inline(Rope),
     /// Bytes owned (and persisted) by another cell.
     Cell(ResolvedVc<Rope>),
     /// Bytes owned by another cell, without the range held by `skip` (if any), see
@@ -86,43 +80,6 @@ fn skip_range(rope: Rope, skip: &OptionByteRange) -> Result<Rope> {
     Ok(rope.skip(range))
 }
 
-/// The contents of an inline segment. Stored without its length, which is recomputed when the
-/// rope is read.
-#[derive(Clone, Debug, NonLocalValue)]
-struct InlineRope(#[turbo_tasks(unsafe_ignore)] InnerRope);
-
-impl PartialEq for InlineRope {
-    fn eq(&self, other: &Self) -> bool {
-        Rope::from_inner(self.0.clone()) == Rope::from_inner(other.0.clone())
-    }
-}
-
-impl Eq for InlineRope {}
-
-/// Encoded like a [`Rope`]: the length followed by the raw bytes.
-impl Encode for InlineRope {
-    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
-        let rope = Rope::from_inner(self.0.clone());
-        rope.len().encode(encoder)?;
-        for chunk in &mut rope.read() {
-            encoder.writer().write(chunk)?;
-        }
-        Ok(())
-    }
-}
-
-impl<Context> Decode<Context> for InlineRope {
-    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
-        let length = usize::decode(decoder)?;
-        decoder.claim_bytes_read(length)?;
-        let mut bytes = vec![0; length];
-        decoder.reader().read(&mut bytes)?;
-        Ok(InlineRope(Rope::from(bytes).into_inner()))
-    }
-}
-
-impl_borrow_decode!(InlineRope);
-
 impl CellRope {
     /// Reads every referenced cell (and nested rope) and concatenates the segments into a flat
     /// [`Rope`].
@@ -130,80 +87,72 @@ impl CellRope {
     /// This doesn't copy any bytes: the result shares the cells' buffers, and skipped ranges are
     /// left out with [`Rope::skip`]. If any cell fails to read (or a skipped range doesn't fit its
     /// cell), this fails too; a partial rope is never returned.
-    pub async fn read(&self) -> Result<Rope> {
-        self.read_segments(true).await
+    pub fn read(&self) -> impl IntoFuture<Output = Result<Rope>, IntoFuture: Send> + '_ {
+        self.read_segments(true)
     }
 
     /// Like [`CellRope::read`], but reads the cells without tracking a dependency on them.
-    pub async fn read_untracked(&self) -> Result<Rope> {
-        self.read_segments(false).await
+    pub fn read_untracked(&self) -> impl IntoFuture<Output = Result<Rope>, IntoFuture: Send> + '_ {
+        self.read_segments(false)
     }
 
-    fn read_segments(
-        &self,
-        tracked: bool,
-    ) -> Pin<Box<dyn Future<Output = Result<Rope>> + Send + '_>> {
-        Box::pin(async move {
-            let parts = self
-                .segments
-                .iter()
-                .map(async |segment| -> Result<Rope> {
-                    Ok(match segment {
-                        CellRopeSegment::Inline(inline) => Rope::from_inner(inline.0.clone()),
-                        CellRopeSegment::Cell(cell) => {
-                            if tracked {
-                                (*cell.await?).clone()
-                            } else {
-                                (*cell.untracked().await?).clone()
-                            }
-                        }
-                        CellRopeSegment::SkippedCell { cell, skip } => {
-                            let (rope, skip) = if tracked {
-                                ((*cell.await?).clone(), *skip.await?)
-                            } else {
-                                ((*cell.untracked().await?).clone(), *skip.untracked().await?)
-                            };
-                            skip_range(rope, &skip)?
-                        }
-                        CellRopeSegment::Nested(rope) => {
-                            let rope = if tracked {
-                                rope.await?
-                            } else {
-                                rope.untracked().await?
-                            };
-                            rope.read_segments(tracked).await?
-                        }
-                    })
-                })
-                .try_join()
-                .await?;
-            let mut builder = RopeBuilder::default();
-            for part in &parts {
-                builder.concat(part);
+    /// Reads the segments in order, appending each to the result as it is read. Nested ropes are
+    /// walked with an explicit stack instead of recursion.
+    async fn read_segments(&self, tracked: bool) -> Result<Rope> {
+        let mut builder = RopeBuilder::default();
+        let mut next = 0;
+        // Nested ropes being read, each with the index of its next segment.
+        let mut nested: Vec<(ReadRef<CellRope>, usize)> = Vec::new();
+        loop {
+            let segment = if let Some((rope, index)) = nested.last_mut() {
+                let Some(segment) = rope.segments.get(*index) else {
+                    nested.pop();
+                    continue;
+                };
+                *index += 1;
+                segment.clone()
+            } else {
+                let Some(segment) = self.segments.get(next) else {
+                    break;
+                };
+                next += 1;
+                segment.clone()
+            };
+            match segment {
+                CellRopeSegment::Inline(inline) => builder.concat(&inline),
+                CellRopeSegment::Cell(cell) => {
+                    let cell = if tracked {
+                        cell.await?
+                    } else {
+                        cell.untracked().await?
+                    };
+                    builder.concat(&cell);
+                }
+                CellRopeSegment::SkippedCell { cell, skip } => {
+                    let (cell, skip) = if tracked {
+                        (cell.await?, skip.await?)
+                    } else {
+                        (cell.untracked().await?, skip.untracked().await?)
+                    };
+                    builder.concat(&skip_range((*cell).clone(), &skip)?);
+                }
+                CellRopeSegment::Nested(rope) => {
+                    let rope = if tracked {
+                        rope.await?
+                    } else {
+                        rope.untracked().await?
+                    };
+                    nested.push((rope, 0));
+                }
             }
-            Ok(builder.build())
-        })
-    }
-
-    /// The number of cells this rope references directly (not counting nested ropes' cells).
-    pub fn cell_count(&self) -> usize {
-        self.segments
-            .iter()
-            .filter(|segment| {
-                matches!(
-                    segment,
-                    CellRopeSegment::Cell(_) | CellRopeSegment::SkippedCell { .. }
-                )
-            })
-            .count()
+        }
+        Ok(builder.build())
     }
 
     /// The rope's segments, in order, without reading any cells.
     pub fn parts(&self) -> impl Iterator<Item = CellRopePart> + '_ {
         self.segments.iter().map(|segment| match segment {
-            CellRopeSegment::Inline(inline) => {
-                CellRopePart::Inline(Rope::from_inner(inline.0.clone()))
-            }
+            CellRopeSegment::Inline(inline) => CellRopePart::Inline(inline.clone()),
             CellRopeSegment::Cell(cell) => CellRopePart::Cell {
                 cell: *cell,
                 skip: None,
@@ -283,9 +232,7 @@ impl CellRopeBuilder {
     pub fn append(&mut self, rope: &CellRope) {
         for segment in &rope.segments {
             match segment {
-                CellRopeSegment::Inline(inline) => {
-                    self.inline.concat(&Rope::from_inner(inline.0.clone()));
-                }
+                CellRopeSegment::Inline(inline) => self.inline.concat(inline),
                 CellRopeSegment::Cell(cell) => self.push_cell(*cell),
                 CellRopeSegment::SkippedCell { cell, skip } => {
                     self.push_cell_skipping(*cell, *skip)
@@ -298,8 +245,7 @@ impl CellRopeBuilder {
     fn flush_inline(&mut self) {
         let inline = std::mem::take(&mut self.inline).build();
         if !inline.is_empty() {
-            self.segments
-                .push(CellRopeSegment::Inline(InlineRope(inline.into_inner())));
+            self.segments.push(CellRopeSegment::Inline(inline));
         }
     }
 
@@ -336,6 +282,13 @@ mod tests {
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
     use super::*;
+
+    /// The number of cells `rope` references directly (not counting nested ropes' cells).
+    fn cell_count(rope: &CellRope) -> usize {
+        rope.parts()
+            .filter(|part| matches!(part, CellRopePart::Cell { .. }))
+            .count()
+    }
 
     #[turbo_tasks::value]
     struct Switch {
@@ -559,7 +512,7 @@ mod tests {
             .run_once(async {
                 let (rope, text) = read_skipping(Some((2, 4))).await?;
                 assert_eq!(text.as_str(), "abcefd");
-                assert_eq!(rope.cell_count(), 1);
+                assert_eq!(cell_count(&rope), 1);
                 assert!(
                     rope.parts()
                         .any(|part| matches!(part, CellRopePart::Cell { skip: Some(_), .. }))
@@ -618,17 +571,21 @@ mod tests {
         builder += "";
         let rope = builder.build();
         assert_eq!(rope.segments.len(), 1);
-        assert_eq!(rope.cell_count(), 0);
+        assert_eq!(cell_count(&rope), 0);
     }
 
     #[test]
     fn inline_segments_round_trip_through_encoding() {
-        let segment = InlineRope(Rope::from("scaffolding".to_string()).into_inner());
+        let segment = CellRopeSegment::Inline(Rope::from("scaffolding".to_string()));
         let config = bincode::config::standard();
         let bytes = bincode::encode_to_vec(&segment, config).unwrap();
-        let (decoded, _): (InlineRope, _) = bincode::decode_from_slice(&bytes, config).unwrap();
+        let (decoded, _): (CellRopeSegment, _) =
+            bincode::decode_from_slice(&bytes, config).unwrap();
         assert_eq!(decoded, segment);
-        assert_eq!(Rope::from_inner(decoded.0).to_str().unwrap(), "scaffolding");
+        let CellRopeSegment::Inline(rope) = decoded else {
+            panic!("expected an inline segment");
+        };
+        assert_eq!(rope.to_str().unwrap(), "scaffolding");
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -648,7 +605,7 @@ mod tests {
                     .resolve()
                     .strongly_consistent()
                     .await?;
-                assert_eq!(rope.await?.cell_count(), 2);
+                assert_eq!(cell_count(&*rope.await?), 2);
                 let text = read_operation(rope).read_strongly_consistent().await?;
                 assert_eq!(text.as_str(), "abcdef");
                 anyhow::Ok(())
@@ -719,8 +676,16 @@ mod tests {
                     .await?;
                 assert_eq!(untracked.as_str(), expected);
 
+                // Two levels of nesting: reading resumes each enclosing rope after its nested one.
+                let twice = wrap_operation(outer)
+                    .resolve()
+                    .strongly_consistent()
+                    .await?;
+                let tracked = read_operation(twice).read_strongly_consistent().await?;
+                assert_eq!(tracked.as_str(), format!("[{expected}]"));
+
                 let outer = outer.await?;
-                assert_eq!(outer.cell_count(), 0);
+                assert_eq!(cell_count(&outer), 0);
                 let encoded = bincode::encode_to_vec(&*outer, bincode::config::standard())?;
                 assert!(encoded.len() < 32, "encoded to {} bytes", encoded.len());
                 anyhow::Ok(())
