@@ -8,6 +8,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use parking_lot::Mutex;
 use rustc_hash::FxHashSet;
+use smallvec::SmallVec;
 #[cfg(feature = "task_dirty_cause")]
 use turbo_tasks::TaskDirtyCause;
 use turbo_tasks::{
@@ -165,6 +166,150 @@ impl ActivenessState {
 }
 
 transient_traits!(ActivenessState);
+
+/// The follower edge additions that a task published while holding its lock and that haven't
+/// been applied to the uppers yet, and the removals of follower edges that wait for them.
+///
+/// Stored on the task that published the additions (the owner): a task that connected new
+/// children, a task that became inner of an upper and passes its followers on, or an upper that
+/// got a new follower and passes it on to its own uppers. See "Pending additions" in the module
+/// docs of `aggregation_update`.
+#[derive(Debug, Default)]
+pub struct PendingFollowerAdditions {
+    /// Id of the next record. Ids only need to be unique while their record exists, and the field
+    /// is dropped once it's empty, so they start at 0 again then.
+    next_id: u64,
+    records: SmallVec<[PendingFollowerAddition; 1]>,
+    parked_removals: SmallVec<[ParkedFollowerRemoval; 1]>,
+}
+
+/// The additions of `follower_ids` to each of `upper_ids` that a single job applies.
+#[derive(Debug)]
+struct PendingFollowerAddition {
+    id: u64,
+    upper_ids: SmallVec<[TaskId; 4]>,
+    follower_ids: SmallVec<[TaskId; 4]>,
+}
+
+/// The removal of one edge between `upper_id` and `follower_id`, which waits for the records
+/// `waits_for` to be applied.
+#[derive(Debug)]
+struct ParkedFollowerRemoval {
+    upper_id: TaskId,
+    follower_id: TaskId,
+    waits_for: SmallVec<[u64; 2]>,
+}
+
+/// From this number of followers, a record is converted to a set to match removals against it.
+const MATCH_FOLLOWERS_WITH_SET: usize = 16;
+
+impl PendingFollowerAdditions {
+    pub fn is_empty(&self) -> bool {
+        self.records.is_empty() && self.parked_removals.is_empty()
+    }
+
+    /// The number of records and parked removals, for the verification of the graph.
+    #[cfg(any(test, feature = "verify_aggregation_graph"))]
+    pub fn counts(&self) -> (usize, usize) {
+        (self.records.len(), self.parked_removals.len())
+    }
+
+    /// Records the addition of `follower_ids` to each of `upper_ids`, which hasn't been applied
+    /// yet. Returns the id of the record, which [`Self::settle`] takes once it's applied.
+    pub fn add(
+        &mut self,
+        upper_ids: SmallVec<[TaskId; 4]>,
+        follower_ids: SmallVec<[TaskId; 4]>,
+    ) -> u64 {
+        debug_assert!(!upper_ids.is_empty() && !follower_ids.is_empty());
+        let id = self.next_id;
+        self.next_id += 1;
+        self.records.push(PendingFollowerAddition {
+            id,
+            upper_ids,
+            follower_ids,
+        });
+        id
+    }
+
+    /// Parks the removal of one edge between each of `upper_ids` and each of `follower_ids`, when
+    /// a record still adds that edge. Such a removal waits for all of these records. Returns the
+    /// parked `(upper, follower)` pairs; the caller removes the other edges right away.
+    pub fn park_removals(
+        &mut self,
+        upper_ids: &[TaskId],
+        follower_ids: &[TaskId],
+    ) -> SmallVec<[(TaskId, TaskId); 1]> {
+        let mut parked = SmallVec::new();
+        let records: SmallVec<[_; 2]> = self
+            .records
+            .iter()
+            .filter(|record| upper_ids.iter().any(|id| record.upper_ids.contains(id)))
+            .map(|record| {
+                let followers =
+                    (record.follower_ids.len() >= MATCH_FOLLOWERS_WITH_SET).then(|| {
+                        record
+                            .follower_ids
+                            .iter()
+                            .copied()
+                            .collect::<FxHashSet<_>>()
+                    });
+                (record, followers)
+            })
+            .collect();
+        if records.is_empty() {
+            return parked;
+        }
+        for &upper_id in upper_ids {
+            for &follower_id in follower_ids {
+                let waits_for: SmallVec<[u64; 2]> = records
+                    .iter()
+                    .filter(|(record, followers)| {
+                        record.upper_ids.contains(&upper_id)
+                            && match followers {
+                                Some(followers) => followers.contains(&follower_id),
+                                None => record.follower_ids.contains(&follower_id),
+                            }
+                    })
+                    .map(|(record, _)| record.id)
+                    .collect();
+                if !waits_for.is_empty() {
+                    parked.push((upper_id, follower_id));
+                    self.parked_removals.push(ParkedFollowerRemoval {
+                        upper_id,
+                        follower_id,
+                        waits_for,
+                    });
+                }
+            }
+        }
+        parked
+    }
+
+    /// Removes the record `id` once its additions are applied. Returns the `(upper, follower)`
+    /// edges whose parked removal no longer waits for any record.
+    pub fn settle(&mut self, id: u64) -> SmallVec<[(TaskId, TaskId); 1]> {
+        let index = self
+            .records
+            .iter()
+            .position(|record| record.id == id)
+            .unwrap_or_else(|| panic!("pending follower addition {id} was already settled"));
+        self.records.swap_remove(index);
+        let mut released = SmallVec::new();
+        self.parked_removals.retain(|removal| {
+            removal.waits_for.retain(|waits_for| *waits_for != id);
+            if removal.waits_for.is_empty() {
+                released.push((removal.upper_id, removal.follower_id));
+                false
+            } else {
+                true
+            }
+        });
+        released
+    }
+}
+
+transient_traits!(PendingFollowerAdditions);
 
 type TransientTaskOnce =
     Mutex<Option<Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'static>>>>;

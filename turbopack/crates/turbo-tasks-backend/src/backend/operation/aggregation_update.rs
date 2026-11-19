@@ -68,6 +68,48 @@
 //! propagation. Unlike the previous retry loop, which panicked when the addition never arrived,
 //! nothing reports this unless the `verify_aggregation_graph` feature is enabled; its stop-time
 //! check reports residual debt on restored resident tasks.
+//!
+//! # Removals of followers that are still being added: pending additions
+//!
+//! Debt handles a removal of an edge that overtakes the addition *of the same path*, as long as
+//! the follower has no other edge to the upper. Follower counts are shared between paths, though:
+//! `F.upper[U]` (or `U.followers[F]`) counts all paths from `U` to `F`. A removal that overtakes
+//! the addition of its path instead decrements the count of *another* path. While the addition is
+//! still queued, `F` then disappears from `U` even though it's still reachable from it: `U` loses
+//! its aggregated data, including its dirty container. That makes a strongly consistent read of `U`
+//! return too early, before `F` is clean, and miss `F`'s collectibles.
+//!
+//! This happens when a task `X` publishes followers while holding its lock (it adds them to its
+//! own children or followers) but adds them to its uppers only after releasing it, in a job. When
+//! `X` is detached from an upper in the meantime, the removal uses `X`'s followers, which include
+//! the published ones. The producers are:
+//! - a leaf task that connects new children (`connect_children`),
+//! - a task that becomes inner of an upper and adds its followers to it (step 6e),
+//! - an upper that gets a new follower and adds it to its own uppers (steps 3c to 3e).
+//!
+//! To prevent this, `X` records each such addition as *pending* under its lock
+//! (`pending_follower_additions`, see [`crate::data::PendingFollowerAdditions`]), and the job that
+//! applies it carries a tag of the record. When the job has added the followers to the uppers, it
+//! locks `X` again and settles the record. A removal of a follower of `X` from one of its uppers
+//! locks `X` to snapshot its followers, and checks the records at the same time: when a record
+//! still adds that edge, the removal is *parked* on `X` instead. It waits for all records that add
+//! the edge at that time, but not for later ones. When the last of them is settled, the job that
+//! settles it queues the removal, so it removes the edge of `X`'s path after it was added. The
+//! follower stays in the upper the whole time, which can only temporarily count it once more.
+//!
+//! The detaching operation can finish before its parked removals ran: they complete in the
+//! operation that applies the additions. Since that operation executes its queue to completion
+//! (see the assumption above), every parked removal eventually runs, before the operation ends.
+//! The records and parked removals are only kept in memory, and a task with any of them can't be
+//! evicted. A snapshot waits for all operations, so there are none while it runs, except for those
+//! of the GC, which runs during the snapshot and executes its queues to completion too.
+//!
+//! This keeps the edge counts right, but not the dirty containers of the uppers while the
+//! follower's own followers are still being added: a record only covers the first hop. When a
+//! second path to the follower only increments its existing edge, it relies on the first path's
+//! operation to add the follower's followers. If the first path's dirty publisher is detached
+//! before that, the upper can be clean while a dirty task in its subgraph hasn't reached it yet.
+//! This isn't handled yet (see the `second_path_*` tests).
 
 use std::{
     cmp::max,
@@ -1033,17 +1075,83 @@ struct AggregationNumberUpdate {
     span: Option<Span>,
 }
 
+/// Identifies a record of pending follower additions (see "Pending additions" in the module
+/// docs). The job that applies the additions carries it and settles the record afterwards.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct PendingAdditionTag {
+    /// The task that published the additions and stores the record.
+    owner: TaskId,
+    id: u64,
+}
+
+pub(super) type PendingAdditionTags = SmallVec<[PendingAdditionTag; 1]>;
+
+/// `(upper, follower)` edges whose removal waits for pending additions.
+type ParkedEdges = SmallVec<[(TaskId, TaskId); 1]>;
+
+/// Records the addition of `follower_ids` to each of `upper_ids` as pending on the locked `owner`,
+/// which publishes it. The job that applies it must carry the returned tag.
+pub(super) fn register_pending_addition(
+    owner: &mut TaskGuard<'_>,
+    upper_ids: TaskIdVec,
+    follower_ids: TaskIdVec,
+) -> PendingAdditionTag {
+    if !owner.has_pending_follower_additions() {
+        owner.set_pending_follower_additions(Box::default());
+    }
+    let id = owner
+        .get_pending_follower_additions_mut()
+        .expect("pending follower additions were just set")
+        .add(upper_ids, follower_ids);
+    PendingAdditionTag {
+        owner: owner.id(),
+        id,
+    }
+}
+
+/// Parks the removal of the edges between each of `upper_ids` and each of `follower_ids` that the
+/// locked `owner` still adds in a pending addition. The owner snapshotted its followers after
+/// publishing these additions, but the uppers haven't got them yet. Removing these edges now would
+/// remove another path's edge (e.g. one of another inner task that has the same follower).
+///
+/// Returns the parked edges, which the caller must not remove. They are removed once the additions
+/// have been applied (see [`AggregationUpdateQueue::settle_pending_additions`]).
+fn park_lost_followers(
+    owner: &mut TaskGuard<'_>,
+    upper_ids: impl FnOnce() -> TaskIdVec,
+    follower_ids: &[TaskId],
+) -> ParkedEdges {
+    match owner.get_pending_follower_additions_mut() {
+        Some(pending) if !follower_ids.is_empty() => {
+            pending.park_removals(&upper_ids(), follower_ids)
+        }
+        _ => ParkedEdges::new(),
+    }
+}
+
+/// Whether the removal of the edge between `upper_id` and `follower_id` is parked.
+fn is_parked(parked: &ParkedEdges, upper_id: TaskId, follower_id: TaskId) -> bool {
+    parked.contains(&(upper_id, follower_id))
+}
+
 /// An aggregated data update job that is enqueued. See `AggregatedDataUpdate`.
 struct AggregationUpdateJobItem {
     job: AggregationUpdateJob,
+    /// The records of pending additions that this job applies. They are settled after it ran.
+    pending: PendingAdditionTags,
     #[cfg(feature = "trace_aggregation_update_queue")]
     span: Option<Span>,
 }
 
 impl AggregationUpdateJobItem {
     fn new(job: AggregationUpdateJob) -> Self {
+        Self::with_pending(job, PendingAdditionTags::new())
+    }
+
+    fn with_pending(job: AggregationUpdateJob, pending: PendingAdditionTags) -> Self {
         Self {
             job,
+            pending,
             #[cfg(feature = "trace_aggregation_update_queue")]
             span: Some(Span::current()),
         }
@@ -1052,6 +1160,7 @@ impl AggregationUpdateJobItem {
     fn entered(self) -> AggregationUpdateJobGuard {
         AggregationUpdateJobGuard {
             job: self.job,
+            pending: self.pending,
             #[cfg(feature = "trace_aggregation_update_queue")]
             _guard: self.span.map(|s| s.entered()),
         }
@@ -1060,6 +1169,7 @@ impl AggregationUpdateJobItem {
 
 struct AggregationUpdateJobGuard {
     job: AggregationUpdateJob,
+    pending: PendingAdditionTags,
     #[cfg(feature = "trace_aggregation_update_queue")]
     _guard: Option<tracing::span::EnteredSpan>,
 }
@@ -1237,6 +1347,10 @@ pub struct AggregationUpdateQueue {
     /// `MAX_OPTIMIZATIONS_PER_QUEUE`.
     optimizations_executed: usize,
     scheduled_tasks: FxHashMap<TaskId, TaskPriority>,
+    /// Number of jobs pushed by this queue that apply pending additions. Only checked by
+    /// [`Self::execute_until_rebalance`], whose deletions must not publish additions.
+    #[cfg(debug_assertions)]
+    pending_jobs_pushed: usize,
     /// One-shot interleaving at the unlocked boundary after the debt precheck and before the inner
     /// write. Per-queue (not global), and absent from production builds.
     #[cfg(test)]
@@ -1262,6 +1376,8 @@ impl AggregationUpdateQueue {
             optimize_queue: FxRingSet::default(),
             optimizations_executed: 0,
             scheduled_tasks: FxHashMap::default(),
+            #[cfg(debug_assertions)]
+            pending_jobs_pushed: 0,
             #[cfg(test)]
             before_inner_write: None,
             #[cfg(test)]
@@ -1309,6 +1425,8 @@ impl AggregationUpdateQueue {
             optimizations_executed: _,
             done_aggregation_number_updates: _,
             scheduled_tasks,
+            #[cfg(debug_assertions)]
+                pending_jobs_pushed: _,
             #[cfg(test)]
                 before_inner_write: _,
             #[cfg(test)]
@@ -1392,6 +1510,68 @@ impl AggregationUpdateQueue {
     pub fn extend(&mut self, jobs: impl IntoIterator<Item = AggregationUpdateJob>) {
         for job in jobs {
             self.push(job);
+        }
+    }
+
+    /// Pushes a job that adds followers to uppers and applies the pending additions `pending`.
+    /// They are settled after the job ran.
+    pub(super) fn push_with_pending(
+        &mut self,
+        job: AggregationUpdateJob,
+        pending: PendingAdditionTags,
+    ) {
+        if pending.is_empty() {
+            self.push(job);
+            return;
+        }
+        debug_assert!(
+            matches!(
+                job,
+                AggregationUpdateJob::InnerOfUppersHasNewFollower { .. }
+                    | AggregationUpdateJob::InnerOfUppersHasNewFollowerWithCount { .. }
+                    | AggregationUpdateJob::InnerOfUpperHasNewFollowers { .. }
+                    | AggregationUpdateJob::InnerOfUpperHasNewFollowersWithCount { .. }
+                    | AggregationUpdateJob::InnerOfUppersHasNewFollowers(_)
+            ),
+            "only follower additions apply pending additions"
+        );
+        #[cfg(debug_assertions)]
+        {
+            self.pending_jobs_pushed += 1;
+        }
+        self.jobs
+            .push_back(AggregationUpdateJobItem::with_pending(job, pending));
+    }
+
+    /// Settles the records `pending` of pending additions, after the job that applied them ran.
+    /// Queues the parked removals that no longer wait for a pending addition.
+    ///
+    /// Locks each owner task once.
+    fn settle_pending_additions(
+        &mut self,
+        ctx: &mut ExecuteContext<'_>,
+        pending: PendingAdditionTags,
+    ) {
+        for PendingAdditionTag { owner, id } in pending {
+            let mut task = ctx.task(
+                owner,
+                // For performance reasons this should stay `Meta` and not `All`
+                AGGREGATION_UPDATE_CATEGORY,
+            );
+            let additions = task
+                .get_pending_follower_additions_mut()
+                .unwrap_or_else(|| panic!("{owner} has no pending follower additions to settle"));
+            let released = additions.settle(id);
+            if additions.is_empty() {
+                task.take_pending_follower_additions();
+            }
+            drop(task);
+            for (upper_id, follower_id) in released {
+                self.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
+                    upper_id,
+                    lost_follower_ids: smallvec![follower_id],
+                });
+            }
         }
     }
 
@@ -1508,6 +1688,9 @@ impl AggregationUpdateQueue {
     }
 
     /// Runs the job and all dependent jobs until it's done.
+    ///
+    /// Removals of followers that wait for a pending addition of another operation are completed
+    /// by that operation (see "Pending additions" in the module docs).
     pub fn run(job: AggregationUpdateJob, ctx: &mut ExecuteContext<'_>) {
         let mut queue = Self::new();
         queue.push(job);
@@ -1551,6 +1734,13 @@ impl AggregationUpdateQueue {
                 self.optimize_queue.is_empty(),
                 "a queue built with `new_without_optimizations` must never hold optimize jobs"
             );
+            // Pending additions are settled by the queue that applies them. Deletions only remove
+            // edges, so there is none that could outlive this phase.
+            #[cfg(debug_assertions)]
+            assert_eq!(
+                self.pending_jobs_pushed, 0,
+                "GC deletion must not publish follower additions"
+            );
             balance_queue
                 .into_iter()
                 .map(|job| (job.upper_id, job.task_id))
@@ -1593,7 +1783,8 @@ impl AggregationUpdateQueue {
     /// Executes a single step of the queue. Returns true, when the queue is empty.
     fn process(&mut self, ctx: &mut ExecuteContext<'_>) -> bool {
         if let Some(job) = self.pop_job() {
-            let job: AggregationUpdateJobGuard = job.entered();
+            let mut job: AggregationUpdateJobGuard = job.entered();
+            let pending = take(&mut job.pending);
             match job.job {
                 AggregationUpdateJob::UpdateAggregationNumber { .. }
                 | AggregationUpdateJob::BalanceEdge { .. } => {
@@ -1890,6 +2081,9 @@ impl AggregationUpdateQueue {
                     }
                 }
             }
+            if !pending.is_empty() {
+                self.settle_pending_additions(ctx, pending);
+            }
             false
         } else if !self.aggregation_number_updates.is_empty() {
             #[cfg(feature = "trace_aggregation_update_stats")]
@@ -2125,10 +2319,20 @@ impl AggregationUpdateQueue {
                         );
                     }
                     if !followers.is_empty() {
-                        self.push(AggregationUpdateJob::InnerOfUpperHasNewFollowers {
-                            upper_id,
-                            new_follower_ids: followers,
-                        });
+                        // The followers of the new inner task are added to the upper. Recorded
+                        // as pending under the lock of the task, which published them.
+                        let pending = register_pending_addition(
+                            &mut task,
+                            smallvec![upper_id],
+                            followers.clone(),
+                        );
+                        self.push_with_pending(
+                            AggregationUpdateJob::InnerOfUpperHasNewFollowers {
+                                upper_id,
+                                new_follower_ids: followers,
+                            },
+                            smallvec![pending],
+                        );
                     }
 
                     if ctx.should_track_activeness() && upper.is_active() {
@@ -2137,7 +2341,11 @@ impl AggregationUpdateQueue {
                         self.push_find_and_schedule_dirty(task_id);
                     }
                 }
-                let propagation = FollowerEdgePropagation::capture(ctx, &upper);
+                let propagation = FollowerEdgePropagation::capture_lost_followers(
+                    ctx,
+                    &mut upper,
+                    &Some(task_id),
+                );
                 drop(upper);
                 drop(task);
 
@@ -2156,7 +2364,6 @@ impl AggregationUpdateQueue {
                 if task.is_upper_empty() {
                     ctx.note_maybe_collectible(&task);
                 }
-                let propagation = FollowerEdgePropagation::capture(ctx, &upper);
 
                 // Add the same amount of follower edges
                 upper.assert_not_deleted("balance_edge add follower (upper endpoint)");
@@ -2171,6 +2378,15 @@ impl AggregationUpdateQueue {
                 if new_follower {
                     self.maybe_optimize_task(upper.followers_len(), &mut upper);
                 }
+                let propagation = if new_follower {
+                    FollowerEdgePropagation::capture_new_followers(
+                        ctx,
+                        &mut upper,
+                        &smallvec![task_id],
+                    )
+                } else {
+                    FollowerEdgePropagation::capture(ctx, &upper)
+                };
 
                 // Since this is no longer an inner node, update the aggregated data and
                 // followers
@@ -2178,6 +2394,9 @@ impl AggregationUpdateQueue {
                 let followers = get_followers(&task);
                 let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
                 drop(upper);
+                // The followers of the task are removed from the upper, except those that the task
+                // still adds in a pending addition.
+                let parked = park_lost_followers(&mut task, || smallvec![upper_id], &followers);
                 drop(task);
                 if !propagation.upper_ids.is_empty() && !diff.is_empty() {
                     self.push(
@@ -2188,6 +2407,14 @@ impl AggregationUpdateQueue {
                         .into(),
                     );
                 }
+                let followers: TaskIdVec = if parked.is_empty() {
+                    followers
+                } else {
+                    followers
+                        .into_iter()
+                        .filter(|&follower_id| !is_parked(&parked, upper_id, follower_id))
+                        .collect()
+                };
                 if !followers.is_empty() {
                     self.push(
                         InnerOfUppersLostFollowersJob {
@@ -2446,6 +2673,13 @@ impl AggregationUpdateQueue {
     ) {
         let data = AggregatedDataUpdate::from_task(&mut follower);
         let followers = get_followers(&follower);
+        // The followers are removed from the uppers, except those that the follower still adds in a
+        // pending addition.
+        let parked = park_lost_followers(
+            &mut follower,
+            || removed_upper_ids.iter_ids().collect(),
+            &followers,
+        );
         // if uppers became empty, it might be collectible, check now.
         if follower.is_upper_empty() {
             ctx.note_maybe_collectible(&follower);
@@ -2488,7 +2722,23 @@ impl AggregationUpdateQueue {
             }
         }
         if !followers.is_empty() {
-            if let Some(upper_id) = removed_upper_ids.single() {
+            if !parked.is_empty() {
+                // Rare: some removals wait for pending additions. Remove the other followers from
+                // each upper.
+                for upper_id in removed_upper_ids.iter_ids() {
+                    let lost_follower_ids: TaskIdVec = followers
+                        .iter()
+                        .copied()
+                        .filter(|&follower_id| !is_parked(&parked, upper_id, follower_id))
+                        .collect();
+                    if !lost_follower_ids.is_empty() {
+                        self.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
+                            upper_id,
+                            lost_follower_ids,
+                        });
+                    }
+                }
+            } else if let Some(upper_id) = removed_upper_ids.single() {
                 self.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
                     upper_id,
                     lost_follower_ids: followers,
@@ -2553,7 +2803,11 @@ impl AggregationUpdateQueue {
             if upper.is_followers_empty() {
                 ctx.note_maybe_collectible(&upper);
             }
-            Some(FollowerEdgePropagation::capture(ctx, &upper))
+            Some(FollowerEdgePropagation::capture_lost_followers(
+                ctx,
+                &mut upper,
+                &removed_followers,
+            ))
         } else {
             None
         };
@@ -2646,6 +2900,15 @@ impl AggregationUpdateQueue {
         // STEP 6c
         let data = AggregatedDataUpdate::from_task(&mut follower);
         let followers = get_followers(&follower);
+        // STEP 6e is queued below. The follower publishes the addition of its followers to the
+        // uppers, so it's recorded as pending under its lock.
+        let pending = (!followers.is_empty()).then(|| {
+            register_pending_addition(
+                &mut follower,
+                added_upper_ids.iter_ids().collect(),
+                followers.clone(),
+            )
+        });
         drop(follower);
         // Outside of the lock
         let data = data.optimize();
@@ -2693,18 +2956,23 @@ impl AggregationUpdateQueue {
 
         // STEP 6e
         if !followers.is_empty() {
+            let pending = pending.into_iter().collect();
             if let Some(upper_id) = added_upper_ids.single_edge() {
-                self.push(AggregationUpdateJob::InnerOfUpperHasNewFollowers {
-                    upper_id,
-                    new_follower_ids: followers,
-                });
+                self.push_with_pending(
+                    AggregationUpdateJob::InnerOfUpperHasNewFollowers {
+                        upper_id,
+                        new_follower_ids: followers,
+                    },
+                    pending,
+                );
             } else {
-                self.push(
+                self.push_with_pending(
                     InnerOfUppersHasNewFollowersJob {
                         upper_ids: added_upper_ids.into_vec(),
                         new_follower_ids: followers,
                     }
                     .into(),
+                    pending,
                 );
             }
         }
@@ -2821,6 +3089,7 @@ impl AggregationUpdateQueue {
         };
 
         let mut upper_upper_ids_with_new_follower = FxHashMap::default();
+        let mut upper_upper_pending = PendingAdditionTags::new();
         let mut tasks_for_which_increment_active_count = SmallVec::new();
         let mut is_active = false;
         loop {
@@ -2865,10 +3134,18 @@ impl AggregationUpdateQueue {
 
                         // STEP 3e
                         // notify uppers about new follower
-                        for (&upper_id, _) in upper.iter_upper() {
-                            *upper_upper_ids_with_new_follower
-                                .entry(upper_id)
-                                .or_insert(0) += 1;
+                        let upper_upper_ids = get_uppers(&upper);
+                        if !upper_upper_ids.is_empty() {
+                            for &upper_upper_id in &upper_upper_ids {
+                                *upper_upper_ids_with_new_follower
+                                    .entry(upper_upper_id)
+                                    .or_insert(0) += 1;
+                            }
+                            upper_upper_pending.push(register_pending_addition(
+                                &mut upper,
+                                upper_upper_ids,
+                                smallvec![new_follower_id],
+                            ));
                         }
                     }
                     drop(upper);
@@ -2976,10 +3253,13 @@ impl AggregationUpdateQueue {
         if !upper_upper_ids_with_new_follower.is_empty() {
             #[cfg(feature = "trace_aggregation_update")]
             let _span = trace_span!("new follower").entered();
-            self.push(AggregationUpdateJob::InnerOfUppersHasNewFollowerWithCount {
-                upper_ids: upper_upper_ids_with_new_follower.into_iter().collect(),
-                new_follower_id,
-            });
+            self.push_with_pending(
+                AggregationUpdateJob::InnerOfUppersHasNewFollowerWithCount {
+                    upper_ids: upper_upper_ids_with_new_follower.into_iter().collect(),
+                    new_follower_id,
+                },
+                upper_upper_pending,
+            );
         }
     }
 
@@ -3023,6 +3303,7 @@ impl AggregationUpdateQueue {
         let mut is_active = false;
         let mut upper_data_updates = Vec::new();
         let mut upper_new_followers = FxHashMap::default();
+        let mut upper_new_followers_pending = PendingAdditionTags::new();
         let mut inner_tasks = Vec::new();
         loop {
             let mut new_followers_of_upper_uppers = TaskIdVec::new();
@@ -3083,7 +3364,12 @@ impl AggregationUpdateQueue {
 
                 if !new_followers_of_upper_uppers.is_empty() {
                     // STEP 3c
-                    follower_edge_propagation = Some(FollowerEdgePropagation::capture(ctx, &upper));
+                    follower_edge_propagation =
+                        Some(FollowerEdgePropagation::capture_new_followers(
+                            ctx,
+                            &mut upper,
+                            &new_followers_of_upper_uppers,
+                        ));
                 }
 
                 // STEP 4
@@ -3144,6 +3430,16 @@ impl AggregationUpdateQueue {
                         // It's a new upper
                         let data = AggregatedDataUpdate::from_task(&mut new_follower);
                         let children = get_followers(&new_follower);
+                        // STEP 6e is queued below, for all new inner tasks together. Each of them
+                        // publishes the addition of its followers, so it's recorded as pending
+                        // under its lock.
+                        if !children.is_empty() {
+                            upper_new_followers_pending.push(register_pending_addition(
+                                &mut new_follower,
+                                smallvec![upper_id],
+                                children.clone(),
+                            ));
+                        }
                         drop(new_follower);
                         // Outside of the lock
                         let data = data.optimize();
@@ -3170,10 +3466,13 @@ impl AggregationUpdateQueue {
         }
         if !upper_new_followers.is_empty() {
             // STEP 6e
-            self.push(AggregationUpdateJob::InnerOfUpperHasNewFollowersWithCount {
-                upper_id,
-                new_follower_ids: upper_new_followers.into_iter().collect(),
-            });
+            self.push_with_pending(
+                AggregationUpdateJob::InnerOfUpperHasNewFollowersWithCount {
+                    upper_id,
+                    new_follower_ids: upper_new_followers.into_iter().collect(),
+                },
+                upper_new_followers_pending,
+            );
         }
         if !inner_tasks.is_empty() {
             // STEP 6d and 6f
@@ -3250,7 +3549,11 @@ impl AggregationUpdateQueue {
                 );
                 if change.transition() == EdgeTransition::Appeared {
                     // STEP 3c
-                    let propagation = FollowerEdgePropagation::capture(ctx, &upper);
+                    let propagation = FollowerEdgePropagation::capture_new_followers(
+                        ctx,
+                        &mut upper,
+                        &smallvec![new_follower_id],
+                    );
                     drop(upper);
 
                     // STEP 3d and 3e
@@ -3842,6 +4145,12 @@ struct FollowerEdgePropagation {
     has_active_count: bool,
     /// The uppers of the upper task, which also follow the followers of the upper task.
     upper_ids: TaskIdVec,
+    /// The pending addition of the new followers to `upper_ids`, see
+    /// [`Self::capture_new_followers`].
+    pending: Option<PendingAdditionTag>,
+    /// The edges between `upper_ids` and lost followers whose removal is parked, see
+    /// [`Self::capture_lost_followers`].
+    parked: ParkedEdges,
 }
 
 impl FollowerEdgePropagation {
@@ -3849,7 +4158,48 @@ impl FollowerEdgePropagation {
         Self {
             has_active_count: ctx.should_track_activeness() && upper.has_positive_active_count(),
             upper_ids: get_uppers(upper),
+            pending: None,
+            parked: ParkedEdges::new(),
         }
+    }
+
+    /// Captures the propagation of the new follower edges to `follower_ids` of the locked `upper`,
+    /// and records their addition to the uppers of `upper` as pending (see "Pending additions" in
+    /// the module docs).
+    fn capture_new_followers(
+        ctx: &ExecuteContext<'_>,
+        upper: &mut TaskGuard<'_>,
+        follower_ids: &TaskIdVec,
+    ) -> Self {
+        let mut this = Self::capture(ctx, upper);
+        if !this.upper_ids.is_empty() && !follower_ids.is_empty() {
+            this.pending = Some(register_pending_addition(
+                upper,
+                this.upper_ids.clone(),
+                follower_ids.clone(),
+            ));
+        }
+        this
+    }
+
+    /// Captures the propagation of the lost follower edges to `follower_ids` of the locked
+    /// `upper`. Parks the removals of those followers from the uppers of `upper` that wait for a
+    /// pending addition by `upper` (see [`park_lost_followers`]).
+    fn capture_lost_followers<L: TaskIdList>(
+        ctx: &ExecuteContext<'_>,
+        upper: &mut TaskGuard<'_>,
+        follower_ids: &L,
+    ) -> Self {
+        let mut this = Self::capture(ctx, upper);
+        if !this.upper_ids.is_empty() && upper.has_pending_follower_additions() {
+            let follower_ids: TaskIdVec = follower_ids.iter_ids().collect();
+            this.parked = park_lost_followers(upper, || this.upper_ids.clone(), &follower_ids);
+        }
+        this
+    }
+
+    fn pending(&self) -> PendingAdditionTags {
+        self.pending.into_iter().collect()
     }
 
     /// Propagates that the follower edges to `follower_ids` appeared.
@@ -3864,10 +4214,14 @@ impl FollowerEdgePropagation {
                     });
                 }
                 if !self.upper_ids.is_empty() {
-                    queue.push(AggregationUpdateJob::InnerOfUppersHasNewFollower {
-                        upper_ids: self.upper_ids,
-                        new_follower_id,
-                    });
+                    let pending = self.pending();
+                    queue.push_with_pending(
+                        AggregationUpdateJob::InnerOfUppersHasNewFollower {
+                            upper_ids: self.upper_ids,
+                            new_follower_id,
+                        },
+                        pending,
+                    );
                 }
             }
             _ => self.push_new_followers_batched(queue, follower_ids),
@@ -3898,17 +4252,43 @@ impl FollowerEdgePropagation {
                 task_ids: follower_ids.clone(),
             });
         }
-        queue.push(
+        let pending = self.pending();
+        queue.push_with_pending(
             InnerOfUppersHasNewFollowersJob {
                 upper_ids: self.upper_ids,
                 new_follower_ids: follower_ids,
             }
             .into(),
+            pending,
         );
     }
 
     /// Propagates that the follower edges to `follower_ids` disappeared.
     fn push_lost_followers(self, queue: &mut AggregationUpdateQueue, follower_ids: TaskIdVec) {
+        if !self.parked.is_empty() {
+            // Rare: some removals wait for pending additions. Remove each follower from the
+            // uppers whose edge isn't parked.
+            if self.has_active_count {
+                queue.push(AggregationUpdateJob::DecreaseActiveCounts {
+                    task_ids: follower_ids.clone(),
+                });
+            }
+            for lost_follower_id in follower_ids {
+                let upper_ids: TaskIdVec = self
+                    .upper_ids
+                    .iter()
+                    .copied()
+                    .filter(|&upper_id| !is_parked(&self.parked, upper_id, lost_follower_id))
+                    .collect();
+                if !upper_ids.is_empty() {
+                    queue.push(AggregationUpdateJob::InnerOfUppersLostFollower {
+                        upper_ids,
+                        lost_follower_id,
+                    });
+                }
+            }
+            return;
+        }
         match follower_ids[..] {
             [] => {}
             [lost_follower_id] => {

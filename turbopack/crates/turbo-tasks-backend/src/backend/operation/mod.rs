@@ -111,7 +111,10 @@ impl TaskLockCounter {
 pub struct ExecuteContext<'e> {
     turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
     gc_collectible: Option<&'e dyn Fn(TaskId)>,
-    /// Held until all graph changes made by this context have completed.
+    /// Held until all graph changes made by this context have completed. A removal of a follower
+    /// that waits for a pending addition of another operation is completed by that operation,
+    /// which holds its own guard (see "Pending additions" in the `aggregation_update` module
+    /// docs).
     _operation_guard: Option<OperationGuard<'e>>,
     /// Held by contexts built through `TurboTasksBackend::try_execute_context`, so that storage
     /// teardown in `stop()` waits for this context to be dropped.

@@ -142,11 +142,15 @@ pub struct TaskAggregationEdges {
     pub upper: Vec<(TaskId, u32)>,
     /// `self.followers`: follower edges (or debt) to follower tasks.
     pub followers: Vec<(TaskId, i32)>,
+    /// The number of pending follower additions published by this task and of the follower
+    /// removals that wait for them.
+    pub pending_follower_additions: (usize, usize),
 }
 
 /// Checks the invariants of the aggregation edges that hold once all aggregation updates are
 /// processed, and returns a description of every violation:
 /// - There is no follower debt left (every removal found its addition).
+/// - No follower addition is pending and no follower removal waits for one.
 /// - No edge is stored on both sides.
 /// - Every edge is stored on a side that is valid for the aggregation numbers. Equal aggregation
 ///   numbers of a non-root upper are a conflict that is resolved lazily, so both sides are
@@ -169,6 +173,13 @@ pub fn verify_aggregation_edges(tasks: &[TaskAggregationEdges]) -> Vec<String> {
     let mut violations = Vec::new();
     for task in tasks {
         let upper_id = task.task_id;
+        let (pending_additions, parked_removals) = task.pending_follower_additions;
+        if pending_additions > 0 || parked_removals > 0 {
+            violations.push(format!(
+                "{upper_id} has {pending_additions} pending follower additions and \
+                 {parked_removals} parked follower removals"
+            ));
+        }
         for &(follower_id, count) in &task.followers {
             if count < 0 {
                 violations.push(format!(
@@ -338,6 +349,7 @@ mod tests {
             aggregation_number,
             upper: Vec::new(),
             followers: Vec::new(),
+            pending_follower_additions: (0, 0),
         }
     }
 
