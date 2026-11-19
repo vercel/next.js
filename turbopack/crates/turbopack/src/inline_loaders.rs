@@ -6,7 +6,6 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{DiskFileSystem, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::SourceMapsType,
     context::ProcessResult,
     file_source::FileSource,
     ident::{AssetIdent, Layer},
@@ -344,7 +343,7 @@ impl InlineLoaderSource {
                 _ => rcstr!("*.js"),
             })),
             asset_context.resolve_options_context(),
-            matches!(module_options.ecmascript.source_maps, SourceMapsType::Full),
+            module_options.ecmascript.source_map_generation_options.full,
             config_tracing_module_context(*execution_context),
         );
         let transformed = transform
