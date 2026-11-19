@@ -6,13 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"net/textproto"
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -26,63 +27,58 @@ import (
 //	client ──► front ──► Node              (default)
 //	               └───► route.go worker   (direct)
 type front struct {
-	node         http.Handler
-	public       *net.TCPAddr
-	upstreamIdle time.Duration
+	node http.Handler
+	// Forwards direct requests, to whichever worker the request's
+	// directAttempt names.
+	direct *httputil.ReverseProxy
 	// The current routing state, replaced whole on every control message
 	// and read once per request, so a request never sees half an update.
+	// apply, which writes it, runs on one goroutine only (readControl).
 	state atomic.Pointer[directState]
-	// Serializes control messages; requests never take it.
-	mu sync.Mutex
 }
 
-// directState is what the front knows from Node: the route table, how to
-// send direct requests, and the workers that are ready.
+// directState is what the front knows from Node: the route table, what Node
+// changes on the way to and from a worker, and the workers that are ready.
 type directState struct {
-	table  *routing.Table
-	direct directConfig
+	table *routing.Table
+	// Request headers Node removes, by canonical name, and prefixes of the
+	// canonical names it removes ("X-Next-Internal-").
+	strip         map[string]bool
+	stripPrefixes []string
+	// Compression's MIME database, for the Vary header Node's compression
+	// middleware adds (see addCompressionVary).
+	mimeTypes      map[string]bool
+	compress       bool
+	maxHeaderBytes int64
 	// route id → worker serving it
 	workers map[string]*goUpstream
-}
-
-// directConfig is the table's "direct" part: what the front strips from a
-// direct request and writes on its response, as Node would.
-type directConfig struct {
-	StripRequestHeaders        []string          `json:"stripRequestHeaders"`
-	StripRequestHeaderPrefixes []string          `json:"stripRequestHeaderPrefixes"`
-	StatusText                 map[string]string `json:"statusText"`
-	MimeTypes                  map[string]bool   `json:"mimeTypes"`
-	compress                   bool
-	maxHeaderBytes             int64
-	strip                      map[string]bool
 }
 
 // goUpstream is one route.go worker.
 type goUpstream struct {
 	address     string
 	tokenHeader string
-	token       string
-	proxy       *httputil.ReverseProxy
-	transport   *http.Transport
+	token       []string // as a header value, set as is on each request
 }
 
 func newFront(node http.Handler, public *net.TCPAddr, upstreamIdle time.Duration) *front {
-	f := &front{node: node, public: public, upstreamIdle: upstreamIdle}
+	f := &front{node: node}
+	f.direct = f.newDirectProxy(public, upstreamIdle)
 	f.state.Store(&directState{workers: map[string]*goUpstream{}})
 	return f
 }
 
 func (f *front) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if up := f.choose(r); up != nil {
-		f.serveDirect(w, r, up)
+	s := f.state.Load()
+	if up := s.choose(r); up != nil {
+		f.serveDirect(w, r, s, up)
 		return
 	}
 	f.node.ServeHTTP(w, r)
 }
 
 // choose returns the worker that answers r directly, or nil for Node.
-func (f *front) choose(r *http.Request) *goUpstream {
-	s := f.state.Load()
+func (s *directState) choose(r *http.Request) *goUpstream {
 	if s.table == nil {
 		return nil
 	}
@@ -94,131 +90,144 @@ func (f *front) choose(r *http.Request) *goUpstream {
 		Header:        r.Header,
 		ContentLength: r.ContentLength,
 	})
-	if d.Route == "" {
-		return nil
-	}
-	// nil until Node has started the route's worker: the first request to a
-	// route goes through Node, which starts it and then announces it.
+	// A route's worker is missing until Node has started it: the first
+	// request to a route goes through Node, which starts it and then
+	// announces it.
 	return s.workers[d.Route]
 }
 
 // apply updates the state from one control message.
 func (f *front) apply(msg controlMessage) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	old := f.state.Load()
-	next := &directState{table: old.table, direct: old.direct, workers: make(map[string]*goUpstream, len(old.workers)+1)}
-	for route, up := range old.workers {
-		next.workers[route] = up
-	}
+	next := *f.state.Load()
 	switch msg.Event {
 	case "table":
-		table, err := routing.Load(msg.Table)
-		if err != nil {
+		if err := next.loadTable(msg.Table); err != nil {
 			proxyErrorLog.Printf("route table: %v; sending every request to Node", err)
 			return
 		}
-		var holder struct {
-			Direct         directConfig `json:"direct"`
-			Compress       bool         `json:"compress"`
-			MaxHeaderBytes int64        `json:"maxHeaderBytes"`
-		}
-		if err := json.Unmarshal(msg.Table, &holder); err != nil {
-			proxyErrorLog.Printf("route table: %v; sending every request to Node", err)
-			return
-		}
-		next.direct = holder.Direct
-		next.direct.compress = holder.Compress
-		next.direct.maxHeaderBytes = holder.MaxHeaderBytes
-		next.direct.strip = map[string]bool{}
-		for _, name := range holder.Direct.StripRequestHeaders {
-			next.direct.strip[strings.ToLower(name)] = true
-		}
-		next.table = table
 	case "worker":
 		if msg.Network != "tcp" {
 			proxyErrorLog.Printf("route.go worker on %q: unsupported network", msg.Network)
 			return
 		}
-		up := f.upstreamAt(old, msg)
-		next.workers[msg.Page] = up
+		next.workers = maps.Clone(next.workers)
+		next.workers[msg.Page] = &goUpstream{
+			address: msg.Address,
+			// The header name as Go keys it, so nothing is converted per
+			// request.
+			tokenHeader: textproto.CanonicalMIMEHeaderKey(msg.TokenHeader),
+			token:       []string{msg.Token},
+		}
 	case "gone":
+		next.workers = maps.Clone(next.workers)
 		for route, up := range next.workers {
 			if up.address == msg.Address {
 				delete(next.workers, route)
-				// In-flight requests finish on their connections; idle ones
-				// would only fail.
-				defer up.transport.CloseIdleConnections()
 			}
 		}
 	default:
 		proxyErrorLog.Printf("unknown control message %q", msg.Event)
 		return
 	}
-	f.state.Store(next)
+	f.state.Store(&next)
 }
 
-// upstreamAt returns the known upstream for the message's worker, or a new
-// one. One worker can serve several pages (one Go server for every route.go).
-func (f *front) upstreamAt(s *directState, msg controlMessage) *goUpstream {
-	for _, up := range s.workers {
-		if up.address == msg.Address && up.token == msg.Token {
-			return up
-		}
+// loadTable reads the route table: the routing part, and the "direct" part
+// that says what Node changes on the way to and from a worker.
+func (s *directState) loadTable(data []byte) error {
+	table, err := routing.Load(data)
+	if err != nil {
+		return err
 	}
-	up := &goUpstream{address: msg.Address, tokenHeader: msg.TokenHeader, token: msg.Token}
-	up.transport = &http.Transport{
-		Proxy:               nil,
-		DialContext:         (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
-		MaxIdleConns:        0,
-		MaxIdleConnsPerHost: 512,
-		IdleConnTimeout:     f.upstreamIdle,
-		// Node's client doesn't ask the worker for compression either.
-		DisableCompression:    true,
-		ExpectContinueTimeout: 1 * time.Second,
+	var raw struct {
+		Compress       bool  `json:"compress"`
+		MaxHeaderBytes int64 `json:"maxHeaderBytes"`
+		Direct         struct {
+			StripRequestHeaders        []string        `json:"stripRequestHeaders"`
+			StripRequestHeaderPrefixes []string        `json:"stripRequestHeaderPrefixes"`
+			MimeTypes                  map[string]bool `json:"mimeTypes"`
+		} `json:"direct"`
 	}
-	up.proxy = f.newGoProxy(up, s.direct.maxHeaderBytes)
-	return up
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	s.strip = map[string]bool{}
+	for _, name := range raw.Direct.StripRequestHeaders {
+		s.strip[textproto.CanonicalMIMEHeaderKey(name)] = true
+	}
+	s.stripPrefixes = nil
+	for _, prefix := range raw.Direct.StripRequestHeaderPrefixes {
+		// "x-next-internal-" → "X-Next-Internal-", how Go keys such headers.
+		s.stripPrefixes = append(s.stripPrefixes, textproto.CanonicalMIMEHeaderKey(prefix))
+	}
+	s.mimeTypes = raw.Direct.MimeTypes
+	s.compress = raw.Compress
+	s.maxHeaderBytes = raw.MaxHeaderBytes
+	s.table = table
+	return nil
 }
+
+// keepAlive is the Connection header Node's client sends the worker; Go's
+// Transport keeps connections open without it.
+var keepAlive = []string{"keep-alive"}
 
 type directAttemptKey struct{}
 
-// directAttempt follows one direct request, so the error handler knows
-// whether the worker could have seen it.
+// directAttempt follows one direct request through the proxy. It is also
+// the ResponseWriter the proxy writes to, wrapping the client's, so the
+// client gets the response as Node would write it (WriteHeader and Write
+// below).
 type directAttempt struct {
-	state   *directState
+	http.ResponseWriter
+	state *directState
+	up    *goUpstream
+	// The request as the client sent it, for handing it to Node.
 	request *http.Request
-	body    *guardedBody
-	w       http.ResponseWriter
+	// The request body as the Transport sees it, so the error handler knows
+	// whether the worker could have seen the request.
+	body *guardedBody
 }
 
-func (f *front) serveDirect(w http.ResponseWriter, r *http.Request, up *goUpstream) {
-	attempt := &directAttempt{state: f.state.Load(), request: r, w: w}
+func (f *front) serveDirect(w http.ResponseWriter, r *http.Request, s *directState, up *goUpstream) {
+	attempt := &directAttempt{ResponseWriter: w, state: s, up: up, request: r}
 	ctx := context.WithValue(r.Context(), directAttemptKey{}, attempt)
 	// Node never guesses a Content-Type (see newProxy).
 	w.Header()["Content-Type"] = nil
-	up.proxy.ServeHTTP(dropInformational{w}, r.WithContext(ctx))
+	// As in newProxy: Node's proxy to the worker lets the worker answer while
+	// the client is still uploading; Go's server doesn't unless asked.
+	_ = http.NewResponseController(w).EnableFullDuplex()
+	out := r.WithContext(ctx)
+	if r.ContentLength != 0 && r.Body != nil && r.Body != http.NoBody {
+		// As in newProxy: track whether the body is read to its end before
+		// the worker answers, and whether reading it hit the request timeout.
+		body := newRequestBody(r.Body)
+		out = r.WithContext(context.WithValue(ctx, requestBodyKey{}, body))
+		out.Body = body
+	}
+	f.direct.ServeHTTP(attempt, out)
 }
 
-// newGoProxy forwards to one worker. The worker must get the request Node
-// would have sent it (native-route-proxy.ts), and the client the response
-// Node would have written.
-func (f *front) newGoProxy(up *goUpstream, maxHeaderBytes int64) *httputil.ReverseProxy {
-	publicPort := strconv.Itoa(f.public.Port)
-	mapIPv4 := f.public.IP.To4() == nil
+func attemptOf(ctx context.Context) *directAttempt {
+	return ctx.Value(directAttemptKey{}).(*directAttempt)
+}
+
+// newDirectProxy forwards to route.go workers. The worker must get the
+// request Node would have sent it (native-route-proxy.ts), and the client the
+// response Node would have written.
+func (f *front) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Duration) *httputil.ReverseProxy {
+	publicPort := strconv.Itoa(public.Port)
+	mapIPv4 := public.IP.To4() == nil
 	return &httputil.ReverseProxy{
 		Rewrite: func(pr *httputil.ProxyRequest) {
-			attempt := pr.In.Context().Value(directAttemptKey{}).(*directAttempt)
+			attempt := attemptOf(pr.In.Context())
 			pr.Out.URL.Scheme = "http"
-			pr.Out.URL.Host = up.address
+			pr.Out.URL.Host = attempt.up.address
 			pr.Out.Host = pr.In.Host
 			keepRequestTarget(pr.Out, pr.In.RequestURI)
 			restoreForwardedHeaders(pr.Out.Header, pr.In.Header)
 			// Node removes its internal headers from every request.
-			cfg := attempt.state.direct
 			for name := range pr.Out.Header {
-				lower := strings.ToLower(name)
-				if cfg.strip[lower] || hasAnyPrefix(lower, cfg.StripRequestHeaderPrefixes) {
+				if attempt.state.strip[name] || hasAnyPrefix(name, attempt.state.stripPrefixes) {
 					delete(pr.Out.Header, name)
 				}
 			}
@@ -228,61 +237,73 @@ func (f *front) newGoProxy(up *goUpstream, maxHeaderBytes int64) *httputil.Rever
 			setIfMissing(pr.Out.Header, "X-Forwarded-Port", publicPort)
 			setIfMissing(pr.Out.Header, "X-Forwarded-Proto", "http")
 			setIfMissing(pr.Out.Header, "X-Forwarded-For", clientIP(pr.In.RemoteAddr, mapIPv4))
-			// Node's client keeps its connections to the worker open and says
-			// so; Go's Transport keeps them open without the header.
-			pr.Out.Header.Set("Connection", "keep-alive")
-			pr.Out.Header.Set(up.tokenHeader, up.token)
+			pr.Out.Header["Connection"] = keepAlive
+			pr.Out.Header[attempt.up.tokenHeader] = attempt.up.token
 			if pr.Out.Body != nil {
 				attempt.body = &guardedBody{body: pr.Out.Body}
 				pr.Out.Body = attempt.body
 			}
 		},
-		FlushInterval: -1,
-		Transport:     nodeHeaderLimitTransport{up.transport, maxHeaderBytes},
+		// directAttempt.Write flushes after every write, as Node does.
+		FlushInterval: 0,
+		// One Transport for every worker: it keeps idle connections per
+		// address.
+		Transport: nodeHeaderLimitTransport{&http.Transport{
+			Proxy:               nil,
+			DialContext:         (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
+			MaxIdleConns:        0,
+			MaxIdleConnsPerHost: 512,
+			IdleConnTimeout:     upstreamIdle,
+			// Node's client doesn't ask the worker for compression either.
+			DisableCompression:    true,
+			ExpectContinueTimeout: 1 * time.Second,
+		}},
 		ModifyResponse: func(res *http.Response) error {
-			attempt := res.Request.Context().Value(directAttemptKey{}).(*directAttempt)
-			addCompressionVary(res.Header, attempt.state.direct)
+			attempt := attemptOf(res.Request.Context())
+			addCompressionVary(res.Header, attempt.state)
 			// Node passes the worker's Trailer header on but never the trailer
-			// fields themselves. Go's Transport moved the header into
-			// res.Trailer; put it back as a plain header and drop the fields.
+			// fields themselves. The proxy writes the header from the names in
+			// res.Trailer, and after the body the fields the Transport put
+			// there; trailerDropper clears them first.
 			if len(res.Trailer) > 0 {
-				names := make([]string, 0, len(res.Trailer))
-				for name := range res.Trailer {
-					names = append(names, name)
-				}
-				res.Header["Trailer"] = []string{strings.Join(names, ", ")}
-				res.Trailer = nil
-				// The Transport fills res.Trailer again when it reads the end
-				// of the body; clear it after that read too.
 				res.Body = &trailerDropper{ReadCloser: res.Body, res: res}
 			}
-			// Node writes its own reason phrase ("413 Payload Too Large"), or
-			// "unknown" for a code it doesn't know; Go writes its own.
-			text, ok := attempt.state.direct.StatusText[strconv.Itoa(res.StatusCode)]
-			if !ok {
-				text = "unknown"
+			// As in newProxy: after an answer sent mid-upload, the rest of the
+			// body is still on the client connection; don't reuse it.
+			if body, ok := res.Request.Context().Value(requestBodyKey{}).(*requestBody); ok && !body.readToEnd.Load() {
+				res.Header.Set("Connection", "close")
 			}
-			res.Status = fmt.Sprintf("%d %s", res.StatusCode, text)
-			return keepStatusLine(res)
+			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
 			if r.Context().Err() != nil {
 				return
 			}
-			attempt := r.Context().Value(directAttemptKey{}).(*directAttempt)
+			attempt := attemptOf(r.Context())
 			// The worker is gone and never saw the request (Node hasn't told
 			// us yet): hand it to Node, as if the worker weren't ready.
 			if isDialError(err) && (attempt.body == nil || !attempt.body.read) {
-				f.node.ServeHTTP(attempt.w, attempt.request)
+				f.node.ServeHTTP(attempt.ResponseWriter, attempt.request)
 				return
 			}
-			proxyErrorLog.Printf("route.go worker %s: %v", up.address, err)
+			// As in newProxy: part of the body may still be unread, and Go's
+			// server, in full-duplex mode, would read it as the next request.
+			if r.ContentLength != 0 {
+				attempt.Header().Set("Connection", "close")
+			}
+			// As in newProxy: the client's upload hit the request timeout, so
+			// answer as Node does.
+			if body, ok := r.Context().Value(requestBodyKey{}).(*requestBody); ok && body.timedOut() {
+				attempt.WriteHeader(http.StatusRequestTimeout)
+				return
+			}
+			proxyErrorLog.Printf("route.go worker %s: %v", attempt.up.address, err)
 			// TODO: answer with Node's error page, as without the front. Node
 			// renders it per request, so the front must hand the request back
 			// and have Node trust that the worker failed, which needs the
 			// token on Node's listener (step 5's routing contract). Until then
 			// the client gets a plain 500 here, where Node sends its page.
-			writeInternalError(attempt.w)
+			writeInternalError(attempt.ResponseWriter)
 		},
 		ErrorLog: proxyErrorLog,
 	}
@@ -294,7 +315,6 @@ func (f *front) newGoProxy(up *goUpstream, maxHeaderBytes int64) *httputil.Rever
 // removes hop-by-hop headers, and retain Transport's existing raw-byte cap.
 type nodeHeaderLimitTransport struct {
 	transport *http.Transport
-	limit     int64
 }
 
 func (t nodeHeaderLimitTransport) RoundTrip(r *http.Request) (*http.Response, error) {
@@ -302,6 +322,7 @@ func (t nodeHeaderLimitTransport) RoundTrip(r *http.Request) (*http.Response, er
 	if err != nil {
 		return nil, err
 	}
+	limit := attemptOf(r.Context()).state.maxHeaderBytes
 	_, statusText, _ := strings.Cut(res.Status, " ")
 	size := int64(len(statusText))
 	for name, values := range res.Header {
@@ -319,9 +340,9 @@ func (t nodeHeaderLimitTransport) RoundTrip(r *http.Request) (*http.Response, er
 			size += int64(len(name))
 		}
 	}
-	if size >= t.limit {
+	if size >= limit {
 		res.Body.Close()
-		return nil, fmt.Errorf("route.go response headers exceed Node's %d-byte limit", t.limit)
+		return nil, fmt.Errorf("route.go response headers exceed Node's %d-byte limit", limit)
 	}
 	return res, nil
 }
@@ -331,15 +352,15 @@ var noTransform = regexp.MustCompile(`(?:^|,)\s*no-transform\s*(?:,|$)`)
 // Node's compression middleware varies compressible responses even when the
 // client accepts no supported encoding or the body is below its threshold.
 // The MIME overrides come from the same database bundled with that middleware.
-func addCompressionVary(header http.Header, cfg directConfig) {
-	if !cfg.compress || noTransform.MatchString(strings.Join(header.Values("Cache-Control"), ", ")) {
+func addCompressionVary(header http.Header, s *directState) {
+	if !s.compress || noTransform.MatchString(strings.Join(header.Values("Cache-Control"), ", ")) {
 		return
 	}
 	typ := strings.ToLower(strings.TrimSpace(header.Get("Content-Type")))
 	if end := strings.IndexAny(typ, "; \t\r\n"); end >= 0 {
 		typ = typ[:end]
 	}
-	compressible, known := cfg.MimeTypes[typ]
+	compressible, known := s.mimeTypes[typ]
 	if !known {
 		compressible = strings.HasPrefix(typ, "text/") || strings.HasSuffix(typ, "+json") || strings.HasSuffix(typ, "+text") || strings.HasSuffix(typ, "+xml")
 	}
@@ -399,31 +420,36 @@ func (b *guardedBody) Read(p []byte) (int, error) {
 
 func (b *guardedBody) Close() error { return nil }
 
-// dropInformational hides 1xx responses (such as 103 Early Hints) from the
-// client: Go's proxy passes them on, Node doesn't.
-type dropInformational struct {
-	http.ResponseWriter
-}
-
-func (d dropInformational) WriteHeader(code int) {
-	if code >= 100 && code < 200 && code != http.StatusSwitchingProtocols {
+// WriteHeader hides 1xx responses (such as 103 Early Hints) from the client:
+// Go's proxy passes them on, Node doesn't.
+func (a *directAttempt) WriteHeader(code int) {
+	if code >= 100 && code < 200 {
 		return
 	}
 	// The proxy clears the header map after each 1xx response, which also
 	// removes the marker that stops Go from guessing a Content-Type.
-	if _, ok := d.Header()["Content-Type"]; !ok {
-		d.Header()["Content-Type"] = nil
+	if _, ok := a.Header()["Content-Type"]; !ok {
+		a.Header()["Content-Type"] = nil
 	}
-	d.ResponseWriter.WriteHeader(code)
+	a.ResponseWriter.WriteHeader(code)
 }
 
-func (d dropInformational) Unwrap() http.ResponseWriter { return d.ResponseWriter }
+// Write sends each chunk to the client as soon as the worker sends it, as
+// Node's pipe does. The headers wait in Go's buffer until then, so they go
+// out with the first chunk, and a one-chunk response in a single write.
+func (a *directAttempt) Write(p []byte) (int, error) {
+	n, err := a.ResponseWriter.Write(p)
+	a.Flush()
+	return n, err
+}
 
-func (d dropInformational) Flush() {
-	if f, ok := d.ResponseWriter.(http.Flusher); ok {
+func (a *directAttempt) Flush() {
+	if f, ok := a.ResponseWriter.(http.Flusher); ok {
 		f.Flush()
 	}
 }
+
+func (a *directAttempt) Unwrap() http.ResponseWriter { return a.ResponseWriter }
 
 // trailerDropper clears the response's trailer fields once the body ends, so
 // the proxy has none to send on.

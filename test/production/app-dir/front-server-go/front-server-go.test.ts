@@ -1,5 +1,6 @@
 import { gunzipSync } from 'zlib'
 import { nextTestSetup } from 'e2e-utils'
+import { FRONT_SERVER_ENV } from 'next/dist/server/lib/front-server-env'
 import { getHeader, rawRequest } from '../front-server/raw-http'
 
 // What a route.go handler receives, and what its client gets back, under
@@ -270,15 +271,26 @@ describe('front-server-go', () => {
       }
     })
 
+    // Like the front-server suite: the front writes Go's reason phrase, Node
+    // its own.
     it.each([
-      [201, 'HTTP/1.1 201 Created'],
-      [413, 'HTTP/1.1 413 Payload Too Large'],
-      [418, "HTTP/1.1 418 I'm a Teapot"],
-    ])('writes Node’s reason phrase for %s', async (code, statusLine) => {
-      const res = await send(`/go/status/${code}`)
-      expect(res.statusLine).toBe(statusLine)
-      expect(res.body.toString()).toBe('status')
-    })
+      { code: 201, nodeReason: 'Created', goReason: 'Created' },
+      {
+        code: 413,
+        nodeReason: 'Payload Too Large',
+        goReason: 'Request Entity Too Large',
+      },
+      { code: 418, nodeReason: "I'm a Teapot", goReason: "I'm a teapot" },
+    ])(
+      'returns $code with the active server’s reason phrase',
+      async ({ code, nodeReason, goReason }) => {
+        const res = await send(`/go/status/${code}`)
+        const reason =
+          process.env[FRONT_SERVER_ENV] === '1' ? goReason : nodeReason
+        expect(res.statusLine).toBe(`HTTP/1.1 ${code} ${reason}`)
+        expect(res.body.toString()).toBe('status')
+      }
+    )
 
     it('drops early hints, keeps repeated Set-Cookie and the Trailer header', async () => {
       const res = await send('/go/extras')

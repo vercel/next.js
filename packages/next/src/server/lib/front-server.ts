@@ -138,26 +138,19 @@ function spawnFront(
     if (!closing) front.stdin.write(JSON.stringify(message) + '\n')
   }
   const setRouteTable = (table: FrontRouteTable) => {
-    const { observeNativeRouteWorkers } =
-      require('./native-route.external') as typeof import('./native-route.external')
     debug(
+      'route table: %s',
       'reason' in table
-        ? 'route table: every request goes to Node (%s)'
-        : 'route table: %d static and %d dynamic route.go routes',
-      ...('reason' in table
-        ? [table.reason]
-        : [
-            Object.keys(table.goExact).length,
-            table.dynamic.filter((route) => route.go).length,
-          ])
+        ? `every request goes to Node (${table.reason})`
+        : `${Object.keys(table.goExact).length + table.dynamic.filter((route) => route.go).length} route.go routes`
     )
     send({ event: 'table', table })
+    // An app without direct routes has no use for its workers' addresses.
+    if ('reason' in table) return
+    const { observeNativeRouteWorkers } =
+      require('./native-route.external') as typeof import('./native-route.external')
     observeNativeRouteWorkers((event) => {
-      debug(
-        'route.go worker %s: %s',
-        event.event,
-        event.event === 'worker' ? event.page : event.address
-      )
+      debug('route.go worker %s: %s', event.event, event.address)
       send(event)
     })
   }

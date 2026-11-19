@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/textproto"
 	"strings"
 )
 
@@ -103,9 +104,13 @@ func Load(data []byte) (*Table, error) {
 		maxHeaderBytes: raw.MaxHeaderBytes,
 		compress:       raw.Compress,
 		nodePrefixes:   raw.NodePrefixes,
-		nodeHeaders:    canonicalNames(raw.NodeHeaders),
+		nodeHeaders:    make([]string, len(raw.NodeHeaders)),
 		nodeExact:      make(map[string]struct{}, len(raw.NodeExact)),
 		goExact:        make(map[string]string, len(raw.GoExact)),
+	}
+	for i, name := range raw.NodeHeaders {
+		// "rsc" → "Rsc", how Go's HTTP server keys request headers.
+		t.nodeHeaders[i] = textproto.CanonicalMIMEHeaderKey(name)
 	}
 	for _, p := range raw.NodeExact {
 		t.nodeExact[p] = struct{}{}
@@ -190,20 +195,4 @@ func matches(pattern []entry, segments []string) bool {
 		}
 	}
 	return len(pattern) == len(segments)
-}
-
-// canonicalNames writes header names the way Go's HTTP server keys them
-// ("x-custom-header" becomes "X-Custom-Header").
-func canonicalNames(names []string) []string {
-	out := make([]string, len(names))
-	for i, name := range names {
-		parts := strings.Split(strings.ToLower(name), "-")
-		for j, part := range parts {
-			if part != "" {
-				parts[j] = strings.ToUpper(part[:1]) + part[1:]
-			}
-		}
-		out[i] = strings.Join(parts, "-")
-	}
-	return out
 }

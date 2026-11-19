@@ -53,11 +53,11 @@ func (t *Table) Decide(r Request) Decision {
 			return node(why)
 		}
 	}
-	segments, why := t.logicalSegments(path)
+	logical, segments, why := t.logicalPath(path)
 	if why != "" {
 		return node(why)
 	}
-	return t.match(segments)
+	return t.match(logical, segments)
 }
 
 // headersNodeHandles are request headers that make Node or its HTTP client
@@ -180,46 +180,45 @@ func isDigits(s string) bool {
 	return s != ""
 }
 
-// logicalSegments checks the path and returns its segments with the basePath
-// removed, or why the request goes to Node.
-func (t *Table) logicalSegments(path string) ([]string, string) {
+// logicalPath checks the path and returns it and its segments with the
+// basePath removed, or why the request goes to Node.
+func (t *Table) logicalPath(path string) (string, []string, string) {
 	if !strings.HasPrefix(path, "/") {
-		return nil, "target not in origin form"
+		return "", nil, "target not in origin form"
 	}
 	if t.basePath != "" {
 		rest, ok := strings.CutPrefix(path, t.basePath)
 		// Node sends the basePath root to the worker as "basePath/".
 		if !ok || !strings.HasPrefix(rest, "/") || rest == "/" {
-			return nil, "outside basePath or its root"
+			return "", nil, "outside basePath or its root"
 		}
 		path = rest
 	}
 	for _, prefix := range t.nodePrefixes {
 		if strings.HasPrefix(path, prefix) {
-			return nil, "node prefix " + prefix
+			return "", nil, "node prefix " + prefix
 		}
 	}
 	if path == "/" {
-		return []string{}, ""
+		return path, nil, ""
 	}
 	segments := strings.Split(path[1:], "/")
 	for _, s := range segments {
 		switch {
 		case s == "":
-			return nil, "empty segment or trailing slash"
+			return "", nil, "empty segment or trailing slash"
 		case s == "." || s == "..":
-			return nil, "dot segment"
+			return "", nil, "dot segment"
 		case !plain(s):
-			return nil, "path characters"
+			return "", nil, "path characters"
 		}
 	}
-	return segments, ""
+	return path, segments, ""
 }
 
 // match repeats Node's choice of route: exact paths first, then dynamic
 // routes in Node's order.
-func (t *Table) match(segments []string) Decision {
-	path := "/" + strings.Join(segments, "/")
+func (t *Table) match(path string, segments []string) Decision {
 	if _, ok := t.nodeExact[path]; ok {
 		return node("exact Node route")
 	}

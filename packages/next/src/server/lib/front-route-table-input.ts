@@ -16,7 +16,6 @@ type FsChecker = Awaited<ReturnType<typeof setupFsCheck>>
 export function collectFrontRouteTable(
   opts: Readonly<{
     dir: string
-    dev: boolean
     config: NextConfigComplete | NextConfigRuntime
     fsChecker: FsChecker
   }>
@@ -24,7 +23,7 @@ export function collectFrontRouteTable(
   const { config, fsChecker } = opts
   const serverDir = path.join(opts.dir, config.distDir, 'server')
   return frontRouteTable({
-    goRoutes: !opts.dev && Boolean(config.experimental.goRoutes),
+    goRoutes: Boolean(config.experimental.goRoutes),
     basePath: config.basePath,
     hasI18n: Boolean(config.i18n),
     trailingSlash: Boolean(config.trailingSlash),

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -28,8 +29,7 @@ const testTable = `{"contract":{"version":1},"basePath":"","maxHeaderBytes":1638
 "dynamic":[{"path":["api","users",{"param":"id"}],"go":"/api/users/[id]/route"}],
 "direct":{"stripRequestHeaders":["x-matched-path"],
 "stripRequestHeaderPrefixes":["x-next-internal-"],
-"mimeTypes":{"application/json":true,"text/plain":true,"image/png":false},
-"statusText":{"200":"OK","413":"Payload Too Large","500":"Internal Server Error"}}}`
+"mimeTypes":{"application/json":true,"text/plain":true,"image/png":false}}}`
 
 func startDirect(t *testing.T, worker http.HandlerFunc) *directFixture {
 	t.Helper()
@@ -215,7 +215,8 @@ func TestDirectCompressionVary(t *testing.T) {
 	}
 }
 
-func TestNodeReasonPhrasesTrailersAndEarlyHints(t *testing.T) {
+// The front uses Go's reason phrases, as on the Node path (newProxy).
+func TestReasonPhrasesTrailersAndEarlyHints(t *testing.T) {
 	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Query().Get("case") {
 		case "413":
@@ -229,7 +230,7 @@ func TestNodeReasonPhrasesTrailersAndEarlyHints(t *testing.T) {
 			w.Header().Set("X-Checksum", "abc")
 		}
 	})
-	if res := fx.raw(t, "GET /api/echo?case=413 HTTP/1.1"); !strings.HasPrefix(res, "HTTP/1.1 413 Payload Too Large\r\n") {
+	if res := fx.raw(t, "GET /api/echo?case=413 HTTP/1.1"); !strings.HasPrefix(res, "HTTP/1.1 413 Request Entity Too Large\r\n") {
 		t.Errorf("413: %q", res)
 	}
 	res := fx.raw(t, "GET /api/echo?case=extras HTTP/1.1")
@@ -265,5 +266,116 @@ func TestReadControlSkipsBadLinesAndStopsAtEOF(t *testing.T) {
 		func(error) { errs++ })
 	if strings.Join(got, ",") != "a,b" || errs != 1 {
 		t.Errorf("got %v, %d errors", got, errs)
+	}
+}
+
+func TestADirectResponseCanArriveBeforeTheUploadFinishes(t *testing.T) {
+	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) {
+		// The stand-in for the worker answers after the first body byte, then
+		// reads the rest of the upload, as a route.go behind Node can.
+		controller := http.NewResponseController(w)
+		if err := controller.EnableFullDuplex(); err != nil {
+			t.Error(err)
+			return
+		}
+		var first [1]byte
+		if _, err := io.ReadFull(r.Body, first[:]); err != nil {
+			t.Error(err)
+			return
+		}
+		io.WriteString(w, "first")
+		controller.Flush()
+		rest, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("reading the rest of the upload: %v", err)
+		}
+		io.WriteString(w, "-"+string(rest))
+	})
+	conn, err := net.Dial("tcp", fx.addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	conn.SetDeadline(time.Now().Add(5 * time.Second))
+	io.WriteString(conn, "POST /api/echo HTTP/1.1\r\nHost: example.com\r\nContent-Length: 4\r\n\r\na")
+	reader := bufio.NewReader(conn)
+	res, err := http.ReadResponse(reader, &http.Request{Method: http.MethodPost})
+	if err != nil {
+		t.Fatalf("response before the upload finished: %v", err)
+	}
+	defer res.Body.Close()
+	var first [5]byte
+	if _, err := io.ReadFull(res.Body, first[:]); err != nil || string(first[:]) != "first" {
+		t.Fatalf("first chunk %q, %v", first, err)
+	}
+	// Only now send the rest of the body.
+	io.WriteString(conn, "bcd")
+	rest, err := io.ReadAll(res.Body)
+	if err != nil || string(rest) != "-bcd" {
+		t.Fatalf("rest %q, %v", rest, err)
+	}
+}
+
+func TestABodyOfKnownLengthReachesTheClientChunkByChunk(t *testing.T) {
+	sent := make(chan struct{})
+	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", "6")
+		io.WriteString(w, "abc")
+		w.(http.Flusher).Flush()
+		<-sent
+		io.WriteString(w, "def")
+	})
+	// Registered after startDirect's cleanups, so it runs before them and
+	// frees the handler even when the test fails.
+	release := sync.OnceFunc(func() { close(sent) })
+	t.Cleanup(release)
+	conn, err := net.Dial("tcp", fx.addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	fmt.Fprintf(conn, "GET /api/echo HTTP/1.1\r\nHost: example.com\r\n\r\n")
+	res, err := http.ReadResponse(bufio.NewReader(conn), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := make([]byte, 3)
+	if _, err := io.ReadFull(res.Body, first); err != nil || string(first) != "abc" {
+		t.Fatalf("first chunk %q, %v", first, err)
+	}
+	release()
+	if rest, err := io.ReadAll(res.Body); err != nil || string(rest) != "def" {
+		t.Fatalf("rest %q, %v", rest, err)
+	}
+}
+
+func TestADirectAnswerSentMidUploadClosesTheConnection(t *testing.T) {
+	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) {
+		// The worker answers without reading the rest of the body (the
+		// stand-in has to allow that, as a route.go behind Node can).
+		controller := http.NewResponseController(w)
+		if err := controller.EnableFullDuplex(); err != nil {
+			t.Error(err)
+		}
+		w.WriteHeader(http.StatusForbidden)
+		controller.Flush()
+	})
+	conn, err := net.Dial("tcp", fx.addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	conn.SetDeadline(time.Now().Add(5 * time.Second))
+	io.WriteString(conn, "POST /api/echo HTTP/1.1\r\nHost: example.com\r\nContent-Length: 10\r\n\r\na")
+	res, err := http.ReadResponse(bufio.NewReader(conn), &http.Request{Method: http.MethodPost})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	// The rest of the body is still on the connection; reusing it would read
+	// those bytes as the next request.
+	if res.StatusCode != http.StatusForbidden || !res.Close {
+		t.Fatalf("status %d, close %v", res.StatusCode, res.Close)
 	}
 }

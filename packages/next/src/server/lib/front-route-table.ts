@@ -1,4 +1,3 @@
-import { STATUS_CODES } from 'http'
 import mimeTypes from 'next/dist/compiled/compression/mime-types.json'
 import { RouteKind } from '../route-kind'
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param'
@@ -34,7 +33,6 @@ export type FrontRouteTable =
       direct: Readonly<{
         stripRequestHeaders: readonly string[]
         stripRequestHeaderPrefixes: readonly string[]
-        statusText: Readonly<Record<string, string>>
         mimeTypes: Readonly<Record<string, boolean>>
       }>
     }>
@@ -127,11 +125,6 @@ export function frontRouteTable(input: FrontRouteTableInput): FrontRouteTable {
     return { contract: { version: VERSION }, reason: 'no route.go routes' }
   }
 
-  const statusText: Record<string, string> = {}
-  for (const [code, text] of Object.entries(STATUS_CODES)) {
-    if (text) statusText[code] = text
-  }
-
   return {
     contract: { version: VERSION },
     basePath: input.basePath,
@@ -147,7 +140,6 @@ export function frontRouteTable(input: FrontRouteTableInput): FrontRouteTable {
     direct: {
       stripRequestHeaders: [...input.internalHeaders],
       stripRequestHeaderPrefixes: ['x-next-internal-'],
-      statusText,
       mimeTypes,
     },
   }
