@@ -9,5 +9,5 @@ export function generateStaticParams() {
 export const metadata = { title: 'original page title' }
 
 export default function Page() {
-  notFound()
+  return notFound()
 }

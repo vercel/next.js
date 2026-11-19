@@ -62,15 +62,25 @@ import { gate } from 'next-test-utils'
         expect(response.headers['x-next-prelude-metadata']).toBeUndefined()
         if (await gate((conditions) => conditions.vercel)) {
           expect(response.headers['x-nextjs-postponed']).toBe('2')
-          expect(response.headers['x-vercel-cache']).toBe('HIT')
+          // The CDN reports seeded prerenders as PRERENDER.
+          expect(['HIT', 'PRERENDER']).toContain(
+            response.headers['x-vercel-cache']
+          )
         }
       }
 
-      await act(async () => {
-        await browser
-          .elementByCss('a[href="/dynamic-metadata/partial"]')
-          .click()
-      }, 'no-requests')
+      const isVercel = await gate((conditions) => conditions.vercel)
+      await act(
+        async () => {
+          await browser
+            .elementByCss('a[href="/dynamic-metadata/partial"]')
+            .click()
+          expect(await browser.elementByCss('h2').text()).toBe(
+            'Suspenseful Layout'
+          )
+        },
+        isVercel ? undefined : 'no-requests'
+      )
       expect(await browser.elementByCss('h2').text()).toBe('Suspenseful Layout')
       expect(await browser.elementByCss('.container').text()).toContain(
         'suspended component'
