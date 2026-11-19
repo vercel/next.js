@@ -65,7 +65,7 @@ exports.work = async (n) => {
     try {
       const error = await pool.dispatch('work', []).catch((err) => err)
       expect(error).toBeInstanceOf(WorkerExitError)
-      expect(error.code).toBe(3)
+      expect(error).toMatchObject({ code: 3 })
       expect(spawnedPids()).toHaveLength(3)
       expect(pool.getWorkerCount()).toBe(0)
       expect(spawnedPids().filter(isAlive)).toEqual([])
@@ -94,7 +94,9 @@ exports.work = async (n) => {
       try {
         const error = await worker.work().catch((err) => err)
         expect(error).toBeInstanceOf(WorkerExitError)
-        expect(error.message).toContain('Test worker')
+        expect(error).toMatchObject({
+          message: expect.stringContaining('Test worker'),
+        })
         expect(onRestart).toHaveBeenCalledTimes(maxRetries)
         // Each attempt is bounded.
         expect(spawnedPids()).toHaveLength(3 * (maxRetries + 1))
