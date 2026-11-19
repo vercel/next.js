@@ -56,8 +56,8 @@ use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Effects, FxIndexSet, GcRoot, OperationValue, OperationVc, PrettyPrintError, ReadRef,
-    ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi, UpdateInfo,
-    Vc, mark_top_level_task,
+    ResolvedVc, TraitRef, TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi,
+    UpdateInfo, Vc, mark_top_level_task,
     memory::release_freed_memory,
     message_queue::{CompilationEvent, Severity, TraceEvent},
     read_strongly_consistent_and_apply_effects, take_effects, turbo_tasks,
@@ -77,7 +77,7 @@ use turbopack_core::{
     issue::PlainIssue,
     output::{OutputAsset, OutputAssets},
     source_map::{SourceMap, Token},
-    version::{PartialUpdate, TotalUpdate, Update, VersionState},
+    version::{PartialUpdate, TotalUpdate, Update, Version, VersionState},
 };
 use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, Issue, ResourceIdentifier};
 use turbopack_trace_utils::{
@@ -2160,6 +2160,7 @@ pub fn project_client_hmr_events(
     env: Env,
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     chunk_name: RcStr,
+    client_version: Option<RcStr>,
     #[napi(ts_arg_type = "(err: Error, value: TurbopackResult<Update>) => void")] func: FunctionRef<
         TurbopackResult<Unknown<'static>>,
         (),
@@ -2176,13 +2177,14 @@ pub fn project_client_hmr_events(
             let session = session.clone();
             move || {
                 let chunk_name: RcStr = outer_chunk_name.clone();
+                let client_version = client_version.clone();
                 let session = session.clone();
                 async move {
                     // HACK(bgw): Remove this unmark call
                     unmark_top_level_task_may_leak_eventually_consistent_state();
                     let project = container.project().to_resolved().await?;
                     let state = project
-                        .hmr_version_state(chunk_name.clone(), session)
+                        .hmr_version_state(chunk_name.clone(), client_version, session)
                         .to_resolved()
                         .await?;
 
@@ -2196,6 +2198,7 @@ pub fn project_client_hmr_events(
                     // HACK(bgw): Remove this unmark call
                     unmark_top_level_task_may_leak_eventually_consistent_state();
                     let HmrUpdateWithIssues { update, issues, .. } = &*read;
+                    let mut to_version = None;
                     match &**update {
                         Update::Missing | Update::None => {}
                         Update::Total(TotalUpdate { to }) => {
@@ -2203,14 +2206,15 @@ pub fn project_client_hmr_events(
                         }
                         Update::Partial(PartialUpdate { to, .. }) => {
                             state.set(to.clone()).await?;
+                            to_version = Some(TraitRef::cell(to.clone()).id().owned().await?);
                         }
                     }
-                    Ok((Some(update.clone()), issues.clone()))
+                    Ok((Some(update.clone()), issues.clone(), to_version))
                 }
             }
         },
         move |ctx| {
-            let (update, issues) = ctx.value;
+            let (update, issues, to_version) = ctx.value;
 
             let napi_issues = issues
                 .iter()
@@ -2229,11 +2233,19 @@ pub fn project_client_hmr_events(
                 None | Some(Update::Missing) | Some(Update::Total(_)) => {
                     ClientUpdateInstruction::restart(&identifier, &update_issues)
                 }
-                Some(Update::Partial(update)) => ClientUpdateInstruction::partial(
-                    &identifier,
-                    &update.instruction,
-                    &update_issues,
-                ),
+                Some(Update::Partial(update)) => match &to_version {
+                    Some(to_version) => ClientUpdateInstruction::partial_to_version(
+                        &identifier,
+                        &update.instruction,
+                        to_version,
+                        &update_issues,
+                    ),
+                    None => ClientUpdateInstruction::partial(
+                        &identifier,
+                        &update.instruction,
+                        &update_issues,
+                    ),
+                },
                 Some(Update::None) => ClientUpdateInstruction::issues(&identifier, &update_issues),
             };
 

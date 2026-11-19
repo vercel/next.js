@@ -787,10 +787,16 @@ function bindingToApi(
     }
 
     clientHmrEvents(
-      chunkName: string
+      chunkName: string,
+      clientVersion: string | undefined
     ): AsyncIterableIterator<TurbopackResult<Update>> {
       return subscribe(true, async (callback) =>
-        binding.projectClientHmrEvents(this._nativeProject, chunkName, callback)
+        binding.projectClientHmrEvents(
+          this._nativeProject,
+          chunkName,
+          clientVersion,
+          callback
+        )
       )
     }
 

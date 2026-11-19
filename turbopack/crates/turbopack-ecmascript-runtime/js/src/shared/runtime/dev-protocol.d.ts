@@ -7,6 +7,8 @@ type PartialServerMessage = {
   issues: Issue[]
   type: 'partial'
   instruction: PartialUpdate
+  /** The version of the resource after this update. */
+  version?: string
 }
 
 // string encoding of a module factory (used in hmr updates)
@@ -99,6 +101,8 @@ type ResourceIdentifier = {
 type ClientMessageSubscribe = {
   type: 'turbopack-subscribe'
   hmrVersion?: string
+  /** The version of the resource the client has, if it knows it. */
+  version?: string
 } & ResourceIdentifier
 
 type ClientMessageUnsubscribe = {

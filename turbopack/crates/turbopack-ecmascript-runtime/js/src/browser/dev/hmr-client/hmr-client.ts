@@ -85,21 +85,27 @@ export function connect({
 
   const global = globalThis as unknown as Record<
     string,
-    ChunkUpdateProvider | [ChunkListPath, UpdateCallback][] | undefined
+    | ChunkUpdateProvider
+    | [ChunkListPath, UpdateCallback, ChunkListSubscription?][]
+    | undefined
   >
   const queued = global[chunkUpdateListenersGlobal]
   if (queued != null && !Array.isArray(queued)) {
     throw new Error('A separate HMR handler was already registered')
   }
   global[chunkUpdateListenersGlobal] = {
-    push: ([chunkPath, callback]: [ChunkListPath, UpdateCallback]) => {
-      subscribeToChunkUpdate(chunkPath, sendMessage, callback)
+    push: ([chunkPath, callback, subscription]: [
+      ChunkListPath,
+      UpdateCallback,
+      ChunkListSubscription?,
+    ]) => {
+      subscribeToChunkUpdate(chunkPath, sendMessage, callback, subscription)
     },
   }
 
   if (Array.isArray(queued)) {
-    for (const [chunkPath, callback] of queued) {
-      subscribeToChunkUpdate(chunkPath, sendMessage, callback)
+    for (const [chunkPath, callback, subscription] of queued) {
+      subscribeToChunkUpdate(chunkPath, sendMessage, callback, subscription)
     }
   }
 }
@@ -110,6 +116,13 @@ type UpdateCallbackSet = {
 }
 
 const updateCallbackSets: Map<ResourceKey, UpdateCallbackSet> = new Map()
+
+// The version of each subscribed resource the client has, when the server told it.
+const resourceVersions: Map<ResourceKey, string> = new Map()
+
+// Chunk lists of dynamic imports are loaded before the chunks they list, so their version alone
+// tells the server whether the client missed an update.
+const dynamicChunkLists: Set<ResourceKey> = new Set()
 
 function sendJSON(sendMessage: SendMessage, message: ClientMessage) {
   sendMessage(JSON.stringify(message))
@@ -126,12 +139,23 @@ function resourceKey(resource: ResourceIdentifier): ResourceKey {
 
 function subscribeToUpdates(
   sendMessage: SendMessage,
-  resource: ResourceIdentifier
+  resource: ResourceIdentifier,
+  reconnecting = false
 ): () => void {
+  const key = resourceKey(resource)
   sendJSON(sendMessage, {
     type: 'turbopack-subscribe',
     ...resource,
-    hmrVersion: lastSeenHmrVersion,
+    // The client version covers everything else the client has, such as server
+    // component output and chunks loaded alongside the page. Chunk lists loaded
+    // later on a live connection skip it: lazy compilation changes the client
+    // output without the client missing an update. After reconnecting, the
+    // client may have missed anything.
+    hmrVersion:
+      reconnecting || !dynamicChunkLists.has(key)
+        ? lastSeenHmrVersion
+        : undefined,
+    version: resourceVersions.get(key),
   })
 
   return () => {
@@ -144,7 +168,7 @@ function subscribeToUpdates(
 
 function handleSocketConnected(sendMessage: SendMessage) {
   for (const key of updateCallbackSets.keys()) {
-    subscribeToUpdates(sendMessage, JSON.parse(key))
+    subscribeToUpdates(sendMessage, JSON.parse(key), true)
   }
 }
 
@@ -543,6 +567,13 @@ function handleSocketMessage(msg: ServerMessage) {
 
   handleIssues(msg)
 
+  if (msg.type === 'partial' && msg.version !== undefined) {
+    const key = resourceKey(msg.resource)
+    if (updateCallbackSets.has(key)) {
+      resourceVersions.set(key, msg.version)
+    }
+  }
+
   switch (msg.type) {
     case 'issues':
       // issues are already handled
@@ -577,26 +608,35 @@ function finalizeUpdate() {
 function subscribeToChunkUpdate(
   chunkListPath: ChunkListPath,
   sendMessage: SendMessage,
-  callback: UpdateCallback
+  callback: UpdateCallback,
+  subscription?: ChunkListSubscription
 ): () => void {
   return subscribeToUpdate(
     {
       path: chunkListPath,
     },
     sendMessage,
-    callback
+    callback,
+    subscription
   )
 }
 
 export function subscribeToUpdate(
   resource: ResourceIdentifier,
   sendMessage: SendMessage,
-  callback: UpdateCallback
+  callback: UpdateCallback,
+  subscription?: ChunkListSubscription
 ) {
   const key = resourceKey(resource)
   let callbackSet: UpdateCallbackSet
   const existingCallbackSet = updateCallbackSets.get(key)
   if (!existingCallbackSet) {
+    if (subscription?.version !== undefined) {
+      resourceVersions.set(key, subscription.version)
+    }
+    if (subscription?.source === 'dynamic') {
+      dynamicChunkLists.add(key)
+    }
     callbackSet = {
       callbacks: new Set([callback]),
       unsubscribe: subscribeToUpdates(sendMessage, resource),
@@ -612,9 +652,15 @@ export function subscribeToUpdate(
 
     if (callbackSet.callbacks.size === 0) {
       callbackSet.unsubscribe()
-      updateCallbackSets.delete(key)
+      forgetResource(key)
     }
   }
+}
+
+function forgetResource(key: ResourceKey) {
+  updateCallbackSets.delete(key)
+  resourceVersions.delete(key)
+  dynamicChunkLists.delete(key)
 }
 
 function triggerUpdate(msg: ServerMessage) {
@@ -635,6 +681,6 @@ function triggerUpdate(msg: ServerMessage) {
     // message to the server.
     // No need to send an "unsubscribe" message to the server, it will have already
     // dropped the update stream before sending the "notFound" message.
-    updateCallbackSets.delete(key)
+    forgetResource(key)
   }
 }

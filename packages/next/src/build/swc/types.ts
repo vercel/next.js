@@ -238,9 +238,15 @@ interface PartialUpdate extends BaseUpdate {
     type: 'ChunkListUpdate'
     merged: EcmascriptMergedUpdate[] | undefined
   }
+  /** The version of the chunk list after this update. */
+  version?: string
 }
 
-export type Update = IssuesUpdate | PartialUpdate
+interface RestartUpdate extends BaseUpdate {
+  type: 'restart'
+}
+
+export type Update = IssuesUpdate | PartialUpdate | RestartUpdate
 
 /**
  * IMPORTANT: This type is duplicated in:
@@ -362,8 +368,13 @@ export interface Project {
     entryPaths: string[]
   ): Promise<TurbopackResult<ServerHmrUpdate>>
 
+  /**
+   * `clientVersion` is the version of the chunk list the client has. When it
+   * is outdated, the first update is a restart.
+   */
   clientHmrEvents(
-    identifier: string
+    identifier: string,
+    clientVersion: string | undefined
   ): AsyncIterableIterator<TurbopackResult<Update>>
 
   clientHmrChunkNamesSubscribe(): AsyncIterableIterator<

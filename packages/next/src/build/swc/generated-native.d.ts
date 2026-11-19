@@ -616,6 +616,7 @@ export declare function projectClientHmrChunkNamesSubscribe(
 export declare function projectClientHmrEvents(
   project: { __napiType: 'Project' },
   chunkName: RcStr,
+  clientVersion: RcStr | undefined | null,
   func: (err: Error, value: TurbopackResult<Update>) => void
 ): { __napiType: 'RootTask' }
 

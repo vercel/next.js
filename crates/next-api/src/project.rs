@@ -50,9 +50,9 @@ use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Completions, FxIndexMap, InvalidationReason, NonLocalValue, OperationValue,
-    OperationVc, OrderedAutoMap, ReadRef, ResolvedVc, State, TransientInstance, TryFlatJoinIterExt,
-    TryJoinIterExt, Vc, debug::ValueDebugFormat, fxindexmap, message_queue::TraceEvent,
-    turbo_tasks,
+    OperationVc, OrderedAutoMap, ReadRef, ResolvedVc, State, TraitRef, TransientInstance,
+    TryFlatJoinIterExt, TryJoinIterExt, Vc, debug::ValueDebugFormat, fxindexmap,
+    message_queue::TraceEvent, turbo_tasks,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
@@ -2898,10 +2898,16 @@ impl Project {
 
     /// Get the version state for an HMR session. Initialized with the first seen
     /// version in that session.
+    ///
+    /// `client_version` is the version id of the content the client already has, if it knows it.
+    /// When it differs from the first seen version, the client missed updates the session would
+    /// start after, so the session starts from a version no content matches instead, which makes
+    /// the first update a restart.
     #[turbo_tasks::function]
     pub async fn hmr_version_state(
         self: ResolvedVc<Self>,
         chunk_name: RcStr,
+        client_version: Option<RcStr>,
         session: TransientInstance<()>,
     ) -> Result<Vc<VersionState>> {
         // The session argument is important to avoid caching this function between
@@ -2932,13 +2938,20 @@ impl Project {
         // INVALIDATION: This is intentionally untracked to avoid invalidating this
         // function completely. We want to initialize the VersionState with the
         // first seen version of the session.
-        let state = VersionState::new(
-            version_op
-                .read_trait_strongly_consistent()
-                .untracked()
-                .await?,
-        )
-        .await?;
+        let version = version_op
+            .read_trait_strongly_consistent()
+            .untracked()
+            .await?;
+        let version = if let Some(client_version) = client_version
+            && *TraitRef::cell(version.clone()).id().await? != client_version
+        {
+            Vc::upcast::<Box<dyn Version>>(NotFoundVersion::new())
+                .into_trait_ref()
+                .await?
+        } else {
+            version
+        };
+        let state = VersionState::new(version).await?;
         Ok(state)
     }
 
