@@ -32,7 +32,7 @@ function setup(serverExternalPackagesMonorepo: boolean | undefined) {
 
         /** @type {import('next').NextConfig} */
         module.exports = {
-          serverExternalPackages: ['my-wasm-pkg', 'my-blocked-pkg'],
+          serverExternalPackages: ['my-wasm-pkg', 'my-dual-pkg', 'my-blocked-pkg'],
           // Aliases must be respected even for external workspace packages.
           turbopack: {
             resolveAlias: {
@@ -80,6 +80,16 @@ describe('server-external-packages-workspace-link', () => {
       )
     })
 
+    it('should not bundle a workspace package with separate import and require exports', async () => {
+      const res = await next.fetch('/api/x')
+      expect(res.status).toBe(200)
+      const { format, dualUrl } = await res.json()
+      // The route imports the package, so Node.js loads the `import` entry.
+      expect(format).toBe('esm')
+      expect(dualUrl).not.toContain('/ROOT/')
+      expect(dualUrl).toMatch(/packages\/my-dual-pkg\/index\.mjs$/)
+    })
+
     it('should respect aliases of external workspace packages', async () => {
       // Both requests are aliased (to `false` and to another file), so the
       // throwing files of the workspace package must not be loaded.
@@ -106,6 +116,7 @@ describe('server-external-packages-workspace-link', () => {
             'packages/my-wasm-pkg/node/index.js',
             'packages/my-wasm-pkg/wasm/my_wasm.cjs',
             'packages/my-wasm-dep/index.js',
+            'packages/my-dual-pkg/index.mjs',
           ])
         )
       })

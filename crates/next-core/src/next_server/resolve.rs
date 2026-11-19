@@ -26,7 +26,11 @@ use turbopack_core::{
     },
     source::Source,
 };
-use turbopack_resolve::{resolve::resolve_options, resolve_options_context::ResolveOptionsContext};
+use turbopack_resolve::{
+    ecmascript::{apply_cjs_specific_options, apply_esm_specific_options},
+    resolve::resolve_options,
+    resolve_options_context::ResolveOptionsContext,
+};
 
 /// The predicated based on which the [ExternalCjsModulesResolvePlugin] decides
 /// whether to mark a module as external.
@@ -231,9 +235,17 @@ impl BeforeResolvePlugin for ExternalSymlinkedPackagesResolvePlugin {
         }
 
         // Resolve the request like it would be resolved without this plugin, so import map entries
-        // (e.g. aliases to `false` or to another file) are respected. Only externalize the request
+        // (e.g. aliases to `false` or to another file) are respected. Use the same `import` /
+        // `require` conditions as Node.js will use for the external. Only externalize the request
         // when it resolves to a single file, and Node.js resolves it to the same file.
         let options = resolve_options(lookup_path.clone(), *self.resolve_options_context);
+        let is_esm = self.import_externals
+            && ReferenceTypeCondition::EcmaScriptModules(None).includes(&reference_type);
+        let options = if is_esm {
+            apply_esm_specific_options(options, &reference_type)
+        } else {
+            apply_cjs_specific_options(options)
+        };
         let result = resolve(
             lookup_path.clone(),
             reference_type.clone(),

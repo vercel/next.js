@@ -1,0 +1,11 @@
+{
+  "name": "my-dual-pkg",
+  "version": "1.0.0",
+  "private": true,
+  "exports": {
+    ".": {
+      "import": "./index.mjs",
+      "require": "./index.cjs"
+    }
+  }
+}

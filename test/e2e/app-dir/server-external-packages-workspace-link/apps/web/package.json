@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "my-blocked-pkg": "workspace:*",
+    "my-dual-pkg": "workspace:*",
     "my-wasm-pkg": "workspace:*"
   },
   "scripts": {
