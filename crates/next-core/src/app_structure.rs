@@ -8,8 +8,8 @@ use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, OrderedAutoSet, ResolvedVc, TryJoinIterExt,
-    ValueDefault, ValueToStringRef, Vc, debug::ValueDebugFormat, fxindexmap, turbobail,
+    FxIndexMap, FxIndexSet, NonLocalValue, OrderedAutoMap, OrderedAutoSet, ResolvedVc,
+    TryJoinIterExt, ValueDefault, ValueToStringRef, Vc, debug::ValueDebugFormat, turbobail,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
 use turbopack_core::issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString};
@@ -486,8 +486,8 @@ async fn get_directory_tree_internal(
 pub struct AppPageLoaderTree {
     pub page: AppPage,
     pub segment: RcStr,
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub parallel_routes: FxIndexMap<RcStr, AppPageLoaderTree>,
+    /// Boxed because a list storage keeps its entries inline, which a recursive type can't do.
+    pub parallel_routes: OrderedAutoMap<RcStr, Box<AppPageLoaderTree>>,
     pub modules: AppDirModules,
     pub global_metadata: ResolvedVc<GlobalMetadata>,
     /// For dynamic segments, contains the list of static sibling segments that
@@ -543,7 +543,7 @@ impl AppPageLoaderTree {
             || self
                 .parallel_routes
                 .values()
-                .any(AppPageLoaderTree::contains_catchall_page)
+                .any(|tree| tree.contains_catchall_page())
     }
 
     fn is_builtin_not_found_default(&self, builtin_default: &FileSystemPath) -> bool {
@@ -737,9 +737,7 @@ impl Entrypoint {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct Entrypoints(
-    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<AppPath, Entrypoint>,
-);
+pub struct Entrypoints(OrderedAutoMap<AppPath, Entrypoint>);
 
 fn is_parallel_route(name: &str) -> bool {
     name.starts_with('@')
@@ -1191,7 +1189,7 @@ async fn directory_tree_to_entrypoints(
         .resolved_cell()
         .emit();
     }
-    Ok(Vc::cell(retained_entrypoints))
+    Ok(Vc::cell(retained_entrypoints.into()))
 }
 
 #[turbo_tasks::value]
@@ -1856,7 +1854,7 @@ async fn directory_tree_to_loader_tree_internal(
     let mut tree = AppPageLoaderTree {
         page: app_page.clone(),
         segment: directory_name.clone(),
-        parallel_routes: FxIndexMap::default(),
+        parallel_routes: OrderedAutoMap::default(),
         modules: modules.without_leaves(),
         global_metadata: global_metadata.to_resolved().await?,
         static_siblings,
@@ -1874,10 +1872,10 @@ async fn directory_tree_to_loader_tree_internal(
     {
         tree.parallel_routes.insert(
             rcstr!("children"),
-            AppPageLoaderTree {
+            Box::new(AppPageLoaderTree {
                 page: app_page.clone(),
                 segment: rcstr!("__PAGE__"),
-                parallel_routes: FxIndexMap::default(),
+                parallel_routes: OrderedAutoMap::default(),
                 modules: AppDirModules {
                     page: Some(page),
                     metadata: modules.metadata,
@@ -1885,7 +1883,7 @@ async fn directory_tree_to_loader_tree_internal(
                 },
                 global_metadata: global_metadata.to_resolved().await?,
                 static_siblings: Vec::new(),
-            },
+            }),
         );
     }
 
@@ -1987,7 +1985,7 @@ async fn directory_tree_to_loader_tree_internal(
                     missing_defaults.push((app_page.clone(), key.into()));
                 }
 
-                tree.parallel_routes.insert(key.into(), subtree);
+                tree.parallel_routes.insert(key.into(), Box::new(subtree));
                 continue;
             }
 
@@ -2006,10 +2004,11 @@ async fn directory_tree_to_loader_tree_internal(
                         || current_tree.get_specificity() < subtree.get_specificity())
                 {
                     tree.parallel_routes
-                        .insert(rcstr!("children"), subtree.clone());
+                        .insert(rcstr!("children"), Box::new(subtree.clone()));
                 }
             } else {
-                tree.parallel_routes.insert(rcstr!("children"), subtree);
+                tree.parallel_routes
+                    .insert(rcstr!("children"), Box::new(subtree));
             }
         } else if let Some(key) = parallel_route_key {
             bail!(
@@ -2069,7 +2068,9 @@ async fn directory_tree_to_loader_tree_internal(
 
             tree.parallel_routes.insert(
                 key.clone(),
-                retained_route_tree(app_dir.clone(), global_metadata, app_page.clone()).await?,
+                Box::new(
+                    retained_route_tree(app_dir.clone(), global_metadata, app_page.clone()).await?,
+                ),
             );
         }
     }
@@ -2107,7 +2108,8 @@ async fn directory_tree_to_loader_tree_internal(
             )
             .await?
         };
-        tree.parallel_routes.insert(rcstr!("children"), children);
+        tree.parallel_routes
+            .insert(rcstr!("children"), Box::new(children));
     }
 
     Ok(Some(tree))
@@ -2161,7 +2163,7 @@ async fn synthetic_default_route_tree(
     Ok(AppPageLoaderTree {
         page: app_page,
         segment: rcstr!("__DEFAULT__"),
-        parallel_routes: FxIndexMap::default(),
+        parallel_routes: OrderedAutoMap::default(),
         modules: AppDirModules {
             default: Some(default),
             ..Default::default()
@@ -2431,53 +2433,58 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         let not_found_tree = AppPageLoaderTree {
             page: app_page.clone(),
             segment: directory_name.clone(),
-            parallel_routes: fxindexmap! {
-                rcstr!("children") => AppPageLoaderTree {
+            parallel_routes: OrderedAutoMap::from_iter([(
+                rcstr!("children"),
+                Box::new(AppPageLoaderTree {
                     page: app_page.clone(),
                     segment: rcstr!("/_not-found"),
-                    parallel_routes: fxindexmap! {
-                        rcstr!("children") => AppPageLoaderTree {
+                    parallel_routes: OrderedAutoMap::from_iter([(
+                        rcstr!("children"),
+                        Box::new(AppPageLoaderTree {
                             // Keep the root identity so the synthetic leaf does not contribute
                             // runtime or deployment config, matching webpack's layout inheritance.
                             page: app_page.clone(),
                             segment: rcstr!("__PAGE__"),
-                            parallel_routes: FxIndexMap::default(),
+                            parallel_routes: OrderedAutoMap::default(),
                             modules: if use_global_not_found {
                                 // if global-not-found.js is present:
                                 // leaf module only keeps page pointing to empty-stub
                                 AppDirModules {
                                     // page is built-in/empty-stub
-                                    page: Some(get_next_package(app_dir.clone())
-                                        .await?
-                                        .join("dist/client/components/builtin/empty-stub.js")?,
+                                    page: Some(
+                                        get_next_package(app_dir.clone())
+                                            .await?
+                                            .join("dist/client/components/builtin/empty-stub.js")?,
                                     ),
                                     ..Default::default()
                                 }
                             } else {
                                 // if global-not-found.js is not present:
-                                // we search if we can compose root layout with the root not-found.js;
+                                // we search if we can compose root layout with the root
+                                // not-found.js;
                                 AppDirModules {
                                     page: match modules.not_found {
                                         Some(v) => Some(v),
-                                        None => Some(get_next_package(app_dir.clone())
-                                            .await?
-                                            .join("dist/client/components/builtin/not-found.js")?,
-                                        ),
+                                        None => {
+                                            Some(get_next_package(app_dir.clone()).await?.join(
+                                                "dist/client/components/builtin/not-found.js",
+                                            )?)
+                                        }
                                     },
                                     ..Default::default()
                                 }
                             },
                             global_metadata,
                             static_siblings: Vec::new(),
-                        }
-                    },
+                        }),
+                    )]),
                     modules: AppDirModules {
                         ..Default::default()
                     },
                     global_metadata,
                     static_siblings: Vec::new(),
-                },
-            },
+                }),
+            )]),
             modules: AppDirModules {
                 // `global-not-found.js` does not need a layout since it's included.
                 // Skip it if it's present.
@@ -2528,20 +2535,22 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             let global_error_tree = AppPageLoaderTree {
                 page: app_page.clone(),
                 segment: directory_name.clone(),
-                parallel_routes: fxindexmap! {
-                    rcstr!("children") => AppPageLoaderTree {
+                parallel_routes: OrderedAutoMap::from_iter([(
+                    rcstr!("children"),
+                    Box::new(AppPageLoaderTree {
                         page: app_page.clone(),
                         segment: rcstr!("__PAGE__"),
-                        parallel_routes: FxIndexMap::default(),
+                        parallel_routes: OrderedAutoMap::default(),
                         modules: AppDirModules {
-                            page: Some(next_package
-                                .join("dist/client/components/builtin/app-error.js")?),
+                            page: Some(
+                                next_package.join("dist/client/components/builtin/app-error.js")?,
+                            ),
                             ..Default::default()
                         },
                         global_metadata,
                         static_siblings: Vec::new(),
-                    }
-                },
+                    }),
+                )]),
                 // global-error is needed for getGlobalErrorStyles to work during rendering.
                 // Use user's custom global-error if defined, otherwise builtin fallback.
                 modules: AppDirModules {
@@ -2705,7 +2714,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             }
         }
     }
-    Ok(Vc::cell(result))
+    Ok(Vc::cell(result.into()))
 }
 
 /// Returns the global metadata for an app directory.

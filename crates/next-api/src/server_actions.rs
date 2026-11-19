@@ -29,8 +29,8 @@ use swc_core::{
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueToStringRef, Vc, turbofmt,
+    FxIndexMap, FxIndexSet, NonLocalValue, OperationVc, OrderedAutoMap, ReadRef, ResolvedVc,
+    TryFlatJoinIterExt, TryJoinIterExt, ValueToStringRef, Vc, turbofmt,
 };
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath, rope::RopeBuilder};
 use turbo_tasks_hash::{HashAlgorithm, deterministic_hash};
@@ -38,7 +38,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
         ChunkGroupResult, ChunkItem, ChunkItemExt, ChunkableModule, ChunkingConfigs,
-        ChunkingContext, EntryChunkGroupResult, EvaluatableAsset, HmrChunkListSource, MinifyType,
+        ChunkingContext, EmitOptions, EntryChunkGroupResult, EvaluatableAsset, HmrChunkListSource,
         ModuleId, SourceMapSourceType, UnusedReferences, UrlBehavior, WorkerConfigurationOptions,
         availability_info::AvailabilityInfo, chunk_id_strategy::ModuleIdStrategy,
     },
@@ -58,9 +58,11 @@ use turbopack_core::{
     source_map::{OptionSourceMapType, SourceMapGenerationOptions},
     virtual_source::VirtualSource,
 };
+use turbopack_css::emit_options::CssEmitOptions;
 use turbopack_ecmascript::{
     EcmascriptAnalyzable, EcmascriptParsable, EnvVarAccessMode, EnvVarInfo,
     chunk::{EcmascriptChunkItem, EcmascriptChunkItemExt, EcmascriptChunkPlaceable},
+    emit_options::EcmascriptEmitOptions,
     module_fragments::part::module::EcmascriptModulePartAsset,
     parse::ParseResult,
 };
@@ -915,11 +917,10 @@ async fn parse_actions(module: ResolvedVc<Box<dyn Module>>) -> Result<Vc<OptionA
         actions.retain(|_, entry| all_exports.iter().any(|export| export == &entry.name));
     }
 
-    let mut actions = FxIndexMap::from_iter(actions.into_iter());
-    actions.sort_keys();
+    // `actions` is a `BTreeMap`, so this is sorted by the action hash.
     Ok(Vc::cell(Some(
         ActionMap {
-            actions,
+            actions: actions.into(),
             entry_path,
             entry_query,
         }
@@ -1039,8 +1040,7 @@ impl AllActions {
 #[turbo_tasks::value]
 #[derive(Debug)]
 pub struct ActionMap {
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub actions: FxIndexMap<String, ActionEntry>,
+    pub actions: OrderedAutoMap<String, ActionEntry>,
     pub entry_path: String,
     pub entry_query: String,
 }
@@ -1052,10 +1052,7 @@ struct OptionActionMap(Option<ResolvedVc<ActionMap>>);
 type LayerAndActions = (ActionLayer, ResolvedVc<ActionMap>);
 /// A mapping of every module module containing Server Actions, mapping to its layer and actions.
 #[turbo_tasks::value(transparent)]
-pub struct AllModuleActions(
-    #[bincode(with = "turbo_bincode::indexmap")]
-    FxIndexMap<ResolvedVc<Box<dyn Module>>, LayerAndActions>,
-);
+pub struct AllModuleActions(OrderedAutoMap<ResolvedVc<Box<dyn Module>>, LayerAndActions>);
 
 #[turbo_tasks::function]
 pub async fn map_server_actions(
@@ -1257,11 +1254,24 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
     }
 
     #[turbo_tasks::function]
-    pub fn minify_type(&self) -> Vc<MinifyType> {
-        // Intentionally override: we are not performing chunking, so minify_type is only used for
-        // generating less whitespace during AST emitting (which means less data and thus slightly
-        // faster)
-        MinifyType::default().cell()
+    fn emit_options(&self) -> Vc<EmitOptions> {
+        // Intentionally override: we are not performing chunking, so emit options are only used
+        // for generating less whitespace during AST emitting (which means less data and thus
+        // slightly faster)
+        Vc::cell(vec![
+            ResolvedVc::upcast(
+                EcmascriptEmitOptions::builder()
+                    .preset_minify_optimal_size()
+                    .build()
+                    .resolved_cell(),
+            ),
+            ResolvedVc::upcast(
+                CssEmitOptions::builder()
+                    .preset_minify()
+                    .build()
+                    .resolved_cell(),
+            ),
+        ])
     }
 
     #[turbo_tasks::function]

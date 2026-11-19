@@ -1,5 +1,6 @@
-import { stat } from 'fs/promises'
+import { readFile, stat } from 'fs/promises'
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 import type { NextAdapter } from 'next'
 
 type AdapterBuildContext = Parameters<NextAdapter['onBuildComplete']>[0]
@@ -7,7 +8,7 @@ type AdapterBuildContext = Parameters<NextAdapter['onBuildComplete']>[0]
 type Classification = {
   routeType: 'route' | 'page' | 'shell' | 'fallback'
   response: 'complete' | 'initial' | 'empty'
-  compute: 'static' | 'resuming' | 'blocking'
+  compute: 'static' | 'resuming' | 'blocking' | 'dynamic'
 }
 
 const validClassifications: Classification[] = [
@@ -15,11 +16,13 @@ const validClassifications: Classification[] = [
   { routeType: 'page', response: 'complete', compute: 'static' },
   { routeType: 'page', response: 'initial', compute: 'static' },
   { routeType: 'page', response: 'initial', compute: 'resuming' },
+  { routeType: 'page', response: 'empty', compute: 'static' },
   { routeType: 'page', response: 'empty', compute: 'blocking' },
+  { routeType: 'page', response: 'empty', compute: 'dynamic' },
   { routeType: 'shell', response: 'complete', compute: 'static' },
   { routeType: 'shell', response: 'initial', compute: 'static' },
   { routeType: 'shell', response: 'initial', compute: 'resuming' },
-  { routeType: 'shell', response: 'empty', compute: 'blocking' },
+  { routeType: 'shell', response: 'empty', compute: 'dynamic' },
   { routeType: 'fallback', response: 'complete', compute: 'static' },
   { routeType: 'fallback', response: 'initial', compute: 'static' },
   { routeType: 'fallback', response: 'initial', compute: 'resuming' },
@@ -43,6 +46,87 @@ describe('adapter-prerender-metadata', () => {
   async function getPrerenderManifest() {
     return next.readJSON('.next/prerender-manifest.json')
   }
+
+  it('preserves bot bypasses when the adapter omits getCapabilities', async () => {
+    const prerenders = await getPrerenders()
+    expect(await next.readJSON('capability-calls.json')).toBe(0)
+
+    for (const pathname of ['/ppr-shell', '/blog/[slug]']) {
+      const output = prerenders.find((entry) => entry.pathname === pathname)
+      expect(output).toBeDefined()
+      expect(output.config.bypassFor).toContainEqual({
+        type: 'header',
+        key: 'user-agent',
+        value: '.*(?:MyHTMLLimitedBot).*',
+      })
+    }
+  })
+
+  it('preserves the metadata marker through prerender regeneration', async () => {
+    const prerenders = await getPrerenders()
+    const shell = prerenders.find((output) => output.pathname === '/ppr-shell')
+    expect(shell?.fallback?.initialHeaders?.['x-next-prelude-metadata']).toBe(
+      '0'
+    )
+
+    if (!shell?.fallback?.filePath) {
+      throw new Error('Expected a cached HTML fallback for /ppr-shell')
+    }
+    const metadataPath = shell.fallback.filePath.replace(/\.html$/, '.meta')
+    const previousMetadata = await stat(metadataPath)
+    const { previewModeId } = await next.readJSON(
+      '.next/server/preview-props.json'
+    )
+    const response = await next.fetch('/ppr-shell', {
+      headers: { 'x-prerender-revalidate': previewModeId },
+    })
+    expect(response.status).toBe(200)
+    expect(response.headers.get('x-next-prelude-metadata')).toBe('0')
+    await retry(async () => {
+      expect((await stat(metadataPath)).mtimeMs).toBeGreaterThan(
+        previousMetadata.mtimeMs
+      )
+    })
+    const regenerated = JSON.parse(await readFile(metadataPath, 'utf8'))
+    expect(regenerated.headers['x-next-prelude-metadata']).toBe('0')
+    expect(
+      (await next.fetch('/ppr-shell')).headers.get('x-next-prelude-metadata')
+    ).toBe('0')
+  })
+
+  it('omits the HTML metadata marker during on-demand RSC regeneration', async () => {
+    const { previewModeId } = await next.readJSON(
+      '.next/server/preview-props.json'
+    )
+    const response = await next.fetch('/ppr-shell', {
+      headers: { rsc: '1', 'x-prerender-revalidate': previewModeId },
+    })
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toContain('text/x-component')
+    expect(response.headers.get('x-next-prelude-metadata')).toBeNull()
+    await response.text()
+    const html = await next.fetch('/ppr-shell')
+    expect(html.headers.get('x-next-prelude-metadata')).toBe('0')
+    await html.text()
+  })
+
+  it('keeps the HTML metadata marker off RSC and segment fallbacks', async () => {
+    const prerenders = await getPrerenders()
+    const rscOutputs = prerenders.filter((output) =>
+      output.pathname.endsWith('.rsc')
+    )
+    expect(
+      rscOutputs.some((output) => output.pathname.includes('.segments/'))
+    ).toBe(true)
+    expect(
+      rscOutputs.some((output) => output.pathname === '/ppr-shell.rsc')
+    ).toBe(true)
+    for (const output of rscOutputs) {
+      expect(
+        output.fallback?.initialHeaders?.['x-next-prelude-metadata']
+      ).toBeUndefined()
+    }
+  })
 
   it('provides existing files for every prerender fallback', async () => {
     const prerenders = await getPrerenders()
@@ -91,11 +175,25 @@ describe('adapter-prerender-metadata', () => {
         compute: 'resuming',
       },
       {
+        pathname: '/ensure-static/[slug]',
+        manifestSection: 'dynamicRoutes',
+        routeType: 'page',
+        response: 'empty',
+        compute: 'static',
+      },
+      {
+        pathname: '/blocking-param/[slug]',
+        manifestSection: 'dynamicRoutes',
+        routeType: 'page',
+        response: 'empty',
+        compute: 'blocking',
+      },
+      {
         pathname: '/empty-shell',
         manifestSection: 'routes',
         routeType: 'page',
         response: 'empty',
-        compute: 'blocking',
+        compute: 'dynamic',
       },
       {
         pathname: '/combinations/fallback-complete-static/known/[rest]',
@@ -119,11 +217,11 @@ describe('adapter-prerender-metadata', () => {
         compute: 'resuming',
       },
       {
-        pathname: '/combinations/shell-empty-blocking/[slug]',
+        pathname: '/combinations/shell-empty-dynamic/[slug]',
         manifestSection: 'dynamicRoutes',
         routeType: 'shell',
         response: 'empty',
-        compute: 'blocking',
+        compute: 'dynamic',
       },
       {
         pathname: '/combinations/fallback-complete-static/[slug]',
@@ -184,7 +282,7 @@ describe('adapter-prerender-metadata', () => {
     expect(manifest.routes['/empty-shell']).toMatchObject({
       routeType: 'page',
       response: 'empty',
-      compute: 'blocking',
+      compute: 'dynamic',
       htmlSize: 0,
     })
     expect(manifest.dynamicRoutes['/blog/[slug]']).toMatchObject({
@@ -357,17 +455,58 @@ describe('adapter-prerender-metadata', () => {
     expect(clientHole.htmlSize).toBeGreaterThan(0)
   })
 
-  it('classifies an empty Cache Components shell as blocking', async () => {
-    const prerenders = await getPrerenders()
-    const emptyShell = prerenders.find(
-      (output) => output.pathname === '/empty-shell'
-    )
+  it.each(['/empty-shell', '/inferred-empty/known'])(
+    'classifies the empty prerender for %s as dynamic',
+    async (pathname) => {
+      const prerenders = await getPrerenders()
+      const emptyShell = prerenders.find(
+        (output) => output.pathname === pathname
+      )
 
-    expect(emptyShell).toBeDefined()
-    expect(emptyShell.routeType).toBe('page')
-    expect(emptyShell.response).toBe('empty')
-    expect(emptyShell.compute).toBe('blocking')
-    expect(emptyShell.htmlSize).toBe(0)
+      expect(emptyShell).toMatchObject({
+        routeType: 'page',
+        response: 'empty',
+        compute: 'dynamic',
+        htmlSize: 0,
+        fallback: {
+          postponedState: expect.any(String),
+        },
+      })
+    }
+  )
+
+  it('distinguishes inferred empty shells from explicitly blocking matchers', async () => {
+    const manifest = await getPrerenderManifest()
+    const prerenders = await getPrerenders()
+    const inferred = '/inferred-empty/[slug]'
+    const blocking = '/blocking-param/[slug]'
+
+    expect(manifest.dynamicRoutes[inferred]).toMatchObject({
+      fallback: null,
+      response: 'empty',
+      compute: 'dynamic',
+    })
+    expect(
+      manifest.dynamicRoutes[inferred].isExplicitlyBlocking
+    ).toBeUndefined()
+    expect(manifest.dynamicRoutes[blocking]).toMatchObject({
+      fallback: null,
+      isExplicitlyBlocking: true,
+      response: 'empty',
+      compute: 'blocking',
+    })
+    for (const [pathname, compute] of [
+      [inferred, 'dynamic'],
+      [blocking, 'blocking'],
+    ]) {
+      const output = prerenders.find((output) => output.pathname === pathname)
+      expect(output).toMatchObject({ response: 'empty', compute })
+      expect(output.fallback).toBeUndefined()
+    }
+    expect(manifest.routes['/blocking-param/known']).toMatchObject({
+      response: 'complete',
+      compute: 'static',
+    })
   })
 
   it('classifies static Route Handler bodies as complete routes', async () => {
@@ -469,8 +608,98 @@ describe('adapter-prerender-metadata', () => {
     expect(omittedTemplate).not.toHaveProperty('htmlSize')
   })
 
-  it('keeps classification on canonical outputs only', async () => {
+  it.each([
+    {
+      pathname: '/static',
+      routeType: 'page',
+      response: 'complete',
+      compute: 'static',
+    },
+    {
+      pathname: '/client-hole',
+      routeType: 'page',
+      response: 'complete',
+      compute: 'static',
+    },
+    {
+      pathname: '/empty-shell',
+      routeType: 'page',
+      response: 'empty',
+      compute: 'dynamic',
+    },
+    {
+      pathname: '/blog/first',
+      routeType: 'page',
+      response: 'empty',
+      compute: 'dynamic',
+    },
+    {
+      pathname: '/blog/[slug]',
+      routeType: 'fallback',
+      response: 'empty',
+      compute: 'dynamic',
+    },
+    {
+      pathname: '/blocking-param/[slug]',
+      routeType: 'page',
+      response: 'empty',
+      compute: 'blocking',
+    },
+    {
+      pathname: '/inferred-empty/[slug]',
+      routeType: 'page',
+      response: 'empty',
+      compute: 'dynamic',
+    },
+    {
+      pathname: '/inferred-empty/known',
+      routeType: 'page',
+      response: 'empty',
+      compute: 'dynamic',
+    },
+    {
+      pathname: '/ensure-static/[slug]',
+      routeType: 'page',
+      response: 'empty',
+      compute: 'static',
+    },
+    {
+      pathname: '/ensure-static/known',
+      routeType: 'page',
+      response: 'complete',
+      compute: 'static',
+    },
+    {
+      pathname: '/blocking-param/known',
+      routeType: 'page',
+      response: 'complete',
+      compute: 'static',
+    },
+    {
+      pathname: '/combinations/shell-complete-static/[slug]',
+      routeType: 'shell',
+      response: 'empty',
+      compute: 'dynamic',
+    },
+  ])(
+    'classifies the full-route RSC output for $pathname',
+    async ({ pathname, ...classification }) => {
+      const prerenders = await getPrerenders()
+      const output = prerenders.find(
+        (prerender) => prerender.pathname === pathname + '.rsc'
+      )
+      expect(output).toBeDefined()
+      expect(output).toMatchObject(classification)
+      expect(output).not.toHaveProperty('htmlSize')
+      expect(output.fallback?.filePath !== undefined).toBe(
+        classification.response === 'complete'
+      )
+    }
+  )
+
+  it('keeps unclassified templates and segment prefetches unclassified', async () => {
     const prerenders = await getPrerenders()
+    const manifest = await getPrerenderManifest()
 
     const expectUnclassified = (output: any) => {
       expect(output).not.toHaveProperty('routeType')
@@ -479,19 +708,12 @@ describe('adapter-prerender-metadata', () => {
       expect(output).not.toHaveProperty('htmlSize')
     }
 
-    const staticRsc = prerenders.find(
-      (output) => output.pathname === '/static.rsc'
+    const omittedData = prerenders.find(
+      (output) =>
+        output.pathname === manifest.dynamicRoutes['/omitted/[id]'].dataRoute
     )
-    expect(staticRsc).toBeDefined()
-    expect(staticRsc.route).toBe('/static')
-    expectUnclassified(staticRsc)
-
-    const templateRsc = prerenders.find(
-      (output) => output.pathname === '/blog/[slug].rsc'
-    )
-    expect(templateRsc).toBeDefined()
-    expect(templateRsc.route).toBe('/blog/[slug]')
-    expectUnclassified(templateRsc)
+    expect(omittedData).toBeDefined()
+    expectUnclassified(omittedData)
 
     const segments = prerenders.filter((output) =>
       output.pathname.startsWith('/blog/[slug].segments/')
@@ -500,6 +722,92 @@ describe('adapter-prerender-metadata', () => {
     for (const segment of segments) {
       expect(segment.route).toBe('/blog/[slug]')
       expectUnclassified(segment)
+    }
+  })
+})
+
+// The adapter output and legacy manifest serve different deployment paths.
+describe.each([
+  { mode: 'empty', bots: false, methods: false },
+  { mode: 'disabled', bots: false, methods: false },
+  { mode: 'bots', bots: true, methods: false },
+  { mode: 'methods', bots: false, methods: true },
+  { mode: 'both', bots: true, methods: true },
+])('prerender bypass capabilities: $mode', ({ mode, bots, methods }) => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    env: {
+      NEXT_TEST_PRERENDER_BYPASS_CAPABILITIES: mode,
+    },
+  })
+
+  it('emits opted-in rules and preserves the legacy manifest', async () => {
+    const { outputs }: AdapterBuildContext = await next.readJSON(
+      'build-complete.json'
+    )
+    const manifest = await next.readJSON('.next/prerender-manifest.json')
+    expect(await next.readJSON('capability-calls.json')).toBe(1)
+    expect(await next.readJSON('capability-config.json')).toEqual({
+      htmlLimitedBots: 'MyHTMLLimitedBot',
+      cacheComponents: true,
+      modified: 'applied',
+    })
+    const botRule = {
+      type: 'header',
+      key: 'user-agent',
+      value: '.*(?:MyHTMLLimitedBot).*',
+    }
+    const actionRules = [
+      { type: 'header', key: 'next-action' },
+      {
+        type: 'header',
+        key: 'content-type',
+        value: 'multipart/form-data;.*',
+      },
+    ]
+
+    const expectedConditions = [
+      ...(methods ? [{ type: 'method', value: 'POST' }] : actionRules),
+      ...(bots ? [] : [botRule]),
+    ]
+
+    for (const pathname of [
+      '/static',
+      '/ppr-shell',
+      '/ppr-shell.rsc',
+      '/blog/first',
+      '/blog/[slug]',
+      '/blog/[slug].rsc',
+    ]) {
+      const output = outputs.prerenders.find(
+        (entry) => entry.pathname === pathname
+      )
+      expect(output).toBeDefined()
+      expect(output.config.bypassFor).toEqual(expectedConditions)
+      const legacyPathname = pathname.replace(/\.rsc$/, '')
+      const legacyRoute =
+        manifest.routes[legacyPathname] ??
+        manifest.dynamicRoutes[legacyPathname]
+      expect(legacyRoute.experimentalBypassFor).toEqual([
+        ...actionRules,
+        botRule,
+      ])
+    }
+
+    const nonAppPageParents = new Set(
+      [...outputs.pages, ...outputs.appRoutes].map((output) => output.id)
+    )
+    for (const output of outputs.prerenders) {
+      if (nonAppPageParents.has(output.parentOutputId)) {
+        const legacyRoute =
+          manifest.routes[output.route] ?? manifest.dynamicRoutes[output.route]
+        expect(output.config.bypassFor).toEqual(
+          legacyRoute?.experimentalBypassFor
+        )
+      }
+      if (output.pathname.includes('.segments/')) {
+        expect(output.config.bypassFor).toBeUndefined()
+      }
     }
   })
 })

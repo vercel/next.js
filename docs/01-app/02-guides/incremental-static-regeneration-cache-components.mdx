@@ -190,6 +190,8 @@ These are combined into:
 - `/tops/[product]`, `/shorts/[product]`: category header rendered, product shows fallback
 - `/[category]/[product]`: both show fallback
 
+A shell's unknown params always come last, in route order. A URL can't have an unknown segment in the middle, so there is no `/[category]/tee` shell. A visit with an unlisted category gets `/[category]/[product]`, whatever the product.
+
 ### At runtime
 
 A visitor navigates to `/tops/tee`. Both params were prerendered. They get a fully static page.
@@ -216,7 +218,6 @@ After the first visit, Next.js renders the page in the background with the known
 
 - If every data access is cached and all params are resolved, the upgrade produces a **fully static page**.
 - If all params are resolved but the render still reaches uncached data or Request-time APIs (`cookies()`, `headers()`) wrapped in `<Suspense>` boundaries, the upgrade produces a **cached page with those fallbacks**. The uncached or request-specific parts stream in at request time.
-- Params are resolved in route order. A param value not returned by `generateStaticParams` stays unresolved and prevents any deeper params from upgrading.
 
 ## Choosing what to prerender
 

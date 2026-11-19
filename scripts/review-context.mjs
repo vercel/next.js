@@ -5,8 +5,8 @@
 // changed. The review harness runs this and passes the output to the agent.
 //
 // Default owners (for PRs that match no area) aren't fixed: each run picks
-// two team members at random who committed in the past week. The team is
-// everyone listed as an owner in review/OWNERS. Recent commits come from the
+// two team members at random who committed in the past week. The pool is
+// everyone listed as an area owner in review/OWNERS. Recent commits come from the
 // GitHub API, using GITHUB_TOKEN when it's set; without it, the pick is from
 // the whole team. Pass --seed (e.g. the PR number) so reruns on the same PR
 // pick the same people.
@@ -18,11 +18,17 @@
 //   git diff --numstat main | node scripts/review-context.mjs - [--author <login>]
 //   node scripts/review-context.mjs --check
 //     validates review/OWNERS (run in CI): every area has an owner and a
-//     rubric, every rubric has an area, and every glob matches a file
+//     rubric, every rubric has an area, every glob matches a file, and
+//     [team-members] lists no globs
+//
+// The [team-members] section of review/OWNERS isn't an area: it lists people
+// on the team who don't own an area. They count for authorIsTeamMember, but
+// they never match files and are never picked as default owners.
 //
 // Output is JSON:
 //   { areas: [{ area, owners, authorIsOwner, rubric, files }],
-//     defaultOwners, unmatched, implementationLines, totalLines }
+//     authorIsTeamMember, defaultOwners, unmatched, implementationLines,
+//     totalLines }
 
 import { execFileSync } from 'node:child_process'
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
@@ -30,6 +36,7 @@ import { join } from 'node:path'
 
 const repoRoot = new URL('..', import.meta.url).pathname
 const ownersFile = join(repoRoot, 'review/OWNERS')
+const TEAM_MEMBERS = 'team-members'
 
 function parseOwners(text) {
   const sections = []
@@ -204,7 +211,7 @@ function random(seed) {
 async function pickDefaultOwners(author, seed) {
   const team = [
     ...new Set(
-      sections
+      areaSections
         .flatMap((s) => s.owners)
         .filter((o) => o !== '@TODO')
         .map((o) => o.toLowerCase())
@@ -227,6 +234,18 @@ const sections = parseOwners(readFileSync(ownersFile, 'utf8')).map((s) => ({
   ...s,
   patterns: s.globs.flatMap(expandBraces).map(globToRegExp),
 }))
+// Sections that map paths to an owned area.
+const areaSections = sections.filter(
+  (s) => s.area !== 'default' && s.area !== TEAM_MEMBERS
+)
+
+function isTeamMember(login) {
+  if (login == null) return false
+  const handle = `@${login.toLowerCase()}`
+  return sections
+    .filter((s) => s.area !== 'default')
+    .some((s) => s.owners.some((o) => o.toLowerCase() === handle))
+}
 function check() {
   const problems = []
   const trackedFiles = execFileSync('git', ['ls-files'], {
@@ -238,6 +257,12 @@ function check() {
     .filter(Boolean)
   for (const section of sections) {
     if (section.area === 'default') continue
+    if (section.area === TEAM_MEMBERS) {
+      if (section.globs.length > 0) {
+        problems.push(`[${TEAM_MEMBERS}] lists globs; it isn't an area`)
+      }
+      continue
+    }
     const owners = section.owners.filter((o) => o !== '@TODO')
     if (owners.length === 0) {
       problems.push(`[${section.area}] has no owners`)
@@ -280,8 +305,7 @@ const matched = new Map()
 const unmatched = []
 for (const file of files) {
   let hit = false
-  for (const section of sections) {
-    if (section.area === 'default') continue
+  for (const section of areaSections) {
     const candidates = sourceCandidates(file)
     if (section.patterns.some((p) => candidates.some((f) => p.test(f)))) {
       hit = true
@@ -309,6 +333,7 @@ console.log(
   JSON.stringify(
     {
       areas: [...matched.values()],
+      authorIsTeamMember: isTeamMember(author),
       defaultOwners: await pickDefaultOwners(author, seed),
       unmatched,
       implementationLines: changes

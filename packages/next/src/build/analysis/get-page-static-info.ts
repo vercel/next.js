@@ -814,6 +814,24 @@ export async function getPagesPageStaticInfo({
   isDev,
   page,
 }: GetPageStaticInfoParams): Promise<PagesPageStaticInfo> {
+  if (/(?:^|[\\/])proxy\.go$/.test(pageFilePath)) {
+    if (!process.env.TURBOPACK)
+      throw new Error('proxy.go requires Turbopack; remove --webpack')
+    if (!nextConfig.experimental?.goRoutes)
+      throw new Error('proxy.go requires experimental.goRoutes: true')
+    return {
+      // Root proxies use the non-App static-info shape, just like proxy.ts.
+      type: PAGE_TYPES.PAGES,
+      config: undefined,
+      runtime: undefined,
+      middleware: {
+        matchers: getMiddlewareMatchers('/:path*', nextConfig),
+      },
+      preferredRegion: undefined,
+      maxDuration: undefined,
+      hadUnsupportedValue: false,
+    }
+  }
   const content = tryToReadFile(pageFilePath, !isDev)
   if (!content || !PARSE_PATTERN.test(content)) {
     return {

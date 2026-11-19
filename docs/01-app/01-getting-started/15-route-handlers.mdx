@@ -50,6 +50,8 @@ In addition to supporting the native [Request](https://developer.mozilla.org/doc
 
 Route Handlers are not cached by default. You can, however, opt into caching for `GET` methods. Other supported HTTP methods are **not** cached. To cache a `GET` method, use a [route config option](/docs/app/guides/caching-without-cache-components#dynamic) such as `export const dynamic = 'force-static'` in your Route Handler file.
 
+> **Good to know**: The `dynamic` export is not supported when [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled. See [caching GET handlers with Cache Components](#with-cache-components) for the supported approach.
+
 ```ts filename="app/items/route.ts" switcher
 export const dynamic = 'force-static'
 

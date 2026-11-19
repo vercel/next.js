@@ -520,13 +520,13 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
-                   at <unknown> (app/client-hook-abort-reasons/client.tsx:27:3)
+                   at <unknown> (app/client-hook-abort-reasons/client.tsx:27:18)
                    at body (<anonymous>)
                    at html (<anonymous>)
                  25 |
                  26 | export function UseSearchParams() {
                > 27 |   useSearchParams()
-                    |   ^
+                    |                  ^
                  28 |   return <p>hook slot: useSearchParams</p>
                  29 | }
                  30 | {
@@ -809,13 +809,13 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
-                   at <unknown> (app/client-hook-abort-reasons/client.tsx:22:3)
+                   at <unknown> (app/client-hook-abort-reasons/client.tsx:22:14)
                    at body (<anonymous>)
                    at html (<anonymous>)
                  20 |
                  21 | export function UsePathname() {
                > 22 |   usePathname()
-                    |   ^
+                    |              ^
                  23 |   return <p>hook slot: usePathname</p>
                  24 | }
                  25 | {
@@ -1098,13 +1098,13 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
-                   at <unknown> (app/client-hook-abort-reasons/client.tsx:17:3)
+                   at <unknown> (app/client-hook-abort-reasons/client.tsx:17:12)
                    at body (<anonymous>)
                    at html (<anonymous>)
                  15 |
                  16 | export function UseParams() {
                > 17 |   useParams()
-                    |   ^
+                    |            ^
                  18 |   return <p>hook slot: useParams</p>
                  19 | }
                  20 | {
@@ -1387,13 +1387,13 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
-                   at <unknown> (app/client-hook-abort-reasons/client.tsx:37:3)
+                   at <unknown> (app/client-hook-abort-reasons/client.tsx:37:28)
                    at body (<anonymous>)
                    at html (<anonymous>)
                  35 |
                  36 | export function UseSelectedLayoutSegments() {
                > 37 |   useSelectedLayoutSegments()
-                    |   ^
+                    |                            ^
                  38 |   return <p>hook slot: useSelectedLayoutSegments</p>
                  39 | }
                  40 | {
@@ -1676,13 +1676,13 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
-                   at <unknown> (app/client-hook-abort-reasons/client.tsx:32:3)
+                   at <unknown> (app/client-hook-abort-reasons/client.tsx:32:27)
                    at body (<anonymous>)
                    at html (<anonymous>)
                  30 |
                  31 | export function UseSelectedLayoutSegment() {
                > 32 |   useSelectedLayoutSegment()
-                    |   ^
+                    |                           ^
                  33 |   return <p>hook slot: useSelectedLayoutSegment</p>
                  34 | }
                  35 | {
@@ -2357,13 +2357,13 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
-                   at <unknown> (app/client-hook-abort-reasons/client.tsx:17:3)
+                   at <unknown> (app/client-hook-abort-reasons/client.tsx:17:12)
                    at body (<anonymous>)
                    at html (<anonymous>)
                  15 |
                  16 | export function UseParams() {
                > 17 |   useParams()
-                    |   ^
+                    |            ^
                  18 |   return <p>hook slot: useParams</p>
                  19 | }
                  20 | {
@@ -2939,13 +2939,13 @@ describe('Cache Components Errors - Client Hook Abort Reasons', () => {
                  - [block] Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-prerender-client-hook
-                   at <unknown> (app/client-hook-abort-reasons/client.tsx:32:3)
+                   at <unknown> (app/client-hook-abort-reasons/client.tsx:32:27)
                    at body (<anonymous>)
                    at html (<anonymous>)
                  30 |
                  31 | export function UseSelectedLayoutSegment() {
                > 32 |   useSelectedLayoutSegment()
-                    |   ^
+                    |                           ^
                  33 |   return <p>hook slot: useSelectedLayoutSegment</p>
                  34 | }
                  35 | {

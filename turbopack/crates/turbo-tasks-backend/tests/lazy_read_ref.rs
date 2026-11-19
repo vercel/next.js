@@ -418,17 +418,19 @@ async fn read_lazy_while_changing(
 ) -> Result<Vc<ReadResult>> {
     let value = value.connect();
     let lazy = value.lazy_reader().await?;
-    // Count executions untracked so this doesn't create a dependency.
+    // INVALIDATION: This is just a test
     let executions = executions.untracked().await?;
     let count = *executions.get_untracked() + 1;
     executions.set(count);
     if count == 1 {
         // Change the value while the `LazyReadRef` is still alive. Its dependency is still in
         // effect, so this has to invalidate this task, even though the value is never accessed.
+        // INVALIDATION: This is just a test
         step.untracked().await?.set(2);
         // Wait until the value is recomputed.
         let mut attempts = 0;
         loop {
+            // INVALIDATION: This is just a test
             if value.untracked().await?.step == 2 {
                 break;
             }
@@ -581,7 +583,8 @@ async fn leak_lazy(
     executions: ResolvedVc<Executions>,
 ) -> Result<Vc<ReadResult>> {
     let leak = LEAKS[leak as usize];
-    // Count executions untracked so this doesn't create a dependency.
+    // INVALIDATION: Counting executions must not add a dependency that invalidates this task
+    // when the counter is updated.
     let executions = executions.untracked().await?;
     // Don't hold the guard of `get_untracked` while setting the state.
     let count = *executions.get_untracked() + 1;
