@@ -248,6 +248,14 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 		FlushInterval: 0,
 		// One Transport for every worker: it keeps idle connections per
 		// address.
+		//
+		// Known difference from Node: when a reused connection closes before
+		// the worker answers, Go's Transport sends a bodyless GET, HEAD,
+		// OPTIONS or TRACE request again on a new connection. Node's client
+		// (native-route-proxy.ts) never resends; the request fails and Node
+		// answers its error page. So a GET handler that does its work and
+		// then crashes can run twice here. Requests Go would also resend for
+		// their Idempotency-Key header go to Node (routing.headersNodeHandles).
 		Transport: nodeHeaderLimitTransport{&http.Transport{
 			Proxy:               nil,
 			DialContext:         (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}).DialContext,

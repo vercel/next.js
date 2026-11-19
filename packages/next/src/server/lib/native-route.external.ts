@@ -2,10 +2,12 @@ import { spawn, type ChildProcess } from 'child_process'
 import { randomBytes } from 'crypto'
 import { promises as fs } from 'fs'
 import { Agent, request, type IncomingMessage, type ServerResponse } from 'http'
+import { availableParallelism } from 'os'
 import { join, relative, isAbsolute } from 'path'
 import { PassThrough, Readable, pipeline, type Transform } from 'stream'
 import { createBrotliDecompress, createUnzip } from 'zlib'
 import { proxyNativeRequest } from './native-route-proxy'
+import { routeGoMaxProcs } from './switchyard-route-go-threads'
 
 const noop = () => {}
 
@@ -150,9 +152,16 @@ export class NativeRouteManager {
 
   private async start(executable: string): Promise<Worker> {
     const token = randomBytes(32).toString('hex')
+    // Under Switchyard, the worker's Go runtime gets a thread limit of its
+    // own (see switchyard-route-go-threads.ts).
+    const maxProcs = routeGoMaxProcs(process.env, availableParallelism())
     const child = spawn(/* turbopackIgnore: true */ executable, [], {
       stdio: ['pipe', 'pipe', 'inherit'],
-      env: { ...process.env, __NEXT_GO_TOKEN: token },
+      env: {
+        ...process.env,
+        __NEXT_GO_TOKEN: token,
+        ...(maxProcs !== undefined && { GOMAXPROCS: maxProcs }),
+      },
       windowsHide: true,
     })
     const worker: Worker = {
