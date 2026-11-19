@@ -69,6 +69,10 @@ jest.mock('next/dist/lib/picocolors', () => ({
   cyan: (text: string) => text,
   dim: (text: string) => text,
 }))
+jest.mock('next/dist/lib/upgrade/child-env', () => ({
+  ...jest.requireActual('next/dist/lib/upgrade/child-env'),
+  getUpgradeChildEnv: jest.fn(),
+}))
 jest.mock('next/dist/lib/upgrade/model-discovery', () => ({
   getHarnessModels: jest.fn(),
 }))
@@ -97,6 +101,13 @@ const crossSpawn = require('next/dist/compiled/cross-spawn') as jest.Mock & {
   sync: jest.Mock
 }
 const cliVersion: string = require('next/package.json').version
+const actualGetUpgradeChildEnv = (
+  jest.requireActual(
+    'next/dist/lib/upgrade/child-env'
+  ) as typeof import('next/dist/lib/upgrade/child-env')
+).getUpgradeChildEnv
+const getUpgradeChildEnv = require('next/dist/lib/upgrade/child-env')
+  .getUpgradeChildEnv as jest.Mock
 const restoreDescriptors: Array<() => void> = []
 
 function normalizedBootstrapCalls(): string[][] {
@@ -174,6 +185,7 @@ describe('agentic upgrade prompts', () => {
 
   beforeEach(() => {
     jest.resetAllMocks()
+    getUpgradeChildEnv.mockImplementation(actualGetUpgradeChildEnv)
     jest.mocked(readReleaseAgePolicy).mockResolvedValue(null)
     jest.mocked(Telemetry).mockImplementation(
       () =>
@@ -649,7 +661,7 @@ describe('agentic upgrade prompts', () => {
             : ['--permission-mode', 'auto']),
           'In-place prompt',
         ],
-        { cwd: '/workspace/app', stdio: 'inherit' }
+        { cwd: '/workspace/app', stdio: 'inherit', env: process.env }
       )
       const modelMenu = jest.mocked(cliSelect).mock.calls[1][0]
       expect(modelMenu.values).toEqual(
@@ -738,7 +750,7 @@ describe('agentic upgrade prompts', () => {
         '--approve-for-me',
         'Upgrade prompt',
       ],
-      { cwd: '/workspace/app', stdio: 'inherit' }
+      { cwd: '/workspace/app', stdio: 'inherit', env: process.env }
     )
   })
 
@@ -837,10 +849,42 @@ describe('agentic upgrade prompts', () => {
             : ['--permission-mode', 'auto']),
           'Upgrade prompt',
         ],
-        { cwd: '/workspace/app', stdio: 'inherit' }
+        { cwd: '/workspace/app', stdio: 'inherit', env: process.env }
       )
     }
   )
+
+  it('hands the agent the environment the upgrade child processes should get', async () => {
+    process.env.PATH = '/agents'
+    overrideTTY(process.stdin)
+    overrideTTY(process.stdout)
+    jest.mocked(getAgentName).mockResolvedValue(null)
+    jest.mocked(access).mockResolvedValue(undefined)
+    jest.mocked(stat).mockResolvedValue({ isFile: () => true } as never)
+    jest.mocked(getHarnessModels).mockResolvedValue([])
+    jest
+      .mocked(cliSelect)
+      .mockResolvedValueOnce({ id: 'claude' })
+      .mockResolvedValueOnce({ id: 'yes' })
+      .mockResolvedValueOnce({ id: 'no' })
+    crossSpawn.mockImplementation(() => {
+      const child = new EventEmitter()
+      process.nextTick(() => child.emit('close', 0, null))
+      return child
+    })
+
+    // `next dev` injects NODE_ENV into its own process; the child environment
+    // is what removes it again. Its own behaviour is covered by
+    // test/unit/upgrade-child-env.test.ts.
+    const childEnv = { PATH: '/agents' } as unknown as NodeJS.ProcessEnv
+    getUpgradeChildEnv.mockReturnValue(childEnv)
+
+    await handoffUpgrade('Upgrade prompt', '/workspace/app', null)
+
+    const [, , options] = crossSpawn.mock.calls.at(-1)!
+    expect(options.env).toBe(childEnv)
+    expect(options.env?.NODE_ENV).toBeUndefined()
+  })
 
   it('skips unavailable efforts and goes back directly to model selection', async () => {
     process.env.PATH = '/agents'
@@ -878,7 +922,7 @@ describe('agentic upgrade prompts', () => {
     expect(crossSpawn).toHaveBeenCalledWith(
       expectedHarnessPath('claude'),
       ['--model', 'default', '--permission-mode', 'auto', 'Upgrade prompt'],
-      { cwd: '/workspace/app', stdio: 'inherit' }
+      { cwd: '/workspace/app', stdio: 'inherit', env: process.env }
     )
     expect(getHarnessModels).toHaveBeenCalledTimes(2)
   })
@@ -1060,7 +1104,7 @@ describe('agentic upgrade prompts', () => {
         ...flags,
         'Upgrade prompt',
       ],
-      { cwd: '/workspace/app', stdio: 'inherit' }
+      { cwd: '/workspace/app', stdio: 'inherit', env: process.env }
     )
   })
 
@@ -1112,7 +1156,7 @@ describe('agentic upgrade prompts', () => {
         'on-request',
         'Upgrade prompt',
       ],
-      { cwd: '/workspace/app', stdio: 'inherit' }
+      { cwd: '/workspace/app', stdio: 'inherit', env: process.env }
     )
   })
 
@@ -1162,7 +1206,7 @@ describe('agentic upgrade prompts', () => {
         'default',
         'Upgrade prompt',
       ],
-      { cwd: '/workspace/app', stdio: 'inherit' }
+      { cwd: '/workspace/app', stdio: 'inherit', env: process.env }
     )
   })
 
@@ -1253,7 +1297,7 @@ describe('agentic upgrade prompts', () => {
         '--approve-for-me',
         'Upgrade prompt',
       ],
-      { cwd: '/workspace/app', stdio: 'inherit' }
+      { cwd: '/workspace/app', stdio: 'inherit', env: process.env }
     )
   })
 
@@ -1289,7 +1333,7 @@ describe('agentic upgrade prompts', () => {
     expect(crossSpawn).toHaveBeenCalledWith(
       expectedHarnessPath('claude'),
       ['--model', 'opus', '--permission-mode', 'auto', 'Upgrade prompt'],
-      { cwd: '/workspace/app', stdio: 'inherit' }
+      { cwd: '/workspace/app', stdio: 'inherit', env: process.env }
     )
   })
 
@@ -1331,7 +1375,7 @@ describe('agentic upgrade prompts', () => {
         'auto',
         'Upgrade prompt',
       ],
-      { cwd: '/workspace/app', stdio: 'inherit' }
+      { cwd: '/workspace/app', stdio: 'inherit', env: process.env }
     )
   })
 
@@ -1388,7 +1432,7 @@ describe('agentic upgrade prompts', () => {
         'on-request',
         'Upgrade prompt',
       ],
-      { cwd: '/workspace/app', stdio: 'inherit' }
+      { cwd: '/workspace/app', stdio: 'inherit', env: process.env }
     )
   })
 
@@ -1442,7 +1486,7 @@ describe('agentic upgrade prompts', () => {
         '--approve-for-me',
         'Worktree prompt',
       ],
-      { cwd: '/workspace/app', stdio: 'inherit' }
+      { cwd: '/workspace/app', stdio: 'inherit', env: process.env }
     )
   })
 
