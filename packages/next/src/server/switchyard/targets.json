@@ -1,6 +1,6 @@
 {
-  "//": "Read by packages/next/taskfile.js (what to build) and src/server/lib/front-binary.ts (what to look for). The minimum Go version is go.mod's `go` line.",
-  "binaryName": "next-front-{os}-{arch}",
+  "//": "Read by packages/next/taskfile.js (what to build) and src/server/lib/switchyard-binary.ts (what to look for). The minimum Go version is go.mod's `go` line.",
+  "binaryName": "switchyard-{os}-{arch}",
   "goArch": { "x64": "amd64", "arm64": "arm64" },
   "targets": [
     { "os": "linux", "arch": "amd64" },
