@@ -14,6 +14,8 @@ export function captureOriginalEnv(): void {
 // Puts `process.env` back to the captured environment, so an agent upgrade
 // started from `next dev` or `next build` hands the coding agent the user's
 // environment instead of the one Next.js prepared for its own process.
+// Every variable set after the capture is dropped, so a variable the upgrade
+// itself needs must be set after this call or be kept explicitly below.
 export function restoreOriginalEnv(): void {
   if (!originalEnv) {
     return
