@@ -8,8 +8,6 @@
 //! of a failsafe parse, after an edit made the file unparsable) doesn't. The module generates
 //! both map variants; without an input map they share one map.
 
-use std::path::PathBuf;
-
 use anyhow::{Context, Result, bail};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TurboTasks, Vc};
@@ -165,25 +163,16 @@ async fn failsafe_parse_operation(fs: ResolvedVc<DiskFileSystem>) -> Result<Vc<F
     .cell())
 }
 
-fn temp_root(name: &str) -> PathBuf {
-    let root = std::env::temp_dir().join(format!(
-        "turbopack-source-content-refs-{name}-{}",
-        std::process::id()
-    ));
-    let _ = std::fs::remove_dir_all(&root);
-    std::fs::create_dir_all(&root).unwrap();
-    root
-}
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn module_maps_reference_their_source_file() {
-    let root = temp_root("module");
-    std::fs::write(root.join("module.js"), VALID).unwrap();
+    let temp_dir = tempfile::tempdir().unwrap();
+    std::fs::write(temp_dir.path().join("module.js"), VALID).unwrap();
     TurboTasks::new(TurboTasksBackend::new(
         BackendOptions::default(),
         noop_backing_storage(),
     ))
     .run_once(async move {
+        let root = temp_dir.path();
         let fs = fs_operation(root.to_str().unwrap().into())
             .resolve()
             .strongly_consistent()
@@ -200,7 +189,7 @@ async fn module_maps_reference_their_source_file() {
 
         // An edit is followed by the referenced content.
         let edited = "export const value = 2;\n";
-        edit(fs, &root, edited).await?;
+        edit(fs, root, edited).await?;
         let after = map_contents_operation(fs)
             .read_strongly_consistent()
             .await?;
@@ -218,13 +207,14 @@ async fn module_maps_reference_their_source_file() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn failsafe_parse_of_last_successful_source_does_not_reference_the_file() {
-    let root = temp_root("failsafe");
-    std::fs::write(root.join("module.js"), VALID).unwrap();
+    let temp_dir = tempfile::tempdir().unwrap();
+    std::fs::write(temp_dir.path().join("module.js"), VALID).unwrap();
     TurboTasks::new(TurboTasksBackend::new(
         BackendOptions::default(),
         noop_backing_storage(),
     ))
     .run_once(async move {
+        let root = temp_dir.path();
         let fs = fs_operation(root.to_str().unwrap().into())
             .resolve()
             .strongly_consistent()
@@ -239,7 +229,7 @@ async fn failsafe_parse_of_last_successful_source_does_not_reference_the_file() 
         // The file becomes unparsable: the failsafe parse falls back to the last successful
         // source. Its text isn't the file's content anymore, so it must not reference the file
         // (a map generated from it keeps an inline copy of the old text).
-        edit(fs, &root, INVALID).await?;
+        edit(fs, root, INVALID).await?;
         let invalid = failsafe_parse_operation(fs)
             .read_strongly_consistent()
             .await?;
