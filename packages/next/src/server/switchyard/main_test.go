@@ -1144,6 +1144,7 @@ func startCountingProxyWith(t *testing.T, upstreamIdle time.Duration, handler ht
 			open++
 		case http.StateClosed, http.StateHijacked:
 			open--
+		case http.StateActive, http.StateIdle:
 		}
 	}
 	upstream.Start()
