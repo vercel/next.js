@@ -1,11 +1,9 @@
 ---
 name: pr-status-triage
 description: >
-  Triage CI failures and PR review comments using scripts/pr-status.js.
-  Use when investigating failing CI jobs, flaky tests, or PR review feedback.
-  Covers blocker-first prioritization (build > lint > types > tests),
-  CI env var matching for local reproduction, and the Known Flaky Tests
-  distinction.
+  Check the status of an existing Next.js PR, investigate failing or flaky CI
+  checks, or address existing GitHub review comments and unresolved threads
+  with `scripts/pr-status.js`.
 metadata:
   internal: true
 ---
@@ -16,7 +14,10 @@ Use this skill when the user asks about PR status, CI failures, or review commen
 
 ## Workflow
 
-Start by fetching data to answer the user's query:
+Start by fetching data to answer the user's query. For a status-only request,
+report what you found. Rerun jobs or reply to review threads only when handling
+a request to do that work, subject to the
+[GitHub comment policy](../../../AGENTS.md#github-issues-comments-and-discussions).
 
 - For a targeted question about specific review comments, run `node scripts/pr-status.js [PR] --comments-only`. This skips all Actions run, job, log, and flaky-test requests.
 - For CI status or general triage, run `node scripts/pr-status.js [PR]` (no `--wait`) to snapshot the current state, then start triaging immediately from the jobs that have already finished. Re-fetch on demand as more results land instead of waiting for the whole workflow to complete.

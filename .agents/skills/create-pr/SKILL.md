@@ -1,27 +1,21 @@
 ---
 name: create-pr
 description: >
-  Create Git branches, commits, pushes, and GitHub pull requests for Next.js.
-  Use when the user asks to create a branch, commit current changes, open a
-  PR or draft PR, publish a pull request, or recover from gh pr create / PR
-  template issues. Covers .github/pull_request_template.md, --body formatting,
-  <agent-name>/ branch names, and Codex app git directives.
+  Create a branch, commit or push Next.js changes, or open a standalone draft PR.
+  Also use to draft or edit a PR title or description, fix `gh pr create` errors,
+  or adopt a fork PR with `pnpm pr-adopt`.
 metadata:
   internal: true
 ---
 
 # Create PR
 
-Use this skill when turning local work into a GitHub pull request.
+Use this skill for standalone Git and PR tasks. Run only the steps the user
+requested or that are needed for the requested outcome.
 
-## Fork PRs vs Branch PRs
-
-Before writing a PR description, check whether this is a branch PR (the
-branch lives in `vercel/next.js`) or a fork PR (an external contribution from
-a fork). You may write full descriptions for branch PRs, but not for fork
-PRs — inform the user, offer to review their description or provide technical
-details, and give them the GitHub URL to create the PR themselves. See
-"GitHub Pull Requests and Issues" in `AGENTS.md` for the full policy.
+- When drafting, editing, or publishing a PR, read the [PR publishing rules](references/pr-publishing.md).
+- When adopting an external PR into `vercel/next.js`, follow the [fork adoption workflow](references/fork-adoption.md) instead of the workflow below.
+- For an LTS backport or work in an existing stack, start with `$backport-pr` or `$gh-stack` respectively.
 
 ## Workflow
 
@@ -58,8 +52,10 @@ details, and give them the GitHub URL to create the PR themselves. See
    git commit -m "<concise message>"
    ```
 
-   Keep commit messages concise and do not add generated-tool or co-author
-   footers.
+   Before committing, check the affected files using the commands in
+   [lint-staged.config.js](../../../lint-staged.config.js). Keep commit messages
+   concise. Use the required `<!-- NEXT_JS_LLM -->` disclosure without adding
+   other generated-tool or co-author footers.
 
 4. Push the branch:
 
@@ -67,59 +63,23 @@ details, and give them the GitHub URL to create the PR themselves. See
    git push -u origin <branch>
    ```
 
-5. Create the PR as a draft unless the user explicitly asks otherwise:
+5. Create a draft PR with the body prepared using the publishing rules:
 
    ```bash
-   gh pr create --draft --base canary --head <branch> --title "<title>" --body '<body>'
+   gh pr create --draft --base canary --head <branch> --title "<title>" --body-file <path>
    ```
 
-   For this repo, prefer `canary` as the base branch. If GitHub network access
-   fails in the sandbox, rerun with escalation.
-
-## PR Body
-
-Follow the "PR Descriptions" section in `AGENTS.md`: the
-`.github/pull_request_template.md` structure (`What?` / `Why?` / `How?`, issue
-links) plus a `Verification` section. Use this PR body format:
-
-```markdown
-### What?
-
-<what changed>
-
-### Why?
-
-<motivation>
-
-### How?
-
-<implementation notes, if not obvious from the diff>
-
-Fixes #<number>
-
-### Verification
-
-- `<command that passed>`
-- Not run: `<command>` (`<reason>`)
-
-<!-- NEXT_JS_LLM -->
-```
-
-The "what" should be explained from the end-user perspective or developer perspective. Only include implementation changes in "How?" if they're not obvious from the diff.
-
-A "why" should be included if the change isn't self-explanatory, or if the motivation is not clear from the diff.
-Omitting the "why" should be used sparingly and only for small changes.
-
-Do not include trivial verification commands that CI already covers (e.g. `pnpm run build`), but do include any manual verification steps. If the PR changes a test, you don't need to repeat the command to run that test. But if you used an existing test to validate some behavior didn't change, include that test.
-
-Use `--body` with this filled content.
+   Use a temporary Markdown file for the body. Use `canary` for ordinary PRs
+   unless the task calls for a different base. Let the user mark the PR ready
+   for review. If GitHub network access fails in the sandbox, rerun with
+   escalation.
 
 ## Recovery
 
 - If a PR may already exist, check before creating a duplicate:
 
   ```bash
-  gh pr view --head <branch> --json url,isDraft,title
+  gh pr view <branch> --json url,isDraft,title
   ```
 
 - If approval is denied for `gh pr create`, report that the branch is pushed

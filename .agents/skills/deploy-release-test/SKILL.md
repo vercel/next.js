@@ -1,14 +1,9 @@
 ---
 name: deploy-release-test
 description: >
-  Validate a commit-specific Next.js preview package and manually trigger the
-  entire Next.js deployment test suite through the test_e2e_deploy_release.yml
-  GitHub Actions workflow. Use only when asked to run the full deploy test suite
-  or this workflow specifically from an internal vercel/next.js PR branch. Do
-  not use for focused deployment-test sanity checks; run the relevant tests
-  locally with pnpm test-deploy instead. Covers resolving the latest branch SHA,
-  waiting for vercel-packages, preserving default workflow inputs, dispatching
-  the workflow, and verifying the run.
+  Run the full Next.js deployment test suite for an internal PR through
+  `test_e2e_deploy_release.yml`. Use only when the user requests the full suite
+  or names the workflow; use `pnpm test-deploy` for focused tests.
 metadata:
   internal: true
 ---
@@ -40,8 +35,8 @@ suite, prefer the focused local workflow and scope it to the affected tests.
 - Use repository `vercel/next.js` and workflow
   `.github/workflows/test_e2e_deploy_release.yml`.
 - Require the PR head branch to exist in `vercel/next.js`. A fork branch cannot
-  run this secret-bearing workflow; use the repository's PR adoption process
-  first when appropriate.
+  run this secret-bearing workflow. When appropriate, follow the
+  [fork adoption workflow](../create-pr/references/fork-adoption.md) first.
 
 ## Workflow
 

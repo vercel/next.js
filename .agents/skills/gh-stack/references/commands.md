@@ -67,7 +67,7 @@ first non-merged ancestor, then links them into a Stack on GitHub.
   the title and its body as the PR body. A branch with multiple commits humanizes the branch name
   (hyphens and underscores become spaces). There is no flag for a custom title or body; use
   `gh pr edit` afterwards.
-- `--open` marks new _and existing_ PRs ready for review; without it new PRs are drafts.
+- `--open` marks new _and existing_ PRs ready for review. Omit it in Next.js so new PRs stay drafts.
 - Requires stacked PRs to be enabled on the repository. If not, `submit` exits **9** when
   non-interactive (under a TTY it offers to create ordinary unstacked PRs instead).
 

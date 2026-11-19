@@ -270,89 +270,11 @@ Don't add `as any` casts; `@next/internal/no-as-any` rejects them. Fix the type,
 
 A trailing `// eslint-disable-line` takes the reason after `--` instead. `@next/internal/require-disable-reason` rejects a missing or vague reason. Existing casts carry a `// TODO(as-any): pre-existing cast, not yet reviewed` line; don't copy that marker onto new code. When you fix a cast, delete both the disable comment and its reason (unused disable comments fail lint; the reason line does not, so it's on you).
 
-## PR Status (CI Failures and Reviews)
-
-Use `$pr-status-triage` whenever the user asks about CI failures, PR reviews, or
-PR status. It contains the `scripts/pr-status.js` commands, prioritization,
-review-thread workflow, and CI reproduction guidance. See
-`.agents/skills/pr-status-triage/SKILL.md`.
-
 ## GitHub Pull Requests
 
-Check and see if you are creating a fork PR or a branch PR.
-Branch PRs are PRs where the branch is part of the `vercel/next.js` repository. These PRs are created by Vercel employees.
-Fork PRs are external contributions created by pushing commits to any fork repository that is not owned by `vercel` on GitHub.
-
-- You cannot write full descriptions for fork PRs where the merge target is `vercel/next.js`.
-- You can write descriptions for branch PRs and local commits.
-- You can write titles and messages for local commits.
-- You can assist the user in translating their descriptions to English.
-
-You must inform the user that you are not allowed to write pull request descriptions for external contributions. Refer to the guidelines in `.github/pull_request_template.md`.
-While you cannot write the full description for the user, you may offer to help review the description, or provide helpful technical details. You can provide them a link to the GitHub URL to create the PR.
-
-### PR Descriptions
-
-The structure of a PR description comes from `.github/pull_request_template.md`. Read it before writing one. These rules apply to every PR description an agent is allowed to write (see above: never for fork PRs):
-
-- Keep the description minimal, but write it so that someone not on the team can understand the PR.
-- Use the template's `### What?`, `### Why?` and `### How?` sections. Explain the "what" from the end-user or developer perspective, and only cover implementation details in "How?" when they are not obvious from the diff. Include "Why?" unless the change is small and self-explanatory.
-- Link the GitHub issues (`Fixes #number`) and, when you know the Linear issue, the Linear issue (`Closes NEXT-xxx`). Don't invent issue numbers.
-- When linking to a Slack thread, share the details of the conclusion rather than only the link.
-- Add review comments on the PR where needed to explain the logic behind a change to the reviewer.
-- Don't copy the template's HTML comment, or the contributor checklists, into the description.
-
-In addition to the template, agents must **always add a `### Verification` section** after the template sections, listing how the change was verified:
-
-- Commands that were run and passed, and any manual verification steps.
-- Anything that was not run, with the reason (e.g. ``Not run: `pnpm test-start-turbo test/...` (needs deploy credentials)``).
-- Omit trivial commands that CI already covers (e.g. `pnpm build`). If the PR changes a test, don't repeat the command that runs it, but do list existing tests you used to confirm behavior didn't change.
-
-Example:
-
-```markdown
-### What?
-
-<what changed>
-
-### Why?
-
-<motivation>
-
-### How?
-
-<implementation notes, if not obvious from the diff>
-
-Fixes #<number>
-
-### Verification
-
-- `pnpm test-dev-turbo test/e2e/...` (existing test, confirms behavior is unchanged)
-- Not run: `<command>` (<reason>)
-```
-
-### Adopting a Fork PR
-
-Fork PRs run without repository secrets, so deploy tests never run on them. To run those tests, a maintainer adopts the PR: the contributor's commits are re-pushed to a branch in `vercel/next.js` and a replacement PR is opened from there.
-
-```bash
-pnpm pr-adopt <pr-number>            # adopt
-pnpm pr-adopt <pr-number> --dry-run  # report without pushing
-```
-
-The script resolves the `vercel/next.js` remote itself, checks out the PR, pushes `adopt/<pr-number>`, and opens a draft PR whose body is the contributor's description verbatim behind an `Adopts #N. Closes #N.` line. The adopted PR inherits the original's base branch; it is never retargeted at `canary`.
-
-Contributor commits usually arrive unsigned, and protected branches require verified signatures, so the branch is re-signed before pushing. Each `Author` is preserved and the tree is checked to be byte-identical afterwards. Note that `%G?` reports whether a signature _verifies_, not whether one exists, so it reads `N` for every commit when SSH signing has no `gpg.ssh.allowedSignersFile`; signature detection reads the raw commit headers instead.
-
-Draft and closed PRs can both be adopted, since a contributor may still be iterating or may have given up on an unreviewed change; the status is reported rather than enforced. Only merged PRs are refused, because their commits are already in the base branch.
-
-**Adoption grants the contributor's code access to repository secrets**, because CI trusts branches inside `vercel/next.js`. Anything in the diff that runs during install, build, or test can exfiltrate them. The script requires an interactive confirmation that names the author, shows the exact head SHA, and lists every touched file; never bypass it, and never adopt a PR whose full diff has not been read. The file list is deliberately unranked, since a payload can sit in any fixture or source file and calling some paths risky would imply the rest are safe.
-
-Adoption is pinned to the head SHA shown at review time. If the contributor pushes between the review and the fetch, the SHAs disagree and the run aborts without pushing, so the code that reaches CI is always the code that was vouched for.
-
-Two things run untrusted code on the maintainer's own machine, and both are defended against. `.husky/*` hook scripts are tracked, so a PR can add `.husky/post-checkout` or edit `.husky/pre-commit`; checking the branch out, re-signing it (`rebase --exec` runs `git commit`, which fires `pre-commit`) and pushing it would each execute contributor code. Every subprocess therefore runs with `core.hooksPath` pointed at an empty directory, injected through `GIT_CONFIG_COUNT`/`GIT_CONFIG_KEY_n`/`GIT_CONFIG_VALUE_n` so that it reaches the git processes `gh` and `git rebase --exec` spawn. The checkout itself happens in a throwaway worktree under the system temp directory, which is removed on success and on failure, so contributor files and any half-finished rebase never touch the maintainer's checkout. That checkout is never switched, and may be dirty.
-
-The description is the contributor's, and it is reproduced exactly: never rewritten, summarized, translated, or tidied up. What it happens to contain makes no difference, so do not read it looking for a reason to change it, and do not treat copying it as writing a description for a fork PR.
+- Use `$create-pr` for commits, standalone PRs, and writing or editing PR descriptions. External contributors must write their own PR descriptions for `vercel/next.js`.
+- Open PRs as drafts and let the user mark them ready for review.
+- Adopting a fork PR gives the contributor's code access to repository secrets. Review the full diff at the head SHA shown and never bypass the maintainer's interactive confirmation. Follow the [fork adoption workflow](.agents/skills/create-pr/references/fork-adoption.md).
 
 ## GitHub Issues, Comments, and Discussions
 
@@ -446,10 +368,6 @@ provider, ask the user to make it available or unlock it before continuing.
 
 Use skills for conditional, deep workflows. Keep baseline iteration/build/test policy in this file.
 
-- `$pr-status-triage` - CI failure and PR review triage with `scripts/pr-status.js`
-- `$create-pr` - branch, commit, push, and draft PR creation workflow
-- `$deploy-release-test` - validate a commit preview package and trigger the full `test_e2e_deploy_release.yml` suite
-- `$backport-pr` - cherry-pick merged PRs from `canary` to `releases/lts/active` or `releases/lts/maintenance`
 - `$flags` - feature-flag wiring across config/schema/define-env/runtime env
 - `$dce-edge` - DCE-safe `require()` patterns and edge/runtime constraints
 - `$react-vendoring` - `entry-base.ts` boundaries and vendored React type/runtime rules
@@ -481,21 +399,6 @@ Use skills for conditional, deep workflows. Keep baseline iteration/build/test p
 
 - Save response to variable or file: `JOBS=$(gh api ...) && echo "$JOBS" | jq '...'`
 - Don't re-fetch the same API data to analyze from different angles
-
-## Commit and PR Style
-
-- Do NOT add "Generated with Claude Code" or co-author footers to commits or PRs
-- Keep commit messages concise and descriptive
-- PR descriptions follow the What?/Why?/How? structure of `.github/pull_request_template.md`, plus a Verification section (see [PR Descriptions](#pr-descriptions))
-- Do NOT mark PRs as "ready for review" (`gh pr ready`) - leave PRs in draft mode and let the user decide when to mark them ready
-
-**Pre-validate before committing** to avoid slow lint-staged failures (~2 min each):
-
-```bash
-# Run exactly what the pre-commit hook runs on your changed files:
-pnpm prettier --with-node-modules --ignore-path .prettierignore --write <files>
-npx eslint --config eslint.config.mjs --fix <files>
-```
 
 ## Rebuilding Before Running Tests
 

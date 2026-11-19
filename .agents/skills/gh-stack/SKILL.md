@@ -1,10 +1,9 @@
 ---
 name: gh-stack
 description: >
-  Manages stacked PRs and splits multi-part work into reviewable branches with gh-stack.
-  Use for stack creation, viewing, edits, push, submit, sync, rebase, merge, or checkout;
-  when asked to split or isolate work for review; whenever a user mentions a stack,
-  branch layers, dependent PRs, or gh stack; or when a stack is checked out.
+  Split work into dependent PRs or manage a stacked PR series with `gh stack`.
+  Use for stack creation, checkout, submission, sync, rebase, or merge, and
+  for branch operations in an existing stack.
 metadata:
   author: github
   version: '0.1.0'
@@ -88,8 +87,16 @@ gh stack submit --auto          # push every branch and open draft PRs
 gh stack view --json            # confirm
 ```
 
-Add `--open` to `submit` to create PRs ready for review instead of drafts. Branch names are
-verbatim — `gh stack add refactor/foo` creates `refactor/foo`.
+Branch names are verbatim: `gh stack add refactor/foo` creates `refactor/foo`.
+
+Before publishing a Next.js stack, read the
+[PR publishing rules](../create-pr/references/pr-publishing.md). Use
+`gh stack submit --auto` or `gh stack link` without `--open` to keep new PRs in
+draft. Check the generated bodies of newly created internal PRs and use
+`gh pr edit --body-file` to bring them into line with the publishing rules.
+Preserve the generated stack links, each layer's base, and existing PR
+descriptions. If publishing would generate a new external contributor's PR
+description, hand off creation of that PR to the contributor instead.
 
 ## Staying in sync
 

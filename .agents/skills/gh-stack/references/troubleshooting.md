@@ -132,7 +132,7 @@ where the local `.git/gh-stack` file would be wrong or absent.
 
 ```bash
 gh stack link branch-a branch-b branch-c        # bottom to top
-gh stack link --base develop --open a b c       # non-default trunk, ready for review
+gh stack link --base develop a b c              # non-default trunk, draft PRs
 gh stack link 10 20 30                          # by PR number
 gh stack link 7 feature-d                       # append to existing stack #7
 ```
