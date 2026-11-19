@@ -25,6 +25,8 @@ import {
   type RequestInsightSummary,
 } from '../../../shared/lib/request-insights-summary'
 
+// History scans must stay bounded regardless of the journal's compression ratio.
+const HISTORY_ENTRY_LIMIT = 1000
 const JOURNAL_SIZE_LIMIT = 50 * 1024 * 1024
 const JOURNAL_WRITE_BATCH_BYTES = 64 * 1024
 const JOURNAL_FILENAME = 'request-insights.ndjson.gz'
@@ -151,7 +153,7 @@ class RequestInsightsJournal {
     }
     this.writer.write(data)
     for (const record of records) {
-      this.summaries.set(record.key, {
+      this.indexSummary(record.key, {
         sequence: ++this.sequence,
         request: record.summary,
       })
@@ -336,10 +338,20 @@ class RequestInsightsJournal {
     if (this.writer.size > 0 && this.writer.wouldExceed(data.length))
       this.rotate()
     this.writer.write(data)
-    this.summaries.set(batch.key, {
+    this.indexSummary(batch.key, {
       sequence: this.summaries.get(batch.key)?.sequence ?? ++this.sequence,
       request: previous!,
     })
+  }
+
+  private indexSummary(key: string, summary: IndexedSummary): void {
+    this.summaries.set(key, summary)
+    if (this.summaries.size > HISTORY_ENTRY_LIMIT) {
+      // Map insertion order preserves the oldest entry even when late updates
+      // replace its summary. Internal requests count toward the same budget.
+      this.summaries.delete(this.summaries.keys().next().value!)
+      this.truncated = true
+    }
   }
 
   private rotate(): void {
