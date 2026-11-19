@@ -27,7 +27,12 @@ export class RotatingFile {
   open(mode: 'a' | 'w' = 'a'): number {
     if (this.fd === undefined) {
       fs.mkdirSync(path.dirname(this.file), { recursive: true })
-      this.fd = fs.openSync(this.file, mode)
+      const flags =
+        fs.constants.O_WRONLY |
+        fs.constants.O_CREAT |
+        fs.constants.O_NOFOLLOW |
+        (mode === 'a' ? fs.constants.O_APPEND : fs.constants.O_TRUNC)
+      this.fd = fs.openSync(this.file, flags)
     }
     return this.fd
   }

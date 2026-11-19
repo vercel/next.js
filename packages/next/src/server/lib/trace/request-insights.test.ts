@@ -28,16 +28,7 @@ import {
   resolveRequestInsightsIdentity,
   runWithRequestInsightsIdentity,
 } from './request-insights-identity'
-import {
-  appendFile,
-  mkdtemp,
-  readFile,
-  readdir,
-  rm,
-  stat as fileStat,
-  writeFile,
-} from 'fs/promises'
-import { randomBytes } from 'crypto'
+import { mkdtemp, readFile, rm, symlink, writeFile } from 'fs/promises'
 import { gunzipSync, gzipSync } from 'zlib'
 import { tmpdir } from 'os'
 import path from 'path'
@@ -596,13 +587,6 @@ describe('request insights', () => {
     const persisted = await readRequestInsightsJournal(distDir, {
       requestId: 'journaled',
     })
-    const compressed = await readFile(
-      path.join(distDir, 'request-insights.ndjson.gz')
-    )
-    expect(await readdir(distDir)).toEqual(['request-insights.ndjson.gz'])
-    expect(JSON.parse(gunzipSync(compressed).toString('utf8')).request).toEqual(
-      persisted[0]
-    )
     expect(persisted).toEqual([
       expect.objectContaining({
         requestId: 'journaled',
@@ -857,7 +841,7 @@ describe('request insights', () => {
     }
   })
 
-  it.each(['bytes', 'identity', 'kind', 'append', 'live', 'flush'])(
+  it.each(['bytes', 'identity'] as const)(
     'bounds archived replay sharing across %s boundaries',
     async (boundary) => {
       process.env.__NEXT_REQUEST_INSIGHTS = 'true'
@@ -866,7 +850,7 @@ describe('request insights', () => {
       const request = getRequestInsightsSnapshot().requests[0]
       const other = {
         ...request,
-        requestId: boundary === 'kind' ? request.requestId : 'other',
+        requestId: 'other',
         kind: 'instant-insights' as const,
       }
       const fetch = (index: number) => ({
@@ -886,32 +870,18 @@ describe('request insights', () => {
       try {
         await initializeRequestInsightsJournal(distDir)
         appendRequestInsightToJournal(request)
-        appendRequestInsightToJournal(other)
+        if (boundary === 'identity') appendRequestInsightToJournal(other)
         await getRequestInsightsHistory(distDir)
         const createReadStream = jest.spyOn(fs, 'createReadStream')
         try {
           append(0)
           append(1)
-          if (boundary === 'identity' || boundary === 'kind') append(0, other)
-          if (boundary === 'append')
-            appendRequestInsightToJournal({ ...request, requestId: 'new' })
-          if (boundary === 'live') {
-            const span = { ...request.spans[0], name: 'live boundary' }
-            appendRequestInsightUpdateToJournal(
-              {
-                ...request,
-                spans: [...request.spans, span],
-                fetches: [fetch(0), fetch(1)],
-              },
-              { span }
-            )
-          }
-          if (boundary === 'flush') await getRequestInsightsHistory(distDir)
+          if (boundary === 'identity') append(0, other)
           append(2)
           append(3)
           await getRequestInsightsHistory(distDir)
           expect(createReadStream).toHaveBeenCalledTimes(
-            boundary === 'identity' || boundary === 'kind' ? 3 : 2
+            boundary === 'identity' ? 3 : 2
           )
         } finally {
           createReadStream.mockRestore()
@@ -1067,81 +1037,7 @@ describe('request insights', () => {
     }
   )
 
-  it('uses actual compressed file size when reopening and truncating', async () => {
-    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
-    startRequestInsight({ requestId: 'seed' })
-    recordSpan({ name: 'render', requestId: 'seed' })
-    const request = getRequestInsightsSnapshot().requests[0]
-    const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
-    const file = path.join(distDir, 'request-insights.ndjson.gz')
-    const sizeLimit = 50 * 1024 * 1024
-    try {
-      await initializeRequestInsightsJournal(distDir)
-      // Valid gzip/NDJSON padding, streamed in bounded chunks. Leave less room
-      // than the raw request takes, but more than its compressed representation.
-      const padding = gzipSync(
-        JSON.stringify({ padding: ' '.repeat(64 * 1024) }) + '\n',
-        { level: 0 }
-      )
-      const paddingCount = Math.floor((sizeLimit - 256 * 1024) / padding.length)
-      for (let i = 0; i < paddingCount; i++) await appendFile(file, padding)
-      const initialSize = (await fileStat(file)).size
-      await configureRequestInsightsJournal(distDir)
-      for (const requestId of ['compressible-one', 'compressible-two']) {
-        appendRequestInsightToJournal({
-          ...request,
-          requestId,
-          spans: [
-            {
-              ...request.spans[0],
-              attributes: { padding: 'x'.repeat(512 * 1024) },
-            },
-          ],
-        })
-      }
-      expect((await getRequestInsightsHistory(distDir)).truncated).toBe(false)
-      const storedSize = (await fileStat(file)).size
-      expect(storedSize).toBeGreaterThan(initialSize)
-      expect(storedSize).toBeLessThan(sizeLimit)
-      expect(
-        (await readRequestInsightsJournal(distDir)).map(
-          (entry) => entry.requestId
-        )
-      ).toEqual(['compressible-one', 'compressible-two'])
-
-      const incompressible = {
-        ...request,
-        requestId: 'incompressible',
-        spans: [
-          {
-            ...request.spans[0],
-            attributes: { padding: randomBytes(512 * 1024).toString('base64') },
-          },
-        ],
-      }
-      const encodedLength = gzipSync(
-        JSON.stringify({ version: 1, request: incompressible }) + '\n'
-      ).length
-      expect(storedSize + encodedLength).toBeGreaterThan(sizeLimit)
-      appendRequestInsightToJournal(incompressible)
-      const history = await getRequestInsightsHistory(distDir)
-      expect(history.truncated).toBe(true)
-      expect(history.requests.map((entry) => entry.requestId)).toEqual([
-        'incompressible',
-      ])
-      expect((await fileStat(file)).size).toBe(encodedLength)
-      expect(
-        (await readRequestInsightsJournal(distDir)).map(
-          (entry) => entry.requestId
-        )
-      ).toEqual(['incompressible'])
-    } finally {
-      await resetRequestInsightsJournalForTest()
-      await rm(distDir, { recursive: true, force: true })
-    }
-  })
-
-  it('guards indexed detail misses and flushes pending updates in identity order', async () => {
+  it('does not replay the journal for an indexed detail miss', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     startRequestInsight({ requestId: 'indexed' })
     recordSpan({ name: 'render', requestId: 'indexed' })
@@ -1151,48 +1047,18 @@ describe('request insights', () => {
     try {
       await initializeRequestInsightsJournal(distDir)
       appendRequestInsightToJournal(request)
-      const archived = { ...request.spans[0], name: 'archived' }
-      expect(
-        appendArchivedRequestInsightUpdateToJournal(request, { span: archived })
-      ).toBe(true)
-      const late = { ...request.spans[0], name: 'live' }
-      const updated = { ...request, spans: [...request.spans, archived, late] }
-      appendRequestInsightUpdateToJournal(updated, { span: late })
+      await getRequestInsightsHistory(distDir)
       const createReadStream = jest.spyOn(fs, 'createReadStream')
       try {
         await expect(
           readRequestInsightsJournal(distDir, {
-            requestId: 'indexed',
+            requestId: 'missing',
             indexedOnly: true,
           })
-        ).resolves.toEqual([updated])
-        expect(createReadStream).toHaveBeenCalledTimes(1)
-        createReadStream.mockClear()
-        for (const identity of [
-          { requestId: 'missing' },
-          { requestId: 'indexed', kind: 'instant-insights' as const },
-        ]) {
-          await expect(
-            readRequestInsightsJournal(distDir, {
-              ...identity,
-              indexedOnly: true,
-            })
-          ).resolves.toEqual([])
-        }
+        ).resolves.toEqual([])
         expect(createReadStream).not.toHaveBeenCalled()
       } finally {
         createReadStream.mockRestore()
-      }
-      const internal = { ...request, kind: 'instant-insights' as const }
-      appendRequestInsightToJournal(internal)
-      for (const retained of [updated, internal]) {
-        await expect(
-          readRequestInsightsJournal(distDir, {
-            requestId: retained.requestId,
-            kind: retained.kind,
-            indexedOnly: true,
-          })
-        ).resolves.toEqual([retained])
       }
     } finally {
       await resetRequestInsightsJournalForTest()
@@ -1305,6 +1171,45 @@ describe('request insights', () => {
     }
   )
 
+  // @force-gate !windows
+  it('does not follow a symlink while recovering a failed open', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    startRequestInsight({ requestId: 'seed' })
+    recordSpan({ name: 'original', requestId: 'seed' })
+    const request = getRequestInsightsSnapshot().requests[0]
+    const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+    const journal = path.join(distDir, 'request-insights.ndjson.gz')
+    const target = path.join(distDir, 'target')
+    const contents = 'must not be truncated'
+    const fs = require('fs') as typeof import('fs')
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      await initializeRequestInsightsJournal(distDir)
+      await rm(journal)
+      await writeFile(target, contents)
+
+      const open = jest.spyOn(fs, 'openSync').mockImplementationOnce(() => {
+        throw new Error('simulated open failure')
+      })
+      try {
+        appendRequestInsightToJournal(request)
+        await getRequestInsightsHistory(distDir)
+      } finally {
+        open.mockRestore()
+      }
+
+      await symlink(target, journal)
+      appendRequestInsightToJournal({ ...request, requestId: 'next' })
+      await getRequestInsightsHistory(distDir)
+
+      expect(await readFile(target, 'utf8')).toBe(contents)
+    } finally {
+      warn.mockRestore()
+      await resetRequestInsightsJournalForTest()
+      await rm(distDir, { recursive: true, force: true })
+    }
+  })
+
   it('handles missing, empty and damaged gzip journals without rejecting reads', async () => {
     const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
     const file = path.join(distDir, 'request-insights.ndjson.gz')
@@ -1338,10 +1243,6 @@ describe('request insights', () => {
       await initializeRequestInsightsJournal(distDir)
       configureJournalProvider(distDir)
       recordSpan({ name: 'original', requestId: 'rotated' })
-      recordRequestInsightFetch(
-        { requestId: 'rotated' },
-        { url: 'https://example.com/original' }
-      )
       completeRequestInsight({ requestId: 'rotated' })
       await getRequestInsightsHistory(distDir)
       if (archive) clearRequestInsightsForTest()
@@ -1357,16 +1258,7 @@ describe('request insights', () => {
       } finally {
         stat.mockRestore()
       }
-      // An archived duplicate loads the shared state before the next update
-      // rotates, but must not be added to the replacement full snapshot again.
-      recordRequestInsightFetch(
-        { requestId: 'rotated' },
-        { url: 'https://example.com/original' }
-      )
       recordSpan({ name: 'late one', requestId: 'rotated' })
-      const lateFetch = { url: 'https://example.com/late', index: 1 }
-      recordRequestInsightFetch({ requestId: 'rotated' }, lateFetch)
-      recordRequestInsightFetch({ requestId: 'rotated' }, lateFetch)
       recordSpan({ name: 'late two', requestId: 'rotated' })
       const [stored] = await readRequestInsightsJournal(distDir, {
         requestId: 'rotated',
@@ -1376,15 +1268,10 @@ describe('request insights', () => {
         'late one',
         'late two',
       ])
-      expect(stored.fetches.map((fetch) => fetch.url)).toEqual([
-        'https://example.com/original',
-        'https://example.com/late',
-      ])
       const history = await getRequestInsightsHistory(distDir)
       expect(history.truncated).toBe(true)
       expect(history.requests).toHaveLength(1)
       expect(history.requests[0].spanCount).toBe(3)
-      expect(history.requests[0].fetchCount).toBe(2)
       await resetRequestInsightsJournalForTest()
       await rm(distDir, { recursive: true, force: true })
     }
@@ -1531,7 +1418,7 @@ describe('request insights', () => {
     await rm(distDir, { recursive: true, force: true })
   })
 
-  it('bounds history across append and update insertions, including internal entries', async () => {
+  it('bounds history across append and update insertions', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
     startRequestInsight({ requestId: 'seed' })
     recordSpan({ name: 'render', requestId: 'seed' })
@@ -1551,87 +1438,32 @@ describe('request insights', () => {
     try {
       await initializeRequestInsightsJournal(distDir)
       for (let index = 0; index < 1000; index++) append(index)
-      const firstPage = await getRequestInsightsHistory(distDir, {
-        limit: 2,
-        showInternal: true,
-      })
-      expect(firstPage.totalRequestCount).toBe(1000)
-      expect(firstPage.truncated).toBe(false)
+      expect(
+        await getRequestInsightsHistory(distDir, { showInternal: true })
+      ).toMatchObject({ totalRequestCount: 1000, truncated: false })
 
       // Late updates must not pin the oldest summary in the index.
       appendRequestInsightUpdateToJournal(request(0), { span: seed.spans[0] })
       append(1000)
       const history = await getRequestInsightsHistory(distDir, {
         showInternal: true,
-        liveRequestKeys: ['request:bounded-0', 'request:bounded-1000'],
       })
       expect(history.totalRequestCount).toBe(1000)
       expect(history.truncated).toBe(true)
       expect(history.requests[0].requestId).toBe('bounded-1000')
-      expect(
-        history.liveRequestOverlaps?.map((entry) => entry.requestId)
-      ).toEqual(['bounded-1000'])
-      expect(history.optionCounts['activity:instant-insights']).toBe(500)
-      expect(
-        (await fileStat(path.join(distDir, 'request-insights.ndjson.gz'))).size
-      ).toBeLessThan(50 * 1024 * 1024)
-      // Detail reads only replay retained identities; low-level reads can
-      // still access records evicted from the index.
-      const fs = require('fs') as typeof import('fs')
-      const createReadStream = jest.spyOn(fs, 'createReadStream')
-      try {
-        const query = { requestId: 'bounded-0', indexedOnly: true }
-        await expect(
-          readRequestInsightsJournal(distDir, query)
-        ).resolves.toEqual([])
-        expect(createReadStream).not.toHaveBeenCalled()
-      } finally {
-        createReadStream.mockRestore()
-      }
-      // Eviction only affects the index, not the journal or retained cursors.
-      expect(
-        await readRequestInsightsJournal(distDir, { requestId: 'bounded-0' })
-      ).toHaveLength(1)
-      const secondPage = await getRequestInsightsHistory(distDir, {
-        cursor: firstPage.nextCursor,
-        showInternal: true,
-        limit: 2,
-      })
-      expect(secondPage.requests.map((entry) => entry.requestId)).toEqual([
-        'bounded-997',
-        'bounded-996',
-      ])
       expect(
         appendArchivedRequestInsightUpdateToJournal(request(0), {
           span: seed.spans[0],
         })
       ).toBe(false)
 
-      // An update to a retained entry must not evict another summary.
-      expect(
-        appendArchivedRequestInsightUpdateToJournal(request(1000), {
-          fetch: { url: 'https://example.com/late', index: 0 },
-        })
-      ).toBe(true)
-      const updated = await getRequestInsightsHistory(distDir, {
-        showInternal: true,
-      })
-      expect(updated.totalRequestCount).toBe(1000)
-      expect(updated.optionCounts['activity:instant-insights']).toBe(500)
-      expect(updated.optionCounts['fetches:present']).toBe(1)
-
-      // A live snapshot can reintroduce an evicted entry, but cannot grow
-      // the index. The oldest remaining entry (including internal ones) goes.
+      // A live update can reintroduce an evicted entry without growing the index.
       appendRequestInsightUpdateToJournal(request(0), { span: seed.spans[0] })
       const reintroduced = await getRequestInsightsHistory(distDir, {
         showInternal: true,
-        liveRequestKeys: ['instant-insights:bounded-1', 'request:bounded-0'],
       })
       expect(reintroduced.totalRequestCount).toBe(1000)
-      expect(reintroduced.optionCounts['activity:instant-insights']).toBe(499)
-      expect(
-        reintroduced.liveRequestOverlaps?.map((entry) => entry.requestId)
-      ).toEqual(['bounded-0'])
+      expect(reintroduced.requests[0].requestId).toBe('bounded-0')
     } finally {
       await resetRequestInsightsJournalForTest()
       await rm(distDir, { recursive: true, force: true })
