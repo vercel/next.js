@@ -381,8 +381,10 @@ func addCompressionVary(header http.Header, s *directState) {
 }
 
 // writeInternalError is Switchyard's own answer when a worker fails after it
-// may have received the request: a plain 500.
+// may have received the request: a plain 500, with the Cache-Control Node's
+// error page has, so no shared cache keeps it.
 func writeInternalError(w http.ResponseWriter) {
+	w.Header().Set("Cache-Control", "private, no-cache, no-store, max-age=0, must-revalidate")
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusInternalServerError)
 	io.WriteString(w, "Internal Server Error")

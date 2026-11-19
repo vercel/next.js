@@ -354,6 +354,17 @@ describe('front-server-go', () => {
       expect(html).toContain('"statusCode":500')
     })
 
+    it('keeps a handler failure out of shared caches', async () => {
+      // The first request starts the worker through Node; the second can go
+      // to the worker directly.
+      for (const res of [await send('/go/panic'), await send('/go/panic')]) {
+        expect(res.statusLine).toBe('HTTP/1.1 500 Internal Server Error')
+        expect(getHeader(res, 'cache-control')).toBe(
+          'private, no-cache, no-store, max-age=0, must-revalidate'
+        )
+      }
+    })
+
     it('sends the first chunk of a streaming response before it ends', async () => {
       const first = await firstChunk(Number(next.appPort), '/go/stream')
       expect(first).toBe('first')

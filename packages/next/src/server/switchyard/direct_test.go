@@ -251,6 +251,10 @@ func TestAWorkerFailingBeforeHeadersGetsAPlain500(t *testing.T) {
 	if !strings.HasPrefix(res, "HTTP/1.1 500 Internal Server Error\r\n") || !strings.HasSuffix(res, "Internal Server Error") {
 		t.Fatalf("%q", res)
 	}
+	// Node's error page can't be stored by a shared cache; neither can this.
+	if !strings.Contains(res, "\r\nCache-Control: private, no-cache, no-store, max-age=0, must-revalidate\r\n") {
+		t.Errorf("no Cache-Control like Node's error page: %q", res)
+	}
 	select {
 	case r := <-fx.node:
 		t.Errorf("Node got %s, but the worker may have run the request", r.RequestURI)
