@@ -63,9 +63,13 @@ exports.work = async (n) => {
       maxWorkers: 1,
     })
     try {
-      const error = await pool.dispatch('work', []).catch((err) => err)
-      expect(error).toBeInstanceOf(WorkerExitError)
-      expect(error).toMatchObject({ code: 3 })
+      const error: unknown = await pool
+        .dispatch('work', [])
+        .catch((err: unknown) => err)
+      if (!(error instanceof WorkerExitError)) {
+        throw new Error(`Expected a WorkerExitError, got: ${String(error)}`)
+      }
+      expect(error.code).toBe(3)
       expect(spawnedPids()).toHaveLength(3)
       expect(pool.getWorkerCount()).toBe(0)
       expect(spawnedPids().filter(isAlive)).toEqual([])
@@ -92,11 +96,11 @@ exports.work = async (n) => {
         onRestart,
       }) as Worker & { work: () => Promise<unknown> }
       try {
-        const error = await worker.work().catch((err) => err)
-        expect(error).toBeInstanceOf(WorkerExitError)
-        expect(error).toMatchObject({
-          message: expect.stringContaining('Test worker'),
-        })
+        const error: unknown = await worker.work().catch((err: unknown) => err)
+        if (!(error instanceof WorkerExitError)) {
+          throw new Error(`Expected a WorkerExitError, got: ${String(error)}`)
+        }
+        expect(error.message).toContain('Test worker')
         expect(onRestart).toHaveBeenCalledTimes(maxRetries)
         // Each attempt is bounded.
         expect(spawnedPids()).toHaveLength(3 * (maxRetries + 1))
