@@ -190,6 +190,17 @@ describe('switchyard process', () => {
     return path.basename(stdout.trim())
   }
 
+  /** A process's command line. */
+  async function argsOf(pid: number): Promise<string> {
+    const { stdout } = await execFileAsync('ps', [
+      '-o',
+      'args=',
+      '-p',
+      `${pid}`,
+    ])
+    return stdout
+  }
+
   async function childrenOf(pid: number): Promise<number[]> {
     const { stdout } = await execFileAsync('pgrep', ['-P', `${pid}`]).catch(
       () => ({ stdout: '' })
@@ -409,6 +420,36 @@ describe('switchyard process', () => {
       expect(status).toBe(200)
       expect(text).toContain('hello world')
     })
+
+    // Unix sockets are only used on Linux for now (private-ipc.ts); other
+    // platforms keep loopback TCP.
+    if (process.platform === 'linux') {
+      it('reaches Node over a Unix socket in a private directory', async () => {
+        const { child, port, exit } = await startNext({ flag: '1' })
+        const socketPath = /--upstream unix:(\S+)/.exec(
+          await argsOf(await switchyardOf(child.pid!))
+        )?.[1]
+        expect(socketPath).toMatch(/\/next-[^/]+\/node\.sock$/)
+        const dir = path.dirname(socketPath!)
+        expect((await fs.stat(dir)).mode & 0o777).toBe(0o700)
+        expect((await fs.stat(socketPath!)).isSocket()).toBe(true)
+
+        const { status, text } = await getText(port)
+        expect(status).toBe(200)
+        expect(text).toContain('hello world')
+
+        process.kill(child.pid!, 'SIGTERM')
+        expect(await exit).toEqual({ code: 143, signal: null })
+        await expect(fs.stat(dir)).rejects.toMatchObject({ code: 'ENOENT' })
+      })
+    } else {
+      it('reaches Node over loopback TCP', async () => {
+        const { child } = await startNext({ flag: '1' })
+        expect(await argsOf(await switchyardOf(child.pid!))).toMatch(
+          /--upstream 127\.0\.0\.1:\d+ /
+        )
+      })
+    }
 
     it("passes Node's timeouts to switchyard", async () => {
       const { child } = await startNext({

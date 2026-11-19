@@ -163,6 +163,8 @@ export interface StartServerOptions {
 
 /** This server's port and HTTP limits, passed to the public listener. */
 export type PrivateServer = {
+  /** The Node server, for accepting connections on another listener too. */
+  server: http.Server | https.Server
   port: number
   keepAliveTimeout: number
   headersTimeout: number
@@ -414,6 +416,7 @@ export async function startServer(
       if (serverOptions.beforeStartLog) {
         try {
           publicServer = await serverOptions.beforeStartLog({
+            server,
             port,
             keepAliveTimeout: server.keepAliveTimeout,
             headersTimeout: server.headersTimeout,

@@ -1,5 +1,5 @@
 // switchyard owns `next start`'s public port and forwards every request,
-// unchanged, to the Node server on a private loopback port. It makes no
+// unchanged, to the Node server over a private Unix socket or loopback port. It makes no
 // routing decisions; later stages move work here from Node.
 //
 // Contract with Node (packages/next/src/server/lib/switchyard.ts):
@@ -8,6 +8,8 @@
 //		  --idle-timeout-ms 5000 --header-timeout-ms 60000 \
 //		  --request-timeout-ms 300000 --upstream-idle-ms 4000 --max-header-bytes 16384
 //
+//	  - --upstream is Node's private address: unix:<path> for a Unix socket in
+//	    a directory only this user can open, or 127.0.0.1:<port>.
 //	  - Every flag is required. Node passes every behavior value, read off its
 //	    own server, so Switchyard has no defaults of its own.
 //	  - Node passes the connection metadata secret in __NEXT_PRIVATE_SWITCHYARD_TOKEN.
@@ -71,7 +73,7 @@ const connectionHeader = "X-Nextjs-Switchyard-Connection"
 func parseConfig(args []string) (config, error) {
 	flags := flag.NewFlagSet("switchyard", flag.ContinueOnError)
 	listen := flags.String("listen", "", "public address, like :3000 or 127.0.0.1:3000")
-	upstream := flags.String("upstream", "", "Node's private address, like 127.0.0.1:51234")
+	upstream := flags.String("upstream", "", "Node's private address, like unix:/tmp/next-x/node.sock or 127.0.0.1:51234")
 	idleMs := flags.Int("idle-timeout-ms", 0, "how long an idle client connection stays open")
 	headerMs := flags.Int("header-timeout-ms", 0, "how long a client may take to send request headers")
 	requestMs := flags.Int("request-timeout-ms", 0, "how long a client may take to send a whole request; 0 means no limit")
@@ -265,7 +267,7 @@ func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, 
 			// only ever carry one client's requests. Each client connection has
 			// its own transport for that (clientTransport); using the client's
 			// address as the URL host keeps the shared fallback transport
-			// keyed the same way. DialContext below always connects to Node.
+			// keyed the same way. dialUpstream always connects to Node.
 			pr.Out.URL.Host = pr.In.RemoteAddr
 			// Keep the client's Host header. pr.Out starts as a copy of
 			// pr.In, so it already has it; this guards against ProxyRequest's
@@ -427,8 +429,8 @@ func newUpstreamTransport(upstream string, upstreamIdle time.Duration, maxIdle i
 		// Transport already does that (only http.DefaultTransport reads
 		// HTTP_PROXY); this says so.
 		Proxy: nil,
-		DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
-			conn, err := (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}).DialContext(ctx, network, upstream)
+		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			conn, err := dialUpstream(ctx, upstream)
 			if err != nil || wrap == nil {
 				return conn, err
 			}
@@ -442,6 +444,46 @@ func newUpstreamTransport(upstream string, upstreamIdle time.Duration, maxIdle i
 		// turns that off, so compression stays between the client and Node.
 		DisableCompression:    true,
 		ExpectContinueTimeout: 1 * time.Second,
+	}
+}
+
+// upstreamDialTimeout bounds how long connecting to Node may take, over TCP
+// or a Unix socket.
+const upstreamDialTimeout = 30 * time.Second
+
+// dialUpstream connects to Node at upstream, unix:<path> or host:port.
+//
+// When Node's queue of connections it hasn't accepted yet is full (a burst of
+// new client connections while Node is busy), the two kinds of socket behave
+// differently. Over TCP the kernel drops the connection request and the
+// client's kernel sends it again a moment later, so the connection is only
+// delayed. Connecting to a full Unix socket queue fails at once with EAGAIN
+// instead, which the transport would turn into a 502. dialUpstream tries
+// again in that case, waiting a little longer each time, until the queue has
+// room, the request is cancelled, or upstreamDialTimeout passes, so the
+// request waits as it would over TCP.
+func dialUpstream(ctx context.Context, upstream string) (net.Conn, error) {
+	dialer := &net.Dialer{Timeout: upstreamDialTimeout, KeepAlive: 30 * time.Second}
+	path, unix := strings.CutPrefix(upstream, "unix:")
+	if !unix {
+		return dialer.DialContext(ctx, "tcp", upstream)
+	}
+	ctx, cancel := context.WithTimeout(ctx, upstreamDialTimeout)
+	defer cancel()
+	wait := time.Millisecond
+	for {
+		conn, err := dialer.DialContext(ctx, "unix", path)
+		if err == nil || !errors.Is(err, syscall.EAGAIN) {
+			return conn, err
+		}
+		timer := time.NewTimer(wait)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, err
+		case <-timer.C:
+		}
+		wait = min(2*wait, 50*time.Millisecond)
 	}
 }
 

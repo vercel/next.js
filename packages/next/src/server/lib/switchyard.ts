@@ -6,6 +6,7 @@ import type { Readable } from 'stream'
 import * as Log from '../../build/output/log'
 import {
   startServer,
+  type PrivateServer,
   type PublicServer,
   type StartServerOptions,
   type StartServerResult,
@@ -14,13 +15,19 @@ import { findSwitchyardBinary } from './switchyard-binary'
 import { SWITCHYARD_ENV, SWITCHYARD_TOKEN_ENV } from './switchyard-env'
 import { formatHostname } from './format-hostname'
 import { printAndExit } from './utils'
+import { listenOnPrivateSocket } from './private-ipc'
 
 /**
  * `next start` with __NEXT_EXPERIMENTAL_SWITCHYARD=1: a Go process
  * (src/server/switchyard) owns the public port and forwards every request,
- * unchanged, to Node on a private loopback port.
+ * unchanged, to Node over a private Unix socket where private-ipc.ts allows
+ * one (Linux), and on a private loopback port otherwise.
  *
- *   client ──► switchyard :3000 ──► Node 127.0.0.1:<OS-chosen>
+ *   client ──► switchyard :3000 ──► Node <tmpdir>/next-XXXXXX/node.sock
+ *                                    or Node 127.0.0.1:<OS-chosen>
+ *
+ * Node listens on the loopback port either way, for the requests it sends
+ * itself (`__NEXT_PRIVATE_ORIGIN`).
  *
  * Node is the parent. Switchyard exits when Node closes its stdin, and Node
  * exits 1 if Switchyard dies.
@@ -58,11 +65,11 @@ export async function startSwitchyard(
     switchyardToken: token,
     // Start Switchyard: it takes the public port and forwards to
     // the Node server above.
-    beforeStartLog: (privateServer) =>
+    beforeStartLog: async (privateServer) =>
       spawnSwitchyard(binary.path, {
         hostname: options.hostname,
         port: options.port,
-        privatePort: privateServer.port,
+        upstream: await privateUpstream(privateServer),
         token,
         maxHeaderBytes: privateServer.maxHeaderSize,
         // Every value Switchyard uses comes from Node, so it has no defaults
@@ -86,7 +93,7 @@ function spawnSwitchyard(
   options: {
     hostname: string | undefined
     port: number
-    privatePort: number
+    upstream: Upstream
     token: string
     maxHeaderBytes: number
     idleTimeoutMs: number
@@ -102,7 +109,7 @@ function spawnSwitchyard(
       '--listen',
       listen,
       '--upstream',
-      `127.0.0.1:${options.privatePort}`,
+      options.upstream.address,
       '--idle-timeout-ms',
       String(options.idleTimeoutMs),
       '--header-timeout-ms',
@@ -130,10 +137,12 @@ function spawnSwitchyard(
     switchyard.once('exit', () => resolve())
   )
   let closing = false
-  const close = () => {
+  const close = async () => {
     closing = true
     switchyard.stdin.end()
-    return exited
+    await exited
+    // Switchyard has finished its requests, so nothing uses the socket now.
+    await options.upstream.close()
   }
 
   return new Promise<PublicServer>((resolve, reject) => {
@@ -160,6 +169,31 @@ function spawnSwitchyard(
       resolve({ hostname: options.hostname, port, close })
     })
   })
+}
+
+/** Where Switchyard reaches Node, as `--upstream` takes it. */
+type Upstream = {
+  address: string
+  /** Stops accepting on it, once Switchyard has exited. */
+  close: () => Promise<void>
+}
+
+/**
+ * A private Unix socket into Node's server when one can be used here, or
+ * Node's loopback port. Connections on the socket are handled like the ones
+ * on the port, keep-alive and timeouts included.
+ */
+async function privateUpstream(
+  privateServer: PrivateServer
+): Promise<Upstream> {
+  const socket = await listenOnPrivateSocket(privateServer.server, 'node.sock')
+  if (socket) {
+    return { address: `unix:${socket.path}`, close: socket.close }
+  }
+  return {
+    address: `127.0.0.1:${privateServer.port}`,
+    close: async () => {},
+  }
 }
 
 /** Calls `onReady` with the port in `NEXT_SWITCHYARD_READY <port>`, and passes any other line on. */
