@@ -614,14 +614,18 @@ export async function startServer(
               `Removed upgrade instructions from ${files} because \`experimental.agentUpgrade\` is disabled.`
           )
 
-          // A temporary runtime opt-out must not change committed instructions.
-          if (!isCI && !process.env.NEXT_TELEMETRY_DISABLED) {
+          const agentFeedbackConfigured = initResult.agentFeedback === true
+          // A temporary runtime opt-out preserves instructions only while the
+          // project still enables feedback. Explicit disablement must clean up.
+          if (
+            !isCI &&
+            (!agentFeedbackConfigured || !process.env.NEXT_TELEMETRY_DISABLED)
+          ) {
             const { traceGlobals } =
               require('../../trace/shared') as typeof import('../../trace/shared')
             const telemetry = traceGlobals.get('telemetry') as
               | InstanceType<typeof import('../../telemetry/storage').Telemetry>
               | undefined
-            const agentFeedbackConfigured = initResult.agentFeedback === true
             const telemetryEnabled = telemetry?.isEnabled === true
 
             logAgentFileSync(

@@ -314,32 +314,52 @@ describe('agent-feedback auto-generate on next dev (no agent)', () => {
   })
 })
 
-describe('agent-feedback auto-generate on next dev (disabled)', () => {
-  const { next } = nextTestSetup({
-    files: __dirname,
-    env: { ...NO_AGENT_ENV, ...NON_CI_ENV },
-    skipStart: true,
-  })
+describe.each([
+  {
+    name: 'disabled by default',
+    agentFeedback: undefined,
+    telemetryDisabled: '',
+  },
+  { name: 'explicitly disabled', agentFeedback: false, telemetryDisabled: '' },
+  {
+    name: 'explicitly disabled during a temporary telemetry opt-out',
+    agentFeedback: false,
+    telemetryDisabled: '1',
+  },
+])(
+  'agent-feedback auto-generate on next dev ($name)',
+  ({ agentFeedback, telemetryDisabled }) => {
+    const { next } = nextTestSetup({
+      files: __dirname,
+      env: {
+        ...NO_AGENT_ENV,
+        ...NON_CI_ENV,
+        NEXT_TELEMETRY_DISABLED: telemetryDisabled,
+      },
+      nextConfig: { experimental: { agentFeedback } },
+      skipStart: true,
+    })
 
-  beforeAll(async () => {
-    await next.patchFile(
-      'AGENTS.md',
-      `# Team rules\n${staleAgentFeedbackBlock()}\n# More rules\n\n${currentAgentRulesBlock()}\n`
-    )
-    await next.start()
-  })
+    beforeAll(async () => {
+      await next.patchFile(
+        'AGENTS.md',
+        `# Team rules\n${staleAgentFeedbackBlock()}\n# More rules\n\n${currentAgentRulesBlock()}\n`
+      )
+      await next.start()
+    })
 
-  it('removes only the managed feedback block', async () => {
-    await next.fetch('/')
-    const content = fs.readFileSync(
-      path.join(next.testDir, 'AGENTS.md'),
-      'utf-8'
-    )
-    expect(content).toContain('# Team rules\n# More rules')
-    expect(content).toContain(AGENT_RULES_MARKER)
-    expect(content).not.toContain(AGENT_FEEDBACK_MARKER)
-  })
-})
+    it('removes only the managed feedback block', async () => {
+      await next.fetch('/')
+      const content = fs.readFileSync(
+        path.join(next.testDir, 'AGENTS.md'),
+        'utf-8'
+      )
+      expect(content).toContain('# Team rules\n# More rules')
+      expect(content).toContain(AGENT_RULES_MARKER)
+      expect(content).not.toContain(AGENT_FEEDBACK_MARKER)
+    })
+  }
+)
 
 describe('agent-rules auto-generate on next dev (disabled with existing blocks)', () => {
   const { next } = nextTestSetup({
@@ -563,6 +583,49 @@ describe('agent-feedback CLI with project telemetry opt-out', () => {
       }
     }
   )
+
+  it.each(['.env.local', '.env.development.local'])(
+    'does not follow a dotenv link in %s or contact the remote gate',
+    async (envFile) => {
+      const target = path.join(next.testDir, 'dotenv-link-target')
+      fs.mkdirSync(target, { recursive: true })
+      const link = path.join(next.testDir, envFile)
+      // Junctions also work on Windows runners without symlink privileges.
+      fs.symlinkSync(target, link, 'junction')
+      try {
+        const result = await runFeedbackInstructions()
+        expect({
+          exitCode: result.exitCode,
+          stdout: result.stdout,
+          stderr: result.stderr,
+        }).toEqual({
+          exitCode: 0,
+          stdout: '',
+          stderr: '',
+        })
+      } finally {
+        fs.unlinkSync(link)
+      }
+    }
+  )
+
+  it('does not read oversized dotenv files or contact the remote gate', async () => {
+    await next.patchFile('.env.local', '#'.repeat(1024 * 1024 + 1))
+    try {
+      const result = await runFeedbackInstructions()
+      expect({
+        exitCode: result.exitCode,
+        stdout: result.stdout,
+        stderr: result.stderr,
+      }).toEqual({
+        exitCode: 0,
+        stdout: '',
+        stderr: '',
+      })
+    } finally {
+      await next.deleteFile('.env.local')
+    }
+  })
 
   it.each([false, true])(
     'preserves the saved telemetry preference (enabled: %s) when dotenv redirects XDG_CONFIG_HOME',
