@@ -261,14 +261,14 @@ function Script(props: ScriptProps): JSX.Element | null {
   useEffect(() => {
     if (!hasLoadScriptEffectCalled.current) {
       if (strategy === 'afterInteractive') {
-        loadScript(props)
+        loadScript({ ...props, nonce })
       } else if (strategy === 'lazyOnload') {
-        loadLazyScript(props)
+        loadLazyScript({ ...props, nonce })
       }
 
       hasLoadScriptEffectCalled.current = true
     }
-  }, [props, strategy])
+  }, [props, strategy, nonce])
 
   if (strategy === 'beforeInteractive' || strategy === 'worker') {
     if (updateScripts) {
@@ -315,6 +315,13 @@ function Script(props: ScriptProps): JSX.Element | null {
     // Before interactive scripts need to be loaded by Next.js' runtime instead
     // of native <script> tags, because they no longer have `defer`.
     if (strategy === 'beforeInteractive') {
+      // On the client, beforeInteractive scripts are already in the DOM from SSR.
+      // We return null to avoid hydration mismatch from nonce differences
+      // (server has nonce from CSP header, client doesn't have access to it).
+      if (typeof window !== 'undefined') {
+        return null
+      }
+
       if (!src) {
         // For inlined scripts, we put the content in `children`.
         if (restProps.dangerouslySetInnerHTML) {
@@ -359,7 +366,9 @@ function Script(props: ScriptProps): JSX.Element | null {
         )
       }
     } else if (strategy === 'afterInteractive') {
-      if (src) {
+      // Only preload on the server - the preload hint is already in the HTML from SSR.
+      // On the client, the script will be loaded via useEffect after hydration.
+      if (src && typeof window === 'undefined') {
         // @ts-ignore
         ReactDOM.preload(
           src,
