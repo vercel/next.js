@@ -61,14 +61,18 @@ function isAgentFeedbackLocallyEnabled(): boolean {
     return false
   }
 
-  const originalEnv = process.env
+  const originalEnv = { ...process.env }
   try {
-    // Read the project opt-out without applying unrelated dotenv settings to
-    // the remote gate request. This CLI loads dotenv synchronously.
-    process.env = { ...originalEnv }
+    // Use Node's native environment so dotenv retains case-insensitive keys on
+    // Windows. Restore it synchronously before any remote gate request.
     return !loadEnvConfig(dir, true).combinedEnv.NEXT_TELEMETRY_DISABLED
   } finally {
-    process.env = originalEnv
+    for (const key of Object.keys(process.env)) {
+      if (!Object.prototype.hasOwnProperty.call(originalEnv, key)) {
+        delete process.env[key]
+      }
+    }
+    Object.assign(process.env, originalEnv)
   }
 }
 

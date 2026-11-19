@@ -542,6 +542,28 @@ describe('agent-feedback CLI with project telemetry opt-out', () => {
     }
   )
 
+  it.each(['next_telemetry_disabled', 'Next_Telemetry_Disabled'])(
+    'honors native environment casing for the dotenv opt-out %s',
+    async (key) => {
+      await next.patchFile('.env.local', `${key}=1\n`)
+      try {
+        const result = await runFeedbackInstructions()
+        expect(result.stdout).toBe('')
+        if (process.platform === 'win32') {
+          expect(result.exitCode).toBe(0)
+          expect(result.stderr).toBe('')
+        } else {
+          expect(result.exitCode).toBe(1)
+          expect(result.stderr).toContain(
+            'Unexpected agent feedback network request'
+          )
+        }
+      } finally {
+        await next.deleteFile('.env.local')
+      }
+    }
+  )
+
   it.each([false, true])(
     'preserves the saved telemetry preference (enabled: %s) when dotenv redirects XDG_CONFIG_HOME',
     async (enabled) => {
