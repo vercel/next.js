@@ -33,6 +33,9 @@ it('exports every class name as a named export, except `default` and `__esModule
   expect(Object.keys(namespace).sort()).toEqual(
     ['base', 'composed', 'default', 'foo-bar'].sort()
   )
+  // Like the namespace of a module exporting a single value, the class names come before
+  // `default`.
+  expect(Object.keys(namespace).at(-1)).toBe('default')
 })
 
 it('returns the namespace from require()', () => {

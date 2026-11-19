@@ -288,13 +288,13 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
     #[turbo_tasks::function]
     async fn get_exports(self: Vc<Self>) -> Result<Vc<EcmascriptExports>> {
         let classes = self.classes().await?;
-        let exports = std::iter::once(rcstr!("default"))
-            .chain(
-                classes
-                    .keys()
-                    .filter(|name| is_named_export(name))
-                    .map(|name| RcStr::from(name.as_str())),
-            )
+        // `default` comes last, so a namespace object lists the class names first, like it did
+        // when the module exported a single value.
+        let exports = classes
+            .keys()
+            .filter(|name| is_named_export(name))
+            .map(|name| RcStr::from(name.as_str()))
+            .chain(std::iter::once(rcstr!("default")))
             .map(|name| {
                 (
                     name.clone(),
@@ -343,7 +343,21 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
             .await?
             .export_usage
             .await?;
+        // The exports are registered in the order `get_exports` declares them, `default` last.
         let mut code = format!("{TURBOPACK_ESM}([\n");
+        for (export_name, class_names) in &classes.0 {
+            let export_name = RcStr::from(export_name.as_str());
+            if !is_named_export(&export_name) || !export_usage.is_export_used(&export_name) {
+                continue;
+            }
+            let key = generated_export_key(module, chunking_context, &export_name).await?;
+            writeln!(
+                code,
+                "  {}, 0, {},",
+                StringifyJs(&key),
+                StringifyJs(&class_names.join(" "))
+            )?;
+        }
         let default = rcstr!("default");
         if export_usage.is_export_used(&default) {
             let key = generated_export_key(module, chunking_context, &default).await?;
@@ -357,19 +371,6 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
                 )?;
             }
             code += "  },\n";
-        }
-        for (export_name, class_names) in &classes.0 {
-            let export_name = RcStr::from(export_name.as_str());
-            if !is_named_export(&export_name) || !export_usage.is_export_used(&export_name) {
-                continue;
-            }
-            let key = generated_export_key(module, chunking_context, &export_name).await?;
-            writeln!(
-                code,
-                "  {}, 0, {},",
-                StringifyJs(&key),
-                StringifyJs(&class_names.join(" "))
-            )?;
         }
         code += "]);\n";
         let generation = self.await?.source_map_generation_options;
