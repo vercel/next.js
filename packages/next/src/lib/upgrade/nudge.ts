@@ -520,8 +520,11 @@ export async function runUpgrade(
     process.env.NODE_ENV === 'development'
   ) {
     delete process.env.NODE_ENV
-    updateInitialEnv({ NODE_ENV: undefined })
     delete process.env.__NEXT_DEFAULT_NODE_ENV
+    updateInitialEnv({
+      NODE_ENV: undefined,
+      __NEXT_DEFAULT_NODE_ENV: undefined,
+    })
   }
 
   const { spawnNextUpgrade } = await import('../../cli/next-upgrade.js')
