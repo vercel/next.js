@@ -99,6 +99,27 @@ describe('instant validation - default level', () => {
         await browser.elementByCss('main')
         await waitForNoErrorToast(browser, { waitInMs: 500 })
       })
+
+      it('intercepted route with instant = false opts out of validation on client navigation', async () => {
+        const browser = await next.browser('/intercepted')
+        await browser.elementByCss('main')
+
+        // Normal route navigation should not trigger validation error
+        await browser.elementByCss('#link-plain').click()
+        await browser.waitForElementByCss('#plain-page')
+        expect(await browser.elementByCss('#plain-page').text()).toBe('Plain 1')
+        await waitForNoErrorToast(browser, { waitInMs: 500 })
+
+        // Intercepted route navigation should also respect instant = false
+        await browser.loadPage(`${next.url}/intercepted`)
+        await browser.waitForElementByCss('#link-item')
+        await browser.elementByCss('#link-item').click()
+        await browser.waitForElementByCss('#modal-dialog')
+        expect(await browser.elementByCss('#modal-dialog').text()).toContain(
+          'Item 1 (modal)'
+        )
+        await waitForNoErrorToast(browser, { waitInMs: 500 })
+      })
     })
   } else {
     describe('build', () => {
@@ -109,6 +130,11 @@ describe('instant validation - default level', () => {
 
       it('explicit-false page: per-segment opt-out keeps build clean', async () => {
         const result = await prerender('/explicit-false')
+        expectBuildValidationSkipped(result)
+      })
+
+      it('intercepted route with instant = false keeps build clean', async () => {
+        const result = await prerender('/intercepted/item/1')
         expectBuildValidationSkipped(result)
       })
     })
