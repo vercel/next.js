@@ -132,7 +132,12 @@ async fn sizes_operation() -> Result<Vc<Sizes>> {
     Ok(Sizes {
         shared_minification: estimated == final_factory,
         minified_size: estimated_chunk_item_size(item, None, Some(minify()), false).await?,
-        minified_code: final_factory.await?.source_code().to_str()?.into_owned(),
+        minified_code: final_factory
+            .to_code()
+            .await?
+            .source_code()
+            .to_str()?
+            .into_owned(),
         raw_size: estimated_chunk_item_size(item, None, None, false).await?,
         rounded_raw_size: rounded_chunk_item_size(item, None, None, false).await,
     }
