@@ -30,13 +30,22 @@ function expectOptionalCatchallParams(html: string) {
             if (defaultConfig.adapterPath) {
               const adapterModule = require(defaultConfig.adapterPath)
               const adapter = adapterModule.default ?? adapterModule
-              const capabilities = adapter.getCapabilities?.({
-                config: { ...defaultConfig, cacheComponents: true },
-              })
-              console.log(
-                'HTML_LIMITED_BOT_PRERENDERS_CAPABILITY: ' +
-                  (capabilities?.supportsHtmlLimitedBotPrerenders === true)
-              )
+              const getCapabilities = adapter.getCapabilities
+              const logCapabilities = (capabilities) => {
+                console.log(
+                  'HTML_LIMITED_BOT_PRERENDERS_CAPABILITY: ' +
+                    (capabilities?.supportsHtmlLimitedBotPrerenders === true)
+                )
+              }
+              if (typeof getCapabilities === 'function') {
+                adapter.getCapabilities = (context) => {
+                  const capabilities = getCapabilities.call(adapter, context)
+                  logCapabilities(capabilities)
+                  return capabilities
+                }
+              } else {
+                logCapabilities()
+              }
             }
             return { cacheComponents: true }
           }
