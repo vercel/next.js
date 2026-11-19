@@ -1,7 +1,7 @@
-import { execFileSync } from 'child_process'
-import { mkdir, mkdtemp, rm } from 'fs/promises'
+import { execFileSync, spawnSync } from 'child_process'
+import { mkdir, mkdtemp, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
-import { join } from 'path'
+import { dirname, join } from 'path'
 import { processEnv, resetEnv, updateInitialEnv } from '@next/env'
 
 import {
@@ -1429,4 +1429,58 @@ describe('upgrade handoff environment', () => {
     expect(handoff?.npm_config_before).toBe('2026-01-01')
     expect(handoff?.DOTENV_DEV_ONLY).toBeUndefined()
   })
+  // The tests above capture the environment themselves. This runs the built
+  // CLI, so it fails if bin/next stops capturing or captures after it sets
+  // NODE_ENV and NEXT_RUNTIME.
+  it.each(['dev', 'build'])(
+    'bin/next %s captures the environment before setting its defaults',
+    async (command) => {
+      const nextDist = join(
+        dirname(require.resolve('next/package.json')),
+        'dist'
+      )
+      // Restore in the CLI process as runUpgrade would, right before it exits.
+      const probe = join(directory, 'restore-on-exit.js')
+      await writeFile(
+        probe,
+        `process.on('exit', () => {
+          require(${JSON.stringify(join(nextDist, 'lib/upgrade/original-env.js'))}).restoreOriginalEnv()
+          process.stderr.write('HANDOFF_ENV ' + JSON.stringify({
+            NODE_ENV: process.env.NODE_ENV,
+            NEXT_RUNTIME: process.env.NEXT_RUNTIME,
+            USER_SHELL_VAR: process.env.USER_SHELL_VAR,
+          }) + '\\n')
+        })`
+      )
+      const { NODE_ENV: _nodeEnv, NEXT_RUNTIME: _runtime, ...userEnv } = env
+      // A missing directory makes the command exit right after bin/next has
+      // applied its defaults.
+      const result = spawnSync(
+        process.execPath,
+        [
+          '-r',
+          probe,
+          join(nextDist, 'bin/next'),
+          command,
+          join(directory, 'missing'),
+        ],
+        {
+          encoding: 'utf8',
+          env: {
+            ...userEnv,
+            NODE_ENV: undefined,
+            USER_SHELL_VAR: 'kept',
+            NEXT_TELEMETRY_DISABLED: '1',
+          },
+        }
+      )
+      const line = result.stderr
+        .split('\n')
+        .find((entry) => entry.startsWith('HANDOFF_ENV '))
+      expect(line).toBeDefined()
+      expect(JSON.parse(line!.slice('HANDOFF_ENV '.length))).toEqual({
+        USER_SHELL_VAR: 'kept',
+      })
+    }
+  )
 })
