@@ -60,7 +60,11 @@ export interface ImageOptimizerTransformOptions {
   dangerouslyAllowSVG?: boolean
   /** The minimum `maxAge` of the result, in seconds. Defaults to `0`. */
   minimumCacheTTL?: number
-  /** The sharp thread pool size. */
+  /**
+   * With sharp, the number of libvips threads used for each image. With
+   * `safeImageOptimization`, the maximum number of images optimized in
+   * parallel.
+   */
   concurrency?: number | null
   /** Enables or disables the libvips operation cache. */
   operationCache?: boolean | null
@@ -101,11 +105,10 @@ export async function imageOptimizerTransform(
 ): Promise<ImageOptimizerResult> {
   const { href, quality, width, mimeType } = paramsResult
   const { buffer: upstreamBuffer, etag: upstreamEtag } = imageUpstream
-  const {
-    dangerouslyAllowSVG = false,
-    minimumCacheTTL = 0,
-    timeoutInSeconds = DEFAULT_IMG_OPT_TIMEOUT_IN_SECONDS,
-  } = opts
+  const { dangerouslyAllowSVG = false, minimumCacheTTL = 0 } = opts
+  // `??` instead of a destructuring default, so that `null` is also replaced
+  const timeoutInSeconds =
+    opts.timeoutInSeconds ?? DEFAULT_IMG_OPT_TIMEOUT_IN_SECONDS
   const maxAge = Math.max(
     minimumCacheTTL,
     getMaxAge(imageUpstream.cacheControl)

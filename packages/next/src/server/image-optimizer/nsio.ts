@@ -12,11 +12,26 @@ import {
 
 let _pool: Pool | undefined
 
-function getPool(concurrency: number | null | undefined): Pool {
+function getPool(
+  concurrency: number | null | undefined,
+  logger: { warnOnce(message: string): void } | undefined
+): Pool {
   if (!_pool) {
-    const { Pool } =
-      require('@next/safe-image-optimization') as typeof import('@next/safe-image-optimization')
-    _pool = new Pool({ concurrency: concurrency ?? undefined })
+    try {
+      const { Pool } =
+        require('@next/safe-image-optimization') as typeof import('@next/safe-image-optimization')
+      // `Pool` rejects `0`, but sharp treats it as "use the default", so match
+      // that
+      _pool = new Pool({ concurrency: concurrency || undefined })
+    } catch (error) {
+      // The caller falls back to the unoptimized image without logging, so
+      // warn here, or a misconfiguration (e.g. no worker binary for this
+      // platform) would go unnoticed
+      logger?.warnOnce(
+        `Failed to initialize "@next/safe-image-optimization" for "experimental.imgOptSafeMode", images will not be optimized: ${error}`
+      )
+      throw error
+    }
   }
   return _pool
 }
@@ -38,6 +53,7 @@ export async function nsioOptimizeImage({
   maxInputPixels,
   timeoutInSeconds,
   mozjpeg = true,
+  logger,
 }: {
   buffer: Buffer
   contentType: string
@@ -47,6 +63,7 @@ export async function nsioOptimizeImage({
   maxInputPixels?: number
   timeoutInSeconds: number
   mozjpeg?: boolean
+  logger?: { warnOnce(message: string): void }
 }): Promise<Buffer> {
   if (!NSIO_OUTPUT_MIME_TYPES.includes(contentType)) {
     // The caller catches this error and falls back to the source (unoptimized)
@@ -56,7 +73,7 @@ export async function nsioOptimizeImage({
     )
   }
 
-  const pipeline = getPool(concurrency)
+  const pipeline = getPool(concurrency, logger)
     .prepare(buffer)
     .allowInputFormats(NSIO_INPUT_FORMATS)
     .timeoutMs(timeoutInSeconds * 1000)

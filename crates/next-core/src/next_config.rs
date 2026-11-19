@@ -1332,7 +1332,7 @@ impl ImgOptSafeMode {
             ImgOptSafeMode::Options {
                 next_image,
                 image_response,
-            } => next_image.unwrap_or(true) || image_response.unwrap_or(false),
+            } => next_image.unwrap_or(false) || image_response.unwrap_or(false),
         }
     }
 }
