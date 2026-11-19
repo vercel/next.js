@@ -63,7 +63,8 @@ requested or that are needed for the requested outcome.
    git push -u origin <branch>
    ```
 
-5. Create a draft PR with the body prepared using the publishing rules:
+5. Create the PR as a draft unless the user explicitly asks otherwise, with
+   the body prepared using the publishing rules:
 
    ```bash
    gh pr create --draft --base canary --head <branch> --title "<title>" --body-file <path>

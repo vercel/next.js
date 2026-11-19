@@ -88,7 +88,8 @@ branch.
 7. Open the backport PR using `$create-pr`.
 
    Use `--base <target-branch>` and follow the shared
-   [PR publishing rules](../create-pr/references/pr-publishing.md).
+   [PR publishing rules](../create-pr/references/pr-publishing.md), except for
+   the body format, which [PR Shape](#pr-shape) replaces.
 
 ## PR Shape
 
@@ -106,8 +107,14 @@ or
 [lts-maintenance] <original PR title>
 ```
 
-In `### What?`, link the original PR and name the target release branch.
-Include `### Verification` and the disclosure marker from the publishing rules.
+Use this concise PR body. It overrides the `What?` / `Why?` / `How?` and
+`Verification` sections from the publishing rules:
+
+```markdown
+Backports <original PR title/link> to `<target-branch>`.
+
+<!-- NEXT_JS_LLM -->
+```
 
 ## Related Skills
 

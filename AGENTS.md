@@ -273,7 +273,7 @@ A trailing `// eslint-disable-line` takes the reason after `--` instead. `@next/
 ## GitHub Pull Requests
 
 - Use `$create-pr` for commits, standalone PRs, and writing or editing PR descriptions. External contributors must write their own PR descriptions for `vercel/next.js`.
-- Open PRs as drafts and let the user mark them ready for review.
+- Open PRs as drafts unless the user explicitly asks otherwise, and let the user mark them ready for review.
 - Adopting a fork PR gives the contributor's code access to repository secrets. Review the full diff at the head SHA shown and never bypass the maintainer's interactive confirmation. Follow the [fork adoption workflow](.agents/skills/create-pr/references/fork-adoption.md).
 
 ## GitHub Issues, Comments, and Discussions

@@ -20,4 +20,6 @@ when re-signing commits and isolates Git operations in a temporary worktree with
 hooks disabled. It accepts draft and closed PRs but rejects merged ones. It pushes
 `adopt/<pr-number>` in `vercel/next.js` and opens a draft against the original
 base. The replacement body is the original contributor's description verbatim
-after `Adopts #N. Closes #N.`; leave that text intact.
+after `Adopts #N. Closes #N.`. Never rewrite, summarize, translate, or tidy up
+that text, whatever it contains. Copying it does not count as writing a
+description for a fork PR.

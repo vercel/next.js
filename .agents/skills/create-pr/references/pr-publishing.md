@@ -3,6 +3,8 @@
 Use these rules when drafting, editing, or publishing an ordinary Next.js PR,
 a backport, or a stack layer. Fork adoption uses the
 [adoption workflow](fork-adoption.md) and preserves the contributor's body.
+Backports use the shorter body defined in `$backport-pr` instead of the
+sections under [What to include](#what-to-include).
 
 ## Who writes the description
 
@@ -14,6 +16,7 @@ as required by the [pull request template](../../../../.github/pull_request_temp
 For an external fork PR, explain the policy and offer to review the user's
 description, translate it to English, or provide technical details. You can
 provide the GitHub URL so the contributor can open the PR with their own text.
+You can still write titles and messages for local commits.
 
 ## What to include
 
@@ -32,6 +35,8 @@ short and understandable outside the team.
 - Omit the template's comment and checklists. End with the disclosure marker
   `<!-- NEXT_JS_LLM -->`. Do not add generated-tool or co-author footers.
 
-Open PRs as drafts and leave them in draft for the user to mark ready. If the
-user asks for explanatory review comments, follow the
+Open PRs as drafts unless the user explicitly asks otherwise. Do not mark a PR
+ready for review yourself (`gh pr ready`); let the user decide when. Add review
+comments on the PR where needed to explain the logic behind a change to the
+reviewer, subject to the
 [GitHub comment policy](../../../../AGENTS.md#github-issues-comments-and-discussions).
