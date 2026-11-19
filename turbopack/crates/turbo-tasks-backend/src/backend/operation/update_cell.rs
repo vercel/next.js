@@ -19,7 +19,7 @@ use crate::{
         },
         storage_schema::TaskStorageAccessors,
     },
-    data::CellRef,
+    data::{CellRef, InProgressState},
 };
 
 pub fn update_cell(
@@ -267,7 +267,18 @@ fn invalidate_cell_dependents(
         let mut make_dirty = false;
         let mut make_stale = false;
         let mut dependent = ctx.task(dependent_task_id, TaskDataCategory::All);
+        // While a future spawned with `spawn_in_current_task` may have read the cell without
+        // adding the forward edge yet, the forward edges can't tell whether the dependent read the
+        // cell. Assume it did.
+        let in_deferred_window = matches!(
+            dependent.get_in_progress(),
+            Some(InProgressState::InProgress(inner)) if inner.deferred_cell_dependency_windows > 0
+        );
         for key in keys.iter().copied() {
+            if in_deferred_window {
+                make_stale = true;
+                break;
+            }
             let (in_outdated, in_current) = match key {
                 Some(key) if !key.is_provisional() => {
                     let in_outdated =
@@ -458,6 +469,7 @@ mod invalidate_cell_dependents_tests {
                     done_event: Event::new(|| || "test done_event".to_string()),
                     marked_as_completed: false,
                     new_children: Default::default(),
+                    deferred_cell_dependency_windows: 0,
                 },
             )));
             for k in setup.current_keys {

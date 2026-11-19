@@ -1331,6 +1331,14 @@ impl FileSystem for DiskFileSystem {
         struct WriteEffect {
             full_path: Arc<PathBuf>,
             fs: ResolvedVc<DiskFileSystem>,
+            /// `fs`'s inner state, so that capturing doesn't need to read `fs`: all write effects
+            /// share that cell, and each read takes the lock of the task owning it, so tens of
+            /// thousands of captures on several workers mostly wait for each other. Not persisted,
+            /// as a decoded copy would be a different file system instance, so an effect restored
+            /// from the persistent cache reads `fs` instead.
+            #[bincode(skip)]
+            #[turbo_tasks(debug_ignore)]
+            inner: Option<Arc<DiskFileSystemInner>>,
             content: ResolvedVc<PersistedFileContent>,
             #[bincode(fixint)]
             content_hash: u128,
@@ -1340,9 +1348,12 @@ impl FileSystem for DiskFileSystem {
         #[turbo_tasks::value_impl]
         impl Effect for WriteEffect {
             async fn capture(&self) -> Result<Box<dyn CapturedEffect>> {
-                // INVALIDATION: a tracked read of this cell occurred in the write effect so if it
-                // somehow changes the effect will be re-emitted
-                let inner = (*self.fs).untracked().await?.inner.clone();
+                let inner = match &self.inner {
+                    Some(inner) => inner.clone(),
+                    // INVALIDATION: a tracked read of this cell occurred in the write effect so if
+                    // it somehow changes the effect will be re-emitted
+                    None => (*self.fs).untracked().await?.inner.clone(),
+                };
 
                 // If the per-key effect state already records `Applied { value_hash }` matching
                 // our hash, skip materializing the content (avoids a possible disk read +
@@ -1541,6 +1552,7 @@ impl FileSystem for DiskFileSystem {
         WriteEffect {
             full_path: Arc::new(full_path),
             fs: self,
+            inner: Some(this.inner.clone()),
             content,
             content_hash,
         }
@@ -1600,6 +1612,14 @@ impl FileSystem for DiskFileSystem {
         #[turbo_tasks::value(eq = "manual", cell = "new")]
         struct WriteLinkEffect {
             fs: ResolvedVc<DiskFileSystem>,
+            /// `fs`'s inner state, so that capturing doesn't need to read `fs`: all write effects
+            /// share that cell, and each read takes the lock of the task owning it, so tens of
+            /// thousands of captures on several workers mostly wait for each other. Not persisted,
+            /// as a decoded copy would be a different file system instance, so an effect restored
+            /// from the persistent cache reads `fs` instead.
+            #[bincode(skip)]
+            #[turbo_tasks(debug_ignore)]
+            inner: Option<Arc<DiskFileSystemInner>>,
             full_path: Arc<PathBuf>,
             target_sys_path: Arc<PathBuf>,
             target_type: WriteLinkTargetType,
@@ -1611,9 +1631,12 @@ impl FileSystem for DiskFileSystem {
         #[turbo_tasks::value_impl]
         impl Effect for WriteLinkEffect {
             async fn capture(&self) -> Result<Box<dyn CapturedEffect>> {
-                // INVALIDATION: a tracked read of this cell occurred in the write effect so if it
-                // somehow changes the effect will be re-emitted
-                let inner = (*self.fs).untracked().await?.inner.clone();
+                let inner = match &self.inner {
+                    Some(inner) => inner.clone(),
+                    // INVALIDATION: a tracked read of this cell occurred in the write effect so if
+                    // it somehow changes the effect will be re-emitted
+                    None => (*self.fs).untracked().await?.inner.clone(),
+                };
 
                 // Skip the write entirely if the per-key effect state already records
                 // `Applied { value_hash }` matching our hash. See `WriteEffect::capture`.
@@ -1799,6 +1822,7 @@ impl FileSystem for DiskFileSystem {
 
         WriteLinkEffect {
             fs: self,
+            inner: Some(this.inner.clone()),
             full_path,
             target_sys_path,
             target_type,

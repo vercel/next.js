@@ -592,6 +592,28 @@ pub enum VerificationMode {
     Skip,
 }
 
+/// Cell dependencies read by one future spawned with
+/// [`spawn_in_current_task`][crate::spawn_in_current_task] that haven't been added to the reading
+/// task yet. See [`Backend::try_read_task_cell_deferred`].
+#[derive(Default)]
+pub struct DeferredCellDependencies {
+    // Only one future records into this, so the lock is uncontended. It isn't a `RefCell` because
+    // the dependencies must still be added when the future is dropped before it completes (e.g.
+    // when it panics), which happens outside of its task-local scope.
+    cells: std::sync::Mutex<Vec<(TaskId, CellId)>>,
+}
+
+impl DeferredCellDependencies {
+    /// Records that the cell `index` of `task` was read.
+    pub fn push(&self, task: TaskId, index: CellId) {
+        self.cells.lock().unwrap().push((task, index));
+    }
+
+    pub(crate) fn take(&self) -> Vec<(TaskId, CellId)> {
+        std::mem::take(&mut *self.cells.lock().unwrap())
+    }
+}
+
 pub trait Backend: Sized + Sync + Send {
     #[allow(unused_variables)]
     fn startup(&self, turbo_tasks: &TurboTasks<Self>) {}
@@ -720,6 +742,50 @@ pub trait Backend: Sized + Sync + Send {
         &self,
         _task_id: TaskId,
         _cell: CellId,
+        _turbo_tasks: &TurboTasks<Self>,
+    ) {
+    }
+
+    /// Starts a window in which `reader` may read cells with
+    /// [`Backend::try_read_task_cell_deferred`]. Called once for every future spawned with
+    /// [`spawn_in_current_task`][crate::spawn_in_current_task], before the future starts. Must be
+    /// balanced by exactly one [`Backend::end_deferred_cell_dependencies`] call within the same
+    /// execution of `reader`.
+    ///
+    /// The default implementation does nothing.
+    fn begin_deferred_cell_dependencies(&self, _reader: TaskId, _turbo_tasks: &TurboTasks<Self>) {}
+
+    /// Reads a cell like [`Backend::try_read_task_cell`] with
+    /// [`ReadCellTracking::Tracked { key: None }`][crate::ReadCellTracking::Tracked], but only
+    /// locks `task`, not `reader` too. The dependency is recorded in `dependencies` and only added
+    /// to `reader` by [`Backend::end_deferred_cell_dependencies`], so the reader's lock is taken
+    /// once for many reads instead of once per read.
+    ///
+    /// Must only be called between [`Backend::begin_deferred_cell_dependencies`] and
+    /// [`Backend::end_deferred_cell_dependencies`] for `reader`.
+    ///
+    /// The default implementation is a normal tracked read.
+    fn try_read_task_cell_deferred(
+        &self,
+        task: TaskId,
+        index: CellId,
+        reader: TaskId,
+        options: ReadCellOptions,
+        _dependencies: &DeferredCellDependencies,
+        turbo_tasks: &TurboTasks<Self>,
+    ) -> Result<ReadOutcome<TypedCellContent>> {
+        self.try_read_task_cell(task, index, Some(reader), options, turbo_tasks)
+    }
+
+    /// Ends a window started by [`Backend::begin_deferred_cell_dependencies`], adding the
+    /// dependencies recorded by [`Backend::try_read_task_cell_deferred`] to `reader` in one
+    /// operation.
+    ///
+    /// The default implementation does nothing.
+    fn end_deferred_cell_dependencies(
+        &self,
+        _reader: TaskId,
+        _dependencies: Vec<(TaskId, CellId)>,
         _turbo_tasks: &TurboTasks<Self>,
     ) {
     }
