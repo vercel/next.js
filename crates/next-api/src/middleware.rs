@@ -333,7 +333,7 @@ impl Endpoint for MiddlewareEndpoint {
                 .resolved_cell(),
                 output_assets: output_assets.to_resolved().await?,
                 project: this.project,
-                first_load_js: None,
+                first_load_chunks: None,
             }
             .cell())
         }

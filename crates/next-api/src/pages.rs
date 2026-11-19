@@ -88,7 +88,7 @@ use crate::{
     project::Project,
     route::{
         AnalyzeChunkGroup, AnalyzeChunkGroups, AnalyzeClientEntries, Endpoint, EndpointOutput,
-        EndpointOutputPaths, FirstLoadJs, ModuleGraphs, Route, Routes,
+        EndpointOutputPaths, FirstLoadChunks, ModuleGraphs, Route, Routes,
     },
     service_worker::service_worker_output_assets,
     sri_manifest::get_sri_manifest_asset,
@@ -1907,10 +1907,10 @@ impl Endpoint for PageEndpoint {
 
             // Only needed for the route bundle stats of production builds: the chunks listed for
             // this page in its `build-manifest.json`.
-            let first_load_js = if this.ty == PageEndpointType::Html
+            let first_load_chunks = if this.ty == PageEndpointType::Html
                 && project.next_mode().await?.is_production()
             {
-                Some(FirstLoadJs::PagesPage(
+                Some(FirstLoadChunks::PagesPage(
                     if this.pages_structure.await?.should_create_pages_entries {
                         self.client_chunk_group().await?.assets
                     } else {
@@ -1926,7 +1926,7 @@ impl Endpoint for PageEndpoint {
                     output_assets: output_assets.to_resolved().await?,
                     output_paths: written_endpoint.resolved_cell(),
                     project: project.to_resolved().await?,
-                    first_load_js,
+                    first_load_chunks,
                 }
                 .cell(),
             )

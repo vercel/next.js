@@ -93,7 +93,7 @@ use crate::{
     project::{BaseAndFullModuleGraph, Project},
     route::{
         AnalyzeChunkGroup, AnalyzeChunkGroups, AnalyzeClientEntries, AnalyzeClientReference,
-        AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, FirstLoadJs, ModuleGraphs,
+        AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, FirstLoadChunks, ModuleGraphs,
         Route, Routes,
     },
     server_actions::{build_server_actions_loader, create_server_actions_manifest},
@@ -1224,7 +1224,7 @@ impl Endpoint for GoRouteEndpoint {
                 project,
                 output_assets: OutputAssets::empty().to_resolved().await?,
                 output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
-                first_load_js: None,
+                first_load_chunks: None,
             }
             .cell());
         }
@@ -1331,7 +1331,7 @@ impl Endpoint for GoRouteEndpoint {
                         build: Some((*result).clone()),
                     }
                     .resolved_cell(),
-                    first_load_js: None,
+                    first_load_chunks: None,
                 }
                 .cell());
             }
@@ -1413,7 +1413,7 @@ impl Endpoint for GoRouteEndpoint {
                 build: (*result).clone(),
             }
             .resolved_cell(),
-            first_load_js: None,
+            first_load_chunks: None,
         }
         .cell())
     }
@@ -1985,11 +1985,11 @@ impl AppEndpoint {
         let mut client_reference_manifest = None;
 
         // Only needed for the route bundle stats of production builds.
-        let first_load_js = if let Some(client_shared_chunks) = client_shared_chunks_vc
+        let first_load_chunks = if let Some(client_shared_chunks) = client_shared_chunks_vc
             && emit_rsc_manifests
             && project.next_mode().await?.is_production()
         {
-            Some(FirstLoadJs::AppPage {
+            Some(FirstLoadChunks::AppPage {
                 client_references,
                 client_references_chunks,
                 client_shared_chunks,
@@ -2196,7 +2196,7 @@ impl AppEndpoint {
                     files: app_entry_chunks,
                     server_assets,
                     client_assets,
-                    first_load_js,
+                    first_load_chunks,
                 }
             }
             NextRuntime::NodeJs => {
@@ -2279,7 +2279,7 @@ impl AppEndpoint {
                     rsc_chunk,
                     server_assets,
                     client_assets,
-                    first_load_js,
+                    first_load_chunks,
                 }
             }
         }
@@ -2663,9 +2663,13 @@ impl Endpoint for AppEndpoint {
                 },
             };
 
-            let first_load_js = match &*output.await? {
-                AppEndpointOutput::NodeJs { first_load_js, .. }
-                | AppEndpointOutput::Edge { first_load_js, .. } => first_load_js.clone(),
+            let first_load_chunks = match &*output.await? {
+                AppEndpointOutput::NodeJs {
+                    first_load_chunks, ..
+                }
+                | AppEndpointOutput::Edge {
+                    first_load_chunks, ..
+                } => first_load_chunks.clone(),
             };
 
             anyhow::Ok(
@@ -2673,7 +2677,7 @@ impl Endpoint for AppEndpoint {
                     output_assets: output_assets.to_resolved().await?,
                     output_paths: written_endpoint.resolved_cell(),
                     project: project.to_resolved().await?,
-                    first_load_js,
+                    first_load_chunks,
                 }
                 .cell(),
             )
@@ -2948,14 +2952,14 @@ enum AppEndpointOutput {
         server_assets: ResolvedVc<OutputAssets>,
         client_assets: ResolvedVc<OutputAssets>,
         /// Only set for pages in production builds.
-        first_load_js: Option<FirstLoadJs>,
+        first_load_chunks: Option<FirstLoadChunks>,
     },
     Edge {
         files: ResolvedVc<OutputAssets>,
         server_assets: ResolvedVc<OutputAssets>,
         client_assets: ResolvedVc<OutputAssets>,
         /// Only set for pages in production builds.
-        first_load_js: Option<FirstLoadJs>,
+        first_load_chunks: Option<FirstLoadChunks>,
     },
 }
 

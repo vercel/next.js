@@ -20,7 +20,7 @@ use crate::{
 ///
 /// This is not a turbo-tasks function: it only reads values that were already computed for the
 /// page's output. It is called from the per-route task of `next_api::route_bundle_stats`.
-pub async fn app_page_first_load_js_chunks(
+pub async fn app_page_first_load_chunks(
     client_references: ResolvedVc<ClientReferenceGraphResult>,
     client_references_chunks: ResolvedVc<ClientReferencesChunks>,
     client_shared_chunks: ResolvedVc<OutputAssets>,

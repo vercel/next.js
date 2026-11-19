@@ -333,15 +333,16 @@ pub struct EndpointOutput {
     pub output_assets: ResolvedVc<OutputAssets>,
     pub output_paths: ResolvedVc<EndpointOutputPaths>,
     pub project: ResolvedVc<Project>,
-    /// What the endpoint's page loads on first load, for the route bundle stats of production
-    /// builds. `None` for endpoints that don't render a page, and outside of production builds.
-    pub first_load_js: Option<FirstLoadJs>,
+    /// The chunks the endpoint's page loads on first load, for the route bundle stats of
+    /// production builds. `None` for endpoints that don't render a page, and outside of production
+    /// builds.
+    pub first_load_chunks: Option<FirstLoadChunks>,
 }
 
-/// The already computed values the first load JS of a page is derived from. See
+/// The already computed values the chunks a page loads on first load are derived from. See
 /// [`crate::route_bundle_stats`].
 #[derive(Clone, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
-pub enum FirstLoadJs {
+pub enum FirstLoadChunks {
     /// An App Router page.
     AppPage {
         client_references: ResolvedVc<ClientReferenceGraphResult>,

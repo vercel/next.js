@@ -1,11 +1,12 @@
 //! Route bundle stats of production builds (`diagnostics/route-bundle-stats.json`).
 //!
 //! For every page route of both routers, lists the client JS chunks loaded on first load and
-//! their total uncompressed size, sorted by size (largest first), then by route.
+//! their total uncompressed size, sorted by size (largest first), then by route. Routes that ship
+//! no client JS (App Router route handlers and Pages Router API routes) are not listed.
 
 use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
-use next_core::next_manifests::route_bundle_stats::app_page_first_load_js_chunks;
+use next_core::next_manifests::route_bundle_stats::app_page_first_load_chunks;
 use serde::Serialize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, Vc};
@@ -17,26 +18,26 @@ use turbopack_core::{
 
 use crate::{
     project::Project,
-    route::{Endpoint, FirstLoadJs, Route},
+    route::{Endpoint, FirstLoadChunks, Route},
 };
 
 /// The first load JS chunks of an endpoint (`.js` files only, each once, in load order), with
 /// their paths relative to `client_relative_path`, or `None` if the endpoint doesn't render a
 /// page.
-async fn endpoint_first_load_js_chunks(
+async fn endpoint_first_load_chunks(
     endpoint: Vc<Box<dyn Endpoint>>,
     client_relative_path: &FileSystemPath,
     generate_component_chunks: bool,
 ) -> Result<Option<Vec<(RcStr, ResolvedVc<Box<dyn OutputAsset>>)>>> {
     let output = endpoint.output().await?;
-    Ok(match &output.first_load_js {
+    Ok(match &output.first_load_chunks {
         None => None,
-        Some(FirstLoadJs::AppPage {
+        Some(FirstLoadChunks::AppPage {
             client_references,
             client_references_chunks,
             client_shared_chunks,
         }) => Some(
-            app_page_first_load_js_chunks(
+            app_page_first_load_chunks(
                 *client_references,
                 *client_references_chunks,
                 *client_shared_chunks,
@@ -45,7 +46,7 @@ async fn endpoint_first_load_js_chunks(
             )
             .await?,
         ),
-        Some(FirstLoadJs::PagesPage(chunks)) => {
+        Some(FirstLoadChunks::PagesPage(chunks)) => {
             let chunks = chunks.await?;
             let paths = chunks.iter().map(|chunk| chunk.path()).try_join().await?;
             Some(
@@ -97,11 +98,7 @@ async fn route_bundle_stat(
         .endpoints
         .iter()
         .map(|&endpoint| {
-            endpoint_first_load_js_chunks(
-                *endpoint,
-                &client_relative_path,
-                generate_component_chunks,
-            )
+            endpoint_first_load_chunks(*endpoint, &client_relative_path, generate_component_chunks)
         })
         .try_join()
         .await?;
@@ -160,22 +157,24 @@ impl Asset for RouteBundleStatsAsset {
         let mut routes = Vec::new();
         for (pathname, route) in entrypoints.routes.iter() {
             let endpoints = match route {
-                Route::Page { .. } | Route::PageApi { .. }
+                Route::Page { .. }
                     if self.app_dir_only
                         || matches!(pathname.as_str(), "/_app" | "/_document" | "/_error") =>
                 {
                     continue;
                 }
                 Route::Page { html_endpoint, .. } => vec![*html_endpoint, pages_app_endpoint],
-                // API routes only load the `/_app` chunks.
-                Route::PageApi { .. } => vec![pages_app_endpoint],
                 Route::AppPage(_)
                     if matches!(pathname.as_str(), "/favicon.ico" | "/_global-error") =>
                 {
                     continue;
                 }
                 Route::AppPage(pages) => pages.iter().map(|page| page.html_endpoint).collect(),
-                Route::AppRoute { .. } | Route::AppGoRoute { .. } | Route::Conflict => continue,
+                // Route handlers and API routes ship no client JS.
+                Route::AppRoute { .. }
+                | Route::AppGoRoute { .. }
+                | Route::PageApi { .. }
+                | Route::Conflict => continue,
             };
             routes.push(StatsRoute {
                 route: pathname.clone(),

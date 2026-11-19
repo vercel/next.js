@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
-import vm from 'vm'
 import { nextTestSetup } from 'e2e-utils'
+import { getClientReferenceManifest } from 'next-test-utils'
 
 type RouteBundleStat = {
   route: string
@@ -9,38 +9,11 @@ type RouteBundleStat = {
   firstLoadChunkPaths: string[]
 }
 
-type ClientReferenceManifest = {
-  clientModules: Record<string, { chunks: (string | [string, ...unknown[]])[] }>
-  entryJSFiles: Record<string, string[]>
-}
-
-// Route bundle stats are only emitted by Turbopack.
+// Route bundle stats are only emitted by Turbopack. The tests read the build
+// output, which deployments don't have locally.
 // @force-gate turbopack
+// @force-gate !deploy
 describe('route-bundle-stats', () => {
-  const { next, isNextDeploy } = nextTestSetup({
-    files: __dirname,
-    skipStart: true,
-  })
-
-  if (isNextDeploy) {
-    it('should skip', () => {})
-    return
-  }
-
-  async function build(generateComponentChunks: boolean, distDir: string) {
-    await next.patchFile(
-      'next.config.js',
-      `module.exports = ${JSON.stringify({
-        distDir,
-        experimental: {
-          turbopackChunking: { generateComponentChunks },
-        },
-      })}`
-    )
-    const { exitCode } = await next.build()
-    expect(exitCode).toBe(0)
-  }
-
   describe.each([
     { generateComponentChunks: false, distDir: '.next' },
     { generateComponentChunks: true, distDir: '.next' },
@@ -48,33 +21,26 @@ describe('route-bundle-stats', () => {
   ])(
     'with generateComponentChunks: $generateComponentChunks, distDir: $distDir',
     ({ generateComponentChunks, distDir }) => {
-      const STATS_PATH = `${distDir}/diagnostics/route-bundle-stats.json`
-
-      beforeAll(async () => {
-        await build(generateComponentChunks, distDir)
+      const { next } = nextTestSetup({
+        files: __dirname,
+        nextConfig: {
+          distDir,
+          experimental: {
+            turbopackChunking: { generateComponentChunks },
+          },
+        },
       })
+
+      const STATS_PATH = `${distDir}/diagnostics/route-bundle-stats.json`
 
       async function readStats(): Promise<RouteBundleStat[]> {
         return JSON.parse(await next.readFile(STATS_PATH))
       }
 
-      // Evaluates an App Router page's client reference manifest the same way
-      // the server loads it.
-      async function readClientReferenceManifest(
-        page: string
-      ): Promise<ClientReferenceManifest> {
-        const context: {
-          globalThis?: unknown
-          __RSC_MANIFEST?: Record<string, ClientReferenceManifest>
-        } = {}
-        context.globalThis = context
-        vm.runInNewContext(
-          await next.readFile(
-            `${distDir}/server/app${page}_client-reference-manifest.js`
-          ),
-          context
-        )
-        return context.__RSC_MANIFEST![page]
+      function entryJSFiles(page: string): string[] {
+        const { entryJSFiles } = getClientReferenceManifest(next, page)
+        expect(entryJSFiles).toBeDefined()
+        return Object.values(entryJSFiles!).flat()
       }
 
       // Computes a route's stats from the emitted manifests and chunk files.
@@ -90,15 +56,7 @@ describe('route-bundle-stats', () => {
         const files =
           router === 'app'
             ? [
-                ...(
-                  await Promise.all(
-                    appPages.map(async (page) =>
-                      Object.values(
-                        (await readClientReferenceManifest(page)).entryJSFiles
-                      ).flat()
-                    )
-                  )
-                ).flat(),
+                ...appPages.flatMap(entryJSFiles),
                 ...buildManifest.rootMainFiles,
               ]
             : [
@@ -123,11 +81,11 @@ describe('route-bundle-stats', () => {
       it('writes the route bundle stats after build', async () => {
         const stats = await readStats()
 
-        // App Router route handlers (`/handler`) are not reported.
+        // App Router route handlers (`/handler`) and Pages Router API routes
+        // (`/api/hello`) ship no client JS and are not reported.
         expect(stats.map((e) => e.route).sort()).toEqual([
           '/',
           '/_not-found',
-          '/api/hello',
           '/blog',
           '/parallel',
         ])
@@ -167,8 +125,6 @@ describe('route-bundle-stats', () => {
           )
         }
 
-        const { entryJSFiles, clientModules } =
-          await readClientReferenceManifest('/blog/page')
         const rootMainFiles: string[] = JSON.parse(
           await next.readFile(`${distDir}/build-manifest.json`)
         ).rootMainFiles
@@ -180,13 +136,18 @@ describe('route-bundle-stats', () => {
           )
         } else {
           // Component chunks are only listed in `clientModules`.
+          const { clientModules } = getClientReferenceManifest(
+            next,
+            '/blog/page'
+          )
           const componentChunks = Object.values(clientModules)
-            .flatMap((m) => m.chunks)
+            .flatMap((m) => m.chunks as ReadonlyArray<string | string[]>)
             .map((c) => (typeof c === 'string' ? c : c[0]))
             .map((c) => c.replace(/^\/_next\//, ''))
           expect(componentChunks.length).toBeGreaterThan(0)
+          const blogEntryJSFiles = entryJSFiles('/blog/page')
           for (const chunk of componentChunks) {
-            expect(Object.values(entryJSFiles).flat()).not.toContain(chunk)
+            expect(blogEntryJSFiles).not.toContain(chunk)
           }
         }
       })
@@ -211,11 +172,9 @@ describe('route-bundle-stats', () => {
 
       it('reports the page and _app chunks of Pages Router routes', async () => {
         const stats = await readStats()
-        for (const route of ['/', '/api/hello']) {
-          expect(stats.find((e) => e.route === route)).toEqual(
-            await expectedStat(route, 'pages')
-          )
-        }
+        expect(stats.find((e) => e.route === '/')).toEqual(
+          await expectedStat('/', 'pages')
+        )
       })
 
       it('only writes the stats file', async () => {
