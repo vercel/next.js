@@ -15,6 +15,12 @@ interface ErrorResponse {
   fix: string
 }
 
+// `addMany` matches templates with globby, which needs forward slashes, so
+// backslash paths on Windows would match nothing.
+function toPosixPath(p: string) {
+  return p.split(path.sep).join('/')
+}
+
 function validateNonEmptyString(field: string) {
   return function (value: string) {
     if (/.+/.test(value)) {
@@ -101,8 +107,8 @@ export default function generator(plop: NodePlopAPI): void {
       return [
         {
           type: 'addMany',
-          templateFiles: path.join(templatePath, '**/*'),
-          base: templatePath,
+          templateFiles: toPosixPath(path.join(templatePath, '**/*')),
+          base: toPosixPath(templatePath),
           destination: targetPath,
         },
         {
