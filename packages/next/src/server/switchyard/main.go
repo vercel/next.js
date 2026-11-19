@@ -432,10 +432,10 @@ var proxyErrorLog = log.New(os.Stderr, "switchyard: ", 0)
 // the transport opens passes through it.
 func newUpstreamTransport(upstream string, upstreamIdle time.Duration, maxIdle int, wrap func(net.Conn) net.Conn) *http.Transport {
 	return &http.Transport{
-		// Connect to Node directly, never through an HTTP_PROXY. A new
-		// Transport already does that (only http.DefaultTransport reads
-		// HTTP_PROXY); this says so.
-		Proxy: nil,
+		// Connect to Node directly, never through an HTTP_PROXY (only
+		// http.DefaultTransport reads HTTP_PROXY), and send each request at
+		// most once, as without Switchyard (see sendOnce).
+		Proxy: sendAtMostOnce,
 		DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
 			conn, err := (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}).DialContext(ctx, network, upstream)
 			if err != nil || wrap == nil {
@@ -568,6 +568,7 @@ func newClientTransport(upstream string, upstreamIdle time.Duration) clientTrans
 }
 
 func (t clientTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	r = sendOnce(r)
 	u, ok := r.Context().Value(clientUpstreamKey{}).(*clientUpstream)
 	if !ok {
 		return t.shared.RoundTrip(r)

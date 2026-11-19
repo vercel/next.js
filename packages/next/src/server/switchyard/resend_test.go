@@ -190,10 +190,11 @@ func unreadCloser(t *testing.T) (string, *atomic.Int32) {
 	return ln.Addr().String(), &answered
 }
 
-// The case Go's resend hides: the upstream closed a reused connection before
-// reading the request. With the resend the client gets the answer from a new
-// connection; without it, a 502.
-func TestAnUpstreamClosingAReusedConnectionUnread(t *testing.T) {
+// The case Go's resend hid: the upstream closed a reused connection before
+// reading the request. Go used to send it again on a new connection; now the
+// client gets a 502, as Node's client would fail the request too. Switchyard's
+// idle timeout keeps this from happening with Node (see upstreamIdle).
+func TestAnUpstreamClosingAReusedConnectionUnreadGives502(t *testing.T) {
 	upstream, answered := unreadCloser(t)
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -205,11 +206,10 @@ func TestAnUpstreamClosingAReusedConnectionUnread(t *testing.T) {
 	codes := keepAliveExchange(t, ln.Addr().String(),
 		"GET /warm HTTP/1.1\r\nHost: example.com\r\n\r\n",
 		"GET /second HTTP/1.1\r\nHost: example.com\r\n\r\n")
-	t.Logf("second request: status %d, upstream answered %d requests", codes[1], answered.Load())
-	if codes[1] != wantAfterUnreadClose {
-		t.Errorf("status %d, want %d", codes[1], wantAfterUnreadClose)
+	if codes[1] != http.StatusBadGateway {
+		t.Errorf("status %d, want 502", codes[1])
+	}
+	if got := answered.Load(); got != 1 {
+		t.Errorf("the upstream answered %d requests, want 1", got)
 	}
 }
-
-// Go's Transport sends the request again on a new connection.
-const wantAfterUnreadClose = http.StatusOK
