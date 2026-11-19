@@ -53,7 +53,10 @@ use crate::{
     },
     next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_server_import_map},
     next_server::{
-        resolve::{ExternalCjsModulesResolvePlugin, ExternalPredicate},
+        resolve::{
+            ExternalCjsModulesResolvePlugin, ExternalPredicate,
+            ExternalSymlinkedPackagesResolvePlugin,
+        },
         transforms::{get_next_server_internal_transforms_rules, get_next_server_transforms_rules},
     },
     next_shared::{
@@ -189,10 +192,12 @@ pub async fn get_server_resolve_options_context(
 
     external_packages.retain(|item| !transpiled_packages.contains(item));
 
+    let external_packages = ResolvedVc::cell(external_packages);
+    let import_externals = *next_config.import_externals().await?;
+
     let server_external_packages_plugin = ExternalCjsModulesResolvePlugin::new(
-        ExternalPredicate::Only(ResolvedVc::cell(external_packages)).cell(),
-        *next_config.import_externals().await?,
-        *next_config.server_external_packages_monorepo().await?,
+        ExternalPredicate::Only(external_packages).cell(),
+        import_externals,
     )
     .to_resolved()
     .await?;
@@ -211,16 +216,34 @@ pub async fn get_server_resolve_options_context(
         custom_conditions.push(rcstr!("next-js"));
     };
 
-    let external_cjs_modules_plugin = if *next_config.bundle_pages_router_dependencies().await? {
+    let bundle_pages_router_dependencies = *next_config.bundle_pages_router_dependencies().await?;
+    let external_cjs_modules_plugin = if bundle_pages_router_dependencies {
         server_external_packages_plugin
     } else {
         ExternalCjsModulesResolvePlugin::new(
             ExternalPredicate::AllExcept(ResolvedVc::cell(transpiled_packages)).cell(),
-            *next_config.import_externals().await?,
-            false,
+            import_externals,
         )
         .to_resolved()
         .await?
+    };
+
+    // Packages listed in `serverExternalPackages` that are symlinked into `node_modules`, but
+    // resolve to a path outside of it (e.g. workspace packages in a monorepo). Applies wherever
+    // the explicit list of external packages is used.
+    let before_resolve_plugins = if *next_config.server_external_packages_monorepo().await?
+        && (bundle_pages_router_dependencies
+            || !matches!(
+                ty,
+                ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. }
+            )) {
+        vec![ResolvedVc::upcast(
+            ExternalSymlinkedPackagesResolvePlugin::new(*external_packages, import_externals)
+                .to_resolved()
+                .await?,
+        )]
+    } else {
+        vec![]
     };
 
     let next_external_plugin = NextExternalResolvePlugin::new().to_resolved().await?;
@@ -265,6 +288,7 @@ pub async fn get_server_resolve_options_context(
         // A request starting with `/` is resolved from the project directory, which is not
         // necessarily the root of the filesystem (e.g. in a monorepo).
         server_relative_root: Some(project_path.clone()),
+        before_resolve_plugins,
         after_resolve_plugins,
         ..Default::default()
     };

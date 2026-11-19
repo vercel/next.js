@@ -1,6 +1,7 @@
 import type { WebpackLayerName } from '../lib/constants'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { ResolveOptions } from 'webpack'
+import fs from 'fs'
 import { defaultOverrides } from '../server/require-hook'
 import { BARREL_OPTIMIZATION_PREFIX } from '../shared/lib/constants'
 import path from '../shared/lib/isomorphic/path'
@@ -33,6 +34,43 @@ const jsFileRegex = /\.[mc]?js$/
 function getPackageName(request: string): string {
   const parts = request.split('/')
   return request.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0]
+}
+
+/**
+ * Looks up `node_modules/<packageName>` the same way Node.js does, starting at
+ * `context`. Returns the real path of the package directory if it is a symlink
+ * to a path outside of node_modules, e.g. a workspace package in a monorepo.
+ */
+function findSymlinkedPackageOutsideNodeModules(
+  context: string,
+  packageName: string
+): string | null {
+  let dir = context
+  while (true) {
+    if (path.basename(dir) !== 'node_modules') {
+      const packageDir = path.join(dir, 'node_modules', packageName)
+      const stats = fs.lstatSync(packageDir, { throwIfNoEntry: false })
+      if (stats) {
+        // Node.js would use this package. Packages that aren't symlinked, or
+        // are symlinked to a path inside of node_modules (e.g. by pnpm), are
+        // handled like any other package in node_modules.
+        if (!stats.isSymbolicLink()) {
+          return null
+        }
+        try {
+          const realPath = fs.realpathSync(packageDir)
+          return /[/\\]node_modules[/\\]/.test(realPath) ? null : realPath
+        } catch {
+          return null
+        }
+      }
+    }
+    const parent = path.dirname(dir)
+    if (parent === dir) {
+      return null
+    }
+    dir = parent
+  }
 }
 
 export function isResourceInPackages(
@@ -155,9 +193,22 @@ export function makeExternalHandler({
 }) {
   let resolvedExternalPackageDirs: Map<string, string>
   const looseEsmExternals = config.experimental?.esmExternals === 'loose'
-  const externalizeOutsideNodeModules =
-    config.experimental?.serverExternalPackagesMonorepo !== false
+  const externalizeSymlinkedPackages =
+    config.experimental?.serverExternalPackagesMonorepo === true
   const optOutBundlingPackageSet = new Set(optOutBundlingPackages)
+  const symlinkedPackageCache = new Map<string, string | null>()
+  const getSymlinkedPackageOutsideNodeModules = (
+    context: string,
+    packageName: string
+  ) => {
+    const key = `${context}\0${packageName}`
+    let realPath = symlinkedPackageCache.get(key)
+    if (realPath === undefined) {
+      realPath = findSymlinkedPackageOutsideNodeModules(context, packageName)
+      symlinkedPackageCache.set(key, realPath)
+    }
+    return realPath
+  }
 
   return async function handleExternals(
     context: string,
@@ -306,18 +357,29 @@ export function makeExternalHandler({
     }
 
     const isOptOutBundlingInNodeModules = optOutBundlingPackageRegex.test(res)
-    // Packages that opted out of bundling but resolve to a path outside of
-    // node_modules, e.g. workspace packages that are symlinked into
-    // node_modules and resolve to their real path. Only applies where
-    // dependencies are bundled by default, like Turbopack.
-    const isOptOutBundlingOutsideNodeModules =
-      externalizeOutsideNodeModules &&
+    // Packages that opted out of bundling and are symlinked into node_modules,
+    // but resolve to a path outside of it, e.g. workspace packages in a
+    // monorepo. Only applies where dependencies are bundled by default, like
+    // in Turbopack.
+    let isOptOutBundlingOutsideNodeModules = false
+    if (
+      externalizeSymlinkedPackages &&
       (isAppLayer || !!config.bundlePagesRouterDependencies) &&
       !isLocal &&
       !isOptOutBundlingInNodeModules &&
       !nodeModulesRegex.test(res) &&
-      jsFileRegex.test(res) &&
-      optOutBundlingPackageSet.has(getPackageName(request))
+      jsFileRegex.test(res)
+    ) {
+      const packageName = getPackageName(request)
+      if (optOutBundlingPackageSet.has(packageName)) {
+        const packageDir = getSymlinkedPackageOutsideNodeModules(
+          context,
+          packageName
+        )
+        isOptOutBundlingOutsideNodeModules =
+          packageDir !== null && res.startsWith(packageDir + path.sep)
+      }
+    }
     const isOptOutBundling =
       isOptOutBundlingInNodeModules || isOptOutBundlingOutsideNodeModules
     // Apply bundling rules to all app layers.

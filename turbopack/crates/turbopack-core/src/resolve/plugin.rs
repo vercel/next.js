@@ -21,15 +21,6 @@ pub enum AfterResolvePluginCondition {
         root: Option<FileSystemPath>,
         glob: ReadRef<Glob>,
     },
-    /// Like [AfterResolvePluginCondition::Glob], but also matches module requests (e.g. `pkg` or
-    /// `pkg/subpath`) for any of `modules`, independent of the resolved path. This allows plugins
-    /// to handle packages that resolve to a path outside of the glob, e.g. a symlinked package
-    /// that resolves to its real path outside of `node_modules`.
-    GlobOrModules {
-        root: Option<FileSystemPath>,
-        glob: ReadRef<Glob>,
-        modules: ReadRef<Vec<RcStr>>,
-    },
     // these variants are used by utoo
     Always,
     Never,
@@ -45,32 +36,13 @@ impl AfterResolvePluginCondition {
         let glob = glob.await?;
         Ok(AfterResolvePluginCondition::Glob { root, glob }.cell())
     }
-
-    #[turbo_tasks::function]
-    pub async fn new_with_glob_or_modules(
-        root: Option<FileSystemPath>,
-        glob: ResolvedVc<Glob>,
-        modules: ResolvedVc<Vec<RcStr>>,
-    ) -> Result<Vc<Self>> {
-        let glob = glob.await?;
-        let modules = modules.await?;
-        Ok(AfterResolvePluginCondition::GlobOrModules {
-            root,
-            glob,
-            modules,
-        }
-        .cell())
-    }
 }
 
 impl AfterResolvePluginCondition {
-    /// Test whether `fs_path` matches this condition. This ignores the `modules` of
-    /// [AfterResolvePluginCondition::GlobOrModules], use [Self::matches_resolved] to take the
-    /// request into account.
+    /// Test whether `fs_path` matches this condition.
     pub fn matches(&self, fs_path: &FileSystemPath) -> bool {
         match self {
-            AfterResolvePluginCondition::Glob { root, glob }
-            | AfterResolvePluginCondition::GlobOrModules { root, glob, .. } => {
+            AfterResolvePluginCondition::Glob { root, glob } => {
                 let path = match root {
                     Some(root) => root.get_path_to(fs_path),
                     None => Some(&*fs_path.path),
@@ -79,23 +51,6 @@ impl AfterResolvePluginCondition {
             }
             AfterResolvePluginCondition::Always => true,
             AfterResolvePluginCondition::Never => false,
-        }
-    }
-
-    /// Test whether `request` resolving to `fs_path` matches this condition.
-    pub fn matches_resolved(&self, fs_path: &FileSystemPath, request: &Request) -> bool {
-        if self.matches(fs_path) {
-            return true;
-        }
-        match self {
-            AfterResolvePluginCondition::GlobOrModules { modules, .. } => {
-                if let Request::Module { module, .. } = request {
-                    modules.iter().any(|m| module.is_match(m))
-                } else {
-                    false
-                }
-            }
-            _ => false,
         }
     }
 }

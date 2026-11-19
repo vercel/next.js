@@ -11,7 +11,11 @@ import * as path from 'path'
 // It's symlinked into `apps/web/node_modules` and resolves to its real path
 // outside of node_modules. It loads CommonJS glue code through a computed path,
 // which only works when the package is external.
-function setup(serverExternalPackagesMonorepo: boolean) {
+function setup(serverExternalPackagesMonorepo: boolean | undefined) {
+  const experimental =
+    serverExternalPackagesMonorepo === undefined
+      ? ''
+      : `experimental: { serverExternalPackagesMonorepo: ${serverExternalPackagesMonorepo} },`
   return nextTestSetup({
     files: {
       apps: new FileRef(path.resolve(__dirname, 'apps')),
@@ -27,9 +31,7 @@ function setup(serverExternalPackagesMonorepo: boolean) {
         /** @type {import('next').NextConfig} */
         module.exports = {
           serverExternalPackages: ['my-wasm-pkg'],
-          experimental: {
-            serverExternalPackagesMonorepo: ${serverExternalPackagesMonorepo},
-          },
+          ${experimental}
         }
       `,
     },
@@ -37,7 +39,7 @@ function setup(serverExternalPackagesMonorepo: boolean) {
     buildCommand: 'pnpm build',
     startCommand: isNextDev ? 'pnpm dev' : 'pnpm start',
     installCommand: 'pnpm i',
-    skipStart: !serverExternalPackagesMonorepo,
+    skipStart: serverExternalPackagesMonorepo !== true,
   })
 }
 
@@ -87,33 +89,33 @@ describe('server-external-packages-workspace-link', () => {
 
   // The build is expected to fail. A deployment with a failing build can't be
   // set up with `skipStart`, so the bundled case runs in dev and start only.
-  ;(isNextDeploy ? describe.skip : describe)(
-    'experimental.serverExternalPackagesMonorepo: false',
-    () => {
-      const { next, isTurbopack } = setup(false)
+  ;(isNextDeploy ? describe.skip : describe).each([
+    { title: 'false', flag: false },
+    { title: 'unset (default)', flag: undefined },
+  ])('experimental.serverExternalPackagesMonorepo: $title', ({ flag }) => {
+    const { next, isTurbopack } = setup(flag)
 
-      // Without the flag, the workspace package is bundled (it doesn't resolve
-      // into node_modules), so loading the glue through a computed path fails.
-      if (isNextDev) {
-        it('should bundle the workspace package and fail at runtime', async () => {
-          await next.start()
-          const res = await next.fetch('/api/x')
-          expect(res.status).toBe(500)
-        })
-      } else {
-        it('should bundle the workspace package and fail the build', async () => {
-          const { exitCode, cliOutput } = await next.build()
-          expect(exitCode).not.toBe(0)
-          expect(cliOutput).toContain('Failed to collect page data for /api/x')
-          if (isTurbopack) {
-            expect(cliOutput).toContain(
-              'Cannot find module as expression is too dynamic'
-            )
-          } else {
-            expect(cliOutput).toContain('ERR_INVALID_ARG_TYPE')
-          }
-        })
-      }
+    // Without the flag, the workspace package is bundled (it doesn't resolve
+    // into node_modules), so loading the glue through a computed path fails.
+    if (isNextDev) {
+      it('should bundle the workspace package and fail at runtime', async () => {
+        await next.start()
+        const res = await next.fetch('/api/x')
+        expect(res.status).toBe(500)
+      })
+    } else {
+      it('should bundle the workspace package and fail the build', async () => {
+        const { exitCode, cliOutput } = await next.build()
+        expect(exitCode).not.toBe(0)
+        expect(cliOutput).toContain('Failed to collect page data for /api/x')
+        if (isTurbopack) {
+          expect(cliOutput).toContain(
+            'Cannot find module as expression is too dynamic'
+          )
+        } else {
+          expect(cliOutput).toContain('ERR_INVALID_ARG_TYPE')
+        }
+      })
     }
-  )
+  })
 })

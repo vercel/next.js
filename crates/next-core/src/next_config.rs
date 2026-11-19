@@ -2137,7 +2137,7 @@ impl NextConfig {
         Vc::cell(
             self.experimental
                 .server_external_packages_monorepo
-                .unwrap_or(true),
+                .unwrap_or(false),
         )
     }
 

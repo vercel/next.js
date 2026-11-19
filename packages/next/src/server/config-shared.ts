@@ -1453,12 +1453,11 @@ export interface ExperimentalConfig {
   serverSourceMaps?: boolean
 
   /**
-   * Also externalize packages listed in `serverExternalPackages` when they
-   * resolve to a path outside of `node_modules`, e.g. workspace packages in a
-   * monorepo that are symlinked into `node_modules`. When `false`, such
-   * packages are bundled.
+   * Also externalize packages listed in `serverExternalPackages` that are
+   * symlinked into `node_modules`, but resolve to a path outside of it, e.g.
+   * workspace packages in a monorepo. When `false`, such packages are bundled.
    *
-   * @default true
+   * @default false
    */
   serverExternalPackagesMonorepo?: boolean
 
@@ -2607,7 +2606,7 @@ export const defaultConfig = Object.freeze({
     // builds, off in development) — see `NextConfig::turbopack_mangle_export_names`. An explicit
     // value always wins either way.
     turbopackMangleExportNames: undefined,
-    serverExternalPackagesMonorepo: true,
+    serverExternalPackagesMonorepo: false,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
