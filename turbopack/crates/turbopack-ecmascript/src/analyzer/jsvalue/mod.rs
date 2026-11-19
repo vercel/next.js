@@ -662,6 +662,10 @@ impl<'a> JsValue<'a> {
                 false,
                 rcstr!("compile time injected member"),
             )),
+            FreeVarReference::RuntimePublicPath(_) => Ok(JsValue::unknown_empty(
+                false,
+                rcstr!("mutable runtime public path"),
+            )),
             FreeVarReference::EcmaScriptModule { .. } => Ok(JsValue::unknown_empty(
                 false,
                 rcstr!("compile time injected free var module"),

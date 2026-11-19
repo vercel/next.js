@@ -12,6 +12,8 @@
 
 process.env.TURBOPACK = '1'
 
+runtimePublicPath = ASSET_PREFIX
+
 const url = require('url') as typeof import('url')
 
 /**

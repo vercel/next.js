@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="def46318-113b-4f82-5b10-6d3d2287859d")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="006d1acd-c689-0839-7d65-967e4fadde67")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -76,6 +76,40 @@ const REEXPORTED_OBJECTS = new WeakMap();
 }
 const contextPrototype = Context.prototype;
 contextPrototype.M = moduleFactories;
+let runtimePublicPath = '';
+// The public path before any assignment. Asset URLs are built with it.
+let defaultPublicPath = '';
+let publicPathInitialized = false;
+let publicPathAssigned = false;
+// Set by runtimes whose caches must be rekeyed once a public path is assigned.
+let onPublicPathAssigned;
+function initializePublicPath(defaultPath) {
+    if (!publicPathInitialized) {
+        runtimePublicPath = defaultPublicPath = defaultPath;
+        publicPathInitialized = true;
+    }
+}
+contextPrototype.B = initializePublicPath;
+/**
+ * Like webpack's asset modules, asset URLs under the default public path follow
+ * the public path assigned before the asset's module is evaluated.
+ */ function resolvePublicAssetUrl(url) {
+    return publicPathAssigned && defaultPublicPath !== '' && url.startsWith(defaultPublicPath) ? runtimePublicPath + url.slice(defaultPublicPath.length) : url;
+}
+contextPrototype.u = resolvePublicAssetUrl;
+Object.defineProperty(contextPrototype, 'p', {
+    get () {
+        return runtimePublicPath;
+    },
+    set (value) {
+        runtimePublicPath = value;
+        publicPathInitialized = true;
+        if (!publicPathAssigned) {
+            publicPathAssigned = true;
+            onPublicPathAssigned?.();
+        }
+    }
+});
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const toStringTag = typeof Symbol !== 'undefined' && Symbol.toStringTag;
 function defineProp(obj, name, options) {
@@ -861,6 +895,13 @@ contextPrototype.a = asyncModule;
 // Used in WebWorkers to tell the runtime about the chunk suffix
 const browserContextPrototype = Context.prototype;
 const RUNTIME_CHUNK_BASE_PATH = typeof TURBOPACK_CHUNK_BASE_PATH === 'string' ? TURBOPACK_CHUNK_BASE_PATH : CHUNK_BASE_PATH;
+runtimePublicPath = defaultPublicPath = RUNTIME_CHUNK_BASE_PATH;
+// Chunk paths of URLs built under an assigned public path. That base may no
+// longer be current, so it cannot be stripped to recover the path.
+const assignedChunkPaths = new Map();
+function getRuntimeChunkBasePath() {
+    return publicPathAssigned ? runtimePublicPath : RUNTIME_CHUNK_BASE_PATH;
+}
 // The load caches below dedupe in-flight and successful loads. A failed load must not stay
 // cached, or every later load of the same chunk would reuse the rejection without requesting
 // the chunk again, so entries are added with `cacheLoadPromise`.
@@ -895,6 +936,22 @@ function registerComponentChunkSizes(componentChunks, sizes) {
 }
 // Memoizes the composite promise returned for a merged chunk loaded by URL, keyed by URL.
 const splitChunkPromises = new Map();
+// Caches keyed by `getChunkCacheKey`. Its keys change once a public path is assigned.
+const chunkUrlCaches = [
+    splitChunkPromises
+];
+onPublicPathAssigned = ()=>{
+    for (const cache of chunkUrlCaches){
+        const entries = [
+            ...cache
+        ];
+        cache.clear();
+        for (const [chunkUrl, value] of entries){
+            const key = getChunkCacheKey(chunkUrl);
+            if (!cache.has(key)) cache.set(key, value);
+        }
+    }
+};
 function loadChunk(chunkData) {
     return loadChunkInternal(SourceType.Parent, this.m.id, chunkData);
 }
@@ -1001,6 +1058,13 @@ const loadedChunk = Promise.resolve(undefined);
 const instrumentedBackendLoadChunks = new WeakMap();
 // Do not make this async. React relies on referential equality of the returned Promise.
 function loadChunkByUrl(chunkEntry) {
+    if (publicPathAssigned) {
+        chunkEntry = typeof chunkEntry === 'string' ? rebaseChunkUrl(chunkEntry) : [
+            rebaseChunkUrl(chunkEntry[0]),
+            chunkEntry[1],
+            chunkEntry[2]
+        ];
+    }
     return loadChunkByUrlInternal(SourceType.Parent, this.m.id, chunkEntry);
 }
 browserContextPrototype.L = loadChunkByUrl;
@@ -1029,10 +1093,11 @@ function loadChunkByUrlInternal(sourceType, sourceData, chunkEntry) {
         // If we have component chunks for this merged chunk, load only the ones we don't already have
         // instead of the whole merged chunk.
         if (components !== undefined) {
-            let promise = splitChunkPromises.get(chunkUrl);
+            const cacheKey = getChunkCacheKey(chunkUrl);
+            let promise = splitChunkPromises.get(cacheKey);
             if (promise === undefined) {
                 promise = loadComponentChunksOrWhole(sourceType, sourceData, components, chunkUrl);
-                cacheLoadPromise(splitChunkPromises, chunkUrl, promise);
+                cacheLoadPromise(splitChunkPromises, cacheKey, promise);
             }
             return promise;
         }
@@ -1054,6 +1119,10 @@ function loadChunkByUrlInternal(sourceType, sourceData, chunkEntry) {
 // Convert a chunk URL back to its ChunkPath (strip base path, query/hash, decode), to
 // match the keys stored in `chunkComponents`.
 function chunkUrlToPath(chunkUrl) {
+    if (publicPathAssigned) {
+        const assignedPath = assignedChunkPaths.get(splitChunkUrl(chunkUrl)[0]);
+        if (assignedPath !== undefined) return assignedPath;
+    }
     const src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''));
     return src.startsWith(RUNTIME_CHUNK_BASE_PATH) ? src.slice(RUNTIME_CHUNK_BASE_PATH.length) : src;
 }
@@ -1143,10 +1212,51 @@ browserContextPrototype.q = exportUrl;
  */ const CHUNK_PATH_NEEDS_ENCODING = /[^A-Za-z0-9\-_.!~*'()/]/;
 /**
  * Returns the URL relative to the origin where a chunk can be fetched from.
- */ function getChunkRelativeUrl(chunkPath, basePath = RUNTIME_CHUNK_BASE_PATH) {
+ */ function getChunkRelativeUrl(chunkPath, basePath = getRuntimeChunkBasePath(), assetSuffix = ASSET_SUFFIX) {
+    const url = `${basePath}${encodeChunkPath(chunkPath)}`;
+    if (publicPathAssigned) {
+        assignedChunkPaths.set(url, chunkPath);
+    }
+    return `${url}${assetSuffix}`;
+}
+function encodeChunkPath(chunkPath) {
     // Most chunk paths need no escaping.
-    const encodedPath = CHUNK_PATH_NEEDS_ENCODING.test(chunkPath) ? chunkPath.split('/').map(encodeURIComponent).join('/') : chunkPath;
-    return `${basePath}${encodedPath}${ASSET_SUFFIX}`;
+    return CHUNK_PATH_NEEDS_ENCODING.test(chunkPath) ? chunkPath.split('/').map(encodeURIComponent).join('/') : chunkPath;
+}
+function splitChunkUrl(chunkUrl) {
+    const suffixIndex = chunkUrl.search(/[?#]/);
+    return suffixIndex === -1 ? [
+        chunkUrl,
+        ''
+    ] : [
+        chunkUrl.slice(0, suffixIndex),
+        chunkUrl.slice(suffixIndex)
+    ];
+}
+/**
+ * Returns the chunk path for a URL pathname under the configured or an
+ * assigned base path, or `undefined` for any other URL.
+ */ function getOwnedChunkPath(pathname) {
+    const assignedPath = assignedChunkPaths.get(pathname);
+    if (assignedPath !== undefined) return assignedPath;
+    const basePath = RUNTIME_CHUNK_BASE_PATH;
+    const owned = basePath === '' ? !/^(?:[a-zA-Z][a-zA-Z\d+.-]*:|\/)/.test(pathname) : pathname.startsWith(basePath) && (basePath.startsWith('//') || !pathname.startsWith('//'));
+    return owned ? decodeURIComponent(pathname.slice(basePath.length)) : undefined;
+}
+// URLs from the server are built with the configured base path. Load them from
+// the assigned public path instead.
+function rebaseChunkUrl(chunkUrl) {
+    const [pathname, suffix] = splitChunkUrl(chunkUrl);
+    const chunkPath = getOwnedChunkPath(pathname);
+    return chunkPath === undefined ? chunkUrl : getChunkRelativeUrl(chunkPath, runtimePublicPath, suffix);
+}
+// Once a public path is assigned, the same chunk can be requested from several
+// base paths, so identify it by its path instead.
+function getChunkCacheKey(chunkUrl) {
+    if (!publicPathAssigned) return chunkUrl;
+    const [pathname, suffix] = splitChunkUrl(chunkUrl);
+    const chunkPath = getOwnedChunkPath(pathname);
+    return chunkPath === undefined ? chunkUrl : `${encodeChunkPath(chunkPath)}${suffix}`;
 }
 // Shared runtime primitives consumed by the bundled `createWorker` helper,
 // exposed as `__turbopack_chunk_base_path__` and `__turbopack_chunk_asset_suffix__`.
@@ -1159,10 +1269,7 @@ function getPathFromScript(chunkScript) {
     if (typeof chunkScript === 'string') {
         return chunkScript;
     }
-    const chunkUrl = chunkScript.src;
-    const src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''));
-    const path = src.startsWith(RUNTIME_CHUNK_BASE_PATH) ? src.slice(RUNTIME_CHUNK_BASE_PATH.length) : src;
-    return path;
+    return chunkUrlToPath(chunkScript.src);
 }
 /**
  * Return the ChunkUrl from a ChunkScript.
@@ -2339,8 +2446,11 @@ function getAssetSuffixFromScriptSrc() {
  *
  * TODO(PACK-2140): drop the decoded variant once all filenames are guaranteed
  * to be escaped.
- */ function matchesChunkUrl(value, url, decodedUrl) {
-    return value != null && (value === url || value.startsWith(url + '?') || value === decodedUrl || value.startsWith(decodedUrl + '?'));
+ */ function matchesChunkUrl(value, url, decodedUrl, chunkPath) {
+    return value != null && (value === url || value.startsWith(url + '?') || value === decodedUrl || value.startsWith(decodedUrl + '?') || chunkPath !== undefined && getOwnedChunkPath(splitChunkUrl(value)[0]) === chunkPath);
+}
+function getAssignedChunkPath(url) {
+    return publicPathAssigned ? getOwnedChunkPath(splitChunkUrl(url)[0]) : undefined;
 }
 // These lookups only search `<head>`: the runtime inserts its chunk tags there,
 // and chunk tags rendered into the HTML are expected there too. Tags in
@@ -2356,11 +2466,12 @@ function getAssetSuffixFromScriptSrc() {
  * Returns all `<script>` elements in `<head>` whose `src` refers to `url`.
  */ function findChunkScripts(url) {
     const decodedUrl = decodeURI(url);
+    const chunkPath = getAssignedChunkPath(url);
     const scripts = document.head.getElementsByTagName('script');
     const result = [];
     for(let i = 0; i < scripts.length; i++){
         const script = scripts[i];
-        if (matchesChunkUrl(script.getAttribute('src'), url, decodedUrl)) {
+        if (matchesChunkUrl(script.getAttribute('src'), url, decodedUrl, chunkPath)) {
             result.push(script);
         }
     }
@@ -2372,11 +2483,12 @@ function getAssetSuffixFromScriptSrc() {
  * (ASCII case-insensitive) are returned.
  */ function findChunkLinks(url, stylesheetsOnly = false) {
     const decodedUrl = decodeURI(url);
+    const chunkPath = getAssignedChunkPath(url);
     const links = document.head.getElementsByTagName('link');
     const result = [];
     for(let i = 0; i < links.length; i++){
         const link = links[i];
-        if ((!stylesheetsOnly || link.getAttribute('rel')?.toLowerCase() === 'stylesheet') && matchesChunkUrl(link.getAttribute('href'), url, decodedUrl)) {
+        if ((!stylesheetsOnly || link.getAttribute('rel')?.toLowerCase() === 'stylesheet') && matchesChunkUrl(link.getAttribute('href'), url, decodedUrl, chunkPath)) {
             result.push(link);
         }
     }
@@ -2390,8 +2502,9 @@ function getAssetSuffixFromScriptSrc() {
 }
 let BACKEND;
 /**
- * Maps chunk paths to the corresponding resolver.
+ * Maps chunk cache keys to the corresponding resolver.
  */ const chunkResolvers = new Map();
+chunkUrlCaches.push(chunkResolvers);
 (()=>{
     BACKEND = {
         async registerChunk (chunk, params) {
@@ -2427,7 +2540,8 @@ let BACKEND;
         }
     };
     function getOrCreateResolver(chunkUrl) {
-        let resolver = chunkResolvers.get(chunkUrl);
+        const cacheKey = getChunkCacheKey(chunkUrl);
+        let resolver = chunkResolvers.get(cacheKey);
         if (!resolver) {
             let resolve;
             let reject;
@@ -2446,7 +2560,7 @@ let BACKEND;
                 },
                 reject: reject
             };
-            chunkResolvers.set(chunkUrl, resolver);
+            chunkResolvers.set(cacheKey, resolver);
         }
         return resolver;
     }
@@ -2455,8 +2569,9 @@ let BACKEND;
    * We don't want to cache failed chunk loads: a later
    * request for the same chunk should try again.
    */ function rejectChunkResolver(chunkUrl, resolver, error) {
-        if (chunkResolvers.get(chunkUrl) === resolver) {
-            chunkResolvers.delete(chunkUrl);
+        const cacheKey = getChunkCacheKey(chunkUrl);
+        if (chunkResolvers.get(cacheKey) === resolver) {
+            chunkResolvers.delete(cacheKey);
         }
         resolver.reject(error);
     }
@@ -2470,7 +2585,7 @@ let BACKEND;
     /**
    * Handles a failed chunk load: retries the load once after a short delay.
    */ function onChunkLoadError(sourceType, chunkUrl, resolver, error, reload) {
-        if (!isRetryableChunkLoadError(error) || resolver.retryAttempts >= CHUNK_LOAD_RETRY_MAX_ATTEMPTS || chunkResolvers.get(chunkUrl) !== resolver) {
+        if (!isRetryableChunkLoadError(error) || resolver.retryAttempts >= CHUNK_LOAD_RETRY_MAX_ATTEMPTS || chunkResolvers.get(getChunkCacheKey(chunkUrl)) !== resolver) {
             rejectChunkResolver(chunkUrl, resolver, error);
             return;
         }
@@ -2479,7 +2594,7 @@ let BACKEND;
             // if this chunk is being fetched multiple times, and one of those
             // attempts succeeds. or, if this chunk has another resolver
             // mapped to it - it's safe to skip retrying.
-            if (resolver.resolved || chunkResolvers.get(chunkUrl) !== resolver) {
+            if (resolver.resolved || chunkResolvers.get(getChunkCacheKey(chunkUrl)) !== resolver) {
                 return;
             }
             if (reload) {
@@ -2687,7 +2802,7 @@ let DEV_BACKEND;
         restart: ()=>self.location.reload()
     };
     function deleteResolver(chunkUrl) {
-        chunkResolvers.delete(chunkUrl);
+        chunkResolvers.delete(getChunkCacheKey(chunkUrl));
     }
 })();
 function _eval({ code, url, map }) {
@@ -2708,5 +2823,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=def46318-113b-4f82-5b10-6d3d2287859d
+//# debugId=006d1acd-c689-0839-7d65-967e4fadde67
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map

@@ -278,7 +278,7 @@ async fn apply_module_type(
             .await?,
         ),
         ModuleType::StaticUrlJs { tag } => ResolvedVc::upcast(
-            StaticUrlJsModule::new(*source, tag.clone())
+            StaticUrlJsModule::new(*source, tag.clone(), true)
                 .to_resolved()
                 .await?,
         ),
