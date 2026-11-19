@@ -460,7 +460,7 @@ impl WebpackLoadersProcessedAsset {
                 node_backend,
             } = &*transform.execution_context.await?;
             let source_content = self.source.content();
-            let AssetContent::File(file) = *source_content.await? else {
+            let Some(file) = source_content.await?.as_file_content() else {
                 bail!("Webpack Loaders transform only support transforming files");
             };
             let FileContent::Content(file_content) = &*file.await? else {
@@ -1061,8 +1061,7 @@ impl EvaluateContext for WebpackLoaderContext {
                     if rel_path.ends_with(".map") {
                         continue;
                     }
-                    let content = asset.content().await?;
-                    let AssetContent::File(file_vc) = *content else {
+                    let Some(file_vc) = asset.content().await?.as_file_content() else {
                         continue;
                     };
                     let file_content = file_vc.await?;

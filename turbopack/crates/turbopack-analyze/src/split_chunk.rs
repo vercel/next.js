@@ -6,7 +6,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, ValueToString, ValueToStringRef, Vc};
 use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystemPath, rope::Rope};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::Asset,
     file_source::FileSource,
     output::OutputAsset,
     source_map::{GenerateSourceMap, OriginalToken, SourceMap, SourceMapType, Token},
@@ -62,8 +62,7 @@ impl ChunkPart {
 
 pub async fn split_traced_file_into_parts(path: FileSystemPath) -> Result<Vec<ChunkPart>> {
     let source = FileSource::new(path.clone());
-    let content = source.content().await?;
-    let AssetContent::File(file_content) = &*content else {
+    let Some(file_content) = source.content().await?.as_file_content() else {
         return Ok(vec![]);
     };
     let FileContent::Content(content) = &*file_content.await? else {
@@ -78,8 +77,7 @@ pub async fn split_traced_file_into_parts(path: FileSystemPath) -> Result<Vec<Ch
 pub async fn split_output_asset_into_parts(
     asset: Vc<Box<dyn OutputAsset>>,
 ) -> Result<Vec<ChunkPart>> {
-    let content = asset.content().await?;
-    let AssetContent::File(file_content) = &*content else {
+    let Some(file_content) = asset.content().await?.as_file_content() else {
         return Ok(vec![]);
     };
     let FileContent::Content(content) = &*file_content.await? else {

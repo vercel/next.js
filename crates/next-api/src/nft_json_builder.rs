@@ -179,7 +179,7 @@ impl NftJsonBuilder {
 
     pub fn add(&mut self, path: FileSystemPath, hash: RcStr, content: &AssetContent) -> Result<()> {
         let symlink_target = match content {
-            AssetContent::File(_) => None,
+            AssetContent::File(_) | AssetContent::Composed(_) => None,
             AssetContent::Redirect(content) => Some(&content.target),
         };
         self.add_with_symlink_target(path, hash, symlink_target)

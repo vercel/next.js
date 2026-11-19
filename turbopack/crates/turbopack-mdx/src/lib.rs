@@ -131,7 +131,7 @@ impl MdxTransformedAsset {
         let content = self.source.content().await?;
         let transform_options = self.options.await?;
 
-        let AssetContent::File(file) = &*content else {
+        let Some(file) = content.as_file_content() else {
             anyhow::bail!("Unexpected mdx asset content");
         };
 
