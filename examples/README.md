@@ -26,7 +26,7 @@ If you could swap "Next.js" for "any React framework" and the code is unchanged,
 ### 3. It must survive these filters
 
 - **One canonical example per category.** We do not ship N vendor variants of the same thing (state managers, auth providers, form libraries, analytics, CMSes). Vendor-specific starters belong in the vendor's repo.
-- **Upstream does not do it better.** If the integration has a well-maintained official starter from the vendor, ours will drift and lose. Link to theirs from the docs instead, or add an entry to the [Using Next.js with X](#using-nextjs-with-x) section below.
+- **Upstream does not do it better.** If the integration has a well-maintained official starter from the vendor, ours will drift and lose. Link to theirs from the docs or the [Using Next.js with X](#using-nextjs-with-x) section below instead.
 - **Not redundant with `create-next-app`.** Anything the CNA wizard scaffolds via a flag (TypeScript, Tailwind, ESLint, App Router, src dir) does not need a dedicated `with-*` example.
 - **Not redundant with the framework.** Features Next.js has absorbed (built-in i18n, env vars, image optimization, MDX) live in the docs, not here.
 - **Reflects modern Next.js.** Pre-App-Router or pages-only examples need a specific reason to exist, such as documenting a migration path. Patterns now considered anti-patterns (custom servers, `getInitialProps`) need explicit justification.
@@ -40,7 +40,7 @@ Publishing an example is an implicit promise to maintain it. An example becomes 
 - It breaks on the current Next.js release.
 - It teaches a pattern the framework has since absorbed or moved past.
 
-Removed examples remain in git history and can always be resurrected if the need returns. If you maintain a tool whose example was removed and want to bring it back, see the submission criteria.
+Removed examples remain in git history and can always be resurrected if the need returns.
 
 ## Submitting a new example
 
@@ -55,11 +55,10 @@ If the criteria are not met, consider one of these alternatives instead:
 - A docs page or guide in the main Next.js documentation.
 - Publishing the example in your own repo and linking to it from your integration docs.
 - Submitting to the Vercel templates gallery.
-- Adding an entry to the [Using Next.js with X](#using-nextjs-with-x) section below.
 
 ## Using Next.js with X
 
-When the canonical setup for a tool lives upstream (in the vendor's docs, framework adapter, or starter kit), this directory points there instead of shipping an in-tree example that drifts. The list below is a curated set of cornerstones, not an exhaustive directory. PRs that add an entry for a tool you maintain are welcome.
+When the canonical setup for a tool lives upstream (in the vendor's docs, framework adapter, or starter kit), this directory points there instead of shipping an in-tree example that drifts. The list below is a curated set of cornerstones, not an exhaustive directory.
 
 - **Storybook**: [`@storybook/nextjs`](https://storybook.js.org/docs/get-started/frameworks/nextjs) is the official framework adapter. Run `npx storybook init` inside your Next.js project to configure it.
 - **Tailwind CSS**: [Install Tailwind CSS with Next.js](https://tailwindcss.com/docs/guides/nextjs).
