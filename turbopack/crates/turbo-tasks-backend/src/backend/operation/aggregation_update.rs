@@ -6961,6 +6961,10 @@ mod follower_debt_tests {
     /// G is reachable from U through F2 and C, so while it's dirty, U must block a strong read,
     /// even though the propagation of G to U is still queued in A.
     #[tokio::test(flavor = "multi_thread")]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "fails until fixed, and a panic aborts all tests on wasm"
+    )]
     async fn second_path_does_not_borrow_unfinished_subtree() {
         // 1 = U (aggregating), 2 = F1, 3 = F2, 4 = C, 5 = G (dirty).
         let tt = setup_with_data(
@@ -6985,6 +6989,10 @@ mod follower_debt_tests {
     /// Like [`second_path_does_not_borrow_unfinished_subtree`], with a clean G that emits the
     /// collectible: while U misses it, U must block a strong read.
     #[tokio::test(flavor = "multi_thread")]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "fails until fixed, and a panic aborts all tests on wasm"
+    )]
     async fn second_path_does_not_borrow_unfinished_collectibles() {
         // 1 = U (aggregating), 2 = F1, 3 = F2, 4 = C, 5 = G (emits the collectible).
         let tt = setup_with_data(
