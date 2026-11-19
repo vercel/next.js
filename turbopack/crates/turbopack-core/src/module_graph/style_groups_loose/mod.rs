@@ -4,7 +4,7 @@ use anyhow::Result;
 use indexmap::map::Entry;
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
     chunk::{
@@ -131,7 +131,7 @@ async fn collect_style_modules_per_chunk_group(
                     {
                         let style_type = *style_module.style_type().await?;
                         let mut info =
-                            ModuleInfo::new(style_type, module.ident().to_string().owned().await?);
+                            ModuleInfo::new(style_type, module.ident_string().owned().await?);
                         info.chunk_group_indices.insert(idx, styles.len());
                         info.index_sum += styles.len();
                         styles.insert(module);

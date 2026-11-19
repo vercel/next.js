@@ -243,7 +243,7 @@ impl EcmascriptChunkPlaceable for RawEcmascriptModule {
                 || (generation.full && full_source_map.is_none())
             {
                 let mut map = swc_sourcemap::SourceMapBuilder::new(None);
-                let source_id = map.add_source(self.ident().to_string().await?.to_string().into());
+                let source_id = map.add_source(self.ident_string().await?.to_string().into());
                 map.set_source_contents(source_id, Some(content_str.clone().into_owned().into()));
                 for (line, _) in content_str.split_inclusive('\n').enumerate() {
                     map.add_raw(line as u32, 0, line as u32, 0, Some(source_id), None, false);
