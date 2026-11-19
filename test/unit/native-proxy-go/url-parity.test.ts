@@ -92,7 +92,9 @@ function generateCases(basePath: string): TestCase[] {
     '/x/.',
     '//double',
     '/a\\b',
-    '/a|b^c',
+    // `^` is left out: whether the WHATWG URL parser percent-encodes it in
+    // paths depends on the Node.js version, so proxy.ts itself differs.
+    '/a|b',
     '/a[b]',
     "/a'b",
   ]

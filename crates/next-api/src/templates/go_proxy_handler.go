@@ -230,8 +230,10 @@ func nextGoRemoveRSCSuffix(target string) string {
 	return target[:i] + target[i+len(".rsc"):]
 }
 
+// nextGoPathEscape matches the WHATWG path percent-encode set as implemented
+// by the Node.js versions Next.js supports, which leave `^` unencoded.
 func nextGoPathEscape(c byte) bool {
-	return c <= 0x20 || c >= 0x7f || strings.IndexByte("\"#<>?^`{}", c) >= 0
+	return c <= 0x20 || c >= 0x7f || strings.IndexByte("\"#<>?`{}", c) >= 0
 }
 
 func nextGoQueryEscape(c byte) bool {
