@@ -23,6 +23,7 @@ import {
 
 const JOURNAL_SIZE_LIMIT = 50 * 1024 * 1024
 const JOURNAL_WRITE_BATCH_BYTES = 64 * 1024
+const JOURNAL_WRITE_BATCH_INTERVAL_MS = 300
 const JOURNAL_FILENAME = 'request-insights.ndjson'
 const REQUEST_INSIGHTS_JOURNAL_KEY = Symbol.for(
   `@next/request-insights-journal@${process.env.__NEXT_VERSION}`
@@ -74,6 +75,7 @@ type JournalCursor = {
 class RequestInsightsJournal {
   private writes = Promise.resolve()
   private pendingAppends: AppendBatch | undefined
+  private pendingAppendTimer: ReturnType<typeof setTimeout> | undefined
   private size = 0
   private sequence = 0
   private summaries = new Map<string, IndexedSummary>()
@@ -97,27 +99,41 @@ class RequestInsightsJournal {
     const key = getRequestInsightKey(request)
     this.pendingRequests.add(key)
     let batch = this.pendingAppends
-    if (!batch || batch.byteLength + byteLength > JOURNAL_WRITE_BATCH_BYTES) {
+    if (batch && batch.byteLength + byteLength > JOURNAL_WRITE_BATCH_BYTES) {
+      this.queuePendingAppends()
+      batch = undefined
+    }
+    if (!batch) {
       batch = { records: [], byteLength: 0 }
       this.pendingAppends = batch
-      const queuedBatch = batch
-      this.writes = this.writes
-        .then(async () => {
-          if (this.pendingAppends === queuedBatch)
-            this.pendingAppends = undefined
-          await this.appendRequests(queuedBatch.records)
-        })
-        .catch((error) => {
-          console.warn('Failed to write Request Insights journal', error)
-        })
-        .finally(() => {
-          for (const record of queuedBatch.records) {
-            this.pendingRequests.delete(record.key)
-          }
-        })
+      this.pendingAppendTimer = setTimeout(
+        () => this.queuePendingAppends(),
+        JOURNAL_WRITE_BATCH_INTERVAL_MS
+      )
     }
     batch.records.push({ line, byteLength, key, summary })
     batch.byteLength += byteLength
+    if (batch.byteLength >= JOURNAL_WRITE_BATCH_BYTES) {
+      this.queuePendingAppends()
+    }
+  }
+
+  private queuePendingAppends(): void {
+    const batch = this.pendingAppends
+    if (!batch) return
+    this.pendingAppends = undefined
+    clearTimeout(this.pendingAppendTimer)
+    this.pendingAppendTimer = undefined
+    this.writes = this.writes
+      .then(() => this.appendRequests(batch.records))
+      .catch((error) => {
+        console.warn('Failed to write Request Insights journal', error)
+      })
+      .finally(() => {
+        for (const record of batch.records) {
+          this.pendingRequests.delete(record.key)
+        }
+      })
   }
 
   private async appendRequests(records: PendingAppend[]): Promise<void> {
@@ -170,7 +186,7 @@ class RequestInsightsJournal {
     update: RequestInsightUpdate,
     request?: RequestInsight
   ): void {
-    this.pendingAppends = undefined
+    this.queuePendingAppends()
     const key = getRequestInsightKey(identity)
     // The live arrays keep growing while writes wait, so capture their lengths.
     const snapshot = request && { ...request }
@@ -397,7 +413,7 @@ class RequestInsightsJournal {
   }
 
   flush(): Promise<void> {
-    this.pendingAppends = undefined
+    this.queuePendingAppends()
     return this.writes
   }
 
