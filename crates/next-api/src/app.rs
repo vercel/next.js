@@ -1320,6 +1320,7 @@ impl Endpoint for GoEndpoint {
                 project,
                 output_assets: OutputAssets::empty().to_resolved().await?,
                 output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
+                first_load_chunks: None,
             }
             .cell());
         }
