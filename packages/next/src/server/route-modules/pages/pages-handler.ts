@@ -193,6 +193,7 @@ export const getHandler = ({
       nextFontManifest,
       serverFilesManifest,
       reactLoadableManifest,
+      dynamicCssManifest,
       prerenderManifest,
       previewProps,
       isDraftMode,
@@ -357,6 +358,7 @@ export const getHandler = ({
                     : buildManifest,
                   nextFontManifest,
                   reactLoadableManifest,
+                  dynamicCssManifest,
 
                   assetPrefix: routeModule.getAssetPrefixForRender(
                     routerServerContext,
