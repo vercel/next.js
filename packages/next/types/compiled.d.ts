@@ -4,6 +4,17 @@
 
 // TODO: Use tsconfig#paths instead
 declare module 'next/dist/compiled/next-devtools'
+declare module 'next/dist/compiled/@opentelemetry/api' {
+  export type AttributeValue = any
+  export type Attributes = any
+  export type Context = any
+  export type Span = any
+  export type SpanContext = any
+  export type SpanOptions = any
+  export type SpanStatus = any
+  export type SpanStatusCode = any
+  export type Tracer = any
+}
 
 declare module 'next/dist/compiled/webpack/webpack' {
   export function init(): void
