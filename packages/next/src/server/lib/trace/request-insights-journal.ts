@@ -67,24 +67,40 @@ type PendingAppend = {
   summary: RequestInsightSummary
 }
 
-type AppendBatch = {
-  records: PendingAppend[]
-  byteLength: number
+type LiveUpdate = {
+  update: RequestInsightUpdate
+  snapshot: RequestInsight
+  spanCount: number
+  fetchCount: number
 }
 
-type PendingUpdate = {
-  update: RequestInsightUpdate
-  snapshot?: RequestInsight
-  spanCount?: number
-  fetchCount?: number
-}
+type UpdateInput =
+  | { kind: 'live'; request: RequestInsight }
+  | { kind: 'archived' }
 
 type UpdateBatch = {
   identity: Pick<RequestInsight, 'requestId' | 'kind'>
   key: string
-  updates: PendingUpdate[]
   byteLength: number
-}
+} & (
+  | { kind: 'live'; updates: LiveUpdate[] }
+  | { kind: 'archived'; updates: RequestInsightUpdate[] }
+)
+
+type PendingBatch =
+  | { kind: 'append'; records: PendingAppend[]; byteLength: number }
+  | UpdateBatch
+
+type PreparedBatch =
+  | { kind: 'append'; lines: string[]; records: PendingAppend[] }
+  | {
+      kind: 'update'
+      lines: string[]
+      key: string
+      summary: RequestInsightSummary
+      requiresSnapshot: boolean
+      fullSnapshot: () => Promise<RequestInsight | undefined>
+    }
 
 type JournalCursor = {
   sessionId: string
@@ -94,8 +110,8 @@ type JournalCursor = {
 
 class RequestInsightsJournal {
   private writes = Promise.resolve()
-  private pendingAppends: AppendBatch | undefined
-  private pendingUpdates: UpdateBatch | undefined
+  private pending: PendingBatch | undefined
+  private needsReset = false
   private readonly writer: RotatingFile
   private sequence = 0
   private summaries = new Map<string, IndexedSummary>()
@@ -109,7 +125,6 @@ class RequestInsightsJournal {
   }
 
   append(request: RequestInsight): void {
-    this.pendingUpdates = undefined
     let line: string
     try {
       line = `${JSON.stringify({ version: 1, request } satisfies JournalRecord)}\n`
@@ -121,42 +136,88 @@ class RequestInsightsJournal {
     const summary = summarizeRequestInsight(request)
     const key = getRequestInsightKey(request)
     this.pendingRequests.add(key)
-    let batch = this.pendingAppends
-    if (!batch || batch.byteLength + byteLength > JOURNAL_WRITE_BATCH_BYTES) {
-      batch = { records: [], byteLength: 0 }
-      this.pendingAppends = batch
-      const queuedBatch = batch
-      this.writes = this.writes
-        .then(async () => {
-          if (this.pendingAppends === queuedBatch)
-            this.pendingAppends = undefined
-          await this.appendRequests(queuedBatch.records)
-        })
-        .catch((error) => {
-          console.warn('Failed to write Request Insights journal', error)
-        })
-        .finally(() => {
-          for (const record of queuedBatch.records) {
-            this.pendingRequests.delete(record.key)
-          }
-        })
+    let batch = this.pending
+    if (
+      batch?.kind !== 'append' ||
+      batch.byteLength + byteLength > JOURNAL_WRITE_BATCH_BYTES
+    ) {
+      batch = { kind: 'append', records: [], byteLength: 0 }
+      this.enqueue(batch)
     }
     batch.records.push({ line, key, summary })
     batch.byteLength += byteLength
   }
 
-  private async appendRequests(records: PendingAppend[]): Promise<void> {
+  private enqueue<T extends PendingBatch>(batch: T): T {
+    this.pending = batch
+    this.writes = this.writes.then(async () => {
+      if (this.pending === batch) this.pending = undefined
+      try {
+        // Never prepare journal-only deltas against bytes damaged by a failed
+        // member. A failed reset skips this batch and remains retryable.
+        if (this.needsReset) {
+          this.rotate()
+          this.needsReset = false
+        }
+        const prepared =
+          batch.kind === 'append'
+            ? {
+                kind: 'append' as const,
+                records: batch.records,
+                lines: batch.records.map(({ line }) => line),
+              }
+            : batch.kind === 'live'
+              ? this.prepareLiveUpdates(batch)
+              : await this.prepareArchivedUpdates(batch)
+        if (prepared) await this.commit(prepared)
+      } catch (error) {
+        console.warn('Failed to write Request Insights journal', error)
+      } finally {
+        if (batch.kind === 'append') {
+          for (const record of batch.records)
+            this.pendingRequests.delete(record.key)
+        }
+      }
+    })
+    return batch
+  }
+
+  private async commit(batch: PreparedBatch): Promise<void> {
     // A finished member per bounded batch shares gzip's dictionary across
     // records, while remaining readable before the journal closes.
-    const data = await compress(records.map(({ line }) => line).join(''))
-    if (this.writer.size > 0 && this.writer.wouldExceed(data.length)) {
-      this.rotate()
+    let data = await compress(batch.lines.join(''))
+    if (
+      batch.kind === 'update' &&
+      (batch.requiresSnapshot || this.writer.wouldExceed(data.length))
+    ) {
+      const request = await batch.fullSnapshot()
+      if (!request) return
+      data = await compress(
+        `${JSON.stringify({ version: 1, request } satisfies JournalRecord)}\n`
+      )
+      batch.summary = summarizeRequestInsight(request)
     }
-    this.writer.write(data)
-    for (const record of records) {
-      this.indexSummary(record.key, {
-        sequence: ++this.sequence,
-        request: record.summary,
+    try {
+      if (this.writer.size > 0 && this.writer.wouldExceed(data.length))
+        this.rotate()
+      this.writer.write(data)
+    } catch (error) {
+      // Even an exception after a short write can leave a torn gzip member.
+      // Do not index it or append another member until the file is reset.
+      this.needsReset = true
+      throw error
+    }
+    if (batch.kind === 'append') {
+      for (const record of batch.records) {
+        this.indexSummary(record.key, {
+          sequence: ++this.sequence,
+          request: record.summary,
+        })
+      }
+    } else {
+      this.indexSummary(batch.key, {
+        sequence: this.summaries.get(batch.key)?.sequence ?? ++this.sequence,
+        request: batch.summary,
       })
     }
   }
@@ -169,20 +230,22 @@ class RequestInsightsJournal {
     if (!this.summaries.has(key) && !this.pendingRequests.has(key)) {
       return false
     }
-    this.appendUpdate(identity, update)
+    this.appendUpdate(identity, update, { kind: 'archived' })
     return true
   }
 
   appendUpdate(
     identity: Pick<RequestInsight, 'requestId' | 'kind'>,
     update: RequestInsightUpdate,
-    request?: RequestInsight
+    source: UpdateInput
   ): void {
-    this.pendingAppends = undefined
     const key = getRequestInsightKey(identity)
     let byteLength: number
     try {
-      const metadata = request ?? this.summaries.get(key)?.request
+      const metadata =
+        source.kind === 'live'
+          ? source.request
+          : this.summaries.get(key)?.request
       // Reserve framing/status overhead. Unknown metadata gets its own batch.
       byteLength = metadata
         ? Buffer.byteLength(
@@ -194,39 +257,91 @@ class RequestInsightsJournal {
     }
     // Keep one request per update batch so truncation needs only one full
     // snapshot, not a replay/merge of unrelated requests.
-    let batch = this.pendingUpdates
-    if (
-      !batch ||
-      batch.key !== key ||
-      !!batch.updates[0].snapshot !== !!request ||
-      batch.byteLength + byteLength > JOURNAL_WRITE_BATCH_BYTES
-    ) {
-      batch = { identity, key, updates: [], byteLength: 0 }
-      this.pendingUpdates = batch
-      const queuedBatch = batch
-      this.writes = this.writes
-        .then(async () => {
-          if (this.pendingUpdates === queuedBatch)
-            this.pendingUpdates = undefined
-          await this.appendUpdates(queuedBatch)
-        })
-        .catch((error) => {
-          console.warn('Failed to write Request Insights journal', error)
-        })
+    const pending = this.pending
+    if (source.kind === 'live') {
+      const { request } = source
+      const batch =
+        pending?.kind === 'live' &&
+        pending.key === key &&
+        pending.byteLength + byteLength <= JOURNAL_WRITE_BATCH_BYTES
+          ? pending
+          : this.enqueue({
+              kind: 'live',
+              identity,
+              key,
+              updates: [],
+              byteLength: 0,
+            })
+      // Capture boundaries, not copies of the growing live arrays.
+      batch.updates.push({
+        update,
+        snapshot: { ...request },
+        spanCount: request.spans.length,
+        fetchCount: request.fetches.length,
+      })
+      batch.byteLength += byteLength
+    } else {
+      const batch =
+        pending?.kind === 'archived' &&
+        pending.key === key &&
+        pending.byteLength + byteLength <= JOURNAL_WRITE_BATCH_BYTES
+          ? pending
+          : this.enqueue({
+              kind: 'archived',
+              identity,
+              key,
+              updates: [],
+              byteLength: 0,
+            })
+      batch.updates.push(update)
+      batch.byteLength += byteLength
     }
-    // Keep ordering and snapshot boundaries while the live arrays grow.
-    batch.updates.push({
-      update,
-      snapshot: request && { ...request },
-      spanCount: request?.spans.length,
-      fetchCount: request?.fetches.length,
-    })
-    batch.byteLength += byteLength
   }
 
-  private async appendUpdates(batch: UpdateBatch): Promise<void> {
+  private prepareLiveUpdates(
+    batch: Extract<UpdateBatch, { kind: 'live' }>
+  ): PreparedBatch | undefined {
     const initial = this.summaries.get(batch.key)?.request
-    if (!initial && !batch.updates[0].snapshot) return
+    let previous = initial
+    const lines: string[] = []
+    for (const { update, snapshot, spanCount, fetchCount } of batch.updates) {
+      if (!update.span && !update.fetch) continue
+      const prepared = prepareUpdate(
+        previous,
+        snapshot,
+        update,
+        spanCount,
+        fetchCount,
+        isRequestSpan(update) ? snapshot.spans.slice(0, spanCount) : undefined
+      )
+      lines.push(prepared.line)
+      previous = prepared.summary
+    }
+    if (!previous || !lines.length) return
+    const summary = previous
+    const { snapshot, spanCount, fetchCount } =
+      batch.updates[batch.updates.length - 1]
+    return {
+      kind: 'update',
+      key: batch.key,
+      lines,
+      summary,
+      requiresSnapshot: !initial,
+      fullSnapshot: async () => ({
+        ...snapshot,
+        ...getRequestMetadata(summary),
+        spans: snapshot.spans.slice(0, spanCount),
+        fetches: snapshot.fetches.slice(0, fetchCount),
+      }),
+    }
+  }
+
+  private async prepareArchivedUpdates(
+    batch: Extract<UpdateBatch, { kind: 'archived' }>
+  ): Promise<PreparedBatch | undefined> {
+    const initial = this.summaries.get(batch.key)?.request
+    // Truncation (including error recovery) discards the base for these deltas.
+    if (!initial) return
     let previous = initial
     let archived: RequestInsight | undefined
     // Journal-only updates may need old spans/fetches for deduplication or a
@@ -250,99 +365,57 @@ class RequestInsightsJournal {
       return archived
     }
     const lines: string[] = []
-    for (const { update, snapshot, spanCount, fetchCount } of batch.updates) {
+    for (const update of batch.updates) {
       const { span } = update
       let { fetch } = update
-      if (!snapshot && fetch) {
+      if (fetch) {
         const stored = await loadArchived()
         if (!stored) return
+        const candidate = fetch
         if (
           stored.fetches.some((existing) =>
-            isSameRequestInsightFetch(existing, fetch!)
+            isSameRequestInsightFetch(existing, candidate)
           )
         )
           fetch = undefined
       }
       if (!span && !fetch) continue
-      const metadata = getRequestMetadata(snapshot ?? previous!)
-      if (span?.status === 'error') metadata.status = 'error'
-      else if (metadata.status !== 'error' && span?.status === 'ok')
-        metadata.status = 'ok'
-      const summary = summarizeRequestInsight({
-        ...metadata,
-        spans: span ? [span] : [],
-        fetches: fetch ? [fetch] : [],
-      })
-      const updatedSummary: RequestInsightSummary = {
-        ...summary,
-        spanCount: spanCount ?? (previous?.spanCount ?? 0) + (span ? 1 : 0),
-        fetchCount: fetchCount ?? (previous?.fetchCount ?? 0) + (fetch ? 1 : 0),
-        statusCode: previous?.statusCode ?? summary.statusCode,
-        isRsc: previous?.isRsc ?? summary.isRsc,
-        hasError: !!previous?.hasError || summary.hasError,
-        hasProxyActivity:
-          !!previous?.hasProxyActivity || summary.hasProxyActivity,
-        cacheStatuses: [
-          ...new Set([
-            ...(previous?.cacheStatuses ?? []),
-            ...summary.cacheStatuses,
-          ]),
-        ],
+      let canonicalSpans: RequestInsight['spans'] | undefined
+      if (isRequestSpan(update)) {
+        const stored = await loadArchived()
+        if (!stored || !span) return
+        canonicalSpans = [...stored.spans, span]
       }
-      if (
-        span?.attributes?.['next.span_type'] ===
-        REQUEST_INSIGHT_REQUEST_SPAN_TYPE
-      ) {
-        const stored = snapshot ?? (await loadArchived())
-        if (!stored) return
-        const canonicalSummary = summarizeRequestInsight({
-          ...metadata,
-          spans: snapshot
-            ? snapshot.spans.slice(0, spanCount)
-            : [...stored.spans, span],
-          fetches: [],
-        })
-        updatedSummary.statusCode = canonicalSummary.statusCode
-        updatedSummary.isRsc = canonicalSummary.isRsc
-      }
-      lines.push(
-        `${JSON.stringify({ version: 2, request: metadata, span, fetch } satisfies JournalRecord)}\n`
+      const prepared = prepareUpdate(
+        previous,
+        previous,
+        { span, fetch },
+        previous.spanCount + (span ? 1 : 0),
+        previous.fetchCount + (fetch ? 1 : 0),
+        canonicalSpans
       )
+      lines.push(prepared.line)
       if (archived) {
         if (span) archived.spans.push(span)
         if (fetch) archived.fetches.push(fetch)
       } else {
         applied.push({ span, fetch })
       }
-      previous = updatedSummary
+      previous = prepared.summary
     }
     if (!lines.length) return
-    let data = await compress(lines.join(''))
-    if (!initial || this.writer.wouldExceed(data.length)) {
-      const { snapshot, spanCount, fetchCount } =
-        batch.updates[batch.updates.length - 1]
-      const stored = snapshot ?? (await loadArchived())
-      if (!stored) return
-      const fullRequest: RequestInsight = {
-        ...stored,
-        ...getRequestMetadata(previous!),
-        spans: snapshot ? snapshot.spans.slice(0, spanCount) : stored.spans,
-        fetches: snapshot
-          ? snapshot.fetches.slice(0, fetchCount)
-          : stored.fetches,
-      }
-      data = await compress(
-        `${JSON.stringify({ version: 1, request: fullRequest } satisfies JournalRecord)}\n`
-      )
-      previous = summarizeRequestInsight(fullRequest)
+    const summary = previous
+    return {
+      kind: 'update',
+      key: batch.key,
+      lines,
+      summary,
+      requiresSnapshot: false,
+      fullSnapshot: async () => {
+        const stored = await loadArchived()
+        return stored && { ...stored, ...getRequestMetadata(summary) }
+      },
     }
-    if (this.writer.size > 0 && this.writer.wouldExceed(data.length))
-      this.rotate()
-    this.writer.write(data)
-    this.indexSummary(batch.key, {
-      sequence: this.summaries.get(batch.key)?.sequence ?? ++this.sequence,
-      request: previous!,
-    })
   }
 
   private indexSummary(key: string, summary: IndexedSummary): void {
@@ -371,6 +444,7 @@ class RequestInsightsJournal {
     this.sessionId = createSessionId()
     this.generation = 0
     this.truncated = false
+    this.needsReset = false
   }
 
   async configure(): Promise<void> {
@@ -485,8 +559,7 @@ class RequestInsightsJournal {
   }
 
   flush(): Promise<void> {
-    this.pendingAppends = undefined
-    this.pendingUpdates = undefined
+    this.pending = undefined
     return this.writes
   }
 
@@ -513,7 +586,10 @@ export function appendRequestInsightUpdateToJournal(
   request: RequestInsight,
   update: RequestInsightUpdate
 ): void {
-  getJournalRegistry().configured?.appendUpdate(request, update, request)
+  getJournalRegistry().configured?.appendUpdate(request, update, {
+    kind: 'live',
+    request,
+  })
 }
 
 export function appendArchivedRequestInsightUpdateToJournal(
@@ -668,6 +744,58 @@ function parseJournalLine(line: string): JournalRecord | undefined {
     return undefined
   } catch {
     return undefined
+  }
+}
+
+function isRequestSpan({ span }: RequestInsightUpdate): boolean {
+  return (
+    span?.attributes?.['next.span_type'] === REQUEST_INSIGHT_REQUEST_SPAN_TYPE
+  )
+}
+
+// Both sources fold the same delta. Only the source decides its exact counts
+// and supplies canonical spans when request metadata must be recomputed.
+function prepareUpdate(
+  previous: RequestInsightSummary | undefined,
+  request: RequestMetadata,
+  { span, fetch }: RequestInsightUpdate,
+  spanCount: number,
+  fetchCount: number,
+  canonicalSpans: RequestInsight['spans'] | undefined
+): { line: string; summary: RequestInsightSummary } {
+  const metadata = getRequestMetadata(request)
+  if (span?.status === 'error') metadata.status = 'error'
+  else if (metadata.status !== 'error' && span?.status === 'ok')
+    metadata.status = 'ok'
+  const delta = summarizeRequestInsight({
+    ...metadata,
+    spans: span ? [span] : [],
+    fetches: fetch ? [fetch] : [],
+  })
+  const summary: RequestInsightSummary = {
+    ...delta,
+    spanCount,
+    fetchCount,
+    statusCode: previous?.statusCode ?? delta.statusCode,
+    isRsc: previous?.isRsc ?? delta.isRsc,
+    hasError: !!previous?.hasError || delta.hasError,
+    hasProxyActivity: !!previous?.hasProxyActivity || delta.hasProxyActivity,
+    cacheStatuses: [
+      ...new Set([...(previous?.cacheStatuses ?? []), ...delta.cacheStatuses]),
+    ],
+  }
+  if (canonicalSpans) {
+    const canonical = summarizeRequestInsight({
+      ...metadata,
+      spans: canonicalSpans,
+      fetches: [],
+    })
+    summary.statusCode = canonical.statusCode
+    summary.isRsc = canonical.isRsc
+  }
+  return {
+    line: `${JSON.stringify({ version: 2, request: metadata, span, fetch } satisfies JournalRecord)}\n`,
+    summary,
   }
 }
 

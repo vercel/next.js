@@ -231,7 +231,7 @@ describe('request insights', () => {
   })
 
   it('keeps known details available after missing detail lookups', async () => {
-    const response = await next.fetch('/api/source?detail-lookup=seed')
+    const response = await next.fetch('/api/proxied-page?detail-lookup=seed')
     expect(response.status).toBe(200)
     let requestId = ''
     await retry(async () => {
