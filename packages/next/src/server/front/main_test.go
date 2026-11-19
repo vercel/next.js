@@ -1028,3 +1028,37 @@ func TestKeepsTheConnectionOpenAfterACompleteUpload(t *testing.T) {
 		}
 	}
 }
+
+func TestABodyOfKnownLengthFromNodeReachesTheClientChunkByChunk(t *testing.T) {
+	sent := make(chan struct{})
+	addr, _ := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", "6")
+		io.WriteString(w, "abc")
+		w.(http.Flusher).Flush()
+		<-sent
+		io.WriteString(w, "def")
+	})
+	// Registered after startProxy's cleanups, so it runs before them and
+	// frees the handler even when the test fails.
+	release := sync.OnceFunc(func() { close(sent) })
+	t.Cleanup(release)
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	io.WriteString(conn, get("/"))
+	res, err := http.ReadResponse(bufio.NewReader(conn), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := make([]byte, 3)
+	if _, err := io.ReadFull(res.Body, first); err != nil || string(first) != "abc" {
+		t.Fatalf("first chunk %q, %v", first, err)
+	}
+	release()
+	if rest, err := io.ReadAll(res.Body); err != nil || string(rest) != "def" {
+		t.Fatalf("rest %q, %v", rest, err)
+	}
+}
