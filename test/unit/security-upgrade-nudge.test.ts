@@ -1300,6 +1300,8 @@ describe('upgrade handoff environment', () => {
     'DOTENV_DEV_ONLY',
     'USER_SHELL_VAR',
     'NEXT_TELEMETRY_DISABLED',
+    'NEXT_TELEMETRY_DEBUG',
+    'npm_config_before',
   ] as const
   type Key = (typeof keys)[number]
   const env = process.env as Record<string, string | undefined>
@@ -1359,6 +1361,8 @@ describe('upgrade handoff environment', () => {
       DOTENV_DEV_ONLY: undefined,
       USER_SHELL_VAR: 'kept',
       NEXT_TELEMETRY_DISABLED: undefined,
+      NEXT_TELEMETRY_DEBUG: undefined,
+      npm_config_before: undefined,
     })
   })
 
@@ -1404,5 +1408,25 @@ describe('upgrade handoff environment', () => {
     simulateDevEnvLoad()
 
     expect((await envAtHandoff())?.NEXT_TELEMETRY_DISABLED).toBe('1')
+  })
+
+  it('keeps telemetry debug mode loaded from .env', async () => {
+    simulateCli('dev')
+    simulateDevEnvLoad()
+    // Set only in .env.development.local, so upgrade telemetry prints locally.
+    setEnv({ NEXT_TELEMETRY_DEBUG: '1' })
+
+    expect((await envAtHandoff())?.NEXT_TELEMETRY_DEBUG).toBe('1')
+  })
+
+  it('keeps a package manager release-age cutoff loaded from .env', async () => {
+    simulateCli('dev')
+    simulateDevEnvLoad()
+    // Set only in .env.development.local; npm and the delegated CLI read it.
+    setEnv({ npm_config_before: '2026-01-01' })
+
+    const handoff = await envAtHandoff()
+    expect(handoff?.npm_config_before).toBe('2026-01-01')
+    expect(handoff?.DOTENV_DEV_ONLY).toBeUndefined()
   })
 })
