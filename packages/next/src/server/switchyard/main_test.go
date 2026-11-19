@@ -1210,3 +1210,44 @@ func TestReusesOneConnectionToNodeForOneClient(t *testing.T) {
 		t.Errorf("%d connections to Node open, want 1", n)
 	}
 }
+
+// All clients together keep at most maxKeptUpstreams connections to Node
+// open between requests. Clients beyond that are still served, but their
+// connections to Node close with each response.
+func TestCapsConnectionsToNodeKeptAcrossClients(t *testing.T) {
+	previous := maxKeptUpstreams
+	maxKeptUpstreams = 2
+	t.Cleanup(func() { maxKeptUpstreams = previous })
+	addr, openToNode, _ := startCountingProxy(t)
+
+	var clients []net.Conn
+	t.Cleanup(func() {
+		for _, c := range clients {
+			c.Close()
+		}
+	})
+	for i := 0; i < 5; i++ {
+		conn, err := net.Dial("tcp", addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		clients = append(clients, conn)
+		// Keep-alive: each client stays connected after its response.
+		io.WriteString(conn, "GET / HTTP/1.1\r\nHost: shop.example.com\r\n\r\n")
+		res, err := http.ReadResponse(bufio.NewReader(conn), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		io.Copy(io.Discard, res.Body)
+		if res.StatusCode != http.StatusOK || res.Close {
+			t.Errorf("client %d: got %d with Close=%v, want 200 on a kept connection", i+1, res.StatusCode, res.Close)
+		}
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for openToNode() > 2 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if n := openToNode(); n > 2 {
+		t.Errorf("%d connections to Node open for 5 idle clients, want at most 2", n)
+	}
+}
