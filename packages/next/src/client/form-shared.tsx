@@ -50,7 +50,8 @@ export type FormProps<RouteInferType = any> = InternalFormProps
 
 export function createFormSubmitDestinationUrl(
   action: string,
-  formElement: HTMLFormElement
+  formElement: HTMLFormElement,
+  submitter: HTMLElement | null
 ) {
   let targetUrl: URL
   try {
@@ -77,7 +78,14 @@ export function createFormSubmitDestinationUrl(
     targetUrl.search = ''
   }
 
-  const formData = new FormData(formElement)
+  // Passing the submitter matches the native behavior of including its
+  // name/value pair, positioned where the submitter appears in the form:
+  //
+  //  "If the field element is a submitter button, [...] append an entry to the
+  //   entry list with the field element's name and value"
+  //   https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#constructing-the-entry-list
+  //
+  const formData = new FormData(formElement, submitter)
 
   for (let [name, value] of formData) {
     if (typeof value !== 'string') {
