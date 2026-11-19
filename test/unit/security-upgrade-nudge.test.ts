@@ -1302,6 +1302,7 @@ describe('upgrade handoff environment', () => {
     'NEXT_TELEMETRY_DISABLED',
     'NEXT_TELEMETRY_DEBUG',
     'npm_config_before',
+    'npm_config_registry',
   ] as const
   type Key = (typeof keys)[number]
   const env = process.env as Record<string, string | undefined>
@@ -1363,6 +1364,7 @@ describe('upgrade handoff environment', () => {
       NEXT_TELEMETRY_DISABLED: undefined,
       NEXT_TELEMETRY_DEBUG: undefined,
       npm_config_before: undefined,
+      npm_config_registry: undefined,
     })
   })
 
@@ -1428,6 +1430,25 @@ describe('upgrade handoff environment', () => {
     const handoff = await envAtHandoff()
     expect(handoff?.npm_config_before).toBe('2026-01-01')
     expect(handoff?.DOTENV_DEV_ONLY).toBeUndefined()
+  })
+
+  it('drops a package manager registry loaded from .env', async () => {
+    simulateCli('dev')
+    simulateDevEnvLoad()
+    // A .env author must not choose where the upgrade CLI is downloaded from.
+    setEnv({ npm_config_registry: 'https://registry.example.com' })
+
+    expect((await envAtHandoff())?.npm_config_registry).toBeUndefined()
+  })
+
+  it('keeps a package manager registry set in the shell', async () => {
+    setEnv({ npm_config_registry: 'https://registry.example.com' })
+    simulateCli('dev')
+    simulateDevEnvLoad()
+
+    expect((await envAtHandoff())?.npm_config_registry).toBe(
+      'https://registry.example.com'
+    )
   })
   // The tests above capture the environment themselves. This runs the built
   // CLI, so it fails if bin/next stops capturing or captures after it sets

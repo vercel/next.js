@@ -6,13 +6,22 @@ let originalEnv: Env | undefined
 
 // Settings read from next.config or .env after startup that still apply to
 // the upgrade and the agent: telemetry opt-outs and debug mode, and package
-// manager settings such as a release-age cutoff.
+// manager release-age cutoffs (see release-age.ts). Only settings that make
+// the upgrade more restrictive are kept. Other package manager settings, such
+// as the registry or release-age exclusions, would let a .env file change
+// what the upgrade downloads and runs.
+const TOOLING_POLICY_KEYS = new Set([
+  'next_telemetry_disabled',
+  'next_telemetry_debug',
+  'npm_config_before',
+  'npm_config_min_release_age',
+  'npm_config_minimum_release_age',
+  'pnpm_config_minimum_release_age',
+  'yarn_npm_minimal_age_gate',
+])
+
 function isToolingPolicy(key: string): boolean {
-  return (
-    key === 'NEXT_TELEMETRY_DISABLED' ||
-    key === 'NEXT_TELEMETRY_DEBUG' ||
-    /^(npm_config_|pnpm_config_|yarn_|bun_config_)/i.test(key)
-  )
+  return TOOLING_POLICY_KEYS.has(key.toLowerCase())
 }
 
 // Records the environment the user launched the CLI with, before `bin/next`
