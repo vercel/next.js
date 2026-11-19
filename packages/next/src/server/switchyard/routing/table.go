@@ -27,6 +27,7 @@ type Table struct {
 	reason         string
 	basePath       string
 	maxHeaderBytes int
+	compress       bool
 	nodePrefixes   []string
 	// Request headers (canonical names) whose presence sends a request to
 	// Node, because a rule Node runs before routing reads them.
@@ -68,6 +69,7 @@ type tableJSON struct {
 	Reason         string            `json:"reason"`
 	BasePath       string            `json:"basePath"`
 	MaxHeaderBytes int               `json:"maxHeaderBytes"`
+	Compress       bool              `json:"compress"`
 	NodePrefixes   []string          `json:"nodePrefixes"`
 	NodeHeaders    []string          `json:"nodeRequestHeaders"`
 	NodeExact      []string          `json:"nodeExact"`
@@ -100,6 +102,7 @@ func Load(data []byte) (*Table, error) {
 	t := &Table{
 		basePath:       raw.BasePath,
 		maxHeaderBytes: raw.MaxHeaderBytes,
+		compress:       raw.Compress,
 		nodePrefixes:   raw.NodePrefixes,
 		nodeHeaders:    make([]string, len(raw.NodeHeaders)),
 		nodeExact:      make(map[string]struct{}, len(raw.NodeExact)),

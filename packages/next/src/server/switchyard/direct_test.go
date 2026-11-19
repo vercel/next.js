@@ -374,3 +374,23 @@ func TestADirectResponseDropsEarlyHintsAsNodeDoes(t *testing.T) {
 		t.Errorf("Content-Type after an early hint: %q", res)
 	}
 }
+
+func TestDirectCompressionVary(t *testing.T) {
+	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Vary", "Origin")
+		if r.URL.Query().Get("case") == "no-transform" {
+			w.Header().Add("Cache-Control", "public")
+			w.Header().Add("Cache-Control", "no-transform")
+		}
+		io.WriteString(w, `{}`)
+	})
+	res := fx.raw(t, "GET /api/echo HTTP/1.1")
+	if !strings.Contains(res, "Vary: Origin, Accept-Encoding\r\n") {
+		t.Fatalf("compression Vary missing: %q", res)
+	}
+	res = fx.raw(t, "GET /api/echo?case=no-transform HTTP/1.1")
+	if !strings.Contains(res, "Vary: Origin\r\n") || strings.Contains(res, "Accept-Encoding") {
+		t.Fatalf("ignored no-transform in repeated Cache-Control: %q", res)
+	}
+}

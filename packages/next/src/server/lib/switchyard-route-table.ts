@@ -1,3 +1,4 @@
+import mimeTypes from 'next/dist/compiled/compression/mime-types.json'
 import { RouteKind } from '../route-kind'
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param'
 import { INTERCEPTION_ROUTE_MARKERS } from '../../shared/lib/router/utils/interception-routes'
@@ -19,6 +20,7 @@ export type SwitchyardRouteTable =
       contract: { version: 1 }
       basePath: string
       maxHeaderBytes: number
+      compress: boolean
       nodePrefixes: readonly string[]
       nodeRequestHeaders: readonly string[]
       nodeExact: readonly string[]
@@ -31,6 +33,7 @@ export type SwitchyardRouteTable =
       direct: Readonly<{
         stripRequestHeaders: readonly string[]
         stripRequestHeaderPrefixes: readonly string[]
+        mimeTypes: Readonly<Record<string, boolean>>
       }>
     }>
 
@@ -128,6 +131,7 @@ export function switchyardRouteTable(
     contract: { version: VERSION },
     basePath: input.basePath,
     maxHeaderBytes: input.maxHeaderBytes,
+    compress: input.compress,
     // Next.js's own files, and the legacy static/ folder, whose contents the
     // table doesn't list.
     nodePrefixes: ['/_next/', '/static/'],
@@ -138,6 +142,7 @@ export function switchyardRouteTable(
     direct: {
       stripRequestHeaders: [...input.internalHeaders],
       stripRequestHeaderPrefixes: ['x-next-internal-'],
+      mimeTypes,
     },
   }
 }
@@ -161,9 +166,6 @@ function ineligibleReason(
   if (input.redirects.some((redirect) => !redirect.internal)) {
     return 'redirects'
   }
-  // Not handled yet: Switchyard would have to send the Vary header and
-  // compression Node's compression middleware adds.
-  if (input.compress) return 'compress'
   return undefined
 }
 

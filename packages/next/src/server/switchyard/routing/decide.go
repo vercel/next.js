@@ -39,7 +39,8 @@ func node(why string) Decision { return Decision{Why: why} }
 // headers. Decide goes direct only for requests where none of that changes
 // anything: plain characters in the path and query, and no headers Node
 // treats specially. The rest goes to Node, which answers it as it always
-// has.
+// has. Compressing the response as Node would is the host's job; Decide
+// only keeps Accept-Encoding values the host can read the same way.
 func (t *Table) Decide(r Request) Decision {
 	if t.reason != "" {
 		return node("app: " + t.reason)
@@ -105,7 +106,35 @@ func (t *Table) checkRequest(r Request) string {
 			return "body on " + r.Method
 		}
 	}
+	if t.compress {
+		for _, v := range r.Header["Accept-Encoding"] {
+			// The host repeats Node's choice of compression only for a list
+			// of codings without parameters, as browsers and fetch send.
+			if !plainCodings(v) {
+				return "Accept-Encoding with parameters"
+			}
+		}
+	}
 	return ""
+}
+
+// plainCodings reports whether an Accept-Encoding value is a list of tokens
+// (RFC 9110 §5.6.2) without parameters or q-values, such as
+// "gzip, deflate, br, zstd".
+func plainCodings(v string) bool {
+	for _, coding := range strings.Split(v, ",") {
+		coding = strings.Trim(coding, " \t")
+		for i := 0; i < len(coding); i++ {
+			if !isTokenChar(coding[i]) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func isTokenChar(c byte) bool {
+	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9' || strings.IndexByte("!#$%&'*+-.^_`|~", c) >= 0
 }
 
 // plain reports whether s has only unreserved characters (RFC 3986 §2.3):
