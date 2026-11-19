@@ -190,7 +190,6 @@ import { NextBuildContext } from './build-context'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { getStaticMetadataPrerenderPathname } from '../lib/metadata/get-metadata-route'
-import { isStaticMetadataFile } from '../lib/metadata/is-metadata-route'
 import { createClientRouterFilter } from '../lib/create-client-router-filter'
 import { startTypeChecking } from './type-check'
 import { removeStaleDevTypes } from '../lib/typescript/remove-stale-dev-types'
@@ -2326,6 +2325,7 @@ export default async function build(
       const prerenderRouteMatchers = new Map<string, PrerenderRouteMatcher[]>()
       const paramMatchingByRoute = new Map<string, ParamMatching | undefined>()
       const appNormalizedPaths = new Map<string, string>()
+      const staticMetadataFilePages = new Set<string>()
       const fallbackModes = new Map<string, FallbackMode>()
       const appDefaultConfigs = new Map<string, AppSegmentConfig>()
       const pageInfos: PageInfos = new Map<string, PageInfo>()
@@ -2575,6 +2575,7 @@ export default async function build(
                 let isSSG = false
                 let isStatic = false
                 let ssgPageRoutes: string[] | null = null
+                let isStaticMetadataFileRoute = false
                 let pagePath = ''
 
                 if (pageType === 'pages') {
@@ -2732,6 +2733,12 @@ export default async function build(
                           )
                         }
                         appNormalizedPaths.set(originalAppPath, page)
+                        isStaticMetadataFileRoute = Boolean(
+                          workerResult.isStaticMetadataFileRoute
+                        )
+                        if (isStaticMetadataFileRoute) {
+                          staticMetadataFilePages.add(page)
+                        }
                         // TODO-APP: handle prerendering with edge
                         if (isEdgeRuntime(pageRuntime)) {
                           isStatic = false
@@ -2799,7 +2806,7 @@ export default async function build(
                               // use a placeholder path with empty params instead.
                               workerResult.prerenderedRoutes.some(
                                 (route) =>
-                                  isStaticMetadataFile(route.pathname) ||
+                                  workerResult.isStaticMetadataFileRoute ||
                                   !isEmptyParams(route.params)
                               )
                             if (isDynamic && !hasGenerateStaticParams) {
@@ -2964,6 +2971,7 @@ export default async function build(
                   pageDuration: undefined,
                   ssgPageDurations: undefined,
                   hasEmptyStaticShell: undefined,
+                  isStaticMetadataFileRoute,
                 })
               })
             })
@@ -3928,7 +3936,7 @@ export default async function build(
                 // shape) must not generate a dynamic PRERENDER manifest entry
                 // — the route handler shipped with the dynamic route still
                 // serves these at runtime.
-                if (isStaticMetadataFile(route.pathname)) {
+                if (staticMetadataFilePages.has(route.pathname)) {
                   continue
                 }
 
@@ -4674,7 +4682,7 @@ export default async function build(
         // exist and throw an invariant error. Strip those entries before the
         // manifest is written.
         for (const route of Object.keys(prerenderManifest.dynamicRoutes)) {
-          if (isStaticMetadataFile(route)) {
+          if (staticMetadataFilePages.has(route)) {
             delete prerenderManifest.dynamicRoutes[route]
           }
         }
