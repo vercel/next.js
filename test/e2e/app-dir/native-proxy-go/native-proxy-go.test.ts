@@ -58,6 +58,54 @@ async function withAdapterProxy(
   }
 }
 
+const pagesRouterError = 'proxy.go is only supported in App Router applications'
+const i18nError = 'proxy.go does not support the i18n configuration'
+
+/**
+ * Starts the dev server or runs a production build, and returns whether the
+ * proxy works and the output of that run.
+ */
+async function startOrBuild(
+  next: NextInstance,
+  isNextDev: boolean,
+  proxyWorks: (next: NextInstance) => Promise<boolean>
+) {
+  if (isNextDev) {
+    // Starting the dev server resets the CLI output.
+    await next.start()
+    try {
+      return { ok: await proxyWorks(next), output: next.cliOutput }
+    } finally {
+      await next.stop()
+    }
+  }
+  const { exitCode, cliOutput } = await next.build()
+  return { ok: exitCode === 0, output: cliOutput }
+}
+
+/** Expects the dev server to report, or a production build to fail with, `message`. */
+async function expectProxyGoError(
+  next: NextInstance,
+  isNextDev: boolean,
+  message: string
+) {
+  if (isNextDev) {
+    await next.start()
+    try {
+      await next.fetch('/')
+      await retry(() => {
+        expect(next.cliOutput).toContain(message)
+      })
+    } finally {
+      await next.stop()
+    }
+  } else {
+    const { exitCode, cliOutput } = await next.build()
+    expect(exitCode).not.toBe(0)
+    expect(cliOutput).toContain(message)
+  }
+}
+
 // Hosted tests require the Go proxy adapter and builder releases.
 // @force-gate turbopack && !deploy
 describe('native-proxy-go', () => {
@@ -586,16 +634,85 @@ describe('native-proxy-go', () => {
 
 // Hosted tests require the Go proxy adapter and builder releases.
 // @force-gate turbopack && !deploy
-describe.each(['', '/docs'])(
-  'native-proxy-go request URLs with basePath "%s"',
-  (basePath) => {
+describe.each([
+  {
+    name: 'default config',
+    config: '',
+    basePath: '',
+    expected: [
+      ['/native-proxy/inspect.rsc?x=1', '/native-proxy/inspect?x=1'],
+      [
+        '/native-proxy/inspect.segments/_tree.segment.rsc',
+        '/native-proxy/inspect.segments/_tree.segment',
+      ],
+      ['/native-proxy/x/../inspect', '/native-proxy/inspect'],
+      ['/native-proxy/inspect?_rsc=abc&a=1', '/native-proxy/inspect?a=1'],
+      ['/native-proxy/inspect?', '/native-proxy/inspect'],
+    ],
+  },
+  {
+    name: 'basePath',
+    config: `basePath: '/docs',`,
+    basePath: '/docs',
+    expected: [
+      ['/native-proxy/inspect.rsc?x=1', '/native-proxy/inspect?x=1'],
+      [
+        '/native-proxy/inspect.segments/_tree.segment.rsc',
+        '/native-proxy/inspect.segments/_tree.segment',
+      ],
+      ['/native-proxy/x/../inspect', '/native-proxy/inspect'],
+      ['/native-proxy/inspect?_rsc=abc&a=1', '/native-proxy/inspect?a=1'],
+      ['/native-proxy/inspect?', '/native-proxy/inspect'],
+    ],
+  },
+  {
+    name: 'trailingSlash',
+    config: 'trailingSlash: true,',
+    basePath: '',
+    expected: [
+      ['/native-proxy/inspect/', '/native-proxy/inspect/'],
+      ['/native-proxy/inspect/?x=1', '/native-proxy/inspect/?x=1'],
+      ['/native-proxy/inspect.rsc?x=1', '/native-proxy/inspect?x=1'],
+    ],
+  },
+  {
+    name: 'skipProxyUrlNormalize',
+    config: 'skipProxyUrlNormalize: true,',
+    basePath: '',
+    expected: [
+      ['/native-proxy/inspect.rsc?x=1', '/native-proxy/inspect?x=1'],
+      [
+        '/native-proxy/inspect?_rsc=abc&a=1',
+        '/native-proxy/inspect?_rsc=abc&a=1',
+      ],
+      ['/native-proxy/inspect?', '/native-proxy/inspect?'],
+    ],
+  },
+  {
+    name: 'basePath and skipProxyUrlNormalize',
+    config: `basePath: '/docs', skipProxyUrlNormalize: true,`,
+    basePath: '/docs',
+    expected: [
+      ['/native-proxy/inspect.rsc?x=1', '/native-proxy/inspect?x=1'],
+      [
+        '/native-proxy/inspect?_rsc=abc&a=1',
+        '/native-proxy/inspect?_rsc=abc&a=1',
+      ],
+      ['/native-proxy/inspect?', '/native-proxy/inspect?'],
+    ],
+  },
+])(
+  'native-proxy-go request URLs with $name',
+  ({ config: options, basePath, expected }) => {
     const { next } = nextTestSetup({ files: __dirname, skipStart: true })
 
-    // Transport forms are passed to the proxy as proxy.ts receives them.
     const paths = [
       '',
+      '/',
       '/native-proxy/inspect',
+      '/native-proxy/inspect/',
       '/native-proxy/inspect?x=1',
+      '/native-proxy/inspect/?x=1',
       '/native-proxy/inspect.rsc',
       '/native-proxy/inspect.rsc?x=1',
       '/native-proxy/inspect?q=a.rsc',
@@ -632,43 +749,51 @@ describe.each(['', '/docs'])(
     it('passes proxy.go the same URLs as proxy.ts in next start and adapter builds', async () => {
       const config = await next.readFile('next.config.ts')
       const proxy = await next.readFile('proxy.go')
-      const withBasePath = config.replace(
+      const withOptions = config.replace(
         'experimental: {',
-        `basePath: ${JSON.stringify(basePath)}, experimental: {`
+        `${options} experimental: {`
       )
       try {
-        await next.patchFile('next.config.ts', withBasePath)
+        await next.patchFile('next.config.ts', withOptions)
         await next.start()
         const goStart = await receivedURLs(next.url)
-        let goAdapter: Record<string, string | null> | undefined
+        let goAdapter: Record<string, string | null> = {}
         await withAdapterProxy(next, async (origin) => {
           goAdapter = await receivedURLs(origin)
         })
 
         await next.stop()
-        await next.patchFile('next.config.ts', withBasePath)
+        await next.patchFile('next.config.ts', withOptions)
         await next.deleteFile('proxy.go')
         await next.patchFile(
           'proxy.ts',
           `import { NextResponse, type NextRequest } from 'next/server'
-           export function proxy(request: NextRequest) {
-             const url = new URL(request.url)
-             const response = NextResponse.next()
-             response.headers.set('x-go-url', url.pathname + url.search)
-             return response
-           }`
+         export function proxy(request: NextRequest) {
+           const { origin } = new URL(request.url)
+           const response = NextResponse.next()
+           response.headers.set('x-go-url', request.url.slice(origin.length))
+           return response
+         }`
         )
         await next.start()
         const tsStart = await receivedURLs(next.url)
 
-        expect(tsStart).toMatchObject({
-          [`${basePath}/native-proxy/inspect.rsc?x=1`]: `${basePath}/native-proxy/inspect?x=1`,
-          [`${basePath}/native-proxy/inspect.segments/_tree.segment.rsc`]: `${basePath}/native-proxy/inspect.segments/_tree.segment`,
-          [`${basePath}/native-proxy/x/../inspect`]: `${basePath}/native-proxy/inspect`,
-          [`${basePath}/native-proxy/inspect?_rsc=abc&a=1`]: `${basePath}/native-proxy/inspect?a=1`,
-        })
+        const p = (path: string) => basePath + path
+        expect(tsStart).toMatchObject(
+          Object.fromEntries(expected.map(([path, url]) => [p(path), p(url)]))
+        )
         expect(goStart).toEqual(tsStart)
-        expect(goAdapter).toEqual(tsStart)
+        // Routing that happens before the proxy, such as trailing slash
+        // redirects, is the platform's job, so the executable alone is compared
+        // only for requests that reached the proxy under next start.
+        const reachedProxy = paths.filter((path) => tsStart[path] !== null)
+        expect(reachedProxy.length).toBeGreaterThanOrEqual(10)
+        for (const path of reachedProxy) {
+          expect({ path, url: goAdapter[path] }).toEqual({
+            path,
+            url: tsStart[path],
+          })
+        }
       } finally {
         await next.stop()
         await next.deleteFile('proxy.ts')
@@ -686,47 +811,9 @@ describe('native-proxy-go requires an App Router application', () => {
     skipStart: true,
   })
 
-  const pagesRouterError =
-    'proxy.go is only supported in App Router applications'
-  const i18nError = 'proxy.go does not support the i18n configuration'
-
-  // Starts the dev server or runs a production build, and returns whether the
-  // proxy works and the output of that run.
-  async function run() {
-    if (isNextDev) {
-      // Starting the dev server resets the CLI output.
-      await next.start()
-      try {
-        const response = await next.fetch('/native-proxy/inspect')
-        return {
-          ok: response.headers.get('x-go-proxy') === 'yes',
-          output: next.cliOutput,
-        }
-      } finally {
-        await next.stop()
-      }
-    }
-    const { exitCode, cliOutput } = await next.build()
-    return { ok: exitCode === 0, output: cliOutput }
-  }
-
-  async function expectError(message: string) {
-    if (isNextDev) {
-      await next.start()
-      try {
-        await next.fetch('/native-proxy/inspect')
-        await retry(() => {
-          expect(next.cliOutput).toContain(message)
-        })
-      } finally {
-        await next.stop()
-      }
-    } else {
-      const { exitCode, cliOutput } = await next.build()
-      expect(exitCode).not.toBe(0)
-      expect(cliOutput).toContain(message)
-    }
-  }
+  const proxyWorks = async (next: NextInstance) =>
+    (await next.fetch('/native-proxy/inspect')).headers.get('x-go-proxy') ===
+    'yes'
 
   it.each([
     [
@@ -742,7 +829,7 @@ describe('native-proxy-go requires an App Router application', () => {
   ])('rejects %s', async (_, file, content) => {
     await next.patchFile(file, content)
     try {
-      await expectError(pagesRouterError)
+      await expectProxyGoError(next, isNextDev, pagesRouterError)
     } finally {
       await next.deleteFile(file)
     }
@@ -758,7 +845,7 @@ describe('native-proxy-go requires an App Router application', () => {
       )
     )
     try {
-      await expectError(i18nError)
+      await expectProxyGoError(next, isNextDev, i18nError)
     } finally {
       await next.patchFile('next.config.ts', config)
     }
@@ -792,7 +879,7 @@ describe('native-proxy-go requires an App Router application', () => {
       await next.patchFile(file, content)
     }
     try {
-      const { ok, output } = await run()
+      const { ok, output } = await startOrBuild(next, isNextDev, proxyWorks)
       expect(output).not.toContain(pagesRouterError)
       expect(ok).toBe(true)
     } finally {
@@ -801,10 +888,56 @@ describe('native-proxy-go requires an App Router application', () => {
       }
     }
   })
+
+  // Production builds are checked once; the dev server watches for changes.
+  // @force-gate dev
+  it('reports and clears errors while the dev server runs', async () => {
+    const config = await next.readFile('next.config.ts')
+    await next.start()
+    try {
+      expect(await proxyWorks(next)).toBe(true)
+
+      await next.patchFile(
+        'pages/legacy.tsx',
+        'export default function Page() { return null }'
+      )
+      await retry(async () => {
+        await next.fetch('/')
+        expect(next.cliOutput).toContain(pagesRouterError)
+      })
+      await next.deleteFile('pages/legacy.tsx')
+      await retry(async () => {
+        expect(await proxyWorks(next)).toBe(true)
+      })
+
+      const outputStart = next.cliOutput.length
+      await next.patchFile(
+        'next.config.ts',
+        config.replace(
+          'experimental: {',
+          `i18n: { locales: ['en', 'fr'], defaultLocale: 'en' }, experimental: {`
+        )
+      )
+      await retry(async () => {
+        await next.fetch('/')
+        expect(next.cliOutput.slice(outputStart)).toContain(i18nError)
+      })
+      await next.patchFile('next.config.ts', config)
+      await retry(async () => {
+        expect(await proxyWorks(next)).toBe(true)
+      })
+    } finally {
+      await next.stop()
+      await next.deleteFile('pages/legacy.tsx')
+      await next.patchFile('next.config.ts', config)
+    }
+  })
 })
 // @force-gate turbopack && !deploy
 describe('native-proxy-go in src with Go route handlers', () => {
-  const { next } = nextTestSetup({ files: join(__dirname, 'src-fixture') })
+  const { next, isNextDev } = nextTestSetup({
+    files: join(__dirname, 'src-fixture'),
+  })
 
   it.each(['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])(
     'forwards %s bodies to Go routes after continuation, overrides and rewrites',
@@ -866,5 +999,53 @@ describe('native-proxy-go in src with Go route handlers', () => {
     expect(response.status).toBe(200)
     expect(response.headers.get('x-src-proxy')).toBe('yes')
     expect(await response.text()).toBe('native handler: proxy')
+  })
+
+  it('rejects src/pages routes with src/proxy.go', async () => {
+    await next.stop()
+    await next.patchFile(
+      'src/pages/legacy.tsx',
+      'export default function Page() { return null }'
+    )
+    try {
+      await expectProxyGoError(next, isNextDev, pagesRouterError)
+    } finally {
+      await next.deleteFile('src/pages/legacy.tsx')
+    }
+  })
+
+  it('serves route.go alongside the Pages Router without proxy.go', async () => {
+    await next.stop()
+    const proxy = await next.readFile('src/proxy.go')
+    await next.deleteFile('src/proxy.go')
+    await next.patchFile(
+      'src/pages/legacy.tsx',
+      'export default function Page() { return <p>legacy page</p> }'
+    )
+    try {
+      const { ok, output } = await startOrBuild(next, isNextDev, async () => {
+        const native = await next.fetch('/native-proxy/native')
+        const legacy = await next.fetch('/legacy')
+        return (
+          native.status === 200 &&
+          (await native.text()) === 'native handler: ' &&
+          (await legacy.text()).includes('legacy page')
+        )
+      })
+      expect(output).not.toContain('Unable to compile')
+      expect(ok).toBe(true)
+      if (!isNextDev) {
+        await next.start({ skipBuild: true })
+        const native = await next.fetch('/native-proxy/native')
+        expect(await native.text()).toBe('native handler: ')
+        expect(await (await next.fetch('/legacy')).text()).toContain(
+          'legacy page'
+        )
+        await next.stop()
+      }
+    } finally {
+      await next.deleteFile('src/pages/legacy.tsx')
+      await next.patchFile('src/proxy.go', proxy)
+    }
   })
 })
