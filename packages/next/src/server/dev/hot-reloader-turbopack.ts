@@ -882,6 +882,8 @@ export async function createHotReloaderTurbopack(
   // advance it at all when no client is connected.
   let serverComponentsHmrRefreshVersion = 0
   let clientHmrVersion = 0
+  // Clients reporting an older version may have missed an update.
+  let requiredClientHmrVersion = 0
   let clientHmrEventHappened = false
   // Undefined until the first entrypoints emission. That one has nothing to
   // compare against, so every route it lists would look added.
@@ -929,6 +931,8 @@ export async function createHotReloaderTurbopack(
   })
 
   let updateInProgress = false
+  // Whether the last finished update was caused by a file change.
+  let lastUpdateHadFileChanges = false
   let pendingServerComponentChanges = false
   let pendingServerComponentChangesTimeout: NodeJS.Timeout | undefined
 
@@ -965,7 +969,11 @@ export async function createHotReloaderTurbopack(
     pendingServerComponentChangesTimeout = undefined
     if (pendingServerComponentChanges) {
       pendingServerComponentChanges = false
-      notifyServerComponentChanges()
+      // Updates without file changes, e.g. lazily compiling a dynamic import,
+      // don't change what a page renders.
+      if (lastUpdateHadFileChanges) {
+        notifyServerComponentChanges()
+      }
     }
   }
 
@@ -1023,10 +1031,44 @@ export async function createHotReloaderTurbopack(
   }
   const sendEnqueuedMessagesDebounce = debounce(sendEnqueuedMessages, 2)
 
-  function markClientHmrChange() {
+  function advanceClientHmrVersion() {
     if (!clientHmrEventHappened) {
       clientHmrVersion++
       clientHmrEventHappened = true
+    }
+  }
+
+  function markClientHmrChange() {
+    advanceClientHmrVersion()
+    requiredClientHmrVersion = clientHmrVersion
+  }
+
+  // Compiling a lazy dynamic import changes the client output without any file changing, and no
+  // client can miss anything from that. So client output changes that aren't sent to a client
+  // advance the version right away, keeping new pages current, but only require it when the
+  // update they belong to was caused by a file change. Like server component changes, they can
+  // be observed before their update's start.
+  let pendingClientOutputChange = false
+  let pendingClientOutputChangeTimeout: NodeJS.Timeout | undefined
+  function markClientOutputChange() {
+    advanceClientHmrVersion()
+    pendingClientOutputChange = true
+    if (!updateInProgress && !pendingClientOutputChangeTimeout) {
+      pendingClientOutputChangeTimeout = setTimeout(
+        flushClientOutputChange,
+        SERVER_COMPONENT_CHANGES_FALLBACK_MS
+      )
+    }
+  }
+
+  function flushClientOutputChange() {
+    clearTimeout(pendingClientOutputChangeTimeout)
+    pendingClientOutputChangeTimeout = undefined
+    if (pendingClientOutputChange) {
+      pendingClientOutputChange = false
+      if (lastUpdateHadFileChanges) {
+        requiredClientHmrVersion = clientHmrVersion
+      }
     }
   }
 
@@ -1035,7 +1077,7 @@ export async function createHotReloaderTurbopack(
 
     if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.CLIENT_CHANGES) {
       // Pages already observes client output before a browser subscribes.
-      markClientHmrChange()
+      markClientOutputChange()
     }
     if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES) {
       markClientHmrChange()
@@ -1105,7 +1147,7 @@ export async function createHotReloaderTurbopack(
         for await (const _change of changed) {
           // No browser message or server cache invalidation: connected clients
           // still receive ordinary CSS/JS HMR through their chunk subscriptions.
-          markClientHmrChange()
+          markClientOutputChange()
         }
       } catch (error) {
         sendHmr(key, {
@@ -1842,10 +1884,16 @@ export async function createHotReloaderTurbopack(
 
           // Turbopack messages
           switch (parsedData.type) {
-            case 'turbopack-subscribe':
+            case 'turbopack-subscribe': {
+              const state = clientStates.get(client)
+              // Only check the connection's first subscriptions, which cover a dropped connection or
+              // stale HTML. Chunk lists loaded later were fetched while connected, and checking
+              // them would reload the page for changes the client never received but didn't
+              // need, e.g. to dynamic imports it hadn't loaded yet.
               if (
                 parsedData.hmrVersion !== undefined &&
-                parsedData.hmrVersion !== String(clientHmrVersion)
+                !state?.hmrVersionChecked &&
+                Number(parsedData.hmrVersion) < requiredClientHmrVersion
               ) {
                 sendToClient(client, {
                   type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
@@ -1853,8 +1901,12 @@ export async function createHotReloaderTurbopack(
                 })
                 break
               }
+              if (state && parsedData.hmrVersion !== undefined) {
+                state.hmrVersionChecked = true
+              }
               subscribeToClientHmrEvents(client, parsedData.path)
               break
+            }
 
             case 'turbopack-unsubscribe':
               unsubscribeFromClientHmrEvents(client, parsedData.path)
@@ -2329,6 +2381,9 @@ export async function createHotReloaderTurbopack(
       clearTimeout(pendingServerComponentChangesTimeout)
       pendingServerComponentChangesTimeout = undefined
       pendingServerComponentChanges = false
+      clearTimeout(pendingClientOutputChangeTimeout)
+      pendingClientOutputChangeTimeout = undefined
+      pendingClientOutputChange = false
 
       for (const wsClient of [
         ...clientsWithoutHtmlRequestId,
@@ -2365,6 +2420,8 @@ export async function createHotReloaderTurbopack(
           // The update's end announces any pending changes.
           clearTimeout(pendingServerComponentChangesTimeout)
           pendingServerComponentChangesTimeout = undefined
+          clearTimeout(pendingClientOutputChangeTimeout)
+          pendingClientOutputChangeTimeout = undefined
           pendingBuilding.schedule(BUILDING_MESSAGE_DEFER_MS, () => {
             hotReloader.send({ type: HMR_MESSAGE_SENT_TO_BROWSER.BUILDING })
           })
@@ -2379,6 +2436,8 @@ export async function createHotReloaderTurbopack(
         }
         case 'end': {
           updateInProgress = false
+          lastUpdateHadFileChanges = updateMessage.value.fileChanges
+          flushClientOutputChange()
           pendingBuilding.cancel()
           flushServerComponentChanges()
           sendEnqueuedMessages()

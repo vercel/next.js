@@ -5,7 +5,17 @@ use std::{
 };
 
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexSet, InvalidationReason, InvalidationReasonKind, util::StaticOrArc};
+use turbo_tasks::{
+    FxIndexSet, InvalidationReason, InvalidationReasonKind, InvalidationReasonSet,
+    util::StaticOrArc,
+};
+
+use crate::watcher::INVALIDATE_RESCAN_KIND;
+
+/// Whether the reasons include a file change detected by the file watcher.
+pub fn has_file_changes(reasons: &InvalidationReasonSet) -> bool {
+    reasons.contains_kind(&WATCH_CHANGE_KIND) || reasons.contains_kind(&INVALIDATE_RESCAN_KIND)
+}
 
 /// Invalidation was caused by a file change detected by the file watcher
 #[derive(PartialEq, Eq, Hash)]

@@ -546,6 +546,8 @@ export interface NapiTurbopackGcOptions {
 export interface NapiUpdateInfo {
   duration: number
   tasks: number
+  /** Whether the update was caused by a file change. */
+  fileChanges: boolean
 }
 
 export interface NapiUpdateMessage {

@@ -1006,13 +1006,17 @@ impl EvaluateContext for WebpackLoaderContext {
                     .context("importModule: module is not evaluatable")?;
 
                 // Build a module graph from the resolved module and its
-                // transitive dependencies
+                // transitive dependencies. The loader evaluates it in a separate process that can't
+                // activate lazily compiled dynamic imports, so the graph includes their targets.
                 let single_graph = SingleModuleGraph::new_with_entry(
                     ChunkGroupEntry::Entry {
                         modules: vec![module],
                         heuristics: EntryHeuristics::default(),
                     },
-                    ModuleGraphOptions::default(),
+                    ModuleGraphOptions {
+                        assume_activated: true,
+                        ..Default::default()
+                    },
                 );
                 let import_module_graph = ModuleGraph::from_graphs(vec![single_graph], None)
                     .connect()

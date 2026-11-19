@@ -2363,6 +2363,8 @@ impl From<UpdateMessage> for NapiUpdateMessage {
 pub struct NapiUpdateInfo {
     pub duration: u32,
     pub tasks: u32,
+    /// Whether the update was caused by a file change.
+    pub file_changes: bool,
 }
 
 impl From<UpdateInfo> for NapiUpdateInfo {
@@ -2370,6 +2372,7 @@ impl From<UpdateInfo> for NapiUpdateInfo {
         Self {
             duration: update_info.duration.as_millis() as u32,
             tasks: update_info.tasks as u32,
+            file_changes: turbo_tasks_fs::invalidation::has_file_changes(&update_info.reasons),
         }
     }
 }
