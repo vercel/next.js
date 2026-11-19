@@ -1792,9 +1792,14 @@ async fn capture_composed(
     rope: ResolvedVc<CellRope>,
     content_hash: u128,
 ) -> Option<PersistedFileContent> {
-    let bytes = async { rope.untracked().await?.read_untracked().await }
-        .await
-        .ok()?;
+    let bytes = async {
+        // INVALIDATION: the effect's producer already depends on the rope's content through the
+        // tracked read that computed `content_hash`. Stale bytes fail the hash check below and are
+        // retried.
+        rope.untracked().await?.read_untracked().await
+    }
+    .await
+    .ok()?;
     (composed_content_hash(&bytes) == content_hash)
         .then(|| PersistedFileContent::Content(File::from(bytes)))
 }
