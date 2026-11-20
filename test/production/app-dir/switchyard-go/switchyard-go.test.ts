@@ -164,6 +164,14 @@ describe('switchyard-go', () => {
       ['?a=1;b=2', '?a=1%3Bb%3D2'],
       ['?r=it%27s', "?r=it's"],
       ['?&&a=1', '?a=1'],
+      // Already in the form Node writes: unchanged, so these can go direct.
+      ['?q=hello%20world&tags=a%2Cb', '?q=hello%20world&tags=a%2Cb'],
+      ["?q=caf%C3%A9&a=(b)!*'", "?q=caf%C3%A9&a=(b)!*'"],
+      ['?=x', '?=x'],
+      // Written differently by Node.
+      ['?tags=a,b', '?tags=a%2Cb'],
+      ['?a=%2A', '?a=*'],
+      ['?x=%FF', '?x=%EF%BF%BD'],
       ['?', ''],
     ])('rewrites the query %s as %s', async (sent, expected) => {
       const got = await received(`/go/echo${sent}`)
