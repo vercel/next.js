@@ -166,14 +166,17 @@ describe.each(['', '/docs'])(
               })
             })()`
 
-          // ensure direct port with mismatching port is blocked
+          // ensure direct port with mismatching port is allowed since
+          // loopback IPs are allowed by default
           const browser = await next.browser('/about', {
             baseUrl: `http://127.0.0.1:${port}`,
             permissions: ['local-network-access'],
           })
           await browser.eval(websocketSnippet)
           await retry(async () => {
-            expect(await browser.elementByCss('#status').text()).toBe('error')
+            expect(await browser.elementByCss('#status').text()).toBe(
+              'connected'
+            )
           })
 
           // ensure different host is blocked
@@ -195,6 +198,7 @@ describe.each(['', '/docs'])(
       it('should block loading scripts from cross-site', async () => {
         const port = await findPort()
 
+        // loopback IPs are allowed by default, even on a mismatching port
         const mismatchedPortRes = await requestInternalDevScript(
           next.appPort,
           basePath,
@@ -202,7 +206,7 @@ describe.each(['', '/docs'])(
             referer: `http://127.0.0.1:${port}/about`,
           }
         )
-        expect(mismatchedPortRes.status).toBe(403)
+        expect(mismatchedPortRes.status).toBe(200)
 
         const differentHostRes = await requestInternalDevScript(
           next.appPort,
@@ -225,12 +229,13 @@ describe.each(['', '/docs'])(
       it('should block loading internal middleware from cross-site', async () => {
         const port = await findPort()
 
+        // loopback IPs are allowed by default, even on a mismatching port
         const mismatchedPortRes = await requestInternalDevMiddleware(
           next.appPort,
           basePath,
           `http://127.0.0.1:${port}`
         )
-        expect(mismatchedPortRes.status).toBe(403)
+        expect(mismatchedPortRes.status).toBe(204)
 
         const differentHostRes = await requestInternalDevMiddleware(
           next.appPort,
@@ -256,6 +261,23 @@ describe.each(['', '/docs'])(
         )
         expect(res.status).not.toBe(403)
       })
+      it('should allow requests from loopback IP origins', async () => {
+        const port = await findPort()
+
+        const ipv4Res = await requestInternalDevMiddleware(
+          next.appPort,
+          basePath,
+          `http://127.0.0.1:${port}`
+        )
+        expect(ipv4Res.status).not.toBe(403)
+
+        const ipv6Res = await requestInternalDevMiddleware(
+          next.appPort,
+          basePath,
+          `http://[::1]:${port}`
+        )
+        expect(ipv6Res.status).not.toBe(403)
+      })
       it('should allow same-site requests without an origin header', async () => {
         const res = await fetchViaHTTP(
           next.appPort,
@@ -273,7 +295,7 @@ describe.each(['', '/docs'])(
         },
         nextConfig: {
           basePath,
-          allowedDevOrigins: ['127.0.0.1'],
+          allowedDevOrigins: ['local.example'],
         },
       })
 
