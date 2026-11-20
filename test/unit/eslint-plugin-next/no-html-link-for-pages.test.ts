@@ -14,6 +14,7 @@ const withCustomPageExtensionsDir = path.join(
   __dirname,
   'with-custom-page-extensions'
 )
+const withNextConfigMjsDir = path.join(__dirname, 'with-next-config-mjs')
 
 const linters = {
   withoutPages: new Linter({
@@ -34,6 +35,10 @@ const linters = {
   }),
   withCustomPageExtensions: new Linter({
     cwd: withCustomPageExtensionsDir,
+    configType: 'eslintrc',
+  }),
+  withNextConfigMjs: new Linter({
+    cwd: withNextConfigMjsDir,
     configType: 'eslintrc',
   }),
 }
@@ -684,5 +689,25 @@ describe('no-html-link-for-pages', function () {
       report.message,
       'Do not use an `<a>` element to navigate to `/docs/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
+  })
+
+  it('detects pageExtensions automatically from next.config.mjs', function () {
+    const [report] = linters.withNextConfigMjs.verify(
+      invalidStaticCode,
+      linterConfig,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+
+    const nonPageReport = linters.withNextConfigMjs.verify(
+      'export default () => <a href="/other">Other</a>',
+      linterConfig,
+      { filename: 'foo.js' }
+    )
+    assert.deepEqual(nonPageReport, [])
   })
 })

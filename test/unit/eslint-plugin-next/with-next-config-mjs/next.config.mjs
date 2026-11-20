@@ -1,0 +1,3 @@
+export default {
+  pageExtensions: ['page.tsx', 'page.ts'],
+}

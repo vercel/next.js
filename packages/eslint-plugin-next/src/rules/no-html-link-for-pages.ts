@@ -59,29 +59,16 @@ function getPageExtensions(
       const configPath = path.join(dir, `next.config.${ext}`)
       if (fs.existsSync(configPath)) {
         try {
-          let config = require(configPath)
-          if (typeof config === 'function') {
-            config = config('', { defaultConfig: {} })
+          const content = fs.readFileSync(configPath, 'utf8')
+          const match = content.match(/pageExtensions\s*:\s*\[([\s\S]*?)\]/)
+          if (match) {
+            const parsed = match[1]
+              .split(',')
+              .map((s) => s.trim().replace(/^['"`]|['"`]$/g, ''))
+              .filter(Boolean)
+            if (parsed.length > 0) return parsed
           }
-          if (
-            Array.isArray(config?.pageExtensions) &&
-            config.pageExtensions.length > 0
-          ) {
-            return config.pageExtensions
-          }
-        } catch {
-          try {
-            const content = fs.readFileSync(configPath, 'utf8')
-            const match = content.match(/pageExtensions:\s*\[([^\]]+)\]/)
-            if (match) {
-              const parsed = match[1]
-                .split(',')
-                .map((s) => s.trim().replace(/['"`]/g, ''))
-                .filter(Boolean)
-              if (parsed.length > 0) return parsed
-            }
-          } catch {}
-        }
+        } catch {}
       }
     }
   }
