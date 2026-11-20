@@ -200,6 +200,36 @@
     {
       "table": "app",
       "target": "/api/echo",
+      "method": "get",
+      "node": "method get"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo",
+      "method": "PROPFIND",
+      "node": "method PROPFIND"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo",
+      "method": "PATCH",
+      "route": "/api/echo/route"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo",
+      "header": { "Connection": ["close, X-Forwarded-For"] },
+      "node": "Connection names a header"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo",
+      "header": { "Connection": ["Keep-Alive"] },
+      "route": "/api/echo/route"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo",
       "proto": "HTTP/1.0",
       "node": "protocol HTTP/1.0"
     },

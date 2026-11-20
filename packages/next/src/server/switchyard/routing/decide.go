@@ -74,11 +74,30 @@ var headersNodeHandles = []string{"Upgrade", "Expect", "Te", "Trailer", "Proxy-C
 const headerMargin = 512
 
 func (t *Table) checkRequest(r Request) string {
-	if r.Method == "CONNECT" {
-		return "method CONNECT"
+	// Go's server accepts any token as a method. Node's parser accepts only
+	// its own list, in uppercase, and answers 400 to the rest ("get",
+	// "FOO"), so only the common methods go direct.
+	switch r.Method {
+	case "GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS":
+	default:
+		return "method " + r.Method
 	}
 	if r.Proto != "HTTP/1.1" {
 		return "protocol " + r.Proto
+	}
+	// The client's Connection header can name other headers. Node's worker
+	// proxy removes those after filling in X-Forwarded-*, so a named Host,
+	// X-Forwarded-For or Content-Length reaches the worker missing or
+	// changed; Switchyard's proxy puts them back. "close" and "keep-alive"
+	// name no other header.
+	for _, v := range r.Header["Connection"] {
+		for _, token := range strings.Split(v, ",") {
+			switch strings.ToLower(strings.TrimSpace(token)) {
+			case "", "close", "keep-alive":
+			default:
+				return "Connection names a header"
+			}
+		}
 	}
 	for _, names := range [][]string{headersNodeHandles, t.nodeHeaders} {
 		for _, name := range names {
