@@ -284,11 +284,15 @@ export async function collectBuildTraces({
 
         // `image-optimizer/nsio.js` requires this, but it's only used with
         // `experimental.imgOptSafeMode`. Keep the large platform-specific
-        // binary out of other builds.
+        // binary out of other builds. The package path itself is also ignored,
+        // or the pnpm symlink to it would be copied and left dangling.
         ...(config.experimental.imgOptSafeMode.nextImage ||
         config.experimental.imgOptSafeMode.imageResponse
           ? []
-          : ['**/node_modules/@next/safe-image-optimization*/**/*']),
+          : [
+              '**/node_modules/@next/safe-image-optimization*',
+              '**/node_modules/@next/safe-image-optimization*/**/*',
+            ]),
 
         ...(isStandalone ? [] : TRACE_IGNORES),
         ...additionalIgnores,

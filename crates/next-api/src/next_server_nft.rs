@@ -328,7 +328,10 @@ fn next_owned_ignores(
 
     // `image-optimizer/nsio.js` requires this, but it's only used with
     // `experimental.imgOptSafeMode`. Keep the large platform-specific binary out of other builds.
+    // The package path itself is also ignored, or the pnpm symlink to it would be copied and left
+    // dangling.
     if !img_opt_safe_mode_enabled {
+        globs.push(rcstr!("**/node_modules/@next/safe-image-optimization*"));
         globs.push(rcstr!(
             "**/node_modules/@next/safe-image-optimization*/**/*"
         ));
