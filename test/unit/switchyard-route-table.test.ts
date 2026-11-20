@@ -1,5 +1,5 @@
 import {
-  switchyardRouteTable,
+  buildSwitchyardRouteTable,
   patternOf,
   type SwitchyardRouteTableInput,
 } from 'next/dist/server/lib/switchyard-route-table'
@@ -36,7 +36,7 @@ describe('switchyard-route-table', () => {
     })
   })
 
-  describe('switchyardRouteTable', () => {
+  describe('buildSwitchyardRouteTable', () => {
     const goPages: Record<string, string> = {
       '/api/health': '/api/health/route',
       '/api/users/[id]': '/api/users/[id]/route',
@@ -76,7 +76,7 @@ describe('switchyard-route-table', () => {
     })
 
     it("splits Node's routes into Node's and route.go's, in Node's order", () => {
-      const table = switchyardRouteTable(input())
+      const table = buildSwitchyardRouteTable(input())
       expect(table).toMatchObject({
         contract: { version: 1 },
         nodeExact: ['/', '/api/users/new', '/favicon.ico', '/legacy'],
@@ -109,14 +109,14 @@ describe('switchyard-route-table', () => {
       ],
       ['no route.go routes', { appRoute: () => undefined }],
     ])('gives no direct routes because of %s', (reason, overrides) => {
-      expect(switchyardRouteTable(input(overrides))).toEqual({
+      expect(buildSwitchyardRouteTable(input(overrides))).toEqual({
         contract: { version: 1 },
         reason,
       })
     })
 
     it('sends requests with a header a header rule reads to Node', () => {
-      const table = switchyardRouteTable(
+      const table = buildSwitchyardRouteTable(
         input({
           onMatchHeaders: [
             { source: '/:path*', has: [{ type: 'header', key: 'RSC' }] },
