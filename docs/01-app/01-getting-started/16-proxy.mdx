@@ -26,9 +26,13 @@ Some common scenarios where Proxy is effective include:
 
 For simple redirects, consider using the [`redirects`](/docs/app/api-reference/config/next-config-js/redirects) configuration in `next.config.ts` first. Proxy should be used when you need access to request data or more complex logic.
 
+### Limitations
+
 Proxy is _not_ intended for slow data fetching. While Proxy can be helpful for [optimistic checks](/docs/app/guides/authentication#optimistic-checks-with-proxy-optional) such as permission-based redirects, it should not be used as a full session management or authorization solution.
 
-Using fetch with `options.cache`, `options.next.revalidate`, or `options.next.tags`, has no effect in Proxy.
+Directives such as [`use cache`](/docs/app/api-reference/directives/use-cache) and [`use server`](/docs/app/api-reference/directives/use-server) have no effect in Proxy, because Proxy does not apply [directive transforms](/docs/app/api-reference/directives).
+
+`fetch` options such as `cache`, `next.revalidate`, and `next.tags` also do not cache responses. To reuse cached data in Proxy, use an [external cache or data store](/docs/app/guides/redirecting#managing-redirects-at-scale-advanced). Alternatively, move the work to a supported context, such as a Server Component or Route Handler.
 
 ### Convention
 

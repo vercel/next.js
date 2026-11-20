@@ -25,7 +25,7 @@ concurrency:
 env:
   COREPACK_VERSION: 0.34.7
   NAPI_CLI_VERSION: 3.7.2
-  TURBO_VERSION: 2.11.7
+  TURBO_VERSION: 2.11.10
   # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
   # TODO: we should add the relevant envs later to to switch to strict mode
   TURBO_ARGS: '-v --env-mode loose --remote-cache-timeout 90 --summarize --log-order stream'
@@ -672,10 +672,62 @@ jobs:
           merge-multiple: true
           path: crates/wasm
 
-      # Un-drafting the GitHub release must stay authenticated as the bot:
-      # events caused by GITHUB_TOKEN (github-actions[bot]) do not trigger
-      # workflow runs, and release-published automations depend on the event.
-      # The key comes from this job's release-* environment secret.
+      - run: ./scripts/publish-release.js
+        env:
+          BAIL_ON_NATIVE_WASM_PUBLISH_FAILURE: ${{ vars.BAIL_ON_NATIVE_WASM_PUBLISH_FAILURE }}
+
+      - name: Upload pnpm publish summary
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pnpm-publish-summary
+          path: pnpm-publish-summary.json
+          if-no-files-found: ignore
+
+  undraftRelease:
+    name: Un-draft GitHub release
+    needs:
+      - deploy-target
+      - publishRelease
+    # Only prerelease channels get a draft GitHub release. The un-draft runs
+    # after the gated publish, so the tag is already trusted.
+    if: ${{ needs.publishRelease.result == 'success' && needs.deploy-target.outputs.release_environment != 'release-stable' }}
+    runs-on: ubuntu-latest
+    environment: bot-autonomous
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .node-version
+          check-latest: true
+          package-manager-cache: false
+
+      - name: Setup corepack
+        run: |
+          npm i -g "corepack@${COREPACK_VERSION}"
+          corepack enable
+
+      - id: get-store-path
+        run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
+
+      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        timeout-minutes: 5
+        id: cache-pnpm-store
+        with:
+          path: ${{ steps.get-store-path.outputs.STORE_PATH }}
+          key: pnpm-store-root-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
+          # Do not use restore-keys since it leads to indefinite growth of the cache.
+
+      - name: Install dependencies
+        # Just need scripts/ but those dependencies are listed in the workspace root.
+        run: pnpm install --filter .
+
       - name: Create GitHub App token
         id: release-app-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
@@ -686,18 +738,9 @@ jobs:
           repositories: next.js
           permission-contents: write
 
-      - run: ./scripts/publish-release.js
+      - run: node ./scripts/undraft-release.js
         env:
           RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
-          BAIL_ON_NATIVE_WASM_PUBLISH_FAILURE: ${{ vars.BAIL_ON_NATIVE_WASM_PUBLISH_FAILURE }}
-
-      - name: Upload pnpm publish summary
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: pnpm-publish-summary
-          path: pnpm-publish-summary.json
-          if-no-files-found: ignore
 
   reportPublishFailure:
     name: report publish failure to slack

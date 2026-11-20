@@ -8,14 +8,14 @@ related:
     - app/api-reference/config/next-config-js/turbopackMemoryEviction
 ---
 
-The `experimental.turbopackGc` option enables garbage collection for Turbopack's in-memory and [persistent caches](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache).
+The `experimental.turbopackGc` option controls garbage collection for Turbopack's in-memory and [persistent caches](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache). Garbage collection is enabled by default. To disable it, set the option to `false`:
 
 ```ts filename="next.config.ts" switcher highlight={5}
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   experimental: {
-    turbopackGc: true,
+    turbopackGc: false,
   },
 }
 
@@ -26,7 +26,7 @@ export default nextConfig
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    turbopackGc: true,
+    turbopackGc: false,
   },
 }
 
@@ -35,7 +35,7 @@ module.exports = nextConfig
 
 ## Reference
 
-`turbopackGc` defaults to `false` and accepts a boolean or an object:
+`turbopackGc` defaults to `true` and accepts a boolean or an object:
 
 | Value                            | Description                                                                  |
 | -------------------------------- | ---------------------------------------------------------------------------- |
@@ -94,4 +94,5 @@ module.exports = nextConfig
 
 | Version   | Changes                                                |
 | --------- | ------------------------------------------------------ |
+| `v16.5.0` | `experimental.turbopackGc` is enabled by default.      |
 | `v16.4.0` | `experimental.turbopackGc` configuration option added. |

@@ -147,7 +147,13 @@ export class EdgeRouteModuleWrapper {
     }
 
     // Get the response from the handler.
-    let res = await this.routeModule.handle(request, context)
+    let res: Response
+    try {
+      res = await this.routeModule.handle(request, context)
+    } catch (error) {
+      closeController.dispatchClose()
+      throw error
+    }
 
     const waitUntilPromises = [internal_getCurrentFunctionWaitUntil()]
     if (context.renderOpts.pendingWaitUntil) {

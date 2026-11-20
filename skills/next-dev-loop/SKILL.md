@@ -117,12 +117,14 @@ Four failure modes. Check each:
 - **Runs without errors** — `/_next/mcp` (server and bubbled-up
   browser errors both surface here).
 - **Behaves as intended** — `agent-browser` drives the page; assert
-  what the user actually sees.
+  what the user actually sees. To inspect what a link prefetched in dev,
+  [pause the navigation in the browser](https://nextjs.org/docs/app/guides/instant-navigation#inspect-loading-states-with-browser-automation).
 - **React-level behavior** — `agent-browser` with react-devtools
   enabled exposes the component tree, props, state, and render
   counts. Anchor framework-level checks here (extra renders,
   server/client boundary shifts, suspense fallbacks) — DOM asserts
-  alone miss them.
+  alone miss them. Use `agent-browser react tree --json` to get the tree
+  rather than a bare acknowledgement.
 
 Pick the specific tool from `tools/list` or the agent-browser
 manual rather than from memory.
@@ -133,6 +135,9 @@ manual rather than from memory.
   deleting it disconnects the server from its generated state and discards
   incremental caches. Moving it to a backup is still a reset. If a production
   build needs isolated output, configure a separate `distDir`.
+- Before running production tests, give their app and API servers ports
+  distinct from dev, or stop dev first. Otherwise readiness checks may
+  reach the wrong server.
 - **Every `agent-browser` command must know your session and restore
   key, or it may use an empty default browser or fail to save login
   state.** Easiest: export both `AGENT_BROWSER_SESSION="$SESSION"` and
@@ -144,11 +149,12 @@ manual rather than from memory.
   server say it rendered cleanly, a stale or misdirected browser
   session is the likelier cause than a real bug — reconcile the views
   before debugging the app.
-- Confirming a click or navigation: the page settles a beat later, so
+- After an ordinary navigation, the page settles a beat later, so
   wait with `wait --load networkidle` (no path to get wrong), then
   snapshot/read to confirm the page. Avoid `wait --url` unless you pass
   the link's exact href — a guessed or placeholder path won't match the
   real URL and times out after 25s.
+- After a locator timeout, check the URL and a fresh snapshot before retrying.
 - A blank read, empty snapshot, `about:blank`, or a "no browser
   session" error — right after `open` or after a click (even if `open`
   reported the page) — is the browser dropping the page (a stale

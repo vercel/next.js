@@ -36,7 +36,7 @@ export function backgroundLogCompilationEvents(
 
   // Close the iterator as soon as the signal fires so the for-await loop
   // exits without waiting for the next compilation event.
-  signal?.addEventListener('abort', () => iterator.return?.(undefined as any), {
+  signal?.addEventListener('abort', () => iterator.return?.(undefined), {
     once: true,
   })
 

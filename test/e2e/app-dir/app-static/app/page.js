@@ -4,7 +4,7 @@ export default async function Page() {
   console.log('rendering index')
 
   const data = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?page'
+    'https://next-data-api-endpoint.vercel.app/api/random?app-static-page'
   ).then((res) => res.text())
 
   return (

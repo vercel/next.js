@@ -14,7 +14,7 @@ async function getData() {
   'use cache'
 
   cacheLife({ revalidate: 6 })
-  cacheTag('modern')
+  cacheTag('use-cache-custom-handler:modern')
 
   return new Date().toISOString()
 }
@@ -39,7 +39,7 @@ export default async function Home() {
           formAction={async () => {
             'use server'
 
-            updateTag('modern')
+            updateTag('use-cache-custom-handler:modern')
           }}
         >
           Revalidate Tag
@@ -59,7 +59,7 @@ export default async function Home() {
           formAction={async () => {
             'use server'
 
-            updateTag('modern')
+            updateTag('use-cache-custom-handler:modern')
             redirect('/')
           }}
         >
@@ -70,8 +70,8 @@ export default async function Home() {
           formAction={async () => {
             'use server'
 
-            updateTag('modern')
-            revalidateTag('other', { expire: 0 })
+            updateTag('use-cache-custom-handler:modern')
+            revalidateTag('use-cache-custom-handler:other', { expire: 0 })
           }}
         >
           Revalidate Tags With Different Profiles

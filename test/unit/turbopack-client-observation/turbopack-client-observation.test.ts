@@ -162,3 +162,49 @@ describe('Pages global client observation', () => {
     expect(hasEntrypointForKey(options.entrypoints, key, undefined)).toBe(false)
   })
 })
+
+describe('App Route written baselines', () => {
+  it.each(['nodejs', 'native'] as const)(
+    'registers the %s output before starting its change subscription',
+    async (type) => {
+      const { options } = setup()
+      const endpoint = createEndpoint()
+      const written: TurbopackResult<WrittenEndpoint> = {
+        value: {
+          type,
+          entryPath: type === 'native' ? 'route-go' : 'route.js',
+          serverHmrEntryPaths: [],
+          clientPaths: [],
+          serverPaths: [],
+          config: {},
+        },
+        issues: [],
+      }
+      endpoint.writeToDisk.mockResolvedValue(written)
+      const baselines = new Map<EntryKey, WrittenEndpoint>()
+      options.hooks.handleWrittenEndpoint.mockImplementation((key, result) => {
+        baselines.set(key, result.value)
+        return false
+      })
+      options.hooks.subscribeToChanges.mockImplementation((key) => {
+        expect(baselines.get(key)).toBe(written.value)
+        return Promise.resolve()
+      })
+      await handleRouteType({
+        ...options,
+        page: '/api',
+        pathname: '/api',
+        route: {
+          type: type === 'native' ? 'app-route-go' : 'app-route',
+          endpoint,
+          hasActionManifest: false,
+        },
+        manifestLoader: {
+          ...options.manifestLoader,
+          loadAppPathsManifest: jest.fn(),
+        },
+      })
+      expect(options.hooks.subscribeToChanges).toHaveBeenCalledTimes(1)
+    }
+  )
+})

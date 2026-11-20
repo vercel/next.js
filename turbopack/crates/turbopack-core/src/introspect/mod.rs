@@ -4,13 +4,10 @@ pub mod source;
 pub mod utils;
 
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexSet, ResolvedVc, Vc};
+use turbo_tasks::{OrderedAutoSet, ResolvedVc, Vc};
 
 #[turbo_tasks::value(transparent)]
-pub struct IntrospectableChildren(
-    #[bincode(with = "turbo_bincode::indexset")]
-    FxIndexSet<(RcStr, ResolvedVc<Box<dyn Introspectable>>)>,
-);
+pub struct IntrospectableChildren(OrderedAutoSet<(RcStr, ResolvedVc<Box<dyn Introspectable>>)>);
 
 #[turbo_tasks::value_trait]
 pub trait Introspectable {
@@ -26,6 +23,6 @@ pub trait Introspectable {
     }
     #[turbo_tasks::function]
     fn children(self: Vc<Self>) -> Vc<IntrospectableChildren> {
-        Vc::cell(FxIndexSet::default())
+        Vc::cell(OrderedAutoSet::default())
     }
 }

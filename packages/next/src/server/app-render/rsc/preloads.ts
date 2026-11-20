@@ -49,5 +49,5 @@ export function preconnect(
   if (typeof nonce === 'string') {
     opts.nonce = nonce
   }
-  ;(ReactDOM as any).preconnect(href, opts)
+  ReactDOM.preconnect(href, opts)
 }

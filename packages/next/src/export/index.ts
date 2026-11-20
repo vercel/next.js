@@ -70,13 +70,12 @@ import { isInterceptionRouteRewrite } from '../lib/is-interception-route-rewrite
 import type { ActionManifest } from '../build/webpack/plugins/flight-client-entry-plugin'
 import { extractInfoFromServerReferenceId } from '../shared/lib/server-reference-info'
 import { convertSegmentPathToStaticExportFilename } from '../shared/lib/segment-cache/segment-value-encoding'
-import { getNextBuildDebuggerPortOffset } from '../lib/worker'
 import { getParams } from './helpers/get-params'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import type { Params } from '../server/request/params'
 import { Bundler } from '../lib/bundler'
-import { getBuildDistDir } from './utils'
+import { getBuildDistDir, getExportPathPageKey } from './utils'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
@@ -147,7 +146,7 @@ function buildRDCCacheByPage(
 
     // Normalize app pages before param matching.
     const normalizedPage = normalizeAppPath(page)
-    const pageKey = page !== path ? `${page}: ${path}` : path
+    const pageKey = getExportPathPageKey({ page, path })
     const fallbackParamNames = new Set(
       _fallbackRouteParams.map((param) => param.paramName)
     )
@@ -532,11 +531,15 @@ async function exportAppImpl(
         nextConfig.experimental.disableResumeDataCacheCompression ?? false,
       exposeTestingApi:
         nextConfig.experimental.exposeTestingApiInProductionBuild === true,
+      externalBrowserRuntime:
+        nextConfig.experimental.externalBrowserRuntime === true,
     },
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
   }
 
   // We need this for server rendering the Link component.
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(globalThis as any).__NEXT_DATA__ = {
     nextExport: true,
   }
@@ -723,8 +726,22 @@ async function exportAppImpl(
 
     return (
       await Promise.all(
-        batches.map(async (batch) =>
-          worker.exportPages({
+        batches.map(async (batch) => {
+          // Only send the seeds this batch needs. Sending the whole map to
+          // every worker can exceed the maximum IPC message size.
+          let batchRenderResumeDataCaches: Record<string, string> | undefined
+          if (renderResumeDataCachesByPage) {
+            batchRenderResumeDataCaches = {}
+            for (const exportPath of batch) {
+              const pageKey = getExportPathPageKey(exportPath)
+              if (Object.hasOwn(renderResumeDataCachesByPage, pageKey)) {
+                batchRenderResumeDataCaches[pageKey] =
+                  renderResumeDataCachesByPage[pageKey]
+              }
+            }
+          }
+
+          return worker.exportPages({
             buildId,
             deploymentId: nextConfig.deploymentId,
             clientAssetToken: nextConfig.supportsImmutableAssets
@@ -745,9 +762,9 @@ async function exportAppImpl(
             cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
             fetchCache: true,
             fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
-            renderResumeDataCachesByPage,
+            renderResumeDataCachesByPage: batchRenderResumeDataCaches,
           })
-        )
+        })
       )
     ).flat()
   }
@@ -799,9 +816,9 @@ async function exportAppImpl(
       worker = staticWorker
     } else {
       worker = createStaticWorker(nextConfig, {
-        debuggerPortOffset: getNextBuildDebuggerPortOffset({
-          kind: 'export-page',
-        }),
+        // Port offset 0: export-page workers get the first debugger port after
+        // the parent process (base + 1 + 0).
+        debuggerPortOffset: 0,
         numberOfWorkers: options.numWorkers,
         progress,
       })
@@ -1079,7 +1096,7 @@ async function exportAppImpl(
   }
 
   if (!staticWorker && worker) {
-    await worker.end()
+    await worker.shutdown()
   }
 
   return collector

@@ -1,30 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/[root-of-the-server]__07l1lihsce94l._.js",
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/index.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
-
-var __TURBOPACK__import$2e$meta__ = {
-    get url () {
-        return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/index.js");
-    },
-    env: {
-        DEV: true,
-        PROD: false,
-        MODE: "development",
-        BASE_URL: "/",
-        SSR: false
-    }
-};
-console.log('index.js');
-const url = new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/worker.js (static in ecmascript)"));
-__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/worker.js [test] (ecmascript, worker loader)")(Worker);
-}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/worker.js (static in ecmascript)", ((__turbopack_context__) => {
-
-__turbopack_context__.q("/static/worker.2-qnq-strt8dn.js");}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/worker.js [test] (ecmascript, worker loader)", ((__turbopack_context__) => {
-
-__turbopack_context__.v(__turbopack_context__.r("[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)")["default"]("output/0uxq_crates_turbopack-tests_tests_snapshot_workers_basic_output_0uy0mninb8pht._.js", ["output/1do3_crates_turbopack-tests_tests_snapshot_workers_basic_input_worker_11ygioomdle70.js","output/1i9t_crates_turbopack-tests_tests_snapshot_workers_basic_input_worker_0lqk-upqfi2y2.js"]));
-}),
-"[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)", ((__turbopack_context__) => {
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/[root-of-the-server]__07l1lihsce94l._.js","[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)",((__turbopack_context__) => {
 "use strict";
 
 // Embedded worker-runtime helper. This file is bundled as a regular module and
@@ -89,7 +63,28 @@ __turbopack_context__.s([
 function generateCreateWorker(entrypoint, moduleChunks) {
     return (WorkerConstructor, workerOptions)=>createWorker(WorkerConstructor, entrypoint, moduleChunks, workerOptions);
 }
-}),
-]);
+}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/index.js [test] (ecmascript)",((__turbopack_context__, module, exports) => {
+
+var __TURBOPACK__import$2e$meta__ = {
+    get url () {
+        return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/index.js");
+    },
+    env: {
+        DEV: true,
+        PROD: false,
+        MODE: "development",
+        BASE_URL: "/",
+        SSR: false
+    }
+};
+console.log('index.js');
+const url = new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/worker.js (static in ecmascript)"));
+__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/worker.js [test] (ecmascript, worker loader)")(Worker);
+}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/worker.js (static in ecmascript)",((__turbopack_context__) => {
+
+__turbopack_context__.q("/static/worker.2-qnq-strt8dn.js");}),"[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/worker.js [test] (ecmascript, worker loader)",((__turbopack_context__) => {
+
+__turbopack_context__.v(__turbopack_context__.r("[turbopack-ecmascript]/worker/browser/createWorker.ts [test] (ecmascript)")["default"]("output/0uxq_crates_turbopack-tests_tests_snapshot_workers_basic_output_0uy0mninb8pht._.js", ["output/1do3_crates_turbopack-tests_tests_snapshot_workers_basic_input_worker_11ygioomdle70.js","output/1i9t_crates_turbopack-tests_tests_snapshot_workers_basic_input_worker_0lqk-upqfi2y2.js"]));
+})]);
 
 //# sourceMappingURL=%5Broot-of-the-server%5D__07l1lihsce94l._.js.map

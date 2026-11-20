@@ -1,10 +1,10 @@
 pub mod availability_info;
-pub mod available_modules;
+pub mod available_chunk_groups;
 pub mod chunk_group;
 pub mod chunk_id_strategy;
 pub(crate) mod chunk_item_batch;
 pub mod chunking;
-pub(crate) mod chunking_context;
+pub mod chunking_context;
 pub(crate) mod data;
 pub(crate) mod evaluate;
 
@@ -16,7 +16,7 @@ use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, Upcast, ValueToString, Vc,
+    NonLocalValue, OrderedAutoSet, ReadRef, ResolvedVc, Upcast, ValueToString, Vc,
     debug::ValueDebugFormat,
 };
 use turbo_tasks_hash::DeterministicHash;
@@ -28,8 +28,8 @@ pub use crate::chunk::{
     },
     chunking_context::{
         AssetSuffix, ChunkGroupResult, ChunkGroupType, ChunkingConfig, ChunkingConfigs,
-        ChunkingContext, ChunkingContextExt, EntryChunkGroupResult, HmrChunkListSource, MangleType,
-        MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        ChunkingContext, ChunkingContextExt, EmitOption, EmitOptions, EntryChunkGroupResult,
+        HmrChunkListSource, SourceMapSourceType, UnusedReferences, UrlBehavior,
         WorkerConfigurationOptions,
     },
     data::{ChunkData, ChunkDataOption, ChunksData},
@@ -37,7 +37,7 @@ pub use crate::chunk::{
 };
 use crate::{
     asset::Asset,
-    chunk::{availability_info::AvailabilityInfo, available_modules::AvailableModulesSet},
+    chunk::availability_info::AvailabilityInfo,
     emit_collect::CollectingModule,
     ident::AssetIdent,
     module::Module,
@@ -516,19 +516,21 @@ impl ChunkingType {
 }
 
 /// The modules (soon to be chunk items) that were discovered after traversing a given chunk group.
-#[turbo_tasks::value(cell = "new")]
+///
+/// Compared on update, so a recomputation that finds the same content (e.g. after an unrelated
+/// module graph change) doesn't invalidate the chunking of the chunk group. The comparison is
+/// order-sensitive (the sets are [`OrderedAutoSet`]s): the order of all collections is the order
+/// of the chunk items.
+#[turbo_tasks::value]
 pub struct ChunkGroupContentInner {
     /// Regular chunkable modules/module batches
     pub chunkable_items: Vec<ChunkableModuleOrBatch>,
     /// As an optimization, we also keep track of the batch groups that were discovered.
     pub batch_groups: Vec<ResolvedVc<ModuleBatchGroup>>,
     /// The modules that were imported with ChunkingType::Async
-    #[bincode(with = "turbo_bincode::indexset")]
-    pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
+    pub async_modules: OrderedAutoSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     /// All modules that implement CollectingModule
-    #[bincode(with = "turbo_bincode::indexset")]
-    pub collecting_modules: FxIndexSet<ResolvedVc<Box<dyn CollectingModule>>>,
-    pub available_modules: ResolvedVc<AvailableModulesSet>,
+    pub collecting_modules: OrderedAutoSet<ResolvedVc<Box<dyn CollectingModule>>>,
 }
 
 pub struct ChunkGroupContent {

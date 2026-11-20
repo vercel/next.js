@@ -72,6 +72,8 @@ the new checks can be added to the existing test suite.
 
 ### Best Practices
 
+- Keep each test run independent. Flakiness detection runs multiple copies of the same suite concurrently. Store mutable files in the isolated application directory or a unique temporary directory.
+- Allocate listening ports dynamically. Use `server.listen(0)` for a local test server, read its assigned port from `server.address()`, and pass its URL to the fixture through `next.env` before `next.start()`. Use `findPort()` from `next-test-utils` when a server requires a port before it starts. Fixed listening ports can cause concurrent runs to fail with `EADDRINUSE`.
 - When checking for a condition that might take time,
   ensure it is waited for either using the browser `waitForElement` or using the `check` util in `next-test-utils`.
 - When applying a fix, ensure the test fails without the fix.

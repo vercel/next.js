@@ -6,7 +6,7 @@ use bincode::{Decode, Encode};
 use modularize_imports::{Config, PackageConfig, modularize_imports};
 use serde::{Deserialize, Serialize};
 use swc_core::ecma::ast::Program;
-use turbo_tasks::{FxIndexMap, NonLocalValue, OperationValue, Vc};
+use turbo_tasks::{NonLocalValue, OperationValue, OrderedAutoMap, Vc};
 use turbopack::module_options::ModuleRule;
 use turbopack_ecmascript::{CustomTransformer, TransformContext, TransformPlugin};
 
@@ -90,7 +90,7 @@ struct ModularizeImportsTransformer {
 }
 
 impl ModularizeImportsTransformer {
-    fn new(packages: &FxIndexMap<String, ModularizeImportPackageConfig>) -> Self {
+    fn new(packages: &OrderedAutoMap<String, ModularizeImportPackageConfig>) -> Self {
         Self {
             config: Config {
                 packages: packages

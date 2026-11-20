@@ -13,14 +13,14 @@ use turbopack_core::{
 
 #[derive(Debug, PartialEq, Eq, Deserialize, Clone, NonLocalValue, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
-pub struct EmittedAsset {
+pub(super) struct EmittedAsset {
     file: RcStr,
     content: RcStr,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
     source_map: Option<JsonValue>,
 }
 
-pub async fn emitted_assets_to_virtual_sources(
+pub(super) async fn emitted_assets_to_virtual_sources(
     assets: Option<Vec<EmittedAsset>>,
 ) -> Result<Vec<ResolvedVc<VirtualSource>>> {
     assets

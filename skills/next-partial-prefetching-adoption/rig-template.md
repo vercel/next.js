@@ -56,13 +56,9 @@ export default nextConfig
 Merge the option into an existing `experimental` object instead of replacing
 the project's other experimental options.
 
-Set the condition while running `next build`. Setting it only for `next start`
-is too late because the testing API is compiled into the production artifact.
-When the artifact was built without it, Next.js does not activate the
-navigation lock, so the test cannot distinguish prefetched UI from streamed
-dynamic content. Rebuild with the condition enabled before interpreting the
-results. Use the project's existing environment naming when it already
-distinguishes test, staging, preview, and production builds.
+Follow the [option reference](https://nextjs.org/docs/app/api-reference/config/next-config-js/exposeTestingApiInProductionBuild)
+for build and server setup. Use the project's existing environment naming when
+it already distinguishes test, staging, preview, and production builds.
 
 ### Test command and base URL
 
@@ -79,15 +75,15 @@ test commands without starting another server manually:
 
 ```bash filename="Terminal"
 EXPOSE_TESTING_API=1 pnpm build
-BASE_URL=http://localhost:3000 pnpm playwright test tests/prefetch-preservation.spec.ts
+EXPOSE_TESTING_API=1 BASE_URL=http://localhost:3000 pnpm playwright test tests/prefetch-preservation.spec.ts
 ```
 
-If the rig does not use `webServer`, start `pnpm start --port 3000` in a
+If the rig does not use `webServer`, start `EXPOSE_TESTING_API=1 pnpm start --port 3000` in a
 separate terminal after the build, keep it running during the test command,
 and stop it afterward. Use only one server lifecycle for the measured app.
 
 Adapt the script names and port to the project. Follow the public
-[client-navigation test](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests): load the source route, confirm the real
+[client-navigation test](https://nextjs.org/docs/app/guides/testing/playwright#testing-instant-navigations): load the source route, confirm the real
 Link is visible, then enter `instant()`, click, wait for the destination URL,
 and assert the prefetched UI.
 
