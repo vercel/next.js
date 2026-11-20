@@ -12,10 +12,14 @@ import {
   retry,
 } from 'next-test-utils'
 
-const isTurbopack = !process.env.IS_WEBPACK_TEST && !process.env.NEXT_RSPACK
+const isTurbopack = Boolean(process.env.IS_TURBOPACK_TEST)
 // This test launches a second local Next.js server, which deployed fixtures cannot reach.
+// Cache Components runs in an additional experimental mode that does not yet expose
+// Turbopack's project-global federation endpoint.
 const describeTurbopack =
-  isTurbopack && !isNextDeploy ? describe : describe.skip
+  isTurbopack && !process.env.__NEXT_CACHE_COMPONENTS && !isNextDeploy
+    ? describe
+    : describe.skip
 
 describeTurbopack('turbopack module federation between Next.js apps', () => {
   const { next, isNextDev } = nextTestSetup({
