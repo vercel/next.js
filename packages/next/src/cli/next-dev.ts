@@ -72,6 +72,7 @@ export type NextDevOptions = {
   experimentalUploadTrace?: string
   experimentalNextConfigStripTypes?: boolean
   experimentalCpuProf?: boolean
+  experimentalRequestInsights?: boolean
   serverFastRefresh?: boolean
   internalTrace?: string | boolean
 }

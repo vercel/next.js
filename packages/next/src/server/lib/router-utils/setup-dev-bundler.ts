@@ -82,6 +82,7 @@ import {
   normalizeMetadataPageToRoute,
 } from '../../../lib/metadata/get-metadata-route'
 import { initializeRequestInsightsJournal } from '../trace/request-insights-journal'
+import { isRequestInsightsEnabled } from '../trace/request-insights'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 import { store as consoleStore } from '../../../build/output/store'
 import {
@@ -261,7 +262,7 @@ async function startWatcher(
     }
   )
 
-  if (nextConfig.experimental.requestInsights) {
+  if (nextConfig.experimental.requestInsights || isRequestInsightsEnabled()) {
     await initializeRequestInsightsJournal(distDir)
   }
 

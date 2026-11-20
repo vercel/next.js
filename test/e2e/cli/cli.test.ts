@@ -141,6 +141,8 @@ describe('CLI Usage', () => {
     expect(topLevelHelp.stdout).toContain(
       'Diagnose slow or intermittent App Router requests'
     )
+    const devHelp = await next.runCommand(['dev', '--help'])
+    expect(devHelp.stdout).toContain('--experimental-request-insights')
     expect(help.stdout).toContain('Keep the current dev server running')
     expect(help.stdout).toContain(
       'next experimental-request-insights list --route <route> --json'

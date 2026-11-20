@@ -50,6 +50,7 @@ type RequestInsight = {
 describe('request insights', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
+    startArgs: ['--experimental-request-insights'],
   })
 
   function createRequest(index: number, fetchCount = 0): RequestInsight {

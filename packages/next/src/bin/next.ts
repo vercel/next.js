@@ -464,6 +464,10 @@ program
     '--experimental-cpu-prof',
     'Enable CPU profiling. Profiles are saved to .next-profiles/ on exit.'
   )
+  .option(
+    '--experimental-request-insights',
+    'Record App Router request timelines for diagnostics.'
+  )
   .addOption(
     new Option(
       '--internal-trace [level]',
@@ -485,6 +489,9 @@ program
       if (options.experimentalCpuProf) {
         process.env.NEXT_CPU_PROF = '1'
         process.env.__NEXT_PRIVATE_CPU_PROFILE = 'dev-main'
+      }
+      if (options.experimentalRequestInsights) {
+        process.env.__NEXT_REQUEST_INSIGHTS = 'true'
       }
       if (options.internalTrace) {
         process.env.NEXT_TURBOPACK_TRACING =
