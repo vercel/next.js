@@ -22,13 +22,10 @@ use crate::{DiskFileSystem, retry::retry_blocking};
 /// Options for [`DiskFileSystem::remove_files_not_written_in_session`].
 #[derive(Debug, Default, Clone)]
 pub struct RemoveUnwrittenOptions {
-    /// Paths relative to the directory, using `/` as separator, whose entries (and their
-    /// contents, for directories) are left untouched and are not traversed.
-    pub skip: FxHashSet<RcStr>,
     /// Paths relative to the directory, using `/` as separator, of entries that are kept even
     /// though they were not written by this filesystem in the current session, e.g. because they
-    /// were written by another process. Kept directories are still traversed, but are not removed
-    /// when they end up empty.
+    /// were written by another process. Kept directories are left untouched as a whole: they are
+    /// neither traversed nor removed.
     pub keep: FxHashSet<RcStr>,
 }
 
@@ -132,28 +129,26 @@ async fn sweep_dir(
         } else {
             RcStr::from(format!("{relative}/{name}"))
         };
-        if ctx.options.skip.contains(&relative) {
+        if ctx.options.keep.contains(&relative) {
             is_empty = false;
             continue;
         }
         // `file_type` comes from `read_dir`, so it doesn't follow symlinks: links are removed, not
         // their targets.
         if file_type.is_dir() {
-            let kept = ctx.options.keep.contains(&relative);
             subdirectories.push(tokio::spawn({
                 let ctx = ctx.clone();
                 async move {
                     let mut empty_directories = Vec::new();
                     let child_is_empty =
                         sweep_dir(ctx, path.clone(), relative, &mut empty_directories).await?;
-                    let removable = child_is_empty && !kept;
-                    if removable {
+                    if child_is_empty {
                         empty_directories.push(path);
                     }
-                    Ok::<_, anyhow::Error>((removable, empty_directories))
+                    Ok::<_, anyhow::Error>((child_is_empty, empty_directories))
                 }
             }));
-        } else if ctx.options.keep.contains(&relative) || ctx.fs.is_written_in_session(&path) {
+        } else if ctx.fs.is_written_in_session(&path) {
             is_empty = false;
         } else if let Err(err) = remove(&path, is_dir_link(&path, file_type)).await {
             // Keep going, so all spawned subdirectory sweeps are awaited below.
@@ -406,8 +401,12 @@ mod tests {
         // Written by someone else during this session
         write_file(&out.join("external.json"), "external");
         fs::create_dir_all(out.join("external-empty-dir")).unwrap();
-        // Skipped entirely
+        // Kept as a whole, including files that were not written in this session
         write_file(&out.join("cache/data"), "cache");
+        write_file(&out.join("cache/nested/data"), "cache");
+        // A kept nested directory: its unwritten siblings are still removed
+        write_file(&out.join("static/kept/data"), "kept");
+        write_file(&out.join("static/stale-sibling.js"), "stale");
         // A symlink to a directory outside of the output, which must not be followed
         let outside = root_path.join("outside");
         write_file(&outside.join("keep.txt"), "keep");
@@ -445,8 +444,9 @@ mod tests {
                             fs.remove_files_not_written_in_session(
                                 &out,
                                 RemoveUnwrittenOptions {
-                                    skip: FxHashSet::from_iter([rcstr!("cache")]),
                                     keep: FxHashSet::from_iter([
+                                        rcstr!("cache"),
+                                        rcstr!("static/kept"),
                                         rcstr!("external.json"),
                                         rcstr!("external-empty-dir"),
                                     ]),
@@ -471,6 +471,8 @@ mod tests {
             vec![
                 "cache/",
                 "cache/data",
+                "cache/nested/",
+                "cache/nested/data",
                 "external-empty-dir/",
                 "external.json",
                 "server/",
@@ -480,6 +482,8 @@ mod tests {
                 "static/",
                 "static/chunks/",
                 "static/chunks/a.js",
+                "static/kept/",
+                "static/kept/data",
                 "static/new-dir/",
                 "static/new-dir/a.js",
             ]
@@ -488,8 +492,8 @@ mod tests {
             stats,
             RemoveUnwrittenStats {
                 // stale.js, stale-dir/nested/stale.js, static/chunks/stale.js,
-                // stale-top-level.json, link
-                removed_files: 5,
+                // static/stale-sibling.js, stale-top-level.json, link
+                removed_files: 6,
                 // stale-dir/nested, stale-dir, stale-empty-dir
                 removed_directories: 3,
             }

@@ -338,15 +338,15 @@ export interface Project {
   getAllCompilationIssues(): Promise<TurbopackResult<void>>
 
   /**
-   * Writes the output of all entrypoints to disk. With
-   * `options.removeStaleOutput`, also removes the entries in the distDir that
-   * were not written by Turbopack in this session (stale output of previous
-   * builds), except for the `skip` and `keep` entries, in parallel to writing.
-   * Unchanged output files that were not rewritten count as written.
+   * Writes the output of all entrypoints (only the app directory ones with
+   * `options.appDirOnly`) to disk. With `options.removeStaleOutput`, also
+   * removes the entries in the distDir that were not written by Turbopack in
+   * this session (stale output of previous builds), except for the `keep`
+   * entries, in parallel to writing. Unchanged output files that were not
+   * rewritten count as written.
    */
   writeAllEntrypointsToDisk(
-    appDirOnly: boolean,
-    options?: NapiWriteAllEntrypointsToDiskOptions
+    options: NapiWriteAllEntrypointsToDiskOptions
   ): Promise<TurbopackResult<Partial<RawEntrypoints>>>
 
   /**
