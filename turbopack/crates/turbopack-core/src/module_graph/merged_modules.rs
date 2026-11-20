@@ -826,7 +826,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     .map(|&m| ResolvedVc::upcast::<Box<dyn Module>>(m))
                     .collect::<FxIndexSet<_>>();
 
-                let entry_points = list
+                let mut entry_points = list
                     .iter()
                     .filter(|m| {
                         intra_group_references_rev
@@ -835,6 +835,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     })
                     .map(|m| **m)
                     .collect::<Vec<_>>();
+                // The list is stored as a task input, but `filter` can't size it exactly.
+                entry_points.shrink_to_fit();
                 debug_assert_ne!(entry_points.len(), 0);
 
                 let list_exposed = list

@@ -824,14 +824,14 @@ pub async fn compute_module_batches(
                     return Ok(ModuleOrBatch::None(i));
                 };
                 if let Some(second) = modules.next() {
-                    let batch = ModuleBatch::new(
-                        [first, second]
-                            .into_iter()
-                            .chain(modules)
-                            .map(|m| *m)
-                            .collect::<Vec<_>>(),
-                        Some(pre_batch.chunk_groups.clone()),
-                    );
+                    let mut modules = [first, second]
+                        .into_iter()
+                        .chain(modules)
+                        .map(|m| *m)
+                        .collect::<Vec<_>>();
+                    // The list is stored as a task input, but `filter_map` can't size it exactly.
+                    modules.shrink_to_fit();
+                    let batch = ModuleBatch::new(modules, Some(pre_batch.chunk_groups.clone()));
                     Ok(ModuleOrBatch::Batch(batch.to_resolved().await?))
                 } else {
                     Ok(ModuleOrBatch::Module(ResolvedVc::upcast(first)))

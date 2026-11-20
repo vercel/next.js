@@ -2,7 +2,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use bitfield::bitfield;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, ShrinkToFit, Vc};
 
 use crate::{
     chunk::available_chunk_groups::AvailableChunkGroups,
@@ -173,11 +173,14 @@ impl AvailabilityInfo {
         let available_chunk_groups = match self.available_chunk_groups {
             Some(available_chunk_groups) => {
                 let available_chunk_groups = available_chunk_groups.await?;
-                let canonical =
+                let mut canonical =
                     relevant.canonicalize(available_chunk_groups.chunk_groups(module_graph)?);
                 if canonical.is_zero() {
                     None
                 } else {
+                    // The set is stored as a task input, but the set operations in `canonicalize`
+                    // can leave leading and trailing zero blocks.
+                    canonical.shrink_to_fit();
                     Some(
                         AvailableChunkGroups::from_chunk_groups(*module_graph, canonical)
                             .to_resolved()

@@ -617,10 +617,10 @@ async fn map_module_batch(
         .await?;
 
     if modified.into_inner() {
-        Ok(ModuleBatch::new(
-            ResolvedVc::deref_vec(modules),
-            batch_ref.chunk_groups.clone(),
-        ))
+        let mut modules = ResolvedVc::deref_vec(modules);
+        // The list is stored as a task input, but dropped modules leave spare capacity.
+        modules.shrink_to_fit();
+        Ok(ModuleBatch::new(modules, batch_ref.chunk_groups.clone()))
     } else {
         Ok(batch)
     }
