@@ -42,5 +42,22 @@ describe('gtm-datalayer-xss', () => {
       // If the payload broke out of the inline script tag, this would be 1.
       expect(await browser.eval('window.__xss_gtm')).toBeUndefined()
     })
+
+    it('pushes the dataLayer prop before the gtm.start event', async () => {
+      const browser = await next.browser(path)
+      await retry(async () => {
+        const dataLayer = (await browser.eval('window.dataLayer')) as any[]
+        expect(Array.isArray(dataLayer)).toBe(true)
+        const dataLayerPropIndex = dataLayer.findIndex(
+          (item) => item?.q === payload
+        )
+        const gtmStartIndex = dataLayer.findIndex(
+          (item) => item?.event === 'gtm.js'
+        )
+        expect(dataLayerPropIndex).not.toBe(-1)
+        expect(gtmStartIndex).not.toBe(-1)
+        expect(dataLayerPropIndex).toBeLessThan(gtmStartIndex)
+      })
+    })
   })
 })
