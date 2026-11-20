@@ -1,0 +1,9 @@
+;[
+  'package.json',
+  'test/unit/import-meta-resolve/input.js',
+  'test/unit/import-meta-resolve/lib/de.js',
+  'test/unit/import-meta-resolve/lib/en.js',
+  'test/unit/import-meta-resolve/lib/worker.js',
+  'test/unit/import-meta-resolve/node_modules/dep/dist/asset.wasm',
+  'test/unit/import-meta-resolve/node_modules/dep/package.json',
+]

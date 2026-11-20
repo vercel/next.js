@@ -10,7 +10,7 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    NonLocalValue, OrderedAutoMap, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat,
 };
 use turbopack_core::{
@@ -87,7 +87,7 @@ pub(crate) enum PatternMapping {
     /// ```js
     /// require(`./images/${name}.png`)
     /// ```
-    Map(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, SinglePatternMapping>),
+    Map(OrderedAutoMap<RcStr, SinglePatternMapping>),
 }
 
 #[turbo_tasks::task_input]
@@ -223,7 +223,7 @@ enum ImportMode {
 /// loaded that way, as `undefined` when it is ignored, and otherwise as a function
 /// that returns it, e.g. one that throws for a request that can't be resolved.
 fn create_context(
-    map: &FxIndexMap<RcStr, SinglePatternMapping>,
+    map: &OrderedAutoMap<RcStr, SinglePatternMapping>,
     key_expr: &Expr,
     import_mode: ImportMode,
 ) -> Expr {
@@ -516,9 +516,9 @@ impl PatternMapping {
                         Ok((k, single_pattern_mapping))
                     })
                     .try_join()
-                    .await?
-                    .into_iter()
-                    .collect();
+                    .await?;
+                // The requests are unique: duplicates were filtered out above.
+                let map = OrderedAutoMap::from_unique_iterator(map);
                 Ok(PatternMapping::Map(map).cell())
             }
         }

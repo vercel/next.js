@@ -9,8 +9,12 @@ function resolveAsArrayOrUndefined<T>(
   value: T | T[] | undefined | null
 ): T extends undefined | null ? undefined : T[] {
   if (typeof value === 'undefined' || value === null) {
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     return undefined as any
   }
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   return resolveArray(value) as any
 }
 

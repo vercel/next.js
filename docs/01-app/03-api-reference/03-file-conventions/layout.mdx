@@ -480,7 +480,7 @@ export default function NavLink({
 import Link from 'next/link'
 import { useSelectedLayoutSegment } from 'next/navigation'
 
-export default function NavLinks({ slug, children }) {
+export default function NavLink({ slug, children }) {
   const segment = useSelectedLayoutSegment()
   const isActive = slug === segment
 
@@ -496,7 +496,7 @@ export default function NavLinks({ slug, children }) {
 ```
 
 ```tsx filename="app/blog/layout.tsx" switcher
-import { NavLink } from './nav-link'
+import NavLink from '@/app/ui/nav-link'
 import getPosts from './get-posts'
 
 export default async function Layout({
@@ -519,7 +519,7 @@ export default async function Layout({
 ```
 
 ```jsx filename="app/blog/layout.js" switcher
-import { NavLink } from './nav-link'
+import NavLink from '@/app/ui/nav-link'
 import getPosts from './get-posts'
 
 export default async function Layout({ children }) {
@@ -605,7 +605,7 @@ export function NavLinks() {
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 
-export function Links() {
+export function NavLinks() {
   const pathname = usePathname()
 
   return (

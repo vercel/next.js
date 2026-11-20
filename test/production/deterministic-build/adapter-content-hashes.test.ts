@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import fs from 'fs/promises'
 import path from 'path'
 import type { AdapterOutput, NextAdapter } from 'next'
 
@@ -9,9 +10,13 @@ import { FILES } from './files'
   'adapter-content-hashes',
   () => {
     describe.each([
-      { name: 'standard', files: FILES.standard },
-      { name: 'cache components', files: FILES.cacheComponents },
-    ])('for $name', ({ name, files }) => {
+      { name: 'standard', files: FILES.standard, nodeProxy: false },
+      {
+        name: 'cache components',
+        files: FILES.cacheComponents,
+        nodeProxy: true,
+      },
+    ])('for $name', ({ name, files, nodeProxy }) => {
       const { next } = nextTestSetup({
         files,
         env: {
@@ -69,6 +74,37 @@ import { FILES } from './files'
         outputs.pagesApi.forEach(validateOutput)
         outputs.appRoutes.forEach(validateOutput)
       })
+
+      if (nodeProxy) {
+        it('Node.js proxy hashes are stable across builds', async () => {
+          const {
+            outputs: outputs1,
+          }: Parameters<NextAdapter['onBuildComplete']>[0] =
+            await next.readJSON('build-complete.json')
+
+          await next.stop()
+          // A fresh build (no `.next/cache`) generates new preview mode keys,
+          // which end up in route handler manifests but must not change the
+          // proxy's hashes.
+          await fs.rm(path.join(next.testDir, '.next'), {
+            recursive: true,
+            force: true,
+          })
+          await next.build()
+
+          const {
+            outputs: outputs2,
+          }: Parameters<NextAdapter['onBuildComplete']>[0] =
+            await next.readJSON('build-complete.json')
+
+          expect(outputs1.middleware?.runtime).toBe('nodejs')
+          expect(outputs2.middleware?.runtime).toBe('nodejs')
+          expect(outputs1.middleware!.assetsHashes).not.toBeEmpty()
+          expect(outputs2.middleware!.assetsHashes).toEqual(
+            outputs1.middleware!.assetsHashes
+          )
+        })
+      }
 
       it('hashes respect NEXT_HASH_SALT', async () => {
         const {

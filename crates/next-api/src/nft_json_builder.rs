@@ -178,11 +178,25 @@ impl NftJsonBuilder {
     }
 
     pub fn add(&mut self, path: FileSystemPath, hash: RcStr, content: &AssetContent) -> Result<()> {
-        let location = self.location_for_path(&path)?;
         let symlink_target = match content {
             AssetContent::File(_) => None,
-            AssetContent::Redirect(content) => Some(self.location_for_path(&content.target)?),
+            AssetContent::Redirect(content) => Some(&content.target),
         };
+        self.add_with_symlink_target(path, hash, symlink_target)
+    }
+
+    /// Like [`Self::add`], but takes the symlink target (if the file is a symlink) instead of the
+    /// content.
+    pub fn add_with_symlink_target(
+        &mut self,
+        path: FileSystemPath,
+        hash: RcStr,
+        symlink_target: Option<&FileSystemPath>,
+    ) -> Result<()> {
+        let location = self.location_for_path(&path)?;
+        let symlink_target = symlink_target
+            .map(|target| self.location_for_path(target))
+            .transpose()?;
         self.asset_refs.push(AssetReference {
             location,
             hash,

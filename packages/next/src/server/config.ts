@@ -181,7 +181,11 @@ export function warnOptionHasBeenDeprecated(
     let found = true
     const nestedPropertyKeys = nestedPropertyKey.split('.')
     for (const key of nestedPropertyKeys) {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       if ((current as any)[key] !== undefined) {
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         current = (current as any)[key]
       } else {
         found = false
@@ -307,9 +311,15 @@ export function warnOptionHasBeenMovedOutOfExperimental(
     const newKeys = newKey.split('.')
     while (newKeys.length > 1) {
       const key = newKeys.shift()!
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       ;(current as any)[key] = (current as any)[key] || {}
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       current = (current as any)[key]
     }
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     ;(current as any)[newKeys.shift()!] = (config.experimental as any)[
       oldExperimentalKey
     ]
@@ -334,6 +344,8 @@ function warnCustomizedOption(
     if (!(seg in current)) {
       return
     }
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     current = (current as any)[seg]
   }
 
@@ -359,6 +371,8 @@ function assignDefaultsAndValidate(
   phase: PHASE_TYPE
 ): NextConfigComplete {
   const configFileName = userConfig.configFileName
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   if (typeof (userConfig as any).exportTrailingSlash !== 'undefined') {
     if (!silent) {
       Log.warn(
@@ -366,8 +380,12 @@ function assignDefaultsAndValidate(
       )
     }
     if (typeof userConfig.trailingSlash === 'undefined') {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       userConfig.trailingSlash = (userConfig as any).exportTrailingSlash
     }
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     delete (userConfig as any).exportTrailingSlash
   }
 
@@ -377,6 +395,8 @@ function assignDefaultsAndValidate(
 
   const config = Object.keys(userConfig).reduce<{ [key: string]: any }>(
     (currentConfig, key) => {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       const value = (userConfig as any)[key]
 
       if (value === undefined || value === null) {
@@ -484,7 +504,7 @@ function assignDefaultsAndValidate(
   if (result.experimental.goRoutes) {
     if (result.output) {
       throw new Error(
-        'experimental.goRoutes does not support standalone or static export output'
+        '`route.go` and `proxy.go` do not support standalone or static export output'
       )
     }
   }
@@ -607,13 +627,6 @@ function assignDefaultsAndValidate(
     phase !== PHASE_INFO &&
     phase !== PHASE_TEST
   ) {
-    if (result.experimental.durableUseCacheEntries && !process.env.TURBOPACK) {
-      throw new Error(
-        `\`experimental.durableUseCacheEntries: true\` is only supported with Turbopack. ` +
-          `Please remove the option or run Next.js with Turbopack in ${configFileName}.`
-      )
-    }
-
     if (
       result.experimental.useCacheStaticRootParamTracking &&
       !process.env.TURBOPACK
@@ -671,6 +684,15 @@ function assignDefaultsAndValidate(
   if (result.experimental.cachedNavigations && !result.cacheComponents) {
     throw new Error(
       `\`experimental.cachedNavigations\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`
+    )
+  }
+
+  if (
+    result.experimental.exposeTestingApiInProductionBuild &&
+    !result.cacheComponents
+  ) {
+    throw new Error(
+      `\`experimental.exposeTestingApiInProductionBuild\` requires \`cacheComponents\` to be enabled. Please update your ${configFileName} accordingly.`
     )
   }
 
@@ -1064,6 +1086,8 @@ function assignDefaultsAndValidate(
     silent
   )
 
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   if ((result.experimental as any).outputStandalone) {
     if (!silent) {
       Log.warn(
@@ -1814,6 +1838,7 @@ function assignDefaultsAndValidate(
 
   if (phase === PHASE_DEVELOPMENT_SERVER) {
     result.distDir = join(result.distDir, 'dev')
+    result.experimental.durableUseCacheEntries = false
   }
 
   // Derive the `'use cache'` fill timeout from `staticPageGenerationTimeout`
@@ -2169,6 +2194,8 @@ async function loadConfigImpl(
       } else {
         userConfigModule = await import(pathToFileURL(path).href)
       }
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       const newEnv: typeof process.env = {} as any
 
       for (const key of Object.keys(process.env)) {
@@ -2249,6 +2276,8 @@ async function loadConfigImpl(
     // `experimental.turbopackGenerateComponentChunks` has moved into
     // `experimental.turbopackChunking.generateComponentChunks`.
     if (
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       (userConfig.experimental as any)?.turbopackGenerateComponentChunks !==
       undefined
     ) {
@@ -2260,6 +2289,8 @@ async function loadConfigImpl(
     // `experimental.turbopackChunkingHeuristics` has been renamed to
     // `experimental.turbopackChunking`.
     if (
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       (userConfig.experimental as any)?.turbopackChunkingHeuristics !==
       undefined
     ) {
@@ -2284,6 +2315,8 @@ async function loadConfigImpl(
       )
     }
 
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     if ((userConfig as any).target && (userConfig as any).target !== 'server') {
       throw new Error(
         `The "target" property is no longer supported in ${configFileName}.\n` +
@@ -2386,6 +2419,8 @@ async function loadConfigImpl(
         `${configBaseName}.cjs`,
         `${configBaseName}.cts`,
         // TODO: Remove `as any` once we bump @types/node to v22.10.0+
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ...((process.features as any).typescript ? [] : ['next.config.mts']),
         `${configBaseName}.json`,
         `${configBaseName}.jsx`,

@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use lightningcss::css_modules::CssModuleReference;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, turbofmt};
+use turbo_tasks::{OrderedAutoMap, ResolvedVc, Vc, turbofmt};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
@@ -168,9 +168,7 @@ enum ModuleCssClass {
 /// 3. class3: [Local("exported_class3), Import("class4", "./other.module.css")]
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
-struct ModuleCssClasses(
-    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<String, Vec<ModuleCssClass>>,
-);
+struct ModuleCssClasses(OrderedAutoMap<String, Vec<ModuleCssClass>>);
 
 #[turbo_tasks::value_impl]
 impl EcmascriptCssModule {
@@ -189,7 +187,7 @@ impl EcmascriptCssModule {
             .context("inner asset should be CSS processable")?;
 
         let result = inner.get_css_with_placeholder().await?;
-        let mut classes = FxIndexMap::default();
+        let mut classes = OrderedAutoMap::default();
 
         // TODO(alexkirsz) Should we report an error on parse error here?
         if let CssWithPlaceholderResult::Ok {

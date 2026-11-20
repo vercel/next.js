@@ -41,6 +41,10 @@ impl ParallelScheduler for RayonParallelScheduler {
         rayon::current_num_threads()
     }
 
+    fn spawn_blocking(&self, f: impl FnOnce() + Send + 'static) {
+        rayon::spawn(f);
+    }
+
     fn parallel_for_each<T>(&self, items: &[T], f: impl Fn(&T) + Send + Sync)
     where
         T: Sync,
@@ -1329,6 +1333,10 @@ fn batch_get_with_overwrites(#[case] mmap: bool) -> Result<()> {
     Ok(())
 }
 
+/// Missing key counts below and above the parallel threshold of `batch_get`. Miri runs only the
+/// small one: the large one took about 20 minutes there.
+const BATCH_GET_MISS_COUNTS: &[u32] = if cfg!(miri) { &[50] } else { &[50, 5000] };
+
 /// The oldest SST file holds a single key, so its hash range is a single hash. Missing keys of
 /// that shard are then outside the range of the last file to check, which must still report them.
 /// Before the first commit, no shard has an SST file at all, so every key is reported as missing.
@@ -1342,7 +1350,7 @@ fn batch_get_misses_outside_last_sst_range(#[case] mmap: bool) -> Result<()> {
     let db = open_db::<16>(path, mmap)?;
 
     // No SST files: below and above the parallel threshold of `batch_get`.
-    for count in [50u32, 5000] {
+    for &count in BATCH_GET_MISS_COUNTS {
         let keys_to_fetch: Vec<Vec<u8>> = (0..count).map(|i| i.to_be_bytes().to_vec()).collect();
         let results = batch_get_vec(&db, 0, &keys_to_fetch)?;
         assert_eq!(results.len(), keys_to_fetch.len());
@@ -1374,7 +1382,7 @@ fn batch_get_misses_outside_last_sst_range(#[case] mmap: bool) -> Result<()> {
     db.commit_write_batch(batch)?;
 
     // Below and above the parallel threshold of `batch_get`, with duplicate keys.
-    for missing in [50u32, 5000] {
+    for &missing in BATCH_GET_MISS_COUNTS {
         let keys_to_fetch: Vec<Vec<u8>> = (0..100 + missing)
             .chain([0, 1, 100])
             .map(|i| i.to_be_bytes().to_vec())
@@ -2122,6 +2130,53 @@ fn count_blob_files(dir: &Path) -> usize {
         .count()
 }
 
+/// The blob CRC covers the header's uncompressed length, so corrupting only the length is reported
+/// as a checksum mismatch before it is used to size the decompression buffer.
+// Writes a production-size blob, which is too slow under Miri.
+#[cfg(not(miri))]
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn corrupt_blob_length_is_detected(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let blob_value = vec![42u8; MAX_MEDIUM_VALUE_SIZE + 1];
+    {
+        let db = open_db::<1>(path, mmap)?;
+        let batch = db.write_batch()?;
+        batch.put(0, vec![1u8], blob_value.clone().into())?;
+        db.commit_write_batch(batch)?;
+        db.shutdown();
+    }
+    let blob_path = fs::read_dir(path)?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .find(|p| p.extension().is_some_and(|ext| ext == "blob"))
+        .expect("a blob file");
+    let original = fs::read(&blob_path)?;
+    let length = u32::from_be_bytes(original[..4].try_into()?);
+    assert_eq!(length as usize, blob_value.len());
+
+    for corrupt_length in [length + 1, length - 1, 0, u32::MAX] {
+        let mut bytes = original.clone();
+        bytes[..4].copy_from_slice(&corrupt_length.to_be_bytes());
+        fs::write(&blob_path, &bytes)?;
+        let db = open_db::<1>(path, mmap)?;
+        let message = match db.get(0, &vec![1u8]) {
+            Ok(value) => panic!(
+                "length {corrupt_length}: read succeeded ({:?} bytes)",
+                value.map(|v| v.len())
+            ),
+            Err(err) => format!("{err:#}"),
+        };
+        assert!(
+            message.contains("checksum mismatch"),
+            "length {corrupt_length}: unexpected error: {message}"
+        );
+    }
+    Ok(())
+}
+
 /// Test that compaction deletes blob files when their entries are superseded
 /// by newer values (SingleValue family).
 // The first access-mode variant exceeded 20 minutes under Miri while processing the production-size
@@ -2620,6 +2675,11 @@ fn count_tombstones(
     Ok(count)
 }
 
+/// Enough distinct keys that the SSTs span a real hash range: the compaction selector estimates
+/// duplication by scaling sizes against the key-space spread, and a handful of keys sharing one
+/// hash makes that estimate degenerate. Miri uses fewer keys: 2000 took about 5 minutes there.
+const TOMBSTONE_TEST_KEYS: u32 = if cfg!(miri) { 200 } else { 2000 };
+
 /// Compaction reclaims tombstones once no *older* SST outside the job can still hold the key.
 /// Without this, tombstones accumulate forever.
 #[test]
@@ -2633,10 +2693,7 @@ fn compaction_reclaims_tombstones_when_no_older_sst_has_the_key() -> Result<()> 
         RayonParallelScheduler,
     )?;
 
-    // Enough distinct keys that the SSTs span a real hash range: the compaction selector
-    // estimates duplication by scaling sizes against the key-space spread, and a handful of
-    // keys sharing one hash makes that estimate degenerate.
-    const KEYS: u32 = 2000;
+    const KEYS: u32 = TOMBSTONE_TEST_KEYS;
 
     let batch = db.write_batch()?;
     for k in 0..KEYS {
@@ -2708,7 +2765,7 @@ fn compaction_keeps_tombstone_when_older_sst_has_the_key() -> Result<()> {
         RayonParallelScheduler,
     )?;
 
-    const KEYS: u32 = 2000;
+    const KEYS: u32 = TOMBSTONE_TEST_KEYS;
 
     // Oldest layer: the values that must stay suppressed.
     let batch = db.write_batch()?;
@@ -3192,6 +3249,138 @@ fn used_keys_live_as_long_as_the_meta_file_that_recorded_them(#[case] mmap: bool
     Ok(())
 }
 
+/// How [`used_keys_survive_intermediate_merges`] leaves the bottom merge of a shard for later.
+#[cfg(not(miri))]
+#[derive(Clone, Copy, Debug)]
+enum PartialCompaction {
+    /// One pass bottom merges one shard and intermediate merges the other.
+    SamePass,
+    /// One pass bottom merges one shard, a later one intermediate merges the other.
+    BottomFirst,
+    /// One pass intermediate merges one shard, while the meta file that recorded the used keys is
+    /// kept alive by the other shard's files. A later pass bottom merges that other shard, which
+    /// retires it.
+    IntermediateFirst,
+}
+
+/// An intermediate merge can retire the meta file that recorded the used keys before every shard
+/// had its bottom merge, e.g. when the rewrite quota or `max_merge_jobs` leaves a shard's bottom
+/// merge for later. The used keys then have to live on in the meta file written by the compaction,
+/// until the merged entries are bottom merged.
+#[cfg(not(miri))]
+#[rstest]
+fn used_keys_survive_intermediate_merges(
+    #[values(true, false)] mmap: bool,
+    #[values(
+        PartialCompaction::SamePass,
+        PartialCompaction::BottomFirst,
+        PartialCompaction::IntermediateFirst
+    )]
+    partial: PartialCompaction,
+) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let config = two_shard_config(mmap)?;
+    let db = open_db_with_config::<1>(path, config.clone())?;
+    const KEYS: u32 = TWO_SHARD_KEYS;
+    let put_all =
+        |db: &TurboPersistence<RayonParallelScheduler, 1>, generation: u32| -> Result<()> {
+            let batch = db.write_batch()?;
+            for key in 0..KEYS {
+                batch.put(
+                    0,
+                    key.to_be_bytes().to_vec(),
+                    generation.to_be_bytes().to_vec().into(),
+                )?;
+            }
+            db.commit_write_batch(batch)?;
+            Ok(())
+        };
+    put_all(&db, 0)?;
+    db.full_compact()?;
+    for key in 0..KEYS {
+        db.get(0, &key.to_be_bytes())?.unwrap();
+    }
+    // The first commit records the reads, the second one none. Each shard has two files above its
+    // bottom run then.
+    put_all(&db, 1)?;
+    put_all(&db, 2)?;
+    let intermediate_only = CompactConfig {
+        max_space_amplification_percent: u16::MAX,
+        max_files_above_bottom: 1,
+        ..CompactConfig::full()
+    };
+    match partial {
+        PartialCompaction::BottomFirst => {
+            // Bottom merge only one shard. The other shard keeps the files of the commit that
+            // recorded the used keys.
+            db.compact(&CompactConfig {
+                max_merge_jobs: 1,
+                ..CompactConfig::full()
+            })?;
+            // Then the other shard gets an intermediate merge instead of a bottom merge, which
+            // merges the last file of that commit.
+            db.compact(&intermediate_only)?;
+        }
+        PartialCompaction::SamePass => {
+            // The rewrite quota of 0 bottom merges only one shard, and the other one gets an
+            // intermediate merge in the same pass, which merges the last file of that commit.
+            db.compact(&CompactConfig {
+                max_files_above_bottom: 1,
+                rewrite_per_fresh_byte: 0.0,
+                ..CompactConfig::full()
+            })?;
+        }
+        PartialCompaction::IntermediateFirst => {
+            // Intermediate merge only one shard. The commit that recorded the used keys still has
+            // a file in the other shard.
+            db.compact(&CompactConfig {
+                max_merge_jobs: 1,
+                ..intermediate_only
+            })?;
+            // Bottom merge only the other shard, which merges the last file of that commit. It
+            // has two rewrites of all its keys above its bottom run, the merged shard only one.
+            db.compact(&CompactConfig {
+                max_space_amplification_percent: 150,
+                max_files_above_bottom: 6,
+                ..CompactConfig::full()
+            })?;
+        }
+    }
+    let (hot, _) = bottom_entry_counts(&db)?;
+    assert!(hot > 0 && hot < KEYS as usize);
+    // The carried used keys are persisted.
+    db.shutdown();
+    let db = open_db_with_config::<1>(path, config)?;
+    // The bottom merge of the other shard still knows the read keys.
+    db.full_compact()?;
+    assert_eq!(bottom_entry_counts(&db)?, (KEYS as usize, 0));
+
+    // Every file with entries of the read keys was bottom merged now, so the used keys expire. (No
+    // key was read since, which the next commit would record again.)
+    let mut generation = 3;
+    if matches!(partial, PartialCompaction::SamePass) {
+        // Except that the meta file carrying the used keys also describes the bottom run written
+        // by the same pass for the first shard, which the full compaction above didn't merge, as
+        // nothing was written into that shard since. So the next bottom merge still uses them,
+        // which merges that bottom run and retires the meta file.
+        put_all(&db, generation)?;
+        db.full_compact()?;
+        assert_eq!(bottom_entry_counts(&db)?, (KEYS as usize, 0));
+        generation += 1;
+    }
+    put_all(&db, generation)?;
+    db.full_compact()?;
+    assert_eq!(bottom_entry_counts(&db)?, (0, KEYS as usize));
+    for key in 0..KEYS {
+        assert_eq!(
+            &*db.get(0, &key.to_be_bytes())?.unwrap(),
+            &generation.to_be_bytes()
+        );
+    }
+    Ok(())
+}
+
 #[cfg(not(miri))]
 #[rstest]
 #[case(true)]
@@ -3526,7 +3715,8 @@ fn open_callback_test_db(
     Ok(db)
 }
 
-const CALLBACK_TEST_KEYS: u32 = 3_000;
+/// Miri uses fewer keys: writing 3000 took over a minute per test there.
+const CALLBACK_TEST_KEYS: u32 = if cfg!(miri) { 1_000 } else { 3_000 };
 
 fn callback_test_value(key: u32, version: u8) -> Vec<u8> {
     let mut value = vec![version; 8];
@@ -3535,9 +3725,7 @@ fn callback_test_value(key: u32, version: u8) -> Vec<u8> {
 }
 
 /// Batch sizes below and above the parallel threshold. Miri runs only the small one.
-fn callback_test_batch_sizes() -> &'static [u32] {
-    if cfg!(miri) { &[100] } else { &[100, 2_500] }
-}
+const CALLBACK_TEST_BATCH_SIZES: &[u32] = if cfg!(miri) { &[100] } else { &[100, 2_500] };
 
 /// Keys spread over the key space, with misses (keys >= `CALLBACK_TEST_KEYS`) and duplicates.
 fn callback_test_keys(batch_size: u32) -> Vec<[u8; 4]> {
@@ -3557,7 +3745,7 @@ fn batch_get_callback_once_per_index(#[case] mmap: bool) -> Result<()> {
 
     let tempdir = tempfile::tempdir()?;
     let db = open_callback_test_db(tempdir.path(), mmap)?;
-    for &batch_size in callback_test_batch_sizes() {
+    for &batch_size in CALLBACK_TEST_BATCH_SIZES {
         let keys = callback_test_keys(batch_size);
         let calls: Vec<AtomicU32> = keys.iter().map(|_| AtomicU32::new(0)).collect();
         let values: Vec<OnceLock<Option<ArcBytes>>> =
@@ -3592,7 +3780,7 @@ fn batch_get_callback_once_per_index(#[case] mmap: bool) -> Result<()> {
 fn batch_get_callback_error_propagates(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let db = open_callback_test_db(tempdir.path(), mmap)?;
-    for &batch_size in callback_test_batch_sizes() {
+    for &batch_size in CALLBACK_TEST_BATCH_SIZES {
         let keys = callback_test_keys(batch_size);
         // Fail on a found key and, separately, on a missing key (the last key is out of range).
         let found = keys

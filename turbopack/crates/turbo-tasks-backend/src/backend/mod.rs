@@ -381,7 +381,7 @@ impl TurboTasksBackend {
         &'a self,
         turbo_tasks: &'a TurboTasks<TurboTasksBackend>,
     ) -> ExecuteContext<'a> {
-        ExecuteContext::new(self, turbo_tasks)
+        ExecuteContext::new(turbo_tasks)
     }
 
     /// Like [`TurboTasksBackend::execute_context`], but with an explicit current task priority
@@ -392,7 +392,7 @@ impl TurboTasksBackend {
         turbo_tasks: &'a TurboTasks<TurboTasksBackend>,
         current_task_priority: TaskPriority,
     ) -> ExecuteContext<'a> {
-        ExecuteContext::new(self, turbo_tasks).with_current_task_priority(current_task_priority)
+        ExecuteContext::new(turbo_tasks).with_current_task_priority(current_task_priority)
     }
 
     /// Like [`TurboTasksBackend::execute_context`], but refuses to hand out a context once
@@ -411,7 +411,6 @@ impl TurboTasksBackend {
             return None;
         }
         Some(ExecuteContext::new_with_shutdown_guard(
-            self,
             turbo_tasks,
             stopping,
         ))
@@ -531,6 +530,31 @@ impl TurboTasksBackend {
         let mut ctx = self.execute_context(turbo_tasks);
         let task = ctx.try_task(task, TaskDataCategory::Meta)?;
         Some(get_aggregation_number(&task))
+    }
+
+    /// The number of collectibles with changes that `task` hasn't sent to its uppers yet, because
+    /// the task is dirty (see delayed collectible propagation in `aggregation_update.rs`).
+    #[doc(hidden)]
+    pub fn pending_collectibles_count_for_testing(
+        &self,
+        task: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> Option<usize> {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let task = ctx.try_task(task, TaskDataCategory::Meta)?;
+        Some(task.pending_collectibles_len())
+    }
+
+    /// Whether `task` is dirty (in any session).
+    #[doc(hidden)]
+    pub fn is_dirty_for_testing(
+        &self,
+        task: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> Option<bool> {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let task = ctx.try_task(task, TaskDataCategory::Meta)?;
+        Some(task.is_dirty().is_some())
     }
 
     /// The GC roots set as currently persisted on disk (task id -> [`TtlCounter`]).
@@ -3613,15 +3637,19 @@ impl TurboTasksBackend {
             }
         }
         if let Some(reader_id) = reader_id {
-            let _ = task.add_collectibles_dependents((collectible_type, reader_id));
             let target = CollectiblesRef {
                 task: task_id,
                 collectible_type,
             };
             // A task reading its own collectibles uses the same guard for both roles.
             let reader = reader.as_mut().unwrap_or(&mut task);
-            if !reader.remove_outdated_collectibles_dependencies(&target) {
-                let _ = reader.add_collectibles_dependencies(target);
+            // The reader's forward edge tells whether the reverse edge exists: an edge from the
+            // reader's previous execution (outdated) or an earlier read in this execution already
+            // has one, so only a new edge adds it. Both tasks are locked, so this is atomic.
+            let is_new_edge = !reader.remove_outdated_collectibles_dependencies(&target)
+                && reader.add_collectibles_dependencies(target);
+            if is_new_edge {
+                task.push_collectibles_dependents((collectible_type, reader_id));
             }
         }
         collectibles
@@ -3915,12 +3943,24 @@ impl TurboTasksBackend {
                     if value > 0 {
                         if let Some((flag, _)) = collectibles.get_mut(&collectible) {
                             *flag = true
-                        } else {
+                        } else if task.get_pending_collectibles(&collectible).is_none() {
+                            // A pending collectible hasn't been sent to the uppers yet. That's only
+                            // allowed while the task is dirty, which
+                            // `check_pending_collectibles_invariant` checks.
                             panic!(
                                 "Task {} has a collectible {:?} that is not in any upper task",
                                 task_id, collectible
                             );
                         }
+                    }
+                }
+                // A negative pending change is a collectible the uppers still see, but that is no
+                // longer emitted (or aggregated) by this task.
+                for (&collectible, &count) in task.iter_pending_collectibles() {
+                    if count < 0
+                        && let Some((flag, _)) = collectibles.get_mut(&collectible)
+                    {
+                        *flag = true
                     }
                 }
 
@@ -3945,6 +3985,12 @@ impl TurboTasksBackend {
                     }
                 }
                 drop(task);
+
+                if let Err(message) =
+                    operation::check_pending_collectibles_invariant(&mut ctx, task_id)
+                {
+                    panic!("{message}");
+                }
 
                 if should_be_in_upper {
                     for upper_id in uppers {

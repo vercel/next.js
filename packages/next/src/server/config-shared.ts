@@ -511,7 +511,7 @@ export interface DeprecatedConfig {
 }
 
 export interface ExperimentalConfig {
-  /** Native Go App Router handlers. Turbopack and self-hosted next start only. */
+  /** Enable native Go route handlers and proxies. Requires Turbopack. */
   goRoutes?: boolean
   /**
    * Nudge coding agents about security upgrades, stable releases, or Future Defaults.
@@ -639,8 +639,8 @@ export interface ExperimentalConfig {
   externalMiddlewareRewritesResolve?: boolean
   externalProxyRewritesResolve?: boolean
   /**
-   * Exposes the Instant Navigation Testing API in production builds. This
-   * API is always available in development mode.
+   * Exposes the Instant Navigation Testing API in production builds. This API
+   * requires Cache Components. It is enabled by default in development.
    *
    * The testing API allows e2e tests to control navigation timing, enabling
    * deterministic assertions on prefetched/cached UI before dynamic data
@@ -986,6 +986,26 @@ export interface ExperimentalConfig {
      */
     maxMergeChunkSize?: number
     /**
+     * Best-effort maximum estimated size of a client JavaScript chunk, in uncompressed bytes
+     * (minified when `turbopackMinifyBeforeChunking` applies). Chunks are never merged into bigger
+     * chunks, and chunks that are bigger on their own are split deterministically (by module
+     * identifier) into smaller chunks. This can create chunks smaller than `minChunkSize` or
+     * exceed `maxChunkCountPerGroup`. Must be at
+     * least 3 times `minChunkSize`, and not smaller than `maxMergeChunkSize`; otherwise the values
+     * are adjusted with a warning. Set to `0` to disable the limit. Defaults to `1000000` (1 MB),
+     * or `400000` (400 KB) when minifying before chunking. Explicit values are not scaled.
+     */
+    maxChunkSize?: number
+    /**
+     * Like `maxChunkSize`, but for server (Node.js and edge) JavaScript chunks. For Node.js,
+     * must be at least 3 times `minServerChunkSize`, and not smaller than `maxMergeServerChunkSize`;
+     * otherwise the values are adjusted with a warning. Edge uses a minimum of 20 KB (8 KB when
+     * minifying before chunking) and the effective maximum as its merge limit.
+     * Set to `0` to disable the maximum size limit. Defaults to `10000000` (10 MB), or `4000000`
+     * (4 MB) when minifying before chunking. Explicit values are not scaled.
+     */
+    maxServerChunkSize?: number
+    /**
      * Emit each merged production chunk's constituent component chunks alongside it, so the
      * browser runtime can load only the ones it doesn't already have. Defaults to `false`.
      */
@@ -998,8 +1018,8 @@ export interface ExperimentalConfig {
     minComponentChunkSize?: number
     /**
      * Avoid creating more than one Node.js server chunk smaller than this size, in bytes.
-     * Smaller chunks are merged into bigger ones to avoid that. Defaults to `4000` (4 KB). Doesn't
-     * apply to Edge runtime chunks.
+     * Smaller chunks are merged into bigger ones to avoid that, unless `maxServerChunkSize` takes
+     * precedence. Defaults to `4000` (4 KB). Doesn't apply to Edge runtime chunks.
      */
     minServerChunkSize?: number
     /**
@@ -1105,6 +1125,14 @@ export interface ExperimentalConfig {
    * Enable extraction of source maps from input files. Defaults to true.
    */
   turbopackInputSourceMaps?: boolean
+
+  /**
+   * Enable file tracing (NFT) in the Turbopack dev server. File references in
+   * server code and externals are traced and included in the module graph,
+   * but no `.nft.json` files are written. This option does not change
+   * production builds. Defaults to false.
+   */
+  turbopackFileTracingForDev?: boolean
 
   /**
    * Currently in active development. This splits modules into fragments and
@@ -1564,8 +1592,8 @@ export interface ExperimentalConfig {
   useCache?: boolean
 
   /**
-   * Enables durable `"use cache"` remote cache entries across deployments. Only implemented for
-   * Turbopack.
+   * Enables durable `"use cache"` remote cache entries across deployments.
+   * Ignored in development and when using webpack or Rspack.
    */
   durableUseCacheEntries?: boolean
 
