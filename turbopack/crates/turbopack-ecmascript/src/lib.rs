@@ -98,6 +98,7 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     ident::AssetIdent,
+    issue::IssueSource,
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::ModuleReferences,
@@ -447,10 +448,10 @@ pub trait EcmascriptParsable {
 pub struct EnvVarInfo {
     /// List of environment variables accessed at runtime (not inlined) in the module.
     pub runtime: OrderedAutoMap<RcStr, EnvVarAccessMode>,
-    // TODO add this back once we can do it without regressing performance
-    // Whether the module potentially references all environment variables (because of a
-    // non-statically analyzeable `process.env`).
-    // pub runtime_all: Option<IssueSource>,
+    /// Set if the module potentially references all environment variables (because of a
+    /// non-statically analyzable `process.env` access, e.g. `process.env[key]` or passing
+    /// `process.env` to a function). Points to the first such access.
+    pub runtime_all: Option<IssueSource>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, NonLocalValue, Encode, Decode)]
