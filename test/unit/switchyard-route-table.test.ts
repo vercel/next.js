@@ -1,5 +1,5 @@
 import {
-  switchyardRouteTable,
+  buildSwitchyardRouteTable,
   type SwitchyardRouteTableInput,
 } from 'next/dist/server/lib/switchyard-route-table'
 import { RouteKind } from 'next/dist/server/route-kind'
@@ -8,7 +8,7 @@ import { RouteKind } from 'next/dist/server/route-kind'
 // routes, and no direct routes at all when a rule Node runs before routing
 // could apply.
 describe('switchyard-route-table', () => {
-  describe('switchyardRouteTable', () => {
+  describe('buildSwitchyardRouteTable', () => {
     const goPages: Record<string, string> = {
       '/api/health': '/api/health/route',
     }
@@ -42,7 +42,7 @@ describe('switchyard-route-table', () => {
     })
 
     it("splits Node's routes into Node's and route.go's", () => {
-      const table = switchyardRouteTable(input())
+      const table = buildSwitchyardRouteTable(input())
       expect(table).toMatchObject({
         contract: { version: 1 },
         nodeExact: ['/', '/api/users/new', '/favicon.ico', '/legacy'],
@@ -64,14 +64,14 @@ describe('switchyard-route-table', () => {
       ['compress', { compress: true }],
       ['no route.go routes', { appRoute: () => undefined }],
     ])('gives no direct routes because of %s', (reason, overrides) => {
-      expect(switchyardRouteTable(input(overrides))).toEqual({
+      expect(buildSwitchyardRouteTable(input(overrides))).toEqual({
         contract: { version: 1 },
         reason,
       })
     })
 
     it('sends requests with a header a header rule reads to Node', () => {
-      const table = switchyardRouteTable(
+      const table = buildSwitchyardRouteTable(
         input({
           onMatchHeaders: [
             { source: '/:path*', has: [{ type: 'header', key: 'RSC' }] },
