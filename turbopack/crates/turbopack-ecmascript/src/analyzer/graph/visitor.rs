@@ -924,7 +924,8 @@ fn value_usage(ast_path: &AstNodePath<AstParentNodeRef<'_>>, unresolved_mark: Ma
 }
 
 /// Whether the current expression is the value being consumed by an object destructuring pattern
-/// without a rest element, i.e. every accessed key is listed in the pattern.
+/// without a rest element. Every property (including computed ones) then gets its own
+/// `Effect::DestructuredMember`, whereas a rest element would copy keys without any effect.
 fn is_object_destructuring_source_without_rest(
     ast_path: &AstNodePath<AstParentNodeRef<'_>>,
 ) -> bool {
