@@ -89,10 +89,21 @@ describe('app-root-param-getters - multiple roots', () => {
         // so we're skipping the rest of the test for now.
         return
       }
+
+      // Leave the page before renaming its root layout. Otherwise, the open
+      // page can respond to the rename with a hard navigation of its own
+      // (via HMR) while the `browser.get()` below is in flight, aborting it
+      // with `ERR_ABORTED`. Without an open page, the route is requested
+      // explicitly below to compile it.
+      await browser.get('about:blank')
+
       await session.renameFolder(
         'app/new-root/[stuff]',
         'app/new-root/[things]'
       )
+
+      // Request the renamed route so that the bundler compiles it.
+      await next.fetch('/new-root/123')
 
       // The page code we added should now be erroring, because the root param getter is called `things` now
       await retry(() => {
