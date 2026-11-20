@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -303,5 +304,47 @@ func TestAnEmptyBodyOfUnknownLengthGetsContentLengthZero(t *testing.T) {
 	// empty body goes out with Content-Length: 0.
 	if !strings.Contains(res, "\r\nContent-Length: 0\r\n") || strings.Contains(res, "chunked") {
 		t.Errorf("response %q", res)
+	}
+}
+
+// When a reused connection closes after the worker read the request, Go's
+// Transport sends a GET again on a new connection. If the worker is gone by
+// then, that dial fails, but the worker already handled the request: it must
+// not run again in Node.
+func TestARequestTheWorkerAlreadyGotIsNotHandedToNode(t *testing.T) {
+	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) {})
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var calls atomic.Int32
+	worker := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if calls.Add(1) == 1 {
+			io.WriteString(w, "go")
+			return
+		}
+		// The worker exits after reading the request, before answering.
+		ln.Close()
+		conn, _, _ := w.(http.Hijacker).Hijack()
+		conn.Close()
+	})}
+	go worker.Serve(ln)
+	t.Cleanup(func() { worker.Close() })
+	fx.announce(ln.Addr().String(), "/api/echo/route")
+
+	if res := fx.raw(t, "GET /api/echo HTTP/1.1"); !strings.HasSuffix(res, "go") {
+		t.Fatalf("first response %q", res)
+	}
+	res := fx.raw(t, "GET /api/echo HTTP/1.1")
+	if !strings.HasPrefix(res, "HTTP/1.1 500 ") {
+		t.Errorf("second response %q", res)
+	}
+	select {
+	case got := <-fx.node:
+		t.Errorf("Node ran %s after the worker had it", got.RequestURI)
+	default:
+	}
+	if n := calls.Load(); n != 2 {
+		t.Errorf("worker saw %d requests, want 2", n)
 	}
 }

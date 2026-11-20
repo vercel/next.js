@@ -8,6 +8,7 @@ import (
 	"maps"
 	"net"
 	"net/http"
+	"net/http/httptrace"
 	"net/http/httputil"
 	"net/textproto"
 	"strings"
@@ -165,6 +166,9 @@ type directAttempt struct {
 	up    *goUpstream
 	// The request as the client sent it, for handing it to Node.
 	request *http.Request
+	// Whether the Transport has written the request to a worker, on any
+	// attempt. The Transport sends it on its own goroutine.
+	sent atomic.Bool
 	// Whether any of the body has been written, so Flush has something
 	// to send.
 	wrote bool
@@ -173,6 +177,13 @@ type directAttempt struct {
 func (f *switchyard) serveDirect(w http.ResponseWriter, r *http.Request, s *directState, up *goUpstream) {
 	attempt := &directAttempt{ResponseWriter: w, state: s, up: up, request: r}
 	ctx := context.WithValue(r.Context(), directAttemptKey{}, attempt)
+	// Go's Transport can send a request again on a new connection, so a
+	// failed dial doesn't mean no worker got it. The trace records whether
+	// any attempt wrote it; a write that failed counts too, since the worker
+	// may still have read it.
+	ctx = httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
+		WroteRequest: func(httptrace.WroteRequestInfo) { attempt.sent.Store(true) },
+	})
 	// Node never guesses a Content-Type (see newProxy).
 	w.Header()["Content-Type"] = nil
 	f.direct.ServeHTTP(attempt, r.WithContext(ctx))
@@ -243,7 +254,7 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 			attempt := attemptOf(r.Context())
 			// The worker is gone and never saw the request (Node hasn't told
 			// us yet): hand it to Node, as if the worker weren't ready.
-			if isDialError(err) {
+			if isDialError(err) && !attempt.sent.Load() {
 				f.node.ServeHTTP(attempt.ResponseWriter, attempt.request)
 				return
 			}
