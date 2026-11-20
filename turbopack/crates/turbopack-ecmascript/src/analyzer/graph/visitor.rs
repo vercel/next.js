@@ -1201,16 +1201,24 @@ impl<'a> Analyzer<'a, '_> {
         });
     }
 
-    /// Handles the target of an `env` property in an object destructuring pattern with the source
-    /// `obj`, e.g. `const { env: <target> } = obj`. `obj.env` might be `process.env`.
-    fn record_env_destructuring_target(&mut self, target: &Pat, obj: &JsValue<'a>, span: Span) {
+    /// Handles the target of a property `prop` in an object destructuring pattern with the source
+    /// `obj`, e.g. `const { env: <target> } = obj` or `const { [key]: <target> } = obj`, where
+    /// `prop` is `env` or only known after linking. `obj[prop]` might be `process.env`.
+    fn record_env_destructuring_target(
+        &mut self,
+        target: &Pat,
+        obj: &JsValue<'a>,
+        prop: &JsValue<'a>,
+        span: Span,
+    ) {
         let target = match target {
             Pat::Assign(assign) => &*assign.left,
             target => target,
         };
         match target {
             // `const { env: e } = obj`: escaping uses of `e` are found by
-            // `EnvBindingEscapeFinder` after the main traversal
+            // `EnvBindingEscapeFinder` after the main traversal, whether `e` really is
+            // `process.env` is decided after linking
             Pat::Ident(binding) => {
                 self.env_binding_candidates.insert(binding.to_id());
             }
@@ -1222,7 +1230,11 @@ impl<'a> Analyzer<'a, '_> {
                     .any(|p| matches!(p, ObjectPatProp::Rest(..))) =>
             {
                 self.add_possible_process_env_escape(
-                    JsValue::member(self.arena, obj.clone_in(self.arena), atom!("env").into()),
+                    JsValue::member(
+                        self.arena,
+                        obj.clone_in(self.arena),
+                        prop.clone_in(self.arena),
+                    ),
                     span,
                 );
             }
@@ -3389,8 +3401,17 @@ impl<'a> Analyzer<'a, '_> {
                         span: key.span(),
                     });
 
-                    if key_value.as_str() == Some("env") {
-                        self.record_env_destructuring_target(value, &pat_value, kv.span());
+                    // `{ env: <target> }`, or `{ [key]: <target> }` where `key` might be `env`
+                    if key_value.as_str() == Some("env")
+                        || (matches!(key, PropName::Computed(_))
+                            && !matches!(key_value, JsValue::Constant(_)))
+                    {
+                        self.record_env_destructuring_target(
+                            value,
+                            &pat_value,
+                            &key_value,
+                            kv.span(),
+                        );
                     }
 
                     let pat_value = Some(JsValue::member(
