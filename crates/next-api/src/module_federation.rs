@@ -128,6 +128,7 @@ impl Endpoint for ModuleFederationEndpoint {
             }
             .resolved_cell(),
             project: this.project,
+            first_load_chunks: None,
         }
         .cell())
     }
