@@ -1,8 +1,10 @@
 "use server";
 
-import { kv } from "@vercel/kv";
+import { Redis } from "@upstash/redis";
 import { revalidatePath } from "next/cache";
 import { Feature } from "./types";
+
+const kv = Redis.fromEnv();
 
 export async function saveFeature(feature: Feature, formData: FormData) {
   let newFeature = {
