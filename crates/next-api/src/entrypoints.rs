@@ -11,6 +11,7 @@ pub struct Entrypoints {
     pub routes: OrderedAutoMap<RcStr, Route>,
     pub middleware: Option<Middleware>,
     pub instrumentation: Option<Instrumentation>,
+    pub module_federation: Option<ResolvedVc<Box<dyn Endpoint>>>,
     pub pages_document_endpoint: ResolvedVc<Box<dyn Endpoint>>,
     pub pages_app_endpoint: ResolvedVc<Box<dyn Endpoint>>,
     pub pages_error_endpoint: ResolvedVc<Box<dyn Endpoint>>,
