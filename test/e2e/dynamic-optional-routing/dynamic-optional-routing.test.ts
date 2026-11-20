@@ -251,7 +251,7 @@ describe('Dynamic Optional Routing - build validation', () => {
       page: 'pages/invalid/[[...slug]].js',
       fixture: 'missing-param.js',
       message:
-        'A required parameter (slug) was not provided as an array received undefined in getStaticPaths for /invalid/[[...slug]]',
+        'A required parameter (slug) was not provided as an array of strings received undefined in getStaticPaths for /invalid/[[...slug]]',
     },
   ])('$name', ({ page, fixture, message }) => {
     const { next } = nextTestSetup({
