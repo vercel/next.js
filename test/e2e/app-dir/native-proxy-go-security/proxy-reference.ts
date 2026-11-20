@@ -5,7 +5,8 @@ export function proxy(request: NextRequest) {
   if (
     path === '/native-security/private' ||
     ((path.startsWith('/native-security/resource/') ||
-      path.startsWith('/native-security/single/')) &&
+      path.startsWith('/native-security/single/') ||
+      path.startsWith('/native-security/edge/')) &&
       (path.endsWith('/private') || path.endsWith('/literal.rsc')))
   ) {
     return new NextResponse('protected', { status: 403 })

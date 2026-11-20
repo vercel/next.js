@@ -67,9 +67,43 @@ async function expectLiteralParams(
   }
 }
 
+async function expectEdgeParamAuthorization(
+  fetchRequest: (path: string) => Promise<Response>
+) {
+  for (const query of [
+    'name=private&nxtPname=public',
+    'name=private&nxtIname=public',
+    'nxtPname=public',
+  ]) {
+    const response = await fetchRequest(`/native-security/edge/public?${query}`)
+    expect({ query, status: response.status }).toEqual({ query, status: 200 })
+    expect(await response.json()).toEqual({ name: 'public', secret: false })
+  }
+
+  const literal = await fetchRequest('/native-security/edge/literal.rsc')
+  expect(literal.status).toBe(200)
+  expect(await literal.json()).toEqual({ name: 'literal', secret: false })
+
+  const encoded = await fetchRequest('/native-security/edge/private%2Ersc')
+  expect(encoded.status).toBe(200)
+  expect(await encoded.json()).toEqual({ name: 'private.rsc', secret: false })
+
+  for (const path of [
+    '/native-security/edge/private',
+    '/native-security/edge/private.rsc',
+    '/native-security/edge/literal%2Ersc',
+    '/native-security/edge/literal.rsc.rsc',
+  ]) {
+    const response = await fetchRequest(path)
+    expect({ path, status: response.status }).toEqual({ path, status: 403 })
+    expect(await response.text()).not.toContain('"secret":true')
+  }
+}
+
 // Go middleware requires Turbopack, and released hosting builders do not yet
 // support its artifact. Deployment-specific coverage below invokes that artifact.
-// @force-gate turbopack && !deploy
+// Edge Runtime is not supported with Cache Components.
+// @force-gate turbopack && !deploy && !cacheComponents
 describe.each(['go', 'typescript'])(
   'native proxy authorization with %s',
   (runtime) => {
@@ -92,6 +126,10 @@ describe.each(['go', 'typescript'])(
 
     it('preserves literal RSC suffixes in decoded route parameters', async () => {
       await expectLiteralParams((path) => next.fetch(path))
+    })
+
+    it('keeps Edge route params aligned with the authorized pathname', async () => {
+      await expectEdgeParamAuthorization((path) => next.fetch(path))
     })
 
     it('preserves repeated ordinary query parameters', async () => {
@@ -121,7 +159,8 @@ type CapturedOutputs = {
 // App Router handlers or the emitted prerender files, as a platform does.
 // These are attacker HTTP requests to published artifact paths, rather than
 // synthetic client-router prefetches with invented internal headers.
-// @force-gate turbopack && start
+// Edge Runtime is not supported with Cache Components.
+// @force-gate turbopack && start && !cacheComponents
 describe('adapter Go proxy authorization', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,
@@ -203,6 +242,10 @@ describe('adapter Go proxy authorization', () => {
 
   it('preserves literal suffixes through downstream route matching', async () => {
     await expectLiteralParams(requestAdapter)
+  })
+
+  it('keeps Edge route params aligned with the authorized pathname', async () => {
+    await expectEdgeParamAuthorization(requestAdapter)
   })
 
   it('rejects reserved Pages data forms before an App Router catch-all', async () => {

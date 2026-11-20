@@ -48,7 +48,7 @@ import { getEdgePreviewProps } from './get-edge-preview-props'
 import { getBuiltinRequestContext } from '../after/builtin-request-context'
 import { getImplicitTags } from '../lib/implicit-tags'
 import { isRSCRequestHeader } from '../lib/is-rsc-request'
-import { setRequestMeta } from '../request-meta'
+import { addRequestMeta, setRequestMeta } from '../request-meta'
 
 // The proxy (middleware) does not support `'use cache'`, so this work store
 // never reaches the code that reads `cacheLife` (and `'use cache'` is
@@ -252,6 +252,9 @@ export async function adapter(
 
   if (params.request.requestMeta) {
     setRequestMeta(request, params.request.requestMeta)
+  }
+  if (params.request.page?.params) {
+    addRequestMeta(request, 'params', params.request.page.params)
   }
 
   /**

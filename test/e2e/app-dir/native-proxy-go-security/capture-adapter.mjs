@@ -7,6 +7,7 @@ export default {
     await writeFile(
       join(projectDir, 'security-outputs.json'),
       JSON.stringify({
+        distDir: join(projectDir, '.next'),
         middleware: outputs.middleware,
         prerenders: outputs.prerenders,
         staticFiles: outputs.staticFiles,
