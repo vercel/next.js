@@ -282,10 +282,19 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+			attempt := attemptOf(r.Context())
 			if r.Context().Err() != nil {
+				// Go's server cancels the request when the client's upload
+				// hits the request timeout. Answer that as Node does, as in
+				// newProxy: 408, and close the connection, since the rest of
+				// the body is still on it. Any other cancellation means the
+				// client went away, and nobody reads an answer.
+				if body, ok := r.Context().Value(requestBodyKey{}).(*requestBody); ok && body.timedOut() {
+					attempt.Header().Set("Connection", "close")
+					attempt.WriteHeader(http.StatusRequestTimeout)
+				}
 				return
 			}
-			attempt := attemptOf(r.Context())
 			// The worker is gone and never saw the request (Node hasn't told
 			// us yet): hand it to Node, as if the worker weren't ready.
 			if isDialError(err) && (attempt.body == nil || !attempt.body.read) {
@@ -296,12 +305,6 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 			// server, in full-duplex mode, would read it as the next request.
 			if r.ContentLength != 0 {
 				attempt.Header().Set("Connection", "close")
-			}
-			// As in newProxy: the client's upload hit the request timeout, so
-			// answer as Node does.
-			if body, ok := r.Context().Value(requestBodyKey{}).(*requestBody); ok && body.timedOut() {
-				attempt.WriteHeader(http.StatusRequestTimeout)
-				return
 			}
 			proxyErrorLog.Printf("route.go worker %s: %v", attempt.up.address, err)
 			// TODO: answer with Node's error page, as without Switchyard. Node
