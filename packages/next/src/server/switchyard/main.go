@@ -361,6 +361,14 @@ func newRequestBody(body io.ReadCloser) *requestBody {
 	}
 }
 
+// Close does nothing: Go's server closes the request body itself once the
+// handler returns. The proxy also closes it when it returns, but when the
+// upstream answered before the upload ended, its Transport may still be
+// reading the body. Closing Go's server body waits for that read, which ends
+// only at the request timeout, so the proxy wouldn't return, and a chunked
+// response wouldn't end, until then.
+func (b *requestBody) Close() error { return nil }
+
 func (b *requestBody) Read(p []byte) (int, error) {
 	n, err := b.ReadCloser.Read(p)
 	if err != nil {
