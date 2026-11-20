@@ -1,4 +1,5 @@
-import { nextTestSetup, isNextDeploy } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
+import { gate } from 'next-test-utils'
 
 describe('avif-svg-signature-confusion', () => {
   const { next } = nextTestSetup({
@@ -9,10 +10,11 @@ describe('avif-svg-signature-confusion', () => {
     const res = await next.fetch('/_next/image?url=%2Fcontrol&w=256&q=75', {
       headers: { accept: 'image/webp' },
     })
-    if (isNextDeploy && process.env.__NEXT_CACHE_COMPONENTS === 'true') {
+    const vercel = await gate('vercel')
+    if (vercel && process.env.__NEXT_CACHE_COMPONENTS === 'true') {
       // Vercel + cacheComponents serves the SVG as-is instead of rejecting it.
       expect(res.status).toBe(200)
-    } else if (isNextDeploy) {
+    } else if (vercel) {
       expect(res.status).toBe(400)
       expect(await res.text()).toContain('INVALID_IMAGE_OPTIMIZE_REQUEST')
     } else {
@@ -25,11 +27,12 @@ describe('avif-svg-signature-confusion', () => {
     const res = await next.fetch('/_next/image?url=%2Fevil&w=256&q=75', {
       headers: { accept: 'image/webp' },
     })
-    if (isNextDeploy && process.env.__NEXT_CACHE_COMPONENTS === 'true') {
+    const vercel = await gate('vercel')
+    if (vercel && process.env.__NEXT_CACHE_COMPONENTS === 'true') {
       // Vercel + cacheComponents serves the SVG as-is.
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toContain('image/svg+xml')
-    } else if (isNextDeploy) {
+    } else if (vercel) {
       // Vercel's image CDN labels it image/avif but passes the bytes through unchanged.
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toContain('image/avif')
