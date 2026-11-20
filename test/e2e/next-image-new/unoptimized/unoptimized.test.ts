@@ -96,6 +96,14 @@ describe('Unoptimized Image Tests', () => {
     runTests('/get-img-props')
   })
 
+  it('should return 404 for /_next/image requests and not touch cache/images directory', async () => {
+    const res = await next.fetch('/_next/image?url=%2Ftest.png&w=64&q=75')
+    expect(res.status).toBe(404)
+    expect(await next.hasFile('.next/cache/images')).toBe(false)
+    expect(next.cliOutput).not.toContain('unhandledRejection')
+    expect(next.cliOutput).not.toContain('EACCES')
+  })
+
   if (!isNextDev) {
     it('should build correct images-manifest.json', async () => {
       const manifest = JSON.parse(
