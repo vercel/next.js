@@ -3,6 +3,7 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 
+#[cfg(not(target_arch = "wasm32"))]
 pub mod exit;
 pub mod filter_layer;
 mod flavor;
