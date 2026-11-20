@@ -391,6 +391,7 @@ describe('signed-commit createTreeFromLocalCommit', () => {
     let inFlight = 0
     let maxInFlight = 0
     let blobCount = 0
+    let waiting: Array<() => void> = []
     let treeBody: { tree: Array<{ path: string }> } | undefined
     const request = jest.fn(async (_token, _method, route: string, body) => {
       if (route.endsWith('/git/trees')) {
@@ -400,16 +401,19 @@ describe('signed-commit createTreeFromLocalCommit', () => {
       const index = started++
       inFlight++
       maxInFlight = Math.max(maxInFlight, inFlight)
-      // Hold each upload until the pool is full (or no more uploads can
-      // start), so the peak does not depend on how fast `git` runs.
-      const deadline = Date.now() + 10_000
-      while (
-        inFlight < BLOB_UPLOAD_CONCURRENCY &&
-        started < totalBlobs &&
-        Date.now() < deadline
-      ) {
-        await new Promise((resolve) => setTimeout(resolve, 1))
-      }
+      // Hold uploads until a full pool has arrived (or the last one has), so
+      // the peak does not depend on how fast `git` runs.
+      await new Promise<void>((resolve) => {
+        waiting.push(resolve)
+        if (
+          waiting.length >= BLOB_UPLOAD_CONCURRENCY ||
+          started === totalBlobs
+        ) {
+          const release = waiting
+          waiting = []
+          release.forEach((fn) => fn())
+        }
+      })
       // Finish out of order, so the tree order cannot come from completion order.
       await new Promise((resolve) => setTimeout(resolve, totalBlobs - index))
       const sha = `blob-${blobCount++}`
