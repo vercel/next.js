@@ -26,6 +26,12 @@ export const DEFAULT_ROUTE_GO_MAXPROCS = 4
  * worker inherits it, as Switchyard does). Otherwise the default applies, on
  * machines with more cores than it; on smaller ones Go's choice is already
  * at most that.
+ *
+ * Known limit: `cores` (os.availableParallelism()) can report the host's
+ * cores rather than a container's CPU quota. In a container with a quota
+ * under 4 CPUs the default can then be above the quota, and any GOMAXPROCS
+ * also turns off the quota-aware default of Go 1.25 and later. Such setups
+ * can set __NEXT_EXPERIMENTAL_SWITCHYARD_ROUTE_GO_MAXPROCS.
  */
 export function routeGoMaxProcs(
   env: Readonly<Record<string, string | undefined>>,

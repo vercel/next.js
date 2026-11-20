@@ -260,3 +260,25 @@ func TestAnAbortedCompressedResponseStaysIncomplete(t *testing.T) {
 		t.Fatal("the client read a complete response")
 	}
 }
+
+func TestAddCompressionVaryWritesWhatTheVaryPackageWrites(t *testing.T) {
+	for _, c := range []struct {
+		in   []string
+		want string
+	}{
+		{nil, "Accept-Encoding"},
+		{[]string{"Origin"}, "Origin, Accept-Encoding"},
+		{[]string{"Origin", "accept-encoding"}, "Origin, accept-encoding"},
+		{[]string{"Origin, *"}, "*"},
+		{[]string{"Accept-Encoding, *"}, "*"},
+	} {
+		header := http.Header{}
+		for _, v := range c.in {
+			header.Add("Vary", v)
+		}
+		addCompressionVary(header)
+		if got := header.Values("Vary"); len(got) != 1 || got[0] != c.want {
+			t.Errorf("Vary %q: got %q, want %q", c.in, got, c.want)
+		}
+	}
+}
