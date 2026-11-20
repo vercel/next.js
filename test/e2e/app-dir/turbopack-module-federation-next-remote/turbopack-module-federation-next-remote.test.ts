@@ -39,7 +39,8 @@ describe('turbopack module federation between Next.js apps', () => {
           env: {
             ...process.env,
             NEXT_TEST_MODE: undefined,
-            NODE_ENV: undefined,
+            // packages/next/types/global.d.ts narrows NODE_ENV, but the child must inherit none.
+            NODE_ENV: undefined as NodeJS.ProcessEnv['NODE_ENV'],
             __NEXT_SHOW_IGNORE_LISTED: 'true',
           },
         }
