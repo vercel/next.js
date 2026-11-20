@@ -137,6 +137,30 @@ describe('turbopack-build-worker', () => {
     })
   })
 
+  describe('with debugger options in NODE_OPTIONS', () => {
+    afterEach(() => next.stop())
+
+    it('should not open an inspector in Node.js plugins of the compilation', async () => {
+      // The config adds an inspector to NODE_OPTIONS after the CLI started, so
+      // the main process doesn't listen. Node.js processes started for the
+      // compilation must not open one either.
+      await next.patchFile(
+        'next.config.ts',
+        (content) =>
+          `process.env.NODE_OPTIONS = \`\${process.env.NODE_OPTIONS ?? ''} --inspect=127.0.0.1:0\`\n${content}`,
+        async () => {
+          const { exitCode, cliOutput } = await next.build()
+          if (exitCode !== 0) {
+            throw new Error(`next build failed with ${exitCode}:\n${cliOutput}`)
+          }
+          await next.start({ skipBuild: true })
+          const $ = await next.render$('/')
+          expect($('#loader-inspector').text()).toBe('closed')
+        }
+      )
+    })
+  })
+
   describe('failing builds', () => {
     afterEach(async () => {
       await next.stop()

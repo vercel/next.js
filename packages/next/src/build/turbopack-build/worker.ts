@@ -123,7 +123,7 @@ export function createProject(data: {
 
     const { value, ...result } =
       await getBindingsSync().turbo.createProjectFromSerializedOptions(
-        data.options,
+        withWorkerNodeOptions(data.options),
         data.turboEngineOptions,
         data.hasOnBeforeDeferredEntries
           ? { onBeforeDeferredEntries: setupDeferredEntriesCallback() }
@@ -136,6 +136,24 @@ export function createProject(data: {
     })
     return result
   })
+}
+
+/**
+ * Node.js processes started by Turbopack (e.g. for webpack loaders) get the
+ * project's environment, which comes from the main process. Give them the
+ * Node.js options of this worker instead, which the worker pool derived from
+ * the main process's options without debugger flags, so they don't open an
+ * inspector the main process didn't ask for.
+ */
+function withWorkerNodeOptions(
+  options: NapiProjectOptions
+): NapiProjectOptions {
+  const env = options.env.filter(({ name }) => name !== 'NODE_OPTIONS')
+  const nodeOptions = process.env.NODE_OPTIONS
+  if (nodeOptions) {
+    env.push({ name: 'NODE_OPTIONS', value: nodeOptions })
+  }
+  return { ...options, env }
 }
 
 export type WriteAllEntrypointsToDiskResult =
@@ -211,7 +229,7 @@ export function writeAnalyzeData(
  * Shuts Turbopack down (which persists its cache) and returns the trace events
  * recorded in this worker, so the main process can write them.
  */
-export function shutdown(): Promise<{ traceEvents: TraceEvent[] }> {
+export function shutdownProject(): Promise<{ traceEvents: TraceEvent[] }> {
   return forParent(async () => {
     shutdownPromise ??= (async () => {
       await project?.shutdown()

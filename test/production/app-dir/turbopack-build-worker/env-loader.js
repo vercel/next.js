@@ -1,6 +1,16 @@
 // A webpack loader, which Turbopack runs in Node.js during the compilation.
-// It exposes the environment variable the main `next build` process set, which
-// must be visible to the compilation when it runs in the build worker.
+// It exposes details of the process it runs in, which must match what the main
+// `next build` process provides even when the compilation runs in the build
+// worker.
+const inspector = require('inspector')
+
 module.exports = function () {
-  return `export default ${JSON.stringify(String(process.env.NEXT_DEPLOYMENT_ID))}`
+  const value = this.resourcePath.endsWith('inspector.probe')
+    ? // Whether the loader's process has an open inspector.
+      inspector.url()
+      ? 'open'
+      : 'closed'
+    : // An environment variable `next build` set from the config.
+      String(process.env.NEXT_DEPLOYMENT_ID)
+  return `export default ${JSON.stringify(value)}`
 }

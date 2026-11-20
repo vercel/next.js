@@ -6,7 +6,7 @@ import {
   type TurbopackBuildProject,
   type TurbopackBuildProjectHost,
 } from './impl'
-import { Worker } from '../../lib/worker'
+import { Worker } from '../../lib/worker/index'
 import { exportTraceState, recordTraceEvents } from '../../trace'
 import type { Span } from '../../trace'
 import { getBindingsSync } from '../swc'
@@ -56,11 +56,10 @@ export class TurbopackBuildWorker implements TurbopackBuildProjectHost {
         'continueAfterDeferredEntries',
         'featureUsage',
         'writeAnalyzeData',
-        'shutdown',
+        'shutdownProject',
       ],
-      debuggerPortOffset: -1,
-      isolatedMemory: false,
-      numWorkers: 1,
+      workerName: 'Next.js Turbopack build worker',
+      maxWorkers: 1,
       maxRetries: 0,
       forkOptions: {
         env: {
@@ -130,7 +129,7 @@ export class TurbopackBuildWorker implements TurbopackBuildProjectHost {
       writeAnalyzeData: (appDirOnly) =>
         this.call(() => this.worker.writeAnalyzeData(appDirOnly)),
       shutdown: () => {
-        this.shutdown ??= this.call(() => this.worker.shutdown()).then(
+        this.shutdown ??= this.call(() => this.worker.shutdownProject()).then(
           ({ traceEvents }) => recordTraceEvents(traceEvents)
         )
         return this.shutdown
@@ -191,14 +190,14 @@ export class TurbopackBuildWorker implements TurbopackBuildProjectHost {
   end(): Promise<void> {
     this.ending ??= (async () => {
       await this.shutdown?.catch(() => {})
-      await this.worker.end()
+      await this.worker.shutdown()
     })()
     return this.ending
   }
 }
 
 /**
- * jest-worker recreates errors thrown in the worker as `Error` instances with
+ * The worker pool recreates errors thrown in the worker as `Error` instances with
  * the original message, stack and enumerable properties, plus a `type`
  * property. Remove that and restore the `cause` (see `worker.ts`), so the error
  * is reported the same way as when compiling in this process.
