@@ -4,7 +4,7 @@ use std::{collections::BTreeMap, io::Read, path::Path};
 use anyhow::{Context, Result, ensure};
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{ReadRef, ResolvedVc, Vc};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileContent, FileSystemPath, to_sys_path};
 
 use crate::{
@@ -31,6 +31,9 @@ pub struct GoSourceSet {
     pub files: BTreeMap<RcStr, RcStr>,
     /// The `module` directive of the selected go.mod, when one exists.
     pub module_path: Option<RcStr>,
+    /// Whether `root` is the directory of a go.mod. Otherwise `root` is the source directory,
+    /// because no go.mod exists between it and the boundary.
+    pub has_go_mod: bool,
     inputs: Inputs,
     dirty: bool,
     boundary: FileSystemPath,
@@ -56,6 +59,7 @@ pub async fn go_source_set(
     let mut tracker = Tracker::new(&boundary, &project, go_context);
     let mut root = directory.clone();
     let mut module_path = None;
+    let mut has_go_mod = false;
     loop {
         let module = root.join("go.mod")?;
         tracker
@@ -69,6 +73,7 @@ pub async fn go_source_set(
             let mut source = String::new();
             content.read().read_to_string(&mut source)?;
             module_path = module_directive(&source);
+            has_go_mod = true;
             break;
         }
         if root == boundary {
@@ -140,6 +145,7 @@ pub async fn go_source_set(
         root,
         files,
         module_path,
+        has_go_mod,
         tracker.inputs,
         tracker.dirty,
         boundary,
@@ -177,6 +183,7 @@ fn source_generation(
     root: FileSystemPath,
     files: BTreeMap<RcStr, RcStr>,
     module_path: Option<RcStr>,
+    has_go_mod: bool,
     inputs: Inputs,
     dirty: bool,
     boundary: FileSystemPath,
@@ -185,6 +192,7 @@ fn source_generation(
         root,
         files,
         module_path,
+        has_go_mod,
         inputs,
         dirty,
         boundary,
@@ -200,7 +208,7 @@ pub async fn go_bundle_from_sources(
     session: ResolvedVc<GoBuildSession>,
     generated: BTreeMap<RcStr, RcStr>,
 ) -> Result<Vc<GoBundleResult>> {
-    bundle_sources(sources, session, generated, None).await
+    bundle_sources(Selection::Files(sources), session, generated).await
 }
 
 /// Compile generated entry files that import the selected sources as an ordinary package.
@@ -220,78 +228,258 @@ pub async fn go_package_bundle_from_sources(
     alias: RcStr,
     generated: BTreeMap<RcStr, RcStr>,
 ) -> Result<Vc<GoBundleResult>> {
-    bundle_sources(sources, session, generated, Some(alias)).await
+    bundle_sources(
+        Selection::Packages(BTreeMap::from([(alias, sources)]), None),
+        session,
+        generated,
+    )
+    .await
+}
+
+/// Compile generated entry files that import several selected source directories as ordinary
+/// packages, in one `go build`.
+///
+/// `packages` maps each module-relative alias to the sources overlaid there, with the same
+/// rules as [`go_package_bundle_from_sources`]. Generated files under an alias join that
+/// package. Generated Go files directly in `entrypoint`, a module-relative directory, form the
+/// `main` package. Other generated Go files form additional packages that `main` can import,
+/// for example to re-export a package that `internal` visibility hides from `main`.
+///
+/// All source sets must share one boundary and one module: either the same go.mod, or no go.mod
+/// at all. Go builds one main module, so directories from different modules are rejected.
+/// [`go_packages_root`] returns the directory that aliases and generated paths are relative to.
+/// Without a go.mod, it is the nearest common ancestor of the source directories, which then
+/// needs a generated `go.mod` like a single directory does.
+#[turbo_tasks::function]
+pub async fn go_packages_bundle_from_sources(
+    packages: BTreeMap<RcStr, ResolvedVc<GoSourceSet>>,
+    session: ResolvedVc<GoBuildSession>,
+    entrypoint: RcStr,
+    generated: BTreeMap<RcStr, RcStr>,
+) -> Result<Vc<GoBundleResult>> {
+    ensure!(
+        is_relative_directory(&entrypoint),
+        "Go entrypoint must be a module-relative directory: {entrypoint}"
+    );
+    bundle_sources(
+        Selection::Packages(packages, Some(entrypoint)),
+        session,
+        generated,
+    )
+    .await
+}
+
+enum Selection {
+    /// Named files form the `main` package.
+    Files(ResolvedVc<GoSourceSet>),
+    /// Source directories overlaid as importable packages, keyed by alias, and the directory of
+    /// the generated `main` package when other generated packages exist.
+    Packages(BTreeMap<RcStr, ResolvedVc<GoSourceSet>>, Option<RcStr>),
+}
+
+fn is_relative_directory(path: &str) -> bool {
+    path.split('/')
+        .all(|part| !part.is_empty() && part != "." && part != "..")
+}
+
+impl GoSourceSet {
+    /// The selected source directory.
+    pub fn directory(&self) -> Result<FileSystemPath> {
+        let first = self
+            .files
+            .keys()
+            .next()
+            .context("Go package has no source files")?;
+        let directory = Path::new(first.as_str())
+            .parent()
+            .context("Go source has no directory")?
+            .to_str()
+            .context("non-UTF8 Go path")?;
+        Ok(FileSystemPath {
+            fs: self.root.fs,
+            path: match (self.root.path.is_empty(), directory.is_empty()) {
+                (_, true) => self.root.path.clone(),
+                (true, false) => directory.into(),
+                (false, false) => format!("{}/{directory}", self.root.path).into(),
+            },
+        })
+    }
+}
+
+/// The directory Go commands run from when `sets` are compiled into one executable, which
+/// aliases and generated paths are relative to. Directories sharing a go.mod use its module root.
+/// Directories without one use their nearest common ancestor, which has no go.mod either:
+/// discovery observed every directory up to the boundary. Directories from different modules
+/// are rejected.
+pub fn go_packages_root(sets: &[&GoSourceSet]) -> Result<FileSystemPath> {
+    let first = sets.first().context("supply at least one Go package")?;
+    ensure!(
+        sets.iter()
+            .all(|sources| sources.boundary == first.boundary),
+        "Go packages must share one source boundary"
+    );
+    if first.has_go_mod {
+        ensure!(
+            sets.iter()
+                .all(|sources| sources.has_go_mod && sources.root == first.root),
+            "Go packages compiled into one executable must belong to one Go module; found \
+             directories with different go.mod files or without one"
+        );
+        return Ok(first.root.clone());
+    }
+    ensure!(
+        sets.iter().all(|sources| !sources.has_go_mod),
+        "Go packages compiled into one executable must belong to one Go module; found directories \
+         with different go.mod files or without one"
+    );
+    // Without go.mod, each set's root is its own source directory.
+    let mut common: Option<Vec<&str>> = None;
+    for sources in sets {
+        ensure!(
+            sources.root.fs == first.root.fs,
+            "Go packages must share one filesystem"
+        );
+        let parts: Vec<&str> = sources
+            .root
+            .path
+            .split('/')
+            .filter(|part| !part.is_empty())
+            .collect();
+        common = Some(match common {
+            None => parts,
+            Some(common) => common
+                .into_iter()
+                .zip(parts)
+                .take_while(|(a, b)| a == b)
+                .map(|(a, _)| a)
+                .collect(),
+        });
+    }
+    let root = FileSystemPath {
+        fs: first.root.fs,
+        path: common.unwrap_or_default().join("/").into(),
+    };
+    ensure!(
+        root == first.boundary || first.boundary.get_path_to(&root).is_some(),
+        "Go sources are outside their boundary"
+    );
+    Ok(root)
+}
+
+/// Select the directory Go commands run from and each alias's source directory relative to it.
+fn package_root(
+    sets: &[(RcStr, ReadRef<GoSourceSet>)],
+) -> Result<(FileSystemPath, BTreeMap<RcStr, RcStr>)> {
+    for (alias, _) in sets {
+        ensure!(
+            is_relative_directory(alias),
+            "Go package alias must be a module-relative directory: {alias}"
+        );
+    }
+    let root = go_packages_root(
+        &sets
+            .iter()
+            .map(|(_, sources)| &**sources)
+            .collect::<Vec<_>>(),
+    )?;
+    let mut aliases = BTreeMap::new();
+    for (alias, sources) in sets {
+        let directory = sources.directory()?;
+        let relative = if directory == root {
+            ""
+        } else {
+            root.get_path_to(&directory)
+                .context("Go package outside its module")?
+        };
+        ensure!(
+            aliases
+                .insert(alias.clone(), RcStr::from(relative))
+                .is_none(),
+            "duplicate Go package alias: {alias}"
+        );
+    }
+    Ok((root, aliases))
 }
 
 async fn bundle_sources(
-    sources: ResolvedVc<GoSourceSet>,
+    selection: Selection,
     session: ResolvedVc<GoBuildSession>,
     generated: BTreeMap<RcStr, RcStr>,
-    alias: Option<RcStr>,
 ) -> Result<Vc<GoBundleResult>> {
-    let sources = sources.await?;
+    let mut sets = vec![];
+    match &selection {
+        Selection::Files(sources) => sets.push((RcStr::default(), sources.await?)),
+        Selection::Packages(packages, _) => {
+            ensure!(!packages.is_empty(), "supply at least one Go package");
+            for (alias, sources) in packages {
+                sets.push((alias.clone(), sources.await?));
+            }
+        }
+    }
+    let boundary = sets[0].1.boundary.clone();
     let go_context = &session.await?.go_context;
-    let mut stale = sources.dirty || !sources.inputs.is_current().await?;
+    let mut stale = false;
+    for (_, sources) in &sets {
+        stale |= sources.dirty || !sources.inputs.is_current().await?;
+    }
     let mut result = if stale {
         GoBundleResult {
             outcome: GoBuildOutcome::Retry,
-            inputs: sources.inputs.clone(),
-            root: sources.boundary.clone(),
+            inputs: Inputs::default(),
+            root: boundary.clone(),
             session,
         }
     } else {
-        let (files, aliases) = match alias {
-            None => (sources.files.keys().cloned().collect(), BTreeMap::new()),
-            Some(alias) => {
-                let first = sources
-                    .files
-                    .keys()
-                    .next()
-                    .context("Go package has no source files")?;
-                let directory = Path::new(first.as_str())
-                    .parent()
-                    .context("Go source has no directory")?
-                    .to_str()
-                    .context("non-UTF8 Go path")?;
-                ensure!(
-                    alias
-                        .split('/')
-                        .all(|part| !part.is_empty() && part != "." && part != ".."),
-                    "Go package alias must be a module-relative directory: {alias}"
-                );
-                (vec![], BTreeMap::from([(alias, RcStr::from(directory))]))
+        let (root, files, aliases, entrypoint) = match &selection {
+            Selection::Files(_) => {
+                let sources = &sets[0].1;
+                (
+                    sources.root.clone(),
+                    sources.files.keys().cloned().collect(),
+                    BTreeMap::new(),
+                    None,
+                )
+            }
+            Selection::Packages(_, entrypoint) => {
+                let (root, aliases) = package_root(&sets)?;
+                (root, vec![], aliases, entrypoint.clone())
             }
         };
-        let result = bundle(sources.root.clone(), files, *session, generated, aliases).await?;
-        stale = !result.is_current().await? || !sources.inputs.is_current().await?;
+        let result = bundle(root, files, *session, generated, aliases, entrypoint).await?;
+        stale = !result.is_current().await?;
+        for (_, sources) in &sets {
+            stale |= !sources.inputs.is_current().await?;
+        }
         (*result).clone()
     };
     if stale {
-        let project = to_sys_path(sources.boundary.clone())
+        let project = to_sys_path(boundary.clone())
             .await?
             .context("Go sources require a disk filesystem")?;
-        Tracker::new(&sources.boundary, &project, go_context)
+        Tracker::new(&boundary, &project, go_context)
             .invalidate()
             .await?;
         result.outcome = GoBuildOutcome::Retry;
     }
     // Preserve the compiler's observations for overlapping inputs. A stale attempt must not
     // replace its compiler fingerprint with the earlier analysis fingerprint.
-    for (path, input) in &sources.inputs.files {
-        result
-            .inputs
-            .files
-            .entry(path.clone())
-            .or_insert_with(|| input.clone());
+    for (_, sources) in &sets {
+        for (path, input) in &sources.inputs.files {
+            result
+                .inputs
+                .files
+                .entry(path.clone())
+                .or_insert_with(|| input.clone());
+        }
+        for (path, input) in &sources.inputs.directories {
+            result
+                .inputs
+                .directories
+                .entry(path.clone())
+                .or_insert_with(|| input.clone());
+        }
     }
-    for (path, input) in &sources.inputs.directories {
-        result
-            .inputs
-            .directories
-            .entry(path.clone())
-            .or_insert_with(|| input.clone());
-    }
-    result.root = sources.boundary.clone();
+    result.root = boundary;
     Ok(result.cell())
 }
 

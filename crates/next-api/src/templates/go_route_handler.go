@@ -10,7 +10,8 @@ import (
 	"unicode/utf8"
 )
 
-// Each executable contains only its own route pattern, not the application route table.
+// Each route package contains only its own route pattern. Adapter processes
+// select one package at startup using the adapter's authorized output ID.
 const nextGoRoutePattern = "__NEXT_GO_ROUTE_PATTERN__"
 
 type nextGoParamsKey struct{}
