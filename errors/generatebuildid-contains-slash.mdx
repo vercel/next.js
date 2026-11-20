@@ -1,0 +1,25 @@
+---
+title: '`generateBuildId` returned a value containing a slash'
+---
+
+## Why This Error Occurred
+
+`generateBuildId` in your `next.config.js` returned a build ID that contains a `/`, for example `release/v1`.
+
+The build ID is used as a single path segment in URLs such as `/_next/data/<buildId>/index.json`. A `/` in it splits the build ID across two segments, so Next.js reads part of it as the page path and resolves the wrong route.
+
+## Possible Ways to Fix It
+
+Return a build ID without `/`. If it comes from a value such as a git branch name, replace the slashes:
+
+```js filename="next.config.js"
+module.exports = {
+  generateBuildId: async () => {
+    return process.env.GIT_BRANCH.replaceAll('/', '-')
+  },
+}
+```
+
+## Useful Links
+
+- [`generateBuildId` Documentation](/docs/app/api-reference/config/next-config-js/generateBuildId)
