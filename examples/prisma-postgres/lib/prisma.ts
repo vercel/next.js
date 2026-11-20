@@ -1,10 +1,18 @@
-import { PrismaClient } from "./generated/prisma-client";
-import { withAccelerate } from "@prisma/extension-accelerate";
+import postgres from "@prisma/orm-postgres/runtime";
+import { contractFromJson } from "@prisma/orm-postgres/static";
+import "temporal-polyfill/global";
+import type { Contract } from "../prisma/generated/contract.d";
+import contractJson from "../prisma/generated/contract.json" with { type: "json" };
 
-const prisma = new PrismaClient().$extends(withAccelerate());
+const contract = contractFromJson<Contract>(contractJson);
 
-const globalForPrisma = global as unknown as { prisma: typeof prisma };
+const createClient = () =>
+  postgres({ contract, url: process.env.DATABASE_URL! });
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+const globalForPrisma = globalThis as unknown as {
+  db?: ReturnType<typeof createClient>;
+};
 
-export default prisma;
+export const db = globalForPrisma.db ?? createClient();
+
+if (process.env.NODE_ENV !== "production") globalForPrisma.db = db;
