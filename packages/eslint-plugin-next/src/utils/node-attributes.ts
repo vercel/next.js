@@ -32,12 +32,24 @@ export default class NodeAttributes {
 
       if (!!attribute.value) {
         // hasValue
+        // Unwrap TypeScript type-assertion expressions so that the underlying
+        // value can be evaluated. Both `TSSatisfiesExpression` (value satisfies T)
+        // and `TSAsExpression` (value as T) wrap the real expression in their
+        // `.expression` property; without this unwrap they would cause a crash
+        // because they have no `.value` property of their own.
+        const rawExpression = attribute.value.expression
+        const expression =
+          rawExpression?.type === 'TSSatisfiesExpression' ||
+          rawExpression?.type === 'TSAsExpression'
+            ? rawExpression.expression
+            : rawExpression
+
         const value =
           typeof attribute.value.value === 'string'
             ? attribute.value.value
-            : typeof attribute.value.expression.value !== 'undefined'
-              ? attribute.value.expression.value
-              : attribute.value.expression.properties
+            : typeof expression?.value !== 'undefined'
+              ? expression.value
+              : expression?.properties
 
         this.attributes[attribute.name.name] = {
           hasValue: true,
