@@ -250,11 +250,16 @@ describe('stale-dev-types', () => {
       // .next/dev/types (`env.d.ts`, webpack type guards).
       const devTypesFile = '.next/dev/types/env.d.ts'
       await next.patchFile(devTypesFile, 'export {}\n')
+      // Stands in for a pending atomic write of the running dev server, which
+      // neither the build's clean nor the stale temp file cleanup may remove.
+      const pendingTempFile = '.next/types/.tmp/routes.d.ts.1.00000000.tmp'
+      await next.patchFile(pendingTempFile, 'export {}\n')
 
       await runCommand(next)
 
       // The running dev server owns .next/dev/types and keeps them up to date.
       expect(await next.hasFile(devTypesFile)).toBe(true)
+      expect(await next.hasFile(pendingTempFile)).toBe(true)
       expect(await next.readFile(VALIDATOR)).toContain('temp-route/page')
     })
   })

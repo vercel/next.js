@@ -43,13 +43,22 @@ export const SHARED_TYPES_TEMP_DIR = '.tmp'
 const TEMP_FILE_SUFFIX = '.tmp'
 
 /**
- * Temporary files older than this are left behind by a process that was killed
- * before renaming them into place. Writing a type file takes milliseconds, so
- * this is far longer than any pending write, and long enough that coarse mtime
- * resolution (e.g. 2s on FAT) or moderate clock skew (e.g. on NFS) can't make a
- * pending write look stale.
+ * Temporary files older than this are assumed to be left behind by a process
+ * that was killed before renaming them into place. This is a best-effort
+ * heuristic: an age doesn't prove the writer is gone. Writing a type file
+ * normally takes milliseconds, and the threshold is long enough that coarse
+ * mtime resolution (e.g. 2s on FAT) or moderate clock skew (e.g. on NFS) won't
+ * make a normal pending write look stale. A writer that stalls for longer (e.g.
+ * a suspended process) can lose its temporary file, which `writeFileIfChanged`
+ * recovers from by retrying.
  */
 const STALE_TEMP_FILE_AGE_MS = 60_000
+
+/**
+ * How often a write is retried when its temporary file was removed as stale.
+ * Each attempt uses a new temporary file.
+ */
+const MAX_WRITE_ATTEMPTS = 3
 
 /** Entries in the shared types directory that are preserved by `next build`'s `cleanDistDir`. */
 export const SHARED_TYPES_PRESERVED_ENTRIES: ReadonlySet<string> = new Set([
@@ -121,7 +130,7 @@ export async function writeSharedTypePlaceholders({
 async function writeFileIfChanged(
   filePath: string,
   content: string,
-  isRetry = false
+  attempt = 1
 ): Promise<void> {
   try {
     if ((await fs.readFile(filePath, 'utf8')) === content) {
@@ -145,20 +154,21 @@ async function writeFileIfChanged(
     await fs.rm(tempPath, { force: true })
     // If this write stalled for longer than `STALE_TEMP_FILE_AGE_MS`, another
     // process may have removed its temporary file as stale. The write is
-    // idempotent, so try once more.
-    if (err?.code === 'ENOENT' && !isRetry) {
-      return writeFileIfChanged(filePath, content, true)
+    // idempotent, so try again with a new temporary file.
+    if (err?.code === 'ENOENT' && attempt < MAX_WRITE_ATTEMPTS) {
+      return writeFileIfChanged(filePath, content, attempt + 1)
     }
     throw err
   }
 }
 
 /**
- * Removes temporary files that a killed process left behind before renaming
- * them into place. Pending writes of running processes are much younger than
- * `STALE_TEMP_FILE_AGE_MS`, so they are kept, even when generation runs
- * without the types lock. Failures are ignored: leftover temporary files never
- * affect type checking.
+ * Removes temporary files that were most likely left behind by a process killed
+ * before renaming them into place, judged by their age (see
+ * `STALE_TEMP_FILE_AGE_MS`). Normal pending writes of running processes are
+ * much younger, so they are kept, even when generation runs without the types
+ * lock. Failures are ignored: leftover temporary files never affect type
+ * checking.
  */
 async function removeStaleTempFiles(typesDir: string): Promise<void> {
   const tempDir = path.join(typesDir, SHARED_TYPES_TEMP_DIR)
