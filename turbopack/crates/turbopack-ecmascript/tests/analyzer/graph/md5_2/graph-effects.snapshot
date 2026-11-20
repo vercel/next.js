@@ -414,7 +414,7 @@
         ],
         span: 59..82,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     FreeVar {
         var: "require",
@@ -831,7 +831,7 @@
         ],
         span: 131..153,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     Member {
         obj: Variable(
@@ -938,7 +938,7 @@
         ],
         span: 252..271,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     FreeVar {
         var: "String",
@@ -1176,7 +1176,7 @@
                         ],
                         span: 306..322,
                         in_truthiness_context: false,
-                        escapes: false,
+                        escapes: true,
                     },
                     Conditional {
                         condition: Logical(
@@ -1347,7 +1347,7 @@
                                         ],
                                         span: 357..374,
                                         in_truthiness_context: false,
-                                        escapes: false,
+                                        escapes: true,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -1613,7 +1613,7 @@
                                         ],
                                         span: 408..426,
                                         in_truthiness_context: false,
-                                        escapes: false,
+                                        escapes: true,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -2534,7 +2534,7 @@
                                         ],
                                         span: 489..515,
                                         in_truthiness_context: false,
-                                        escapes: false,
+                                        escapes: true,
                                     },
                                     MemberCall {
                                         obj: Member(
@@ -2944,7 +2944,7 @@
                                         ],
                                         span: 545..558,
                                         in_truthiness_context: false,
-                                        escapes: false,
+                                        escapes: true,
                                     },
                                     MemberCall {
                                         obj: FreeVar(
@@ -3232,7 +3232,7 @@
                                                         ],
                                                         span: 579..595,
                                                         in_truthiness_context: false,
-                                                        escapes: false,
+                                                        escapes: true,
                                                     },
                                                     MemberCall {
                                                         obj: Variable(
@@ -3760,7 +3760,7 @@
         ],
         span: 655..673,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     MemberCall {
         obj: Variable(
@@ -3994,7 +3994,7 @@
         ],
         span: 696..710,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     Member {
         obj: Variable(
@@ -4101,7 +4101,7 @@
         ],
         span: 860..868,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     Member {
         obj: Variable(
@@ -5209,7 +5209,7 @@
         ],
         span: 1152..1159,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     Member {
         obj: Variable(
@@ -5318,7 +5318,7 @@
         ],
         span: 1174..1181,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     Member {
         obj: Variable(
@@ -5427,7 +5427,7 @@
         ],
         span: 1196..1203,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     Member {
         obj: Variable(
@@ -5536,7 +5536,7 @@
         ],
         span: 1218..1225,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     Member {
         obj: Variable(
@@ -5643,7 +5643,7 @@
         ],
         span: 1254..1262,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     Call {
         func: Variable(
@@ -27833,7 +27833,7 @@
         ],
         span: 4940..4952,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     MemberCall {
         obj: Variable(
@@ -28128,7 +28128,7 @@
         ],
         span: 5003..5010,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     Unreachable {
         start_ast_path: [
@@ -28286,7 +28286,7 @@
         ],
         span: 5153..5160,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     Unreachable {
         start_ast_path: [
@@ -28444,7 +28444,7 @@
         ],
         span: 5303..5310,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     Unreachable {
         start_ast_path: [
@@ -28602,7 +28602,7 @@
         ],
         span: 5444..5451,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     Unreachable {
         start_ast_path: [
@@ -28760,7 +28760,7 @@
         ],
         span: 5620..5634,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     Member {
         obj: Variable(
@@ -28842,7 +28842,7 @@
         ],
         span: 5643..5658,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     Member {
         obj: FreeVar(
@@ -28995,7 +28995,7 @@
         ],
         span: 5668..5682,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     Conditional {
         condition: Logical(
@@ -29447,7 +29447,7 @@
         ],
         span: 5843..5861,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     MemberCall {
         obj: Variable(
@@ -29823,7 +29823,7 @@
         ],
         span: 5908..5923,
         in_truthiness_context: true,
-        escapes: false,
+        escapes: true,
     },
     Conditional {
         condition: Logical(
@@ -29980,7 +29980,7 @@
                         ],
                         span: 5963..5979,
                         in_truthiness_context: true,
-                        escapes: false,
+                        escapes: true,
                     },
                     Conditional {
                         condition: Logical(
@@ -30132,7 +30132,7 @@
                                         ],
                                         span: 5988..6005,
                                         in_truthiness_context: false,
-                                        escapes: false,
+                                        escapes: true,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -30382,7 +30382,7 @@
                                         ],
                                         span: 6027..6043,
                                         in_truthiness_context: false,
-                                        escapes: false,
+                                        escapes: true,
                                     },
                                     MemberCall {
                                         obj: Variable(

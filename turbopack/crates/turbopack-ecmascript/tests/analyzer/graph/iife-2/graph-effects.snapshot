@@ -172,7 +172,7 @@
         ],
         span: 80..91,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     MemberCall {
         obj: FreeVar(
@@ -342,7 +342,7 @@
         ],
         span: 108..119,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     Member {
         obj: Variable(
@@ -617,7 +617,7 @@
         ],
         span: 155..168,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     MemberCall {
         obj: FreeVar(

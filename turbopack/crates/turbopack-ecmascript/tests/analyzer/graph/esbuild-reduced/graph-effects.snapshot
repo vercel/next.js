@@ -379,7 +379,7 @@
             ),
         ),
         span: 426..429,
-        target_escapes: false,
+        target_escapes: true,
     },
     DestructuredMember {
         obj: Call(
@@ -400,7 +400,7 @@
             ),
         ),
         span: 431..438,
-        target_escapes: false,
+        target_escapes: true,
     },
     Call {
         func: Variable(
@@ -607,7 +607,7 @@
         ],
         span: 515..530,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     MemberCall {
         obj: FreeVar(

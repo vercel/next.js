@@ -393,7 +393,7 @@
                         ],
                         span: 57..81,
                         in_truthiness_context: false,
-                        escapes: false,
+                        escapes: true,
                     },
                     Conditional {
                         condition: Binary(
@@ -744,7 +744,7 @@
                             ),
                         ],
                         span: 354..355,
-                        escapes: false,
+                        escapes: true,
                     },
                 ],
                 range: Exact(
@@ -798,7 +798,7 @@
                             ),
                         ],
                         span: 368..369,
-                        escapes: false,
+                        escapes: true,
                     },
                 ],
                 range: Exact(
@@ -1041,6 +1041,6 @@
             ),
         ],
         span: 453..454,
-        escapes: false,
+        escapes: true,
     },
 ]

@@ -48,7 +48,7 @@
         ],
         span: 39..48,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     FreeVar {
         var: "this",

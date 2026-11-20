@@ -917,9 +917,6 @@ fn value_escapes(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> bool {
 
 /// Whether the current expression is the value being consumed by an object destructuring pattern
 /// without a rest element, i.e. every accessed key is listed in the pattern.
-///
-/// For a destructuring assignment expression, the result of the assignment expression (which is
-/// the source value) must be discarded as well, e.g. `consume(({ a } = obj))` passes on `obj`.
 fn is_object_destructuring_source_without_rest(
     ast_path: &AstNodePath<AstParentNodeRef<'_>>,
 ) -> bool {
@@ -944,12 +941,7 @@ fn is_object_destructuring_source_without_rest(
                     ..
                 },
                 AssignExprField::Right,
-            ) => {
-                if !is_result_discarded(ast_path, i) {
-                    return false;
-                }
-                pat
-            }
+            ) => pat,
             AstParentNodeRef::AssignPat(AssignPat { left, .. }, AssignPatField::Right) => {
                 match &**left {
                     Pat::Object(pat) => pat,
@@ -962,29 +954,6 @@ fn is_object_destructuring_source_without_rest(
             .props
             .iter()
             .all(|p| !matches!(p, ObjectPatProp::Rest(..)));
-    }
-    false
-}
-
-/// Whether the value of the expression that is the child of `ast_path[index]` is discarded: it's
-/// an expression statement, a non-last expression of a sequence expression or a `for` loop's
-/// init/update expression.
-fn is_result_discarded(ast_path: &AstNodePath<AstParentNodeRef<'_>>, index: usize) -> bool {
-    for i in (0..index).rev() {
-        match ast_path.get(i) {
-            Some(
-                AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr),
-            ) => {}
-            Some(
-                AstParentNodeRef::ExprStmt(_, ExprStmtField::Expr)
-                | AstParentNodeRef::ForStmt(_, ForStmtField::Update)
-                | AstParentNodeRef::VarDeclOrExpr(_, VarDeclOrExprField::Expr),
-            ) => return true,
-            Some(AstParentNodeRef::SeqExpr(seq, SeqExprField::Exprs(idx))) => {
-                return *idx + 1 < seq.exprs.len();
-            }
-            _ => return false,
-        }
     }
     false
 }
@@ -1966,15 +1935,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
             let base_effects = self.collect_effects(|this| {
                 member_expr.visit_children_with_ast_path(this, ast_path);
             });
-            // `Effect::Member`, `Effect::DestructuredMember` and `Effect::In` handle the
-            // statically analyzable syntaxes (`process.env.FOO`, `const { FOO } = process.env`,
-            // `'FOO' in process.env`). If a `<obj>.env` value (or `<obj>[key]`, where `key` is only
-            // known after linking) occurs in any other context, it escapes and, if it turns out to
-            // be `process.env`, could be used to read any env var.
-            let escapes = (prop_value.as_str() == Some("env")
-                || (matches!(member_expr.prop, MemberProp::Computed(_))
-                    && !matches!(*prop_value, JsValue::Constant(_))))
-                && value_escapes(ast_path);
+            let escapes = value_escapes(ast_path);
             self.add_effect(Effect::Member {
                 obj: obj_value,
                 prop: prop_value,
@@ -2643,9 +2604,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
                     member,
                     ast_path: as_parent_path_in(self.arena, ast_path),
                     span: ident.span(),
-                    // `import { env } from "..."` (also renamed), `env` might be `process.env`
-                    escapes: export.is_some_and(|export| export == "env")
-                        && value_escapes(ast_path),
+                    escapes: value_escapes(ast_path),
                 })
             }
             return;
@@ -3297,11 +3256,7 @@ impl<'a> Analyzer<'a, '_> {
                         obj: BumpBox::new_in(pat_value.clone_in(self.arena), self.arena),
                         prop: BumpBox::new_in(key_value.clone_in(self.arena), self.arena),
                         span: key.span(),
-                        // `{ env: <target> }`, or `{ [key]: <target> }` where `key` might be `env`
-                        target_escapes: (key_value.as_str() == Some("env")
-                            || (matches!(key, PropName::Computed(_))
-                                && !matches!(key_value, JsValue::Constant(_))))
-                            && destructuring_target_escapes(value),
+                        target_escapes: destructuring_target_escapes(value),
                     });
 
                     let pat_value = Some(JsValue::member(
@@ -3336,9 +3291,9 @@ impl<'a> Analyzer<'a, '_> {
                         obj: BumpBox::new_in(pat_value.clone_in(self.arena), self.arena),
                         prop: BumpBox::new_in(key_value.clone_in(self.arena), self.arena),
                         span: key.span(),
-                        // `const { env } = <obj>`, conservatively treated like `const env =
-                        // obj.env`
-                        target_escapes: key.sym == "env",
+                        // `const { key } = <obj>`, conservatively treated like `const key =
+                        // obj.key`
+                        target_escapes: true,
                     });
 
                     self.add_value(

@@ -115,7 +115,7 @@
                                 ),
                             ],
                             span: 152..157,
-                            escapes: false,
+                            escapes: true,
                         },
                         Call {
                             func: Member(

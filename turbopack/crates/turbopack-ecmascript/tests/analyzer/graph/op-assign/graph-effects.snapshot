@@ -216,7 +216,7 @@
         ],
         span: 212..227,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     MemberCall {
         obj: FreeVar(
@@ -572,7 +572,7 @@
         ],
         span: 257..292,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     MemberCall {
         obj: Member(
@@ -1030,7 +1030,7 @@
         ],
         span: 356..371,
         in_truthiness_context: false,
-        escapes: false,
+        escapes: true,
     },
     MemberCall {
         obj: FreeVar(
@@ -1338,7 +1338,7 @@
         ],
         span: 608..621,
         in_truthiness_context: true,
-        escapes: false,
+        escapes: true,
     },
     Unreachable {
         start_ast_path: [
