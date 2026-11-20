@@ -32,6 +32,7 @@ mod null_fs;
 mod path;
 mod path_map;
 mod read_glob;
+mod remove_unwritten;
 mod retry;
 pub mod rope;
 pub mod source_context;
@@ -67,6 +68,7 @@ pub use crate::{
         RealPathWithLinksResult, rebase,
     },
     read_glob::ReadGlobResult,
+    remove_unwritten::{RemoveUnwrittenOptions, RemoveUnwrittenStats, UnwrittenDirectories},
     virtual_fs::VirtualFileSystem,
     watcher::{DiskWatcherConfig, DiskWatcherPathMatcher, DiskWatcherRecursiveMode},
 };
