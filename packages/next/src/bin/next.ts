@@ -715,7 +715,19 @@ program
 const requestInsights = program
   .command('experimental-request-insights')
   .description(
-    'Inspect experimental Request Insights from a running Next.js dev server.'
+    'Diagnose slow or intermittent App Router requests in a running Next.js dev server.'
+  )
+  .addHelpText(
+    'after',
+    `
+Workflow:
+  1. Keep the current dev server running so retained request evidence is preserved.
+  2. List completed requests: next experimental-request-insights list --route <route> --json
+  3. Inspect the matching request: next experimental-request-insights get <request-id> --json
+  4. Compare span start times, durations, parents, and attributes before reading source.
+  5. Use a CPU profile only when the timeline localizes CPU time but not the responsible function.
+
+Guide: node_modules/next/dist/docs/01-app/02-guides/request-insights.md`
   )
   .argument(
     '[directory]',
