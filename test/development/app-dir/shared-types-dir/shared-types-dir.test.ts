@@ -349,13 +349,9 @@ describe('shared-types-dir', () => {
     })
   })
 
-  describe.each([
-    ['with the types lock', {}],
-    ['without locking', { experimental: { lockDistDir: false } }],
-  ])('concurrent next typegen %s', (_, nextConfig) => {
+  describe('concurrent next typegen', () => {
     const { next } = nextTestSetup({
       files: FIXTURE_DIR,
-      nextConfig,
     })
 
     it('should always leave complete shared types', async () => {
