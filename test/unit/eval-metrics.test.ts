@@ -8,7 +8,12 @@ const repository = path.join(__dirname, '../..')
 const runner = fs.readFileSync(path.join(repository, 'run-evals.js'), 'utf8')
 const fixture = 'agent-062-pokedex-dev-loop'
 
-function run(args: string[], collectorStatus = 0) {
+function run(
+  args: string[],
+  collectorStatus = 0,
+  skillTokens = 50,
+  skillStatus = 'passed'
+) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'eval-metrics-'))
   const calls: Array<{ command: string; args: string[] }> = []
   const write = (file: string, value: unknown) => {
@@ -18,15 +23,17 @@ function run(args: string[], collectorStatus = 0) {
   }
   write(`evals/evals/${fixture}/package.json`, { private: true })
   write('evals/eval.suites.json', { regression: [fixture] })
+  const effortGate = args.includes('--effort-gate')
   write('evals/eval.config.json', {
     [fixture]: {
       publish: false,
       skills: ['next-dev-loop'],
-      metrics: 'pokedex',
+      metrics: effortGate ? 'effort' : 'pokedex',
     },
   })
-  write('evals/metrics/pokedex.mjs', {})
+  write(`evals/metrics/${effortGate ? 'effort' : 'pokedex'}.mjs`, {})
   let exitCode: number | undefined
+  let agentRun = 0
   const exit = new Error('runner exited')
   try {
     vm.runInNewContext(runner, {
@@ -37,10 +44,9 @@ function run(args: string[], collectorStatus = 0) {
           'node',
           'run-evals.js',
           fixture,
-          '--variant',
-          'baseline',
-          '--variant',
-          'skills',
+          ...(effortGate
+            ? []
+            : ['--variant', 'baseline', '--variant', 'skills']),
           ...args,
         ],
         env: {},
@@ -58,19 +64,45 @@ function run(args: string[], collectorStatus = 0) {
             },
           }
         if (name === './evals/lib/environment') return { linkEnvironment() {} }
+        if (name === './evals/lib/effort-gate')
+          return require(path.join(repository, 'evals/lib/effort-gate'))
         if (name === 'child_process')
           return {
             spawnSync(command: string, args: string[]) {
               calls.push({ command, args })
               if (args[0] === 'run') {
+                agentRun++
                 for (const variant of ['baseline', 'skills']) {
+                  const timestamp = effortGate
+                    ? `2026-11-${String(agentRun).padStart(2, '0')}`
+                    : '2026-11-02'
                   write(
-                    `evals/results/${variant}/2026-11-02/${fixture}/run-1/result.json`,
+                    `evals/results/${variant}/${timestamp}/${fixture}/run-1/result.json`,
                     { status: 'passed' }
                   )
                 }
               }
-              return { status: args.includes('collect') ? collectorStatus : 0 }
+              if (effortGate && args.includes('collect')) {
+                const directory = args[3]
+                write(
+                  path.relative(root, path.join(directory, 'metrics.json')),
+                  {
+                    status: directory.split(path.sep).includes('baseline')
+                      ? 'passed'
+                      : skillStatus,
+                    inputTokens: directory.split(path.sep).includes('baseline')
+                      ? 100
+                      : skillTokens,
+                  }
+                )
+              }
+              return {
+                status: args.includes('collect')
+                  ? collectorStatus
+                  : effortGate && skillStatus === 'failed'
+                    ? 1
+                    : 0,
+              }
             },
           }
         return require(name)
@@ -143,6 +175,36 @@ describe('normal eval metrics workflow', () => {
   )
 })
 
+describe('effort gate', () => {
+  it('compares five sequential baseline and skill samples', () => {
+    const { root, calls, exitCode } = run(['--effort-gate'])
+    try {
+      expect(calls.filter((call) => call.args[0] === 'run')).toHaveLength(5)
+      expect(
+        calls.filter((call) => call.args.includes('collect'))
+      ).toHaveLength(10)
+      expect(exitCode).toBe(0)
+      expect(
+        fs.readdirSync(path.join(root, 'evals/results/effort-gate'))
+      ).toHaveLength(1)
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it.each([
+    ['token reduction', 80, 'passed'],
+    ['pass rate', 70, 'failed'],
+  ])('fails when the skill misses the %s gate', (_, tokens, status) => {
+    const { root, exitCode } = run(['--effort-gate'], 0, tokens, status)
+    try {
+      expect(exitCode).toBe(1)
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  })
+})
+
 describe('saved eval effort', () => {
   it('deduplicates Claude native messages and prefers a cumulative result when present', () => {
     const script = `
@@ -200,6 +262,17 @@ describe('saved eval effort', () => {
             output_tokens: 2,
           },
         })
+      )
+      execFileSync(
+        process.execPath,
+        [
+          '--import=tsx',
+          'evals/metrics/report.mjs',
+          'collect',
+          path.join(root, 'uncollected'),
+          'effort',
+        ],
+        { cwd: repository }
       )
       const results = JSON.parse(
         execFileSync(
