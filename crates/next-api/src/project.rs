@@ -50,9 +50,9 @@ use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Completions, FxIndexMap, InvalidationReason, NonLocalValue, OperationValue,
-    OperationVc, OrderedAutoMap, ReadRef, ResolvedVc, State, TraitRef, TransientInstance,
-    TryFlatJoinIterExt, TryJoinIterExt, Vc, debug::ValueDebugFormat, fxindexmap,
-    message_queue::TraceEvent, turbo_tasks,
+    OperationVc, OrderedAutoMap, ReadRef, ResolvedVc, State, TransientInstance, TryFlatJoinIterExt,
+    TryJoinIterExt, Vc, debug::ValueDebugFormat, fxindexmap, message_queue::TraceEvent,
+    turbo_tasks,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{
@@ -2924,16 +2924,23 @@ impl Project {
         async fn hmr_version_operation(
             this: ResolvedVc<Project>,
             chunk_name: RcStr,
+            client_version: Option<RcStr>,
         ) -> Result<Vc<Box<dyn Version>>> {
             tracing::info!(chunk_name = %chunk_name, "hmr subscription");
             let content = this.hmr_content(chunk_name).await?;
             if let Some(content) = &*content {
-                Ok(content.version())
+                let version = content.version();
+                if let Some(client_version) = client_version
+                    && *version.id().await? != client_version
+                {
+                    return Ok(Vc::upcast(NotFoundVersion::new()));
+                }
+                Ok(version)
             } else {
                 Ok(Vc::upcast(NotFoundVersion::new()))
             }
         }
-        let version_op = hmr_version_operation(self, chunk_name);
+        let version_op = hmr_version_operation(self, chunk_name, client_version);
 
         // INVALIDATION: This is intentionally untracked to avoid invalidating this
         // function completely. We want to initialize the VersionState with the
@@ -2942,17 +2949,18 @@ impl Project {
             .read_trait_strongly_consistent()
             .untracked()
             .await?;
-        let version = if let Some(client_version) = client_version
-            && *TraitRef::cell(version.clone()).id().await? != client_version
-        {
-            Vc::upcast::<Box<dyn Version>>(NotFoundVersion::new())
-                .into_trait_ref()
-                .await?
-        } else {
-            version
-        };
         let state = VersionState::new(version).await?;
         Ok(state)
+    }
+
+    /// The id of the current version of the client HMR content `chunk_name`.
+    #[turbo_tasks::function]
+    pub async fn hmr_version_id(self: Vc<Self>, chunk_name: RcStr) -> Result<Vc<Option<RcStr>>> {
+        let content = self.hmr_content(chunk_name).await?;
+        Ok(Vc::cell(match &*content {
+            Some(content) => Some(content.version().id().owned().await?),
+            None => None,
+        }))
     }
 
     /// Emits opaque HMR events whenever a change is detected in the chunk group

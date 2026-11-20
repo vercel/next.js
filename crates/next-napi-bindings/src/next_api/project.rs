@@ -56,8 +56,8 @@ use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Effects, FxIndexSet, GcRoot, OperationValue, OperationVc, PrettyPrintError, ReadRef,
-    ResolvedVc, TraitRef, TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi,
-    UpdateInfo, Vc, mark_top_level_task,
+    ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi, UpdateInfo,
+    Vc, mark_top_level_task,
     memory::release_freed_memory,
     message_queue::{CompilationEvent, Severity, TraceEvent},
     read_strongly_consistent_and_apply_effects, take_effects, turbo_tasks,
@@ -77,7 +77,7 @@ use turbopack_core::{
     issue::PlainIssue,
     output::{OutputAsset, OutputAssets},
     source_map::{SourceMap, Token},
-    version::{PartialUpdate, TotalUpdate, Update, Version, VersionState},
+    version::{PartialUpdate, TotalUpdate, Update, VersionState},
 };
 use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, Issue, ResourceIdentifier};
 use turbopack_trace_utils::{
@@ -1968,6 +1968,8 @@ pub fn project_entrypoints_subscribe(
 #[turbo_tasks::value(serialization = "skip")]
 struct HmrUpdateWithIssues {
     update: ReadRef<Update>,
+    /// The id of the version a partial update brings the content to.
+    to_version: Option<RcStr>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     effects: Arc<Effects>,
 }
@@ -1994,17 +1996,24 @@ async fn hmr_update_with_issues_operation(
     state: ResolvedVc<VersionState>,
 ) -> Result<Vc<HmrUpdateWithIssues>> {
     tracing::info!(chunk_name = %chunk_name, "hmr subscription");
-    let update_op = project_hmr_update_operation(project, chunk_name, state);
+    let update_op = project_hmr_update_operation(project, chunk_name.clone(), state);
     // NOTE: we do not use `strongly_consistent_catch_collectables` here. The JS HMR
     // consumers in `hot-reloader-turbopack.ts` (`subscribeToServerHmr` and
     // `subscribeToClientHmrEvents`) rely on this read *throwing* on build-graph
     // failures to trigger their recovery paths
     let update = update_op.read_strongly_consistent().await?;
+    // A partial update brings the content to its current version.
+    let to_version = if matches!(&*update, Update::Partial(_)) {
+        project.hmr_version_id(chunk_name).owned().await?
+    } else {
+        None
+    };
     let filter = project.issue_filter().await?;
     let issues = get_issues(update_op, &filter).await?;
     let effects = Arc::new(take_effects(update_op).await?);
     Ok(HmrUpdateWithIssues {
         update,
+        to_version,
         issues,
         effects,
     }
@@ -2210,8 +2219,12 @@ pub fn project_client_hmr_events(
                             .await?;
                     // HACK(bgw): Remove this unmark call
                     unmark_top_level_task_may_leak_eventually_consistent_state();
-                    let HmrUpdateWithIssues { update, issues, .. } = &*read;
-                    let mut to_version = None;
+                    let HmrUpdateWithIssues {
+                        update,
+                        to_version,
+                        issues,
+                        ..
+                    } = &*read;
                     match &**update {
                         Update::Missing | Update::None => {}
                         Update::Total(TotalUpdate { to }) => {
@@ -2219,10 +2232,9 @@ pub fn project_client_hmr_events(
                         }
                         Update::Partial(PartialUpdate { to, .. }) => {
                             state.set(to.clone()).await?;
-                            to_version = Some(TraitRef::cell(to.clone()).id().owned().await?);
                         }
                     }
-                    Ok((Some(update.clone()), issues.clone(), to_version))
+                    Ok((Some(update.clone()), issues.clone(), to_version.clone()))
                 }
             }
         },
