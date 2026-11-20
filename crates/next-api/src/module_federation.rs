@@ -10,7 +10,7 @@ use turbopack_core::{
     context::AssetContext,
     module::Module,
     module_graph::{
-        GraphEntries, ModuleGraph, SingleModuleGraph,
+        GraphEntries, ModuleGraph, ModuleGraphOptions, SingleModuleGraph,
         binding_usage_info::compute_binding_usage_info,
         chunk_group_info::{ChunkGroupEntry, ChunkGroupKey, EntryHeuristics},
     },
@@ -88,12 +88,25 @@ impl ModuleFederationEndpoint {
                 modules: vec![module],
                 heuristics: EntryHeuristics::high_priority(),
             },
-            false,
-            is_production,
+            ModuleGraphOptions {
+                include_binding_usage: is_production,
+                include_side_effects: is_production,
+                include_mergeable: *this
+                    .project
+                    .next_config()
+                    .turbo_scope_hoisting(this.project.next_mode())
+                    .await?,
+                ..Default::default()
+            },
         )];
         let (module_graph, binding_usage_info) = if is_production {
             let graph_without_usage = ModuleGraph::from_graphs(graphs.clone(), None);
-            let binding_usage_info = compute_binding_usage_info(graph_without_usage, true);
+            // Modules can also be generated through the app graph, so retain their codegen data.
+            let binding_usage_info = compute_binding_usage_info(
+                graph_without_usage,
+                /* remove_unused_imports */ true,
+                /* drop_unused_module_data */ false,
+            );
             let resolved_binding_usage_info = binding_usage_info.resolve().await?;
             (
                 ModuleGraph::from_graphs(graphs, Some(binding_usage_info)).connect(),
