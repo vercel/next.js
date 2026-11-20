@@ -157,6 +157,7 @@ function createWorkStoreImpl(
     shouldTrackFetchMetrics,
     clientComponentLoadTracker: undefined,
     reactServerErrorsByDigest: new Map(),
+    resolvedPromises: undefined,
   }
 
   // TODO: remove this when we resolve accessing the store outside the execution context
