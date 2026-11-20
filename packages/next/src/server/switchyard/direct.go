@@ -185,6 +185,9 @@ type directAttempt struct {
 	heldStatus int
 	// The compressor, once the body is being compressed.
 	encoder *encoder
+	// Whether any of the body has been written, so Flush has something
+	// to send.
+	wrote bool
 }
 
 func (f *switchyard) serveDirect(w http.ResponseWriter, r *http.Request, s *directState, up *goUpstream) {
@@ -236,7 +239,7 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 			}
 			// Node also fills these when the client sent none
 			// (base-server.ts, where it updates the x-forwarded-* headers).
-			setIfMissing(pr.Out.Header, "X-Forwarded-Host", pr.In.Host)
+			setIfMissing(pr.Out.Header, "X-Forwarded-Host", pr.Out.Host)
 			setIfMissing(pr.Out.Header, "X-Forwarded-Proto", "http")
 			// proxyNativeRequest sends the worker keep-alive and its token.
 			pr.Out.Header["Connection"] = keepAlive
@@ -405,6 +408,7 @@ func (a *directAttempt) Write(p []byte) (int, error) {
 	}
 	if a.encoder == nil {
 		n, err := a.ResponseWriter.Write(p)
+		a.wrote = true
 		a.Flush()
 		return n, err
 	}
@@ -421,15 +425,21 @@ func (a *directAttempt) sendEncoded() error {
 	}
 	_, err := a.ResponseWriter.Write(a.encoder.out.Bytes())
 	a.encoder.out.Reset()
+	a.wrote = true
 	a.Flush()
 	return err
 }
 
-// Flush sends what has been written to the client so far, except while the
-// headers are held. It never flushes the compressor; the middleware doesn't
-// either.
+// Flush sends what has been written to the client so far. It does nothing
+// while the headers are held. In an app without compression it also does
+// nothing before the first body byte: Node sends a response's headers with
+// its first chunk, or at its end, with Content-Length: 0 when there was no
+// body, while the proxy flushes the headers of a response of unknown length
+// right away, which would send an empty body chunked. With compression on,
+// Node's middleware sends such a response chunked too. It never flushes the
+// compressor; the middleware doesn't either.
 func (a *directAttempt) Flush() {
-	if a.heldStatus != 0 {
+	if a.heldStatus != 0 || (!a.wrote && !a.state.compress) {
 		return
 	}
 	if f, ok := a.ResponseWriter.(http.Flusher); ok {
