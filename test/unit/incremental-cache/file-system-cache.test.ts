@@ -175,6 +175,83 @@ describe('FileSystemCache (isrMemory 0)', () => {
     })
   })
 
+  it('should preserve fetch entry age and tags when a disk read adds a tag', async () => {
+    const testDir = await fs.mkdtemp(join(tmpdir(), 'next-fetch-tags-'))
+    const serverDistDir = join(testDir, 'server')
+    try {
+      const createCache = () =>
+        new FileSystemCache({
+          _requestHeaders: {},
+          flushToDisk: true,
+          fs: nodeFs,
+          serverDistDir,
+          revalidatedTags: [],
+          maxMemoryCacheSize: 0,
+        })
+
+      const key = 'fetch-cache-tag-rewrite'
+      await createCache().set(
+        key,
+        {
+          kind: CachedRouteKind.FETCH,
+          data: {
+            headers: {},
+            body: 'aGVsbG8=',
+            status: 200,
+            url: 'http://my-api.local',
+          },
+          revalidate: 30,
+        },
+        {
+          fetchCache: true,
+          fetchUrl: 'http://my-api.local',
+          fetchIdx: 1,
+          tags: ['fetch-tag-rewrite-a'],
+        }
+      )
+
+      const filePath = join(testDir, 'cache', 'fetch-cache', key)
+      const stored = JSON.parse(await fs.readFile(filePath, 'utf8'))
+      expect(stored.tags).toEqual(['fetch-tag-rewrite-a'])
+
+      // Age the entry so the revalidation below is unambiguously recorded
+      // after the entry was stored.
+      const originalLastModified = stored.lastModified - 60_000
+      await fs.writeFile(
+        filePath,
+        JSON.stringify({ ...stored, lastModified: originalLastModified })
+      )
+      await createCache().revalidateTag('fetch-tag-rewrite-a')
+
+      // A disk read from a call site with a different tag records that tag
+      // on the entry.
+      const res = await createCache().get(key, {
+        tags: ['fetch-tag-rewrite-b'],
+        kind: IncrementalCacheKind.FETCH,
+      })
+      expect(res?.value).toMatchObject({ kind: CachedRouteKind.FETCH })
+
+      // The rewrite must keep the previously stored tags and must not
+      // restamp the entry, or the revalidation recorded above could never
+      // expire it again.
+      const rewritten = JSON.parse(await fs.readFile(filePath, 'utf8'))
+      expect(rewritten.tags.sort()).toEqual([
+        'fetch-tag-rewrite-a',
+        'fetch-tag-rewrite-b',
+      ])
+      expect(rewritten.lastModified).toBe(originalLastModified)
+
+      expect(
+        await createCache().get(key, {
+          tags: ['fetch-tag-rewrite-a'],
+          kind: IncrementalCacheKind.FETCH,
+        })
+      ).toBeNull()
+    } finally {
+      await fs.rm(testDir, { recursive: true, force: true })
+    }
+  })
+
   it('should cache unstable_cache', async () => {
     await fsCache.set(
       'unstable-cache',

@@ -185,5 +185,23 @@ describe('file-system-cache-clock', () => {
       // The fresh value was written in the new format.
       await waitForFetchEntry(fresh)
     })
+
+    if (cacheMaxMemorySize === '0') {
+      it('serves fresh data after a disk read adds a tag to an invalidated fetch', async () => {
+        const pathname = '/route/fetch-tag/data'
+        const cached = await getData(pathname)
+        expect(cached).toStartWith('/fetch-tag-rewrite ')
+        await waitForFetchEntry(cached)
+
+        await revalidate()
+        // This caller shares the fetch key but uses a different tag, so it
+        // reads the cached value and adds its own tag to the disk entry.
+        expect(await getData('/route/fetch-tag/other')).toBe(cached)
+
+        const fresh = await getData(pathname)
+        expect(fresh).toStartWith('/fetch-tag-rewrite ')
+        expect(fresh).not.toBe(cached)
+      })
+    }
   })
 })

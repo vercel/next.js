@@ -275,12 +275,25 @@ export default class FileSystemCache implements CacheHandler {
                     storedTags
                   )
                 }
-                await this.set(key, data.value, {
-                  fetchCache: true,
-                  tags,
-                  fetchIdx,
-                  fetchUrl,
-                })
+                // Record the caller's tags in addition to the stored ones,
+                // and keep the entry's original lastModified. A plain `set`
+                // would restamp the entry, extending its freshness and
+                // moving it past any revalidateTag expiry already recorded
+                // for its tags, which must still be able to expire it.
+                const mergedTags = [
+                  ...new Set([...(storedTags ?? []), ...(tags ?? [])]),
+                ]
+                await this.set(
+                  key,
+                  { ...data.value, tags: mergedTags },
+                  {
+                    fetchCache: true,
+                    tags: mergedTags,
+                    fetchIdx,
+                    fetchUrl,
+                  },
+                  data.lastModified
+                )
               }
             }
           } else if (kind === IncrementalCacheKind.APP_PAGE) {
@@ -618,16 +631,18 @@ export default class FileSystemCache implements CacheHandler {
     data: IncrementalCacheValue | null,
     ctx:
       | SetIncrementalFetchCacheContext
-      | SetIncrementalResponseCacheHandlerContext
+      | SetIncrementalResponseCacheHandlerContext,
+    // areTagsExpired compares with the monotonic clock, so the entry is
+    // stamped with it in memory and on disk. Without a stored stamp, a read
+    // from disk would fall back to the file's mtime, which is wall-clock
+    // time. Callers re-writing an existing entry (e.g. to record additional
+    // tags on a disk read) pass the entry's original stamp so the rewrite
+    // does not refresh it.
+    lastModified = Math.floor(performance.timeOrigin + performance.now())
   ) {
     const cacheControl = ctx.fetchCache ? undefined : ctx.cacheControl
     const seedState = this.getSeedReadState(key)
     if (seedState) seedState.version++
-
-    // areTagsExpired compares with the monotonic clock, so the entry is stamped
-    // with it in memory and on disk. Without a stored stamp, a read from disk
-    // would fall back to the file's mtime, which is wall-clock time.
-    const lastModified = Math.floor(performance.timeOrigin + performance.now())
 
     FileSystemCache.memoryCache?.set(key, {
       value: data,
