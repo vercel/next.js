@@ -1,4 +1,5 @@
 import { join } from 'path'
+import { utimes } from 'fs/promises'
 import execa from 'execa'
 import { nextTestSetup, type NextInstance } from 'e2e-utils'
 import { retry, runNextCommand } from 'next-test-utils'
@@ -207,6 +208,31 @@ describe('stale-dev-types', () => {
       expect(output).not.toContain('app/temp-route/page')
       expect(output).not.toContain('TS2307')
       expect(exitCode).toBe(0)
+    })
+  })
+
+  describe('next typegen with temporary files of interrupted writes', () => {
+    const { next } = nextTestSetup({
+      files: FIXTURE_DIR,
+    })
+
+    it('should remove only the stale temporary files', async () => {
+      await waitForValidator(next, '/temp-route', 'temp-route/page')
+      await next.stop()
+
+      // Left behind by a process killed between writing and renaming.
+      const orphaned = '.next/types/.tmp/routes.d.ts.1.00000000.tmp'
+      // Stands in for a pending write of another running process.
+      const pending = '.next/types/.tmp/routes.d.ts.2.11111111.tmp'
+      await next.patchFile(orphaned, 'export {}\n')
+      await next.patchFile(pending, 'export {}\n')
+      const anHourAgo = new Date(Date.now() - 60 * 60 * 1000)
+      await utimes(join(next.testDir, orphaned), anHourAgo, anHourAgo)
+
+      await runTypegen(next)
+
+      expect(await next.hasFile(orphaned)).toBe(false)
+      expect(await next.hasFile(pending)).toBe(true)
     })
   })
 

@@ -35,8 +35,21 @@ export const SHARED_TYPES_LOCK = 'lock'
  * Directory (inside the shared types directory, so renames stay on one
  * filesystem) for the temporary files of in-flight atomic writes. Preserved by
  * `next build`'s clean, so it never deletes another process's pending write.
+ * Temporary files left behind by a killed process are removed by
+ * `removeStaleTempFiles`.
  */
 export const SHARED_TYPES_TEMP_DIR = '.tmp'
+
+const TEMP_FILE_SUFFIX = '.tmp'
+
+/**
+ * Temporary files older than this are left behind by a process that was killed
+ * before renaming them into place. Writing a type file takes milliseconds, so
+ * this is far longer than any pending write, and long enough that coarse mtime
+ * resolution (e.g. 2s on FAT) or moderate clock skew (e.g. on NFS) can't make a
+ * pending write look stale.
+ */
+const STALE_TEMP_FILE_AGE_MS = 60_000
 
 /** Entries in the shared types directory that are preserved by `next build`'s `cleanDistDir`. */
 export const SHARED_TYPES_PRESERVED_ENTRIES: ReadonlySet<string> = new Set([
@@ -107,7 +120,8 @@ export async function writeSharedTypePlaceholders({
  */
 async function writeFileIfChanged(
   filePath: string,
-  content: string
+  content: string,
+  isRetry = false
 ): Promise<void> {
   try {
     if ((await fs.readFile(filePath, 'utf8')) === content) {
@@ -117,18 +131,57 @@ async function writeFileIfChanged(
 
   const tempDir = path.join(path.dirname(filePath), SHARED_TYPES_TEMP_DIR)
   await fs.mkdir(tempDir, { recursive: true })
-  // The suffix doesn't end in `.ts`, so tsconfig never includes temp files.
+  // The name is unique, so a rename only ever moves this write's own file. The
+  // suffix doesn't end in `.ts`, so tsconfig never includes temp files.
   const tempPath = path.join(
     tempDir,
-    `${path.basename(filePath)}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`
+    `${path.basename(filePath)}.${process.pid}.${randomBytes(4).toString('hex')}${TEMP_FILE_SUFFIX}`
   )
-  await fs.writeFile(tempPath, content)
   try {
+    await fs.writeFile(tempPath, content)
     await fs.rename(tempPath, filePath)
-  } catch (err) {
+  } catch (err: any) {
+    // Don't leave a partially written temporary file behind.
     await fs.rm(tempPath, { force: true })
+    // If this write stalled for longer than `STALE_TEMP_FILE_AGE_MS`, another
+    // process may have removed its temporary file as stale. The write is
+    // idempotent, so try once more.
+    if (err?.code === 'ENOENT' && !isRetry) {
+      return writeFileIfChanged(filePath, content, true)
+    }
     throw err
   }
+}
+
+/**
+ * Removes temporary files that a killed process left behind before renaming
+ * them into place. Pending writes of running processes are much younger than
+ * `STALE_TEMP_FILE_AGE_MS`, so they are kept, even when generation runs
+ * without the types lock. Failures are ignored: leftover temporary files never
+ * affect type checking.
+ */
+async function removeStaleTempFiles(typesDir: string): Promise<void> {
+  const tempDir = path.join(typesDir, SHARED_TYPES_TEMP_DIR)
+  let entries: string[]
+  try {
+    entries = await fs.readdir(tempDir)
+  } catch {
+    return
+  }
+  const now = Date.now()
+  await Promise.all(
+    entries
+      .filter((entry) => entry.endsWith(TEMP_FILE_SUFFIX))
+      .map(async (entry) => {
+        const tempPath = path.join(tempDir, entry)
+        try {
+          const { mtimeMs } = await fs.lstat(tempPath)
+          if (now - mtimeMs > STALE_TEMP_FILE_AGE_MS) {
+            await fs.rm(tempPath, { force: true })
+          }
+        } catch {}
+      })
+  )
 }
 
 async function removeFile(filePath: string): Promise<void> {
@@ -253,6 +306,8 @@ async function generateSharedTypesUnlocked({
     rewrites: config.rewrites,
     validatorFilePath,
   })
+
+  await removeStaleTempFiles(typesDir)
 
   const file = (name: string) => path.join(typesDir, name)
 
