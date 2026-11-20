@@ -335,6 +335,7 @@
                                 ],
                                 span: 57..68,
                                 in_truthiness_context: false,
+                                escapes_with_dynamic_prop: false,
                             },
                         ],
                         ast_path: [
@@ -392,6 +393,7 @@
                         ],
                         span: 57..81,
                         in_truthiness_context: false,
+                        escapes_with_dynamic_prop: false,
                     },
                     Conditional {
                         condition: Binary(

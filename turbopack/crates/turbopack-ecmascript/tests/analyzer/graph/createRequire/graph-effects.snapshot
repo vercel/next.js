@@ -205,6 +205,7 @@
         ],
         span: 99..122,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     MemberCall {
         obj: Module(
@@ -348,6 +349,7 @@
                         ],
                         span: 123..138,
                         in_truthiness_context: false,
+                        escapes_with_dynamic_prop: false,
                     },
                 ],
             ),
@@ -487,6 +489,7 @@
         ],
         span: 176..203,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     MemberCall {
         obj: Variable(
@@ -624,6 +627,7 @@
                         ],
                         span: 204..219,
                         in_truthiness_context: false,
+                        escapes_with_dynamic_prop: false,
                     },
                 ],
             ),
@@ -763,6 +767,7 @@
         ],
         span: 257..284,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     MemberCall {
         obj: Variable(
@@ -967,6 +972,7 @@
         ],
         span: 335..362,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     MemberCall {
         obj: Variable(
@@ -1105,6 +1111,7 @@
                         ],
                         span: 363..377,
                         in_truthiness_context: false,
+                        escapes_with_dynamic_prop: false,
                     },
                 ],
             ),

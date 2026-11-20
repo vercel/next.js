@@ -175,6 +175,7 @@
                         ],
                         span: 36..51,
                         in_truthiness_context: false,
+                        escapes_with_dynamic_prop: false,
                     },
                 ],
             ),

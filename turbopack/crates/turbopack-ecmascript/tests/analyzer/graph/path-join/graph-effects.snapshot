@@ -241,6 +241,7 @@
         ],
         span: 115..124,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     MemberCall {
         obj: Variable(
@@ -368,6 +369,7 @@
         ],
         span: 158..167,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     MemberCall {
         obj: Variable(
@@ -495,6 +497,7 @@
         ],
         span: 202..211,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     MemberCall {
         obj: Variable(
@@ -622,6 +625,7 @@
         ],
         span: 246..255,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     MemberCall {
         obj: Variable(
@@ -749,6 +753,7 @@
         ],
         span: 291..300,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     MemberCall {
         obj: Variable(
@@ -1052,6 +1057,7 @@
         ],
         span: 458..465,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     Member {
         obj: Member(
@@ -1163,6 +1169,7 @@
         ],
         span: 486..493,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     ImportedBinding {
         esm_reference_index: 3,

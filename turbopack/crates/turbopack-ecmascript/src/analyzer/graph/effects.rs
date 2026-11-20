@@ -165,6 +165,11 @@ pub enum Effect<'a> {
         // Whether this value from this member access only ends up being used as a truthiness check
         // (and the full value doesn't escape).
         in_truthiness_context: bool,
+        /// Whether the property is not a constant and the value of the member access escapes (see
+        /// [`Effect::PossibleProcessEnvEscape`]). If the property turns out to be `env` after
+        /// linking (e.g. `const key = 'env'; foo(process[key])`), this is a possible escape of
+        /// `process.env`.
+        escapes_with_dynamic_prop: bool,
     },
     /// A property access created by an object destructuring pattern.
     DestructuredMember {
@@ -175,7 +180,9 @@ pub enum Effect<'a> {
     /// A value that might be `process.env` escapes, i.e. it's used in a way that allows reading
     /// arbitrary keys of it (e.g. passed to a function or assigned to a variable). Only emitted
     /// for candidates found with a cheap syntactic check (`<obj>.env`, or a binding destructured
-    /// as `env`), whether the value really is `process.env` is decided after linking.
+    /// or imported as `env`), whether the value really is `process.env` is decided after linking.
+    /// Member accesses with a non-constant property are handled via
+    /// [`Effect::Member::escapes_with_dynamic_prop`] instead.
     PossibleProcessEnvEscape {
         value: BumpBox<'a, JsValue<'a>>,
         span: Span,

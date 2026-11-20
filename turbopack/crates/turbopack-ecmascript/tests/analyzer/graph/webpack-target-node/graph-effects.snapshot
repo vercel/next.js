@@ -79,6 +79,7 @@
         ],
         span: 46..56,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     Member {
         obj: Variable(
@@ -160,6 +161,7 @@
         ],
         span: 66..77,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     Member {
         obj: Variable(
@@ -241,6 +243,7 @@
         ],
         span: 89..104,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     Member {
         obj: Variable(
@@ -365,6 +368,7 @@
         ],
         span: 259..280,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     MemberCall {
         obj: Variable(
@@ -615,6 +619,7 @@
         ],
         span: 327..348,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     MemberCall {
         obj: Variable(
@@ -1177,6 +1182,7 @@
         ],
         span: 828..861,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     MemberCall {
         obj: Variable(
@@ -1535,6 +1541,7 @@
                 ],
                 span: 965..975,
                 in_truthiness_context: false,
+                escapes_with_dynamic_prop: false,
             },
             MemberCall {
                 obj: Variable(
@@ -1821,6 +1828,7 @@
         ],
         span: 965..985,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     MemberCall {
         obj: MemberCall(
@@ -2251,6 +2259,7 @@
         ],
         span: 1156..1177,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
     MemberCall {
         obj: Variable(
@@ -2464,6 +2473,7 @@
                         ],
                         span: 1252..1273,
                         in_truthiness_context: false,
+                        escapes_with_dynamic_prop: false,
                     },
                 ],
             ),
@@ -2779,5 +2789,6 @@
         ],
         span: 1342..1356,
         in_truthiness_context: false,
+        escapes_with_dynamic_prop: false,
     },
 ]
