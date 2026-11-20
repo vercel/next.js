@@ -19,7 +19,10 @@ Default: diagnose. Edit only on explicit request.
   ./node_modules/.bin/next experimental-request-insights --help
   ```
 
-  Follow it.
+  Follow it. If Request Insights is disabled, restart the same development
+  command with `--experimental-request-insights`, wait until it is ready, and
+  reproduce the affected request once. Inspect that request. State that an
+  unrecorded original request cannot be recovered.
 
 - **Browser:** For slow startup or navigation, or excess client JavaScript, use
   `next-bundle-optimizer` in audit mode. If unavailable, install it:
