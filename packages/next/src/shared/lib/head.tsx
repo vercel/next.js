@@ -47,6 +47,17 @@ function onlyReactElement(
 
 const METATYPES = ['name', 'httpEquiv', 'charSet', 'itemProp']
 
+// Valid HTML tags allowed inside <Head>
+const VALID_HEAD_TAGS = new Set([
+  'title',
+  'base',
+  'link',
+  'style',
+  'meta',
+  'script',
+  'noscript',
+])
+
 /*
  returns a function for filtering head child elements
  which shouldn't be duplicated, like <title/>
@@ -141,6 +152,16 @@ function reduceComponents(
         } else if (c.type === 'link' && c.props['rel'] === 'stylesheet') {
           warnOnce(
             `Do not add stylesheets using next/head (see <link rel="stylesheet"> tag with href="${c.props['href']}"). Use Document instead. \nSee more info here: https://nextjs.org/docs/messages/no-stylesheets-in-head-component`
+          )
+        } else if (
+          typeof c.type === 'string' &&
+          !VALID_HEAD_TAGS.has(c.type)
+        ) {
+          warnOnce(
+            `<${c.type}> is not a valid element to place inside next/head. ` +
+              `Only valid head elements such as <title>, <meta>, <link>, <script>, <style>, <base>, and <noscript> are allowed. ` +
+              `The invalid element will be ignored. ` +
+              `\nSee more info here: https://nextjs.org/docs/messages/invalid-head-tag`
           )
         }
       }
