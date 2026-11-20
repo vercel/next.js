@@ -15,6 +15,7 @@ This example is the no-dependency starting point: both Next.js cache APIs agains
 
 - [`@trieb.work/nextjs-turbo-redis-cache`](https://www.npmjs.com/package/@trieb.work/nextjs-turbo-redis-cache) — also available as [`cache-handler-redis-turbo`](../cache-handler-redis-turbo)
 - [`@mrjasonroy/cache-components-cache-handler`](https://github.com/mrjasonroy/cache-components-cache-handler)
+- [`@leejpsd/nextjs-cache-handler`](https://www.npmjs.com/package/@leejpsd/nextjs-cache-handler)
 
 ## How to use
 
