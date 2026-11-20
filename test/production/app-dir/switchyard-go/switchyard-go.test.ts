@@ -278,6 +278,9 @@ describe('switchyard-go', () => {
     // response, which Node drops.
     // @gate !switchyard
     it('drops early hints, keeps repeated Set-Cookie and the Trailer header', async () => {
+      // The first request to a route.go starts its worker through Node; the
+      // second can go to the worker directly.
+      await send('/go/extras')
       const res = await send('/go/extras')
       expect(res.status).toBe(200)
       expect(res.headers.filter(([name]) => name === 'set-cookie')).toEqual([
@@ -293,6 +296,8 @@ describe('switchyard-go', () => {
     // which Node drops.
     // @gate !switchyard
     it('drops the trailer values the handler sends', async () => {
+      // As above: the second request can go to the worker directly.
+      await send('/go/extras')
       const trailers = await responseTrailers(
         Number(next.appPort),
         '/go/extras'
