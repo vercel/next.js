@@ -285,6 +285,12 @@ describe('switchyard-go', () => {
       }
     })
 
+    it('rejects worker response headers larger than Node’s limit through Node', async () => {
+      // A query pair without "=" always goes through Node (checkQuery).
+      const res = await send('/go/extras?largeHeader=1&via-node')
+      expect(res.status).toBe(500)
+    })
+
     // TODO: on the direct path, Switchyard doesn't apply Node's limit on
     // the worker's response headers yet.
     // @gate !switchyard
@@ -319,6 +325,9 @@ describe('switchyard-go', () => {
     )
 
     it('drops early hints, keeps repeated Set-Cookie and the Trailer header', async () => {
+      // The first request to a route.go starts its worker through Node; the
+      // second can go to the worker directly.
+      await send('/go/extras')
       const res = await send('/go/extras')
       expect(res.status).toBe(200)
       expect(res.headers.filter(([name]) => name === 'set-cookie')).toEqual([
@@ -334,6 +343,8 @@ describe('switchyard-go', () => {
     // which Node drops.
     // @gate !switchyard
     it('drops the trailer values the handler sends', async () => {
+      // As above: the second request can go to the worker directly.
+      await send('/go/extras')
       const trailers = await responseTrailers(
         Number(next.appPort),
         '/go/extras'

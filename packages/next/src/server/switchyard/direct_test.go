@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -132,7 +133,7 @@ func TestRequestsOutsideTheGateGoToNode(t *testing.T) {
 
 func TestFirstRequestGoesToNodeUntilTheWorkerIsAnnounced(t *testing.T) {
 	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "go") })
-	fx.switchyard.apply(controlMessage{Event: "gone", Address: fx.workerAddr})
+	fx.switchyard.apply(controlMessage{Event: "gone", Address: fx.workerAddr, Token: "secret"})
 	if res := fx.raw(t, "GET /api/echo HTTP/1.1"); !strings.HasSuffix(res, "node") {
 		t.Fatalf("after gone: %q", res)
 	}
@@ -187,7 +188,7 @@ func TestAWorkerFailingBeforeHeadersGetsAPlain500(t *testing.T) {
 func TestReadControlSkipsBadLinesAndStopsAtEOF(t *testing.T) {
 	var got []string
 	var errs int
-	readControl(strings.NewReader("{\"event\":\"gone\",\"address\":\"a\"}\nnot json\n{\"event\":\"gone\",\"address\":\"b\"}"),
+	readControl(strings.NewReader("{\"event\":\"gone\",\"address\":\"a\",\"token\":\"t\"}\nnot json\n{\"event\":\"gone\",\"address\":\"b\",\"token\":\"t\"}"),
 		func(m controlMessage) { got = append(got, m.Address) },
 		func(error) { errs++ })
 	if strings.Join(got, ",") != "a,b" || errs != 1 {
@@ -215,7 +216,14 @@ func TestApplyKeepsTheTableAndWorkersNodeReports(t *testing.T) {
 		t.Error("an unreadable table replaced the previous one")
 	}
 
-	f.apply(controlMessage{Event: "gone", Address: "127.0.0.1:51300"})
+	// A late gone for an earlier worker that had the same port leaves this
+	// one in place.
+	f.apply(controlMessage{Event: "gone", Address: "127.0.0.1:51300", Token: "earlier"})
+	if f.state.Load().workers["/api/echo/route"] == nil {
+		t.Fatal("a gone for another worker's token removed this one")
+	}
+
+	f.apply(controlMessage{Event: "gone", Address: "127.0.0.1:51300", Token: "secret"})
 	if len(f.state.Load().workers) != 0 {
 		t.Errorf("workers after gone: %v", f.state.Load().workers)
 	}
@@ -422,6 +430,81 @@ func TestAnEmptyBodyOfUnknownLengthGetsContentLengthZero(t *testing.T) {
 	// empty body goes out with Content-Length: 0.
 	if !strings.Contains(res, "\r\nContent-Length: 0\r\n") || strings.Contains(res, "chunked") {
 		t.Errorf("response %q", res)
+	}
+}
+
+// When a reused connection closes after the worker read the request, Go's
+// Transport sends a GET again on a new connection. If the worker is gone by
+// then, that dial fails, but the worker already handled the request: it must
+// not run again in Node.
+func TestARequestTheWorkerAlreadyGotIsNotHandedToNode(t *testing.T) {
+	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) {})
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var calls atomic.Int32
+	worker := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if calls.Add(1) == 1 {
+			io.WriteString(w, "go")
+			return
+		}
+		// The worker exits after reading the request, before answering.
+		ln.Close()
+		conn, _, _ := w.(http.Hijacker).Hijack()
+		conn.Close()
+	})}
+	go worker.Serve(ln)
+	t.Cleanup(func() { worker.Close() })
+	fx.announce(ln.Addr().String(), "/api/echo/route")
+
+	if res := fx.raw(t, "GET /api/echo HTTP/1.1"); !strings.HasSuffix(res, "go") {
+		t.Fatalf("first response %q", res)
+	}
+	res := fx.raw(t, "GET /api/echo HTTP/1.1")
+	if !strings.HasPrefix(res, "HTTP/1.1 500 ") {
+		t.Errorf("second response %q", res)
+	}
+	select {
+	case got := <-fx.node:
+		t.Errorf("Node ran %s after the worker had it", got.RequestURI)
+	default:
+	}
+	if n := calls.Load(); n != 2 {
+		t.Errorf("worker saw %d requests, want 2", n)
+	}
+}
+
+func TestNodesInternalHeadersAreStrippedWithoutATableDirectBlock(t *testing.T) {
+	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "go") })
+	fx.switchyard.apply(controlMessage{Event: "table", Table: json.RawMessage(`{"contract":{"version":1},"maxHeaderBytes":16384,"goExact":{"/api/echo":"/api/echo/route"}}`)})
+	fx.raw(t, "GET /api/echo HTTP/1.1\r\nX-Next-Internal-Forged: 1")
+	if got := (<-fx.worker).Header.Get("X-Next-Internal-Forged"); got != "" {
+		t.Errorf("worker got X-Next-Internal-Forged: %q", got)
+	}
+}
+
+func TestApplyIgnoresIncompleteWorkerMessages(t *testing.T) {
+	f := newSwitchyard(http.NotFoundHandler(), &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 3000}, time.Second)
+	complete := controlMessage{Event: "worker", Page: "/api/echo/route",
+		Address: "127.0.0.1:51300", TokenHeader: "x-next-internal-go-token", Token: "secret"}
+	for _, clear := range []func(*controlMessage){
+		func(m *controlMessage) { m.Page = "" },
+		func(m *controlMessage) { m.Address = "" },
+		func(m *controlMessage) { m.TokenHeader = "" },
+		func(m *controlMessage) { m.Token = "" },
+	} {
+		msg := complete
+		clear(&msg)
+		f.apply(msg)
+	}
+	if len(f.state.Load().workers) != 0 {
+		t.Errorf("workers from incomplete messages: %v", f.state.Load().workers)
+	}
+	f.apply(complete)
+	f.apply(controlMessage{Event: "gone", Address: "127.0.0.1:51300"})
+	if f.state.Load().workers["/api/echo/route"] == nil {
+		t.Error("a gone without a token removed a worker")
 	}
 }
 
