@@ -1,0 +1,91 @@
+---
+title: Diagnosing slow requests
+nav_title: Request Insights
+description: Diagnose slow Next.js App Router requests with Request Insights before adding instrumentation or collecting a CPU profile.
+version: experimental
+related:
+  links:
+    - app/api-reference/cli/next#next-experimental-request-insights-options
+---
+
+Request Insights records completed App Router requests during development. Use it to diagnose cold-only or intermittent server latency from the current development session, even after the route becomes fast.
+
+This guide shows how to select the original request, attribute its elapsed time, and decide whether a CPU profile is needed.
+
+## Prerequisites
+
+Enable Request Insights in `next.config.ts`, then start the development server:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    requestInsights: true,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    requestInsights: true,
+  },
+}
+
+module.exports = nextConfig
+```
+
+Keep the server running while you investigate. Restarting it discards the in-memory request history and can remove the evidence for a cold or intermittent slowdown.
+
+## Example
+
+Suppose the first request to `/reports` takes several seconds, but later requests are fast. Start with the retained request instead of adding logs, reading source, or reproducing the slowdown.
+
+### Step 1: Find the original request
+
+List retained requests for the affected route:
+
+```bash
+next experimental-request-insights list --route /reports --json
+```
+
+Select the completed request that matches the reported occurrence. Use its route, start time, duration, and status to distinguish it from tooling requests and warm retries.
+
+If automatic server discovery fails, the command reports the expected project directory or origin. Pass the active origin explicitly:
+
+```bash
+next experimental-request-insights list --route /reports --url http://localhost:3000 --json
+```
+
+If no matching trace remains, reproduce the request once without restarting the server and list it immediately.
+
+### Step 2: Inspect its timeline
+
+Inspect the matching request using its full ID or an unambiguous prefix:
+
+```bash
+next experimental-request-insights get <request-id> --json
+```
+
+Compare each span's `startTime`, `durationMs`, `parentSpanId`, and attributes. Account for the dominant interval and plausible alternatives, including compilation, module loading, instrumentation, metadata, React rendering, awaits, cache behavior, fetches, and response start.
+
+Component intervals are elapsed render time. They do not prove that the component used the CPU for the entire interval. Inspect source only after the timeline has localized the slow operation.
+
+### Step 3: Report the measured cause
+
+Report:
+
+- The request ID and total duration
+- The dominant span and its duration
+- The measured alternatives that did not account for the delay
+- Whether a CPU profile is needed
+
+Do not collect a CPU profile when the timeline already identifies the slow phase. Collect one only when Request Insights localizes substantial CPU time but cannot identify the responsible function.
+
+## Next steps
+
+Run `next experimental-request-insights --help` for the installed version's command summary and `list` or `get --help` for option details.
