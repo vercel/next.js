@@ -46,7 +46,6 @@ impl IdMapping {
         *entry = Some(span);
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     fn len(&self) -> usize {
         self.len
     }
@@ -459,7 +458,6 @@ impl TraceFormat for TurbopackFormat {
         Vec::with_capacity(4_096)
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     fn stats(&self) -> String {
         use std::fmt::Write;
 

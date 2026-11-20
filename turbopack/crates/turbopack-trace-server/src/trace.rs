@@ -22,7 +22,6 @@ pub(crate) trait TraceFormat {
 
     fn read(&mut self, buffer: &[u8], reuse: &mut Self::Reused) -> Result<usize>;
 
-    #[cfg(not(target_arch = "wasm32"))]
     fn stats(&self) -> String {
         String::new()
     }
@@ -35,7 +34,6 @@ struct ErasedTraceFormat(Box<dyn ObjectSafeTraceFormat>);
 trait ObjectSafeTraceFormat {
     fn create_reused(&self) -> ErasedReused;
     fn read(&mut self, buffer: &[u8], reuse: &mut ErasedReused) -> Result<usize>;
-    #[cfg(not(target_arch = "wasm32"))]
     fn stats(&self) -> String;
 }
 
@@ -52,7 +50,6 @@ where
         TraceFormat::read(self, buffer, reuse)
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     fn stats(&self) -> String {
         TraceFormat::stats(self)
     }
@@ -67,7 +64,6 @@ impl ObjectSafeTraceFormat for ErasedTraceFormat {
         self.0.read(buffer, reuse)
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     fn stats(&self) -> String {
         self.0.stats()
     }
@@ -127,7 +123,7 @@ impl TraceParser {
 
     /// Completes a finite trace input and rejects an incomplete final record.
     #[allow(dead_code, reason = "unused by the native binary's streaming reader")]
-    pub fn finish(mut self) -> Result<()> {
+    pub fn finish(&mut self) -> Result<()> {
         self.push(&[])?;
         if self.format.is_none() {
             bail!("trace is too short to determine its format");
@@ -142,8 +138,7 @@ impl TraceParser {
         Ok(())
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn stats(&self) -> String {
+    pub fn stats(&self) -> String {
         self.format
             .as_ref()
             .map(|(format, _)| format.stats())
