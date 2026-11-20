@@ -472,6 +472,9 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
+      # Pin Go for the App Router route.go / native proxy e2e tests instead of
+      # using whatever Go the runner image ships (see build_reusable.yml).
+      needsGo: 'yes'
       afterBuild: |
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_DEV=1
@@ -517,6 +520,9 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 20.9.0
+      # Pin Go for the App Router route.go / native proxy e2e tests instead of
+      # using whatever Go the runner image ships (see build_reusable.yml).
+      needsGo: 'yes'
       afterBuild: |
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_BUILD=1
