@@ -354,6 +354,58 @@ func TestAddsNoContentTypeAfterAnEarlyHint(t *testing.T) {
 	}
 }
 
+// The Early Hints themselves still reach the client, each with its own Link
+// header, and nothing from them leaks into the final response.
+func TestPassesOnEveryEarlyHint(t *testing.T) {
+	addr, _ := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Link", "</a.css>; rel=preload")
+		w.WriteHeader(http.StatusEarlyHints)
+		w.Header().Set("Link", "</b.js>; rel=preload")
+		w.WriteHeader(http.StatusEarlyHints)
+		// Go's server, unlike Node's writeEarlyHints, keeps headers set for a
+		// 1xx and sends them again with the final response; clear them so the
+		// stand-in for Node sends only what Node would.
+		delete(w.Header(), "Link")
+		w.Header()["Content-Type"] = nil
+		w.Write([]byte("<html>hello</html>"))
+	})
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	io.WriteString(conn, get("/"))
+	reader := bufio.NewReader(conn)
+	// http.ReadResponse returns a 1xx as it is; Go's client would skip it.
+	var links []string
+	for {
+		res, err := http.ReadResponse(reader, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.StatusCode == http.StatusEarlyHints {
+			links = append(links, res.Header.Get("Link"))
+			continue
+		}
+		io.Copy(io.Discard, res.Body)
+		if res.StatusCode != http.StatusOK {
+			t.Errorf("final status %d, want 200", res.StatusCode)
+		}
+		if v, ok := res.Header["Content-Type"]; ok {
+			t.Errorf("final Content-Type %q, want none", v)
+		}
+		if v := res.Header.Get("Link"); v != "" {
+			t.Errorf("final response has Link %q from an Early Hint", v)
+		}
+		break
+	}
+	want := []string{"</a.css>; rel=preload", "</b.js>; rel=preload"}
+	if strings.Join(links, "|") != strings.Join(want, "|") {
+		t.Errorf("Early Hints Link headers %q, want %q", links, want)
+	}
+}
+
 func TestKeepsEverySetCookie(t *testing.T) {
 	addr, _ := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Set-Cookie", "a=1")
