@@ -10,6 +10,10 @@ const withCustomPagesDir = path.join(__dirname, 'with-custom-pages-dir')
 const withNestedPagesDir = path.join(__dirname, 'with-nested-pages-dir')
 const withoutPagesDir = path.join(__dirname, 'without-pages-dir')
 const withAppDir = path.join(__dirname, 'with-app-dir')
+const withCustomPageExtensionsDir = path.join(
+  __dirname,
+  'with-custom-page-extensions'
+)
 
 const linters = {
   withoutPages: new Linter({
@@ -26,6 +30,10 @@ const linters = {
   }),
   withCustomPages: new Linter({
     cwd: withCustomPagesDir,
+    configType: 'eslintrc',
+  }),
+  withCustomPageExtensions: new Linter({
+    cwd: withCustomPageExtensionsDir,
     configType: 'eslintrc',
   }),
 }
@@ -69,6 +77,26 @@ const linterConfigWithNestedContentRootDirDirectory = {
   settings: {
     next: {
       rootDir: path.join(withNestedPagesDir, 'demos/with-nextjs'),
+    },
+  },
+}
+
+const linterConfigWithCustomPageExtensions = {
+  ...linterConfig,
+  settings: {
+    next: {
+      rootDir: withCustomPageExtensionsDir,
+      pageExtensions: ['page.tsx', 'page.ts', 'page.jsx', 'page.js'],
+    },
+  },
+}
+
+const linterConfigWithMdxPageExtensions = {
+  ...linterConfig,
+  settings: {
+    next: {
+      rootDir: withCustomPageExtensionsDir,
+      pageExtensions: ['mdx', 'page.tsx'],
     },
   },
 }
@@ -611,16 +639,50 @@ describe('no-html-link-for-pages', function () {
     )
     assert.deepEqual(report, [])
   })
-  it('invalid intercepted route with appDir', function () {
-    const [report] = linters.withApp.verify(
-      invalidInterceptedRouteCode,
-      linterConfig,
+  it('invalid link element with custom pageExtensions', function () {
+    const [report] = linters.withCustomPageExtensions.verify(
+      invalidStaticCode,
+      linterConfigWithCustomPageExtensions,
       { filename: 'foo.js' }
     )
     assert.notEqual(report, undefined, 'No lint errors found.')
     assert.equal(
       report.message,
-      'Do not use an `<a>` element to navigate to `/photo/1/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+      'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+
+    const [secondReport] = linters.withCustomPageExtensions.verify(
+      'export default () => <a href="/about">About</a>',
+      linterConfigWithCustomPageExtensions,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(secondReport, undefined, 'No lint errors found.')
+    assert.equal(
+      secondReport.message,
+      'Do not use an `<a>` element to navigate to `/about/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+
+  it('valid link for non-page file with custom pageExtensions', function () {
+    const report = linters.withCustomPageExtensions.verify(
+      'export default () => <a href="/component">Component</a>',
+      linterConfigWithCustomPageExtensions,
+      { filename: 'foo.js' }
+    )
+    // component.tsx does not match pageExtensions: ['page.tsx', ...] so it is not a page
+    assert.deepEqual(report, [])
+  })
+
+  it('invalid link element with mdx pageExtension', function () {
+    const [report] = linters.withCustomPageExtensions.verify(
+      'export default () => <a href="/docs">Docs</a>',
+      linterConfigWithMdxPageExtensions,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/docs/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
   })
 })

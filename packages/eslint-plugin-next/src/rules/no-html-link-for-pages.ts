@@ -41,6 +41,54 @@ const memoize = <T = any>(fn: (...args: any[]) => T) => {
 const cachedGetUrlFromPagesDirectories = memoize(getUrlFromPagesDirectories)
 const cachedGetUrlFromAppDirectory = memoize(getUrlFromAppDirectory)
 
+function getPageExtensions(
+  rootDirs: string[],
+  context: Rule.RuleContext
+): string[] | undefined {
+  const nextSettings: { pageExtensions?: string[] } =
+    context.settings?.next || {}
+  if (
+    Array.isArray(nextSettings.pageExtensions) &&
+    nextSettings.pageExtensions.length > 0
+  ) {
+    return nextSettings.pageExtensions
+  }
+
+  for (const dir of rootDirs) {
+    for (const ext of ['js', 'mjs', 'cjs', 'ts']) {
+      const configPath = path.join(dir, `next.config.${ext}`)
+      if (fs.existsSync(configPath)) {
+        try {
+          let config = require(configPath)
+          if (typeof config === 'function') {
+            config = config('', { defaultConfig: {} })
+          }
+          if (
+            Array.isArray(config?.pageExtensions) &&
+            config.pageExtensions.length > 0
+          ) {
+            return config.pageExtensions
+          }
+        } catch {
+          try {
+            const content = fs.readFileSync(configPath, 'utf8')
+            const match = content.match(/pageExtensions:\s*\[([^\]]+)\]/)
+            if (match) {
+              const parsed = match[1]
+                .split(',')
+                .map((s) => s.trim().replace(/['"`]/g, ''))
+                .filter(Boolean)
+              if (parsed.length > 0) return parsed
+            }
+          } catch {}
+        }
+      }
+    }
+  }
+
+  return undefined
+}
+
 const url = 'https://nextjs.org/docs/messages/no-html-link-for-pages'
 
 // Resolve direct constants first, then the first parameter of an inline map
@@ -174,8 +222,17 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const pageExtensions = getPageExtensions(rootDirs, context)
+    const pageUrls = cachedGetUrlFromPagesDirectories(
+      '/',
+      foundPagesDirs,
+      pageExtensions
+    )
+    const appDirUrls = cachedGetUrlFromAppDirectory(
+      '/',
+      foundAppDirs,
+      pageExtensions
+    )
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
