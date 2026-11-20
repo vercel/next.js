@@ -242,7 +242,10 @@ export function collectSwitchyardRouteTable(
     trailingSlash: Boolean(config.trailingSlash),
     compress: config.compress !== false,
     useFileSystemPublicRoutes: config.useFileSystemPublicRoutes !== false,
-    // The router's own test for a proxy (proxy.ts, middleware or proxy.go).
+    // The router's own test for a proxy (proxy.ts, middleware or proxy.go),
+    // as in router-server.ts. Without a proxy the matcher is `() => false`,
+    // a function with no parameters; a real matcher takes some, so `length`
+    // (the function's parameter count) tells the two apart.
     hasMiddleware: Boolean(fsChecker.getMiddlewareMatchers()?.length),
     hasInstrumentation: fs.existsSync(
       path.join(serverDir, `${INSTRUMENTATION_HOOK_FILENAME}.js`)
