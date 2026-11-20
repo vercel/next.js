@@ -1,5 +1,6 @@
 use std::{
     ops::ControlFlow,
+    sync::Mutex,
     time::{Duration, Instant},
 };
 
@@ -21,6 +22,40 @@ static ALLOC: talc::sync::TalcLock<
 > = talc::sync::TalcLock::new(talc::wasm::WasmGrowAndClaim);
 
 const PROGRESS_INTERVAL: Duration = Duration::from_millis(250);
+static RAYON_THREAD_COUNT: Mutex<Option<usize>> = Mutex::new(None);
+
+/// Configures the global Rayon pool before any trace query initializes it.
+#[napi]
+pub fn configure_rayon_thread_pool(thread_count: u32) -> Result<u32> {
+    if thread_count == 0 {
+        return Err(napi::Error::from_reason(
+            "Rayon thread count must be greater than zero",
+        ));
+    }
+    let thread_count = thread_count as usize;
+
+    let mut configured_thread_count = RAYON_THREAD_COUNT
+        .lock()
+        .map_err(|_| napi::Error::from_reason("Rayon thread pool configuration lock poisoned"))?;
+    if let Some(configured_thread_count) = *configured_thread_count {
+        if configured_thread_count == thread_count {
+            return Ok(thread_count as u32);
+        }
+        return Err(napi::Error::from_reason(format!(
+            "Rayon thread pool is already configured with {configured_thread_count} threads"
+        )));
+    }
+
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(thread_count)
+        .build_global()
+        .map_err(|error| {
+            napi::Error::from_reason(format!("failed to configure Rayon thread pool: {error}"))
+        })?;
+    *configured_thread_count = Some(thread_count);
+
+    Ok(thread_count as u32)
+}
 
 #[napi(object)]
 pub struct TraceLoadProgress {
