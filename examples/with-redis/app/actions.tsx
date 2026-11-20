@@ -13,8 +13,7 @@ export async function saveFeature(formData: FormData) {
   const trimmed = title.trim();
   if (!trimmed || trimmed.length > 150) return;
 
-  // The id, timestamp, and starting score come from the server so a request
-  // cannot overwrite an existing proposal or seed an arbitrary score.
+  // Build the record on the server rather than accepting it from the client.
   const feature: Feature = {
     id: crypto.randomUUID(),
     title: trimmed,
