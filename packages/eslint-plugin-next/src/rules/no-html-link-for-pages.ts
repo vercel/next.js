@@ -127,6 +127,31 @@ export default defineRule({
               type: 'string',
             },
           },
+          {
+            type: 'object',
+            properties: {
+              pagesDir: {
+                oneOf: [
+                  {
+                    type: 'string',
+                  },
+                  {
+                    type: 'array',
+                    items: {
+                      type: 'string',
+                    },
+                  },
+                ],
+              },
+              pageExtensions: {
+                type: 'array',
+                items: {
+                  type: 'string',
+                },
+              },
+            },
+            additionalProperties: false,
+          },
         ],
       },
     ],
@@ -136,19 +161,58 @@ export default defineRule({
    * Creates an ESLint rule listener.
    */
   create(context) {
-    const ruleOptions: (string | string[])[] = context.options
+    const ruleOptions: (
+      | string
+      | string[]
+      | { pagesDir?: string | string[]; pageExtensions?: string[] }
+    )[] = context.options
     const [customPagesDirectory] = ruleOptions
+
+    let pagesDirs: string[]
+    let pageExtensions: string[] = ['tsx', 'ts', 'jsx', 'js']
 
     const rootDirs = getRootDirs(context)
 
-    const pagesDirs = (
-      customPagesDirectory
-        ? [customPagesDirectory]
-        : rootDirs.map((dir) => [
+    // Handle different option formats
+    if (
+      typeof customPagesDirectory === 'object' &&
+      !Array.isArray(customPagesDirectory)
+    ) {
+      // Object format with pagesDir and pageExtensions
+      const options = customPagesDirectory as {
+        pagesDir?: string | string[]
+        pageExtensions?: string[]
+      }
+
+      if (options.pageExtensions) {
+        pageExtensions = options.pageExtensions
+      }
+
+      if (options.pagesDir) {
+        pagesDirs = Array.isArray(options.pagesDir)
+          ? options.pagesDir
+          : [options.pagesDir]
+      } else {
+        pagesDirs = rootDirs
+          .map((dir) => [
             path.join(dir, 'pages'),
             path.join(dir, 'src', 'pages'),
           ])
-    ).flat()
+          .flat()
+      }
+    } else {
+      // Legacy string or array format
+      pagesDirs = (
+        customPagesDirectory
+          ? Array.isArray(customPagesDirectory)
+            ? customPagesDirectory
+            : [customPagesDirectory]
+          : rootDirs.map((dir) => [
+              path.join(dir, 'pages'),
+              path.join(dir, 'src', 'pages'),
+            ])
+      ).flat()
+    }
 
     const foundPagesDirs = pagesDirs.filter((dir) => {
       if (fsExistsSyncCache[dir] === undefined) {
@@ -174,8 +238,16 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories(
+      '/',
+      foundPagesDirs,
+      pageExtensions
+    )
+    const appDirUrls = cachedGetUrlFromAppDirectory(
+      '/',
+      foundAppDirs,
+      pageExtensions
+    )
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
