@@ -34,7 +34,7 @@ use smallvec::smallvec;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, ReadRef, ResolvedVc, ValueToString, Vc, fxindexmap, fxindexset,
+    Completion, FxIndexMap, OrderedAutoMap, ReadRef, ResolvedVc, ValueToString, Vc, fxindexset,
 };
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
@@ -88,7 +88,7 @@ use crate::{
     project::Project,
     route::{
         AnalyzeChunkGroup, AnalyzeChunkGroups, AnalyzeClientEntries, Endpoint, EndpointOutput,
-        EndpointOutputPaths, ModuleGraphs, Route, Routes,
+        EndpointOutputPaths, FirstLoadChunks, ModuleGraphs, Route, Routes,
     },
     service_worker::service_worker_output_assets,
     sri_manifest::get_sri_manifest_asset,
@@ -119,7 +119,7 @@ impl PagesProject {
             has_user_pages: _,
             should_create_pages_entries,
         } = &*pages_structure.await?;
-        let mut routes = FxIndexMap::default();
+        let mut routes = OrderedAutoMap::default();
 
         // If pages entries shouldn't be created (build mode with no pages), return empty routes
         if !should_create_pages_entries {
@@ -127,7 +127,7 @@ impl PagesProject {
         }
 
         async fn add_page_to_routes(
-            routes: &mut FxIndexMap<RcStr, Route>,
+            routes: &mut OrderedAutoMap<RcStr, Route>,
             page: Vc<PagesStructureItem>,
             make_route: impl Fn(
                 RcStr,
@@ -148,7 +148,7 @@ impl PagesProject {
         }
 
         async fn add_dir_to_routes(
-            routes: &mut FxIndexMap<RcStr, Route>,
+            routes: &mut OrderedAutoMap<RcStr, Route>,
             dir: Vc<PagesDirectoryStructure>,
             make_route: impl Fn(
                 RcStr,
@@ -471,7 +471,7 @@ impl PagesProject {
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
-            *self.project().should_write_nft_manifests().await?,
+            *self.project().should_trace().await?,
             self.project().server_source_map_generation_options(),
         ))
     }
@@ -510,7 +510,7 @@ impl PagesProject {
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
             self.project().client_compile_time_info().environment(),
-            *self.project().should_write_nft_manifests().await?,
+            *self.project().should_trace().await?,
             self.project().server_source_map_generation_options(),
         ))
     }
@@ -1421,14 +1421,14 @@ impl PageEndpoint {
         let (pages, pages_chunk_group_bootstrap_params) =
             if pages_structure.should_create_pages_entries {
                 (
-                    fxindexmap!(self.pathname.clone() => client_chunks),
+                    OrderedAutoMap::from_iter([(self.pathname.clone(), client_chunks)]),
                     chunk_group_bootstrap_params
-                        .map(|params| fxindexmap!(self.pathname.clone() => params))
+                        .map(|params| OrderedAutoMap::from_iter([(self.pathname.clone(), params)]))
                         .unwrap_or_default(),
                 )
             } else {
                 // Empty when no user pages should be created
-                (fxindexmap![], fxindexmap![])
+                (OrderedAutoMap::default(), OrderedAutoMap::default())
             };
 
         let chunk_loading_global = (*self
@@ -1474,9 +1474,9 @@ impl PageEndpoint {
         // Check if we should include pages in the manifest
         let pages_structure = self.pages_structure.await?;
         let pages = if pages_structure.should_create_pages_entries {
-            fxindexmap!(self.pathname.clone() => page_loader)
+            OrderedAutoMap::from_iter([(self.pathname.clone(), page_loader)])
         } else {
-            fxindexmap![] // Empty pages when no user pages should be created
+            OrderedAutoMap::default() // Empty pages when no user pages should be created
         };
 
         let manifest_path_prefix = get_asset_prefix_from_pathname(&self.pathname);
@@ -1905,11 +1905,28 @@ impl Endpoint for PageEndpoint {
                 },
             };
 
+            // Only needed for the route bundle stats of production builds: the chunks listed for
+            // this page in its `build-manifest.json`.
+            let first_load_chunks = if this.ty == PageEndpointType::Html
+                && project.next_mode().await?.is_production()
+            {
+                Some(FirstLoadChunks::PagesPage(
+                    if this.pages_structure.await?.should_create_pages_entries {
+                        self.client_chunk_group().await?.assets
+                    } else {
+                        OutputAssets::empty_resolved()
+                    },
+                ))
+            } else {
+                None
+            };
+
             anyhow::Ok(
                 EndpointOutput {
                     output_assets: output_assets.to_resolved().await?,
                     output_paths: written_endpoint.resolved_cell(),
                     project: project.to_resolved().await?,
+                    first_load_chunks,
                 }
                 .cell(),
             )

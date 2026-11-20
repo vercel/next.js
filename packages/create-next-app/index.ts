@@ -877,7 +877,6 @@ async function notifyUpdate(): Promise<void> {
           '\n'
       )
     }
-    process.exit(0)
   } catch {
     // ignore error
   }
@@ -899,4 +898,9 @@ async function exit(reason: { command?: string }) {
   process.exit(1)
 }
 
-run().then(notifyUpdate).catch(exit)
+run()
+  .then(async () => {
+    await notifyUpdate()
+    process.exit(0)
+  })
+  .catch(exit)

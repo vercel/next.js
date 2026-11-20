@@ -20,7 +20,9 @@ use turbopack_core::{
     module_graph::{GraphEntries, ModuleGraph, ModuleGraphOptions, SingleModuleGraph},
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference_type::CommonJsReferenceSubType,
-    resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request},
+    resolve::{
+        FindContextFileResult, ResolveErrorMode, origin::PlainResolveOrigin, parse::Request,
+    },
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
 
@@ -304,7 +306,6 @@ fn next_owned_ignores(
         rcstr!("**/next/dist/compiled/@mswjs/interceptors/ClientRequest/LICENSE"),
         rcstr!("**/next/dist/compiled/@mswjs/interceptors/ClientRequest/llhttp/**"),
         rcstr!("**/next/dist/compiled/semver/semver/**/*.js"),
-        rcstr!("**/next/dist/compiled/jest-worker/**/*"),
         // -- The following were added for Turbopack specifically --
         // client/components/use-action-queue.ts has a process.env.NODE_ENV guard, but we can't set that due to React: https://github.com/vercel/next.js/pull/75254
         rcstr!("**/next/dist/next-devtools/userspace/use-app-dev-rendering-indicator.js"),
@@ -338,6 +339,9 @@ fn next_owned_ignores(
         globs.extend([
             rcstr!("**/*/next/dist/server/next.js"),
             rcstr!("**/*/next/dist/bin/next"),
+            // The worker pool's child entrypoints are only needed when the
+            // standalone server spawns workers (matches `collect-build-traces.ts`).
+            rcstr!("**/next/dist/lib/worker/worker-*-child*"),
         ]);
     }
 
@@ -354,10 +358,15 @@ fn next_owned_ignores(
 
 #[turbo_tasks::function]
 async fn has_native_routes(project: ResolvedVc<Project>) -> Result<Vc<bool>> {
-    if *project.next_config().go_routes().await?
-        && let Some(app) = *project.app_project().await?
-    {
-        return Ok(app.has_go_routes());
+    if *project.next_config().go_routes().await? {
+        if let FindContextFileResult::Found(path, _) = &*project.find_middleware().await?
+            && path.file_name() == "proxy.go"
+        {
+            return Ok(Vc::cell(true));
+        }
+        if let Some(app) = *project.app_project().await? {
+            return Ok(app.has_go_routes());
+        }
     }
     Ok(Vc::cell(false))
 }

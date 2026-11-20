@@ -8,18 +8,18 @@ use std::{
     path::Path,
 };
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use mime::Mime;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, OrderedJsonValue, ReadRef, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{NonLocalValue, OrderedJsonValue, ReadRef, ValueToString, Vc};
 use turbo_tasks_hash::{
     DeterministicHash, DeterministicHasher, HashAlgorithm, deterministic_hash, hash_xxh3_hash64,
 };
 
 use crate::{
-    DiskFileSystem, FileSystemEntryType, FileSystemPath, RealPathErrorType,
+    FileSystemEntryType, FileSystemPath, RealPathErrorType,
     json::UnparsableJson,
     retry::retry_blocking,
     rope::{Rope, RopeReader},
@@ -121,8 +121,9 @@ impl PersistedFileContent {
             // handle open. In which case, we just pretend the file never existed.
             return Ok(FileComparison::Create);
         };
-        // If the meta is different, we need to rewrite the file to update it.
-        if new_file.meta != old_meta.into() {
+        // If the permissions differ, we need to rewrite the file to update them. They are the
+        // only part of the meta that is stored on disk.
+        if new_file.meta.permissions != Permissions::from(old_meta.permissions()) {
             return Ok(FileComparison::NotEqual);
         }
 
@@ -275,12 +276,10 @@ impl WriteLinkContent {
     /// stable across builds.
     pub async fn hash(&self, salt: &RcStr, algorithm: HashAlgorithm) -> Result<RcStr> {
         // convert the fs Vc (which is not stable across cold builds therefore cannot implement
-        // DeterministicHash) to the configured name, which should be globally unique and stable
-        // across cold builds.
-        let target_fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(self.target.fs)
-            .context("link target must use a disk filesystem")?
-            .await?;
-        let target_fs_name = target_fs.name();
+        // DeterministicHash) to its name, which should be globally unique and stable across cold
+        // builds. Only read the name: the whole filesystem may also contain location-dependent
+        // data, like the absolute root of a disk filesystem.
+        let target_fs_name = &*self.target.fs.to_string().await?;
 
         Ok(RcStr::from(deterministic_hash(
             salt,
@@ -343,6 +342,17 @@ impl File {
     /// Sets the permissions used when materializing this file.
     pub fn with_permissions(mut self, permissions: Permissions) -> Self {
         self.meta.permissions = permissions;
+        self
+    }
+
+    /// Writes this file atomically: a concurrent reader sees the previous or the new content,
+    /// never an empty or partial file. Use it for files that other processes read while they may
+    /// be rewritten.
+    ///
+    /// The new content is written to a temporary file in the same directory, which then replaces
+    /// the file. That costs an extra create and rename per write, and the file gets a new inode.
+    pub fn with_atomic_write(mut self) -> Self {
+        self.meta.atomic_write = true;
         self
     }
 
@@ -437,6 +447,8 @@ pub struct FileMeta {
     #[turbo_tasks(unsafe_ignore)]
     #[bincode(with = "turbo_bincode::mime_option")]
     content_type: Option<Mime>,
+    /// See [`File::with_atomic_write`]. Not stored on disk.
+    pub(crate) atomic_write: bool,
 }
 
 impl Ord for FileMeta {
@@ -444,6 +456,7 @@ impl Ord for FileMeta {
         self.permissions
             .cmp(&other.permissions)
             .then_with(|| self.content_type.as_ref().cmp(&other.content_type.as_ref()))
+            .then_with(|| self.atomic_write.cmp(&other.atomic_write))
     }
 }
 
@@ -460,6 +473,7 @@ impl From<std::fs::Metadata> for FileMeta {
         Self {
             permissions,
             content_type: None,
+            atomic_write: false,
         }
     }
 }
@@ -470,6 +484,7 @@ impl DeterministicHash for FileMeta {
         if let Some(content_type) = &self.content_type {
             content_type.to_string().deterministic_hash(state);
         }
+        // `atomic_write` is left out: it changes how the file is written, not what is written.
     }
 }
 

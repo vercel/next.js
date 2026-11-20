@@ -42,6 +42,8 @@ function Home() {
 export default Home
 ```
 
+The rule also checks href expressions whose values can be determined statically, including local constants and direct property reads inside inline `.map()` callbacks over static arrays. Use `Link` for internal navigation even when the destination comes from runtime data that the rule cannot check.
+
 ### Options
 
 #### `pagesDir`

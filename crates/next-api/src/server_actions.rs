@@ -8,8 +8,8 @@ use next_core::{
     get_next_package,
     next_client_reference::{CssClientReferenceModule, EcmascriptClientReferenceModule},
     next_manifests::{
-        ActionLayer, ActionManifestModuleId, ActionManifestWorkerEntry,
-        ActionManifestWorkerEntryDurability, ServerReferenceManifest,
+        ActionLayer, ActionManifestEntryDurability, ActionManifestModuleId,
+        ActionManifestWorkerEntry, ServerReferenceManifest,
     },
     root_param_getters_path,
     util::NextRuntime,
@@ -29,8 +29,8 @@ use swc_core::{
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueToStringRef, Vc, turbofmt,
+    FxIndexMap, FxIndexSet, NonLocalValue, OperationVc, OrderedAutoMap, ReadRef, ResolvedVc,
+    TryFlatJoinIterExt, TryJoinIterExt, ValueToStringRef, Vc, turbofmt,
 };
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath, rope::RopeBuilder};
 use turbo_tasks_hash::{HashAlgorithm, deterministic_hash};
@@ -38,7 +38,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
         ChunkGroupResult, ChunkItem, ChunkItemExt, ChunkableModule, ChunkingConfigs,
-        ChunkingContext, EntryChunkGroupResult, EvaluatableAsset, HmrChunkListSource, MinifyType,
+        ChunkingContext, EmitOptions, EntryChunkGroupResult, EvaluatableAsset, HmrChunkListSource,
         ModuleId, SourceMapSourceType, UnusedReferences, UrlBehavior, WorkerConfigurationOptions,
         availability_info::AvailabilityInfo, chunk_id_strategy::ModuleIdStrategy,
     },
@@ -58,9 +58,11 @@ use turbopack_core::{
     source_map::{OptionSourceMapType, SourceMapGenerationOptions},
     virtual_source::VirtualSource,
 };
+use turbopack_css::emit_options::CssEmitOptions;
 use turbopack_ecmascript::{
     EcmascriptAnalyzable, EcmascriptParsable, EnvVarAccessMode, EnvVarInfo,
     chunk::{EcmascriptChunkItem, EcmascriptChunkItemExt, EcmascriptChunkPlaceable},
+    emit_options::EcmascriptEmitOptions,
     module_fragments::part::module::EcmascriptModulePartAsset,
     parse::ParseResult,
 };
@@ -370,6 +372,20 @@ impl Asset for ServerActionManifestAsset {
         ) in &action_metadata
         {
             let entry = mapping.entry(hash_id).or_default();
+
+            let durability = data.as_ref().map(|d| {
+                let key = d.durability_key.as_str();
+                entry.durability.insert(
+                    key,
+                    ActionManifestEntryDurability {
+                        code_hash: d.path_code_hash.as_str(),
+                        runtime_env_vars_read: d.runtime_env_vars_read.as_slice(),
+                        runtime_env_vars_existence: d.runtime_env_vars_existence.as_slice(),
+                    },
+                );
+                key
+            });
+
             entry.workers.insert(
                 &key,
                 ActionManifestWorkerEntry {
@@ -377,11 +393,7 @@ impl Asset for ServerActionManifestAsset {
                     is_async: async_module_info
                         .is_async(self.chunk_item.module().to_resolved().await?)
                         .await?,
-                    durability: data.as_ref().map(|d| ActionManifestWorkerEntryDurability {
-                        code_hash: d.path_code_hash.as_str(),
-                        runtime_env_vars_read: d.runtime_env_vars_read.as_slice(),
-                        runtime_env_vars_existence: d.runtime_env_vars_existence.as_slice(),
-                    }),
+                    durability,
                     root_param_dependencies: root_param_dependencies
                         .as_ref()
                         .map(|names| names.as_slice()),
@@ -437,6 +449,9 @@ pub async fn to_rsc_context(
 struct ModulesInformation {
     /// The combined code hash of all modules in the subgraph.
     pub path_code_hash: RcStr,
+    /// A hash of the code hash and the runtime env var lists, which identifies this durability
+    /// metadata in the manifest.
+    pub durability_key: RcStr,
     /// The merged and deduplicated list of all runtime env vars read in the subgraph.
     pub runtime_env_vars_read: Vec<RcStr>,
     /// The merged and deduplicated list of runtime env vars used only checked for set/falsy/truthy
@@ -650,7 +665,7 @@ async fn compute_subtree_content_hash(
             }
         }
 
-        let hash = deterministic_hash("", hashes, HashAlgorithm::Xxh3Hash128Hex).into();
+        let hash: RcStr = deterministic_hash("", hashes, HashAlgorithm::Xxh3Hash128Hex).into();
         let (mut runtime_read, mut runtime_existence): (Vec<_>, Vec<_>) =
             runtime_env_vars.into_iter().partition_map(|(name, mode)| {
                 if mode == EnvVarAccessMode::Read {
@@ -663,9 +678,16 @@ async fn compute_subtree_content_hash(
         // Sort for more stable return values (less invalidation)
         runtime_read.sort_unstable();
         runtime_existence.sort_unstable();
+        let durability_key = deterministic_hash(
+            "",
+            (&hash, &runtime_read, &runtime_existence),
+            HashAlgorithm::Xxh3Hash128Hex,
+        )
+        .into();
         anyhow::Ok(
             ModulesInformation {
                 path_code_hash: hash,
+                durability_key,
                 runtime_env_vars_read: runtime_read,
                 runtime_env_vars_existence: runtime_existence,
             }
@@ -895,11 +917,10 @@ async fn parse_actions(module: ResolvedVc<Box<dyn Module>>) -> Result<Vc<OptionA
         actions.retain(|_, entry| all_exports.iter().any(|export| export == &entry.name));
     }
 
-    let mut actions = FxIndexMap::from_iter(actions.into_iter());
-    actions.sort_keys();
+    // `actions` is a `BTreeMap`, so this is sorted by the action hash.
     Ok(Vc::cell(Some(
         ActionMap {
-            actions,
+            actions: actions.into(),
             entry_path,
             entry_query,
         }
@@ -1019,8 +1040,7 @@ impl AllActions {
 #[turbo_tasks::value]
 #[derive(Debug)]
 pub struct ActionMap {
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub actions: FxIndexMap<String, ActionEntry>,
+    pub actions: OrderedAutoMap<String, ActionEntry>,
     pub entry_path: String,
     pub entry_query: String,
 }
@@ -1032,10 +1052,7 @@ struct OptionActionMap(Option<ResolvedVc<ActionMap>>);
 type LayerAndActions = (ActionLayer, ResolvedVc<ActionMap>);
 /// A mapping of every module module containing Server Actions, mapping to its layer and actions.
 #[turbo_tasks::value(transparent)]
-pub struct AllModuleActions(
-    #[bincode(with = "turbo_bincode::indexmap")]
-    FxIndexMap<ResolvedVc<Box<dyn Module>>, LayerAndActions>,
-);
+pub struct AllModuleActions(OrderedAutoMap<ResolvedVc<Box<dyn Module>>, LayerAndActions>);
 
 #[turbo_tasks::function]
 pub async fn map_server_actions(
@@ -1237,11 +1254,24 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
     }
 
     #[turbo_tasks::function]
-    pub fn minify_type(&self) -> Vc<MinifyType> {
-        // Intentionally override: we are not performing chunking, so minify_type is only used for
-        // generating less whitespace during AST emitting (which means less data and thus slightly
-        // faster)
-        MinifyType::default().cell()
+    fn emit_options(&self) -> Vc<EmitOptions> {
+        // Intentionally override: we are not performing chunking, so emit options are only used
+        // for generating less whitespace during AST emitting (which means less data and thus
+        // slightly faster)
+        Vc::cell(vec![
+            ResolvedVc::upcast(
+                EcmascriptEmitOptions::builder()
+                    .preset_minify_optimal_size()
+                    .build()
+                    .resolved_cell(),
+            ),
+            ResolvedVc::upcast(
+                CssEmitOptions::builder()
+                    .preset_minify()
+                    .build()
+                    .resolved_cell(),
+            ),
+        ])
     }
 
     #[turbo_tasks::function]

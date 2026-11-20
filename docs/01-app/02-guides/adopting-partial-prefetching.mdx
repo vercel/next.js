@@ -88,7 +88,7 @@ A legacy full prefetch can include more UI than the navigation needs. In most ca
 
 ### Verify prefetched UI with tests
 
-To verify the migration programmatically, an [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test can capture the UI that should stay available from an existing full prefetch. Test the exact source link because different links to the same destination can use different prefetch settings:
+To verify the migration programmatically, an [`instant()`](/docs/app/guides/testing/playwright#testing-instant-navigations) test can capture the UI that should stay available from an existing full prefetch. Test the exact source link because different links to the same destination can use different prefetch settings:
 
 ```ts filename="e2e/product-navigation.test.ts" highlight={7-16}
 import { expect, test } from '@playwright/test'

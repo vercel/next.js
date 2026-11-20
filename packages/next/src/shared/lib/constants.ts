@@ -115,6 +115,8 @@ export const CONFIG_FILES = [
   'next.config.ts',
   // process.features can be undefined on Edge runtime
   // TODO: Remove `as any` once we bump @types/node to v22.10.0+
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ...((process?.features as any)?.typescript ? ['next.config.mts'] : []),
 ]
 export const BUILD_ID_FILE = 'BUILD_ID'

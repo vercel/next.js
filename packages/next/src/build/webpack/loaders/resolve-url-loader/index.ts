@@ -96,6 +96,8 @@ export default async function resolveUrlLoader(
             (typeof exception === 'string' && exception) ||
               (exception instanceof Error && [
                 exception.message,
+                // TODO(as-any): pre-existing cast, not yet reviewed
+                // eslint-disable-next-line @next/internal/no-as-any
                 (exception as any).stack.split('\n', 2)[1].trim(),
               ]) ||
               []

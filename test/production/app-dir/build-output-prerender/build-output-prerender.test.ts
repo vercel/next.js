@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import path from 'path'
+import { gate } from 'next-test-utils'
 const { version: nextVersion } = require('next/package.json')
 
 const cacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
@@ -420,6 +421,14 @@ describe('build-output-prerender', () => {
 
       beforeAll(() => next.build())
 
+      it('emits the full segment only with Cache Components', async () => {
+        expect(
+          await next.hasFile(
+            '.next/server/app/index.segments/_full.segment.rsc'
+          )
+        ).toBe(await gate((c) => c.cacheComponents))
+      })
+
       it('prints no experimental flags (unless enabled via env variable)', async () => {
         if (cacheComponentsEnabled) {
           if (isTurbopack) {
@@ -646,14 +655,13 @@ function getPrerenderOutput(cliOutput: string): string {
       continue
     }
 
-    if (line.includes('Next.js build worker exited')) {
-      break
-    }
-
     if (foundPrerenderingLine && !line.includes('Generating static pages')) {
       lines.push(
         line.replace(/at \w+ \(.next[^)]+\)/, 'at x (<next-dist-dir>)')
       )
+      if (line.includes('exiting the build')) {
+        break
+      }
     }
   }
 

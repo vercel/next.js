@@ -61,7 +61,7 @@ describe('Middleware fetches with body', () => {
         expect(res.status).toBe(413)
 
         if (!isNextDeploy) {
-          expect(res.statusText).toBe('Body exceeded 1mb limit')
+          expect(await res.text()).toBe('Body exceeded 1mb limit')
         }
       } catch (err) {
         // TODO: investigate occasional EPIPE errors causing
@@ -137,7 +137,7 @@ describe('Middleware fetches with body', () => {
         expect(res.status).toBe(413)
 
         if (!isNextDeploy) {
-          expect(res.statusText).toBe('Body exceeded 5kb limit')
+          expect(await res.text()).toBe('Body exceeded 5kb limit')
         }
       } catch (err) {
         // TODO: investigate occasional EPIPE errors causing
@@ -190,7 +190,7 @@ describe('Middleware fetches with body', () => {
         expect(res.status).toBe(413)
 
         if (!isNextDeploy) {
-          expect(res.statusText).toBe('Body exceeded 5mb limit')
+          expect(await res.text()).toBe('Body exceeded 5mb limit')
         }
       } catch (err) {
         // TODO: investigate occasional EPIPE errors causing
@@ -292,7 +292,7 @@ describe('Middleware fetches with body', () => {
       expect(res.status).toBe(413)
 
       if (!isNextDeploy) {
-        expect(res.statusText).toBe('Body exceeded 5mb limit')
+        expect(await res.text()).toBe('Body exceeded 5mb limit')
       }
     } catch (err) {
       // TODO: investigate occasional EPIPE errors causing

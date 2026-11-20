@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{OrderedAutoSet, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -54,7 +54,7 @@ impl EcmascriptBuildNodeChunk {
                 .ident()
                 .owned()
                 .await?
-                .with_modifier(modifier())
+                .with_modifier(MODIFIER.clone())
                 .into_vc(),
             Vc::upcast(self),
             rcstr!(".js"),
@@ -62,9 +62,7 @@ impl EcmascriptBuildNodeChunk {
     }
 }
 
-fn modifier() -> RcStr {
-    rcstr!("ecmascript build node chunk")
-}
+static MODIFIER: RcStr = rcstr!("ecmascript build node chunk");
 
 #[turbo_tasks::value_impl]
 impl EcmascriptBuildNodeChunk {
@@ -119,7 +117,7 @@ impl OutputAsset for EcmascriptBuildNodeChunk {
             .ident()
             .owned()
             .await?
-            .with_modifier(modifier())
+            .with_modifier(MODIFIER.clone())
             .into_vc();
         Ok(this
             .chunking_context
@@ -169,7 +167,7 @@ impl Introspectable for EcmascriptBuildNodeChunk {
 
     #[turbo_tasks::function]
     fn children(&self) -> Result<Vc<IntrospectableChildren>> {
-        let mut children = FxIndexSet::default();
+        let mut children = OrderedAutoSet::default();
         let introspectable_chunk = ResolvedVc::upcast::<Box<dyn Introspectable>>(self.chunk);
         children.insert((rcstr!("chunk"), introspectable_chunk));
         Ok(Vc::cell(children))

@@ -1,3 +1,4 @@
+import type { FunctionsConfigManifest } from './index'
 // Import cpu-profile to start profiling early if enabled
 import '../server/lib/cpu-profile'
 import { Span } from '../trace'
@@ -135,6 +136,20 @@ export async function collectBuildTraces({
       const root = outputFileTracingRoot
       let hasNativeRoutes = false
       if (config.experimental.goRoutes) {
+        const functionsConfig: FunctionsConfigManifest = JSON.parse(
+          await fs
+            .readFile(
+              path.join(distDir, 'server', 'functions-config-manifest.json'),
+              'utf8'
+            )
+            .catch((error) => {
+              if (error.code === 'ENOENT') return '{"functions":{}}'
+              throw error
+            })
+        )
+        hasNativeRoutes =
+          functionsConfig.functions['/_middleware']?.runtime === 'go'
+
         try {
           // One read per tracing worker, only after opting in. The emitted manifest
           // also distinguishes an enabled experiment with no native routes.
@@ -144,7 +159,7 @@ export async function collectBuildTraces({
               'utf8'
             )
           )
-          hasNativeRoutes = Object.values(appPaths).some((entry) =>
+          hasNativeRoutes ||= Object.values(appPaths).some((entry) =>
             entry.endsWith('.native.json')
           )
         } catch (error) {
@@ -240,7 +255,7 @@ export async function collectBuildTraces({
 
       const sharedIgnores = [
         '**/next/dist/compiled/next-server/**/*.dev.js',
-        ...(isStandalone ? [] : ['**/next/dist/compiled/jest-worker/**/*']),
+        ...(isStandalone ? [] : ['**/next/dist/lib/worker/worker-*-child*']),
         '**/next/dist/compiled/webpack/*',
         '**/node_modules/webpack5/**/*',
         '**/next/dist/server/lib/route-resolver*',
@@ -316,12 +331,12 @@ export async function collectBuildTraces({
       if (isStandalone) {
         addToTracedFiles(
           '',
-          require.resolve('next/dist/compiled/jest-worker/processChild'),
+          require.resolve('../lib/worker/worker-process-child'),
           serverTracedFiles
         )
         addToTracedFiles(
           '',
-          require.resolve('next/dist/compiled/jest-worker/threadChild'),
+          require.resolve('../lib/worker/worker-thread-child'),
           serverTracedFiles
         )
       }
