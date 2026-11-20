@@ -51,12 +51,15 @@ type RouteLoaderEntry = LoadedRouteSuccess | LoadedRouteFailure
 
 interface Future<V> {
   resolve: (entrypoint: V) => void
+  reject: (error: unknown) => void
   future: Promise<V>
+  prefetch: boolean
 }
 function withFuture<T extends object>(
   key: string,
   map: Map<string, Future<T> | T>,
-  generator?: () => Promise<T>
+  generator?: () => Promise<T>,
+  prefetch = false
 ): Promise<T> {
   let entry = map.get(key)
   if (entry) {
@@ -66,21 +69,48 @@ function withFuture<T extends object>(
     return Promise.resolve(entry)
   }
   let resolver: (entrypoint: T) => void
-  const prom: Promise<T> = new Promise<T>((resolve) => {
+  let rejecter: (error: unknown) => void
+  const prom: Promise<T> = new Promise<T>((resolve, reject) => {
     resolver = resolve
+    rejecter = reject
   })
-  map.set(key, { resolve: resolver!, future: prom })
-  return generator
-    ? generator()
-        .then((value) => {
-          resolver(value)
-          return value
-        })
-        .catch((err) => {
-          map.delete(key)
-          throw err
-        })
-    : prom
+  // A prefetch may fail before any navigation joins it.
+  prom.catch(() => {})
+  const future: Future<T> = {
+    resolve: resolver!,
+    reject: rejecter!,
+    future: prom,
+    prefetch,
+  }
+  map.set(key, future)
+  if (!generator) {
+    return prom
+  }
+
+  let generated: Promise<T>
+  try {
+    generated = generator()
+  } catch (err) {
+    if (map.get(key) === future) {
+      map.delete(key)
+    }
+    future.reject(err)
+    return Promise.reject(err)
+  }
+
+  return generated.then(
+    (value) => {
+      future.resolve(value)
+      return value
+    },
+    (err) => {
+      if (map.get(key) === future) {
+        map.delete(key)
+      }
+      future.reject(err)
+      throw err
+    }
+  )
 }
 
 export interface RouteLoader {
@@ -354,52 +384,69 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
       })
     },
     loadRoute(route: string, prefetch?: boolean) {
-      return withFuture<RouteLoaderEntry>(route, routes, () => {
-        let devBuildPromiseResolve: () => void
+      const existing = routes.get(route)
+      if (!prefetch && existing && 'future' in existing && existing.prefetch) {
+        return existing.future.catch(() => this.loadRoute(route))
+      }
 
-        if (process.env.NODE_ENV === 'development') {
-          devBuildPromise = new Promise<void>((resolve) => {
-            devBuildPromiseResolve = resolve
-          })
-        }
+      return withFuture<RouteLoaderEntry>(
+        route,
+        routes,
+        () => {
+          let devBuildPromiseResolve: () => void
 
-        return resolvePromiseWithTimeout(
-          getFilesForRoute(assetPrefix, route)
-            .then(({ scripts, css }) => {
-              return Promise.all([
-                entrypoints.has(route)
-                  ? []
-                  : Promise.all(scripts.map(maybeExecuteScript)).then((r) => {
-                      bootstrapRoute(route)
-                      return r
-                    }),
-                Promise.all(css.map(fetchStyleSheet)),
-              ] as const)
+          if (process.env.NODE_ENV === 'development') {
+            devBuildPromise = new Promise<void>((resolve) => {
+              devBuildPromiseResolve = resolve
             })
-            .then((res) => {
-              return this.whenEntrypoint(route).then((entrypoint) => ({
-                entrypoint,
-                styles: res[1],
-              }))
-            }),
-          markAssetError(new Error(`Route did not complete loading: ${route}`)),
-          devBuildPromise
-        )
-          .then(({ entrypoint, styles }) => {
-            const res: RouteLoaderEntry = Object.assign<
-              { styles: RouteStyleSheet[] },
-              RouteEntrypoint
-            >({ styles: styles! }, entrypoint)
-            return 'error' in entrypoint ? entrypoint : res
-          })
-          .catch((err) => {
-            if (prefetch) {
-              // we don't want to cache errors during prefetch
-              throw err
-            }
-            return { error: err }
-          })
-          .finally(() => devBuildPromiseResolve?.())
+          }
+
+          return resolvePromiseWithTimeout(
+            getFilesForRoute(assetPrefix, route)
+              .then(({ scripts, css }) => {
+                return Promise.all([
+                  entrypoints.has(route)
+                    ? []
+                    : Promise.all(scripts.map(maybeExecuteScript)).then((r) => {
+                        bootstrapRoute(route)
+                        return r
+                      }),
+                  Promise.all(css.map(fetchStyleSheet)),
+                ] as const)
+              })
+              .then((res) => {
+                return this.whenEntrypoint(route).then((entrypoint) => ({
+                  entrypoint,
+                  styles: res[1],
+                }))
+              }),
+            markAssetError(
+              new Error(`Route did not complete loading: ${route}`)
+            ),
+            devBuildPromise
+          )
+            .then(({ entrypoint, styles }) => {
+              const res: RouteLoaderEntry = Object.assign<
+                { styles: RouteStyleSheet[] },
+                RouteEntrypoint
+              >({ styles: styles! }, entrypoint)
+              return 'error' in entrypoint ? entrypoint : res
+            })
+            .catch((err) => {
+              if (prefetch) {
+                // we don't want to cache errors during prefetch
+                throw err
+              }
+              return { error: err }
+            })
+            .finally(() => devBuildPromiseResolve?.())
+        },
+        prefetch
+      ).catch((err) => {
+        if (prefetch) {
+          throw err
+        }
+        return { error: err }
       })
     },
     prefetch(route: string): Promise<void> {
