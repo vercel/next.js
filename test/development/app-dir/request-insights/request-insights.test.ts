@@ -125,11 +125,14 @@ describe('request insights', () => {
 
     try {
       const address = server.address() as AddressInfo
+      const [subcommand, ...subcommandArgs] = args
+      const hasSubcommand = subcommand === 'list' || subcommand === 'get'
       const result = await next.runCommand([
         'experimental-request-insights',
+        ...(hasSubcommand ? [subcommand] : []),
         '--url',
         `http://127.0.0.1:${address.port}`,
-        ...args,
+        ...(hasSubcommand ? subcommandArgs : args),
       ])
       return { result, requestedPaths }
     } finally {
@@ -1832,6 +1835,102 @@ describe('request insights', () => {
     expect(result.stdout).toContain('showing first 5 of 7 fetches')
     expect(result.stdout).toContain('https://example.com/fetch-4')
     expect(result.stdout).not.toContain('https://example.com/fetch-5')
+  })
+
+  it('inspects one request by ID or prefix', async () => {
+    const request = {
+      ...createRequest(1),
+      requestId: 'request-12345678',
+      durationMs: 3500,
+      spans: [
+        {
+          name: 'slow metadata fetch',
+          startTime: 101,
+          durationMs: 3400,
+          spanId: 'span-2',
+          parentSpanId: 'span-1',
+          attributes: {
+            'http.url': 'https://example.com/metadata',
+            'next.fetch.cache_status': 'skip',
+            'next.fetch.cache_reason': 'cache: no-store',
+          },
+        },
+      ],
+    } satisfies RequestInsight
+
+    const { result } = await runWithResponse({ requests: [request] }, [
+      'get',
+      'request-',
+    ])
+
+    expect(result.code).toBe(0)
+    expect(result.stdout).toContain('request request-12345678')
+    expect(result.stdout).toContain('+100ms 3.40s slow metadata fetch')
+    expect(result.stdout).toContain('span span-2 parent span-1')
+    expect(result.stdout).toContain(
+      'fetch https://example.com/metadata cache skip (cache: no-store)'
+    )
+
+    const json = await runWithResponse(
+      { requests: [createRequest(1), request] },
+      ['get', 'request-12345678', '--json']
+    )
+    expect(JSON.parse(json.result.stdout)).toEqual({ request })
+  })
+
+  it('lists bounded summaries matching a route template or URL pathname', async () => {
+    const templateMatch = {
+      ...createRequest(1),
+      route: '/products/[slug]',
+      url: '/products/red?query=redacted',
+    }
+    const urlMatch = {
+      ...createRequest(2),
+      route: '/rewritten/[slug]',
+      url: '/products/blue?query=redacted',
+    }
+
+    const byTemplate = await runWithResponse(
+      { requests: [templateMatch, urlMatch, createRequest(3)] },
+      ['list', '--route', '/products/[slug]', '--limit', '1', '--json']
+    )
+    const templateRequests = JSON.parse(byTemplate.result.stdout).requests
+    expect(templateRequests).toEqual([
+      expect.objectContaining({ requestId: templateMatch.requestId }),
+    ])
+    expect(templateRequests[0]).not.toHaveProperty('htmlRequestId')
+    expect(templateRequests[0]).not.toHaveProperty('completedAt')
+    expect(templateRequests[0]).not.toHaveProperty('hasProxyActivity')
+
+    const byUrl = await runWithResponse(
+      { requests: [templateMatch, urlMatch, createRequest(3)] },
+      ['list', '--route', '/products/blue', '--json']
+    )
+    expect(JSON.parse(byUrl.result.stdout).requests).toEqual([
+      expect.objectContaining({
+        requestId: urlMatch.requestId,
+        url: '/products/blue?query=redacted',
+      }),
+    ])
+  })
+
+  it.each([
+    {
+      id: 'missing',
+      message: 'No retained request matches "missing".',
+    },
+    {
+      id: 'request-',
+      message: 'Request ID prefix "request-" is ambiguous (2 matches).',
+    },
+  ])('rejects an unavailable request ID: $id', async ({ id, message }) => {
+    const { result } = await runWithResponse(
+      { requests: [createRequest(1), createRequest(2)] },
+      ['get', id]
+    )
+
+    expect(result.code).toBe(1)
+    expect(result.stderr).toContain(message)
   })
 
   it.each(['localhost:3000', 'https://[', 'ftp://localhost:3000'])(
