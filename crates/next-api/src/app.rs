@@ -1466,8 +1466,8 @@ async fn go_session(project: ResolvedVc<Project>) -> Result<Vc<GoBuildSession>> 
 struct GoPackage {
     sources: ResolvedVc<GoSourceSet>,
     directory: FileSystemPath,
-    /// `basePath` joined with the route's pathname. Empty for proxies.
-    route_pattern: String,
+    /// The adapter output ID, without `basePath`. Empty for proxies.
+    route_id: String,
     handler: String,
     dispatch: String,
 }
@@ -1560,16 +1560,14 @@ async fn analyze_go_package(
     let dispatch = include_str!("templates/go_route_dispatch.go")
         .replace("__NEXT_GO_PACKAGE__", package)
         .replace("\t// __NEXT_GO_ROUTE_METHODS__", &declarations);
-    let route_pattern = match kind {
+    let (route_id, route_pattern) = match kind {
         GoEndpointKind::Route { page } => {
             let base_path = project.next_config().base_path().await?;
-            format!(
-                "{}{}",
-                base_path.as_deref().unwrap_or(""),
-                AppPath::from(page.clone())
-            )
+            let id = AppPath::from(page.clone()).to_string();
+            let pattern = format!("{}{id}", base_path.as_deref().unwrap_or(""));
+            (id, pattern)
         }
-        GoEndpointKind::Proxy => String::new(),
+        GoEndpointKind::Proxy => (String::new(), String::new()),
     };
     let handler = if is_proxy {
         include_str!("templates/go_proxy_handler.go").to_owned()
@@ -1583,49 +1581,10 @@ async fn analyze_go_package(
     Ok(GoPackageAnalysis::Ready(GoPackage {
         sources,
         directory,
-        route_pattern,
+        route_id,
         handler,
         dispatch,
     }))
-}
-
-fn go_route_segment_rank(segment: &str) -> u8 {
-    if segment.starts_with("[[...") && segment.ends_with("]]") {
-        3
-    } else if segment.starts_with("[...") && segment.ends_with(']') {
-        2
-    } else if segment.starts_with('[') && segment.ends_with(']') {
-        1
-    } else {
-        0
-    }
-}
-
-/// Order route patterns like Next.js's `getSortedRoutes`, comparing segment by segment: a route
-/// that ends comes before its descendants, then static segments in UTF-16 order, then
-/// `[param]`, `[...catchAll]` and `[[...optionalCatchAll]]`. The first matching pattern in this
-/// order is the route Next.js would select among these routes.
-fn compare_go_route_patterns(a: &str, b: &str) -> std::cmp::Ordering {
-    use std::cmp::Ordering;
-    let mut a = a.split('/').filter(|segment| !segment.is_empty());
-    let mut b = b.split('/').filter(|segment| !segment.is_empty());
-    loop {
-        match (a.next(), b.next()) {
-            (None, None) => return Ordering::Equal,
-            (None, Some(_)) => return Ordering::Less,
-            (Some(_), None) => return Ordering::Greater,
-            (Some(a), Some(b)) => {
-                let rank = go_route_segment_rank(a).cmp(&go_route_segment_rank(b));
-                if rank != Ordering::Equal {
-                    return rank;
-                }
-                // Dynamic segments at one level share a slug name, so only static names order.
-                if go_route_segment_rank(a) == 0 && a != b {
-                    return a.encode_utf16().cmp(b.encode_utf16());
-                }
-            }
-        }
-    }
 }
 
 /// Whether a Go diagnostic names a file directly inside `directory`, given as an absolute path
@@ -1666,9 +1625,9 @@ struct GoRoutesBundle {
     build: Option<turbopack_go::GoBundleResult>,
 }
 
-/// Compile every App Router `route.go` of an adapter build into one executable that dispatches
-/// by request path. Each route endpoint reads this shared task, so Go compiles once and every
-/// route output references the same executable. Issues are attributed to the route files.
+/// Compile every App Router `route.go` of an adapter build into one executable. Each process
+/// selects an output ID at startup. Each route endpoint reads this task, so Go compiles once.
+/// Every route output references the same executable. Issues are attributed to the route files.
 #[turbo_tasks::function]
 async fn go_routes_adapter_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoRoutesBundle>> {
     let failed = |build: Option<turbopack_go::GoBundleResult>| {
@@ -1824,7 +1783,7 @@ async fn go_routes_adapter_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoR
         aliases.insert(RcStr::from(alias.as_str()), package.sources);
         aliased.push((import, package));
     }
-    aliased.sort_by(|(_, a), (_, b)| compare_go_route_patterns(&a.route_pattern, &b.route_pattern));
+    aliased.sort_by(|(_, a), (_, b)| a.route_id.cmp(&b.route_id));
     let mut imports = vec![];
     let mut table = vec![];
     for (index, (import, package)) in aliased.iter().enumerate() {
@@ -1833,9 +1792,8 @@ async fn go_routes_adapter_bundle(project: ResolvedVc<Project>) -> Result<Vc<GoR
             serde_json::to_string(&format!("{module_path}/{import}"))?
         ));
         table.push(format!(
-            "\t\t// {}\n\t\t{{nextroute{index}.NextInternalGoMatch, \
-             nextroute{index}.NextInternalGoHandler(false)}},",
-            package.route_pattern.replace('\n', " ")
+            "\t\t{}: nextroute{index}.NextInternalGoHandler(false),",
+            serde_json::to_string(&package.route_id)?
         ));
     }
     generated.insert(
@@ -3760,33 +3718,6 @@ impl AppEndpointOutput {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn go_routes_follow_next_route_precedence() {
-        // Expected order from `getSortedRoutes`.
-        let expected = [
-            "/base",
-            "/base/a",
-            "/base/a/[id]",
-            "/base/a/[...rest]",
-            "/base/b",
-            "/base/b/[[...optional]]",
-            "/base/caf a 100%",
-            "/base/[id]",
-            "/base/[id]/edit",
-            "/base/[id]/[...rest]",
-            "/base/[...rest]",
-        ];
-        let mut routes = expected.to_vec();
-        routes.reverse();
-        routes.sort_by(|a, b| compare_go_route_patterns(a, b));
-        assert_eq!(routes, expected);
-        // Static names compare by UTF-16 code units, like JavaScript's default sort.
-        assert_eq!(
-            compare_go_route_patterns("/\u{1F600}", "/\u{FF5E}"),
-            std::cmp::Ordering::Less
-        );
-    }
 
     #[test]
     fn go_internal_route_packages_are_imported_through_shims() {

@@ -10,8 +10,8 @@ import (
 	"unicode/utf8"
 )
 
-// Each route package contains only its own route pattern, not the application
-// route table. Adapter builds order route packages by precedence in main.
+// Each route package contains only its own route pattern. Adapter processes
+// select one package at startup using the adapter's authorized output ID.
 const nextGoRoutePattern = "__NEXT_GO_ROUTE_PATTERN__"
 
 type nextGoParamsKey struct{}
@@ -83,16 +83,6 @@ func nextGoMatchParams(path string) (map[string][]string, bool, error) {
 		}
 	}
 	return params, true, nil
-}
-
-// NextInternalGoMatch is called by the entrypoint that Next.js generates for
-// adapter builds, which serves every route from one executable. It reports
-// whether this route handles the escaped request path. A path with invalid
-// percent-encoding or UTF-8 matches, so the selected route rejects it with 400
-// like a single-route executable does. It is not part of the route API.
-func NextInternalGoMatch(path string) bool {
-	_, matched, err := nextGoMatchParams(path)
-	return matched || err != nil
 }
 
 // NextInternalGoHandler is called by the entrypoint that Next.js generates. It is

@@ -131,9 +131,9 @@ API and metadata routes from the `app/` directory:
 
 With the experimental [`route.go`](/docs/app/api-reference/file-conventions/route-go) convention, App Router Go handlers use `runtime: 'go'`. The existing `filePath` points to a compiled HTTP server executable, and `sourcePage` keeps the same source-route identity as Node.js outputs. No new output keys are introduced. Go outputs do not include the shared Node.js runtime files in `assets`.
 
-An adapter build compiles every Go route handler into one executable that dispatches requests by path. Each Go handler still has its own output with its own `id`, `pathname`, `sourcePage`, and `config`, but all Go `APP_ROUTE` outputs share the same `filePath`, and their `assets` and `assetsHashes` are identical. An adapter can package that executable once and route every Go output to it, or package it for each output.
+An adapter build compiles every Go route handler into one executable. Each Go handler still has its own output with its own `id`, `pathname`, `sourcePage`, and `config`, but all Go `APP_ROUTE` outputs share the same `filePath`, and their `assets` and `assetsHashes` are identical. An adapter can package that executable once and reuse it across output-specific processes, or package it for each output.
 
-An adapter that supports Go must package the executable and declared assets for a compatible operating system and architecture, then start its server with `PORT` set. Go pages, middleware, and prerender parents are not part of this experiment. See [Invoking Entrypoints](/docs/app/api-reference/adapters/invoking-entrypoints#go-runtime-runtime-go).
+An adapter that supports Go must package the executable and declared assets for a compatible operating system and architecture, then start each output's server with `PORT` set and `__NEXT_GO_ROUTE` set to that output's `id`. Each process serves only its selected output. Go pages, middleware, and prerender parents are not part of this experiment. See [Invoking Entrypoints](/docs/app/api-reference/adapters/invoking-entrypoints#go-runtime-runtime-go).
 
 ## Prerenders (`outputs.prerenders`)
 
