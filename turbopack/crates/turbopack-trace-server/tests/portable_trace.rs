@@ -5,7 +5,7 @@ use turbopack_trace_server::{
     QueryOptions, SortMode, TraceParser, protocol::ProtocolSession, query_spans, read_trace_bytes,
     read_trace_bytes_with_progress, store_container::StoreContainer,
 };
-use turbopack_trace_utils::tracing::TraceRow;
+use turbopack_trace_utils::tracing::{TRACE_HEADER, TimestampEncoder, TraceRow};
 
 fn raw_trace() -> Vec<u8> {
     let rows = [
@@ -21,16 +21,23 @@ fn raw_trace() -> Vec<u8> {
             ts: 100,
             id: 1,
             thread_id: 1,
+            allocations: None,
         },
         TraceRow::Exit {
             ts: 200,
             id: 1,
             thread_id: 1,
+            allocations: None,
         },
         TraceRow::End { ts: 200, id: 1 },
     ];
-    let mut bytes = b"TRACEv0".to_vec();
+    let mut bytes = TRACE_HEADER.to_vec();
+    let mut timestamps = TimestampEncoder::default();
     for row in rows {
+        let (base, row) = timestamps.encode_row(row);
+        if let Some(base) = base {
+            bytes.extend(postcard::to_allocvec(&base).unwrap());
+        }
         bytes.extend(postcard::to_allocvec(&row).unwrap());
     }
     bytes
@@ -45,6 +52,9 @@ fn root_names(store: &Arc<StoreContainer>) -> Vec<String> {
             sort: SortMode::ExecutionOrder,
             search: None,
             page: 1,
+            page_size: None,
+            depth: 1,
+            max_depth: u32::MAX,
         },
     )
     .spans
@@ -133,6 +143,11 @@ fn rejects_unsupported_or_incomplete_input() {
         .unwrap()
         .to_string();
     assert!(error.contains("zstd-compressed traces are not supported"));
+
+    for version in [b"TRACEv0", b"TRACEv9"] {
+        let error = read_trace_bytes(version).err().unwrap().to_string();
+        assert!(error.contains("Unsupported trace file version"));
+    }
 
     let mut incomplete = raw_trace();
     incomplete.pop();

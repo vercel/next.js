@@ -1,6 +1,7 @@
 use std::{any::Any, sync::Arc};
 
 use anyhow::{Result, bail};
+use turbopack_trace_utils::tracing::{TRACE_HEADER, TRACE_HEADER_PREFIX, check_trace_header};
 
 use crate::store_container::StoreContainer;
 
@@ -9,9 +10,45 @@ mod heaptrack;
 #[path = "reader/nextjs.rs"]
 mod nextjs;
 #[path = "reader/turbopack.rs"]
-mod turbopack;
+pub(crate) mod turbopack;
 
 use self::{heaptrack::HeaptrackFormat, nextjs::NextJsFormat, turbopack::TurbopackFormat};
+
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum FormatKind {
+    Turbopack,
+    NextJs,
+    Heaptrack,
+}
+
+const NEXT_JS_PREFIX: &[u8] = b"[{\"name\"";
+const HEAPTRACK_PREFIX: &[u8] = b"v ";
+
+/// Detects a decompressed trace prefix, waiting until there is enough data to
+/// validate its format. Native and browser readers enforce the same version.
+pub(crate) fn detect_format(buffer: &[u8]) -> Result<Option<FormatKind>> {
+    let could_be = |prefix: &[u8]| {
+        let len = buffer.len().min(prefix.len());
+        buffer[..len] == prefix[..len]
+    };
+    if could_be(TRACE_HEADER_PREFIX) {
+        if buffer.len() < TRACE_HEADER.len() {
+            return Ok(None);
+        }
+        check_trace_header(buffer)?;
+        return Ok(Some(FormatKind::Turbopack));
+    }
+    if could_be(NEXT_JS_PREFIX) {
+        return Ok((buffer.len() >= NEXT_JS_PREFIX.len()).then_some(FormatKind::NextJs));
+    }
+    if could_be(HEAPTRACK_PREFIX) {
+        return Ok((buffer.len() >= HEAPTRACK_PREFIX.len()).then_some(FormatKind::Heaptrack));
+    }
+    bail!(
+        "Unknown trace file format (expected a {} header, a Next.js trace or a heaptrack file)",
+        String::from_utf8_lossy(TRACE_HEADER)
+    );
+}
 
 pub(crate) trait TraceFormat {
     type Reused: Default;
@@ -108,24 +145,26 @@ impl TraceParser {
         }
         self.buffer.extend_from_slice(bytes);
 
-        if self.format.is_none() && self.buffer.len() >= 8 {
-            let erased_format = if self.buffer.starts_with(b"TRACEv0") {
-                self.consumed = 7;
-                ErasedTraceFormat(Box::new(TurbopackFormat::new(
-                    self.store.clone(),
-                    self.invalidate_caches,
-                )))
-            } else if self.buffer.starts_with(b"[{\"name\"") {
-                ErasedTraceFormat(Box::new(NextJsFormat::new(self.store.clone())))
-            } else if self.buffer.starts_with(b"v ") {
-                ErasedTraceFormat(Box::new(HeaptrackFormat::new(self.store.clone())))
-            } else {
-                // Preserve the native reader's compatibility with old
-                // Turbopack traces that predate the magic header.
-                ErasedTraceFormat(Box::new(TurbopackFormat::new(
-                    self.store.clone(),
-                    self.invalidate_caches,
-                )))
+        if self.format.is_none() {
+            let Some(kind) = detect_format(&self.buffer)? else {
+                return Ok(());
+            };
+            let erased_format = match kind {
+                FormatKind::Turbopack => {
+                    self.consumed = TRACE_HEADER.len();
+                    let format = if self.invalidate_caches {
+                        TurbopackFormat::new(self.store.clone())
+                    } else {
+                        TurbopackFormat::new_with_cache_invalidation(self.store.clone(), false)
+                    };
+                    ErasedTraceFormat(Box::new(format))
+                }
+                FormatKind::NextJs => {
+                    ErasedTraceFormat(Box::new(NextJsFormat::new(self.store.clone())))
+                }
+                FormatKind::Heaptrack => {
+                    ErasedTraceFormat(Box::new(HeaptrackFormat::new(self.store.clone())))
+                }
             };
             let reuse = erased_format.create_reused();
             self.format = Some((erased_format, reuse));

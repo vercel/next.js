@@ -642,7 +642,7 @@ mod tests {
     #[test]
     fn blocking_total_time_preserves_ranges_and_counted_children() {
         let mut store = Store::new();
-        let mut outdated = FxHashSet::default();
+        let mut outdated = OutdatedSpans::default();
         let parent = store.add_span(
             None,
             Timestamp::from_micros(5),
@@ -748,7 +748,7 @@ mod tests {
             RcStr::default(),
             RcStr::from("span"),
             SpanArgs::new(),
-            &mut FxHashSet::default(),
+            &mut OutdatedSpans::default(),
         )
     }
 
@@ -760,11 +760,15 @@ mod tests {
         start: u64,
         end: u64,
     ) {
-        store.add_self_time(span, ts(start), ts(end), &mut FxHashSet::default());
+        store.add_self_time(span, ts(start), ts(end), &mut OutdatedSpans::default());
     }
 
     fn invalidate(store: &mut Store, spans: &[SpanIndex]) {
-        store.invalidate_outdated_spans(&spans.iter().copied().collect());
+        let mut outdated = OutdatedSpans::default();
+        for &span in spans {
+            outdated.insert(span);
+        }
+        store.invalidate_outdated_spans(&outdated);
     }
 
     /// Corrected self times of the self-time events of `span`.
@@ -862,7 +866,7 @@ mod tests {
     fn overlapping_store() -> (Store, Vec<SpanIndex>) {
         let mut store = Store::new();
         let mut spans = Vec::new();
-        let mut outdated = FxHashSet::default();
+        let mut outdated = OutdatedSpans::default();
         for i in 0..200u64 {
             let parent = spans.get((i / 10) as usize).copied();
             let span = add_span(&mut store, parent, i);

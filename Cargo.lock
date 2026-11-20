@@ -10262,19 +10262,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "turbopack-trace-size"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "flate2",
- "postcard",
- "rustc-hash 2.1.1",
- "turbopack-trace-utils",
- "zstd",
-]
-
-[[package]]
 name = "turbopack-trace-server-wasm"
 version = "0.1.0"
 dependencies = [
@@ -10286,6 +10273,19 @@ dependencies = [
  "spinning_top",
  "talc",
  "turbopack-trace-server",
+]
+
+[[package]]
+name = "turbopack-trace-size"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "flate2",
+ "postcard",
+ "rustc-hash 2.1.1",
+ "turbopack-trace-utils",
+ "zstd",
 ]
 
 [[package]]

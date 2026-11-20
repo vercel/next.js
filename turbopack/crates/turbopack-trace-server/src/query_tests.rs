@@ -4,9 +4,9 @@ use turbopack_trace_utils::tracing::{TimestampEncoder, TraceRow, TraceValue};
 
 use crate::{
     QueryOptions, SortMode, query_spans,
-    reader::{TraceFormat, turbopack::TurbopackFormat},
     store_container::StoreContainer,
     timestamp::Timestamp,
+    trace::{TraceFormat, turbopack::TurbopackFormat},
 };
 
 #[test]
