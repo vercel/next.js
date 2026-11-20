@@ -463,11 +463,8 @@ pub enum EffectsError {
     #[error(transparent)]
     Apply(Arc<dyn EffectError>),
 
-    /// Two captured effects share a key (typically an output path) but have different values.
-    #[error(
-        "conflicting effects for the same key: {key}. This implies multiple routes are trying to \
-         write different content to this file."
-    )]
+    /// Two captured effects share a key but have different value hashes.
+    #[error("conflicting effects for the same key: {key}")]
     Conflict { key: String },
 
     #[error(
@@ -846,13 +843,12 @@ mod tests {
             err.to_string(),
             "Conflicting effects for the same key: /project/.next/server/app/page.js"
         );
-        let message = EffectsError::Conflict {
-            key: err.key.clone(),
-        }
-        .to_string();
-        assert!(
-            message.contains("/project/.next/server/app/page.js"),
-            "{message}"
+        assert_eq!(
+            EffectsError::Conflict {
+                key: err.key.clone(),
+            }
+            .to_string(),
+            "conflicting effects for the same key: /project/.next/server/app/page.js"
         );
     }
 
