@@ -81,7 +81,7 @@ pub use crate::manager::InlineExecutionStats;
 #[cfg(feature = "task_dirty_cause")]
 pub use crate::task_dirty_cause::TaskDirtyCause;
 pub use crate::{
-    capture_future::{PersistentCacheUnreadablePanic, TurboTasksPanic, TurboTasksPanicKind},
+    capture_future::TurboTasksPanic,
     collectibles::CollectiblesSource,
     completion::{Completion, Completions},
     display::{ValueToString, ValueToStringRef},

@@ -11,7 +11,7 @@ use std::{
     },
 };
 
-use anyhow::{Context, Result, anyhow, bail, ensure};
+use anyhow::{Context, Result, bail, ensure};
 use fs_err::File;
 #[cfg(feature = "mmap")]
 use memmap2::Mmap;
@@ -34,7 +34,6 @@ use crate::{
     static_sorted_file_builder::{
         BLOCK_HEADER_SIZE, INDEX_BLOCK_ENTRY_SIZE, INDEX_BLOCK_HEADER_SIZE,
     },
-    unreadable::MarkUnreadable,
 };
 
 /// The block header for an index block.
@@ -1127,8 +1126,7 @@ fn get_raw_block<'a>(
         }
         StaticSortedFileBacking::File { file } => {
             let range = block_range(block_offsets, meta, block_index)?;
-            let (uncompressed_length, checksum, block) = pread_block(file, range)
-                .mark_unreadable(|| format!("{:08}.sst", meta.sequence_number))?;
+            let (uncompressed_length, checksum, block) = pread_block(file, range)?;
             Ok((uncompressed_length, checksum, RawBlock::Owned(block)))
         }
     }
@@ -1190,9 +1188,7 @@ fn pread_buf(file: &File, buf: io::BorrowedCursor<'_, u8>, offset: u64) -> io::R
 }
 
 /// Verifies the CRC32 checksum of a block, which covers the header's `uncompressed_length` and the
-/// on-disk block data. Returns an error marked as [`CacheFileUnreadable`] on mismatch.
-///
-/// [`CacheFileUnreadable`]: crate::CacheFileUnreadable
+/// on-disk block data. Returns an error on mismatch.
 fn verify_checksum(
     meta: &StaticSortedFileMetaData,
     uncompressed_length: u32,
@@ -1202,15 +1198,14 @@ fn verify_checksum(
 ) -> Result<()> {
     let actual = checksum_block(uncompressed_length, data);
     if actual != expected {
-        return Err(anyhow!(
+        bail!(
             "Cache corruption detected: checksum mismatch in block {} of {:08}.sst (expected \
              {:08x}, got {:08x})",
             block_index,
             meta.sequence_number,
             expected,
             actual
-        ))
-        .mark_unreadable(|| format!("{:08}.sst", meta.sequence_number));
+        );
     }
     Ok(())
 }
@@ -1289,7 +1284,7 @@ fn get_raw_block_iter(
     block_index: u16,
 ) -> Result<(u32, u32, RcBytes)> {
     let range = block_range(block_offsets, meta, block_index)?;
-    pread_block(file, range).mark_unreadable(|| format!("{:08}.sst", meta.sequence_number))
+    pread_block(file, range)
 }
 
 /// Reads an iteration block, decompresses it if needed, and verifies its checksum.
