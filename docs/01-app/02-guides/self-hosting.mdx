@@ -270,6 +270,8 @@ For detailed guidance on CDN caching behavior, graceful degradation, and cache v
 
 When stopping the server, ensure a graceful shutdown by sending `SIGINT` or `SIGTERM` signals and waiting. The Next.js server will finish in-flight requests and execute any pending `after()` callbacks before exiting. Platforms should allow a configurable drain period (10-30 seconds is recommended) to ensure all background work completes.
 
+Callbacks that are still running when the drain period ends are lost. For work that must complete, see [Background Jobs](/docs/app/guides/background-jobs).
+
 </AppOnly>
 
 <PagesOnly>

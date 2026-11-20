@@ -49,6 +49,10 @@ export default function Layout({ children }) {
 
 `after` will run for the platform's default or configured max duration of your route. If your platform supports it, you can configure the timeout limit using the [`maxDuration`](/docs/app/api-reference/file-conventions/route-segment-config/maxDuration) route segment config.
 
+### Durability
+
+`after` is best-effort: the callback runs in the same process as the request, isn't retried, and stops if the request reaches its `maxDuration` or the server stops. For work that must complete, such as sending emails or processing payments, use a [background job](/docs/app/guides/background-jobs).
+
 ## Good to know
 
 - `after` will be executed even if the response didn't complete successfully. Including when an error is thrown or when `notFound` or `redirect` is called.

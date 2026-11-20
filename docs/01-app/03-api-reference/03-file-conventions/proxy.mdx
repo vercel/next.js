@@ -727,6 +727,8 @@ export function proxy(req: NextRequest, event: NextFetchEvent) {
 }
 ```
 
+> **Good to know:** `waitUntil` is best-effort. The work is not retried, and it stops when the Proxy reaches its time limit or the server stops. For work that must complete, see [Background Jobs](/docs/app/guides/background-jobs).
+
 ### Unit testing (experimental)
 
 Starting in Next.js 15.1, the `next/experimental/testing/server` package contains utilities to help unit test proxy files. Unit testing proxy can help ensure that it's only run on desired paths and that custom routing logic works as intended before code reaches production.

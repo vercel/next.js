@@ -17,6 +17,10 @@ export const maxDuration = 5
 
 If using [Server Actions](/docs/app/getting-started/mutating-data), set the `maxDuration` at the page level to change the default timeout of all Server Actions used on the page.
 
+## Long-running work
+
+`maxDuration` limits a single request. To run work that takes longer than your platform allows, or that must complete even if a request fails, use a background job instead of raising `maxDuration`. See [Background Jobs](/docs/app/guides/background-jobs).
+
 ## Version History
 
 | Version    | Changes                   |
