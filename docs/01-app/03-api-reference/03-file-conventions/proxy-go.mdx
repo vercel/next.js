@@ -7,7 +7,7 @@ version: experimental
 `proxy.go` runs Go code before routing a request, using Go's `net/http` request and response APIs.
 
 ```go filename="proxy.go" highlight={5,7}
-package main
+package proxy
 
 import "net/http"
 
@@ -56,7 +56,7 @@ Hop-by-hop headers in `Request.Headers`, such as `Connection`, `Keep-Alive`, `Up
 
 Returning without calling `Next` or `Rewrite` sends the response directly. Use standard Go APIs such as `http.Redirect`, `http.SetCookie`, and `http.Flusher` for redirects, response cookies, and streaming. Relative redirect and rewrite destinations resolve against the incoming URL.
 
-The directory containing `proxy.go` is compiled as one executable `package main`, like a [`route.go` directory](/docs/app/api-reference/file-conventions/route-go). For `proxy.go` beside `app` or `pages`, that is the project root: every other `.go` file in that directory except `_test.go` compiles with it and must use `package main`. Next.js generates the `main` function, so do not define `main` in those files or create `zz_next_route_*.go` files. If the project root already contains Go code, such as a Go module's command, place the proxy in `src/proxy.go` or move that code into its own directory. Shared code can live in imported packages.
+The directory containing `proxy.go` is compiled as an ordinary Go package, such as `package proxy`, like a [`route.go` directory](/docs/app/api-reference/file-conventions/route-go). It cannot be `package main`: Next.js generates the program entrypoint and imports the directory as a package. For `proxy.go` beside `app` or `pages`, that is the project root: the other `.go` files that Go selects in that directory compile with it and must use the same package name. Do not create `zz_next_route_*.go` files, which are reserved for generated code. If the project root already contains Go code, such as a Go module's command, place the proxy in `src/proxy.go` or move that code into its own directory. Shared code can live in imported packages.
 
 When continuing or internally rewriting a request, cookies set with `http.SetCookie` are available through [`cookies()`](/docs/app/api-reference/functions/cookies) in the downstream render of the same request.
 
@@ -69,7 +69,7 @@ Go Proxy supports gzip, zlib-wrapped deflate, and Brotli response compression.
 Call `Rewrite` to route a request to another path while keeping the original URL in the browser. Call `Next` for requests that should continue without a rewrite.
 
 ```go filename="proxy.go" highlight={7,11}
-package main
+package proxy
 
 import "net/http"
 
@@ -88,7 +88,7 @@ func Proxy(w http.ResponseWriter, r *http.Request) {
 Clone the incoming headers, apply changes, and pass them through `ProxyOptions.Request.Headers`. The same options value works with `Next` and `Rewrite`.
 
 ```go filename="proxy.go" highlight={10-13}
-package main
+package proxy
 
 import "net/http"
 
