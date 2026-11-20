@@ -144,6 +144,10 @@ export function onRequestError() {
 }
 ```
 
+## See also
+
+`next.config.js` plugins and deployment adapters can register their own server instrumentation modules with the [`instrumentationInject`](/docs/app/api-reference/config/next-config-js/instrumentationInject) option. Injected modules may export the same `register` and `onRequestError` hooks, and their `register` hooks run before the one in this file. Application code should continue to use this file convention directly.
+
 ## Version History
 
 | Version   | Changes                                                 |
