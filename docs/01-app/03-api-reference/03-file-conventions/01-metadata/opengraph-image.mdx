@@ -611,6 +611,13 @@ export async function generateMetadata({ params }) {
 }
 ```
 
+### Static generation with `generateStaticParams` and `generateImageMetadata`
+
+When using dynamically generated Open Graph images in routes with dynamic parameters (e.g. `app/blog/[slug]/opengraph-image.tsx`):
+
+- **With `generateStaticParams`**: When `opengraph-image.tsx` exports `generateStaticParams`, images are statically generated at build time for the returned parameter combinations.
+- **Interaction with `generateImageMetadata`**: When both `generateStaticParams` and [`generateImageMetadata`](/docs/app/api-reference/functions/generate-image-metadata) are defined, `generateImageMetadata` defines the image variants (using unique `id` values). The resulting image variants for dynamic routes are generated and cached on demand at request time rather than prerendered at build time.
+
 ## Version History
 
 | Version   | Changes                                              |
