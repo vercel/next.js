@@ -75,6 +75,7 @@ impl ObjectSafeTraceFormat for ErasedTraceFormat {
 /// the caller so the same parser can be used by native file readers and WASM.
 pub struct TraceParser {
     store: Arc<StoreContainer>,
+    invalidate_caches: bool,
     format: Option<(ErasedTraceFormat, ErasedReused)>,
     buffer: Vec<u8>,
     consumed: usize,
@@ -82,8 +83,18 @@ pub struct TraceParser {
 
 impl TraceParser {
     pub fn new(store: Arc<StoreContainer>) -> Self {
+        Self::new_with_cache_invalidation(store, true)
+    }
+
+    #[allow(dead_code, reason = "unused by the native binary's streaming reader")]
+    pub(crate) fn new_complete(store: Arc<StoreContainer>) -> Self {
+        Self::new_with_cache_invalidation(store, false)
+    }
+
+    fn new_with_cache_invalidation(store: Arc<StoreContainer>, invalidate_caches: bool) -> Self {
         Self {
             store,
+            invalidate_caches,
             format: None,
             buffer: Vec::new(),
             consumed: 0,
@@ -100,7 +111,10 @@ impl TraceParser {
         if self.format.is_none() && self.buffer.len() >= 8 {
             let erased_format = if self.buffer.starts_with(b"TRACEv0") {
                 self.consumed = 7;
-                ErasedTraceFormat(Box::new(TurbopackFormat::new(self.store.clone())))
+                ErasedTraceFormat(Box::new(TurbopackFormat::new(
+                    self.store.clone(),
+                    self.invalidate_caches,
+                )))
             } else if self.buffer.starts_with(b"[{\"name\"") {
                 ErasedTraceFormat(Box::new(NextJsFormat::new(self.store.clone())))
             } else if self.buffer.starts_with(b"v ") {
@@ -108,7 +122,10 @@ impl TraceParser {
             } else {
                 // Preserve the native reader's compatibility with old
                 // Turbopack traces that predate the magic header.
-                ErasedTraceFormat(Box::new(TurbopackFormat::new(self.store.clone())))
+                ErasedTraceFormat(Box::new(TurbopackFormat::new(
+                    self.store.clone(),
+                    self.invalidate_caches,
+                )))
             };
             let reuse = erased_format.create_reused();
             self.format = Some((erased_format, reuse));
