@@ -31,7 +31,7 @@ declare var CHUNK_LOAD_RETRY_MAX_JITTER_MS: number
 declare const SUPPORT_COMPONENT_CHUNKS: boolean
 
 interface TurbopackBrowserBaseContext<M> extends TurbopackBaseContext<M> {
-  R: ResolvePathFromModule
+  S: ResolvePathFromModule
 }
 
 const browserContextPrototype =
