@@ -13,44 +13,9 @@ use turbopack_trace_utils::tracing::{Allocations, TimestampDecoder, TraceRow, Tr
 use super::TraceFormat;
 use crate::{
     span::{SpanArgs, SpanIndex},
-    store::OutdatedSpans,
     store_container::{StoreContainer, StoreWriteGuard},
     timestamp::Timestamp,
 };
-
-const ID_PAGE_BITS: u32 = 16;
-const ID_PAGE_SIZE: usize = 1 << ID_PAGE_BITS;
-const ID_PAGE_MASK: u64 = ID_PAGE_SIZE as u64 - 1;
-
-#[derive(Default)]
-struct IdMapping {
-    pages: FxHashMap<u64, Box<[Option<SpanIndex>]>>,
-    len: usize,
-}
-
-impl IdMapping {
-    fn get(&self, id: u64) -> Option<SpanIndex> {
-        self.pages
-            .get(&(id >> ID_PAGE_BITS))
-            .and_then(|page| page[(id & ID_PAGE_MASK) as usize])
-    }
-
-    fn insert(&mut self, id: u64, span: SpanIndex) {
-        let page = self
-            .pages
-            .entry(id >> ID_PAGE_BITS)
-            .or_insert_with(|| vec![None; ID_PAGE_SIZE].into_boxed_slice());
-        let entry = &mut page[(id & ID_PAGE_MASK) as usize];
-        if entry.is_none() {
-            self.len += 1;
-        }
-        *entry = Some(span);
-    }
-
-    fn len(&self) -> usize {
-        self.len
-    }
-}
 
 struct InternalRow {
     id: Option<u64>,
@@ -96,11 +61,11 @@ enum InternalRowType {
 pub struct TurbopackFormat {
     store: Arc<StoreContainer>,
     invalidate_caches: bool,
-    id_mapping: IdMapping,
+    id_mapping: FxHashMap<u64, SpanIndex>,
     dropped_ids: FxHashSet<u64>,
     remaining_ids_to_drop: usize,
     queued_rows: FxHashMap<u64, Vec<InternalRow>>,
-    outdated_spans: OutdatedSpans,
+    outdated_spans: FxHashSet<SpanIndex>,
     // Each entry is a separate enter, even when the same span re-enters itself.
     // Only the top frame has an active self-time start; suspended frames have None.
     thread_stacks: FxHashMap<u64, Vec<(u64, Option<Timestamp>)>>,
@@ -125,11 +90,11 @@ impl TurbopackFormat {
         Self {
             store,
             invalidate_caches,
-            id_mapping: IdMapping::default(),
+            id_mapping: FxHashMap::with_capacity_and_hasher(131_072, Default::default()),
             dropped_ids: FxHashSet::with_capacity_and_hasher(drop_ids, Default::default()),
             remaining_ids_to_drop: drop_ids,
             queued_rows: FxHashMap::with_capacity_and_hasher(1_024, Default::default()),
-            outdated_spans: OutdatedSpans::with_capacity(8_192, invalidate_caches),
+            outdated_spans: FxHashSet::with_capacity_and_hasher(8_192, Default::default()),
             thread_stacks: FxHashMap::with_capacity_and_hasher(64, Default::default()),
             interner: RcStrInterning::new(),
             timestamps: TimestampDecoder::default(),
@@ -364,8 +329,8 @@ impl TurbopackFormat {
             {
                 return;
             }
-            if let Some(id) = self.id_mapping.get(id) {
-                Some(id)
+            if let Some(id) = self.id_mapping.get(&id) {
+                Some(*id)
             } else {
                 // Parent hasn't been seen yet; queue this row to be processed
                 // when the parent arrives. The row is already lifetime-free
@@ -675,7 +640,7 @@ mod tests {
             .iter()
             .map(|&(id, start, end)| {
                 (
-                    format.id_mapping.get(id).unwrap().get(),
+                    format.id_mapping[&id].get(),
                     Timestamp::from_micros(start),
                     Timestamp::from_micros(end),
                 )
@@ -1057,38 +1022,5 @@ mod tests {
             read(&rows, &["outer", "inner"]),
             vec![(107, 10, 0), (50, 5, 20)]
         );
-    }
-}
-
-#[cfg(test)]
-mod id_mapping_tests {
-    use super::*;
-
-    #[test]
-    fn id_mapping_supports_dense_and_sparse_ids() {
-        let mut mapping = IdMapping::default();
-        let first = SpanIndex::new(1).unwrap();
-        let second = SpanIndex::new(2).unwrap();
-
-        mapping.insert(1, first);
-        mapping.insert(ID_PAGE_SIZE as u64 * 3 + 7, second);
-
-        assert_eq!(mapping.get(1), Some(first));
-        assert_eq!(mapping.get(ID_PAGE_SIZE as u64 * 3 + 7), Some(second));
-        assert_eq!(mapping.get(ID_PAGE_SIZE as u64 + 1), None);
-        assert_eq!(mapping.len(), 2);
-    }
-
-    #[test]
-    fn id_mapping_overwrites_existing_ids() {
-        let mut mapping = IdMapping::default();
-        let first = SpanIndex::new(1).unwrap();
-        let second = SpanIndex::new(2).unwrap();
-
-        mapping.insert(42, first);
-        mapping.insert(42, second);
-
-        assert_eq!(mapping.get(42), Some(second));
-        assert_eq!(mapping.len(), 1);
     }
 }

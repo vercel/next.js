@@ -36,48 +36,6 @@ const MAX_MEMORY_SAMPLES: usize = 200;
 /// Maximum number of equal-duration concurrency segments in a span query.
 const MAX_CONCURRENCY_SAMPLES: usize = 200;
 
-pub struct OutdatedSpans {
-    spans: FxHashSet<SpanIndex>,
-    enabled: bool,
-}
-
-impl OutdatedSpans {
-    pub fn with_capacity(capacity: usize, enabled: bool) -> Self {
-        Self {
-            spans: if enabled {
-                FxHashSet::with_capacity_and_hasher(capacity, Default::default())
-            } else {
-                FxHashSet::default()
-            },
-            enabled,
-        }
-    }
-
-    fn insert(&mut self, span: SpanIndex) {
-        if self.enabled {
-            self.spans.insert(span);
-        }
-    }
-
-    pub fn clear(&mut self) {
-        self.spans.clear();
-    }
-
-    fn contains(&self, span: &SpanIndex) -> bool {
-        self.spans.contains(span)
-    }
-
-    fn iter(&self) -> impl Iterator<Item = &SpanIndex> {
-        self.spans.iter()
-    }
-}
-
-impl Default for OutdatedSpans {
-    fn default() -> Self {
-        Self::with_capacity(0, true)
-    }
-}
-
 pub struct Store {
     pub(crate) spans: ChunkedVec<Span>,
     pub(crate) self_time_tree: Option<SelfTimeTree<SpanIndex>>,
@@ -154,7 +112,7 @@ impl Store {
         category: RcStr,
         name: RcStr,
         args: SpanArgs,
-        outdated_spans: &mut OutdatedSpans,
+        outdated_spans: &mut FxHashSet<SpanIndex>,
     ) -> SpanIndex {
         let id = SpanIndex::new(self.spans.len()).unwrap();
         let ignore_self_time = &name == "thread"
@@ -212,7 +170,7 @@ impl Store {
         &mut self,
         span_index: SpanIndex,
         args: SpanArgs,
-        outdated_spans: &mut OutdatedSpans,
+        outdated_spans: &mut FxHashSet<SpanIndex>,
     ) {
         let span = &mut self.spans[span_index.get()];
         span.args.extend(args);
@@ -242,7 +200,7 @@ impl Store {
         start: Timestamp,
         end: Timestamp,
         span_index: SpanIndex,
-        outdated_spans: &mut OutdatedSpans,
+        outdated_spans: &mut FxHashSet<SpanIndex>,
     ) {
         if let Some(tree) = self.self_time_tree.as_mut() {
             if Timestamp::from_value(*self.max_self_time_lookup_time.get_mut()) >= start {
@@ -259,7 +217,7 @@ impl Store {
         span_index: SpanIndex,
         start: Timestamp,
         end: Timestamp,
-        outdated_spans: &mut OutdatedSpans,
+        outdated_spans: &mut FxHashSet<SpanIndex>,
     ) {
         let event = SpanEvent::self_time(start, end);
         let span = &mut self.spans[span_index.get()];
@@ -283,7 +241,7 @@ impl Store {
         span_index: SpanIndex,
         start_time: Timestamp,
         total_time: Timestamp,
-        outdated_spans: &mut OutdatedSpans,
+        outdated_spans: &mut FxHashSet<SpanIndex>,
     ) {
         if self.spans[span_index.get()].time_data.ignore_self_time {
             let span = &mut self.spans[span_index.get()];
@@ -348,7 +306,7 @@ impl Store {
         &mut self,
         span_index: SpanIndex,
         parent: SpanIndex,
-        outdated_spans: &mut OutdatedSpans,
+        outdated_spans: &mut FxHashSet<SpanIndex>,
     ) {
         outdated_spans.insert(span_index);
         let span = &mut self.spans[span_index.get()];
@@ -378,7 +336,7 @@ impl Store {
         span_index: SpanIndex,
         allocation: u64,
         count: u64,
-        outdated_spans: &mut OutdatedSpans,
+        outdated_spans: &mut FxHashSet<SpanIndex>,
     ) {
         let span = &mut self.spans[span_index.get()];
         outdated_spans.insert(span_index);
@@ -391,7 +349,7 @@ impl Store {
         span_index: SpanIndex,
         deallocation: u64,
         count: u64,
-        outdated_spans: &mut OutdatedSpans,
+        outdated_spans: &mut FxHashSet<SpanIndex>,
     ) {
         let span = &mut self.spans[span_index.get()];
         outdated_spans.insert(span_index);
@@ -565,7 +523,7 @@ impl Store {
         span.is_complete = true;
     }
 
-    pub fn invalidate_outdated_spans(&mut self, outdated_spans: &OutdatedSpans) {
+    pub fn invalidate_outdated_spans(&mut self, outdated_spans: &FxHashSet<SpanId>) {
         fn invalidate_span(span: &mut Span) {
             span.time_data.end.take();
             span.time_data.total_time.take();
@@ -642,7 +600,7 @@ mod tests {
     #[test]
     fn blocking_total_time_preserves_ranges_and_counted_children() {
         let mut store = Store::new();
-        let mut outdated = OutdatedSpans::default();
+        let mut outdated = FxHashSet::default();
         let parent = store.add_span(
             None,
             Timestamp::from_micros(5),
@@ -748,7 +706,7 @@ mod tests {
             RcStr::default(),
             RcStr::from("span"),
             SpanArgs::new(),
-            &mut OutdatedSpans::default(),
+            &mut FxHashSet::default(),
         )
     }
 
@@ -760,15 +718,11 @@ mod tests {
         start: u64,
         end: u64,
     ) {
-        store.add_self_time(span, ts(start), ts(end), &mut OutdatedSpans::default());
+        store.add_self_time(span, ts(start), ts(end), &mut FxHashSet::default());
     }
 
     fn invalidate(store: &mut Store, spans: &[SpanIndex]) {
-        let mut outdated = OutdatedSpans::default();
-        for &span in spans {
-            outdated.insert(span);
-        }
-        store.invalidate_outdated_spans(&outdated);
+        store.invalidate_outdated_spans(&spans.iter().copied().collect());
     }
 
     /// Corrected self times of the self-time events of `span`.
@@ -866,7 +820,7 @@ mod tests {
     fn overlapping_store() -> (Store, Vec<SpanIndex>) {
         let mut store = Store::new();
         let mut spans = Vec::new();
-        let mut outdated = OutdatedSpans::default();
+        let mut outdated = FxHashSet::default();
         for i in 0..200u64 {
             let parent = spans.get((i / 10) as usize).copied();
             let span = add_span(&mut store, parent, i);
@@ -973,18 +927,5 @@ mod tests {
             assert_eq!(f, footprint[i]);
             assert_eq!(w, workers[i]);
         }
-    }
-}
-
-#[cfg(test)]
-mod outdated_spans_tests {
-    use super::*;
-
-    #[test]
-    fn disabled_collector_does_not_retain_spans() {
-        let mut outdated = OutdatedSpans::with_capacity(8, false);
-        outdated.insert(SpanIndex::new(1).unwrap());
-
-        assert_eq!(outdated.iter().count(), 0);
     }
 }
