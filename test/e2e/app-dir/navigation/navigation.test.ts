@@ -939,16 +939,20 @@ describe('app dir - navigation', () => {
         .elementByCss("[href='/dynamic-param-casing-change/ParamA']")
         .click()
 
+      // Dev compiles each target route on demand. Wait for the destination to
+      // render, because a slow compile can exceed retry()'s 3s default.
+
       // note the `paramA` casing has now changed
       await browser
-        .elementByCss("[href='/dynamic-param-casing-change/paramA/noParam']")
+        .waitForElementByCss(
+          "[href='/dynamic-param-casing-change/paramA/noParam']"
+        )
         .click()
 
-      await retry(async () => {
-        expect(await browser.elementByCss('body').text()).toContain(
-          'noParam page'
-        )
-      })
+      await browser.waitForElementByCss('#no-param-page')
+      expect(await browser.elementByCss('body').text()).toContain(
+        'noParam page'
+      )
 
       await browser.back()
 
@@ -956,11 +960,10 @@ describe('app dir - navigation', () => {
         .elementByCss("[href='/dynamic-param-casing-change/paramA/paramB']")
         .click()
 
-      await retry(async () => {
-        expect(await browser.elementByCss('body').text()).toContain(
-          '[paramB] page'
-        )
-      })
+      await browser.waitForElementByCss('#param-b-page')
+      expect(await browser.elementByCss('body').text()).toContain(
+        '[paramB] page'
+      )
     })
   })
 

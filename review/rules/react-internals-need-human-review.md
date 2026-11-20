@@ -2,6 +2,8 @@
 
 rule: A change that couples Next.js to React's internal implementation details always gets a human reviewer, and above all a change that depends on the Flight serialization protocol. React doesn't treat its internals as API. They can change in any React sync with no notice, and Next.js then breaks on every App Router page, usually in only one environment.
 
+The test is whether React would treat changing the behavior as a breaking change, not whether it's written down. Long-standing behavior that ordinary apps rely on is part of React's contract, documented or not. Internals are what React changes in a minor release or a sync without telling anyone: protocol encodings, private fields, internal states, and scheduler mechanics. When it's unclear which side something falls on, it's a judgment call to raise as a comment, not a trigger.
+
 severity: escalate (strong). It can't be justified: no explanation in the description turns it into a medium. It applies even when the author owns every matching area, because it's a trigger, not an area signal. The agent never approves a PR that matches it. A human must.
 
 In scope: any new coupling, or a change to existing coupling. Moving, renaming, or deleting existing coupling counts too, since the reviewer has to confirm the new code still matches what React does.
@@ -29,7 +31,7 @@ Not in scope:
 - Underscore fields on React objects: `_payload`, `_init`, `_owner`, `_store`, `_debugInfo`, `_debugStack`, the `_response` or `_chunks` of a Flight response, or any Fiber field.
 - Internal thenable or chunk states, such as `'resolved_model'`, `'resolved_module'`, or `'halted'`.
 - Building or inspecting React objects by shape instead of through React: a hand-made lazy, element, or reference with a `$$typeof` symbol, or a branch on `REACT_*_TYPE` symbols other than the documented element checks.
-- Timing React doesn't promise: how many microtasks or tasks a render, flush, or abort takes, or which task a chunk is written in.
+- Scheduler mechanics: how many microtasks or tasks a render, flush, or abort takes, or which task a chunk is written in. Ordering that's part of how components behave isn't covered by this, even when it's undocumented.
 - Hand edits or build-time rewrites of vendored React code under `packages/next/src/compiled/**` or in `taskfile.js`.
 
 ## Example
@@ -51,6 +53,7 @@ Good: get the data from a React API that exposes it (here, the `onHeaders` or re
 More examples:
 
 - Bad: detecting Blob references by searching serialized page data for `"$B`, and reasoning that it can't match inside a string because React escapes quotes and doubles a leading `$` (#101440). Both are encoding details React can change, and a missed match gives a wrong answer, not an error.
+- Not a match: relying on the order in which effects run across a component tree. It's undocumented, but changing it would break apps, so it's contract, not internals.
 
 ## Why
 
