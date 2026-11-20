@@ -1,3 +1,3 @@
 export default function Page() {
-  return <div>noParam page</div>
+  return <div id="no-param-page">noParam page</div>
 }
