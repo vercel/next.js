@@ -251,3 +251,31 @@ for (const conflictingFlag of ['--webpack', '--turbopack']) {
     }, 240_000)
   })
 }
+
+// @force-gate webpack
+describe('--webpack with the TURBOPACK environment variable', () => {
+  const command = `pnpm next ${isNextDev ? 'dev' : 'build'} --webpack`
+  const { next } = nextTestSetup({
+    files: __dirname,
+    dependencies: {},
+    env: {
+      TURBOPACK: '1',
+    },
+    buildCommand: command,
+    startCommand: command,
+    skipStart: true,
+  })
+
+  it('reports the conflicting environment variable', async () => {
+    await next.start().catch(() => {})
+    await retry(() => {
+      expect(next.cliOutput).toContain('Multiple bundler flags set:')
+      expect(next.cliOutput).toContain('--webpack (CLI flag)')
+      expect(next.cliOutput).toContain('TURBOPACK=1 (environment variable)')
+      // Test harness variables such as IS_WEBPACK_TEST may also be listed.
+      expect(next.cliOutput).toMatch(
+        /edit your command or your package\.json script, or unset the (TURBOPACK environment variable|conflicting environment variables \(TURBOPACK)/
+      )
+    })
+  }, 240_000)
+})

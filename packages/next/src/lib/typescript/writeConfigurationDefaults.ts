@@ -180,9 +180,11 @@ export function getRequiredConfiguration(
         bundler: typescript.ModuleResolutionKind.Bundler,
         node16: typescript.ModuleResolutionKind.Node16,
         nodenext: typescript.ModuleResolutionKind.NodeNext,
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         node12: (typescript.ModuleResolutionKind as any).Node12,
         node:
-          (typescript.ModuleResolutionKind as any).Node10 ??
+          typescript.ModuleResolutionKind.Node10 ??
           typescript.ModuleResolutionKind.NodeJs,
       }
       res[optionKey] = moduleResolutionMap[value.toLowerCase()] ?? value

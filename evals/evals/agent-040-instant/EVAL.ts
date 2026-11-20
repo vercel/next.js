@@ -9,20 +9,48 @@
 
 import { expect, test } from 'vitest'
 import { environment } from '@vercel/agent-eval/eval'
+import { chromium, expect as browserExpect } from '@playwright/test'
+import { instant } from '@next/playwright'
+import {
+  buildNextApp,
+  startNextServer,
+} from './__agent_eval__/next-test-utils.mjs'
 
-test('keeps the product title in the static shell', async () => {
-  await expect(environment).toSatisfyCriterion(
-    `The product title "Premium Widget" must render in the product page's static shell. It must remain outside the Suspense boundary and async work used for the live inventory, so the title is available before the inventory resolves.
-
-Accept equivalent component and file organization. Reject solutions where the page awaits the inventory before returning or places the title behind the inventory boundary.`
-  )
-})
+test('reveals the product title before live inventory on navigation', async () => {
+  await buildNextApp()
+  const app = await startNextServer()
+  let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined
+  try {
+    browser = await chromium.launch({ headless: true })
+    const page = await browser.newPage()
+    await page.goto(app.url)
+    const title = page.getByRole('heading', {
+      name: 'Premium Widget',
+      exact: true,
+    })
+    const inventory = page.getByText(/^\d+ in stock$/)
+    const price = page.getByText(/^Price: \$\d+\.\d{2}$/)
+    await instant(page, async () => {
+      await page.getByRole('link', { name: 'View Product' }).click()
+      await page.waitForURL(`${app.url}/product`)
+      await browserExpect(title).toBeVisible()
+      await browserExpect(inventory).not.toBeVisible()
+      await browserExpect(price).not.toBeVisible()
+    })
+    await browserExpect(title).toBeVisible()
+    await browserExpect(inventory).toBeVisible()
+    await browserExpect(price).toBeVisible()
+  } finally {
+    await browser?.close()
+    await app.stop()
+  }
+}, 240_000)
 
 test('streams inventory behind a meaningful fallback', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The inventory count and price must render from an async child beneath a Suspense boundary with a visible, meaningful fallback. The product page must be able to return its title and fallback without waiting for getInventory().
+    `The inventory count and price must render beneath a Suspense boundary with a visible, meaningful fallback. The route must show its title and fallback without waiting for getInventory().
 
-Accept equivalent component and file organization. Reject a null or empty fallback, or a solution where the page awaits inventory before returning.`
+Accept both an explicit Suspense boundary around an async child and a layout containing the title with loading.tsx around an async page. Awaiting inventory in page.tsx is valid when the parent layout and loading boundary already provide the title and fallback. Reject a null or empty fallback, or an inventory wait that blocks the entire route including its title.`
   )
 })
 

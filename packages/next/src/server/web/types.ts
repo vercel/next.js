@@ -46,6 +46,8 @@ export interface FetchEventResult {
   response: Response
   waitUntil: Promise<any>
   fetchMetrics?: FetchMetrics
+  /** Whether URL normalization added an inferred locale to a rewrite. */
+  rewriteLocaleWasInferred?: boolean
 }
 
 export type NextMiddlewareResult =

@@ -442,6 +442,16 @@ function computeRootParamsCacheKeySuffix(
   )
 }
 
+function createRootParamsUnavailableError(
+  route: string,
+  rootParamNames: ReadonlySet<string>
+): Error {
+  const paramNames = [...rootParamNames].sort().join(', ')
+  return new Error(
+    `Route ${route} used root params (${paramNames}) inside \`"use cache"\` nested within \`unstable_cache\`. Root params are not available in this context.`
+  )
+}
+
 // Next-internal cookies that must not vary the private cache key, since they're
 // not part of the application's own cookie state. The instant-navigation cookie
 // toggles while a navigation lock is held, so including it would force spurious
@@ -607,6 +617,34 @@ function saveSharedCacheEntryToResumeDataCache(
 }
 
 /**
+ * Registers pending nested metadata with the outer cache store. The supplied
+ * promise must fulfill only after metadata propagation completes. Callers must
+ * register the promise before returning the nested value.
+ */
+function trackNestedCacheMetadata(
+  cacheContext: CacheContext,
+  pendingMetadata: Promise<unknown>
+): void {
+  const { outerWorkUnitStore } = cacheContext
+  if (
+    cacheContext.skipPropagation ||
+    (outerWorkUnitStore.type !== 'cache' &&
+      outerWorkUnitStore.type !== 'private-cache')
+  ) {
+    return
+  }
+
+  const pendingSet = outerWorkUnitStore.pendingNestedCacheMetadata
+  const tracked = pendingMetadata.finally(() => {
+    pendingSet.delete(tracked)
+  })
+  // This handler prevents an unhandled rejection if the promise rejects before
+  // `collectResult` waits for it.
+  tracked.catch(ignoreReject)
+  pendingSet.add(tracked)
+}
+
+/**
  * Completes a join onto another invocation's entry, whether that invocation is
  * still filling or has already finished: forks the stream, saves to this
  * invocation's RDC if the leader had none, and balances the cache signal read
@@ -638,10 +676,13 @@ function serveJoinedCacheEntry(
   // A failed collection or propagation must still end the read so it cannot
   // stall prerendering. The catch prevents an unhandled rejection after the
   // stream has been returned.
-  sharedCacheEntry.pendingMetadata
-    .then((metadata) => {
+  const pendingPropagation = sharedCacheEntry.pendingMetadata.then(
+    (metadata) => {
       maybePropagateCacheEntryMetadata(cacheContext, metadata)
-    })
+    }
+  )
+  trackNestedCacheMetadata(cacheContext, pendingPropagation)
+  pendingPropagation
     .finally(() => {
       cacheSignal?.endRead()
     })
@@ -739,7 +780,7 @@ function generateCacheEntry(
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  timeoutError: UseCacheTimeoutError,
+  timeoutError: UseCacheTimeoutError | undefined,
   deadlockError: UseCacheDeadlockError | undefined
 ) {
   // We need to run this inside a clean AsyncLocalStorage snapshot so that the cache
@@ -765,7 +806,7 @@ function generateCacheEntryWithRestoredWorkStore(
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  timeoutError: UseCacheTimeoutError,
+  timeoutError: UseCacheTimeoutError | undefined,
   deadlockError: UseCacheDeadlockError | undefined
 ) {
   // Since we cleared the AsyncLocalStorage we need to restore the workStore.
@@ -818,6 +859,7 @@ function createUseCacheStore(
       ),
       rootParams: outerWorkUnitStore.rootParams,
       readRootParamNames: new Set<string>(),
+      pendingNestedCacheMetadata: new Set<Promise<unknown>>(),
       // Every private cache scope is its own work unit. Any cache keyed on
       // headers() or cookies() needs to be invalidated. Otherwise some
       // Next.js API semantics leak across render passes.
@@ -885,6 +927,7 @@ function createUseCacheStore(
       ),
       rootParams: outerWorkUnitStore.rootParams,
       readRootParamNames: new Set<string>(),
+      pendingNestedCacheMetadata: new Set<Promise<unknown>>(),
       outerOwnerStack: cacheContext.outerOwnerStack,
       dynamicNestedCacheError: undefined,
     }
@@ -955,7 +998,7 @@ function generateCacheEntryWithCacheContext(
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  timeoutError: UseCacheTimeoutError,
+  timeoutError: UseCacheTimeoutError | undefined,
   deadlockError: UseCacheDeadlockError | undefined
 ) {
   const defaultCacheLife = workStore.cacheLifeProfiles.default
@@ -1228,6 +1271,15 @@ async function collectResult(
     errors.push(error)
   }
 
+  // Wait for nested metadata before collecting this entry's metadata. React
+  // Flight can resolve a nested root model while its referenced promises remain
+  // pending. The outer function can omit those promises from its result. Its
+  // stream can then finish before the nested metadata propagates. The loop
+  // includes promises registered while it waits.
+  while (innerCacheStore.pendingNestedCacheMetadata.size > 0) {
+    await Promise.allSettled(innerCacheStore.pendingNestedCacheMetadata)
+  }
+
   let idx = 0
   const bufferStream = new ReadableStream<Uint8Array>({
     pull(controller) {
@@ -1351,7 +1403,7 @@ async function generateCacheEntryImpl(
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  timeoutError: UseCacheTimeoutError,
+  timeoutError: UseCacheTimeoutError | undefined,
   deadlockError: UseCacheDeadlockError | undefined
 ): Promise<GenerateCacheEntryResult> {
   const temporaryReferences = createServerTemporaryReferenceSet()
@@ -1468,8 +1520,9 @@ async function generateCacheEntryImpl(
       const timeoutAbortController = new AbortController()
       const timer = setTimeout(
         () => {
-          workStore.invalidDynamicUsageError = timeoutError
-          timeoutAbortController.abort(timeoutError)
+          const error = getTimeoutError(timeoutError)
+          workStore.invalidDynamicUsageError = error
+          timeoutAbortController.abort(error)
         },
         getUseCacheFillTimeoutMs(workStore, prerenderStore.type)
       )
@@ -1642,8 +1695,9 @@ async function generateCacheEntryImpl(
           )
           const fillDeadlineAt = performance.now() + fillTimeoutMs
           const devRenderTimeoutTimer = setTimeout(() => {
-            workStore.invalidDynamicUsageError = timeoutError
-            devRenderAbortController.abort(timeoutError)
+            const error = getTimeoutError(timeoutError)
+            workStore.invalidDynamicUsageError = error
+            devRenderAbortController.abort(error)
           }, fillTimeoutMs)
 
           devTimeoutAbortController = new AbortController()
@@ -1821,14 +1875,14 @@ async function encodeFormData(formData: FormData): Promise<string> {
     // might contain that delimeter. We use the length of each field as the delimeter to avoid
     // escaping the values.
     result += key.length.toString(16) + ':' + key
-    let stringValue
     if (typeof value === 'string') {
-      stringValue = value
+      result += value.length.toString(16) + ':' + value
     } else {
       // The FormData might contain binary data that is not valid UTF-8 so this cache
       // key may generate a UCS-2 string. Passing this to another service needs to be
       // aware that the key might not be compatible.
       const arrayBuffer = await value.arrayBuffer()
+      let stringValue
       if (arrayBuffer.byteLength % 2 === 0) {
         stringValue = String.fromCodePoint(...new Uint16Array(arrayBuffer))
       } else {
@@ -1840,8 +1894,26 @@ async function encodeFormData(formData: FormData): Promise<string> {
             new Uint8Array(arrayBuffer, arrayBuffer.byteLength - 1, 1)[0]
           )
       }
+      // 'B' cannot appear in a string field's lowercase hex length prefix, so
+      // it unambiguously marks a binary field. The byte length keeps the field
+      // self-delimiting: n bytes occupy ceil(n/2) code units while a string
+      // field of length n occupies n, which would let a string value absorb
+      // the framing of subsequent fields.
+      // The name and type are part of the key because the cached function
+      // observes them. lastModified is excluded: it defaults to the
+      // construction time and does not survive multipart submission.
+      result +=
+        'B' +
+        value.name.length.toString(16) +
+        ':' +
+        value.name +
+        value.type.length.toString(16) +
+        ':' +
+        value.type +
+        arrayBuffer.byteLength.toString(16) +
+        ':' +
+        stringValue
     }
-    result += stringValue.length.toString(16) + ':' + stringValue
   }
   return result
 }
@@ -1851,17 +1923,135 @@ function createTrackedReadableStream(
   cacheSignal: CacheSignal
 ) {
   const reader = stream.getReader()
+  // End the read exactly once, whether the stream finishes, errors, or is
+  // canceled: a read that never ends keeps `cacheReady()` from resolving, and a
+  // second `endRead()` would unbalance the signal.
+  let readEnded = false
+  const endRead = () => {
+    if (!readEnded) {
+      readEnded = true
+      cacheSignal.endRead()
+    }
+  }
   return new ReadableStream({
     async pull(controller) {
-      const { done, value } = await reader.read()
-      if (done) {
-        controller.close()
-        cacheSignal.endRead()
-      } else {
-        controller.enqueue(value)
+      try {
+        const { done, value } = await reader.read()
+        if (done) {
+          controller.close()
+          endRead()
+        } else {
+          controller.enqueue(value)
+        }
+      } catch (error) {
+        endRead()
+        throw error
       }
     },
+    cancel(reason) {
+      endRead()
+      return reader.cancel(reason)
+    },
   })
+}
+
+/**
+ * Returns the timeout error that `cache()` constructed for this call, or an
+ * `InvariantError` if `canCacheFillTimeOut` claimed that the fill can't time
+ * out.
+ */
+function getTimeoutError(timeoutError: UseCacheTimeoutError | undefined) {
+  return (
+    timeoutError ??
+    new InvariantError(
+      '`timeoutError` should be constructed inside `cache()` whenever the cache fill can time out. `canCacheFillTimeOut` is out of sync with the fill timeouts.'
+    )
+  )
+}
+
+/**
+ * Whether a cache fill started from this context can hit the fill timeout,
+ * i.e. whether `generateCacheEntryImpl` (or the probe mode branch of `cache`)
+ * will arm a timer that throws the `UseCacheTimeoutError`. This must stay in
+ * sync with those timers. In particular it is false for production request
+ * renders, where cache hits are most common.
+ */
+function canCacheFillTimeOut(
+  workStore: WorkStore,
+  workUnitStore: WorkUnitStore
+): boolean {
+  if (process.env.__NEXT_DEV_SERVER && workStore.useCacheProbeMode) {
+    return true
+  }
+
+  switch (workUnitStore.type) {
+    case 'prerender':
+    case 'prerender-runtime':
+      return true
+    case 'cache':
+      return workUnitStore.fallbackRootParamsPrerender !== null
+    case 'request':
+      return !!(process.env.__NEXT_DEV_SERVER && workUnitStore.cacheSignal)
+    case 'prerender-legacy':
+    case 'prerender-client':
+    case 'validation-client':
+    case 'private-cache':
+    case 'unstable-cache':
+    case 'build-time-generator':
+      return false
+    default:
+      workUnitStore satisfies never
+      return false
+  }
+}
+
+/**
+ * Creates an error whose stack starts at the caller of `cache`. Must be called
+ * synchronously from `cache`.
+ */
+function createErrorAtCacheCallSite<T extends Error>(
+  ErrorClass: new (route: string) => T,
+  route: string
+): T {
+  // Capturing a stack trace is the expensive part of creating an error, and
+  // the one that the constructor captures would be replaced right away by the
+  // one that starts at the caller of `cache`. So only capture the latter.
+  const stackTraceLimit = Error.stackTraceLimit
+  Error.stackTraceLimit = 0
+  let error: T
+  try {
+    error = new ErrorClass(route)
+  } finally {
+    Error.stackTraceLimit = stackTraceLimit
+  }
+  Error.captureStackTrace(error, cache)
+  applyOwnerStack(error)
+  return error
+}
+
+/**
+ * Whether the dev-server's hang-detection probe scheduler (the only thrower of
+ * the `UseCacheDeadlockError`) can be set up for a cache fill started from this
+ * context. This must stay in sync with `generateCacheEntryImpl`.
+ */
+function canCacheFillDeadlock(workUnitStore: WorkUnitStore): boolean {
+  switch (workUnitStore.type) {
+    case 'request':
+      return !!workUnitStore.cacheSignal
+    case 'prerender':
+    case 'prerender-runtime':
+    case 'cache':
+    case 'prerender-legacy':
+    case 'prerender-client':
+    case 'validation-client':
+    case 'private-cache':
+    case 'unstable-cache':
+    case 'build-time-generator':
+      return false
+    default:
+      workUnitStore satisfies never
+      return false
+  }
 }
 
 export async function cache(
@@ -1968,21 +2158,31 @@ export async function cache(
     }
   }
 
-  const timeoutError = new UseCacheTimeoutError(workStore.route)
-  Error.captureStackTrace(timeoutError, cache)
-  applyOwnerStack(timeoutError)
-
-  // Only ever thrown by the dev-server's hang-detection probe.
   // `Error.captureStackTrace` has to run while `cache()` is still on the
   // synchronous stack, otherwise the user's `'use cache'` invocation frames
-  // would already be gone — that's why the construction sits up here rather
-  // than next to the trigger that actually consumes it. The `__NEXT_DEV_SERVER`
-  // gate lets the error class drop out of the production runtime bundle.
+  // would already be gone. That's why the errors below are constructed up here
+  // rather than next to the triggers that actually consume them. Whether the
+  // call is a cache hit is only known after an `await`, so we can't skip them
+  // for hits, but we can skip them in contexts where they can never be thrown.
+
+  let timeoutError: UseCacheTimeoutError | undefined
+  if (canCacheFillTimeOut(workStore, workUnitStore)) {
+    timeoutError = createErrorAtCacheCallSite(
+      UseCacheTimeoutError,
+      workStore.route
+    )
+  }
+
+  // Only ever thrown by the dev-server's hang-detection probe scheduler, which
+  // is only set up for dev request renders with a cache signal. The
+  // `__NEXT_DEV_SERVER` gate lets the error class drop out of the production
+  // runtime bundle.
   let deadlockError: UseCacheDeadlockError | undefined
-  if (process.env.__NEXT_DEV_SERVER) {
-    deadlockError = new UseCacheDeadlockError(workStore.route)
-    Error.captureStackTrace(deadlockError, cache)
-    applyOwnerStack(deadlockError)
+  if (process.env.__NEXT_DEV_SERVER && canCacheFillDeadlock(workUnitStore)) {
+    deadlockError = createErrorAtCacheCallSite(
+      UseCacheDeadlockError,
+      workStore.route
+    )
   }
 
   const wrapAsInvalidDynamicUsageError = (error: Error) => {
@@ -2403,7 +2603,7 @@ export async function cache(
         result.pendingCacheResult,
         new Promise<never>((_, reject) => {
           probeTimeoutTimer = setTimeout(
-            () => reject(timeoutError),
+            () => reject(getTimeoutError(timeoutError)),
             probeTimeoutMs
           )
         }),
@@ -3143,6 +3343,24 @@ export async function cache(
             }
 
             const updatedRootParamNames = knownRootParamsByFunctionId.get(id)
+            // Throw when the fill read root params and the joiner has none. A
+            // joiner without root params is nested in `unstable_cache`. The
+            // mismatch retry below requires the joiner's root params, so it
+            // cannot separate this joiner from a leader with different values.
+            // A fork would serve the leader's root-param-specific entry, and
+            // `unstable_cache` would persist it under a key that has no root
+            // params.
+            if (
+              updatedRootParamNames &&
+              updatedRootParamNames.size > 0 &&
+              !rootParams
+            ) {
+              cacheSignal?.endRead()
+              throw createRootParamsUnavailableError(
+                workStore.route,
+                updatedRootParamNames
+              )
+            }
             if (updatedRootParamNames && rootParams) {
               const newCacheHandlerKey =
                 cacheHandlerKeyBase +
@@ -3192,6 +3410,18 @@ export async function cache(
           } else {
             // prerender-dynamic — same root param check before hanging
             const updatedRootParamNames = knownRootParamsByFunctionId.get(id)
+            // Same missing-root-params guard as the fork path above.
+            if (
+              updatedRootParamNames &&
+              updatedRootParamNames.size > 0 &&
+              !rootParams
+            ) {
+              cacheSignal?.endRead()
+              throw createRootParamsUnavailableError(
+                workStore.route,
+                updatedRootParamNames
+              )
+            }
             if (updatedRootParamNames && rootParams) {
               const newCacheHandlerKey =
                 cacheHandlerKeyBase +
@@ -3572,6 +3802,10 @@ export async function cache(
 
           const { stream: newStream, pendingCacheResult } = result
 
+          // `collectResult` propagates metadata before `pendingCacheResult`
+          // fulfills.
+          trackNestedCacheMetadata(cacheContext, pendingCacheResult)
+
           let pendingWrite: Promise<void> | undefined
 
           // When draft mode is enabled, we must not save the cache entry.
@@ -3767,22 +4001,18 @@ export async function cache(
                 if (result.type === 'cached') {
                   const { stream: ignoredStream, pendingCacheResult } = result
 
-                  const savedCacheResult = saveToResumeDataCache(
-                    resumeDataCache,
-                    serializedCacheKey,
-                    pendingCacheResult,
-                    logPrefix
-                  )
-
+                  // The RDC preserves the value served by this render for
+                  // subsequent render passes. Only the cache handler receives
+                  // the regenerated entry.
                   const pendingWrite = cacheHandler
                     ? saveToCacheHandler(
                         cacheHandler,
                         id,
                         cacheHandlerKeyBase,
-                        savedCacheResult,
+                        pendingCacheResult,
                         rootParams
                       )
-                    : savedCacheResult.then(() => {})
+                    : pendingCacheResult.then(() => {})
 
                   for (const completion of await Promise.allSettled([
                     ignoredStream.cancel(),
@@ -3877,12 +4107,18 @@ async function computeCacheKeyImplementationPart(
   implementationPart: unknown
   runtimeEnvVarStateHash: string | undefined
 }> {
-  let durability = workStore.durableUseCacheEntries
-    ? getServerActionsManifest().node[id].workers?.[
-        normalizeWorkerPageName(workStore.page)
-      ]?.durability
+  const entry = workStore.durableUseCacheEntries
+    ? getServerActionsManifest().node[id]
     : undefined
-  if (durability) {
+  const durabilityKey =
+    entry?.workers?.[normalizeWorkerPageName(workStore.page)]?.durability
+  if (entry && durabilityKey !== undefined) {
+    const durability = entry.durability?.[durabilityKey]
+    if (!durability) {
+      throw new InvariantError(
+        `Missing durability metadata for key "${durabilityKey}" of action "${id}" in the server reference manifest.`
+      )
+    }
     // use cache is only supported in Node.js runtime. So we can use the Node.js crypto module here.
     const crypto = require('crypto') as typeof import('crypto')
     let runtimeEnvVarStateHash = crypto

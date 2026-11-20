@@ -2,8 +2,7 @@ name: build-and-test
 
 on:
   push:
-    branches:
-      ['canary', 'releases/lts/active', 'releases/lts/maintenance', 'next-*-*']
+    branches: ['canary', 'releases/**']
   pull_request:
     types: [opened, synchronize]
 
@@ -60,6 +59,17 @@ jobs:
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
+      - name: check for Switchyard change
+        id: switchyard-change
+        run: |
+          set -euo pipefail
+          SWITCHYARD="$(node scripts/run-for-change.mjs --type switchyard --exec echo 'true')"
+          {
+            echo "SWITCHYARD<<EOF"
+            echo "$SWITCHYARD"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: check for release
         id: is-release
         run: |
@@ -79,6 +89,16 @@ jobs:
           github.event_name == 'pull_request' &&
           steps.turbopack-change.outputs.TURBOPACK_ONLY != 'false'
         }}
+      # test-switchyard-prod runs on every canary push, and on pull requests
+      # only when Switchyard's files change.
+      switchyard: >-
+        ${{
+          (github.event_name == 'push' && github.ref == 'refs/heads/canary') ||
+          (
+            github.event_name == 'pull_request' &&
+            steps.switchyard-change.outputs.SWITCHYARD == 'true'
+          )
+        }}
       rspack: >-
         ${{
           steps.is-release.outputs.IS_RELEASE == 'true' || (
@@ -86,50 +106,6 @@ jobs:
             contains(github.event.pull_request.labels.*.name, 'Rspack')
           )
         }}
-
-  pr-ci-metadata:
-    name: Upload PR CI metadata
-    if: ${{ github.event_name == 'pull_request' }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Write PR metadata
-        env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
-          PR_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
-          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
-          PR_IS_FORK: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
-        run: |
-          mkdir -p pr-ci-metadata
-          node <<'NODE'
-          const fs = require('fs')
-
-          fs.writeFileSync(
-            'pr-ci-metadata/pr.json',
-            JSON.stringify(
-              {
-                number: Number(process.env.PR_NUMBER),
-                headSha: process.env.PR_HEAD_SHA,
-                headRef: process.env.PR_HEAD_REF,
-                headRepo: process.env.PR_HEAD_REPO,
-                baseRef: process.env.PR_BASE_REF,
-                isFork: process.env.PR_IS_FORK === 'true',
-              },
-              null,
-              2
-            )
-          )
-          NODE
-
-      - name: Upload PR metadata
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: pr-ci-metadata
-          path: pr-ci-metadata/pr.json
-          retention-days: 1
 
   build-native:
     name: build-native
@@ -217,7 +193,7 @@ jobs:
         run: pnpm install
 
       - name: Fetch test timings
-        run: node run-tests.js --timings --write-timings -g 1/1
+        run: exec node run-tests.js --timings --write-timings -g 1/1
         continue-on-error: true
         env:
           KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
@@ -254,6 +230,7 @@ jobs:
         pnpm lint-no-typescript
         pnpm check-examples
         pnpm validate-externals-doc
+        pnpm validate-review-owners
         # Regenerate the browser-variant lists and fail if they changed, i.e. a
         # `*.browser.{ts,tsx}` sibling was added/removed without running
         # `pnpm generate-browser-variant-aliases` and committing the result.
@@ -315,7 +292,8 @@ jobs:
       needsRustJsInstall: 'yes'
       skipNativeBuild: 'yes'
       skipInstallBuild: 'yes'
-      afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit ${TURBO_ARGS}
+      # `test-cargo-unit-ci` enables the `ci` cargo features, which ignore tests that are flaky on CI runners.
+      afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit-ci ${TURBO_ARGS}
       stepName: 'test-cargo-unit'
       # Run on x86-64 instead of arm64/aarch64. The pnpm workspace in
       # turbopack/crates/turbopack-tracing/tests/node-file-trace pulls in a ton
@@ -344,6 +322,26 @@ jobs:
       skipInstallBuild: 'yes'
       afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit-miri ${TURBO_ARGS}
       stepName: 'test-cargo-unit-miri'
+    secrets: inherit
+
+  test-turbopack-nft:
+    name: test Turbopack NFT compatibility
+    needs: ['changes']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      needsRust: 'yes'
+      skipBuild: 'yes'
+      skipNativeBuild: 'yes'
+      needsPlaywright: 'no'
+      nodeVersion: '24'
+      runs_on_labels: '["ubuntu-latest-16-core-oss"]'
+      afterBuild: pnpm --filter @turbopack/nft test:unit
+      stepName: 'test-turbopack-nft'
     secrets: inherit
 
   test-bench:
@@ -387,7 +385,7 @@ jobs:
       needsRust: 'yes'
       skipInstallBuild: 'yes'
       skipNativeBuild: 'yes'
-      afterBuild: ./scripts/deploy-turbopack-docs.sh
+      afterBuild: ./scripts/check-rustdoc.sh && ./scripts/deploy-turbopack-docs.sh
       stepName: 'rustdoc-check'
     secrets: inherit
 
@@ -403,7 +401,7 @@ jobs:
         uses: ast-grep/action@cf62e780f0c88301228978d593a7784427a097a6 # v1.5.0
         with:
           # Keep in sync with the next.js repo's root package.json
-          version: 0.31.0
+          version: 0.42.0
 
   devlow-bench:
     name: Run devlow benchmarks
@@ -482,7 +480,7 @@ jobs:
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
         export RUST_BACKTRACE=1
 
-        node run-tests.js \
+        exec node run-tests.js \
           --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' \
           --timings \
           --require-timings \
@@ -527,7 +525,7 @@ jobs:
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
         export RUST_BACKTRACE=1
 
-        node run-tests.js --timings --require-timings -g ${{ matrix.group }} --type production
+        exec node run-tests.js --timings --require-timings -g ${{ matrix.group }} --type production
       testTimingsArtifact: 'test-timings'
       stepName: 'test-turbopack-production-react-${{ matrix.react }}-${{ matrix.group }}'
       runs_on_labels: '["ubuntu-latest-16-core-arm-oss"]'
@@ -573,7 +571,7 @@ jobs:
         # tests, so it's applicable to rspack
         export TURBOPACK_DEV=1
 
-        node run-tests.js \
+        exec node run-tests.js \
           --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' \
           --timings \
           --require-timings \
@@ -622,7 +620,7 @@ jobs:
         # tests, so it's applicable to rspack
         export TURBOPACK_BUILD=1
 
-        node run-tests.js --timings --require-timings -g ${{ matrix.group }} --type production
+        exec node run-tests.js --timings --require-timings -g ${{ matrix.group }} --type production
       testTimingsArtifact: 'test-timings'
       stepName: 'test-rspack-production-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
@@ -648,7 +646,7 @@ jobs:
         export NEXT_TEST_MODE=start
         export NEXT_TEST_WASM=true
         export IS_WEBPACK_TEST=1
-        node run-tests.js \
+        exec node run-tests.js \
           test/production/pages-dir/production/test/index.test.ts \
           test/e2e/streaming-ssr/index.test.ts
       stepName: 'test-next-swc-wasm'
@@ -716,7 +714,7 @@ jobs:
     with:
       needsPlaywright: 'no'
       nodeVersion: ${{ matrix.node }}
-      afterBuild: node run-tests.js --type unit
+      afterBuild: exec node run-tests.js --type unit
       stepName: 'test-unit-${{ matrix.node }}'
 
     secrets: inherit
@@ -744,7 +742,7 @@ jobs:
       afterBuild: |
         export __NEXT_NODE_NATIVE_TS_LOADER_ENABLED=true
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        NEXT_TEST_MODE=dev NODE_OPTIONS=--experimental-transform-types node run-tests.js test/e2e/app-dir/next-config-ts-native-ts/**/*.test.ts test/e2e/app-dir/next-config-ts-native-mts/**/*.test.ts
+        NEXT_TEST_MODE=dev NODE_OPTIONS=--experimental-transform-types exec node run-tests.js test/e2e/app-dir/next-config-ts-native-ts/**/*.test.ts test/e2e/app-dir/next-config-ts-native-mts/**/*.test.ts
       stepName: 'test-next-config-ts-native-ts-dev-${{ matrix.node }}'
 
     secrets: inherit
@@ -771,7 +769,7 @@ jobs:
       afterBuild: |
         export __NEXT_NODE_NATIVE_TS_LOADER_ENABLED=true
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        NEXT_TEST_MODE=start NODE_OPTIONS=--experimental-transform-types node run-tests.js test/e2e/app-dir/next-config-ts-native-ts/**/*.test.ts test/e2e/app-dir/next-config-ts-native-mts/**/*.test.ts
+        NEXT_TEST_MODE=start NODE_OPTIONS=--experimental-transform-types exec node run-tests.js test/e2e/app-dir/next-config-ts-native-ts/**/*.test.ts test/e2e/app-dir/next-config-ts-native-mts/**/*.test.ts
       stepName: 'test-next-config-ts-native-ts-prod-${{ matrix.node }}'
 
     secrets: inherit
@@ -793,7 +791,7 @@ jobs:
     with:
       needsPlaywright: 'no'
       nodeVersion: ${{ matrix.node }}
-      afterBuild: node run-tests.js --type unit
+      afterBuild: exec node run-tests.js --type unit
       stepName: 'test-unit-windows-${{ matrix.node }}'
       runs_on_labels: '["windows-latest-8-core-oss"]'
 
@@ -894,7 +892,7 @@ jobs:
             --timeout-minutes 30
 
   test-new-tests-deploy:
-    name: Test new and changed tests when deployed
+    name: Test new and changed tests when deployed (${{ matrix.cache-components && 'cache components, ' || '' }}${{ matrix.builder }}, ${{ matrix.group }})
     needs: ['optimize-ci', 'changes', 'wait-for-preview-tarball']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
@@ -902,6 +900,17 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
+        # Deploy with the Next.js adapter (NEXT_ENABLE_ADAPTER=1) and with the
+        # non-adapter builder (NEXT_ENABLE_ADAPTER=0), like the release deploy
+        # tests do.
+        builder: [adapter, non-adapter]
+        # Run without and with cache components (__NEXT_CACHE_COMPONENTS=true).
+        cache-components: [false, true]
+        exclude:
+          # The release deploy tests don't run cache components with the
+          # non-adapter builder.
+          - builder: non-adapter
+            cache-components: true
 
     permissions:
       contents: read
@@ -912,47 +921,24 @@ jobs:
     with:
       # Keep Next.js related env variables in sync with additionalEnv in next-deploy.ts
       afterBuild: |
-        export NEXT_ENABLE_ADAPTER=1
+        if [ "${{ matrix.cache-components }}" = "true" ]; then
+          export __NEXT_CACHE_COMPONENTS=true
+          export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
+          export NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json,test/cache-components-tests-manifest.json"
+          # revalidatePath/revalidateTag invalidate at project scope, so this
+          # job deploys into its own project, separate from the plain deploy job.
+          export VERCEL_TEST_PROJECT="vtest314-e2e-tests-cache-components"
+        else
+          export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        fi
+        export NEXT_ENABLE_ADAPTER=${{ matrix.builder == 'adapter' && '1' || '0' }}
         export NEXT_TEST_DEPLOY_TARGET_VERCEL=1
-        export NEXT_E2E_TEST_TIMEOUT=240000
-        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        export IS_TURBOPACK_TEST=1
-        node scripts/test-new-tests.mjs \
-          --mode deploy \
-          --group ${{ matrix.group }}
-      stepName: 'test-new-tests-deploy-${{matrix.group}}'
-
-    secrets: inherit
-
-  test-new-tests-deploy-cache-components:
-    name: Test new and changed tests when deployed (cache components)
-    needs: ['optimize-ci', 'changes', 'wait-for-preview-tarball']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1/5, 2/5, 3/5, 4/5, 5/5]
-
-    permissions:
-      contents: read
-      # Minting GitHub OIDC tokens to read private preview builds. Dormant in
-      # this repo since builds here are public.
-      id-token: write
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      afterBuild: |
-        export __NEXT_CACHE_COMPONENTS=true
-        export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
-        export NEXT_ENABLE_ADAPTER=1
-        export NEXT_TEST_DEPLOY_TARGET_VERCEL=1
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json,test/cache-components-tests-manifest.json"
         export NEXT_E2E_TEST_TIMEOUT=240000
         export IS_TURBOPACK_TEST=1
         node scripts/test-new-tests.mjs \
           --mode deploy \
           --group ${{ matrix.group }}
-      stepName: 'test-new-tests-deploy-cache-components-${{matrix.group}}'
+      stepName: "test-new-tests-deploy${{ matrix.cache-components && '-cache-components' || '' }}${{ matrix.builder == 'non-adapter' && '-non-adapter' || '' }}-${{matrix.group}}"
 
     secrets: inherit
 
@@ -988,7 +974,7 @@ jobs:
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
 
-        node run-tests.js \
+        exec node run-tests.js \
           --timings \
           --require-timings \
           -g ${{ matrix.group }} \
@@ -1014,7 +1000,7 @@ jobs:
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_DEV=1
 
-        node run-tests.js \
+        exec node run-tests.js \
           test/e2e/app-dir/app/index.test.ts \
           test/e2e/app-dir/app-edge/app-edge.test.ts \
           test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts \
@@ -1041,7 +1027,7 @@ jobs:
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_BUILD=1
 
-        node run-tests.js --type production \
+        exec node run-tests.js --type production \
           --concurrency 4 \
           test/production/pages-dir/production/test/index.test.ts \
           test/e2e/css-client-nav/css-client-nav.test.ts \
@@ -1081,7 +1067,7 @@ jobs:
         unset IS_TURBOPACK_TEST TURBOPACK_BUILD
         export IS_WEBPACK_TEST=1
 
-        node run-tests.js --type production \
+        exec node run-tests.js --type production \
           test/e2e/app-dir/app-root-params-getters/simple.test.ts
       stepName: 'test-prod-windows'
       runs_on_labels: '["windows-latest-8-core-oss"]'
@@ -1119,7 +1105,7 @@ jobs:
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
 
-        node run-tests.js --timings --require-timings -g ${{ matrix.group }} --type production
+        exec node run-tests.js --timings --require-timings -g ${{ matrix.group }} --type production
       testTimingsArtifact: 'test-timings'
       stepName: 'test-prod-react-${{ matrix.react }}-${{ matrix.group }}'
       runs_on_labels: '["ubuntu-latest-16-core-arm-oss"]'
@@ -1158,7 +1144,7 @@ jobs:
           test/e2e/basepath/basepath.test.ts \
           test/e2e/basepath/error-pages.test.ts
 
-        TURBOPACK_BUILD=1 NEXT_TEST_MODE=start BROWSER_NAME=safari DEVICE_NAME='iPhone XR' node run-tests.js \
+        TURBOPACK_BUILD=1 NEXT_TEST_MODE=start BROWSER_NAME=safari DEVICE_NAME='iPhone XR' exec node run-tests.js \
           test/production/prerender-prefetch/index.test.ts
       stepName: 'test-firefox-safari'
     secrets: inherit
@@ -1193,7 +1179,7 @@ jobs:
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_DEV=1
 
-        node run-tests.js \
+        exec node run-tests.js \
           --timings \
           --require-timings \
           -g ${{ matrix.group }} \
@@ -1232,13 +1218,56 @@ jobs:
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_BUILD=1
 
-        node run-tests.js \
+        exec node run-tests.js \
           --timings \
           --require-timings \
           -g ${{ matrix.group }} \
           --type production
       testTimingsArtifact: 'test-timings'
       stepName: 'test-cache-components-prod-${{ matrix.group }}'
+    secrets: inherit
+
+  # Reruns the routing gate and Switchyard's behavior suite with
+  # `next start` behind the experimental Switchyard. Both must pass the
+  # same as they do without it (packages/next/src/server/switchyard). Runs on every
+  # canary push, and on pull requests that change Switchyard's files
+  # (the `switchyard` group in scripts/run-for-change.mjs).
+  test-switchyard-prod:
+    name: test switchyard prod
+    needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.switchyard == 'true' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/2, 2/2]
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      needsGo: 'yes'
+      afterBuild: |
+        # `next` ships no switchyard binary yet; build one and pass it in.
+        go build -C packages/next/src/server/switchyard -trimpath -o "$RUNNER_TEMP/switchyard" .
+        export __NEXT_EXPERIMENTAL_SWITCHYARD_BINARY="$RUNNER_TEMP/switchyard"
+        export __NEXT_EXPERIMENTAL_SWITCHYARD=1
+
+        # Switchyard's own unit tests (request targets and headers byte for
+        # byte, timeouts, shutdown): about 2 s, so first, in one group.
+        if [ "${{ matrix.group }}" = "1/2" ]; then
+          go -C packages/next/src/server/switchyard test ./...
+        fi
+
+        node scripts/test-routing.mjs --mode=start -g ${{ matrix.group }}
+
+        if [ "${{ matrix.group }}" = "1/2" ]; then
+          NEXT_TEST_MODE=start IS_TURBOPACK_TEST=1 TURBOPACK_BUILD=1 \
+            node run-tests.js \
+              test/production/app-dir/switchyard/switchyard.test.ts \
+              test/production/app-dir/switchyard/switchyard-process.test.ts
+        fi
+      stepName: 'test-switchyard-prod-${{ matrix.group }}'
     secrets: inherit
 
   # We block merging unless this job passes. This is enforced by a "require
@@ -1276,7 +1305,6 @@ jobs:
       - test-new-tests-start
       - wait-for-preview-tarball
       - test-new-tests-deploy
-      - test-new-tests-deploy-cache-components
       - test-turbopack-production
       - test-unit-windows
       - test-dev-windows

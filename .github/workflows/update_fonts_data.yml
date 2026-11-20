@@ -7,10 +7,13 @@ on:
   # Allow manual runs
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   create-pull-request:
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'vercel'
+    environment: bot-autonomous
     steps:
       - name: Create GitHub App token
         id: release-app-token

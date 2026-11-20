@@ -3,7 +3,7 @@ import { revalidateTag, unstable_cache } from 'next/cache'
 export const dynamic = 'force-dynamic'
 
 const revalidateInCache = unstable_cache(async () => {
-  revalidateTag('data', 'max')
+  revalidateTag('revalidatetag-rsc:data', 'max')
 })
 
 export default async function Page() {

@@ -1,6 +1,7 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::{
+    atoms::atom,
     common::DUMMY_SP,
     ecma::ast::{Expr, Ident, KeyValueProp, ObjectLit, PropName, PropOrSpread},
     quote,
@@ -13,7 +14,8 @@ use crate::{
     ast_path_trie::{AstPathId, AstPathTrie},
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGen, CodeGeneration},
-    create_visitor, magic_identifier,
+    create_visitor,
+    magic_identifier::MAGIC_IDENTIFIER_WEBPACK_EXPORTS_INFO_STR,
     references::esm::mangle::mangled_export_names,
 };
 
@@ -152,7 +154,7 @@ impl From<ExportsInfoRef> for CodeGen {
 
 fn exports_ident() -> Ident {
     Ident::new(
-        magic_identifier::mangle("__webpack_exports_info__").into(),
+        atom!(MAGIC_IDENTIFIER_WEBPACK_EXPORTS_INFO_STR),
         DUMMY_SP,
         Default::default(),
     )

@@ -21,9 +21,13 @@ import {
   type AppHistoryState,
   type AppRouterState,
   type NavigateAction,
+  type PreparedNavigationRecord,
   ScrollBehavior,
 } from './router-reducer/router-reducer-types'
-import type { NavigateOptions } from '../../shared/lib/app-router-context.shared-runtime'
+import type {
+  NavigateOptions,
+  PreparedNavigation,
+} from '../../shared/lib/app-router-context.shared-runtime'
 import { dispatchAppRouterAction } from './use-action-queue'
 import { getCurrentAppRouterState } from './app-router-instance'
 import { setLinkForCurrentNavigation, type LinkInstance } from './links'
@@ -33,6 +37,9 @@ import { addBasePath } from '../add-base-path'
 import { isExternalURL } from './app-router-utils'
 import { isJavaScriptURLString } from '../lib/javascript-url'
 import { resetKnownRoutes } from './segment-cache/optimistic-routes'
+import { navigate as navigateAppRouterState } from './app-router-state'
+import { FreshnessPolicy } from './render-tree'
+import { getBFCacheVersion } from './segment-cache/bfcache'
 
 function getRequiredAppRouterState(): AppRouterState {
   const state = getCurrentAppRouterState()
@@ -51,6 +58,28 @@ export function navigate(
   linkInstanceRef: LinkInstance | null,
   transitionTypes: string[] | undefined,
   prefetchIntent: RouterTransitionPrefetchIntent | null
+): void {
+  dispatchNavigation(
+    href,
+    navigateType,
+    scrollBehavior,
+    linkInstanceRef,
+    transitionTypes,
+    prefetchIntent,
+    null
+  )
+}
+
+function dispatchNavigation(
+  href: string,
+  navigateType: NavigateAction['navigateType'],
+  scrollBehavior: ScrollBehavior,
+  linkInstanceRef: LinkInstance | null,
+  transitionTypes: string[] | undefined,
+  prefetchIntent: RouterTransitionPrefetchIntent | null,
+  // Set when this is the commit phase of a prepared navigation. See
+  // `prepare`.
+  preparation: PreparedNavigationRecord | null
 ): void {
   if (isJavaScriptURLString(href)) {
     throw new Error(
@@ -88,6 +117,7 @@ export function navigate(
       locationSearch: location.search,
       scrollBehavior,
       navigateType,
+      preparation,
     })
   })
 }
@@ -131,6 +161,114 @@ export function traverse(
     )
     restore(new URL(href), historyState)
   })
+}
+
+/**
+ * Start a navigation without committing it (`router.experimental_prepare()`).
+ * This performs the same work as a regular navigation, including the dynamic
+ * request, but does not update the router. The data is written into the
+ * BFCache.
+ *
+ * Calling `push` or `replace` on the result performs a regular navigation
+ * that reuses anything the prepare phase wrote into the BFCache, regardless
+ * of stale time, including data that is still streaming in. If the prepared
+ * navigation is never committed, nothing else happens; the data stays in the
+ * BFCache, where a back/forward navigation to an overlapping segment may
+ * observe it.
+ */
+export function prepare(href: string): PreparedNavigation {
+  if (isJavaScriptURLString(href)) {
+    throw new Error(
+      'Next.js has blocked a javascript: URL as a security precaution.'
+    )
+  }
+
+  const preparation: PreparedNavigationRecord = {
+    preparedAt: Date.now(),
+    bfcacheVersion: getBFCacheVersion(),
+    inFlightRequest: null,
+    inFlightRequestTree: null,
+    completedNavigation: null,
+  }
+
+  // Resolve the URL now, so a relative href is committed against the location
+  // it was prepared from, even if the user navigates elsewhere in between.
+  const url = new URL(addBasePath(href), location.href)
+
+  const state = getCurrentAppRouterState()
+  if (state !== null) {
+    if (!isExternalURL(url)) {
+      const currentUrl = new URL(state.canonicalUrl, location.href)
+      // Discard the resulting state. The only lasting effects are the
+      // requests that were spawned and the BFCache entries they fill in.
+      navigateAppRouterState(
+        state,
+        url,
+        currentUrl,
+        state.renderedSearch,
+        state.root,
+        state.tree,
+        state.nextUrl,
+        FreshnessPolicy.Prepare,
+        // Scroll and history behavior are decided by the commit. NoScroll
+        // leaves the current navigation's pending scroll untouched.
+        ScrollBehavior.NoScroll,
+        'push',
+        preparation
+      )
+    }
+  }
+
+  // A prepared navigation can only be committed once.
+  let didCommit = false
+  return {
+    push: (options?: NavigateOptions) => {
+      if (didCommit) {
+        warnPreparedNavigationAlreadyCommitted(href)
+        return
+      }
+      didCommit = true
+      dispatchNavigation(
+        url.href,
+        'push',
+        options?.scroll === false
+          ? ScrollBehavior.NoScroll
+          : ScrollBehavior.Default,
+        null,
+        options?.transitionTypes,
+        null,
+        preparation
+      )
+    },
+    replace: (options?: NavigateOptions) => {
+      if (didCommit) {
+        warnPreparedNavigationAlreadyCommitted(href)
+        return
+      }
+      didCommit = true
+      dispatchNavigation(
+        url.href,
+        'replace',
+        options?.scroll === false
+          ? ScrollBehavior.NoScroll
+          : ScrollBehavior.Default,
+        null,
+        options?.transitionTypes,
+        null,
+        preparation
+      )
+    },
+  }
+}
+
+function warnPreparedNavigationAlreadyCommitted(href: string): void {
+  if (process.env.NODE_ENV !== 'production') {
+    console.error(
+      `The prepared navigation to "${href}" was already committed. Calling ` +
+        '`push` or `replace` again has no effect. To navigate again, call ' +
+        '`router.experimental_prepare()` again, or use `router.push()`.'
+    )
+  }
 }
 
 /**

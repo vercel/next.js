@@ -4,6 +4,8 @@ pub(crate) mod code_module_ids_and_paths;
 pub(crate) mod content;
 pub(crate) mod content_entry;
 pub(crate) mod data;
+#[cfg(test)]
+mod factory_content_tests;
 pub(crate) mod factory_group;
 pub(crate) mod item;
 pub(crate) mod placeable;
@@ -34,8 +36,9 @@ pub use self::{
     code_module_ids_and_paths::{
         BatchGroupCodeModuleIdsAndPaths, CodeModuleIdAndPath, CodeModuleIdsAndPaths,
         batch_group_code_module_ids_and_paths, item_code_module_ids_and_paths,
+        minified_module_factory,
     },
-    content::EcmascriptChunkContent,
+    content::{ChunkMinification, EcmascriptChunkContent},
     content_entry::{EcmascriptChunkContentEntries, EcmascriptChunkContentEntry},
     data::EcmascriptChunkData,
     factory_group::{

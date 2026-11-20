@@ -30,7 +30,6 @@ import type {
   WorkUnitStore,
 } from '../app-render/work-unit-async-storage.external'
 import type { NextParsedUrlQuery } from '../request-meta'
-import { getTurbopackChunkGroupBootstrap } from '../get-page-files'
 import { UNDERSCORE_NOT_FOUND_ROUTE_ENTRY } from '../../shared/lib/entry-constants'
 import type { LoaderTree } from '../lib/app-dir-module'
 import { MIN_PRERENDERABLE_EXPIRE } from '../use-cache/constants'
@@ -40,6 +39,7 @@ import type {
   RouteMatch,
 } from '../route-modules/app-page/module'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
+import type { ResponseStatus } from './response-status'
 import * as ReactClient from 'react'
 
 import RenderResult, {
@@ -74,12 +74,20 @@ import {
   createNodeInlinedDataStream,
 } from './stream-ops'
 import type { AnyStream } from './stream-ops'
+import { encodeTextChunk } from '../stream-utils/node-web-streams-helper'
 import { createRenderInBrowserAbortSignal } from './render-in-browser'
 import { getInstantTestBootstrapScriptContent } from './instant-test-bootstrap'
-import { createTurbopackBootstrapScriptStream } from './turbopack-bootstrap-script'
+import {
+  createTurbopackBootstrapStream,
+  getTurbopackBootstrap,
+  type TurbopackBootstrap,
+} from './turbopack-bootstrap-script'
 import { stripInternalQueries } from '../internal-utils'
 import { getRenderedSearch } from '../../shared/lib/router/utils/querystring'
-import { NEXT_ROUTER_STALE_TIME_HEADER } from '../../client/components/app-router-headers'
+import {
+  NEXT_PRELUDE_METADATA_HEADER,
+  NEXT_ROUTER_STALE_TIME_HEADER,
+} from '../../client/components/app-router-headers'
 import { AppStage } from '../../client/components/segment-cache/types'
 import { createMetadataContext } from '../../lib/metadata/metadata-context'
 import {
@@ -115,8 +123,17 @@ import {
   runWithRequestInsightsIdentity,
 } from '../lib/trace/request-insights-identity'
 import { getTracer, SpanStatusCode } from '../lib/trace/tracer'
-import { traceLocalSpan } from '../lib/trace/local-span-recorder'
-import { isRequestInsightsEnabled } from '../lib/trace/request-insights'
+import type { Span } from '../lib/trace/tracer'
+import {
+  getActiveLocalSpan,
+  isLocalSpanRecordingEnabled,
+  traceLocalSpan,
+} from '../lib/trace/local-span-recorder'
+import {
+  importRequestInsightSpans,
+  isRequestInsightsEnabled,
+  startRequestInsight,
+} from '../lib/trace/request-insights'
 import { FlightRenderResult } from './flight-render-result'
 import {
   createReactServerErrorHandler,
@@ -151,6 +168,7 @@ import {
 } from './walk-tree-with-flight-router-state'
 import { createFullComponentTree, getRootParams } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
+import { getExternalBrowserRuntimeSrc } from './get-external-browser-runtime-src'
 import {
   getClientReferenceManifest,
   getServerModuleMap,
@@ -180,12 +198,14 @@ import {
   formatDynamicAPIAccesses,
   isPrerenderInterruptedError,
   createDynamicTrackingState,
+  consumeDynamicAccess,
+  type DynamicAccess,
+} from './dynamic-rendering'
+import {
   createDynamicValidationState,
   trackAllowedDynamicAccess,
   throwIfDisallowedDynamic,
   PreludeState,
-  consumeDynamicAccess,
-  type DynamicAccess,
   logDisallowedDynamicError,
   trackDynamicHoleInStaticShell,
   getStaticShellDisallowedDynamicReasons,
@@ -200,20 +220,16 @@ import {
   throwIfDisallowedDynamicInStaticRoute,
   getDisallowedReasonsInStaticRoute,
   type InstantValidationHoleKind,
-} from './dynamic-rendering'
+} from './dynamic-rendering-validation'
 import { logBuildDebugHint } from './blocking-route-messages'
-import {
-  ClientComponentLoadTracker,
-  wrapClientComponentLoader,
-} from '../client-component-renderer-logger'
-import { isNodeNextResponse } from '../base-http/helpers'
-import { waitForResponseToFinish } from './wait-for-response'
+import { ClientComponentLoadTracker } from '../client-component-renderer-logger'
+import type { DevResponseLifecycle } from './dev-response-lifecycle'
+import { installGlobalModuleLoadingHandlers } from './install-global-module-loading-handlers'
 import {
   beginDevValidation,
   type DevValidationGeneration,
   yieldToForegroundRequest,
 } from './dev-validation-scheduler'
-import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import {
   parseRelativeUrl,
   type ParsedRelativeUrl,
@@ -285,12 +301,7 @@ import type { MetadataErrorType } from '../../lib/metadata/resolve-metadata'
 import isError, { getProperError } from '../../lib/is-error'
 import { createServerInsertedMetadata } from './metadata-insertion/create-server-inserted-metadata'
 import type { ParsedRequestHeaders } from '../route-modules/app-page/parse-request-headers'
-import { executeRevalidates } from '../revalidation-utils'
-import {
-  trackPendingChunkLoad,
-  trackPendingImport,
-  trackPendingModules,
-} from './module-loading/track-module-loading.external'
+import { trackPendingModules } from './module-loading/track-module-loading.external'
 import { isReactLargeShellError } from './react-large-shell-error'
 import type { GlobalErrorComponent } from '../../client/components/builtin/global-error'
 import { normalizeConventionFilePath } from './segment-explorer-path'
@@ -424,7 +435,8 @@ export type AppRenderContext = {
   assetPrefix: string
   isNotFoundPath: boolean
   nonce: string | undefined
-  res: BaseNextResponse
+  responseStatus: ResponseStatus
+  devResponseLifecycle: DevResponseLifecycle | null
   /**
    * For now, the implicit tags are common for the whole route. If we ever start
    * rendering/revalidating segments independently, they need to move to the
@@ -515,11 +527,14 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
       children: [PAGE_SEGMENT_KEY, {}, notFoundTreeComponents, null],
     },
     // Always include global-error so that getGlobalErrorStyles can access it.
-    // When global-not-found is present, use full components.
-    // Otherwise, only include global-error module.
+    // When global-not-found is present, use full components. Otherwise, keep
+    // the root layout to render a complete HTML document.
     hasGlobalNotFound
       ? components
-      : { 'global-error': components['global-error'] },
+      : {
+          layout: components.layout,
+          'global-error': components['global-error'],
+        },
     null, // staticSiblings
   ]
 }
@@ -649,7 +664,7 @@ async function generateDynamicRSCPayload(
       createElement(NonIndex, {
         createElement,
         pagePath: ctx.pagePath,
-        statusCode: ctx.res.statusCode,
+        statusCode: ctx.responseStatus.statusCode,
         isPossibleServerAction: ctx.isPossibleServerAction,
       }),
       createElement(Viewport, {
@@ -844,9 +859,8 @@ async function generateDynamicFlightRenderResult(
   const requestAbortSignal =
     process.env.__NEXT_DEV_SERVER &&
     renderOpts.experimental.serverComponentsHmrCancellation === true &&
-    requestStore.isHmrRefresh === true &&
-    isNodeNextResponse(ctx.res)
-      ? signalFromNodeResponse(ctx.res.originalResponse)
+    requestStore.isHmrRefresh === true
+      ? ctx.devResponseLifecycle?.getCloseSignal()
       : undefined
 
   if (process.env.__NEXT_USE_NODE_STREAMS) {
@@ -1407,9 +1421,8 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     // render" button.
     const requestAbortSignal =
       renderOpts.experimental.serverComponentsHmrCancellation === true &&
-      initialRequestStore.isHmrRefresh === true &&
-      isNodeNextResponse(ctx.res)
-        ? signalFromNodeResponse(ctx.res.originalResponse)
+      initialRequestStore.isHmrRefresh === true
+        ? ctx.devResponseLifecycle?.getCloseSignal()
         : undefined
 
     const result = await stagedRenderWithCachesInDev({
@@ -1876,16 +1889,6 @@ async function finalRuntimeServerPrerender(
         )
       )
     }
-
-    // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
-    // finish the accumulators. However, it seems like in `--debug-prerender`
-    // the stream will stay open if we don't close the iterable here.
-    if (process.env.NODE_ENV === 'development') {
-      if (staleTimeIterable !== undefined) {
-        staleTimeIterable.close()
-      }
-      finishAccumulatingVaryParams(varyParamsAccumulator)
-    }
   }
 
   // Whether resolving link data unblocked new content. We check this right
@@ -2132,7 +2135,7 @@ async function getRSCPayload(
     createElement(NonIndex, {
       createElement,
       pagePath: ctx.pagePath,
-      statusCode: ctx.res.statusCode,
+      statusCode: ctx.responseStatus.statusCode,
       isPossibleServerAction: ctx.isPossibleServerAction,
     }),
     createElement(Viewport, null),
@@ -2249,7 +2252,7 @@ async function getErrorRSCPayload(
     createElement(NonIndex, {
       createElement,
       pagePath: ctx.pagePath,
-      statusCode: ctx.res.statusCode,
+      statusCode: ctx.responseStatus.statusCode,
       isPossibleServerAction: ctx.isPossibleServerAction,
     }),
     Viewport ? createElement(Viewport, null) : null,
@@ -2464,78 +2467,6 @@ function ErrorApp<T>({
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type BinaryStreamOf<T> = AnyStream
 
-/**
- * Extracted to a separate function to prevent V8 from retaining the entire
- * the render initialization scope through globalThis.__next_require__.
- * V8 shares a single Context object per scope for all closures; by creating
- * these closures in their own function scope, the globalThis references only
- * retain `instrumented` and `cacheComponents`, not request-specific data like
- * req/res/workStore.
- */
-function installGlobalModuleLoadingHandlers(
-  ComponentMod: AppPageModule,
-  cacheComponents: boolean
-) {
-  const instrumented = wrapClientComponentLoader(ComponentMod)
-
-  // When we are prerendering if there is a cacheSignal for tracking
-  // cache reads we track calls to `loadChunk` and `require`. This allows us
-  // to treat chunk/module loading with similar semantics as cache reads to avoid
-  // module loading from causing a prerender to abort too early.
-  const shouldTrackModuleLoading = () => {
-    if (!cacheComponents) {
-      return false
-    }
-    if (process.env.__NEXT_DEV_SERVER) {
-      return true
-    }
-    const workUnitStore = workUnitAsyncStorage.getStore()
-
-    if (!workUnitStore) {
-      return false
-    }
-
-    switch (workUnitStore.type) {
-      case 'prerender':
-      case 'prerender-client':
-      case 'validation-client':
-      case 'prerender-runtime':
-      case 'cache':
-      case 'private-cache':
-        return true
-      case 'prerender-legacy':
-      case 'request':
-      case 'unstable-cache':
-      case 'build-time-generator':
-        return false
-      default:
-        workUnitStore satisfies never
-    }
-  }
-
-  // @ts-expect-error
-  globalThis.__next_require__ = (
-    ...args: Parameters<typeof instrumented.require>
-  ) => {
-    const exportsOrPromise = instrumented.require(...args)
-    if (shouldTrackModuleLoading()) {
-      trackPendingImport(exportsOrPromise)
-    }
-    return exportsOrPromise
-  }
-
-  // @ts-expect-error
-  globalThis.__next_chunk_load__ = (
-    ...args: Parameters<typeof instrumented.loadChunk>
-  ) => {
-    const loadingChunk = instrumented.loadChunk(...args)
-    if (shouldTrackModuleLoading()) {
-      trackPendingChunkLoad(loadingChunk)
-    }
-    return loadingChunk
-  }
-}
-
 type PreparedAppPageRender = {
   serverActionRequestMetadata: ServerActionRequestMetadata
   ctx: AppRenderContext
@@ -2601,7 +2532,7 @@ function initializeClientComponentLoadTracking(
 }
 
 async function prepareAppPageRender(
-  res: BaseNextResponse,
+  responseStatus: ResponseStatus,
   requestUrl: string,
   url: ReturnType<typeof parseRelativeUrl>,
   pagePath: string,
@@ -2616,11 +2547,12 @@ async function prepareAppPageRender(
   routeMatch: RouteMatch,
   generateRequestId: GenerateRequestId,
   missingPrefetchHintPolicy: MissingPrefetchHintPolicy,
-  renderCapabilities: AppRenderCapabilities
+  renderCapabilities: AppRenderCapabilities,
+  devResponseLifecycle: DevResponseLifecycle | null
 ): Promise<PreparedAppPageRender> {
   const isNotFoundPath = pagePath === '/404'
   if (isNotFoundPath) {
-    res.statusCode = 404
+    responseStatus.statusCode = 404
   }
 
   // A unique request timestamp used by development to ensure that it's
@@ -2687,7 +2619,9 @@ async function prepareAppPageRender(
 
   const { flightRouterState, isPrefetchRequest, nonce } = parsedRequestHeaders
 
-  if (parsedRequestHeaders.requestId) {
+  if (requestInsightsIdentity?.debugRequestId) {
+    requestId = requestInsightsIdentity.debugRequestId
+  } else if (parsedRequestHeaders.requestId) {
     // If the client has provided a request ID (in development mode), we use it.
     requestId = parsedRequestHeaders.requestId
   } else if (requestInsightsIdentity) {
@@ -2751,7 +2685,8 @@ async function prepareAppPageRender(
     assetPrefix,
     isNotFoundPath,
     nonce,
-    res,
+    responseStatus,
+    devResponseLifecycle,
     sharedContext,
     implicitTags,
   }
@@ -2771,7 +2706,7 @@ async function prerenderAppPage({
   metadata,
   loaderTree,
 }: PreparedAppPageRender): Promise<PrerenderResult> {
-  const { res, pagePath, renderOpts, workStore, url, fallbackRouteParams } = ctx
+  const { pagePath, renderOpts, workStore, url, fallbackRouteParams } = ctx
 
   // We're either building or revalidating. In either case we need to
   // prerender our page rather than render it.
@@ -2791,7 +2726,6 @@ async function prerenderAppPage({
   let response: PrerenderToStreamResult
   try {
     response = await prerenderToStreamWithTracing(
-      res,
       ctx,
       metadata,
       loaderTree,
@@ -2847,7 +2781,8 @@ async function prerenderAppPage({
   }
 
   // If we have pending revalidates, wait until they are all resolved.
-  const maybeRevalidatesPromise = executeRevalidates(workStore)
+  const maybeRevalidatesPromise =
+    workStore.afterContext.executeRevalidations(workStore)
   if (maybeRevalidatesPromise !== false) {
     const revalidatesPromise = maybeRevalidatesPromise.finally(() => {
       if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
@@ -2862,7 +2797,7 @@ async function prerenderAppPage({
   }
 
   if (renderError !== undefined) {
-    res.statusCode = 500
+    ctx.responseStatus.statusCode = 500
     metadata.statusCode = 500
   } else {
     applyMetadataFromPrerenderResult(response, metadata, workStore)
@@ -2914,6 +2849,7 @@ async function prerenderAppPage({
 
 async function renderAppPage(
   req: BaseNextRequest,
+  res: BaseNextResponse,
   requestHeaders: IncomingHttpHeaders,
   {
     ctx,
@@ -2926,7 +2862,6 @@ async function renderAppPage(
   stagedFallbackParams: OpaqueFallbackRouteParams | null
 ) {
   const {
-    res,
     url,
     renderOpts,
     workStore,
@@ -2935,7 +2870,6 @@ async function renderAppPage(
     implicitTags,
   } = ctx
   const { cacheComponents, setIsrStatus, serverActions } = renderOpts
-  const { cachedNavigations } = renderOpts.experimental
   const {
     isHmrRefresh,
     isPrefetchRequest,
@@ -2960,6 +2894,13 @@ async function renderAppPage(
       : stagedFallbackParams
         ? new Set(stagedFallbackParams.keys())
         : null
+
+  // MPA form submissions need a complete document with the submitted form
+  // state. Their new render can still reuse the extracted RDC.
+  if (isPossibleActionRequest && !serverActionRequestMetadata.isFetchAction) {
+    postponedState = null
+  }
+
   const createRequestStore = createRequestStoreForRender.bind(
     null,
     requestHeaders,
@@ -3000,6 +2941,9 @@ async function renderAppPage(
 
   // MARK: RSC request
   if (isRSCRequest) {
+    // Register the close flush for Flight responses. These branches return
+    // before the HTML path executes pending revalidations.
+    workStore.afterContext.scheduleRevalidationsOnClose(workStore)
     if (runtimePrefetchStage !== null) {
       // MARK: RSC runtimePrefetch
       return generateRuntimePrefetchResult(
@@ -3020,7 +2964,7 @@ async function renderAppPage(
           createRequestStore,
           stagedFallbackParams
         )
-      } else if (cacheComponents && cachedNavigations) {
+      } else if (shouldUseCachedNavigations(renderOpts, requestStore)) {
         // MARK: RSC cacheComponents
         return generateStagedDynamicFlightRenderResultNode(ctx, requestStore)
       } else {
@@ -3165,7 +3109,8 @@ async function renderAppPage(
     }
 
     // If we have pending revalidates, wait until they are all resolved.
-    const maybeRevalidatesPromise = executeRevalidates(workStore)
+    const maybeRevalidatesPromise =
+      workStore.afterContext.executeRevalidations(workStore)
     if (maybeRevalidatesPromise !== false) {
       const revalidatesPromise = maybeRevalidatesPromise.finally(() => {
         if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
@@ -3220,7 +3165,8 @@ async function renderToHTMLOrFlightImpl(
   interpolatedParams: Params,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   routeMatch: RouteMatch,
-  stagedFallbackParams: OpaqueFallbackRouteParams | null
+  stagedFallbackParams: OpaqueFallbackRouteParams | null,
+  devResponseLifecycle: DevResponseLifecycle | null
 ) {
   if (renderOpts.ComponentMod.__next_app__) {
     installGlobalModuleLoadingHandlers(
@@ -3251,10 +3197,12 @@ async function renderToHTMLOrFlightImpl(
     {
       isPossiblyPartialResponse: false,
       supportsPerSegmentPrefetching: renderOpts.cacheComponents,
-    }
+    },
+    devResponseLifecycle
   )
   return renderAppPage(
     req,
+    res,
     requestHeaders,
     prepared,
     postponedState,
@@ -3264,7 +3212,7 @@ async function renderToHTMLOrFlightImpl(
 }
 
 async function prerenderToHTMLOrFlightImpl(
-  res: BaseNextResponse,
+  initialStatusCode: number,
   requestUrl: string,
   url: ReturnType<typeof parseRelativeUrl>,
   pagePath: string,
@@ -3285,8 +3233,9 @@ async function prerenderToHTMLOrFlightImpl(
     )
   }
   const isRoutePPREnabled = renderOpts.experimental.isRoutePPREnabled === true
+  const responseStatus: ResponseStatus = { statusCode: initialStatusCode }
   const prepared = await prepareAppPageRender(
-    res,
+    responseStatus,
     requestUrl,
     url,
     pagePath,
@@ -3308,8 +3257,12 @@ async function prerenderToHTMLOrFlightImpl(
     {
       isPossiblyPartialResponse: isRoutePPREnabled,
       supportsPerSegmentPrefetching: true,
-    }
+    },
+    null
   )
+  if (responseStatus.statusCode !== 200) {
+    prepared.metadata.statusCode = responseStatus.statusCode
+  }
   return prerenderAppPage(prepared)
 }
 
@@ -3327,11 +3280,12 @@ export type AppPageRender = (
   routeMatch: RouteMatch,
   parsedRequestHeaders: ParsedRequestHeaders,
   serverActionRequestMetadata: ServerActionRequestMetadata,
-  stagedFallbackParams: OpaqueFallbackRouteParams | null
+  stagedFallbackParams: OpaqueFallbackRouteParams | null,
+  devResponseLifecycle: DevResponseLifecycle | null
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
 export type AppPagePrerender = (
-  res: BaseNextResponse,
+  initialStatusCode: number,
   requestUrl: string,
   pagePath: string,
   query: NextParsedUrlQuery,
@@ -3430,7 +3384,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
   routeMatch,
   parsedRequestHeaders,
   serverActionRequestMetadata,
-  stagedFallbackParams
+  stagedFallbackParams,
+  devResponseLifecycle
 ) => {
   const { url, interpolatedParams, postponedState } = prepareAppPage(
     serverActionRequestMetadata,
@@ -3472,12 +3427,13 @@ export const renderToHTMLOrFlight: AppPageRender = (
     interpolatedParams,
     fallbackRouteParams,
     routeMatch,
-    stagedFallbackParams
+    stagedFallbackParams,
+    devResponseLifecycle
   )
 }
 
 export const prerenderToHTMLOrFlight: AppPagePrerender = (
-  res,
+  initialStatusCode,
   requestUrl,
   pagePath,
   query,
@@ -3511,7 +3467,7 @@ export const prerenderToHTMLOrFlight: AppPagePrerender = (
   return workAsyncStorage.run(
     workStore,
     prerenderToHTMLOrFlightImpl,
-    res,
+    initialStatusCode,
     requestUrl,
     url,
     pagePath,
@@ -3625,7 +3581,6 @@ async function renderToStream(
     cacheComponents,
   } = renderOpts
 
-  const { cachedNavigations } = renderOpts.experimental
   const waitForAllReady = supportsDynamicResponse !== true
 
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
@@ -3654,6 +3609,16 @@ async function renderToStream(
         nonce,
       }))
 
+  const { externalBrowserRuntime } = experimental
+  const externalRuntimeSrc = getExternalBrowserRuntimeSrc(
+    ctx,
+    buildManifest,
+    externalBrowserRuntime,
+    assetPrefix,
+    crossOrigin,
+    subresourceIntegrityManifest
+  )
+
   const [preinitScripts, bootstrapScript] = getRequiredScripts(
     buildManifest,
     // Why is assetPrefix optional on renderOpts?
@@ -3674,7 +3639,7 @@ async function renderToStream(
   // The Turbopack chunk-group bootstrap is only set when the shared runtime is
   // used. A Cache Components static shell doesn't include it (see
   // `prerenderToStream`), so resuming one emits it with the request's nonce.
-  let turbopackBootstrapScriptContent: string | undefined
+  let turbopackBootstrap: TurbopackBootstrap | undefined
   if (process.env.__NEXT_DEV_SERVER) {
     bootstrapScriptContent = `self.__next_r=${JSON.stringify(
       requestId ?? crypto.randomUUID()
@@ -3686,16 +3651,13 @@ async function renderToStream(
         JSON.stringify(initialHmrVersion)
       )};`
     }
-  } else if (
-    buildManifest.pagesChunkGroupBootstrapParams &&
-    buildManifest.chunkLoadingGlobal
-  ) {
-    turbopackBootstrapScriptContent = getTurbopackChunkGroupBootstrap(
-      buildManifest.pagesChunkGroupBootstrapParams,
-      buildManifest.chunkLoadingGlobal,
-      [page]
+  } else {
+    turbopackBootstrap = getTurbopackBootstrap(
+      buildManifest,
+      [page],
+      externalBrowserRuntime
     )
-    bootstrapScriptContent = turbopackBootstrapScriptContent
+    bootstrapScriptContent = turbopackBootstrap?.scriptContent
   }
 
   // Instant Navigation Testing API: embed the cookie-guarded bootstrap so it
@@ -3713,6 +3675,8 @@ async function renderToStream(
   // during stream consumption, after a typical wrapped function would have ended the span.
   // Note: We pass the full span name as the first argument since startSpan uses it directly.
   const renderSpan = getTracer().startSpan(
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     `render route (app) ${pagePath}` as any,
     {
       attributes: {
@@ -3915,7 +3879,7 @@ async function renderToStream(
             requestId
           )
         }
-      } else if (cacheComponents && cachedNavigations) {
+      } else if (shouldUseCachedNavigations(renderOpts, requestStore)) {
         // Production Cache Components + Cached Navigations: use staged
         // rendering so the RSC payload includes the shell byte length (`a`)
         // and, with Partial Prefetching, an embedded runtime prefetch that the
@@ -4171,13 +4135,14 @@ async function renderToStream(
             // We have a complete HTML Document in the prerender but we need to
             // still include the new server component render because it was not included
             // in the static prelude.
-            const inlinedDataStream = withTurbopackBootstrapScript(
+            const inlinedDataStream = withTurbopackBootstrap(
               createNodeInlinedDataStream(
                 reactServerResult.tee(),
                 nonce,
-                formState
+                formState,
+                externalBrowserRuntime
               ),
-              turbopackBootstrapScriptContent,
+              turbopackBootstrap,
               nonce
             )
 
@@ -4227,13 +4192,14 @@ async function renderToStream(
             return await continueDynamicHTMLResumeNode(htmlStream, {
               delayDataUntilFirstHtmlChunk:
                 preludeState === DynamicHTMLPreludeState.Empty,
-              inlinedDataStream: withTurbopackBootstrapScript(
+              inlinedDataStream: withTurbopackBootstrap(
                 createNodeInlinedDataStream(
                   reactServerResult.consume(),
                   nonce,
-                  formState
+                  formState,
+                  externalBrowserRuntime
                 ),
-                turbopackBootstrapScriptContent,
+                turbopackBootstrap,
                 nonce
               ),
               getServerInsertedHTML,
@@ -4277,6 +4243,7 @@ async function renderToStream(
           maxHeadersLength: reactMaxHeadersLength,
           bootstrapScriptContent,
           bootstrapScripts: [bootstrapScript],
+          unstable_externalRuntimeSrc: externalRuntimeSrc,
           formState,
         }
 
@@ -4293,10 +4260,15 @@ async function renderToStream(
         )
 
         return await continueFizzStream(htmlStream, {
-          inlinedDataStream: createNodeInlinedDataStream(
-            reactServerResult.consume(),
-            nonce,
-            formState
+          inlinedDataStream: withTurbopackBootstrap(
+            createNodeInlinedDataStream(
+              reactServerResult.consume(),
+              nonce,
+              formState,
+              externalBrowserRuntime
+            ),
+            externalBrowserRuntime ? turbopackBootstrap : undefined,
+            nonce
           ),
           waitForAllReady,
           allReady,
@@ -4314,13 +4286,14 @@ async function renderToStream(
             // We have a complete HTML Document in the prerender but we need to
             // still include the new server component render because it was not included
             // in the static prelude.
-            const inlinedDataStream = withTurbopackBootstrapScript(
+            const inlinedDataStream = withTurbopackBootstrap(
               createWebInlinedDataStream(
                 reactServerResult.tee(),
                 nonce,
-                formState
+                formState,
+                externalBrowserRuntime
               ),
-              turbopackBootstrapScriptContent,
+              turbopackBootstrap,
               nonce
             )
 
@@ -4370,13 +4343,14 @@ async function renderToStream(
             return await continueDynamicHTMLResumeWeb(htmlStream, {
               delayDataUntilFirstHtmlChunk:
                 preludeState === DynamicHTMLPreludeState.Empty,
-              inlinedDataStream: withTurbopackBootstrapScript(
+              inlinedDataStream: withTurbopackBootstrap(
                 createWebInlinedDataStream(
                   reactServerResult.consume(),
                   nonce,
-                  formState
+                  formState,
+                  externalBrowserRuntime
                 ),
-                turbopackBootstrapScriptContent,
+                turbopackBootstrap,
                 nonce
               ),
               getServerInsertedHTML,
@@ -4418,6 +4392,7 @@ async function renderToStream(
           maxHeadersLength: reactMaxHeadersLength,
           bootstrapScriptContent,
           bootstrapScripts: [bootstrapScript],
+          unstable_externalRuntimeSrc: externalRuntimeSrc,
           formState,
         }
 
@@ -4432,10 +4407,15 @@ async function renderToStream(
         void allReady.then(finishHtmlRender, finishHtmlRender)
 
         return await continueFizzStream(htmlStream, {
-          inlinedDataStream: createWebInlinedDataStream(
-            reactServerResult.consume(),
-            nonce,
-            formState
+          inlinedDataStream: withTurbopackBootstrap(
+            createWebInlinedDataStream(
+              reactServerResult.consume(),
+              nonce,
+              formState,
+              externalBrowserRuntime
+            ),
+            externalBrowserRuntime ? turbopackBootstrap : undefined,
+            nonce
           ),
           waitForAllReady,
           allReady,
@@ -4515,19 +4495,16 @@ async function renderToStream(
         UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
       )
 
-      let errorBootstrapScriptContent: string | undefined
-      if (process.env.__NEXT_DEV_SERVER) {
-        errorBootstrapScriptContent = bootstrapScriptContent
-      } else if (
-        buildManifest.pagesChunkGroupBootstrapParams &&
-        buildManifest.chunkLoadingGlobal
-      ) {
-        errorBootstrapScriptContent = getTurbopackChunkGroupBootstrap(
-          buildManifest.pagesChunkGroupBootstrapParams,
-          buildManifest.chunkLoadingGlobal,
-          [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]
-        )
-      }
+      const errorBootstrap = process.env.__NEXT_DEV_SERVER
+        ? undefined
+        : getTurbopackBootstrap(
+            buildManifest,
+            [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY],
+            externalBrowserRuntime
+          )
+      const errorBootstrapScriptContent = process.env.__NEXT_DEV_SERVER
+        ? bootstrapScriptContent
+        : errorBootstrap?.scriptContent
 
       if (process.env.__NEXT_USE_NODE_STREAMS) {
         // MARK: nodeStreams errorRecovery RSC + HTML
@@ -4540,6 +4517,8 @@ async function renderToStream(
             getErrorRSCPayload,
             tree,
             ctx,
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             reactServerErrorsByDigest.has((err as any).digest) ? null : err,
             errorType,
             // Normal error rendering should include the error payload head.
@@ -4582,6 +4561,7 @@ async function renderToStream(
               nonce,
               bootstrapScriptContent: errorBootstrapScriptContent,
               bootstrapScripts: [errorBootstrapScript],
+              unstable_externalRuntimeSrc: externalRuntimeSrc,
               formState,
               onAllReady: finishHtmlRender,
             },
@@ -4589,13 +4569,18 @@ async function renderToStream(
           )
 
           return await continueFizzStream(errorHtmlStream, {
-            inlinedDataStream: createNodeInlinedDataStream(
-              // This is intentionally using the readable datastream from the
-              // main render rather than the flight data from the error page
-              // render
-              reactServerResult.consume(),
-              nonce,
-              formState
+            inlinedDataStream: withTurbopackBootstrap(
+              createNodeInlinedDataStream(
+                // This is intentionally using the readable datastream from the
+                // main render rather than the flight data from the error page
+                // render
+                reactServerResult.consume(),
+                nonce,
+                formState,
+                externalBrowserRuntime
+              ),
+              externalBrowserRuntime ? errorBootstrap : undefined,
+              nonce
             ),
             waitForAllReady,
             deploymentId: ctx.sharedContext.deploymentId,
@@ -4632,6 +4617,8 @@ async function renderToStream(
             getErrorRSCPayload,
             tree,
             ctx,
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
             reactServerErrorsByDigest.has((err as any).digest) ? null : err,
             errorType,
             // Normal error rendering should include the error payload head.
@@ -4675,6 +4662,7 @@ async function renderToStream(
                 nonce,
                 bootstrapScriptContent: errorBootstrapScriptContent,
                 bootstrapScripts: [errorBootstrapScript],
+                unstable_externalRuntimeSrc: externalRuntimeSrc,
                 formState,
               }
             )
@@ -4683,13 +4671,18 @@ async function renderToStream(
           void errorAllReady.then(finishHtmlRender, finishHtmlRender)
 
           return await continueFizzStream(errorHtmlStream, {
-            inlinedDataStream: createWebInlinedDataStream(
-              // This is intentionally using the readable datastream from the
-              // main render rather than the flight data from the error page
-              // render
-              reactServerResult.consume(),
-              nonce,
-              formState
+            inlinedDataStream: withTurbopackBootstrap(
+              createWebInlinedDataStream(
+                // This is intentionally using the readable datastream from the
+                // main render rather than the flight data from the error page
+                // render
+                reactServerResult.consume(),
+                nonce,
+                formState,
+                externalBrowserRuntime
+              ),
+              externalBrowserRuntime ? errorBootstrap : undefined,
+              nonce
             ),
             waitForAllReady,
             deploymentId: ctx.sharedContext.deploymentId,
@@ -4853,6 +4846,8 @@ function runDevValidationInBackground(
   validationGeneration: DevValidationGeneration
 ): void {
   const validationAbortSignal = validationGeneration.signal
+  // The render's span, active while the render schedules the validation.
+  const renderSpanContext = getTracer().getActiveScopeSpan()?.spanContext()
 
   void consoleAsyncStorage
     .run({ dim: true }, async () => {
@@ -4861,8 +4856,8 @@ function runDevValidationInBackground(
       // the response has finished so that work cannot delay Flight delivery or
       // the client navigation.
       if (
-        isNodeNextResponse(ctx.res) &&
-        !(await waitForResponseToFinish(ctx.res.originalResponse))
+        ctx.devResponseLifecycle &&
+        !(await ctx.devResponseLifecycle.waitForFinish())
       ) {
         logValidationAborted(ctx)
         return
@@ -4873,137 +4868,173 @@ function runDevValidationInBackground(
         return
       }
 
-      return runInstantInsightsWithTracing(ctx, async (runSpan) => {
-        // Read whether the streamed render errored only now that it has fully
-        // settled.
-        const devRenderDidError = getDevRenderDidError()
+      return runInDevValidationTrace(ctx, renderSpanContext, () =>
+        runInstantInsightsWithTracing(ctx, async (runSpan) => {
+          // Read whether the streamed render errored only now that it has fully
+          // settled.
+          const devRenderDidError = getDevRenderDidError()
 
-        const [instantInputs, staticInputs] = await runSpan(
-          AppRenderSpan.instantInsightsPrepareValidation,
-          'Prepare validation inputs',
-          async () => {
-            const lazyInputs = await prepareValidationInputs(
-              prefetchMode,
-              navigationKind,
-              result,
-              requestStore,
-              validationDebugChannel,
-              ctx,
-              prerenderResumeDataCache,
-              createRequestStore,
-              getPayload,
-              onError,
-              validationAbortSignal
-            )
-
-            // If we need to do multiple renders, do them in parallel.
-            // `runValidationInDev` currently needs `instantInputs` eagerly
-            // right before using `staticInputs` for static shell validation,
-            // so there's no point delaying one of the renders.
-            // We bail out (after logging an error during
-            // `resolveLazyDevValidationInputs`) if sync IO or invalid dynamic
-            // errors happen in either.
-            return Promise.all([
-              lazyInputs.instantInputs
-                ? resolveLazyDevValidationInputs(lazyInputs.instantInputs, ctx)
-                : null,
-              resolveLazyDevValidationInputs(lazyInputs.staticInputs, ctx),
-            ])
-          }
-        )
-        if (
-          instantInputs === VALIDATION_BAILOUT ||
-          staticInputs === VALIDATION_BAILOUT
-        ) {
-          return
-        }
-
-        // A newer render may have superseded this work while we prepared the
-        // validation inputs above (which can itself render).
-        if (validationAbortSignal.aborted) {
-          logValidationAborted(ctx)
-          return
-        }
-
-        return runSpan(
-          AppRenderSpan.instantInsightsRunValidation,
-          'Run validation',
-          async () => {
-            // Hand the whole validation to the worker when one is installed. It
-            // runs on a worker thread (off the main thread), emits its own
-            // lifecycle markers, logs code frames on its piped stdio, and
-            // returns the overlay Flight bytes for the main thread to forward.
-            // The worker is absent when `experimental.devValidationWorker` is
-            // false, and validation runs in-process instead.
-            const devValidationWorker = getDevValidationWorker()
-
-            if (devValidationWorker) {
-              const snapshot = await buildDevValidationSnapshot(
-                ctx,
-                instantInputs,
-                staticInputs,
+          const [instantInputs, staticInputs] = await runSpan(
+            AppRenderSpan.instantInsightsPrepareValidation,
+            'Prepare validation inputs',
+            async () => {
+              const lazyInputs = await prepareValidationInputs(
                 prefetchMode,
-                fallbackRouteParams,
-                devRenderDidError
-              )
-
-              const chunks = await devValidationWorker(
-                snapshot,
+                navigationKind,
+                result,
+                requestStore,
+                validationDebugChannel,
+                ctx,
+                prerenderResumeDataCache,
+                createRequestStore,
+                getPayload,
+                onError,
                 validationAbortSignal
               )
 
-              // A newer navigation may have superseded this validation while
-              // the worker ran; don't surface stale insights for a page the user
-              // left.
-              if (chunks && !validationAbortSignal.aborted) {
-                const { sendErrorsToBrowser } = ctx.renderOpts
-                if (!sendErrorsToBrowser) {
-                  throw new InvariantError(
-                    'Expected `sendErrorsToBrowser` to be defined in renderOpts.'
-                  )
-                }
-                sendErrorsToBrowser(
-                  createNodeStreamFromChunks(chunks),
-                  ctx.htmlRequestId
-                )
-              }
-            } else {
-              // In-process path, taken when `experimental.devValidationWorker`
-              // is false or no worker is installed (e.g. during a build).
-              // Validation computes the errors; the caller delivers them to the
-              // dev overlay. `runWithDevValidationLogging` encloses both the
-              // render and the delivery in the test-mode lifecycle markers so
-              // tests that assert the delivered error between
-              // `validation_start` and `validation_end` capture it.
-              await runWithDevValidationLogging(
-                ctx,
-                validationAbortSignal,
-                async () => {
-                  const validationErrors = await runValidationInDev(
-                    prefetchMode,
-                    instantInputs,
-                    staticInputs,
-                    toValidationRenderContext(ctx),
-                    fallbackRouteParams,
-                    devRenderDidError,
-                    validationAbortSignal
-                  )
-
-                  if (
-                    validationErrors !== undefined &&
-                    !validationAbortSignal.aborted
-                  ) {
-                    await logMessagesAndSendErrorsToBrowser(
-                      validationErrors,
+              // If we need to do multiple renders, do them in parallel.
+              // `runValidationInDev` currently needs `instantInputs` eagerly
+              // right before using `staticInputs` for static shell validation,
+              // so there's no point delaying one of the renders.
+              // We bail out (after logging an error during
+              // `resolveLazyDevValidationInputs`) if sync IO or invalid dynamic
+              // errors happen in either.
+              return Promise.all([
+                lazyInputs.instantInputs
+                  ? resolveLazyDevValidationInputs(
+                      lazyInputs.instantInputs,
                       ctx
                     )
-                  }
-                }
-              )
+                  : null,
+                resolveLazyDevValidationInputs(lazyInputs.staticInputs, ctx),
+              ])
             }
+          )
+          if (
+            instantInputs === VALIDATION_BAILOUT ||
+            staticInputs === VALIDATION_BAILOUT
+          ) {
+            return
           }
-        )
-      })
+
+          // A newer render may have superseded this work while we prepared the
+          // validation inputs above (which can itself render).
+          if (validationAbortSignal.aborted) {
+            logValidationAborted(ctx)
+            return
+          }
+
+          return runSpan(
+            AppRenderSpan.instantInsightsRunValidation,
+            'Run validation',
+            async () => {
+              // Hand the whole validation to the worker when one is installed. It
+              // runs on a worker thread (off the main thread), emits its own
+              // lifecycle markers, logs code frames on its piped stdio, and
+              // returns the overlay Flight bytes for the main thread to forward.
+              // The worker is absent when `experimental.devValidationWorker` is
+              // false, and validation runs in-process instead.
+              const devValidationWorker = getDevValidationWorker()
+
+              if (devValidationWorker) {
+                const runValidationSpan = getActiveLocalSpan()
+                const runValidationSpanContext =
+                  runValidationSpan?.spanContext()
+                const requestInsightsIdentity = getRequestInsightsIdentity()
+                const snapshot = await buildDevValidationSnapshot(
+                  ctx,
+                  instantInputs,
+                  staticInputs,
+                  prefetchMode,
+                  fallbackRouteParams,
+                  devRenderDidError
+                )
+
+                const workerResult = await devValidationWorker(
+                  snapshot,
+                  validationAbortSignal,
+                  {
+                    captureLocalSpans: Boolean(
+                      runValidationSpanContext && requestInsightsIdentity
+                    ),
+                  }
+                )
+
+                // A newer navigation may have superseded this validation while
+                // the worker ran; don't surface stale insights for a page the user
+                // left.
+                if (!validationAbortSignal.aborted) {
+                  if (
+                    workerResult.localSpans &&
+                    runValidationSpanContext &&
+                    requestInsightsIdentity
+                  ) {
+                    importRequestInsightSpans(
+                      requestInsightsIdentity,
+                      runValidationSpanContext,
+                      workerResult.localSpans
+                    )
+                    if (workerResult.localSpans.droppedSpanCount > 0) {
+                      runValidationSpan?.setAttribute(
+                        'next.request_insights.omitted_spans',
+                        workerResult.localSpans.droppedSpanCount
+                      )
+                    }
+                  }
+
+                  const chunks = workerResult.chunks
+                  if (!chunks) {
+                    return
+                  }
+                  const { sendErrorsToBrowser } = ctx.renderOpts
+                  if (!sendErrorsToBrowser) {
+                    throw new InvariantError(
+                      'Expected `sendErrorsToBrowser` to be defined in renderOpts.'
+                    )
+                  }
+                  sendErrorsToBrowser(
+                    createNodeStreamFromChunks(chunks),
+                    ctx.htmlRequestId
+                  )
+                }
+              } else {
+                // In-process path, taken when `experimental.devValidationWorker`
+                // is false or no worker is installed (e.g. during a build).
+                // Validation computes the errors; the caller delivers them to the
+                // dev overlay. `runWithDevValidationLogging` encloses both the
+                // render and the delivery in the test-mode lifecycle markers so
+                // tests that assert the delivered error between
+                // `validation_start` and `validation_end` capture it.
+                await runWithDevValidationLogging(
+                  ctx,
+                  validationAbortSignal,
+                  async () => {
+                    const validationErrors = await runValidationInDev(
+                      prefetchMode,
+                      instantInputs,
+                      staticInputs,
+                      toValidationRenderContext(ctx),
+                      fallbackRouteParams,
+                      devRenderDidError,
+                      validationAbortSignal
+                    )
+
+                    if (
+                      validationErrors !== undefined &&
+                      !validationAbortSignal.aborted
+                    ) {
+                      await logMessagesAndSendErrorsToBrowser(
+                        validationErrors,
+                        ctx
+                      )
+                    }
+                  }
+                )
+              }
+            }
+          )
+        })
+      )
     })
     // The catch keeps a failed render, or anything thrown inside validation,
     // from surfacing as an unhandled rejection.
@@ -5054,6 +5085,38 @@ function runWithoutInstantInsightsSpan<T>(
   return fn()
 }
 
+/**
+ * Runs the background dev validation of a render in a trace of its own, as
+ * the children of a new root span (`validate route (app) <page>`) with a link
+ * to the render's span. The validation runs after the response has finished,
+ * so its spans would otherwise outlive the request's spans they'd be the
+ * children of. The span ends when `fn` settles, with an error status if it
+ * rejects.
+ *
+ * With Request Insights, the validation already runs in a local trace isolated
+ * from OpenTelemetry (see `runInstantInsightsWithTracing`), so nothing changes.
+ */
+function runInDevValidationTrace<T>(
+  ctx: AppRenderContext,
+  renderSpanContext: ReturnType<Span['spanContext']> | undefined,
+  fn: () => Promise<T>
+): Promise<T> {
+  const tracer = getTracer()
+  if (isRequestInsightsEnabled() || !tracer.isOpenTelemetryEnabled()) {
+    return fn()
+  }
+  return tracer.trace(
+    AppRenderSpan.devValidation,
+    {
+      spanName: `validate route (app) ${ctx.pagePath}`,
+      root: true,
+      links: renderSpanContext ? [{ context: renderSpanContext }] : undefined,
+      attributes: { 'next.route': ctx.pagePath },
+    },
+    fn
+  )
+}
+
 async function runInstantInsightsWithTracing<T>(
   ctx: AppRenderContext,
   fn: (runSpan: RunInstantInsightsSpan) => Promise<T>
@@ -5062,27 +5125,27 @@ async function runInstantInsightsWithTracing<T>(
     return fn(runWithoutInstantInsightsSpan)
   }
 
-  return runWithRequestInsightsIdentity(
-    {
-      requestId: ctx.requestId,
-      kind: 'instant-insights',
-      htmlRequestId: ctx.htmlRequestId,
-      url: ctx.url.href,
-    },
-    () =>
-      traceLocalSpan(
-        {
-          name: 'Instant Insights',
-          parentSpan: null,
-          attributes: {
-            'next.span_category': 'nextjs',
-            'next.span_name': 'Instant Insights',
-            'next.span_type': AppRenderSpan.instantInsights,
-            'next.route': ctx.pagePath,
-          },
+  const identity = {
+    requestId: getRequestInsightsIdentity()?.requestId ?? ctx.requestId,
+    kind: 'instant-insights' as const,
+    htmlRequestId: ctx.htmlRequestId,
+    url: ctx.url.href,
+  }
+  startRequestInsight(identity)
+  return runWithRequestInsightsIdentity(identity, () =>
+    traceLocalSpan(
+      {
+        name: 'Instant Insights',
+        parentSpan: null,
+        attributes: {
+          'next.span_category': 'nextjs',
+          'next.span_name': 'Instant Insights',
+          'next.span_type': AppRenderSpan.instantInsights,
+          'next.route': ctx.pagePath,
         },
-        () => fn(runInstantInsightsSpan)
-      )
+      },
+      () => fn(runInstantInsightsSpan)
+    )
   )
 }
 
@@ -5460,6 +5523,17 @@ interface StagedDevRenderSetup {
 export enum PrefetchingMode {
   LegacySpeculative = 1,
   Partial = 2,
+}
+
+function shouldUseCachedNavigations(
+  renderOpts: RenderOpts,
+  requestStore: RequestStore
+): boolean {
+  return (
+    renderOpts.cacheComponents &&
+    renderOpts.experimental.cachedNavigations === true &&
+    !requestStore.draftMode.isEnabled
+  )
 }
 
 async function getPrefetchingModeForPage(
@@ -6393,7 +6467,11 @@ async function accumulateStreamChunksInto(
     try {
       for await (const value of nodeStream) {
         if (cancelled) break
-        collectStageChunk(accumulator, stageController.currentStage, value)
+        collectStageChunk(
+          accumulator,
+          stageController.currentStage,
+          encodeTextChunk(value)
+        )
       }
     } catch (err) {
       if (!cancelled) {
@@ -6475,7 +6553,7 @@ async function countStageBytesUntilAbortNode(
       increaseChunkByteLengths(
         byteLengths,
         stageController.currentStage,
-        (value as Uint8Array).byteLength
+        typeof value === 'string' ? Buffer.byteLength(value) : value.byteLength
       )
     }
   } catch (err) {
@@ -6674,8 +6752,7 @@ async function runWithDevValidationLogging(
 
   const requestId = ctx.requestId
   const url = ctx.url.href
-  const responseFinished =
-    !isNodeNextResponse(ctx.res) || ctx.res.originalResponse.writableFinished
+  const responseFinished = ctx.devResponseLifecycle?.isFinished() ?? true
 
   console.log(
     formatValidationEvent({
@@ -6960,6 +7037,9 @@ async function runValidationInDev(
   devRenderDidError: boolean,
   validationAbortSignal: AbortSignal
 ): Promise<Array<unknown> | undefined> {
+  const runSpan = isLocalSpanRecordingEnabled()
+    ? runInstantInsightsSpan
+    : runWithoutInstantInsightsSpan
   const { componentMod: ComponentMod, getDynamicParamFromSegment } = ctx
   const loaderTree = ComponentMod.routeModule.userland.loaderTree
   const rootParams = getRootParams(loaderTree, getDynamicParamFromSegment)
@@ -6982,21 +7062,26 @@ async function runValidationInDev(
     // First we warmup SSR with the runtime chunks. This ensures that when we do
     // the full prerender pass with dynamic tracking module loading won't
     // interrupt the prerender and can properly observe the entire content
-    await warmupClientModulesForStagedValidation(
-      // if we're going to be validating prefetches, we'll be rendering some segments in the dynamic stage.
-      // otherwise, for static shell validation, we only need to warm up to the PrefetchRuntime stage.
-      // we also need to use a different store type, because instant validation allows more APIs to resolve.
-      needsInstantValidation ? 'validation-client' : 'prerender-client',
-      needsInstantValidation
-        ? accumulatedChunks[RenderStage.Dynamic]
-        : accumulatedChunks[RenderStage.PrefetchRuntime],
-      accumulatedChunks[RenderStage.Dynamic],
-      rootParams,
-      fallbackRouteParams,
-      ctx,
-      validationSamples,
-      validationSampleTracking,
-      validationAbortSignal
+    await runSpan(
+      AppRenderSpan.instantInsightsWarmup,
+      'Warm up validation modules',
+      () =>
+        warmupClientModulesForStagedValidation(
+          // if we're going to be validating prefetches, we'll be rendering some segments in the dynamic stage.
+          // otherwise, for static shell validation, we only need to warm up to the PrefetchRuntime stage.
+          // we also need to use a different store type, because instant validation allows more APIs to resolve.
+          needsInstantValidation ? 'validation-client' : 'prerender-client',
+          needsInstantValidation
+            ? accumulatedChunks[RenderStage.Dynamic]
+            : accumulatedChunks[RenderStage.PrefetchRuntime],
+          accumulatedChunks[RenderStage.Dynamic],
+          rootParams,
+          fallbackRouteParams,
+          ctx,
+          validationSamples,
+          validationSampleTracking,
+          validationAbortSignal
+        )
     )
   }
 
@@ -7039,14 +7124,19 @@ async function runValidationInDev(
       : null
     const hmrRefreshHash = getHmrRefreshHash(inputs.requestStore)
 
-    const result = await validateStaticShell(
-      inputs,
-      ctx,
-      rootParams,
-      fallbackRouteParams,
-      debugChunks,
-      hmrRefreshHash,
-      validationAbortSignal
+    const result = await runSpan(
+      AppRenderSpan.instantInsightsStaticShell,
+      'Validate static shell',
+      () =>
+        validateStaticShell(
+          inputs,
+          ctx,
+          rootParams,
+          fallbackRouteParams,
+          debugChunks,
+          hmrRefreshHash,
+          validationAbortSignal
+        )
     )
     // A newer render superseded this validation while its render ran, so its
     // result is stale. Don't surface errors for a page the user left.
@@ -7076,19 +7166,24 @@ async function runValidationInDev(
       : null
     const hmrRefreshHash = getHmrRefreshHash(inputs.requestStore)
 
-    const result = await validateInstantConfigs(
-      prefetchMode,
-      inputs.accumulatedChunks,
-      debugChunks,
-      inputs.startTime,
-      inputs.stageEndTimes,
-      rootParams,
-      fallbackRouteParams,
-      ctx,
-      hmrRefreshHash,
-      validationSamples,
-      devRenderDidError,
-      validationAbortSignal
+    const result = await runSpan(
+      AppRenderSpan.instantInsightsValidate,
+      'Validate instant navigation',
+      () =>
+        validateInstantConfigs(
+          prefetchMode,
+          inputs.accumulatedChunks,
+          debugChunks,
+          inputs.startTime,
+          inputs.stageEndTimes,
+          rootParams,
+          fallbackRouteParams,
+          ctx,
+          hmrRefreshHash,
+          validationSamples,
+          devRenderDidError,
+          validationAbortSignal
+        )
     )
 
     // A newer render superseded this work. Don't surface stale validation
@@ -8682,7 +8777,8 @@ async function validateInstantConfigInBuildWithSample(
       assetPrefix: outerCtx.assetPrefix,
       isNotFoundPath: outerCtx.isNotFoundPath,
       nonce: outerCtx.nonce,
-      res: outerCtx.res,
+      responseStatus: outerCtx.responseStatus,
+      devResponseLifecycle: outerCtx.devResponseLifecycle,
       sharedContext: outerCtx.sharedContext,
       implicitTags: outerCtx.implicitTags,
     }
@@ -8860,6 +8956,7 @@ async function continueStaticPrerenderWithInlinedData(
   reactServerResult: ReactServerPrerenderResult,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   createInlinedDataStream: typeof createWebInlinedDataStream,
+  externalBrowserRuntime: boolean,
   formState: unknown | null,
   nonce: string | undefined,
   getServerInsertedHTML: () => Promise<string>,
@@ -8870,7 +8967,7 @@ async function continueStaticPrerenderWithInlinedData(
   clientModules: Parameters<typeof renderToWebFlightStream>[2],
   filterStackFrameForError: typeof filterStackFrame,
   serverComponentsErrorHandler: (err: unknown) => string | undefined,
-  turbopackBootstrapScriptContent: string | undefined
+  turbopackBootstrap: TurbopackBootstrap | undefined
 ): Promise<AnyStream> {
   const hasFallbackRouteParams =
     fallbackRouteParams && fallbackRouteParams.size > 0
@@ -8898,13 +8995,14 @@ async function continueStaticPrerenderWithInlinedData(
           onError: serverComponentsErrorHandler,
         })
       )
-    const inlinedDataStream = withTurbopackBootstrapScript(
+    const inlinedDataStream = withTurbopackBootstrap(
       createInlinedDataStream(
         emptyReactServerResult.consumeAsStream(),
         nonce,
-        formState
+        formState,
+        externalBrowserRuntime
       ),
-      turbopackBootstrapScriptContent,
+      turbopackBootstrap,
       nonce
     )
     return continueStaticFallbackPrerender(htmlStream, {
@@ -8912,16 +9010,18 @@ async function continueStaticPrerenderWithInlinedData(
       getServerInsertedHTML,
       getServerInsertedMetadata,
       deploymentId,
+      nonce,
     })
   }
 
-  const inlinedDataStream = withTurbopackBootstrapScript(
+  const inlinedDataStream = withTurbopackBootstrap(
     createInlinedDataStream(
       reactServerResult.consumeAsStream(),
       nonce,
-      formState
+      formState,
+      externalBrowserRuntime
     ),
-    turbopackBootstrapScriptContent,
+    turbopackBootstrap,
     nonce
   )
   return continueStaticPrerender(htmlStream, {
@@ -8933,32 +9033,28 @@ async function continueStaticPrerenderWithInlinedData(
 }
 
 /**
- * Emits the Turbopack chunk-group bootstrap as an inline script ahead of the
- * inlined Flight data. Cache Components prerenders leave it out of the static
+ * Emits the Turbopack chunk-group bootstrap ahead of the inlined Flight data,
+ * as a data template or an inline script. Cache Components leave it out of the static
  * shell, which is prerendered without a request and so can't carry a CSP
  * nonce. The shell then gets it from here: as part of the response when the
  * shell is complete, or from the per-request resume (with the request's nonce)
  * when the shell has postponed parts.
  */
-function withTurbopackBootstrapScript(
+function withTurbopackBootstrap(
   inlinedDataStream: AnyStream,
-  turbopackBootstrapScriptContent: string | undefined,
+  turbopackBootstrap: TurbopackBootstrap | undefined,
   nonce: string | undefined
 ): AnyStream {
-  if (!turbopackBootstrapScriptContent) {
+  if (!turbopackBootstrap) {
     return inlinedDataStream
   }
   return chainStreams(
-    createTurbopackBootstrapScriptStream(
-      turbopackBootstrapScriptContent,
-      nonce
-    ),
+    createTurbopackBootstrapStream(turbopackBootstrap, nonce),
     inlinedDataStream
   )
 }
 
 async function prerenderToStream(
-  res: BaseNextResponse,
   ctx: AppRenderContext,
   metadata: AppPageRenderResultMetadata,
   tree: LoaderTree,
@@ -8975,6 +9071,7 @@ async function prerenderToStream(
     implicitTags,
     nonce,
     pagePath,
+    responseStatus,
     renderOpts,
     workStore,
   } = ctx
@@ -9038,6 +9135,16 @@ async function prerenderToStream(
         nonce,
       }))
 
+  const { externalBrowserRuntime } = experimental
+  const externalRuntimeSrc = getExternalBrowserRuntimeSrc(
+    ctx,
+    buildManifest,
+    externalBrowserRuntime,
+    assetPrefix,
+    crossOrigin,
+    subresourceIntegrityManifest
+  )
+
   const [preinitScripts, bootstrapScript] = getRequiredScripts(
     buildManifest,
     // Why is assetPrefix optional on renderOpts?
@@ -9057,16 +9164,12 @@ async function prerenderToStream(
   // Next.js code runs, so it can't be added later either. Instead it's emitted
   // after the shell: in the stored response when the shell is complete, or by
   // the per-request resume (with the nonce) when the shell has postponed parts.
-  // See `withTurbopackBootstrapScript`.
-  const turbopackBootstrapScriptContent =
-    buildManifest.pagesChunkGroupBootstrapParams &&
-    buildManifest.chunkLoadingGlobal
-      ? getTurbopackChunkGroupBootstrap(
-          buildManifest.pagesChunkGroupBootstrapParams,
-          buildManifest.chunkLoadingGlobal,
-          [page]
-        )
-      : undefined
+  // See `withTurbopackBootstrap`.
+  const turbopackBootstrap = getTurbopackBootstrap(
+    buildManifest,
+    [page],
+    externalBrowserRuntime
+  )
 
   let bootstrapScriptContent: string | undefined
 
@@ -9090,6 +9193,11 @@ async function prerenderToStream(
   }
 
   const { reactServerErrorsByDigest } = workStore
+  // Collect errors reported by the page's RSC renderer to detect prerender
+  // failures. The work store's `reactServerErrorsByDigest` map also records
+  // errors from cached functions for logging, even when the page catches them.
+  // Those caught errors must not fail prerendering.
+  const renderErrorsByDigest = new Map<string, DigestedError>()
   // We don't report errors during prerendering through our instrumentation hooks
   const reportErrors = !experimental.isRoutePPREnabled
   function onHTMLRenderRSCError(err: DigestedError, silenceLog: boolean) {
@@ -9105,7 +9213,9 @@ async function prerenderToStream(
     process.env.NODE_ENV === 'development',
     isBuildTimePrerendering,
     reactServerErrorsByDigest,
-    onHTMLRenderRSCError
+    onHTMLRenderRSCError,
+    undefined,
+    renderErrorsByDigest
   )
 
   function onHTMLRenderSSRError(err: DigestedError) {
@@ -9135,24 +9245,20 @@ async function prerenderToStream(
   let reactServerRenderChunks: Array<Uint8Array> | null = null
   let reactServerResumeDataCache: ResumeDataCache | null = null
   let reactServerPrerenderStore: null | PrerenderStore = null
-  const setMetadataHeader = (name: string) => {
-    metadata.headers ??= {}
-    metadata.headers[name] = res.getHeader(name)
-  }
+  // Record only the headers this prerender produces. The response may already
+  // carry headers from next.config.js `headers()`, or from the cache entry
+  // being revalidated, and the caller applies `metadata.headers` to it.
   const setHeader = (name: string, value: string | string[]) => {
-    res.setHeader(name, value)
-    setMetadataHeader(name)
-    return res
+    metadata.headers ??= {}
+    metadata.headers[name] = value
   }
-  const appendHeader = (name: string, value: string | string[]) => {
-    if (Array.isArray(value)) {
-      value.forEach((item) => {
-        res.appendHeader(name, item)
-      })
-    } else {
-      res.appendHeader(name, value)
-    }
-    setMetadataHeader(name)
+  const appendHeader = (name: string, value: string) => {
+    metadata.headers ??= {}
+    const existing = metadata.headers[name]
+    metadata.headers[name] =
+      existing === undefined
+        ? value
+        : [...(Array.isArray(existing) ? existing : [String(existing)]), value]
   }
 
   const selectStaleTime = createSelectStaleTime(experimental)
@@ -9172,15 +9278,15 @@ async function prerenderToStream(
       const statusCode = getAccessFallbackHTTPStatus(err)
       if (capturedHTTPErrorType === undefined) {
         capturedHTTPErrorType = 'access-fallback'
-        res.statusCode = statusCode
+        responseStatus.statusCode = statusCode
         metadata.statusCode = statusCode
       }
       return getAccessFallbackErrorTypeByStatus(statusCode)
     } else if (isRedirectError(err)) {
       if (capturedHTTPErrorType !== 'redirect') {
         capturedHTTPErrorType = 'redirect'
-        res.statusCode = getRedirectStatusCodeFromError(err)
-        metadata.statusCode = res.statusCode
+        responseStatus.statusCode = getRedirectStatusCodeFromError(err)
+        metadata.statusCode = responseStatus.statusCode
         setHeader(
           'location',
           addPathPrefix(getURLFromRedirectError(err), basePath)
@@ -9361,7 +9467,7 @@ async function prerenderToStream(
         ) as typeof getRSCPayload,
         tree,
         ctx,
-        { is404: res.statusCode === 404, isPrerendering: true }
+        { is404: responseStatus.statusCode === 404, isPrerendering: true }
       )
 
       const initialServerPrerenderStore: PrerenderStore = (prerenderStore = {
@@ -9493,6 +9599,9 @@ async function prerenderToStream(
         const initialClientPrerenderController = new AbortController()
         const initialClientReactController = new AbortController()
         const initialClientRenderController = new AbortController()
+        const {
+          ServerInsertedHTMLProvider: InitialServerInsertedHTMLProvider,
+        } = createServerInsertedHTML()
 
         const initialClientPrerenderStore: PrerenderStore = {
           type: 'prerender-client',
@@ -9525,7 +9634,7 @@ async function prerenderToStream(
             reactDebugStream={undefined}
             debugEndTime={undefined}
             preinitScripts={preinitScripts}
-            ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+            ServerInsertedHTMLProvider={InitialServerInsertedHTMLProvider}
             nonce={nonce}
             images={ctx.renderOpts.images}
           />,
@@ -9561,6 +9670,7 @@ async function prerenderToStream(
             },
             bootstrapScriptContent,
             bootstrapScripts: [bootstrapScript],
+            unstable_externalRuntimeSrc: externalRuntimeSrc,
           }
         )
 
@@ -9660,7 +9770,7 @@ async function prerenderToStream(
         tree,
         ctx,
         {
-          is404: res.statusCode === 404,
+          is404: responseStatus.statusCode === 404,
           isPrerendering: true,
           stageByteLengthsPromise: stageByteLengthsDeferred.promise,
         }
@@ -9735,37 +9845,12 @@ async function prerenderToStream(
         )
       }
 
-      let didHandleUnexpectedAbort = false
-      /**
-       * @returns - whether or not the task should be skipped
-       * because the render was already aborted.
-       * */
       const checkUnexpectedAbort = (): boolean => {
         if (finalServerReactController.signal.aborted) {
-          // If the server controller is already aborted, then we must have encountered sync IO
-          if (!didHandleUnexpectedAbort) {
-            didHandleUnexpectedAbort = true
-            onUnexpectedAbort()
-          }
+          resultIsPartial = true
           return true
         }
-
-        // Not aborted.
         return false
-      }
-
-      const onUnexpectedAbort = () => {
-        resultIsPartial = true
-
-        // FIXME(NAR-810): If we're already aborted due to Sync IO, there should be no need to
-        // finish the accumulators. However, it seems like in `--debug-prerender`
-        // the stream will stay open if we don't settle these here.
-        if (process.env.NODE_ENV === 'development') {
-          if (staleTimeIterable !== undefined) {
-            staleTimeIterable.close()
-          }
-          finishAccumulatingVaryParams(varyParamsAccumulator)
-        }
       }
 
       let debugEndTime: number | undefined = undefined
@@ -10011,9 +10096,10 @@ async function prerenderToStream(
                     isPrerenderInterruptedError(err) ||
                     finalClientReactController.signal.aborted
                   ) {
-                    const componentStack: string | undefined = (
-                      errorInfo as any
-                    ).componentStack
+                    const componentStack: string | undefined =
+                      // TODO(as-any): pre-existing cast, not yet reviewed
+                      // eslint-disable-next-line @next/internal/no-as-any
+                      (errorInfo as any).componentStack
                     if (typeof componentStack === 'string') {
                       if (ensureStaticLevel === EnsureStaticLevel.Navigation) {
                         trackDynamicAccessInStaticRoute(
@@ -10044,6 +10130,7 @@ async function prerenderToStream(
                 maxHeadersLength: reactMaxHeadersLength,
                 bootstrapScriptContent,
                 bootstrapScripts: [bootstrapScript],
+                unstable_externalRuntimeSrc: externalRuntimeSrc,
               }
             )
 
@@ -10091,6 +10178,11 @@ async function prerenderToStream(
           serverDynamicTracking,
           allowEmptyStaticShell
         )
+      }
+
+      if (dynamicValidation.hasDynamicMetadata && !preludeIsEmpty) {
+        metadata.headers ??= {}
+        metadata.headers[NEXT_PRELUDE_METADATA_HEADER] = '0'
       }
 
       const getServerInsertedHTML = makeGetServerInsertedHTML({
@@ -10176,7 +10268,7 @@ async function prerenderToStream(
         reactServerResult.consume()
         return {
           error: undefined,
-          digestErrorsMap: reactServerErrorsByDigest,
+          digestErrorsMap: renderErrorsByDigest,
           ssrErrors: allCapturedErrors,
           stream: await continueDynamicPrerender(htmlStream, {
             getServerInsertedHTML,
@@ -10235,6 +10327,7 @@ async function prerenderToStream(
         reactServerResult,
         fallbackRouteParams,
         createInlinedDataStream,
+        externalBrowserRuntime,
         formState,
         nonce,
         getServerInsertedHTML,
@@ -10245,12 +10338,12 @@ async function prerenderToStream(
         clientModules,
         filterStackFrame,
         serverComponentsErrorHandler,
-        turbopackBootstrapScriptContent
+        turbopackBootstrap
       )
 
       return {
         error: undefined,
-        digestErrorsMap: reactServerErrorsByDigest,
+        digestErrorsMap: renderErrorsByDigest,
         ssrErrors: allCapturedErrors,
         stream,
         dynamicAccess: consumeDynamicAccess(
@@ -10281,7 +10374,7 @@ async function prerenderToStream(
         getRSCPayload,
         tree,
         ctx,
-        { is404: res.statusCode === 404, isPrerendering: true }
+        { is404: responseStatus.statusCode === 404, isPrerendering: true }
       )
 
       let reactServerResult: ReactServerPrerenderResult
@@ -10316,14 +10409,15 @@ async function prerenderToStream(
         {
           onError: htmlRendererErrorHandler,
           nonce,
-          // Without Cache Components the prerender is a complete document
-          // that's never resumed, so the Turbopack bootstrap stays inline.
-          bootstrapScriptContent: turbopackBootstrapScriptContent
+          // Without Cache Components the document is never resumed, so script
+          // bootstraps can be included in the initial render.
+          bootstrapScriptContent: turbopackBootstrap?.scriptContent
             ? bootstrapScriptContent
-              ? `${turbopackBootstrapScriptContent};${bootstrapScriptContent}`
-              : turbopackBootstrapScriptContent
+              ? `${turbopackBootstrap.scriptContent};${bootstrapScriptContent}`
+              : turbopackBootstrap.scriptContent
             : bootstrapScriptContent,
           bootstrapScripts: [bootstrapScript],
+          unstable_externalRuntimeSrc: externalRuntimeSrc,
         },
         { waitForAllReady: true }
       )
@@ -10348,13 +10442,18 @@ async function prerenderToStream(
       })
       return {
         error: undefined,
-        digestErrorsMap: reactServerErrorsByDigest,
+        digestErrorsMap: renderErrorsByDigest,
         ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(htmlStream, {
-          inlinedDataStream: createInlinedDataStream(
-            reactServerResult.consumeAsStream(),
-            nonce,
-            formState
+          inlinedDataStream: withTurbopackBootstrap(
+            createInlinedDataStream(
+              reactServerResult.consumeAsStream(),
+              nonce,
+              formState,
+              externalBrowserRuntime
+            ),
+            externalBrowserRuntime ? turbopackBootstrap : undefined,
+            nonce
           ),
           waitForAllReady: true,
           getServerInsertedHTML,
@@ -10443,14 +10542,16 @@ async function prerenderToStream(
     const errorType = setHTTPAccessFallbackOrRedirectStatus(err)
 
     if (errorType === undefined) {
-      res.statusCode = 500
-      metadata.statusCode = res.statusCode
+      responseStatus.statusCode = 500
+      metadata.statusCode = responseStatus.statusCode
 
       if (
         cacheComponents &&
         (isBuildTimePrerendering ||
           reactServerPrerenderResultIsDynamic === null)
       ) {
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         throw reactServerErrorsByDigest.get((err as any)?.digest) ?? err
       }
     }
@@ -10465,15 +10566,11 @@ async function prerenderToStream(
       UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
     )
 
-    const errorBootstrapScriptContent =
-      buildManifest.pagesChunkGroupBootstrapParams &&
-      buildManifest.chunkLoadingGlobal
-        ? getTurbopackChunkGroupBootstrap(
-            buildManifest.pagesChunkGroupBootstrapParams,
-            buildManifest.chunkLoadingGlobal,
-            [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]
-          )
-        : undefined
+    const errorBootstrap = getTurbopackBootstrap(
+      buildManifest,
+      [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY],
+      externalBrowserRuntime
+    )
 
     if (cacheComponents) {
       const originalFlightPrerenderResult = reactServerPrerenderResult
@@ -10553,6 +10650,8 @@ async function prerenderToStream(
         getErrorRSCPayload,
         tree,
         ctx,
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         reactServerErrorsByDigest.has((err as any)?.digest) ? undefined : err,
         errorType,
         // The recovery shell only bootstraps the original Flight data. Avoid
@@ -10649,8 +10748,9 @@ async function prerenderToStream(
               {
                 nonce,
                 // Like the regular prerender, the Turbopack bootstrap is left
-                // out of the shell; see `withTurbopackBootstrapScript`.
+                // out of the shell; see `withTurbopackBootstrap`.
                 bootstrapScripts: [errorBootstrapScript],
+                unstable_externalRuntimeSrc: externalRuntimeSrc,
                 formState,
                 signal: errorClientReactController.signal,
                 onError: (clientError: unknown, errorInfo: ErrorInfo) => {
@@ -10658,9 +10758,10 @@ async function prerenderToStream(
                     isPrerenderInterruptedError(clientError) ||
                     errorClientReactController.signal.aborted
                   ) {
-                    const componentStack: string | undefined = (
-                      errorInfo as any
-                    ).componentStack
+                    const componentStack: string | undefined =
+                      // TODO(as-any): pre-existing cast, not yet reviewed
+                      // eslint-disable-next-line @next/internal/no-as-any
+                      (errorInfo as any).componentStack
                     if (typeof componentStack === 'string') {
                       trackAllowedDynamicAccess(
                         clientError,
@@ -10719,6 +10820,11 @@ async function prerenderToStream(
           throw new StaticGenBailoutError()
         }
 
+        // The recovery payload omits metadata and viewport from its HTML head.
+        // Bots that require a complete head must bypass this cached shell.
+        metadata.headers ??= {}
+        metadata.headers[NEXT_PRELUDE_METADATA_HEADER] = '0'
+
         const getServerInsertedHTML = makeGetServerInsertedHTML({
           polyfills,
           renderServerInsertedHTML,
@@ -10740,7 +10846,7 @@ async function prerenderToStream(
           errorServerResult.consume()
           return {
             error: errorType !== undefined ? undefined : { thrownValue: err },
-            digestErrorsMap: reactServerErrorsByDigest,
+            digestErrorsMap: renderErrorsByDigest,
             ssrErrors: allCapturedErrors,
             stream: await continueDynamicPrerender(errorHtmlStream, {
               getServerInsertedHTML,
@@ -10798,6 +10904,7 @@ async function prerenderToStream(
           originalFlightPrerenderResult,
           fallbackRouteParams,
           createInlinedDataStream,
+          externalBrowserRuntime,
           formState,
           nonce,
           getServerInsertedHTML,
@@ -10808,13 +10915,13 @@ async function prerenderToStream(
           clientModules,
           filterStackFrame,
           serverComponentsErrorHandler,
-          errorBootstrapScriptContent
+          errorBootstrap
         )
 
         errorServerResult.consume()
         return {
           error: errorType !== undefined ? undefined : { thrownValue: err },
-          digestErrorsMap: reactServerErrorsByDigest,
+          digestErrorsMap: renderErrorsByDigest,
           ssrErrors: allCapturedErrors,
           stream,
           dynamicAccess: consumeDynamicAccess(
@@ -10867,6 +10974,8 @@ async function prerenderToStream(
       getErrorRSCPayload,
       tree,
       ctx,
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       reactServerErrorsByDigest.has((err as any)?.digest) ? undefined : err,
       errorType,
       // Legacy prerender recovery should include the error payload head.
@@ -10899,8 +11008,9 @@ async function prerenderToStream(
         />,
         {
           nonce,
-          bootstrapScriptContent: errorBootstrapScriptContent,
+          bootstrapScriptContent: errorBootstrap?.scriptContent,
           bootstrapScripts: [errorBootstrapScript],
+          unstable_externalRuntimeSrc: externalRuntimeSrc,
           formState,
         },
         { waitForAllReady: true }
@@ -10921,13 +11031,18 @@ async function prerenderToStream(
 
       return {
         error: undefined,
-        digestErrorsMap: reactServerErrorsByDigest,
+        digestErrorsMap: renderErrorsByDigest,
         ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(errorHtmlStream, {
-          inlinedDataStream: createInlinedDataStream(
-            reactServerPrerenderResult.consumeAsStream(),
-            nonce,
-            formState
+          inlinedDataStream: withTurbopackBootstrap(
+            createInlinedDataStream(
+              reactServerPrerenderResult.consumeAsStream(),
+              nonce,
+              formState,
+              externalBrowserRuntime
+            ),
+            externalBrowserRuntime ? errorBootstrap : undefined,
+            nonce
           ),
           waitForAllReady: true,
           getServerInsertedHTML: makeGetServerInsertedHTML({
@@ -11071,7 +11186,7 @@ async function iterateStreamingPrerenderChunks(
     try {
       for await (const value of nodeStream) {
         if (cancelled) break
-        onChunk(value)
+        onChunk(encodeTextChunk(value))
       }
     } catch (err) {
       if (!cancelled) {

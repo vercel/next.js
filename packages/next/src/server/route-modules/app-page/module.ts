@@ -39,10 +39,15 @@ import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
 import { SegmentPrefixRSCPathnameNormalizer } from '../../normalizers/request/segment-prefix-rsc'
 import type { UrlWithParsedQuery } from 'url'
 import type { IncomingHttpHeaders, IncomingMessage } from 'http'
+import { createDevResponseLifecycle } from '../../app-render/dev-response-lifecycle'
 import {
   applyAppPageRscRequestMetaFromHeaders,
   normalizeAppPageRequestUrl,
 } from './normalize-request-url'
+import {
+  UNDERSCORE_GLOBAL_ERROR_ROUTE,
+  UNDERSCORE_NOT_FOUND_ROUTE,
+} from '../../../shared/lib/entry-constants'
 
 let vendoredReactRSC
 let vendoredReactSSR
@@ -207,16 +212,25 @@ export class AppPageRouteModule extends RouteModule<
       context.routeMatch,
       context.parsedRequestHeaders,
       context.serverActionRequestMetadata,
-      context.stagedFallbackParams
+      context.stagedFallbackParams,
+      process.env.__NEXT_DEV_SERVER ? createDevResponseLifecycle(res) : null
     )
   }
 
   public prerender(
-    res: BaseNextResponse,
     context: AppPageRouteHandlerContext
   ): Promise<PrerenderResult> {
+    // Error-page routes establish their own status. A background prerender must
+    // not inherit the status of the served cache entry.
+    const initialStatusCode =
+      context.page === UNDERSCORE_NOT_FOUND_ROUTE
+        ? 404
+        : context.page === UNDERSCORE_GLOBAL_ERROR_ROUTE ||
+            context.page === '/500'
+          ? 500
+          : 200
     return prerenderToHTMLOrFlight(
-      res,
+      initialStatusCode,
       context.requestUrl,
       context.page,
       context.query,

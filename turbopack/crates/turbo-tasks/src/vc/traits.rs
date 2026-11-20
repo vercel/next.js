@@ -8,7 +8,7 @@ use crate::{
 /// Custom traits for `VcValueType`s should be subtraits of [`VcValueTrait`].
 ///
 /// You should not implement this trait directly, but instead use the
-/// [`#[turbo_tasks::value]`][crate::value] macro instead.
+/// [`#[turbo_tasks::value]`][macro@crate::value] macro instead.
 ///
 /// ## Safety
 ///

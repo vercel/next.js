@@ -1,0 +1,10 @@
+{
+  "name": "test-pkg-sync-catchall",
+  "type": "commonjs",
+  "exports": {
+    "./*": {
+      "module-sync": "./sync/*.js",
+      "default": "./fallback/*.js"
+    }
+  }
+}

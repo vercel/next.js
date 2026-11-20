@@ -19,6 +19,7 @@ use bincode::{
 };
 use either::Either;
 use smallvec::{Array, SmallVec};
+use turbo_bitset::Bitset;
 use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::RcStr;
 use turbo_tasks_hash::HashAlgorithm;
@@ -172,7 +173,8 @@ impl_task_input! {
     ValueTypeId,
     Duration,
     String,
-    HashAlgorithm
+    HashAlgorithm,
+    Bitset
 }
 
 impl<T> TaskInput for Vec<T>

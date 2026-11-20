@@ -17,7 +17,7 @@ use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CollectiblesSource, FxIndexMap, FxIndexSet, OperationVc, ResolvedVc, TryFlatJoinIterExt,
+    CollectiblesSource, FxIndexSet, OperationVc, OrderedAutoMap, ResolvedVc, TryFlatJoinIterExt,
     TryJoinIterExt, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
@@ -355,7 +355,7 @@ impl ServerActionsGraph {
                     return Ok(Vc::cell(Default::default()));
                 }
 
-                let mut result = FxIndexMap::default();
+                let mut result = OrderedAutoMap::default();
                 graph.traverse_nodes_dfs(
                     vec![entry],
                     &mut result,
@@ -612,6 +612,7 @@ impl ClientReferencesGraph {
 
                     // Client reference used by the template, not a server component
                     client_references.push(ClientReference {
+                        parent_module: node,
                         server_component: None,
                         ty,
                     });
@@ -665,6 +666,7 @@ impl ClientReferencesGraph {
                         };
 
                         client_references.push(ClientReference {
+                            parent_module: module,
                             server_component: Some(sc),
                             ty,
                         });

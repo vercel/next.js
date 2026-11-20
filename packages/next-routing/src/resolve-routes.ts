@@ -413,7 +413,8 @@ function checkDynamicRoutes(
   i18n: ResolveRoutesParams['i18n'],
   shouldNormalizeNextData?: boolean,
   isDataUrl?: boolean,
-  caseSensitive: boolean = false
+  caseSensitive: boolean = false,
+  requiredPathname?: string
 ): {
   matched: boolean
   result?: ResolveRoutesResult
@@ -456,7 +457,10 @@ function checkDynamicRoutes(
           basePath,
           i18n,
         })
-        if (matchedPath) {
+        if (
+          matchedPath &&
+          (requiredPathname === undefined || matchedPath === requiredPathname)
+        ) {
           const resolvedUrl = replacedDestination
             ? mergeDestinationQueryIntoUrl(checkUrl, replacedDestination)
             : checkUrl
@@ -487,6 +491,102 @@ function checkDynamicRoutes(
   }
 
   return { matched: false }
+}
+
+/**
+ * Resolves the current URL against pathnames and dynamic routes after an
+ * afterFiles or fallback rewrite.
+ *
+ * Precedence mirrors a request without a rewrite: an exact (non-template)
+ * pathname wins over dynamic routes, and a dynamic route is only used for it
+ * when it resolves to that same pathname (so its route matches are preserved).
+ * As on that path, the exact match is direct while dynamic destinations may
+ * resolve through the locale fallback.
+ *
+ * Unlike that path, a dynamic route whose non-template destination is not in
+ * `pathnames` does not contribute route matches to an exact match here.
+ *
+ * Returns undefined when nothing matched so the caller can continue with the
+ * next route.
+ */
+function resolveRewrittenPathname({
+  url,
+  routes,
+  pathnames,
+  requestHeaders,
+  responseHeaders,
+  basePath,
+  buildId,
+  i18n,
+  shouldNormalizeNextData,
+  isDataUrl,
+  caseSensitive,
+  status,
+}: {
+  url: URL
+  routes: ResolveRoutesParams['routes']
+  pathnames: string[]
+  requestHeaders: Headers
+  responseHeaders: Headers
+  basePath: string
+  buildId: string
+  i18n: ResolveRoutesParams['i18n']
+  shouldNormalizeNextData: boolean | undefined
+  isDataUrl: boolean
+  caseSensitive: boolean
+  status: number | undefined
+}): ResolveRoutesResult | undefined {
+  // Denormalize before checking if this was originally a data URL
+  let pathnameCheckUrl = url
+  if (isDataUrl && shouldNormalizeNextData) {
+    pathnameCheckUrl = denormalizeNextDataUrl(url, basePath, buildId)
+  }
+
+  const exactMatch = matchesPathname(pathnameCheckUrl.pathname, pathnames)
+  const preferExactMatch =
+    exactMatch !== undefined && !isDynamicTemplatePathname(exactMatch)
+
+  // Check dynamic routes to extract route matches. When an exact pathname
+  // matched, only accept a dynamic route that resolves to that same pathname.
+  const dynamicResult = checkDynamicRoutes(
+    routes.dynamicRoutes,
+    url,
+    pathnames,
+    requestHeaders,
+    responseHeaders,
+    routes.onMatch,
+    basePath,
+    buildId,
+    i18n,
+    shouldNormalizeNextData,
+    isDataUrl,
+    caseSensitive,
+    preferExactMatch ? exactMatch : undefined
+  )
+  if (dynamicResult.matched && dynamicResult.result) {
+    return { ...dynamicResult.result, status }
+  }
+
+  if (exactMatch) {
+    const finalHeaders = applyOnMatchHeaders(
+      routes.onMatch,
+      pathnameCheckUrl,
+      requestHeaders,
+      responseHeaders,
+      caseSensitive
+    )
+    return withResolvedInvocationTarget({
+      result: {
+        resolvedHeaders: finalHeaders,
+        status,
+      },
+      url: pathnameCheckUrl,
+      resolvedPathname: exactMatch,
+      invocationPathname: pathnameCheckUrl.pathname,
+    })
+  }
+
+  return undefined
 }
 
 function shouldInvokeMiddlewareForRequest(
@@ -1061,58 +1161,22 @@ export async function resolveRoutes(
           }
         }
 
-        // First check dynamic routes to extract route matches
-        const dynamicResult = checkDynamicRoutes(
-          routes.dynamicRoutes,
-          currentUrl,
+        const rewrittenResult = resolveRewrittenPathname({
+          url: currentUrl,
+          routes,
           pathnames,
-          currentRequestHeaders,
-          currentResponseHeaders,
-          routes.onMatch,
+          requestHeaders: currentRequestHeaders,
+          responseHeaders: currentResponseHeaders,
           basePath,
           buildId,
           i18n,
           shouldNormalizeNextData,
           isDataUrl,
-          caseSensitive
-        )
-        if (dynamicResult.matched && dynamicResult.result) {
-          // Reset URL to the denormalized version if it matched
-          if (dynamicResult.resetUrl) {
-            currentUrl = dynamicResult.resetUrl
-          }
-          return { ...dynamicResult.result, status: currentStatus }
-        }
-
-        // If no dynamic route matched, check static pathname
-        // Denormalize before checking if this was originally a data URL
-        let pathnameCheckUrl = currentUrl
-        if (isDataUrl && shouldNormalizeNextData) {
-          pathnameCheckUrl = denormalizeNextDataUrl(
-            currentUrl,
-            basePath,
-            buildId
-          )
-        }
-
-        matchedPath = matchesPathname(pathnameCheckUrl.pathname, pathnames)
-        if (matchedPath) {
-          const finalHeaders = applyOnMatchHeaders(
-            routes.onMatch,
-            pathnameCheckUrl,
-            currentRequestHeaders,
-            currentResponseHeaders,
-            caseSensitive
-          )
-          return withResolvedInvocationTarget({
-            result: {
-              resolvedHeaders: finalHeaders,
-              status: currentStatus,
-            },
-            url: pathnameCheckUrl,
-            resolvedPathname: matchedPath,
-            invocationPathname: pathnameCheckUrl.pathname,
-          })
+          caseSensitive,
+          status: currentStatus,
+        })
+        if (rewrittenResult) {
+          return rewrittenResult
         }
       }
     }
@@ -1242,58 +1306,22 @@ export async function resolveRoutes(
           }
         }
 
-        // First check dynamic routes to extract route matches
-        const dynamicResult = checkDynamicRoutes(
-          routes.dynamicRoutes,
-          currentUrl,
+        const rewrittenResult = resolveRewrittenPathname({
+          url: currentUrl,
+          routes,
           pathnames,
-          currentRequestHeaders,
-          currentResponseHeaders,
-          routes.onMatch,
+          requestHeaders: currentRequestHeaders,
+          responseHeaders: currentResponseHeaders,
           basePath,
           buildId,
           i18n,
           shouldNormalizeNextData,
           isDataUrl,
-          caseSensitive
-        )
-        if (dynamicResult.matched && dynamicResult.result) {
-          // Reset URL to the denormalized version if it matched
-          if (dynamicResult.resetUrl) {
-            currentUrl = dynamicResult.resetUrl
-          }
-          return { ...dynamicResult.result, status: currentStatus }
-        }
-
-        // If no dynamic route matched, check static pathname
-        // Denormalize before checking if this was originally a data URL
-        let pathnameCheckUrl = currentUrl
-        if (isDataUrl && shouldNormalizeNextData) {
-          pathnameCheckUrl = denormalizeNextDataUrl(
-            currentUrl,
-            basePath,
-            buildId
-          )
-        }
-
-        matchedPath = matchesPathname(pathnameCheckUrl.pathname, pathnames)
-        if (matchedPath) {
-          const finalHeaders = applyOnMatchHeaders(
-            routes.onMatch,
-            pathnameCheckUrl,
-            currentRequestHeaders,
-            currentResponseHeaders,
-            caseSensitive
-          )
-          return withResolvedInvocationTarget({
-            result: {
-              resolvedHeaders: finalHeaders,
-              status: currentStatus,
-            },
-            url: pathnameCheckUrl,
-            resolvedPathname: matchedPath,
-            invocationPathname: pathnameCheckUrl.pathname,
-          })
+          caseSensitive,
+          status: currentStatus,
+        })
+        if (rewrittenResult) {
+          return rewrittenResult
         }
       }
     }

@@ -26,7 +26,7 @@ use next_core::{
     next_dynamic::NextDynamicEntryModule,
 };
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    NonLocalValue, OrderedAutoMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
     debug::ValueDebugFormat,
 };
 use turbopack_core::{
@@ -79,6 +79,11 @@ pub(crate) async fn collect_next_dynamic_chunks(
                     *availability_info
                 }
             };
+            // Only pass on what the dynamically imported chunk group can observe, so the loader
+            // isn't unique per parent chunk group.
+            let availability_info = availability_info
+                .canonicalize_for_async_loader(module_graph, ResolvedVc::upcast(module))
+                .await?;
 
             // The react-loadable manifest needs the final CSS and JavaScript files so
             // next/dynamic can preload them during SSR. Do not use a lazy manifest loader here.
@@ -94,7 +99,7 @@ pub(crate) async fn collect_next_dynamic_chunks(
         .try_join()
         .await?;
 
-    Ok(ResolvedVc::cell(FxIndexMap::from_iter(
+    Ok(ResolvedVc::cell(OrderedAutoMap::from_iter(
         dynamic_import_chunks,
     )))
 }
@@ -102,8 +107,7 @@ pub(crate) async fn collect_next_dynamic_chunks(
 #[turbo_tasks::value(transparent)]
 #[derive(Default)]
 pub struct DynamicImportedChunks(
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub  FxIndexMap<
+    pub  OrderedAutoMap<
         ResolvedVc<NextDynamicEntryModule>,
         (
             ResolvedVc<NextDynamicEntryModule>,
@@ -120,8 +124,7 @@ pub enum DynamicImportEntriesMapType {
 
 #[turbo_tasks::value(transparent)]
 pub struct DynamicImportEntries(
-    #[bincode(with = "turbo_bincode::indexmap")]
-    pub  FxIndexMap<ResolvedVc<Box<dyn Module>>, DynamicImportEntriesMapType>,
+    pub OrderedAutoMap<ResolvedVc<Box<dyn Module>>, DynamicImportEntriesMapType>,
 );
 
 #[turbo_tasks::function]

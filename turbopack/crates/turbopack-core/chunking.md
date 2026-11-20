@@ -104,6 +104,7 @@ An [`OutputAsset`] is generated for each [`Chunk`]. The [`ChunkingContext`] impl
 
 ## Available Modules
 
-The chunking process tracks which modules are already available in parent chunk groups via [`AvailableModules`], to avoid duplication in nested chunk groups.
+The chunking process tracks which parent chunk groups are already available in [`AvailabilityInfo`], to avoid duplication in nested chunk groups. A module (or module batch) counts as available when its chunk group membership bitmap from [`ChunkGroupInfo`] intersects the set of available chunk groups, so only chunk group identities are retained instead of the full module sets.
 
-[`AvailableModules`]: crate::chunk::available_modules::AvailableModules
+[`AvailabilityInfo`]: crate::chunk::availability_info::AvailabilityInfo
+[`ChunkGroupInfo`]: crate::module_graph::chunk_group_info::ChunkGroupInfo
