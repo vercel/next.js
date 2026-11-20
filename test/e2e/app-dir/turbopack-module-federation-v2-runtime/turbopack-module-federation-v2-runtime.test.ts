@@ -120,6 +120,8 @@ describeMissingRuntime('enhanced federation runtime missing package', () => {
     packageJson: { name: 'inferred-federation-host' },
     skipStart: true,
     skipDeployment: true,
+    // This invalid installation intentionally produces a fatal Turbopack diagnostic.
+    allowRustPanics: true,
   })
 
   it('explains which runtime package must be installed', async () => {
@@ -130,5 +132,8 @@ describeMissingRuntime('enhanced federation runtime missing package', () => {
         'Module Federation requires @module-federation/runtime-tools@^2.9.0'
       )
     })
+    await next.stop()
+    // Check the completed output: the expected fatal diagnostic must not hide a Rust panic.
+    expect(next.cliOutput).not.toContain('panicked at')
   })
 })
