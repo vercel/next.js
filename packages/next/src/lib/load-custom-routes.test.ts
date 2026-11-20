@@ -173,4 +173,131 @@ describe('loadCustomRoutes', () => {
       })
     })
   })
+
+  describe('redirects', () => {
+    it('missing redirects should not throw', async () => {
+      const customRoutes = await loadCustomRoutes({})
+
+      expect(customRoutes.redirects).toEqual([
+        {
+          source: '/:path+/',
+          destination: '/:path+',
+          permanent: true,
+          locale: undefined,
+          internal: true,
+        },
+      ])
+    })
+
+    it('array redirects should be preserved correctly', async () => {
+      const customRoutes = await loadCustomRoutes({
+        async redirects() {
+          return [
+            {
+              source: '/a',
+              destination: '/b',
+              permanent: true,
+            },
+          ]
+        },
+      })
+
+      expect(customRoutes.redirects).toEqual([
+        {
+          source: '/:path+/',
+          destination: '/:path+',
+          permanent: true,
+          locale: undefined,
+          internal: true,
+        },
+        {
+          source: '/a',
+          destination: '/b',
+          permanent: true,
+        },
+      ])
+    })
+
+    it('array redirects should be preserved correctly with locales', async () => {
+      const customRoutes = await loadCustomRoutes({
+        i18n: {
+          defaultLocale: 'en',
+          locales: ['en', 'nl'],
+        },
+        async redirects() {
+          return [
+            {
+              source: '/a',
+              destination: '/b',
+              permanent: true,
+            },
+          ]
+        },
+      })
+
+      expect(customRoutes.redirects).toEqual([
+        {
+          source: '/:path+/',
+          destination: '/:path+',
+          permanent: true,
+          locale: false,
+          internal: true,
+        },
+        {
+          source: '/en/a',
+          destination: '/b',
+          permanent: true,
+        },
+        {
+          source: '/:nextInternalLocale(en|nl)/a',
+          destination: '/:nextInternalLocale/b',
+          permanent: true,
+        },
+      ])
+    })
+
+    it('array redirects should be preserved correctly with locales and domain routing', async () => {
+      const customRoutes = await loadCustomRoutes({
+        i18n: {
+          defaultLocale: 'en',
+          locales: ['en', 'nl'],
+          domains: [
+            {
+              defaultLocale: 'nl',
+              domain: 'example.nl',
+            },
+          ],
+        },
+        async redirects() {
+          return [
+            {
+              source: '/a',
+              destination: '/b',
+              permanent: true,
+            },
+          ]
+        },
+      })
+
+      expect(customRoutes.redirects).toEqual([
+        {
+          source: '/:path+/',
+          destination: '/:path+',
+          permanent: true,
+          locale: false,
+          internal: true,
+        },
+        {
+          source: '/en/a',
+          destination: '/b',
+          permanent: true,
+        },
+        {
+          source: '/:nextInternalLocale(en|nl)/a',
+          destination: '/:nextInternalLocale/b',
+          permanent: true,
+        },
+      ])
+    })
+  })
 })
