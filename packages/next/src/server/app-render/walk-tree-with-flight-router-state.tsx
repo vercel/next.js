@@ -70,6 +70,7 @@ function didRouteOrPathParamChange(
 export async function walkTreeWithFlightRouterState({
   loaderTreeToFilter,
   parentParams,
+  parentOptionalCatchAllParamName = null,
   flightRouterState,
   parentIsInsideSharedLayout,
   rscHead,
@@ -84,6 +85,7 @@ export async function walkTreeWithFlightRouterState({
 }: {
   loaderTreeToFilter: LoaderTree
   parentParams: { [key: string]: string | string[] }
+  parentOptionalCatchAllParamName?: string | null
   flightRouterState?: FlightRouterState
   rscHead: HeadData
   parentIsInsideSharedLayout?: boolean
@@ -136,6 +138,14 @@ export async function walkTreeWithFlightRouterState({
   const actualSegment: Segment = segmentParam
     ? segmentParam.treeSegment
     : segment
+  // An optional catch-all with no value (e.g. [[...slug]] at /) has no
+  // property on the params object, so vary params tracking needs its name to
+  // detect access. Forward it the same way createComponentTree does, since
+  // rendering may start below the catch-all segment (e.g. at __PAGE__).
+  const optionalCatchAllParamName: string | null =
+    segmentParam?.type === 'oc' && segmentParam.value === null
+      ? segmentParam.param
+      : parentOptionalCatchAllParamName
 
   /**
    * Decide if the current segment is where rendering has to start.
@@ -258,7 +268,7 @@ export async function walkTreeWithFlightRouterState({
         ctx,
         loaderTree: loaderTreeToFilter,
         parentParams: currentParams,
-        parentOptionalCatchAllParamName: null,
+        parentOptionalCatchAllParamName,
         parentRuntimePrefetchable: false,
         injectedCSS,
         injectedJS,
@@ -316,6 +326,7 @@ export async function walkTreeWithFlightRouterState({
       ctx,
       loaderTreeToFilter: parallelRoute,
       parentParams: currentParams,
+      parentOptionalCatchAllParamName: optionalCatchAllParamName,
       flightRouterState:
         flightRouterState && flightRouterState[1][parallelRouteKey],
       parentIsInsideSharedLayout: isInsideSharedLayout,
