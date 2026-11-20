@@ -3923,21 +3923,26 @@ async function renderToStream(
         let runtimePrefetchStream: ReadableStream<Uint8Array> | undefined
         let startRuntimePrefetchRender: (() => Promise<void>) | undefined
 
+        // HTML-limited bots do not use the client router cache. Respect the
+        // configured htmlLimitedBots pattern via the metadata streaming flag.
+        const shouldGenerateRuntimePrefetch =
+          prefetchMode === PrefetchingMode.Partial &&
+          renderOpts.serveStreamingMetadata !== false
+
         // Partial prefetching waits for cacheReady() before starting an
         // embedded runtime prefetch. Track React's native immediates so that
         // this wait includes Flight work that can discover more cache reads.
         // Other prefetch modes do not wait for cacheReady() here.
-        const immediateTracker =
-          prefetchMode === PrefetchingMode.Partial
-            ? new ImmediateTracker()
-            : null
+        const immediateTracker = shouldGenerateRuntimePrefetch
+          ? new ImmediateTracker()
+          : null
 
         // If the route should runtime-cache its navigation, spawn a runtime
         // prerender after the resume render fills caches. The result is
         // embedded in the initial RSC payload so the client can cache
         // runtime-prefetchable content during hydration. This is enabled for
         // Partial Prefetching routes.
-        if (prefetchMode === PrefetchingMode.Partial) {
+        if (shouldGenerateRuntimePrefetch) {
           const prerenderResumeDataCache = createPrerenderResumeDataCache(
             // Prefill the mutable cache from the RDC if available.
             requestStore.resumeDataCache ?? undefined
