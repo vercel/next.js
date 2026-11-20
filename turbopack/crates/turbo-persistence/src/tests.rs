@@ -1335,9 +1335,7 @@ fn batch_get_with_overwrites(#[case] mmap: bool) -> Result<()> {
 
 /// Missing key counts below and above the parallel threshold of `batch_get`. Miri runs only the
 /// small one: the large one took about 20 minutes there.
-fn batch_get_miss_counts() -> &'static [u32] {
-    if cfg!(miri) { &[50] } else { &[50, 5000] }
-}
+const BATCH_GET_MISS_COUNTS: &[u32] = if cfg!(miri) { &[50] } else { &[50, 5000] };
 
 /// The oldest SST file holds a single key, so its hash range is a single hash. Missing keys of
 /// that shard are then outside the range of the last file to check, which must still report them.
@@ -1352,7 +1350,7 @@ fn batch_get_misses_outside_last_sst_range(#[case] mmap: bool) -> Result<()> {
     let db = open_db::<16>(path, mmap)?;
 
     // No SST files: below and above the parallel threshold of `batch_get`.
-    for &count in batch_get_miss_counts() {
+    for &count in BATCH_GET_MISS_COUNTS {
         let keys_to_fetch: Vec<Vec<u8>> = (0..count).map(|i| i.to_be_bytes().to_vec()).collect();
         let results = batch_get_vec(&db, 0, &keys_to_fetch)?;
         assert_eq!(results.len(), keys_to_fetch.len());
@@ -1384,7 +1382,7 @@ fn batch_get_misses_outside_last_sst_range(#[case] mmap: bool) -> Result<()> {
     db.commit_write_batch(batch)?;
 
     // Below and above the parallel threshold of `batch_get`, with duplicate keys.
-    for &missing in batch_get_miss_counts() {
+    for &missing in BATCH_GET_MISS_COUNTS {
         let keys_to_fetch: Vec<Vec<u8>> = (0..100 + missing)
             .chain([0, 1, 100])
             .map(|i| i.to_be_bytes().to_vec())
@@ -3727,9 +3725,7 @@ fn callback_test_value(key: u32, version: u8) -> Vec<u8> {
 }
 
 /// Batch sizes below and above the parallel threshold. Miri runs only the small one.
-fn callback_test_batch_sizes() -> &'static [u32] {
-    if cfg!(miri) { &[100] } else { &[100, 2_500] }
-}
+const CALLBACK_TEST_BATCH_SIZES: &[u32] = if cfg!(miri) { &[100] } else { &[100, 2_500] };
 
 /// Keys spread over the key space, with misses (keys >= `CALLBACK_TEST_KEYS`) and duplicates.
 fn callback_test_keys(batch_size: u32) -> Vec<[u8; 4]> {
@@ -3749,7 +3745,7 @@ fn batch_get_callback_once_per_index(#[case] mmap: bool) -> Result<()> {
 
     let tempdir = tempfile::tempdir()?;
     let db = open_callback_test_db(tempdir.path(), mmap)?;
-    for &batch_size in callback_test_batch_sizes() {
+    for &batch_size in CALLBACK_TEST_BATCH_SIZES {
         let keys = callback_test_keys(batch_size);
         let calls: Vec<AtomicU32> = keys.iter().map(|_| AtomicU32::new(0)).collect();
         let values: Vec<OnceLock<Option<ArcBytes>>> =
@@ -3784,7 +3780,7 @@ fn batch_get_callback_once_per_index(#[case] mmap: bool) -> Result<()> {
 fn batch_get_callback_error_propagates(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let db = open_callback_test_db(tempdir.path(), mmap)?;
-    for &batch_size in callback_test_batch_sizes() {
+    for &batch_size in CALLBACK_TEST_BATCH_SIZES {
         let keys = callback_test_keys(batch_size);
         // Fail on a found key and, separately, on a missing key (the last key is out of range).
         let found = keys
