@@ -14,6 +14,7 @@ use crate::{
 #[derive(Serialize, Debug)]
 #[serde(tag = "type")]
 #[serde(rename_all = "kebab-case")]
+#[allow(clippy::large_enum_variant)] // Short-lived message, serialized right away
 pub enum ServerToClientMessage {
     ViewLine {
         #[serde(flatten)]
@@ -40,6 +41,9 @@ pub enum ServerToClientMessage {
         path: Vec<String>,
         memory_samples: Vec<u64>,
         memory_pressure_samples: Vec<u8>,
+        memory_footprint_samples: Vec<u64>,
+        active_worker_threads_samples: Vec<u64>,
+        concurrency_samples: Vec<f64>,
     },
 }
 
@@ -244,6 +248,11 @@ impl ProtocolSession {
             let memory_samples = store.memory_samples_for_range(span.start(), span.end());
             let memory_pressure_samples =
                 store.memory_pressure_samples_for_range(span.start(), span.end());
+            let memory_footprint_samples =
+                store.memory_footprint_samples_for_range(span.start(), span.end());
+            let active_worker_threads_samples =
+                store.active_worker_threads_samples_for_range(span.start(), span.end());
+            let concurrency_samples = store.concurrency_samples_for_range(span.start(), span.end());
             ServerToClientMessage::QueryResult {
                 id,
                 is_graph,
@@ -259,6 +268,9 @@ impl ProtocolSession {
                 path,
                 memory_samples,
                 memory_pressure_samples,
+                memory_footprint_samples,
+                active_worker_threads_samples,
+                concurrency_samples,
             }
         } else {
             ServerToClientMessage::QueryResult {
@@ -276,7 +288,44 @@ impl ProtocolSession {
                 path: Vec::new(),
                 memory_samples: Vec::new(),
                 memory_pressure_samples: Vec::new(),
+                memory_footprint_samples: Vec::new(),
+                active_worker_threads_samples: Vec::new(),
+                concurrency_samples: Vec::new(),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn query_result_serializes_samples_in_camel_case() {
+        let message = ServerToClientMessage::QueryResult {
+            id: SpanId::new(1).unwrap(),
+            is_graph: false,
+            start: Timestamp::ZERO,
+            end: Timestamp::ZERO,
+            duration: Timestamp::ZERO,
+            cpu: Timestamp::ZERO,
+            allocations: 0,
+            deallocations: 0,
+            allocation_count: 0,
+            persistent_allocations: 0,
+            args: Vec::new(),
+            path: Vec::new(),
+            memory_samples: vec![1024],
+            memory_pressure_samples: vec![2],
+            memory_footprint_samples: vec![4096],
+            active_worker_threads_samples: vec![3],
+            concurrency_samples: vec![1.25],
+        };
+        let json = serde_json::to_value(message).unwrap();
+        assert_eq!(json["type"], "query-result");
+        assert_eq!(json["memorySamples"], serde_json::json!([1024]));
+        assert_eq!(json["memoryFootprintSamples"], serde_json::json!([4096]));
+        assert_eq!(json["activeWorkerThreadsSamples"], serde_json::json!([3]));
+        assert_eq!(json["concurrencySamples"], serde_json::json!([1.25]));
     }
 }

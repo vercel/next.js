@@ -9,15 +9,19 @@
     "binaryName": "turbopack-trace-server-wasm",
     "targets": [
       "wasm32-wasip1-threads"
-    ]
+    ],
+    "wasm": {
+      "initialMemory": 8192,
+      "maximumMemory": 65536
+    }
   },
   "dependencies": {
-    "@emnapi/runtime": "2.0.0-alpha.4",
-    "@napi-rs/wasm-runtime": "1.2.3"
+    "@emnapi/runtime": "2.0.0-beta.3",
+    "@napi-rs/wasm-runtime": "1.2.7"
   },
   "devDependencies": {
-    "@emnapi/core": "2.0.0-alpha.4",
-    "@napi-rs/cli": "3.8.6",
-    "emnapi": "2.0.0-alpha.4"
+    "@emnapi/core": "2.0.0-beta.3",
+    "@napi-rs/cli": "3.10.12",
+    "emnapi": "2.0.0-beta.3"
   }
 }

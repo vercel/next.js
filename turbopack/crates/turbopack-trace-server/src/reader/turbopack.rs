@@ -110,7 +110,14 @@ pub struct TurbopackFormat {
 }
 
 impl TurbopackFormat {
-    pub fn new(store: Arc<StoreContainer>, invalidate_caches: bool) -> Self {
+    pub fn new(store: Arc<StoreContainer>) -> Self {
+        Self::new_with_cache_invalidation(store, true)
+    }
+
+    pub fn new_with_cache_invalidation(
+        store: Arc<StoreContainer>,
+        invalidate_caches: bool,
+    ) -> Self {
         let drop_ids = std::env::var("DROP_SPANS")
             .ok()
             .and_then(|v| v.parse::<usize>().ok())
@@ -554,10 +561,10 @@ mod tests {
     };
 
     use crate::{
-        reader::{TraceFormat, turbopack::TurbopackFormat},
         span::SpanEvent,
         store_container::StoreContainer,
         timestamp::Timestamp,
+        trace::{TraceFormat, turbopack::TurbopackFormat},
     };
 
     fn start(id: u64, parent: Option<u64>, name: &'static str) -> TraceRow<'static, u64> {
