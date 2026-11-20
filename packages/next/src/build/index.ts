@@ -221,7 +221,7 @@ import { InvariantError } from '../shared/lib/invariant-error'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import type { UseCacheTrackerKey } from './webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
 
-import { turbopackBuild } from './turbopack-build'
+import { turbopackBuild, TurbopackBuildWorker } from './turbopack-build'
 import { formatWarningsHeader } from './print-build-errors'
 import { inlineStaticEnv } from '../lib/inline-static-env'
 import { populateStaticEnv } from '../lib/static-env'
@@ -1149,6 +1149,7 @@ export default async function build(
   let loadedConfig: NextConfigComplete | undefined
   let pendingUpgradeNudge: Promise<void> | undefined
   let staticWorker: StaticWorker
+  let turbopackBuildWorker: TurbopackBuildWorker | undefined
 
   // Turbopack compile warnings are deferred until after static generation.
   let deferredTurbopackWarnings: string[] | undefined
@@ -1260,6 +1261,19 @@ export default async function build(
       NextBuildContext.distDir = distDir
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
       setGlobal('distDir', distDir)
+
+      if (
+        bundler === Bundler.Turbopack &&
+        config.experimental.turbopackBuildWorker &&
+        !isGenerateMode &&
+        experimentalBuildMode !== 'generate-env'
+      ) {
+        // Spawn the worker now, so it starts up while the build gets ready to
+        // compile.
+        turbopackBuildWorker = new TurbopackBuildWorker({
+          useWasmBinary: !!config.experimental.useWasmBinary,
+        })
+      }
 
       // Check for build cache before initializing telemetry, because the
       // Telemetry constructor creates the cache directory in CI environments.
@@ -1946,7 +1960,7 @@ export default async function build(
             shutdownPromise: p,
             warnings,
             ...rest
-          } = await turbopackBuild(telemetry)
+          } = await turbopackBuild(telemetry, turbopackBuildWorker)
           shutdownPromise = p
           deferredTurbopackWarnings = warnings
           traceMemoryUsage('Finished build', nextBuildSpan)
@@ -4986,6 +5000,9 @@ export default async function build(
     if (staticWorker) {
       await staticWorker.shutdown()
     }
+    // Normally ended once Turbopack has shut down. This ends it if the build
+    // failed (after waiting for the cache to be persisted, if it compiled).
+    await turbopackBuildWorker?.end()
     // Ensure we wait for lockfile patching if present
     await lockfilePatchPromise.cur
 

@@ -22,7 +22,13 @@ import type { ProjectOptions, RawEntrypoints } from '../swc/types'
 import { Bundler } from '../../lib/bundler'
 import { getStrictRouteMatchingDefaultWarning } from '../../server/lib/router-utils/strict-route-matching-config'
 
-export async function turbopackBuild(telemetry: Telemetry): Promise<{
+// Only the parts of `Telemetry` the build uses, so the build worker can collect
+// the events and hand them to the main process's `Telemetry`.
+export type TurbopackBuildTelemetry = Pick<Telemetry, 'isEnabled' | 'record'>
+
+export async function turbopackBuild(
+  telemetry: TurbopackBuildTelemetry
+): Promise<{
   duration: number
   buildTraceContext: undefined
   shutdownPromise: Promise<void>

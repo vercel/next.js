@@ -65,6 +65,25 @@ If you are using an older version of Next.js or you have a custom Webpack config
 
 > **Good to know**: This feature may not be compatible with all custom Webpack plugins.
 
+## Turbopack build worker
+
+With Turbopack, `next build` runs the compilation in the main build process by default. You can run it in a separate child process instead, by setting `experimental.turbopackBuildWorker: true` inside your `next.config.js`:
+
+```js filename="next.config.mjs"
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    turbopackBuildWorker: true,
+  },
+}
+
+export default nextConfig
+```
+
+The child process exits once the compilation has finished and the Turbopack cache has been written, which releases all memory used by the compilation. The main build process stays small, which also makes starting the workers that generate static pages faster.
+
+> **Good to know**: The child process takes a moment to start and loads your `next.config.js` again, so this is mostly useful for large applications.
+
 ## Disable Webpack cache
 
 The [Webpack cache](https://webpack.js.org/configuration/cache/) saves generated Webpack modules in memory and/or to disk to improve the speed of builds. This can
