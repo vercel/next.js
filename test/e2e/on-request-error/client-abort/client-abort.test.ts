@@ -29,6 +29,10 @@ describe('on-request-error - client-abort', () => {
     }
     controller.abort()
 
+    await retry(async () => {
+      expect(next.cliOutput).toContain('[test-sync]:hang-request-closed')
+    })
+
     await next.fetch('/error')
 
     await retry(async () => {
@@ -37,5 +41,11 @@ describe('on-request-error - client-abort', () => {
       )
     })
     expect(next.cliOutput).not.toContain('The destination stream closed early')
+    expect(next.cliOutput).not.toContain(
+      'The destination stream errored while writing data'
+    )
+    expect(next.cliOutput).not.toContain(
+      '[instrumentation]:error The destination stream'
+    )
   })
 })
