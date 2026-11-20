@@ -8,6 +8,7 @@ import (
 	"maps"
 	"net"
 	"net/http"
+	"net/http/httptrace"
 	"net/http/httputil"
 	"net/textproto"
 	"strings"
@@ -98,6 +99,10 @@ func (f *switchyard) apply(msg controlMessage) {
 			return
 		}
 	case "worker":
+		if msg.Page == "" || msg.Address == "" || msg.TokenHeader == "" || msg.Token == "" {
+			proxyErrorLog.Printf("incomplete worker message for page %q", msg.Page)
+			return
+		}
 		next.workers = maps.Clone(next.workers)
 		next.workers[msg.Page] = &goUpstream{
 			address: msg.Address,
@@ -107,9 +112,16 @@ func (f *switchyard) apply(msg controlMessage) {
 			token:       []string{msg.Token},
 		}
 	case "gone":
+		if msg.Token == "" {
+			proxyErrorLog.Printf("gone message without a token for %s", msg.Address)
+			return
+		}
 		next.workers = maps.Clone(next.workers)
+		// Each worker has its own token. Matching on it, not the address,
+		// keeps a late message for an exited worker from removing a new
+		// worker that got the same port.
 		for route, up := range next.workers {
-			if up.address == msg.Address {
+			if up.token[0] == msg.Token {
 				delete(next.workers, route)
 			}
 		}
@@ -140,7 +152,9 @@ func (s *directState) loadTable(data []byte) error {
 	for _, name := range raw.Direct.StripRequestHeaders {
 		s.strip[textproto.CanonicalMIMEHeaderKey(name)] = true
 	}
-	s.stripPrefixes = nil
+	// Node always removes x-next-internal-* (proxyNativeRequest), so the
+	// prefix is stripped even from a table that doesn't list it.
+	s.stripPrefixes = []string{"X-Next-Internal-"}
 	for _, prefix := range raw.Direct.StripRequestHeaderPrefixes {
 		// "x-next-internal-" → "X-Next-Internal-", how Go keys such headers.
 		s.stripPrefixes = append(s.stripPrefixes, textproto.CanonicalMIMEHeaderKey(prefix))
@@ -168,6 +182,9 @@ type directAttempt struct {
 	// The request body as the Transport sees it, so the error handler knows
 	// whether the worker could have seen the request.
 	body *guardedBody
+	// Whether the Transport has written the request to a worker, on any
+	// attempt. The Transport sends it on its own goroutine.
+	sent atomic.Bool
 	// Whether any of the body has been written, so Flush has something
 	// to send.
 	wrote bool
@@ -176,6 +193,13 @@ type directAttempt struct {
 func (f *switchyard) serveDirect(w http.ResponseWriter, r *http.Request, s *directState, up *goUpstream) {
 	attempt := &directAttempt{ResponseWriter: w, state: s, up: up, request: r}
 	ctx := context.WithValue(r.Context(), directAttemptKey{}, attempt)
+	// Go's Transport can send a request again on a new connection, so a
+	// failed dial doesn't mean no worker got it. The trace records whether
+	// any attempt wrote it; a write that failed counts too, since the worker
+	// may still have read it.
+	ctx = httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
+		WroteRequest: func(httptrace.WroteRequestInfo) { attempt.sent.Store(true) },
+	})
 	// Node never guesses a Content-Type (see newProxy).
 	w.Header()["Content-Type"] = nil
 	// As in newProxy: Node's proxy to the worker lets the worker answer while
@@ -278,7 +302,7 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 			}
 			// The worker is gone and never saw the request (Node hasn't told
 			// us yet): hand it to Node, as if the worker weren't ready.
-			if isDialError(err) && (attempt.body == nil || !attempt.body.read) {
+			if isDialError(err) && !attempt.sent.Load() && (attempt.body == nil || !attempt.body.read) {
 				f.node.ServeHTTP(attempt.ResponseWriter, attempt.request)
 				return
 			}

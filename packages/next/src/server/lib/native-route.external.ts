@@ -78,7 +78,8 @@ export type NativeRouteWorkerEvent =
       tokenHeader: string
       token: string
     }>
-  | Readonly<{ event: 'gone'; address: string }>
+  // token identifies the worker: a new worker can get an exited one's port.
+  | Readonly<{ event: 'gone'; address: string; token: string }>
 
 let workerObserver: ((event: NativeRouteWorkerEvent) => void) | undefined
 
@@ -92,7 +93,11 @@ export function observeNativeRouteWorkers(
 function reportGone(worker: Worker) {
   if (worker.announced.size === 0) return
   worker.announced.clear()
-  workerObserver?.({ event: 'gone', address: `127.0.0.1:${worker.port}` })
+  workerObserver?.({
+    event: 'gone',
+    address: `127.0.0.1:${worker.port}`,
+    token: worker.token,
+  })
 }
 
 /** Owns worker activation and lifetime, never compilation or filesystem watching. */
