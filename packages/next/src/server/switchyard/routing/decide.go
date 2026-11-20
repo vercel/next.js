@@ -125,6 +125,11 @@ func (t *Table) checkRequest(r Request) string {
 		if r.ContentLength != 0 {
 			return "body on " + r.Method
 		}
+		// Node passes a client's "Content-Length: 0" on to the worker; Go's
+		// Transport writes none for these methods without a body.
+		if _, ok := r.Header["Content-Length"]; ok {
+			return "Content-Length on " + r.Method
+		}
 	}
 	if t.compress {
 		for _, v := range r.Header["Accept-Encoding"] {

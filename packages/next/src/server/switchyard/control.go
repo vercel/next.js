@@ -14,7 +14,7 @@ import (
 //	{"event":"worker","page":"/api/users/[id]/route",
 //	 "address":"127.0.0.1:51300","tokenHeader":"x-next-internal-go-token",
 //	 "token":"…"}                         a route.go worker is ready for a page
-//	{"event":"gone","address":"127.0.0.1:51300"}
+//	{"event":"gone","address":"127.0.0.1:51300","token":"…"}
 //	                                      that worker takes no new requests
 type controlMessage struct {
 	Event       string          `json:"event"`

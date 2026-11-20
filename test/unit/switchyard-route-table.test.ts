@@ -1,9 +1,16 @@
+import fs from 'fs'
+import os from 'os'
+import path from 'path'
 import {
   buildSwitchyardRouteTable,
+  collectSwitchyardRouteTable,
   patternOf,
+  type SwitchyardConfig,
+  type SwitchyardFsChecker,
   type SwitchyardRouteTableInput,
 } from 'next/dist/server/lib/switchyard-route-table'
 import { RouteKind } from 'next/dist/server/route-kind'
+import { getMiddlewareRouteMatcher } from 'next/dist/shared/lib/router/utils/middleware-route-matcher'
 
 // The route table Node sends Switchyard: page paths
 // become the segment lists Switchyard matches, and an app gets no direct
@@ -101,6 +108,8 @@ describe('switchyard-route-table', () => {
       ['rewrites', { afterFilesRewrites: [{}] }],
       ['trailingSlash', { trailingSlash: true }],
       ['redirects', { redirects: [{ internal: true }, {}] }],
+      ['useFileSystemPublicRoutes', { useFileSystemPublicRoutes: false }],
+      ['NEXT_PRIVATE_TEST_HEADERS', { keepsInternalHeaders: true }],
       [
         'unsupported route pattern /feed/(.)[id]',
         { dynamicRoutes: [{ page: '/feed/(.)[id]' }] },
@@ -123,6 +132,92 @@ describe('switchyard-route-table', () => {
         })
       )
       expect(table).toMatchObject({ nodeRequestHeaders: ['rsc'] })
+    })
+  })
+  // collectSwitchyardRouteTable reads the router's own data; these check the
+  // parts that aren't a plain copy.
+  describe('collectSwitchyardRouteTable', () => {
+    let dir: string
+    beforeEach(() => {
+      dir = fs.mkdtempSync(path.join(os.tmpdir(), 'switchyard-route-table-'))
+    })
+    afterEach(() => {
+      fs.rmSync(dir, { recursive: true, force: true })
+      delete process.env.NEXT_PRIVATE_TEST_HEADERS
+    })
+
+    const config: SwitchyardConfig = {
+      distDir: '.next',
+      basePath: '',
+      i18n: null,
+      trailingSlash: false,
+      compress: false,
+      useFileSystemPublicRoutes: true,
+      experimental: { goRoutes: true },
+    }
+    const fsChecker = (
+      overrides: Partial<SwitchyardFsChecker> = {}
+    ): SwitchyardFsChecker => ({
+      // The router's matcher when the app has no proxy.
+      getMiddlewareMatchers: () => () => false,
+      headers: [],
+      onMatchHeaders: [],
+      redirects: [],
+      rewrites: { beforeFiles: [], afterFiles: [], fallback: [] },
+      publicFolderItems: new Set(),
+      appFiles: new Set(['/api/health']),
+      pageFiles: new Set(),
+      getDynamicRoutes: () => [],
+      getRouteDefinition: (_type, pathname) => ({
+        kind: RouteKind.APP_ROUTE_GO,
+        bundlePath: '',
+        filename: '',
+        page: `${pathname}/route`,
+        pathname,
+      }),
+      ...overrides,
+    })
+    const collect = (overrides?: Partial<SwitchyardFsChecker>) =>
+      collectSwitchyardRouteTable({
+        dir,
+        config,
+        fsChecker: fsChecker(overrides),
+      })
+
+    it("builds the table from the router's routes", () => {
+      expect(collect()).toMatchObject({
+        goExact: { '/api/health': '/api/health/route' },
+      })
+    })
+
+    it('sees a proxy as the router does', () => {
+      const matcher = getMiddlewareRouteMatcher([
+        { regexp: '^/.*$', originalSource: '/:path*' },
+      ])
+      expect(collect({ getMiddlewareMatchers: () => matcher })).toEqual({
+        contract: { version: 1 },
+        reason: 'proxy',
+      })
+    })
+
+    it('finds the instrumentation hook in the server output', () => {
+      fs.mkdirSync(path.join(dir, '.next', 'server'), { recursive: true })
+      fs.writeFileSync(
+        path.join(dir, '.next', 'server', 'instrumentation.js'),
+        ''
+      )
+      expect(collect()).toEqual({
+        contract: { version: 1 },
+        reason: 'instrumentation',
+      })
+    })
+
+    it('reads NEXT_PRIVATE_TEST_HEADERS', () => {
+      process.env.NEXT_PRIVATE_TEST_HEADERS = '1'
+      expect(collect()).toEqual({
+        contract: { version: 1 },
+        reason: 'NEXT_PRIVATE_TEST_HEADERS',
+      })
     })
   })
 })

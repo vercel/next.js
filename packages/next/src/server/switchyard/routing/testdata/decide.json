@@ -230,6 +230,12 @@
     {
       "table": "app",
       "target": "/api/echo",
+      "header": { "Content-Length": ["0"] },
+      "node": "Content-Length on GET"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo",
       "proto": "HTTP/1.0",
       "node": "protocol HTTP/1.0"
     },
