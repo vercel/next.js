@@ -18,7 +18,7 @@ for await (const chunk of traceStream) {
 
 The callback receives `bytesRead`, `uncompressedBytesRead`, `elapsedMs`, `bytesPerSecond`, and `stats`. The caller owns the stream and therefore also knows its total size and when loading is complete. Use the API from a Web Worker if parsing must not block the browser UI.
 
-Zstd-compressed traces remain native-only.
+Zstd-compressed traces are native-only.
 
 ## Build
 
@@ -26,10 +26,10 @@ NAPI-RS v3 uses threaded WASI and its Emnapi runtime for browser modules. Instal
 
 ```sh
 rustup target add wasm32-wasip1-threads
-pnpm --filter @vercel/turbopack-trace-server-wasm build
+pnpm --filter @vercel/turbopack-trace-server-wasm build-trace-wasm
 ```
 
-The package pins matching NAPI-RS and Emnapi build dependencies and configures `wasm32-wasip1-threads` as its target. The generated browser loader imports `@napi-rs/wasm-runtime` and `@emnapi/runtime`; consuming code must serve those runtime packages, generated worker files, and the `.wasm` file together.
+The package pins matching NAPI-RS and Emnapi build dependencies and configures `wasm32-wasip1-threads` as its target. This is an explicit build task rather than the monorepo's generic `build` task: the pinned NAPI CLI needs Node 20.17+ or 22.13+, while some monorepo builds run under Node 20.9. The dedicated CI job uses Node 22. The generated browser loader imports `@napi-rs/wasm-runtime` and `@emnapi/runtime`; consuming code must serve those runtime packages, generated worker files, and the `.wasm` file together.
 
 WebAssembly threads use `SharedArrayBuffer`, so the viewer must be served in a cross-origin isolated context with appropriate COOP and COEP headers.
 
