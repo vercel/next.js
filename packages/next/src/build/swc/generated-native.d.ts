@@ -703,6 +703,12 @@ export declare function projectOnExit(project: {
 /**
  * Runs resource cleanup, stops Turbo Tasks, and then flushes the project's exit handlers.
  *
+ * Stopping persists and drops the turbo-tasks storage, which is most of the process's heap. The
+ * allocator is in eager purge mode meanwhile (see [`TurboMalloc::enter_eager_purge_mode`]), so
+ * that memory is returned to the OS progressively while it's freed, and before resolving, this
+ * also returns the rest (see [`release_freed_memory`]). That way it isn't held while the caller
+ * does other memory-hungry work (e.g. static generation workers), during or after the shutdown.
+ *
  * This is used in builds where it's important that we completely persist turbo-tasks to disk, but
  * it's skipped in the development server (`project_on_exit` is used instead with a short timeout),
  * where we prioritize fast exit and user responsiveness over all else.
