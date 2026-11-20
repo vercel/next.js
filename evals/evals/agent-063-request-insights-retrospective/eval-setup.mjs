@@ -43,14 +43,19 @@ const logPath = '/tmp/agent-063-next-dev.log'
 const log = openSync(logPath, 'w')
 const next = spawn(
   process.execPath,
-  ['node_modules/next/dist/bin/next', 'dev', '--port', '3100'],
+  [
+    'node_modules/next/dist/bin/next',
+    'dev',
+    '--port',
+    '3100',
+    '--experimental-request-insights',
+  ],
   {
     detached: true,
     stdio: ['ignore', log, log],
     env: {
       ...process.env,
       NEXT_TELEMETRY_DISABLED: '1',
-      NEXT_EVAL_EXPERIMENTAL: '{"requestInsights":true}',
       OTEL_EXPORTER_OTLP_ENDPOINT: 'http://127.0.0.1:4318',
       REPORT_SERVICE_URL: 'http://127.0.0.1:4318',
     },
