@@ -190,7 +190,7 @@ export abstract class RouteModule<
     const revalidate = getRequestMeta(req, 'revalidate')
     const render404 = getRequestMeta(req, 'render404')
     const relativeProjectDir =
-      getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
+      getRequestMeta(req, 'relativeProjectDir') ?? this.relativeProjectDir
     const routerServerContext =
       routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
 
@@ -235,7 +235,7 @@ export abstract class RouteModule<
       const absoluteProjectDir = join(
         /* turbopackIgnore: true */
         process.cwd(),
-        getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
+        getRequestMeta(req, 'relativeProjectDir') ?? this.relativeProjectDir
       )
 
       const { instrumentationOnRequestError } = await import(
@@ -519,7 +519,7 @@ export abstract class RouteModule<
           const absoluteProjectDir = join(
             /* turbopackIgnore: true */
             process.cwd(),
-            getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
+            getRequestMeta(req, 'relativeProjectDir') ?? this.relativeProjectDir
           )
 
           setCacheHandler(
@@ -567,7 +567,7 @@ export abstract class RouteModule<
       const projectDir = join(
         /* turbopackIgnore: true */
         process.cwd(),
-        getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
+        getRequestMeta(req, 'relativeProjectDir') ?? this.relativeProjectDir
       )
 
       await this.loadCustomCacheHandlers(req, nextConfig)
@@ -793,7 +793,7 @@ export abstract class RouteModule<
       absoluteProjectDir = join(
         /* turbopackIgnore: true */
         process.cwd(),
-        getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
+        getRequestMeta(req, 'relativeProjectDir') ?? this.relativeProjectDir
       )
 
       const absoluteDistDir = getRequestMeta(req, 'distDir')
