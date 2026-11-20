@@ -1254,8 +1254,10 @@ jobs:
         # runs, so the binary under the suites below is built with it.
         go build -C packages/next/src/server/switchyard -race -trimpath -o "$RUNNER_TEMP/switchyard" .
         # The detector logs a race and carries on unless told otherwise. This
-        # makes Switchyard exit (status 66) on the first one, so the test that
-        # was running fails.
+        # makes Switchyard exit (status 66) on the first one. Node then exits
+        # too and the running test fails, except during shutdown: Node ignores
+        # Switchyard's exit once it is closing, so a race there only shows in
+        # the job log.
         export GORACE="halt_on_error=1"
         export __NEXT_EXPERIMENTAL_SWITCHYARD_BINARY="$RUNNER_TEMP/switchyard"
         export __NEXT_EXPERIMENTAL_SWITCHYARD=1
