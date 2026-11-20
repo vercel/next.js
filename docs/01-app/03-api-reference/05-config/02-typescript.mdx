@@ -11,6 +11,10 @@ To add TypeScript to an existing project, rename a file to `.ts` / `.tsx`. Run `
 
 > **Good to know**: If you already have a `jsconfig.json` file, copy the `paths` compiler option from the old `jsconfig.json` into the new `tsconfig.json` file, and delete the old `jsconfig.json` file.
 
+## Alternative compiler packages
+
+To use a TypeScript-compatible CLI package such as `tsc-rs` without installing the official `typescript` package, configure [`typescript.compilerPackage`](/docs/app/api-reference/config/next-config-js/typescript#compilerpackage). This selects the compiler for builds, development setup, type generation, and TypeScript configuration loading.
+
 ## Using TypeScript 7
 
 [TypeScript 7](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/) does not currently provide the JavaScript compiler API. To use TypeScript 7 during `next build`, install it in your project:

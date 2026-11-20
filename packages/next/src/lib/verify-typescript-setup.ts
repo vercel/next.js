@@ -20,6 +20,7 @@ import { missingDepsError } from './typescript/missingDependencyError'
 import {
   getTypeScriptApiMissingError,
   getTypeScriptPackageInfo,
+  getTypeScriptCliVersion,
   hasNativeTypeScriptPreview,
 } from './typescript/runTypeScriptCli'
 
@@ -66,6 +67,7 @@ export async function verifyAndRunTypeScript({
   pagesDir,
   debugBuildPaths,
   useTypeScriptCli = false,
+  compilerPackage = 'typescript',
   onFirstCliOutput,
 }: {
   dir: string
@@ -81,6 +83,7 @@ export async function verifyAndRunTypeScript({
   appDir?: string
   pagesDir?: string
   debugBuildPaths?: { app?: string[]; pages?: string[] }
+  compilerPackage?: string
   useTypeScriptCli?: boolean
   /**
    * Called once when the CLI checker first produces output, so the caller can
@@ -90,16 +93,35 @@ export async function verifyAndRunTypeScript({
 }): Promise<{
   result?: TypeCheckResult
   version: string | null
-  typeCheckMode: 'typescript-api' | 'typescript-cli'
+  typeCheckMode: 'typescript-api' | 'typescript-cli' | 'custom-cli'
 }> {
+  const customCompiler = compilerPackage !== 'typescript'
+  const compilerDependency: MissingDependency = customCompiler
+    ? {
+        file: `${compilerPackage}/package.json`,
+        pkg: compilerPackage,
+        exportsRestrict: true,
+      }
+    : useTypeScriptCli
+      ? typescriptCliPackage
+      : typescriptApiPackage
   const tsConfigFileName = tsconfigPath || 'tsconfig.json'
   const resolvedTsConfigPath = path.join(dir, tsConfigFileName)
-  const typeCheckMode = useTypeScriptCli ? 'typescript-cli' : 'typescript-api'
+  const typeCheckMode = customCompiler
+    ? 'custom-cli'
+    : useTypeScriptCli
+      ? 'typescript-cli'
+      : 'typescript-api'
 
   // Construct intentDirs from appDir and pagesDir for getTypeScriptIntent
   const intentDirs = [pagesDir, appDir].filter(Boolean) as string[]
 
   try {
+    if (customCompiler && !useTypeScriptCli) {
+      throw new Error(
+        '`typescript.compilerPackage` requires `experimental.useTypeScriptCli` to be enabled. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/typescript#compilerpackage'
+      )
+    }
     // Check if the project uses TypeScript:
     const intent = await getTypeScriptIntent(dir, intentDirs, tsConfigFileName)
     if (!intent) {
@@ -108,7 +130,7 @@ export async function verifyAndRunTypeScript({
 
     // Check if @typescript/native-preview is installed as an alternative
     const hasNativePreview = hasNativeTypeScriptPreview(dir)
-    const installedTypeScript = getTypeScriptPackageInfo(dir)
+    const installedTypeScript = getTypeScriptPackageInfo(dir, compilerPackage)
 
     if (
       !useTypeScriptCli &&
@@ -120,7 +142,7 @@ export async function verifyAndRunTypeScript({
     }
 
     const requiredPackages: MissingDependency[] = [
-      useTypeScriptCli ? typescriptCliPackage : typescriptApiPackage,
+      compilerDependency,
       ...requiredTypePackages,
     ]
 
@@ -133,7 +155,12 @@ export async function verifyAndRunTypeScript({
     // If @typescript/native-preview is installed and only the typescript package is missing,
     // we can skip auto-installing typescript since the native preview provides TS compilation.
     // However, we still need @types/react and @types/node for type checking.
-    if (!useTypeScriptCli && hasNativePreview && deps.missing?.length > 0) {
+    if (
+      !customCompiler &&
+      !useTypeScriptCli &&
+      hasNativePreview &&
+      deps.missing?.length > 0
+    ) {
       const missingWithoutTypescript = deps.missing.filter(
         (dep) => dep.pkg !== 'typescript'
       )
@@ -171,6 +198,15 @@ export async function verifyAndRunTypeScript({
       }
     }
 
+    if (
+      customCompiler &&
+      deps.missing.some((dep) => dep.pkg === compilerPackage)
+    ) {
+      // Never silently install the official compiler or an arbitrary configured
+      // package when the explicitly selected compiler is unavailable.
+      missingDepsError(dir, deps.missing)
+    }
+
     if (deps.missing?.length > 0) {
       if (isCI) {
         // we don't attempt auto install in CI to avoid side-effects
@@ -206,21 +242,27 @@ export async function verifyAndRunTypeScript({
       deps = hasNecessaryDependencies(dir, requiredPackages)
     }
 
-    const typeScriptPackage = getTypeScriptPackageInfo(dir)
+    const typeScriptPackage = getTypeScriptPackageInfo(dir, compilerPackage)
     const typeScriptPath = useTypeScriptCli
       ? typeScriptPackage?.tscPath
       : typeScriptPackage?.apiPath
 
-    if (!typeScriptPackage || !typeScriptPath) {
-      missingDepsError(
-        dir,
-        deps.missing.length > 0
-          ? deps.missing
-          : [useTypeScriptCli ? typescriptCliPackage : typescriptApiPackage]
+    if (customCompiler && typeScriptPackage && !typeScriptPath) {
+      throw new Error(
+        `The configured compiler package "${compilerPackage}" must expose a TypeScript-compatible CLI through its bin field (a tsc binary or a single binary). Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/typescript#compilerpackage`
       )
     }
 
-    const typescriptVersion = typeScriptPackage.version
+    if (!typeScriptPackage || !typeScriptPath) {
+      missingDepsError(
+        dir,
+        deps.missing.length > 0 ? deps.missing : [compilerDependency]
+      )
+    }
+
+    const typescriptVersion = customCompiler
+      ? await getTypeScriptCliVersion(dir, typeScriptPath)
+      : typeScriptPackage.version
 
     if (semver.lt(typescriptVersion, '5.1.0')) {
       log.warn(

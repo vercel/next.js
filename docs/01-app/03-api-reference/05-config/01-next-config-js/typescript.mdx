@@ -1,6 +1,6 @@
 ---
 title: typescript
-description: Configure how Next.js handles TypeScript errors during production builds and specify a custom tsconfig file.
+description: Configure how Next.js handles TypeScript errors during production builds and select a compiler package or custom tsconfig file.
 ---
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
@@ -20,8 +20,31 @@ module.exports = {
 
 | Option              | Type      | Default           | Description                                                      |
 | ------------------- | --------- | ----------------- | ---------------------------------------------------------------- |
+| `compilerPackage`   | `string`  | `'typescript'`    | Package providing a TypeScript-compatible compiler CLI.          |
 | `ignoreBuildErrors` | `boolean` | `false`           | Allow production builds to complete even with TypeScript errors. |
 | `tsconfigPath`      | `string`  | `'tsconfig.json'` | Path to a custom `tsconfig.json` file.                           |
+
+## `compilerPackage`
+
+Select an installed package that provides a TypeScript-compatible compiler CLI instead of the default `typescript` package. For example, to use [tsc-rs](https://github.com/pingdotgg/ts-rust), install `tsc-rs` as a development dependency and configure:
+
+```js filename="next.config.js"
+module.exports = {
+  typescript: {
+    compilerPackage: 'tsc-rs',
+  },
+}
+```
+
+The official `typescript` package is not required when using this option. Next.js uses the selected package for `next build`, `next dev` setup, `next typegen`, and reading TypeScript configuration (including path aliases). It continues to generate `next-env.d.ts` and route types and apply its recommended `tsconfig` settings.
+
+The package must expose a Node.js CLI entry in its `bin` field, named `tsc` (including versioned names such as `tsc6`), or a single binary with any name. The CLI must support `--version`, `--showConfig`, `--project`, and the type-checking flags accepted by `tsc`. `--version` must report the compatible TypeScript version as `Version <version>`, which may differ from the package's release version. A custom checker can be packaged with a compatible CLI wrapper. Next.js does not load an alternative compiler's JavaScript API or guarantee its diagnostic or editor-plugin compatibility.
+
+- [`experimental.useTypeScriptCli`](/docs/app/api-reference/config/next-config-js/useTypeScriptCli) must remain enabled (the default).
+- `tsconfigPath` selects the project passed to the selected CLI.
+- `ignoreBuildErrors` skips checking, including the selected CLI, but still performs TypeScript setup.
+- If the configured package is missing, Next.js reports an installation error instead of falling back to or installing `typescript`.
+- Type-check telemetry records that a custom CLI was used, without recording the package name or path.
 
 ## `ignoreBuildErrors`
 
