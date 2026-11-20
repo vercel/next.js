@@ -2116,7 +2116,7 @@ impl Endpoint for GoEndpoint {
         }
         let descriptor_path = node_root.join(&format!("server/{entry}"))?;
         let executable_path = node_root.join(&format!("server/{executable}"))?;
-        let trace = serde_json::json!({ "version": 1, "files": [descriptor_path.parent().get_path_to(&executable_path).context("native executable outside descriptor directory")?] });
+        let trace = serde_json::json!({ "version": 1, "files": [descriptor_path.parent().get_relative_path_to(&executable_path).context("native executable outside descriptor filesystem")?] });
         let mut assets = vec![
             ResolvedVc::upcast(
                 VirtualOutputAsset::new(
