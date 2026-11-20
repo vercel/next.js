@@ -172,6 +172,14 @@ pub enum Effect<'a> {
         prop: BumpBox<'a, JsValue<'a>>,
         span: Span,
     },
+    /// A value that might be `process.env` escapes, i.e. it's used in a way that allows reading
+    /// arbitrary keys of it (e.g. passed to a function or assigned to a variable). Only emitted
+    /// for candidates found with a cheap syntactic check (`<obj>.env`, or a binding destructured
+    /// as `env`), whether the value really is `process.env` is decided after linking.
+    PossibleProcessEnvEscape {
+        value: BumpBox<'a, JsValue<'a>>,
+        span: Span,
+    },
     /// A `x in y` expression.
     In {
         left: BumpBox<'a, JsValue<'a>>,
@@ -273,6 +281,9 @@ impl<'a> Effect<'a> {
             Effect::DestructuredMember { obj, prop, .. } => {
                 obj.normalize(arena);
                 prop.normalize(arena);
+            }
+            Effect::PossibleProcessEnvEscape { value, .. } => {
+                value.normalize(arena);
             }
             Effect::In {
                 left,

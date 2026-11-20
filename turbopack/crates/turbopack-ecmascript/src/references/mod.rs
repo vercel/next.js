@@ -401,6 +401,10 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         }
     }
 
+    pub fn has_runtime_env_var_reference_all(&self) -> bool {
+        self.env_var_info_runtime_all.is_some()
+    }
+
     pub fn add_esm_reference_namespace_resolved(
         &mut self,
         esm_reference_idx: usize,
@@ -902,10 +906,6 @@ async fn analyze_ecmascript_module_internal(
         graph.unwrap()
     };
 
-    if let Some(span) = var_graph.dynamic_process_env_access {
-        analysis.set_runtime_env_var_reference_all(issue_source(source, span));
-    }
-
     let span = tracing::trace_span!("effects processing");
     async {
         // The graph's code gens carry `AstPathId`s interned into the graph's own trie, so
@@ -1386,21 +1386,7 @@ async fn analyze_ecmascript_module_internal(
                         let obj = analysis_state
                             .link_value(take(&mut *obj), ImportAttributes::empty_ref())
                             .await?;
-                        if obj
-                            .get_definable_name(Some(&analysis_state.var_graph))
-                            .iter()
-                            .flatten()
-                            .any(|(name, reassigned)| {
-                                !reassigned
-                                    && matches!(
-                                        name.0.as_slice(),
-                                        [
-                                            DefinableNameSegmentRef::Name("process"),
-                                            DefinableNameSegmentRef::Name("env")
-                                        ]
-                                    )
-                            })
-                        {
+                        if is_process_env(&obj, &analysis_state.var_graph) {
                             // `const { [unknown]: value } = process.env`
                             analysis.set_runtime_env_var_reference_all(issue_source(source, span));
                         }
@@ -1428,6 +1414,18 @@ async fn analyze_ecmascript_module_internal(
                             })
                         {
                             analysis.add_runtime_env_var_reference_read(RcStr::from(prop));
+                        }
+                    }
+                }
+                Effect::PossibleProcessEnvEscape { mut value, span } => {
+                    // Only the first location is reported, skip linking otherwise.
+                    if !analysis.has_runtime_env_var_reference_all() {
+                        let value = analysis_state
+                            .link_value(take(&mut *value), ImportAttributes::empty_ref())
+                            .await?;
+                        if is_process_env(&value, &analysis_state.var_graph) {
+                            // e.g. `foo(process.env)` or `const env = process.env`
+                            analysis.set_runtime_env_var_reference_all(issue_source(source, span));
                         }
                     }
                 }
@@ -3714,21 +3712,7 @@ async fn handle_membership<'a>(
 ) -> Result<bool> {
     let Some(prop) = prop.as_str() else {
         let obj = link_obj.await?;
-        if obj
-            .get_definable_name(Some(&state.var_graph))
-            .iter()
-            .flatten()
-            .any(|(name, reassigned)| {
-                !reassigned
-                    && matches!(
-                        name.0.as_slice(),
-                        [
-                            DefinableNameSegmentRef::Name("process"),
-                            DefinableNameSegmentRef::Name("env")
-                        ]
-                    )
-            })
-        {
+        if is_process_env(&obj, &state.var_graph) {
             // `process.env[unknown]` or `unknown in process.env`
             analysis.set_runtime_env_var_reference_all(IssueSource::from_swc_offsets(
                 state.source,
@@ -4047,6 +4031,29 @@ async fn handle_free_var_reference(
 
 fn issue_source(source: ResolvedVc<Box<dyn Source>>, span: Span) -> IssueSource {
     IssueSource::from_swc_offsets(source, span.lo.to_u32(), span.hi.to_u32())
+}
+
+/// Whether the linked `value` is (potentially) the `process.env` object, also when accessed via
+/// `globalThis.process.env` or `global.process.env`.
+fn is_process_env(value: &JsValue<'_>, var_graph: &VarGraph<'_>) -> bool {
+    value
+        .get_definable_name(Some(var_graph))
+        .iter()
+        .flatten()
+        .any(|(name, reassigned)| {
+            !reassigned
+                && matches!(
+                    name.0.as_slice(),
+                    [
+                        DefinableNameSegmentRef::Name("process"),
+                        DefinableNameSegmentRef::Name("env")
+                    ] | [
+                        DefinableNameSegmentRef::Name("globalThis" | "global"),
+                        DefinableNameSegmentRef::Name("process"),
+                        DefinableNameSegmentRef::Name("env")
+                    ]
+                )
+        })
 }
 
 async fn analyze_amd_define(
