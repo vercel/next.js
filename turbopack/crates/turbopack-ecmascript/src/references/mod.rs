@@ -106,7 +106,7 @@ use crate::{
         JsValueUrlKind, Modified, ModuleValue, ObjectPart, RequireContextValue, ThreadLocal,
         WellKnownFunctionKind, WellKnownObjectKind,
         builtin::{early_replace_builtin, replace_builtin},
-        graph::{ConditionalKind, Effect, EffectArg, VarGraph, create_graph},
+        graph::{ConditionalKind, Effect, EffectArg, ValueUsage, VarGraph, create_graph},
         imports::{ImportAnnotations, ImportAttributes, ImportMap},
         linker::link,
         parse_require_context,
@@ -1346,14 +1346,13 @@ async fn analyze_ecmascript_module_internal(
                     base_effects,
                     ast_path,
                     span,
-                    in_truthiness_context,
-                    escapes,
+                    usage,
                 } => {
                     let prop = analysis_state
                         .link_value(take(&mut *prop), ImportAttributes::empty_ref())
                         .await?;
 
-                    if escapes
+                    if usage == ValueUsage::Escapes
                         && prop.as_str() == Some("env")
                         && !analysis.has_runtime_env_var_reference_all()
                     {
@@ -1385,7 +1384,7 @@ async fn analyze_ecmascript_module_internal(
                         &analysis_state,
                         &mut analysis,
                         MembershipType::Member {
-                            in_truthiness_context,
+                            in_truthiness_context: usage == ValueUsage::Truthiness,
                         },
                     )
                     .await?;
@@ -1495,9 +1494,9 @@ async fn analyze_ecmascript_module_internal(
                     member,
                     ast_path,
                     span,
-                    escapes,
+                    usage,
                 } => {
-                    if escapes
+                    if usage == ValueUsage::Escapes
                         && export.as_deref() == Some("env")
                         && !analysis.has_runtime_env_var_reference_all()
                     {

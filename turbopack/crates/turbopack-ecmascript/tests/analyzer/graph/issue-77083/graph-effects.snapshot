@@ -77,7 +77,7 @@
                             ),
                         ],
                         span: 108..114,
-                        escapes: true,
+                        usage: Escapes,
                     },
                     Call {
                         func: Member(
@@ -336,7 +336,7 @@
             ),
         ],
         span: 201..207,
-        escapes: true,
+        usage: Escapes,
     },
     Call {
         func: Member(
@@ -489,7 +489,7 @@
             ),
         ],
         span: 222..228,
-        escapes: true,
+        usage: Escapes,
     },
     Call {
         func: Member(

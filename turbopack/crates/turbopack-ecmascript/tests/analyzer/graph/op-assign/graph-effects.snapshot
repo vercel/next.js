@@ -215,8 +215,7 @@
             ),
         ],
         span: 212..227,
-        in_truthiness_context: false,
-        escapes: true,
+        usage: Escapes,
     },
     MemberCall {
         obj: FreeVar(
@@ -467,8 +466,7 @@
                     ),
                 ],
                 span: 257..282,
-                in_truthiness_context: false,
-                escapes: false,
+                usage: Access,
             },
         ],
         ast_path: [
@@ -571,8 +569,7 @@
             ),
         ],
         span: 257..292,
-        in_truthiness_context: false,
-        escapes: true,
+        usage: Escapes,
     },
     MemberCall {
         obj: Member(
@@ -1029,8 +1026,7 @@
             ),
         ],
         span: 356..371,
-        in_truthiness_context: false,
-        escapes: true,
+        usage: Escapes,
     },
     MemberCall {
         obj: FreeVar(
@@ -1337,8 +1333,7 @@
             ),
         ],
         span: 608..621,
-        in_truthiness_context: true,
-        escapes: true,
+        usage: Truthiness,
     },
     Unreachable {
         start_ast_path: [

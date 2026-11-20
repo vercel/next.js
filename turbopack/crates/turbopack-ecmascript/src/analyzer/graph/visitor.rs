@@ -26,7 +26,9 @@ use crate::{
             as_exports_define_property, as_module_exports_object_literal,
             define_property_sets_es_module, is_exports_object, is_global, is_module_exports_chain,
         },
-        graph::{ConditionalKind, Effect, EffectArg, EffectsBlock, EvalContext, VarGraph},
+        graph::{
+            ConditionalKind, Effect, EffectArg, EffectsBlock, EvalContext, ValueUsage, VarGraph,
+        },
         is_unresolved_id,
     },
     ast_path_trie::{AstPathId, AstPathTrieBuilder},
@@ -907,13 +909,18 @@ fn destructuring_target_escapes(target: &Pat) -> bool {
     }
 }
 
-/// Whether the value of the current expression (or identifier) escapes, i.e. it's not only used as
-/// the object of a member access (`<value>.prop`), as the source of an object destructuring
-/// pattern without a rest element, or as the right-hand side of an `in` expression.
-fn value_escapes(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> bool {
-    member_access_parent(ast_path).is_none()
-        && !is_object_destructuring_source_without_rest(ast_path)
-        && !is_obj_in(ast_path)
+/// How the value of the current expression (or identifier) is used, see [`ValueUsage`].
+fn value_usage(ast_path: &AstNodePath<AstParentNodeRef<'_>>, unresolved_mark: Mark) -> ValueUsage {
+    if is_in_boolean_context(ast_path, unresolved_mark) {
+        ValueUsage::Truthiness
+    } else if member_access_parent(ast_path).is_some()
+        || is_object_destructuring_source_without_rest(ast_path)
+        || is_obj_in(ast_path)
+    {
+        ValueUsage::Access
+    } else {
+        ValueUsage::Escapes
+    }
 }
 
 /// Whether the current expression is the value being consumed by an object destructuring pattern
@@ -1936,18 +1943,13 @@ impl VisitAstPath for Analyzer<'_, '_> {
             let base_effects = self.collect_effects(|this| {
                 member_expr.visit_children_with_ast_path(this, ast_path);
             });
-            let escapes = value_escapes(ast_path);
             self.add_effect(Effect::Member {
                 obj: obj_value,
                 prop: prop_value,
                 base_effects,
                 ast_path: as_parent_path_in(self.arena, ast_path),
                 span: member_expr.span(),
-                in_truthiness_context: is_in_boolean_context(
-                    ast_path,
-                    self.eval_context.unresolved_mark,
-                ),
-                escapes,
+                usage: value_usage(ast_path, self.eval_context.unresolved_mark),
             });
         } else {
             member_expr.visit_children_with_ast_path(self, ast_path);
@@ -2587,7 +2589,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
                     ast_path: as_parent_path_skip_in(self.arena, ast_path, 1),
                     span: member.span(),
                     // A namespace member access like `ns.env` is handled by `Effect::Member`
-                    escapes: false,
+                    usage: ValueUsage::Access,
                 });
             } else {
                 // ast_path stays on the ident, so `.exportName` remains in the emitted code.
@@ -2605,7 +2607,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
                     member,
                     ast_path: as_parent_path_in(self.arena, ast_path),
                     span: ident.span(),
-                    escapes: value_escapes(ast_path),
+                    usage: value_usage(ast_path, self.eval_context.unresolved_mark),
                 })
             }
             return;

@@ -162,7 +162,7 @@
                     ),
                 ],
                 span: 99..122,
-                escapes: false,
+                usage: Access,
             },
         ],
         ast_path: [
@@ -205,8 +205,7 @@
             ),
         ],
         span: 99..122,
-        in_truthiness_context: false,
-        escapes: true,
+        usage: Escapes,
     },
     MemberCall {
         obj: Module(
@@ -349,8 +348,7 @@
                             ),
                         ],
                         span: 123..138,
-                        in_truthiness_context: false,
-                        escapes: true,
+                        usage: Escapes,
                     },
                 ],
             ),
@@ -489,8 +487,7 @@
             ),
         ],
         span: 176..203,
-        in_truthiness_context: false,
-        escapes: true,
+        usage: Escapes,
     },
     MemberCall {
         obj: Variable(
@@ -627,8 +624,7 @@
                             ),
                         ],
                         span: 204..219,
-                        in_truthiness_context: false,
-                        escapes: true,
+                        usage: Escapes,
                     },
                 ],
             ),
@@ -767,8 +763,7 @@
             ),
         ],
         span: 257..284,
-        in_truthiness_context: false,
-        escapes: true,
+        usage: Escapes,
     },
     MemberCall {
         obj: Variable(
@@ -972,8 +967,7 @@
             ),
         ],
         span: 335..362,
-        in_truthiness_context: false,
-        escapes: true,
+        usage: Escapes,
     },
     MemberCall {
         obj: Variable(
@@ -1111,8 +1105,7 @@
                             ),
                         ],
                         span: 363..377,
-                        in_truthiness_context: false,
-                        escapes: true,
+                        usage: Escapes,
                     },
                 ],
             ),

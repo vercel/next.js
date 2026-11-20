@@ -65,7 +65,7 @@
             ),
         ],
         span: 268..275,
-        escapes: true,
+        usage: Escapes,
     },
     Call {
         func: Member(
@@ -311,7 +311,7 @@
             ),
         ],
         span: 328..332,
-        escapes: true,
+        usage: Escapes,
     },
     Call {
         func: Member(
@@ -490,8 +490,7 @@
                             ),
                         ],
                         span: 366..379,
-                        in_truthiness_context: false,
-                        escapes: true,
+                        usage: Escapes,
                     },
                     MemberCall {
                         obj: Variable(
@@ -934,7 +933,7 @@
                                                 ),
                                             ],
                                             span: 495..501,
-                                            escapes: true,
+                                            usage: Escapes,
                                         },
                                         Call {
                                             func: Member(

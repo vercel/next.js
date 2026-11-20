@@ -1,4 +1,4 @@
-runtime_all: true
+runtime_all: false
 runtime: [
     "FOO1",
 ]

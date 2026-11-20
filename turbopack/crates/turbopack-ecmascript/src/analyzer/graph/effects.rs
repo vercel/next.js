@@ -162,12 +162,7 @@ pub enum Effect<'a> {
         base_effects: BumpBox<'a, [Effect<'a>]>,
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
-        // Whether this value from this member access only ends up being used as a truthiness check
-        // (and the full value doesn't escape).
-        in_truthiness_context: bool,
-        /// Whether the value is used as anything other than a member object (`<value>.x`), the
-        /// right side of `in`, or the source of a destructuring pattern without rest.
-        escapes: bool,
+        usage: ValueUsage,
     },
     /// A property access created by an object destructuring pattern.
     DestructuredMember {
@@ -197,8 +192,7 @@ pub enum Effect<'a> {
         member: Option<RcStr>,
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
-        /// Same as `Member::escapes`, for the imported binding's value.
-        escapes: bool,
+        usage: ValueUsage,
     },
     /// A reference to a free var access.
     FreeVar {
@@ -313,6 +307,19 @@ impl<'a> Effect<'a> {
             Effect::Unreachable { .. } => {}
         }
     }
+}
+
+/// How the value of an expression is used.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum ValueUsage {
+    /// Only used to access keys, which is analyzed by separate effects: as a member object
+    /// (`<value>.x`, `<value>[key]`), the right side of `in`, or the source of a destructuring
+    /// pattern without rest (`const { x } = <value>`).
+    Access,
+    /// Only coerced to a boolean: `if (<value>)`, `!<value>`, `Boolean(<value>)`, ...
+    Truthiness,
+    /// Any other use, which might access arbitrary keys, e.g. `foo(<value>)`.
+    Escapes,
 }
 
 #[derive(Debug)]
