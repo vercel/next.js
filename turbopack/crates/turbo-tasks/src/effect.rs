@@ -446,10 +446,12 @@ impl CaptureEffectsState {
     }
 }
 
+/// Two captured effects share a key but have different value hashes.
 #[derive(thiserror::Error, Debug, NonLocalValue)]
-#[error("Conflicting effects for the same key (key length: {key_len} bytes)")]
+#[error("Conflicting effects for the same key: {key}")]
 struct ConflictingEffectError {
-    key_len: usize,
+    /// The conflicting key, decoded lossily as UTF-8 for display (keys are typically paths).
+    key: String,
 }
 
 const MAX_KEYS_TO_DISPLAY: usize = 10;
@@ -461,8 +463,12 @@ pub enum EffectsError {
     #[error(transparent)]
     Apply(Arc<dyn EffectError>),
 
-    #[error("conflicting effects for the same key (key length: {0} bytes)")]
-    Conflict(usize),
+    /// Two captured effects share a key (typically an output path) but have different values.
+    #[error(
+        "conflicting effects for the same key: {key}. This implies multiple routes are trying to \
+         write different content to this file."
+    )]
+    Conflict { key: String },
 
     #[error(
         "effect state diverged before apply for {}{}; producing task invalidated, retry required",
@@ -593,7 +599,11 @@ impl Effects {
         );
         let unique = match self.unique_keys.as_ref() {
             Ok(unique) => unique.as_slice(),
-            Err(err) => return Err(EffectsError::Conflict(err.key_len)),
+            Err(err) => {
+                return Err(EffectsError::Conflict {
+                    key: err.key.clone(),
+                });
+            }
         };
         if unique.is_empty() {
             return Ok(());
@@ -778,7 +788,7 @@ fn build_unique_keys(captured: &[Box<dyn CapturedEffect>]) -> UniqueKeys {
             hash_map::Entry::Occupied(entry) => {
                 if captured[*entry.get()].value_hash() != effect.value_hash() {
                     return Err(Arc::new(ConflictingEffectError {
-                        key_len: entry.key().len(),
+                        key: String::from_utf8_lossy(entry.key()).into_owned(),
                     }));
                 }
             }
@@ -793,7 +803,69 @@ fn build_unique_keys(captured: &[Box<dyn CapturedEffect>]) -> UniqueKeys {
 
 #[cfg(test)]
 mod tests {
-    use crate::{CollectiblesSource, Effects, take_effects};
+    use async_trait::async_trait;
+
+    use super::{ApplyError, CapturedEffect, EffectsError, build_unique_keys};
+    use crate::{self as turbo_tasks, CollectiblesSource, Effects, NonLocalValue, take_effects};
+
+    #[derive(NonLocalValue)]
+    struct TestEffect {
+        key: &'static str,
+        value_hash: u128,
+    }
+
+    #[async_trait]
+    impl CapturedEffect for TestEffect {
+        fn key(&self) -> Box<[u8]> {
+            self.key.as_bytes().into()
+        }
+
+        fn value_hash(&self) -> u128 {
+            self.value_hash
+        }
+
+        async fn apply(&self) -> Result<(), ApplyError> {
+            Ok(())
+        }
+    }
+
+    fn effect(key: &'static str, value_hash: u128) -> Box<dyn CapturedEffect> {
+        Box::new(TestEffect { key, value_hash })
+    }
+
+    #[test]
+    fn conflicting_effects_report_the_key() {
+        let err = build_unique_keys(&[
+            effect("/project/.next/server/app/page.js", 1),
+            effect("/project/.next/server/app/other.js", 2),
+            effect("/project/.next/server/app/page.js", 3),
+        ])
+        .expect_err("the same key with different values must conflict");
+        assert_eq!(err.key, "/project/.next/server/app/page.js");
+        assert_eq!(
+            err.to_string(),
+            "Conflicting effects for the same key: /project/.next/server/app/page.js"
+        );
+        let message = EffectsError::Conflict {
+            key: err.key.clone(),
+        }
+        .to_string();
+        assert!(
+            message.contains("/project/.next/server/app/page.js"),
+            "{message}"
+        );
+    }
+
+    #[test]
+    fn identical_effects_for_the_same_key_are_deduplicated() {
+        let unique = build_unique_keys(&[
+            effect("/project/a.js", 1),
+            effect("/project/b.js", 2),
+            effect("/project/a.js", 1),
+        ])
+        .expect("the same key with the same value doesn't conflict");
+        assert_eq!(unique, vec![0, 1]);
+    }
 
     #[test]
     #[allow(dead_code)]
