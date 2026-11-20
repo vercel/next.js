@@ -6,9 +6,12 @@
 //! spawning task in one batch when the future finishes. These tests check that no invalidation is
 //! lost: neither after the batch was added, nor while it is still pending.
 
-use std::sync::{
-    Mutex,
-    atomic::{AtomicBool, Ordering},
+use std::{
+    sync::{
+        Mutex,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::Duration,
 };
 
 use anyhow::Result;
@@ -106,9 +109,9 @@ async fn slow_read_operation(input: ResolvedVc<ChangingInput>) -> Result<Vc<u32>
         if HOLD.swap(false, Ordering::SeqCst) {
             READ_DONE.notify_one();
             CHANGED.notified().await;
-            // The cell's new content is only set after its dependents were invalidated, so once
-            // it's visible, this execution has been invalidated, while its dependency is still
-            // deferred.
+            // INVALIDATION: untracked, as this only waits for the change. The cell's new content
+            // is only set after its dependents were invalidated, so once it's visible, this
+            // execution has been invalidated, while its dependency is still deferred.
             while *cell.untracked().await? == value {
                 tokio::task::yield_now().await;
             }
@@ -195,6 +198,46 @@ async fn invalidates_many_deferred_readers_of_one_cell() {
             3 * MANY_READERS + offsets
         );
         Ok(())
+    })
+    .await
+    .unwrap()
+}
+
+static MIXED_READ_DONE: Notify = Notify::const_new();
+static MIXED_DIRECT_READ_DONE: Notify = Notify::const_new();
+
+/// Reads the cell with a normal read while a spawned future's deferred read of it is still
+/// pending, so the reverse edge already exists without the forward edge.
+#[turbo_tasks::function(operation, root)]
+async fn mixed_reads_operation(input: ResolvedVc<ChangingInput>) -> Result<Vc<u32>> {
+    let cell = value_of(*input).to_resolved().await?;
+    let handle = spawn_in_current_task(async move {
+        let value = *cell.await?;
+        MIXED_READ_DONE.notify_one();
+        // With a timeout, so that a failing direct read (e.g. a panic) fails the test instead of
+        // hanging it.
+        let _ =
+            tokio::time::timeout(Duration::from_secs(10), MIXED_DIRECT_READ_DONE.notified()).await;
+        anyhow::Ok(value)
+    });
+    MIXED_READ_DONE.notified().await;
+    let direct = *cell.await?;
+    MIXED_DIRECT_READ_DONE.notify_one();
+    let deferred = handle.await?;
+    assert_eq!(direct, deferred);
+    Ok(Vc::cell(direct))
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn normal_read_while_deferred_read_is_pending() {
+    // Runs only once: the test coordinates with the execution through statics.
+    run_once_without_cache_check(&REGISTRATION, async {
+        let (values, vcs) = new_inputs(2);
+        let op = mixed_reads_operation(vcs[1]);
+        assert_eq!(*op.read_strongly_consistent().await?, 1);
+        values[1].state.set(10);
+        assert_eq!(*op.read_strongly_consistent().await?, 10);
+        anyhow::Ok(())
     })
     .await
     .unwrap()

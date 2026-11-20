@@ -595,8 +595,11 @@ pub enum VerificationMode {
 /// Cell dependencies read by one future spawned with
 /// [`spawn_in_current_task`][crate::spawn_in_current_task] that haven't been added to the reading
 /// task yet. See [`Backend::try_read_task_cell_deferred`].
-#[derive(Default)]
 pub struct DeferredCellDependencies {
+    /// The task whose deferred cell dependency window this is. Only its reads are deferred: the
+    /// future may also execute other tasks inline (when it reads a task that is scheduled but not
+    /// started yet), and their reads must be added to those tasks as usual.
+    reader: TaskId,
     // Only one future records into this, so the lock is uncontended. It isn't a `RefCell` because
     // the dependencies must still be added when the future is dropped before it completes (e.g.
     // when it panics), which happens outside of its task-local scope.
@@ -604,6 +607,18 @@ pub struct DeferredCellDependencies {
 }
 
 impl DeferredCellDependencies {
+    pub(crate) fn new(reader: TaskId) -> Self {
+        Self {
+            reader,
+            cells: Default::default(),
+        }
+    }
+
+    /// The task whose reads are recorded here.
+    pub fn reader(&self) -> TaskId {
+        self.reader
+    }
+
     /// Records that the cell `index` of `task` was read.
     pub fn push(&self, task: TaskId, index: CellId) {
         self.cells.lock().unwrap().push((task, index));

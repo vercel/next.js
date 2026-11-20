@@ -1190,7 +1190,13 @@ impl TurboTasksBackend {
                         if !reader_task.remove_outdated_cell_dependencies(&target)
                             && reader_task.add_cell_dependencies(target)
                         {
-                            task.push_cell_dependents(reverse);
+                            if reader_task.has_deferred_cell_dependency_windows() {
+                                // A deferred read by a still running future of the reader may
+                                // have added the reverse edge without the forward edge.
+                                let _ = task.add_cell_dependents(reverse);
+                            } else {
+                                task.push_cell_dependents(reverse);
+                            }
                         }
                     }
                     Some(key) => {

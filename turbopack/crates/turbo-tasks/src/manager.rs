@@ -2235,16 +2235,21 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         if let Some(reader) = reader
             && options.tracking == (ReadCellTracking::Tracked { key: None })
             && let Ok(Some(result)) = DEFERRED_CELL_DEPENDENCIES.try_with(|dependencies| {
-                dependencies.as_ref().map(|dependencies| {
-                    self.backend.try_read_task_cell_deferred(
-                        task,
-                        index,
-                        reader,
-                        options,
-                        dependencies,
-                        self,
-                    )
-                })
+                // A task executed inline by the spawned future sees the same task-local, but its
+                // reads aren't part of the window.
+                dependencies
+                    .as_ref()
+                    .filter(|dependencies| dependencies.reader() == reader)
+                    .map(|dependencies| {
+                        self.backend.try_read_task_cell_deferred(
+                            task,
+                            index,
+                            reader,
+                            options,
+                            dependencies,
+                            self,
+                        )
+                    })
             })
         {
             return result;
@@ -2689,7 +2694,7 @@ pub fn spawn_in_current_task<T: Send + 'static>(
         (
             tt.clone(),
             reader,
-            Arc::new(DeferredCellDependencies::default()),
+            Arc::new(DeferredCellDependencies::new(reader)),
         )
     });
     let dependencies = deferred
