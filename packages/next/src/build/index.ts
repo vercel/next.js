@@ -1025,6 +1025,8 @@ const staticWorkerExposedMethods = [
   'isPageStatic',
   'getDefinedNamedExports',
   'exportPages',
+  'exportPagesAdaptive',
+  'getStaticWorkerMemoryUsage',
 ] as const
 export type StaticWorker = typeof import('./worker') & Worker
 export function createStaticWorker(
@@ -1054,6 +1056,27 @@ export function createStaticWorker(
     isolatedMemory: true,
     enableWorkerThreads: config.experimental.workerThreads,
     exposedMethods: staticWorkerExposedMethods,
+    ...(config.experimental.staticGenerationAdaptive
+      ? {
+          // Pin each adaptive scheduler slot to one worker, so a slot's
+          // follow-up steps reach the worker holding its in-flight pages.
+          computeWorkerKey: (method: string, ...args: unknown[]) =>
+            method === 'exportPagesAdaptive' ||
+            method === 'getStaticWorkerMemoryUsage'
+              ? `static-generation-slot-${(args[0] as { slot: number }).slot}`
+              : null,
+          // While the adaptive scheduler runs (see `exportApp`), a worker
+          // killed by a signal (e.g. out of memory) is restarted and its pages
+          // retried, instead of failing the build.
+          recoverFromWorkerExit: {
+            // Windows reports SIGKILL as code 1 with no signal, just like
+            // process.exit(1). Only adaptive mode retries these ambiguous
+            // exits, with the same bounded retries as other worker crashes.
+            recoverableExitCodes:
+              process.platform === 'win32' ? new Set([1]) : new Set<number>(),
+          },
+        }
+      : undefined),
     forkOptions: {
       env: {
         ...(process.env.NEXT_CPU_PROF

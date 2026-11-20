@@ -77,6 +77,18 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import type { Params } from '../server/request/params'
 import { Bundler } from '../lib/bundler'
 import { getBuildDistDir, getExportPathPageKey } from './utils'
+import { runAdaptiveStaticGeneration } from './adaptive/orchestrator'
+import os from 'os'
+import v8 from 'v8'
+import { getStaticGenerationChunkSize } from './helpers/static-generation-chunk-size'
+import {
+  formatStaticGenerationSummary,
+  getConstrainedMemory,
+  isStaticGenerationProfileEnabled,
+  resetStaticGenerationProfile,
+  writeStaticGenerationSummary,
+  type StaticGenerationPhase,
+} from './static-generation-profile'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
@@ -693,9 +705,15 @@ async function exportAppImpl(
     )
   }
 
+  // Identifies this export run so workers can scope per-run state to it.
+  const sessionId = `${process.pid}-${Date.now().toString(36)}-${Math.random()
+    .toString(36)
+    .slice(2)}`
+
   const exportPagesInBatches = async (
     worker: StaticWorker,
     exportPaths: ExportPathEntry[],
+    phase: StaticGenerationPhase,
     renderResumeDataCachesByPage?: Record<string, string>
   ): Promise<ExportPagesResult> => {
     // Batch filtered pages into smaller batches, and call the export worker on
@@ -712,43 +730,83 @@ async function exportAppImpl(
       Math.ceil(exportPaths.length / minPageCountPerBatch)
     )
 
-    // Calculate the page count per batch based on the number of workers.
-    const pageCountPerBatch = Math.ceil(exportPaths.length / numWorkers)
-
-    const batches = Array.from({ length: numWorkers }, (_, i) =>
-      exportPaths.slice(i * pageCountPerBatch, (i + 1) * pageCountPerBatch)
-    )
-
-    // Distribute remaining pages.
-    const remainingPages = exportPaths.slice(numWorkers * pageCountPerBatch)
-    remainingPages.forEach((page, index) => {
-      batches[index % batches.length].push(page)
-    })
-
-    return (
-      await Promise.all(
-        batches.map(async (batch) => {
-          // Only send the seeds this batch needs. Sending the whole map to
-          // every worker can exceed the maximum IPC message size.
-          let batchRenderResumeDataCaches: Record<string, string> | undefined
-          if (renderResumeDataCachesByPage) {
-            batchRenderResumeDataCaches = {}
-            for (const exportPath of batch) {
-              const pageKey = getExportPathPageKey(exportPath)
-              if (Object.hasOwn(renderResumeDataCachesByPage, pageKey)) {
-                batchRenderResumeDataCaches[pageKey] =
-                  renderResumeDataCachesByPage[pageKey]
-              }
-            }
+    const exportBatch = (batch: ExportPathEntry[]) => {
+      // Only send the seeds this batch needs. Sending the whole map to
+      // every worker can exceed the maximum IPC message size.
+      let batchRenderResumeDataCaches: Record<string, string> | undefined
+      if (renderResumeDataCachesByPage) {
+        batchRenderResumeDataCaches = {}
+        for (const exportPath of batch) {
+          const pageKey = getExportPathPageKey(exportPath)
+          if (Object.hasOwn(renderResumeDataCachesByPage, pageKey)) {
+            batchRenderResumeDataCaches[pageKey] =
+              renderResumeDataCachesByPage[pageKey]
           }
+        }
+      }
 
-          return worker.exportPages({
+      return worker.exportPages({
+        buildId,
+        deploymentId: nextConfig.deploymentId,
+        clientAssetToken: nextConfig.supportsImmutableAssets
+          ? ''
+          : nextConfig.deploymentId,
+        exportPaths: batch,
+        parentSpanId: span.getId(),
+        pagesDataDir,
+        renderOpts,
+        options,
+        dir,
+        distDir,
+        outDir: options.buildExport ? join(distDir, 'server', 'pages') : outDir,
+        nextConfig,
+        cacheHandler: nextConfig.cacheHandler,
+        cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
+        fetchCache: true,
+        fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
+        renderResumeDataCachesByPage: batchRenderResumeDataCaches,
+        phase,
+      })
+    }
+
+    if (nextConfig.experimental.staticGenerationAdaptive) {
+      // Adaptive scheduling: each worker claims a route and pulls chunks of
+      // it, helps other routes from their end once every route is owned, and
+      // picks its own concurrency from its event loop utilization and memory
+      // headroom. See `export/adaptive/orchestrator.ts`.
+      const configuredMaxConcurrency =
+        nextConfig.experimental.staticGenerationMaxConcurrency
+      // Analysis and earlier export phases can leave memory in workers this
+      // phase doesn't use. Measure the whole existing pool and reserve that
+      // memory without increasing the number of workers rendering pages.
+      // These calls share the export slot keys, so every sample corresponds
+      // to the same physical worker used by subsequent scheduling steps.
+      const workerMemory = await Promise.all(
+        Array.from({ length: options.numWorkers }, (_, slot) =>
+          worker.getStaticWorkerMemoryUsage({ slot })
+        )
+      )
+      const idleMemory = workerMemory.slice(numWorkers).reduce(
+        (total, usage) => ({
+          allocated: total.allocated + usage.allocated,
+          rss: total.rss + usage.rss,
+        }),
+        { allocated: 0, rss: 0 }
+      )
+      // Only the adaptive scheduler retries the pages of a worker that
+      // crashed, so only its steps may recover from a worker exit.
+      worker.setWorkerExitRecovery(true)
+      try {
+        return await runAdaptiveStaticGeneration({
+          exportPaths,
+          phase,
+          sessionId,
+          session: {
             buildId,
             deploymentId: nextConfig.deploymentId,
             clientAssetToken: nextConfig.supportsImmutableAssets
               ? ''
               : nextConfig.deploymentId,
-            exportPaths: batch,
             parentSpanId: span.getId(),
             pagesDataDir,
             renderOpts,
@@ -763,10 +821,67 @@ async function exportAppImpl(
             cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
             fetchCache: true,
             fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
-            renderResumeDataCachesByPage: batchRenderResumeDataCaches,
-          })
+            sessionId,
+          },
+          renderResumeDataCachesByPage,
+          getPageKey: getExportPathPageKey,
+          // Fetch deduplication is process-local, so more workers than the
+          // page-count limit allows would duplicate requests.
+          numSlots: numWorkers,
+          chunkSize: getStaticGenerationChunkSize(
+            exportPaths.length,
+            numWorkers,
+            nextConfig.experimental.staticGenerationChunkSize
+          ),
+          maxConcurrency: configuredMaxConcurrency,
+          // A container limit can be larger than the machine's memory.
+          machineMemoryLimit: Math.min(
+            getConstrainedMemory() ?? Infinity,
+            os.totalmem()
+          ),
+          memory: nextConfig.experimental.workerThreads
+            ? {
+                mode: 'threads',
+                getRss: () => process.memoryUsage.rss(),
+                getIdleAllocated: () => idleMemory.allocated,
+                getParentAllocated: () => {
+                  const heap = v8.getHeapStatistics()
+                  return heap.used_heap_size + heap.external_memory
+                },
+              }
+            : {
+                mode: 'processes',
+                getRss: () => process.memoryUsage.rss(),
+                getIdleAllocated: () => idleMemory.allocated,
+                getIdleRss: () => idleMemory.rss,
+              },
+          callStep: (_slot, input) => worker.exportPagesAdaptive(input),
+          // Experimental knob, off by default while it's being measured: keep
+          // a second heavy route off other workers while light routes wait.
+          heavyRouteLimit:
+            process.env.__NEXT_STATIC_GENERATION_HEAVY_ROUTE_LIMIT === '1',
+          log: (message) => Log.warn(message),
         })
-      )
+      } finally {
+        worker.setWorkerExitRecovery(false)
+      }
+    }
+
+    // Calculate the page count per batch based on the number of workers.
+    const pageCountPerBatch = Math.ceil(exportPaths.length / numWorkers)
+
+    const batches = Array.from({ length: numWorkers }, (_, i) =>
+      exportPaths.slice(i * pageCountPerBatch, (i + 1) * pageCountPerBatch)
+    )
+
+    // Distribute remaining pages.
+    const remainingPages = exportPaths.slice(numWorkers * pageCountPerBatch)
+    remainingPages.forEach((page, index) => {
+      batches[index % batches.length].push(page)
+    })
+
+    return (
+      await Promise.all(batches.map((batch) => exportBatch(batch)))
     ).flat()
   }
 
@@ -825,7 +940,24 @@ async function exportAppImpl(
       })
     }
 
-    results = await exportPagesInBatches(worker, initialPhaseExportPaths)
+    // `output: export` calls exportApp again to copy the prerendered output.
+    // Keep that pass from replacing the profile of the actual generation work.
+    const profileStaticGeneration =
+      options.buildExport && isStaticGenerationProfileEnabled()
+    if (profileStaticGeneration) {
+      try {
+        resetStaticGenerationProfile(distDir)
+      } catch (err) {
+        // Profiling must never fail the build.
+        Log.warn(`Failed to reset the static generation profile: ${err}`)
+      }
+    }
+
+    results = await exportPagesInBatches(
+      worker,
+      initialPhaseExportPaths,
+      'initial'
+    )
 
     if (finalPhaseExportPaths.length > 0) {
       const renderResumeDataCachesByPage = buildRDCCacheByPage(
@@ -836,10 +968,23 @@ async function exportAppImpl(
       const finalPhaseResults = await exportPagesInBatches(
         worker,
         finalPhaseExportPaths,
+        'final',
         renderResumeDataCachesByPage
       )
 
       results.push(...finalPhaseResults)
+    }
+
+    if (profileStaticGeneration) {
+      try {
+        const summary = writeStaticGenerationSummary(distDir)
+        if (summary && !options.silent) {
+          Log.info(formatStaticGenerationSummary(summary))
+        }
+      } catch (err) {
+        // Profiling must never fail the build.
+        Log.warn(`Failed to write the static generation profile: ${err}`)
+      }
     }
   }
 

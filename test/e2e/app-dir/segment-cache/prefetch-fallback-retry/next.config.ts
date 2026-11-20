@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  cacheHandler: require.resolve('./cache-handler.js'),
   cacheComponents: true,
   // Fallback shells are only flagged upgradeable (and upgraded) when Partial
   // Prefetching is enabled; this suite exercises that upgrade + client-retry
