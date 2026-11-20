@@ -99,6 +99,8 @@ describe('switchyard-go direct path', () => {
       for (const target of [
         '/go/users/42?sort=asc',
         '/go/echo',
+        // A query already in the form Node writes reaches the worker as sent.
+        '/go/echo?q=hello%20world&tags=a%2Cb',
         '/go/files/a/b.txt',
       ]) {
         expect((await received(target)).requestURI).toBe(target)
