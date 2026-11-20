@@ -68,11 +68,34 @@ function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   )
 }
 
+function getRequestCookies(
+  headers: Headers | IncomingHttpHeaders
+): RequestCookies {
+  if (headers instanceof Headers) {
+    const middlewareCookies = headers.get('x-middleware-set-cookie')
+
+    if (middlewareCookies) {
+      // Route handlers pass Web `Headers`. Parse these cookies together with the
+      // `Cookie` header. `mergeMiddlewareCookies` would record them as modified
+      // in the mutable cookies, which are added to the handler's response, even
+      // though the router already sends their `Set-Cookie` and that response
+      // can be cached.
+      const pairs = splitCookiesString(middlewareCookies).map(
+        (cookie) => cookie.split(';')[0]
+      )
+      const cookie = [headers.get('cookie'), ...pairs].filter(Boolean)
+      return new RequestCookies(new Headers({ cookie: cookie.join('; ') }))
+    }
+  }
+
+  return new RequestCookies(HeadersAdapter.from(headers))
+}
+
 function getMutableCookies(
   headers: Headers | IncomingHttpHeaders,
   onUpdateCookies?: (cookies: string[]) => void
 ): ResponseCookies {
-  const cookies = new RequestCookies(HeadersAdapter.from(headers))
+  const cookies = getRequestCookies(headers)
   return MutableRequestCookiesAdapter.wrap(cookies, onUpdateCookies)
 }
 
@@ -157,10 +180,9 @@ function mergeMiddlewareCookies(
   headers: Headers | IncomingHttpHeaders,
   existingCookies: RequestCookies | ResponseCookies
 ) {
-  // TODO: this only fires for `IncomingHttpHeaders`; `Headers` instances
-  // silently fall through (the `in` check and bracket access don't reach header
-  // values stored in internal slots). Confirm whether edge / Web `Headers`
-  // callers need this merge or already handle it elsewhere.
+  // This only fires for `IncomingHttpHeaders`. `Headers` instances fall through
+  // (the `in` check and bracket access don't reach header values stored in
+  // internal slots) and are handled by `getRequestCookies`.
   if (
     'x-middleware-set-cookie' in headers &&
     typeof headers['x-middleware-set-cookie'] === 'string'
@@ -296,7 +318,7 @@ export function createRequestStore(inputs: RequestStoreInputs): RequestStore {
       if (!cache.cookies) {
         // if middleware is setting cookie(s), then include those in
         // the initial cached cookies so they can be read in render
-        const requestCookies = new RequestCookies(HeadersAdapter.from(headers))
+        const requestCookies = getRequestCookies(headers)
 
         mergeMiddlewareCookies(headers, requestCookies)
 
