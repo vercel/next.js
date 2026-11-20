@@ -161,16 +161,17 @@ A run takes ~2–5 min. To validate a fixture without executing:
 pnpm eval agent-042-your-thing --dry
 ```
 
-Evals configured with the `effort` metrics collector can gate skill efficiency:
+Evals configured with a skill and metrics collector can gate skill efficiency.
+Replace `<configured-eval>` with the eval name:
 
 ```bash
-pnpm eval agent-063-request-insights-retrospective --effort-gate
+pnpm eval <configured-eval> --effort-gate
 ```
 
 For faster iteration, override the five-sample default:
 
 ```bash
-pnpm eval agent-063-request-insights-retrospective --effort-gate --effort-samples 2
+pnpm eval <configured-eval> --effort-gate --effort-samples 2
 ```
 
 The gate runs five sequential samples each for baseline, bundled-docs discovery
