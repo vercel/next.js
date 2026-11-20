@@ -487,6 +487,7 @@ async function createRedirectRenderResult(
       const response = await fetch(fetchUrl, {
         method: 'GET',
         headers: forwardedHeaders,
+        redirect: 'manual',
         next: {
           // @ts-ignore
           internal: 1,
