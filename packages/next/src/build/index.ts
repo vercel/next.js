@@ -1248,6 +1248,7 @@ export default async function build(
           )
         }
       }
+      process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
 
       // Reading the config can modify environment variables that influence the bundler selection.
       bundler = finalizeBundlerFromConfig(bundler)
@@ -1269,7 +1270,9 @@ export default async function build(
         experimentalBuildMode !== 'generate-env'
       ) {
         // Spawn the worker now, so it starts up while the build gets ready to
-        // compile.
+        // compile. It inherits the environment, so this must happen after the
+        // build has set the environment variables it needs (e.g.
+        // `NEXT_DEPLOYMENT_ID` above).
         turbopackBuildWorker = new TurbopackBuildWorker({
           useWasmBinary: !!config.experimental.useWasmBinary,
         })
@@ -1326,7 +1329,6 @@ export default async function build(
         require('../server/lib/install-code-frame') as typeof import('../server/lib/install-code-frame')
       installCodeFrameSupport()
 
-      process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
       NextBuildContext.config = config
 
       const buildId = await getBuildId(

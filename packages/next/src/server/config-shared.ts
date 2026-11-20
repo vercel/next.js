@@ -1314,15 +1314,17 @@ export interface ExperimentalConfig {
   webpackBuildWorker?: boolean
 
   /**
-   * Run the Turbopack compilation of `next build` in a separate child process.
+   * Run Turbopack's compilation of `next build` in a separate child process.
+   * Only the native Turbopack project runs there; the config is loaded only in
+   * the main build process.
    *
    * The child process exits once the compilation has finished and the
    * Turbopack filesystem cache has been persisted, which returns all of
    * Turbopack's memory to the operating system. It also keeps the main build
    * process small, so starting the static generation workers is faster.
    *
-   * This adds a small startup cost (a Node.js process and loading
-   * `next.config` once more), so it is mostly useful for large applications.
+   * Starting the child process adds a small cost, so this is mostly useful
+   * for large applications.
    *
    * @default false
    */

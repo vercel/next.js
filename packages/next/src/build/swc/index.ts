@@ -503,7 +503,12 @@ function bindingToApi(
   binding: RawBindings,
   bindingPath: string,
   _wasm: boolean
-): Binding['turbo']['createProject'] {
+): Pick<
+  Binding['turbo'],
+  | 'createProject'
+  | 'serializeProjectOptions'
+  | 'createProjectFromSerializedOptions'
+> {
   type NativeFunction<T> = (
     callback: (err: Error, value: T) => void
   ) => Promise<{ __napiType: 'RootTask' }>
@@ -1311,28 +1316,37 @@ function bindingToApi(
     }
   }
 
-  return async function createProject(
-    options: ProjectOptions,
-    turboEngineOptions,
-    callbacks?: import('./types').TurbopackProjectCallbacks
-  ) {
-    const { value, issues } = await binding.projectNew(
-      await rustifyProjectOptions(options),
-      turboEngineOptions,
-      {
-        throwTurbopackInternalError: (
-          require('../../shared/lib/turbopack/internal-error') as typeof import('../../shared/lib/turbopack/internal-error')
-        ).throwTurbopackInternalError,
-        onBeforeDeferredEntries: callbacks?.onBeforeDeferredEntries,
+  const createProjectFromSerializedOptions: Binding['turbo']['createProjectFromSerializedOptions'] =
+    async (options, turboEngineOptions, callbacks) => {
+      const { value, issues } = await binding.projectNew(
+        options,
+        turboEngineOptions,
+        {
+          throwTurbopackInternalError: (
+            require('../../shared/lib/turbopack/internal-error') as typeof import('../../shared/lib/turbopack/internal-error')
+          ).throwTurbopackInternalError,
+          onBeforeDeferredEntries: callbacks?.onBeforeDeferredEntries,
+        }
+      )
+      return {
+        value: new ProjectImpl(
+          value.project,
+          path.join(options.rootPath, options.projectPath)
+        ),
+        issues,
       }
-    )
-    return {
-      value: new ProjectImpl(
-        value.project,
-        path.join(options.rootPath, options.projectPath)
-      ),
-      issues,
     }
+
+  return {
+    async createProject(options, turboEngineOptions, callbacks) {
+      return createProjectFromSerializedOptions(
+        await rustifyProjectOptions(options),
+        turboEngineOptions,
+        callbacks
+      )
+    },
+    serializeProjectOptions: rustifyProjectOptions,
+    createProjectFromSerializedOptions,
   }
 }
 
@@ -1469,6 +1483,16 @@ async function loadWasm(importPath = '') {
           `Turbopack is not supported on this platform (${PlatformName}/${ArchName}) because native bindings are not available. ` +
             `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings. ` +
             `Use the --webpack flag instead.`
+        )
+      },
+      serializeProjectOptions() {
+        throw new Error(
+          `Turbopack is not supported on this platform (${PlatformName}/${ArchName}) because native bindings are not available.`
+        )
+      },
+      createProjectFromSerializedOptions() {
+        throw new Error(
+          `Turbopack is not supported on this platform (${PlatformName}/${ArchName}) because native bindings are not available.`
         )
       },
       startTurbopackTraceServerHandle(
@@ -1722,7 +1746,7 @@ function loadNative(importPath?: string): Binding {
       initCustomTraceSubscriber: bindings.initCustomTraceSubscriber,
       teardownTraceSubscriber: bindings.teardownTraceSubscriber,
       turbo: {
-        createProject: bindingToApi(
+        ...bindingToApi(
           customBindings ?? bindings,
           customBindingsPath ?? bindingsPath!,
           false

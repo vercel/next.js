@@ -48,6 +48,19 @@ export interface Binding {
       turboEngineOptions: NapiTurboEngineOptions,
       callbacks?: TurbopackProjectCallbacks
     ): Promise<TurbopackResult<Project>>
+    /**
+     * Serializes the options to what the native project receives. Together
+     * with `createProjectFromSerializedOptions`, this allows creating the
+     * project in another process than the one that has the Next.js config.
+     */
+    serializeProjectOptions(
+      options: ProjectOptions
+    ): Promise<NapiProjectOptions>
+    createProjectFromSerializedOptions(
+      options: NapiProjectOptions,
+      turboEngineOptions: NapiTurboEngineOptions,
+      callbacks?: TurbopackProjectCallbacks
+    ): Promise<TurbopackResult<Project>>
     startTurbopackTraceServerHandle(
       traceFilePath: string,
       port: number | undefined

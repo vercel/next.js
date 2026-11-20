@@ -49,6 +49,7 @@ describe('turbopack-build-worker', () => {
 
   describe('successful build', () => {
     beforeAll(async () => {
+      await next.remove('.config-evaluations')
       const { exitCode, cliOutput } = await next.build()
       if (exitCode !== 0) {
         throw new Error(`next build failed with ${exitCode}:\n${cliOutput}`)
@@ -62,10 +63,17 @@ describe('turbopack-build-worker', () => {
       expect($('#hello').text()).toBe('hello world')
     })
 
-    it('should compile with the environment of the parent process', async () => {
-      // See next.config.ts: the value is only visible to the build worker if
-      // it applied the parent's environment, which changed after the worker
-      // was spawned.
+    it('should not evaluate the config in the build worker', async () => {
+      const evaluations = (await next.readFile('.config-evaluations'))
+        .split('\n')
+        .filter(Boolean)
+      expect(evaluations).toContain('main')
+      expect(evaluations).not.toContain('build-worker')
+    })
+
+    it('should run Node.js plugins of the compilation with the environment of the main process', async () => {
+      // See env-loader.js: `NEXT_DEPLOYMENT_ID` is set by `next build` from the
+      // config, not by the test.
       const $ = await next.render$('/')
       expect($('#deployment-id').text()).toBe('turbopack-build-worker')
     })
@@ -97,6 +105,35 @@ describe('turbopack-build-worker', () => {
       await next.start({ skipBuild: true })
       const $ = await next.render$('/')
       expect($('#hello').text()).toBe('hello world')
+    })
+  })
+
+  describe('with the workerThreads plugin runtime', () => {
+    afterEach(() => next.stop())
+
+    it('should run Node.js plugins of the compilation with the environment of the main process', async () => {
+      // Plugins running in worker threads inherit the environment of the
+      // process hosting Turbopack, i.e. the build worker, instead of receiving
+      // the project's environment. So this checks that the worker is spawned
+      // after the main process set the environment. `forceWorkerThreads`
+      // avoids falling back to child processes on some Node.js versions.
+      await next.patchFile(
+        'next.config.ts',
+        (content) =>
+          content!.replace(
+            'turbopackBuildWorker: true,',
+            "turbopackBuildWorker: true,\n    turbopackPluginRuntimeStrategy: 'forceWorkerThreads',"
+          ),
+        async () => {
+          const { exitCode, cliOutput } = await next.build()
+          if (exitCode !== 0) {
+            throw new Error(`next build failed with ${exitCode}:\n${cliOutput}`)
+          }
+          await next.start({ skipBuild: true })
+          const $ = await next.render$('/')
+          expect($('#deployment-id').text()).toBe('turbopack-build-worker')
+        }
+      )
     })
   })
 
