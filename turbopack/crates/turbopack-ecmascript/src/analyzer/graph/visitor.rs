@@ -929,10 +929,7 @@ fn value_usage(ast_path: &AstNodePath<AstParentNodeRef<'_>>, unresolved_mark: Ma
 fn is_object_destructuring_source_without_rest(
     ast_path: &AstNodePath<AstParentNodeRef<'_>>,
 ) -> bool {
-    for i in (0..ast_path.len()).rev() {
-        let Some(node_ref) = ast_path.get(i) else {
-            return false;
-        };
+    for node_ref in ast_path.iter().rev() {
         let pat = match node_ref {
             AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {
                 continue;
