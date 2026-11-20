@@ -9,6 +9,9 @@ autobenches = false
 [features]
 default = ["custom_allocator"]
 custom_allocator = ["turbo-tasks-malloc/custom_allocator"]
+# Native platforms always include the reader/server; the WASI next-swc binding
+# opts in while the browser trace engine leaves file I/O and sockets out.
+trace-server = ["dep:tungstenite", "dep:zstd"]
 
 [lints]
 workspace = true
@@ -43,3 +46,7 @@ zstd = { version = "0.13.0" }
 
 [dev-dependencies]
 lzma-rust2 = { version = "0.25.0", default-features = false, features = ["std", "encoder", "optimization", "xz"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+tungstenite = { version = "0.21.0", optional = true }
+zstd = { version = "0.13.0", optional = true }
