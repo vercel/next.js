@@ -1,0 +1,20 @@
+{
+  "name": "eslint-version-conflict",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "15.2.1",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.32.0",
+    "eslint-config-next": "15.2.1"
+  }
+}
