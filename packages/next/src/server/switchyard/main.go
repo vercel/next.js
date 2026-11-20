@@ -130,9 +130,13 @@ func parseConfig(args []string) (config, error) {
 }
 
 func main() {
-	// runtime.GOMAXPROCS(0) reads the current limit without changing it, and
-	// setting the current value again changes nothing.
-	runtime.GOMAXPROCS(threadsToUse(os.Getenv("GOMAXPROCS"), runtime.GOMAXPROCS(0)))
+	// runtime.GOMAXPROCS(0) reads the current limit without changing it. Only
+	// a different value is set: from Go 1.25, any call that sets the limit
+	// also turns off Go's own updates of it.
+	current := runtime.GOMAXPROCS(0)
+	if threads := threadsToUse(os.Getenv("GOMAXPROCS"), current); threads != current {
+		runtime.GOMAXPROCS(threads)
+	}
 
 	cfg, err := parseConfig(os.Args[1:])
 	if err != nil {
@@ -192,10 +196,21 @@ const maxThreads = 4
 // already applied: GOMAXPROCS when it holds a number Go accepts, otherwise one
 // per core.
 func threadsToUse(env string, current int) int {
-	if n, err := strconv.Atoi(env); err == nil && n > 0 {
+	if goAcceptsGOMAXPROCS(env) {
 		return current // the user chose the limit; keep it
 	}
 	return min(current, maxThreads) // Go's default (one per core), at most maxThreads
+}
+
+// goAcceptsGOMAXPROCS reports whether Go's runtime uses env as the limit: a
+// whole number above 0 that fits in 32 bits, written with digits only (Go's
+// parser rejects a leading +, which strconv would accept).
+func goAcceptsGOMAXPROCS(env string) bool {
+	if env == "" || env[0] < '0' || env[0] > '9' {
+		return false
+	}
+	n, err := strconv.ParseInt(env, 10, 32)
+	return err == nil && n > 0
 }
 
 // newServer is the public server. It times out what Node times out: idle
