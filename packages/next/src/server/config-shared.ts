@@ -1104,7 +1104,7 @@ export interface ExperimentalConfig {
   /**
    * Instead of deleting the distDir before a build (see `cleanDistDir`),
    * Turbopack builds only remove the output of previous builds that the
-   * current build doesn't write, once Turbopack has written its output. This
+   * current build doesn't write, while Turbopack writes its output. This
    * avoids deleting and rewriting unchanged output files, which speeds up
    * rebuilds of large apps.
    *

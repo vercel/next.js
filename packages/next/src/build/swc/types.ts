@@ -340,10 +340,10 @@ export interface Project {
   /**
    * Writes the output of all entrypoints (only the app directory ones with
    * `options.appDirOnly`) to disk. With `options.removeStaleOutput`, also
-   * removes the entries in the distDir that were not written by Turbopack in
-   * this session (stale output of previous builds), except for the `keep`
-   * entries, in parallel to writing. Unchanged output files that were not
-   * rewritten count as written.
+   * removes the entries in the distDir that this write doesn't write (e.g.
+   * stale output of previous builds), except for the `keep` entries,
+   * concurrently to writing. Unchanged output files that are not rewritten
+   * count as written.
    */
   writeAllEntrypointsToDisk(
     options: NapiWriteAllEntrypointsToDiskOptions

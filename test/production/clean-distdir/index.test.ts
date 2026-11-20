@@ -133,6 +133,14 @@ describe('Cleaning distDir', () => {
               !removesStaleOutputAfterBuild
             )
             expect(await next.hasFile('.next/BUILD_ID')).toBe(true)
+            if (isTurbopack) {
+              // The loader runs in the Node.js evaluation pool, which is written
+              // to `.next/build` while compiling. Only the output written at
+              // the end of the build is kept.
+              expect(await next.hasFile('.next/build')).toBe(
+                !removesStaleOutputAfterBuild
+              )
+            }
           }
         )
       })
@@ -188,6 +196,37 @@ describe('Cleaning distDir', () => {
       expect(html).toContain('hello from index')
       await next.stop()
     })
+
+    it('should replace stale entries of a different type at written paths', async () => {
+      const isDirectory = (file: string) =>
+        fs.statSync(path.join(next.testDir, file)).isDirectory()
+      await next.build()
+      // A file and a directory written by the build: client chunks
+      const writtenDir = '.next/static/chunks'
+      const writtenFile = `.next/${listDistDir().find((file) =>
+        file.startsWith('static/chunks/')
+      )}`
+      expect(isDirectory(writtenDir)).toBe(true)
+      expect(isDirectory(writtenFile)).toBe(false)
+
+      // A previous build left a directory where a file is written now
+      fs.rmSync(path.join(next.testDir, writtenFile))
+      await next.patchFile(`${writtenFile}/stale.js`, 'stale')
+      expect((await next.build()).exitCode).toBe(0)
+      expect(isDirectory(writtenFile)).toBe(false)
+
+      // A previous build left a file where a directory is written now
+      fs.rmSync(path.join(next.testDir, writtenDir), { recursive: true })
+      await next.patchFile(writtenDir, 'stale')
+      expect((await next.build()).exitCode).toBe(0)
+      expect(isDirectory(writtenDir)).toBe(true)
+      expect(isDirectory(writtenFile)).toBe(false)
+
+      await next.start({ skipBuild: true })
+      const html = await next.render('/')
+      expect(html).toContain('hello from index')
+      await next.stop()
+    }, 120_000) // three builds
 
     it('should not type check stale files in the types directory', async () => {
       // When the tsconfig.json includes `.next/types` (e.g. it was added when

@@ -60,16 +60,15 @@ use turbo_tasks::{
     Vc, mark_top_level_task,
     memory::release_freed_memory,
     message_queue::{CompilationEvent, Severity, TraceEvent},
-    read_strongly_consistent_and_apply_effects,
-    read_strongly_consistent_and_apply_effects_concurrently_with, take_effects, turbo_tasks,
+    read_strongly_consistent_and_apply_effects, take_effects, turbo_tasks,
     unmark_top_level_task_may_leak_eventually_consistent_state,
 };
 use turbo_tasks_backend::{BackingStorageOptions, db_invalidation::invalidation_reasons};
 #[cfg(windows)]
 use turbo_tasks_fs::windows::to_verbatim_with_case_folded_disk;
 use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystem, FileSystemPath, RemoveUnwrittenOptions,
-    canonicalize_to_rcstr, invalidation, util::uri_from_file,
+    DiskFileSystem, FileContent, FileSystem, FileSystemPath, canonicalize_to_rcstr, invalidation,
+    util::uri_from_file,
 };
 use turbo_tasks_malloc::TurboMalloc;
 use turbo_unix_path::{get_relative_path_to, unix_to_sys};
@@ -1687,48 +1686,12 @@ pub async fn project_write_all_entrypoints_to_disk(
                 container,
                 app_dir_only,
                 has_deferred_entrypoints,
+                remove_stale_output.map(|options| options.keep),
             );
-            let read = if let Some(options) = remove_stale_output {
-                // This is the last batch of writes: the earlier ones have been applied already,
-                // and the ones of this batch are registered before the files are removed, so this
-                // can run in parallel to writing.
-                let output_fs = project_output_fs_operation(container)
-                    .read_strongly_consistent()
-                    .await?;
-                let node_root = project_node_root_operation(container)
-                    .read_strongly_consistent()
-                    .await?;
-                let span = tracing::info_span!(
-                    "remove stale output",
-                    removed_files = tracing::field::Empty,
-                    removed_directories = tracing::field::Empty
-                );
-                let (read, unwritten_directories) =
-                    read_strongly_consistent_and_apply_effects_concurrently_with(
-                        emit_result_op,
-                        |v| &v.effects,
-                        || {
-                            output_fs
-                                .remove_files_not_written_in_session(
-                                    &node_root,
-                                    RemoveUnwrittenOptions {
-                                        keep: options.keep.into_iter().collect(),
-                                    },
-                                )
-                                .instrument(span.clone())
-                        },
-                    )
-                    .await?;
-                let stats = unwritten_directories
-                    .remove_empty()
-                    .instrument(span.clone())
-                    .await?;
-                span.record("removed_files", stats.removed_files);
-                span.record("removed_directories", stats.removed_directories);
-                read
-            } else {
-                read_strongly_consistent_and_apply_effects(emit_result_op, |v| &v.effects).await?
-            };
+            // With `remove_stale_output`, the effects include removing the stale output, which
+            // runs concurrently to writing the output.
+            let read =
+                read_strongly_consistent_and_apply_effects(emit_result_op, |v| &v.effects).await?;
             let OperationResult { issues, .. } = &*read;
 
             Ok(issues.clone())
@@ -1830,23 +1793,33 @@ async fn emit_all_output_assets_once_operation(
     container: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
     has_deferred_entrypoints: bool,
+    include_dist_dir_files: bool,
 ) -> Result<Vc<Entrypoints>> {
     let output_assets_operation =
         output_assets_for_single_emit_operation(container, app_dir_only, has_deferred_entrypoints);
-    container
-        .project()
+    let project = container.project();
+    project
         .emit_all_output_assets(output_assets_operation)
         .as_side_effect()
         .await?;
+    if include_dist_dir_files {
+        // Already written when the project was created, so this doesn't write them again, but
+        // they are part of the written output.
+        project.write_dist_dir_files().as_side_effect().await?;
+    }
 
     Ok(container.entrypoints())
 }
 
+/// With `remove_stale_output_keep`, the effects include an effect that removes all entries in the
+/// dist dir that are not written by the other effects, except the kept ones (paths relative to the
+/// dist dir).
 #[turbo_tasks::function(operation, root)]
 async fn emit_all_output_assets_once_with_issues_operation(
     container: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
     has_deferred_entrypoints: bool,
+    remove_stale_output_keep: Option<Vec<RcStr>>,
 ) -> Result<Vc<OperationResult>> {
     let start = Instant::now();
     let wall_start = SystemTime::now();
@@ -1856,10 +1829,17 @@ async fn emit_all_output_assets_once_with_issues_operation(
                 container,
                 app_dir_only,
                 has_deferred_entrypoints,
+                remove_stale_output_keep.is_some(),
             ));
         let filter = container.project().issue_filter().await?;
-        let (_, issues, effects) =
+        let (_, issues, mut effects) =
             strongly_consistent_catch_collectables(entrypoints_operation, &filter).await?;
+        if let Some(keep) = remove_stale_output_keep {
+            let project = container.project();
+            let output_fs = project.output_fs().await?;
+            let node_root = project.node_root().owned().await?;
+            effects = Arc::new(output_fs.with_clear_effect(&effects, &node_root, keep));
+        }
         Ok(OperationResult { issues, effects }.cell())
     }
     .await;
@@ -2993,16 +2973,6 @@ pub async fn project_write_analyze_data(
     })
 }
 
-#[turbo_tasks::function(operation, root)]
-fn project_output_fs_operation(container: ResolvedVc<ProjectContainer>) -> Vc<DiskFileSystem> {
-    container.project().output_fs()
-}
-
-#[turbo_tasks::function(operation, root)]
-fn project_node_root_operation(container: ResolvedVc<ProjectContainer>) -> Vc<FileSystemPath> {
-    container.project().node_root()
-}
-
 #[napi(object)]
 pub struct NapiRemoveStaleOutputOptions {
     /// Paths relative to the dist dir, using `/` as separator, of entries that are kept although
@@ -3015,11 +2985,10 @@ pub struct NapiRemoveStaleOutputOptions {
 pub struct NapiWriteAllEntrypointsToDiskOptions {
     /// Whether only the app directory entrypoints are written (there are no pages).
     pub app_dir_only: bool,
-    /// When set, removes the entries in the dist dir that were not written by Turbopack in this
-    /// session (e.g. output of previous builds), except the kept ones.
-    /// Unchanged output files that were not rewritten because they already had the right content
-    /// count as written. Files are removed in parallel to writing the output, (then) empty
-    /// directories after it has been written.
+    /// When set, removes the entries in the dist dir that are not written by the final write of
+    /// the output (e.g. output of previous builds, or files written while compiling), except the
+    /// kept ones. Unchanged output files that are not rewritten because they already have the
+    /// right content count as written. The entries are removed concurrently to writing the output.
     ///
     /// Used by `next build` with `experimental.clearAfterBuild` instead of cleaning the dist dir
     /// upfront.

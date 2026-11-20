@@ -582,11 +582,10 @@ export interface NapiWriteAllEntrypointsToDiskOptions {
   /** Whether only the app directory entrypoints are written (there are no pages). */
   appDirOnly: boolean
   /**
-   * When set, removes the entries in the dist dir that were not written by Turbopack in this
-   * session (e.g. output of previous builds), except the kept ones.
-   * Unchanged output files that were not rewritten because they already had the right content
-   * count as written. Files are removed in parallel to writing the output, (then) empty
-   * directories after it has been written.
+   * When set, removes the entries in the dist dir that are not written by the final write of
+   * the output (e.g. output of previous builds, or files written while compiling), except the
+   * kept ones. Unchanged output files that are not rewritten because they already have the
+   * right content count as written. The entries are removed concurrently to writing the output.
    *
    * Used by `next build` with `experimental.clearAfterBuild` instead of cleaning the dist dir
    * upfront.
