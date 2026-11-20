@@ -4,10 +4,14 @@ This example contains a simple implementation of [Panda CSS](https://panda-css.c
 
 ## Link examples
 
-- [Atomic Recipe (CVA)](https://panda-css.com/docs/concepts/recipes#atomic-recipe-or-cva) Create multi-variant atomic styles with a type-safe runtime API.
-- [Atomic Style](https://panda-css.com/docs/concepts/writing-styles#atomic-styles) Type-safe reusable atoms with small CSS footprint.
-- [Config Recipe](https://panda-css.com/docs/concepts/recipes#config-recipe) Reusable recipes extracted and generated just-in-time.
+- [Atomic Recipe (CVA)](https://panda-css.com/docs/recipes/atomic-recipe) Create multi-variant atomic styles with a type-safe runtime API.
+- [Atomic Style](https://panda-css.com/docs/styling/writing-styles#atomic-styles) Type-safe reusable atoms with small CSS footprint.
+- [Config Recipe](https://panda-css.com/docs/recipes/config-recipe) Reusable recipes extracted and generated just-in-time.
 - [Text Styles](https://panda-css.com/docs/theming/text-styles#defining-text-styles) Global text styles for consistent and legible typography.
+
+## Requirements
+
+- [Node.js 22+](https://nodejs.org/) (required by Panda CSS v2)
 
 ## Demo
 
@@ -15,7 +19,7 @@ This example contains a simple implementation of [Panda CSS](https://panda-css.c
 
 ## Deploy your own
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/DIRECTORY_NAME&project-name=DIRECTORY_NAME&repository-name=DIRECTORY_NAME)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/panda-css&project-name=panda-css&repository-name=panda-css)
 
 ## How to use
 
