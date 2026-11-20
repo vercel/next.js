@@ -77,6 +77,7 @@ impl JsValue<'_> {
         match self {
             JsValue::Constant(c) => Some(c.is_truthy()),
             JsValue::Concat(..) => self.is_empty_string().map(|x| !x),
+            JsValue::WellKnownObject(kind) if kind.may_be_undefined() => None,
             JsValue::Url(..)
             | JsValue::Array { .. }
             | JsValue::Object { .. }
@@ -161,6 +162,7 @@ impl JsValue<'_> {
     pub fn is_nullish(&self) -> Option<bool> {
         match self {
             JsValue::Constant(c) => Some(c.is_nullish()),
+            JsValue::WellKnownObject(kind) if kind.may_be_undefined() => None,
             JsValue::Concat(..)
             | JsValue::Url(..)
             | JsValue::Array { .. }
@@ -479,7 +481,9 @@ mod tests {
     use rstest::rstest;
     use turbo_rcstr::rcstr;
 
-    use crate::analyzer::{Bump, ConstantValue, JsValue, ThreadLocal, graph::EvalContext};
+    use crate::analyzer::{
+        Bump, ConstantValue, JsValue, ThreadLocal, WellKnownObjectKind, graph::EvalContext,
+    };
 
     #[derive(Clone, Copy)]
     enum TestAtom {
@@ -509,6 +513,8 @@ mod tests {
         Atom(TestAtom),
         PromiseNull,
         Ternary(TestAtom, TestAtom),
+        Navigator,
+        NavigatorServiceWorker,
     }
 
     impl TestValue {
@@ -522,6 +528,10 @@ mod tests {
                     consequent.build(arena),
                     alternate.build(arena),
                 ),
+                TestValue::Navigator => JsValue::WellKnownObject(WellKnownObjectKind::Navigator),
+                TestValue::NavigatorServiceWorker => {
+                    JsValue::WellKnownObject(WellKnownObjectKind::NavigatorServiceWorker)
+                }
             }
         }
     }
@@ -535,6 +545,7 @@ mod tests {
     #[case(Atom(True))]
     #[case(PromiseNull)]
     #[case(Ternary(Num(1.0), Str("hi")))]
+    #[case(Navigator)]
     fn is_truthy_positive(#[case] value: TestValue) {
         let arena = Bump::new();
         let value = value.build(&arena);
@@ -563,6 +574,18 @@ mod tests {
     }
 
     #[rstest]
+    #[case(NavigatorServiceWorker)]
+    fn is_truthy_unknown(#[case] value: TestValue) {
+        let arena = Bump::new();
+        let value = value.build(&arena);
+        assert_eq!(
+            value.is_truthy(),
+            None,
+            "expected to be unable to determine whether '{value}' is truthy"
+        );
+    }
+
+    #[rstest]
     #[case(Atom(Null))]
     #[case(Atom(Undefined))]
     #[case(Ternary(Null, Undefined))]
@@ -583,6 +606,7 @@ mod tests {
     #[case(Atom(True))]
     #[case(PromiseNull)]
     #[case(Ternary(Num(0.0), Str("hi")))]
+    #[case(Navigator)]
     fn is_nullish_negative(#[case] value: TestValue) {
         let arena = Bump::new();
         let value = value.build(&arena);
@@ -590,6 +614,18 @@ mod tests {
             value.is_nullish(),
             Some(false),
             "expected '{value}' not to be nullish"
+        );
+    }
+
+    #[rstest]
+    #[case(NavigatorServiceWorker)]
+    fn is_nullish_unknown(#[case] value: TestValue) {
+        let arena = Bump::new();
+        let value = value.build(&arena);
+        assert_eq!(
+            value.is_nullish(),
+            None,
+            "expected to be unable to determine whether '{value}' is nullish"
         );
     }
 
