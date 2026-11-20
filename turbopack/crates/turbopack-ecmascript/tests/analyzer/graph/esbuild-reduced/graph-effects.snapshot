@@ -326,7 +326,7 @@
         ],
         span: 296..329,
         in_truthiness_context: false,
-        escapes_with_dynamic_prop: true,
+        escapes: true,
     },
     Unreachable {
         start_ast_path: [
@@ -379,6 +379,7 @@
             ),
         ),
         span: 426..429,
+        target_escapes: false,
     },
     DestructuredMember {
         obj: Call(
@@ -399,6 +400,7 @@
             ),
         ),
         span: 431..438,
+        target_escapes: false,
     },
     Call {
         func: Variable(
@@ -605,7 +607,7 @@
         ],
         span: 515..530,
         in_truthiness_context: false,
-        escapes_with_dynamic_prop: false,
+        escapes: false,
     },
     MemberCall {
         obj: FreeVar(

@@ -23,6 +23,7 @@
             ),
         ),
         span: 9..28,
+        target_escapes: false,
     },
     FreeVar {
         var: "require",
@@ -231,7 +232,7 @@
         ],
         span: 102..113,
         in_truthiness_context: false,
-        escapes_with_dynamic_prop: false,
+        escapes: false,
     },
     MemberCall {
         obj: FreeVar(
@@ -493,7 +494,7 @@
         ],
         span: 508..519,
         in_truthiness_context: false,
-        escapes_with_dynamic_prop: false,
+        escapes: false,
     },
     MemberCall {
         obj: Variable(

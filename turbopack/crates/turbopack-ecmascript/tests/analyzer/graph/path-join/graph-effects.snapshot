@@ -241,7 +241,7 @@
         ],
         span: 115..124,
         in_truthiness_context: false,
-        escapes_with_dynamic_prop: false,
+        escapes: false,
     },
     MemberCall {
         obj: Variable(
@@ -369,7 +369,7 @@
         ],
         span: 158..167,
         in_truthiness_context: false,
-        escapes_with_dynamic_prop: false,
+        escapes: false,
     },
     MemberCall {
         obj: Variable(
@@ -497,7 +497,7 @@
         ],
         span: 202..211,
         in_truthiness_context: false,
-        escapes_with_dynamic_prop: false,
+        escapes: false,
     },
     MemberCall {
         obj: Variable(
@@ -625,7 +625,7 @@
         ],
         span: 246..255,
         in_truthiness_context: false,
-        escapes_with_dynamic_prop: false,
+        escapes: false,
     },
     MemberCall {
         obj: Variable(
@@ -753,7 +753,7 @@
         ],
         span: 291..300,
         in_truthiness_context: false,
-        escapes_with_dynamic_prop: false,
+        escapes: false,
     },
     MemberCall {
         obj: Variable(
@@ -1057,7 +1057,7 @@
         ],
         span: 458..465,
         in_truthiness_context: false,
-        escapes_with_dynamic_prop: false,
+        escapes: false,
     },
     Member {
         obj: Member(
@@ -1135,6 +1135,7 @@
                     ),
                 ],
                 span: 486..488,
+                escapes: false,
             },
         ],
         ast_path: [
@@ -1169,7 +1170,7 @@
         ],
         span: 486..493,
         in_truthiness_context: false,
-        escapes_with_dynamic_prop: false,
+        escapes: false,
     },
     ImportedBinding {
         esm_reference_index: 3,
@@ -1208,6 +1209,7 @@
             ),
         ],
         span: 514..519,
+        escapes: false,
     },
     DestructuredMember {
         obj: Awaited(
@@ -1236,6 +1238,7 @@
             ),
         ),
         span: 529..533,
+        target_escapes: false,
     },
     DynamicImport {
         args: [

@@ -1347,12 +1347,11 @@ async fn analyze_ecmascript_module_internal(
                     ast_path,
                     span,
                     in_truthiness_context,
-                    escapes_with_dynamic_prop,
+                    escapes,
                 } => {
                     // Only needed if the property turns out to be `env`, see below.
-                    let escape_obj = (escapes_with_dynamic_prop
-                        && !analysis.has_runtime_env_var_reference_all())
-                    .then(|| obj.clone_in(arena.get_or_default()));
+                    let escape_obj = (escapes && !analysis.has_runtime_env_var_reference_all())
+                        .then(|| obj.clone_in(arena.get_or_default()));
 
                     // Intentionally not awaited because `handle_member` reads this only when needed
                     let obj =
@@ -1365,7 +1364,7 @@ async fn analyze_ecmascript_module_internal(
                     if let Some(escape_obj) = escape_obj
                         && prop.as_str() == Some("env")
                     {
-                        // e.g. `const key = 'env'; foo(process[key])`
+                        // e.g. `foo(process.env)` or `const key = 'env'; foo(process[key])`
                         let value = analysis_state
                             .link_value(
                                 JsValue::member(
@@ -1401,12 +1400,38 @@ async fn analyze_ecmascript_module_internal(
                     mut obj,
                     mut prop,
                     span,
+                    target_escapes,
                 } => {
                     // TODO add an inlining codegen here
+
+                    // Only needed if the property turns out to be `env`, see below.
+                    let escape_obj = (target_escapes
+                        && !analysis.has_runtime_env_var_reference_all())
+                    .then(|| obj.clone_in(arena.get_or_default()));
 
                     let prop = analysis_state
                         .link_value(take(&mut *prop), ImportAttributes::empty_ref())
                         .await?;
+
+                    if let Some(escape_obj) = escape_obj
+                        && prop.as_str() == Some("env")
+                    {
+                        // e.g. `const { env } = process` or `const { env: { ...rest } } = process`
+                        let value = analysis_state
+                            .link_value(
+                                JsValue::member(
+                                    arena.get_or_default(),
+                                    escape_obj,
+                                    atom!("env").into(),
+                                ),
+                                ImportAttributes::empty_ref(),
+                            )
+                            .await?;
+                        if is_process_env(&value, &analysis_state.var_graph) {
+                            analysis.set_runtime_env_var_reference_all(issue_source(source, span));
+                        }
+                    }
+
                     if prop.as_str().is_none() {
                         let obj = analysis_state
                             .link_value(take(&mut *obj), ImportAttributes::empty_ref())
@@ -1439,18 +1464,6 @@ async fn analyze_ecmascript_module_internal(
                             })
                         {
                             analysis.add_runtime_env_var_reference_read(RcStr::from(prop));
-                        }
-                    }
-                }
-                Effect::PossibleProcessEnvEscape { mut value, span } => {
-                    // Only the first location is reported, skip linking otherwise.
-                    if !analysis.has_runtime_env_var_reference_all() {
-                        let value = analysis_state
-                            .link_value(take(&mut *value), ImportAttributes::empty_ref())
-                            .await?;
-                        if is_process_env(&value, &analysis_state.var_graph) {
-                            // e.g. `foo(process.env)` or `const env = process.env`
-                            analysis.set_runtime_env_var_reference_all(issue_source(source, span));
                         }
                     }
                 }
@@ -1488,8 +1501,26 @@ async fn analyze_ecmascript_module_internal(
                     export,
                     member,
                     ast_path,
-                    span: _,
+                    span,
+                    escapes,
                 } => {
+                    if escapes && !analysis.has_runtime_env_var_reference_all() {
+                        // e.g. `import { env } from 'process'; foo(env)`
+                        let value = analysis_state
+                            .link_value(
+                                eval_context.imports.get_import_for_idx(
+                                    arena.get_or_default(),
+                                    esm_reference_index,
+                                    export.clone().map(Into::into),
+                                ),
+                                ImportAttributes::empty_ref(),
+                            )
+                            .await?;
+                        if is_process_env(&value, &analysis_state.var_graph) {
+                            analysis.set_runtime_env_var_reference_all(issue_source(source, span));
+                        }
+                    }
+
                     let Some(r) = import_references.get(esm_reference_index) else {
                         continue;
                     };
