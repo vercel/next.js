@@ -113,8 +113,8 @@ export function buildSwitchyardRouteTable(
   for (const route of input.dynamicRoutes) {
     // Pages data routes only match /_next/data/..., which always goes to Node.
     if (route.dataRouteRegex) continue
-    const path = patternOf(route.page)
-    if (!path) {
+    const pattern = patternOf(route.page)
+    if (!pattern) {
       return {
         contract: { version: VERSION },
         reason: `unsupported route pattern ${route.page}`,
@@ -122,7 +122,9 @@ export function buildSwitchyardRouteTable(
     }
     const app = input.appRoute(route.page)
     dynamic.push(
-      app?.kind === RouteKind.APP_ROUTE_GO ? { path, go: app.page } : { path }
+      app?.kind === RouteKind.APP_ROUTE_GO
+        ? { path: pattern, go: app.page }
+        : { path: pattern }
     )
   }
 
@@ -181,7 +183,7 @@ function ineligibleReason(
 export function patternOf(page: string): PatternEntry[] | undefined {
   if (page === '/') return []
   const segments = page.split('/').slice(1)
-  const path: PatternEntry[] = []
+  const pattern: PatternEntry[] = []
   for (const [i, segment] of segments.entries()) {
     const param = getSegmentParam(segment)
     if (!param) {
@@ -195,18 +197,18 @@ export function patternOf(page: string): PatternEntry[] | undefined {
       ) {
         return undefined
       }
-      path.push(segment)
+      pattern.push(segment)
       continue
     }
     if (param.paramType === 'dynamic') {
-      path.push({ param: param.paramName })
+      pattern.push({ param: param.paramName })
     } else if (
       param.paramType === 'catchall' ||
       param.paramType === 'optional-catchall'
     ) {
       // A catch-all can only end a pattern.
       if (i !== segments.length - 1) return undefined
-      path.push({
+      pattern.push({
         rest: param.paramName,
         min: param.paramType === 'catchall' ? 1 : 0,
       })
@@ -215,7 +217,7 @@ export function patternOf(page: string): PatternEntry[] | undefined {
       return undefined
     }
   }
-  return path
+  return pattern
 }
 
 type FsChecker = Awaited<ReturnType<typeof setupFsCheck>>
