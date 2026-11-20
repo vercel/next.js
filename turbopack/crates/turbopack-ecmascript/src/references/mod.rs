@@ -2188,22 +2188,18 @@ where
                         };
                         // Include the createWorker runtime code in the caller's graph; codegen
                         // passes its exported function to the late worker loader.
-                        let helper = if tracing_only {
-                            None
-                        } else {
-                            Some(
-                                add_create_worker_reference(
-                                    analysis,
-                                    origin,
-                                    if is_shared {
-                                        WorkerType::SharedWebWorker
-                                    } else {
-                                        WorkerType::WebWorker
-                                    },
-                                )
-                                .await?,
+                        if !tracing_only {
+                            add_create_worker_reference(
+                                analysis,
+                                origin,
+                                if is_shared {
+                                    WorkerType::SharedWebWorker
+                                } else {
+                                    WorkerType::WebWorker
+                                },
                             )
-                        };
+                            .await?;
+                        }
                         analysis.add_reference_code_gen(
                             WorkerAssetReference::new_web_worker(
                                 origin,
@@ -2212,7 +2208,6 @@ where
                                 error_mode,
                                 tracing_only,
                                 is_shared,
-                                helper,
                             ),
                             analysis.intern_path(ast_path),
                             link_context,
@@ -2311,18 +2306,10 @@ where
                     };
                     // Include the createWorker runtime code in the caller's graph; codegen
                     // passes its exported function to the late worker loader.
-                    let helper = if tracing_only {
-                        None
-                    } else {
-                        Some(
-                            add_create_worker_reference(
-                                analysis,
-                                origin,
-                                WorkerType::NodeWorkerThread,
-                            )
-                            .await?,
-                        )
-                    };
+                    if !tracing_only {
+                        add_create_worker_reference(analysis, origin, WorkerType::NodeWorkerThread)
+                            .await?;
+                    }
                     analysis.add_reference_code_gen(
                         WorkerAssetReference::new_node_worker_thread(
                             origin,
@@ -2333,7 +2320,6 @@ where
                             get_issue_source(),
                             error_mode,
                             tracing_only,
-                            helper,
                         ),
                         analysis.intern_path(ast_path),
                         link_context,
@@ -4026,30 +4012,26 @@ fn issue_source(source: ResolvedVc<Box<dyn Source>>, span: Span) -> IssueSource 
 /// The `WorkerLoaderModule` is created during chunking, after the module graph is built, so
 /// its own `references()` are never traversed and cannot put the helper into the graph. Declaring
 /// it here — on the module containing `new Worker(...)` — makes the helper reachable during
-/// graph construction and chunks it into the same group as the loader. Caller codegen requires
-/// that helper and passes its exported function to the loader at runtime.
-///
-/// Return the same resolved module to worker-call codegen: it passes the helper's exported
-/// function to the late loader at runtime. The loader itself has no module dependencies.
+/// graph construction and chunks it into the same group as the loader. This has to be a separate
+/// parallel reference: the `WorkerAssetReference` itself is a `ChunkingType::Worker` edge.
+/// Worker codegen derives the same (memoized) helper module and passes its exported function to
+/// the loader at runtime.
 async fn add_create_worker_reference(
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     worker_type: WorkerType,
-) -> Result<ResolvedVc<Box<dyn Module>>> {
+) -> Result<()> {
     let asset_context = origin.into_trait_ref().await?.asset_context();
-    let helper = create_worker_module(*asset_context, worker_type)
-        .to_resolved()
-        .await?;
     analysis.add_reference(
         SingleChunkableModuleReference::new(
-            *helper,
+            create_worker_module(*asset_context, worker_type),
             rcstr!("createWorker"),
             ExportUsage::named(rcstr!("default")),
         )
         .to_resolved()
         .await?,
     );
-    Ok(helper)
+    Ok(())
 }
 
 async fn analyze_amd_define(

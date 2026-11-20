@@ -1357,9 +1357,9 @@ impl ChunkingContext for UseCacheContentHashChunkingContext {
     #[turbo_tasks::function]
     async fn worker_loader_chunk_item(
         self: Vc<Self>,
-        _module: Vc<Box<dyn ChunkableModule>>,
+        _module: ResolvedVc<Box<dyn ChunkableModule>>,
         _worker_type: WorkerType,
-        _module_graph: Vc<ModuleGraph>,
+        _module_graph: ResolvedVc<ModuleGraph>,
         _availability_info: AvailabilityInfo,
     ) -> Result<Vc<Box<dyn ChunkItem>>> {
         bail!("worker_loader_chunk_item should not be called in UseCacheContentHashChunkingContext")

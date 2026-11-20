@@ -205,6 +205,11 @@ fn generate_worker_bootstrap_code(
     // usage.
 
     // Common preamble: validate the worker context and parse the URL params.
+    //
+    // `preloadUrls` (params[0]) are the chunks already loaded in the runtime that created this
+    // worker. They carry module factories this worker's own chunk group omitted (because the
+    // creating runtime already had them), so they must be registered before the worker's
+    // evaluate chunk instantiates the entry module, which is why they come first in the params.
     writedoc!(
         code,
         r##"
@@ -231,11 +236,6 @@ fn generate_worker_bootstrap_code(
 
         var params = JSON.parse(paramsString);
         var param = (n) => typeof params[n] === 'string' ? params[n] : '';
-        // Chunks already loaded in the runtime that created this worker. They
-        // carry module factories this worker's own chunk group omitted (because
-        // the creating runtime already had them), so they must be registered
-        // before the worker's evaluate chunk instantiates the entry module —
-        // which is why they come first in the params.
         var preloadUrls = Array.isArray(params[0]) ? params[0] : [];
         var chunkUrls = Array.isArray(params[1]) ? params[1] : [];
 

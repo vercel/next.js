@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::{
     common::{DUMMY_SP, util::take::Take},
@@ -39,6 +39,7 @@ use crate::{
     },
     runtime_functions::TURBOPACK_REQUIRE,
     utils::module_id_to_lit,
+    worker_chunk::module::create_worker_module,
 };
 
 /// A unified reference to a Worker (web or Node.js) that creates an isolated chunk group
@@ -51,10 +52,7 @@ pub struct WorkerAssetReference {
     pub request: WorkerRequest,
     pub issue_source: IssueSource,
     pub error_mode: ResolveErrorMode,
-    /// The helper referenced by the module containing the worker call, passed to the loader at
-    /// runtime. Absent for tracing-only references, which generate no worker loader.
-    pub helper: Option<ResolvedVc<Box<dyn Module>>>,
-    /// When true, skip creating WorkerLoaderModule and return the inner module directly.
+    /// When true, return the resolved modules without validating them as worker entries.
     /// This is used when we're only tracing dependencies, not generating code.
     pub tracing_only: bool,
 }
@@ -82,7 +80,6 @@ impl WorkerAssetReference {
         error_mode: ResolveErrorMode,
         tracing_only: bool,
         is_shared: bool,
-        helper: Option<ResolvedVc<Box<dyn Module>>>,
     ) -> Self {
         WorkerAssetReference {
             worker_type: if is_shared {
@@ -95,7 +92,6 @@ impl WorkerAssetReference {
             issue_source,
             error_mode,
             tracing_only,
-            helper,
         }
     }
 
@@ -108,7 +104,6 @@ impl WorkerAssetReference {
         issue_source: IssueSource,
         error_mode: ResolveErrorMode,
         tracing_only: bool,
-        helper: Option<ResolvedVc<Box<dyn Module>>>,
     ) -> Self {
         WorkerAssetReference {
             worker_type: WorkerType::NodeWorkerThread,
@@ -122,7 +117,6 @@ impl WorkerAssetReference {
             issue_source,
             error_mode,
             tracing_only,
-            helper,
         }
     }
 }
@@ -281,15 +275,6 @@ impl ModuleReference for WorkerAssetReference {
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
-        if self.tracing_only {
-            // Tracing-only references must not take the worker chunking path (which creates a
-            // `WorkerLoaderModule` during chunking). Keep following them as plain parallel
-            // references so the traced subgraph still lists the worker's files.
-            return Some(ChunkingType::Parallel {
-                inherit_async: false,
-                hoisted: false,
-            });
-        }
         Some(ChunkingType::Worker {
             ty: self.worker_type,
         })
@@ -387,11 +372,13 @@ impl WorkerAssetReferenceCodeGen {
         )
         .await?;
 
-        // The referring module already references this helper. Pass its exported function to
-        // the late worker loader at runtime, rather than making the loader resolve it again.
-        let helper = reference
-            .helper
-            .context("Worker codegen requires a createWorker helper reference")?;
+        // The referring module already references this helper over a separate parallel edge
+        // (`create_worker_module` is memoized, so this is the same module). Pass its exported
+        // function to the late worker loader at runtime.
+        let asset_context = reference.origin.into_trait_ref().await?.asset_context();
+        let helper = create_worker_module(*asset_context, reference.worker_type)
+            .to_resolved()
+            .await?;
         let helper_id = helper.chunk_item_id(chunking_context).await?;
         let helper_export =
             match ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(helper) {
