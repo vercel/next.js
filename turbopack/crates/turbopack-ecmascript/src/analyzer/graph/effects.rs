@@ -165,11 +165,8 @@ pub enum Effect<'a> {
         // Whether this value from this member access only ends up being used as a truthiness check
         // (and the full value doesn't escape).
         in_truthiness_context: bool,
-        /// Whether the value of the member access escapes, i.e. it's used in a way that allows
-        /// reading arbitrary keys of it (e.g. `foo(obj.prop)`), not only as the object of another
-        /// member access, a destructuring source without rest, or the right side of `in`. If it
-        /// turns out to be `process.env` after linking (e.g. `foo(process.env)` or
-        /// `const key = 'env'; foo(process[key])`), any env var could be read.
+        /// Whether the value is used as anything other than a member object (`<value>.x`), the
+        /// right side of `in`, or the source of a destructuring pattern without rest.
         escapes: bool,
     },
     /// A property access created by an object destructuring pattern.
@@ -177,10 +174,10 @@ pub enum Effect<'a> {
         obj: BumpBox<'a, JsValue<'a>>,
         prop: BumpBox<'a, JsValue<'a>>,
         span: Span,
-        /// Whether the whole value of the property is bound or copied, e.g. `const { prop } = obj`
-        /// or `const { prop: { ...rest } } = obj`. Such a binding is conservatively treated as
-        /// escaping (like `const prop = obj.prop`), so if it turns out to be `process.env` after
-        /// linking (e.g. `const { env } = process`), any env var could be read.
+        /// Whether the property's value escapes, i.e. it's not further destructured into
+        /// statically known keys: it's bound to a variable (`const { prop } = obj`, treated like
+        /// `const prop = obj.prop`) or copied with a rest element (`const { prop: { ...rest } } =
+        /// obj`).
         target_escapes: bool,
     },
     /// A `x in y` expression.
@@ -200,9 +197,7 @@ pub enum Effect<'a> {
         member: Option<RcStr>,
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
-        /// Whether the value of the imported binding escapes (e.g. `foo(binding)`). If it turns
-        /// out to be `process.env` (e.g. `import { env } from 'process'; foo(env)`), any env var
-        /// could be read.
+        /// Same as `Member::escapes`, for the imported binding's value.
         escapes: bool,
     },
     /// A reference to a free var access.
