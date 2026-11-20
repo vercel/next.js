@@ -23,4 +23,6 @@ export const nodeFs: CacheFs = {
   },
   mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
   stat: (f) => fs.promises.stat(f),
+  readdir: (dir) => fs.promises.readdir(dir),
+  rm: (f) => fs.promises.rm(f, { recursive: true, force: true }),
 }
