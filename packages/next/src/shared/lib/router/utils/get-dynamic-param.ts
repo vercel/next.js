@@ -107,15 +107,12 @@ export function interpolateParallelRouteParams(
 }
 
 /**
+ * Creates the dynamic param value of a segment for the App Router render.
  *
- * Shared logic on client and server for creating a dynamic param value.
+ * Only the server calls this. No browser bundle contains this module, so keep
+ * helpers that the client router needs out of it.
  *
- * This code needs to be shared with the client so it can extract dynamic route
- * params from the URL without a server request.
- *
- * Because everything in this module is sent to the client, we should aim to
- * keep this code as simple as possible. The special case handling for catchall
- * and optional is, alas, unfortunate.
+ * The special case handling for catchall and optional is, alas, unfortunate.
  */
 export function getDynamicParam(
   interpolatedParams: Params,
@@ -161,60 +158,4 @@ export function getDynamicParam(
     treeSegment: [segmentKey, paramCacheKey, dynamicParamType, staticSiblings],
     type: dynamicParamType,
   }
-}
-
-/**
- * Regular expression pattern used to match route parameters.
- * Matches both single parameters and parameter groups.
- * Examples:
- *   - `[[...slug]]` matches parameter group with key 'slug', repeat: true, optional: true
- *   - `[...slug]` matches parameter group with key 'slug', repeat: true, optional: false
- *   - `[[foo]]` matches parameter with key 'foo', repeat: false, optional: true
- *   - `[bar]` matches parameter with key 'bar', repeat: false, optional: false
- */
-export const PARAMETER_PATTERN = /^([^[]*)\[((?:\[[^\]]*\])|[^\]]+)\](.*)$/
-
-/**
- * Parses a given parameter from a route to a data structure that can be used
- * to generate the parametrized route.
- * Examples:
- *   - `[[...slug]]` -> `{ key: 'slug', repeat: true, optional: true }`
- *   - `[...slug]` -> `{ key: 'slug', repeat: true, optional: false }`
- *   - `[[foo]]` -> `{ key: 'foo', repeat: false, optional: true }`
- *   - `[bar]` -> `{ key: 'bar', repeat: false, optional: false }`
- *   - `fizz` -> `{ key: 'fizz', repeat: false, optional: false }`
- * @param param - The parameter to parse.
- * @returns The parsed parameter as a data structure.
- */
-export function parseParameter(param: string) {
-  const match = param.match(PARAMETER_PATTERN)
-
-  if (!match) {
-    return parseMatchedParameter(param)
-  }
-
-  return parseMatchedParameter(match[2])
-}
-
-/**
- * Parses a matched parameter from the PARAMETER_PATTERN regex to a data structure that can be used
- * to generate the parametrized route.
- * Examples:
- *   - `[...slug]` -> `{ key: 'slug', repeat: true, optional: true }`
- *   - `...slug` -> `{ key: 'slug', repeat: true, optional: false }`
- *   - `[foo]` -> `{ key: 'foo', repeat: false, optional: true }`
- *   - `bar` -> `{ key: 'bar', repeat: false, optional: false }`
- * @param param - The matched parameter to parse.
- * @returns The parsed parameter as a data structure.
- */
-export function parseMatchedParameter(param: string) {
-  const optional = param.startsWith('[') && param.endsWith(']')
-  if (optional) {
-    param = param.slice(1, -1)
-  }
-  const repeat = param.startsWith('...')
-  if (repeat) {
-    param = param.slice(3)
-  }
-  return { key: param, repeat, optional }
 }

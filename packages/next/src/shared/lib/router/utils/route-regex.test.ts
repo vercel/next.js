@@ -1,5 +1,8 @@
-import { getNamedRouteRegex } from './route-regex'
-import { parseParameter } from './get-dynamic-param'
+import {
+  getNamedRouteRegex,
+  parseMatchedParameter,
+  parseParameter,
+} from './route-regex'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 
 /**
@@ -1005,6 +1008,64 @@ describe('parseParameter', () => {
     const expected = { key: 'fizz', repeat: false, optional: false }
     const result = parseParameter(param)
     expect(result).toEqual(expected)
+  })
+
+  it('should handle complex parameter names', () => {
+    expect(parseParameter('[product-id]')).toEqual({
+      key: 'product-id',
+      repeat: false,
+      optional: false,
+    })
+  })
+
+  it('should parse parameter with prefix/suffix', () => {
+    expect(parseParameter('prefix[slug]suffix')).toEqual({
+      key: 'slug',
+      repeat: false,
+      optional: false,
+    })
+  })
+})
+
+describe('parseMatchedParameter', () => {
+  it('should parse matched simple parameter', () => {
+    expect(parseMatchedParameter('slug')).toEqual({
+      key: 'slug',
+      repeat: false,
+      optional: false,
+    })
+  })
+
+  it('should parse matched optional parameter', () => {
+    expect(parseMatchedParameter('[slug]')).toEqual({
+      key: 'slug',
+      repeat: false,
+      optional: true,
+    })
+  })
+
+  it('should parse matched catchall parameter', () => {
+    expect(parseMatchedParameter('...slug')).toEqual({
+      key: 'slug',
+      repeat: true,
+      optional: false,
+    })
+  })
+
+  it('should parse matched optional catchall parameter', () => {
+    expect(parseMatchedParameter('[...slug]')).toEqual({
+      key: 'slug',
+      repeat: true,
+      optional: true,
+    })
+  })
+
+  it('should handle parameter names with special characters', () => {
+    expect(parseMatchedParameter('[product_id-123]')).toEqual({
+      key: 'product_id-123',
+      repeat: false,
+      optional: true,
+    })
   })
 })
 
