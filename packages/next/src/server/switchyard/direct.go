@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/textproto"
-	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -216,31 +215,34 @@ func attemptOf(ctx context.Context) *directAttempt {
 }
 
 // newDirectProxy forwards to route.go workers. The worker must get the
-// request Node would have sent it (native-route-proxy.ts), and the client the
-// response Node would have written.
+// request Node would have sent it, and the client the response Node would
+// have written.
 func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Duration) *httputil.ReverseProxy {
-	publicPort := strconv.Itoa(public.Port)
-	mapIPv4 := public.IP.To4() == nil
+	fw := newForwarding(public)
 	return &httputil.ReverseProxy{
+		// Node builds a worker's request in three places; Rewrite does the
+		// same in one. The client's Host, target and forwarded headers, and
+		// X-Forwarded-For and -Port, as for requests to Node (forwarding).
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			attempt := attemptOf(pr.In.Context())
-			pr.Out.URL.Scheme = "http"
+			fw.rewrite(pr)
 			pr.Out.URL.Host = attempt.up.address
-			pr.Out.Host = pr.In.Host
-			keepRequestTarget(pr.Out, pr.In.RequestURI)
-			restoreForwardedHeaders(pr.Out.Header, pr.In.Header)
-			// Node removes its internal headers from every request.
+			// Node removes its internal headers from every request
+			// (filterInternalHeaders in server-ipc/utils.ts, called from
+			// router-server.ts), and proxyNativeRequest
+			// (native-route-proxy.ts) also drops x-next-internal-*. Go's
+			// proxy already drops hop-by-hop headers, as proxyNativeRequest
+			// does.
 			for name := range pr.Out.Header {
 				if attempt.state.strip[name] || hasAnyPrefix(name, attempt.state.stripPrefixes) {
 					delete(pr.Out.Header, name)
 				}
 			}
-			// Node fills these from the connection when the client sent
-			// none (base-server.ts), before calling the worker.
+			// Node also fills these when the client sent none
+			// (base-server.ts, where it updates the x-forwarded-* headers).
 			setIfMissing(pr.Out.Header, "X-Forwarded-Host", pr.In.Host)
-			setIfMissing(pr.Out.Header, "X-Forwarded-Port", publicPort)
 			setIfMissing(pr.Out.Header, "X-Forwarded-Proto", "http")
-			setIfMissing(pr.Out.Header, "X-Forwarded-For", clientIP(pr.In.RemoteAddr, mapIPv4))
+			// proxyNativeRequest sends the worker keep-alive and its token.
 			pr.Out.Header["Connection"] = keepAlive
 			pr.Out.Header[attempt.up.tokenHeader] = attempt.up.token
 			if pr.Out.Body != nil {
@@ -314,10 +316,11 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 			}
 			proxyErrorLog.Printf("route.go worker %s: %v", attempt.up.address, err)
 			// TODO: answer with Node's error page, as without Switchyard. Node
-			// renders it per request, so Switchyard must hand the request back
-			// and have Node trust that the worker failed, which needs the
-			// token on Node's listener (step 5's routing contract). Until then
-			// the client gets a plain 500 here, where Node sends its page.
+			// renders that page per request, so Switchyard would have to hand
+			// the request back to Node together with a report that the worker
+			// failed, which Node must be able to trust is from Switchyard.
+			// Until then the client gets a plain 500 here, where Node sends
+			// its error page.
 			writeInternalError(attempt.ResponseWriter)
 		},
 		ErrorLog: proxyErrorLog,
