@@ -16,6 +16,7 @@ import { createHash } from 'crypto'
 import type { AdapterOutput, NextAdapter } from 'next'
 import { getRouteMatcher } from 'next/dist/shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from 'next/dist/shared/lib/router/utils/route-regex'
+import { resolveRoutes } from '../../../../packages/next-routing/src'
 
 async function expectParameterParity(
   pattern: string,
@@ -870,12 +871,17 @@ describe('native-route-go', () => {
           `basePath: '/adapter-base',\n  adapterPath: ${JSON.stringify(join(next.testDir, 'capture-adapter.mjs'))},\n  experimental:`
         )
       )
-      // Adapter builds serve every Go route from one executable. These routes
-      // overlap existing ones, so dispatch must follow Next.js route precedence.
+      // These outputs share one executable, but the adapter selects and
+      // authorizes an output before invoking its process.
+      const additionalRoutes = Array.from(
+        { length: 32 },
+        (_, index) => `app/large-route-table/route-${index}`
+      )
       for (const directory of [
         'app/catch/static',
         'app/catch/[id]',
         'app/adapter-optional/fixed',
+        ...additionalRoutes,
       ]) {
         await next.patchFile(
           `${directory}/route.go`,
@@ -935,20 +941,25 @@ func GET(w http.ResponseWriter, r *http.Request) {
       expect(
         context.outputs.pages.every((output) => output.runtime === 'nodejs')
       ).toBe(true)
-      expect(goOutputs.map((output) => output.pathname).sort()).toEqual([
-        '/adapter-base/adapter-optional/[[...slug]]',
-        '/adapter-base/adapter-optional/fixed',
-        '/adapter-base/adapter-special/café a 100%',
-        '/adapter-base/adapter-static',
-        '/adapter-base/catch/[...slug]',
-        '/adapter-base/catch/[id]',
-        '/adapter-base/catch/static',
-        '/adapter-base/explicit-methods',
-        '/adapter-base/internal/health',
-        '/adapter-base/lifecycle',
-        '/adapter-base/methods',
-        '/adapter-base/native/[id]',
-      ])
+      expect(goOutputs.map((output) => output.pathname).sort()).toEqual(
+        [
+          '/adapter-base/adapter-optional/[[...slug]]',
+          '/adapter-base/adapter-optional/fixed',
+          '/adapter-base/adapter-special/café a 100%',
+          '/adapter-base/adapter-static',
+          '/adapter-base/catch/[...slug]',
+          '/adapter-base/catch/[id]',
+          '/adapter-base/catch/static',
+          '/adapter-base/explicit-methods',
+          '/adapter-base/internal/health',
+          '/adapter-base/lifecycle',
+          '/adapter-base/methods',
+          '/adapter-base/native/[id]',
+          ...additionalRoutes.map(
+            (directory) => `/adapter-base${directory.slice(3)}`
+          ),
+        ].sort()
+      )
       // Every Go route output shares one executable that dispatches by path,
       // with identical assets, while keeping its own route identity.
       expect(new Set(goOutputs.map((output) => output.filePath)).size).toBe(1)
@@ -1008,9 +1019,10 @@ func GET(w http.ResponseWriter, r *http.Request) {
         )
       ).toBe(false)
 
-      async function withStandaloneRoute(
+      async function withStandaloneRoute<T>(
         output: AdapterOutput['APP_ROUTE'],
-        run: (port: number) => Promise<void>
+        run: (port: number) => Promise<T>,
+        routeId: string | null = output.id
       ) {
         const directory = await fs.mkdtemp(join(tmpdir(), 'go-adapter-route-'))
         let child: ReturnType<typeof spawn> | undefined
@@ -1031,6 +1043,7 @@ func GET(w http.ResponseWriter, r *http.Request) {
           const env: NodeJS.ProcessEnv = {
             ...process.env,
             PORT: String(port),
+            __NEXT_GO_ROUTE: routeId ?? undefined,
           }
           delete env.__NEXT_GO_TOKEN
           child = spawn(executable, [], {
@@ -1061,7 +1074,7 @@ func GET(w http.ResponseWriter, r *http.Request) {
             )
             expect(response.status).toBe(404)
           })
-          await run(port)
+          return await run(port)
         } finally {
           if (child) {
             child.kill()
@@ -1140,36 +1153,53 @@ func GET(w http.ResponseWriter, r *http.Request) {
           req.end()
         })
       })
-      // Any Go output's server dispatches to the route Next.js would select.
-      await withStandaloneRoute(
-        goOutputs.find(
-          (output) => output.pathname === '/adapter-base/adapter-static'
-        )!,
-        async (port) => {
-          for (const [path, expected] of [
-            ['/adapter-base/catch/static', { route: 'app/catch/static' }],
-            ['/adapter-base/catch/one', { route: 'app/catch/[id]', id: 'one' }],
-            [
-              '/adapter-base/catch/a%2Fb',
-              { route: 'app/catch/[id]', id: 'a/b' },
-            ],
-            ['/adapter-base/catch/static/two', ['static', 'two']],
-            ['/adapter-base/catch/one/two', ['one', 'two']],
-            [
-              '/adapter-base/adapter-optional/fixed',
-              { route: 'app/adapter-optional/fixed' },
-            ],
-            [
-              '/adapter-base/adapter-optional/fixed/two',
-              { params: ['fixed', 'two'] },
-            ],
-            ['/adapter-base/adapter-optional', { params: null }],
-            ['/adapter-base/native/one', { id: 'one' }],
-            [
-              '/adapter-base/internal/health',
-              { route: 'app/internal/health', visibility: 'app-internal' },
-            ],
-          ] as const) {
+      for (const [id, path, expected] of [
+        [
+          '/catch/static',
+          '/adapter-base/catch/static',
+          { route: 'app/catch/static' },
+        ],
+        [
+          '/catch/[id]',
+          '/adapter-base/catch/one',
+          { route: 'app/catch/[id]', id: 'one' },
+        ],
+        [
+          '/catch/[id]',
+          '/adapter-base/catch/a%2Fb',
+          { route: 'app/catch/[id]', id: 'a/b' },
+        ],
+        [
+          '/catch/[...slug]',
+          '/adapter-base/catch/static/two',
+          ['static', 'two'],
+        ],
+        ['/catch/[...slug]', '/adapter-base/catch/one/two', ['one', 'two']],
+        [
+          '/adapter-optional/fixed',
+          '/adapter-base/adapter-optional/fixed',
+          { route: 'app/adapter-optional/fixed' },
+        ],
+        [
+          '/adapter-optional/[[...slug]]',
+          '/adapter-base/adapter-optional/fixed/two',
+          { params: ['fixed', 'two'] },
+        ],
+        [
+          '/adapter-optional/[[...slug]]',
+          '/adapter-base/adapter-optional',
+          { params: null },
+        ],
+        ['/native/[id]', '/adapter-base/native/one', { id: 'one' }],
+        [
+          '/internal/health',
+          '/adapter-base/internal/health',
+          { route: 'app/internal/health', visibility: 'app-internal' },
+        ],
+      ] as const) {
+        await withStandaloneRoute(
+          goOutputs.find((output) => output.id === id)!,
+          async (port) => {
             const response = await fetchViaHTTP(
               `http://127.0.0.1:${port}`,
               path
@@ -1182,25 +1212,107 @@ func GET(w http.ResponseWriter, r *http.Request) {
               expect(body).toMatchObject(expected)
             }
           }
-          for (const path of [
-            '/adapter-base',
-            '/adapter-base/catch',
-            '/adapter-base/native',
-            '/adapter-base/native/one/two',
-            '/adapter-base/js',
-          ]) {
-            expect(
-              (await fetchViaHTTP(`http://127.0.0.1:${port}`, path)).status
-            ).toBe(404)
-          }
+        )
+      }
+      await withStandaloneRoute(nativeOutput, async (port) => {
+        // Other handlers are compiled into the executable but cannot be selected
+        // by the request path or by client-supplied routing metadata.
+        for (const path of [
+          '/adapter-base',
+          '/adapter-base/catch/static',
+          '/adapter-base/native',
+          '/adapter-base/native/one/two',
+          '/adapter-base/js',
+        ]) {
           expect(
             (
-              await fetchViaHTTP(
-                `http://127.0.0.1:${port}`,
-                '/adapter-base/catch/%FF'
-              )
+              await fetchViaHTTP(`http://127.0.0.1:${port}`, path, undefined, {
+                headers: { 'x-next-internal-go-route': '/catch/static' },
+              })
             ).status
-          ).toBe(400)
+          ).toBe(404)
+        }
+        expect(
+          (
+            await fetchViaHTTP(
+              `http://127.0.0.1:${port}`,
+              '/adapter-base/native/%FF'
+            )
+          ).status
+        ).toBe(400)
+      })
+      for (const routeId of [null, '/not-a-go-output']) {
+        await expect(
+          withStandaloneRoute(nativeOutput, async () => {}, routeId)
+        ).rejects.toThrow('requires __NEXT_GO_ROUTE set to its output.id')
+      }
+
+      // Model an adapter that requires authorization for the static output and
+      // allows the dynamic output. Its routing decision must survive invocation,
+      // including encoded spellings that Go decodes to the static pathname.
+      async function invokeAuthorized(path: string) {
+        const resolved = await resolveRoutes({
+          url: new URL(path, 'https://example.com'),
+          buildId: context.buildId,
+          basePath: context.config.basePath,
+          requestBody: new ReadableStream({
+            start(controller) {
+              controller.close()
+            },
+          }),
+          headers: new Headers(),
+          pathnames: goOutputs.map((output) => output.pathname),
+          routes: context.routing,
+          invokeMiddleware: async () => ({}),
+        })
+        const output = goOutputs.find(
+          (candidate) => candidate.pathname === resolved.resolvedPathname
+        )
+        if (!output)
+          throw new Error(`No Go output for ${resolved.resolvedPathname}`)
+        if (output.id === '/catch/static') return { status: 403, body: null }
+        expect(output.id).toBe('/catch/[id]')
+        expect(resolved.invocationTarget?.pathname).toBe(path)
+        return withStandaloneRoute(output, async (port) => {
+          const response = await fetchViaHTTP(
+            `http://127.0.0.1:${port}`,
+            path,
+            undefined,
+            {
+              headers: { 'x-next-internal-go-route': '/catch/static' },
+            }
+          )
+          return { status: response.status, body: await response.json() }
+        })
+      }
+      expect(
+        (await invokeAuthorized('/adapter-base/catch/static')).status
+      ).toBe(403)
+      for (const path of [
+        '/adapter-base/catch/%73tatic',
+        '/adapter-base/catch/st%61tic',
+      ]) {
+        const response = await invokeAuthorized(path)
+        expect(response.status).toBe(200)
+        expect(response.body).toMatchObject({
+          route: 'app/catch/[id]',
+          id: 'static',
+        })
+      }
+      // A long catch-all path is parsed only for its bound handler, regardless
+      // of how many other route packages are present in the executable.
+      await withStandaloneRoute(
+        goOutputs.find((output) => output.id === '/catch/[...slug]')!,
+        async (port) => {
+          const segments = Array.from({ length: 1024 }, (_, index) =>
+            String(index)
+          )
+          const response = await fetchViaHTTP(
+            `http://127.0.0.1:${port}`,
+            `/adapter-base/catch/${segments.join('/')}`
+          )
+          expect(response.status).toBe(200)
+          expect(await response.json()).toEqual(segments)
         }
       )
       await withStandaloneRoute(
