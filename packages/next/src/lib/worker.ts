@@ -6,6 +6,7 @@ import {
   formatDebugAddress,
   formatNodeOptions,
   getNodeDebugType,
+  getNodeOptionsWithoutInspectAndWatch,
   getParsedDebugAddress,
   getParsedNodeOptions,
   type DebugAddress,
@@ -125,11 +126,8 @@ export class Worker {
       this.close()
     })
 
-    const nodeOptions = getParsedNodeOptions()
-    const originalOptions = { ...nodeOptions }
-    delete nodeOptions.inspect
-    delete nodeOptions['inspect-brk']
-    delete nodeOptions['inspect_brk']
+    const originalOptions = getParsedNodeOptions()
+    const nodeOptions = getNodeOptionsWithoutInspectAndWatch(originalOptions)
     if (debuggerPortOffset !== -1) {
       const nodeDebugType = getNodeDebugType(originalOptions)
       if (nodeDebugType) {
