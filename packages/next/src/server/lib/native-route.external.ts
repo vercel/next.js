@@ -76,7 +76,6 @@ export type NativeRouteWorkerEvent =
   | Readonly<{
       event: 'worker'
       page: string
-      network: 'tcp'
       address: string
       tokenHeader: string
       token: string
@@ -318,7 +317,6 @@ export class NativeRouteManager {
       workerObserver({
         event: 'worker',
         page,
-        network: 'tcp',
         address: `127.0.0.1:${worker.port}`,
         tokenHeader: 'x-next-internal-go-token',
         token: worker.token,

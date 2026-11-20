@@ -1,3 +1,10 @@
+import fs from 'fs'
+import http from 'http'
+import path from 'path'
+import type { NextConfigComplete, NextConfigRuntime } from '../config-shared'
+import type { setupFsCheck } from './router-utils/filesystem'
+import { INSTRUMENTATION_HOOK_FILENAME } from '../../lib/constants'
+import { INTERNAL_HEADERS } from './server-ipc/utils'
 import mimeTypes from 'next/dist/compiled/compression/mime-types.json'
 import { RouteKind } from '../route-kind'
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param'
@@ -76,7 +83,7 @@ export type SwitchyardRouteTableInput = Readonly<{
 
 const VERSION = 1
 
-export function switchyardRouteTable(
+export function buildSwitchyardRouteTable(
   input: SwitchyardRouteTableInput
 ): SwitchyardRouteTable {
   const reason = ineligibleReason(input)
@@ -212,4 +219,48 @@ export function patternOf(page: string): PatternEntry[] | undefined {
     }
   }
   return path
+}
+
+type FsChecker = Awaited<ReturnType<typeof setupFsCheck>>
+
+/**
+ * Builds Switchyard's route table from what the router loaded at
+ * startup, so Switchyard and Node route from the same data.
+ */
+export function collectSwitchyardRouteTable(
+  opts: Readonly<{
+    dir: string
+    config: NextConfigComplete | NextConfigRuntime
+    fsChecker: FsChecker
+  }>
+): SwitchyardRouteTable {
+  const { config, fsChecker } = opts
+  const serverDir = path.join(opts.dir, config.distDir, 'server')
+  return buildSwitchyardRouteTable({
+    goRoutes: Boolean(config.experimental.goRoutes),
+    basePath: config.basePath,
+    hasI18n: Boolean(config.i18n),
+    trailingSlash: Boolean(config.trailingSlash),
+    compress: config.compress !== false,
+    useFileSystemPublicRoutes: config.useFileSystemPublicRoutes !== false,
+    // The router's own test for a proxy (proxy.ts, middleware or proxy.go).
+    hasMiddleware: Boolean(fsChecker.getMiddlewareMatchers()?.length),
+    hasInstrumentation: fs.existsSync(
+      path.join(serverDir, `${INSTRUMENTATION_HOOK_FILENAME}.js`)
+    ),
+    keepsInternalHeaders: Boolean(process.env.NEXT_PRIVATE_TEST_HEADERS),
+    headers: fsChecker.headers,
+    onMatchHeaders: fsChecker.onMatchHeaders,
+    redirects: fsChecker.redirects,
+    beforeFilesRewrites: fsChecker.rewrites.beforeFiles,
+    afterFilesRewrites: fsChecker.rewrites.afterFiles,
+    publicFiles: fsChecker.publicFolderItems,
+    appFiles: fsChecker.appFiles,
+    pageFiles: fsChecker.pageFiles,
+    dynamicRoutes: fsChecker.getDynamicRoutes(),
+    appRoute: (pathname) =>
+      fsChecker.getRouteDefinition('appFile', pathname, undefined),
+    internalHeaders: INTERNAL_HEADERS,
+    maxHeaderBytes: http.maxHeaderSize,
+  })
 }
