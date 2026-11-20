@@ -696,6 +696,8 @@ pub(super) enum RequestMessage {
     #[serde(rename_all = "camelCase")]
     TrackFileStat { file: RcStr },
     #[serde(rename_all = "camelCase")]
+    TrackDirectoryRead { directory: RcStr },
+    #[serde(rename_all = "camelCase")]
     ImportModule { lookup_path: RcStr, request: RcStr },
 }
 
@@ -720,6 +722,7 @@ pub(super) enum ResponseMessage {
     // Only used for tracking invalidations, no content is returned.
     TrackFileRead {},
     TrackFileStat {},
+    TrackDirectoryRead {},
     #[serde(rename_all = "camelCase")]
     ImportModule {
         entry_path: RcStr,
@@ -969,6 +972,14 @@ impl EvaluateContext for WebpackLoaderContext {
                     let _ = &*path.read().await?;
                 }
                 Ok(ResponseMessage::TrackFileRead {})
+            }
+            RequestMessage::TrackDirectoryRead { directory } => {
+                // Read before the JS side enumerates entries, so additions and removals
+                // invalidate the loader even without an explicit context dependency.
+                if let Some(path) = resolve_loader_path(&self.cwd, &directory).await? {
+                    path.read_dir().await?;
+                }
+                Ok(ResponseMessage::TrackDirectoryRead {})
             }
             RequestMessage::TrackFileStat { file } => {
                 register_loader_stat_dependencies(&self.cwd, &file)
