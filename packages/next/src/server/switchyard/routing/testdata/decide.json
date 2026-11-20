@@ -126,6 +126,43 @@
       "target": "/api/echo?constructor=x",
       "node": "query key constructor"
     },
+    {
+      "table": "app",
+      "target": "/api/echo?q=hello%20world&tags=a%2Cb",
+      "route": "/api/echo/route"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo?q=caf%C3%A9&a=(b)!*'",
+      "route": "/api/echo/route"
+    },
+    { "table": "app", "target": "/api/echo?=x", "route": "/api/echo/route" },
+    {
+      "table": "app",
+      "target": "/api/echo?tags=a,b",
+      "node": "query characters"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo?a=%2A",
+      "node": "query characters"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo?a=%c3%a9",
+      "node": "query characters"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo?x=%FF",
+      "node": "query characters"
+    },
+    {
+      "table": "app",
+      "target": "/api/echo?a=%C3",
+      "node": "query characters"
+    },
+    { "table": "app", "target": "/api/echo?a=%", "node": "query characters" },
 
     {
       "table": "app",
