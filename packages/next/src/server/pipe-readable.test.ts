@@ -3,6 +3,7 @@
  * @jest-environment node
  */
 import type { AddressInfo } from 'node:net'
+import type { ServerResponse } from 'node:http'
 
 import { EventEmitter } from 'node:events'
 import http from 'node:http'
@@ -11,7 +12,10 @@ import { PassThrough, Readable } from 'node:stream'
 import { promisify } from 'node:util'
 import setupCompression from 'next/dist/compiled/compression'
 
-import { pipeNodeReadableToNodeResponse } from './pipe-readable'
+import {
+  pipeNodeReadableToNodeResponse,
+  pipeToNodeResponse,
+} from './pipe-readable'
 import { ClientComponentLoadTracker } from './client-component-renderer-logger'
 
 const gunzip = promisify(zlib.gunzip)
@@ -275,4 +279,44 @@ describe('client component loading measurement at first write', () => {
       )
     }
   )
+})
+
+describe('pipeToNodeResponse when the socket closes before finish', () => {
+  it('settles if close fires without a finish event', async () => {
+    const res = new EventEmitter() as EventEmitter & {
+      errored?: Error
+      destroyed: boolean
+      writableFinished: boolean
+      flushHeaders: () => void
+      write: (chunk: unknown) => boolean
+      end: () => void
+      destroy: (err?: Error) => void
+    }
+    res.destroyed = false
+    res.writableFinished = false
+    res.flushHeaders = () => {}
+    res.write = () => true
+    res.destroy = () => {
+      res.destroyed = true
+      res.emit('close')
+    }
+    // Node emits close and never finish when the socket is reset after end()
+    // but before the last write flushes.
+    res.end = () => {
+      queueMicrotask(() => {
+        res.emit('close')
+      })
+    }
+
+    const readable = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('hello'))
+        controller.close()
+      },
+    })
+
+    await expect(
+      pipeToNodeResponse(readable, res as unknown as ServerResponse)
+    ).resolves.toBeUndefined()
+  })
 })
