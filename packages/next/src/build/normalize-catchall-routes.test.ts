@@ -600,6 +600,22 @@ describe('normalizeCatchallRoutes', () => {
       expect(unmatchedAppPages).toEqual([])
     })
 
+    it('drops a catch-all matcher after its last direct entry is pruned', () => {
+      const appPaths = {
+        '/[...slug]': ['/@sidebar/[...slug]/page'],
+        '/foo/[...parts]': ['/foo/[...parts]/page'],
+        '/foo/bar': ['/foo/@modal/bar/page'],
+      }
+
+      normalizeCatchAllRoutes(appPaths, {
+        strictRouteMatching: true,
+        defaultAppPaths: ['/default'],
+      })
+
+      expect(appPaths).not.toHaveProperty('/foo/[...parts]')
+      expect(appPaths['/foo/bar']).toContain('/foo/[...parts]/page')
+    })
+
     it('keeps pruning catch-alls that relied on a pruned sibling catch-all', () => {
       const appPaths = {
         '/[...slug]': ['/[...slug]/page', '/@outer/[...slug]/page'],

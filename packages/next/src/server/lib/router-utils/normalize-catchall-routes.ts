@@ -118,7 +118,7 @@ export function normalizeCatchAllRoutes(
 
   if (strictRouteMatching) {
     const topology = createParallelRouteTopology(appPaths, defaultAppPaths)
-    pruneUnrenderableCatchAllRoutes(appPaths, topology)
+    pruneUnrenderableCatchAllRoutes(appPaths, topology, normalizer)
     const incompatibleParallelRouteSlots =
       findIncompatibleParallelRouteSlotsWithTopology(appPaths, topology)
     pruneUnrenderableRoutes(appPaths, topology)
@@ -238,7 +238,8 @@ function isBuiltin(appPath: string): boolean {
  */
 function pruneUnrenderableCatchAllRoutes(
   appPaths: Record<string, string[]>,
-  topology: ParallelRouteTopology
+  topology: ParallelRouteTopology,
+  normalizer: AppPathNormalizer
 ) {
   for (const [route, matchedAppPaths] of Object.entries(appPaths)) {
     const remainingAppPaths = withoutUnrenderableCatchAlls(
@@ -247,7 +248,9 @@ function pruneUnrenderableCatchAllRoutes(
     )
     if (remainingAppPaths === matchedAppPaths) continue
 
-    if (remainingAppPaths.length === 0) {
+    if (
+      !remainingAppPaths.some((appPath) => normalizer.normalize(appPath) === route)
+    ) {
       delete appPaths[route]
     } else {
       appPaths[route] = remainingAppPaths
