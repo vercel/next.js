@@ -285,6 +285,11 @@ impl Asset for ServerActionManifestAsset {
         // - next/dist/shared/lib/server-inserted-html.shared-runtime
         let modules_to_ignore = (durable_use_cache_entries || static_root_param_tracking_enabled)
             .then(|| get_use_cache_modules_to_ignore(*self.project));
+        let next_dir = if durable_use_cache_entries {
+            Some(get_next_package(self.project.project_path().owned().await?).await?)
+        } else {
+            None
+        };
 
         struct ActionMetadata<'a> {
             exported_name: &'a str,
@@ -316,17 +321,23 @@ impl Asset for ServerActionManifestAsset {
                     && extract_type_from_server_reference_id(hash_id)
                         == ServerReferenceType::UseCache
                 {
-                    Some(
-                        compute_subtree_content_hash(
-                            *self.module_graph,
-                            **module,
-                            *chunking_context_for_content_hash,
-                            hash_salt,
-                            modules_to_ignore
-                                .expect("cache metadata collection requires module exclusions"),
-                        )
-                        .await?,
+                    let data = compute_subtree_content_hash(
+                        *self.module_graph,
+                        **module,
+                        *chunking_context_for_content_hash,
+                        hash_salt,
+                        modules_to_ignore
+                            .expect("cache metadata collection requires module exclusions"),
+                        next_dir
+                            .clone()
+                            .context("durable use-cache entries require the Next.js package")?,
                     )
+                    .await?;
+                    // A non-statically analyzable `process.env` access in the subgraph could read
+                    // any env var, so the list of runtime env vars would be incomplete. Don't emit
+                    // durability metadata in that case: the runtime then falls back to cache keys
+                    // that aren't reused across deployments.
+                    (!data.has_dynamic_env_access).then_some(data)
                 } else {
                     None
                 };
@@ -457,6 +468,10 @@ struct ModulesInformation {
     /// The merged and deduplicated list of runtime env vars used only checked for set/falsy/truthy
     /// in the subgraph.
     pub runtime_env_vars_existence: Vec<RcStr>,
+    /// Whether any module in the subgraph has a non-statically analyzable `process.env` access
+    /// (see [`EnvVarInfo::runtime_all`]), which means that the env var lists above are
+    /// incomplete.
+    pub has_dynamic_env_access: bool,
 }
 
 #[turbo_tasks::function]
@@ -566,6 +581,7 @@ async fn compute_subtree_content_hash(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     hash_salt: Vc<RcStr>,
     modules_to_ignore: Vc<Modules>,
+    next_dir: FileSystemPath,
 ) -> Result<Vc<ModulesInformation>> {
     let span = tracing::info_span!(
         "compute use-cache code hash",
@@ -607,9 +623,18 @@ async fn compute_subtree_content_hash(
                 data.iter()
                     .map(async |(m, data)| {
                         Ok(format!(
-                            "  '{}': {}{}{}",
+                            "  '{}': {}{}{}{}",
                             m.ident().await?.path.to_string_ref().await?,
                             data.path_code_hash,
+                            if data
+                                .env_var_info
+                                .as_ref()
+                                .is_some_and(|e| e.runtime_all.is_some())
+                            {
+                                " with dynamic env access"
+                            } else {
+                                ""
+                            },
                             if data
                                 .env_var_info
                                 .as_ref()
@@ -644,10 +669,17 @@ async fn compute_subtree_content_hash(
 
         let mut hashes = Vec::with_capacity(data.len());
         let mut runtime_env_vars = FxIndexMap::default();
+        let mut has_dynamic_env_access = false;
 
-        for (_m, data) in &data {
+        for (m, data) in &data {
             hashes.push(&data.path_code_hash);
             if let Some(env) = &data.env_var_info {
+                if env.runtime_all.is_some()
+                    && !has_dynamic_env_access
+                    && !is_use_cache_wrapper(&m.ident().await?.path, &next_dir)
+                {
+                    has_dynamic_env_access = true;
+                }
                 for (name, mode) in &env.runtime {
                     match mode {
                         EnvVarAccessMode::Read => {
@@ -690,6 +722,7 @@ async fn compute_subtree_content_hash(
                 durability_key,
                 runtime_env_vars_read: runtime_read,
                 runtime_env_vars_existence: runtime_existence,
+                has_dynamic_env_access,
             }
             .cell(),
         )
@@ -707,6 +740,19 @@ async fn compute_subtree_content_hash(
             .await?,
         )),
     }
+}
+
+/// Whether `path` is Next.js' `use cache` wrapper. It reads `process.env[name]` dynamically, but
+/// only for the env vars listed in the durability metadata, to hash their values. So that access
+/// must not deopt durability.
+fn is_use_cache_wrapper(path: &FileSystemPath, next_dir: &FileSystemPath) -> bool {
+    matches!(
+        next_dir.get_path_to(path),
+        Some(
+            "dist/server/use-cache/use-cache-wrapper.js"
+                | "dist/esm/server/use-cache/use-cache-wrapper.js"
+        )
+    )
 }
 
 #[turbo_tasks::value]
