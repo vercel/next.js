@@ -8,7 +8,7 @@ body:
       value: |
         Before opening a new documentation issue, is this something you can help us with? Your contributions are welcomed and appreciated. See our [Docs Contribution Guide](https://nextjs.org/docs/community/contribution-guide) to learn how to edit the Next.js docs.
 
-        If you are reporting about an documentation request, please open it in our [discussions](https://github.com/vercel/next.js/discussions/new?category=ideas) instead.
+        If you are reporting about a documentation request, please open it in our [discussions](https://github.com/vercel/next.js/discussions/new?category=ideas) instead.
 
         Thank you for helping us update our docs!
   - type: textarea
@@ -22,7 +22,7 @@ body:
       label: Is there any context that might help us understand?
       description: A clear description of any added context that might help us understand.
     validations:
-      required: true
+      required: false
   - type: input
     attributes:
       label: Does the docs page already exist? Please link to it.
