@@ -13,6 +13,7 @@ use turbopack_trace_utils::tracing::{Allocations, TimestampDecoder, TraceRow, Tr
 use super::TraceFormat;
 use crate::{
     span::{SpanArgs, SpanIndex},
+    store::OutdatedSpans,
     store_container::{StoreContainer, StoreWriteGuard},
     timestamp::Timestamp,
 };
@@ -64,7 +65,7 @@ pub struct TurbopackFormat {
     dropped_ids: FxHashSet<u64>,
     remaining_ids_to_drop: usize,
     queued_rows: FxHashMap<u64, Vec<InternalRow>>,
-    outdated_spans: FxHashSet<SpanIndex>,
+    outdated_spans: OutdatedSpans,
     // Each entry is a separate enter, even when the same span re-enters itself.
     // Only the top frame has an active self-time start; suspended frames have None.
     thread_stacks: FxHashMap<u64, Vec<(u64, Option<Timestamp>)>>,
@@ -85,7 +86,7 @@ impl TurbopackFormat {
             dropped_ids: FxHashSet::with_capacity_and_hasher(drop_ids, Default::default()),
             remaining_ids_to_drop: drop_ids,
             queued_rows: FxHashMap::with_capacity_and_hasher(1_024, Default::default()),
-            outdated_spans: FxHashSet::with_capacity_and_hasher(8_192, Default::default()),
+            outdated_spans: OutdatedSpans::with_capacity(8_192, true),
             thread_stacks: FxHashMap::with_capacity_and_hasher(64, Default::default()),
             interner: RcStrInterning::new(),
             timestamps: TimestampDecoder::default(),
