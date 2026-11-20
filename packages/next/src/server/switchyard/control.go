@@ -11,7 +11,7 @@ import (
 // (packages/next/src/server/lib/switchyard.ts):
 //
 //	{"event":"table","table":{...}}      the route table, once the router loaded
-//	{"event":"worker","page":"/api/users/[id]/route","network":"tcp",
+//	{"event":"worker","page":"/api/users/[id]/route",
 //	 "address":"127.0.0.1:51300","tokenHeader":"x-next-internal-go-token",
 //	 "token":"…"}                         a route.go worker is ready for a page
 //	{"event":"gone","address":"127.0.0.1:51300"}
@@ -20,7 +20,6 @@ type controlMessage struct {
 	Event       string          `json:"event"`
 	Table       json.RawMessage `json:"table"`
 	Page        string          `json:"page"`
-	Network     string          `json:"network"`
 	Address     string          `json:"address"`
 	TokenHeader string          `json:"tokenHeader"`
 	Token       string          `json:"token"`

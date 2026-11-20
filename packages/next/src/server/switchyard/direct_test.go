@@ -21,7 +21,7 @@ func TestReadControlSkipsBadLinesAndStopsAtEOF(t *testing.T) {
 func TestApplyKeepsTheTableAndWorkersNodeReports(t *testing.T) {
 	f := newSwitchyard(http.NotFoundHandler())
 	f.apply(controlMessage{Event: "table", Table: json.RawMessage(`{"contract":{"version":1},"goExact":{"/api/echo":"/api/echo/route"}}`)})
-	f.apply(controlMessage{Event: "worker", Page: "/api/echo/route", Network: "tcp",
+	f.apply(controlMessage{Event: "worker", Page: "/api/echo/route",
 		Address: "127.0.0.1:51300", TokenHeader: "x-next-internal-go-token", Token: "secret"})
 	s := f.state.Load()
 	if s.table == nil {
