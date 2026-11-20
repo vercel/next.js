@@ -12,7 +12,7 @@ createModuleWithDirectionFlag = true
 
 interface TurbopackNodeBuildContext
   extends TurbopackBaseContext<ModuleWithDirection> {
-  S: ResolvePathFromModule
+  p: ResolvePathFromModule
   x: ExternalRequire
   y: ExternalImport
   C: typeof clearChunkCache
@@ -24,7 +24,7 @@ const nodeContextPrototype = Context.prototype as TurbopackNodeBuildContext
 
 nodeContextPrototype.q = exportUrl
 nodeContextPrototype.c = moduleCache
-nodeContextPrototype.S = resolvePathFromModule
+nodeContextPrototype.p = resolvePathFromModule
 nodeContextPrototype.C = clearChunkCache
 
 function instantiateModule(
