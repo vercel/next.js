@@ -385,8 +385,8 @@ mod tests {
         assert!(before > 0, "a running process has live memory");
 
         // Large enough to dwarf whatever else the test process does concurrently, and written to
-        // so the pages are actually committed. Miri reports the exact allocation counters instead
-        // of committed memory, and 256 MiB took minutes there, so a smaller buffer suffices.
+        // so the pages are actually committed. Miri uses allocation-based accounting instead of
+        // committed memory, and 256 MiB took minutes there, so a smaller buffer suffices.
         const SIZE: usize = if cfg!(miri) {
             4 * 1024 * 1024
         } else {
