@@ -1,7 +1,11 @@
 import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { seedTurbopackCacheIfNeeded } from '../../lib/turbopack-cache-seed'
-import { NextBuildContext, RETAINED_DIST_DIR_ENTRIES } from '../build-context'
+import {
+  NextBuildContext,
+  RETAINED_DIST_DIR_ENTRIES,
+  clearsDistDirAfterTurbopackBuild,
+} from '../build-context'
 import { createDefineEnv, getBindingsSync } from '../swc'
 import {
   handleRouteType,
@@ -177,14 +181,14 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
 
     const entrypoints = await project.writeAllEntrypointsToDisk({
       appDirOnly,
-      // The distDir wasn't cleaned before the build (Turbopack builds don't
-      // run in generate mode). Remove everything Turbopack doesn't write
-      // (output of previous builds), except for the retained entries and the
-      // `types` directory, which is managed when generating the route types.
-      // Everything written after this point needs no tracking. This finishes
-      // before any later build step reads the distDir, so they observe the
-      // same files as after a clean build.
-      removeStaleOutput: config.cleanDistDir
+      // With `experimental.clearAfterBuild`, the distDir wasn't cleaned before
+      // the build (Turbopack builds don't run in generate mode). Remove
+      // everything Turbopack doesn't write (output of previous builds), except
+      // for the retained entries and the `types` directory, which is managed
+      // when generating the route types. Everything written after this point
+      // needs no tracking. This finishes before any later build step reads the
+      // distDir, so they observe the same files as after a clean build.
+      removeStaleOutput: clearsDistDirAfterTurbopackBuild(config)
         ? { keep: [...RETAINED_DIST_DIR_ENTRIES, 'types'] }
         : undefined,
     })

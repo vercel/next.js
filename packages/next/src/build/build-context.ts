@@ -53,6 +53,17 @@ export const RETAINED_DIST_DIR_ENTRIES: readonly string[] = [
   'trace',
 ]
 
+/**
+ * Whether a Turbopack build removes the output of previous builds after
+ * writing its own output, instead of cleaning the distDir upfront
+ * (`experimental.clearAfterBuild`).
+ */
+export function clearsDistDirAfterTurbopackBuild(
+  config: Pick<NextConfigComplete, 'cleanDistDir' | 'experimental'>
+): boolean {
+  return Boolean(config.cleanDistDir && config.experimental.clearAfterBuild)
+}
+
 // a global object to store context for the current build
 // this is used to pass data between different steps of the build without having
 // to pass it through function arguments.

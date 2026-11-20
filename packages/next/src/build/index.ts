@@ -185,7 +185,11 @@ import {
   type NEXT_REWRITTEN_QUERY_HEADER,
 } from '../client/components/app-router-headers'
 import { webpackBuild } from './webpack-build'
-import { NextBuildContext, RETAINED_DIST_DIR_ENTRIES } from './build-context'
+import {
+  NextBuildContext,
+  RETAINED_DIST_DIR_ENTRIES,
+  clearsDistDirAfterTurbopackBuild,
+} from './build-context'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { getStaticMetadataPrerenderPathname } from '../lib/metadata/get-metadata-route'
@@ -1387,11 +1391,13 @@ export default async function build(
         'next build'
       )
 
-      // With Turbopack, the distDir is not cleaned upfront, but the output of
-      // previous builds is removed while Turbopack writes its output (see
-      // `turbopackBuild`).
+      // With `experimental.clearAfterBuild`, the distDir is not cleaned upfront
+      // for Turbopack builds, but the output of previous builds is removed
+      // while Turbopack writes its output (see `turbopackBuild`).
       const removesStaleOutputAfterCompile =
-        config.cleanDistDir && !isGenerateMode && bundler === Bundler.Turbopack
+        !isGenerateMode &&
+        bundler === Bundler.Turbopack &&
+        clearsDistDirAfterTurbopackBuild(config)
       if (config.cleanDistDir && !isGenerateMode) {
         if (removesStaleOutputAfterCompile) {
           // Deleting the previous output upfront blocks the build for a long

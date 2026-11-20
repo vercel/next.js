@@ -78,90 +78,165 @@ describe('Cleaning distDir', () => {
         }
       )
     })
-  })
 
-  it('should produce the same output as a clean build when rebuilding', async () => {
-    await next.patchFile(
-      'next.config.js',
-      `
-        module.exports = {
-          output: 'standalone',
-          // A stable build ID makes the output of both builds comparable.
-          generateBuildId: () => 'test-build-id',
+    it('should not clean up .next with experimental.clearAfterBuild', async () => {
+      await next.patchFile(
+        'next.config.js',
+        `
+          module.exports = {
+            cleanDistDir: false,
+            experimental: { clearAfterBuild: true },
+          }
+        `,
+        async () => {
+          await checkFileWrite(true)
         }
-      `,
-      async () => {
-        await next.build()
-        const cleanBuildOutput = listDistDir()
-        expect(cleanBuildOutput).toContain('BUILD_ID')
-        expect(cleanBuildOutput).toContain('standalone/server.js')
-
-        // Leftovers of a previous build that this build does not produce
-        await next.patchFile('.next/stale-file.json', '{}')
-        await next.patchFile('.next/server/stale-file.js', 'stale')
-        await next.patchFile('.next/server/stale-dir/stale.js', 'stale')
-        await next.patchFile('.next/static/stale-build-id/stale.js', 'stale')
-        await next.patchFile('.next/standalone/stale-file.js', 'stale')
-        fs.mkdirSync(path.join(next.testDir, '.next/server/stale-empty-dir'))
-        await next.patchFile('.next/cache/keep.txt', 'keep')
-
-        await next.build()
-
-        // Exactly the files a clean build produces: stale files are gone and
-        // unchanged output that was not rewritten is kept.
-        expect(listDistDir()).toEqual(cleanBuildOutput)
-        expect(await next.hasFile('.next/cache/keep.txt')).toBe(true)
-
-        await next.start({ skipBuild: true })
-        const html = await next.render('/')
-        expect(html).toContain('hello from index')
-        await next.stop()
-      }
-    )
+      )
+    })
   })
 
-  it('should not type check stale files in the types directory', async () => {
-    // When the tsconfig.json includes `.next/types` (e.g. it was added when
-    // the project had an `app` dir), they are type checked, which happens
-    // before compilation for the Pages Router.
-    const tsconfig = {
-      include: ['next-env.d.ts', '.next/types/**/*.ts', '**/*.ts', '**/*.tsx'],
-    }
-    await next.patchFile(
-      'tsconfig.json',
-      JSON.stringify(tsconfig),
-      async () => {
-        await next.build()
+  describe.each([
+    { clearAfterBuild: undefined },
+    { clearAfterBuild: false },
+    { clearAfterBuild: true },
+  ])(
+    'with experimental.clearAfterBuild: $clearAfterBuild',
+    ({ clearAfterBuild }) => {
+      // Only Turbopack builds support removing stale output after the build,
+      // webpack builds always clean the distDir upfront.
+      const removesStaleOutputAfterBuild = clearAfterBuild && isTurbopack
 
-        // A leftover of a previous build (e.g. generated types of a config
-        // option that has been disabled since)
+      it(`should ${removesStaleOutputAfterBuild ? 'remove' : 'keep'} files written to .next during the build`, async () => {
+        const experimental =
+          clearAfterBuild === undefined ? {} : { clearAfterBuild }
         await next.patchFile(
-          '.next/types/stale.ts',
-          'export const stale: number = "not a number"\n'
+          'next.config.js',
+          `
+            const loader = require.resolve('./write-file-loader.js')
+            module.exports = {
+              experimental: ${JSON.stringify(experimental)},
+              turbopack: { rules: { 'marker.js': { loaders: [loader] } } },
+              webpack(config) {
+                config.module.rules.push({ test: /marker\\.js$/, use: [loader] })
+                return config
+              },
+            }
+          `,
+          async () => {
+            const { exitCode } = await next.build()
+            expect(exitCode).toBe(0)
+            // Removing the distDir upfront happens before compilation, so it
+            // keeps files written by loaders (or other tools) while compiling.
+            // When removing the output not written by Turbopack after the
+            // build instead, they are removed.
+            expect(await next.hasFile('.next/loader-output.txt')).toBe(
+              !removesStaleOutputAfterBuild
+            )
+            expect(await next.hasFile('.next/BUILD_ID')).toBe(true)
+          }
         )
+      })
+    }
+  )
 
-        const { exitCode, cliOutput } = await next.build()
-        expect(cliOutput).not.toContain('stale.ts')
-        expect(exitCode).toBe(0)
-        expect(await next.hasFile('.next/types/stale.ts')).toBe(false)
-        expect(await next.hasFile('.next/types/routes.d.ts')).toBe(true)
+  describe('with experimental.clearAfterBuild: true', () => {
+    beforeEach(async () => {
+      await next.patchFile(
+        'next.config.js',
+        `
+          module.exports = {
+            output: 'standalone',
+            // A stable build ID makes the output of builds comparable.
+            generateBuildId: () => 'test-build-id',
+            experimental: { clearAfterBuild: true },
+          }
+        `
+      )
+    })
+
+    afterEach(async () => {
+      await next.patchFile('next.config.js', 'module.exports = {}\n')
+    })
+
+    it('should produce the same output as a clean build when rebuilding', async () => {
+      const { cliOutput } = await next.build()
+      // The option is valid and enabled
+      expect(cliOutput).toContain('clearAfterBuild')
+      expect(cliOutput).not.toContain('Unrecognized key')
+      const cleanBuildOutput = listDistDir()
+      expect(cleanBuildOutput).toContain('BUILD_ID')
+      expect(cleanBuildOutput).toContain('standalone/server.js')
+
+      // Leftovers of a previous build that this build does not produce
+      await next.patchFile('.next/stale-file.json', '{}')
+      await next.patchFile('.next/server/stale-file.js', 'stale')
+      await next.patchFile('.next/server/stale-dir/stale.js', 'stale')
+      await next.patchFile('.next/static/stale-build-id/stale.js', 'stale')
+      await next.patchFile('.next/standalone/stale-file.js', 'stale')
+      fs.mkdirSync(path.join(next.testDir, '.next/server/stale-empty-dir'))
+      await next.patchFile('.next/cache/keep.txt', 'keep')
+
+      await next.build()
+
+      // Exactly the files a clean build produces: stale files are gone and
+      // unchanged output that was not rewritten is kept.
+      expect(listDistDir()).toEqual(cleanBuildOutput)
+      expect(await next.hasFile('.next/cache/keep.txt')).toBe(true)
+
+      await next.start({ skipBuild: true })
+      const html = await next.render('/')
+      expect(html).toContain('hello from index')
+      await next.stop()
+    })
+
+    it('should not type check stale files in the types directory', async () => {
+      // When the tsconfig.json includes `.next/types` (e.g. it was added when
+      // the project had an `app` dir), they are type checked, which happens
+      // before compilation for the Pages Router.
+      const tsconfig = {
+        include: [
+          'next-env.d.ts',
+          '.next/types/**/*.ts',
+          '**/*.ts',
+          '**/*.tsx',
+        ],
       }
-    )
-  })
+      await next.patchFile(
+        'tsconfig.json',
+        JSON.stringify(tsconfig),
+        async () => {
+          await next.build()
 
-  it('should not leave a startable build behind when the build fails', async () => {
-    await next.build()
-    expect(await next.hasFile('.next/BUILD_ID')).toBe(true)
+          // A leftover of a previous build (e.g. generated types of a config
+          // option that has been disabled since)
+          await next.patchFile(
+            '.next/types/stale.ts',
+            'export const stale: number = "not a number"\n'
+          )
 
-    await next.patchFile(
-      'pages/index.js',
-      'export default () => <div>{</div>',
-      async () => {
-        const { exitCode } = await next.build()
-        expect(exitCode).not.toBe(0)
-      }
-    )
+          const { exitCode, cliOutput } = await next.build()
+          expect(cliOutput).not.toContain('stale.ts')
+          expect(exitCode).toBe(0)
+          expect(await next.hasFile('.next/types/stale.ts')).toBe(false)
+          expect(await next.hasFile('.next/types/routes.d.ts')).toBe(true)
+        }
+      )
+    })
 
-    expect(await next.hasFile('.next/BUILD_ID')).toBe(false)
+    it('should not leave a startable build behind when the build fails', async () => {
+      await next.build()
+      expect(await next.hasFile('.next/BUILD_ID')).toBe(true)
+
+      await next.patchFile(
+        'pages/index.js',
+        'export default () => <div>{</div>',
+        async () => {
+          const { exitCode } = await next.build()
+          expect(exitCode).not.toBe(0)
+        }
+      )
+
+      expect(await next.hasFile('.next/BUILD_ID')).toBe(false)
+    })
   })
 })

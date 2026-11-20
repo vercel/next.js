@@ -3021,7 +3021,8 @@ pub struct NapiWriteAllEntrypointsToDiskOptions {
     /// count as written. Files are removed in parallel to writing the output, (then) empty
     /// directories after it has been written.
     ///
-    /// Used by `next build` instead of cleaning the dist dir upfront.
+    /// Used by `next build` with `experimental.clearAfterBuild` instead of cleaning the dist dir
+    /// upfront.
     pub remove_stale_output: Option<NapiRemoveStaleOutputOptions>,
 }
 
