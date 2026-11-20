@@ -23,6 +23,7 @@ declare module 'next/dist/compiled/react-server-dom-turbopack/server.edge'
 declare module 'next/dist/compiled/react-server-dom-turbopack/static.edge'
 declare module 'next/dist/compiled/react-dom/server'
 declare module 'next/dist/compiled/react-dom/server.edge'
+declare module 'react-dom/unstable_server-external-runtime'
 declare module 'next/dist/compiled/browserslist'
 
 declare module 'react-server-dom-webpack/client' {

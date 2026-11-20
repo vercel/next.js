@@ -3585,7 +3585,10 @@ async function renderToStream(
 
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
-  const getServerInsertedMetadata = createServerInsertedMetadata(nonce)
+  const getServerInsertedMetadata = createServerInsertedMetadata(
+    nonce,
+    experimental.externalBrowserRuntime
+  )
 
   const tracingMetadata = getTracedMetadata(
     getTracer().getTracePropagationData(),
@@ -9111,7 +9114,10 @@ async function prerenderToStream(
 
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
-  const getServerInsertedMetadata = createServerInsertedMetadata(nonce)
+  const getServerInsertedMetadata = createServerInsertedMetadata(
+    nonce,
+    experimental.externalBrowserRuntime
+  )
 
   const tracingMetadata = getTracedMetadata(
     getTracer().getTracePropagationData(),
