@@ -376,9 +376,12 @@ func (t nodeHeaderLimitTransport) RoundTrip(r *http.Request) (*http.Response, er
 }
 
 // The hop-by-hop headers Go's proxy removes from every response (hopHeaders
-// in net/http/httputil) that can still be in the header map: the Transport
-// has moved Transfer-Encoding and Trailer out of it, and Node drops
-// Connection.
+// in net/http/httputil) that are put back. Not among them: Transfer-Encoding
+// and Connection, which Node drops too, and Trailer. For a chunked response
+// the Transport has already moved Trailer out of the header map, and the
+// proxy announces the trailer fields itself. With Content-Length it stays,
+// the proxy removes it, and it isn't put back: Node can't send that response
+// at all (ServerResponse.end throws ERR_HTTP_TRAILER_INVALID).
 var hopHeaders = []string{"Keep-Alive", "Proxy-Authenticate", "Proxy-Authorization", "Proxy-Connection", "Te", "Upgrade"}
 
 // keepHopHeaders returns the response headers Go's proxy is about to remove
