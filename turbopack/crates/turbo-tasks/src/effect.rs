@@ -34,6 +34,51 @@ use crate::{
 
 const APPLY_EFFECTS_CONCURRENCY_LIMIT: usize = 1024;
 
+/// The number of [`Effects::apply`] calls in progress, across all turbo-tasks instances.
+static APPLYING_EFFECTS: AtomicUsize = AtomicUsize::new(0);
+static EFFECTS_APPLIED: tokio::sync::Notify = tokio::sync::Notify::const_new();
+
+struct ApplyingEffects;
+
+impl ApplyingEffects {
+    fn start() -> Self {
+        APPLYING_EFFECTS.fetch_add(1, Ordering::SeqCst);
+        ApplyingEffects
+    }
+}
+
+impl Drop for ApplyingEffects {
+    fn drop(&mut self) {
+        if APPLYING_EFFECTS.fetch_sub(1, Ordering::SeqCst) == 1 {
+            EFFECTS_APPLIED.notify_waiters();
+        }
+    }
+}
+
+/// Whether effects are being applied, see [`wait_for_effects_applied`].
+pub fn is_applying_effects() -> bool {
+    APPLYING_EFFECTS.load(Ordering::SeqCst) != 0
+}
+
+/// Waits until no effects are being applied.
+///
+/// The effects of one apply run concurrently and in no particular order, so while they run, some
+/// of the files they write can be new and others old or partially written. Waiting before reading
+/// such files ensures that everything written together has been written.
+pub async fn wait_for_effects_applied() {
+    loop {
+        let notified = EFFECTS_APPLIED.notified();
+        let mut notified = std::pin::pin!(notified);
+        // Register before checking, so a notification between the check and the await is not
+        // missed.
+        notified.as_mut().enable();
+        if APPLYING_EFFECTS.load(Ordering::SeqCst) == 0 {
+            return;
+        }
+        notified.await;
+    }
+}
+
 /// An IO Side effect to be computed by turbo tasks and then executed outside of turbo tasks.
 #[async_trait]
 #[turbo_tasks::value_trait]
@@ -601,6 +646,7 @@ impl Effects {
 
         let span = tracing::info_span!("apply effects", count = unique.len());
         let captured = &self.captured;
+        let _applying = ApplyingEffects::start();
 
         async {
             // Collect the keys of any effects that signaled `Retry` across the parallel apply so

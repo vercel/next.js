@@ -1646,6 +1646,17 @@ export async function createHotReloaderTurbopack(
         }
       }
 
+      // The static handler reads chunks off disk. While an emit is being written,
+      // a chunk list there can already list the new version of chunks that are
+      // still old, and the client would then subscribe from a version it doesn't
+      // have.
+      if (
+        req.url?.startsWith('/_next/static/chunks/') &&
+        project.isApplyingEffects()
+      ) {
+        await project.waitForEffectsApplied()
+      }
+
       for (const middleware of middlewares) {
         let calledNext = false
 

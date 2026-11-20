@@ -368,6 +368,15 @@ export interface Project {
     entryPaths: string[]
   ): Promise<TurbopackResult<ServerHmrUpdate>>
 
+  /** Whether output files are being written. */
+  isApplyingEffects(): boolean
+
+  /**
+   * Resolves once output files are not being written. Files read before then
+   * may be a mix of new, old and partially written files.
+   */
+  waitForEffectsApplied(): Promise<void>
+
   /**
    * `clientVersion` is the version of the chunk list the client has. When it
    * is outdated, the first update is a restart.

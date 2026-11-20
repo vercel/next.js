@@ -2154,6 +2154,19 @@ pub async fn project_get_server_hmr_update(
     })
 }
 
+/// Resolves once no effects, such as writes of output files, are being applied. Output files read
+/// before then may be a mix of new, old and partially written files.
+#[napi]
+pub async fn project_wait_for_effects_applied() {
+    turbo_tasks::wait_for_effects_applied().await;
+}
+
+/// Whether effects, such as writes of output files, are being applied.
+#[napi]
+pub fn project_is_applying_effects() -> bool {
+    turbo_tasks::is_applying_effects()
+}
+
 #[tracing::instrument(level = "info", name = "get client HMR events", skip(env, project, func), fields(chunk_name = %chunk_name))]
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_client_hmr_events(

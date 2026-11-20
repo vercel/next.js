@@ -786,6 +786,14 @@ function bindingToApi(
       ) as Promise<TurbopackResult<ServerHmrUpdate>>
     }
 
+    isApplyingEffects(): boolean {
+      return binding.projectIsApplyingEffects()
+    }
+
+    waitForEffectsApplied(): Promise<void> {
+      return binding.projectWaitForEffectsApplied()
+    }
+
     clientHmrEvents(
       chunkName: string,
       clientVersion: string | undefined
