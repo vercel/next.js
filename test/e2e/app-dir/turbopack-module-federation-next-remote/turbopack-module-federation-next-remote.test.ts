@@ -65,7 +65,7 @@ describeTurbopack('turbopack module federation between Next.js apps', () => {
     }
     const federationResponse = await fetchViaHTTP(
       remotePort,
-      '/_next/static/chunks/mf/nextRemote.js'
+      '/_next/static/nextRemote.js'
     )
     if (federationResponse.status !== 200) {
       throw new Error(
@@ -92,7 +92,7 @@ describeTurbopack('turbopack module federation between Next.js apps', () => {
 
     const entry = await fetchViaHTTP(
       remotePort,
-      '/_next/static/chunks/mf/nextRemote.js'
+      '/_next/static/nextRemote.js'
     ).then((response) => response.text())
     if (!isNextDev) {
       expect(entry).not.toContain(
