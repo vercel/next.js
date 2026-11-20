@@ -9,10 +9,6 @@ import (
 	next "__NEXT_GO_ROUTE_IMPORT__"
 )
 
-func NextInternalGoMatch(path string) bool {
-	return next.NextInternalGoMatch(path)
-}
-
 func NextInternalGoHandler(trustInternalHeaders bool) http.HandlerFunc {
 	return next.NextInternalGoHandler(trustInternalHeaders)
 }

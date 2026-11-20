@@ -464,7 +464,7 @@ For self-hosting, use Turbopack `next build` and `next start`. Copy the complete
 
 Go Route Handlers have no build-time prerendering mode, so they cannot produce static response files for [`output: 'export'`](/docs/app/guides/static-exports#route-handlers).
 
-Adapter deployments require an adapter that supports `runtime: 'go'`. Adapter builds compile every Go Route Handler into one executable that dispatches requests by path, and all Go route outputs share its `filePath`. See [Go adapter outputs](/docs/app/api-reference/adapters/output-types#app-routes-outputsapproutes) and [invoking Go entrypoints](/docs/app/api-reference/adapters/invoking-entrypoints#go-runtime-runtime-go) for packaging and the HTTP server contract. Deployment platforms own routing, rewrites, and proxy execution. Work after the response completes has no completion guarantee.
+Adapter deployments require an adapter that supports `runtime: 'go'`. Adapter builds compile every Go Route Handler into one executable, and all Go route outputs share its `filePath`. Each process is bound to the adapter-selected output through `__NEXT_GO_ROUTE`, so requests cannot select another compiled handler. See [Go adapter outputs](/docs/app/api-reference/adapters/output-types#app-routes-outputsapproutes) and [invoking Go entrypoints](/docs/app/api-reference/adapters/invoking-entrypoints#go-runtime-runtime-go) for packaging and the HTTP server contract. Deployment platforms own routing, rewrites, and proxy execution. Work after the response completes has no completion guarantee.
 
 ## Build and Runtime Limitations
 
