@@ -22,7 +22,7 @@ function Item({
   pending: boolean;
   mutate: any;
 }) {
-  let upvoteWithId = upvote.bind(null, feature);
+  let upvoteWithId = upvote.bind(null, feature.id);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let [isPending, startTransition] = useTransition();
 
@@ -40,7 +40,7 @@ function Item({
             },
             pending: true,
           });
-          await upvote(feature);
+          await upvote(feature.id);
         });
       }}
       className={clsx(
@@ -114,7 +114,6 @@ export default function FeatureForm({ features }: { features: Feature[] }) {
     created_at: new Date().toISOString(),
     score: "1",
   };
-  let saveWithNewFeature = saveFeature.bind(null, featureStub);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   let [isPending, startTransition] = useTransition();
 
@@ -124,7 +123,7 @@ export default function FeatureForm({ features }: { features: Feature[] }) {
         <form
           className="relative my-8"
           ref={formRef}
-          action={saveWithNewFeature}
+          action={saveFeature}
           onSubmit={(event) => {
             event.preventDefault();
             let formData = new FormData(event.currentTarget);
@@ -140,7 +139,7 @@ export default function FeatureForm({ features }: { features: Feature[] }) {
                 pending: true,
               });
 
-              await saveFeature(newFeature, formData);
+              await saveFeature(formData);
             });
           }}
         >

@@ -81,6 +81,7 @@ describe('turbopack-portable-build-cache', () => {
          "next_api::project::project_root_path_operation",
          "next_napi_bindings::next_api::project::emit_all_output_assets_once_with_issues_operation",
          "next_napi_bindings::next_api::project::get_all_written_entrypoints_with_issues_operation",
+         "next_napi_bindings::next_api::project::write_dist_dir_files_operation",
          "turbo_tasks_env::uppercase_env_map",
        ]
       `)
@@ -101,6 +102,7 @@ describe('turbopack-portable-build-cache', () => {
          "next_core::next_config::NextConfig::*",
          "next_napi_bindings::next_api::project::emit_all_output_assets_once_with_issues_operation",
          "next_napi_bindings::next_api::project::get_all_written_entrypoints_with_issues_operation",
+         "next_napi_bindings::next_api::project::write_dist_dir_files_operation",
          "turbo_tasks_env::uppercase_env_map",
          "turbo_tasks_fs::disk::DiskFileSystem::new_internal",
        ]
@@ -213,6 +215,7 @@ describe('turbopack-portable-build-cache', () => {
          "next_api::project::project_root_path_operation",
          "next_napi_bindings::next_api::project::emit_all_output_assets_once_with_issues_operation",
          "next_napi_bindings::next_api::project::get_all_written_entrypoints_with_issues_operation",
+         "next_napi_bindings::next_api::project::write_dist_dir_files_operation",
          "turbo_tasks_env::uppercase_env_map",
          "turbopack_node::evaluate::common_node_env",
          "turbopack_node::evaluate::create_evaluate_pool_assets_operation",
@@ -238,6 +241,7 @@ describe('turbopack-portable-build-cache', () => {
          "next_core::next_config::NextConfig::*",
          "next_napi_bindings::next_api::project::emit_all_output_assets_once_with_issues_operation",
          "next_napi_bindings::next_api::project::get_all_written_entrypoints_with_issues_operation",
+         "next_napi_bindings::next_api::project::write_dist_dir_files_operation",
          "turbo_tasks_env::uppercase_env_map",
          "turbo_tasks_fs::disk::DiskFileSystem::new_internal",
          "turbopack_node::evaluate::common_node_env",

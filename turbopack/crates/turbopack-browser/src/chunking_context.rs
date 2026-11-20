@@ -931,6 +931,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 chunks,
                 references,
                 availability_info,
+                async_loader_availability,
             } = make_chunk_group(
                 groups,
                 module_graph,
@@ -953,6 +954,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 references: ResolvedVc::cell(references),
                 availability_info,
                 chunk_group_bootstrap_params: None,
+                async_loader_availability: vec![async_loader_availability],
             }
             .cell())
         }
@@ -986,6 +988,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 chunks,
                 references,
                 availability_info,
+                async_loader_availability,
             } = make_chunk_group(
                 smallvec![chunk_group.clone()],
                 module_graph,
@@ -1112,6 +1115,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 references: ResolvedVc::cell(references),
                 availability_info,
                 chunk_group_bootstrap_params,
+                async_loader_availability: vec![async_loader_availability],
             }
             .cell())
         }
@@ -1180,6 +1184,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 chunks,
                 references,
                 availability_info,
+                async_loader_availability: _,
             } = make_chunk_group(
                 smallvec![chunk_group.clone()],
                 module_graph,
