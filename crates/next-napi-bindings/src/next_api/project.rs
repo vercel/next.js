@@ -2140,7 +2140,7 @@ pub async fn project_get_server_hmr_update(
             let update = compute_server_hmr_update(
                 chunk_lists.as_slice(),
                 route,
-                entry_paths,
+                entry_paths.into_iter().collect(),
                 container.server_hmr_loaded_state(),
             )
             .await?;
@@ -2182,9 +2182,9 @@ pub async fn project_reset_server_hmr_state(
             let container = container.await?;
             // The snapshot's chunk-list `Vc`s are only valid while the project is held, which
             // `snapshot` does.
-            let route = snapshot
-                .as_ref()
-                .map(|((_, read), entry_paths)| (&*read.route, entry_paths.clone()));
+            let route = snapshot.as_ref().map(|((_, read), entry_paths)| {
+                (&*read.route, entry_paths.iter().cloned().collect())
+            });
             reset_server_hmr_state(container.server_hmr_loaded_state(), route);
             Ok(())
         })
