@@ -29,7 +29,7 @@ const nodeDevContextPrototype =
 
 nodeDevContextPrototype.q = exportUrl
 nodeDevContextPrototype.c = moduleCache
-nodeDevContextPrototype.R = resolvePathFromModule
+nodeDevContextPrototype.S = resolvePathFromModule
 nodeDevContextPrototype.C = clearChunkCache
 
 markDevModulesLoaded = true

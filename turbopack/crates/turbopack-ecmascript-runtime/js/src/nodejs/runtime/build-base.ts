@@ -24,7 +24,7 @@ const nodeContextPrototype = Context.prototype as TurbopackNodeBuildContext
 
 nodeContextPrototype.q = exportUrl
 nodeContextPrototype.c = moduleCache
-nodeContextPrototype.R = resolvePathFromModule
+nodeContextPrototype.S = resolvePathFromModule
 nodeContextPrototype.C = clearChunkCache
 
 function instantiateModule(
