@@ -11,9 +11,7 @@ use turbo_tasks::{
 use crate::backend::{
     operation::{
         AggregationUpdateJob, AggregationUpdateQueue, ExecuteContext, TaskGuard,
-        aggregation_update::{
-            InnerOfUppersHasNewFollowersJob, PendingAdditionTag, register_pending_addition,
-        },
+        aggregation_update::{InnerOfUppersHasNewFollowersJob, publish_pending_addition},
         get_aggregation_number, get_uppers,
         invalidate::make_task_dirty_internal,
         is_aggregating_node,
@@ -37,8 +35,9 @@ struct NewChildren {
     /// The uppers of a leaf parent, which get the new children as followers. `None` for an
     /// aggregating parent, which gets them itself.
     upper_ids: Option<SmallVec<[TaskId; 4]>>,
-    /// The pending addition of the new children to `upper_ids`, published by the parent.
-    pending: Option<PendingAdditionTag>,
+    /// Whether the parent counted the addition of the new children to `upper_ids` as pending.
+    /// The queue that applies it settles it.
+    pending: bool,
 }
 
 pub fn connect_children(
@@ -85,8 +84,8 @@ pub fn connect_children(
 }
 
 /// Adds `new_children` to the children of the locked parent and captures what's needed to
-/// propagate them. For a leaf parent, records the addition of the children to its uppers as
-/// pending, one record per chunk that is propagated by a separate queue.
+/// propagate them. For a leaf parent, counts the addition of the children to its uppers as
+/// pending, per chunk that is propagated by a separate queue.
 fn publish_new_children(
     parent_task_id: TaskId,
     mut parent_task: TaskGuard<'_>,
@@ -125,14 +124,10 @@ fn publish_new_children(
             // their addition here, and it's applied after the lock is released.
             let pending = upper_ids
                 .as_ref()
-                .filter(|upper_ids| !upper_ids.is_empty())
-                .map(|upper_ids| {
-                    register_pending_addition(
-                        &mut parent_task,
-                        upper_ids.clone(),
-                        new_follower_ids.clone(),
-                    )
-                });
+                .is_some_and(|upper_ids| !upper_ids.is_empty());
+            if pending {
+                publish_pending_addition(&mut parent_task, &new_follower_ids);
+            }
             NewChildren {
                 new_follower_ids,
                 upper_ids: upper_ids.clone(),
@@ -205,17 +200,18 @@ fn prepare_new_children(
         // added as follower.
         let decrease_active_count = should_track_activeness && !parent_has_active_count;
 
-        let pending = pending.into_iter().collect();
+        if pending {
+            queue.add_pending_addition(parent_task_id, &new_follower_ids);
+        }
         // We special case the situation when we need to do both operations to avoid
         // cloning the new follower ids unnecessarily.
         if decrease_active_count && add_followers {
-            queue.push_with_pending(
+            queue.push(
                 InnerOfUppersHasNewFollowersJob {
                     upper_ids,
                     new_follower_ids: new_follower_ids.clone(),
                 }
                 .into(),
-                pending,
             );
             queue.push(AggregationUpdateJob::DecreaseActiveCounts {
                 task_ids: new_follower_ids,
@@ -225,13 +221,12 @@ fn prepare_new_children(
                 task_ids: new_follower_ids,
             })
         } else if add_followers {
-            queue.push_with_pending(
+            queue.push(
                 InnerOfUppersHasNewFollowersJob {
                     upper_ids,
                     new_follower_ids,
                 }
                 .into(),
-                pending,
             );
         }
     } else if should_track_activeness {

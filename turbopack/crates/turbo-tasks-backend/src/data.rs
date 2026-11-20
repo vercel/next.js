@@ -1,13 +1,15 @@
 use std::{
     fmt::{self, Debug, Display},
+    hash::BuildHasherDefault,
     pin::Pin,
     sync::Arc,
 };
 
 use anyhow::Result;
+use auto_hash_map::{AutoMap, map::Entry};
 use bincode::{Decode, Encode};
 use parking_lot::Mutex;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashSet, FxHasher};
 use smallvec::SmallVec;
 #[cfg(feature = "task_dirty_cause")]
 use turbo_tasks::TaskDirtyCause;
@@ -17,7 +19,7 @@ use turbo_tasks::{
     event::{Event, EventDescription, EventListener},
 };
 
-use crate::error::TaskError;
+use crate::{backend::counter_map::CounterMap, error::TaskError};
 
 // this traits are needed for the transient variants of `CachedDataItem`
 // transient variants are never cloned or compared
@@ -168,7 +170,8 @@ impl ActivenessState {
 transient_traits!(ActivenessState);
 
 /// The follower edge additions that a task published while holding its lock and that haven't
-/// been applied to the uppers yet, and the removals of follower edges that wait for them.
+/// been applied to the uppers yet, and the removals of follower edges that wait for them. Keyed by
+/// follower.
 ///
 /// Stored on the task that published the additions (the owner): a task that connected new
 /// children, a task that became inner of an upper and passes its followers on, or an upper that
@@ -176,135 +179,111 @@ transient_traits!(ActivenessState);
 /// docs of `aggregation_update`.
 #[derive(Debug, Default)]
 pub struct PendingFollowerAdditions {
-    /// Id of the next record. Ids only need to be unique while their record exists, and the field
-    /// is dropped once it's empty, so they start at 0 again then.
-    next_id: u64,
-    records: SmallVec<[PendingFollowerAddition; 1]>,
-    parked_removals: SmallVec<[ParkedFollowerRemoval; 1]>,
+    followers: AutoMap<TaskId, PendingFollowerAddition, BuildHasherDefault<FxHasher>, 1>,
 }
 
-/// The additions of `follower_ids` to each of `upper_ids` that a single job applies.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct PendingFollowerAddition {
-    id: u64,
-    upper_ids: SmallVec<[TaskId; 4]>,
-    follower_ids: SmallVec<[TaskId; 4]>,
+    /// The number of additions of the follower that haven't been settled yet.
+    pending_count: usize,
+    /// The uppers from which the follower is removed once `pending_count` is 0, with the number of
+    /// removals.
+    parked_removals: CounterMap<TaskId, u32, 1>,
 }
-
-/// The removal of one edge between `upper_id` and `follower_id`, which waits for the records
-/// `waits_for` to be applied.
-#[derive(Debug)]
-struct ParkedFollowerRemoval {
-    upper_id: TaskId,
-    follower_id: TaskId,
-    waits_for: SmallVec<[u64; 2]>,
-}
-
-/// From this number of followers, a record is converted to a set to match removals against it.
-const MATCH_FOLLOWERS_WITH_SET: usize = 16;
 
 impl PendingFollowerAdditions {
     pub fn is_empty(&self) -> bool {
-        self.records.is_empty() && self.parked_removals.is_empty()
+        self.followers.is_empty()
     }
 
-    /// The number of records and parked removals, for the verification of the graph.
+    /// The number of pending additions and of parked removals, for the verification of the graph.
     #[cfg(any(test, feature = "verify_aggregation_graph"))]
     pub fn counts(&self) -> (usize, usize) {
-        (self.records.len(), self.parked_removals.len())
+        self.followers
+            .values()
+            .fold((0, 0), |(pending, parked), follower| {
+                (
+                    pending + follower.pending_count,
+                    parked
+                        + follower
+                            .parked_removals
+                            .iter()
+                            .map(|(_, &count)| count as usize)
+                            .sum::<usize>(),
+                )
+            })
     }
 
-    /// Records the addition of `follower_ids` to each of `upper_ids`, which hasn't been applied
-    /// yet. Returns the id of the record, which [`Self::settle`] takes once it's applied.
-    pub fn add(
-        &mut self,
-        upper_ids: SmallVec<[TaskId; 4]>,
-        follower_ids: SmallVec<[TaskId; 4]>,
-    ) -> u64 {
-        debug_assert!(!upper_ids.is_empty() && !follower_ids.is_empty());
-        let id = self.next_id;
-        self.next_id += 1;
-        self.records.push(PendingFollowerAddition {
-            id,
-            upper_ids,
-            follower_ids,
-        });
-        id
+    /// Counts an addition of each of `follower_ids` that the owner published and that hasn't been
+    /// applied yet.
+    pub fn add(&mut self, follower_ids: &[TaskId]) {
+        for &follower_id in follower_ids {
+            self.followers.entry(follower_id).or_default().pending_count += 1;
+        }
     }
 
-    /// Parks the removal of one edge between each of `upper_ids` and each of `follower_ids`, when
-    /// a record still adds that edge. Such a removal waits for all of these records. Returns the
-    /// parked `(upper, follower)` pairs; the caller removes the other edges right away.
+    /// Parks the removal of one edge between each of `upper_ids` and each of `follower_ids` that
+    /// has a pending addition. These removals wait until no addition of their follower is pending
+    /// anymore. Returns the followers whose removals were parked; the caller removes the other
+    /// ones right away.
     pub fn park_removals(
         &mut self,
         upper_ids: &[TaskId],
         follower_ids: &[TaskId],
-    ) -> SmallVec<[(TaskId, TaskId); 1]> {
+    ) -> SmallVec<[TaskId; 1]> {
         let mut parked = SmallVec::new();
-        let records: SmallVec<[_; 2]> = self
-            .records
-            .iter()
-            .filter(|record| upper_ids.iter().any(|id| record.upper_ids.contains(id)))
-            .map(|record| {
-                let followers =
-                    (record.follower_ids.len() >= MATCH_FOLLOWERS_WITH_SET).then(|| {
-                        record
-                            .follower_ids
-                            .iter()
-                            .copied()
-                            .collect::<FxHashSet<_>>()
-                    });
-                (record, followers)
-            })
-            .collect();
-        if records.is_empty() {
-            return parked;
-        }
-        for &upper_id in upper_ids {
-            for &follower_id in follower_ids {
-                let waits_for: SmallVec<[u64; 2]> = records
-                    .iter()
-                    .filter(|(record, followers)| {
-                        record.upper_ids.contains(&upper_id)
-                            && match followers {
-                                Some(followers) => followers.contains(&follower_id),
-                                None => record.follower_ids.contains(&follower_id),
-                            }
-                    })
-                    .map(|(record, _)| record.id)
-                    .collect();
-                if !waits_for.is_empty() {
-                    parked.push((upper_id, follower_id));
-                    self.parked_removals.push(ParkedFollowerRemoval {
-                        upper_id,
-                        follower_id,
-                        waits_for,
-                    });
-                }
+        for &follower_id in follower_ids {
+            let Some(follower) = self.followers.get_mut(&follower_id) else {
+                continue;
+            };
+            if follower.pending_count == 0 {
+                continue;
             }
+            for &upper_id in upper_ids {
+                follower.parked_removals.update_count(upper_id, 1);
+            }
+            parked.push(follower_id);
         }
         parked
     }
 
-    /// Removes the record `id` once its additions are applied. Returns the `(upper, follower)`
-    /// edges whose parked removal no longer waits for any record.
-    pub fn settle(&mut self, id: u64) -> SmallVec<[(TaskId, TaskId); 1]> {
-        let index = self
-            .records
-            .iter()
-            .position(|record| record.id == id)
-            .unwrap_or_else(|| panic!("pending follower addition {id} was already settled"));
-        self.records.swap_remove(index);
+    /// Settles the applied additions, `count` for each follower. Returns the removals that were
+    /// parked for followers that have no pending addition anymore, as `(upper, follower, count)`.
+    pub fn settle(
+        &mut self,
+        follower_counts: impl IntoIterator<Item = (TaskId, u32)>,
+    ) -> SmallVec<[(TaskId, TaskId, u32); 1]> {
         let mut released = SmallVec::new();
-        self.parked_removals.retain(|removal| {
-            removal.waits_for.retain(|waits_for| *waits_for != id);
-            if removal.waits_for.is_empty() {
-                released.push((removal.upper_id, removal.follower_id));
-                false
-            } else {
-                true
+        let mut removed_followers = false;
+        for (follower_id, count) in follower_counts {
+            let Entry::Occupied(mut entry) = self.followers.entry(follower_id) else {
+                panic!("{follower_id} has no pending follower addition to settle");
+            };
+            let follower = entry.get_mut();
+            follower.pending_count = follower
+                .pending_count
+                .checked_sub(count as usize)
+                .unwrap_or_else(|| {
+                    panic!(
+                        "{count} pending additions of {follower_id} were settled, but only {} \
+                         were pending",
+                        follower.pending_count
+                    )
+                });
+            if follower.pending_count == 0 {
+                let follower = entry.remove();
+                removed_followers = true;
+                released.extend(
+                    follower
+                        .parked_removals
+                        .into_iter()
+                        .map(|(upper_id, count)| (upper_id, follower_id, count)),
+                );
             }
-        });
+        }
+        if removed_followers {
+            self.followers.shrink_amortized();
+        }
         released
     }
 }
