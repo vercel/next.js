@@ -1,0 +1,23 @@
+{
+  "name": "@vercel/turbopack-trace-server-wasm",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "napi build --target wasm32-wasip1-threads --release --manifest-path ../Cargo.toml --output-dir ."
+  },
+  "napi": {
+    "binaryName": "turbopack-trace-server-wasm",
+    "targets": [
+      "wasm32-wasip1-threads"
+    ]
+  },
+  "dependencies": {
+    "@emnapi/runtime": "2.0.0-alpha.4",
+    "@napi-rs/wasm-runtime": "1.2.3"
+  },
+  "devDependencies": {
+    "@emnapi/core": "2.0.0-alpha.4",
+    "@napi-rs/cli": "3.8.6",
+    "emnapi": "2.0.0-alpha.4"
+  }
+}

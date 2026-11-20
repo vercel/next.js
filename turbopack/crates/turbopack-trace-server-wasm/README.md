@@ -8,20 +8,13 @@ Zstd-compressed traces and live file tailing remain native-only.
 
 ## Build
 
-NAPI-RS v3 uses WASI and Emnapi for browser modules. Install the `wasm32-wasip1` Rust target, then build through the NAPI CLI so it can provide Emnapi's link archive and generate the browser loader:
+NAPI-RS v3 uses threaded WASI and its Emnapi runtime for browser modules. Install the `wasm32-wasip1-threads` Rust target, then build through the NAPI CLI so it can link the threaded runtime and generate the browser loader:
 
 ```sh
-rustup target add wasm32-wasip1
-pnpm --package=@napi-rs/cli@3 \
-  --package=emnapi@2.0.0-alpha.4 \
-  --package=@emnapi/runtime@2.0.0-alpha.4 \
-  --package=@emnapi/core@2.0.0-alpha.4 \
-  dlx napi build \
-  --target wasm32-wasip1 \
-  --release \
-  --manifest-path turbopack/crates/turbopack-trace-server-wasm/Cargo.toml \
-  --package-json-path <package.json> \
-  --output-dir <output-directory>
+rustup target add wasm32-wasip1-threads
+pnpm --filter @vercel/turbopack-trace-server-wasm build
 ```
 
-The package JSON passed to the CLI must configure `napi.binaryName` as `turbopack-trace-server-wasm` and include `wasm32-wasip1` in `napi.targets`. The generated browser loader imports `@napi-rs/wasm-runtime` and `@emnapi/runtime`; the consuming viewer must provide those runtime packages alongside the generated `.wasm` file.
+The package pins matching NAPI-RS and Emnapi build dependencies and configures `wasm32-wasip1-threads` as its target. The generated browser loader imports `@napi-rs/wasm-runtime` and `@emnapi/runtime`; consuming code must serve those runtime packages, generated worker files, and the `.wasm` file together.
+
+WebAssembly threads use `SharedArrayBuffer`, so the viewer must be served in a cross-origin isolated context with appropriate COOP and COEP headers.
