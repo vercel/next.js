@@ -33,6 +33,12 @@ const testTable = `{"contract":{"version":1},"basePath":"","maxHeaderBytes":1638
 
 func startDirect(t *testing.T, worker http.HandlerFunc) *directFixture {
 	t.Helper()
+	return startDirectWithTimeout(t, worker, time.Minute)
+}
+
+// startDirectWithTimeout is startDirect with the given request timeout.
+func startDirectWithTimeout(t *testing.T, worker http.HandlerFunc, requestTimeout time.Duration) *directFixture {
+	t.Helper()
 	fx := &directFixture{node: make(chan *http.Request, 16), worker: make(chan *http.Request, 16)}
 	node := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
@@ -59,7 +65,7 @@ func startDirect(t *testing.T, worker http.HandlerFunc) *directFixture {
 	}
 	public := ln.Addr().(*net.TCPAddr)
 	fx.switchyard = newSwitchyard(newProxy(node.Listener.Addr().String(), public, 4*time.Second, testToken), public, 4*time.Second)
-	srv := newServer(fx.switchyard, 4*time.Second, time.Minute, time.Minute, 16<<10)
+	srv := newServer(fx.switchyard, 4*time.Second, time.Minute, requestTimeout, 16<<10)
 	go srv.Serve(ln)
 	t.Cleanup(func() { srv.Close() })
 	fx.addr = ln.Addr().String()
@@ -355,6 +361,67 @@ func TestADirectAnswerSentMidUploadClosesTheConnection(t *testing.T) {
 	// those bytes as the next request.
 	if res.StatusCode != http.StatusForbidden || !res.Close {
 		t.Fatalf("status %d, close %v", res.StatusCode, res.Close)
+	}
+}
+
+func TestADirectUploadThatHitsTheRequestTimeoutGets408(t *testing.T) {
+	fx := startDirectWithTimeout(t, func(w http.ResponseWriter, r *http.Request) {
+		io.ReadAll(r.Body)
+		io.WriteString(w, "worker")
+	}, 300*time.Millisecond)
+	conn, err := net.Dial("tcp", fx.addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	// Headers announce a 10-byte body; only 1 byte ever comes.
+	io.WriteString(conn, "POST /api/echo HTTP/1.1\r\nHost: example.com\r\nContent-Length: 10\r\n\r\nx")
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	answer, err := io.ReadAll(conn)
+	if err != nil {
+		t.Fatalf("connection not closed by the server: %v", err)
+	}
+	// Node answers a request that hits its requestTimeout with 408.
+	if !strings.HasPrefix(string(answer), "HTTP/1.1 408 Request Timeout\r\n") {
+		t.Errorf("answered %q, want 408 Request Timeout", answer)
+	}
+	select {
+	case <-fx.worker:
+	default:
+		t.Error("the upload went to Node, want the worker")
+	}
+}
+
+func TestAnEmptyHostGetsTheForwardedHostNodeWouldSend(t *testing.T) {
+	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "go") })
+	conn, err := net.Dial("tcp", fx.addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	io.WriteString(conn, "GET /api/echo HTTP/1.1\r\nHost:\r\nConnection: close\r\n\r\n")
+	io.ReadAll(conn)
+	r := <-fx.worker
+	// Through Node, Switchyard's public host replaces the empty Host, and
+	// Node fills X-Forwarded-Host with it.
+	if r.Host == "" || r.Header.Get("X-Forwarded-Host") != r.Host {
+		t.Errorf("Host %q, X-Forwarded-Host %q", r.Host, r.Header.Get("X-Forwarded-Host"))
+	}
+}
+
+func TestAnEmptyBodyOfUnknownLengthGetsContentLengthZero(t *testing.T) {
+	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) {
+		// Sends the headers chunked, then no body.
+		w.(http.Flusher).Flush()
+	})
+	// In an app with compression on, Node's middleware sends this chunked
+	// (TestAnEmptyBodyOfUnknownLengthGoesOutChunked).
+	fx.switchyard.apply(controlMessage{Event: "table", Table: json.RawMessage(strings.Replace(testTable, `"compress":true`, `"compress":false`, 1))})
+	res := fx.raw(t, "GET /api/echo HTTP/1.1")
+	// Node sends the headers with the first chunk or at the end, so an
+	// empty body goes out with Content-Length: 0.
+	if !strings.Contains(res, "\r\nContent-Length: 0\r\n") || strings.Contains(res, "chunked") {
+		t.Errorf("response %q", res)
 	}
 }
 

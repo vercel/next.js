@@ -55,12 +55,20 @@ func compressible(header http.Header, s *directState) bool {
 }
 
 // addCompressionVary adds Accept-Encoding to Vary as the middleware's `vary`
-// does: once, and never next to "*".
+// does. It writes the field back as one line, which becomes just "*" when
+// any field is "*", and adds Accept-Encoding when it isn't there yet.
 func addCompressionVary(header http.Header) {
 	vary := strings.Join(header.Values("Vary"), ", ")
-	for _, field := range strings.Split(vary, ",") {
-		field = strings.TrimSpace(field)
-		if field == "*" || strings.EqualFold(field, "Accept-Encoding") {
+	fields := strings.Split(vary, ",")
+	for _, field := range fields {
+		if strings.TrimSpace(field) == "*" {
+			header.Set("Vary", "*")
+			return
+		}
+	}
+	for _, field := range fields {
+		if strings.EqualFold(strings.TrimSpace(field), "Accept-Encoding") {
+			header.Set("Vary", vary)
 			return
 		}
 	}
