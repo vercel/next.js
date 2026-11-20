@@ -7,11 +7,12 @@ function interopDefault(mod) {
 
 async function importPluginForPath(pluginPath, projectRoot) {
   const path = require.resolve(pluginPath, { paths: [projectRoot] })
+  const importPath =
+    process.platform === 'win32' ? pathToFileURL(path).href : path
   return interopDefault(
-    // "use pathToFileUrl to make esm import()s work with absolute windows paths":
-    // on windows import("C:\\path\\to\\file") is not valid, so we need to use file:// URLs
-    // https://github.com/vercel/next.js/commit/fbf9e12de095e0237d4ba4aa6139d9757bd20be9
-    await import(process.platform === 'win32' ? pathToFileURL(path) : path)
+    // We intentionally resolve this at runtime in Node.js.
+    // `webpackIgnore` avoids webpack build-deps analysis warnings for this loader file.
+    await import(/* webpackIgnore: true */ importPath)
   )
 }
 
