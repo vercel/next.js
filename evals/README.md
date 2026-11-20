@@ -167,9 +167,18 @@ Evals configured with the `effort` metrics collector can gate skill efficiency:
 pnpm eval agent-063-request-insights-retrospective --effort-gate
 ```
 
-The gate runs five sequential baseline and skill samples. The skill must match
-or exceed the baseline pass rate and reduce median input tokens by at least 40%.
-Normal eval runs do not execute this gate.
+For faster iteration, override the five-sample default:
+
+```bash
+pnpm eval agent-063-request-insights-retrospective --effort-gate --effort-samples 2
+```
+
+The gate runs five sequential samples each for baseline, bundled-docs discovery
+through `agents-md`, and the configured skill. It reports pass rate, median
+input tokens, bundled-doc discovery, and whether Request Insights ran before
+project inspection for all three. The skill must match or exceed the
+baseline pass rate and reduce median input tokens by at least 40%. Normal eval
+runs do not execute this gate.
 
 Run a group from `eval.suites.json` with `--suite`:
 
