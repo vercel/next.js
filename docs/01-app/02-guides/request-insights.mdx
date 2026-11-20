@@ -14,29 +14,10 @@ This guide shows how to select the original request, attribute its elapsed time,
 
 ## Prerequisites
 
-Enable Request Insights in `next.config.ts`, then start the development server:
+Start the development server with Request Insights enabled:
 
-```ts filename="next.config.ts" switcher
-import type { NextConfig } from 'next'
-
-const nextConfig: NextConfig = {
-  experimental: {
-    requestInsights: true,
-  },
-}
-
-export default nextConfig
-```
-
-```js filename="next.config.js" switcher
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  experimental: {
-    requestInsights: true,
-  },
-}
-
-module.exports = nextConfig
+```bash
+next dev --experimental-request-insights
 ```
 
 Keep the server running while you investigate. Restarting it discards the in-memory request history and can remove the evidence for a cold or intermittent slowdown.
