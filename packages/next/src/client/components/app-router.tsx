@@ -52,7 +52,7 @@ import type { StaticIndicatorState } from '../dev/hot-reloader/app/hot-reloader-
 import { getAssetTokenQuery } from '../../shared/lib/deployment-id'
 
 const globalMutable: {
-  pendingMpaPath?: string
+  pendingMpaNavigation?: AppRouterState['pushRef']
 } = {}
 
 // A Back/Forward press before the router's popstate listener exists moves the
@@ -274,10 +274,8 @@ function Router({
         return
       }
 
-      // Clear the pendingMpaPath value so that a subsequent MPA navigation to the same URL can be triggered.
-      // This is necessary because if the browser restored from bfcache, the pendingMpaPath would still be set to the value
-      // of the last MPA navigation.
-      globalMutable.pendingMpaPath = undefined
+      // Clear the pending navigation when restoring this document from bfcache.
+      globalMutable.pendingMpaNavigation = undefined
 
       restore(
         new URL(window.location.href),
@@ -333,8 +331,10 @@ function Router({
   // but that's... fine?)
   const { pushRef } = state
   if (pushRef.mpaNavigation) {
-    // if there's a re-render, we don't want to trigger another redirect if one is already in flight to the same URL
-    if (globalMutable.pendingMpaPath !== canonicalUrl) {
+    // Deduplicate re-renders of the same navigation, but allow a new navigation
+    // to the same URL if the previous one was canceled. Each hard navigation
+    // creates a new pushRef.
+    if (globalMutable.pendingMpaNavigation !== pushRef) {
       const location = window.location
       if (pushRef.pendingPush) {
         location.assign(canonicalUrl)
@@ -342,7 +342,7 @@ function Router({
         location.replace(canonicalUrl)
       }
 
-      globalMutable.pendingMpaPath = canonicalUrl
+      globalMutable.pendingMpaNavigation = pushRef
     }
     // TODO-APP: Should we listen to navigateerror here to catch failed
     // navigations somehow? And should we call window.stop() if a SPA navigation
