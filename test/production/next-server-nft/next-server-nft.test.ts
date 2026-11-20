@@ -259,6 +259,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/helpers/get-reserved-port.js",
            "/node_modules/next/dist/lib/helpers/git.js",
            "/node_modules/next/dist/lib/helpers/install.js",
+           "/node_modules/next/dist/lib/immutable-static-assets.js",
            "/node_modules/next/dist/lib/import-next-warning.js",
            "/node_modules/next/dist/lib/inline-static-env.js",
            "/node_modules/next/dist/lib/install-dependencies.js",
