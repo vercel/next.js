@@ -164,11 +164,12 @@ const API_DOCS: Record<
     link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/prefetch',
     type: `"auto" | "partial" | "force-disabled"`,
     options: {
-      auto: 'Default. Framework decides based on instant validation and segment configuration. You do not need to set this explicitly.',
-      partial:
+      '"auto"':
+        'Default. Framework decides based on instant validation and segment configuration. You do not need to set this explicitly.',
+      '"partial"':
         'Enables Partial Prefetching for this segment. When a static prefetch is insufficient, Next.js may prefetch the segment with a runtime server request so it can access session data, such as cookies.',
-      'force-disabled': 'Never prefetch this segment.',
-    },
+      '"force-disabled"': 'Never prefetch this segment.',
+    } satisfies DocsOptionsObject<FullAppSegmentConfig['prefetch']>,
     insertText: `prefetch = 'partial';`,
   },
   ensureStatic: {

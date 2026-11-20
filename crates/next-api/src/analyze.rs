@@ -960,8 +960,8 @@ pub async fn analyze_module_graphs(module_graph: Vc<ModuleGraph>) -> Result<Vc<F
         if from == to {
             return Ok(None);
         }
-        let from_ident = from.ident().to_string().owned().await?;
-        let to_ident = to.ident().to_string().owned().await?;
+        let from_ident = from.ident_string().owned().await?;
+        let to_ident = to.ident_string().owned().await?;
         Ok(Some((from_ident, to_ident)))
     }
 

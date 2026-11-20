@@ -1,0 +1,299 @@
+id: untracked-invalidation-comment
+snapshots:
+  (value.untracked().await, other())?;:
+    labels:
+    - source: value.untracked()
+      style: primary
+      start: 1
+      end: 18
+    - source: value.untracked().await
+      style: secondary
+      start: 1
+      end: 24
+  ? |
+    // INVALIDATION: A comment on the function does not explain its calls.
+    async fn example() {
+        value.untracked().await?;
+    }
+  : labels:
+    - source: value.untracked()
+      style: primary
+      start: 96
+      end: 113
+    - source: value.untracked().await
+      style: secondary
+      start: 96
+      end: 119
+  ? |
+    // INVALIDATION: A comment on the function does not explain its calls.
+    fn example() {
+        value.untracked();
+    }
+  : labels:
+    - source: value.untracked()
+      style: primary
+      start: 90
+      end: 107
+  ? |
+    async fn example() {
+        /* INVALIDATION: A block comment is not the required line comment. */
+        value.untracked().await?;
+    }
+  : labels:
+    - source: value.untracked()
+      style: primary
+      start: 99
+      end: 116
+    - source: value.untracked().await
+      style: secondary
+      start: 99
+      end: 122
+  ? |
+    async fn example() {
+        // Explanation: INVALIDATION: this is not the required prefix.
+        value.untracked().await?;
+    }
+  : labels:
+    - source: value.untracked()
+      style: primary
+      start: 92
+      end: 109
+    - source: value.untracked().await
+      style: secondary
+      start: 92
+      end: 115
+  ? |
+    async fn example() {
+        // INVALIDATION: A comment outside the block does not explain its calls.
+        if condition {
+            value.untracked().await?;
+        }
+    }
+  : labels:
+    - source: value.untracked()
+      style: primary
+      start: 125
+      end: 142
+    - source: value.untracked().await
+      style: secondary
+      start: 125
+      end: 148
+  ? |
+    async fn example() {
+        // INVALIDATION: This explains a different statement.
+        other();
+        value.untracked().await?;
+    }
+  : labels:
+    - source: value.untracked()
+      style: primary
+      start: 96
+      end: 113
+    - source: value.untracked().await
+      style: secondary
+      start: 96
+      end: 119
+  ? |
+    async fn example() {
+        // This is intentionally untracked.
+        value.untracked().await?;
+    }
+  : labels:
+    - source: value.untracked()
+      style: primary
+      start: 65
+      end: 82
+    - source: value.untracked().await
+      style: secondary
+      start: 65
+      end: 88
+  ? |
+    async fn example() {
+        /// INVALIDATION: A doc comment is not the required line comment.
+        value.untracked().await?;
+    }
+  : labels:
+    - source: value.untracked()
+      style: primary
+      start: 95
+      end: 112
+    - source: value.untracked().await
+      style: secondary
+      start: 95
+      end: 118
+  ? |
+    async fn example() {
+        let result = value
+            .untracked()
+            .await?;
+    }
+  : labels:
+    - source: |-
+        value
+                .untracked()
+      style: primary
+      start: 38
+      end: 64
+    - source: |-
+        value
+                .untracked()
+                .await
+      style: secondary
+      start: 38
+      end: 79
+  ? |
+    async fn example() {
+        value
+            .untracked()
+            .await;
+    }
+  : labels:
+    - source: |-
+        value
+                .untracked()
+      style: primary
+      start: 25
+      end: 51
+    - source: |-
+        value
+                .untracked()
+                .await
+      style: secondary
+      start: 25
+      end: 66
+  ? |
+    async fn example() {
+        value.untracked().await?;
+        // INVALIDATION: This comment comes after the call.
+    }
+  : labels:
+    - source: value.untracked()
+      style: primary
+      start: 25
+      end: 42
+    - source: value.untracked().await
+      style: secondary
+      start: 25
+      end: 48
+  ? |
+    fn example() {
+        /* INVALIDATION: A block comment is not the required line comment. */
+        value.untracked();
+    }
+  : labels:
+    - source: value.untracked()
+      style: primary
+      start: 93
+      end: 110
+  ? |
+    fn example() {
+        // Explanation: INVALIDATION: this is not the required prefix.
+        value.untracked();
+    }
+  : labels:
+    - source: value.untracked()
+      style: primary
+      start: 86
+      end: 103
+  ? |
+    fn example() {
+        // INVALIDATION: A comment outside the block does not explain its calls.
+        if condition {
+            value.untracked();
+        }
+    }
+  : labels:
+    - source: value.untracked()
+      style: primary
+      start: 119
+      end: 136
+  ? |
+    fn example() {
+        // INVALIDATION: This explains a different statement.
+        other();
+        value.untracked();
+    }
+  : labels:
+    - source: value.untracked()
+      style: primary
+      start: 90
+      end: 107
+  ? |
+    fn example() {
+        // This is intentionally untracked.
+        value.untracked();
+    }
+  : labels:
+    - source: value.untracked()
+      style: primary
+      start: 59
+      end: 76
+  ? |
+    fn example() {
+        /// INVALIDATION: A doc comment is not the required line comment.
+        value.untracked();
+    }
+  : labels:
+    - source: value.untracked()
+      style: primary
+      start: 89
+      end: 106
+  ? |
+    fn example() {
+        let result = value
+            .untracked()
+            .await?;
+    }
+  : labels:
+    - source: |-
+        value
+                .untracked()
+      style: primary
+      start: 32
+      end: 58
+  ? |
+    fn example() {
+        value.untracked();
+        // INVALIDATION: This comment comes after the call.
+    }
+  : labels:
+    - source: value.untracked()
+      style: primary
+      start: 19
+      end: 36
+  value.untracked().await.unwrap();:
+    labels:
+    - source: value.untracked()
+      style: primary
+      start: 0
+      end: 17
+    - source: value.untracked().await
+      style: secondary
+      start: 0
+      end: 23
+  value.untracked().await;:
+    labels:
+    - source: value.untracked()
+      style: primary
+      start: 0
+      end: 17
+    - source: value.untracked().await
+      style: secondary
+      start: 0
+      end: 23
+  value.untracked().await?;:
+    labels:
+    - source: value.untracked()
+      style: primary
+      start: 0
+      end: 17
+    - source: value.untracked().await
+      style: secondary
+      start: 0
+      end: 23
+  value.untracked();:
+    labels:
+    - source: value.untracked()
+      style: primary
+      start: 0
+      end: 17

@@ -5,7 +5,7 @@ use anyhow::{Context, Result, anyhow};
 use bincode::{Decode, Encode};
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexSet, NonLocalValue, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, NonLocalValue, ResolvedVc, Vc};
 use turbopack_browser::ecmascript::{
     EcmascriptBrowserChunk, EcmascriptBrowserRuntimeChunk, EcmascriptBrowserSingleEntryChunk,
     EcmascriptBrowserWorkerEntrypoint,
@@ -50,12 +50,12 @@ async fn insert_chunk_item(
     let module = module.to_resolved().await?;
     let loader_target_ident =
         if let Some(loader) = ResolvedVc::try_downcast_type::<AsyncLoaderModule>(module) {
-            Some(loader.await?.inner.ident().to_string().owned().await?)
+            Some(loader.await?.inner.ident_string().owned().await?)
         } else {
             None
         };
     insert_chunk_item_ident(
-        module.ident().to_string().owned().await?,
+        module.ident_string().owned().await?,
         loader_target_ident,
         &module_index.by_ident,
         indices,
@@ -107,7 +107,7 @@ async fn chunk_item_load_candidates(
     };
     // Use the same typed target as the module graph's async dependency, including
     // next/dynamic entry wrappers. Synthetic loader identities do not join it.
-    let ident = trigger.ident().to_string().owned().await?;
+    let ident = trigger.ident_string().owned().await?;
     let trigger_module_index = *index.by_ident.get(&ident).ok_or_else(|| {
         anyhow!("Async group trigger {ident} is missing from the analyzer module index")
     })?;

@@ -330,8 +330,12 @@ export async function collectSegmentData(
   const treeBuffer = await streamToBuffer(treeStream)
   resultMap.set('/_tree' as SegmentRequestKey, treeBuffer)
 
-  // Also output the entire full page data response
-  resultMap.set('/_full' as SegmentRequestKey, fullPageDataBuffer)
+  // Fully static fallback shells and the Instant Navigation Testing API read
+  // this payload. Keep it for every Cache Components prerender because a
+  // fallback's request can be rewritten to another page.
+  if (isCacheComponentsEnabled) {
+    resultMap.set('/_full' as SegmentRequestKey, fullPageDataBuffer)
+  }
 
   // Await the segment tasks in parallel and write the segment prefetches to
   // the result map.

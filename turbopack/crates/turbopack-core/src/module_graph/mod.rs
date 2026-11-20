@@ -516,7 +516,7 @@ impl SingleModuleGraph {
                 let mut duplicates = FxHashSet::default();
                 let mut set = FxHashSet::default();
                 for &module in modules.keys() {
-                    let ident = module.ident().to_string().await?;
+                    let ident = module.ident_string().await?;
                     if !set.insert(ident.clone()) {
                         duplicates.insert(ident);
                     }
@@ -528,7 +528,7 @@ impl SingleModuleGraph {
                     let duplicate_modules = modules
                         .iter()
                         .map(async |(&m, &idx)| {
-                            let id = m.ident().to_string().await?;
+                            let id = m.ident_string().await?;
                             if duplicates_clone.contains(&id) {
                                 // 3 is arbitrary but it is enough to reveal a little bit
                                 // of detail.
@@ -550,7 +550,7 @@ impl SingleModuleGraph {
                                 let parents: Vec<String> = parent_modules
                                     .iter()
                                     .map(async |p| {
-                                        let ident = p.ident().to_string().await?;
+                                        let ident = p.ident_string().await?;
                                         Ok((*ident).to_string())
                                     })
                                     .try_join()
@@ -1317,7 +1317,7 @@ impl ModuleGraphSnapshot {
     /// This is primarily useful for debugging.
     pub async fn get_ids(&self) -> Result<FxHashMap<ResolvedVc<Box<dyn Module>>, ReadRef<RcStr>>> {
         self.iter_nodes()
-            .map(async |n| Ok((n, n.ident().to_string().await?)))
+            .map(async |n| Ok((n, n.ident_string().await?)))
             .join()
             .await
             .into_iter()
@@ -2364,7 +2364,8 @@ impl SingleModuleGraphBuilderNode {
             // non-load-bearing for correctness) only when spans are enabled. Stays on the builder
             // node; never reaches the graph node.
             span_name: if emit_spans {
-                Some(module.ident().to_string().untracked().await?)
+                // INVALIDATION: This ident is only used for tracing
+                Some(module.ident_string().untracked().await?)
             } else {
                 None
             },
@@ -2434,7 +2435,7 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
             let refs = match refs_cell.await {
                 Ok(refs) => refs,
                 Err(e) => {
-                    return Err(e.context(module.ident().to_string().await?));
+                    return Err(e.context(module.ident_string().await?));
                 }
             };
 
@@ -3109,7 +3110,7 @@ pub mod tests {
                 )?;
                 let forward = visited_forward
                     .iter()
-                    .map(|m| m.ident().to_string().owned())
+                    .map(|m| m.ident_string().owned())
                     .try_join()
                     .await?;
 
@@ -3119,7 +3120,7 @@ pub mod tests {
                     .map(async |(_index, module)| {
                         Ok(match module {
                             crate::module_graph::SingleModuleGraphNode::Module(module) => {
-                                if module.ident().to_string().owned().await? == "[test]/d.js" {
+                                if module.ident_string().owned().await? == "[test]/d.js" {
                                     Some(*module)
                                 } else {
                                     None
@@ -3152,7 +3153,7 @@ pub mod tests {
                     )?;
                     visited
                         .iter()
-                        .map(|m| m.ident().to_string().owned())
+                        .map(|m| m.ident_string().owned())
                         .try_join()
                         .await
                 }

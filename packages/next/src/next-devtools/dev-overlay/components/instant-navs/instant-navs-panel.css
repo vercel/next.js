@@ -79,6 +79,11 @@
   background: var(--color-blue-100);
   box-sizing: border-box;
 }
+:host(.dark) {
+  .instant-nav-waiting-status {
+    background: var(--color-blue-300);
+  }
+}
 @media (prefers-color-scheme: dark) {
   :host(:not(.light)) {
     .instant-nav-waiting-status {
@@ -94,6 +99,11 @@
   height: 16px;
   border-radius: 50%;
   background: #b8cffb;
+}
+:host(.dark) {
+  .instant-nav-waiting-status-dot {
+    background: #25548f;
+  }
 }
 @media (prefers-color-scheme: dark) {
   :host(:not(.light)) {
@@ -112,6 +122,11 @@
   height: 8px;
   border-radius: 50%;
   background: var(--color-blue-700);
+}
+:host(.dark) {
+  .instant-nav-waiting-status-dot::after {
+    background: #468be2;
+  }
 }
 @media (prefers-color-scheme: dark) {
   :host(:not(.light)) {
@@ -193,6 +208,12 @@
   font-weight: 400;
   line-height: 1;
 }
+:host(.dark) {
+  .instant-nav-debugger-paused {
+    color: #171717;
+    background-color: #e7c755;
+  }
+}
 @media (prefers-color-scheme: dark) {
   :host(:not(.light)) {
     .instant-nav-debugger-paused {
@@ -214,6 +235,14 @@
   display: inline-flex;
   gap: 8px;
   align-items: center;
+}
+:host(.dark) {
+  .instant-nav-debugger-paused-button {
+    background-color: #000000;
+  }
+  .instant-nav-debugger-paused-button:hover {
+    background-color: #2e2e2e;
+  }
 }
 @media (prefers-color-scheme: dark) {
   :host(:not(.light)) {

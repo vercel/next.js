@@ -627,13 +627,6 @@ function assignDefaultsAndValidate(
     phase !== PHASE_INFO &&
     phase !== PHASE_TEST
   ) {
-    if (result.experimental.durableUseCacheEntries && !process.env.TURBOPACK) {
-      throw new Error(
-        `\`experimental.durableUseCacheEntries: true\` is only supported with Turbopack. ` +
-          `Please remove the option or run Next.js with Turbopack in ${configFileName}.`
-      )
-    }
-
     if (
       result.experimental.useCacheStaticRootParamTracking &&
       !process.env.TURBOPACK
@@ -1845,6 +1838,7 @@ function assignDefaultsAndValidate(
 
   if (phase === PHASE_DEVELOPMENT_SERVER) {
     result.distDir = join(result.distDir, 'dev')
+    result.experimental.durableUseCacheEntries = false
   }
 
   // Derive the `'use cache'` fill timeout from `staticPageGenerationTimeout`
