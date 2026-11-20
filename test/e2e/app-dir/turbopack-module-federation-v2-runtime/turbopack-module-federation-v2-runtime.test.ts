@@ -58,7 +58,7 @@ describeTurbopack('enhanced federation runtime configuration', () => {
 })
 
 // The override is set in process.env before a local build; deployed builds cannot use this
-// per-test setting. The default-peer case above still runs in deployment mode.
+// per-test setting. The default runtime package case above still runs in deployment mode.
 const describeOverride = !isNextDeploy ? describeTurbopack : describe.skip
 
 describeOverride('enhanced federation runtime implementation override', () => {
@@ -110,11 +110,11 @@ describeOverride('enhanced federation runtime implementation override', () => {
   })
 })
 
-// A missing optional peer is an intentionally invalid self-hosted installation and cannot
+// A missing runtime package is an intentionally invalid self-hosted installation and cannot
 // produce a deployable fixture. The positive case above still exercises deployed builds.
-const describeMissingPeer = !isNextDeploy ? describeTurbopack : describe.skip
+const describeMissingRuntime = !isNextDeploy ? describeTurbopack : describe.skip
 
-describeMissingPeer('enhanced federation runtime missing peer', () => {
+describeMissingRuntime('enhanced federation runtime missing package', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     packageJson: { name: 'inferred-federation-host' },
@@ -122,7 +122,7 @@ describeMissingPeer('enhanced federation runtime missing peer', () => {
     skipDeployment: true,
   })
 
-  it('explains which optional peer must be installed', async () => {
+  it('explains which runtime package must be installed', async () => {
     await next.start().catch(() => undefined)
     if (isNextDev) await next.render('/').catch(() => undefined)
     await retry(async () => {
