@@ -4,10 +4,6 @@ import type {
 } from '../app-render/work-async-storage.external'
 
 import { AppRenderSpan, NextNodeServerSpan } from './trace/constants'
-import {
-  isRequestInsightsEnabled,
-  recordRequestInsightFetch,
-} from './trace/request-insights'
 import { getRequestInsightsIdentity } from './trace/request-insights-identity'
 import { getTracer, SpanKind, SpanStatusCode } from './trace/tracer'
 import {
@@ -190,32 +186,43 @@ function trackFetchMetric(
     span.setAttribute('error.type', String(metric.status))
   }
 
-  if (isRequestInsightsEnabled()) {
-    const requestInsightsIdentity = getRequestInsightsIdentity()
-    const requestInsightsRequestId =
-      requestInsightsIdentity?.requestId ?? workStore.requestId
+  // Request Insights is a development feature. It imports the local span
+  // recorder, which loads the OpenTelemetry API. Production builds remove this
+  // branch, which keeps all of that out of the production bundles that only
+  // reach it through this module.
+  if (process.env.__NEXT_DEV_SERVER) {
+    const { isRequestInsightsEnabled, recordRequestInsightFetch } =
+      require('./trace/request-insights') as typeof import('./trace/request-insights')
 
-    if (requestInsightsRequestId) {
-      recordRequestInsightFetch(
-        {
-          requestId: requestInsightsRequestId,
-          kind: requestInsightsIdentity?.kind,
-          htmlRequestId:
-            requestInsightsIdentity?.htmlRequestId ?? workStore.htmlRequestId,
-          route: workStore.route,
-        },
-        {
-          url: metric.url,
-          method: metric.method,
-          statusCode: metric.status,
-          startTime: metric.start,
-          durationMs: metric.end - metric.start,
-          cacheStatus: metric.cacheStatus,
-          cacheReason: metric.cacheReason,
-          index: metric.idx,
-        }
-      )
+    if (isRequestInsightsEnabled()) {
+      const requestInsightsIdentity = getRequestInsightsIdentity()
+      const requestInsightsRequestId =
+        requestInsightsIdentity?.requestId ?? workStore.requestId
+
+      if (requestInsightsRequestId) {
+        recordRequestInsightFetch(
+          {
+            requestId: requestInsightsRequestId,
+            kind: requestInsightsIdentity?.kind,
+            htmlRequestId:
+              requestInsightsIdentity?.htmlRequestId ?? workStore.htmlRequestId,
+            route: workStore.route,
+          },
+          {
+            url: metric.url,
+            method: metric.method,
+            statusCode: metric.status,
+            startTime: metric.start,
+            durationMs: metric.end - metric.start,
+            cacheStatus: metric.cacheStatus,
+            cacheReason: metric.cacheReason,
+            index: metric.idx,
+          }
+        )
+      }
     }
+  } else {
+    // Request Insights only records in the development server.
   }
 
   if (!workStore.shouldTrackFetchMetrics) {
