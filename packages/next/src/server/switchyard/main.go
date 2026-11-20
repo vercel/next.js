@@ -130,9 +130,9 @@ func parseConfig(args []string) (config, error) {
 }
 
 func main() {
-	if n, ok := threadLimit(os.Getenv("GOMAXPROCS"), runtime.GOMAXPROCS(0)); ok {
-		runtime.GOMAXPROCS(n)
-	}
+	// runtime.GOMAXPROCS(0) reads the current limit without changing it, and
+	// setting the current value again changes nothing.
+	runtime.GOMAXPROCS(threadsToUse(os.Getenv("GOMAXPROCS"), runtime.GOMAXPROCS(0)))
 
 	cfg, err := parseConfig(os.Args[1:])
 	if err != nil {
@@ -179,7 +179,8 @@ func main() {
 // maxThreads is Switchyard's default limit on threads running Go code at once.
 const maxThreads = 4
 
-// threadLimit returns the thread limit to set and true, or false to keep Go's.
+// threadsToUse returns how many threads may run Switchyard's Go code at once:
+// at most maxThreads, unless the user chose a limit with GOMAXPROCS.
 // Go runs Go code on as many threads at once as there are cores the process
 // may use (GOMAXPROCS). On a machine with many cores, most of those threads
 // spend their CPU waking each other and in the scheduler, which costs more per
@@ -187,16 +188,14 @@ const maxThreads = 4
 // still serve route.go requests, which Switchyard sends to the Go worker
 // without Node, as fast as no limit does; with two, Switchyard itself became
 // the bottleneck for those requests under load.
-// env is the GOMAXPROCS environment variable: when it holds a number Go
-// accepts, the user chose the limit and Go has already applied it.
-func threadLimit(env string, goDefault int) (int, bool) {
+// env is the GOMAXPROCS environment variable, and current is the limit Go
+// already applied: GOMAXPROCS when it holds a number Go accepts, otherwise one
+// per core.
+func threadsToUse(env string, current int) int {
 	if n, err := strconv.Atoi(env); err == nil && n > 0 {
-		return 0, false
+		return current // the user chose the limit; keep it
 	}
-	if goDefault <= maxThreads {
-		return 0, false
-	}
-	return maxThreads, true
+	return min(current, maxThreads) // Go's default (one per core), at most maxThreads
 }
 
 // newServer is the public server. It times out what Node times out: idle

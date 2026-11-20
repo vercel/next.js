@@ -862,28 +862,26 @@ func TestClosesARequestWhoseBodyNeverFinishes(t *testing.T) {
 
 func TestLimitsThreadsUnlessGOMAXPROCSIsSet(t *testing.T) {
 	cases := []struct {
-		env       string
-		goDefault int
-		want      int
-		set       bool
+		env     string
+		current int
+		want    int
 	}{
-		{env: "", goDefault: 16, want: 4, set: true},
-		{env: "", goDefault: 8, want: 4, set: true},
-		{env: "", goDefault: 4, want: 0, set: false},
-		{env: "", goDefault: 2, want: 0, set: false},
-		{env: "", goDefault: 1, want: 0, set: false},
-		{env: "8", goDefault: 8, want: 0, set: false},
-		{env: "2", goDefault: 2, want: 0, set: false},
-		{env: "1", goDefault: 1, want: 0, set: false},
+		{env: "", current: 16, want: 4},
+		{env: "", current: 8, want: 4},
+		{env: "", current: 4, want: 4},
+		{env: "", current: 2, want: 2},
+		{env: "", current: 1, want: 1},
+		{env: "8", current: 8, want: 8},
+		{env: "2", current: 2, want: 2},
+		{env: "1", current: 1, want: 1},
 		// Go ignores values that aren't a positive number, so Switchyard's
 		// limit still applies.
-		{env: "0", goDefault: 16, want: 4, set: true},
-		{env: "many", goDefault: 16, want: 4, set: true},
+		{env: "0", current: 16, want: 4},
+		{env: "many", current: 16, want: 4},
 	}
 	for _, c := range cases {
-		got, set := threadLimit(c.env, c.goDefault)
-		if got != c.want || set != c.set {
-			t.Errorf("threadLimit(%q, %d) = %d, %v; want %d, %v", c.env, c.goDefault, got, set, c.want, c.set)
+		if got := threadsToUse(c.env, c.current); got != c.want {
+			t.Errorf("threadsToUse(%q, %d) = %d, want %d", c.env, c.current, got, c.want)
 		}
 	}
 }
