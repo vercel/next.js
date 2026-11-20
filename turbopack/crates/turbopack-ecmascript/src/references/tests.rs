@@ -1,8 +1,6 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
-use either::Either;
-use itertools::Itertools;
 use swc_core::{
     self,
     testing::{NormalizedOutput, fixture},
@@ -127,14 +125,57 @@ async fn fixture_op(input: RcStr, analyze_mode: AnalyzeMode) -> anyhow::Result<(
 
     let env_var_info = analysis.env_var_info.await?;
 
-    let (runtime_read, runtime_existence): (Vec<_>, Vec<_>) =
-        env_var_info.runtime.iter().partition_map(|(name, mode)| {
-            if *mode == EnvVarAccessMode::Read {
-                Either::Left(name)
-            } else {
-                Either::Right(name)
-            }
-        });
+    let source = module.await?.source;
+    let text = std::fs::read_to_string(&input)?;
+    let lines: Vec<_> = text.lines().collect();
+    let mut runtime_read = Vec::new();
+    let mut runtime_existence = Vec::new();
+    for (name, access) in &env_var_info.runtime {
+        let issue_source = env_var_info
+            .issue_source(access)
+            .unwrap_or_else(|| panic!("missing source for {name}"));
+        assert_eq!(issue_source.source(), source, "source of {name}");
+        let position = issue_source
+            .start_pos()
+            .await?
+            .unwrap_or_else(|| panic!("missing source location for {name}"));
+        // Source positions use UTF-16 columns, not UTF-8 byte offsets.
+        let line = lines[position.line as usize];
+        let mut column = 0;
+        let byte_offset = line
+            .char_indices()
+            .find_map(|(offset, ch)| {
+                let current_column = column;
+                column += ch.len_utf16();
+                (current_column == position.column as usize).then_some(offset)
+            })
+            .unwrap_or_else(|| panic!("invalid source column for {name}"));
+        let at_position = &line[byte_offset..];
+        if at_position.starts_with("process.env[NAME]") {
+            // Can't easily check the exact key for dynamic NAME access.
+        } else {
+            // Read the property or destructured key directly from the reported location.
+            let key = at_position
+                .trim_start_matches(['[', '\'', '"'])
+                .split(|c: char| !c.is_ascii_alphanumeric() && !matches!(c, '_' | '$' | '.'))
+                .next()
+                .unwrap()
+                .rsplit('.')
+                .next()
+                .unwrap();
+            assert_eq!(
+                key,
+                name.as_str(),
+                "source text at {}:{}",
+                position.line + 1,
+                position.column + 1
+            );
+        }
+        match access.mode {
+            EnvVarAccessMode::Read => runtime_read.push(name),
+            EnvVarAccessMode::Existence => runtime_existence.push(name),
+        }
+    }
 
     let mut value = format!("runtime: {runtime_read:#?}");
     if !runtime_existence.is_empty() {
