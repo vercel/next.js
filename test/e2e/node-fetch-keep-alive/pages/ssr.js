@@ -3,7 +3,7 @@ export default function SSR(props) {
 }
 
 export async function getServerSideProps() {
-  const res = await fetch('http://localhost:44001')
+  const res = await fetch(process.env.TEST_SERVER_URL)
   const props = await res.json()
   return { props }
 }

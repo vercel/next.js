@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { nextTestSetup } from 'e2e-utils'
 import {
   check,
+  gate,
   fetchViaHTTP,
   getCacheHeader,
   normalizeRegEx,
@@ -15,6 +16,7 @@ import stripAnsi from 'strip-ansi'
 
 const glob = promisify(globOrig)
 
+// increment to trigger deploy tests: v1
 describe('app-dir static/dynamic handling', () => {
   const { next, isNextDev, isNextStart, isNextDeploy, isTurbopack } =
     nextTestSetup({
@@ -172,7 +174,7 @@ describe('app-dir static/dynamic handling', () => {
         expect(res1.status).toBe(200)
 
         const revalidateRes = await next.fetch(
-          '/api/revalidate-tag-node?tag=thankyounext'
+          '/api/revalidate-tag-node?tag=app-static:thankyounext'
         )
         expect((await revalidateRes.json()).revalidated).toBe(true)
 
@@ -553,14 +555,14 @@ describe('app-dir static/dynamic handling', () => {
 
         await check(async () => {
           const revalidateRes = await next.fetch(
-            `${revalidateApi}?tag=thankyounext`
+            `${revalidateApi}?tag=app-static:thankyounext`
           )
           expect((await revalidateRes.json()).revalidated).toBe(true)
 
           const newRes = await next.fetch('/variable-revalidate/revalidate-360')
           const cacheHeader = newRes.headers.get('x-nextjs-cache')
 
-          if ((global as any).isNextStart && cacheHeader) {
+          if (isNextStart && cacheHeader) {
             expect(cacheHeader).toBe('MISS')
           }
           const newHtml = await newRes.text()
@@ -596,7 +598,7 @@ describe('app-dir static/dynamic handling', () => {
 
   // On-Demand Revalidate has not effect in dev since app routes
   // aren't considered static until prerendering
-  if (!(global as any).isNextDev && !process.env.CUSTOM_CACHE_HANDLER) {
+  if (!isNextDev && !process.env.CUSTOM_CACHE_HANDLER) {
     it('should not revalidate / when revalidate is not used', async () => {
       let prevData
 
@@ -610,8 +612,8 @@ describe('app-dir static/dynamic handling', () => {
 
         if (prevData) {
           expect(prevData).toBe(data)
-          prevData = data
         }
+        prevData = data
         await waitFor(500)
       }
 
@@ -621,6 +623,32 @@ describe('app-dir static/dynamic handling', () => {
         )
       }
     })
+
+    if (isNextDeploy) {
+      // Deploy fixtures share one Vercel project, and revalidation is
+      // project-scoped: another suite revalidating `/` purges this
+      // deployment's `/` as well, so the test above can observe foreign
+      // purges. Assert persistence on a suite-unique route too, which no
+      // other suite's revalidation targets.
+      it('should not revalidate suite-unique routes when revalidate is not used', async () => {
+        let prevData
+
+        for (let i = 0; i < 5; i++) {
+          const res = await next.fetch('/variable-revalidate/revalidate-360')
+          const html = await res.text()
+          const $ = cheerio.load(html)
+          const data = $('#page-data').text()
+
+          expect(res.status).toBe(200)
+
+          if (prevData) {
+            expect(prevData).toBe(data)
+          }
+          prevData = data
+          await waitFor(500)
+        }
+      })
+    }
 
     it.each([
       {
@@ -670,7 +698,7 @@ describe('app-dir static/dynamic handling', () => {
   }
 
   // On-Demand Revalidate has not effect in dev
-  if (!(global as any).isNextDev && !process.env.CUSTOM_CACHE_HANDLER) {
+  if (!isNextDev && !process.env.CUSTOM_CACHE_HANDLER) {
     it('should revalidate all fetches during on-demand revalidate', async () => {
       const initRes = await next.fetch(
         '/variable-revalidate/revalidate-360-isr'
@@ -811,11 +839,15 @@ describe('app-dir static/dynamic handling', () => {
           )
         })
 
-      expect(files.sort()).toMatchInlineSnapshot(`
+      expect(files.some((file) => file.endsWith('/_full.segment.rsc'))).toBe(
+        await gate((c) => c.cacheComponents)
+      )
+      expect(
+        files.filter((file) => !file.endsWith('/_full.segment.rsc')).sort()
+      ).toMatchInlineSnapshot(`
        [
          "_not-found.html",
          "_not-found.rsc",
-         "_not-found.segments/_full.segment.rsc",
          "_not-found.segments/_head.segment.rsc",
          "_not-found.segments/_index.segment.rsc",
          "_not-found.segments/_not-found.segment.rsc",
@@ -823,7 +855,6 @@ describe('app-dir static/dynamic handling', () => {
          "_not-found.segments/_tree.segment.rsc",
          "articles/works.html",
          "articles/works.rsc",
-         "articles/works.segments/_full.segment.rsc",
          "articles/works.segments/_head.segment.rsc",
          "articles/works.segments/_index.segment.rsc",
          "articles/works.segments/_tree.segment.rsc",
@@ -832,7 +863,6 @@ describe('app-dir static/dynamic handling', () => {
          "articles/works.segments/articles/$d$slug/__PAGE__.segment.rsc",
          "blog/seb.html",
          "blog/seb.rsc",
-         "blog/seb.segments/_full.segment.rsc",
          "blog/seb.segments/_head.segment.rsc",
          "blog/seb.segments/_index.segment.rsc",
          "blog/seb.segments/_tree.segment.rsc",
@@ -841,7 +871,6 @@ describe('app-dir static/dynamic handling', () => {
          "blog/seb.segments/blog/$d$author/__PAGE__.segment.rsc",
          "blog/seb/second-post.html",
          "blog/seb/second-post.rsc",
-         "blog/seb/second-post.segments/_full.segment.rsc",
          "blog/seb/second-post.segments/_head.segment.rsc",
          "blog/seb/second-post.segments/_index.segment.rsc",
          "blog/seb/second-post.segments/_tree.segment.rsc",
@@ -851,7 +880,6 @@ describe('app-dir static/dynamic handling', () => {
          "blog/seb/second-post.segments/blog/$d$author/$d$slug/__PAGE__.segment.rsc",
          "blog/styfle.html",
          "blog/styfle.rsc",
-         "blog/styfle.segments/_full.segment.rsc",
          "blog/styfle.segments/_head.segment.rsc",
          "blog/styfle.segments/_index.segment.rsc",
          "blog/styfle.segments/_tree.segment.rsc",
@@ -860,7 +888,6 @@ describe('app-dir static/dynamic handling', () => {
          "blog/styfle.segments/blog/$d$author/__PAGE__.segment.rsc",
          "blog/styfle/first-post.html",
          "blog/styfle/first-post.rsc",
-         "blog/styfle/first-post.segments/_full.segment.rsc",
          "blog/styfle/first-post.segments/_head.segment.rsc",
          "blog/styfle/first-post.segments/_index.segment.rsc",
          "blog/styfle/first-post.segments/_tree.segment.rsc",
@@ -870,7 +897,6 @@ describe('app-dir static/dynamic handling', () => {
          "blog/styfle/first-post.segments/blog/$d$author/$d$slug/__PAGE__.segment.rsc",
          "blog/styfle/second-post.html",
          "blog/styfle/second-post.rsc",
-         "blog/styfle/second-post.segments/_full.segment.rsc",
          "blog/styfle/second-post.segments/_head.segment.rsc",
          "blog/styfle/second-post.segments/_index.segment.rsc",
          "blog/styfle/second-post.segments/_tree.segment.rsc",
@@ -880,7 +906,6 @@ describe('app-dir static/dynamic handling', () => {
          "blog/styfle/second-post.segments/blog/$d$author/$d$slug/__PAGE__.segment.rsc",
          "blog/tim.html",
          "blog/tim.rsc",
-         "blog/tim.segments/_full.segment.rsc",
          "blog/tim.segments/_head.segment.rsc",
          "blog/tim.segments/_index.segment.rsc",
          "blog/tim.segments/_tree.segment.rsc",
@@ -889,7 +914,6 @@ describe('app-dir static/dynamic handling', () => {
          "blog/tim.segments/blog/$d$author/__PAGE__.segment.rsc",
          "blog/tim/first-post.html",
          "blog/tim/first-post.rsc",
-         "blog/tim/first-post.segments/_full.segment.rsc",
          "blog/tim/first-post.segments/_head.segment.rsc",
          "blog/tim/first-post.segments/_index.segment.rsc",
          "blog/tim/first-post.segments/_tree.segment.rsc",
@@ -902,13 +926,11 @@ describe('app-dir static/dynamic handling', () => {
          "default-config-fetch.segments/!KG5ldyk.segment.rsc",
          "default-config-fetch.segments/!KG5ldyk/default-config-fetch.segment.rsc",
          "default-config-fetch.segments/!KG5ldyk/default-config-fetch/__PAGE__.segment.rsc",
-         "default-config-fetch.segments/_full.segment.rsc",
          "default-config-fetch.segments/_head.segment.rsc",
          "default-config-fetch.segments/_index.segment.rsc",
          "default-config-fetch.segments/_tree.segment.rsc",
          "force-cache.html",
          "force-cache.rsc",
-         "force-cache.segments/_full.segment.rsc",
          "force-cache.segments/_head.segment.rsc",
          "force-cache.segments/_index.segment.rsc",
          "force-cache.segments/_tree.segment.rsc",
@@ -916,7 +938,6 @@ describe('app-dir static/dynamic handling', () => {
          "force-cache.segments/force-cache/__PAGE__.segment.rsc",
          "force-static-fetch-no-store.html",
          "force-static-fetch-no-store.rsc",
-         "force-static-fetch-no-store.segments/_full.segment.rsc",
          "force-static-fetch-no-store.segments/_head.segment.rsc",
          "force-static-fetch-no-store.segments/_index.segment.rsc",
          "force-static-fetch-no-store.segments/_tree.segment.rsc",
@@ -924,7 +945,6 @@ describe('app-dir static/dynamic handling', () => {
          "force-static-fetch-no-store.segments/force-static-fetch-no-store/__PAGE__.segment.rsc",
          "force-static/first.html",
          "force-static/first.rsc",
-         "force-static/first.segments/_full.segment.rsc",
          "force-static/first.segments/_head.segment.rsc",
          "force-static/first.segments/_index.segment.rsc",
          "force-static/first.segments/_tree.segment.rsc",
@@ -933,7 +953,6 @@ describe('app-dir static/dynamic handling', () => {
          "force-static/first.segments/force-static/$d$slug/__PAGE__.segment.rsc",
          "force-static/second.html",
          "force-static/second.rsc",
-         "force-static/second.segments/_full.segment.rsc",
          "force-static/second.segments/_head.segment.rsc",
          "force-static/second.segments/_index.segment.rsc",
          "force-static/second.segments/_tree.segment.rsc",
@@ -942,7 +961,6 @@ describe('app-dir static/dynamic handling', () => {
          "force-static/second.segments/force-static/$d$slug/__PAGE__.segment.rsc",
          "gen-params-catch-all-unique/foo/bar.html",
          "gen-params-catch-all-unique/foo/bar.rsc",
-         "gen-params-catch-all-unique/foo/bar.segments/_full.segment.rsc",
          "gen-params-catch-all-unique/foo/bar.segments/_head.segment.rsc",
          "gen-params-catch-all-unique/foo/bar.segments/_index.segment.rsc",
          "gen-params-catch-all-unique/foo/bar.segments/_tree.segment.rsc",
@@ -951,7 +969,6 @@ describe('app-dir static/dynamic handling', () => {
          "gen-params-catch-all-unique/foo/bar.segments/gen-params-catch-all-unique/$c$slug/__PAGE__.segment.rsc",
          "gen-params-catch-all-unique/foo/foo.html",
          "gen-params-catch-all-unique/foo/foo.rsc",
-         "gen-params-catch-all-unique/foo/foo.segments/_full.segment.rsc",
          "gen-params-catch-all-unique/foo/foo.segments/_head.segment.rsc",
          "gen-params-catch-all-unique/foo/foo.segments/_index.segment.rsc",
          "gen-params-catch-all-unique/foo/foo.segments/_tree.segment.rsc",
@@ -960,7 +977,6 @@ describe('app-dir static/dynamic handling', () => {
          "gen-params-catch-all-unique/foo/foo.segments/gen-params-catch-all-unique/$c$slug/__PAGE__.segment.rsc",
          "gen-params-dynamic-revalidate/one.html",
          "gen-params-dynamic-revalidate/one.rsc",
-         "gen-params-dynamic-revalidate/one.segments/_full.segment.rsc",
          "gen-params-dynamic-revalidate/one.segments/_head.segment.rsc",
          "gen-params-dynamic-revalidate/one.segments/_index.segment.rsc",
          "gen-params-dynamic-revalidate/one.segments/_tree.segment.rsc",
@@ -969,7 +985,6 @@ describe('app-dir static/dynamic handling', () => {
          "gen-params-dynamic-revalidate/one.segments/gen-params-dynamic-revalidate/$d$slug/__PAGE__.segment.rsc",
          "hooks/use-pathname/slug.html",
          "hooks/use-pathname/slug.rsc",
-         "hooks/use-pathname/slug.segments/_full.segment.rsc",
          "hooks/use-pathname/slug.segments/_head.segment.rsc",
          "hooks/use-pathname/slug.segments/_index.segment.rsc",
          "hooks/use-pathname/slug.segments/_tree.segment.rsc",
@@ -979,7 +994,6 @@ describe('app-dir static/dynamic handling', () => {
          "hooks/use-pathname/slug.segments/hooks/use-pathname/$d$slug/__PAGE__.segment.rsc",
          "hooks/use-search-params/force-static.html",
          "hooks/use-search-params/force-static.rsc",
-         "hooks/use-search-params/force-static.segments/_full.segment.rsc",
          "hooks/use-search-params/force-static.segments/_head.segment.rsc",
          "hooks/use-search-params/force-static.segments/_index.segment.rsc",
          "hooks/use-search-params/force-static.segments/_tree.segment.rsc",
@@ -989,7 +1003,6 @@ describe('app-dir static/dynamic handling', () => {
          "hooks/use-search-params/force-static.segments/hooks/use-search-params/force-static/__PAGE__.segment.rsc",
          "hooks/use-search-params/with-suspense.html",
          "hooks/use-search-params/with-suspense.rsc",
-         "hooks/use-search-params/with-suspense.segments/_full.segment.rsc",
          "hooks/use-search-params/with-suspense.segments/_head.segment.rsc",
          "hooks/use-search-params/with-suspense.segments/_index.segment.rsc",
          "hooks/use-search-params/with-suspense.segments/_tree.segment.rsc",
@@ -1000,13 +1013,11 @@ describe('app-dir static/dynamic handling', () => {
          "index.html",
          "index.rsc",
          "index.segments/__PAGE__.segment.rsc",
-         "index.segments/_full.segment.rsc",
          "index.segments/_head.segment.rsc",
          "index.segments/_index.segment.rsc",
          "index.segments/_tree.segment.rsc",
          "isr-error-handling.html",
          "isr-error-handling.rsc",
-         "isr-error-handling.segments/_full.segment.rsc",
          "isr-error-handling.segments/_head.segment.rsc",
          "isr-error-handling.segments/_index.segment.rsc",
          "isr-error-handling.segments/_tree.segment.rsc",
@@ -1017,13 +1028,11 @@ describe('app-dir static/dynamic handling', () => {
          "no-config-fetch.segments/!KG5ldyk.segment.rsc",
          "no-config-fetch.segments/!KG5ldyk/no-config-fetch.segment.rsc",
          "no-config-fetch.segments/!KG5ldyk/no-config-fetch/__PAGE__.segment.rsc",
-         "no-config-fetch.segments/_full.segment.rsc",
          "no-config-fetch.segments/_head.segment.rsc",
          "no-config-fetch.segments/_index.segment.rsc",
          "no-config-fetch.segments/_tree.segment.rsc",
          "no-store/static.html",
          "no-store/static.rsc",
-         "no-store/static.segments/_full.segment.rsc",
          "no-store/static.segments/_head.segment.rsc",
          "no-store/static.segments/_index.segment.rsc",
          "no-store/static.segments/_tree.segment.rsc",
@@ -1032,7 +1041,6 @@ describe('app-dir static/dynamic handling', () => {
          "no-store/static.segments/no-store/static/__PAGE__.segment.rsc",
          "partial-gen-params-no-additional-lang/en/RAND.html",
          "partial-gen-params-no-additional-lang/en/RAND.rsc",
-         "partial-gen-params-no-additional-lang/en/RAND.segments/_full.segment.rsc",
          "partial-gen-params-no-additional-lang/en/RAND.segments/_head.segment.rsc",
          "partial-gen-params-no-additional-lang/en/RAND.segments/_index.segment.rsc",
          "partial-gen-params-no-additional-lang/en/RAND.segments/_tree.segment.rsc",
@@ -1042,7 +1050,6 @@ describe('app-dir static/dynamic handling', () => {
          "partial-gen-params-no-additional-lang/en/RAND.segments/partial-gen-params-no-additional-lang/$d$lang/$d$slug/__PAGE__.segment.rsc",
          "partial-gen-params-no-additional-lang/en/first.html",
          "partial-gen-params-no-additional-lang/en/first.rsc",
-         "partial-gen-params-no-additional-lang/en/first.segments/_full.segment.rsc",
          "partial-gen-params-no-additional-lang/en/first.segments/_head.segment.rsc",
          "partial-gen-params-no-additional-lang/en/first.segments/_index.segment.rsc",
          "partial-gen-params-no-additional-lang/en/first.segments/_tree.segment.rsc",
@@ -1052,7 +1059,6 @@ describe('app-dir static/dynamic handling', () => {
          "partial-gen-params-no-additional-lang/en/first.segments/partial-gen-params-no-additional-lang/$d$lang/$d$slug/__PAGE__.segment.rsc",
          "partial-gen-params-no-additional-lang/en/second.html",
          "partial-gen-params-no-additional-lang/en/second.rsc",
-         "partial-gen-params-no-additional-lang/en/second.segments/_full.segment.rsc",
          "partial-gen-params-no-additional-lang/en/second.segments/_head.segment.rsc",
          "partial-gen-params-no-additional-lang/en/second.segments/_index.segment.rsc",
          "partial-gen-params-no-additional-lang/en/second.segments/_tree.segment.rsc",
@@ -1062,7 +1068,6 @@ describe('app-dir static/dynamic handling', () => {
          "partial-gen-params-no-additional-lang/en/second.segments/partial-gen-params-no-additional-lang/$d$lang/$d$slug/__PAGE__.segment.rsc",
          "partial-gen-params-no-additional-lang/fr/RAND.html",
          "partial-gen-params-no-additional-lang/fr/RAND.rsc",
-         "partial-gen-params-no-additional-lang/fr/RAND.segments/_full.segment.rsc",
          "partial-gen-params-no-additional-lang/fr/RAND.segments/_head.segment.rsc",
          "partial-gen-params-no-additional-lang/fr/RAND.segments/_index.segment.rsc",
          "partial-gen-params-no-additional-lang/fr/RAND.segments/_tree.segment.rsc",
@@ -1072,7 +1077,6 @@ describe('app-dir static/dynamic handling', () => {
          "partial-gen-params-no-additional-lang/fr/RAND.segments/partial-gen-params-no-additional-lang/$d$lang/$d$slug/__PAGE__.segment.rsc",
          "partial-gen-params-no-additional-lang/fr/first.html",
          "partial-gen-params-no-additional-lang/fr/first.rsc",
-         "partial-gen-params-no-additional-lang/fr/first.segments/_full.segment.rsc",
          "partial-gen-params-no-additional-lang/fr/first.segments/_head.segment.rsc",
          "partial-gen-params-no-additional-lang/fr/first.segments/_index.segment.rsc",
          "partial-gen-params-no-additional-lang/fr/first.segments/_tree.segment.rsc",
@@ -1082,7 +1086,6 @@ describe('app-dir static/dynamic handling', () => {
          "partial-gen-params-no-additional-lang/fr/first.segments/partial-gen-params-no-additional-lang/$d$lang/$d$slug/__PAGE__.segment.rsc",
          "partial-gen-params-no-additional-lang/fr/second.html",
          "partial-gen-params-no-additional-lang/fr/second.rsc",
-         "partial-gen-params-no-additional-lang/fr/second.segments/_full.segment.rsc",
          "partial-gen-params-no-additional-lang/fr/second.segments/_head.segment.rsc",
          "partial-gen-params-no-additional-lang/fr/second.segments/_index.segment.rsc",
          "partial-gen-params-no-additional-lang/fr/second.segments/_tree.segment.rsc",
@@ -1092,7 +1095,6 @@ describe('app-dir static/dynamic handling', () => {
          "partial-gen-params-no-additional-lang/fr/second.segments/partial-gen-params-no-additional-lang/$d$lang/$d$slug/__PAGE__.segment.rsc",
          "partial-gen-params-no-additional-slug/en/RAND.html",
          "partial-gen-params-no-additional-slug/en/RAND.rsc",
-         "partial-gen-params-no-additional-slug/en/RAND.segments/_full.segment.rsc",
          "partial-gen-params-no-additional-slug/en/RAND.segments/_head.segment.rsc",
          "partial-gen-params-no-additional-slug/en/RAND.segments/_index.segment.rsc",
          "partial-gen-params-no-additional-slug/en/RAND.segments/_tree.segment.rsc",
@@ -1102,7 +1104,6 @@ describe('app-dir static/dynamic handling', () => {
          "partial-gen-params-no-additional-slug/en/RAND.segments/partial-gen-params-no-additional-slug/$d$lang/$d$slug/__PAGE__.segment.rsc",
          "partial-gen-params-no-additional-slug/en/first.html",
          "partial-gen-params-no-additional-slug/en/first.rsc",
-         "partial-gen-params-no-additional-slug/en/first.segments/_full.segment.rsc",
          "partial-gen-params-no-additional-slug/en/first.segments/_head.segment.rsc",
          "partial-gen-params-no-additional-slug/en/first.segments/_index.segment.rsc",
          "partial-gen-params-no-additional-slug/en/first.segments/_tree.segment.rsc",
@@ -1112,7 +1113,6 @@ describe('app-dir static/dynamic handling', () => {
          "partial-gen-params-no-additional-slug/en/first.segments/partial-gen-params-no-additional-slug/$d$lang/$d$slug/__PAGE__.segment.rsc",
          "partial-gen-params-no-additional-slug/en/second.html",
          "partial-gen-params-no-additional-slug/en/second.rsc",
-         "partial-gen-params-no-additional-slug/en/second.segments/_full.segment.rsc",
          "partial-gen-params-no-additional-slug/en/second.segments/_head.segment.rsc",
          "partial-gen-params-no-additional-slug/en/second.segments/_index.segment.rsc",
          "partial-gen-params-no-additional-slug/en/second.segments/_tree.segment.rsc",
@@ -1122,7 +1122,6 @@ describe('app-dir static/dynamic handling', () => {
          "partial-gen-params-no-additional-slug/en/second.segments/partial-gen-params-no-additional-slug/$d$lang/$d$slug/__PAGE__.segment.rsc",
          "partial-gen-params-no-additional-slug/fr/RAND.html",
          "partial-gen-params-no-additional-slug/fr/RAND.rsc",
-         "partial-gen-params-no-additional-slug/fr/RAND.segments/_full.segment.rsc",
          "partial-gen-params-no-additional-slug/fr/RAND.segments/_head.segment.rsc",
          "partial-gen-params-no-additional-slug/fr/RAND.segments/_index.segment.rsc",
          "partial-gen-params-no-additional-slug/fr/RAND.segments/_tree.segment.rsc",
@@ -1132,7 +1131,6 @@ describe('app-dir static/dynamic handling', () => {
          "partial-gen-params-no-additional-slug/fr/RAND.segments/partial-gen-params-no-additional-slug/$d$lang/$d$slug/__PAGE__.segment.rsc",
          "partial-gen-params-no-additional-slug/fr/first.html",
          "partial-gen-params-no-additional-slug/fr/first.rsc",
-         "partial-gen-params-no-additional-slug/fr/first.segments/_full.segment.rsc",
          "partial-gen-params-no-additional-slug/fr/first.segments/_head.segment.rsc",
          "partial-gen-params-no-additional-slug/fr/first.segments/_index.segment.rsc",
          "partial-gen-params-no-additional-slug/fr/first.segments/_tree.segment.rsc",
@@ -1142,7 +1140,6 @@ describe('app-dir static/dynamic handling', () => {
          "partial-gen-params-no-additional-slug/fr/first.segments/partial-gen-params-no-additional-slug/$d$lang/$d$slug/__PAGE__.segment.rsc",
          "partial-gen-params-no-additional-slug/fr/second.html",
          "partial-gen-params-no-additional-slug/fr/second.rsc",
-         "partial-gen-params-no-additional-slug/fr/second.segments/_full.segment.rsc",
          "partial-gen-params-no-additional-slug/fr/second.segments/_head.segment.rsc",
          "partial-gen-params-no-additional-slug/fr/second.segments/_index.segment.rsc",
          "partial-gen-params-no-additional-slug/fr/second.segments/_tree.segment.rsc",
@@ -1152,7 +1149,6 @@ describe('app-dir static/dynamic handling', () => {
          "partial-gen-params-no-additional-slug/fr/second.segments/partial-gen-params-no-additional-slug/$d$lang/$d$slug/__PAGE__.segment.rsc",
          "partial-params-false/en/static.html",
          "partial-params-false/en/static.rsc",
-         "partial-params-false/en/static.segments/_full.segment.rsc",
          "partial-params-false/en/static.segments/_head.segment.rsc",
          "partial-params-false/en/static.segments/_index.segment.rsc",
          "partial-params-false/en/static.segments/_tree.segment.rsc",
@@ -1162,7 +1158,6 @@ describe('app-dir static/dynamic handling', () => {
          "partial-params-false/en/static.segments/partial-params-false/$d$locale/static/__PAGE__.segment.rsc",
          "partial-params-false/fr/static.html",
          "partial-params-false/fr/static.rsc",
-         "partial-params-false/fr/static.segments/_full.segment.rsc",
          "partial-params-false/fr/static.segments/_head.segment.rsc",
          "partial-params-false/fr/static.segments/_index.segment.rsc",
          "partial-params-false/fr/static.segments/_tree.segment.rsc",
@@ -1172,7 +1167,6 @@ describe('app-dir static/dynamic handling', () => {
          "partial-params-false/fr/static.segments/partial-params-false/$d$locale/static/__PAGE__.segment.rsc",
          "prerendered-not-found/first.html",
          "prerendered-not-found/first.rsc",
-         "prerendered-not-found/first.segments/_full.segment.rsc",
          "prerendered-not-found/first.segments/_head.segment.rsc",
          "prerendered-not-found/first.segments/_index.segment.rsc",
          "prerendered-not-found/first.segments/_tree.segment.rsc",
@@ -1181,7 +1175,6 @@ describe('app-dir static/dynamic handling', () => {
          "prerendered-not-found/first.segments/prerendered-not-found/$d$slug/__PAGE__.segment.rsc",
          "prerendered-not-found/second.html",
          "prerendered-not-found/second.rsc",
-         "prerendered-not-found/second.segments/_full.segment.rsc",
          "prerendered-not-found/second.segments/_head.segment.rsc",
          "prerendered-not-found/second.segments/_index.segment.rsc",
          "prerendered-not-found/second.segments/_tree.segment.rsc",
@@ -1190,7 +1183,6 @@ describe('app-dir static/dynamic handling', () => {
          "prerendered-not-found/second.segments/prerendered-not-found/$d$slug/__PAGE__.segment.rsc",
          "prerendered-not-found/segment-revalidate.html",
          "prerendered-not-found/segment-revalidate.rsc",
-         "prerendered-not-found/segment-revalidate.segments/_full.segment.rsc",
          "prerendered-not-found/segment-revalidate.segments/_head.segment.rsc",
          "prerendered-not-found/segment-revalidate.segments/_index.segment.rsc",
          "prerendered-not-found/segment-revalidate.segments/_tree.segment.rsc",
@@ -1199,7 +1191,6 @@ describe('app-dir static/dynamic handling', () => {
          "prerendered-not-found/segment-revalidate.segments/prerendered-not-found/segment-revalidate/__PAGE__.segment.rsc",
          "ssg-draft-mode.html",
          "ssg-draft-mode.rsc",
-         "ssg-draft-mode.segments/_full.segment.rsc",
          "ssg-draft-mode.segments/_head.segment.rsc",
          "ssg-draft-mode.segments/_index.segment.rsc",
          "ssg-draft-mode.segments/_tree.segment.rsc",
@@ -1208,7 +1199,6 @@ describe('app-dir static/dynamic handling', () => {
          "ssg-draft-mode.segments/ssg-draft-mode/$oc$route/__PAGE__.segment.rsc",
          "ssg-draft-mode/test-2.html",
          "ssg-draft-mode/test-2.rsc",
-         "ssg-draft-mode/test-2.segments/_full.segment.rsc",
          "ssg-draft-mode/test-2.segments/_head.segment.rsc",
          "ssg-draft-mode/test-2.segments/_index.segment.rsc",
          "ssg-draft-mode/test-2.segments/_tree.segment.rsc",
@@ -1217,7 +1207,6 @@ describe('app-dir static/dynamic handling', () => {
          "ssg-draft-mode/test-2.segments/ssg-draft-mode/$oc$route/__PAGE__.segment.rsc",
          "ssg-draft-mode/test.html",
          "ssg-draft-mode/test.rsc",
-         "ssg-draft-mode/test.segments/_full.segment.rsc",
          "ssg-draft-mode/test.segments/_head.segment.rsc",
          "ssg-draft-mode/test.segments/_index.segment.rsc",
          "ssg-draft-mode/test.segments/_tree.segment.rsc",
@@ -1226,7 +1215,6 @@ describe('app-dir static/dynamic handling', () => {
          "ssg-draft-mode/test.segments/ssg-draft-mode/$oc$route/__PAGE__.segment.rsc",
          "strip-w3c-trace-context-headers.html",
          "strip-w3c-trace-context-headers.rsc",
-         "strip-w3c-trace-context-headers.segments/_full.segment.rsc",
          "strip-w3c-trace-context-headers.segments/_head.segment.rsc",
          "strip-w3c-trace-context-headers.segments/_index.segment.rsc",
          "strip-w3c-trace-context-headers.segments/_tree.segment.rsc",
@@ -1234,7 +1222,6 @@ describe('app-dir static/dynamic handling', () => {
          "strip-w3c-trace-context-headers.segments/strip-w3c-trace-context-headers/__PAGE__.segment.rsc",
          "unstable-cache/fetch/no-cache.html",
          "unstable-cache/fetch/no-cache.rsc",
-         "unstable-cache/fetch/no-cache.segments/_full.segment.rsc",
          "unstable-cache/fetch/no-cache.segments/_head.segment.rsc",
          "unstable-cache/fetch/no-cache.segments/_index.segment.rsc",
          "unstable-cache/fetch/no-cache.segments/_tree.segment.rsc",
@@ -1244,7 +1231,6 @@ describe('app-dir static/dynamic handling', () => {
          "unstable-cache/fetch/no-cache.segments/unstable-cache/fetch/no-cache/__PAGE__.segment.rsc",
          "unstable-cache/fetch/no-store.html",
          "unstable-cache/fetch/no-store.rsc",
-         "unstable-cache/fetch/no-store.segments/_full.segment.rsc",
          "unstable-cache/fetch/no-store.segments/_head.segment.rsc",
          "unstable-cache/fetch/no-store.segments/_index.segment.rsc",
          "unstable-cache/fetch/no-store.segments/_tree.segment.rsc",
@@ -1254,7 +1240,6 @@ describe('app-dir static/dynamic handling', () => {
          "unstable-cache/fetch/no-store.segments/unstable-cache/fetch/no-store/__PAGE__.segment.rsc",
          "update-tag-test.html",
          "update-tag-test.rsc",
-         "update-tag-test.segments/_full.segment.rsc",
          "update-tag-test.segments/_head.segment.rsc",
          "update-tag-test.segments/_index.segment.rsc",
          "update-tag-test.segments/_tree.segment.rsc",
@@ -1262,7 +1247,6 @@ describe('app-dir static/dynamic handling', () => {
          "update-tag-test.segments/update-tag-test/__PAGE__.segment.rsc",
          "variable-config-revalidate/revalidate-3.html",
          "variable-config-revalidate/revalidate-3.rsc",
-         "variable-config-revalidate/revalidate-3.segments/_full.segment.rsc",
          "variable-config-revalidate/revalidate-3.segments/_head.segment.rsc",
          "variable-config-revalidate/revalidate-3.segments/_index.segment.rsc",
          "variable-config-revalidate/revalidate-3.segments/_tree.segment.rsc",
@@ -1271,7 +1255,6 @@ describe('app-dir static/dynamic handling', () => {
          "variable-config-revalidate/revalidate-3.segments/variable-config-revalidate/revalidate-3/__PAGE__.segment.rsc",
          "variable-revalidate-stable/revalidate-3.html",
          "variable-revalidate-stable/revalidate-3.rsc",
-         "variable-revalidate-stable/revalidate-3.segments/_full.segment.rsc",
          "variable-revalidate-stable/revalidate-3.segments/_head.segment.rsc",
          "variable-revalidate-stable/revalidate-3.segments/_index.segment.rsc",
          "variable-revalidate-stable/revalidate-3.segments/_tree.segment.rsc",
@@ -1280,7 +1263,6 @@ describe('app-dir static/dynamic handling', () => {
          "variable-revalidate-stable/revalidate-3.segments/variable-revalidate-stable/revalidate-3/__PAGE__.segment.rsc",
          "variable-revalidate/authorization.html",
          "variable-revalidate/authorization.rsc",
-         "variable-revalidate/authorization.segments/_full.segment.rsc",
          "variable-revalidate/authorization.segments/_head.segment.rsc",
          "variable-revalidate/authorization.segments/_index.segment.rsc",
          "variable-revalidate/authorization.segments/_tree.segment.rsc",
@@ -1289,7 +1271,6 @@ describe('app-dir static/dynamic handling', () => {
          "variable-revalidate/authorization.segments/variable-revalidate/authorization/__PAGE__.segment.rsc",
          "variable-revalidate/cookie.html",
          "variable-revalidate/cookie.rsc",
-         "variable-revalidate/cookie.segments/_full.segment.rsc",
          "variable-revalidate/cookie.segments/_head.segment.rsc",
          "variable-revalidate/cookie.segments/_index.segment.rsc",
          "variable-revalidate/cookie.segments/_tree.segment.rsc",
@@ -1298,7 +1279,6 @@ describe('app-dir static/dynamic handling', () => {
          "variable-revalidate/cookie.segments/variable-revalidate/cookie/__PAGE__.segment.rsc",
          "variable-revalidate/encoding.html",
          "variable-revalidate/encoding.rsc",
-         "variable-revalidate/encoding.segments/_full.segment.rsc",
          "variable-revalidate/encoding.segments/_head.segment.rsc",
          "variable-revalidate/encoding.segments/_index.segment.rsc",
          "variable-revalidate/encoding.segments/_tree.segment.rsc",
@@ -1307,7 +1287,6 @@ describe('app-dir static/dynamic handling', () => {
          "variable-revalidate/encoding.segments/variable-revalidate/encoding/__PAGE__.segment.rsc",
          "variable-revalidate/headers-instance.html",
          "variable-revalidate/headers-instance.rsc",
-         "variable-revalidate/headers-instance.segments/_full.segment.rsc",
          "variable-revalidate/headers-instance.segments/_head.segment.rsc",
          "variable-revalidate/headers-instance.segments/_index.segment.rsc",
          "variable-revalidate/headers-instance.segments/_tree.segment.rsc",
@@ -1316,7 +1295,6 @@ describe('app-dir static/dynamic handling', () => {
          "variable-revalidate/headers-instance.segments/variable-revalidate/headers-instance/__PAGE__.segment.rsc",
          "variable-revalidate/revalidate-3.html",
          "variable-revalidate/revalidate-3.rsc",
-         "variable-revalidate/revalidate-3.segments/_full.segment.rsc",
          "variable-revalidate/revalidate-3.segments/_head.segment.rsc",
          "variable-revalidate/revalidate-3.segments/_index.segment.rsc",
          "variable-revalidate/revalidate-3.segments/_tree.segment.rsc",
@@ -1325,7 +1303,6 @@ describe('app-dir static/dynamic handling', () => {
          "variable-revalidate/revalidate-3.segments/variable-revalidate/revalidate-3/__PAGE__.segment.rsc",
          "variable-revalidate/revalidate-360-isr.html",
          "variable-revalidate/revalidate-360-isr.rsc",
-         "variable-revalidate/revalidate-360-isr.segments/_full.segment.rsc",
          "variable-revalidate/revalidate-360-isr.segments/_head.segment.rsc",
          "variable-revalidate/revalidate-360-isr.segments/_index.segment.rsc",
          "variable-revalidate/revalidate-360-isr.segments/_tree.segment.rsc",
@@ -2577,7 +2554,7 @@ describe('app-dir static/dynamic handling', () => {
            "initialExpireSeconds": 31536000,
            "initialHeaders": {
              "content-type": "application/json",
-             "x-next-cache-tags": "_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/revalidate-360-isr/layout,_N_T_/route-handler/revalidate-360-isr/route,_N_T_/route-handler/revalidate-360-isr,thankyounext",
+             "x-next-cache-tags": "_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/revalidate-360-isr/layout,_N_T_/route-handler/revalidate-360-isr/route,_N_T_/route-handler/revalidate-360-isr,app-static:thankyounext",
            },
            "initialRevalidateSeconds": 10,
            "response": "complete",
@@ -3476,7 +3453,7 @@ describe('app-dir static/dynamic handling', () => {
 
       expect(indexFetchMetrics).toHaveLength(1)
       expect(indexFetchMetrics[0]).toMatchObject({
-        url: 'https://next-data-api-endpoint.vercel.app/api/random?page',
+        url: 'https://next-data-api-endpoint.vercel.app/api/random?app-static-page',
         status: 200,
         cacheStatus: expect.any(String),
         start: expect.any(Number),
@@ -4515,7 +4492,7 @@ describe('app-dir static/dynamic handling', () => {
 
     const firstTime = $('#now').text()
 
-    if (!(global as any).isNextDev) {
+    if (!isNextDev) {
       const res2 = await next.fetch('/force-static')
       expect(res2.status).toBe(200)
 
@@ -4613,7 +4590,7 @@ describe('app-dir static/dynamic handling', () => {
 
       const firstTime = $('#now').text()
 
-      if (!(global as any).isNextDev) {
+      if (!isNextDev) {
         const res2 = await next.fetch('/force-static/first')
         expect(res2.status).toBe(200)
 
@@ -4635,7 +4612,7 @@ describe('app-dir static/dynamic handling', () => {
 
       const firstTime = $('#now').text()
 
-      if (!(global as any).isNextDev) {
+      if (!isNextDev) {
         const res2 = await next.fetch('/force-static/random')
         expect(res2.status).toBe(200)
 
@@ -4945,7 +4922,7 @@ describe('app-dir static/dynamic handling', () => {
       })
 
       // TODO-APP: re-enable after investigating rewrite params
-      if (!(global as any).isNextDeploy) {
+      if (!isNextDeploy) {
         it('should have values from canonical url on rewrite', async () => {
           const browser = await next.browser(
             '/rewritten-use-search-params?first=a&second=b&third=c'
@@ -5036,14 +5013,24 @@ describe('app-dir static/dynamic handling', () => {
 
   describe('unstable_cache', () => {
     it('should retrieve the same value on second request', async () => {
-      const res = await next.fetch('/unstable-cache/dynamic')
-      const html = await res.text()
-      const data = cheerio.load(html)('#cached-data').text()
-      const res2 = await next.fetch('/unstable-cache/dynamic')
-      const html2 = await res2.text()
-      const data2 = cheerio.load(html2)('#cached-data').text()
+      async function fetchCachedData() {
+        const res = await next.fetch('/unstable-cache/dynamic')
+        return cheerio
+          .load(await res.text())('#cached-data')
+          .text()
+      }
 
-      expect(data).toEqual(data2)
+      if (isNextDeploy) {
+        // The shared Data Cache is eventually consistent across lambda
+        // instances: a request can land before another instance's write is
+        // visible and recompute. Poll until two consecutive reads agree,
+        // which is the consistency the deployed cache provides.
+        await retry(async () => {
+          expect(await fetchCachedData()).toEqual(await fetchCachedData())
+        })
+      } else {
+        expect(await fetchCachedData()).toEqual(await fetchCachedData())
+      }
     })
 
     it('should bypass cache in draft mode', async () => {

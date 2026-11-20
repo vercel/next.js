@@ -70,18 +70,21 @@ impl LocalTaskTracker {
         self.decrement_in_flight();
     }
 
-    /// Test-only: register an in-flight detached future (`spawn_detached_for_testing`). No
+    /// Register an in-flight future that shares this task execution's state without being a local
+    /// task (`spawn_in_current_task` and the test-only `spawn_detached_for_testing`). No
     /// `LocalTask` slot is allocated; this just bumps the counter. Balanced by a matching
-    /// [`dec_in_flight`] when the wrapped future completes.
+    /// [`decrement_in_flight`] when the wrapped future completes or is dropped.
     ///
-    /// [`dec_in_flight`]: LocalTaskTracker::dec_in_flight
+    /// [`decrement_in_flight`]: LocalTaskTracker::decrement_in_flight
     pub(crate) fn register_detached(&mut self) {
         self.in_flight += 1;
     }
 
     /// Decrement the in-flight counter and notify the collective `done` event if it reached
-    /// zero. Used by the test-only detached path; the production path goes through
+    /// zero. Used for futures registered with [`register_detached`]; local tasks go through
     /// [`complete`] which decrements as part of the slot transition.
+    ///
+    /// [`register_detached`]: LocalTaskTracker::register_detached
     ///
     /// [`complete`]: LocalTaskTracker::complete
     pub(crate) fn decrement_in_flight(&mut self) {

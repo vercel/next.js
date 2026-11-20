@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { waitForNoRedbox, check, getDistDir, retry } from 'next-test-utils'
 
 async function resolveStreamResponse(response: any, onData?: any) {
@@ -31,7 +31,7 @@ describe('app dir - external dependency', () => {
       },
     },
     installCommand: 'pnpm i',
-    startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+    startCommand: isNextDev ? 'pnpm dev' : 'pnpm start',
     buildCommand: 'pnpm build',
   })
 

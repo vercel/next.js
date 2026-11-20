@@ -3,17 +3,13 @@ import type { ChildProcess } from 'child_process'
 import type { Server } from 'http'
 import { createRouterAct } from 'router-act'
 import { findPort } from 'next-test-utils'
-import { isNextDeploy, isNextDev, nextTestSetup } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { createFakeCDN } from './server.mjs'
 
+// This suite runs Next.js behind an in-process fake CDN on local ports.
+// @force-gate !deploy
+// @force-gate prefetching
 describe('segment cache (CDN cache busting)', () => {
-  // Deploy mode exclusion: This suite runs Next.js behind an in-process fake
-  // CDN on local ports.
-  if (isNextDev || isNextDeploy) {
-    test('should not run during dev or deploy test runs', () => {})
-    return
-  }
-
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,

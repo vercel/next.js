@@ -3,13 +3,13 @@ import { connection } from 'next/server'
 
 import { cacheTag } from 'next/cache'
 import { getPhase } from '../../next-phase'
-import { tasky } from '../../../utils'
+import { getCacheTag, tasky } from '../../../utils'
 
 const CACHE_TAG = 'test-use-cache-revalidation'
 
 async function getRandomNumber() {
   'use cache'
-  cacheTag(CACHE_TAG)
+  cacheTag(getCacheTag(CACHE_TAG))
   await tasky()
   return `cache-random-${getPhase()}-${Date.now()}-${Math.random()}`
 }

@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, nextTestSetup, isNextDev, isNextDeploy } from 'e2e-utils'
 import escapeRegex from 'escape-string-regexp'
 import {
   check,
@@ -898,5 +898,5 @@ describe('getServerSideProps', () => {
     buildId = next.buildId
   })
 
-  runTests(next, (global as any).isNextDev, (global as any).isNextDeploy)
+  runTests(next, isNextDev, isNextDeploy)
 })

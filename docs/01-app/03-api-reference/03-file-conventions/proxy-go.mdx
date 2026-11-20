@@ -1,0 +1,112 @@
+---
+title: proxy.go
+description: API reference for writing experimental Go Proxy (middleware) with the proxy.go file convention.
+version: experimental
+---
+
+`proxy.go` runs Go code before routing a request, using Go's `net/http` request and response APIs.
+
+```go filename="proxy.go" highlight={5,7}
+package main
+
+import "net/http"
+
+func Proxy(w http.ResponseWriter, r *http.Request) {
+  w.Header().Set("x-proxy", "go")
+  Next(w)
+}
+```
+
+Enable `experimental.goRoutes` and follow the [Go setup requirements](/docs/app/api-reference/file-conventions/route-go#setup). Create `proxy.go` beside `app` or `pages`, including inside `src` when applicable. Export a `Proxy` function with the signature shown above. Next.js only detects `proxy.go` when `experimental.goRoutes` is enabled, and a project can have one Proxy file: using `proxy.go` together with a JavaScript or TypeScript Proxy file is an error.
+
+## Reference
+
+Next.js generates these helpers in the proxy package:
+
+| Helper                                | Behavior                          |
+| ------------------------------------- | --------------------------------- |
+| `Next(w, options...)`                 | Continue routing the request.     |
+| `Rewrite(w, destination, options...)` | Route the request to another URL. |
+
+Both helpers accept zero or one `ProxyOptions` value:
+
+```go
+// Continue or rewrite without modifying request headers.
+Next(w)
+Rewrite(w, "/destination")
+```
+
+### ProxyOptions
+
+```go
+type ProxyOptions struct {
+  Request RequestOptions
+}
+
+type RequestOptions struct {
+  Headers http.Header
+}
+```
+
+`Request.Headers` replaces the downstream request headers. Headers omitted from the replacement are removed. A `nil` map preserves the incoming headers; a non-nil empty map (`http.Header{}`) removes them all. Header names are case-insensitive: values for names that differ only in case, such as `Foo` and `foo`, are combined. Passing more than one options value panics.
+
+Go stores Host in `r.Host`, separately from `r.Header`. When cloning request headers, add `headers.Set("Host", r.Host)` to preserve Host.
+
+Hop-by-hop headers in `Request.Headers`, such as `Connection`, `Keep-Alive`, `Upgrade`, `Transfer-Encoding`, and headers listed in `Connection`, are ignored because they describe the connection to the proxy rather than the downstream request. `r.Header` also contains the `X-Forwarded-Proto` header that Next.js or the platform sets for the proxy; a cloned map forwards it downstream. Delete it from the clone if the downstream request should not receive it.
+
+Returning without calling `Next` or `Rewrite` sends the response directly. Use standard Go APIs such as `http.Redirect`, `http.SetCookie`, and `http.Flusher` for redirects, response cookies, and streaming. Relative redirect and rewrite destinations resolve against the incoming URL.
+
+The directory containing `proxy.go` is compiled as one executable `package main`, like a [`route.go` directory](/docs/app/api-reference/file-conventions/route-go). For `proxy.go` beside `app` or `pages`, that is the project root: every other `.go` file in that directory except `_test.go` compiles with it and must use `package main`. Next.js generates the `main` function, so do not define `main` in those files or create `zz_next_route_*.go` files. If the project root already contains Go code, such as a Go module's command, place the proxy in `src/proxy.go` or move that code into its own directory. Shared code can live in imported packages.
+
+When continuing or internally rewriting a request, cookies set with `http.SetCookie` are available through [`cookies()`](/docs/app/api-reference/functions/cookies) in the downstream render of the same request.
+
+Go Proxy supports gzip, zlib-wrapped deflate, and Brotli response compression.
+
+## Examples
+
+### Rewriting a request
+
+Call `Rewrite` to route a request to another path while keeping the original URL in the browser. Call `Next` for requests that should continue without a rewrite.
+
+```go filename="proxy.go" highlight={7,11}
+package main
+
+import "net/http"
+
+func Proxy(w http.ResponseWriter, r *http.Request) {
+  if r.URL.Path == "/old-path" {
+    Rewrite(w, "/new-path")
+    return
+  }
+
+  Next(w)
+}
+```
+
+### Modifying downstream request headers
+
+Clone the incoming headers, apply changes, and pass them through `ProxyOptions.Request.Headers`. The same options value works with `Next` and `Rewrite`.
+
+```go filename="proxy.go" highlight={10-13}
+package main
+
+import "net/http"
+
+func Proxy(w http.ResponseWriter, r *http.Request) {
+  headers := r.Header.Clone()
+  headers.Set("Host", r.Host)
+  headers.Set("x-proxy", "go")
+  headers.Del("x-example")
+  options := ProxyOptions{
+    Request: RequestOptions{Headers: headers},
+  }
+  Next(w, options)
+}
+```
+
+## Good to know
+
+- Go Proxy runs on every request by default.
+- Only one proxy file is supported. Go and JavaScript proxies cannot be combined.
+- Go Proxy requires Turbopack and runs as a compiled Go executable.
+- Self-hosting uses `next build` and `next start`. Platform deployments require an adapter that supports Go middleware.

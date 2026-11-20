@@ -42,6 +42,7 @@ import {
 } from '../../server/app-render/work-unit-async-storage.external'
 import type { ImplicitTags } from '../../server/lib/implicit-tags'
 import { getImplicitTags } from '../../server/lib/implicit-tags'
+import { installGlobalModuleLoadingHandlers } from '../../server/app-render/install-global-module-loading-handlers'
 import {
   throwIncompleteStaticParamsErrorInStaticRoute,
   throwMissingGspErrorInStaticRoute,
@@ -376,6 +377,8 @@ function validateParams(
         params.hasOwnProperty(key) &&
         (paramValue === null ||
           paramValue === undefined ||
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           (paramValue as any) === false)
       ) {
         paramValue = []
@@ -925,6 +928,12 @@ export async function buildAppStaticPaths({
   }
 
   ComponentMod.patchFetch()
+
+  if ('__next_app__' in ComponentMod) {
+    // Cached generator results can contain server references that Flight needs
+    // to load before any rendering has initialized the module-loading globals.
+    installGlobalModuleLoadingHandlers(ComponentMod, cacheComponents)
+  }
 
   const incrementalCache = await createIncrementalCache({
     dir,

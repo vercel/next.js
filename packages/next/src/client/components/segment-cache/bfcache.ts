@@ -65,6 +65,10 @@ const bfcacheMap: CacheMap<BFCacheEntry> = createCacheMap()
 
 let currentBfCacheVersion = 0
 
+export function getBFCacheVersion(): number {
+  return currentBfCacheVersion
+}
+
 export function invalidateBfCache(): void {
   if (typeof window === 'undefined') {
     return
@@ -169,6 +173,20 @@ export function readFromBFCache(varyPath: VaryPath): BFCacheEntry | null {
     isRevalidation,
     false
   )
+}
+
+/**
+ * Read an entry during the commit phase of a prepared navigation
+ * (`router.experimental_prepare()`). Returns the entry only if it was written
+ * at or after `preparedAt`, i.e. by the prepare phase or something newer. The
+ * stale time is disregarded, the same as during a back/forward navigation.
+ */
+export function readFromBFCacheSincePreparedAt(
+  preparedAt: number,
+  varyPath: VaryPath
+): BFCacheEntry | null {
+  const entry = readFromBFCache(varyPath)
+  return entry !== null && entry.navigatedAt >= preparedAt ? entry : null
 }
 
 export function readFromBFCacheDuringRegularNavigation(

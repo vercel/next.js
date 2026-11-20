@@ -189,6 +189,7 @@ async function main() {
         try {
           await handle()
         } catch (err) {
+          console.error('Failed to handle request:', err)
           res.statusCode = 500
           res.end('Internal Server Error')
         }

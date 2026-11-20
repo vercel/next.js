@@ -5,48 +5,64 @@ use turbo_tasks::{TaskExecutionReason, TaskId, TaskPriority, event::EventDescrip
 
 use crate::{
     backend::{
-        TaskDataCategory,
         operation::{
             ExecuteContext, TaskGuard,
             aggregation_update::{
                 AggregationUpdateJob, AggregationUpdateQueue, ComputeDirtyAndCleanUpdate,
             },
         },
-        storage_schema::TaskStorageAccessors,
+        storage_schema::{ActivenessAccessors, TaskStorageAccessors},
     },
     data::{Dirtyness, InProgressState, InProgressStateInner},
 };
 
+/// Invalidates `task_ids`. Callers must not pass duplicate ids (the bulk task access expects
+/// unique ids, and deduplicating here would cost every invalidation).
 pub fn invalidate(
-    task_ids: SmallVec<[TaskId; 4]>,
+    task_ids: impl IntoIterator<Item = TaskId>,
     #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
     mut ctx: ExecuteContext<'_>,
 ) {
+    // Debug builds collect the ids to check they are unique. Release builds stream them.
+    #[cfg(debug_assertions)]
+    let task_ids = {
+        let task_ids: Vec<TaskId> = task_ids.into_iter().collect();
+        debug_assert!(
+            task_ids.len() <= 1
+                || task_ids.iter().collect::<rustc_hash::FxHashSet<_>>().len() == task_ids.len(),
+            "invalidate() must not be called with duplicate task ids: {task_ids:?}"
+        );
+        task_ids
+    };
+    let task_ids = task_ids.into_iter();
     let mut queue = AggregationUpdateQueue::new();
     // The tasks to schedule are collected and handed to the scheduler as one batch, which takes
     // the scheduler's queue lock once instead of once per task.
-    let mut to_schedule: SmallVec<[_; 4]> = SmallVec::with_capacity(task_ids.len());
-    for task_id in task_ids {
-        let Some(mut task) = ctx.try_task(task_id, TaskDataCategory::All) else {
-            // The task no longer exists, nothing to invalidate.
-            continue;
-        };
+    let mut to_schedule: SmallVec<[_; 4]> = SmallVec::with_capacity(task_ids.size_hint().0);
+    // Tasks that no longer exist are skipped, there is nothing to invalidate. Tasks that are not
+    // resident are restored from persistent storage in batches.
+    ctx.for_each_try_task_all(task_ids, "invalidate", |mut task, ctx| {
         if let Some(parent_priority) = make_task_dirty_without_scheduling(
             &mut task,
             true,
             #[cfg(feature = "task_dirty_cause")]
             cause.clone(),
             &mut queue,
-            &mut ctx,
+            ctx,
         ) {
-            to_schedule.push((task_id, ctx.schedule_task_priority(&task, parent_priority)));
+            to_schedule.push((
+                task.id(),
+                ctx.schedule_task_priority(&task, parent_priority),
+            ));
         }
-    }
+    });
     ctx.schedule_tasks(&to_schedule);
     queue.execute(&mut ctx);
 }
 
-/// Requires the guard to be allocated with [TaskDataCategory::All]
+/// Requires the guard to be allocated with [`TaskDataCategory::All`]
+///
+/// [`TaskDataCategory::All`]: crate::backend::storage::TaskDataCategory::All
 pub fn make_task_dirty_internal(
     task: &mut TaskGuard<'_>,
     make_stale: bool,
@@ -70,7 +86,9 @@ pub fn make_task_dirty_internal(
 /// priority to schedule it with (see [`ExecuteContext::schedule_task`]). The task is already marked
 /// as scheduled when this returns `Some`, so the caller must schedule it.
 ///
-/// Requires the guard to be allocated with [TaskDataCategory::All]
+/// Requires the guard to be allocated with [`TaskDataCategory::All`]
+///
+/// [`TaskDataCategory::All`]: crate::backend::storage::TaskDataCategory::All
 #[must_use]
 pub(super) fn make_task_dirty_without_scheduling(
     task: &mut TaskGuard<'_>,
@@ -97,6 +115,8 @@ pub(super) fn make_task_dirty_without_scheduling(
 
     #[cfg(feature = "trace_task_dirty")]
     let task_name = task.get_task_name();
+    #[cfg(feature = "trace_task_dirty")]
+    let task_id = task.id();
     if make_stale
         && let Some(InProgressState::InProgress(InProgressStateInner { stale, .. })) =
             task.get_in_progress_mut()
@@ -222,7 +242,7 @@ pub(super) fn make_task_dirty_without_scheduling(
         queue.extend(AggregationUpdateJob::data_update(task, aggregated_update));
     }
 
-    let should_schedule = !ctx.should_track_activeness() || task.has_activeness();
+    let should_schedule = !ctx.should_track_activeness() || task.is_active();
 
     if should_schedule {
         let description = EventDescription::new(|| task.get_task_desc_fn());

@@ -6,6 +6,7 @@ import {
   BUILD_MANIFEST,
   MIDDLEWARE_BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
+  CLIENT_STATIC_FILES_RUNTIME_EXTERNAL_BROWSER_RUNTIME_SYMBOL,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
@@ -55,8 +56,14 @@ export function generateClientManifest(
 
   return genClientManifestSpan?.traceFn(() => {
     const clientManifest: ClientBuildManifest = {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       __rewrites: normalizeRewritesForBuildManifest(rewrites) as any,
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       __routerFilterStatic: clientRouterFilters?.staticFilter as any,
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       __routerFilterDynamic: clientRouterFilters?.dynamicFilter as any,
     }
     const appDependencies = new Set(assetMap.pages['/_app'])
@@ -182,6 +189,15 @@ export default class BuildManifestPlugin {
         })
         .map((v) => v.name)
 
+      // `CopyFilePlugin` emits at most one of these, and only when
+      // `experimental.externalBrowserRuntime` is enabled.
+      assetMap.externalBrowserRuntimeFile = compilationAssets.find(
+        (p) =>
+          p.name.endsWith('.js') &&
+          p.info &&
+          CLIENT_STATIC_FILES_RUNTIME_EXTERNAL_BROWSER_RUNTIME_SYMBOL in p.info
+      )?.name
+
       assetMap.devFiles = getEntrypointFiles(
         entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH)
       ).filter((file) => !mainFiles.has(file))
@@ -221,7 +237,7 @@ export default class BuildManifestPlugin {
       assetMap.pages = Object.keys(assetMap.pages)
         .sort()
         .reduce(
-          // eslint-disable-next-line
+          // eslint-disable-next-line no-sequences
           (a, c) => ((a[c] = assetMap.pages[c]), a),
           {} as typeof assetMap.pages
         )

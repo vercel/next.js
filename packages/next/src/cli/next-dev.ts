@@ -5,7 +5,7 @@ import { saveCpuProfile } from '../server/lib/cpu-profile'
 import type { StartServerOptions } from '../server/lib/start-server'
 import {
   RESTART_EXIT_CODE,
-  getNodeDebugType,
+  getEffectiveDebugOptions,
   getParsedDebugAddress,
   getMaxOldSpaceSize,
   printAndExit,
@@ -27,7 +27,7 @@ import { getNpxCommand } from '../lib/helpers/get-npx-command'
 import { createSelfSignedCertificate } from '../lib/mkcert'
 import type { SelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
-import { initialEnv } from '@next/env'
+import { initialEnv, loadEnvConfig } from '@next/env'
 import { fork } from 'child_process'
 import type { ChildProcess } from 'child_process'
 import type { UpgradeContext, UpgradeReminder } from '../lib/upgrade/nudge'
@@ -82,6 +82,7 @@ let dir: string
 let child: undefined | ChildProcess
 // distDir is received from the child process via IPC, used for telemetry and trace.
 let distDir: string | undefined
+let serverTelemetrySettings: { disabled: string | undefined } | undefined
 let isTurbopack: boolean
 let traceUploadUrl: string
 let sessionStopHandled = false
@@ -92,6 +93,9 @@ const promptOutput = createPromptOutput()
 let upgradeOffered = false
 let upgradeInProgress = false
 let interruption: NodeJS.Signals | null = null
+// Set when the server child was terminated by a signal that this process did
+// not send, so that `next dev` exits with the conventional 128 + signal code.
+let childExitSignal: NodeJS.Signals | null = null
 let devSpanAttrs: { 'rage-restart': boolean; 'missing-next-dir': boolean } = {
   'rage-restart': false,
   'missing-next-dir': false,
@@ -182,15 +186,23 @@ const handleSessionStop = async (
       pagesDir = !!pagesResult.pagesDir
     }
 
-    const telemetry =
-      (traceGlobals.get('telemetry') as InstanceType<
-        typeof import('../telemetry/storage').Telemetry
-      >) ||
-      new Telemetry({
-        distDir: path.join(dir, distDir || '.next'),
-      })
+    // The CLI parent does not load config; read .env opt-outs before creating telemetry.
+    loadEnvConfig(dir, true)
+    if (serverTelemetrySettings?.disabled) {
+      process.env.NEXT_TELEMETRY_DISABLED = serverTelemetrySettings.disabled
+    }
+    // Config may have opted out before startup failed. Do not assume telemetry
+    // is enabled until the current server child has reported its setting.
+    const telemetry = serverTelemetrySettings
+      ? (traceGlobals.get('telemetry') as InstanceType<
+          typeof import('../telemetry/storage').Telemetry
+        >) ||
+        new Telemetry({
+          distDir: path.join(dir, distDir || '.next'),
+        })
+      : undefined
 
-    telemetry.record(
+    telemetry?.record(
       eventCliSessionStopped({
         cliCommand: 'dev',
         turboFlag: isTurbopack,
@@ -200,7 +212,7 @@ const handleSessionStop = async (
       }),
       true
     )
-    telemetry.flushDetached({ mode: 'dev', dir, distDir: null, events: null })
+    telemetry?.flushDetached({ mode: 'dev', dir, events: null })
   } catch (_) {
     // errors here aren't actionable so don't add
     // noise to the output
@@ -230,7 +242,9 @@ const handleSessionStop = async (
     process.exit(
       interruption && (interruption === 'SIGHUP' || interruptedUpgrade)
         ? 128 + os.constants.signals[interruption]
-        : exitCode
+        : childExitSignal
+          ? 128 + os.constants.signals[childExitSignal]
+          : exitCode
     )
   }
 }
@@ -493,15 +507,30 @@ const nextDev = async (
         nodeOptions['enable-source-maps'] = true
       }
 
-      const nodeDebugType = getNodeDebugType(nodeOptions)
-      const originalAddress =
-        nodeDebugType === undefined ? undefined : nodeOptions[nodeDebugType]
-      delete nodeOptions.inspect
-      delete nodeOptions['inspect-brk']
-      delete nodeOptions['inspect_brk']
-      if (nodeDebugType !== undefined) {
-        const address = getParsedDebugAddress(originalAddress)
-        address.port = address.port === 0 ? 0 : address.port + 1
+      // A debugged `next dev` process moves its inspector to the server
+      // process on the next port, with the same flag, host and publish-uid.
+      // Whether it's debugged and where it listens come from Node.js itself,
+      // so negations (`--no-inspect`) and later `--inspect-port` overrides
+      // are honored. `--inspect-wait` is moved too; otherwise the server
+      // inherits it on the parent's port, fails to bind and doesn't wait.
+      // (Handled here rather than in the shared `getNodeDebugType`, which
+      // also decides which build workers attach a debugger.)
+      const parentDebugger = getEffectiveDebugOptions({ includeWait: true })
+      const nodeDebugType = parentDebugger.type
+      // Drop every inspector option; the effective ones are re-added below.
+      for (const key of Object.keys(nodeOptions)) {
+        if (/^(no[-_])?(inspect|debug)/.test(key)) {
+          delete nodeOptions[key]
+        }
+      }
+      if (nodeDebugType !== undefined && parentDebugger.address) {
+        const address: DebugAddress = {
+          host: parentDebugger.address.host,
+          port:
+            parentDebugger.address.port === 0
+              ? 0
+              : parentDebugger.address.port + 1,
+        }
         nodeOptions[nodeDebugType] = formatDebugAddress(address)
       } else if (options.inspect) {
         const address: DebugAddress =
@@ -510,10 +539,23 @@ const nextDev = async (
             : options.inspect
         nodeOptions.inspect = formatDebugAddress(address)
       }
+      // Keep an inherited publish-uid restriction (e.g. stderr only) for
+      // whichever inspector the server gets.
+      if (
+        nodeOptions.inspect !== undefined ||
+        nodeOptions['inspect-brk'] !== undefined ||
+        nodeOptions['inspect-wait'] !== undefined
+      ) {
+        if (parentDebugger.publishUid !== undefined) {
+          nodeOptions['inspect-publish-uid'] = parentDebugger.publishUid
+        }
+      }
 
       const { nodeOptions: formattedNodeOptions, execArgv } =
         formatNodeOptions(nodeOptions)
 
+      // A restarted worker must report its own config-derived opt-out.
+      serverTelemetrySettings = undefined
       // Pipe output through us so it can be held while the menu is open.
       child = fork(startServerPath, {
         stdio: humanUpgrade ? ['inherit', 'pipe', 'pipe', 'ipc'] : 'inherit',
@@ -569,6 +611,7 @@ const nextDev = async (
           } else if (msg.nextUpgradeContext) {
             const context = msg.nextUpgradeContext as UpgradeContext
             distDir = context.distDir
+            serverTelemetrySettings = { disabled: msg.telemetryDisabled }
             const initialAssessment =
               msg.nextUpgradeAssessment !== undefined
                 ? Promise.resolve(msg.nextUpgradeAssessment)
@@ -585,6 +628,8 @@ const nextDev = async (
           } else if (msg.nextWorkerReady) {
             child?.send({ nextWorkerOptions: startServerOptions })
           } else if (msg.nextServerReady && !resolved) {
+            // Preserve opt-outs set by config already evaluated in the server child.
+            serverTelemetrySettings = { disabled: msg.telemetryDisabled }
             if (msg.port) {
               // Store the used port in case a random one was selected, so that
               // it can be re-used on automatic dev server restarts.
@@ -614,7 +659,28 @@ const nextDev = async (
           if (upgradeInProgress) {
             interruption ??= signal
             await handleSessionStop(null)
+            return
           }
+          // Shutdowns initiated by this process returned above. The server
+          // handles SIGINT/SIGTERM itself and exits with a code, so a signal
+          // exit here means it was killed externally (e.g. by the OOM killer)
+          // or crashed. Stop instead of running on without a server.
+          // Termination requests (e.g. Ctrl+C before the server installed its
+          // handlers) are not errors, so only report other signals.
+          if (
+            signal !== 'SIGINT' &&
+            signal !== 'SIGTERM' &&
+            signal !== 'SIGHUP'
+          ) {
+            Log.error(
+              `The Next.js dev server process exited unexpectedly due to signal ${signal}.` +
+                (signal === 'SIGKILL'
+                  ? ' This can happen when the system runs out of memory.'
+                  : '')
+            )
+          }
+          childExitSignal = signal
+          await handleSessionStop(/* signal */ null)
           return
         }
         if (code === RESTART_EXIT_CODE) {

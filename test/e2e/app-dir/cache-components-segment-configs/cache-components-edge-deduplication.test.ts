@@ -38,11 +38,11 @@ describe('cache-components-edge-deduplication', () => {
       waitForRedbox(browser)
       await expect(browser).toDisplayRedbox(`
          {
-           "description": "Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.",
+           "description": "Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components",
            "environmentLabel": null,
            "label": "Build Error",
            "source": "./app/edge-with-layout/layout.tsx (1:14)
-         Error: Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
+         Error: Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components
          > 1 | export const dynamic = 'force-dynamic'
              |              ^^^^^^^",
            "stack": [],
@@ -64,10 +64,10 @@ describe('cache-components-edge-deduplication', () => {
       expect(next.cliOutput).toContain('./app/edge-with-layout/layout.tsx')
       expect(next.cliOutput).toContain('./app/edge-with-layout/edge/page.tsx')
       expect(next.cliOutput).toContain(
-        '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+        '"dynamic" is not compatible with `nextConfig.cacheComponents`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components'
       )
       expect(next.cliOutput).toContain(
-        '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it.'
+        '"runtime" is not compatible with `nextConfig.cacheComponents`. Please remove it. Read more: https://nextjs.org/docs/app/guides/migrating-to-cache-components'
       )
       // Count occurrences of the layout error at the specific location
       const layoutErrorMatches = next.cliOutput.match(

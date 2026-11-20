@@ -3,6 +3,8 @@ import { appBootstrap } from './app-bootstrap'
 import { isRecoverableError } from './react-client-callbacks/on-recoverable-error'
 
 window.next.turbopack = true
+// TODO(as-any): pre-existing cast, not yet reviewed
+// eslint-disable-next-line @next/internal/no-as-any
 ;(self as any).__webpack_hash__ = ''
 
 // eslint-disable-next-line @next/internal/typechecked-require

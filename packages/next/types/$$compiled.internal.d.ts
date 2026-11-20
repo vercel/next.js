@@ -206,7 +206,7 @@ declare module 'react-server-dom-webpack/server.edge' {
     reference: T,
     id: string,
     exportName: string | null
-  ): unknown
+  ): T
 
   export function createClientModuleProxy(moduleId: string): unknown
 }
@@ -495,10 +495,6 @@ declare module 'next/dist/compiled/@mswjs/interceptors/ClientRequest' {
   export * from '@mswjs/interceptors/ClientRequest'
 }
 
-declare module 'next/dist/compiled/jest-worker' {
-  export * from 'jest-worker'
-}
-
 // TODO: Use tsconfig#paths instead
 declare module 'next/dist/compiled/next-devtools'
 
@@ -698,8 +694,8 @@ declare module 'next/dist/compiled/json5' {
   import m from 'json5'
   export = m
 }
-declare module 'next/dist/compiled/jsonwebtoken' {
-  import m from 'jsonwebtoken'
+declare module 'next/dist/compiled/fast-jwt' {
+  import * as m from 'fast-jwt'
   export = m
 }
 declare module 'next/dist/compiled/lodash.curry' {

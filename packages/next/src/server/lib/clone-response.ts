@@ -6,7 +6,9 @@ if (globalThis.FinalizationRegistry) {
   registry = new FinalizationRegistry((weakRef: WeakRef<ReadableStream>) => {
     const stream = weakRef.deref()
     if (stream && !stream.locked) {
-      stream.cancel('Response object has been garbage collected').then(noop)
+      // Cleanup can run after the body has errored, even when its reader caught
+      // the error. Keep this best-effort cancellation from becoming unhandled.
+      stream.cancel('Response object has been garbage collected').catch(noop)
     }
   })
 }

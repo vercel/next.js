@@ -158,13 +158,10 @@ describe('app-dir - errors', () => {
           )
         )
       } else {
-        expect(cleanCliOutput).toMatchInlineSnapshot(`
-         "⨯ Error: undefined
-             at ignore-listed frames {
-           digest: '<digest>'
-         }
-         "
-        `)
+        expect(cleanCliOutput).toContain('⨯ Error: undefined')
+        // No runtime sourcemapping so the stack is just a bunch of library internals
+        expect(cleanCliOutput).toContain("digest: '<digest>'")
+        expect(cleanCliOutput).not.toContain('ignore-listed frames')
       }
     })
 
@@ -196,13 +193,10 @@ describe('app-dir - errors', () => {
           )
         )
       } else {
-        expect(cleanCliOutput).toMatchInlineSnapshot(`
-         "⨯ Error: null
-             at ignore-listed frames {
-           digest: '<digest>'
-         }
-         "
-        `)
+        expect(cleanCliOutput).toContain('⨯ Error: null')
+        // No runtime sourcemapping so the stack is just a bunch of library internals
+        expect(cleanCliOutput).toContain("digest: '<digest>'")
+        expect(cleanCliOutput).not.toContain('ignore-listed frames')
       }
     })
 
@@ -229,13 +223,10 @@ describe('app-dir - errors', () => {
           expect.stringMatching(/Error: this is a test.*digest: '<digest>'/s)
         )
       } else {
-        expect(cleanCliOutput).toMatchInlineSnapshot(`
-         "⨯ Error: this is a test
-             at ignore-listed frames {
-           digest: '<digest>'
-         }
-         "
-        `)
+        expect(cleanCliOutput).toContain('⨯ Error: this is a test')
+        // No runtime sourcemapping so the stack is just a bunch of library internals
+        expect(cleanCliOutput).toContain("digest: '<digest>'")
+        expect(cleanCliOutput).not.toContain('ignore-listed frames')
       }
     })
 

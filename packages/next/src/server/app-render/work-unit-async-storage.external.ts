@@ -343,6 +343,11 @@ export interface CommonUseCacheStore extends CommonCacheStore, RevalidateStore {
   readonly serverComponentsHmrCache: ServerComponentsHmrCache | undefined
   readonly forceRevalidate: boolean
   readonly outerOwnerStack: string | undefined
+  /**
+   * Entry collection waits for these promises before it reads metadata from
+   * this store.
+   */
+  readonly pendingNestedCacheMetadata: Set<Promise<unknown>>
 }
 
 export interface PublicUseCacheStore extends CommonUseCacheStore {

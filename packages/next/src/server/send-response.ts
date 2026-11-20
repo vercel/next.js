@@ -4,6 +4,16 @@ import { isNodeNextResponse } from './base-http/helpers'
 import { pipeToNodeResponse } from './pipe-readable'
 import { splitCookiesString } from './web/utils'
 
+// The body may have been transparently decoded (e.g. fetch decompresses a
+// gzip body but preserves the original headers), in which case forwarding
+// these headers produces invalid response framing. Matches FORBIDDEN_HEADERS
+// in web/sandbox/sandbox.ts.
+const FORBIDDEN_HEADERS = [
+  'content-length',
+  'content-encoding',
+  'transfer-encoding',
+]
+
 /**
  * Sends the response on the underlying next response object.
  *
@@ -47,6 +57,10 @@ export async function sendResponse(
         return
       }
 
+      if (FORBIDDEN_HEADERS.includes(name)) {
+        return
+      }
+
       // The append handling is special cased for `set-cookie`.
       if (name.toLowerCase() === 'set-cookie') {
         // TODO: (wyattjoh) replace with native response iteration when we can upgrade undici
@@ -56,7 +70,7 @@ export async function sendResponse(
       } else {
         // only append the header if it is either not present in the outbound response
         // or if the header supports multiple values
-        const isHeaderPresent = typeof res.getHeader(name) !== 'undefined'
+        const isHeaderPresent = res.hasHeader(name)
         if (
           headersWithMultipleValuesAllowed.includes(name.toLowerCase()) ||
           !isHeaderPresent

@@ -366,7 +366,6 @@ mod tests {
                 &m,
                 &eval_context,
                 AnalyzeMode::code_generation_and_tracing(),
-                true,
                 SpecifiedModuleType::EcmaScript,
                 true,
                 false,
@@ -516,7 +515,10 @@ mod tests {
                     let mut new_args = Vec::with_capacity(args.len());
                     for arg in args {
                         match arg {
-                            EffectArg::Value(v) => {
+                            EffectArg::Value(v, effects) => {
+                                queue.extend(
+                                    BumpVec::from(effects).into_iter().rev().map(|e| (i, e)),
+                                );
                                 new_args.push(
                                     resolve(
                                         arena,
@@ -548,7 +550,10 @@ mod tests {
                                         .map(|e| (i, e)),
                                 );
                             }
-                            EffectArg::Spread => {
+                            EffectArg::Spread(effects) => {
+                                queue.extend(
+                                    BumpVec::from(effects).into_iter().rev().map(|e| (i, e)),
+                                );
                                 new_args.push(JsValue::unknown_empty(true, rcstr!("spread")));
                             }
                         }
@@ -665,7 +670,10 @@ mod tests {
                         resolved.push((format!("{parent} -> {i} free var"), JsValue::FreeVar(var)));
                         0
                     }
-                    Effect::TypeOf { mut arg, .. } => {
+                    Effect::TypeOf {
+                        mut arg, effects, ..
+                    } => {
+                        queue.extend(BumpVec::from(effects).into_iter().rev().map(|e| (i, e)));
                         let (arg, steps) = resolve(
                             &arena,
                             &var_graph,
@@ -735,11 +743,17 @@ mod tests {
                         ));
                         0
                     }
+                    Effect::Member {
+                        base_effects: effects,
+                        ..
+                    }
+                    | Effect::In { effects, .. } => {
+                        queue.extend(BumpVec::from(effects).into_iter().rev().map(|e| (i, e)));
+                        0
+                    }
                     Effect::ImportMeta { .. }
                     | Effect::ImportedBinding { .. }
-                    | Effect::Member { .. }
-                    | Effect::DestructuredMember { .. }
-                    | Effect::In { .. } => 0,
+                    | Effect::DestructuredMember { .. } => 0,
                 };
                 let time = start.elapsed();
                 if time.as_millis() > 1 {
@@ -810,7 +824,6 @@ mod tests {
                 &m,
                 &eval_context,
                 AnalyzeMode::code_generation(),
-                true,
                 SpecifiedModuleType::Automatic,
                 false,
                 false,

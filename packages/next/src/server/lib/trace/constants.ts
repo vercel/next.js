@@ -97,6 +97,10 @@ enum AppRenderSpan {
   instantInsights = 'AppRender.instantInsights',
   instantInsightsPrepareValidation = 'AppRender.instantInsights.prepareValidation',
   instantInsightsRunValidation = 'AppRender.instantInsights.runValidation',
+  instantInsightsWarmup = 'AppRender.instantInsights.warmup',
+  instantInsightsStaticShell = 'AppRender.instantInsights.staticShell',
+  instantInsightsValidate = 'AppRender.instantInsights.validate',
+  devValidation = 'AppRender.devValidation',
 }
 
 enum DevBundlerServiceSpan {
@@ -132,6 +136,13 @@ enum MiddlewareSpan {
   execute = 'Middleware.execute',
 }
 
+enum NextSpan {
+  // Root span inserted by the middleware adapter when the request has no
+  // trace context (separately invoked middleware without a parent), so the
+  // middleware and the render are siblings in one trace.
+  request = 'Next.request',
+}
+
 type SpanTypes =
   | `${BaseServerSpan}`
   | `${LoadComponentsSpan}`
@@ -149,15 +160,18 @@ type SpanTypes =
   | `${RouteModuleSpan}`
   | `${ResolveMetadataSpan}`
   | `${MiddlewareSpan}`
+  | `${NextSpan}`
 
 // This list is used to filter out spans that are not relevant to the user
 export const NextVanillaSpanAllowlist = new Set([
   MiddlewareSpan.execute,
+  NextSpan.request,
   BaseServerSpan.handleRequest,
   RenderSpan.getServerSideProps,
   RenderSpan.getStaticProps,
   AppRenderSpan.fetch,
   AppRenderSpan.getBodyResult,
+  AppRenderSpan.devValidation,
   LoadComponentsSpan.loadRouteModule,
   RenderSpan.renderDocument,
   NodeSpan.runHandler,
@@ -200,6 +214,7 @@ export {
   RouteModuleSpan,
   ResolveMetadataSpan,
   MiddlewareSpan,
+  NextSpan,
 }
 
 export type { SpanTypes }

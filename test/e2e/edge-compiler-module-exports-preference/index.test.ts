@@ -1,4 +1,4 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 
 // Deploy mode exclusion: This suite manually creates a package in the local `node_modules` directory.
@@ -40,7 +40,7 @@ describe('Edge compiler module exports preference', () => {
       },
     },
     installCommand: 'pnpm i',
-    startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+    startCommand: isNextDev ? 'pnpm dev' : 'pnpm start',
     buildCommand: 'pnpm run build',
     dependencies: {},
   })

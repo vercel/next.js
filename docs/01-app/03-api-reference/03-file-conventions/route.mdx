@@ -267,7 +267,7 @@ export async function GET(request) {
 
 ### Revalidating Cached Data
 
-You can [revalidate cached data](/docs/app/guides/incremental-static-regeneration) using the `revalidate` route segment config option.
+You can [revalidate cached data](/docs/app/guides/incremental-static-regeneration) using the [`revalidate` route segment config](#segment-config-options).
 
 ```ts filename="app/posts/route.ts" switcher
 export const revalidate = 60
@@ -290,6 +290,12 @@ export async function GET() {
   return Response.json(posts)
 }
 ```
+
+#### With Cache Components
+
+When [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled, cache data in a separate helper function with [`use cache`](/docs/app/api-reference/directives/use-cache) and set its revalidation interval with [`cacheLife`](/docs/app/api-reference/functions/cacheLife). Remove the unsupported `revalidate` export from the Route Handler.
+
+See [migrating GET Route Handlers to Cache Components](/docs/app/guides/migrating-to-cache-components#route-handlers-get) for an example.
 
 ### Redirects
 
@@ -401,7 +407,7 @@ export async function POST(req) {
 These abstractions use the Web APIs to create a stream. You can also use the underlying Web APIs directly.
 
 ```ts filename="app/api/route.ts" switcher
-// https://developer.mozilla.org/docs/Web/API/ReadableStream#convert_async_iterator_to_stream
+// https://developer.mozilla.org/docs/Web/API/ReadableStream#convert_an_iterator_or_async_iterator_to_a_stream
 function iteratorToStream(iterator: any) {
   return new ReadableStream({
     async pull(controller) {
@@ -667,6 +673,8 @@ export const preferredRegion = 'auto' // deprecated
 ```
 
 See the [API reference](/docs/app/api-reference/file-conventions/route-segment-config) for more details.
+
+Cache Components does not support the `dynamic`, `dynamicParams`, `revalidate`, `fetchCache`, or `runtime` exports shown above. See [revalidating with Cache Components](#with-cache-components) for caching and [migrating the `runtime` config](/docs/app/guides/migrating-to-cache-components#runtime--edge) for runtime requirements.
 
 ## Version History
 

@@ -6,3 +6,11 @@ README.md
 .next
 docker
 .git
+
+# Environment variables: keep local files, which usually hold credentials, out
+# of the build context. `next build` loads any env file it finds and standalone
+# output copies `.env` and `.env.production` into the image.
+.env
+.env*.local
+.env.development
+.env.test
