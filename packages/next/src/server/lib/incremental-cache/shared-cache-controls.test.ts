@@ -4,7 +4,9 @@ import type {
   PrerenderManifest,
 } from '../../../build'
 import { RenderingMode } from '../../../build/rendering-mode'
-import { SharedCacheControls } from './shared-cache-controls.external'
+import { SharedCacheControls } from './shared-cache-controls'
+import { SharedCacheControls as SharedCacheControlsFromOldPath } from './shared-cache-controls.external'
+import { sharedCacheControlsMap } from './shared-cache-controls-map.external'
 import { getRouteCacheKey } from '../route-cache-key'
 import { RouteKind } from '../../route-kind'
 
@@ -13,6 +15,20 @@ const other = { kind: RouteKind.PAGES, sourceRoute: '/[...slug]' }
 const appRoute = (sourceRoute: string) => ({
   kind: RouteKind.APP_ROUTE,
   sourceRoute,
+})
+
+// Cache handlers outside of Next.js import the class from the old path and
+// read its static map.
+describe('shared-cache-controls.external', () => {
+  it('should export the class', () => {
+    expect(SharedCacheControlsFromOldPath).toBe(SharedCacheControls)
+  })
+
+  it('should keep the shared map in the static `cacheControls` field', () => {
+    expect(SharedCacheControlsFromOldPath['cacheControls']).toBe(
+      sharedCacheControlsMap
+    )
+  })
 })
 
 describe('SharedCacheControls', () => {

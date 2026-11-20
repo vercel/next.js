@@ -28,7 +28,7 @@ import {
   NEXT_CACHE_TAGS_HEADER,
   PRERENDER_REVALIDATE_HEADER,
 } from '../../../lib/constants'
-import { SharedCacheControls } from './shared-cache-controls.external'
+import { SharedCacheControls } from './shared-cache-controls'
 import {
   getResumeDataCache,
   workUnitAsyncStorage,
