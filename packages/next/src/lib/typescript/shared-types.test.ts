@@ -3,6 +3,7 @@ import { promises as fsPromises } from 'fs'
 import os from 'os'
 import path from 'path'
 
+import type { NextConfigComplete } from '../../server/config-shared'
 import { generateSharedTypes } from './shared-types'
 
 // Generation without a lock, as when locking is unsupported.
@@ -38,7 +39,7 @@ describe('generateSharedTypes temporary files', () => {
         experimental: {},
         pageExtensions: ['tsx'],
         cacheLife: {},
-      } as any,
+      } as Partial<NextConfigComplete> as NextConfigComplete,
       appDir: undefined,
       pagesDir: undefined,
     })
@@ -79,12 +80,12 @@ describe('generateSharedTypes temporary files', () => {
     })
     jest
       .spyOn(fsPromises, 'writeFile')
-      .mockImplementation(async (file, ...args: any[]) => {
+      .mockImplementation(async (file, data, options) => {
         if (isRoutesTempFile(file)) {
-          await (writeFile as any)(file, 'export type')
+          await writeFile(file, 'export type')
           throw diskFull
         }
-        await (writeFile as any)(file, ...args)
+        await writeFile(file, data, options)
       })
 
     await expect(generate()).rejects.toBe(diskFull)
@@ -98,11 +99,11 @@ describe('generateSharedTypes temporary files', () => {
     let removals = 0
     jest
       .spyOn(fsPromises, 'writeFile')
-      .mockImplementation(async (file, ...args: any[]) => {
-        await (writeFile as any)(file, ...args)
+      .mockImplementation(async (file, data, options) => {
+        await writeFile(file, data, options)
         // Another process sweeps the temporary file of this stalled write.
         if (isRoutesTempFile(file) && removals++ === 0) {
-          await rm(file as string)
+          await rm(String(file))
         }
       })
 
@@ -120,11 +121,11 @@ describe('generateSharedTypes temporary files', () => {
     let removals = 0
     jest
       .spyOn(fsPromises, 'writeFile')
-      .mockImplementation(async (file, ...args: any[]) => {
-        await (writeFile as any)(file, ...args)
+      .mockImplementation(async (file, data, options) => {
+        await writeFile(file, data, options)
         if (isRoutesTempFile(file)) {
           removals++
-          await rm(file as string)
+          await rm(String(file))
         }
       })
 
