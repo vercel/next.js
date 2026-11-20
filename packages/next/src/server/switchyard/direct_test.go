@@ -348,3 +348,12 @@ func TestARequestTheWorkerAlreadyGotIsNotHandedToNode(t *testing.T) {
 		t.Errorf("worker saw %d requests, want 2", n)
 	}
 }
+
+func TestNodesInternalHeadersAreStrippedWithoutATableDirectBlock(t *testing.T) {
+	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "go") })
+	fx.switchyard.apply(controlMessage{Event: "table", Table: json.RawMessage(`{"contract":{"version":1},"maxHeaderBytes":16384,"goExact":{"/api/echo":"/api/echo/route"}}`)})
+	fx.raw(t, "GET /api/echo HTTP/1.1\r\nX-Next-Internal-Forged: 1")
+	if got := (<-fx.worker).Header.Get("X-Next-Internal-Forged"); got != "" {
+		t.Errorf("worker got X-Next-Internal-Forged: %q", got)
+	}
+}

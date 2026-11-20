@@ -141,7 +141,9 @@ func (s *directState) loadTable(data []byte) error {
 	for _, name := range raw.Direct.StripRequestHeaders {
 		s.strip[textproto.CanonicalMIMEHeaderKey(name)] = true
 	}
-	s.stripPrefixes = nil
+	// Node always removes x-next-internal-* (proxyNativeRequest), so the
+	// prefix is stripped even from a table that doesn't list it.
+	s.stripPrefixes = []string{"X-Next-Internal-"}
 	for _, prefix := range raw.Direct.StripRequestHeaderPrefixes {
 		// "x-next-internal-" → "X-Next-Internal-", how Go keys such headers.
 		s.stripPrefixes = append(s.stripPrefixes, textproto.CanonicalMIMEHeaderKey(prefix))
