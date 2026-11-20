@@ -626,8 +626,8 @@ export async function startServer(
         upgradeHandler = initResult.upgradeHandler
         nextServer = initResult.server
         closeUpgraded = initResult.closeUpgraded
-        if (publicServer?.setRouteTable && initResult.switchyardRouteTable) {
-          publicServer.setRouteTable(initResult.switchyardRouteTable())
+        if (publicServer?.setRouteTable && initResult.getSwitchyardRouteTable) {
+          publicServer.setRouteTable(initResult.getSwitchyardRouteTable())
         }
 
         // Log experimental features after config is loaded

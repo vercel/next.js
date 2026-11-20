@@ -71,7 +71,7 @@ func startDirect(t *testing.T, worker http.HandlerFunc) *directFixture {
 
 func (fx *directFixture) announce(address string, pages ...string) {
 	for _, page := range pages {
-		fx.switchyard.apply(controlMessage{Event: "worker", Page: page, Network: "tcp",
+		fx.switchyard.apply(controlMessage{Event: "worker", Page: page,
 			Address: address, TokenHeader: "x-next-internal-go-token", Token: "secret"})
 	}
 }
@@ -192,7 +192,7 @@ func TestReadControlSkipsBadLinesAndStopsAtEOF(t *testing.T) {
 func TestApplyKeepsTheTableAndWorkersNodeReports(t *testing.T) {
 	f := newSwitchyard(http.NotFoundHandler(), &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 3000}, time.Second)
 	f.apply(controlMessage{Event: "table", Table: json.RawMessage(`{"contract":{"version":1},"maxHeaderBytes":16384,"goExact":{"/api/echo":"/api/echo/route"}}`)})
-	f.apply(controlMessage{Event: "worker", Page: "/api/echo/route", Network: "tcp",
+	f.apply(controlMessage{Event: "worker", Page: "/api/echo/route",
 		Address: "127.0.0.1:51300", TokenHeader: "x-next-internal-go-token", Token: "secret"})
 	s := f.state.Load()
 	if s.table == nil {
