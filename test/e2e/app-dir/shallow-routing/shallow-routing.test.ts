@@ -145,6 +145,41 @@ describe('shallow-routing', () => {
         `${next.url}/pushstate-string-url?query=foo-added`
       )
     })
+
+    it('should update useSearchParams when forwarding the current history state', async () => {
+      const browser = await next.browser('/a')
+      expect(
+        await browser
+          .elementByCss('#to-pushstate-string-url')
+          .click()
+          .waitForElementByCss('#pushstate-string-url')
+          .text()
+      ).toBe('PushState String Url')
+
+      // The current state was written by the app router and contains `__NA`.
+      expect(await browser.eval('window.history.state.__NA')).toBe(true)
+
+      await browser.elementByCss('#push-string-url-current-state').click()
+
+      // Check useSearchParams value is the new searchparam
+      await check(() => browser.elementByCss('#my-data').text(), 'foo')
+
+      // Check current url is the new searchparams
+      expect(await browser.url()).toBe(
+        `${next.url}/pushstate-string-url?query=foo`
+      )
+
+      // Same cycle a second time
+      await browser.elementByCss('#push-string-url-current-state').click()
+
+      // Check useSearchParams value is the new searchparam
+      await check(() => browser.elementByCss('#my-data').text(), 'foo-added')
+
+      // Check current url is the new searchparams
+      expect(await browser.url()).toBe(
+        `${next.url}/pushstate-string-url?query=foo-added`
+      )
+    })
   })
 
   it('should work when given an undefined state value', async () => {
@@ -341,6 +376,41 @@ describe('shallow-routing', () => {
 
       // Same cycle a second time
       await browser.elementByCss('#replace-string-url-undefined').click()
+
+      // Check useSearchParams value is the new searchparam
+      await check(() => browser.elementByCss('#my-data').text(), 'foo-added')
+
+      // Check current url is the new searchparams
+      expect(await browser.url()).toBe(
+        `${next.url}/replacestate-string-url?query=foo-added`
+      )
+    })
+
+    it('should update useSearchParams when forwarding the current history state', async () => {
+      const browser = await next.browser('/a')
+      expect(
+        await browser
+          .elementByCss('#to-replacestate-string-url')
+          .click()
+          .waitForElementByCss('#replacestate-string-url')
+          .text()
+      ).toBe('ReplaceState String Url')
+
+      // The current state was written by the app router and contains `__NA`.
+      expect(await browser.eval('window.history.state.__NA')).toBe(true)
+
+      await browser.elementByCss('#replace-string-url-current-state').click()
+
+      // Check useSearchParams value is the new searchparam
+      await check(() => browser.elementByCss('#my-data').text(), 'foo')
+
+      // Check current url is the new searchparams
+      expect(await browser.url()).toBe(
+        `${next.url}/replacestate-string-url?query=foo`
+      )
+
+      // Same cycle a second time
+      await browser.elementByCss('#replace-string-url-current-state').click()
 
       // Check useSearchParams value is the new searchparam
       await check(() => browser.elementByCss('#my-data').text(), 'foo-added')
