@@ -9,12 +9,12 @@ The experimental `turbopackModuleFederation` option configures [Module Federatio
 >
 > - This option is experimental and only applies when using Turbopack.
 > - Federated imports and exposed modules are currently supported in client components. They are not supported in Server Components, Route Handlers, or the Edge runtime.
-> - Turbopack currently supports webpack's `script` remote type and global containers. Other remote and library types are not supported.
-> - Changes to a remote or exposed module are available after reloading the browser. Changes to the federation configuration require restarting the development server.
+> - Compared to webpack Turbopack currently supports only `script` remote type and global containers. Other remote and library types are not supported.
+> - Changes to a remote or exposed module are available after reloading the browser. Next.js automatically restarts the development server when the federation configuration changes.
 
 ## Consuming a remote
 
-Configure each remote using webpack's `globalName@url` syntax:
+Configure each remote using `globalName@url` syntax:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -54,38 +54,36 @@ Import the exposed module from a client component:
 ```tsx filename="app/product.tsx" switcher
 'use client'
 
-import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 
-export function Product() {
-  const [name, setName] = useState('Loading')
+const Product = dynamic(() => import('catalog/product'), {
+  ssr: false,
+  loading: () => <p>Loading</p>,
+})
 
-  useEffect(() => {
-    import('catalog/product').then((module) => setName(module.name))
-  }, [])
-
-  return <p>{name}</p>
+export function ProductBoundary() {
+  return <Product />
 }
 ```
 
 ```jsx filename="app/product.js" switcher
 'use client'
 
-import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 
-export function Product() {
-  const [name, setName] = useState('Loading')
+const Product = dynamic(() => import('catalog/product'), {
+  ssr: false,
+  loading: () => <p>Loading</p>,
+})
 
-  useEffect(() => {
-    import('catalog/product').then((module) => setName(module.name))
-  }, [])
-
-  return <p>{name}</p>
+export function ProductBoundary() {
+  return <Product />
 }
 ```
 
 A remote can be an existing webpack application created with `ModuleFederationPlugin`, or another Next.js application using this option. Remote entries may load additional chunks; Turbopack resolves those chunk URLs relative to the remote entry, including when the producer is hosted on another origin.
 
-The URL after `globalName@` is passed to the runtime loader without scheme validation. It can be an absolute URL, a server-relative URL such as `/remoteEntry.js`, or a `file://` URL when the execution environment supports it. Classic Web Workers are supported; webpack remotes intended for a worker must use a worker-compatible target and chunk loader (for example `target: 'webworker'` with `chunkLoading: 'import-scripts'`). Module workers are not supported.
+The URL after `globalName@` is passed to the runtime loader. It can be an absolute URL, a server-relative URL such as `/remoteEntry.js`, or a `file://` URL when the execution environment supports it. Classic Web Workers are supported; webpack remotes intended for a worker must use a worker-compatible target and chunk loader (for example `target: 'webworker'` with `chunkLoading: 'import-scripts'`). Module workers are not supported yet.
 
 You can provide an ordered list of remote entry URLs. Turbopack tries each entry in order and reports the combined failures if none loads:
 
@@ -106,7 +104,7 @@ module.exports = {
 
 ## Exposing modules
 
-Set a container `name`, a `filename`, and the modules to expose. Federation entries and their lazy chunks use the isolated `/_next/static/chunks/mf/` directory; the remote entry is served from `/_next/static/chunks/mf/<filename>`.
+Set a container `name`, a `filename`, and the modules to expose. The unhashed remote entry is served from `/_next/static/<filename>`. Its content-hashed lazy chunks use the isolated `/_next/static/chunks/mf/` directory.
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
