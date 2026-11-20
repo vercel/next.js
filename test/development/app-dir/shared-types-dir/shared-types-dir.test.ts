@@ -264,10 +264,12 @@ describe('shared-types-dir', () => {
         env: nextEnv(),
         extendEnv: false,
         reject: false,
-        all: true,
       })
       let output = ''
-      typegen.all!.on('data', (chunk) => {
+      typegen.stdout!.on('data', (chunk) => {
+        output += chunk
+      })
+      typegen.stderr!.on('data', (chunk) => {
         output += chunk
       })
       try {

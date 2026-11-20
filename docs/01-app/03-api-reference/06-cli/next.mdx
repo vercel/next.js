@@ -340,6 +340,8 @@ In projects that keep routes under `src/`, paths resolve with or without the `sr
 
 Only matching routes appear in the route table. When you select an App Router route, Next.js also includes the built-in `/_not-found` route.
 
+Only matching routes are compiled, but type checking still covers every route, because the generated route types include all routes. To build while another route has type errors, use [`typescript.ignoreBuildErrors`](/docs/app/api-reference/config/typescript#disabling-typescript-errors-in-production).
+
 ### Changing the default port
 
 By default, Next.js uses `http://localhost:3000` during development and with `next start`. The default port can be changed with the `-p` option, like so:
