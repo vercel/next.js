@@ -53,7 +53,7 @@ import { stripIsPartialByte } from '../fetch-server-response'
 import { startRevalidationCooldown } from '../../segment-cache/scheduler'
 import { getDeploymentId } from '../../../../shared/lib/deployment-id'
 import { getNavigationBuildId } from '../../../navigation-build-id'
-import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../../lib/constants'
+import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../../shared/lib/constants-browser'
 import {
   completeHardNavigation,
   navigateToKnownRoute,

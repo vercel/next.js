@@ -92,11 +92,11 @@ import { getDefineEnv } from '../../../build/define-env'
 import { TurbopackInternalError } from '../../../shared/lib/turbopack/internal-error'
 import { recursiveReadDir } from '../../../lib/recursive-readdir'
 import {
-  JSON_CONTENT_TYPE_HEADER,
   INSTRUMENTATION_HOOK_FILENAME,
   MIDDLEWARE_FILENAME,
   PROXY_FILENAME,
 } from '../../../lib/constants'
+import { JSON_CONTENT_TYPE_HEADER } from '../../../shared/lib/constants-browser'
 import { parseUrl } from '../../../lib/url'
 import { isAPIRoute } from '../../../lib/is-api-route'
 import { isAppPageRoute } from '../../../lib/is-app-page-route'

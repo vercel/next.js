@@ -6,7 +6,7 @@ import {
 } from './types'
 import { RouteKind } from '../route-kind'
 import RenderResult, { type PrerenderFailure } from '../render-result'
-import { HTML_CONTENT_TYPE_HEADER } from '../../lib/constants'
+import { HTML_CONTENT_TYPE_HEADER } from '../../shared/lib/constants-browser'
 import { fromResponseCacheEntry } from './utils'
 
 function mockIncrementalCache() {

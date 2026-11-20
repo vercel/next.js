@@ -10,8 +10,8 @@ import {
 } from './trace/request-insights'
 import { getRequestInsightsIdentity } from './trace/request-insights-identity'
 import { getTracer, SpanKind, SpanStatusCode } from './trace/tracer'
+import { CACHE_ONE_YEAR_SECONDS } from '../../shared/lib/constants-browser'
 import {
-  CACHE_ONE_YEAR_SECONDS,
   INFINITE_CACHE,
   NEXT_CACHE_TAG_MAX_ITEMS,
   NEXT_CACHE_TAG_MAX_LENGTH,
