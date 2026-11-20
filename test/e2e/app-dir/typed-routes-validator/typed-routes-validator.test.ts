@@ -1,6 +1,6 @@
 import execa from 'execa'
 import { nextTestSetup } from 'e2e-utils'
-import { gate, getDistDir, retry } from 'next-test-utils'
+import { gate, retry } from 'next-test-utils'
 
 // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
 // It likely expects a local build failure instead of a successful deployment.
@@ -20,9 +20,13 @@ describe('typed-routes-validator', () => {
     }
 
     try {
-      const dts = await next.readFile(`${getDistDir()}/types/validator.ts`)
-      // sanity check that dev generation is working
-      expect(dts).toContain('const handler = {} as typeof import(')
+      // Route types are shared by `next dev`, `next build` and `next typegen`.
+      // `next dev` generates them in the background.
+      await retry(async () => {
+        const dts = await next.readFile('.next/types/validator.ts')
+        // sanity check that dev generation is working
+        expect(dts).toContain('const handler = {} as typeof import(')
+      })
     } finally {
       if (isNextDev) {
         await next.stop()

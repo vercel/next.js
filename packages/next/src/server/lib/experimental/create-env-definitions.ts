@@ -1,6 +1,6 @@
 import type { LoadedEnvFiles } from '@next/env'
 import { join } from 'node:path'
-import { writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 
 export async function createEnvDefinitions({
   distDir,
@@ -38,9 +38,9 @@ export {}`
   }
 
   try {
-    // we expect the types directory to already exist
-    const envDtsPath = join(distDir, 'types', 'env.d.ts')
-    await writeFile(envDtsPath, definitionStr, 'utf-8')
+    const typesDir = join(distDir, 'types')
+    await mkdir(typesDir, { recursive: true })
+    await writeFile(join(typesDir, 'env.d.ts'), definitionStr, 'utf-8')
   } catch (e) {
     console.error('Failed to write env.d.ts:', e)
   }

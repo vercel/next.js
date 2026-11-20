@@ -12,9 +12,9 @@ describe('param-matching-types', () => {
   beforeAll(async () => {
     await next.fetch('/')
     await retry(async () => {
-      expect(
-        await next.readFile(`${next.distDir}/types/validator.ts`)
-      ).toContain('unstable_generateParamMatching')
+      expect(await next.readFile('.next/types/validator.ts')).toContain(
+        'unstable_generateParamMatching'
+      )
     })
   })
 

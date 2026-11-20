@@ -8,6 +8,7 @@ import createSpinner from './spinner'
 import { eventTypeCheckCompleted } from '../telemetry/events'
 import { hrtimeDurationToString } from './duration-to-string'
 import { getBuildDistDir } from '../export/utils'
+import { getSharedTypesDistDir } from '../lib/typescript/shared-types-dir'
 
 /**
  * TypeScript setup and type checking run in a worker so the compiler's memory
@@ -20,6 +21,7 @@ import { getBuildDistDir } from '../export/utils'
 function verifyAndRunTypeScript(
   dir: string,
   distDir: string,
+  typesDistDir: string,
   strictRouteTypes: boolean,
   shouldRunTypeCheck: boolean,
   tsconfigPath: string | undefined,
@@ -64,6 +66,7 @@ function verifyAndRunTypeScript(
   return impl({
     dir,
     distDir,
+    typesDistDir,
     strictRouteTypes,
     shouldRunTypeCheck,
     tsconfigPath,
@@ -135,6 +138,8 @@ export async function startTypeChecking({
       verifyAndRunTypeScript(
         dir,
         getBuildDistDir(config),
+        // The shared types directory, see `getSharedTypesDir`.
+        getSharedTypesDistDir(config),
         Boolean(config.experimental.strictRouteTypes),
         !ignoreTypeScriptErrors,
         config.typescript.tsconfigPath,
