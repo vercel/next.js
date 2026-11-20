@@ -58,7 +58,7 @@ describe('generateSharedTypes temporary files', () => {
     await rm(dir, { recursive: true, force: true })
   })
 
-  it('removes the temporary file when a write fails', async () => {
+  it('removes the temporary file when the rename fails', async () => {
     // A directory in place of the type file makes the rename fail.
     await mkdir(path.join(typesDir, 'routes.d.ts', 'blocker'), {
       recursive: true,
@@ -66,6 +66,30 @@ describe('generateSharedTypes temporary files', () => {
 
     await expect(generate()).rejects.toThrow()
 
+    expect(await readdir(tempDir)).toEqual([])
+  })
+
+  it('removes the partially written temporary file when the write fails', async () => {
+    const routesFile = path.join(typesDir, 'routes.d.ts')
+    await mkdir(typesDir, { recursive: true })
+    await fsPromises.writeFile(routesFile, 'export {}\n')
+    const writeFile = fsPromises.writeFile
+    const diskFull = Object.assign(new Error('no space left on device'), {
+      code: 'ENOSPC',
+    })
+    jest
+      .spyOn(fsPromises, 'writeFile')
+      .mockImplementation(async (file, ...args: any[]) => {
+        if (isRoutesTempFile(file)) {
+          await (writeFile as any)(file, 'export type')
+          throw diskFull
+        }
+        await (writeFile as any)(file, ...args)
+      })
+
+    await expect(generate()).rejects.toBe(diskFull)
+
+    expect(await readFile(routesFile, 'utf8')).toBe('export {}\n')
     expect(await readdir(tempDir)).toEqual([])
   })
 
