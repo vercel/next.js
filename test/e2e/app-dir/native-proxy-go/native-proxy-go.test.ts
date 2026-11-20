@@ -643,7 +643,7 @@ describe.each([
       ['/native-proxy/inspect.rsc?x=1', '/native-proxy/inspect?x=1'],
       [
         '/native-proxy/inspect.segments/_tree.segment.rsc',
-        '/native-proxy/inspect.segments/_tree.segment',
+        '/native-proxy/inspect',
       ],
       ['/native-proxy/x/../inspect', '/native-proxy/inspect'],
       ['/native-proxy/inspect?_rsc=abc&a=1', '/native-proxy/inspect?a=1'],
@@ -658,7 +658,7 @@ describe.each([
       ['/native-proxy/inspect.rsc?x=1', '/native-proxy/inspect?x=1'],
       [
         '/native-proxy/inspect.segments/_tree.segment.rsc',
-        '/native-proxy/inspect.segments/_tree.segment',
+        '/native-proxy/inspect',
       ],
       ['/native-proxy/x/../inspect', '/native-proxy/inspect'],
       ['/native-proxy/inspect?_rsc=abc&a=1', '/native-proxy/inspect?a=1'],
@@ -743,6 +743,7 @@ describe.each([
     }
 
     // Executing a build-host binary is a self-hosted check.
+    // This test builds Go, adapter, and TypeScript variants separately.
     // @force-gate start
     it('passes proxy.go the same URLs as proxy.ts in next start and adapter builds', async () => {
       const config = await next.readFile('next.config.ts')
@@ -798,7 +799,7 @@ describe.each([
         await next.patchFile('proxy.go', proxy)
         await next.patchFile('next.config.ts', config)
       }
-    })
+    }, 240_000)
   }
 )
 

@@ -1182,16 +1182,29 @@ pub(crate) fn go_proxy_endpoint(
 
 /// Renders the Go proxy handler with the configuration that proxy.ts URL
 /// normalization depends on.
-fn go_proxy_handler_source(skip_proxy_url_normalize: bool) -> Result<String> {
+fn go_proxy_handler_source(skip_proxy_url_normalize: bool, base_path: &str) -> Result<String> {
     let source = include_str!("templates/go_proxy_handler.go");
     let placeholder = "const nextGoSkipProxyURLNormalize = false";
     ensure!(
         source.contains(placeholder),
         "Go proxy template is missing the skipProxyUrlNormalize placeholder"
     );
-    Ok(source.replacen(
+    let source = source.replacen(
         placeholder,
         &format!("const nextGoSkipProxyURLNormalize = {skip_proxy_url_normalize}"),
+        1,
+    );
+    let placeholder = "const nextGoProxyBasePath = \"\"";
+    ensure!(
+        source.contains(placeholder),
+        "Go proxy template is missing the basePath placeholder"
+    );
+    Ok(source.replacen(
+        placeholder,
+        &format!(
+            "const nextGoProxyBasePath = {}",
+            serde_json::to_string(base_path)?
+        ),
         1,
     ))
 }
@@ -1381,7 +1394,10 @@ impl Endpoint for GoEndpoint {
         let base_path = project.next_config().base_path().await?;
         let route_pattern = format!("{}{pathname}", base_path.as_deref().unwrap_or(""));
         let handler = if is_proxy {
-            go_proxy_handler_source(*project.next_config().skip_proxy_url_normalize().await?)?
+            go_proxy_handler_source(
+                *project.next_config().skip_proxy_url_normalize().await?,
+                base_path.as_deref().unwrap_or(""),
+            )?
         } else {
             include_str!("templates/go_route_handler.go").replace(
                 "\"__NEXT_GO_ROUTE_PATTERN__\"",
@@ -3137,9 +3153,11 @@ mod tests {
 
     #[test]
     fn renders_go_proxy_handler_configuration() {
-        let source = go_proxy_handler_source(false).unwrap();
+        let source = go_proxy_handler_source(false, "").unwrap();
         assert!(source.contains("const nextGoSkipProxyURLNormalize = false\n"));
-        let source = go_proxy_handler_source(true).unwrap();
+        assert!(source.contains("const nextGoProxyBasePath = \"\"\n"));
+        let source = go_proxy_handler_source(true, "/docs").unwrap();
         assert!(source.contains("const nextGoSkipProxyURLNormalize = true\n"));
+        assert!(source.contains("const nextGoProxyBasePath = \"/docs\"\n"));
     }
 }

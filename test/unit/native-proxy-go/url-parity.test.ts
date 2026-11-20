@@ -24,6 +24,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -44,7 +45,7 @@ func main() {
 	if err := json.NewDecoder(os.Stdin).Decode(&cases); err != nil {
 		panic(err)
 	}
-	results := make([]*[2]string, len(cases))
+	results := make([]*[3]string, len(cases))
 	for i, c := range cases {
 		raw := "GET " + c.Path + " HTTP/1.1\\r\\nHost: example.test\\r\\n"
 		r, err := http.ReadRequest(bufio.NewReader(strings.NewReader(raw + "\\r\\n")))
@@ -60,7 +61,7 @@ func main() {
 		if unescaped, err := url.PathUnescape(escapedPath); err != nil || unescaped != path {
 			path = "inconsistent URL.Path " + path
 		}
-		results[i] = &[2]string{requestURI, path}
+		results[i] = &[3]string{requestURI, path, strconv.Itoa(w.Code)}
 	}
 	if err := json.NewEncoder(os.Stdout).Encode(results); err != nil {
 		panic(err)
@@ -68,9 +69,8 @@ func main() {
 }
 `
 
-// Pages Router data URLs (/_next/data/<build ID>/<page>.json) are left out:
-// proxy.go only supports App Router applications, which do not serve them, so
-// it does not normalize them like proxy.ts does.
+// Reserved Pages data URLs are tested separately: proxy.go rejects them
+// instead of forwarding them to an App Router catch-all handler.
 function generateCases(): string[] {
   const prefixes = ['', '/docs', '/docsx']
   const middles = [
@@ -162,6 +162,57 @@ async function proxyTsURL(
   return received
 }
 
+type GoResult = [url: string, pathname: string, status: string] | null
+
+function buildHarness(
+  directory: string,
+  skip: boolean,
+  basePath = '',
+  trustInternalHeaders = false
+) {
+  mkdirSync(directory)
+  writeFileSync(join(directory, 'go.mod'), 'module proxy\n\ngo 1.22\n')
+  writeFileSync(
+    join(directory, 'main.go'),
+    harness.replace(
+      'const nextGoTrustInternalHeaders = false',
+      `const nextGoTrustInternalHeaders = ${trustInternalHeaders}`
+    )
+  )
+  writeFileSync(
+    join(directory, 'handler.go'),
+    template
+      .replace(
+        'const nextGoSkipProxyURLNormalize = false',
+        `const nextGoSkipProxyURLNormalize = ${skip}`
+      )
+      .replace(
+        'const nextGoProxyBasePath = ""',
+        `const nextGoProxyBasePath = ${JSON.stringify(basePath)}`
+      )
+  )
+  const binary = join(
+    directory,
+    process.platform === 'win32' ? 'harness.exe' : 'harness'
+  )
+  execFileSync(process.env.TURBOPACK_GO || 'go', ['build', '-o', binary], {
+    cwd: directory,
+    env: { ...process.env, CGO_ENABLED: '0' },
+    stdio: 'inherit',
+  })
+  return binary
+}
+
+function runHarness(binary: string, paths: string[]): GoResult[] {
+  return JSON.parse(
+    execFileSync(binary, {
+      input: JSON.stringify(paths.map((Path) => ({ Path }))),
+      maxBuffer: 64 * 1024 * 1024,
+      timeout: 15_000,
+    }).toString()
+  )
+}
+
 describe('proxy.go request URLs', () => {
   let directory: string
   beforeAll(() => {
@@ -174,38 +225,16 @@ describe('proxy.go request URLs', () => {
   it.each([false, true])(
     'match proxy.ts with skipProxyUrlNormalize %s',
     async (skipProxyUrlNormalize) => {
-      const variant = join(directory, `skip-${skipProxyUrlNormalize}`)
-      mkdirSync(variant)
-      writeFileSync(join(variant, 'go.mod'), 'module proxy\n\ngo 1.22\n')
-      writeFileSync(join(variant, 'main.go'), harness)
-      // Mirrors go_proxy_handler_source in crates/next-api/src/app.rs.
-      writeFileSync(
-        join(variant, 'handler.go'),
-        template.replace(
-          'const nextGoSkipProxyURLNormalize = false',
-          `const nextGoSkipProxyURLNormalize = ${skipProxyUrlNormalize}`
-        )
+      const binary = buildHarness(
+        join(directory, `skip-${skipProxyUrlNormalize}`),
+        skipProxyUrlNormalize
       )
-      const binary = join(
-        variant,
-        process.platform === 'win32' ? 'harness.exe' : 'harness'
-      )
-      execFileSync(process.env.TURBOPACK_GO || 'go', ['build', '-o', binary], {
-        cwd: variant,
-        env: { ...process.env, CGO_ENABLED: '0' },
-        stdio: 'inherit',
-      })
 
       const cases = generateCases()
-      const goResults: Array<[string, string] | null> = JSON.parse(
-        execFileSync(binary, {
-          input: JSON.stringify(cases.map((path) => ({ Path: path }))),
-          maxBuffer: 64 * 1024 * 1024,
-        }).toString()
-      )
+      const goResults = runHarness(binary, cases)
 
-      // basePath and trailingSlash do not change the URL proxy.ts receives
-      // for App Router requests, so the Go handler does not need them.
+      // basePath and trailingSlash do not change ordinary App Router URLs.
+      // Reserved data-path rejection with a basePath is tested separately.
       const configs = [
         {},
         { trailingSlash: true },
@@ -234,4 +263,74 @@ describe('proxy.go request URLs', () => {
     },
     120_000
   )
+
+  it.each([false, true])(
+    'rejects reserved data URLs with normalization skipped: %s',
+    (skip) => {
+      for (const basePath of ['', '/docs']) {
+        const binary = buildHarness(
+          join(directory, `reserved-${skip}-${basePath.length}`),
+          skip,
+          basePath
+        )
+        const paths = [
+          '/_next/data/build/private.json',
+          '/_next/data/build/private.json.rsc',
+          '/_next/data/build/private.json.segments/_tree.segment.rsc',
+        ]
+        for (const prefix of new Set(['', basePath])) {
+          expect(
+            runHarness(
+              binary,
+              paths.map((path) => prefix + path)
+            ).map((result) => result?.[2])
+          ).toEqual(['404', '404', '404'])
+        }
+      }
+    },
+    120_000
+  )
+
+  it('preserves client queries and handles large duplicate queries in bounded work', async () => {
+    const binary = buildHarness(join(directory, 'security'), false)
+    const paths = [
+      '/page?resource=public.rsc',
+      '/page?resource=private&nxtPresource=public',
+      '/page?resource=private&nxtIresource=public',
+      '/page?nxtPresource=public',
+      '/page?resource=public&value=1&value=2',
+      '/page?' + 'value=1&'.repeat(3000) + 'resource=public',
+      '/page?value=' + 'a'.repeat(64 * 1024 - 'value='.length),
+      '/page?' + 'value=1&'.repeat(4095) + 'value=1',
+    ]
+    const results = runHarness(binary, paths)
+    expect(results.map((result) => result?.[0])).toEqual(paths)
+    for (const path of paths.slice(0, 5)) {
+      expect(await proxyTsURL(path, {}, false)).toBe(path)
+    }
+    const oversizedQueries = [
+      '/page?value=' + 'a'.repeat(64 * 1024),
+      '/page?' + 'value=1&'.repeat(30_000),
+      '/page?' + '&'.repeat(4096),
+    ]
+    expect(
+      runHarness(binary, oversizedQueries).map((result) => result?.[2])
+    ).toEqual(['414', '414', '414'])
+  }, 120_000)
+
+  it('rejects reserved data paths even when a trusted adapter skips normalization', () => {
+    const binary = buildHarness(join(directory, 'trusted'), true, '/docs', true)
+    const paths = [
+      '/_next/data/build/private.json',
+      '/docs/_next/data/build/private.json',
+      '/docs/_next/data/build/private.json.rsc',
+      '/page?' + '&'.repeat(4096),
+    ]
+    expect(runHarness(binary, paths).map((result) => result?.[2])).toEqual([
+      '404',
+      '404',
+      '404',
+      '414',
+    ])
+  }, 120_000)
 })

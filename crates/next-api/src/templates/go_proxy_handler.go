@@ -174,14 +174,17 @@ func nextGoForwardedProto(value string) string {
 
 // Proxy configuration, replaced when the proxy is compiled.
 const nextGoSkipProxyURLNormalize = false
+const nextGoProxyBasePath = ""
+
+const nextGoProxyMaxQueryBytes = 64 << 10
+const nextGoProxyMaxQueryParams = 4096
 
 // nextGoNormalizeURL rewrites the request URL to the one the JavaScript
-// adapter passes to proxy.ts as request.url: it is parsed as a WHATWG URL
-// (resolving dot segments, for example), has its RSC suffix removed and,
-// unless skipProxyUrlNormalize is set, has internal query parameters removed.
-// Pages Router data URLs are not normalized: proxy.go only supports App Router
-// applications, which do not serve them.
-func nextGoNormalizeURL(r *http.Request) {
+// adapter passes to proxy.ts as request.url. Transport suffixes apply only to
+// the pathname, before percent decoding. Client query names are never routing
+// metadata. Pages data URLs are rejected because proxy.go only supports App
+// Router applications, whose catch-all handlers can otherwise reinterpret them.
+func nextGoNormalizeURL(r *http.Request) bool {
 	target := r.RequestURI
 	if !strings.HasPrefix(target, "/") {
 		target = r.URL.EscapedPath()
@@ -190,9 +193,14 @@ func nextGoNormalizeURL(r *http.Request) {
 		}
 	}
 	target, _, _ = strings.Cut(target, "#")
-	target = nextGoRemoveRSCSuffix(target)
 	rawPath, rawQuery, hasQuery := strings.Cut(target, "?")
 	path := nextGoParsePath(rawPath)
+	// Assigning URL.pathname reparses dot segments, including ones exposed by
+	// removing a transport suffix, such as /a/...rsc becoming /a/.. and then /.
+	path = nextGoParsePath(nextGoNormalizeRSCPath(path))
+	if nextGoIsDataPath(path) {
+		return false
+	}
 	query := ""
 	if nextGoSkipProxyURLNormalize {
 		query = nextGoPercentEncode(rawQuery, nextGoQueryEscape)
@@ -202,7 +210,7 @@ func nextGoNormalizeURL(r *http.Request) {
 	}
 	unescaped, err := url.PathUnescape(path)
 	if err != nil {
-		return
+		return false
 	}
 	r.URL.Path = unescaped
 	r.URL.RawPath = path
@@ -212,19 +220,26 @@ func nextGoNormalizeURL(r *http.Request) {
 	if hasQuery {
 		r.RequestURI += "?" + query
 	}
+	return true
 }
 
-// nextGoRemoveRSCSuffix matches normalizeRscURL: it removes the first ".rsc"
-// that ends the path or the query.
-func nextGoRemoveRSCSuffix(target string) string {
-	i := strings.Index(target, ".rsc?")
-	if i < 0 {
-		if !strings.HasSuffix(target, ".rsc") {
-			return target
-		}
-		i = len(target) - len(".rsc")
+func nextGoIsDataPath(path string) bool {
+	if nextGoProxyBasePath != "" && strings.HasPrefix(path, nextGoProxyBasePath+"/") {
+		path = strings.TrimPrefix(path, nextGoProxyBasePath)
 	}
-	return target[:i] + target[i+len(".rsc"):]
+	return path == "/_next/data" || strings.HasPrefix(path, "/_next/data/")
+}
+
+// Match SegmentPrefixRSCPathnameNormalizer before the ordinary RSC suffix,
+// exactly as App Router dispatch does. Do not strip a second suffix from the
+// parent page or interpret an encoded suffix as transport metadata.
+func nextGoNormalizeRSCPath(path string) string {
+	if strings.HasSuffix(path, ".segment.rsc") {
+		if i := strings.LastIndex(path, ".segments/"); i > 0 {
+			return path[:i]
+		}
+	}
+	return strings.TrimSuffix(path, ".rsc")
 }
 
 // nextGoPathEscape matches the WHATWG path percent-encode set as implemented
@@ -280,58 +295,30 @@ func nextGoParsePath(raw string) string {
 	return "/" + strings.Join(segments, "/")
 }
 
-type nextGoQueryParam struct{ name, value string }
-
 // nextGoNormalizeQuery matches the adapter's URLSearchParams handling: it
-// restores nxtP- and nxtI-prefixed parameter names, removes _rsc, and
-// serializes the parameters as application/x-www-form-urlencoded.
+// removes _rsc and serializes application/x-www-form-urlencoded in one pass.
+// Client-supplied nxtP/nxtI names must not overwrite application parameters.
 func nextGoNormalizeQuery(query string) string {
-	var params []nextGoQueryParam
-	for _, sequence := range strings.Split(query, "&") {
+	var serialized strings.Builder
+	for query != "" {
+		var sequence string
+		sequence, query, _ = strings.Cut(query, "&")
 		if sequence == "" {
 			continue
 		}
 		name, value, _ := strings.Cut(sequence, "=")
-		params = append(params, nextGoQueryParam{nextGoFormDecode(name), nextGoFormDecode(value)})
-	}
-	remove := func(name string) {
-		kept := params[:0]
-		for _, param := range params {
-			if param.name != name {
-				kept = append(kept, param)
-			}
+		name = nextGoFormDecode(name)
+		if name == "_rsc" {
+			continue
 		}
-		params = kept
-	}
-	names := make([]string, len(params))
-	for i, param := range params {
-		names[i] = param.name
-	}
-	for _, name := range names {
-		var values []string
-		for _, param := range params {
-			if param.name == name {
-				values = append(values, param.value)
-			}
+		if serialized.Len() > 0 {
+			serialized.WriteByte('&')
 		}
-		for _, prefix := range []string{"nxtP", "nxtI"} {
-			if name != prefix && strings.HasPrefix(name, prefix) {
-				normalized := name[len(prefix):]
-				remove(normalized)
-				for _, value := range values {
-					params = append(params, nextGoQueryParam{normalized, value})
-				}
-				remove(name)
-				break
-			}
-		}
+		serialized.WriteString(nextGoFormEncode(name))
+		serialized.WriteByte('=')
+		serialized.WriteString(nextGoFormEncode(nextGoFormDecode(value)))
 	}
-	remove("_rsc")
-	serialized := make([]string, len(params))
-	for i, param := range params {
-		serialized[i] = nextGoFormEncode(param.name) + "=" + nextGoFormEncode(param.value)
-	}
-	return strings.Join(serialized, "&")
+	return serialized.String()
 }
 
 // nextGoFormDecode decodes an application/x-www-form-urlencoded value,
@@ -409,12 +396,26 @@ func nextGoFormEncode(value string) string {
 
 func nextGoHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Bound normalization work before decoding or allocating query values.
+		// Count separators directly, including empty parameters.
+		if len(r.URL.RawQuery) > nextGoProxyMaxQueryBytes || strings.Count(r.URL.RawQuery, "&") >= nextGoProxyMaxQueryParams {
+			http.Error(w, http.StatusText(http.StatusRequestURITooLong), http.StatusRequestURITooLong)
+			return
+		}
 		// Adapter builds invoke Go directly, bypassing the JavaScript adapter.
 		// Apply its URL normalization so Proxy sees the same URL as proxy.ts.
 		// Next.js has already applied it to requests it forwards, and it is not
 		// idempotent: applying it twice would change paths such as /a.rsc.rsc.
-		if !nextGoTrustInternalHeaders {
-			nextGoNormalizeURL(r)
+		if nextGoTrustInternalHeaders {
+			if nextGoIsDataPath(r.URL.EscapedPath()) {
+				http.NotFound(w, r)
+				return
+			}
+		} else {
+			if !nextGoNormalizeURL(r) {
+				http.NotFound(w, r)
+				return
+			}
 		}
 		response := &nextGoProxyWriter{ResponseWriter: w, request: r}
 		// Next.js resolves destinations against its own request origin, which
