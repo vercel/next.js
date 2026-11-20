@@ -1,0 +1,22 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "eval:setup": "node eval-setup.mjs",
+    "test:e2e": "playwright test",
+    "build": "next build"
+  },
+  "dependencies": {
+    "next": "^16",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5",
+    "vitest": "^3.1.3"
+  }
+}

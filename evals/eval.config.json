@@ -95,5 +95,10 @@
     "publish": false,
     "timeout": 900,
     "metrics": "request-insights-effort"
+  },
+  "agent-064-next-performance-e2e": {
+    "skills": ["next-performance"],
+    "publish": false,
+    "timeout": 900
   }
 }
