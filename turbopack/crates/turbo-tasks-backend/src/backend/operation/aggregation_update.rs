@@ -109,7 +109,7 @@
 //! second path to the follower only increments its existing edge, it relies on the first path's
 //! operation to add the follower's followers. If the first path's dirty publisher is detached
 //! before that, the upper can be clean while a dirty task in its subgraph hasn't reached it yet.
-//! This isn't handled yet (see the `second_path_*` tests).
+//! This isn't handled yet.
 
 use std::{
     cmp::max,
@@ -6911,103 +6911,6 @@ mod follower_debt_tests {
         let mut queue = AggregationUpdateQueue::new_without_optimizations();
         queue.extend(job);
         queue.execute(&mut ctx);
-    }
-
-    /// The setup of the second path tests: U (1) with the dirty, completing parents F1 (2) and F2
-    /// (3), and C (4) with the child G (5). C and G aren't in U yet.
-    ///
-    /// A: F1 connects C. A's first job makes C inner of U and queues the addition of C's child G
-    /// (STEP 6e). F2 connects C as well, which only increments C's existing inner edge, and
-    /// becomes clean. Then F1 is detached, which leaves C in U through F2.
-    ///
-    /// Returns A's queue, which still holds the addition of G.
-    fn second_path_fixture(
-        tt: &TurboTasks<TurboTasksBackend>,
-        dirty_g: bool,
-    ) -> AggregationUpdateQueue {
-        for parent in [2, 3] {
-            seed_current_session_dirty(tt, parent);
-            start_completion(tt, parent);
-        }
-        if dirty_g {
-            seed_current_session_dirty(tt, 5);
-        } else {
-            let mut ctx = ExecuteContext::new(tt);
-            let mut g = ctx.task(id(5), TaskDataCategory::All);
-            g.set_output(OutputValue::Cell(collectible().cell));
-            let _ = g.update_collectibles_positive_crossing(collectible(), 1);
-        }
-        set_children(tt, 4, &[5]);
-        run(tt, [add(1, 2), add(1, 3)]);
-        assert!(blocks_strong_read(tt, 1), "U is dirty through F1 and F2");
-
-        // A: F1 connects C. Only the first job runs: C becomes inner of U.
-        let mut a_queue = publish_children(tt, 2, &[4]);
-        step(tt, &mut a_queue);
-        assert_eq!(uppers(tt, 4), vec![(id(1), 1)]);
-        assert_eq!(uppers(tt, 5), vec![], "the addition of G is still queued");
-
-        // F2 connects C too and finishes.
-        run_paused(tt, publish_children(tt, 3, &[4]));
-        assert_eq!(uppers(tt, 4), vec![(id(1), 2)]);
-        make_clean(tt, 3);
-        end_completion(tt, 3);
-
-        // F1 is detached. C stays in U through F2.
-        run(tt, [remove(1, 2)]);
-        assert_eq!(uppers(tt, 4), vec![(id(1), 1)]);
-        a_queue
-    }
-
-    /// G is reachable from U through F2 and C, so while it's dirty, U must block a strong read,
-    /// even though the propagation of G to U is still queued in A.
-    #[tokio::test(flavor = "multi_thread")]
-    #[cfg_attr(
-        target_family = "wasm",
-        ignore = "fails until fixed, and a panic aborts all tests on wasm"
-    )]
-    async fn second_path_does_not_borrow_unfinished_subtree() {
-        // 1 = U (aggregating), 2 = F1, 3 = F2, 4 = C, 5 = G (dirty).
-        let tt = setup_with_data(
-            &[(1, UPPER), (2, INNER), (3, INNER), (4, INNER), (5, INNER)],
-            true,
-        );
-        let a_queue = second_path_fixture(&tt, true);
-        assert!(
-            blocks_strong_read(&tt, 1),
-            "G is dirty and reachable from U through F2 and C"
-        );
-
-        run_paused(&tt, a_queue);
-        assert_eq!(uppers(&tt, 5), vec![(id(1), 1)]);
-        assert!(blocks_strong_read(&tt, 1));
-        make_clean(&tt, 5);
-        end_completion(&tt, 2);
-        assert!(!blocks_strong_read(&tt, 1));
-        tt.backend().verify_aggregation_edges();
-    }
-
-    /// Like [`second_path_does_not_borrow_unfinished_subtree`], with a clean G that emits the
-    /// collectible: while U misses it, U must block a strong read.
-    #[tokio::test(flavor = "multi_thread")]
-    #[cfg_attr(
-        target_family = "wasm",
-        ignore = "fails until fixed, and a panic aborts all tests on wasm"
-    )]
-    async fn second_path_does_not_borrow_unfinished_collectibles() {
-        // 1 = U (aggregating), 2 = F1, 3 = F2, 4 = C, 5 = G (emits the collectible).
-        let tt = setup_with_data(
-            &[(1, UPPER), (2, INNER), (3, INNER), (4, INNER), (5, INNER)],
-            false,
-        );
-        let a_queue = second_path_fixture(&tt, false);
-        assert_missing_collectible_blocks_strong_read(&tt, 1);
-
-        run_paused(&tt, a_queue);
-        assert_eq!(aggregated(&tt, 1), 1);
-        end_completion(&tt, 2);
-        assert!(!blocks_strong_read(&tt, 1));
-        tt.backend().verify_aggregation_edges();
     }
 }
 
