@@ -40,7 +40,7 @@ use crate::{
     },
     capture_future::CaptureFuture,
     dyn_task_inputs::DynTaskInputsStorage,
-    event::{Event, EventListener},
+    event::{Event, EventDescriptor, EventListener},
     id::{ExecutionId, LocalTaskId, TraitTypeId},
     keyed::KeyedEq,
     local_task_tracker::LocalTaskTracker,
@@ -793,6 +793,22 @@ impl InlineExecutionDepthGuard {
 impl Drop for InlineExecutionDepthGuard {
     fn drop(&mut self) {
         INLINE_EXECUTION_DEPTH.set(INLINE_EXECUTION_DEPTH.get() - 1);
+    }
+}
+
+/// Waits until `counter` reads 0. `event` must be notified every time `counter` drops to 0.
+///
+/// A wake-up alone doesn't prove that the counter is still 0: `finish_foreground_job` and
+/// `finish_background_job` decrement the counter before they notify, so the notification for an
+/// earlier drop to 0 can arrive after new jobs began. So the counter is re-checked after every
+/// wake-up, with a listener registered before the check so no notification is missed.
+async fn wait_until_zero(counter: &AtomicUsize, event: &Event, note: impl EventDescriptor + Copy) {
+    loop {
+        let listener = event.listen_with_note(note);
+        if counter.load(Ordering::Acquire) == 0 {
+            return;
+        }
+        listener.await;
     }
 }
 
@@ -1704,14 +1720,12 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     pub async fn wait_background_done(&self) {
-        let listener = self.event_background_done.listen();
-        if self
-            .currently_scheduled_background_jobs
-            .load(Ordering::Acquire)
-            != 0
-        {
-            listener.await;
-        }
+        wait_until_zero(
+            &self.currently_scheduled_background_jobs,
+            &self.event_background_done,
+            || || "wait for background jobs".to_string(),
+        )
+        .await;
     }
 
     pub async fn stop_and_wait(&self) {
@@ -1727,28 +1741,15 @@ impl<B: Backend + 'static> TurboTasks<B> {
         turbo_tasks_future_scope(self.pin(), async move {
             self.backend.stopping(self);
             self.stopped.store(true, Ordering::Release);
-            {
-                let listener = self
-                    .event_foreground_done
-                    .listen_with_note(|| || "wait for stop".to_string());
-                if self
-                    .currently_scheduled_foreground_jobs
-                    .load(Ordering::Acquire)
-                    != 0
-                {
-                    listener.await;
-                }
-            }
-            {
-                let listener = self.event_background_done.listen();
-                if self
-                    .currently_scheduled_background_jobs
-                    .load(Ordering::Acquire)
-                    != 0
-                {
-                    listener.await;
-                }
-            }
+            // Both waits re-check their counter after every wake-up (see `wait_until_zero`), so a
+            // stale notification can't let `stop` tear down storage under a running task.
+            wait_until_zero(
+                &self.currently_scheduled_foreground_jobs,
+                &self.event_foreground_done,
+                || || "wait for stop".to_string(),
+            )
+            .await;
+            self.wait_background_done().await;
             self.backend.stop(self);
             // Deliver compilation events sent during shutdown (e.g. the persistence trace span)
             // to subscribers before returning, then close the queue so subscriptions end after
@@ -3284,5 +3285,36 @@ mod tests {
         // ...but it was spawned, so it still runs to completion.
         rx.await.unwrap();
         assert!(done.load(Ordering::SeqCst));
+    }
+
+    #[tokio::test]
+    async fn test_wait_until_zero_returns_immediately_at_zero() {
+        let counter = AtomicUsize::new(0);
+        let event = Event::new(|| || "test event".to_string());
+        let wait = std::pin::pin!(wait_until_zero(&counter, &event, || || "test".to_string()));
+        assert!(futures::poll!(wait).is_ready());
+    }
+
+    /// `finish_foreground_job` notifies only after it decremented the counter, so the notification
+    /// of an earlier drop to 0 can arrive after new jobs began. Such a stale notification must not
+    /// end the wait, otherwise `stop_and_wait` stops the backend under a running task.
+    #[tokio::test]
+    async fn test_wait_until_zero_ignores_stale_notification() {
+        let counter = AtomicUsize::new(1);
+        let event = Event::new(|| || "test event".to_string());
+        let mut wait = std::pin::pin!(wait_until_zero(&counter, &event, || || "test".to_string()));
+        assert!(futures::poll!(wait.as_mut()).is_pending());
+
+        // A notification while a job is still running.
+        event.notify(usize::MAX);
+        assert!(
+            futures::poll!(wait.as_mut()).is_pending(),
+            "a notification must not end the wait while the counter is non-zero"
+        );
+
+        // The last job finishes.
+        counter.store(0, Ordering::Release);
+        event.notify(usize::MAX);
+        assert!(futures::poll!(wait.as_mut()).is_ready());
     }
 }
