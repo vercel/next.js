@@ -391,3 +391,33 @@ func TestADirectUploadThatHitsTheRequestTimeoutGets408(t *testing.T) {
 		t.Error("the upload went to Node, want the worker")
 	}
 }
+
+func TestAnEmptyHostGetsTheForwardedHostNodeWouldSend(t *testing.T) {
+	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "go") })
+	conn, err := net.Dial("tcp", fx.addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	io.WriteString(conn, "GET /api/echo HTTP/1.1\r\nHost:\r\nConnection: close\r\n\r\n")
+	io.ReadAll(conn)
+	r := <-fx.worker
+	// Through Node, Switchyard's public host replaces the empty Host, and
+	// Node fills X-Forwarded-Host with it.
+	if r.Host == "" || r.Header.Get("X-Forwarded-Host") != r.Host {
+		t.Errorf("Host %q, X-Forwarded-Host %q", r.Host, r.Header.Get("X-Forwarded-Host"))
+	}
+}
+
+func TestAnEmptyBodyOfUnknownLengthGetsContentLengthZero(t *testing.T) {
+	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) {
+		// Sends the headers chunked, then no body.
+		w.(http.Flusher).Flush()
+	})
+	res := fx.raw(t, "GET /api/echo HTTP/1.1")
+	// Node sends the headers with the first chunk or at the end, so an
+	// empty body goes out with Content-Length: 0.
+	if !strings.Contains(res, "\r\nContent-Length: 0\r\n") || strings.Contains(res, "chunked") {
+		t.Errorf("response %q", res)
+	}
+}

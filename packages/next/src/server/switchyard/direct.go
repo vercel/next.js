@@ -168,6 +168,9 @@ type directAttempt struct {
 	// The request body as the Transport sees it, so the error handler knows
 	// whether the worker could have seen the request.
 	body *guardedBody
+	// Whether any of the body has been written, so Flush has something
+	// to send.
+	wrote bool
 }
 
 func (f *switchyard) serveDirect(w http.ResponseWriter, r *http.Request, s *directState, up *goUpstream) {
@@ -219,7 +222,7 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 			}
 			// Node also fills these when the client sent none
 			// (base-server.ts, where it updates the x-forwarded-* headers).
-			setIfMissing(pr.Out.Header, "X-Forwarded-Host", pr.In.Host)
+			setIfMissing(pr.Out.Header, "X-Forwarded-Host", pr.Out.Host)
 			setIfMissing(pr.Out.Header, "X-Forwarded-Proto", "http")
 			// proxyNativeRequest sends the worker keep-alive and its token.
 			pr.Out.Header["Connection"] = keepAlive
@@ -354,12 +357,20 @@ func (a *directAttempt) WriteHeader(code int) {
 // out with the first chunk, and a one-chunk response in a single write.
 func (a *directAttempt) Write(p []byte) (int, error) {
 	n, err := a.ResponseWriter.Write(p)
+	a.wrote = true
 	a.Flush()
 	return n, err
 }
 
-// Flush sends what has been written to the client so far.
+// Flush sends what has been written to the client so far. Before the first
+// body byte it does nothing. Node sends a response's headers with its first
+// chunk, or at its end, with Content-Length: 0 when there was no body. The
+// proxy flushes the headers of a response of unknown length right away,
+// which would send an empty body chunked instead.
 func (a *directAttempt) Flush() {
+	if !a.wrote {
+		return
+	}
 	if f, ok := a.ResponseWriter.(http.Flusher); ok {
 		f.Flush()
 	}
