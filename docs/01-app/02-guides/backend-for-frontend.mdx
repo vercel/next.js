@@ -1009,7 +1009,9 @@ Community libraries often use the factory pattern for Route Handlers.
 ```ts filename="/app/api/[...path]/route.ts"
 import { createHandler } from 'third-party-library'
 
-const handler = createHandler({/* library-specific options */})
+const handler = createHandler({
+  /* library-specific options */
+})
 
 export const GET = handler
 // or
