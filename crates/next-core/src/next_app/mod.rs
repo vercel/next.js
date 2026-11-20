@@ -389,7 +389,7 @@ impl Display for PathSegment {
 /// request path.
 #[turbo_tasks::task_input]
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Default, Encode, Decode)]
-pub struct AppPath(pub Vec<PathSegment>);
+pub struct AppPath(pub Box<[PathSegment]>);
 
 impl AppPath {
     pub fn is_dynamic(&self) -> bool {
@@ -515,7 +515,7 @@ impl AppPath {
         canonical_segments.push(target);
         canonical_segments.extend_from_slice(&self.0[interception_index + 1..]);
 
-        Some(AppPath(canonical_segments))
+        Some(AppPath(canonical_segments.into_boxed_slice()))
     }
 
     /// Returns whether the supplied ordinary route patterns cover every URL matched by this
@@ -706,21 +706,19 @@ impl PartialEq<PathSegment> for PathSegmentRef<'_> {
 
 impl From<AppPage> for AppPath {
     fn from(value: AppPage) -> Self {
-        let mut segments: Vec<_> = value
-            .0
-            .into_iter()
-            .filter_map(|segment| match segment {
-                PageSegment::Static(s) => Some(PathSegment::Static(s)),
-                PageSegment::Dynamic(s) => Some(PathSegment::Dynamic(s)),
-                PageSegment::CatchAll(s) => Some(PathSegment::CatchAll(s)),
-                PageSegment::OptionalCatchAll(s) => Some(PathSegment::OptionalCatchAll(s)),
-                _ => None,
-            })
-            .collect();
-        // `collect` can reuse the allocation of the page segments, which then still has room for
-        // the filtered out segments. `AppPath`s are often stored long-term, e.g. as task inputs.
-        segments.shrink_to_fit();
-        AppPath(segments)
+        AppPath(
+            value
+                .0
+                .into_iter()
+                .filter_map(|segment| match segment {
+                    PageSegment::Static(s) => Some(PathSegment::Static(s)),
+                    PageSegment::Dynamic(s) => Some(PathSegment::Dynamic(s)),
+                    PageSegment::CatchAll(s) => Some(PathSegment::CatchAll(s)),
+                    PageSegment::OptionalCatchAll(s) => Some(PathSegment::OptionalCatchAll(s)),
+                    _ => None,
+                })
+                .collect(),
+        )
     }
 }
 

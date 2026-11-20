@@ -414,14 +414,10 @@ struct SplitContext<'a> {
 
 fn build_chunk(
     chunk_items: Vec<&'_ ChunkItemOrBatchWithInfo>,
-    mut batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
-    mut component_chunks: Vec<ResolvedVc<Box<dyn Chunk>>>,
+    batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
+    component_chunks: Vec<ResolvedVc<Box<dyn Chunk>>>,
     split_context: &SplitContext<'_>,
 ) -> Vc<Box<dyn Chunk>> {
-    // These lists are stored as task inputs for as long as the chunk task exists, but they are
-    // built incrementally by the callers and can carry spare capacity.
-    batch_groups.shrink_to_fit();
-    component_chunks.shrink_to_fit();
     split_context.ty.chunk(
         *split_context.chunking_context,
         chunk_items
@@ -435,8 +431,8 @@ fn build_chunk(
                 }
             })
             .collect(),
-        ResolvedVc::deref_vec(batch_groups),
-        ResolvedVc::deref_vec(component_chunks),
+        batch_groups.into_boxed_slice(),
+        component_chunks.into_boxed_slice(),
     )
 }
 

@@ -2291,14 +2291,19 @@ impl AppEndpoint {
                     .should_write_nft_manifests()
                     .await?
                 {
-                    let mut additional_assets: Vec<_> = client_reference_manifest
-                        .iter()
-                        .copied()
-                        .chain(loadable_manifest_output.iter().flat_map(|m| &**m).copied())
-                        .map(|m| *m)
-                        .collect();
-                    // The list is stored as a task input, but `flat_map` can't size it exactly.
-                    additional_assets.shrink_to_fit();
+                    let mut additional_assets = Vec::with_capacity(
+                        client_reference_manifest.iter().len()
+                            + loadable_manifest_output
+                                .iter()
+                                .map(|m| m.len())
+                                .sum::<usize>(),
+                    );
+                    additional_assets.extend(
+                        client_reference_manifest
+                            .iter()
+                            .chain(loadable_manifest_output.iter().flat_map(|m| &**m))
+                            .map(|m| **m),
+                    );
                     server_assets.insert(ResolvedVc::upcast(
                         NftJsonAsset::new(
                             project,
