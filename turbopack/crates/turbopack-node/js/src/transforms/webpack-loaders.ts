@@ -1,15 +1,16 @@
-declare const __turbopack_external_require__: {
-  resolve: (name: string, opt?: { paths: string[] }) => string
-} & ((id: string, thunk: () => any, esm?: boolean) => any)
-
 import type { Channel as Ipc } from '../types'
 import { dirname, resolve as pathResolve } from 'path'
 import {
   StackFrame,
   parse as parseStackTrace,
 } from '../compiled/stacktrace-parser'
-import { structuredError, type StructuredError } from '../error'
-import { getReadEnvVariables, type TransformIpc } from './transforms'
+import { structuredError } from '../error'
+import {
+  getReadEnvVariables,
+  type IpcInfoMessage,
+  type IpcRequestMessage,
+  type TransformIpc,
+} from './transforms'
 import {
   evaluateBundle,
   type ImportModuleResult,
@@ -18,43 +19,53 @@ import fs from 'fs'
 import path from 'path'
 import { absolutify, contextify, createHash } from './webpack-loaders-utils'
 import { fileURLToPath } from 'url'
+import { createRequire } from 'module'
 
-export type IpcInfoMessage =
-  | {
-      type: 'dependencies'
-      envVariables?: string[]
-      directories?: Array<[string, string]>
-      filePaths?: string[]
-      buildFilePaths?: string[]
-      buildDependencyRequests?: Array<[string, boolean]>
-    }
-  | {
-      type: 'emittedError'
-      severity: 'warning' | 'error'
-      error: StructuredError
-    }
-  | {
-      type: 'log'
-      logs: Array<{
-        time: number
-        logType: string
-        args: any[]
-        trace?: StackFrame[]
-      }>
-    }
+export type { IpcInfoMessage, IpcRequestMessage } from './transforms'
 
-export type IpcRequestMessage =
-  | {
-      type: 'resolve'
-      options: any
-      lookupPath: string
-      request: string
+const contextRelativePaths = new Map<string, string>()
+
+// Build dependencies are reported relative to the context directory, which keeps them portable
+// task inputs and lets transforms by the same loaders share one tracking task.
+function contextRelative(filename: string): string {
+  let relative = contextRelativePaths.get(filename)
+  if (relative === undefined) {
+    relative = path.relative(contextDir, filename) || '.'
+    contextRelativePaths.set(filename, relative)
+  }
+  return relative
+}
+
+type PackageInfo = { name: string; root: string } | null
+const packageInfoByDirectory = new Map<string, PackageInfo>()
+
+// The package that owns `filename`: its nearest `package.json` with a name. Workspace and linked
+// packages are loaded from their real paths, so the name cannot be read from a node_modules path.
+function packageInfo(filename: string): PackageInfo {
+  const visited: string[] = []
+  let directory = path.dirname(filename)
+  let info: PackageInfo | undefined
+  while ((info = packageInfoByDirectory.get(directory)) === undefined) {
+    visited.push(directory)
+    try {
+      const { name } = JSON.parse(
+        fs.readFileSync(path.join(directory, 'package.json'), 'utf8')
+      )
+      if (typeof name === 'string') {
+        info = { name, root: directory }
+        break
+      }
+    } catch {}
+    const parent = path.dirname(directory)
+    if (parent === directory) {
+      info = null
+      break
     }
-  | {
-      type: 'importModule'
-      lookupPath: string
-      request: string
-    }
+    directory = parent
+  }
+  for (const directory of visited) packageInfoByDirectory.set(directory, info)
+  return info
+}
 
 type LoaderConfig =
   | string
@@ -68,6 +79,46 @@ const {
 }: typeof import('loader-runner') = require('@vercel/turbopack/loader-runner')
 
 const contextDir = process.cwd()
+
+type ModuleLookups = {
+  childCount: number
+  packageLookups: Array<[string, [string, string, string]]>
+}
+const moduleLookupsCache = new WeakMap<NodeJS.Module, ModuleLookups>()
+
+// The lookups Node made for a cached module's children. Node only appends to `children`, so the
+// result stays valid until another child is added.
+function moduleLookups(
+  loadedModule: NodeJS.Module,
+  filename: string
+): ModuleLookups {
+  const cached = moduleLookupsCache.get(loadedModule)
+  if (cached?.childCount === loadedModule.children.length) return cached
+  const lookups: ModuleLookups = {
+    childCount: loadedModule.children.length,
+    packageLookups: [],
+  }
+  const parentPackage = packageInfo(filename)
+  for (const child of loadedModule.children) {
+    if (!child.filename) continue
+    // Cached children expose filenames, not the requests that resolved to them.
+    const childPackage = packageInfo(child.filename)
+    if (childPackage && childPackage.root !== parentPackage?.root) {
+      // A child in another package was found by a node_modules lookup from the parent.
+      const lookupPath = path.dirname(filename)
+      lookups.packageLookups.push([
+        `${lookupPath}\0${childPackage.name}\0${childPackage.root}`,
+        [
+          contextRelative(lookupPath),
+          childPackage.name,
+          contextRelative(childPackage.root),
+        ],
+      ])
+    }
+  }
+  moduleLookupsCache.set(loadedModule, lookups)
+  return lookups
+}
 
 const LogType = Object.freeze({
   error: 'error',
@@ -154,7 +205,7 @@ type ResolveOptions = {
   importFields?: string[]
 }
 
-const transform = (
+const transform = async (
   ipc: TransformIpc,
   content: string | { binary: string },
   name: string,
@@ -164,14 +215,40 @@ const transform = (
   mode: 'development' | 'production',
   sourceMap: boolean
 ) => {
+  const resource = pathResolve(contextDir, name)
+  const resourceDir = dirname(resource)
+  const nodeRequire = createRequire(path.join(contextDir, 'package.json'))
+  const resolvedLoaders = await Promise.all(
+    loaders.map(async (config) => {
+      const { loader, options } =
+        typeof config === 'string' ? { loader: config, options: {} } : config
+      const result = (await ipc.sendRequest({
+        type: 'resolveLoader',
+        lookupPaths: [contextDir, resourceDir],
+        request: loader,
+        resolvedPath: nodeRequire.resolve(loader, {
+          paths: [contextDir, resourceDir],
+        }),
+      })) as { path: string }
+      return { loader: result.path, options }
+    })
+  )
   return new Promise((resolve, reject) => {
-    const resource = pathResolve(contextDir, name)
-    const resourceDir = dirname(resource)
-
-    const loadersWithOptions = loaders.map((loader) =>
-      typeof loader === 'string' ? { loader, options: {} } : loader
+    const buildDependencies = new Set(
+      resolvedLoaders.map((loader) => loader.loader)
     )
-    const buildDependencies = new Set<string>()
+    const buildDependencyRequests = new Set<string>()
+    const addBuildDependency = (dependency: string) => {
+      buildDependencyRequests.add(dependency)
+      if (!/[\\/]$/.test(dependency)) {
+        try {
+          // Node resolution is only used to inspect the runtime cache. Rust tracks the request,
+          // classifies filesystem inputs, and reports unresolved dependencies.
+          const resolved = nodeRequire.resolve(dependency)
+          buildDependencies.add(resolved)
+        } catch {}
+      }
+    }
 
     const logs: Array<{
       time: number
@@ -202,9 +279,7 @@ const transform = (
               ? entry.options
               : {}
           },
-          addBuildDependency(dependency: string) {
-            buildDependencies.add(dependency)
-          },
+          addBuildDependency,
           fs: {
             stat(
               p: fs.PathLike,
@@ -565,12 +640,7 @@ const transform = (
           },
         },
 
-        loaders: loadersWithOptions.map((loader) => ({
-          loader: __turbopack_external_require__.resolve(loader.loader, {
-            paths: [contextDir, resourceDir],
-          }),
-          options: loader.options,
-        })),
+        loaders: resolvedLoaders,
         readResource: (_filename, callback) => {
           // TODO assuming that filename === resource, but loaders might change that
           let data =
@@ -585,6 +655,26 @@ const transform = (
           ipc.sendInfo({ type: 'log', logs: logs })
           logs.length = 0
         }
+        const pendingBuildDependencies = [...buildDependencies]
+        const buildPackageLookups = new Map<string, [string, string, string]>()
+        for (const dependency of pendingBuildDependencies) {
+          const loadedModule = nodeRequire.cache[dependency]
+          if (!loadedModule) continue
+          const lookups = moduleLookups(loadedModule, dependency)
+          for (const [key, lookup] of lookups.packageLookups) {
+            buildPackageLookups.set(key, lookup)
+          }
+          for (const child of loadedModule.children) {
+            if (!child.filename) continue
+            if (!buildDependencies.has(child.filename)) {
+              buildDependencies.add(child.filename)
+              pendingBuildDependencies.push(child.filename)
+            }
+          }
+        }
+        const buildModuleDependencies = [...buildDependencies].filter(
+          (dependency) => !nodeRequire.cache[dependency]
+        )
         ipc.sendInfo({
           type: 'dependencies',
           envVariables: getReadEnvVariables(),
@@ -593,10 +683,12 @@ const transform = (
             ...result.missingDependencies,
           ],
           directories: result.contextDependencies.map((dep) => [dep, '**']),
-          buildDependencyRequests: [...buildDependencies]
+          buildFilePaths: [...buildDependencies].map(contextRelative),
+          buildModulePaths: buildModuleDependencies.map(contextRelative),
+          buildDependencyRequests: [...buildDependencyRequests]
             .map((dependency) => {
-              // Webpack uses a trailing slash or backslash to identify directory build dependencies:
-              // https://github.com/webpack/webpack/blob/v5.98.0/lib/FileSystemInfo.js#L1741-L1748
+              // Webpack identifies directory build dependencies by a trailing slash or backslash.
+              // https://github.com/webpack/webpack/blob/f1bdec5cc70236083e45b665831d5d79d6485db7/lib/FileSystemInfo.js#L1741-L1748
               const isDirectory = /[\\/]$/.test(dependency)
               let request = isDirectory ? dependency.slice(0, -1) : dependency
               if (path.isAbsolute(request)) {
@@ -613,19 +705,15 @@ const transform = (
               return [request, isDirectory] as [string, boolean]
             })
             .sort(([a], [b]) => a.localeCompare(b)),
+          // Sorted so identical dependency sets share a task.
+          buildPackageLookups: [...buildPackageLookups.keys()]
+            .sort()
+            .map((key) => buildPackageLookups.get(key)!),
         })
         if (err) {
-          // Resolve loader paths to include in the error message using
+          // Include resolved loader paths in the error message using
           // the same "(from ...)" style as webpack's format-webpack-messages.
-          const loaderPathList = loadersWithOptions.map((l) => {
-            try {
-              return __turbopack_external_require__.resolve(l.loader, {
-                paths: [contextDir, resourceDir],
-              })
-            } catch {
-              return l.loader
-            }
-          })
+          const loaderPathList = resolvedLoaders.map((loader) => loader.loader)
           const loaderPaths = loaderPathList.join(', ')
 
           if (!(err instanceof Error)) {
