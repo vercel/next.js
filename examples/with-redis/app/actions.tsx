@@ -6,16 +6,27 @@ import { Feature } from "./types";
 
 const kv = Redis.fromEnv();
 
-export async function saveFeature(feature: Feature, formData: FormData) {
-  let newFeature = {
-    ...feature,
-    title: formData.get("feature") as string,
+export async function saveFeature(formData: FormData) {
+  const title = formData.get("feature");
+  if (typeof title !== "string") return;
+
+  const trimmed = title.trim();
+  if (!trimmed || trimmed.length > 150) return;
+
+  // The id, timestamp, and starting score come from the server so a request
+  // cannot overwrite an existing proposal or seed an arbitrary score.
+  const feature: Feature = {
+    id: crypto.randomUUID(),
+    title: trimmed,
+    created_at: new Date().toISOString(),
+    score: "1",
   };
-  await kv.hset(`item:${newFeature.id}`, newFeature);
-  await kv.zadd("items_by_score", {
-    score: Number(newFeature.score),
-    member: newFeature.id,
-  });
+
+  await kv
+    .multi()
+    .hset(`item:${feature.id}`, feature)
+    .zadd("items_by_score", { score: 1, member: feature.id })
+    .exec();
 
   revalidatePath("/");
 }
@@ -35,14 +46,17 @@ export async function saveEmail(formData: FormData) {
   }
 }
 
-export async function upvote(feature: Feature) {
-  const newScore = Number(feature.score) + 1;
-  await kv.hset(`item:${feature.id}`, {
-    ...feature,
-    score: newScore,
-  });
+export async function upvote(id: string) {
+  if (typeof id !== "string") return;
 
-  await kv.zadd("items_by_score", { score: newScore, member: feature.id });
+  const current = await kv.zscore("items_by_score", id);
+  if (current === null) return;
+
+  await kv
+    .multi()
+    .hincrby(`item:${id}`, "score", 1)
+    .zincrby("items_by_score", 1, id)
+    .exec();
 
   revalidatePath("/");
 }
