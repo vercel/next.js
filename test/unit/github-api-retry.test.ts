@@ -562,6 +562,48 @@ describe('pr-ci-comment.mjs', () => {
     expect(status).toBe(0)
   })
 
+  it('retries a 502 on a page fetched by paginate and goes on to the next page', () => {
+    // A full first page (100 jobs) makes `paginate` fetch page 2.
+    const jobs = Array.from({ length: 100 }, (_, i) => ({
+      id: i + 1,
+      name: `job ${i + 1}`,
+      status: 'completed',
+      conclusion: 'success',
+    }))
+    const { status, output } = run('failure', [
+      {
+        match: '/jobs?per_page=100&page=2',
+        responses: [{ status: 200, body: { jobs: [] } }],
+      },
+      {
+        match: '/jobs?per_page=100&page=1',
+        responses: [
+          { status: 502, body: { message: 'Server Error' } },
+          { status: 200, body: { jobs } },
+        ],
+      },
+      { match: '/comments?', responses: [{ status: 200, body: [] }] },
+      {
+        method: 'POST',
+        match: '/issues/1/comments',
+        responses: [{ status: 201, body: { html_url: 'https://x/c/4' } }],
+      },
+    ])
+
+    expect(output).toMatch(
+      /jobs\?per_page=100&page=1 failed with 502 \(attempt 1\/4\); retrying in/
+    )
+    expect(
+      output.match(/\[fetch-stub\] GET \S+\/jobs\?per_page=100&page=1(?!\d)/g)
+    ).toHaveLength(2)
+    expect(
+      output.match(/\[fetch-stub\] GET \S+\/jobs\?per_page=100&page=2(?!\d)/g)
+    ).toHaveLength(1)
+    expect(output).toContain('Created comment https://x/c/4')
+    expect(output).not.toMatch(/^::(warning|error) /m)
+    expect(status).toBe(0)
+  })
+
   it('does not repeat the comment POST after a 502', () => {
     const { status, output } = run('success', [
       { match: '/comments?', responses: [{ status: 200, body: [] }] },
