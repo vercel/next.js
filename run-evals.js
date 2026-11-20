@@ -25,6 +25,7 @@ const fs = require('fs')
 const { spawnSync } = require('child_process')
 const { packPackage } = require('./evals/lib/pack')
 const { linkEnvironment } = require('./evals/lib/environment')
+const { evaluateEffortGate } = require('./evals/lib/effort-gate')
 
 const ROOT = __dirname
 
@@ -308,6 +309,11 @@ function main() {
       'metrics',
       'Save the app and collect configured page and effort metrics'
     )
+    .boolean('effort-gate')
+    .describe(
+      'effort-gate',
+      'Compare five sequential baseline and skill effort samples'
+    )
     .string('agent')
     .describe('agent', 'Override the coding agent for every selected variant')
     .string('model')
@@ -323,6 +329,7 @@ function main() {
     .describe('variant', 'Run only the named generated variant (repeatable)')
     .conflicts('all', 'eval-name')
     .conflicts('suite', ['all', 'eval-name'])
+    .conflicts('effort-gate', ['all', 'suite', 'dry', 'metrics', 'variant'])
     .check((argv) => {
       if (!argv.all && !argv.evalName && !argv.suite) {
         throw new Error(
@@ -342,6 +349,14 @@ function main() {
       if (!Number.isInteger(argv.runs) || argv.runs < 1) {
         throw new Error('--runs must be a positive integer')
       }
+      if (
+        argv.effortGate &&
+        process.argv
+          .slice(2)
+          .some((arg) => arg === '--runs' || arg.startsWith('--runs='))
+      ) {
+        throw new Error('--effort-gate sets its own sample count')
+      }
       return true
     })
     .strict()
@@ -355,6 +370,20 @@ function main() {
     : argv.all
       ? null
       : [/** @type {string} */ (evalName)]
+  const configuredCollector = evalName
+    ? EVAL_CONFIG[evalName]?.metrics
+    : undefined
+  if (
+    argv.effortGate &&
+    (!/^[a-z0-9-]+$/.test(configuredCollector ?? '') ||
+      !fs.existsSync(
+        path.join(EVALS_DIR, 'metrics', `${configuredCollector}.mjs`)
+      ))
+  ) {
+    throw new Error(
+      '--effort-gate requires one eval with a configured metrics collector'
+    )
+  }
   if (
     argv.metrics &&
     (!selectedEvals ||
@@ -393,12 +422,20 @@ function main() {
         .join(', ')}`
     )
   }
-  const variants =
+  let variants =
     requestedVariants.length > 0
       ? availableVariants.filter((variant) =>
           requestedVariants.includes(variant.suffix)
         )
       : availableVariants
+  if (argv.effortGate) {
+    variants = variants.filter(({ suffix }) =>
+      ['baseline', 'skills'].includes(suffix)
+    )
+    if (variants.length !== 2) {
+      throw new Error('--effort-gate requires baseline and skills variants')
+    }
+  }
   // agent-eval 1.3 dropped run-all/--dry: `run` takes explicit experiment names,
   // and `status` is the read-only preview.
   const agentEvalArgs = argv.dry
@@ -435,7 +472,16 @@ function main() {
   // writes to the repo root, so symlink them into evals/ for agent-eval to find.
   linkEnvironment(ROOT, EVALS_DIR)
 
-  writeExperiments(selectedEvals, variants, timeout, argv.runs, argv)
+  writeExperiments(
+    selectedEvals,
+    variants,
+    timeout,
+    argv.effortGate ? 1 : argv.runs,
+    {
+      ...argv,
+      metrics: argv.metrics || argv.effortGate,
+    }
+  )
   console.log(
     evalName
       ? `> Running ${evalName} (${variants.map((v) => v.suffix).join(' + ')})`
@@ -446,20 +492,73 @@ function main() {
   // the bin directly rather than via `pnpm exec` because pnpm resets cwd to
   // the workspace root, but agent-eval resolves experiments/ from process.cwd().
   const bin = path.join(ROOT, 'node_modules/.bin/agent-eval')
-  const previousResults = new Map(
-    variants.map((variant) => {
-      const directory = path.join(EVALS_DIR, 'results', variant.suffix)
-      return [
-        variant.suffix,
-        new Set(fs.existsSync(directory) ? fs.readdirSync(directory) : []),
-      ]
+  const samples = Object.fromEntries(variants.map(({ suffix }) => [suffix, []]))
+  let result
+  let previousResults
+  const iterations = argv.effortGate ? 5 : 1
+  for (let iteration = 1; iteration <= iterations; iteration++) {
+    if (argv.effortGate)
+      console.log(`> Effort sample ${iteration}/${iterations}`)
+    previousResults = new Map(
+      variants.map((variant) => {
+        const directory = path.join(EVALS_DIR, 'results', variant.suffix)
+        return [
+          variant.suffix,
+          new Set(fs.existsSync(directory) ? fs.readdirSync(directory) : []),
+        ]
+      })
+    )
+    result = spawnSync(bin, agentEvalArgs, {
+      cwd: EVALS_DIR,
+      stdio: 'inherit',
+      env: { ...process.env, NEXT_EVAL_TARBALL: TARBALL },
     })
-  )
-  const result = spawnSync(bin, agentEvalArgs, {
-    cwd: EVALS_DIR,
-    stdio: 'inherit',
-    env: { ...process.env, NEXT_EVAL_TARBALL: TARBALL },
-  })
+    if (result.error || (!argv.effortGate && result.status !== 0)) break
+
+    if (argv.effortGate) {
+      let collectionFailed = false
+      for (const variant of variants) {
+        const directory = path.join(EVALS_DIR, 'results', variant.suffix)
+        const existingResults = previousResults.get(variant.suffix)
+        const timestamps = []
+        for (const timestamp of fs.readdirSync(directory)) {
+          if (!existingResults.has(timestamp)) timestamps.push(timestamp)
+        }
+        if (timestamps.length !== 1) {
+          throw new Error(
+            `Expected one new ${variant.suffix} result, found ${timestamps.length}`
+          )
+        }
+        const run = path.join(
+          directory,
+          timestamps[0],
+          selectedEvals[0],
+          'run-1'
+        )
+        const measured = spawnSync(
+          process.execPath,
+          [
+            '--import=tsx',
+            path.join(EVALS_DIR, 'metrics/report.mjs'),
+            'collect',
+            run,
+            configuredCollector,
+          ],
+          { cwd: ROOT, stdio: 'inherit', env: process.env }
+        )
+        if (measured.error || measured.status !== 0) {
+          result = measured
+          collectionFailed = true
+          break
+        }
+        samples[variant.suffix].push(
+          JSON.parse(fs.readFileSync(path.join(run, 'metrics.json'), 'utf8'))
+        )
+      }
+      if (collectionFailed) break
+      result = { ...result, status: 0 }
+    }
+  }
   if (result.error) {
     // ENOENT (missing bin), EACCES, etc. — spawnSync returns status: null
     // without printing anything, so surface it.
@@ -502,7 +601,39 @@ function main() {
     console.error(
       'Page measurement failed. Eval scores are unchanged; retry the collector on the saved run.'
     )
-  process.exit((result.status ?? 1) || (metricsFailed ? 1 : 0))
+  let effortGateFailed = false
+  if (argv.effortGate && !result.error && result.status === 0) {
+    const gate = evaluateEffortGate(samples.baseline, samples.skills)
+    for (const variant of ['baseline', 'skills']) {
+      console.log(
+        `${variant} samples: ${samples[variant]
+          .map(({ status, inputTokens }) => `${inputTokens} (${status})`)
+          .join(', ')}`
+      )
+      const cliFirst = samples[variant].filter(
+        (sample) => sample.collector?.requestInsightsCliFirst
+      ).length
+      console.log(`${variant} CLI-first: ${cliFirst}/5`)
+    }
+    console.log(
+      `Effort gate: baseline median ${gate.baselineMedian}, skills median ${gate.skillsMedian}, reduction ${(gate.reduction * 100).toFixed(1)}%, pass rate ${gate.baselinePasses}/5 vs ${gate.skillsPasses}/5`
+    )
+    const reportDirectory = path.join(EVALS_DIR, 'results', 'effort-gate')
+    fs.mkdirSync(reportDirectory, { recursive: true })
+    const reportPath = path.join(
+      reportDirectory,
+      `${new Date().toISOString().replaceAll(':', '-').replaceAll('.', '-')}-${evalName}.json`
+    )
+    fs.writeFileSync(
+      reportPath,
+      JSON.stringify({ eval: evalName, ...gate, samples }, null, 2) + '\n'
+    )
+    console.log(`Effort report: ${reportPath}`)
+    effortGateFailed = !gate.passed
+  }
+  process.exit(
+    (result.status ?? 1) || (metricsFailed || effortGateFailed ? 1 : 0)
+  )
 }
 
 main()

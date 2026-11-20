@@ -5,6 +5,8 @@ import { collectLocalFiles, createSandbox } from '@vercel/agent-eval'
 import { installPlaywright } from '../lib/setup.ts'
 import { downloadSource } from '../evals/agent-062-pokedex-dev-loop/eval-setup.mjs'
 
+export const requiresSandbox = true
+
 // The normal EVAL.ts owns pass/fail. This only measures its saved app.
 export async function collect(output, { samples = 3 } = {}) {
   const temporary = mkdtempSync(join(tmpdir(), 'pokedex-metrics-'))
