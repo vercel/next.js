@@ -97,6 +97,18 @@ describe('cache-components', () => {
     }
   })
 
+  it('should prerender pages that await an immediate scheduled after a nextTick', async () => {
+    const $ = await next.render$(
+      '/cases/microtask_next_tick_immediate/example',
+      {}
+    )
+    if (isNextDev) {
+      expect($('#inner').text()).toBe('at runtime')
+    } else {
+      expect($('#inner').text()).toBe('at buildtime')
+    }
+  })
+
   it('should partially prerender pages that take longer than a task to render', async () => {
     let $ = await next.render$('/cases/task', {})
     if (isNextDev) {
