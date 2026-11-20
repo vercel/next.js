@@ -2,6 +2,7 @@ package routing
 
 import (
 	"strings"
+	"unicode/utf8"
 )
 
 // Request is what Decide reads, as the client sent it.
@@ -161,9 +162,18 @@ var objectPrototypeKeys = map[string]bool{
 }
 
 // checkQuery accepts a query that Node's parse-then-write gives back
-// unchanged: key=value pairs of plain characters, no key that JavaScript
-// objects order or treat specially, and repeats of a key next to each other
-// (Node groups repeats under the first one).
+// unchanged: key=value pairs already in the form Node writes
+// (canonicalQueryText), no key that JavaScript objects order or treat
+// specially, and repeats of a key next to each other (Node groups repeats
+// under the first one).
+//
+// TODO: every other query goes to Node, which rewrites it before calling
+// the worker. Without Node, Switchyard would have to send Node's rewritten
+// form itself: "+" as a space, characters Node percent-encodes (",", ";",
+// "=", ...), encodings Node writes differently (lowercase hex, or "%7E" for
+// a character it leaves raw), invalid percent-encodings and UTF-8, empty
+// pairs and pairs without "=", number-like keys (sorted first), keys
+// JavaScript objects already have, and repeats of a key apart.
 func checkQuery(query string) string {
 	if query == "" {
 		return "empty query"
@@ -172,10 +182,10 @@ func checkQuery(query string) string {
 	previous := ""
 	for _, pair := range strings.Split(query, "&") {
 		key, value, ok := strings.Cut(pair, "=")
-		if !ok || key == "" {
+		if !ok {
 			return "query pair without key=value"
 		}
-		if !plain(key) || !plain(value) {
+		if !canonicalQueryText(key) || !canonicalQueryText(value) {
 			return "query characters"
 		}
 		if isDigits(key) {
@@ -191,6 +201,68 @@ func checkQuery(query string) string {
 		previous = key
 	}
 	return ""
+}
+
+// canonicalQueryText reports whether s, a query key or value, is already
+// written the way Node writes it: Node decodes the query (URLSearchParams)
+// and encodes it again with querystring.escape, which leaves letters, digits
+// and -_.!~*'() as they are and writes every other byte as %XX with
+// uppercase hex. Only text in that form reaches the worker unchanged. Letters
+// and digits are never encoded in it, so the key checks above can read the
+// key as sent.
+func canonicalQueryText(s string) bool {
+	// Text without "%" is all raw characters (ASCII), so only text with an
+	// encoding needs its decoded bytes checked as UTF-8.
+	encoded := strings.IndexByte(s, '%') >= 0
+	var decoded []byte
+	if encoded {
+		decoded = make([]byte, 0, len(s))
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c != '%' {
+			if !queryRaw(c) {
+				return false
+			}
+			if encoded {
+				decoded = append(decoded, c)
+			}
+			continue
+		}
+		if i+2 >= len(s) {
+			return false
+		}
+		hi, ok1 := upperHex(s[i+1])
+		lo, ok2 := upperHex(s[i+2])
+		if !ok1 || !ok2 {
+			return false
+		}
+		b := hi<<4 | lo
+		// Node would write this byte as is, so the encoding changes.
+		if queryRaw(b) {
+			return false
+		}
+		decoded = append(decoded, b)
+		i += 2
+	}
+	// Node replaces invalid UTF-8 with U+FFFD.
+	return !encoded || utf8.Valid(decoded)
+}
+
+// queryRaw reports whether querystring.escape leaves c as it is.
+func queryRaw(c byte) bool {
+	return 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9' || strings.IndexByte("-_.!~*'()", c) >= 0
+}
+
+// upperHex reads one uppercase hex digit, as querystring.escape writes them.
+func upperHex(c byte) (byte, bool) {
+	switch {
+	case '0' <= c && c <= '9':
+		return c - '0', true
+	case 'A' <= c && c <= 'F':
+		return c - 'A' + 10, true
+	}
+	return 0, false
 }
 
 func isDigits(s string) bool {

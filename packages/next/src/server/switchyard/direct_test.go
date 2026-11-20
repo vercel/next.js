@@ -33,6 +33,12 @@ const testTable = `{"contract":{"version":1},"basePath":"","maxHeaderBytes":1638
 
 func startDirect(t *testing.T, worker http.HandlerFunc) *directFixture {
 	t.Helper()
+	return startDirectWithTimeout(t, worker, time.Minute)
+}
+
+// startDirectWithTimeout is startDirect with the given request timeout.
+func startDirectWithTimeout(t *testing.T, worker http.HandlerFunc, requestTimeout time.Duration) *directFixture {
+	t.Helper()
 	fx := &directFixture{node: make(chan *http.Request, 16), worker: make(chan *http.Request, 16)}
 	node := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
@@ -59,7 +65,7 @@ func startDirect(t *testing.T, worker http.HandlerFunc) *directFixture {
 	}
 	public := ln.Addr().(*net.TCPAddr)
 	fx.switchyard = newSwitchyard(newProxy(node.Listener.Addr().String(), public, 4*time.Second, testToken), public, 4*time.Second)
-	srv := newServer(fx.switchyard, 4*time.Second, time.Minute, time.Minute, 16<<10)
+	srv := newServer(fx.switchyard, 4*time.Second, time.Minute, requestTimeout, 16<<10)
 	go srv.Serve(ln)
 	t.Cleanup(func() { srv.Close() })
 	fx.addr = ln.Addr().String()
@@ -355,6 +361,34 @@ func TestADirectAnswerSentMidUploadClosesTheConnection(t *testing.T) {
 	// those bytes as the next request.
 	if res.StatusCode != http.StatusForbidden || !res.Close {
 		t.Fatalf("status %d, close %v", res.StatusCode, res.Close)
+	}
+}
+
+func TestADirectUploadThatHitsTheRequestTimeoutGets408(t *testing.T) {
+	fx := startDirectWithTimeout(t, func(w http.ResponseWriter, r *http.Request) {
+		io.ReadAll(r.Body)
+		io.WriteString(w, "worker")
+	}, 300*time.Millisecond)
+	conn, err := net.Dial("tcp", fx.addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	// Headers announce a 10-byte body; only 1 byte ever comes.
+	io.WriteString(conn, "POST /api/echo HTTP/1.1\r\nHost: example.com\r\nContent-Length: 10\r\n\r\nx")
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	answer, err := io.ReadAll(conn)
+	if err != nil {
+		t.Fatalf("connection not closed by the server: %v", err)
+	}
+	// Node answers a request that hits its requestTimeout with 408.
+	if !strings.HasPrefix(string(answer), "HTTP/1.1 408 Request Timeout\r\n") {
+		t.Errorf("answered %q, want 408 Request Timeout", answer)
+	}
+	select {
+	case <-fx.worker:
+	default:
+		t.Error("the upload went to Node, want the worker")
 	}
 }
 
