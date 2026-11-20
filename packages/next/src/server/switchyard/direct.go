@@ -103,10 +103,6 @@ func (f *switchyard) apply(msg controlMessage) {
 			return
 		}
 	case "worker":
-		if msg.Network != "tcp" {
-			proxyErrorLog.Printf("route.go worker on %q: unsupported network", msg.Network)
-			return
-		}
 		next.workers = maps.Clone(next.workers)
 		next.workers[msg.Page] = &goUpstream{
 			address: msg.Address,

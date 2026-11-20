@@ -34,7 +34,7 @@ export type ServerInitResult = {
   devMemoryThresholdRestart: boolean
   // The route table for Switchyard (switchyard.ts),
   // built from what the router loaded
-  switchyardRouteTable?: () => import('./switchyard-route-table').SwitchyardRouteTable
+  getSwitchyardRouteTable?: () => import('./switchyard-route-table').SwitchyardRouteTable
 }
 
 let initializations: Record<string, Promise<ServerInitResult> | undefined> = {}
