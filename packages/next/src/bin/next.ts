@@ -712,7 +712,7 @@ program
   )
   .usage('[directory] [options]')
 
-program
+const requestInsights = program
   .command('experimental-request-insights')
   .description(
     'Inspect experimental Request Insights from a running Next.js dev server.'
@@ -740,6 +740,58 @@ program
     )
   })
   .usage('[directory] [options]')
+
+requestInsights
+  .command('list')
+  .description('List recent Request Insights.')
+  .argument(
+    '[directory]',
+    'A directory containing the Next.js application. Defaults to the current directory.'
+  )
+  .option('--url <url>', 'Override automatic dev server discovery.')
+  .option('--json', 'Output request summaries as JSON.')
+  .option('--route <route>', 'Match a route template or request URL pathname.')
+  .addOption(
+    new Option('--limit <count>', 'Maximum number of requests to return.')
+      .argParser(parseValidPositiveInteger)
+      .default(10)
+  )
+  .action(
+    (
+      directory: string,
+      _options: NextRequestInsightsOptions,
+      command: Command
+    ) => {
+      const options = command.optsWithGlobals() as NextRequestInsightsOptions
+      return import('../cli/next-request-insights.js').then((mod) =>
+        mod.nextRequestInsights({ ...options, view: 'list' }, directory)
+      )
+    }
+  )
+
+requestInsights
+  .command('get')
+  .description('Inspect one request by ID.')
+  .argument('<request-id>', 'A full request ID or unambiguous prefix.')
+  .argument(
+    '[directory]',
+    'A directory containing the Next.js application. Defaults to the current directory.'
+  )
+  .option('--url <url>', 'Override automatic dev server discovery.')
+  .option('--json', 'Output the complete request as JSON.')
+  .action(
+    (
+      requestId: string,
+      directory: string,
+      _options: NextRequestInsightsOptions,
+      command: Command
+    ) => {
+      const options = command.optsWithGlobals() as NextRequestInsightsOptions
+      return import('../cli/next-request-insights.js').then((mod) =>
+        mod.nextRequestInsights({ ...options, requestId }, directory)
+      )
+    }
+  )
 
 const internal = program
   .command('internal')

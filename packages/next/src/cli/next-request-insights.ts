@@ -6,6 +6,7 @@ import {
   type RequestInsight,
   type RequestInsightsSnapshot,
 } from '../shared/lib/request-insights'
+import { summarizeRequestInsight } from '../shared/lib/request-insights-summary'
 import loadConfig from '../server/config'
 import { printAndExit } from '../server/lib/utils'
 import {
@@ -22,6 +23,9 @@ export type NextRequestInsightsOptions = {
   url?: string
   json?: boolean
   limit?: number
+  requestId?: string
+  route?: string
+  view?: 'list'
 }
 
 export async function nextRequestInsights(
@@ -59,8 +63,44 @@ export async function nextRequestInsights(
     )
   }
 
+  const selectedRequest = options.requestId
+    ? findRequest(data.requests, options.requestId)
+    : undefined
+
+  if (options.view === 'list') {
+    const route = options.route
+    const requests = route
+      ? data.requests.filter((request) => matchesRoute(request, route))
+      : data.requests
+    const limit = options.limit ?? DEFAULT_REQUEST_LIMIT
+    const visibleRequests = requests.slice(-limit).reverse()
+    if (options.json) {
+      console.log(
+        JSON.stringify(
+          { requests: visibleRequests.map(summarizeListRequest) },
+          null,
+          2
+        )
+      )
+    } else {
+      printRequestList(visibleRequests, requests.length)
+    }
+    return
+  }
+
   if (options.json) {
-    console.log(JSON.stringify(data, null, 2))
+    console.log(
+      JSON.stringify(
+        selectedRequest ? { request: selectedRequest } : data,
+        null,
+        2
+      )
+    )
+    return
+  }
+
+  if (selectedRequest) {
+    printRequestDetails(selectedRequest)
     return
   }
 
@@ -72,8 +112,35 @@ export async function nextRequestInsights(
 
   const limit = options.limit ?? DEFAULT_REQUEST_LIMIT
   const visibleRequests = requests.slice(-limit).reverse()
+  printRequestList(visibleRequests, requests.length)
+}
+
+function summarizeListRequest(request: RequestInsight) {
+  const summary = summarizeRequestInsight(request)
+  return {
+    requestId: summary.requestId,
+    kind: getRequestInsightKind(summary),
+    source: summary.source,
+    route: summary.route,
+    url: summary.url,
+    startTime: summary.startTime,
+    durationMs: summary.durationMs,
+    status: summary.status,
+    statusCode: summary.statusCode,
+    isRsc: summary.isRsc,
+    spanCount: summary.spanCount,
+    fetchCount: summary.fetchCount,
+    cacheStatuses: summary.cacheStatuses,
+    hasError: summary.hasError,
+  }
+}
+
+function printRequestList(
+  visibleRequests: RequestInsight[],
+  totalRequests: number
+): void {
   console.log(
-    `Showing ${visibleRequests.length} of ${requests.length} retained requests (newest first).`
+    `Showing ${visibleRequests.length} of ${totalRequests} retained requests (newest first).`
   )
 
   for (const request of visibleRequests) {
@@ -97,6 +164,68 @@ export async function nextRequestInsights(
     for (const fetch of visibleFetches) {
       console.log(
         `  fetch ${formatDuration(fetch.durationMs)} ${fetch.statusCode ?? '-'} ${fetch.cacheStatus ?? 'unknown'} ${fetch.method ?? 'GET'} ${fetch.url ?? ''}`
+      )
+    }
+  }
+}
+
+function matchesRoute(request: RequestInsight, route: string): boolean {
+  if (request.route === route) return true
+  if (!request.url) return false
+
+  try {
+    return new URL(request.url, 'http://next.local').pathname === route
+  } catch {
+    return false
+  }
+}
+
+function findRequest(requests: RequestInsight[], id: string): RequestInsight {
+  const exact = requests.find((request) => request.requestId === id)
+  if (exact) return exact
+
+  const matches = requests.filter((request) => request.requestId.startsWith(id))
+  if (matches.length === 0) {
+    return exitWithError(`No retained request matches "${id}".`)
+  }
+  if (matches.length > 1) {
+    return exitWithError(
+      `Request ID prefix "${id}" is ambiguous (${matches.length} matches).`
+    )
+  }
+  return matches[0]
+}
+
+function printRequestDetails(request: RequestInsight): void {
+  const route = request.route ?? request.url ?? request.requestId
+  console.log(
+    `${route} ${formatDuration(request.durationMs)} ${request.status}`
+  )
+  console.log(`  request ${request.requestId}`)
+  console.log(`  page ${request.htmlRequestId}`)
+
+  if (request.spans.length === 0) {
+    console.log('  No spans recorded.')
+    return
+  }
+
+  console.log('  Spans (relative to request start):')
+  for (const span of [...request.spans].sort(
+    (first, second) => first.startTime - second.startTime
+  )) {
+    const offset = Math.max(0, span.startTime - request.startTime)
+    console.log(
+      `    +${formatDuration(offset)} ${formatDuration(span.durationMs)} ${span.name}`
+    )
+    console.log(
+      `      span ${span.spanId ?? '-'} parent ${span.parentSpanId ?? '-'}`
+    )
+    const url = span.attributes?.['http.url']
+    const cacheStatus = span.attributes?.['next.fetch.cache_status']
+    const cacheReason = span.attributes?.['next.fetch.cache_reason']
+    if (typeof url === 'string') {
+      console.log(
+        `      fetch ${url}${typeof cacheStatus === 'string' ? ` cache ${cacheStatus}` : ''}${typeof cacheReason === 'string' ? ` (${cacheReason})` : ''}`
       )
     }
   }
