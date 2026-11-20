@@ -83,6 +83,7 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
     defineEnv: createDefineEnv({
       isTurbopack: true,
       clientRouterFilters: NextBuildContext.clientRouterFilters!,
+      pagesRouterFilters: NextBuildContext.pagesRouterFilters,
       config,
       dev,
       distDir,
