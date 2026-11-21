@@ -203,11 +203,13 @@ impl NextSegmentConfig {
         }
         let Self {
             rsc,
-            dynamic,
-            dynamic_params,
-            revalidate,
+            // These are evaluated per segment by the JavaScript loader-tree consumers, not as
+            // route-wide deployment config. Unequal sibling values are valid.
+            dynamic: _,
+            dynamic_params: _,
+            revalidate: _,
+            fetch_cache: _,
             max_duration,
-            fetch_cache,
             runtime,
             preferred_region,
             // TODO what about these?
@@ -224,15 +226,7 @@ impl NextSegmentConfig {
         // Carry the leaf page's RSC classification up through its loader-tree branch. Unlike route
         // segment config, classifications in different parallel branches are not conflicts.
         *rsc = (*rsc).or(parallel_config.rsc);
-        merge_parallel(dynamic, &parallel_config.dynamic, "dynamic")?;
-        merge_parallel(
-            dynamic_params,
-            &parallel_config.dynamic_params,
-            "dynamicParams",
-        )?;
-        merge_parallel(revalidate, &parallel_config.revalidate, "revalidate")?;
         merge_parallel(max_duration, &parallel_config.max_duration, "maxDuration")?;
-        merge_parallel(fetch_cache, &parallel_config.fetch_cache, "fetchCache")?;
         merge_parallel(runtime, &parallel_config.runtime, "runtime")?;
         match (preferred_region.as_ref(), &parallel_config.preferred_region) {
             (Some(a), Some(b)) if a.to_vec() != b.to_vec() => {
