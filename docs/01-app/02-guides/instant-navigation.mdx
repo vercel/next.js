@@ -258,7 +258,7 @@ export default nextConfig
 
 Open the Next.js DevTools and select **Navigation Inspector**, then toggle **Pause on navigations**. The panel shows **Awaiting navigation...** With the toggle on, the next refresh or link click freezes the page so you can inspect the shell.
 
-Refresh the product page. The Inspector freezes and shows **Loading shell** labeled **Page load** with the target URL. In the app, two fallbacks appear: "Loading product..." and "Checking availability...". On the first visit the cache is cold and both are visible.
+Refresh the product page. The Inspector shows **Loading shell** labeled **Page load** with the target URL. Both fallbacks appear: "Loading product..." and "Checking availability...". This route has no `generateStaticParams`, so the static shell doesn't include the product details, even on a repeat visit.
 
 <div
   style={{
@@ -280,9 +280,9 @@ Refresh the product page. The Inspector freezes and shows **Loading shell** labe
   </span>
 </div>
 
-Click **Resume** to complete the navigation. Refresh again, and the product name appears immediately from cache.
+Click **Resume** to see the product details and inventory.
 
-Now click a link from `/store/shoes` to `/store/hats`. The Inspector shows **Loading shell** labeled **Client nav** with both source and target URLs. In the app, the product name and price appear immediately (cached). "Checking availability..." shows where inventory will stream in.
+Now click a link with `prefetch={true}` from `/store/shoes` to `/store/hats`. The Inspector shows **Loading shell** labeled **Client nav** with both source and target URLs. With Partial Prefetching enabled, the link has already fetched the product name and price. Inventory still shows "Checking availability...".
 
 <div
   style={{
@@ -307,6 +307,24 @@ Now click a link from `/store/shoes` to `/store/hats`. The Inspector shows **Loa
 Toggle **Pause on navigations** off when you're done inspecting loading states. Each navigation pauses as long as the toggle is on.
 
 > **Good to know:** Page loads and client navigations can produce different shells. Client-side hooks like `useSearchParams` suspend on page loads (search params are not known at build time) but resolve synchronously on client navigations (the router already has the params).
+
+### Inspect loading states with browser automation
+
+With Cache Components enabled, a browser tool can pause navigation on your running `next dev` server. Open `/store/shoes` and set this cookie in the browser:
+
+```js filename="Browser"
+document.cookie = 'next-instant-navigation-testing=1; path=/'
+```
+
+Click the link to `/store/hats` and wait for the destination URL. Next.js waits for the link's prefetch to finish. In this example, a default `<Link>` shows both fallbacks. With `prefetch={true}` and Partial Prefetching enabled, the product name and price appear alongside "Checking availability...".
+
+To inspect the static shell for the same URL, reload with the cookie set.
+
+Clear the cookie to resume, even if the inspection fails:
+
+```js filename="Browser"
+document.cookie = 'next-instant-navigation-testing=; path=/; max-age=0'
+```
 
 ## Prevent regressions with e2e tests
 

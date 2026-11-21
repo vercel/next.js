@@ -1,6 +1,6 @@
 import { traceGlobals, traceId } from '../shared'
-import fs from 'fs'
 import path from 'path'
+import { RotatingFile } from '../../lib/rotating-file'
 import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
 import type { TraceEvent } from '../types'
 import type { Reporter } from './types'
@@ -23,50 +23,18 @@ const MAX_UTF8_CHAR_BYTES = 4
  * exists for callers that must then act on the file itself.
  */
 class RotatingWriteStream {
-  readonly file: string
-  // Undefined until the first write; see `open()`.
-  private fd: number | undefined
+  private readonly writer: RotatingFile
   private readonly buffer = Buffer.allocUnsafe(BUFFER_SIZE)
   // Bytes of event data in `buffer`, excluding the terminator written at
   // flush time. 0 means nothing is pending.
   private buffered: number = 0
-  private size: number = 0
-  private readonly sizeLimit: number
 
-  constructor(file: string, sizeLimit: number) {
-    this.file = file
-    this.sizeLimit = sizeLimit
-    // TODO: opening a file in append mode like we do in dev should seed the
-    // size from the current file size.
-    this.size = 0
-  }
-
-  /**
-   * Open on first write rather than up front. The dev server records spans
-   * before it cleans its dist dir, and a descriptor opened that early would be
-   * unlinked by the clean -- writes to the orphaned inode still succeed, so
-   * the trace would silently never appear on disk.
-   */
-  private open(): number {
-    if (this.fd === undefined) {
-      fs.mkdirSync(path.dirname(this.file), { recursive: true })
-      // In dev, append so traces accumulate across sessions. In production,
-      // truncate so each build starts with a fresh trace file.
-      this.fd = fs.openSync(
-        this.file,
-        traceGlobals.get('phase') === PHASE_DEVELOPMENT_SERVER ? 'a' : 'w'
-      )
-    }
-    return this.fd
-  }
-
-  // Recreate the file
-  private rotate() {
-    this.closeFd()
-    fs.mkdirSync(path.dirname(this.file), { recursive: true })
-    // Opening in 'w' mode truncates the file, discarding what rotated out.
-    this.fd = fs.openSync(this.file, 'w')
-    this.size = 0
+  constructor(
+    readonly file: string,
+    sizeLimit: number
+  ) {
+    this.writer = new RotatingFile(file, sizeLimit)
+    // TODO: opening in append mode in dev should seed the existing file size.
   }
 
   /**
@@ -125,38 +93,18 @@ class RotatingWriteStream {
   }
 
   private writeToFile(data: Buffer): void {
-    let offset = 0
     try {
-      if (this.size + data.length > this.sizeLimit) {
-        this.rotate()
-      }
-      const fd = this.open()
-      // writeSync can write fewer than all the bytes
-      while (offset < data.length) {
-        offset += fs.writeSync(fd, data, offset)
-      }
+      if (this.writer.wouldExceed(data.length)) this.writer.rotate()
+      // In dev, append across sessions. Each production build starts fresh.
+      this.writer.write(
+        data,
+        traceGlobals.get('phase') === PHASE_DEVELOPMENT_SERVER ? 'a' : 'w'
+      )
     } catch (err) {
       // Tracing is diagnostic, so a failed write should not fail the build.
       // N.B. This is incredibly rare and a torn write means the data may be corrupted on disk.
       console.log(err)
     }
-    this.size += offset
-  }
-
-  /**
-   * Release the descriptor without flushing. Callers that want the buffered
-   * tail on disk flush first; `rotate` deliberately does not.
-   */
-  private closeFd(): void {
-    if (this.fd === undefined) {
-      return
-    }
-    try {
-      fs.closeSync(this.fd)
-    } catch {
-      // Nothing useful to do if the descriptor is already gone.
-    }
-    this.fd = undefined
   }
 
   /**
@@ -167,7 +115,7 @@ class RotatingWriteStream {
    */
   close(): void {
     this.flush()
-    this.closeFd()
+    this.writer.close()
   }
 }
 

@@ -26,7 +26,7 @@ type received struct {
 	header     http.Header
 }
 
-// startProxy runs the proxy in switchyard of an upstream that records each request
+// startProxy runs the proxy in front of an upstream that records each request
 // and answers with handler. It returns the proxy's address.
 func startProxy(t *testing.T, handler http.HandlerFunc) (string, <-chan received) {
 	t.Helper()
@@ -860,7 +860,7 @@ func TestRequiresEveryFlag(t *testing.T) {
 	}
 }
 
-// startServedProxy runs newServer and newProxy as main does, in switchyard of an
+// startServedProxy runs newServer and newProxy as main does, in front of an
 // upstream that records the request target and method it receives.
 func startServedProxy(t *testing.T, requestTimeout time.Duration) (string, <-chan string) {
 	t.Helper()
@@ -930,7 +930,7 @@ func TestClosesARequestWhoseBodyNeverFinishes(t *testing.T) {
 	}
 }
 
-// startSwitchyardFor runs newServer and newProxy as main does, in switchyard of an
+// startSwitchyardFor runs newServer and newProxy as main does, in front of an
 // upstream answering with handler.
 func startSwitchyardFor(t *testing.T, handler http.HandlerFunc) string {
 	t.Helper()
