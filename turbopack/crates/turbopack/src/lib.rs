@@ -21,7 +21,7 @@ pub use runtime_asset_context::get_runtime_asset_context;
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
-use turbo_tasks_fs::{FileSystemPath, glob::Glob};
+use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob};
 pub use turbopack_core::condition;
 use turbopack_core::{
     asset::Asset,
@@ -1077,25 +1077,24 @@ impl AssetContext for ModuleAssetContext {
                             let replacement = if replace_externals {
                                 // Determine the package folder, `target` is the full path to the
                                 // resolved file.
-                                let target = if let Some(mut target) = target {
-                                    loop {
-                                        let parent = target.parent();
-                                        if parent.is_root() {
-                                            break;
+                                let (target, trace_request) = if let Some(file) = target {
+                                    match external_package_folder(file.clone(), &name).await? {
+                                        ExternalPackageFolder::InNodeModules(folder) => {
+                                            (Some(folder), None)
                                         }
-                                        if parent.file_name() == "node_modules" {
-                                            break;
+                                        // The package can't necessarily be resolved by its name
+                                        // from its own folder (e.g. when it has no `exports`
+                                        // field), so trace the resolved file directly instead.
+                                        ExternalPackageFolder::OutsideNodeModules(folder) => {
+                                            let trace_request = folder
+                                                .get_path_to(&file)
+                                                .map(|p| RcStr::from(format!("./{p}")));
+                                            (Some(folder), trace_request)
                                         }
-                                        if parent.file_name().starts_with("@")
-                                            && parent.parent().file_name() == "node_modules"
-                                        {
-                                            break;
-                                        }
-                                        target = parent;
+                                        ExternalPackageFolder::Unknown => (None, None),
                                     }
-                                    Some(target)
                                 } else {
-                                    None
+                                    (None, None)
                                 };
 
                                 let analyze_mode = if traced == ExternalTraced::Traced
@@ -1127,6 +1126,7 @@ impl AssetContext for ModuleAssetContext {
                                     );
                                     CachedExternalTracingMode::Traced {
                                         origin: ResolvedVc::upcast(origin.to_resolved().await?),
+                                        request: trace_request,
                                     }
                                 } else {
                                     CachedExternalTracingMode::Untraced
@@ -1236,6 +1236,60 @@ pub async fn emit_assets_into_dir_operation(
         .as_side_effect()
         .await?;
     Ok(())
+}
+
+enum ExternalPackageFolder {
+    InNodeModules(FileSystemPath),
+    OutsideNodeModules(FileSystemPath),
+    Unknown,
+}
+
+/// Determines the folder of the package that contains `file`, the full path to the resolved file
+/// of the external `request`.
+///
+/// Inside of `node_modules` this is the direct child of `node_modules` (or of
+/// `node_modules/@scope`). Outside of `node_modules` (e.g. a symlinked workspace package that
+/// was resolved to its real path) this is the closest ancestor with a `package.json` whose `name`
+/// matches the package name of `request`.
+async fn external_package_folder(
+    file: FileSystemPath,
+    request: &str,
+) -> Result<ExternalPackageFolder> {
+    let mut folder = file.clone();
+    loop {
+        let parent = folder.parent();
+        if parent.is_root() {
+            break;
+        }
+        if parent.file_name() == "node_modules"
+            || (parent.file_name().starts_with('@')
+                && parent.parent().file_name() == "node_modules")
+        {
+            return Ok(ExternalPackageFolder::InNodeModules(folder));
+        }
+        folder = parent;
+    }
+
+    // `pkg/subpath` -> `pkg`, `@scope/pkg/subpath` -> `@scope/pkg`
+    let package_name = if request.starts_with('@') {
+        request.splitn(3, '/').take(2).collect::<Vec<_>>().join("/")
+    } else {
+        request.split('/').next().unwrap_or_default().to_string()
+    };
+
+    let mut folder = file.parent();
+    loop {
+        if let FileJsonContent::Content(package_json) =
+            &*folder.join("package.json")?.read_json().await?
+            && package_json["name"].as_str() == Some(&*package_name)
+        {
+            return Ok(ExternalPackageFolder::OutsideNodeModules(folder));
+        }
+        if folder.is_root() {
+            return Ok(ExternalPackageFolder::Unknown);
+        }
+        folder = folder.parent();
+    }
 }
 
 /// Replaces the externals in the result with `ExternalModuleAsset` instances.

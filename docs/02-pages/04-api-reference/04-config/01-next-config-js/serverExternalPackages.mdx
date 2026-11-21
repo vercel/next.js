@@ -16,6 +16,27 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
+## Monorepos and symlinked packages
+
+By default, a package listed in `serverExternalPackages` is only externalized when it resolves to a path inside of `node_modules`. Workspace packages in a monorepo (for example, pnpm `workspace:*` dependencies) are symlinked into `node_modules` and resolve to their real location in the workspace, so they are bundled when `bundlePagesRouterDependencies` is enabled.
+
+To externalize these packages as well, enable the experimental `serverExternalPackagesMonorepo` option. A listed package that resolves to a path outside of `node_modules` is then externalized only when it is a symlink in `node_modules`:
+
+```js filename="next.config.js"
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  bundlePagesRouterDependencies: true,
+  serverExternalPackages: ['my-workspace-pkg'],
+  experimental: {
+    serverExternalPackagesMonorepo: true,
+  },
+}
+
+module.exports = nextConfig
+```
+
+## Default packages
+
 Next.js includes a [short list of popular packages](https://github.com/vercel/next.js/blob/canary/packages/next/src/lib/server-external-packages.jsonc) that currently are working on compatibility and automatically opt-ed out:
 
 - `@alinea/generated`

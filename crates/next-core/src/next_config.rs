@@ -1181,6 +1181,9 @@ pub struct ExperimentalConfig {
     server_minification: Option<bool>,
     /// Enables source maps generation for the server production bundle.
     server_source_maps: Option<bool>,
+    /// Also externalize `serverExternalPackages` that resolve to a path outside of
+    /// `node_modules`, e.g. symlinked workspace packages in a monorepo.
+    server_external_packages_monorepo: Option<bool>,
     swc_trace_profiling: Option<bool>,
     transition_indicator: Option<bool>,
     gesture_transition: Option<bool>,
@@ -2127,6 +2130,15 @@ impl NextConfig {
             return Vc::cell(None);
         };
         Vc::cell(Some(resolve_extensions.clone()))
+    }
+
+    #[turbo_tasks::function]
+    pub fn server_external_packages_monorepo(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .server_external_packages_monorepo
+                .unwrap_or(false),
+        )
     }
 
     #[turbo_tasks::function]
