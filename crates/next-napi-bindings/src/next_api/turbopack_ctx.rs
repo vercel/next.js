@@ -411,6 +411,10 @@ impl CompilationEvent for StartupCacheInvalidationEvent {
                 " because we previously detected an internal error in Turbopack"
             }
             Some(invalidation_reasons::USER_REQUEST) => " as the result of a user request",
+            Some(invalidation_reasons::UNREADABLE) => {
+                " because it could not be read. Its files may have been modified or deleted by \
+                 another process"
+            }
             _ => "", // ignore unknown reasons
         };
         format!(

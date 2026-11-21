@@ -16,6 +16,8 @@ There is a single `CURRENT` file, a small JSON object holding the latest committ
 
 All other files have a sequence number as file name, e. g. `0000123.sst`. All files are immutable once their sequence number is <= the committed sequence number. But they might be deleted when they are superseded by other committed files.
 
+Files whose name starts with `.` are ignored, such as `.DS_Store` or the `._<name>` AppleDouble files macOS writes next to every file on filesystems like exFAT. Any other unrecognized file fails opening the database, with an error that names it.
+
 There are four different file types:
 
 - Static Sorted Table (SST, `*.sst`): These files contain key value pairs.
@@ -457,6 +459,9 @@ Bottom merges are paced by the fresh (not yet compacted) files of the family: th
 - Read all `*.del` files and delete the files that are listed in there.
 - Open all remaining `*.meta` files (memory mapped with `AccessMode::Mmap`, read onto the heap with
   `AccessMode::File`), parse their AMQFs and drop entries for SST files that are obsolete.
+- Check that the SST file of every remaining entry exists. If one is missing (e.g. because it was
+  deleted from outside), opening fails with an error that names it, rather than a later lookup
+  failing on a key stored in it.
 - SST and blob files are not opened while the database opens. Once the meta files are loaded, the SST
   files start opening eagerly in the background (see [Reading](#reading)); a lookup that needs one
   first opens it itself. An SST file is memory mapped in mmap access mode, or read with positional
