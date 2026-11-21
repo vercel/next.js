@@ -83,9 +83,12 @@ export type NativeRouteWorkerEvent =
 
 let workerObserver: ((event: NativeRouteWorkerEvent) => void) | undefined
 
-/** Registers the one observer of every NativeRouteManager's workers. */
+/**
+ * Registers the one observer of every NativeRouteManager's workers, replacing
+ * any earlier one. Pass undefined to stop observing.
+ */
 export function observeNativeRouteWorkers(
-  observer: (event: NativeRouteWorkerEvent) => void
+  observer: ((event: NativeRouteWorkerEvent) => void) | undefined
 ) {
   workerObserver = observer
 }
