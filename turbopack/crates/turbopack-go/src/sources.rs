@@ -146,25 +146,48 @@ pub async fn go_source_set(
     ))
 }
 
-/// Read the module path from go.mod. Go validates the file again when it builds.
+/// Read the module path from go.mod, including the block form `module ( path )`. Go validates
+/// the file again when it builds.
 fn module_directive(go_mod: &str) -> Option<RcStr> {
-    for line in go_mod.lines() {
-        let line = line.split("//").next().unwrap_or_default().trim();
+    fn path(token: &str) -> Option<RcStr> {
+        let token = token.trim();
+        let path = if token.starts_with('"') {
+            serde_json::from_str::<String>(token).ok()?
+        } else if let Some(token) = token.strip_prefix('`') {
+            token.strip_suffix('`')?.to_owned()
+        } else {
+            token.to_owned()
+        };
+        (!path.is_empty()).then(|| path.into())
+    }
+    let mut lines = go_mod
+        .lines()
+        .map(|line| line.split("//").next().unwrap_or_default().trim());
+    while let Some(line) = lines.next() {
         let Some(rest) = line.strip_prefix("module") else {
             continue;
         };
-        if !rest.starts_with(|ch: char| ch.is_whitespace() || ch == '"' || ch == '`') {
+        if !rest.starts_with(|ch: char| ch.is_whitespace() || matches!(ch, '"' | '`' | '(')) {
             continue;
         }
         let rest = rest.trim();
-        let path = if rest.starts_with('"') {
-            serde_json::from_str::<String>(rest).ok()?
-        } else if let Some(rest) = rest.strip_prefix('`') {
-            rest.strip_suffix('`')?.to_owned()
-        } else {
-            rest.to_owned()
+        let Some(block) = rest.strip_prefix('(') else {
+            return path(rest);
         };
-        return (!path.is_empty()).then(|| path.into());
+        // A block holds one line per directive; `module` accepts exactly one.
+        for line in std::iter::once(block.trim()).chain(lines) {
+            let (line, closed) = match line.strip_suffix(')') {
+                Some(line) => (line.trim(), true),
+                None => (line, false),
+            };
+            if !line.is_empty() {
+                return path(line);
+            }
+            if closed {
+                return None;
+            }
+        }
+        return None;
     }
     None
 }
@@ -221,6 +244,37 @@ pub async fn go_package_bundle_from_sources(
     generated: BTreeMap<RcStr, RcStr>,
 ) -> Result<Vc<GoBundleResult>> {
     bundle_sources(sources, session, generated, Some(alias)).await
+}
+
+/// A failed result for a source set the consumer rejected before compiling it, such as a
+/// package the consumer cannot import. It carries the source selection's inputs, so
+/// `read_with_validated_inputs` notices edits that may resolve the failure.
+#[turbo_tasks::function]
+pub async fn go_source_failure(
+    sources: ResolvedVc<GoSourceSet>,
+    session: ResolvedVc<GoBuildSession>,
+    message: RcStr,
+) -> Result<Vc<GoBundleResult>> {
+    let sources = sources.await?;
+    let outcome = if sources.dirty || !sources.inputs.is_current().await? {
+        // As in `bundle_sources`: invalidate the stale observations so a retry rereads them.
+        let project = to_sys_path(sources.boundary.clone())
+            .await?
+            .context("Go sources require a disk filesystem")?;
+        Tracker::new(&sources.boundary, &project, &session.await?.go_context)
+            .invalidate()
+            .await?;
+        GoBuildOutcome::Retry
+    } else {
+        GoBuildOutcome::Failed(message)
+    };
+    Ok(GoBundleResult {
+        outcome,
+        inputs: sources.inputs.clone(),
+        root: sources.boundary.clone(),
+        session,
+    }
+    .cell())
 }
 
 async fn bundle_sources(
@@ -313,6 +367,12 @@ mod tests {
             ("module `example.com/raw`\n", Some("example.com/raw")),
             ("modules example.com/no\n", None),
             ("go 1.24\n", None),
+            (
+                "module (\n\texample.com/blk // comment\n)\n\ngo 1.24\n",
+                Some("example.com/blk"),
+            ),
+            ("module(\n\n\t\"example.com/q\"\n)\n", Some("example.com/q")),
+            ("module (\n)\n\ngo 1.24\n", None),
         ] {
             assert_eq!(module_directive(go_mod).as_deref(), expected, "{go_mod}");
         }

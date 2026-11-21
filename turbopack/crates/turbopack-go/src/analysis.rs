@@ -1,5 +1,5 @@
 //! Cached Go syntax queries. Frameworks interpret declarations and generate their own entrypoints.
-use std::{io::Read, sync::atomic::Ordering};
+use std::{io::Read, path::Path, sync::atomic::Ordering};
 
 use anyhow::{Context, Result, ensure};
 use serde::Deserialize;
@@ -24,6 +24,14 @@ pub struct GoDeclarations {
     /// are omitted; the compiler reports any disagreement between package clauses.
     #[serde(default)]
     pub packages: Vec<RcStr>,
+    /// `functions` restricted to files that Go's package file selection includes for the
+    /// session's GOOS, GOARCH and build tags, with cgo disabled. File name suffixes such as
+    /// `_windows.go` and `//go:build` constraints apply, as for an imported package.
+    #[serde(default)]
+    pub selected_functions: Vec<RcStr>,
+    /// `packages` restricted to the same selected files.
+    #[serde(default)]
+    pub selected_packages: Vec<RcStr>,
     /// Parsing errors are retained without preventing the compiler from emitting its normal
     /// diagnostics. Callers can still generate an entrypoint from valid declarations.
     pub syntax_errors: Vec<RcStr>,
@@ -43,8 +51,14 @@ pub async fn go_declarations(
         .context("Go parser requires a disk filesystem")?;
     let go_context = &host_session.await?.go_context;
     let input = serde_json::to_vec(&sources.await?.files)?;
+    let arguments = [
+        format!("-goos={}", go_context.goos),
+        format!("-goarch={}", go_context.goarch),
+        format!("-tags={}", go_context.tags),
+    ];
+    let arguments: Vec<&Path> = arguments.iter().map(Path::new).collect();
     let report = match go_context
-        .run_executable_with_input(&path, &[], Some(&input))
+        .run_executable_with_input(&path, &arguments, Some(&input))
         .await
     {
         Ok(report) => report,
