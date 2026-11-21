@@ -1,4 +1,10 @@
-import { MockedRequest, MockedResponse } from './mock-request'
+import { Socket } from 'net'
+
+import {
+  MockedRequest,
+  MockedResponse,
+  createRequestResponseMocks,
+} from './mock-request'
 
 describe('MockedRequest', () => {
   it('should have the correct properties', () => {
@@ -83,5 +89,26 @@ describe('MockedResponse', () => {
     expect(res.getHeaders()).toEqual({
       'set-cookie': ['foo=bar2', 'bar2=foo'],
     })
+  })
+})
+
+describe('createRequestResponseMocks', () => {
+  it('should only attach the socket to the request, not the response', () => {
+    const socket = new Socket()
+    const { req, res } = createRequestResponseMocks({
+      url: '/_next/image?url=%2Ffoo.png',
+      socket,
+    })
+
+    // The request needs the socket so the router can read properties like
+    // `socket.encrypted` and `socket.remoteAddress` from it.
+    expect(req.socket).toBe(socket)
+
+    // The mocked response is a buffer rather than a wire, so it must not be
+    // tied to the client's socket. `on-finished` (used by the vendored `send`)
+    // treats a response with a non-writable socket as already finished, so a
+    // client disconnecting mid-request would otherwise prevent the internal
+    // response from ever completing and poison the response cache key.
+    expect(res.socket).toBe(null)
   })
 })
