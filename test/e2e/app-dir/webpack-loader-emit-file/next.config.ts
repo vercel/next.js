@@ -71,6 +71,18 @@ const nextConfig: NextConfig = {
         ],
         as: '*.js',
       },
+      '*.auto': {
+        loaders: [
+          {
+            loader: 'auto-import-x-loader',
+            options: {
+              imports: { react: ['useState'] },
+              dts: `${nodeOutputPath}/auto-imports.d.ts`,
+            },
+          },
+        ],
+        as: '*.js',
+      },
       '*.mapped': [
         {
           condition: 'browser',
@@ -186,6 +198,18 @@ const nextConfig: NextConfig = {
           {
             loader: require.resolve('./loaders/pure.js'),
             options: { outputPath },
+          },
+        ],
+      },
+      {
+        test: /\.auto$/,
+        use: [
+          {
+            loader: 'auto-import-x-loader',
+            options: {
+              imports: { react: ['useState'] },
+              dts: `${outputPath}/auto-imports.d.ts`,
+            },
           },
         ],
       },
