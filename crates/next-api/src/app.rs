@@ -1272,11 +1272,13 @@ async fn managed_session(
 const GO_STANDALONE_MODULE: &str = "next-go-route";
 
 /// Language version for the generated go.mod of route directories without one, taken from the
-/// toolchain's `GOVERSION` (such as `go1.26.1` or `go1.26rc1`), so they can use every language
-/// feature the installed toolchain supports. Falls back to the minimum supported version.
+/// toolchain's `GOVERSION` (such as `go1.26.1`, `go1.26rc1`, or `devel go1.27-abcdef ...` for a
+/// development toolchain), so they can use every language feature the installed toolchain
+/// supports. Falls back to the minimum supported version.
 fn go_language_version(toolchain_version: &str) -> String {
     toolchain_version
-        .strip_prefix("go1.")
+        .split_whitespace()
+        .find_map(|word| word.strip_prefix("go1."))
         .map(|rest| {
             rest.chars()
                 .take_while(|ch| ch.is_ascii_digit())
@@ -1433,7 +1435,12 @@ mod go_package_alias_tests {
         assert_eq!(go_language_version("go1.26.11"), "1.26");
         assert_eq!(go_language_version("go1.25rc2"), "1.25");
         assert_eq!(go_language_version("go1.24"), "1.24");
-        assert_eq!(go_language_version("devel go1.27-abcdef"), "1.24");
+        assert_eq!(go_language_version("devel go1.27-abcdef"), "1.27");
+        assert_eq!(
+            go_language_version("devel go1.27-abcdef Tue Nov 3 12:00:00 2026 +0000"),
+            "1.27"
+        );
+        assert_eq!(go_language_version("devel +abcdef"), "1.24");
     }
 }
 
