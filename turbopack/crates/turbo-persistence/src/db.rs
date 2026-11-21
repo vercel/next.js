@@ -745,7 +745,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// when it is opened rather than when a key stored in a missing file is read.
     fn load_directory(&mut self, entries: ReadDir, read_only: bool) -> Result<bool> {
         let mut meta_files = Vec::new();
-        let mut sst_files = HashSet::new();
+        let mut sst_files = FxHashSet::default();
         let current = match read_current_version(&self.path)? {
             Some(version) => version.max_sequence_number,
             None if !read_only => return Ok(false),
