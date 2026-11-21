@@ -76,7 +76,7 @@ use turbopack_core::{
 use turbopack_ecmascript::single_file_ecmascript_output::SingleFileEcmascriptOutput;
 use turbopack_go::{
     GoBuildOutcome, GoBuildSession, GoSessionPool, GoSourceSelection, GoToolchainOptions,
-    go_declarations, go_package_bundle_from_sources, go_source_set,
+    go_declarations, go_package_bundle_from_sources, go_source_failure, go_source_set,
 };
 use turbopack_resolve::{ecmascript::cjs_resolve, resolve_options_context::ResolveOptionsContext};
 
@@ -1271,6 +1271,21 @@ async fn managed_session(
 /// Module path for route directories that have no go.mod.
 const GO_STANDALONE_MODULE: &str = "next-go-route";
 
+/// Language version for the generated go.mod of route directories without one, taken from the
+/// toolchain's `GOVERSION` (such as `go1.26.1` or `go1.26rc1`), so they can use every language
+/// feature the installed toolchain supports. Falls back to the minimum supported version.
+fn go_language_version(toolchain_version: &str) -> String {
+    toolchain_version
+        .strip_prefix("go1.")
+        .map(|rest| {
+            rest.chars()
+                .take_while(|ch| ch.is_ascii_digit())
+                .collect::<String>()
+        })
+        .filter(|minor| !minor.is_empty())
+        .map_or_else(|| "1.24".to_owned(), |minor| format!("1.{minor}"))
+}
+
 /// Virtual, module-relative directories for a route or proxy package and its generated `main`
 /// package.
 struct GoPackageAlias {
@@ -1301,11 +1316,13 @@ fn is_go_import_path_element(element: &str) -> bool {
 /// Choose virtual package directories with valid import paths for a source directory.
 ///
 /// The package lives in the deepest ancestor-or-self of the source directory whose path is a
-/// valid import path. Go only lets a package import `x/internal/...` when the importer's path
-/// starts with `x`, and any such `x` the source directory could reach is a valid prefix of it,
-/// so this keeps `internal` imports working. The entrypoint is placed beside the package so it
-/// can import it even when that prefix contains an `internal` element. The final name is
-/// readable in stack traces and unique per source directory.
+/// valid, importable import path. Go only lets a package import `x/internal/...` when the
+/// importer's path starts with `x`, and any such `x` the source directory could reach is a
+/// valid prefix of it, so this keeps `internal` imports working. The prefix stops before a
+/// `vendor` element: in module mode Go refuses to import any path containing one, and nothing
+/// below it is importable, so this does not change `internal` visibility. The entrypoint is
+/// placed beside the package so it can import it even when that prefix contains an `internal`
+/// element. The final name is readable in stack traces and unique per source directory.
 fn go_package_alias(source_directory: &str, is_proxy: bool) -> GoPackageAlias {
     let elements: Vec<_> = source_directory
         .split('/')
@@ -1313,7 +1330,7 @@ fn go_package_alias(source_directory: &str, is_proxy: bool) -> GoPackageAlias {
         .collect();
     let valid = elements
         .iter()
-        .take_while(|element| is_go_import_path_element(element))
+        .take_while(|element| **element != "vendor" && is_go_import_path_element(element))
         .count();
     let parent = elements[..valid].join("/");
     let mut name = String::new();
@@ -1380,6 +1397,43 @@ mod go_package_alias_tests {
         for element in ["api", "rss.xml", "v1-beta", "_private", "console"] {
             assert!(is_go_import_path_element(element), "{element}");
         }
+    }
+
+    #[test]
+    fn aliases_stop_before_vendor_elements() {
+        let hash = |path: &str| turbo_tasks_hash::hash_xxh3_hash64(path) as u32;
+        let h = hash("app/vendor/[id]");
+        let alias = go_package_alias("app/vendor/[id]", false);
+        assert_eq!(
+            alias.package,
+            format!("app/_next_go_route_vendor_id_{h:08x}")
+        );
+        assert_eq!(alias.entrypoint, format!("app/_next_go_main_{h:08x}"));
+        let h = hash("app/vendor/list");
+        let alias = go_package_alias("app/vendor/list", false);
+        assert_eq!(
+            alias.package,
+            format!("app/_next_go_route_vendor_list_{h:08x}")
+        );
+        let h = hash("vendor");
+        assert_eq!(
+            go_package_alias("vendor", true).package,
+            format!("_next_go_proxy_vendor_{h:08x}")
+        );
+        // Only the exact element is special to Go.
+        let h = hash("app/vendors/list");
+        assert_eq!(
+            go_package_alias("app/vendors/list", false).package,
+            format!("app/vendors/list/_next_go_route_{h:08x}")
+        );
+    }
+
+    #[test]
+    fn standalone_module_uses_the_toolchain_language_version() {
+        assert_eq!(go_language_version("go1.26.11"), "1.26");
+        assert_eq!(go_language_version("go1.25rc2"), "1.25");
+        assert_eq!(go_language_version("go1.24"), "1.24");
+        assert_eq!(go_language_version("devel go1.27-abcdef"), "1.24");
     }
 }
 
@@ -1504,44 +1558,53 @@ impl Endpoint for GoEndpoint {
         }
         let analysis = go_declarations(*sources, session).await?;
         // Next.js owns the program entrypoint. It imports the route directory as an ordinary
-        // package, so that directory cannot be a program itself.
-        if analysis.packages.iter().any(|name| name == "main") {
+        // package, so that directory cannot be a program itself. Only files Go selects for the
+        // package count: `//go:build ignore` generators commonly use `package main`.
+        if analysis.selected_packages.iter().any(|name| name == "main") {
             let (file, suggestion) = if is_proxy {
                 ("proxy.go", "proxy")
             } else {
                 ("route.go", "route")
             };
+            let message: RcStr = format!(
+                "{file} must not use `package main`. Next.js generates the program entrypoint and \
+                 imports this directory as a package. Rename the package in every .go file in \
+                 this directory, for example to `package {suggestion}`."
+            )
+            .into();
             GoRouteIssue {
                 path: this.path.clone(),
-                message: format!(
-                    "{file} must not use `package main`. Next.js generates the program entrypoint \
-                     and imports this directory as a package. Rename the package in every .go \
-                     file in this directory, for example to `package {suggestion}`."
-                )
-                .into(),
+                message: message.clone(),
             }
             .resolved_cell()
             .emit();
+            // Carry the source selection's inputs so request-time validation notices when the
+            // package is renamed, rather than relying only on the file watcher.
+            let build = (*go_source_failure(*sources, session, message.clone()).await?).clone();
             return Ok(EndpointOutput {
                 project,
                 output_assets: OutputAssets::empty().to_resolved().await?,
-                output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
+                output_paths: EndpointOutputPaths::NativeFailed { build: Some(build) }
+                    .resolved_cell(),
                 first_load_chunks: None,
             }
             .cell());
         }
         // Files that disagree are reported by the compiler.
         let package = analysis
-            .packages
+            .selected_packages
             .first()
             .map_or("route", |name| name.as_str());
         if is_proxy {
             ensure!(
-                analysis.functions.iter().any(|name| name == "Proxy"),
+                analysis
+                    .selected_functions
+                    .iter()
+                    .any(|name| name == "Proxy"),
                 "proxy.go must export func Proxy(http.ResponseWriter, *http.Request)"
             );
         }
-        let methods = analysis.functions.iter().filter(|name| {
+        let methods = analysis.selected_functions.iter().filter(|name| {
             matches!(
                 name.as_str(),
                 "GET" | "HEAD" | "POST" | "PUT" | "DELETE" | "PATCH" | "OPTIONS"
@@ -1593,9 +1656,10 @@ impl Endpoint for GoEndpoint {
             Some(module_path) => format!("{module_path}/{alias}"),
             None => {
                 // A directory without go.mod gets a module so the entrypoint can import it.
+                let version = go_language_version(&go_session.go_context.version);
                 generated.insert(
                     rcstr!("go.mod"),
-                    RcStr::from(format!("module {GO_STANDALONE_MODULE}\n\ngo 1.24\n")),
+                    RcStr::from(format!("module {GO_STANDALONE_MODULE}\n\ngo {version}\n")),
                 );
                 format!("{GO_STANDALONE_MODULE}/{alias}")
             }

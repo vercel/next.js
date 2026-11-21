@@ -1282,6 +1282,11 @@ async fn generated_entry_imports_source_directory_as_package() -> Result<()> {
         "var assets embed.FS",
         "func Message() string {",
         "\tasset, _ := assets.ReadFile(\"assets/message.txt\")",
+        "\t// Embedded .go files keep their bytes; only package files get line directives.",
+        "\tif snippet, _ := assets.ReadFile(\"assets/snippet.go\"); string(snippet) != \"package \
+         snippet\\n\" {",
+        "\t\tpanic(\"embedded snippet changed: \" + string(snippet))",
+        "\t}",
         "\treturn sibling() + \":\" + string(asset) + \":\" + message.Text() + \":\" + \
          greeting.Text() + \":\" + Generated()",
         "}",
@@ -1298,6 +1303,19 @@ async fn generated_entry_imports_source_directory_as_package() -> Result<()> {
         .await?;
     session
         .write(&format!("{directory}/assets/message.txt"), "asset-v1")
+        .await?;
+    session
+        .write(
+            &format!("{directory}/assets/snippet.go"),
+            "package snippet\n",
+        )
+        .await?;
+    // Go excludes this generator from the package, so its package clause does not conflict.
+    session
+        .write(
+            &format!("{directory}/gen.go"),
+            "//go:build ignore\n\npackage main\n\nfunc main() {}\n",
+        )
         .await?;
     // `app/internal` is only visible to packages below `app`, so the alias must stay there.
     session
@@ -1442,6 +1460,56 @@ async fn generated_entry_imports_source_directory_as_package() -> Result<()> {
         message.contains(expected.to_str().unwrap()) && !message.contains("_next_go_route"),
         "{message}"
     );
+    session.stop().await;
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn selected_declarations_follow_package_file_selection() -> Result<()> {
+    let session = Session::new().await?;
+    let directory = "app/[id]";
+    for (name, source) in [
+        ("route.go", "package route\nfunc GET() {}\n"),
+        (
+            "gen.go",
+            "//go:build ignore\n\npackage main\nfunc main() {}\n",
+        ),
+        ("other_plan9.go", "package other\nfunc POST() {}\n"),
+        ("cgo.go", "package route\nimport \"C\"\nfunc PUT() {}\n"),
+    ] {
+        session
+            .write(&format!("{directory}/{name}"), source)
+            .await?;
+    }
+    let root = FileSystemPath {
+        fs: ResolvedVc::upcast(session.fs),
+        path: rcstr!(""),
+    };
+    let options = session.go_context.options.clone();
+    let declarations = session
+        .tt
+        .run_once(async move {
+            let sources = selected_sources(
+                root.clone(),
+                root.join(directory)?,
+                GoSourceSelection::Directory,
+                options.clone(),
+            )
+            .resolve()
+            .strongly_consistent()
+            .await?;
+            selected_declarations(sources, options)
+                .read_strongly_consistent()
+                .await
+        })
+        .await?;
+    // Every parsed file is reported; only files Go compiles into the package are selected.
+    assert_eq!(
+        declarations.packages,
+        vec![rcstr!("main"), rcstr!("other"), rcstr!("route")]
+    );
+    assert_eq!(declarations.selected_packages, vec![rcstr!("route")]);
+    assert_eq!(declarations.selected_functions, vec![rcstr!("GET")]);
     session.stop().await;
     Ok(())
 }

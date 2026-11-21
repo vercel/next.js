@@ -102,7 +102,10 @@ semantics: platform suffixes and build tags do not filter the selected entry fil
 errors using Go's parser. The parser tool is cached independently of application
 modules, and queries are keyed by their resolved source generation. It never loads application code.
 Consumers interpret names and generate their own entrypoints. Syntax errors are
-available while allowing the compiler to emit its usual diagnostics.
+available while allowing the compiler to emit its usual diagnostics. `selected_functions`
+and `selected_packages` cover only the files Go's package file selection includes for the
+session's GOOS, GOARCH and build tags with cgo disabled, for consumers that compile the
+sources as an importable package.
 
 Resolve `go_source_set(...).to_resolved().await?` once to capture an immutable source
 generation. Share that resolved handle with declaration analysis and
@@ -121,11 +124,18 @@ therefore do not need to be valid import paths, such as `app/[id]`. Generated fi
 `alias` join that package; the remaining generated Go files form the importing `main`
 package and must share one directory. Source directories without a `go.mod` can supply one
 as a generated file. The package uses Go's normal file selection, including build tags.
-Mirrored Go files start with a `//line` directive, so compiler diagnostics and stack traces
-name the source files; other diagnostics are mapped back to the source directory.
-Discovery mirrors the directory's regular files, plus the subtree below each embed
-pattern's fixed prefix, and tracks the source files Go reads. Nothing is written to the
-project.
+Go files directly in the package directory start with a `//line` directive in the overlay,
+so compiler diagnostics and stack traces name the source files; embedding those files
+therefore includes the directive. Other mirrored files, including `.go` files below embed
+patterns, keep their original bytes. Other diagnostics are mapped back to the source
+directory. Discovery mirrors the directory's regular files, plus the subtree below each
+embed pattern's fixed prefix, and tracks the source files Go reads. Nothing is written to
+the project.
+
+`go_source_failure(*sources, session, message)` returns a failed `GoBundleResult` for a
+source set the consumer rejects before compiling, such as a directory that declares
+`package main`. It carries the source selection's inputs, so `read_with_validated_inputs`
+rereads the consumer's operation after edits that may resolve the failure.
 
 `GoSessionPool` lazily probes `GoToolchainOptions`, constructs persistent host or target
 sessions, retains their restored cancellation handles, and leases module-cache watchers.

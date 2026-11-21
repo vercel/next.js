@@ -44,7 +44,7 @@ pub use crate::{
     session::{GoSessionPool, GoTarget, GoToolchainOptions},
     sources::{
         GoSourceSelection, GoSourceSet, go_bundle_from_sources, go_package_bundle_from_sources,
-        go_source_set,
+        go_source_failure, go_source_set,
     },
 };
 use crate::{
@@ -740,12 +740,14 @@ async fn mirror_directory(
 /// Materialize generated source bytes outside the project. The virtual paths remain in the
 /// original package directory; neither source files nor module metadata are modified.
 ///
-/// Mirrored Go files start with a line directive, so compiler diagnostics and stack traces name
-/// the source file instead of its virtual package path.
+/// Mirrored Go files directly in an aliased package directory start with a line directive, so
+/// compiler diagnostics and stack traces name the source file instead of its virtual package
+/// path. Other mirrored files, such as `.go` files below an embed pattern, keep their bytes.
 fn overlay(
     project: &Path,
     generated: &BTreeMap<RcStr, RcStr>,
     mirrored: &BTreeMap<RcStr, RcStr>,
+    aliases: &BTreeMap<RcStr, RcStr>,
 ) -> Result<tempfile::TempDir> {
     let temp = tempfile::Builder::new()
         .prefix("turbopack-go-overlay-")
@@ -775,7 +777,9 @@ fn overlay(
             "{} is reserved for generated code",
             source_path.display()
         );
-        if !path.ends_with(".go") {
+        let in_package_directory = path.ends_with(".go")
+            && aliases.contains_key(path.rsplit_once('/').map_or("", |(directory, _)| directory));
+        if !in_package_directory {
             replacements.insert(virtual_path, source_path);
             continue;
         }
@@ -802,12 +806,13 @@ async fn list(
     project: &Path,
     generated: &BTreeMap<RcStr, RcStr>,
     mirrored: &BTreeMap<RcStr, RcStr>,
+    aliases: &BTreeMap<RcStr, RcStr>,
 ) -> Result<Vec<Package>> {
     go_context
         .cancellation
         .lists
         .fetch_add(1, Ordering::Relaxed);
-    let overlay = overlay(project, generated, mirrored)?;
+    let overlay = overlay(project, generated, mirrored, aliases)?;
     // Run from the module root: named files may live in a virtual directory.
     let mut command = go_context.command(project);
     command
@@ -1135,7 +1140,15 @@ async fn discover(
             .await?;
         }
         let registered = (tracker.inputs.files.len(), tracker.inputs.directories.len());
-        let mut packages = list(&files, &go_context, &project, &generated, &mirrored).await?;
+        let mut packages = list(
+            &files,
+            &go_context,
+            &project,
+            &generated,
+            &mirrored,
+            &aliases,
+        )
+        .await?;
         // Embed patterns are relative to the package directory, which is virtual for aliased
         // packages. Go reports the patterns even when they match nothing, so mirror the source
         // subtree below each pattern's fixed prefix and let Go match again.
@@ -1187,7 +1200,15 @@ async fn discover(
             if mirrored.len() == mirrored_before {
                 break;
             }
-            packages = list(&files, &go_context, &project, &generated, &mirrored).await?;
+            packages = list(
+                &files,
+                &go_context,
+                &project,
+                &generated,
+                &mirrored,
+                &aliases,
+            )
+            .await?;
         }
         let assembly_flags = observe_packages(
             &mut tracker,
@@ -1205,7 +1226,16 @@ async fn discover(
             registered != (tracker.inputs.files.len(), tracker.inputs.directories.len());
         let structure_changed = !tracker.dirty
             && added_inputs
-            && packages != list(&files, &go_context, &project, &generated, &mirrored).await?;
+            && packages
+                != list(
+                    &files,
+                    &go_context,
+                    &project,
+                    &generated,
+                    &mirrored,
+                    &aliases,
+                )
+                .await?;
         if tracker.dirty || structure_changed || !tracker.inputs.is_current().await? {
             return Ok(None);
         }
@@ -1320,7 +1350,7 @@ async fn compile(
         .cancellation
         .builds
         .fetch_add(1, Ordering::Relaxed);
-    let overlay = overlay(project_path, &plan.generated, &plan.mirrored)?;
+    let overlay = overlay(project_path, &plan.generated, &plan.mirrored, &plan.aliases)?;
     // Run from the module root: named files may live in a virtual directory.
     let mut command = go_context.command(project_path);
     command
@@ -1633,6 +1663,56 @@ mod tests {
             std::fs::remove_file(go_env)?;
             assert_eq!(fingerprint, restored_fingerprint()?);
         }
+        Ok(())
+    }
+
+    #[test]
+    fn overlay_adds_line_directives_only_to_package_files() -> Result<()> {
+        let project = tempfile::tempdir()?;
+        let source = project.path().join("app/[id]");
+        std::fs::create_dir_all(source.join("templates"))?;
+        std::fs::write(source.join("route.go"), "\u{feff}package route\n")?;
+        std::fs::write(source.join("templates/page.go"), "\u{feff}package tmpl\n")?;
+        std::fs::write(source.join("data.txt"), "data")?;
+        let alias = "app/_next_go_route_id";
+        let mirrored = BTreeMap::from([
+            (
+                rcstr!("app/_next_go_route_id/route.go"),
+                rcstr!("app/[id]/route.go"),
+            ),
+            (
+                rcstr!("app/_next_go_route_id/templates/page.go"),
+                rcstr!("app/[id]/templates/page.go"),
+            ),
+            (
+                rcstr!("app/_next_go_route_id/data.txt"),
+                rcstr!("app/[id]/data.txt"),
+            ),
+        ]);
+        let aliases = BTreeMap::from([(RcStr::from(alias), rcstr!("app/[id]"))]);
+        let temp = overlay(project.path(), &BTreeMap::new(), &mirrored, &aliases)?;
+        let manifest: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(temp.path().join("overlay.json"))?)?;
+        let replacement = |path: &str| {
+            PathBuf::from(
+                manifest["Replace"][project.path().join(path).to_str().unwrap()]
+                    .as_str()
+                    .unwrap(),
+            )
+        };
+        assert_eq!(
+            std::fs::read_to_string(replacement("app/_next_go_route_id/route.go"))?,
+            "//line app/[id]/route.go:1\npackage route\n"
+        );
+        // Files below embed patterns are mirrored byte for byte from their source.
+        assert_eq!(
+            replacement("app/_next_go_route_id/templates/page.go"),
+            source.join("templates/page.go")
+        );
+        assert_eq!(
+            replacement("app/_next_go_route_id/data.txt"),
+            source.join("data.txt")
+        );
         Ok(())
     }
 
