@@ -8,6 +8,8 @@ Next.js tries to restart the worker pool of the static page generation when no p
 
 When restarted it will retry all uncompleted jobs, but if a job was unsuccessfully attempted multiple times, this will lead to an error.
 
+The same budget bounds background revalidations at runtime. A revalidation runs after the stale response has already been sent, so nothing else is waiting on it: if its data fetching never settles, the route would keep serving the version cached at the moment it hung. Instead, the revalidation is abandoned once `staticPageGenerationTimeout` is reached, logged as `Revalidation for <path> timed out after N seconds`, and retried on a later request.
+
 ## Possible Ways to Fix It
 
 - Make sure that there is no infinite loop during execution.
