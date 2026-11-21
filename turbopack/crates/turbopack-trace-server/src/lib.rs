@@ -861,12 +861,12 @@ fn resolve_span_by_id<'a>(store: &'a store::Store, id: &str) -> Option<SpanRef<'
 
 #[cfg(test)]
 mod tests {
-    use rustc_hash::FxHashSet;
     use turbo_rcstr::RcStr;
 
     use super::*;
     use crate::{
         span::{SpanArgs, SpanIndex},
+        store::OutdatedSpans,
         timestamp::Timestamp,
     };
 
@@ -884,7 +884,7 @@ mod tests {
         let mut indices = Vec::new();
         {
             let mut store = container.write();
-            let mut outdated = FxHashSet::default();
+            let mut outdated = OutdatedSpans::default();
 
             let outer = store.add_span(
                 None,
@@ -1207,7 +1207,7 @@ mod tests {
         let mut members = Vec::new();
         {
             let mut store = container.write();
-            let mut outdated = FxHashSet::default();
+            let mut outdated = OutdatedSpans::default();
             let parent = store.add_span(
                 None,
                 Timestamp::from_micros(0),
