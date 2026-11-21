@@ -189,8 +189,10 @@ impl EcmascriptChunkPlaceable for ManifestLoaderModule {
                 {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
                     return Promise.all({chunks_server_data}.map((chunk) => {TURBOPACK_LOAD}(chunk))).then(() => {{
                         return {TURBOPACK_REQUIRE}({item_id});
-                    }}).then((chunks) => {{
-                        return Promise.all(chunks.map((chunk) => {TURBOPACK_LOAD}(chunk)));
+                    }}).then(({{ chunkLists, chunks }}) => {{
+                        return Promise.all(chunkLists.map((chunk) => {TURBOPACK_LOAD}(chunk))).then(() => {{
+                            return Promise.all(chunks.map((chunk) => {TURBOPACK_LOAD}(chunk)));
+                        }});
                     }}).then(() => {{
                         return parentImport({dynamic_id});
                     }});

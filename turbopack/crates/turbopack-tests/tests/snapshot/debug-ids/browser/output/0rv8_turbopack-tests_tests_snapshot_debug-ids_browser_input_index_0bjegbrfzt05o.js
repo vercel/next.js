@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="def46318-113b-4f82-5b10-6d3d2287859d")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="a7a88989-c319-f89b-0ccf-486682661fc2")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -2299,7 +2299,11 @@ function registerChunk(registration) {
     BACKEND.registerChunk(chunkListPath);
     CHUNK_UPDATE_LISTENERS.push([
         chunkListPath,
-        handleApply.bind(null, chunkListPath)
+        handleApply.bind(null, chunkListPath),
+        {
+            version: chunkList.version,
+            source: chunkList.source
+        }
     ]);
     // Adding chunks to chunk lists and vice versa.
     const chunkPaths = new Set(chunkList.chunks.map(getChunkPath));
@@ -2708,5 +2712,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=def46318-113b-4f82-5b10-6d3d2287859d
+//# debugId=a7a88989-c319-f89b-0ccf-486682661fc2
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map

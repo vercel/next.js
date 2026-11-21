@@ -7,8 +7,16 @@
 
 type UpdateCallback = (update: ServerMessage) => void
 
+type ChunkListSubscription = {
+  /** The version of the chunk list that was loaded. */
+  version?: string
+  source?: 'entry' | 'dynamic'
+}
+
 type ChunkUpdateProvider = {
-  push: (registration: [ChunkListPath, UpdateCallback]) => void
+  push: (
+    registration: [ChunkListPath, UpdateCallback, ChunkListSubscription?]
+  ) => void
 }
 
 declare var CHUNK_UPDATE_LISTENERS: ChunkUpdateProvider

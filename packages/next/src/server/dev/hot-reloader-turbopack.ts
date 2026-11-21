@@ -1174,7 +1174,11 @@ export async function createHotReloaderTurbopack(
     currentEntryIssues.delete(key)
   }
 
-  async function subscribeToClientHmrEvents(client: ws, id: string) {
+  async function subscribeToClientHmrEvents(
+    client: ws,
+    id: string,
+    version: string | undefined
+  ) {
     const key = getEntryKey('assets', 'client', id)
     if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
       // maybe throw an error / force the client to reload?
@@ -1186,14 +1190,22 @@ export async function createHotReloaderTurbopack(
       return
     }
 
-    const subscription = project!.clientHmrEvents(id)
+    const subscription = project!.clientHmrEvents(id, version)
     state.subscriptions.set(id, subscription)
 
     // Baseline capture and subscription setup are not atomic, so the first
     // emission can be a real update. Ignore only the usual issues-only result.
     try {
       const initial = await subscription.next()
-      if (!initial.done && initial.value.value.type !== 'issues') {
+      if (!initial.done && initial.value.value.type === 'restart') {
+        // Only this client loaded an outdated version of the chunk list, so the
+        // others must not restart.
+        sendToClient(client, {
+          type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
+          data: [initial.value.value],
+          hmrVersion: String(clientHmrVersion),
+        })
+      } else if (!initial.done && initial.value.value.type !== 'issues') {
         processIssues(state.clientIssues, key, initial.value, false, true)
         sendTurbopackMessage(initial.value.value)
       }
@@ -1626,6 +1638,17 @@ export async function createHotReloaderTurbopack(
         }
       }
 
+      // The static handler reads chunks off disk. While an emit is being written,
+      // a chunk list there can already list the new version of chunks that are
+      // still old, and the client would then subscribe from a version it doesn't
+      // have.
+      if (
+        req.url?.startsWith('/_next/static/chunks/') &&
+        project.isApplyingEffects()
+      ) {
+        await project.waitForEffectsApplied()
+      }
+
       for (const middleware of middlewares) {
         let calledNext = false
 
@@ -1845,7 +1868,11 @@ export async function createHotReloaderTurbopack(
                 })
                 break
               }
-              subscribeToClientHmrEvents(client, parsedData.path)
+              subscribeToClientHmrEvents(
+                client,
+                parsedData.path,
+                parsedData.version
+              )
               break
 
             case 'turbopack-unsubscribe':

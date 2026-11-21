@@ -68,6 +68,7 @@ type ChunkList = {
   script: ChunkRegistrationChunk
   chunks: ChunkData[]
   source: 'entry' | 'dynamic'
+  version?: string
 }
 
 interface RuntimeBackend {

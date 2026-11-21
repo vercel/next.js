@@ -786,11 +786,25 @@ function bindingToApi(
       ) as Promise<TurbopackResult<ServerHmrUpdate>>
     }
 
+    isApplyingEffects(): boolean {
+      return binding.projectIsApplyingEffects()
+    }
+
+    waitForEffectsApplied(): Promise<void> {
+      return binding.projectWaitForEffectsApplied()
+    }
+
     clientHmrEvents(
-      chunkName: string
+      chunkName: string,
+      clientVersion: string | undefined
     ): AsyncIterableIterator<TurbopackResult<Update>> {
       return subscribe(true, async (callback) =>
-        binding.projectClientHmrEvents(this._nativeProject, chunkName, callback)
+        binding.projectClientHmrEvents(
+          this._nativeProject,
+          chunkName,
+          clientVersion,
+          callback
+        )
       )
     }
 

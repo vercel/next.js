@@ -613,9 +613,19 @@ export declare function projectClientHmrChunkNamesSubscribe(
   func: (err: Error, value: TurbopackResult<HmrChunkNames>) => void
 ): { __napiType: 'RootTask' }
 
+/**
+ * Resolves once no effects, such as writes of output files, are being applied. Output files read
+ * before then may be a mix of new, old and partially written files.
+ */
+export declare function projectWaitForEffectsApplied(): Promise<void>
+
+/** Whether effects, such as writes of output files, are being applied. */
+export declare function projectIsApplyingEffects(): boolean
+
 export declare function projectClientHmrEvents(
   project: { __napiType: 'Project' },
   chunkName: RcStr,
+  clientVersion: RcStr | undefined | null,
   func: (err: Error, value: TurbopackResult<Update>) => void
 ): { __napiType: 'RootTask' }
 

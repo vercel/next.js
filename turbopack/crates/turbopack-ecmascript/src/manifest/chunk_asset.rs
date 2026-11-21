@@ -166,10 +166,16 @@ impl ManifestAsyncModule {
         let this = self.await?;
         Ok(ChunkData::from_assets(
             this.chunking_context.output_root().owned().await?,
-            self.chunk_group()
-                .await?
-                .assets
-                .concatenate(self.hmr_chunk_list()),
+            *self.chunk_group().await?.assets,
+        ))
+    }
+
+    #[turbo_tasks::function]
+    async fn chunk_lists_data(self: Vc<Self>) -> Result<Vc<ChunksData>> {
+        let this = self.await?;
+        Ok(ChunkData::from_assets(
+            this.chunking_context.output_root().owned().await?,
+            self.hmr_chunk_list(),
         ))
     }
 }
@@ -241,11 +247,24 @@ impl EcmascriptChunkPlaceable for ManifestAsyncModule {
             .iter()
             .map(|chunk_data| EcmascriptChunkData::new(chunk_data))
             .collect();
+        let chunk_lists_data = self.chunk_lists_data().await?;
+        let chunk_lists_data = chunk_lists_data.iter().try_join().await?;
+        let chunk_lists_data: Vec<_> = chunk_lists_data
+            .iter()
+            .map(|chunk_data| EcmascriptChunkData::new(chunk_data))
+            .collect();
 
+        // Chunk lists are exported separately so the loader can load them before the chunks they
+        // list. A chunk list carries the version of its chunks, and that version is only accurate
+        // for chunks loaded after it.
         let code = formatdoc! {
             r#"
-                {TURBOPACK_EXPORT_VALUE}({:#});
+                {TURBOPACK_EXPORT_VALUE}({{
+                    chunkLists: {:#},
+                    chunks: {:#},
+                }});
             "#,
+            StringifyJs(&chunk_lists_data),
             StringifyJs(&chunks_data)
         };
 

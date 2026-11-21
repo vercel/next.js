@@ -2918,10 +2918,16 @@ impl Project {
 
     /// Get the version state for an HMR session. Initialized with the first seen
     /// version in that session.
+    ///
+    /// `client_version` is the version id of the content the client already has, if it knows it.
+    /// When it differs from the first seen version, the client missed updates the session would
+    /// start after, so the session starts from a version no content matches instead, which makes
+    /// the first update a restart.
     #[turbo_tasks::function]
     pub async fn hmr_version_state(
         self: ResolvedVc<Self>,
         chunk_name: RcStr,
+        client_version: Option<RcStr>,
         session: TransientInstance<()>,
     ) -> Result<Vc<VersionState>> {
         // The session argument is important to avoid caching this function between
@@ -2938,28 +2944,43 @@ impl Project {
         async fn hmr_version_operation(
             this: ResolvedVc<Project>,
             chunk_name: RcStr,
+            client_version: Option<RcStr>,
         ) -> Result<Vc<Box<dyn Version>>> {
             tracing::info!(chunk_name = %chunk_name, "hmr subscription");
             let content = this.hmr_content(chunk_name).await?;
             if let Some(content) = &*content {
-                Ok(content.version())
+                let version = content.version();
+                if let Some(client_version) = client_version
+                    && *version.id().await? != client_version
+                {
+                    return Ok(Vc::upcast(NotFoundVersion::new()));
+                }
+                Ok(version)
             } else {
                 Ok(Vc::upcast(NotFoundVersion::new()))
             }
         }
-        let version_op = hmr_version_operation(self, chunk_name);
+        let version_op = hmr_version_operation(self, chunk_name, client_version);
 
         // INVALIDATION: This is intentionally untracked to avoid invalidating this
         // function completely. We want to initialize the VersionState with the
         // first seen version of the session.
-        let state = VersionState::new(
-            version_op
-                .read_trait_strongly_consistent()
-                .untracked()
-                .await?,
-        )
-        .await?;
+        let version = version_op
+            .read_trait_strongly_consistent()
+            .untracked()
+            .await?;
+        let state = VersionState::new(version).await?;
         Ok(state)
+    }
+
+    /// The id of the current version of the client HMR content `chunk_name`.
+    #[turbo_tasks::function]
+    pub async fn hmr_version_id(self: Vc<Self>, chunk_name: RcStr) -> Result<Vc<Option<RcStr>>> {
+        let content = self.hmr_content(chunk_name).await?;
+        Ok(Vc::cell(match &*content {
+            Some(content) => Some(content.version().id().owned().await?),
+            None => None,
+        }))
     }
 
     /// Emits opaque HMR events whenever a change is detected in the chunk group

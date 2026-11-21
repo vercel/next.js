@@ -83,7 +83,28 @@ impl<'a> ClientUpdateInstruction<'a> {
     ) -> Self {
         Self::new(
             resource,
-            ClientUpdateInstructionType::Partial { instruction },
+            ClientUpdateInstructionType::Partial {
+                instruction,
+                version: None,
+            },
+            issues,
+        )
+    }
+
+    /// Like [`ClientUpdateInstruction::partial`], and also tells the client the version the
+    /// update brings the resource to, which it sends when it subscribes again.
+    pub fn partial_to_version(
+        resource: &'a ResourceIdentifier,
+        instruction: &'a UpdateInstruction,
+        version: &'a str,
+        issues: &'a [Issue<'a>],
+    ) -> Self {
+        Self::new(
+            resource,
+            ClientUpdateInstructionType::Partial {
+                instruction,
+                version: Some(version),
+            },
             issues,
         )
     }
@@ -106,7 +127,11 @@ impl<'a> ClientUpdateInstruction<'a> {
 pub enum ClientUpdateInstructionType<'a> {
     Restart,
     NotFound,
-    Partial { instruction: &'a UpdateInstruction },
+    Partial {
+        instruction: &'a UpdateInstruction,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        version: Option<&'a str>,
+    },
     Issues,
 }
 
