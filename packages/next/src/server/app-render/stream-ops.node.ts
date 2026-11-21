@@ -14,7 +14,12 @@ import {
   resumeToPipeableStream,
 } from 'react-dom/server'
 import { prerender } from 'react-dom/static'
-import { PassThrough, Readable, Transform } from 'node:stream'
+import {
+  PassThrough,
+  Readable,
+  Transform,
+  type TransformOptions,
+} from 'node:stream'
 import { isUtf8 } from 'node:buffer'
 
 import {
@@ -32,6 +37,7 @@ import {
 import { indexOfUint8Array } from '../stream-utils/uint8array-helpers'
 import { ENCODED_TAGS } from '../stream-utils/encoded-tags'
 import { createNodeBufferedTransformStream } from '../stream-utils/node-buffered-transform-stream'
+import { releaseOnClose } from '../stream-utils/release-node-stream'
 import { MISSING_ROOT_TAGS_ERROR } from '../../shared/lib/errors/constants'
 import {
   createFlightMarkup,
@@ -109,6 +115,16 @@ export type FizzStreamResult = {
 // Internal helpers
 // ---------------------------------------------------------------------------
 
+// Every stream of a render is created through these two, so that it lets go
+// of the render when it closes. See `releaseOnClose`.
+function createTransform(options: TransformOptions): Transform {
+  return releaseOnClose(new Transform(options))
+}
+
+function createPassThrough(): PassThrough {
+  return releaseOnClose(new PassThrough())
+}
+
 type WebReadableStream = import('stream/web').ReadableStream
 
 function nodeReadableToWebReadableStream(
@@ -177,7 +193,7 @@ function createFlightDataInjectionTransform(
     }
   }
 
-  const nodeTransform = new Transform({
+  const nodeTransform = createTransform({
     transform(chunk, _encoding, callback) {
       this.push(chunk)
       if (delayDataUntilFirstHtmlChunk) {
@@ -217,7 +233,7 @@ function createHeadInsertionTransform(
   let inserted = false
   let hasBytes = false
 
-  return new Transform({
+  return createTransform({
     async transform(chunk, _encoding, callback) {
       hasBytes = true
 
@@ -284,7 +300,7 @@ function createMetadataTransform(
   let chunkIndex = -1
   let isMarkRemoved = false
 
-  return new Transform({
+  return createTransform({
     async transform(chunk, _encoding, callback) {
       let iconMarkIndex = -1
       let closedHeadIndex = -1
@@ -372,7 +388,7 @@ function createDeferredSuffixTransform(suffix: string): Transform {
   let flushed = false
   const encodedSuffix = Buffer.from(suffix)
 
-  return new Transform({
+  return createTransform({
     transform(chunk, _encoding, callback) {
       this.push(chunk)
 
@@ -402,7 +418,7 @@ function createDeferredSuffixTransform(suffix: string): Transform {
 function createMoveSuffixTransform(): Transform {
   let foundSuffix = false
 
-  return new Transform({
+  return createTransform({
     transform(chunk, _encoding, callback) {
       if (foundSuffix) {
         this.push(chunk)
@@ -448,7 +464,7 @@ function createMoveSuffixTransform(): Transform {
 function createHtmlDataDplIdTransform(dplId: string): Transform {
   let didTransform = false
 
-  return new Transform({
+  return createTransform({
     transform(chunk, _encoding, callback) {
       if (didTransform) {
         this.push(chunk)
@@ -493,7 +509,7 @@ function createRootLayoutValidatorTransform(): Transform {
   let foundHtml = false
   let foundBody = false
 
-  return new Transform({
+  return createTransform({
     transform(chunk, _encoding, callback) {
       if (
         !foundHtml &&
@@ -562,7 +578,7 @@ export function renderToNodeFlightStream(
 
   // React writes long rows as strings and its Node reader parses them as
   // written. A byte-mode stream would encode them, so this one is object mode.
-  const pt = new Transform({
+  const pt = createTransform({
     objectMode: true,
     transform(chunk: string | Uint8Array, _encoding, callback) {
       // TODO: We can remove this if React starts escaping lone surrogates.
@@ -607,7 +623,7 @@ export async function renderToNodeFizzStream(
   streamOptions: any,
   options?: { waitForAllReady?: boolean }
 ): Promise<FizzStreamResult> {
-  const pt = new PassThrough()
+  const pt = createPassThrough()
   const shellReady = createPromiseWithResolvers<void>()
   const allReady = createPromiseWithResolvers<void>()
   const deferPipe = options?.waitForAllReady === true
@@ -660,7 +676,7 @@ export async function resumeToFizzStream(
 ): Promise<FizzStreamResult> {
   const run: <T>(fn: () => T) => T = runInContext ?? ((fn) => fn())
 
-  const pt = new PassThrough()
+  const pt = createPassThrough()
   const shellReady = createPromiseWithResolvers<void>()
   const allReady = createPromiseWithResolvers<void>()
 
@@ -697,7 +713,7 @@ export async function resumeAndAbort(
   postponed: PostponedState | null,
   opts: any
 ): Promise<AnyStream> {
-  const pt = new PassThrough()
+  const pt = createPassThrough()
   const pipeable = await resumeToPipeableStream(
     element,
     postponed as PostponedState,
@@ -909,7 +925,7 @@ export async function continueDynamicHTMLResumeWeb(
 
 export function chainStreams(...streams: AnyStream[]): AnyStream {
   if (streams.length === 0) {
-    const pt = new PassThrough()
+    const pt = createPassThrough()
     pt.end()
     return pt
   }
@@ -918,7 +934,7 @@ export function chainStreams(...streams: AnyStream[]): AnyStream {
     return streams[0]
   }
 
-  const out = new PassThrough()
+  const out = createPassThrough()
   let i = 0
 
   function pipeNext() {
@@ -969,7 +985,7 @@ export function createNodeInlinedDataStream(
   const markup = createFlightMarkup(nonce, externalBrowserRuntime)
 
   const dataStream = webToReadable(source)
-  const pt = new PassThrough()
+  const pt = createPassThrough()
 
   pt.push(Buffer.from(markup.initial(formState)))
 
@@ -1139,7 +1155,7 @@ async function pullFlightData(
 }
 
 export function createPendingStream(): AnyStream {
-  return new PassThrough()
+  return createPassThrough()
 }
 
 export function createDocumentClosingStream(): AnyStream {
