@@ -269,6 +269,8 @@ module.exports = {
 ```
 
 ```js filename="proxy.js"
+import { NextResponse } from 'next/server'
+
 const legacyPrefixes = ['/docs', '/blog']
 
 export default async function proxy(req) {
@@ -284,7 +286,7 @@ export default async function proxy(req) {
     !pathname.match(/((?!\.well-known(?:\/.*)?)(?:[^/]+\/)*[^/]+\.\w+)/)
   ) {
     return NextResponse.redirect(
-      new URL(`${req.nextUrl.pathname}/`, req.nextUrl)
+      new URL(`${pathname}/${req.nextUrl.search}`, req.nextUrl)
     )
   }
 }
