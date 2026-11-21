@@ -47,8 +47,34 @@
     "proxy": { "contract": { "version": 1 }, "reason": "proxy.ts" }
   },
   "cases": [
+    {
+      "table": "app",
+      "target": "/api/users/42",
+      "route": "/api/users/[id]/route"
+    },
+    {
+      "table": "app",
+      "target": "/api/users/42?sort=asc&page=2",
+      "route": "/api/users/[id]/route"
+    },
+    {
+      "table": "app",
+      "target": "/api/users/42?key=one&key=two",
+      "route": "/api/users/[id]/route"
+    },
     { "table": "app", "target": "/api/echo", "route": "/api/echo/route" },
+    {
+      "table": "app",
+      "target": "/api/files/a/b.txt",
+      "route": "/api/files/[...path]/route"
+    },
     { "table": "app", "target": "/api/files", "node": "no route" },
+    { "table": "app", "target": "/docs", "route": "/docs/[[...path]]/route" },
+    {
+      "table": "app",
+      "target": "/docs/a/b",
+      "route": "/docs/[[...path]]/route"
+    },
     { "table": "app", "target": "/api/users/new", "node": "exact Node route" },
     {
       "table": "app",
@@ -56,6 +82,7 @@
       "node": "exact Node route"
     },
     { "table": "app", "target": "/api/health", "node": "exact Node route" },
+    { "table": "app", "target": "/blog/hello", "node": "dynamic Node route" },
     { "table": "app", "target": "/nothing", "node": "no route" },
     { "table": "app", "target": "/", "node": "exact Node route" },
     {

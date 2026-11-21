@@ -152,7 +152,7 @@ function spawnSwitchyard(
       'route table: %s',
       'reason' in table
         ? `every request goes to Node (${table.reason})`
-        : `${Object.keys(table.goExact).length} route.go routes`
+        : `${Object.keys(table.goExact).length + table.dynamic.filter((route) => route.go).length} route.go routes`
     )
     send({ event: 'table', table })
     // An app without direct routes has no use for its workers' addresses.
