@@ -404,6 +404,7 @@ export interface NextJsHotReloaderInterface {
     isApp,
     url,
     subscribeToChanges,
+    logsBuildErrors,
   }: {
     page: string
     clientOnly: boolean
@@ -420,6 +421,13 @@ export interface NextJsHotReloaderInterface {
      * keep firing on every file change for the life of the dev server.
      */
     subscribeToChanges?: boolean
+    /**
+     * Whether the caller prints a `ModuleBuildError` thrown by this call.
+     * Defaults to true (request handling logs it). Pass false when the caller
+     * handles the error without printing it (e.g. the `compile_route` MCP
+     * tool), so its issues are still printed if a request later fails on them.
+     */
+    logsBuildErrors?: boolean
   }): Promise<void>
   close(): void
 }

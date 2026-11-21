@@ -1,5 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
-import { fetchViaHTTP, fetchViaRawHttp, findPort, retry } from 'next-test-utils'
+import {
+  fetchViaHTTP,
+  fetchViaRawHttp,
+  findPort,
+  retry,
+  waitFor,
+} from 'next-test-utils'
 import { request } from 'http'
 import { promises as fs } from 'fs'
 import { dirname, join, relative } from 'path'
@@ -475,12 +481,25 @@ describe('native-route-go', () => {
           path,
           'export function GET() { return new Response("conflict") }'
         )
+        // Give the route's change subscription time to receive the issue before
+        // the first request. That subscription stores the issue without logging
+        // it, and the request then fails on the stored issue, so this covers the
+        // path that used to return a 500 without printing anything.
+        await waitFor(3000)
         await retry(async () => {
           expect((await next.fetch('/native/example')).status).toBe(500)
           expect(next.cliOutput.slice(outputStart)).toContain(
             'Conflicting App Router handlers'
           )
         }, 30_000)
+        // Later requests that fail on the same issue don't print it again.
+        expect((await next.fetch('/native/example')).status).toBe(500)
+        expect((await next.fetch('/native/example')).status).toBe(500)
+        expect(
+          next.cliOutput
+            .slice(outputStart)
+            .split('Conflicting App Router handlers').length - 1
+        ).toBe(1)
       } finally {
         await next.deleteFile(path)
       }
