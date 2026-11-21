@@ -372,39 +372,7 @@ export function GET(request) {
 
 ### Streaming
 
-Streaming is commonly used in combination with Large Language Models (LLMs), such as OpenAI, for AI-generated content. Learn more about the [AI SDK](https://sdk.vercel.ai/docs/introduction).
-
-```ts filename="app/api/chat/route.ts" switcher
-import { openai } from '@ai-sdk/openai'
-import { StreamingTextResponse, streamText } from 'ai'
-
-export async function POST(req: Request) {
-  const { messages } = await req.json()
-  const result = await streamText({
-    model: openai('gpt-4-turbo'),
-    messages,
-  })
-
-  return new StreamingTextResponse(result.toAIStream())
-}
-```
-
-```js filename="app/api/chat/route.js" switcher
-import { openai } from '@ai-sdk/openai'
-import { StreamingTextResponse, streamText } from 'ai'
-
-export async function POST(req) {
-  const { messages } = await req.json()
-  const result = await streamText({
-    model: openai('gpt-4-turbo'),
-    messages,
-  })
-
-  return new StreamingTextResponse(result.toAIStream())
-}
-```
-
-These abstractions use the Web APIs to create a stream. You can also use the underlying Web APIs directly.
+Route Handlers can stream responses using the [Web Streams API](https://developer.mozilla.org/docs/Web/API/Streams_API). Pass a `ReadableStream` to the `Response` constructor:
 
 ```ts filename="app/api/route.ts" switcher
 // https://developer.mozilla.org/docs/Web/API/ReadableStream#convert_an_iterator_or_async_iterator_to_a_stream
@@ -485,6 +453,8 @@ export async function GET() {
   return new Response(stream)
 }
 ```
+
+For streaming AI-generated content, see the [AI SDK Next.js App Router guide](https://ai-sdk.dev/docs/getting-started/nextjs-app-router) for setup and a complete chat example.
 
 ### Request Body
 
