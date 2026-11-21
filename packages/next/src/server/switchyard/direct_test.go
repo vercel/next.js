@@ -488,14 +488,14 @@ func TestApplyIgnoresIncompleteWorkerMessages(t *testing.T) {
 	f := newSwitchyard(http.NotFoundHandler(), &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 3000}, time.Second)
 	complete := controlMessage{Event: "worker", Page: "/api/echo/route",
 		Address: "127.0.0.1:51300", TokenHeader: "x-next-internal-go-token", Token: "secret"}
-	for _, clear := range []func(*controlMessage){
+	for _, drop := range []func(*controlMessage){
 		func(m *controlMessage) { m.Page = "" },
 		func(m *controlMessage) { m.Address = "" },
 		func(m *controlMessage) { m.TokenHeader = "" },
 		func(m *controlMessage) { m.Token = "" },
 	} {
 		msg := complete
-		clear(&msg)
+		drop(&msg)
 		f.apply(msg)
 	}
 	if len(f.state.Load().workers) != 0 {
@@ -505,6 +505,17 @@ func TestApplyIgnoresIncompleteWorkerMessages(t *testing.T) {
 	f.apply(controlMessage{Event: "gone", Address: "127.0.0.1:51300"})
 	if f.state.Load().workers["/api/echo/route"] == nil {
 		t.Error("a gone without a token removed a worker")
+	}
+}
+
+func TestApplyGoneSkipsWorkersWithoutAToken(t *testing.T) {
+	f := newSwitchyard(http.NotFoundHandler(), &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 3000}, time.Second)
+	f.state.Store(&directState{workers: map[string]*goUpstream{
+		"/api/echo/route": {address: "127.0.0.1:51300"},
+	}})
+	f.apply(controlMessage{Event: "gone", Address: "127.0.0.1:51300", Token: "secret"})
+	if f.state.Load().workers["/api/echo/route"] == nil {
+		t.Error("a gone removed a worker with no token")
 	}
 }
 
