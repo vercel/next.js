@@ -17,7 +17,7 @@ describe.each([
 ])(
   'dev-overlay-redbox-before-sync ($router)',
   ({ pathname, file, content }) => {
-    const { next } = nextTestSetup({
+    const { next, isRspack } = nextTestSetup({
       files: __dirname,
     })
 
@@ -51,9 +51,17 @@ describe.each([
       )
 
       await waitForRedbox(browser)
-      expect(await getRedboxDescription(browser)).toBe(
-        "Module not found: Can't resolve 'does-not-exist'"
-      )
+      if (isRspack) {
+        expect(
+          (await getRedboxDescription(browser)).replaceAll('\\', '/')
+        ).toBe(
+          `  × Module not found: Can't resolve 'does-not-exist' in '${next.testDir.replaceAll('\\', '/')}/${file.split('/')[0]}'`
+        )
+      } else {
+        expect(await getRedboxDescription(browser)).toBe(
+          "Module not found: Can't resolve 'does-not-exist'"
+        )
+      }
       // The indicator is still hidden until its state is known.
       expect(await browser.locateDevToolsIndicator().count()).toBe(0)
     })

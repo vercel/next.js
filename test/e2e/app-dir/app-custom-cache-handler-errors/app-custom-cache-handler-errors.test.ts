@@ -14,7 +14,7 @@ const normalizeCacheHandlerPaths = (output: string): string =>
 // It likely asserts local CLI or runtime output that deploy tests do not expose.
 // @force-gate !deploy
 describe('app-custom-cache-handler-errors - get throws', () => {
-  const { next, isNextDev, isTurbopack } = nextTestSetup({
+  const { next, isNextDev, isTurbopack, isRspack } = nextTestSetup({
     files: __dirname,
     env: { CACHE_HANDLER_THROW_ON: 'get' },
   })
@@ -69,12 +69,41 @@ describe('app-custom-cache-handler-errors - get throws', () => {
     // asserting its absence.
     await waitFor(1000)
 
-    const cliOutput = normalizeCacheHandlerPaths(
+    let cliOutput = normalizeCacheHandlerPaths(
       stripAnsi(next.cliOutput.slice(outputIndex))
     )
 
-    const errorBlock = isNextDev
-      ? 'Error: CustomCacheHandler.get failed' +
+    let errorBlock: string
+    if (!isNextDev) {
+      errorBlock =
+        // In production, the frames below the cache handler frame are bundled
+        // code, and are therefore not stable across bundlers and builds.
+        'Error: CustomCacheHandler.get failed' +
+        '\n    at Object.get (throwing-cache-handler.js:24:13)' +
+        '\n    at '
+      expect(cliOutput).toContain('⨯ ' + errorBlock)
+    } else if (isRspack) {
+      cliOutput = cliOutput.replaceAll(
+        /(?:\.\.\/)+src\/server\/use-cache\/use-cache-wrapper\.ts/g,
+        '<next-src>/server/use-cache/use-cache-wrapper.ts'
+      )
+      errorBlock =
+        'Error: CustomCacheHandler.get failed' +
+        '\n    at Object.get (throwing-cache-handler.js:24:13)' +
+        '\n    at async cache (<next-src>/server/use-cache/use-cache-wrapper.ts:3388:19)' +
+        '\n    at async CachedData (app/page.tsx:19:14)' +
+        '\n  3386 |           // finish and remove its map entry before the lookup returns.' +
+        '\n  3387 |           observedRevalidation = backgroundRevalidations.get(cacheHandlerKey)' +
+        '\n> 3388 |           entry = await cacheHandler.get(cacheHandlerKey, implicitTags)' +
+        '\n       |                   ^' +
+        '\n  3389 |' +
+        '\n  3390 |           // Check if this is a redirect entry (coarse key → specific key).' +
+        '\n  3391 |           // Redirect entries have private tags encoding the root param names {' +
+        "\n  digest: '"
+      expect(cliOutput).toContain('⨯ ' + errorBlock)
+    } else {
+      errorBlock =
+        'Error: CustomCacheHandler.get failed' +
         '\n    at Object.get (throwing-cache-handler.js:24:13)' +
         '\n    at async CachedData (app/page.tsx:19:14)' +
         "\n  17 |   const { input = 'default' } = await searchParams" +
@@ -85,13 +114,8 @@ describe('app-custom-cache-handler-errors - get throws', () => {
         '\n  21 |' +
         '\n  22 | export default function Page({ {' +
         "\n  digest: '"
-      : // In production, the frames below the cache handler frame are bundled
-        // code, and are therefore not stable across bundlers and builds.
-        'Error: CustomCacheHandler.get failed' +
-        '\n    at Object.get (throwing-cache-handler.js:24:13)' +
-        '\n    at '
-
-    expect(cliOutput).toContain('⨯ ' + errorBlock)
+      expect(cliOutput).toContain('⨯ ' + errorBlock)
+    }
 
     if (!isNextDev) {
       expect(cliOutput).toContain("  digest: '")
