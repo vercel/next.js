@@ -475,8 +475,41 @@ describe('native-route-go', () => {
           path,
           'export function GET() { return new Response("conflict") }'
         )
+        // DIAGNOSTIC (do not merge): dump the first 500 and the on-disk manifests so CI shows
+        // why the conflict issue isn't printed on runner image 20261116.190.1.
+        let dumped = false
         await retry(async () => {
-          expect((await next.fetch('/native/example')).status).toBe(500)
+          const res = await next.fetch('/native/example')
+          if (res.status === 500 && !dumped) {
+            dumped = true
+            const body = await res.text()
+            require('console').log(
+              '[native-route-go diag] 500 headers',
+              JSON.stringify(Object.fromEntries(res.headers.entries()))
+            )
+            require('console').log(
+              '[native-route-go diag] 500 body',
+              body.slice(0, 8000)
+            )
+            for (const manifest of [
+              '.next/dev/server/app/native/[id]/route/app-paths-manifest.json',
+              '.next/dev/server/app/lifecycle/route/app-paths-manifest.json',
+              '.next/dev/server/app-paths-manifest.json',
+            ]) {
+              try {
+                require('console').log(
+                  `[native-route-go diag] ${manifest}`,
+                  await next.readFile(manifest)
+                )
+              } catch (err) {
+                require('console').log(
+                  `[native-route-go diag] ${manifest} unreadable`,
+                  String(err)
+                )
+              }
+            }
+          }
+          expect(res.status).toBe(500)
           expect(next.cliOutput.slice(outputStart)).toContain(
             'Conflicting App Router handlers'
           )
