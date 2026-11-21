@@ -38,6 +38,7 @@ import { isExternalURL } from './app-router-utils'
 import { isJavaScriptURLString } from '../lib/javascript-url'
 import { resetKnownRoutes } from './segment-cache/optimistic-routes'
 import { navigate as navigateAppRouterState } from './app-router-state'
+import { pendingMpaNavigation } from './pending-mpa-navigation'
 import { FreshnessPolicy } from './render-tree'
 import { getBFCacheVersion } from './segment-cache/bfcache'
 
@@ -86,6 +87,11 @@ function dispatchNavigation(
       'Next.js has blocked a javascript: URL as a security precaution.'
     )
   }
+
+  // A new navigation supersedes any MPA navigation started earlier. If the
+  // browser abandoned that one and kept this document, a navigation to the
+  // same URL must not be skipped as already pending.
+  pendingMpaNavigation.path = undefined
 
   startTransition(() => {
     // TODO: This stuff could just go into the reducer. Leaving as-is for now
