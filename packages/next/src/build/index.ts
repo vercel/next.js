@@ -22,7 +22,7 @@ import { bold, yellow } from '../lib/picocolors'
 import { makeRe } from 'next/dist/compiled/picomatch'
 import { existsSync, promises as fs } from 'fs'
 import os from 'os'
-import { getNextBuildDebuggerPortOffset, Worker } from '../lib/worker'
+import { Worker } from '../lib/worker/index'
 import { defaultConfig, getNextConfigRuntime } from '../server/config-shared'
 import devalue from 'next/dist/compiled/devalue'
 import findUp from 'next/dist/compiled/find-up'
@@ -1040,8 +1040,8 @@ export function createStaticWorker(
 ): StaticWorker {
   const { numberOfWorkers, debuggerPortOffset, progress } = options
   return new Worker(staticWorkerPath, {
-    logger: Log,
-    numWorkers: numberOfWorkers,
+    workerName: 'Next.js static worker',
+    maxWorkers: numberOfWorkers,
     onActivity: () => {
       progress?.run()
     },
@@ -1161,7 +1161,11 @@ export default async function build(
     deferredTurbopackWarnings = undefined
   }
 
-  // A failing static generation worker exits the process directly (`prerenderEarlyExit`), skipping the flush points below.
+  // A prerender early exit fails the build with a `NEXT_EXPORT_ERROR` that the
+  // CLI prints after `build()` returns and then exits. For that case the
+  // warnings are left to this exit hook so they follow the error message, as
+  // they did when the failing worker printed it and exited the process itself.
+  let deferWarningsToExit = false
   process.once('exit', () => flushTurbopackWarnings())
 
   try {
@@ -1872,10 +1876,13 @@ export default async function build(
 
       // Ensure commonjs handling is used for files in the distDir (generally .next)
       // Files outside of the distDir can be "type": "module"
-      await writeFileUtf8(
-        path.join(distDir, 'package.json'),
-        '{"type": "commonjs"}'
-      )
+      // Turbopack writes this file itself when creating the project.
+      if (bundler !== Bundler.Turbopack) {
+        await writeFileUtf8(
+          path.join(distDir, 'package.json'),
+          '{"type": "commonjs"}'
+        )
+      }
 
       // These are written to distDir, so they need to come after creating and cleaning distDr.
       await recordFrameworkVersion(process.env.__NEXT_VERSION as string)
@@ -1981,9 +1988,8 @@ export default async function build(
                 const buildTraceWorker = new Worker(
                   require.resolve('./collect-build-traces'),
                   {
-                    debuggerPortOffset: -1,
-                    isolatedMemory: false,
-                    numWorkers: 1,
+                    workerName: 'Next.js build trace worker',
+                    maxWorkers: 1,
                     exposedMethods: ['collectBuildTraces'],
                     forkOptions: process.env.NEXT_CPU_PROF
                       ? {
@@ -2395,9 +2401,9 @@ export default async function build(
 
       staticWorker = createStaticWorker(config, {
         numberOfWorkers,
-        debuggerPortOffset: getNextBuildDebuggerPortOffset({
-          kind: 'export-page',
-        }),
+        // Port offset 0: export-page workers get the first debugger port after
+        // the parent process (base + 1 + 0).
+        debuggerPortOffset: 0,
       })
 
       const analysisBegin = process.hrtime()
@@ -2490,6 +2496,21 @@ export default async function build(
               sriEnabled,
             })
           : Promise.resolve([])
+
+        // These checks are started early and only awaited after the per-page
+        // checks below. If those throw first, the build shuts the static worker
+        // down, which rejects any of these calls that are still queued. Mark
+        // them as handled so that rejection can't surface as an
+        // `unhandledRejection` and hide the error that actually failed the
+        // build. Awaiting them later still observes the original outcome.
+        for (const promise of [
+          errorPageHasCustomGetInitialProps,
+          errorPageStaticResult,
+          customAppGetInitialPropsPromise,
+          namedExportsPromise,
+        ]) {
+          promise.catch(() => {})
+        }
 
         // eslint-disable-next-line @typescript-eslint/no-shadow
         let isNextImageImported: boolean | undefined
@@ -4556,7 +4577,7 @@ export default async function build(
       // When output: export we want to end the worker later as it's still used for writeFullyStaticExport
       if (config.output !== 'export') {
         // ensure the worker is not left hanging
-        await staticWorker?.end()
+        await staticWorker?.shutdown()
         staticWorker = undefined! // Reset staticWorker to make sure it does not end in `finally`
       }
 
@@ -4788,7 +4809,7 @@ export default async function build(
       if (config.output === 'export') {
         // TODO: When writeFullyStaticExport doesn't fail when staticWorker is passed moved this after writeFullyStaticExport.
         // End the worker here when it's output: export.
-        await staticWorker.end()
+        await staticWorker.shutdown()
         staticWorker = undefined! // Reset staticWorker to make sure it does not end in `finally`
 
         await nextBuildSpan
@@ -4927,6 +4948,14 @@ export default async function build(
       await pendingUpgradeNudge
     })
   } catch (e) {
+    if (
+      isError(e) &&
+      e.code === 'NEXT_EXPORT_ERROR' &&
+      (e as { isPrerenderEarlyExit?: boolean }).isPrerenderEarlyExit
+    ) {
+      deferWarningsToExit = true
+    }
+
     // A build can fail before the success path awaits this check. Surface an
     // independent nudge failure so its retry receipt never hides the full
     // reminder on the next build.
@@ -4958,13 +4987,15 @@ export default async function build(
   } finally {
     // @ts-expect-error Existence of staticWorker is checked here intentionally.
     if (staticWorker) {
-      await staticWorker.end()
+      await staticWorker.shutdown()
     }
     // Ensure we wait for lockfile patching if present
     await lockfilePatchPromise.cur
 
     // Backstop for builds that never reach the post-static-generation flush.
-    flushTurbopackWarnings()
+    if (!deferWarningsToExit) {
+      flushTurbopackWarnings()
+    }
 
     // Flush telemetry before finishing (waits for async operations like setTimeout in debug mode)
     const telemetry: Telemetry | undefined = traceGlobals.get('telemetry')

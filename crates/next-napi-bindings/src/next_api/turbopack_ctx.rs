@@ -5,7 +5,10 @@ use std::{
     fs::OpenOptions,
     io::{self, BufRead, Write},
     path::PathBuf,
-    sync::{Arc, LazyLock, Mutex},
+    sync::{
+        Arc, LazyLock, Mutex, PoisonError,
+        atomic::{AtomicBool, Ordering},
+    },
     time::{Duration, Instant},
 };
 
@@ -29,6 +32,8 @@ use turbo_tasks_backend::{
     TurboTasksBackend, db_invalidation::invalidation_reasons, noop_backing_storage,
     turbo_backing_storage,
 };
+
+use crate::next_api::cache_unreadable_banner::cache_unreadable_banner;
 
 pub type NextTurboTasks = Arc<TurboTasks<TurboTasksBackend>>;
 
@@ -94,7 +99,15 @@ impl NextTurbopackContext {
                 None
             };
 
-        log_internal_error_and_inform(err);
+        if let Some(cache_unreadable_message) = persistent_cache_unreadable_message(err) {
+            // Usually already reported by the panic hook. Not when the error was e.g. restored
+            // from the cache instead of panicking in this process.
+            if !REPORTED_CACHE_UNREADABLE.load(Ordering::Relaxed) {
+                report_persistent_cache_unreadable(&cache_unreadable_message);
+            }
+        } else {
+            log_internal_error_and_inform(err);
+        }
 
         async move {
             this.inner
@@ -438,64 +451,19 @@ pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
         return;
     }
 
-    // hold open this mutex guard to prevent concurrent writes to the file!
-    let mut last_error_time = LOG_THROTTLE.lock().unwrap();
-    if let Some(last_error_time) = last_error_time.as_ref()
-        && last_error_time.elapsed().as_secs() < 1
-    {
-        // Throttle panic logging to once per second
-        return;
-    }
-    *last_error_time = Some(Instant::now());
-
-    let size = std::fs::metadata(PANIC_LOG.as_path()).map(|m| m.len());
-    if let Ok(size) = size
-        && size > 512 * 1024
-    {
-        // Truncate the earliest error from log file if it's larger than 512KB
-        let new_lines = {
-            let log_read = OpenOptions::new()
-                .read(true)
-                .open(PANIC_LOG.as_path())
-                .unwrap_or_else(|_| panic!("Failed to open {}", PANIC_LOG.to_string_lossy()));
-
-            io::BufReader::new(&log_read)
-                .lines()
-                .skip(1)
-                .skip_while(|line| match line {
-                    Ok(line) => !line.starts_with(LOG_DIVIDER),
-                    Err(_) => false,
-                })
-                .collect::<Vec<_>>()
-        };
-
-        let mut log_write = OpenOptions::new()
-            .create(true)
-            .truncate(true)
-            .write(true)
-            .open(PANIC_LOG.as_path())
-            .unwrap_or_else(|_| panic!("Failed to open {}", PANIC_LOG.to_string_lossy()));
-
-        for line in new_lines {
-            match line {
-                Ok(line) => {
-                    writeln!(log_write, "{line}").unwrap();
-                }
-                Err(_) => {
-                    break;
-                }
-            }
-        }
-    }
-
-    let mut log_file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(PANIC_LOG.as_path())
-        .unwrap_or_else(|_| panic!("Failed to open {}", PANIC_LOG.to_string_lossy()));
-
     let internal_error_str = PrettyPrintError(internal_error).to_string();
-    writeln!(log_file, "{}\n{}", LOG_DIVIDER, internal_error_str).unwrap();
+    let panic_log_written = match write_panic_log(&internal_error_str, false) {
+        Ok(true) => true,
+        // Throttled
+        Ok(false) => return,
+        Err(error) => {
+            eprintln!(
+                "Failed to write the panic log {}: {error}",
+                PANIC_LOG.to_string_lossy()
+            );
+            false
+        }
+    };
 
     let title = format!(
         "Turbopack Error: {}",
@@ -520,11 +488,121 @@ pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
         format!("clicking here: {}", bug_report_url)
     };
 
+    // If the panic log couldn't be written, that was reported above.
+    let panic_log_message = if panic_log_written {
+        format!(
+            " A panic log has been written to {}.",
+            PANIC_LOG.to_string_lossy()
+        )
+    } else {
+        String::new()
+    };
     eprintln!(
-        "\n-----\n{}: An unexpected Turbopack error occurred. A panic log has been written to \
-         {}.\n\nTo help make Turbopack better, report this error by {}\n-----\n",
+        "\n-----\n{}: An unexpected Turbopack error occurred.{panic_log_message}\n\nTo help make \
+         Turbopack better, report this error by {}\n-----\n",
         "FATAL".red().bold(),
-        PANIC_LOG.to_string_lossy(),
         bug_report_message
     );
+}
+
+/// Whether `error` was caused by a panic because Turbopack's filesystem cache couldn't be read
+/// while it was in use (see [`turbo_tasks::PersistentCacheUnreadablePanic`]), and if so, the
+/// message of that panic.
+fn persistent_cache_unreadable_message(error: &anyhow::Error) -> Option<String> {
+    error.chain().find_map(|cause| {
+        cause
+            .downcast_ref::<TurboTasksExecutionError>()?
+            .persistent_cache_unreadable_panic()
+            .map(|panic| panic.message.to_string())
+    })
+}
+
+/// Set once [`report_persistent_cache_unreadable`] has reported a panic of this kind.
+static REPORTED_CACHE_UNREADABLE: AtomicBool = AtomicBool::new(false);
+
+/// Reports a panic because Turbopack's filesystem cache couldn't be read while it was in use (see
+/// [`turbo_tasks::PersistentCacheUnreadablePanic`]) with its `message`: prints it to stderr, and
+/// writes it to the panic log, subject to throttling.
+///
+/// The cache being unreadable doesn't necessarily indicate a bug, and the message explains what
+/// happened, so unlike [`log_internal_error_and_inform`] this doesn't ask for a bug report.
+///
+/// This is called by the panic hook (see `lib.rs`), before the panic unwinds, as turbo-tasks may
+/// abort the process right after. So this must not panic itself.
+pub fn report_persistent_cache_unreadable(message: &str) {
+    let first_report = !REPORTED_CACHE_UNREADABLE.swap(true, Ordering::Relaxed);
+    // The same panic often happens on several threads at once, so this is throttled like other
+    // errors. But the first one is always written, even if another error was logged just before:
+    // the process may abort right after this.
+    let panic_log = match write_panic_log(message, first_report) {
+        Ok(true) => Some(PANIC_LOG.as_path()),
+        Ok(false) => return,
+        Err(_) => None,
+    };
+    // Not `eprintln!`, which panics if writing fails.
+    let _ = writeln!(
+        io::stderr().lock(),
+        "{}",
+        cache_unreadable_banner(message, &"Error".red().bold().to_string(), panic_log)
+    );
+}
+
+/// Writes `text` to the panic log file, subject to throttling unless `force` is set. Returns
+/// `Ok(false)` if writing was skipped because of the throttling.
+fn write_panic_log(text: &str, force: bool) -> io::Result<bool> {
+    // hold open this mutex guard to prevent concurrent writes to the file! This is also called
+    // from the panic hook, so recover from a poisoned lock instead of panicking.
+    let mut last_error_time = LOG_THROTTLE.lock().unwrap_or_else(PoisonError::into_inner);
+    if !force
+        && let Some(last_error_time) = last_error_time.as_ref()
+        && last_error_time.elapsed().as_secs() < 1
+    {
+        // Throttle panic logging to once per second
+        return Ok(false);
+    }
+    *last_error_time = Some(Instant::now());
+
+    let size = std::fs::metadata(PANIC_LOG.as_path()).map(|m| m.len());
+    if let Ok(size) = size
+        && size > 512 * 1024
+    {
+        // Truncate the earliest error from log file if it's larger than 512KB
+        let new_lines = {
+            let log_read = OpenOptions::new().read(true).open(PANIC_LOG.as_path())?;
+
+            io::BufReader::new(&log_read)
+                .lines()
+                .skip(1)
+                .skip_while(|line| match line {
+                    Ok(line) => !line.starts_with(LOG_DIVIDER),
+                    Err(_) => false,
+                })
+                .collect::<Vec<_>>()
+        };
+
+        let mut log_write = OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .open(PANIC_LOG.as_path())?;
+
+        for line in new_lines {
+            match line {
+                Ok(line) => {
+                    writeln!(log_write, "{line}")?;
+                }
+                Err(_) => {
+                    break;
+                }
+            }
+        }
+    }
+
+    let mut log_file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(PANIC_LOG.as_path())?;
+
+    writeln!(log_file, "{}\n{}", LOG_DIVIDER, text)?;
+    Ok(true)
 }
