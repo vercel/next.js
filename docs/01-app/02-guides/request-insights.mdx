@@ -1,18 +1,22 @@
 ---
-title: Diagnosing slow requests
+title: Diagnosing slow development requests with Request Insights
 nav_title: Request Insights
-description: Diagnose slow Next.js App Router requests with Request Insights before adding instrumentation or collecting a CPU profile.
+description: Find what delays server responses during development with Request Insights.
 version: experimental
 related:
   links:
     - app/api-reference/cli/next#next-experimental-request-insights-options
 ---
 
-Request Insights records completed App Router requests during development. Use it to diagnose cold-only or intermittent server latency from the current development session, even after the route becomes fast.
+Request Insights shows where time is spent as your Next.js app handles requests in development. It records a timeline for each completed App Router request, including compilation, module loading, data fetching, and rendering.
 
-This guide shows how to select the original request, attribute its elapsed time, and decide whether a CPU profile is needed.
+This guide walks through a typical performance audit workflow that you can apply in your own app.
 
-## Prerequisites
+## Example
+
+Suppose a request to `/reports` takes several seconds. We'll record the request, find it in the development overlay, and inspect its timeline.
+
+### Step 1: Record the slow request
 
 Enable Request Insights in `next.config.ts`, then start the development server:
 
@@ -39,53 +43,49 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-Keep the server running while you investigate. Restarting it discards the in-memory request history and can remove the evidence for a cold or intermittent slowdown.
+This option enables both the **Request Insights** panel in the development overlay and the `next experimental-request-insights` CLI. If the development server is already running, restart it before continuing.
 
-## Example
+Open `http://localhost:3000/reports` and reproduce the slowdown. Request Insights retains the completed request in the current development session.
 
-Suppose the first request to `/reports` takes several seconds, but later requests are fast. Start with the retained request instead of adding logs, reading source, or reproducing the slowdown.
+### Step 2: Find the request in the overlay
 
-### Step 1: Find the original request
+Open the Next.js development tools in the browser and select **Request Insights**. The panel lists completed requests with their route, duration, type, and status.
 
-List retained requests for the affected route:
+Select the `/reports` request that took several seconds. Use the route, duration, type, and status to distinguish it from other requests made while loading the page.
 
-```bash
-next experimental-request-insights list --route /reports --json
-```
+### Step 3: Inspect the request timeline
 
-Select the completed request that matches the reported occurrence. Use its route, start time, duration, and status to distinguish it from tooling requests and warm retries.
+Selecting a request opens its overview, trace, and recorded fetches. The trace places each operation on the request timeline and shows its duration.
 
-If automatic server discovery fails, the command reports the expected project directory or origin. Pass the active origin explicitly:
+In this example, `ResolveMetadata.generateMetadata` takes 3.54 seconds of the 3.64-second request. Compilation and rendering complete in milliseconds, so they do not explain the slowdown. The next step is to inspect `generateMetadata` and the data it awaits.
 
-```bash
-next experimental-request-insights list --route /reports --url http://localhost:3000 --json
-```
-
-If no matching trace remains, reproduce the request once without restarting the server and list it immediately.
-
-### Step 2: Inspect its timeline
-
-Inspect the matching request using its full ID or an unambiguous prefix:
-
-```bash
-next experimental-request-insights get <request-id> --json
-```
-
-Compare each span's `startTime`, `durationMs`, `parentSpanId`, and attributes. Account for the dominant interval and plausible alternatives, including compilation, module loading, instrumentation, metadata, React rendering, awaits, cache behavior, fetches, and response start.
+Spans can overlap or contain other spans. Their position and nesting distinguish nested work from separate delays. For fetches, the panel also shows the URL, cache status, and duration.
 
 Component intervals are elapsed render time. They do not prove that the component used the CPU for the entire interval. Inspect source only after the timeline has localized the slow operation.
 
-### Step 3: Report the measured cause
+If rendering dominates but the timeline does not identify the responsible function, collect a CPU profile. A CPU profile is not needed in this example because the timeline already attributes 3.54 seconds to metadata generation.
 
-Report:
+### Step 4: Inspect requests from the command line
 
-- The request ID and total duration
-- The dominant span and its duration
-- The measured alternatives that did not account for the delay
-- Whether a CPU profile is needed
+Request Insights also provides a CLI for terminal workflows and automation. List requests for a route:
 
-Do not collect a CPU profile when the timeline already identifies the slow phase. Collect one only when Request Insights localizes substantial CPU time but cannot identify the responsible function.
+```bash
+next experimental-request-insights list --route /reports
+```
+
+Then inspect the matching request using its full ID or an unambiguous prefix:
+
+```bash
+next experimental-request-insights get 4f83d912
+```
+
+Add `--json` to either command for complete span attributes. If automatic server discovery fails, pass the active origin with `--url http://localhost:3000`.
 
 ## Next steps
 
-Run `next experimental-request-insights --help` for the installed version's command summary and `list` or `get --help` for option details.
+You can now record a slow development request, inspect it in the development overlay, and use the CLI for terminal workflows or automation.
+
+Next, learn how to:
+
+- Use the [`next experimental-request-insights` CLI options](/docs/app/api-reference/cli/next#next-experimental-request-insights-options).
+- [Debug a Next.js application](/docs/app/guides/debugging).
