@@ -33,7 +33,11 @@ use turbo_tasks::{
 };
 
 use crate::{
-    backend::{cell_data::CellData, counter_map::CounterMap},
+    backend::{
+        cell_data::CellData,
+        counter_map::CounterMap,
+        keyed_dependents::{CellKeyedDependents, KeyedDependentsIndex},
+    },
     data::{
         ActivenessState, AggregationNumber, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
         InProgressCellState, InProgressState, LeafDistance, OutputValue, RootType, TransientTask,
@@ -356,22 +360,25 @@ struct TaskStorageSchema {
     )]
     cell_dependents: EdgeSet<CellRef, 3>,
 
-    /// Tasks that depend on this task's cells with a `CellKeyKind::Hash` key, only invalidated
-    /// when that sub-value changes. Reverse of `cell_dependencies_keyed`, together with
-    /// `cell_dependents_provisional`. Only grows until the edges become outdated, so it stays a
-    /// flat array even for widely read cells.
+    /// Tasks that depend on this task's cells with a `CellKeyKind::Hash` `CellKey`, indexed by
+    /// cell and key, so a change of some keys only visits their dependents. Reverse of the hashed
+    /// `cell_dependencies_keyed` entries, together with `cell_dependents_provisional`. Only
+    /// invalidated when that sub-value changes. Transient dependents are handled like in
+    /// `filter_transient` fields (see `KeyedDependentsIndex`).
     #[field(
-        storage = "auto_set",
+        storage = "auto_map",
         category = "data",
-        filter_transient,
-        drop_on_completion_if_immutable
+        custom_mutators,
+        custom_drop_partial,
+        drop_on_completion_if_immutable,
+        as_type = "AutoMap<CellId, CellKeyedDependents, 0>"
     )]
-    cell_dependents_keyed: EdgeSet<(CellRef, CellKey), 1>,
+    cell_dependents_keyed_index: KeyedDependentsIndex,
 
     /// Tasks that depend on this task's cells with a `CellKeyKind::Provisional` key, invalidated
     /// like `cell_dependents`. These are removed again soon, when the reader's `KeyedReadRef` or
     /// `LazyReadRef` is dropped or its execution completes, so they are kept apart from
-    /// `cell_dependents_keyed` in a small hash set.
+    /// `cell_dependents_keyed_index` in a small hash set.
     #[field(
         storage = "auto_set",
         category = "data",
@@ -953,12 +960,12 @@ impl TaskStorage {
     ///
     /// The `Data`-category dependent sets are deliberately not consulted:
     ///
-    /// - `cell_dependents` / `cell_dependents_keyed` / `cell_dependents_provisional` are redundant
-    ///   with ancestry. A cell dependent is either a child, whose child edge already orders the
-    ///   teardown, or a sibling reached by passing a `ResolvedVc` laterally, which needs a common
-    ///   ancestor that collects both in the same pass. Counting them deadlocked the caller/callee
-    ///   cycle `NftJsonAsset::content` -> `all_assets_from_entries_filtered`, whose tasks could
-    ///   then never be collected.
+    /// - `cell_dependents` / `cell_dependents_keyed_index` / `cell_dependents_provisional` are
+    ///   redundant with ancestry. A cell dependent is either a child, whose child edge already
+    ///   orders the teardown, or a sibling reached by passing a `ResolvedVc` laterally, which needs
+    ///   a common ancestor that collects both in the same pass. Counting them deadlocked the
+    ///   caller/callee cycle `NftJsonAsset::content` -> `all_assets_from_entries_filtered`, whose
+    ///   tasks could then never be collected.
     /// - `output_dependent` is redundant with `parent_count`. It records a read of a task's
     ///   *output*, which is the `OperationVc` representation, and those reads go through
     ///   `connect()` -- so the reader is already a child. (A `ResolvedVc` read, the one that
