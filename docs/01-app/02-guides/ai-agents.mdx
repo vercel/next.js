@@ -189,7 +189,7 @@ You can [browse the source for these Skills](https://github.com/vercel/next.js/t
 
 The Skills serve three different workflow types:
 
-- **Runtime foundations** such as `next-dev-loop` give any coding task a repeatable inspect, edit, and verify cycle.
+- **Runtime foundations** such as `next-performance` and `next-dev-loop` diagnose runtime behavior and provide a repeatable inspect, edit, and verify cycle.
 - **Interactive workflows** make broader changes with user checkpoints, such as adopting Cache Components or Partial Prefetching across an app.
 - **Unattended loops** work toward a verifiable goal and stop only for genuine decisions.
 
@@ -205,6 +205,20 @@ Then give the agent this prompt:
 
 ```prompt
 After every edit, verify the page still works at runtime using the next-dev-loop Skill.
+```
+
+### `next-performance`
+
+The [`next-performance`](https://www.skills.sh/vercel/next.js/next-performance) skill diagnoses whether a slowdown comes from an App Router server request or browser-side JavaScript. It uses Request Insights for server latency and routes browser bundle problems to `next-bundle-optimizer`.
+
+```bash filename="Terminal"
+npx skills add vercel/next.js --skill next-performance
+```
+
+Ask the agent to diagnose before changing the application:
+
+```prompt
+Diagnose why this Next.js app is slow using the next-performance Skill.
 ```
 
 ### `next-bundle-optimizer`
@@ -307,4 +321,5 @@ Make the product title instant when navigating from /products to /products/[id].
 
 | Version   | Changes                              |
 | --------- | ------------------------------------ |
+| `v16.5.0` | `next-performance` skill added.      |
 | `v16.4.0` | `next-bundle-optimizer` skill added. |
