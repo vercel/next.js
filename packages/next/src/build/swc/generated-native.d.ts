@@ -9,7 +9,6 @@ import type {
 
 export type TurboTasks = { readonly __tag: unique symbol }
 export type ExternalEndpoint = { readonly __tag: unique symbol }
-export type ServerHmrVersion = { readonly __tag: unique symbol }
 export type NextTurboTasks = { readonly __tag: unique symbol }
 export type RefCell<_T = unknown> = { readonly __tag: unique symbol }
 export type FlushGuard = { readonly __tag: unique symbol }
@@ -496,9 +495,11 @@ export interface NapiRoute {
 
 export interface NapiServerHmrUpdate {
   kind: 'none' | 'partial' | 'restart'
-  /** `unknown` forces the TypeScript boundary to narrow the payload. */
-  instruction?: unknown
-  version?: ExternalObject<ServerHmrVersion>
+  /**
+   * For `partial`: one merged update per runtime directory, each touching only chunks of its
+   * runtime. `unknown` forces the TypeScript boundary to narrow the payload.
+   */
+  updates?: unknown
 }
 
 export interface NapiSource {
@@ -654,9 +655,12 @@ export declare function projectGetAllCompilationIssues(project: {
   __napiType: 'Project'
 }): Promise<TurbopackResult<undefined>>
 
+/**
+ * Pulls the update that brings the server runtimes up to date for the route with the given
+ * entries, and records the route's modules as loaded.
+ */
 export declare function projectGetServerHmrUpdate(
   project: { __napiType: 'Project' },
-  from: ExternalObject<ServerHmrVersion> | undefined | null,
   entryPaths: Array<RcStr>
 ): Promise<TurbopackResult<NapiServerHmrUpdate>>
 
@@ -698,6 +702,16 @@ export declare function projectNew(
 export declare function projectOnExit(project: {
   __napiType: 'Project'
 }): Promise<void>
+
+/**
+ * Forgets what the server runtimes have loaded. Must be called whenever all server modules are
+ * re-evaluated. When the runtimes load a route next, pass its entries to record its modules as
+ * loaded.
+ */
+export declare function projectResetServerHmrState(
+  project: { __napiType: 'Project' },
+  entryPaths?: Array<RcStr> | undefined | null
+): Promise<void>
 
 /**
  * Runs resource cleanup, stops Turbo Tasks, and then flushes the project's exit handlers.
