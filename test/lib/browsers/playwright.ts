@@ -382,10 +382,14 @@ export class Playwright<TCurrent = undefined> {
 
         if (tracePlaywright) {
           const { payload } = frame
+          const text =
+            typeof payload === 'string' ? payload : decoder!.decode(payload)
           page
             // Note that passing the payload as a an argument is 2 orders of magnitude more expensive in Playwright.
+            // Instead, serialize the whole message into a string literal expression so that
+            // any quotes or backslashes in the JSON-encoded payload are escaped.
             .evaluate(
-              `'received ws message ${JSON.stringify(typeof payload === 'string' ? payload : decoder!.decode(payload))}'`
+              JSON.stringify(`received ws message ${JSON.stringify(text)}`)
             )
             .catch(() => {})
         }
