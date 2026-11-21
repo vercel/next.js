@@ -139,7 +139,9 @@ describe('native route worker events', () => {
     const events = observe()
     await get('a')
     exit(children[0])
-    exit(children[0])
+    // exit() returns early once exitCode is set; emit again to check gone is
+    // still reported once.
+    children[0].emit('exit', 0)
     expect(events).toEqual([
       announced('/a', tokens[0]),
       { event: 'gone', address: address(), token: tokens[0] },

@@ -59,14 +59,14 @@ func TestApplyIgnoresIncompleteWorkerMessages(t *testing.T) {
 	f := newSwitchyard(http.NotFoundHandler())
 	complete := controlMessage{Event: "worker", Page: "/api/echo/route",
 		Address: "127.0.0.1:51300", TokenHeader: "x-next-internal-go-token", Token: "secret"}
-	for _, clear := range []func(*controlMessage){
+	for _, drop := range []func(*controlMessage){
 		func(m *controlMessage) { m.Page = "" },
 		func(m *controlMessage) { m.Address = "" },
 		func(m *controlMessage) { m.TokenHeader = "" },
 		func(m *controlMessage) { m.Token = "" },
 	} {
 		msg := complete
-		clear(&msg)
+		drop(&msg)
 		f.apply(msg)
 	}
 	if len(f.state.Load().workers) != 0 {
