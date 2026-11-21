@@ -1,0 +1,22 @@
+[package]
+name = "turbo-concurrent-priority-queue"
+version = "0.1.0"
+description = "A sharded, work-stealing concurrent priority queue"
+license = "MIT"
+edition = "2024"
+
+[lints]
+workspace = true
+
+[dependencies]
+crossbeam-utils = { workspace = true }
+parking_lot = { workspace = true }
+rustc-hash = { workspace = true }
+
+[dev-dependencies]
+concurrent-queue = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "scaling"
+harness = false

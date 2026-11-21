@@ -9127,6 +9127,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "turbo-concurrent-priority-queue"
+version = "0.1.0"
+dependencies = [
+ "codspeed-criterion-compat",
+ "concurrent-queue",
+ "crossbeam-utils",
+ "parking_lot",
+ "rustc-hash 2.1.1",
+]
+
+[[package]]
 name = "turbo-dyn-eq-hash"
 version = "0.0.1"
 
@@ -9258,6 +9269,7 @@ dependencies = [
  "triomphe 0.1.12",
  "turbo-bincode",
  "turbo-bitset",
+ "turbo-concurrent-priority-queue",
  "turbo-dyn-eq-hash",
  "turbo-frozenmap",
  "turbo-rcstr",
