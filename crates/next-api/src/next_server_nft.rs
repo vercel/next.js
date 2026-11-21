@@ -199,6 +199,7 @@ impl Asset for ServerNftJsonAsset {
                     include_mergeable: false,
                     include_traced: true,
                     include_binding_usage: false,
+                    force_activated: false,
                 },
             )],
             None,

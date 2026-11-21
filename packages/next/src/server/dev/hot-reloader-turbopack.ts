@@ -1692,6 +1692,7 @@ export async function createHotReloaderTurbopack(
           clientIssues,
           messages: new Map(),
           turbopackUpdates: [],
+          hmrVersionChecked: false,
           subscriptions,
         })
 
@@ -1834,19 +1835,29 @@ export async function createHotReloaderTurbopack(
 
           // Turbopack messages
           switch (parsedData.type) {
-            case 'turbopack-subscribe':
+            case 'turbopack-subscribe': {
+              // Check the version once per connection, on its first versioned subscription. That
+              // catches updates missed through stale HTML or a dropped connection. Later mismatches
+              // are skipped, since lazily compiling a chunk list advances the version without the
+              // client missing an update.
+              const state = clientStates.get(client)
               if (
                 parsedData.hmrVersion !== undefined &&
-                parsedData.hmrVersion !== String(clientHmrVersion)
+                state &&
+                !state.hmrVersionChecked
               ) {
-                sendToClient(client, {
-                  type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
-                  data: 'HMR hash mismatch',
-                })
-                break
+                state.hmrVersionChecked = true
+                if (parsedData.hmrVersion !== String(clientHmrVersion)) {
+                  sendToClient(client, {
+                    type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
+                    data: 'HMR hash mismatch',
+                  })
+                  break
+                }
               }
               subscribeToClientHmrEvents(client, parsedData.path)
               break
+            }
 
             case 'turbopack-unsubscribe':
               unsubscribeFromClientHmrEvents(client, parsedData.path)
