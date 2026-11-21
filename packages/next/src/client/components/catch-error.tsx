@@ -10,7 +10,10 @@ import { isNextRouterError } from './is-next-router-error'
 import { handleHardNavError } from './nav-failure-handler'
 import { handleISRError } from './handle-isr-error'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
-import { AppRouterContext } from '../../shared/lib/app-router-context.shared-runtime'
+import {
+  AppRouterContext,
+  LayoutRouterContext,
+} from '../../shared/lib/app-router-context.shared-runtime'
 import { RouterContext as PagesRouterContext } from '../../shared/lib/router-context.shared-runtime'
 
 const isBotUserAgent =
@@ -20,6 +23,9 @@ type UserProps = Record<string, any>
 
 type CatchErrorProps<P extends UserProps> = {
   pathname: string | null
+  // Whether the route this boundary is rendered in is the one currently shown.
+  // False inside a hidden `<Activity>`.
+  isActive: boolean
   isPagesRouter: boolean
   fallback: React.ComponentType<{
     props: P
@@ -32,6 +38,7 @@ type CatchErrorProps<P extends UserProps> = {
 type CatchErrorState = {
   error: null | { thrownValue: unknown }
   previousPathname: string | null
+  previousIsActive: boolean
 }
 
 // This is forked from error-boundary.
@@ -51,6 +58,7 @@ class CatchError<P extends UserProps> extends React.Component<
     this.state = {
       error: null,
       previousPathname: this.props.pathname,
+      previousIsActive: this.props.isActive,
     }
   }
 
@@ -82,25 +90,34 @@ class CatchError<P extends UserProps> extends React.Component<
         return {
           error: null,
           previousPathname: props.pathname,
+          previousIsActive: props.isActive,
         }
       }
     }
 
     /**
      * Handles reset of the error boundary when a navigation happens.
-     * Ensures the error boundary does not stay enabled when navigating to a new page.
-     * Approach of setState in render is safe as it checks the previous pathname and then overrides
-     * it as outlined in https://react.dev/reference/react/useState#storing-information-from-previous-renders
+     * Ensures the error boundary does not stay enabled when navigating to a new page,
+     * or when navigating back to a route that was hidden. A hidden route keeps its pathname,
+     * so the pathname alone doesn't tell that the route is shown again.
+     * Approach of setState in render is safe as it checks the previous values and then overrides
+     * them as outlined in https://react.dev/reference/react/useState#storing-information-from-previous-renders
      */
-    if (props.pathname !== state.previousPathname && state.error) {
+    if (
+      state.error &&
+      (props.pathname !== state.previousPathname ||
+        (props.isActive && !state.previousIsActive))
+    ) {
       return {
         error: null,
         previousPathname: props.pathname,
+        previousIsActive: props.isActive,
       }
     }
     return {
       error: state.error,
       previousPathname: props.pathname,
+      previousIsActive: props.isActive,
     }
   }
 
@@ -205,10 +222,16 @@ export function catchError<P extends UserProps>(
     // (where these errors can occur), we will get the correct pathname.
     const pathname = useUntrackedPathname()
     const isPagesRouter = useContext(PagesRouterContext) !== null
+    // There is no layout router in the Pages Router, where routes are never
+    // hidden.
+    const layoutRouterContext = useContext(LayoutRouterContext)
+    const isActive =
+      layoutRouterContext === null ? true : layoutRouterContext.isActive
 
     return (
       <CatchError
         pathname={pathname}
+        isActive={isActive}
         isPagesRouter={isPagesRouter}
         fallback={Fallback}
         props={props as P}
