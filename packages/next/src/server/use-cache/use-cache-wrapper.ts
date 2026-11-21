@@ -780,7 +780,7 @@ function generateCacheEntry(
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  timeoutError: UseCacheTimeoutError,
+  timeoutError: UseCacheTimeoutError | undefined,
   deadlockError: UseCacheDeadlockError | undefined
 ) {
   // We need to run this inside a clean AsyncLocalStorage snapshot so that the cache
@@ -806,7 +806,7 @@ function generateCacheEntryWithRestoredWorkStore(
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  timeoutError: UseCacheTimeoutError,
+  timeoutError: UseCacheTimeoutError | undefined,
   deadlockError: UseCacheDeadlockError | undefined
 ) {
   // Since we cleared the AsyncLocalStorage we need to restore the workStore.
@@ -998,7 +998,7 @@ function generateCacheEntryWithCacheContext(
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  timeoutError: UseCacheTimeoutError,
+  timeoutError: UseCacheTimeoutError | undefined,
   deadlockError: UseCacheDeadlockError | undefined
 ) {
   const defaultCacheLife = workStore.cacheLifeProfiles.default
@@ -1403,7 +1403,7 @@ async function generateCacheEntryImpl(
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  timeoutError: UseCacheTimeoutError,
+  timeoutError: UseCacheTimeoutError | undefined,
   deadlockError: UseCacheDeadlockError | undefined
 ): Promise<GenerateCacheEntryResult> {
   const temporaryReferences = createServerTemporaryReferenceSet()
@@ -1520,8 +1520,9 @@ async function generateCacheEntryImpl(
       const timeoutAbortController = new AbortController()
       const timer = setTimeout(
         () => {
-          workStore.invalidDynamicUsageError = timeoutError
-          timeoutAbortController.abort(timeoutError)
+          const error = getTimeoutError(timeoutError)
+          workStore.invalidDynamicUsageError = error
+          timeoutAbortController.abort(error)
         },
         getUseCacheFillTimeoutMs(workStore, prerenderStore.type)
       )
@@ -1694,8 +1695,9 @@ async function generateCacheEntryImpl(
           )
           const fillDeadlineAt = performance.now() + fillTimeoutMs
           const devRenderTimeoutTimer = setTimeout(() => {
-            workStore.invalidDynamicUsageError = timeoutError
-            devRenderAbortController.abort(timeoutError)
+            const error = getTimeoutError(timeoutError)
+            workStore.invalidDynamicUsageError = error
+            devRenderAbortController.abort(error)
           }, fillTimeoutMs)
 
           devTimeoutAbortController = new AbortController()
@@ -1953,6 +1955,105 @@ function createTrackedReadableStream(
   })
 }
 
+/**
+ * Returns the timeout error that `cache()` constructed for this call, or an
+ * `InvariantError` if `canCacheFillTimeOut` claimed that the fill can't time
+ * out.
+ */
+function getTimeoutError(timeoutError: UseCacheTimeoutError | undefined) {
+  return (
+    timeoutError ??
+    new InvariantError(
+      '`timeoutError` should be constructed inside `cache()` whenever the cache fill can time out. `canCacheFillTimeOut` is out of sync with the fill timeouts.'
+    )
+  )
+}
+
+/**
+ * Whether a cache fill started from this context can hit the fill timeout,
+ * i.e. whether `generateCacheEntryImpl` (or the probe mode branch of `cache`)
+ * will arm a timer that throws the `UseCacheTimeoutError`. This must stay in
+ * sync with those timers. In particular it is false for production request
+ * renders, where cache hits are most common.
+ */
+function canCacheFillTimeOut(
+  workStore: WorkStore,
+  workUnitStore: WorkUnitStore
+): boolean {
+  if (process.env.__NEXT_DEV_SERVER && workStore.useCacheProbeMode) {
+    return true
+  }
+
+  switch (workUnitStore.type) {
+    case 'prerender':
+    case 'prerender-runtime':
+      return true
+    case 'cache':
+      return workUnitStore.fallbackRootParamsPrerender !== null
+    case 'request':
+      return !!(process.env.__NEXT_DEV_SERVER && workUnitStore.cacheSignal)
+    case 'prerender-legacy':
+    case 'prerender-client':
+    case 'validation-client':
+    case 'private-cache':
+    case 'unstable-cache':
+    case 'build-time-generator':
+      return false
+    default:
+      workUnitStore satisfies never
+      return false
+  }
+}
+
+/**
+ * Creates an error whose stack starts at the caller of `cache`. Must be called
+ * synchronously from `cache`.
+ */
+function createErrorAtCacheCallSite<T extends Error>(
+  ErrorClass: new (route: string) => T,
+  route: string
+): T {
+  // Capturing a stack trace is the expensive part of creating an error, and
+  // the one that the constructor captures would be replaced right away by the
+  // one that starts at the caller of `cache`. So only capture the latter.
+  const stackTraceLimit = Error.stackTraceLimit
+  Error.stackTraceLimit = 0
+  let error: T
+  try {
+    error = new ErrorClass(route)
+  } finally {
+    Error.stackTraceLimit = stackTraceLimit
+  }
+  Error.captureStackTrace(error, cache)
+  applyOwnerStack(error)
+  return error
+}
+
+/**
+ * Whether the dev-server's hang-detection probe scheduler (the only thrower of
+ * the `UseCacheDeadlockError`) can be set up for a cache fill started from this
+ * context. This must stay in sync with `generateCacheEntryImpl`.
+ */
+function canCacheFillDeadlock(workUnitStore: WorkUnitStore): boolean {
+  switch (workUnitStore.type) {
+    case 'request':
+      return !!workUnitStore.cacheSignal
+    case 'prerender':
+    case 'prerender-runtime':
+    case 'cache':
+    case 'prerender-legacy':
+    case 'prerender-client':
+    case 'validation-client':
+    case 'private-cache':
+    case 'unstable-cache':
+    case 'build-time-generator':
+      return false
+    default:
+      workUnitStore satisfies never
+      return false
+  }
+}
+
 export async function cache(
   kind: string,
   id: string,
@@ -2057,21 +2158,31 @@ export async function cache(
     }
   }
 
-  const timeoutError = new UseCacheTimeoutError(workStore.route)
-  Error.captureStackTrace(timeoutError, cache)
-  applyOwnerStack(timeoutError)
-
-  // Only ever thrown by the dev-server's hang-detection probe.
   // `Error.captureStackTrace` has to run while `cache()` is still on the
   // synchronous stack, otherwise the user's `'use cache'` invocation frames
-  // would already be gone — that's why the construction sits up here rather
-  // than next to the trigger that actually consumes it. The `__NEXT_DEV_SERVER`
-  // gate lets the error class drop out of the production runtime bundle.
+  // would already be gone. That's why the errors below are constructed up here
+  // rather than next to the triggers that actually consume them. Whether the
+  // call is a cache hit is only known after an `await`, so we can't skip them
+  // for hits, but we can skip them in contexts where they can never be thrown.
+
+  let timeoutError: UseCacheTimeoutError | undefined
+  if (canCacheFillTimeOut(workStore, workUnitStore)) {
+    timeoutError = createErrorAtCacheCallSite(
+      UseCacheTimeoutError,
+      workStore.route
+    )
+  }
+
+  // Only ever thrown by the dev-server's hang-detection probe scheduler, which
+  // is only set up for dev request renders with a cache signal. The
+  // `__NEXT_DEV_SERVER` gate lets the error class drop out of the production
+  // runtime bundle.
   let deadlockError: UseCacheDeadlockError | undefined
-  if (process.env.__NEXT_DEV_SERVER) {
-    deadlockError = new UseCacheDeadlockError(workStore.route)
-    Error.captureStackTrace(deadlockError, cache)
-    applyOwnerStack(deadlockError)
+  if (process.env.__NEXT_DEV_SERVER && canCacheFillDeadlock(workUnitStore)) {
+    deadlockError = createErrorAtCacheCallSite(
+      UseCacheDeadlockError,
+      workStore.route
+    )
   }
 
   const wrapAsInvalidDynamicUsageError = (error: Error) => {
@@ -2492,7 +2603,7 @@ export async function cache(
         result.pendingCacheResult,
         new Promise<never>((_, reject) => {
           probeTimeoutTimer = setTimeout(
-            () => reject(timeoutError),
+            () => reject(getTimeoutError(timeoutError)),
             probeTimeoutMs
           )
         }),

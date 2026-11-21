@@ -102,7 +102,7 @@ The 4-byte header distinguishes compressed from uncompressed storage:
 
 #### Block Checksum
 
-Each block stores a 4-byte CRC32 checksum (big-endian) computed over the 4-byte header (uncompressed length or sentinel, big-endian) followed by the **on-disk** block data (i.e. after compression). On read, the checksum is verified **before** decompression, so that on-disk damage to either the data or the header is caught before the header's length is used to size a buffer or the data is passed to the decompressor. A checksum mismatch returns an error indicating that the cached data is damaged. Compaction copies medium value blocks without decompressing or verifying them, keeping their header and checksum, so a damaged block stays detectable when the copy is read.
+Each block stores a 4-byte CRC32 checksum (big-endian) computed over the 4-byte header (uncompressed length or sentinel, big-endian) followed by the **on-disk** block data (i.e. after compression). On read, the checksum is verified **before** decompression, so that on-disk damage to either the data or the header is caught before the header's length is used to size a buffer or the data is passed to the decompressor. A checksum mismatch returns an error indicating that the cached data is damaged, marked as `CacheFileUnreadable` (see [Unreadable files](#unreadable-files)). Compaction copies medium value blocks without decompressing or verifying them, keeping their header and checksum, so a damaged block stays detectable when the copy is read.
 
 #### Index Block
 
@@ -304,6 +304,16 @@ index blocks of the SST files.
       - found -> lookup value from value block, return
         - read value as inline, or by using the block index in the key to find the value elsewhere in the file.
       - not found -> break
+
+### Unreadable files
+
+SST and blob files are read lazily, so a file can become unreadable after the database was opened,
+e.g. when another process deletes or modifies it while the database is in use. Errors of such reads
+are wrapped in a `CacheFileUnreadable` marker naming the file (find it with
+`CacheFileUnreadable::find`; it displays like the error it wraps): an SST file that can't be opened,
+an SST block that can't be read or fails its checksum, and a blob file that can't be read, fails its
+checksum, or can't be decompressed. This lets callers tell damage to the files apart from other
+errors.
 
 ### Memory map advice
 
