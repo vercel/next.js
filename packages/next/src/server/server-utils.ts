@@ -15,7 +15,6 @@ import {
 } from '../shared/lib/router/utils/prepare-destination'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
-import { normalizeRscURL } from '../shared/lib/router/utils/app-paths'
 import {
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
@@ -123,7 +122,7 @@ export function normalizeDynamicRouteParams(
       return false
     }
 
-    let normalizedCandidateValue = normalizeRscURL(candidateValue)
+    let normalizedCandidateValue = candidateValue
     for (let i = 0; i < 3; i++) {
       if (normalizedCandidateValue === defaultValue) {
         return true
@@ -149,11 +148,9 @@ export function normalizeDynamicRouteParams(
   for (const key of Object.keys(defaultRouteRegex.groups)) {
     let value: string | string[] | undefined = query[key]
 
-    if (typeof value === 'string') {
-      value = normalizeRscURL(value)
-    } else if (Array.isArray(value)) {
-      value = value.map(normalizeRscURL)
-    }
+    // Transport suffixes are removed before route matching. Matched values are
+    // already decoded, so a suffix here is literal parameter content and must
+    // not change the resource that Proxy authorized.
 
     // if the value matches the default value we can't rely
     // on the parsed params, this is used to signal if we need
