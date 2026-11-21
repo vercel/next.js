@@ -10,6 +10,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
+    module_graph::ModuleGraphs,
     output::{ExpandedOutputAssets, OptionOutputAsset, OutputAsset},
     source_map::{GenerateSourceMap, SourceMapType},
     version::OptionVersionedContent,
@@ -23,6 +24,8 @@ struct MapEntry {
     assets_operation: OperationVc<ExpandedOutputAssets>,
     /// Precomputed map for quick access to output asset by filepath
     path_to_asset: FxHashMap<FileSystemPath, ResolvedVc<Box<dyn OutputAsset>>>,
+    /// The graphs the assets were compiled with, for the import traces of their issues.
+    module_graphs: Option<ResolvedVc<ModuleGraphs>>,
 }
 
 // HACK: This is technically incorrect because `path_to_asset` contains `ResolvedVc`...
@@ -166,6 +169,8 @@ impl VersionedContentMap {
         self: ResolvedVc<Self>,
         // Output assets to emit
         assets_operation: OperationVc<ExpandedOutputAssets>,
+        // The graphs the assets were compiled with
+        module_graphs: Option<ResolvedVc<ModuleGraphs>>,
         node_root: FileSystemPath,
         client_relative_path: FileSystemPath,
         client_output_path: FileSystemPath,
@@ -174,6 +179,7 @@ impl VersionedContentMap {
         let compute_entry = compute_entry_operation(
             self,
             assets_operation,
+            module_graphs,
             node_root,
             client_relative_path,
             client_output_path,
@@ -205,6 +211,7 @@ impl VersionedContentMap {
     async fn compute_entry(
         &self,
         assets_operation: OperationVc<ExpandedOutputAssets>,
+        module_graphs: Option<ResolvedVc<ModuleGraphs>>,
         node_root: FileSystemPath,
         client_relative_path: FileSystemPath,
         client_output_path: FileSystemPath,
@@ -259,6 +266,7 @@ impl VersionedContentMap {
         let map_entry = Vc::cell(Some(MapEntry {
             assets_operation,
             path_to_asset: entries.iter().flatten().cloned().collect(),
+            module_graphs,
         }));
         Ok(map_entry)
     }
@@ -295,13 +303,35 @@ impl VersionedContentMap {
         }
     }
 
+    /// The graphs that the assets at each of the `paths` were compiled with, for the import traces
+    /// of their issues.
+    #[turbo_tasks::function]
+    pub async fn module_graphs(
+        self: Vc<Self>,
+        paths: Vec<FileSystemPath>,
+    ) -> Result<Vc<ModuleGraphs>> {
+        let entries = paths
+            .into_iter()
+            .map(|path| self.raw_get(path))
+            .try_join()
+            .await?;
+        let mut module_graphs = FxIndexSet::default();
+        for entry in &entries {
+            if let Some(MapEntry {
+                module_graphs: Some(graphs),
+                ..
+            }) = &**entry
+            {
+                module_graphs.extend(graphs.await?.iter().copied());
+            }
+        }
+        Ok(Vc::cell(module_graphs.into_iter().collect()))
+    }
+
     #[turbo_tasks::function]
     pub async fn get_asset(self: Vc<Self>, path: FileSystemPath) -> Result<Vc<OptionOutputAsset>> {
         let result = self.raw_get(path.clone()).await?;
-        if let Some(MapEntry {
-            assets_operation: _,
-            path_to_asset,
-        }) = &*result
+        if let Some(MapEntry { path_to_asset, .. }) = &*result
             && let Some(&asset) = path_to_asset.get(&path)
         {
             return Ok(Vc::cell(Some(asset)));
@@ -369,12 +399,14 @@ async fn get_entries(assets: OperationVc<ExpandedOutputAssets>) -> Result<Vc<Get
 fn compute_entry_operation(
     map: ResolvedVc<VersionedContentMap>,
     assets_operation: OperationVc<ExpandedOutputAssets>,
+    module_graphs: Option<ResolvedVc<ModuleGraphs>>,
     node_root: FileSystemPath,
     client_relative_path: FileSystemPath,
     client_output_path: FileSystemPath,
 ) -> Vc<OptionMapEntry> {
     map.compute_entry(
         assets_operation,
+        module_graphs.map(|g| *g),
         node_root,
         client_relative_path,
         client_output_path,

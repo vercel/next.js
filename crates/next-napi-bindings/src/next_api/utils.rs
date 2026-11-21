@@ -28,6 +28,7 @@ use turbopack_core::{
         CollectibleIssuesExt, IssueFilter, IssueSeverity, PlainIssue, PlainIssueSource,
         PlainSource, StyledString,
     },
+    module_graph::ModuleGraphs,
     source_pos::SourcePos,
 };
 
@@ -115,15 +116,22 @@ pub fn root_task_dispose(
 /// [Peeks] at the [`Issue`]s held by the given source and returns them as [`PlainIssue`]s.
 /// It does not [consume] any [`Issue`]s held by the source.
 ///
+/// The import traces of the issues are found in `module_graphs`, which should be the graphs that
+/// the source was compiled with.
+///
 /// [Peeks]: turbo_tasks::CollectiblesSource::peek_collectibles
 /// [`Issue`]: turbopack_core::issue::Issue
 /// [consume]: turbo_tasks::CollectiblesSource::take_collectibles
 pub async fn get_issues<T: Send>(
     source: OperationVc<T>,
     filter: &IssueFilter,
+    module_graphs: Option<Vc<ModuleGraphs>>,
 ) -> Result<Arc<Vec<ReadRef<PlainIssue>>>> {
     Ok(Arc::new(
-        source.peek_issues().get_plain_issues(filter).await?,
+        source
+            .peek_issues()
+            .get_plain_issues(filter, module_graphs)
+            .await?,
     ))
 }
 
@@ -475,13 +483,14 @@ pub fn subscribe<
 pub async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
     source_op: OperationVc<R>,
     filter: &IssueFilter,
+    module_graphs: Option<Vc<ModuleGraphs>>,
 ) -> Result<(
     Option<ReadRef<R>>,
     Arc<Vec<ReadRef<PlainIssue>>>,
     Arc<Effects>,
 )> {
     let result = source_op.read_strongly_consistent().await;
-    let issues = get_issues(source_op, filter).await?;
+    let issues = get_issues(source_op, filter, module_graphs).await?;
     let effects = Arc::new(take_effects(source_op).await?);
 
     let result = if result.is_err() && issues.iter().any(|i| i.severity <= IssueSeverity::Error) {

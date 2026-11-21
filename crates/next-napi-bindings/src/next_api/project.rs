@@ -1174,8 +1174,9 @@ async fn get_entrypoints_with_issues_operation(
     let entrypoints_operation =
         EntrypointsOperation::new(project_container_entrypoints_operation(container));
     let filter = container.project().issue_filter().await?;
+    // Computing the entrypoints doesn't build module graphs, so there are no import traces.
     let (entrypoints, issues, effects) =
-        strongly_consistent_catch_collectables(entrypoints_operation, &filter).await?;
+        strongly_consistent_catch_collectables(entrypoints_operation, &filter, None).await?;
     Ok(EntrypointsWithIssues {
         entrypoints,
         issues,
@@ -1716,8 +1717,16 @@ async fn get_all_written_entrypoints_with_issues_operation(
         write_phase,
     ));
     let filter = container.project().issue_filter().await?;
-    let (entrypoints, issues, effects) =
-        strongly_consistent_catch_collectables(entrypoints_operation, &filter).await?;
+    let (entrypoints, issues, effects) = strongly_consistent_catch_collectables(
+        entrypoints_operation,
+        &filter,
+        Some(
+            container
+                .project()
+                .whole_app_module_graphs_for_import_traces(),
+        ),
+    )
+    .await?;
     Ok(AllWrittenEntrypointsWithIssues {
         entrypoints,
         issues,
@@ -1791,7 +1800,7 @@ async fn emit_all_output_assets_once_operation(
         output_assets_for_single_emit_operation(container, app_dir_only, has_deferred_entrypoints);
     container
         .project()
-        .emit_all_output_assets(output_assets_operation)
+        .emit_all_output_assets(output_assets_operation, None)
         .as_side_effect()
         .await?;
 
@@ -1814,8 +1823,16 @@ async fn emit_all_output_assets_once_with_issues_operation(
                 has_deferred_entrypoints,
             ));
         let filter = container.project().issue_filter().await?;
-        let (_, issues, effects) =
-            strongly_consistent_catch_collectables(entrypoints_operation, &filter).await?;
+        let (_, issues, effects) = strongly_consistent_catch_collectables(
+            entrypoints_operation,
+            &filter,
+            Some(
+                container
+                    .project()
+                    .whole_app_module_graphs_for_import_traces(),
+            ),
+        )
+        .await?;
         Ok(OperationResult { issues, effects }.cell())
     }
     .await;
@@ -2018,14 +2035,19 @@ async fn hmr_update_with_issues_operation(
     state: ResolvedVc<VersionState>,
 ) -> Result<Vc<HmrUpdateWithIssues>> {
     tracing::info!(chunk_name = %chunk_name, "hmr subscription");
-    let update_op = project_hmr_update_operation(project, chunk_name, state);
+    let update_op = project_hmr_update_operation(project, chunk_name.clone(), state);
     // NOTE: we do not use `strongly_consistent_catch_collectables` here. The JS HMR
     // consumers in `hot-reloader-turbopack.ts` (`subscribeToServerHmr` and
     // `subscribeToClientHmrEvents`) rely on this read *throwing* on build-graph
     // failures to trigger their recovery paths
     let update = update_op.read_strongly_consistent().await?;
     let filter = project.issue_filter().await?;
-    let issues = get_issues(update_op, &filter).await?;
+    let issues = get_issues(
+        update_op,
+        &filter,
+        Some(project.hmr_module_graphs(chunk_name)),
+    )
+    .await?;
     let effects = Arc::new(take_effects(update_op).await?);
     Ok(HmrUpdateWithIssues {
         update,
@@ -2074,14 +2096,19 @@ async fn server_hmr_snapshot_with_effects_operation(
     entry_paths: Vec<RcStr>,
 ) -> Result<Vc<ServerHmrSnapshotWithEffects>> {
     tracing::info!("server hmr snapshot");
-    let snapshot_op = project_server_hmr_snapshot_operation(project, entry_paths);
+    let snapshot_op = project_server_hmr_snapshot_operation(project, entry_paths.clone());
     // Build-graph failures must reach the JS recovery path.
     let snapshot = snapshot_op
         .read_strongly_consistent()
         .final_read_hint()
         .await?;
     let filter = project.issue_filter().await?;
-    let issues = get_issues(snapshot_op, &filter).await?;
+    let issues = get_issues(
+        snapshot_op,
+        &filter,
+        Some(project.server_hmr_module_graphs(entry_paths)),
+    )
+    .await?;
     let effects = Arc::new(take_effects(snapshot_op).await?);
     Ok(ServerHmrSnapshotWithEffects {
         chunk_lists: snapshot.chunk_lists.clone(),
@@ -2301,7 +2328,7 @@ async fn get_client_hmr_chunk_names_with_issues_operation(
     // failure from the dev server log.
     let hmr_chunk_names = hmr_chunk_names_op.read_strongly_consistent().await?;
     let filter = container.project().issue_filter().await?;
-    let issues = get_issues(hmr_chunk_names_op, &filter).await?;
+    let issues = get_issues(hmr_chunk_names_op, &filter, None).await?;
     let effects = Arc::new(take_effects(hmr_chunk_names_op).await?);
     Ok(HmrChunkNamesWithIssues {
         chunk_names: hmr_chunk_names,
@@ -2972,7 +2999,16 @@ async fn get_all_compilation_issues_operation(
 ) -> Result<Vc<OperationResult>> {
     let inner_op = get_all_compilation_issues_inner_operation(container);
     let filter = container.project().issue_filter().await?;
-    let (_, issues, effects) = strongly_consistent_catch_collectables(inner_op, &filter).await?;
+    let (_, issues, effects) = strongly_consistent_catch_collectables(
+        inner_op,
+        &filter,
+        Some(
+            container
+                .project()
+                .whole_app_module_graphs_for_import_traces(),
+        ),
+    )
+    .await?;
     Ok(OperationResult { issues, effects }.cell())
 }
 
