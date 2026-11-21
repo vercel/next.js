@@ -18,7 +18,7 @@
         export: Some(
             "named",
         ),
-        member: None,
+        members: {},
         ast_path: [
             Program(
                 Module,
@@ -138,7 +138,7 @@
         export: Some(
             "named",
         ),
-        member: None,
+        members: {},
         ast_path: [
             Program(
                 Module,
