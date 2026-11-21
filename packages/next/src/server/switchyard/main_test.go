@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -336,23 +337,67 @@ func TestForwardsAResponseBeforeTheUploadFinishes(t *testing.T) {
 	}
 }
 
+// Go's server guesses a Content-Type from the body unless the header map has
+// a Content-Type entry when the final WriteHeader arrives. Whether a guess
+// shows up on the wire depends on whether the proxy's flush timer sends the
+// headers before the first body write, so this checks the header map at that
+// call instead, which doesn't depend on timing.
 func TestAddsNoContentTypeAfterAnEarlyHint(t *testing.T) {
-	addr, _ := startProxy(t, func(w http.ResponseWriter, r *http.Request) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Link", "</a.css>; rel=preload")
 		w.WriteHeader(http.StatusEarlyHints)
+		delete(w.Header(), "Link")
 		w.Header()["Content-Type"] = nil
 		w.Write([]byte("<html>hello</html>"))
-	})
-	// Go's client skips the 103 and returns the final response.
-	res, err := http.Get("http://" + addr + "/")
-	if err != nil {
-		t.Fatal(err)
+	}))
+	t.Cleanup(upstream.Close)
+	public := &net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 3000}
+	handler := newProxy(upstream.Listener.Addr().String(), public, 4*time.Second, testToken)
+
+	w := &finalHeaderRecorder{header: http.Header{}}
+	handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "http://shop.example.com/", nil))
+	if w.codes != "103,200" {
+		t.Fatalf("WriteHeader calls %q, want 103,200", w.codes)
 	}
-	defer res.Body.Close()
-	if v, ok := res.Header["Content-Type"]; ok {
+	if !w.finalHasContentType {
+		t.Error("no Content-Type entry when the final WriteHeader arrived, so Go's server would guess one")
+	}
+	if v := w.header["Content-Type"]; len(v) != 0 {
 		t.Errorf("Content-Type %q, want none", v)
 	}
 }
+
+// finalHeaderRecorder is a ResponseWriter that records each WriteHeader code
+// and whether the header map had a Content-Type entry at the final one.
+type finalHeaderRecorder struct {
+	header              http.Header
+	codes               string
+	finalHasContentType bool
+	wroteFinal          bool
+}
+
+func (f *finalHeaderRecorder) Header() http.Header { return f.header }
+
+func (f *finalHeaderRecorder) WriteHeader(code int) {
+	if f.wroteFinal {
+		return
+	}
+	if f.codes != "" {
+		f.codes += ","
+	}
+	f.codes += strconv.Itoa(code)
+	if code >= 200 {
+		f.wroteFinal = true
+		_, f.finalHasContentType = f.header["Content-Type"]
+	}
+}
+
+func (f *finalHeaderRecorder) Write(p []byte) (int, error) {
+	f.WriteHeader(http.StatusOK)
+	return len(p), nil
+}
+
+func (f *finalHeaderRecorder) Flush() {}
 
 // The Early Hints themselves still reach the client, each with its own Link
 // header, and nothing from them leaks into the final response.
