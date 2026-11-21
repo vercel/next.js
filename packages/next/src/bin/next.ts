@@ -9,6 +9,7 @@ import {
   Command,
   InvalidArgumentError,
   Option,
+  type ErrorOptions,
 } from 'next/dist/compiled/commander'
 
 import { warn } from '../build/output/log'
@@ -79,9 +80,26 @@ if (
 
 process.env.NEXT_PRIVATE_START_TIME = Date.now().toString()
 
+class NextCommand extends Command {
+  error(message: string, options?: ErrorOptions): never {
+    if (
+      this.name() === 'build' &&
+      options?.code === 'commander.unknownOption' &&
+      message.startsWith("error: unknown option '--no-lint'")
+    ) {
+      message =
+        'error: The --no-lint option has been removed in Next.js 16. next build no longer runs linting.\n' +
+        'Remove --no-lint from your build command and run ESLint or Biome directly if needed.\n' +
+        'Read more: https://nextjs.org/docs/app/guides/upgrading/version-16#next-lint-command'
+    }
+
+    return super.error(message, options)
+  }
+}
+
 class NextRootCommand extends Command {
   createCommand(name: string) {
-    const command = new Command(name)
+    const command = new NextCommand(name)
 
     command.hook('preAction', (event) => {
       const commandName = event.name()

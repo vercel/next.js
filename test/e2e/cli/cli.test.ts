@@ -395,6 +395,7 @@ describe('CLI Usage', () => {
       test('--help', async () => {
         const help = await next.runCommand(['build', '--help'])
         expect(help.stdout).toMatch(/Creates an optimized production build/)
+        expect(help.stdout).not.toContain('--no-lint')
       })
 
       test('-h', async () => {
@@ -406,6 +407,31 @@ describe('CLI Usage', () => {
         const { stderr } = await next.runCommand(['build', '--random'])
         expect(stderr).toEqual(`error: unknown option '--random'\n`)
       })
+
+      test.each([
+        { args: ['--no-lint'] },
+        { args: ['.', '--no-lint'] },
+        { args: ['--no-lint', '.'] },
+      ])(
+        'should explain the removal of --no-lint for $args',
+        async ({ args }) => {
+          const { code, stdout, stderr } = await next.runCommand([
+            'build',
+            ...args,
+          ])
+
+          expect(code).toBe(1)
+          expect(stdout).toBe('')
+          expect(stderr).toContain('--no-lint option has been removed')
+          expect(stderr).toContain('next build no longer runs linting')
+          expect(stderr).toContain('Remove --no-lint from your build command')
+          expect(stderr).toContain('run ESLint or Biome directly')
+          expect(stderr).toContain(
+            'https://nextjs.org/docs/app/guides/upgrading/version-16#next-lint-command'
+          )
+        }
+      )
+
       test('should not throw UnhandledPromiseRejectionWarning', async () => {
         const { stderr } = await next.runCommand(['build', '--random'])
         expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
