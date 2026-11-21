@@ -4,7 +4,7 @@ import type { NextRouter } from './router'
 
 import React, { useMemo, useRef } from 'react'
 import { PathnameContext } from '../hooks-client-context.shared-runtime'
-import { isDynamicRoute } from './utils'
+import { isDynamicRoute } from './utils/is-dynamic'
 import { asPathToSearchParams } from './utils/as-path-to-search-params'
 import { getRouteRegex } from './utils/route-regex'
 

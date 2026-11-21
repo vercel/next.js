@@ -125,19 +125,3 @@ export function safeRegexpToFunction<
     }
   }
 }
-
-/**
- * Safe wrapper for route matcher functions that automatically cleans parameters.
- * This is client-safe and doesn't import path-to-regexp.
- */
-export function safeRouteMatcher<T extends Record<string, any>>(
-  matcherFn: (pathname: string) => false | T
-): (pathname: string) => false | T {
-  return (pathname: string) => {
-    const result = matcherFn(pathname)
-    if (!result) return false
-
-    // Clean parameters before returning
-    return stripParameterSeparators(result) as T
-  }
-}

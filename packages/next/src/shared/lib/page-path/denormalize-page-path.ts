@@ -1,4 +1,4 @@
-import { isDynamicRoute } from '../router/utils'
+import { isDynamicRoute } from '../router/utils/is-dynamic'
 import { normalizePathSep } from './normalize-path-sep'
 
 /**
