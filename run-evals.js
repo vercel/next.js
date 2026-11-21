@@ -320,6 +320,11 @@ function main() {
       'effort-samples',
       'Samples per variant for --effort-gate (default: 5)'
     )
+    .string('effort-pre-stack-tarball')
+    .describe(
+      'effort-pre-stack-tarball',
+      'Pre-stack Next.js tarball to prepend to the effort comparison'
+    )
     .string('agent')
     .describe('agent', 'Override the coding agent for every selected variant')
     .string('model')
@@ -336,6 +341,7 @@ function main() {
     .conflicts('all', 'eval-name')
     .conflicts('suite', ['all', 'eval-name'])
     .conflicts('effort-gate', ['all', 'suite', 'dry', 'metrics', 'variant'])
+    .implies('effort-pre-stack-tarball', 'effort-gate')
     .check((argv) => {
       if (!argv.all && !argv.evalName && !argv.suite) {
         throw new Error(
@@ -357,6 +363,12 @@ function main() {
       }
       if (!Number.isInteger(argv.effortSamples) || argv.effortSamples < 1) {
         throw new Error('--effort-samples must be a positive integer')
+      }
+      if (
+        argv.effortPreStackTarball &&
+        !fs.existsSync(path.resolve(argv.effortPreStackTarball))
+      ) {
+        throw new Error('--effort-pre-stack-tarball must point to a file')
       }
       const effortSamplesSpecified = process.argv
         .slice(2)
@@ -454,6 +466,13 @@ function main() {
       throw new Error(
         '--effort-gate requires baseline, agents-md, and skills variants'
       )
+    }
+    if (argv.effortPreStackTarball) {
+      variants.unshift({
+        suffix: 'pre-stack',
+        imports: `import { installNextJs, installPlaywright, prepareFixture } from '../lib/setup.js'`,
+        setup: `await installNextJs(sandbox, ${JSON.stringify(path.resolve(argv.effortPreStackTarball))})\n    await installPlaywright(sandbox)\n    await prepareFixture(sandbox)`,
+      })
     }
   }
   // agent-eval 1.3 dropped run-all/--dry: `run` takes explicit experiment names,
@@ -628,7 +647,7 @@ function main() {
       samples['agents-md'],
       samples.skills
     )
-    for (const variant of ['baseline', 'agents-md', 'skills']) {
+    for (const variant of variants.map(({ suffix }) => suffix)) {
       console.log(
         `${variant} samples: ${samples[variant]
           .map(({ status, inputTokens }) => `${inputTokens} (${status})`)

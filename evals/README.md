@@ -174,10 +174,19 @@ For faster iteration, override the five-sample default:
 pnpm eval <configured-eval> --effort-gate --effort-samples 2
 ```
 
+To prepend a result from Next.js before the current change, pack that revision
+separately and pass it to the gate:
+
+```bash
+pnpm eval <configured-eval> --effort-gate \
+  --effort-pre-stack-tarball /path/to/pre-stack-next.tgz
+```
+
 The gate runs five sequential samples each for baseline, bundled-docs discovery
-through `agents-md`, and the configured skill. It reports pass rate, median
-input tokens, bundled-doc discovery, and whether Request Insights ran before
-project inspection for all three. The skill must match or exceed the
+through `agents-md`, and the configured skill. With a pre-stack tarball, it runs
+that package first against the same fixture and grader. It reports pass rate,
+median input tokens, bundled-doc discovery, and whether Request Insights ran
+before project inspection for every variant. The skill must match or exceed the
 baseline pass rate and reduce median input tokens by at least 40%. Normal eval
 runs do not execute this gate.
 
