@@ -3,6 +3,7 @@ mod cell_data;
 mod counter_map;
 mod eviction;
 mod gc;
+mod known_immutable;
 mod operation;
 mod snapshot_coordinator;
 mod storage;
@@ -54,11 +55,11 @@ use turbo_tasks::{
 use turbo_tasks::{FunctionId, TaskDirtyCause};
 use turbo_tasks_malloc::TurboMalloc;
 
-use self::eviction::EvictionControl;
 #[cfg(not(target_family = "wasm"))]
 pub use self::operation::aggregation_queue;
 #[cfg(test)]
 pub(crate) use self::storage::TrackOutcome;
+use self::{eviction::EvictionControl, known_immutable::KnownImmutable};
 pub use self::{
     eviction::EvictionMode,
     storage::{EvictionCounts, SpecificTaskDataCategory, TaskDataCategory},
@@ -250,6 +251,10 @@ pub struct TurboTasksBackend {
 
     storage: Storage,
 
+    /// Tasks known to be immutable, so that reads of them don't need to lock the reader. See
+    /// [`KnownImmutable`].
+    known_immutable: KnownImmutable,
+
     /// Coordinates the operation/snapshot/GC interleaving protocol. See
     /// [`SnapshotCoordinator`] for details.
     snapshot_coord: SnapshotCoordinator,
@@ -364,6 +369,7 @@ impl TurboTasksBackend {
                 shard_amount,
                 small_preallocation,
             }),
+            known_immutable: KnownImmutable::new(),
             snapshot_coord: SnapshotCoordinator::new(),
             snapshot_in_progress: Mutex::new(LastPersistenceStatus::Ok),
             stopping: RwLock::new(false),
@@ -562,6 +568,31 @@ impl TurboTasksBackend {
     pub fn persisted_gc_roots_for_testing(&self) -> Vec<(TaskId, TtlCounter)> {
         self.backing_storage.roots().unwrap_or_default()
     }
+
+    /// Whether `task` is known to be immutable, i.e. reads of it don't lock the reader task.
+    #[doc(hidden)]
+    pub fn known_immutable_for_testing(&self, task: TaskId) -> bool {
+        self.known_immutable.contains(task)
+    }
+
+    /// Whether `task` is in memory. Doesn't restore it.
+    #[doc(hidden)]
+    pub fn is_resident_for_testing(&self, task: TaskId) -> bool {
+        self.storage.with_task(task, |_| ()).is_some()
+    }
+
+    /// The number of cell dependencies (keyed or not) of `task`, restoring it if needed (`None` if
+    /// it doesn't exist).
+    #[doc(hidden)]
+    pub fn cell_dependency_count_for_testing(
+        &self,
+        task: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> Option<usize> {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let task = ctx.try_task(task, TaskDataCategory::All)?;
+        Some(task.iter_cell_dependencies().count() + task.iter_cell_dependencies_keyed().count())
+    }
     /// Opens `task` with the must-exist [`ExecuteContext::task`] and drops the guard. Test-only
     /// hook to exercise the non-fabricating existence guarantee: this panics if `task` exists in
     /// neither memory nor persistent storage (rather than fabricating a blank).
@@ -686,35 +717,44 @@ struct TaskExecutionCompletePrepareResult {
 /// Returns `None` if the task being read is gone (collected by GC, or missing from storage).
 fn lock_task_and_optional_reader<'e>(
     ctx: &mut ExecuteContext<'e>,
+    known_immutable: &KnownImmutable,
     task_id: TaskId,
     reader_id: Option<TaskId>,
 ) -> Option<(TaskGuard<'e>, Option<TaskGuard<'e>>)> {
-    let task = ctx.try_task(task_id, TaskDataCategory::All)?;
     let Some(reader_id) = reader_id else {
-        return Some((task, None));
+        return Some((ctx.try_task(task_id, TaskDataCategory::All)?, None));
     };
 
-    // Immutable tasks never need dependency edges and can never be invalidated. Avoid locking the
-    // reader too in that common case. When the task is still mutable, drop the speculative lock
-    // and reacquire both locks together to preserve the invalidation race guarantee.
+    // Immutable tasks never need dependency edges and can never be invalidated, so reading them
+    // doesn't need the reader lock. A task that is known to be immutable is locked alone.
+    if known_immutable.contains(task_id) {
+        // A collected (deleted or missing) task returns `None` here, even if its bit is still set.
+        let task = ctx.try_task(task_id, TaskDataCategory::All)?;
+        if task.immutable() {
+            return Some((task, None));
+        }
+        // Unreachable: the `immutable` flag is never cleared, and task ids are never reused, so a
+        // task id that is known to be immutable always names that same immutable task. A task
+        // that is collected by GC and called again gets a new id. See [`KnownImmutable`]. Fall
+        // back to the pair path below in release builds.
+        debug_assert!(false, "task {task_id} is known to be immutable, but isn't");
+        drop(task);
+    }
+
+    // Otherwise the task is likely mutable, so lock it together with the reader right away. The
+    // lock must be a pair: locking the reader separately could lose an invalidation that races
+    // with dependency edge insertion.
+    // TODO(sokra): solve this more performantly for mutable tasks.
+    let (task, reader) = ctx.try_task_pair(task_id, reader_id, TaskDataCategory::All)?;
+    // The task may be immutable without being known to be (e.g. it became immutable after the
+    // check above). Callers can rely on a reader guard only being returned when dependency edges
+    // may still be added.
     if task.immutable() && !cfg!(feature = "verify_immutable") {
+        known_immutable.insert(task_id);
+        drop(reader);
         Some((task, None))
     } else {
-        drop(task);
-
-        // Having a task_pair here is not optimal, but locking the reader separately could lose an
-        // invalidation that races with dependency edge insertion.
-        // TODO(sokra): solve this more performantly for mutable tasks.
-        let (task, reader) = ctx.task_pair(task_id, reader_id, TaskDataCategory::All);
-        // The task can become immutable between the speculative task lock and the pair lock.
-        // Recheck under the final lock so callers can rely on a reader guard only being returned
-        // when dependency edges may still be added.
-        if task.immutable() && !cfg!(feature = "verify_immutable") {
-            drop(reader);
-            Some((task, None))
-        } else {
-            Some((task, Some(reader)))
-        }
+        Some((task, Some(reader)))
     }
 }
 
@@ -744,9 +784,12 @@ impl TurboTasksBackend {
                 && reader_id != task_id)
                 .then_some(reader_id)
         });
-        let Some((mut task, mut reader_task)) =
-            lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task)
-        else {
+        let Some((mut task, mut reader_task)) = lock_task_and_optional_reader(
+            &mut ctx,
+            &self.known_immutable,
+            task_id,
+            need_reader_task,
+        ) else {
             return Err(collected_task_read_error(task_id, "read_task_output"));
         };
 
@@ -1158,9 +1201,12 @@ impl TurboTasksBackend {
                 && reader_id != task_id)
                 .then_some(reader_id)
         });
-        let Some((mut task, reader_task)) =
-            lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task)
-        else {
+        let Some((mut task, reader_task)) = lock_task_and_optional_reader(
+            &mut ctx,
+            &self.known_immutable,
+            task_id,
+            need_reader_task,
+        ) else {
             return Err(collected_task_read_error(task_id, "read_task_cell"));
         };
 
@@ -1273,6 +1319,11 @@ impl TurboTasksBackend {
     /// dependents), the [`CellKeyKind::Provisional`] dependency is kept, conservatively depending
     /// on the whole cell.
     ///
+    /// For an immutable task, only the [`CellKeyKind::Provisional`] dependency is removed. When the
+    /// task is known to be immutable (see [`KnownImmutable`]), the task and the reader are locked
+    /// one after the other instead of together: an immutable task can't be invalidated, so the
+    /// edges can be removed separately (task side first, like any edge removal).
+    ///
     /// [`CellKeyKind::Provisional`]: turbo_tasks::CellKeyKind::Provisional
     /// [`CellKeyKind::Hash`]: turbo_tasks::CellKeyKind::Hash
     fn refine_provisional_cell_dependency(
@@ -1288,22 +1339,38 @@ impl TurboTasksBackend {
             return;
         }
         let mut ctx = self.execute_context(turbo_tasks);
-        let (mut task, mut reader_task) = ctx.task_pair(task_id, reader, TaskDataCategory::All);
-        let immutable = task.immutable() && !cfg!(feature = "verify_immutable");
-        if !immutable && !task.cell_data_contains(&cell) {
-            return;
-        }
         let reverse = CellRef { task: reader, cell };
         let target = CellRef {
             task: task_id,
             cell,
         };
         let provisional = CellKey::provisional(id);
+        if self.known_immutable.contains(task_id) {
+            let mut task = ctx.task(task_id, TaskDataCategory::All);
+            // See `lock_task_and_optional_reader` for why a known-immutable task id can't name a
+            // mutable task, also across GC and re-execution.
+            debug_assert!(
+                task.immutable(),
+                "task {task_id} is known to be immutable, but isn't"
+            );
+            task.remove_keyed_cell_dependent(&(reverse, provisional));
+            drop(task);
+            let mut reader_task = ctx.task(reader, TaskDataCategory::All);
+            reader_task.remove_cell_dependencies_keyed(&(target, provisional));
+            reader_task.remove_outdated_cell_dependencies_keyed(&(target, provisional));
+            return;
+        }
+        let (mut task, mut reader_task) = ctx.task_pair(task_id, reader, TaskDataCategory::All);
+        let immutable = task.immutable() && !cfg!(feature = "verify_immutable");
+        if !immutable && !task.cell_data_contains(&cell) {
+            return;
+        }
         task.remove_keyed_cell_dependent(&(reverse, provisional));
         reader_task.remove_cell_dependencies_keyed(&(target, provisional));
         reader_task.remove_outdated_cell_dependencies_keyed(&(target, provisional));
         // Immutable tasks never need dependency edges and can never be invalidated.
         if immutable {
+            self.known_immutable.insert(task_id);
             return;
         }
         // Many readers can refine their dependencies on the same cell at once, all serialized on
@@ -3155,6 +3222,7 @@ impl TurboTasksBackend {
         // to be invalidated and we can mark it as immutable.
         if is_now_immutable {
             task.set_immutable(true);
+            self.known_immutable.insert(task_id);
         }
 
         // Notify in progress cells and remove all of them
