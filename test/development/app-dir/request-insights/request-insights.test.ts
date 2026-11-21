@@ -218,6 +218,15 @@ describe('request insights', () => {
       )
 
       const summary = history.requests[0]
+      for (const kind of ['request', 'instant-insights']) {
+        const missing = await next.fetch(
+          `/_next/development/request-insights?view=detail&requestId=missing-detail-id&kind=${kind}`
+        )
+        expect(missing.status).toBe(404)
+        expect(await missing.json()).toEqual({
+          error: 'Request insight not found',
+        })
+      }
       const detailResponse = await next.fetch(
         `/_next/development/request-insights?view=detail&requestId=${encodeURIComponent(summary.requestId)}&kind=${summary.kind ?? 'request'}`
       )

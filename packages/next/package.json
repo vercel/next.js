@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "16.5.0-canary.56",
+  "version": "16.5.0-canary.59",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -281,7 +281,6 @@
     "ipaddr.js": "2.2.0",
     "is-docker": "2.0.0",
     "is-wsl": "2.2.0",
-    "jest-worker": "27.5.1",
     "json5": "2.2.3",
     "loader-runner": "4.3.0",
     "loader-utils2": "npm:loader-utils@2.0.4",

@@ -647,6 +647,7 @@ impl TurboTasksBackend {
                                 "Error no longer available",
                             )),
                             location: None,
+                            kind: Default::default(),
                         }))
                     },
                     |e| self.task_error_to_turbo_tasks_execution_error(&e, ctx),
@@ -1682,7 +1683,10 @@ impl TurboTasksBackend {
         } else {
             self.backing_storage
                 .roots()
-                .expect("reading gc roots should not fail")
+                .unwrap_or_else(|e| {
+                    self.backing_storage
+                        .panic_on_read_error("reading gc roots should not fail", e)
+                })
                 .into_iter()
                 .map(|(id, _)| id)
                 .collect()

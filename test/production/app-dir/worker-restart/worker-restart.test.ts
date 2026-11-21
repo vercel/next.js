@@ -7,21 +7,26 @@ describe('worker-restart', () => {
       skipStart: true,
     })
 
-    it('should properly exhaust all restart attempts and not fail with any worker errors', async () => {
-      const { cliOutput } = await next.build()
-      expect(cliOutput).toContain(
-        'Failed to build /bad-page/page: /bad-page (attempt 1 of 3) because it took more than 10 seconds. Retrying again shortly.'
-      )
-      expect(cliOutput).toContain(
-        'Failed to build /bad-page/page: /bad-page (attempt 2 of 3) because it took more than 10 seconds. Retrying again shortly.'
-      )
-      expect(cliOutput).toContain(
-        'Failed to build /bad-page/page: /bad-page after 3 attempts'
-      )
-      expect(cliOutput).not.toContain(
-        'Error: Farm is ended, no more calls can be done to it'
-      )
-    })
+    // Webpack build + 3×10s retry timeouts can exceed 60 s on slow CI runners.
+    it(
+      'should properly exhaust all restart attempts and not fail with any worker errors',
+      async () => {
+        const { cliOutput } = await next.build()
+        expect(cliOutput).toContain(
+          'Failed to build /bad-page/page: /bad-page (attempt 1 of 3) because it took more than 10 seconds. Retrying again shortly.'
+        )
+        expect(cliOutput).toContain(
+          'Failed to build /bad-page/page: /bad-page (attempt 2 of 3) because it took more than 10 seconds. Retrying again shortly.'
+        )
+        expect(cliOutput).toContain(
+          'Failed to build /bad-page/page: /bad-page after 3 attempts'
+        )
+        expect(cliOutput).not.toContain(
+          'Error: Worker is ended, no more calls can be done to it'
+        )
+      },
+      5 * 60 * 1000
+    )
   })
 
   describe('retries', () => {
@@ -49,7 +54,7 @@ describe('worker-restart', () => {
     it('should fail the build if a worker process is killed', async () => {
       const { cliOutput } = await next.build()
       expect(cliOutput).toContain(
-        'Next.js build worker exited with code: null and signal: SIGKILL'
+        'Next.js static worker exited with code: null and signal: SIGKILL'
       )
     })
   })
