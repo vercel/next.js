@@ -1,0 +1,80 @@
+---
+title: Diagnosing slow development requests with Request Insights
+nav_title: Request Insights
+description: Find what delays server responses during development with Request Insights.
+version: experimental
+related:
+  links:
+    - app/api-reference/cli/next
+---
+
+Request Insights shows where time is spent as your Next.js app handles requests in development. It records a timeline for each completed App Router request, including compilation, module loading, data fetching, and rendering.
+
+This guide walks through a typical performance audit workflow that you can apply in your own app.
+
+## Example
+
+Suppose a request to `/reports` takes several seconds. We'll record the request, find it in the development overlay, and inspect its timeline.
+
+### Step 1: Record the slow request
+
+Start the development server with Request Insights enabled:
+
+```bash
+next dev --experimental-request-insights
+```
+
+This flag enables both the **Request Insights** panel in the development overlay and the `next experimental-request-insights` CLI. If the development server is already running without the flag, restart it with the command above before continuing.
+
+Open `http://localhost:3000/reports` and reproduce the slowdown. Request Insights retains the completed request in the current development session.
+
+### Step 2: Find the request in the overlay
+
+Open the Next.js development tools in the browser and select **Request Insights**. The panel lists completed requests with their route, duration, type, and status.
+
+Select the `/reports` request that took several seconds. Use the route, duration, type, and status to distinguish it from other requests made while loading the page.
+
+### Step 3: Inspect the request timeline
+
+Selecting a request opens its overview, trace, and recorded fetches. The trace places each operation on the request timeline and shows its duration.
+
+In this example, `ResolveMetadata.generateMetadata` contains a 3.53-second `/metadata` fetch and spans 3.54 seconds of the 3.65-second request. Compilation and rendering complete in milliseconds, so they do not explain the slowdown. The next step is to inspect `generateMetadata` and the data it awaits.
+
+<Image
+  alt="Request Insights highlighting a 3.53-second metadata fetch"
+  srcLight="/docs/light/request-insights-slow-request.png"
+  srcDark="/docs/dark/request-insights-slow-request.png"
+  width="1954"
+  height="880"
+/>
+
+Spans can overlap or contain other spans. Their position and nesting distinguish nested work from separate delays. For fetches, the panel also shows the URL, cache status, and duration.
+
+Component intervals are elapsed render time. They do not prove that the component used the CPU for the entire interval. Inspect source only after the timeline has localized the slow operation.
+
+If rendering dominates but the timeline does not identify the responsible function, collect a CPU profile. A CPU profile is not needed in this example because the timeline already attributes 3.54 seconds to metadata generation.
+
+### Step 4: Inspect requests from the command line
+
+Request Insights also provides a CLI for terminal workflows and automation. List requests for a route:
+
+```bash
+next experimental-request-insights list --route /reports
+```
+
+Then inspect the matching request using its full ID or an unambiguous prefix:
+
+```bash
+next experimental-request-insights get 4f83d912
+```
+
+Add `--json` to either command for complete span attributes. If automatic server discovery fails, pass the active origin with `--url http://localhost:3000`.
+
+## Next steps
+
+You can now record a slow development request, inspect it in the development overlay, and use the CLI for terminal workflows or automation.
+
+Next, learn how to:
+
+- Use the [`next experimental-request-insights` CLI options](/docs/app/api-reference/cli/next#next-experimental-request-insights-options).
+- [Debug a Next.js application](/docs/app/guides/debugging).
