@@ -1,5 +1,9 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
-import type { InstantCookie } from '../../../../shared/lib/app-router-types'
+import { NEXT_INSTANT_TEST_COOKIE } from '../../../../client/components/app-router-headers'
+import {
+  armInstantNavigation,
+  releaseInstantNavigation,
+} from '../../../../client/dev/instant-navigation'
 import type { InstantNavCookieData } from '../../../../shared/lib/instant-nav-cookie'
 import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { useDelayedRender } from '../../hooks/use-delayed-render'
@@ -11,7 +15,6 @@ import {
 } from './instant-nav-cookie'
 import './instant-navs-panel.css'
 
-const COOKIE_NAME = 'next-instant-navigation-testing'
 type InstantNavContentStatus = 'idle' | 'pending' | 'mpa' | 'spa'
 // During a "Resume" restart the cookie is briefly absent (it's
 // deleted, then re-written as a new pending cookie). The transient "restarting"
@@ -89,24 +92,6 @@ function useInstantNavStatus(
 const DURATION = 400
 const EXPANDED_HEIGHT = 225
 
-function createPendingInstantNavCookie(): InstantCookie {
-  return [0, `p${Math.random()}`]
-}
-
-function setInstantNavCookie(value: InstantCookie): void {
-  if (typeof document === 'undefined') {
-    return
-  }
-  document.cookie = `${COOKIE_NAME}=${JSON.stringify(value)}; Path=/`
-}
-
-function deleteInstantNavCookie(): void {
-  if (typeof document === 'undefined') {
-    return
-  }
-  document.cookie = `${COOKIE_NAME}=; Path=/; Max-Age=0`
-}
-
 function waitForInstantNavCookieDeleted(): Promise<void> {
   if (typeof cookieStore !== 'undefined') {
     return new Promise((resolve) => {
@@ -117,7 +102,7 @@ function waitForInstantNavCookieDeleted(): Promise<void> {
 
       function handler(event: CookieChangeEvent): void {
         for (const cookie of event.deleted) {
-          if (cookie.name === COOKIE_NAME) {
+          if (cookie.name === NEXT_INSTANT_TEST_COOKIE) {
             done()
             return
           }
@@ -128,10 +113,6 @@ function waitForInstantNavCookieDeleted(): Promise<void> {
     })
   }
   return Promise.resolve()
-}
-
-function setPendingInstantNavCookie(): void {
-  setInstantNavCookie(createPendingInstantNavCookie())
 }
 
 function getCurrentLocationUrl(): string {
@@ -145,7 +126,7 @@ function getCurrentLocationUrl(): string {
 // navigation-testing-lock.ts, which releases the lock and soft-refreshes to real data.
 function clearInstantNavCaptureCookie(): void {
   setInstantNavTransientStatus('idle')
-  deleteInstantNavCookie()
+  releaseInstantNavigation()
 }
 
 export function InstantNavsPanel() {
@@ -233,18 +214,17 @@ export function InstantNavsPanel() {
     // the next navigation by writing a fresh pending cookie. Waiting for the
     // delete event keeps this as two ordered cookie transitions.
     setInstantNavTransientStatus('restarting')
-    const pendingCookie = createPendingInstantNavCookie()
     const deleted = waitForInstantNavCookieDeleted()
-    deleteInstantNavCookie()
+    releaseInstantNavigation()
     await deleted
-    setInstantNavCookie(pendingCookie)
+    armInstantNavigation()
   }
 
   function togglePaused(): void {
     if (isLocked) {
       clearInstantNavCaptureCookie()
     } else {
-      setPendingInstantNavCookie()
+      armInstantNavigation()
     }
   }
 

@@ -4,6 +4,10 @@ import { registerGetErrorsTool } from './tools/get-errors'
 import { registerGetPageMetadataTool } from './tools/get-page-metadata'
 import { registerGetLogsTool } from './tools/get-logs'
 import { registerGetActionByIdTool } from './tools/get-server-action-by-id'
+import {
+  registerInspectNavigationTool,
+  type GetAppRouterClients,
+} from './tools/inspect-navigation'
 import { registerGetRoutesTool } from './tools/get-routes'
 import { registerGetCompilationIssuesTool } from './tools/get-compilation-issues'
 import { registerCompileRouteTool } from './tools/compile-route'
@@ -20,6 +24,7 @@ export interface McpServerOptions {
   pagesDir: string | undefined
   appDir: string | undefined
   sendHmrMessage: (message: HmrMessageSentToBrowser) => void
+  getAppRouterClients: GetAppRouterClients
   getActiveConnectionCount: () => number
   getDevServerUrl: () => string | undefined
   getTurbopackProject?: () => Project | undefined
@@ -65,6 +70,9 @@ export const getOrCreateMcpServer = (options: McpServerOptions) => {
     appDir: options.appDir,
   })
   registerGetRequestInsightsTool(mcpServer)
+  if (options.appDir && options.nextConfig.cacheComponents) {
+    registerInspectNavigationTool(mcpServer, options.getAppRouterClients)
+  }
 
   if (options.getTurbopackProject) {
     registerGetCompilationIssuesTool(mcpServer, options.getTurbopackProject)

@@ -20,15 +20,14 @@ import {
   type InstantNavCookieData,
 } from '../../../../shared/lib/instant-nav-cookie'
 
-const COOKIE_NAME = 'next-instant-navigation-testing'
+import { NEXT_INSTANT_TEST_COOKIE } from '../../../../client/components/app-router-headers'
+import { readInstantNavigationCookie } from '../../../../client/dev/instant-navigation'
 
 export function readInstantNavCookieState():
   | InstantNavCookieData['state']
   | null {
-  if (typeof document === 'undefined') return null
-  const match = document.cookie.match(/next-instant-navigation-testing=([^;]*)/)
-  if (!match) return null
-  return parseInstantNavCookieValue(match[1]).state
+  const raw = readInstantNavigationCookie()
+  return raw ? parseInstantNavCookieValue(raw).state : null
 }
 
 /**
@@ -89,17 +88,11 @@ export function formatRoutePattern(tree: FlightRouterState): string {
 // immediately, so the snapshot reads this cache first.
 let cachedRawValue: string | undefined = undefined
 
-function readRawCookieValue(): string {
-  if (typeof document === 'undefined') return ''
-  const match = document.cookie.match(/next-instant-navigation-testing=([^;]*)/)
-  return match ? match[1] : ''
-}
-
 function getSnapshot(): string {
   if (cachedRawValue !== undefined) {
     return cachedRawValue
   }
-  return readRawCookieValue()
+  return readInstantNavigationCookie()
 }
 
 function isInitialInstantTestStaticShell(rawValue: string): boolean {
@@ -117,14 +110,14 @@ function subscribe(callback: () => void): () => void {
   }
   function handler(event: CookieChangeEvent) {
     for (const cookie of event.changed) {
-      if (cookie.name === COOKIE_NAME) {
+      if (cookie.name === NEXT_INSTANT_TEST_COOKIE) {
         cachedRawValue = cookie.value ?? ''
         callback()
         return
       }
     }
     for (const cookie of event.deleted) {
-      if (cookie.name === COOKIE_NAME) {
+      if (cookie.name === NEXT_INSTANT_TEST_COOKIE) {
         cachedRawValue = ''
         callback()
         return

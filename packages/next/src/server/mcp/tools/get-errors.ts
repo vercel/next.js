@@ -23,7 +23,6 @@ import { formatErrors } from './utils/format-errors'
 import {
   createBrowserRequest,
   handleBrowserPageResponse,
-  DEFAULT_BROWSER_REQUEST_TIMEOUT_MS,
 } from './utils/browser-communication'
 import { NextInstanceErrorState } from './next-instance-error-state'
 import { mcpTelemetryTracker } from '../mcp-telemetry-tracker'
@@ -61,10 +60,12 @@ export function registerGetErrorsTool(
         }
 
         const responses = await createBrowserRequest<OverlayState>(
-          HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_CURRENT_ERROR_STATE,
-          sendHmrMessage,
-          getActiveConnectionCount,
-          DEFAULT_BROWSER_REQUEST_TIMEOUT_MS
+          connectionCount,
+          (requestId) =>
+            sendHmrMessage({
+              type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_CURRENT_ERROR_STATE,
+              requestId,
+            })
         )
 
         // The error state for each route
