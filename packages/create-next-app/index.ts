@@ -144,6 +144,64 @@ const packageManager: PackageManager = !!opts.useNpm
         ? 'bun'
         : getPkgManager()
 
+// Asks for a project directory. Returns undefined when stdin closes without
+// an answer: prompts() leaves its promise pending on EOF, and a pending
+// promise does not keep Node alive, so the process would otherwise exit 0.
+async function promptForProjectDirectory(): Promise<string | undefined> {
+  if (process.stdin.readableEnded) return undefined
+
+  type ProjectPathAnswer = { path?: unknown }
+  let settled = false
+  let endTimer: ReturnType<typeof setTimeout> | undefined
+  let endHandled = false
+
+  const res = await new Promise<ProjectPathAnswer>((resolvePrompt) => {
+    let onStdinEnd = () => {}
+
+    const finish = (value: ProjectPathAnswer) => {
+      if (settled) return
+      settled = true
+      if (endTimer) clearTimeout(endTimer)
+      process.stdin.off('end', onStdinEnd)
+      resolvePrompt(value)
+    }
+
+    onStdinEnd = () => {
+      if (endHandled) return
+      endHandled = true
+      // Keep the event loop alive for one turn. A piped newline submits the
+      // default name in a microtask, and that answer has to win over EOF.
+      endTimer = setTimeout(() => {}, 1000)
+      setImmediate(() => {
+        finish({})
+      })
+    }
+
+    process.stdin.once('end', onStdinEnd)
+
+    void prompts({
+      onState: onPromptState,
+      type: 'text',
+      name: 'path',
+      message: 'What is your project named?',
+      initial: 'my-app',
+      validate: (name) => {
+        const validation = validateNpmName(basename(resolve(name)))
+        if (validation.valid) {
+          return true
+        }
+        return 'Invalid project name: ' + validation.problems[0]
+      },
+    }).then(finish, () => finish({}))
+
+    if (process.stdin.readableEnded) onStdinEnd()
+  })
+
+  if (typeof res.path !== 'string') return undefined
+  const trimmed = res.path.trim()
+  return trimmed || undefined
+}
+
 async function run(): Promise<void> {
   const conf = new Conf({
     projectName: 'create-next-app',
@@ -172,33 +230,19 @@ async function run(): Promise<void> {
   }
 
   if (!projectPath) {
-    const res = await prompts({
-      onState: onPromptState,
-      type: 'text',
-      name: 'path',
-      message: 'What is your project named?',
-      initial: 'my-app',
-      validate: (name) => {
-        const validation = validateNpmName(basename(resolve(name)))
-        if (validation.valid) {
-          return true
-        }
-        return 'Invalid project name: ' + validation.problems[0]
-      },
-    })
-
-    if (typeof res.path === 'string') {
-      projectPath = res.path.trim()
+    const enteredPath = await promptForProjectDirectory()
+    if (enteredPath) {
+      projectPath = enteredPath
     }
   }
 
   if (!projectPath) {
     console.log(
       '\nPlease specify the project directory:\n' +
-        `  ${cyan(opts.name())} ${green('<project-directory>')}\n` +
+        `  ${cyan(program.name())} ${green('<project-directory>')}\n` +
         'For example:\n' +
-        `  ${cyan(opts.name())} ${green('my-next-app')}\n\n` +
-        `Run ${cyan(`${opts.name()} --help`)} to see all options.`
+        `  ${cyan(program.name())} ${green('my-next-app')}\n\n` +
+        `Run ${cyan(`${program.name()} --help`)} to see all options.`
     )
     process.exit(1)
   }

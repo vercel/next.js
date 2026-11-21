@@ -1,5 +1,5 @@
 import { retry } from 'next-test-utils'
-import { readFileSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 import stripAnsi from 'strip-ansi'
 import {
@@ -67,6 +67,161 @@ describe('create-next-app prompts', () => {
 
       const pkg = require(join(cwd, projectName, 'package.json'))
       expect(pkg.name).toBe(projectName)
+    })
+  })
+
+  it('should accept the default name when a newline is piped', async () => {
+    await useTempDir(async (cwd) => {
+      const projectName = 'my-app'
+      const childProcess = createNextApp(
+        [
+          '--ts',
+          '--app',
+          '--eslint',
+          '--no-src-dir',
+          '--no-tailwind',
+          '--no-import-alias',
+          '--no-react-compiler',
+          '--no-agents-md',
+          '--skip-install',
+          '--disable-git',
+        ],
+        {
+          cwd,
+        },
+        nextTgzFilename
+      )
+
+      childProcess.stdin?.write('\n')
+      childProcess.stdin?.end()
+
+      const exitCode = await new Promise<number | null>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          childProcess.kill('SIGTERM')
+          reject(new Error('create-next-app did not exit'))
+        }, 30_000)
+        childProcess.on('exit', (code) => {
+          clearTimeout(timer)
+          resolve(code)
+        })
+      })
+
+      expect(exitCode).toBe(0)
+      projectFilesShouldExist({
+        cwd,
+        projectName,
+        files: ['package.json'],
+      })
+    })
+  })
+
+  it('should print usage and exit 1 when stdin closes with no project directory', async () => {
+    await useTempDir(async (cwd) => {
+      const childProcess = createNextApp(
+        [
+          '--ts',
+          '--app',
+          '--eslint',
+          '--no-src-dir',
+          '--no-tailwind',
+          '--no-import-alias',
+          '--no-react-compiler',
+          '--no-agents-md',
+          '--skip-install',
+        ],
+        {
+          cwd,
+        },
+        nextTgzFilename
+      )
+
+      let stdout = ''
+      let stderr = ''
+      childProcess.stdout?.on('data', (data) => {
+        stdout += data
+      })
+      childProcess.stderr?.on('data', (data) => {
+        stderr += data
+      })
+
+      await retry(async () => {
+        expect(stdout).toMatch(/What is your project named/)
+      })
+
+      childProcess.stdin?.end()
+
+      const exitCode = await new Promise<number | null>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          childProcess.kill('SIGTERM')
+          reject(new Error('create-next-app did not exit'))
+        }, 15_000)
+        childProcess.on('exit', (code) => {
+          clearTimeout(timer)
+          resolve(code)
+        })
+      })
+
+      const output = stripAnsi(stdout)
+      expect(exitCode).toBe(1)
+      expect(output).toContain('Please specify the project directory:')
+      expect(output).toContain('create-next-app <project-directory>')
+      expect(output).toContain('create-next-app my-next-app')
+      expect(output).toContain('Run create-next-app --help to see all options.')
+      expect(output).not.toContain('TypeError')
+      expect(stderr).not.toContain('TypeError')
+      expect(existsSync(join(cwd, 'my-app'))).toBe(false)
+    })
+  })
+
+  it('should print usage and exit 1 when stdin is already closed', async () => {
+    await useTempDir(async (cwd) => {
+      const childProcess = createNextApp(
+        [
+          '--ts',
+          '--app',
+          '--eslint',
+          '--no-src-dir',
+          '--no-tailwind',
+          '--no-import-alias',
+          '--no-react-compiler',
+          '--no-agents-md',
+          '--skip-install',
+        ],
+        {
+          cwd,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        },
+        nextTgzFilename
+      )
+
+      let stdout = ''
+      let stderr = ''
+      childProcess.stdout?.on('data', (data) => {
+        stdout += data
+      })
+      childProcess.stderr?.on('data', (data) => {
+        stderr += data
+      })
+
+      const exitCode = await new Promise<number | null>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          childProcess.kill('SIGTERM')
+          reject(new Error('create-next-app did not exit'))
+        }, 15_000)
+        childProcess.on('exit', (code) => {
+          clearTimeout(timer)
+          resolve(code)
+        })
+      })
+
+      const output = stripAnsi(stdout)
+      expect(exitCode).toBe(1)
+      expect(output).toContain('Please specify the project directory:')
+      expect(output).toContain('create-next-app <project-directory>')
+      expect(output).toContain('Run create-next-app --help to see all options.')
+      expect(output).not.toContain('TypeError')
+      expect(stderr).not.toContain('TypeError')
+      expect(existsSync(join(cwd, 'my-app'))).toBe(false)
     })
   })
 
