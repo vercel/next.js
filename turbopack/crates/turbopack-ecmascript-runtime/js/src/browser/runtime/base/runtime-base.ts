@@ -31,7 +31,7 @@ declare var CHUNK_LOAD_RETRY_MAX_JITTER_MS: number
 declare const SUPPORT_COMPONENT_CHUNKS: boolean
 
 interface TurbopackBrowserBaseContext<M> extends TurbopackBaseContext<M> {
-  R: ResolvePathFromModule
+  p: ResolvePathFromModule
 }
 
 const browserContextPrototype =
@@ -84,7 +84,11 @@ interface RuntimeBackend {
    * Returns the same Promise for the same chunk URL while it is loading or
    * loaded. A failed load is not cached, so a later call retries it.
    */
-  loadChunkCached: (sourceType: SourceType, chunkUrl: ChunkUrl) => Promise<void>
+  loadChunkCached: (
+    sourceType: SourceType,
+    chunkUrl: ChunkUrl,
+    resolveOnLoad?: boolean
+  ) => Promise<void>
 }
 
 interface DevRuntimeBackend {
@@ -299,8 +303,21 @@ const instrumentedBackendLoadChunks = new WeakMap<
 // Do not make this async. React relies on referential equality of the returned Promise.
 function loadChunkByUrl(
   this: TurbopackBrowserBaseContext<Module>,
-  chunkEntry: ChunkUrlOrMerged
+  chunkEntry: ChunkUrlOrMerged,
+  resolveOnLoad = false
 ) {
+  if (resolveOnLoad) {
+    if (typeof chunkEntry !== 'string') {
+      return Promise.reject(
+        new Error('External scripts cannot use merged chunk metadata')
+      )
+    }
+    return BACKEND.loadChunkCached(
+      SourceType.Parent,
+      chunkEntry as ChunkUrl,
+      true
+    )
+  }
   return loadChunkByUrlInternal(SourceType.Parent, this.m.id, chunkEntry)
 }
 browserContextPrototype.L = loadChunkByUrl
@@ -461,7 +478,7 @@ function resolvePathFromModule(
     .exports as Exports
   return exported?.default ?? exported
 }
-browserContextPrototype.R = resolvePathFromModule
+browserContextPrototype.p = resolvePathFromModule
 
 /**
  * no-op for browser
