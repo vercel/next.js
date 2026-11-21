@@ -902,8 +902,35 @@ export default class NextNodeServer extends BaseServer<
       return true
       // the `else` branch is needed for tree-shaking
     } else {
-      const { ImageOptimizerCache } =
+      // Requests for unoptimized images or non-default loaders do not use
+      // the disk LRU cache at all.  Return 404 before constructing
+      // ImageOptimizerCache so that no background mkdir/statfs is ever
+      // started for these execution paths.
+      const imagesConfig = this.nextConfig.images
+      if (imagesConfig.loader !== 'default' || imagesConfig.unoptimized) {
+        await this.render404(req, res)
+        return true
+      }
+
+      const { ImageOptimizerCache, sendResponse, ImageError } =
         require('./image-optimizer') as typeof import('./image-optimizer')
+
+      if (!this.imageResponseCache) {
+        throw new Error('invariant image optimizer cache was not initialized')
+      }
+
+      const paramsResult = ImageOptimizerCache.validateParams(
+        req.originalRequest,
+        parsedUrl.query,
+        this.nextConfig,
+        !!this.dev
+      )
+
+      if ('errorMessage' in paramsResult) {
+        res.statusCode = 400
+        res.body(paramsResult.errorMessage).send()
+        return true
+      }
 
       // Load custom cache handler if configured and opt-in via images.customCacheHandler
       // Cache the handler instance to preserve state across requests
@@ -934,32 +961,6 @@ export default class NextNodeServer extends BaseServer<
         nextConfig: this.nextConfig,
         cacheHandler: this.imageCacheHandler,
       })
-
-      const { sendResponse, ImageError } =
-        require('./image-optimizer') as typeof import('./image-optimizer')
-
-      if (!this.imageResponseCache) {
-        throw new Error('invariant image optimizer cache was not initialized')
-      }
-      const imagesConfig = this.nextConfig.images
-
-      if (imagesConfig.loader !== 'default' || imagesConfig.unoptimized) {
-        await this.render404(req, res)
-        return true
-      }
-
-      const paramsResult = ImageOptimizerCache.validateParams(
-        req.originalRequest,
-        parsedUrl.query,
-        this.nextConfig,
-        !!this.dev
-      )
-
-      if ('errorMessage' in paramsResult) {
-        res.statusCode = 400
-        res.body(paramsResult.errorMessage).send()
-        return true
-      }
 
       const cacheKey = ImageOptimizerCache.getCacheKey(paramsResult)
 
