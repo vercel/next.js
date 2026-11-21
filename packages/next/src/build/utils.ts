@@ -235,6 +235,7 @@ export interface PageInfo {
   hasEmptyStaticShell?: boolean
   hasPostponed?: boolean
   isDynamicAppRoute?: boolean
+  isStaticMetadataFileRoute?: boolean
 }
 
 export type PageInfos = Map<string, PageInfo>
@@ -405,7 +406,9 @@ export async function printTreeView(
       const symbol = getTreeViewSymbol(item, pageInfo)
       const hasChildRoutes = Boolean(pageInfo?.ssgPageRoutes?.length)
 
-      const displayPath = getTreeViewDisplayPath(item)
+      const displayPath = pageInfo?.isStaticMetadataFileRoute
+        ? getTreeViewDisplayPath(item)
+        : item
 
       if (hasGSPAndRevalidateZero.has(item)) {
         usedSymbols.add('ƒ')
@@ -819,6 +822,7 @@ type PageIsStaticResult = {
   prerenderRouteMatchers: PrerenderRouteMatcher[] | undefined
   paramMatching: ParamMatching | undefined
   prerenderFallbackMode: FallbackMode | undefined
+  isStaticMetadataFileRoute?: boolean
   rootParamKeys: readonly string[] | undefined
   isNextImageImported?: boolean
   traceIncludes?: string[]
@@ -941,6 +945,7 @@ export async function isPageStatic({
       let prerenderRouteMatchers: PrerenderRouteMatcher[] | undefined
       let paramMatching: ParamMatching | undefined
       let prerenderFallbackMode: FallbackMode | undefined
+      let isStaticMetadataFileRoute = false
       let appConfig: AppSegmentConfig = {}
       let rootParamKeys: readonly string[] | undefined
       const pathIsEdgeRuntime = isEdgeRuntime(pageRuntime)
@@ -1054,19 +1059,23 @@ export async function isPageStatic({
 
         const route = parseNormalizedAppRoute(page)
 
+        let pathname = normalizeAppPath(page)
+        if (pathname.endsWith('/route')) {
+          pathname = pathname.slice(0, -'/route'.length)
+        }
+
+        // A user's `route.ts` can share a static metadata file's pathname,
+        // e.g. `app/[site]/sitemap.xml/route.ts`, but it is not one.
+        isStaticMetadataFileRoute =
+          routeModule.definition.kind === RouteKind.APP_ROUTE &&
+          routeModule.definition.filename !== 'route' &&
+          isStaticMetadataFile(pathname)
+
         // If the page is dynamic and we're not in edge runtime, then we need to
         // build the static paths. The edge runtime doesn't support static
         // paths.
         if (route.dynamicSegments.length > 0 && !pathIsEdgeRuntime) {
-          let pathname = normalizeAppPath(page)
-          if (pathname.endsWith('/route')) {
-            pathname = pathname.slice(0, -'/route'.length)
-          }
-
-          if (
-            routeModule.definition.kind === RouteKind.APP_ROUTE &&
-            isStaticMetadataFile(pathname)
-          ) {
+          if (isStaticMetadataFileRoute) {
             ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
               buildStaticMetadataStaticPaths(page))
           } else {
@@ -1178,6 +1187,7 @@ export async function isPageStatic({
         prerenderFallbackMode,
         prerenderedRoutes,
         prerenderRouteMatchers,
+        isStaticMetadataFileRoute,
         paramMatching,
         rootParamKeys,
         hasStaticProps,
