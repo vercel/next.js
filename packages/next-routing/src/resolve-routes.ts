@@ -228,6 +228,24 @@ function matchesPathname(
       return candidate
     }
   }
+
+  // Like the filesystem lookup in Next.js's own server (`getItem` in
+  // server/lib/router-utils/filesystem.ts), a pathname with a single trailing
+  // slash also matches the pathname without it. Such a pathname gets here
+  // under `trailingSlash: true` (after its redirect) and under
+  // `skipTrailingSlashRedirect`.
+  if (
+    pathname.length > 1 &&
+    pathname.endsWith('/') &&
+    !pathname.endsWith('//')
+  ) {
+    const withoutTrailingSlash = pathname.slice(0, -1)
+    for (const candidate of pathnames) {
+      if (withoutTrailingSlash === candidate) {
+        return candidate
+      }
+    }
+  }
   return undefined
 }
 
