@@ -9,9 +9,13 @@ import http from 'node:http'
 import zlib from 'node:zlib'
 import { PassThrough, Readable } from 'node:stream'
 import { promisify } from 'node:util'
+import vm from 'node:vm'
 import setupCompression from 'next/dist/compiled/compression'
 
-import { pipeNodeReadableToNodeResponse } from './pipe-readable'
+import {
+  pipeNodeReadableToNodeResponse,
+  pipeToNodeResponse,
+} from './pipe-readable'
 import { ClientComponentLoadTracker } from './client-component-renderer-logger'
 
 const gunzip = promisify(zlib.gunzip)
@@ -172,6 +176,137 @@ describe('pipeNodeReadableToNodeResponse', () => {
     const decompressed = await gunzip(body)
     expect(decompressed).toHaveLength(CHUNK_SIZE * CHUNK_COUNT)
     expect(decompressed.every((byte) => byte === FILL)).toBe(true)
+  })
+})
+
+describe('pipeToNodeResponse', () => {
+  let server: http.Server | undefined
+
+  afterEach(async () => {
+    if (server) {
+      server.closeAllConnections()
+      await new Promise<void>((resolve) => server!.close(() => resolve()))
+      server = undefined
+    }
+  })
+
+  // The `compression` middleware copies a chunk that is not a `Buffer`. One
+  // copy of the body per response is enough to make V8 run major GCs instead
+  // of scavenges while compressed responses are sent.
+  it('writes the chunks of a web stream as Buffers over the same memory', async () => {
+    const memory = new Uint8Array(64).fill(0x61)
+    const chunk = memory.subarray(8, 40)
+    const written: Uint8Array[] = []
+
+    server = http.createServer((_req, res) => {
+      const write = res.write
+      res.write = function (
+        this: http.ServerResponse,
+        data: Uint8Array,
+        ...rest: any[]
+      ) {
+        written.push(data)
+        return (write as (...args: any[]) => boolean).call(this, data, ...rest)
+      } as typeof res.write
+
+      const readable = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(chunk)
+          controller.enqueue(new Uint8Array(0))
+          controller.close()
+        },
+      })
+      void pipeToNodeResponse(readable, res).catch((error) =>
+        res.destroy(error)
+      )
+    })
+
+    const url = await listen(server)
+    expect(await (await fetch(url)).text()).toBe('a'.repeat(32))
+
+    expect(written).toHaveLength(2)
+    const [first, empty] = written
+    expect(Buffer.isBuffer(first)).toBe(true)
+    expect(first.buffer).toBe(memory.buffer)
+    expect(first.byteOffset).toBe(8)
+    expect(first.byteLength).toBe(32)
+    // An empty chunk is passed on as it is.
+    expect(Buffer.isBuffer(empty)).toBe(false)
+    expect(empty.byteLength).toBe(0)
+  })
+
+  // A stream can enqueue any value. Only a `Uint8Array` of this realm that has
+  // bytes is given a view; the response gets every other chunk as it is.
+  async function pipeChunks(chunks: unknown[]) {
+    const written: unknown[] = []
+    let failure: unknown
+
+    server = http.createServer((_req, res) => {
+      const write = res.write
+      res.write = function (
+        this: http.ServerResponse,
+        data: unknown,
+        ...rest: any[]
+      ) {
+        written.push(data)
+        return (write as (...args: any[]) => boolean).call(this, data, ...rest)
+      } as typeof res.write
+
+      const readable = new ReadableStream<Uint8Array>({
+        start(controller) {
+          for (const chunk of chunks) {
+            controller.enqueue(chunk as Uint8Array)
+          }
+          controller.close()
+        },
+      })
+      void pipeToNodeResponse(readable, res).catch((error) => {
+        failure = error
+        res.destroy()
+      })
+    })
+
+    const url = await listen(server)
+    const body = await fetch(url)
+      .then((res) => res.text())
+      .catch(() => undefined)
+
+    return { body, written, failure }
+  }
+
+  it('passes a string chunk on as it is', async () => {
+    const { body, written, failure } = await pipeChunks(['hello'])
+
+    expect(failure).toBeUndefined()
+    expect(body).toBe('hello')
+    expect(written).toEqual(['hello'])
+  })
+
+  // The chunks of an Edge function are created in another realm.
+  it('passes a Uint8Array of another realm on as it is', async () => {
+    const chunk = vm.runInNewContext('new Uint8Array([104, 105])')
+    expect(chunk instanceof Uint8Array).toBe(false)
+
+    const { body, written, failure } = await pipeChunks([chunk])
+
+    expect(failure).toBeUndefined()
+    expect(body).toBe('hi')
+    expect(written).toHaveLength(1)
+    expect(written[0]).toBe(chunk)
+  })
+
+  it('lets the response reject a chunk that it does not accept', async () => {
+    const { written, failure } = await pipeChunks([true])
+
+    expect(written).toEqual([true])
+    // The failure is wrapped on its way out. At its root is the error of
+    // `res.write`, not one from creating a view.
+    let root: any = failure
+    while (root?.cause !== undefined) {
+      root = root.cause
+    }
+    expect(root.code).toBe('ERR_INVALID_ARG_TYPE')
+    expect(root.message).toContain('The "chunk" argument')
   })
 })
 
