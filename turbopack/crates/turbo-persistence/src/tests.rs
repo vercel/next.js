@@ -1333,6 +1333,10 @@ fn batch_get_with_overwrites(#[case] mmap: bool) -> Result<()> {
     Ok(())
 }
 
+/// Missing key counts below and above the parallel threshold of `batch_get`. Miri runs only the
+/// small one: the large one took about 20 minutes there.
+const BATCH_GET_MISS_COUNTS: &[u32] = if cfg!(miri) { &[50] } else { &[50, 5000] };
+
 /// The oldest SST file holds a single key, so its hash range is a single hash. Missing keys of
 /// that shard are then outside the range of the last file to check, which must still report them.
 /// Before the first commit, no shard has an SST file at all, so every key is reported as missing.
@@ -1346,7 +1350,7 @@ fn batch_get_misses_outside_last_sst_range(#[case] mmap: bool) -> Result<()> {
     let db = open_db::<16>(path, mmap)?;
 
     // No SST files: below and above the parallel threshold of `batch_get`.
-    for count in [50u32, 5000] {
+    for &count in BATCH_GET_MISS_COUNTS {
         let keys_to_fetch: Vec<Vec<u8>> = (0..count).map(|i| i.to_be_bytes().to_vec()).collect();
         let results = batch_get_vec(&db, 0, &keys_to_fetch)?;
         assert_eq!(results.len(), keys_to_fetch.len());
@@ -1378,7 +1382,7 @@ fn batch_get_misses_outside_last_sst_range(#[case] mmap: bool) -> Result<()> {
     db.commit_write_batch(batch)?;
 
     // Below and above the parallel threshold of `batch_get`, with duplicate keys.
-    for missing in [50u32, 5000] {
+    for &missing in BATCH_GET_MISS_COUNTS {
         let keys_to_fetch: Vec<Vec<u8>> = (0..100 + missing)
             .chain([0, 1, 100])
             .map(|i| i.to_be_bytes().to_vec())
@@ -2671,6 +2675,11 @@ fn count_tombstones(
     Ok(count)
 }
 
+/// Enough distinct keys that the SSTs span a real hash range: the compaction selector estimates
+/// duplication by scaling sizes against the key-space spread, and a handful of keys sharing one
+/// hash makes that estimate degenerate. Miri uses fewer keys: 2000 took about 5 minutes there.
+const TOMBSTONE_TEST_KEYS: u32 = if cfg!(miri) { 200 } else { 2000 };
+
 /// Compaction reclaims tombstones once no *older* SST outside the job can still hold the key.
 /// Without this, tombstones accumulate forever.
 #[test]
@@ -2684,10 +2693,7 @@ fn compaction_reclaims_tombstones_when_no_older_sst_has_the_key() -> Result<()> 
         RayonParallelScheduler,
     )?;
 
-    // Enough distinct keys that the SSTs span a real hash range: the compaction selector
-    // estimates duplication by scaling sizes against the key-space spread, and a handful of
-    // keys sharing one hash makes that estimate degenerate.
-    const KEYS: u32 = 2000;
+    const KEYS: u32 = TOMBSTONE_TEST_KEYS;
 
     let batch = db.write_batch()?;
     for k in 0..KEYS {
@@ -2759,7 +2765,7 @@ fn compaction_keeps_tombstone_when_older_sst_has_the_key() -> Result<()> {
         RayonParallelScheduler,
     )?;
 
-    const KEYS: u32 = 2000;
+    const KEYS: u32 = TOMBSTONE_TEST_KEYS;
 
     // Oldest layer: the values that must stay suppressed.
     let batch = db.write_batch()?;
@@ -3709,7 +3715,8 @@ fn open_callback_test_db(
     Ok(db)
 }
 
-const CALLBACK_TEST_KEYS: u32 = 3_000;
+/// Miri uses fewer keys: writing 3000 took over a minute per test there.
+const CALLBACK_TEST_KEYS: u32 = if cfg!(miri) { 1_000 } else { 3_000 };
 
 fn callback_test_value(key: u32, version: u8) -> Vec<u8> {
     let mut value = vec![version; 8];
@@ -3718,9 +3725,7 @@ fn callback_test_value(key: u32, version: u8) -> Vec<u8> {
 }
 
 /// Batch sizes below and above the parallel threshold. Miri runs only the small one.
-fn callback_test_batch_sizes() -> &'static [u32] {
-    if cfg!(miri) { &[100] } else { &[100, 2_500] }
-}
+const CALLBACK_TEST_BATCH_SIZES: &[u32] = if cfg!(miri) { &[100] } else { &[100, 2_500] };
 
 /// Keys spread over the key space, with misses (keys >= `CALLBACK_TEST_KEYS`) and duplicates.
 fn callback_test_keys(batch_size: u32) -> Vec<[u8; 4]> {
@@ -3740,7 +3745,7 @@ fn batch_get_callback_once_per_index(#[case] mmap: bool) -> Result<()> {
 
     let tempdir = tempfile::tempdir()?;
     let db = open_callback_test_db(tempdir.path(), mmap)?;
-    for &batch_size in callback_test_batch_sizes() {
+    for &batch_size in CALLBACK_TEST_BATCH_SIZES {
         let keys = callback_test_keys(batch_size);
         let calls: Vec<AtomicU32> = keys.iter().map(|_| AtomicU32::new(0)).collect();
         let values: Vec<OnceLock<Option<ArcBytes>>> =
@@ -3775,7 +3780,7 @@ fn batch_get_callback_once_per_index(#[case] mmap: bool) -> Result<()> {
 fn batch_get_callback_error_propagates(#[case] mmap: bool) -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let db = open_callback_test_db(tempdir.path(), mmap)?;
-    for &batch_size in callback_test_batch_sizes() {
+    for &batch_size in CALLBACK_TEST_BATCH_SIZES {
         let keys = callback_test_keys(batch_size);
         // Fail on a found key and, separately, on a missing key (the last key is out of range).
         let found = keys
@@ -3945,5 +3950,298 @@ fn read_only_open_of_missing_directory_does_not_create_it() -> Result<()> {
     let path = tempdir.path().join("missing");
     assert!(open_read_only(&path).is_err());
     assert!(!path.exists());
+    Ok(())
+}
+
+/// Runs everything like [`SerialScheduler`](crate::parallel_scheduler::SerialScheduler), but never
+/// runs background work, so SST files are never opened eagerly: they are opened by the first lookup
+/// that needs them.
+#[derive(Clone, Copy)]
+struct NoBackgroundScheduler;
+
+impl ParallelSchedulerTrait for NoBackgroundScheduler {
+    fn parallelism(&self) -> usize {
+        1
+    }
+
+    fn spawn_blocking(&self, _f: impl FnOnce() + Send + 'static) {}
+
+    fn parallel_for_each<T>(&self, items: &[T], f: impl Fn(&T) + Send + Sync)
+    where
+        T: Sync,
+    {
+        crate::parallel_scheduler::SerialScheduler.parallel_for_each(items, f)
+    }
+
+    fn try_parallel_for_each<'l, T, E>(
+        &self,
+        items: &'l [T],
+        f: impl (Fn(&'l T) -> Result<(), E>) + Send + Sync,
+    ) -> Result<(), E>
+    where
+        T: Sync,
+        E: Send + 'static,
+    {
+        crate::parallel_scheduler::SerialScheduler.try_parallel_for_each(items, f)
+    }
+
+    fn try_parallel_for_each_mut<'l, T, E>(
+        &self,
+        items: &'l mut [T],
+        f: impl (Fn(&'l mut T) -> Result<(), E>) + Send + Sync,
+    ) -> Result<(), E>
+    where
+        T: Send + Sync,
+        E: Send + 'static,
+    {
+        crate::parallel_scheduler::SerialScheduler.try_parallel_for_each_mut(items, f)
+    }
+
+    fn try_parallel_for_each_task_mut<T, E>(
+        &self,
+        items: &mut [T],
+        f: impl (Fn(&mut T) -> Result<(), E>) + Send + Sync,
+    ) -> Result<(), E>
+    where
+        T: Send + Sync,
+        E: Send + 'static,
+    {
+        crate::parallel_scheduler::SerialScheduler.try_parallel_for_each_task_mut(items, f)
+    }
+
+    fn try_parallel_for_each_owned<T, E>(
+        &self,
+        items: Vec<T>,
+        f: impl (Fn(T) -> Result<(), E>) + Send + Sync,
+    ) -> Result<(), E>
+    where
+        T: Send + Sync,
+        E: Send + 'static,
+    {
+        crate::parallel_scheduler::SerialScheduler.try_parallel_for_each_owned(items, f)
+    }
+
+    fn parallel_map_collect<'l, Item, PerItemResult, Result>(
+        &self,
+        items: &'l [Item],
+        f: impl Fn(&'l Item) -> PerItemResult + Send + Sync,
+    ) -> Result
+    where
+        Item: Sync,
+        PerItemResult: Send + Sync + 'l,
+        Result: FromIterator<PerItemResult>,
+    {
+        crate::parallel_scheduler::SerialScheduler.parallel_map_collect(items, f)
+    }
+
+    fn parallel_map_collect_owned<Item, PerItemResult, Result>(
+        &self,
+        items: Vec<Item>,
+        f: impl Fn(Item) -> PerItemResult + Send + Sync,
+    ) -> Result
+    where
+        Item: Send + Sync,
+        PerItemResult: Send + Sync,
+        Result: FromIterator<PerItemResult>,
+    {
+        crate::parallel_scheduler::SerialScheduler.parallel_map_collect_owned(items, f)
+    }
+}
+
+/// Opens the database in `path` without opening any SST file yet (see [`NoBackgroundScheduler`]).
+fn open_lazy_db(path: &Path, mmap: bool) -> Result<TurboPersistence<NoBackgroundScheduler, 1>> {
+    TurboPersistence::open_with_config_and_parallel_scheduler(
+        path.to_path_buf(),
+        config_with_mmap(mmap),
+        NoBackgroundScheduler,
+    )
+}
+
+/// Writes `value` for key `[1]` into a new database in `path`, and returns the names of the files
+/// with `extension` that the database now has.
+fn write_single_value(path: &Path, value: Vec<u8>, extension: &str) -> Result<Vec<String>> {
+    let db = open_lazy_db(path, false)?;
+    let batch = db.write_batch()?;
+    batch.put(0, vec![1u8], value.into())?;
+    db.commit_write_batch(batch)?;
+    db.shutdown();
+    let mut names = fs::read_dir(path)?
+        .map(|entry| Ok(entry?.file_name().to_string_lossy().into_owned()))
+        .filter(|name: &Result<String>| {
+            name.as_ref()
+                .map_or(true, |name| name.ends_with(&format!(".{extension}")))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    names.sort();
+    assert!(!names.is_empty(), "no .{extension} file was written");
+    Ok(names)
+}
+
+/// Asserts that `result` failed because of [`CacheFileUnreadable`](crate::CacheFileUnreadable)
+/// naming one of `files`, and returns the formatted error.
+fn assert_unreadable<T: std::fmt::Debug>(result: Result<T>, files: &[String]) -> String {
+    let error = result.expect_err("the read must fail");
+    let unreadable = crate::CacheFileUnreadable::find(&error)
+        .unwrap_or_else(|| panic!("the error isn't marked as unreadable: {error:?}"));
+    assert!(
+        files.iter().any(|file| file == unreadable.file_name()),
+        "{} isn't one of {files:?}",
+        unreadable.file_name()
+    );
+    format!("{error:#}")
+}
+
+/// An SST file that is deleted after the database was opened, but before it was first read, is
+/// reported as unreadable when a lookup needs it.
+#[rstest]
+#[case::mmap(true)]
+#[case::file(false)]
+fn sst_deleted_after_open_is_unreadable(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let ssts = write_single_value(path, vec![2u8; 16], "sst")?;
+
+    let db = open_lazy_db(path, mmap)?;
+    for sst in &ssts {
+        fs::remove_file(path.join(sst))?;
+    }
+    let message = assert_unreadable(db.get(0, &vec![1u8]), &ssts);
+    assert!(
+        message.contains("Unable to open static sorted file referenced from"),
+        "{message}"
+    );
+    Ok(())
+}
+
+/// A block of an SST file that was modified in place (without changing its length) after the
+/// database was opened fails its checksum, which is reported as unreadable.
+#[rstest]
+#[case::mmap(true)]
+#[case::file(false)]
+fn sst_corrupted_after_open_is_unreadable(#[case] mmap: bool) -> Result<()> {
+    use std::io::{Seek, SeekFrom, Write};
+
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let ssts = write_single_value(path, vec![2u8; 16], "sst")?;
+
+    let db = open_lazy_db(path, mmap)?;
+    for sst in &ssts {
+        // Flip a byte of the data of the first block, right after its 8-byte header.
+        let mut file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(path.join(sst))?;
+        let len = file.metadata()?.len();
+        let mut byte = [0u8];
+        file.seek(SeekFrom::Start(8))?;
+        std::io::Read::read_exact(&mut file, &mut byte)?;
+        file.seek(SeekFrom::Start(8))?;
+        file.write_all(&[!byte[0]])?;
+        assert_eq!(file.metadata()?.len(), len);
+    }
+    let message = assert_unreadable(db.get(0, &vec![1u8]), &ssts);
+    assert!(message.contains("checksum mismatch"), "{message}");
+    Ok(())
+}
+
+/// A blob file that is deleted after the database was opened is reported as unreadable when its
+/// value is read.
+// Writes a production-size blob, which is too slow under Miri.
+#[cfg(not(miri))]
+#[rstest]
+#[case::mmap(true)]
+#[case::file(false)]
+fn blob_deleted_after_open_is_unreadable(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let blobs = write_single_value(path, vec![42u8; MAX_MEDIUM_VALUE_SIZE + 1], "blob")?;
+
+    let db = open_lazy_db(path, mmap)?;
+    for blob in &blobs {
+        fs::remove_file(path.join(blob))?;
+    }
+    assert_unreadable(db.get(0, &vec![1u8]), &blobs);
+    Ok(())
+}
+
+/// A blob file whose data was modified in place fails its checksum, which is reported as
+/// unreadable.
+// Writes a production-size blob, which is too slow under Miri.
+#[cfg(not(miri))]
+#[rstest]
+#[case::mmap(true)]
+#[case::file(false)]
+fn blob_corrupted_after_open_is_unreadable(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let blobs = write_single_value(path, vec![42u8; MAX_MEDIUM_VALUE_SIZE + 1], "blob")?;
+
+    let db = open_lazy_db(path, mmap)?;
+    for blob in &blobs {
+        let blob_path = path.join(blob);
+        let mut bytes = fs::read(&blob_path)?;
+        let last = bytes.len() - 1;
+        bytes[last] = !bytes[last];
+        fs::write(&blob_path, &bytes)?;
+    }
+    let message = assert_unreadable(db.get(0, &vec![1u8]), &blobs);
+    assert!(message.contains("checksum mismatch"), "{message}");
+    Ok(())
+}
+
+/// A blob whose data passes its checksum but can't be decompressed was written that way, which is
+/// a bug rather than damage to the file, so it isn't reported as unreadable.
+// Writes a production-size blob, which is too slow under Miri.
+#[cfg(not(miri))]
+#[rstest]
+#[case::mmap(true)]
+#[case::file(false)]
+fn blob_failing_to_decompress_is_not_unreadable(#[case] mmap: bool) -> Result<()> {
+    use crate::compression::checksum_block;
+
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let blobs = write_single_value(path, vec![42u8; MAX_MEDIUM_VALUE_SIZE + 1], "blob")?;
+
+    let db = open_lazy_db(path, mmap)?;
+    for blob in &blobs {
+        // Truncate the compressed data and update the checksum to match, which keeps the header's
+        // uncompressed length.
+        let blob_path = path.join(blob);
+        let mut bytes = fs::read(&blob_path)?;
+        let data_len = (bytes.len() - 8) / 2;
+        bytes.truncate(8 + data_len);
+        let uncompressed_length = u32::from_be_bytes(bytes[0..4].try_into()?);
+        let checksum = checksum_block(uncompressed_length, &bytes[8..]);
+        bytes[4..8].copy_from_slice(&checksum.to_be_bytes());
+        fs::write(&blob_path, &bytes)?;
+    }
+    let error = db
+        .get(0, &vec![1u8])
+        .expect_err("decompressing the blob must fail");
+    assert!(
+        crate::CacheFileUnreadable::find(&error).is_none(),
+        "{error:?}"
+    );
+    assert!(
+        !format!("{error:?}").contains("checksum mismatch"),
+        "{error:?}"
+    );
+    Ok(())
+}
+
+/// Reads from a healthy database aren't reported as unreadable.
+#[rstest]
+#[case::mmap(true)]
+#[case::file(false)]
+fn healthy_database_is_readable(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    write_single_value(path, vec![2u8; 16], "sst")?;
+
+    let db = open_lazy_db(path, mmap)?;
+    assert_eq!(db.get(0, &vec![1u8])?.as_deref(), Some(&[2u8; 16][..]));
+    assert!(db.get(0, &vec![3u8])?.is_none());
     Ok(())
 }
