@@ -26,7 +26,9 @@ use crate::{
             as_exports_define_property, as_module_exports_object_literal,
             define_property_sets_es_module, is_exports_object, is_global, is_module_exports_chain,
         },
-        graph::{ConditionalKind, Effect, EffectArg, EffectsBlock, EvalContext, VarGraph},
+        graph::{
+            ConditionalKind, Effect, EffectArg, EffectsBlock, EvalContext, ValueUsage, VarGraph,
+        },
         is_unresolved_id,
     },
     ast_path_trie::{AstPathId, AstPathTrieBuilder},
@@ -886,6 +888,94 @@ fn member_access_parent<'r>(
         Some(AstParentNodeRef::MemberExpr(member, MemberExprField::Obj)) => Some(*member),
         _ => None,
     }
+}
+
+/// Whether the target of a property in an object destructuring pattern lets the property's value
+/// escape, i.e. doesn't destructure it further into statically known keys: `x` in
+/// `const { prop: x } = obj` (treated like `const x = obj.prop`) or `{ ...rest }` in
+/// `const { prop: { ...rest } } = obj`.
+fn destructuring_target_escapes(target: &Pat) -> bool {
+    let target = match target {
+        Pat::Assign(assign) => &*assign.left,
+        target => target,
+    };
+    match target {
+        Pat::Ident(_) | Pat::Expr(_) => true,
+        Pat::Object(pat) => pat
+            .props
+            .iter()
+            .any(|p| matches!(p, ObjectPatProp::Rest(..))),
+        _ => false,
+    }
+}
+
+/// How the value of the current expression (or identifier) is used, see [`ValueUsage`].
+fn value_usage(ast_path: &AstNodePath<AstParentNodeRef<'_>>, unresolved_mark: Mark) -> ValueUsage {
+    if is_in_boolean_context(ast_path, unresolved_mark) {
+        ValueUsage::Truthiness
+    } else if member_access_parent(ast_path).is_some()
+        || is_object_destructuring_source_without_rest(ast_path)
+        || is_obj_in(ast_path)
+    {
+        ValueUsage::Access
+    } else {
+        ValueUsage::Escapes
+    }
+}
+
+/// Whether the current expression is the value being consumed by an object destructuring pattern
+/// without a rest element. Every property (including computed ones) then gets its own
+/// `Effect::DestructuredMember`, whereas a rest element would copy keys without any effect.
+fn is_object_destructuring_source_without_rest(
+    ast_path: &AstNodePath<AstParentNodeRef<'_>>,
+) -> bool {
+    for node_ref in ast_path.iter().rev() {
+        let pat = match node_ref {
+            AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {
+                continue;
+            }
+            AstParentNodeRef::VarDeclarator(
+                VarDeclarator {
+                    name: Pat::Object(pat),
+                    ..
+                },
+                VarDeclaratorField::Init,
+            ) => pat,
+            AstParentNodeRef::AssignExpr(
+                AssignExpr {
+                    left: AssignTarget::Pat(AssignTargetPat::Object(pat)),
+                    ..
+                },
+                AssignExprField::Right,
+            ) => pat,
+            AstParentNodeRef::AssignPat(AssignPat { left, .. }, AssignPatField::Right) => {
+                match &**left {
+                    Pat::Object(pat) => pat,
+                    _ => return false,
+                }
+            }
+            _ => return false,
+        };
+        return pat
+            .props
+            .iter()
+            .all(|p| !matches!(p, ObjectPatProp::Rest(..)));
+    }
+    false
+}
+
+/// Whether the current expression is the object in a `<key> in <obj>` expression.
+fn is_obj_in(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> bool {
+    for node_ref in ast_path.iter().rev() {
+        match node_ref {
+            AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {}
+            AstParentNodeRef::BinExpr(bin, BinExprField::Right) => {
+                return bin.op == BinaryOp::In;
+            }
+            _ => return false,
+        }
+    }
+    false
 }
 
 /// Extracts export names from usage patterns on a dynamic import.
@@ -1857,10 +1947,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
                 base_effects,
                 ast_path: as_parent_path_in(self.arena, ast_path),
                 span: member_expr.span(),
-                in_truthiness_context: is_in_boolean_context(
-                    ast_path,
-                    self.eval_context.unresolved_mark,
-                ),
+                usage: value_usage(ast_path, self.eval_context.unresolved_mark),
             });
         } else {
             member_expr.visit_children_with_ast_path(self, ast_path);
@@ -2499,6 +2586,8 @@ impl VisitAstPath for Analyzer<'_, '_> {
                     // point to the MemberExpression instead
                     ast_path: as_parent_path_skip_in(self.arena, ast_path, 1),
                     span: member.span(),
+                    // A namespace member access like `ns.env` is handled by `Effect::Member`
+                    usage: ValueUsage::Access,
                 });
             } else {
                 // ast_path stays on the ident, so `.exportName` remains in the emitted code.
@@ -2516,6 +2605,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
                     member,
                     ast_path: as_parent_path_in(self.arena, ast_path),
                     span: ident.span(),
+                    usage: value_usage(ast_path, self.eval_context.unresolved_mark),
                 })
             }
             return;
@@ -3167,6 +3257,7 @@ impl<'a> Analyzer<'a, '_> {
                         obj: BumpBox::new_in(pat_value.clone_in(self.arena), self.arena),
                         prop: BumpBox::new_in(key_value.clone_in(self.arena), self.arena),
                         span: key.span(),
+                        target_escapes: destructuring_target_escapes(value),
                     });
 
                     let pat_value = Some(JsValue::member(
@@ -3201,6 +3292,9 @@ impl<'a> Analyzer<'a, '_> {
                         obj: BumpBox::new_in(pat_value.clone_in(self.arena), self.arena),
                         prop: BumpBox::new_in(key_value.clone_in(self.arena), self.arena),
                         span: key.span(),
+                        // `const { key } = <obj>`, conservatively treated like `const key =
+                        // obj.key`
+                        target_escapes: true,
                     });
 
                     self.add_value(

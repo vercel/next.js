@@ -162,15 +162,18 @@ pub enum Effect<'a> {
         base_effects: BumpBox<'a, [Effect<'a>]>,
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
-        // Whether this value from this member access only ends up being used as a truthiness check
-        // (and the full value doesn't escape).
-        in_truthiness_context: bool,
+        usage: ValueUsage,
     },
     /// A property access created by an object destructuring pattern.
     DestructuredMember {
         obj: BumpBox<'a, JsValue<'a>>,
         prop: BumpBox<'a, JsValue<'a>>,
         span: Span,
+        /// Whether the property's value escapes, i.e. it's not further destructured into
+        /// statically known keys: it's bound to a variable (`const { prop } = obj`, treated like
+        /// `const prop = obj.prop`) or copied with a rest element (`const { prop: { ...rest } } =
+        /// obj`).
+        target_escapes: bool,
     },
     /// A `x in y` expression.
     In {
@@ -189,6 +192,7 @@ pub enum Effect<'a> {
         member: Option<RcStr>,
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
+        usage: ValueUsage,
     },
     /// A reference to a free var access.
     FreeVar {
@@ -303,6 +307,20 @@ impl<'a> Effect<'a> {
             Effect::Unreachable { .. } => {}
         }
     }
+}
+
+/// How the value of an expression is used.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum ValueUsage {
+    /// Only used to access keys, which is analyzed by separate effects: as a member object
+    /// (`<value>.x`, `<value>[key]`), the right side of `in`, or the source of an object
+    /// destructuring pattern without rest (`const { x, [key]: y } = <value>`, where every
+    /// property, including computed ones, gets a `DestructuredMember` effect).
+    Access,
+    /// Only coerced to a boolean: `if (<value>)`, `!<value>`, `Boolean(<value>)`, ...
+    Truthiness,
+    /// Any other use, which might access arbitrary keys, e.g. `foo(<value>)`.
+    Escapes,
 }
 
 #[derive(Debug)]

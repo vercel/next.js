@@ -82,6 +82,6 @@
             ),
         ],
         span: 9..25,
-        in_truthiness_context: false,
+        usage: Escapes,
     },
 ]

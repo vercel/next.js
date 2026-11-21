@@ -106,7 +106,7 @@ use crate::{
         JsValueUrlKind, Modified, ModuleValue, ObjectPart, RequireContextValue, ThreadLocal,
         WellKnownFunctionKind, WellKnownObjectKind,
         builtin::{early_replace_builtin, replace_builtin},
-        graph::{ConditionalKind, Effect, EffectArg, VarGraph, create_graph},
+        graph::{ConditionalKind, Effect, EffectArg, ValueUsage, VarGraph, create_graph},
         imports::{ImportAnnotations, ImportAttributes, ImportMap},
         linker::link,
         parse_require_context,
@@ -247,6 +247,7 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     has_direct_eval: bool,
 
     env_var_info_runtime: FxIndexMap<RcStr, EnvVarAccessMode>,
+    env_var_info_runtime_all: Option<IssueSource>,
 
     #[cfg(debug_assertions)]
     ident: RcStr,
@@ -271,6 +272,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             cjs_static_exports: None,
             has_direct_eval: false,
             env_var_info_runtime: Default::default(),
+            env_var_info_runtime_all: None,
             #[cfg(debug_assertions)]
             ident: Default::default(),
         }
@@ -389,6 +391,18 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             .entry(runtime_env)
             // Only set if it hasn't been set to Read already.
             .or_insert(EnvVarAccessMode::Existence);
+    }
+
+    /// Marks the module as potentially reading all runtime environment variables (because of a
+    /// non-statically analyzable `process.env` access). Only the first location is kept.
+    pub fn set_runtime_env_var_reference_all(&mut self, issue_source: IssueSource) {
+        if self.env_var_info_runtime_all.is_none() {
+            self.env_var_info_runtime_all = Some(issue_source);
+        }
+    }
+
+    pub fn has_runtime_env_var_reference_all(&self) -> bool {
+        self.env_var_info_runtime_all.is_some()
     }
 
     pub fn add_esm_reference_namespace_resolved(
@@ -511,6 +525,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 has_direct_eval: self.has_direct_eval,
                 env_var_info: EnvVarInfo {
                     runtime: self.env_var_info_runtime.into(),
+                    runtime_all: self.env_var_info_runtime_all,
                 }
                 .resolved_cell(),
             },
@@ -1331,15 +1346,35 @@ async fn analyze_ecmascript_module_internal(
                     base_effects,
                     ast_path,
                     span,
-                    in_truthiness_context,
+                    usage,
                 } => {
-                    // Intentionally not awaited because `handle_member` reads this only when needed
-                    let obj =
-                        analysis_state.link_value(take(&mut *obj), ImportAttributes::empty_ref());
-
                     let prop = analysis_state
                         .link_value(take(&mut *prop), ImportAttributes::empty_ref())
                         .await?;
+
+                    if usage == ValueUsage::Escapes
+                        && prop.as_str() == Some("env")
+                        && !analysis.has_runtime_env_var_reference_all()
+                    {
+                        // e.g. `foo(process.env)` or `const key = 'env'; foo(process[key])`
+                        let value = analysis_state
+                            .link_value(
+                                JsValue::member(
+                                    arena.get_or_default(),
+                                    obj.clone_in(arena.get_or_default()),
+                                    atom!("env").into(),
+                                ),
+                                ImportAttributes::empty_ref(),
+                            )
+                            .await?;
+                        if is_process_env(&value, &analysis_state.var_graph) {
+                            analysis.set_runtime_env_var_reference_all(issue_source(source, span));
+                        }
+                    }
+
+                    // Intentionally not awaited because `handle_member` reads this only when needed
+                    let obj =
+                        analysis_state.link_value(take(&mut *obj), ImportAttributes::empty_ref());
 
                     let replaced = handle_membership(
                         &ast_path,
@@ -1349,7 +1384,7 @@ async fn analyze_ecmascript_module_internal(
                         &analysis_state,
                         &mut analysis,
                         MembershipType::Member {
-                            in_truthiness_context,
+                            in_truthiness_context: usage == ValueUsage::Truthiness,
                         },
                     )
                     .await?;
@@ -1360,14 +1395,44 @@ async fn analyze_ecmascript_module_internal(
                 Effect::DestructuredMember {
                     mut obj,
                     mut prop,
-                    span: _,
+                    span,
+                    target_escapes,
                 } => {
                     // TODO add an inlining codegen here
 
                     let prop = analysis_state
                         .link_value(take(&mut *prop), ImportAttributes::empty_ref())
                         .await?;
-                    if let Some(prop) = prop.as_str() {
+
+                    if target_escapes
+                        && prop.as_str() == Some("env")
+                        && !analysis.has_runtime_env_var_reference_all()
+                    {
+                        // e.g. `const { env } = process` or `const { env: { ...rest } } = process`
+                        let value = analysis_state
+                            .link_value(
+                                JsValue::member(
+                                    arena.get_or_default(),
+                                    obj.clone_in(arena.get_or_default()),
+                                    atom!("env").into(),
+                                ),
+                                ImportAttributes::empty_ref(),
+                            )
+                            .await?;
+                        if is_process_env(&value, &analysis_state.var_graph) {
+                            analysis.set_runtime_env_var_reference_all(issue_source(source, span));
+                        }
+                    }
+
+                    if prop.as_str().is_none() {
+                        let obj = analysis_state
+                            .link_value(take(&mut *obj), ImportAttributes::empty_ref())
+                            .await?;
+                        if is_process_env(&obj, &analysis_state.var_graph) {
+                            // `const { [unknown]: value } = process.env`
+                            analysis.set_runtime_env_var_reference_all(issue_source(source, span));
+                        }
+                    } else if let Some(prop) = prop.as_str() {
                         // This is only used for env var tracking. The more robust solution would be
                         // an `Effect::Ident` but that would be even more
                         // expensive.
@@ -1428,8 +1493,29 @@ async fn analyze_ecmascript_module_internal(
                     export,
                     member,
                     ast_path,
-                    span: _,
+                    span,
+                    usage,
                 } => {
+                    if usage == ValueUsage::Escapes
+                        && export.as_deref() == Some("env")
+                        && !analysis.has_runtime_env_var_reference_all()
+                    {
+                        // e.g. `import { env } from 'process'; foo(env)`
+                        let value = analysis_state
+                            .link_value(
+                                eval_context.imports.get_import_for_idx(
+                                    arena.get_or_default(),
+                                    esm_reference_index,
+                                    export.clone().map(Into::into),
+                                ),
+                                ImportAttributes::empty_ref(),
+                            )
+                            .await?;
+                        if is_process_env(&value, &analysis_state.var_graph) {
+                            analysis.set_runtime_env_var_reference_all(issue_source(source, span));
+                        }
+                    }
+
                     let Some(r) = import_references.get(esm_reference_index) else {
                         continue;
                     };
@@ -3675,7 +3761,20 @@ async fn handle_membership<'a>(
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     ty: MembershipType,
 ) -> Result<bool> {
-    if let Some(prop) = prop.as_str() {
+    let Some(prop) = prop.as_str() else {
+        let obj = link_obj.await?;
+        if is_process_env(&obj, &state.var_graph) {
+            // `process.env[unknown]` or `unknown in process.env`
+            analysis.set_runtime_env_var_reference_all(IssueSource::from_swc_offsets(
+                state.source,
+                span.lo.to_u32(),
+                span.hi.to_u32(),
+            ));
+        }
+        return Ok(false);
+    };
+
+    {
         let has_member = state.free_var_references_members.contains_key(prop).await?;
         let is_prop_cache = prop == "cache";
 
@@ -3983,6 +4082,29 @@ async fn handle_free_var_reference(
 
 fn issue_source(source: ResolvedVc<Box<dyn Source>>, span: Span) -> IssueSource {
     IssueSource::from_swc_offsets(source, span.lo.to_u32(), span.hi.to_u32())
+}
+
+/// Whether the linked `value` is (potentially) the `process.env` object, also when accessed via
+/// `globalThis.process.env` or `global.process.env`.
+fn is_process_env(value: &JsValue<'_>, var_graph: &VarGraph<'_>) -> bool {
+    value
+        .get_definable_name(Some(var_graph))
+        .iter()
+        .flatten()
+        .any(|(name, reassigned)| {
+            !reassigned
+                && matches!(
+                    name.0.as_slice(),
+                    [
+                        DefinableNameSegmentRef::Name("process"),
+                        DefinableNameSegmentRef::Name("env")
+                    ] | [
+                        DefinableNameSegmentRef::Name("globalThis" | "global"),
+                        DefinableNameSegmentRef::Name("process"),
+                        DefinableNameSegmentRef::Name("env")
+                    ]
+                )
+        })
 }
 
 async fn analyze_amd_define(
