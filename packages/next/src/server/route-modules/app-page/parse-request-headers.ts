@@ -19,6 +19,10 @@ import { getScriptNonceFromHeaders } from '../../app-render/get-script-nonce-fro
 import { parseAndValidateFlightRouterState } from '../../app-render/parse-and-validate-flight-router-state'
 import { getPreviouslyRevalidatedTags } from '../../server-utils'
 
+// Request handlers use this to answer an invalid router state header, which
+// `parseRequestHeaders` throws for, with a 400.
+export { isInvalidFlightRouterStateError } from '../../app-render/parse-and-validate-flight-router-state'
+
 interface ParseRequestHeadersOptions {
   readonly isRoutePPREnabled: boolean
   readonly previewModeId: string | undefined
