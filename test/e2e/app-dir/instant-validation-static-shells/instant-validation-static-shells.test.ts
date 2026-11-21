@@ -75,6 +75,8 @@ describe('instant validation', () => {
         `)
       })
     } else {
+      // Build-failure diagnostics are verified with a local build, not a deployment.
+      // @force-gate !deploy
       it('errors during build', async () => {
         await expect(next.start()).rejects.toThrow()
         expect(next.cliOutput).toContain('during prerendering')

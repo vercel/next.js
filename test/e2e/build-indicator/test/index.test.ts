@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import { join } from 'path'
 import { retry } from 'next-test-utils'
-import { nextTestSetup, isNextDev, isNextDeploy } from 'e2e-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
 
 const installCheckVisible = (browser) => {
   return browser.eval(`(function() {
@@ -21,9 +21,9 @@ const installCheckVisible = (browser) => {
 }
 
 describe('Build Activity Indicator', () => {
-  // Use describe.skip so that this suite does not fail with "no tests" during deploy tests.
-  // Deploy mode exclusion: This nested suite intentionally fails a local build and asserts its CLI diagnostics.
-  ;(isNextDeploy ? describe.skip : describe)('Invalid position config', () => {
+  // Build-failure diagnostics are covered by local build/start runs.
+  // @force-gate !deploy
+  describe('Invalid position config', () => {
     const { next } = nextTestSetup({
       files: join(__dirname, '..'),
       skipStart: true,

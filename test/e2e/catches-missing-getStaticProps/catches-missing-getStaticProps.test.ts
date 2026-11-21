@@ -16,6 +16,8 @@ import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
       expect(html).toMatch(errorRegex)
     })
   } else {
+    // Build-failure diagnostics are covered by local build/start runs.
+    // @force-gate !deploy
     it('should catch it in server build mode', async () => {
       await expect(next.start()).rejects.toThrow()
       const cliOutput = next.cliOutput

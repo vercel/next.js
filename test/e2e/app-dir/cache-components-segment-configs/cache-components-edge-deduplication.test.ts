@@ -30,6 +30,8 @@ describe('cache-components-edge-deduplication', () => {
     skipStart: true,
   })
 
+  // Build-failure diagnostics are verified with a local build, not a deployment.
+  // @force-gate !deploy
   it('should not duplicate errors when layout is compiled for both edge and non-edge contexts', async () => {
     if (isNextDev) {
       await next.start()

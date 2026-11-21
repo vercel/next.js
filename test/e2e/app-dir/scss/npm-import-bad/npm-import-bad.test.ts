@@ -11,6 +11,8 @@ describe('CSS Import from node_modules', () => {
   })
 
   if (!isNextDev) {
+    // Build-failure diagnostics are covered by local build/start runs.
+    // @force-gate !deploy
     it('should fail the build', async () => {
       await expect(next.start()).rejects.toThrow()
       const cliOutput = next.cliOutput

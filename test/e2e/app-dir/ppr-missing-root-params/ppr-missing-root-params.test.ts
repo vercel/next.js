@@ -1,6 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import path from 'path'
 
+// Build-failure diagnostics are covered by local build/start runs.
+// @force-gate !deploy
 describe('ppr-missing-root-params (single)', () => {
   const { next, isNextDev } = nextTestSetup({
     files: path.join(__dirname, 'fixtures/single'),
@@ -21,6 +23,8 @@ describe('ppr-missing-root-params (single)', () => {
   }, 240_000)
 })
 
+// Build-failure diagnostics are covered by local build/start runs.
+// @force-gate !deploy
 describe('ppr-missing-root-params (multiple)', () => {
   const { next, isNextDev } = nextTestSetup({
     files: path.join(__dirname, 'fixtures/multiple'),
@@ -41,6 +45,8 @@ describe('ppr-missing-root-params (multiple)', () => {
   }, 240_000)
 })
 
+// Build-failure diagnostics are covered by local build/start runs.
+// @force-gate !deploy
 describe('ppr-missing-root-params (nested)', () => {
   const { next, isNextDev } = nextTestSetup({
     files: path.join(__dirname, 'fixtures/nested'),

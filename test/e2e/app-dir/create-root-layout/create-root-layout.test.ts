@@ -1,5 +1,5 @@
 import path from 'path'
-import { FileRef, nextTestSetup, isNextDev, isNextDeploy } from 'e2e-utils'
+import { FileRef, nextTestSetup, isNextDev } from 'e2e-utils'
 import { check, retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
@@ -8,11 +8,6 @@ import stripAnsi from 'strip-ansi'
   'app-dir create root layout',
   () => {
     const isDev = isNextDev
-
-    if (isNextDeploy) {
-      it('should skip next deploy for now', () => {})
-      return
-    }
 
     if (isDev) {
       describe('page.js', () => {
@@ -201,6 +196,8 @@ import stripAnsi from 'strip-ansi'
         })
       })
     } else {
+      // Build-failure diagnostics are covered by local build/start runs.
+      // @force-gate !deploy
       describe('build', () => {
         const { next } = nextTestSetup({
           skipStart: true,

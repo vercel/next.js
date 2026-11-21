@@ -74,6 +74,8 @@ describe(`Request Promises`, () => {
       )
     }, 120_000)
   })
+  // Build-failure diagnostics are verified with a local build, not a deployment.
+  // @force-gate !deploy
   describe('On Prerender Interruption', () => {
     const { next, isNextDev } = nextTestSetup({
       files: __dirname + '/fixtures/reject-hanging-promises-dynamic',
