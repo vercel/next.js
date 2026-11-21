@@ -80,6 +80,11 @@ pub async fn create_page_ssr_entry_module(
     let definition_pathname = pathname;
     let reference_type = kind.reference_type();
 
+    // For PagesData the source has a `?server-data` query parameter to avoid conflicts with the
+    // Page module. We need to copy that to all the modules we create. This must be read before
+    // `source` is shadowed by the template source below.
+    let source_query = source.ident().await?.query.clone();
+
     let ssr_module = ssr_module_context
         .process(source, reference_type.clone())
         .module()
@@ -257,11 +262,6 @@ pub async fn create_page_ssr_entry_module(
         inner => ssr_module,
     };
     inner_assets.extend(cache_handler_inner_assets);
-
-    // for PagesData we apply a ?server-data query parameter to avoid conflicts with the Page
-    // module.
-    // We need to copy that to all the modules we create.
-    let source_query = source.ident().await?.query.clone();
 
     let (app_module, document_module) = if is_page {
         // We process the document and app modules in the same context and reference type.

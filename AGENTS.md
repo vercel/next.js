@@ -160,20 +160,6 @@ pnpm new-test --args true my-feature e2e
 pnpm new-test --args false my-util unit
 ```
 
-**Analyzing test output efficiently:**
-
-Never re-run the same test suite with different grep filters. Capture output once to a file, then read from it:
-
-```bash
-# Run once, save everything
-HEADLESS=true pnpm test-dev-turbo test/path/to/test.ts > /tmp/test-output.log 2>&1
-
-# Then analyze without re-running
-grep "●" /tmp/test-output.log            # Failed test names
-grep -A5 "Error:" /tmp/test-output.log   # Error details
-tail -5 /tmp/test-output.log             # Summary
-```
-
 ## Writing Tests
 
 **Test writing expectations:**
@@ -458,29 +444,6 @@ Use skills for conditional, deep workflows. Keep baseline iteration/build/test p
 - `$next-rspack` - @next/rspack-core and @next/rspack-binding maintenance (rspack/ directory)
 - `$gate-tests` - `@gate`/`@force-gate` test directives: replacing `it.skip`/fake-green skips, conditions, variant-shard fixtures
 - `$authoring-skills` - how to create and maintain skills in `.agents/skills/`
-
-## Context-Efficient Workflows
-
-**Reading large files** (>500 lines, e.g. `app-render.tsx`):
-
-- Grep first to find relevant line numbers, then read targeted ranges with `offset`/`limit`
-- Never re-read the same section of a file without code changes in between
-- For generated files (`dist/`, `node_modules/`, `.next/`): search only, don't read
-
-**Build & test output:**
-
-- Capture to file once, then analyze: e.g. `pnpm build 2>&1 | tee /tmp/build.log`
-- Don't re-run the same test command without code changes; re-analyze saved output instead
-
-**Batch edits before building:**
-
-- Group related edits across files, then run one build, not build-per-edit
-- Use `pnpm --filter=next types` (~10s) to check type errors without full rebuild
-
-**External API calls (gh, curl):**
-
-- Save response to variable or file: `JOBS=$(gh api ...) && echo "$JOBS" | jq '...'`
-- Don't re-fetch the same API data to analyze from different angles
 
 ## Commit and PR Style
 
