@@ -10,7 +10,7 @@ use turbo_tasks::{
     NonLocalValue, OrderedAutoSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
 };
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkingContext, ChunkingType},
+    chunk::{AsyncModuleInfo, ChunkingContext},
     reference::{ModuleReference, ModuleReferences},
     resolve::ExternalType,
 };
@@ -89,13 +89,7 @@ async fn get_inherit_async_referenced_asset(
     let Some(ty) = &trait_ref.chunking_type() else {
         return Ok(None);
     };
-    if !matches!(
-        ty,
-        ChunkingType::Parallel {
-            inherit_async: true,
-            ..
-        }
-    ) {
+    if !ty.is_inherit_async() {
         return Ok(None);
     };
     let referenced_asset: ReferencedAsset =
