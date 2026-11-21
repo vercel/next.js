@@ -203,7 +203,10 @@ impl TurboTasksBackend {
         let mut roots = self
             .backing_storage
             .roots()
-            .expect("reading gc roots should not fail")
+            .unwrap_or_else(|e| {
+                self.backing_storage
+                    .panic_on_read_error("reading gc roots should not fail", e)
+            })
             .into_iter()
             .collect::<FxHashMap<TaskId, TtlCounter>>();
         let roots_before = roots.clone();

@@ -25,6 +25,7 @@ flate2 = { workspace = true }
 hashbrown = { workspace = true, features = ["raw-entry"] }
 indexmap = { workspace = true, features = ["serde"] }
 itertools = { workspace = true }
+lzma-rust2 = { version = "0.25.0", default-features = false, features = ["std", "optimization", "xz"] }
 postcard = { workspace = true }
 rayon = { workspace = true }
 rustc-demangle = "0.1"
@@ -37,3 +38,6 @@ turbo-tasks-malloc = { workspace = true, default-features = false }
 tungstenite = { version = "0.21.0" }
 turbopack-trace-utils = { workspace = true }
 zstd = { version = "0.13.0" }
+
+[dev-dependencies]
+lzma-rust2 = { version = "0.25.0", default-features = false, features = ["std", "encoder", "optimization", "xz"] }

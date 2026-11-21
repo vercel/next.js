@@ -18,10 +18,12 @@ if (isCpuProfileEnabled) {
     saveCpuProfile()
   })
 
-  // Next.js workers (see `lib/worker.ts`) are stopped with a signal, which
-  // terminates the process without emitting 'exit'. Save the profile first,
-  // then re-raise the signal so the worker still dies by it and the parent
-  // observes the same exit as without profiling.
+  // Next.js workers (see `lib/worker/`) normally call process.exit() after the
+  // pool sends END, which emits 'exit'. A worker that is stopped by a signal
+  // instead (e.g. Ctrl+C reaching the whole process group) terminates without
+  // emitting 'exit'. Save the profile first, then re-raise the signal so the
+  // worker still dies by it and the parent observes the same exit as without
+  // profiling.
   if (process.env.IS_NEXT_WORKER) {
     const onSignal = (signal: NodeJS.Signals) => {
       process.removeListener('SIGINT', onSignal)

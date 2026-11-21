@@ -23,6 +23,7 @@ use crate::{
     lookup_entry::LookupValue,
     shard::ShardBits,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
+    unreadable::MarkUnreadable,
 };
 
 bitfield! {
@@ -199,6 +200,7 @@ impl MetaEntry {
                     meta.sequence_number()
                 )
             })
+            .mark_unreadable(|| format!("{:08}.sst", self.sst_data.sequence_number))
         })
     }
 

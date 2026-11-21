@@ -117,7 +117,8 @@ Four failure modes. Check each:
 - **Runs without errors** — `/_next/mcp` (server and bubbled-up
   browser errors both surface here).
 - **Behaves as intended** — `agent-browser` drives the page; assert
-  what the user actually sees.
+  what the user actually sees. To inspect what a link prefetched in dev,
+  [pause the navigation in the browser](https://nextjs.org/docs/app/guides/instant-navigation#inspect-loading-states-with-browser-automation).
 - **React-level behavior** — `agent-browser` with react-devtools
   enabled exposes the component tree, props, state, and render
   counts. Anchor framework-level checks here (extra renders,
@@ -148,7 +149,7 @@ manual rather than from memory.
   server say it rendered cleanly, a stale or misdirected browser
   session is the likelier cause than a real bug — reconcile the views
   before debugging the app.
-- Confirming a click or navigation: the page settles a beat later, so
+- After an ordinary navigation, the page settles a beat later, so
   wait with `wait --load networkidle` (no path to get wrong), then
   snapshot/read to confirm the page. Avoid `wait --url` unless you pass
   the link's exact href — a guessed or placeholder path won't match the

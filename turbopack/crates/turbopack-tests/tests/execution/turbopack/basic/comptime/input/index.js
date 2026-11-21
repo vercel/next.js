@@ -128,6 +128,57 @@ it('should evaluate NODE_ENV', () => {
   }
 })
 
+import importedProcess from 'process'
+import * as processNamespace from 'process'
+import nodeProcess from 'node:process'
+import * as nodeProcessNamespace from 'node:process'
+
+it('should evaluate NODE_ENV through process imports', () => {
+  if (importedProcess.env.NODE_ENV !== 'production') {
+    require('fail')
+    import('fail')
+  }
+  if (processNamespace.env.NODE_ENV !== 'production') {
+    require('fail')
+    import('fail')
+  }
+  if (processNamespace.default.env.NODE_ENV !== 'production') {
+    require('fail')
+    import('fail')
+  }
+  if (nodeProcess.env.NODE_ENV !== 'production') {
+    require('fail')
+    import('fail')
+  }
+  if (nodeProcessNamespace.env.NODE_ENV !== 'production') {
+    require('fail')
+    import('fail')
+  }
+  if (nodeProcessNamespace.default.env.NODE_ENV !== 'production') {
+    require('fail')
+    import('fail')
+  }
+
+  if (require('process').env.NODE_ENV !== 'production') {
+    require('fail')
+    import('fail')
+  }
+  if (require('node:process').env.NODE_ENV !== 'production') {
+    require('fail')
+    import('fail')
+  }
+})
+
+it('should not treat the process object as a module namespace', () => {
+  expect(() => process.default.env.NODE_ENV).toThrow(TypeError)
+  expect(() => importedProcess.default.env.NODE_ENV).toThrow(TypeError)
+  expect(() => nodeProcess.default.env.NODE_ENV).toThrow(TypeError)
+  expect(() => processNamespace.default.default.env.NODE_ENV).toThrow(TypeError)
+  expect(() => nodeProcessNamespace.default.default.env.NODE_ENV).toThrow(
+    TypeError
+  )
+})
+
 it('should keep side-effects in if statements', () => {
   {
     let ok = false

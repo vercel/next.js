@@ -3,6 +3,8 @@ const glob = require('glob')
 const fs = require('fs/promises')
 const resolveFrom = require('resolve-from')
 const execa = require('execa')
+// Taskr evaluates this file without a `process` global.
+const nodeProcess = require('process')
 const recast = require('recast')
 
 export async function next__polyfill_nomodule(task, opts) {
@@ -94,7 +96,6 @@ const externals = {
   fibers: 'fibers',
 
   chokidar: 'chokidar',
-  'jest-worker': 'jest-worker',
 
   'terser-webpack-plugin':
     'next/dist/build/webpack/plugins/terser-webpack-plugin/src',
@@ -540,60 +541,6 @@ export async function ncc_watchpack(task, opts) {
     .source(relative(__dirname, require.resolve('watchpack')))
     .ncc({ packageName: 'watchpack', externals })
     .target('src/compiled/watchpack')
-}
-
-externals['jest-worker'] = 'next/dist/compiled/jest-worker'
-export async function ncc_jest_worker(task, opts) {
-  await rmrf(join(__dirname, 'src/compiled/jest-worker'))
-  await fs.mkdir(join(__dirname, 'src/compiled/jest-worker/workers'), {
-    recursive: true,
-  })
-
-  const workers = ['processChild.js', 'threadChild.js']
-
-  await task
-    .source(relative(__dirname, require.resolve('jest-worker')))
-    .ncc({ packageName: 'jest-worker', externals })
-    .target('src/compiled/jest-worker')
-
-  for (const worker of workers) {
-    const content = await fs.readFile(
-      join(
-        dirname(require.resolve('jest-worker/package.json')),
-        'build/workers',
-        worker
-      ),
-      'utf8'
-    )
-    await fs.writeFile(
-      join(
-        dirname(require.resolve('jest-worker/package.json')),
-        'build/workers',
-        worker + '.tmp.js'
-      ),
-      content.replace(/require\(file\)/g, '__non_webpack_require__(file)')
-    )
-    await task
-      .source(
-        relative(
-          __dirname,
-          join(
-            dirname(require.resolve('jest-worker/package.json')),
-            'build/workers',
-            worker + '.tmp.js'
-          )
-        )
-      )
-      .ncc({ externals })
-      .target('src/compiled/jest-worker/out')
-
-    await fs.rename(
-      join(__dirname, 'src/compiled/jest-worker/out', worker + '.tmp.js'),
-      join(__dirname, 'src/compiled/jest-worker', worker)
-    )
-  }
-  await rmrf(join(__dirname, 'src/compiled/jest-worker/workers'))
-  await rmrf(join(__dirname, 'src/compiled/jest-worker/out'))
 }
 
 export async function ncc_react_refresh_utils(task, opts) {
@@ -2416,7 +2363,6 @@ export async function ncc(task, opts) {
       'copy_constants_browserify',
       'copy_vendor_react',
       'ncc_sass_loader',
-      'ncc_jest_worker',
       'ncc_edge_runtime_cookies',
       'ncc_edge_runtime_primitives',
       'ncc_edge_runtime_ponyfill',
@@ -2467,10 +2413,83 @@ export async function next_compile(task, opts) {
       'shared_re_exported',
       'shared_re_exported_esm',
       'server_wasm',
+      'switchyard',
       'experimental_testing',
       'experimental_testmode',
     ],
     opts
+  )
+}
+
+// Switchyard, the Go server `next start` runs in front of Node with __NEXT_EXPERIMENTAL_SWITCHYARD=1
+// (src/server/switchyard, launched by src/server/lib/switchyard.ts). While it is
+// experimental, the binaries are built into dist/server/switchyard only with
+// NEXT_BUILD_SWITCHYARD=1 (named in src/server/lib/switchyard-env.ts), so
+// `next` doesn't grow and its build doesn't need Go. The launcher finds them
+// there, or wherever __NEXT_EXPERIMENTAL_SWITCHYARD_BINARY points
+// (src/server/lib/switchyard-binary.ts). Only this machine's binary is built: the
+// opt-in is for trying Switchyard locally, and nothing ships these files yet.
+// Shipping them would mean a release build that makes every target in
+// src/server/switchyard/targets.json (for example one npm package per platform,
+// as @next/swc-* does). The file names come from targets.json; the minimum
+// Go version from its go.mod.
+export async function switchyard(task, opts) {
+  // switchyard-binary.ts reads this at runtime, with or without the binaries.
+  await task
+    .source('src/server/switchyard/targets.json')
+    .target('dist/server/switchyard')
+  if (nodeProcess.env.NEXT_BUILD_SWITCHYARD !== '1') {
+    return
+  }
+
+  const switchyardDir = join(__dirname, 'src/server/switchyard')
+  const targets = require('./src/server/switchyard/targets.json')
+  const goMod = await fs.readFile(join(switchyardDir, 'go.mod'), 'utf8')
+  const [minMajor, minMinor] = /^go (\d+)\.(\d+)/m
+    .exec(goMod)
+    .slice(1)
+    .map(Number)
+  const go = nodeProcess.env.TURBOPACK_GO || 'go'
+  const goVersion = await execa(go, ['env', 'GOVERSION'], { reject: false })
+  const [major, minor] = (/^go(\d+)\.(\d+)/.exec(goVersion.stdout ?? '') || [])
+    .slice(1)
+    .map(Number)
+  const hasGo =
+    goVersion.exitCode === 0 &&
+    (major > minMajor || (major === minMajor && minor >= minMinor))
+  if (!hasGo) {
+    throw new Error(
+      `NEXT_BUILD_SWITCHYARD=1 needs Go ${minMajor}.${minMinor}+ (packages/next/src/server/switchyard/go.mod), which wasn't found (tried "${go}"; set TURBOPACK_GO to pick another).`
+    )
+  }
+
+  const os = nodeProcess.platform
+  const arch = targets.goArch[nodeProcess.arch]
+  if (!targets.targets.some((t) => t.os === os && t.arch === arch)) {
+    throw new Error(
+      `NEXT_BUILD_SWITCHYARD=1: switchyard has no build for ${nodeProcess.platform}/${nodeProcess.arch} (packages/next/src/server/switchyard/targets.json).`
+    )
+  }
+  await execa(
+    go,
+    [
+      'build',
+      '-trimpath',
+      '-buildvcs=false',
+      '-ldflags=-s -w',
+      '-o',
+      join(
+        __dirname,
+        'dist/server/switchyard',
+        targets.binaryName.replace('{os}', os).replace('{arch}', arch)
+      ),
+      '.',
+    ],
+    {
+      cwd: switchyardDir,
+      env: { CGO_ENABLED: '0', GOOS: os, GOARCH: arch, GOTOOLCHAIN: 'local' },
+      stdio: 'inherit',
+    }
   )
 }
 
@@ -2791,6 +2810,9 @@ export default async function (task) {
   await task.watch('src/bin', 'bin', opts)
   await task.watch('src/pages', 'pages', opts)
   await task.watch('src/server', ['server', 'server_esm', 'server_wasm'], opts)
+  // task.watch watches a directory (it doesn't expand globs), so a pattern
+  // like switchyard/*.go would never fire.
+  await task.watch('src/server/switchyard', 'switchyard', opts)
   await task.watch('src/api', 'api_esm', opts)
   await task.watch(
     'src/build',
