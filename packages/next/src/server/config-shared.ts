@@ -1314,6 +1314,23 @@ export interface ExperimentalConfig {
   webpackBuildWorker?: boolean
 
   /**
+   * Run Turbopack's compilation of `next build` in a separate child process.
+   * Only the native Turbopack project runs there; the config is loaded only in
+   * the main build process.
+   *
+   * The child process exits once the compilation has finished and the
+   * Turbopack filesystem cache has been persisted, which returns all of
+   * Turbopack's memory to the operating system. It also keeps the main build
+   * process small, so starting the static generation workers is faster.
+   *
+   * Starting the child process adds a small cost, so this is mostly useful
+   * for large applications.
+   *
+   * @default false
+   */
+  turbopackBuildWorker?: boolean
+
+  /**
    * Enables optimizations to reduce memory usage in Webpack. This reduces the max size of the heap
    * but may increase compile times slightly.
    * Valid values are:
@@ -2553,6 +2570,7 @@ export const defaultConfig = Object.freeze({
     ppr: false,
     authInterrupts: false,
     webpackBuildWorker: undefined,
+    turbopackBuildWorker: false,
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
     strictRouteTypes: false,
