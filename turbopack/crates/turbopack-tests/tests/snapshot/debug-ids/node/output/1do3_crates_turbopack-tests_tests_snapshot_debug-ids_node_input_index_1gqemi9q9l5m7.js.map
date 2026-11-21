@@ -3,5 +3,5 @@
   "sources": [],
   "debugId": "8de32807-0098-cc2d-1846-01a8f5817828",
   "sections": [
-    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["../../../../../../../../turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/node/input/index.js"],"sourcesContent":["console.log('Hello World')\n"],"names":["console","log"],"mappings":"AAAAA,QAAQC,GAAG,CAAC"}}]
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["../../../../../../../../turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/node/input/index.js"],"sourcesContent":["console.log('Hello World')\n"],"names":["global","console","log"],"scopes":"BCAAA,CAa,ECAA,FBA","mappings":"AAAAC,QAAQC,GAAG,CAAC"}}]
 }

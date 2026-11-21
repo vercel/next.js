@@ -44,6 +44,7 @@ rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["raw_value"] }
 serde_qs = { workspace = true }
+swc_compiler_base = { workspace = true }
 swc_ecma_react_compiler = { workspace = true }
 react_compiler = { workspace = true }
 swc_sourcemap = { workspace = true }
