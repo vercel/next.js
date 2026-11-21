@@ -92,12 +92,12 @@ func (fx *directFixture) raw(t *testing.T, head string) string {
 
 func TestDirectRequestReachesTheWorkerAsNodeWouldSendIt(t *testing.T) {
 	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "go") })
-	res := fx.raw(t, "GET /api/echo HTTP/1.1\r\nX-Matched-Path: /x\r\nX-Next-Internal-Go-Token: forged\r\nX-Custom: kept")
+	res := fx.raw(t, "GET /api/echo?sort=asc HTTP/1.1\r\nX-Matched-Path: /x\r\nX-Next-Internal-Go-Token: forged\r\nX-Custom: kept")
 	if !strings.HasSuffix(res, "go") {
 		t.Fatalf("response %q", res)
 	}
 	r := <-fx.worker
-	if r.RequestURI != "/api/echo" || r.Host != "example.com" {
+	if r.RequestURI != "/api/echo?sort=asc" || r.Host != "example.com" {
 		t.Errorf("target %q host %q", r.RequestURI, r.Host)
 	}
 	for name, want := range map[string]string{
