@@ -393,6 +393,24 @@ impl ModuleOptions {
             ecma_preprocess.push(*decorators_transform);
         }
 
+        // Configured TypeScript modules need the same lowering pipeline as
+        // extension-selected TypeScript modules, not just the TypeScript parser.
+        let ts_preprocess = if let Some(options) = enable_typescript_transform {
+            let options = options.await?;
+            Some(ResolvedVc::cell(
+                extra_preprocess
+                    .into_iter()
+                    .chain(decorators_transform)
+                    .chain(std::iter::once(EcmascriptInputTransform::TypeScript {
+                        use_define_for_class_fields: options.use_define_for_class_fields,
+                        verbatim_module_syntax: options.verbatim_module_syntax,
+                    }))
+                    .collect(),
+            ))
+        } else {
+            None
+        };
+
         let ecma_preprocess = ResolvedVc::cell(ecma_preprocess.into_boxed_slice());
         let main = ResolvedVc::<EcmascriptInputTransforms>::cell(Box::default());
         let postprocess = ResolvedVc::cell(postprocess.into_boxed_slice());
@@ -517,10 +535,16 @@ impl ModuleOptions {
 
                     // Add module type if specified
                     if let Some(type_str) = rule.module_type.as_ref() {
+                        let module_type = ConfiguredModuleType::parse(type_str)?;
+                        let preprocess = if module_type == ConfiguredModuleType::Typescript {
+                            ts_preprocess.unwrap_or(ecma_preprocess)
+                        } else {
+                            ecma_preprocess
+                        };
                         effects.push(
-                            ConfiguredModuleType::parse(type_str)?
+                            module_type
                                 .into_effect(
-                                    ecma_preprocess,
+                                    preprocess,
                                     main,
                                     postprocess,
                                     ecmascript_options_vc,
@@ -761,21 +785,7 @@ impl ModuleOptions {
             ),
         ]);
 
-        if let Some(options) = enable_typescript_transform {
-            let options = options.await?;
-            // Prepend extra_preprocess (e.g. ReactCompilerRust) so it runs before decorators and
-            // TypeScript.
-            let ts_preprocess = ResolvedVc::cell(
-                extra_preprocess
-                    .into_iter()
-                    .chain(decorators_transform)
-                    .chain(std::iter::once(EcmascriptInputTransform::TypeScript {
-                        use_define_for_class_fields: options.use_define_for_class_fields,
-                        verbatim_module_syntax: options.verbatim_module_syntax,
-                    }))
-                    .collect(),
-            );
-
+        if let Some(ts_preprocess) = ts_preprocess {
             rules.extend([
                 ModuleRule::new_all(
                     RuleCondition::ResourcePathEndsWith(".ts".to_string()),
