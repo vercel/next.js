@@ -133,7 +133,7 @@ embed pattern's fixed prefix, and tracks the source files Go reads. Nothing is w
 the project.
 
 `go_source_failure(*sources, session, message)` returns a failed `GoBundleResult` for a
-source set the consumer rejects before compiling, such as a directory that declares
+source set the consumer does not compile, such as a directory that declares
 `package main`. It carries the source selection's inputs, so `read_with_validated_inputs`
 rereads the consumer's operation after edits that may resolve the failure.
 
