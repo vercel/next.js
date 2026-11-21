@@ -31,7 +31,7 @@ Then:
 4. Treat failures as real until disproven; check the "Known Flaky Tests" section before calling anything flaky. For base, step, attempt, and log details, use [ci-reading.md](./ci-reading.md).
 5. Reproduce test failures locally with the same mode and environment as CI (e.g. dev or start, webpack or turbopack).
 6. After addressing review comments, reply to the thread describing what was done, then resolve it. Use `reply-and-resolve-thread` to do both in one step, or use `reply-thread` + `resolve-thread` separately. See `scripts/pr-status/results/thread-N.md` files for ready-to-use commands.
-7. When the only remaining failures are known flaky tests and no code changes are needed, wait for the workflow run to finish, then retrigger the failing CI jobs with `gh run rerun <run-id> --failed`. Then re-run the analysis with `--wait` to pick up the rerun results and go back to step 1. Repeat this loop up to 2 times.
+7. When the only remaining failures are known flaky tests and no code changes are needed, wait for the workflow run to finish, then retrigger the failing CI jobs with `gh run rerun <run-id> --failed`. Then re-run the analysis with `--wait` to pick up the rerun results and go back to step 1. Repeat this loop up to 5 times.
 8. Start fixing as results come in; do not wait for the whole workflow before beginning on failures that have already reported. A push, on the other hand, should wait for the workflow to complete.
 
 ## CI Analysis Tips

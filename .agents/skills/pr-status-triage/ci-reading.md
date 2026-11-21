@@ -56,8 +56,8 @@ flakes.
 - Wait until the workflow run completes. GitHub refuses some rerun requests
   while the run is active.
 - Rerun only failed jobs: `gh run rerun <run-id> --failed`.
-- Rerun up to twice when the failure appears unrelated. Investigate before
-  rerunning again.
+- Follow the rerun limit in `SKILL.md` step 7 when the failure appears
+  unrelated.
 - A green rerun on the same SHA shows the failure is intermittent; it does not
   prove the change is unrelated. A repeated identical failure is strong
   evidence of a persistent problem, so investigate it instead of rerunning.
