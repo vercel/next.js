@@ -281,6 +281,7 @@ export type McpToolName =
   | 'mcp/get_server_action_by_id'
   | 'mcp/get_compilation_issues'
   | 'mcp/compile_route'
+  | 'mcp/run_browser_actions'
 
 export type EventMcpToolUsage = {
   toolName: McpToolName
