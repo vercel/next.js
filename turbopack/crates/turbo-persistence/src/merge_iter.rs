@@ -227,9 +227,11 @@ mod tests {
     /// counts that are and aren't powers of two.
     #[test]
     fn test_matches_sorting() {
+        // Miri runs fewer rounds per input count: 10 took over 10 minutes there.
+        let rounds = if cfg!(miri) { 1 } else { 10 };
         let mut rng = SmallRng::seed_from_u64(7);
         for input_count in 1..=19u32 {
-            for _ in 0..10 {
+            for _ in 0..rounds {
                 let inputs = (0..input_count)
                     .map(|index| {
                         let len = rng.random_range(0..40);

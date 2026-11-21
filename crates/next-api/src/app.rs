@@ -2252,7 +2252,7 @@ impl AppEndpoint {
                         *module_graphs.full,
                         *client_chunking_context,
                         next_dynamic_imports,
-                        NextDynamicChunkAvailability::ClientReferences(
+                        NextDynamicChunkAvailability::AppRouterClientReferences(
                             &*(client_references_chunks.await?),
                         ),
                     )
@@ -2377,7 +2377,7 @@ impl AppEndpoint {
                         *module_graphs.full,
                         *client_chunking_context,
                         next_dynamic_imports,
-                        NextDynamicChunkAvailability::ClientReferences(
+                        NextDynamicChunkAvailability::AppRouterClientReferences(
                             &*(client_references_chunks.await?),
                         ),
                     )
