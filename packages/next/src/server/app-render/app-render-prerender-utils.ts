@@ -312,14 +312,19 @@ export class ReactServerPrerenderResult {
     return chunks
   }
 
-  asUnclosingStream(): ReadableStream<Uint8Array> {
+  /**
+   * A stream of the chunks that stays open after the last chunk, until
+   * `closeSignal` is aborted. Use it when the chunks may have references that
+   * never resolve (dynamic holes), which have to stay pending while the render
+   * that reads the decoded data runs. Pass the signal that ends that render.
+   *
+   * Decode the stream with `unstable_allowPartialStream: true`. Closing it
+   * then leaves those references pending, where it would otherwise reject
+   * them with "Connection closed.".
+   */
+  asUnclosingStream(closeSignal: AbortSignal): ReadableStream<Uint8Array> {
     const chunks = this.assertChunks('asUnclosingStream()')
-    return createUnclosingStream(chunks)
-  }
-
-  consumeAsUnclosingStream(): ReadableStream<Uint8Array> {
-    const chunks = this.consumeChunks('consumeAsUnclosingStream()')
-    return createUnclosingStream(chunks)
+    return createUnclosingStream(chunks, closeSignal)
   }
 
   asStream(): ReadableStream<Uint8Array> {
@@ -334,17 +339,39 @@ export class ReactServerPrerenderResult {
 }
 
 function createUnclosingStream(
-  chunks: Array<Uint8Array>
+  chunks: Array<Uint8Array>,
+  closeSignal: AbortSignal
 ): ReadableStream<Uint8Array> {
   let i = 0
   return new ReadableStream({
+    start(controller) {
+      closeSignal.addEventListener(
+        'abort',
+        () => {
+          if (i < chunks.length) {
+            // `pull` closes the stream after the last chunk.
+            return
+          }
+          try {
+            controller.close()
+          } catch {
+            // The stream was cancelled or errored: there is nothing to close.
+          }
+        },
+        { once: true }
+      )
+    },
     async pull(controller) {
       if (i < chunks.length) {
         controller.enqueue(chunks[i++])
+      } else if (closeSignal.aborted) {
+        controller.close()
       }
-      // we intentionally keep the stream open. The consumer will clear
-      // out chunks once finished and the remaining memory will be GC'd
-      // when this object goes out of scope
+      // Otherwise we intentionally keep the stream open, until `closeSignal`
+      // is aborted. It must not stay open after that: the reader that decodes
+      // it is left with a read that never settles, and not every runtime
+      // frees a stream, or what that read holds on to, while a read is
+      // pending.
     },
   })
 }

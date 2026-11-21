@@ -2345,6 +2345,7 @@ async function getErrorRSCPayload(
 // This component must run in an SSR context. It will render the RSC root component
 function App<T>({
   reactServerStream,
+  allowPartialStream,
   reactDebugStream,
   debugEndTime,
   preinitScripts,
@@ -2354,6 +2355,9 @@ function App<T>({
 }: {
   /* eslint-disable @next/internal/no-ambiguous-jsx -- React Client */
   reactServerStream: Readable | BinaryStreamOf<T>
+  // Whether `reactServerStream` is closed while references in it may still be
+  // pending. See `ReactServerPrerenderResult.asUnclosingStream`.
+  allowPartialStream?: boolean
   reactDebugStream: AnyStream | undefined
   debugEndTime: number | undefined
   preinitScripts: () => void
@@ -2369,7 +2373,8 @@ function App<T>({
       reactServerStream,
       reactDebugStream,
       debugEndTime,
-      nonce
+      nonce,
+      allowPartialStream
     )
   )
 
@@ -2412,12 +2417,16 @@ function App<T>({
 // consistent for now.
 function ErrorApp<T>({
   reactServerStream,
+  allowPartialStream,
   preinitScripts,
   ServerInsertedHTMLProvider,
   nonce,
   images,
 }: {
   reactServerStream: BinaryStreamOf<T>
+  // Whether `reactServerStream` is closed while references in it may still be
+  // pending. See `ReactServerPrerenderResult.asUnclosingStream`.
+  allowPartialStream?: boolean
   preinitScripts: () => void
   ServerInsertedHTMLProvider: ComponentType<{
     children: JSX.Element
@@ -2432,7 +2441,8 @@ function ErrorApp<T>({
       reactServerStream,
       undefined,
       undefined,
-      nonce
+      nonce,
+      allowPartialStream
     )
   )
 
@@ -9630,7 +9640,10 @@ async function prerenderToStream(
           getClientPrerender,
           // eslint-disable-next-line @next/internal/no-ambiguous-jsx
           <App
-            reactServerStream={initialServerResult.asUnclosingStream()}
+            reactServerStream={initialServerResult.asUnclosingStream(
+              initialClientReactController.signal
+            )}
+            allowPartialStream={true}
             reactDebugStream={undefined}
             debugEndTime={undefined}
             preinitScripts={preinitScripts}
@@ -10074,7 +10087,9 @@ async function prerenderToStream(
                     collectedChunks.allChunks,
                     finalClientReactController.signal
                   )
-                : reactServerResult.asUnclosingStream()
+                : reactServerResult.asUnclosingStream(
+                    finalClientReactController.signal
+                  )
 
             const pendingFinalClientResult = workUnitAsyncStorage.run(
               finalClientPrerenderStore,
@@ -10082,6 +10097,7 @@ async function prerenderToStream(
               // eslint-disable-next-line @next/internal/no-ambiguous-jsx
               <App
                 reactServerStream={stream}
+                allowPartialStream={true}
                 reactDebugStream={undefined}
                 debugEndTime={debugEndTime}
                 preinitScripts={preinitScripts}
@@ -10398,7 +10414,9 @@ async function prerenderToStream(
         renderFizzStream,
         // eslint-disable-next-line @next/internal/no-ambiguous-jsx
         <App
-          reactServerStream={reactServerResult.asUnclosingStream()}
+          // This Flight render ran to completion, so no reference in it is
+          // left pending and the stream can close after the last chunk.
+          reactServerStream={reactServerResult.asStream()}
           reactDebugStream={undefined}
           debugEndTime={undefined}
           preinitScripts={preinitScripts}
@@ -10739,7 +10757,10 @@ async function prerenderToStream(
               getClientPrerender,
               // eslint-disable-next-line @next/internal/no-ambiguous-jsx
               <ErrorApp
-                reactServerStream={errorServerResult.asUnclosingStream()}
+                reactServerStream={errorServerResult.asUnclosingStream(
+                  errorClientReactController.signal
+                )}
+                allowPartialStream={true}
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
                 preinitScripts={errorPreinitScripts}
                 nonce={nonce}
