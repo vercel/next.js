@@ -176,6 +176,13 @@ export type PublicServer = {
   port: number
   /** Stops accepting connections and resolves once in-flight requests end. */
   close: () => Promise<void>
+  /**
+   * Gives Switchyard the route table, once the router has loaded the
+   * app. Until then Switchyard sends every request to this Node server.
+   */
+  setRouteTable?: (
+    table: import('./switchyard-route-table').SwitchyardRouteTable
+  ) => void
 }
 
 export async function getRequestHandlers({
@@ -619,6 +626,9 @@ export async function startServer(
         upgradeHandler = initResult.upgradeHandler
         nextServer = initResult.server
         closeUpgraded = initResult.closeUpgraded
+        if (publicServer?.setRouteTable && initResult.getSwitchyardRouteTable) {
+          publicServer.setRouteTable(initResult.getSwitchyardRouteTable())
+        }
 
         // Log experimental features after config is loaded
         if (isDev) {
@@ -647,13 +657,18 @@ export async function startServer(
               `Removed upgrade instructions from ${files} because \`experimental.agentUpgrade\` is disabled.`
           )
 
-          if (!isCI) {
+          const agentFeedbackConfigured = initResult.agentFeedback === true
+          // A temporary runtime opt-out preserves instructions only while the
+          // project still enables feedback. Explicit disablement must clean up.
+          if (
+            !isCI &&
+            (!agentFeedbackConfigured || !process.env.NEXT_TELEMETRY_DISABLED)
+          ) {
             const { traceGlobals } =
               require('../../trace/shared') as typeof import('../../trace/shared')
             const telemetry = traceGlobals.get('telemetry') as
               | InstanceType<typeof import('../../telemetry/storage').Telemetry>
               | undefined
-            const agentFeedbackConfigured = initResult.agentFeedback === true
             const telemetryEnabled = telemetry?.isEnabled === true
 
             logAgentFileSync(

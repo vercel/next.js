@@ -3,6 +3,7 @@ import fs from 'fs'
 import { randomBytes } from 'crypto'
 import readline from 'readline'
 import type { Readable } from 'stream'
+import setupDebug from 'next/dist/compiled/debug'
 import * as Log from '../../build/output/log'
 import {
   startServer,
@@ -11,9 +12,14 @@ import {
   type StartServerResult,
 } from './start-server'
 import { findSwitchyardBinary } from './switchyard-binary'
+import type { SwitchyardRouteTable } from './switchyard-route-table'
 import { SWITCHYARD_ENV, SWITCHYARD_TOKEN_ENV } from './switchyard-env'
 import { formatHostname } from './format-hostname'
 import { printAndExit } from './utils'
+
+// DEBUG=next:switchyard shows what Node tells Switchyard: whether it may
+// route route.go requests directly (or why not), and each worker.
+const debug = setupDebug('next:switchyard')
 
 /**
  * `next start` with __NEXT_EXPERIMENTAL_SWITCHYARD=1: a Go process
@@ -135,6 +141,29 @@ function spawnSwitchyard(
     switchyard.stdin.end()
     return exited
   }
+  // Control messages to Switchyard, one JSON object per line on its stdin
+  // (src/server/switchyard/control.go): the route table once the router has
+  // loaded, then each route.go worker as Node starts or retires it.
+  const send = (message: object) => {
+    if (!closing) switchyard.stdin.write(JSON.stringify(message) + '\n')
+  }
+  const setRouteTable = (table: SwitchyardRouteTable) => {
+    debug(
+      'route table: %s',
+      'reason' in table
+        ? `every request goes to Node (${table.reason})`
+        : `${Object.keys(table.goExact).length} route.go routes`
+    )
+    send({ event: 'table', table })
+    // An app without direct routes has no use for its workers' addresses.
+    if ('reason' in table) return
+    const { observeNativeRouteWorkers } =
+      require('./native-route.external') as typeof import('./native-route.external')
+    observeNativeRouteWorkers((event) => {
+      debug('route.go worker %s: %s', event.event, event.address)
+      send(event)
+    })
+  }
 
   return new Promise<PublicServer>((resolve, reject) => {
     let ready = false
@@ -157,7 +186,7 @@ function spawnSwitchyard(
     })
     readSwitchyardStdout(switchyard.stdout, (port) => {
       ready = true
-      resolve({ hostname: options.hostname, port, close })
+      resolve({ hostname: options.hostname, port, close, setRouteTable })
     })
   })
 }

@@ -19,6 +19,7 @@ use parking_lot::RwLockReadGuard;
 use tracing::info_span;
 #[cfg(feature = "trace_prepare_tasks")]
 use tracing::trace_span;
+use turbo_persistence::CacheFileUnreadable;
 use turbo_tasks::{
     CellId, CellKey, DynTaskInputs, FxIndexMap, RawVc, SharedReference, TaskExecutionReason,
     TaskId, TaskPriority, TurboTasks, TurboTasksCallApi, ValueTypePersistence,
@@ -248,7 +249,12 @@ impl<'e> ExecuteContext<'e> {
         // category was resident. Newly initialized tasks are already fully restored.
         let (task, outcome) = self
             .restore_task(task_id, category, task, access)
-            .unwrap_or_else(|e| panic!("Failed to restore {category:?} for task {task_id}: {e:?}"));
+            .unwrap_or_else(|e| {
+                self.backend().backing_storage.panic_on_read_error(
+                    format_args!("Failed to restore {category:?} for task {task_id}"),
+                    e,
+                )
+            });
         if outcome.missing_on_disk {
             handle_missing_task(task, task_id, access, "task");
             self.task_lock_counter.release();
@@ -649,11 +655,14 @@ impl<'e> ExecuteContext<'e> {
                             // Batch failure: distribute the error to each affected task, replacing
                             // any result stored before the failure.
                             let msg = format!("{e:?}");
+                            let unreadable_file =
+                                CacheFileUnreadable::find(&e).map(|u| u.file_name().to_string());
                             for &idx in indices {
                                 *tasks[idx].restore_result_mut(category) =
-                                    OnceLock::from(Err(anyhow::anyhow!(
-                                        "Batch {} restore failed: {msg}",
-                                        category_name(category.into())
+                                    OnceLock::from(Err(batch_restore_error(
+                                        category.into(),
+                                        &msg,
+                                        unreadable_file.as_deref(),
                                     )));
                             }
                         }
@@ -839,12 +848,40 @@ impl<'e> ExecuteContext<'e> {
             panic_missing_task(task_id, reason);
         }
         if !restore_errors.is_empty() {
+            // A database file that can't be read is reported on its own (it explains all of the
+            // failures that it caused).
+            if let Some(index) = restore_errors
+                .iter()
+                .position(|(_, _, e)| CacheFileUnreadable::find(e).is_some())
+            {
+                let (task_id, category, e) = restore_errors.swap_remove(index);
+                self.backend().backing_storage.panic_on_read_error(
+                    format_args!("Failed to restore {category} for task {task_id}"),
+                    e,
+                );
+            }
             let msgs: Vec<String> = restore_errors
                 .iter()
                 .map(|(id, cat, e)| format!("Failed to restore {cat} for task {id}: {e:?}"))
                 .collect();
             panic!("Restore failures:\n{}", msgs.join("\n"));
         }
+    }
+}
+
+/// The error of one task whose batch restore of `category` failed with an error formatted as
+/// `msg`. `anyhow::Error` isn't `Clone`, so each task of the batch gets its own copy of the
+/// message. It's marked again as [`CacheFileUnreadable`] if the batch failed because the database
+/// file `unreadable_file` couldn't be read, so that the restore panic still reports that.
+fn batch_restore_error(
+    category: TaskDataCategory,
+    msg: &str,
+    unreadable_file: Option<&str>,
+) -> anyhow::Error {
+    let error = anyhow::anyhow!("Batch {} restore failed: {msg}", category_name(category));
+    match unreadable_file {
+        Some(file_name) => anyhow::Error::new(CacheFileUnreadable::new(file_name, error)),
+        None => error,
     }
 }
 
@@ -1199,7 +1236,10 @@ impl<'e> ExecuteContext<'e> {
                 let (task, outcome) = self
                     .restore_task(task_id, category, task, TaskAccess::MustExist)
                     .unwrap_or_else(|e| {
-                        panic!("Failed to restore {category:?} for task {task_id}: {e:?}")
+                        self.backend().backing_storage.panic_on_read_error(
+                            format_args!("Failed to restore {category:?} for task {task_id}"),
+                            e,
+                        )
                     });
                 // Decide under the guard that may hold an empty read.
                 if outcome.missing_on_disk {
@@ -1291,7 +1331,11 @@ impl<'e> ExecuteContext<'e> {
             .backend()
             .backing_storage
             .lookup_task_candidates(native_fn, this, arg)
-            .expect("Failed to lookup task ids");
+            .unwrap_or_else(|e| {
+                self.backend()
+                    .backing_storage
+                    .panic_on_read_error("Failed to lookup task ids", e)
+            });
 
         // Verify each candidate by comparing the stored persistent_task_type.
         // Only rarely is there more than one candidate, so no need for parallelization.
@@ -3338,5 +3382,140 @@ mod cell_data_tracking_tests {
         };
         assert_eq!(stats.counts.children, 0);
         assert_eq!(storage.access_mut(task_id).meta_counts().children, 1);
+    }
+}
+
+#[cfg(test)]
+mod unreadable_cache_tests {
+    use std::io::{Read, Seek, SeekFrom, Write};
+
+    use turbo_tasks::{PersistentCacheUnreadablePanic, TaskId, TurboTasks};
+
+    use super::*;
+    use crate::{
+        BackingStorageOptions,
+        backend::{BackendOptions, StorageMode, storage_schema::TaskStorage},
+        database::{turbo::TurboKeyValueDatabase, write_batch::WriteBuffer},
+        kv_backing_storage::TurboBackingStorage,
+        utils::test_temp_dir::test_temp_dir,
+    };
+
+    const STORAGE_OPTIONS: BackingStorageOptions = BackingStorageOptions {
+        is_ci: false,
+        is_short_session: true,
+        skip_compaction: true,
+    };
+
+    /// When a batch restore fails because a database file is unreadable, each task's copy of the
+    /// error is still marked, so the restore panic reports the unreadable file.
+    #[test]
+    fn batch_restore_error_keeps_the_unreadable_marker() {
+        let error = batch_restore_error(
+            TaskDataCategory::Data,
+            "checksum mismatch",
+            Some("00000007.sst"),
+        );
+        assert_eq!(
+            CacheFileUnreadable::find(&error).map(CacheFileUnreadable::file_name),
+            Some("00000007.sst")
+        );
+        assert_eq!(
+            error.to_string(),
+            "Batch data restore failed: checksum mismatch"
+        );
+
+        let error = batch_restore_error(TaskDataCategory::Data, "some bug", None);
+        assert!(CacheFileUnreadable::find(&error).is_none());
+    }
+
+    /// Restoring a task whose data is in a database file that was modified after the database was
+    /// opened panics with a [`PersistentCacheUnreadablePanic`] instead of a generic panic.
+    // Default worker count like the other database tests: under the WASI test host, file
+    // descriptors are per thread.
+    #[tokio::test(flavor = "multi_thread")]
+    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
+    async fn restoring_from_a_corrupted_database_file_panics_as_unreadable() -> anyhow::Result<()> {
+        let tempdir = test_temp_dir()?;
+        let path = tempdir.path();
+        let task_id = TaskId::new(1).unwrap();
+        {
+            let db = TurboKeyValueDatabase::new(path.to_path_buf(), STORAGE_OPTIONS)?;
+            let batch = db.write_batch()?;
+            for category in [
+                SpecificTaskDataCategory::Meta,
+                SpecificTaskDataCategory::Data,
+            ] {
+                let mut buffer = turbo_bincode::TurboBincodeBuffer::new();
+                TaskStorage::new().encode(
+                    category,
+                    &mut turbo_bincode::new_turbo_bincode_encoder(&mut buffer),
+                )?;
+                batch.put(
+                    category.key_space(),
+                    WriteBuffer::Borrowed(&(*task_id).to_le_bytes()),
+                    WriteBuffer::Borrowed(&buffer),
+                )?;
+            }
+            batch.commit()?;
+            db.shutdown();
+        }
+
+        let db = TurboKeyValueDatabase::new(path.to_path_buf(), STORAGE_OPTIONS)?;
+        // Opening reads only the block offsets and the index block of each SST file, so the first
+        // block (a key block) is read by the lookup that restores the task. Flip a byte of its
+        // data, right after its 8-byte header, without changing the file length.
+        for entry in std::fs::read_dir(path)? {
+            let entry = entry?;
+            if entry.path().extension().is_some_and(|ext| ext == "sst") {
+                let mut file = std::fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .open(entry.path())?;
+                let mut byte = [0u8];
+                file.seek(SeekFrom::Start(8))?;
+                file.read_exact(&mut byte)?;
+                file.seek(SeekFrom::Start(8))?;
+                file.write_all(&[!byte[0]])?;
+            }
+        }
+
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions {
+                storage_mode: Some(StorageMode::ReadOnly),
+                num_workers: Some(1),
+                small_preallocation: true,
+                ..Default::default()
+            },
+            TurboBackingStorage::new_in_memory(db),
+        ));
+        let payload = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let mut ctx = ExecuteContext::new(&tt);
+            let _ = ctx.task(task_id, TaskDataCategory::All);
+        }))
+        .expect_err("restoring the task must panic");
+        let panic = payload
+            .downcast_ref::<PersistentCacheUnreadablePanic>()
+            .unwrap_or_else(|| {
+                panic!(
+                    "unexpected panic payload: {:?}",
+                    payload
+                        .downcast_ref::<String>()
+                        .map(String::as_str)
+                        .or_else(|| payload.downcast_ref::<&str>().copied())
+                )
+            });
+        assert!(
+            panic
+                .message
+                .contains("Turbopack's filesystem cache could not be read"),
+            "{}",
+            panic.message
+        );
+        assert!(
+            panic.message.contains("checksum mismatch"),
+            "{}",
+            panic.message
+        );
+        Ok(())
     }
 }
