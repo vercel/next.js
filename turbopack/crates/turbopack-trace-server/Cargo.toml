@@ -9,6 +9,9 @@ autobenches = false
 [features]
 default = ["custom_allocator"]
 custom_allocator = ["turbo-tasks-malloc/custom_allocator"]
+# Native platforms always include the reader/server; the WASI next-swc binding
+# opts in while the browser trace engine leaves file I/O and sockets out.
+trace-server = ["dep:tungstenite", "dep:zstd", "dep:lzma-rust2"]
 
 [lints]
 workspace = true
@@ -25,7 +28,6 @@ flate2 = { workspace = true }
 hashbrown = { workspace = true, features = ["raw-entry"] }
 indexmap = { workspace = true, features = ["serde"] }
 itertools = { workspace = true }
-lzma-rust2 = { version = "0.25.0", default-features = false, features = ["std", "optimization", "xz"] }
 postcard = { workspace = true }
 rayon = { workspace = true }
 rustc-demangle = "0.1"
@@ -35,9 +37,17 @@ serde_json = { workspace = true }
 smallvec = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks-malloc = { workspace = true, default-features = false }
-tungstenite = { version = "0.21.0" }
 turbopack-trace-utils = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+lzma-rust2 = { version = "0.25.0", default-features = false, features = ["std", "optimization", "xz"] }
+tungstenite = { version = "0.21.0" }
 zstd = { version = "0.13.0" }
 
 [dev-dependencies]
 lzma-rust2 = { version = "0.25.0", default-features = false, features = ["std", "encoder", "optimization", "xz"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+lzma-rust2 = { version = "0.25.0", default-features = false, features = ["std", "optimization", "xz"], optional = true }
+tungstenite = { version = "0.21.0", optional = true }
+zstd = { version = "0.13.0", optional = true }
