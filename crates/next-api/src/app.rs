@@ -41,7 +41,7 @@ use smallvec::smallvec;
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    Completion, NonLocalValue, OrderedAutoMap, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
     fxindexset,
 };
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, to_sys_path};
@@ -93,7 +93,8 @@ use crate::{
     project::{BaseAndFullModuleGraph, Project},
     route::{
         AnalyzeChunkGroup, AnalyzeChunkGroups, AnalyzeClientEntries, AnalyzeClientReference,
-        AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes,
+        AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, FirstLoadChunks, ModuleGraphs,
+        Route, Routes,
     },
     server_actions::{build_server_actions_loader, create_server_actions_manifest},
     service_worker::service_worker_output_assets,
@@ -1243,6 +1244,7 @@ impl Endpoint for GoEndpoint {
                 project,
                 output_assets: OutputAssets::empty().to_resolved().await?,
                 output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
+                first_load_chunks: None,
             }
             .cell());
         }
@@ -1364,6 +1366,7 @@ impl Endpoint for GoEndpoint {
                         build: Some((*result).clone()),
                     }
                     .resolved_cell(),
+                    first_load_chunks: None,
                 }
                 .cell());
             }
@@ -1470,6 +1473,7 @@ impl Endpoint for GoEndpoint {
                 build: (*result).clone(),
             }
             .resolved_cell(),
+            first_load_chunks: None,
         }
         .cell())
     }
@@ -1695,30 +1699,35 @@ impl AppEndpoint {
                 .await?;
 
         // We only need the client runtime entries for pages not for Route Handlers
-        let (availability_info, client_shared_chunks, client_chunk_group_bootstrap_params) =
-            if is_app_page {
-                let client_shared_chunk_group = get_app_client_shared_chunk_group(
-                    AssetIdent::from_path(project.project_path().owned().await?)
-                        .with_modifier(rcstr!("client-shared-chunks"))
-                        .into_vc(),
-                    this.app_project.client_runtime_entries(),
-                    *module_graphs.full,
-                    *client_chunking_context,
-                );
+        let (
+            availability_info,
+            client_shared_chunks,
+            client_shared_chunks_vc,
+            client_chunk_group_bootstrap_params,
+        ) = if is_app_page {
+            let client_shared_chunk_group = get_app_client_shared_chunk_group(
+                AssetIdent::from_path(project.project_path().owned().await?)
+                    .with_modifier(rcstr!("client-shared-chunks"))
+                    .into_vc(),
+                this.app_project.client_runtime_entries(),
+                *module_graphs.full,
+                *client_chunking_context,
+            );
 
-                client_assets.extend(client_shared_chunk_group.all_assets().await?);
+            client_assets.extend(client_shared_chunk_group.all_assets().await?);
 
-                let client_shared_chunk_group = client_shared_chunk_group.await?;
-                (
-                    client_shared_chunk_group.availability_info,
-                    client_shared_chunk_group.assets.owned().await?,
-                    client_shared_chunk_group
-                        .chunk_group_bootstrap_params
-                        .clone(),
-                )
-            } else {
-                (AvailabilityInfo::root(), vec![], None)
-            };
+            let client_shared_chunk_group = client_shared_chunk_group.await?;
+            (
+                client_shared_chunk_group.availability_info,
+                client_shared_chunk_group.assets.owned().await?,
+                Some(client_shared_chunk_group.assets),
+                client_shared_chunk_group
+                    .chunk_group_bootstrap_params
+                    .clone(),
+            )
+        } else {
+            (AvailabilityInfo::root(), vec![], None, None)
+        };
 
         let client_references_chunks = get_app_client_references_chunks(
             *client_references,
@@ -1897,9 +1906,9 @@ impl AppEndpoint {
 
         if emit_manifests != EmitManifests::None {
             let root_main_files_per_page = if page_hmr_chunks.is_empty() {
-                FxIndexMap::default()
+                OrderedAutoMap::default()
             } else {
-                let mut m = FxIndexMap::default();
+                let mut m = OrderedAutoMap::default();
                 m.insert(app_entry.original_name.clone(), page_hmr_chunks);
                 m
             };
@@ -1921,7 +1930,7 @@ impl AppEndpoint {
                 root_main_files_per_page,
                 pages_chunk_group_bootstrap_params: client_chunk_group_bootstrap_params
                     .map(|params| {
-                        let mut m = FxIndexMap::default();
+                        let mut m = OrderedAutoMap::default();
                         m.insert(app_entry.original_name.clone(), params);
                         m
                     })
@@ -2035,6 +2044,20 @@ impl AppEndpoint {
         // these references are important for turbotrace
         let mut client_reference_manifest = None;
 
+        // Only needed for the route bundle stats of production builds.
+        let first_load_chunks = if let Some(client_shared_chunks) = client_shared_chunks_vc
+            && emit_rsc_manifests
+            && project.next_mode().await?.is_production()
+        {
+            Some(FirstLoadChunks::AppPage {
+                client_references,
+                client_references_chunks,
+                client_shared_chunks,
+            })
+        } else {
+            None
+        };
+
         if emit_rsc_manifests {
             let entry_manifest = ResolvedVc::upcast(
                 ClientReferenceManifest {
@@ -2137,7 +2160,7 @@ impl AppEndpoint {
                         *module_graphs.full,
                         *client_chunking_context,
                         next_dynamic_imports,
-                        NextDynamicChunkAvailability::ClientReferences(
+                        NextDynamicChunkAvailability::AppRouterClientReferences(
                             &*(client_references_chunks.await?),
                         ),
                     )
@@ -2233,6 +2256,7 @@ impl AppEndpoint {
                     files: app_entry_chunks,
                     server_assets,
                     client_assets,
+                    first_load_chunks,
                 }
             }
             NextRuntime::NodeJs => {
@@ -2261,7 +2285,7 @@ impl AppEndpoint {
                         *module_graphs.full,
                         *client_chunking_context,
                         next_dynamic_imports,
-                        NextDynamicChunkAvailability::ClientReferences(
+                        NextDynamicChunkAvailability::AppRouterClientReferences(
                             &*(client_references_chunks.await?),
                         ),
                     )
@@ -2315,6 +2339,7 @@ impl AppEndpoint {
                     rsc_chunk,
                     server_assets,
                     client_assets,
+                    first_load_chunks,
                 }
             }
         }
@@ -2698,11 +2723,21 @@ impl Endpoint for AppEndpoint {
                 },
             };
 
+            let first_load_chunks = match &*output.await? {
+                AppEndpointOutput::NodeJs {
+                    first_load_chunks, ..
+                }
+                | AppEndpointOutput::Edge {
+                    first_load_chunks, ..
+                } => first_load_chunks.clone(),
+            };
+
             anyhow::Ok(
                 EndpointOutput {
                     output_assets: output_assets.to_resolved().await?,
                     output_paths: written_endpoint.resolved_cell(),
                     project: project.to_resolved().await?,
+                    first_load_chunks,
                 }
                 .cell(),
             )
@@ -2976,11 +3011,15 @@ enum AppEndpointOutput {
         rsc_chunk: ResolvedVc<Box<dyn OutputAsset>>,
         server_assets: ResolvedVc<OutputAssets>,
         client_assets: ResolvedVc<OutputAssets>,
+        /// Only set for pages in production builds.
+        first_load_chunks: Option<FirstLoadChunks>,
     },
     Edge {
         files: ResolvedVc<OutputAssets>,
         server_assets: ResolvedVc<OutputAssets>,
         client_assets: ResolvedVc<OutputAssets>,
+        /// Only set for pages in production builds.
+        first_load_chunks: Option<FirstLoadChunks>,
     },
 }
 

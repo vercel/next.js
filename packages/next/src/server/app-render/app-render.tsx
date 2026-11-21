@@ -84,7 +84,10 @@ import {
 } from './turbopack-bootstrap-script'
 import { stripInternalQueries } from '../internal-utils'
 import { getRenderedSearch } from '../../shared/lib/router/utils/querystring'
-import { NEXT_ROUTER_STALE_TIME_HEADER } from '../../client/components/app-router-headers'
+import {
+  NEXT_PRELUDE_METADATA_HEADER,
+  NEXT_ROUTER_STALE_TIME_HEADER,
+} from '../../client/components/app-router-headers'
 import { AppStage } from '../../client/components/segment-cache/types'
 import { createMetadataContext } from '../../lib/metadata/metadata-context'
 import {
@@ -9007,6 +9010,7 @@ async function continueStaticPrerenderWithInlinedData(
       getServerInsertedHTML,
       getServerInsertedMetadata,
       deploymentId,
+      nonce,
     })
   }
 
@@ -10176,6 +10180,11 @@ async function prerenderToStream(
         )
       }
 
+      if (dynamicValidation.hasDynamicMetadata && !preludeIsEmpty) {
+        metadata.headers ??= {}
+        metadata.headers[NEXT_PRELUDE_METADATA_HEADER] = '0'
+      }
+
       const getServerInsertedHTML = makeGetServerInsertedHTML({
         polyfills,
         renderServerInsertedHTML,
@@ -10810,6 +10819,11 @@ async function prerenderToStream(
           )
           throw new StaticGenBailoutError()
         }
+
+        // The recovery payload omits metadata and viewport from its HTML head.
+        // Bots that require a complete head must bypass this cached shell.
+        metadata.headers ??= {}
+        metadata.headers[NEXT_PRELUDE_METADATA_HEADER] = '0'
 
         const getServerInsertedHTML = makeGetServerInsertedHTML({
           polyfills,

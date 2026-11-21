@@ -30,31 +30,32 @@ use crate::{
     source_map::{OptionSourceMapType, SourceMapGenerationOptions},
 };
 
-#[turbo_tasks::task_input]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, DeterministicHash, Encode, Decode,
-)]
-#[serde(rename_all = "kebab-case")]
-pub enum MangleType {
-    OptimalSize,
-    Deterministic,
-}
+/// A marker trait for emit options that can be stored in a chunking context.
+///
+/// Different crates can define their own emit option types (e.g., `EcmascriptEmitOptions`,
+/// `CssEmitOptions`) without requiring the core crate to depend on their specific dependencies
+/// (e.g., SWC).
+#[turbo_tasks::value_trait]
+pub trait EmitOption {}
 
-#[turbo_tasks::value(shared, task_input)]
-#[derive(Debug, Clone, Copy, Hash, DeterministicHash, Deserialize)]
-pub enum MinifyType {
-    // TODO instead of adding a new property here,
-    // refactor that to Minify(MinifyOptions) to allow defaults on MinifyOptions
-    Minify { mangle: Option<MangleType> },
-    NoMinify,
-}
+/// A heterogeneous list of emit options stored in a chunking context.
+#[turbo_tasks::value(transparent)]
+pub struct EmitOptions(Vec<ResolvedVc<Box<dyn EmitOption>>>);
 
-impl Default for MinifyType {
-    fn default() -> Self {
-        Self::Minify {
-            mangle: Some(MangleType::OptimalSize),
-        }
-    }
+/// Find a specific emit option type from the list, returning the last matching one.
+///
+/// Returns `None` if no matching option is found, in which case callers should use defaults.
+pub async fn find_emit_option<T>(list: Vc<EmitOptions>) -> Result<Option<Vc<T>>>
+where
+    T: turbo_tasks::VcValueType + turbo_tasks::UpcastStrict<Box<dyn EmitOption>>,
+{
+    let list = list.await?;
+    Ok(list
+        .iter()
+        .rev()
+        .filter_map(|item| ResolvedVc::try_downcast_type::<T>(*item))
+        .next()
+        .map(|v| *v))
 }
 
 /// Suffix to append to asset URLs.
@@ -102,6 +103,14 @@ pub enum ChunkGroupType {
     Evaluated,
 }
 
+/// For each async module of a chunk group, the availability its async loader was created with,
+/// i.e. the availability passed to [`ChunkingContext::async_loader_chunk_item`]. A chunk group
+/// doesn't create an async loader for a module when an available chunk group already did.
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct AsyncLoaderAvailabilityMap(
+    FxHashMap<ResolvedVc<Box<dyn ChunkableModule>>, AvailabilityInfo>,
+);
+
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub struct ChunkGroupResult {
@@ -110,6 +119,12 @@ pub struct ChunkGroupResult {
     pub references: ResolvedVc<OutputAssetsReferences>,
     pub availability_info: AvailabilityInfo,
     pub chunk_group_bootstrap_params: Option<RcJsonRawValue>,
+    /// The availability of the async loaders created by the chunk groups this result consists of,
+    /// one keyed map per chunk group, in the order the chunk groups are loaded (see
+    /// [`ChunkGroupResult::concatenate`]). It has one entry per concatenated chunk group. The maps
+    /// aren't merged: concatenation only copies the references, while merging would read and copy
+    /// every entry of every map for each concatenated result.
+    pub async_loader_availability: Vec<ResolvedVc<AsyncLoaderAvailabilityMap>>,
 }
 
 impl ChunkGroupResult {
@@ -120,6 +135,7 @@ impl ChunkGroupResult {
             references: ResolvedVc::cell(vec![]),
             availability_info: AvailabilityInfo::root(),
             chunk_group_bootstrap_params: None,
+            async_loader_availability: vec![],
         }
         .cell()
     }
@@ -131,10 +147,39 @@ impl ChunkGroupResult {
             references: ResolvedVc::cell(vec![]),
             availability_info: AvailabilityInfo::root(),
             chunk_group_bootstrap_params: None,
+            async_loader_availability: vec![],
         }
         .resolved_cell()
     }
+
+    /// The availability the async loader of `module` was created with by this result's chunk
+    /// groups, so that a loader for `module` with exactly the chunks they load at runtime can be
+    /// created elsewhere (e.g. for a manifest). `None` when none of them created one: the loader
+    /// was then created by another chunk group (e.g. an available one, or the async chunk group of
+    /// a module they load), or the caller's module graph and this result are momentarily out of
+    /// sync during recomputation.
+    ///
+    /// The first chunk group, in load order, that created an async loader for `module` wins.
+    /// Usually only one did: a chunk group doesn't create an async loader that an available chunk
+    /// group already created. But a later chunk group doesn't always see an earlier one as
+    /// available, so several can create one. All of these loaders share one module id, and the
+    /// runtime keeps the first module factory registered for an id, so the loader of the first
+    /// chunk group loaded is the one used.
+    pub async fn find_async_loader_availability_info(
+        &self,
+        module: ResolvedVc<Box<dyn ChunkableModule>>,
+    ) -> Result<Option<AvailabilityInfo>> {
+        for chunk_group in &self.async_loader_availability {
+            if let Some(availability_info) = chunk_group.get(&module).await? {
+                return Ok(Some(*availability_info));
+            }
+        }
+        Ok(None)
+    }
 }
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionChunkGroupResult(Option<ResolvedVc<ChunkGroupResult>>);
 
 #[turbo_tasks::value_impl]
 impl ChunkGroupResult {
@@ -165,6 +210,12 @@ impl ChunkGroupResult {
                 .await?,
             availability_info: next.availability_info,
             chunk_group_bootstrap_params: next.chunk_group_bootstrap_params.clone(),
+            async_loader_availability: self
+                .async_loader_availability
+                .iter()
+                .chain(&next.async_loader_availability)
+                .copied()
+                .collect(),
         }
         .cell())
     }
@@ -237,7 +288,23 @@ pub struct ChunkingConfig {
 
     /// Never merges chunks bigger than this size with other chunks.
     /// This makes sure that code in big chunks is not duplicated in multiple chunks.
+    /// `0` means no limit. When `max_chunk_size` is set, this is limited to `max_chunk_size` (see
+    /// [`ChunkingConfig::normalized`]).
     pub max_merge_chunk_size: usize,
+
+    /// Best-effort upper bound on the estimated size of a chunk. `0` disables the limit. Not used
+    /// for style chunk types.
+    ///
+    /// Merging never creates chunks bigger than this size, and chunks bigger than this size are
+    /// never merged. Chunks that are too big on their own are split deterministically (by sorting
+    /// their chunk items by module identifier) into chunks that are not bigger than this size,
+    /// preferring chunks of at least `min_chunk_size`. To stay below the limit, chunks may be
+    /// smaller than `min_chunk_size` and there may be more chunks than
+    /// `max_chunk_count_per_group`. Only a single chunk item bigger than this size can still
+    /// produce a bigger chunk.
+    ///
+    /// This is raised to at least `3 * min_chunk_size` (see [`ChunkingConfig::normalized`]).
+    pub max_chunk_size: usize,
 
     /// When enabled, a merged chunk also emits its constituent component chunks (referenced,
     /// loaded on demand) so the runtime can fetch an individual component chunk instead of the
@@ -272,6 +339,32 @@ pub struct ChunkingConfig {
 
 #[turbo_tasks::value(transparent)]
 pub struct ChunkingConfigs(FxHashMap<ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig>);
+
+impl ChunkingConfig {
+    /// Returns this config with consistent size limits. When `max_chunk_size` is set (not `0`):
+    ///
+    /// 1. `max_chunk_size` is raised to `3 * min_chunk_size` if it is smaller, so that chunks can
+    ///    be split into chunks of at least `min_chunk_size`.
+    /// 2. `max_merge_chunk_size` is lowered to `max_chunk_size` if it is bigger or `0` (no limit),
+    ///    since chunks bigger than `max_chunk_size` are never merged anyway.
+    ///
+    /// The production chunking algorithm always uses the normalized config. Compare with the
+    /// original config to find out whether anything was adjusted.
+    pub fn normalized(&self) -> Self {
+        let mut config = self.clone();
+        if config.max_chunk_size != 0 {
+            config.max_chunk_size = config
+                .max_chunk_size
+                .max(config.min_chunk_size.saturating_mul(3));
+            if config.max_merge_chunk_size == 0
+                || config.max_merge_chunk_size > config.max_chunk_size
+            {
+                config.max_merge_chunk_size = config.max_chunk_size;
+            }
+        }
+        config
+    }
+}
 
 /// turbopack-browser needs to know the original
 /// source of the hmr chunk list to properly map to a
@@ -439,10 +532,13 @@ pub trait ChunkingContext {
         Vc::cell(false)
     }
 
+    /// Returns the list of emit options for this chunking context.
+    ///
+    /// Emit options allow crate-specific configuration (e.g., SWC minify options,
+    /// CSS minification settings) without requiring turbopack-core to depend on those crates.
+    /// Consumers fall back to their defaults when no option of the requested type is present.
     #[turbo_tasks::function]
-    fn minify_type(self: Vc<Self>) -> Vc<MinifyType> {
-        MinifyType::NoMinify.cell()
-    }
+    fn emit_options(self: Vc<Self>) -> Vc<EmitOptions>;
 
     /// EXPERIMENTAL: minify each chunk item on its own, before the chunk is assembled, instead of
     /// minifying the finished chunk.
@@ -888,4 +984,63 @@ fn chunk_group_assets(
             availability_info,
         )
         .output_assets_with_referenced()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ChunkingConfig;
+
+    fn config(min: usize, merge: usize, max: usize) -> ChunkingConfig {
+        ChunkingConfig {
+            min_chunk_size: min,
+            max_merge_chunk_size: merge,
+            max_chunk_size: max,
+            ..Default::default()
+        }
+    }
+
+    fn limits(config: &ChunkingConfig) -> (usize, usize, usize) {
+        (
+            config.min_chunk_size,
+            config.max_merge_chunk_size,
+            config.max_chunk_size,
+        )
+    }
+
+    #[test]
+    fn normalized_keeps_valid_configs() {
+        let valid = config(50_000, 200_000, 1_000_000);
+        assert_eq!(valid.normalized(), valid);
+        // Exactly at the limits.
+        let valid = config(100, 300, 300);
+        assert_eq!(valid.normalized(), valid);
+    }
+
+    #[test]
+    fn normalized_ignores_disabled_max_chunk_size() {
+        let disabled = config(50_000, 0, 0);
+        assert_eq!(disabled.normalized(), disabled);
+        let disabled = config(50_000, 200_000, 0);
+        assert_eq!(disabled.normalized(), disabled);
+    }
+
+    #[test]
+    fn normalized_raises_max_chunk_size() {
+        assert_eq!(limits(&config(100, 200, 200).normalized()), (100, 200, 300));
+    }
+
+    #[test]
+    fn normalized_lowers_max_merge_chunk_size() {
+        assert_eq!(limits(&config(10, 500, 200).normalized()), (10, 200, 200));
+        // `0` means no limit, which is bigger than any `max_chunk_size`.
+        assert_eq!(limits(&config(10, 0, 200).normalized()), (10, 200, 200));
+    }
+
+    #[test]
+    fn normalized_lowers_max_merge_chunk_size_to_raised_max_chunk_size() {
+        assert_eq!(
+            limits(&config(100, 1_000, 200).normalized()),
+            (100, 300, 300)
+        );
+    }
 }

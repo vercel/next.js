@@ -4,7 +4,7 @@ pub mod chunk_group;
 pub mod chunk_id_strategy;
 pub(crate) mod chunk_item_batch;
 pub mod chunking;
-pub(crate) mod chunking_context;
+pub mod chunking_context;
 pub(crate) mod data;
 pub(crate) mod evaluate;
 
@@ -27,9 +27,10 @@ pub use crate::chunk::{
         ChunkItemOrBatchWithAsyncModuleInfo, batch_info,
     },
     chunking_context::{
-        AssetSuffix, ChunkGroupResult, ChunkGroupType, ChunkingConfig, ChunkingConfigs,
-        ChunkingContext, ChunkingContextExt, EntryChunkGroupResult, HmrChunkListSource, MangleType,
-        MinifyType, SourceMapSourceType, UnusedReferences, UrlBehavior, WorkerConfigurationOptions,
+        AssetSuffix, AsyncLoaderAvailabilityMap, ChunkGroupResult, ChunkGroupType, ChunkingConfig,
+        ChunkingConfigs, ChunkingContext, ChunkingContextExt, EmitOption, EmitOptions,
+        EntryChunkGroupResult, HmrChunkListSource, OptionChunkGroupResult, SourceMapSourceType,
+        UnusedReferences, UrlBehavior, WorkerConfigurationOptions,
     },
     data::{ChunkData, ChunkDataOption, ChunksData},
     evaluate::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
