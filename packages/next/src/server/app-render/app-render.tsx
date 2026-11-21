@@ -10025,7 +10025,9 @@ async function prerenderToStream(
         ComponentMod,
         renderOpts,
         ctx.pagePath,
-        metadata
+        metadata,
+        // The stream of the final render ended before the render was aborted.
+        !resultIsPartial
       )
 
       const clientDynamicTracking = createDynamicTrackingState(
@@ -10430,7 +10432,10 @@ async function prerenderToStream(
         ComponentMod,
         renderOpts,
         ctx.pagePath,
-        metadata
+        metadata,
+        // A render without Cache Components is never cut short: its stream
+        // was read to the end above.
+        true
       )
 
       const getServerInsertedHTML = makeGetServerInsertedHTML({
@@ -11026,7 +11031,8 @@ async function prerenderToStream(
         ComponentMod,
         renderOpts,
         ctx.pagePath,
-        metadata
+        metadata,
+        false
       )
 
       return {
@@ -11268,7 +11274,10 @@ async function collectSegmentData(
   ComponentMod: AppPageModule,
   renderOpts: RenderOpts,
   pagePath: string,
-  metadata: AppPageRenderResultMetadata
+  metadata: AppPageRenderResultMetadata,
+  // Whether the render that produced the page data ran to its end, which
+  // leaves no reference in it pending.
+  isPageDataComplete: boolean
 ): Promise<void> {
   // Per-segment prefetch data
   //
@@ -11429,7 +11438,8 @@ async function collectSegmentData(
     serverConsumerManifest,
     Boolean(renderOpts.experimental.prefetchInlining),
     hints,
-    isUpgradeableISRFallback
+    isUpgradeableISRFallback,
+    isPageDataComplete
   )
 }
 
