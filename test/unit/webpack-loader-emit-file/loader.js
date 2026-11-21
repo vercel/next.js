@@ -2,6 +2,14 @@ module.exports = function (source) {
   const options = this.getOptions()
   if (options.invalidName) {
     this.emitFile(null, source)
+  } else if (options.ignoredInfo) {
+    this.emitFile('ignored-info.txt', source, undefined, {
+      custom: () => {},
+      get immutable() {
+        throw new Error('assetInfo must not be read')
+      },
+    })
+    this.emitFile('minimized.js', source, undefined, { minimized: true })
   } else if (options.mutableBuffer) {
     const content = Buffer.from([0])
     this.emitFile('mutable.bin', content)

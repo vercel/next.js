@@ -143,6 +143,15 @@ const nextConfig: NextConfig = {
         ],
         as: '*.js',
       },
+      '*.minify': {
+        loaders: [
+          {
+            loader: './loaders/minify.js',
+            options: { outputPath: 'static/media' },
+          },
+        ],
+        as: '*.js',
+      },
       '*.importer': { loaders: ['./loaders/importer.js'], as: '*.js' },
       '*.emit-imported': {
         loaders: [
@@ -265,6 +274,15 @@ const nextConfig: NextConfig = {
       ],
     })
     config.module.rules.push(
+      {
+        test: /\.minify$/,
+        use: [
+          {
+            loader: require.resolve('./loaders/minify.js'),
+            options: { outputPath },
+          },
+        ],
+      },
       {
         test: /\.importer$/,
         use: [{ loader: require.resolve('./loaders/importer.js') }],
