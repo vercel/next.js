@@ -4,6 +4,10 @@ import escapeStringRegexp from 'escape-string-regexp'
 import stripAnsi from 'strip-ansi'
 import { join } from 'path'
 import { assertNoConsoleErrors, retry, waitForNoRedbox } from 'next-test-utils'
+import { createCacheControl, waitForCrossRequestJoin } from './cache-control'
+
+const englishWriteTag = 'app-root-params-getters:write-language:en'
+const frenchWriteTag = 'app-root-params-getters:write-language:fr'
 
 describe('app-root-param-getters - cache - at runtime', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
@@ -383,6 +387,7 @@ describe('app-root-param-getters - cache - at build', () => {
 describe('app-root-param-getters - cache dedup with root params', () => {
   const { next, isNextDev } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'use-cache-dedup'),
+    env: { NEXT_PRIVATE_DEBUG_CACHE: '1' },
   })
 
   beforeAll(async () => {
@@ -397,57 +402,41 @@ describe('app-root-param-getters - cache dedup with root params', () => {
   // The control route and cache handler share process-local test state.
   // @force-gate !deploy
   it('persists a joining root value after the shared producer cache write fails', async () => {
-    const id = `write-failure-${randomUUID()}`
-    const control = (action: string) =>
-      next.fetch(`/write-failure-control?id=${id}`, {
-        method: 'POST',
-        body: action,
-      })
-    const readState = () =>
-      next.fetch('/write-failure-control').then(
-        (response) =>
-          response.json() as Promise<{
-            requestedLanguages: string[]
-            generatedLanguages: string[]
-            failedWriteLanguages: string[]
-            writtenLanguages: string[]
-          }>
-      )
-    // Keep the English cached call pending until the French request starts.
-    // Both calls initially use the key without root parameters because the
-    // wrapper has not collected the English call's `lang` dependency yet.
-    await control('hold-fill')
+    const id = randomUUID()
+    const cache = await createCacheControl(next, {
+      keyIncludes: [JSON.stringify(id), JSON.stringify('inner')],
+    })
+    const fill = await cache.holdNextGeneration({ language: 'en' })
+    const redirectWrite = await cache.rejectNextWrite({
+      tag: englishWriteTag,
+      entry: 'redirect',
+    })
+    const valueWrite = await cache.rejectNextWrite({
+      tag: englishWriteTag,
+      entry: 'value',
+    })
     const english = next.render$(`/ca/en/write-failure?id=${id}`)
     let french: ReturnType<typeof next.render$> | undefined
     try {
-      await retry(async () => {
-        expect((await readState()).generatedLanguages).toEqual(['en'])
-      })
+      await fill.waitUntilStarted()
       french = next.render$(`/ca/fr/write-failure?id=${id}`)
-      await retry(async () => {
-        const state = await readState()
-        expect(state.requestedLanguages).toEqual(['en', 'fr'])
-        expect(state.generatedLanguages).toEqual(['en'])
-      })
-      // The English `set()` calls reject. The French request must still retry
-      // the lookup with its own `lang` value and return French data.
-      await control('release-fill')
+      // Both requests use the key without root params until the English
+      // generation completes and records its read root params.
+      await waitForCrossRequestJoin(next, id)
+      await fill.release()
       const [englishPage, frenchPage] = await Promise.all([english, french])
       expect(englishPage('#value').text()).toStartWith('en:')
       const frenchValue = frenchPage('#value').text()
       expect(frenchValue).toStartWith('fr:')
-      await retry(async () => {
-        const state = await readState()
-        expect(state.failedWriteLanguages).toContain('en')
-        expect(state.writtenLanguages).toContain('fr')
-      })
-      // The next request must reuse the stored French entry. Another execution
-      // of `readCachedValue()` would generate a new UUID.
+      await redirectWrite.waitUntilRejected()
+      await valueWrite.waitUntilRejected()
+      await cache.waitForWrite({ tag: frenchWriteTag }, 'completed')
+      // Another generation would produce a different UUID.
       expect(
         (await next.render$(`/ca/fr/write-failure?id=${id}`))('#value').text()
       ).toBe(frenchValue)
     } finally {
-      await control('release-fill')
+      await cache.releaseAll()
       await Promise.allSettled([english, french])
     }
   })
@@ -567,6 +556,157 @@ describe('app-root-param-getters - cache dedup with root params', () => {
       // In production, private caches are not persisted and are never deduped
       // across requests, so each ca/fr request generates its own value.
       expect(randomFr1).not.toBe(randomFr2)
+    }
+  })
+})
+
+for (const { held, failure } of [
+  { held: 'redirect', failure: null },
+  { held: 'value', failure: null },
+  { held: 'redirect', failure: 'value' },
+  { held: 'value', failure: 'redirect' },
+] as const) {
+  // Handler controls require both requests to reach the same server process.
+  // @force-gate start
+  describe(`root cache writes: hold ${held}, fail ${failure ?? 'neither'}`, () => {
+    const { next } = nextTestSetup({
+      files: join(__dirname, 'fixtures', 'use-cache-dedup'),
+      env: { NEXT_PRIVATE_DEBUG_CACHE: '1' },
+    })
+
+    it('currently shares the producer lookup while waiting for both root-param writes', async () => {
+      const id = randomUUID()
+      const cache = await createCacheControl(next, {
+        keyIncludes: [JSON.stringify(id), JSON.stringify('inner')],
+      })
+      const fill = await cache.holdNextGeneration({ language: 'en' })
+      const heldWrite = await cache.holdNextWrite({
+        tag: englishWriteTag,
+        entry: held,
+      })
+      const otherWrite =
+        failure === null
+          ? await cache.observeNextWrite({
+              tag: englishWriteTag,
+              entry: held === 'redirect' ? 'value' : 'redirect',
+            })
+          : await cache.rejectNextWrite({
+              tag: englishWriteTag,
+              entry: failure,
+            })
+      const english = next.render$(`/ca/en/write-failure?id=${id}`)
+      let french: ReturnType<typeof next.render$> | undefined
+      try {
+        await fill.waitUntilStarted()
+        french = next.render$(`/ca/fr/write-failure?id=${id}`)
+        await waitForCrossRequestJoin(next, id)
+        expect((await cache.read()).lookupKeys).toHaveLength(1)
+        await fill.release()
+        await heldWrite.waitUntilStarted()
+        if (failure === null) {
+          await otherWrite.waitUntilCompleted()
+        } else {
+          await otherWrite.waitUntilRejected()
+        }
+        // The other write settled. A root-key retry must wait for the held
+        // write, even if the other write rejected.
+        const pendingState = await cache.read()
+        expect(pendingState.generatedLanguages).toEqual(['en'])
+        expect(pendingState.lookupKeys).toHaveLength(1)
+        await heldWrite.release()
+        const [englishPage, frenchPage] = await Promise.all([english, french])
+        expect(englishPage('#value').text()).toStartWith('en:')
+        const frenchValue = frenchPage('#value').text()
+        expect(frenchValue).toStartWith('fr:')
+        await cache.waitForWrite({ tag: frenchWriteTag }, 'completed')
+        expect(
+          (await next.render$(`/ca/fr/write-failure?id=${id}`))('#value').text()
+        ).toBe(frenchValue)
+      } finally {
+        await cache.releaseAll()
+        await Promise.allSettled([english, french])
+      }
+    })
+  })
+}
+
+// The handler and both generation controls require a shared server process.
+// @force-gate start
+describe('root cache lookup across two pending generations', () => {
+  const { next } = nextTestSetup({
+    files: join(__dirname, 'fixtures', 'use-cache-dedup'),
+    env: { NEXT_PRIVATE_DEBUG_CACHE: '1' },
+  })
+
+  it('currently joins both generations without reading the redirected handler key', async () => {
+    const id = randomUUID()
+    const pathname = `/ca/en/write-failure?id=${id}`
+    // The enclosing cache joins two pending generations of the inner cache:
+    // - The first starts before the wrapper knows the read root param names.
+    // - The second uses the root-specific key while the first write is held.
+    //
+    // The backend retains stale entries with revalidate: 0. The wrapper must
+    // regenerate those entries before it stores their data in the enclosing
+    // cache.
+    const cache = await createCacheControl(next, {
+      keyIncludes: [JSON.stringify(id), JSON.stringify('inner')],
+      backend: 'retain-stale',
+      cacheLife: { stale: 300, revalidate: 0, expire: 3600 },
+    })
+    const fill = await cache.holdNextGeneration({ language: 'en' })
+    const firstValueWrite = await cache.holdNextWrite({
+      tag: englishWriteTag,
+      entry: 'value',
+    })
+    const secondValueWrite = await cache.holdNextWrite({
+      tag: englishWriteTag,
+      entry: 'value',
+    })
+    const firstRedirectWrite = await cache.observeNextWrite({
+      tag: englishWriteTag,
+      entry: 'redirect',
+    })
+    const secondRedirectWrite = await cache.observeNextWrite({
+      tag: englishWriteTag,
+      entry: 'redirect',
+    })
+    const initialProducer = next.render$(pathname)
+    let consumer: ReturnType<typeof next.render$> | undefined
+    let specificProducer: ReturnType<typeof next.render$> | undefined
+    try {
+      await fill.waitUntilStarted()
+      const [initialKey] = (await cache.read()).lookupKeys
+      consumer = next.render$(`${pathname}&outer=1`)
+      await waitForCrossRequestJoin(next, id)
+      await fill.release()
+      const { cacheKey: specificKey } = await firstValueWrite.waitUntilStarted()
+      await firstRedirectWrite.waitUntilCompleted()
+      specificProducer = next.render$(pathname)
+      await secondValueWrite.waitUntilStarted()
+      const pendingState = await cache.read()
+      expect(pendingState.generatedLanguages).toEqual(['en', 'en'])
+      expect(
+        pendingState.lookupKeys.filter((key) => key === initialKey)
+      ).toHaveLength(1)
+      expect(
+        pendingState.lookupKeys.filter((key) => key === specificKey)
+      ).toHaveLength(1)
+      await firstValueWrite.release()
+      await waitForCrossRequestJoin(next, id, '"lang","en"')
+      await secondValueWrite.release()
+      await secondValueWrite.waitUntilCompleted()
+      await secondRedirectWrite.waitUntilCompleted()
+      const [, specificPage, page] = await Promise.all([
+        initialProducer,
+        specificProducer,
+        consumer,
+      ])
+      expect(page('#value').text()).toBe(specificPage('#value').text())
+      expect((await cache.read()).generatedLanguages).toEqual(['en', 'en'])
+      expect(page('#value').text()).toStartWith('en:')
+    } finally {
+      await cache.releaseAll()
+      await Promise.allSettled([initialProducer, consumer, specificProducer])
     }
   })
 })
