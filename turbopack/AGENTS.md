@@ -4,6 +4,13 @@ Turbopack is a general-purpose bundler that is built and designed for Next.js, b
 
 - **Do NOT mention Next.js config options** (e.g. anything under `next.config.js`, `experimental.*`, or other `NextConfig` fields) inside `turbopack/` code, comments, or docs. Refer to Turbopack's own options/inputs instead, and let the Next.js (in `packages/next/`) do the translation from Next.js config to Turbopack options. (This only applies to `turbopack/` — the Next.js-specific crates in `crates/` and `packages/next/` may reference Next.js config options.)
 
+## Rust conventions
+
+These apply to all Rust code in this directory tree. For building, testing, snapshot updates, and benchmarking, use `$rust-turbopack`.
+
+- Run `cargo fmt` rather than ordering imports by hand: it uses ASCII order (uppercase before lowercase).
+- Avoid adding new `super::` imports except in inline `mod` blocks (e.g. `mod tests { ... }`). Prefer `crate::`-rooted paths, which keep imports consistent and easier to grep for.
+
 ## turbo_tasks caching and invalidation
 
 These rules apply throughout this directory tree when developing with turbo_tasks:

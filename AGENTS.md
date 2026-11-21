@@ -442,6 +442,7 @@ Use skills for conditional, deep workflows. Keep baseline iteration/build/test p
 - `$react-sync` - build a local React checkout and sync it into Next.js for testing
 - `$runtime-debug` - runtime-bundle/module-resolution regression reproduction and verification
 - `$next-rspack` - @next/rspack-core and @next/rspack-binding maintenance (rspack/ directory)
+- `$rust-turbopack` - Rust/Turbopack build, test, snapshot, and benchmarking workflow (cargo, nextest, UPDATE=1, clippy, Miri, wasi)
 - `$gate-tests` - `@gate`/`@force-gate` test directives: replacing `it.skip`/fake-green skips, conditions, variant-shard fixtures
 - `$authoring-skills` - how to create and maintain skills in `.agents/skills/`
 
@@ -505,12 +506,6 @@ Core runtime/bundling rules (always apply; skills above expand on these with ver
 - **Reproducing CI failures locally**: Always match the exact CI env vars (check `pr-status` output for "Job Environment Variables"). Key differences such as `IS_WEBPACK_TEST=1` can change bundler selection and snapshot output, so use the CI command and mode when verifying module resolution fixes.
 - **Showing full stack traces**: Set `__NEXT_SHOW_IGNORE_LISTED=true` to disable the ignore-list filtering in dev server error output. By default, Next.js collapses internal frames to `at ignore-listed frames`, which hides useful context when debugging framework internals. Defined in `packages/next/src/server/patch-error-inspect.ts`.
 - **Router act tests must use LinkAccordion to control prefetches**: Always use `LinkAccordion` to control when prefetches happen inside `act` scopes. Never use `browser.back()` to return to a page where accordion links are already visible — BFCache restores state and triggers uncontrolled re-prefetches. See `$router-act` for full patterns.
-
-### Rust/Cargo
-
-- cargo fmt uses ASCII order (uppercase before lowercase) - just run `cargo fmt`
-- **Internal compiler error (ICE)?** Delete incremental compilation artifacts and retry. Remove `*/incremental` directories from your cargo target directory (default `target/`, or check `CARGO_TARGET_DIR` env var)
-- Avoid adding new `super::` imports except in inline `mod` blocks (e.g. `mod tests { ... }`) — prefer `crate::`-rooted paths. This makes imports consistent and easier to grep for.
 
 ### Node.js Source Maps
 
