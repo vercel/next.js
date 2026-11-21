@@ -223,9 +223,9 @@
         : "object" === typeof node &&
           null !== node &&
           node.$$typeof === REACT_LAZY_TYPE &&
-          ("fulfilled" === node._payload.status
-            ? isValidElement(node._payload.value) &&
-              node._payload.value._store &&
+          ("fulfilled" === node._payload.status &&
+          isValidElement(node._payload.value)
+            ? node._payload.value._store &&
               (node._payload.value._store.validated = 1)
             : node._store && (node._store.validated = 1));
     }
@@ -669,6 +669,7 @@
     exports.ViewTransition = REACT_VIEW_TRANSITION_TYPE;
     exports.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
       ReactSharedInternals;
+    exports.addToLedger = function () {};
     exports.cache = function (fn) {
       return function () {
         var dispatcher = ReactSharedInternals.A;
@@ -840,6 +841,11 @@
         childrenLength,
         propName ? createTask(getTaskName(type)) : unknownOwnerDebugTask
       );
+    };
+    exports.createMaskLedger = function () {
+      var type = { kind: 1 };
+      Object.freeze && Object.freeze(type);
+      return type;
     };
     exports.createRef = function () {
       var refObject = { current: null };
@@ -1061,5 +1067,5 @@
     exports.useMemo = function (create, deps) {
       return resolveDispatcher().useMemo(create, deps);
     };
-    exports.version = "19.3.0-experimental-a8342585-20261117";
+    exports.version = "19.3.0-experimental-e04279e7-20261119";
   })();

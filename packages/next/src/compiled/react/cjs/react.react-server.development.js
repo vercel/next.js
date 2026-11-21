@@ -223,9 +223,9 @@
         : "object" === typeof node &&
           null !== node &&
           node.$$typeof === REACT_LAZY_TYPE &&
-          ("fulfilled" === node._payload.status
-            ? isValidElement(node._payload.value) &&
-              node._payload.value._store &&
+          ("fulfilled" === node._payload.status &&
+          isValidElement(node._payload.value)
+            ? node._payload.value._store &&
               (node._payload.value._store.validated = 1)
             : node._store && (node._store.validated = 1));
     }
@@ -874,5 +874,5 @@
     exports.useMemo = function (create, deps) {
       return resolveDispatcher().useMemo(create, deps);
     };
-    exports.version = "19.3.0-canary-a8342585-20261117";
+    exports.version = "19.3.0-canary-e04279e7-20261119";
   })();
