@@ -53,29 +53,37 @@ async function CurrentTime() {
 
 In this route `CurrentTime` is wrapped in a `<Suspense>` boundary, during prerender, the `await io()` suspends and the fallback ships in the static shell. If `CurrentTime` were rendered inside a [`"use cache"`](/docs/app/api-reference/directives/use-cache) scope instead, `io()` would be a no-op, the value is captured into the static shell and no `<Suspense>` boundary is required.
 
-In a Client Component, call `io()` with React's [`use`](https://react.dev/reference/react/use) hook before reading a synchronous source like `Date.now()`. Client Components prerender on the server during SSR, where the read would otherwise be included in the static shell:
+In a Client Component, call `io()` with React's [`use`](https://react.dev/reference/react/use) hook before rendering a library component that needs uncached IO and already preserves its server result for hydration. In this example, `Widget` from `./widget` is a hydration-aware Client Component:
 
-```tsx filename="app/components.tsx" highlight={6} switcher
+```tsx filename="app/components.tsx" highlight={8} switcher
 'use client'
+
 import { use } from 'react'
 import { io } from 'next/cache'
+import { Widget } from './widget'
 
-export function CurrentTime() {
+export function DeferredWidget() {
   use(io())
-  return <div>{Date.now()}</div>
+  return <Widget />
 }
 ```
 
-```jsx filename="app/components.js" highlight={6} switcher
+```jsx filename="app/components.js" highlight={8} switcher
 'use client'
+
 import { use } from 'react'
 import { io } from 'next/cache'
+import { Widget } from './widget'
 
-export function CurrentTime() {
+export function DeferredWidget() {
   use(io())
-  return <div>{Date.now()}</div>
+  return <Widget />
 }
 ```
+
+Wrap `<DeferredWidget />` in a parent `<Suspense>` boundary. The wrapper suspends during static prerendering, before React renders the widget. During request-time server rendering, `io()` resolves and the widget renders on the server.
+
+`use(io())` does not make a Client Component browser-only or preserve an arbitrary synchronous value for hydration. Calling it directly before `Date.now()` or `Math.random()` can still cause a hydration mismatch when the component renders on the server. Generate server-rendered values in a Server Component and pass them as props, or use [`use(browser())`](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser) when the content belongs only in the browser. See [choosing a Client Component fix](/docs/messages/blocking-prerender-current-time-client#ways-to-fix-this).
 
 ## When you don't need `io()`
 

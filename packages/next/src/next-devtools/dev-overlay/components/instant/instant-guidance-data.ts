@@ -502,8 +502,8 @@ const syncMathCards: FixCard[] = [
     link: 'https://nextjs.org/docs/messages/blocking-prerender-random#render-on-the-client',
     snippets: [
       { text: '"use client"', highlight: true },
-      { text: '// runs in the browser' },
-      { text: 'const id = Math.random()' },
+      { text: 'use(browser())', highlight: true },
+      { text: 'const [id] = useState(() => Math.random())' },
     ],
     copyable: true,
   },
@@ -541,8 +541,8 @@ const syncDateCards: FixCard[] = [
     link: 'https://nextjs.org/docs/messages/blocking-prerender-current-time#render-on-the-client',
     snippets: [
       { text: '"use client"', highlight: true },
-      { text: '// runs in the browser' },
-      { text: 'const t = Date.now()' },
+      { text: 'use(browser())', highlight: true },
+      { text: 'const [time] = useState(() => Date.now())' },
     ],
     copyable: true,
   },
@@ -592,8 +592,8 @@ const syncCryptoCards: FixCard[] = [
     link: 'https://nextjs.org/docs/messages/blocking-prerender-crypto#render-on-the-client',
     snippets: [
       { text: '"use client"', highlight: true },
-      { text: '// runs in the browser' },
-      { text: 'const id = crypto.randomUUID()' },
+      { text: 'use(browser())', highlight: true },
+      { text: 'const [id] = useState(() => crypto.randomUUID())' },
     ],
     copyable: true,
   },
@@ -601,14 +601,14 @@ const syncCryptoCards: FixCard[] = [
 
 const syncClientDateCards: FixCard[] = [
   {
-    id: 'wrap-in-or-move-into-suspense',
-    title: 'Wrap in or move into Suspense',
-    group: 'stream',
-    link: 'https://nextjs.org/docs/messages/blocking-prerender-current-time-client#wrap-in-or-move-into-suspense',
+    id: 'render-only-in-browser',
+    title: 'Render only in the browser',
+    group: 'client',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-current-time-client#render-only-in-the-browser',
     snippets: [
-      { text: '<Suspense fallback={…}>', highlight: true },
-      { text: '  <DateDisplay />' },
-      { text: '</Suspense>', highlight: true },
+      { text: '"use client"', highlight: true },
+      { text: 'use(browser())', highlight: true },
+      { text: 'const [time] = useState(() => Date.now())' },
     ],
     copyable: true,
   },
@@ -640,14 +640,14 @@ const syncClientDateCards: FixCard[] = [
 
 const syncClientMathCards: FixCard[] = [
   {
-    id: 'wrap-in-or-move-into-suspense',
-    title: 'Wrap in or move into Suspense',
-    group: 'stream',
-    link: 'https://nextjs.org/docs/messages/blocking-prerender-random-client#wrap-in-or-move-into-suspense',
+    id: 'render-only-in-browser',
+    title: 'Render only in the browser',
+    group: 'client',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-random-client#render-only-in-the-browser',
     snippets: [
-      { text: '<Suspense fallback={…}>', highlight: true },
-      { text: '  <RandomId />' },
-      { text: '</Suspense>', highlight: true },
+      { text: '"use client"', highlight: true },
+      { text: 'use(browser())', highlight: true },
+      { text: 'const [id] = useState(() => Math.random())' },
     ],
     copyable: true,
   },
@@ -667,14 +667,14 @@ const syncClientMathCards: FixCard[] = [
 
 const syncClientCryptoCards: FixCard[] = [
   {
-    id: 'wrap-in-or-move-into-suspense',
-    title: 'Wrap in or move into Suspense',
-    group: 'stream',
-    link: 'https://nextjs.org/docs/messages/blocking-prerender-crypto-client#wrap-in-or-move-into-suspense',
+    id: 'render-only-in-browser',
+    title: 'Render only in the browser',
+    group: 'client',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-crypto-client#render-only-in-the-browser',
     snippets: [
-      { text: '<Suspense fallback={…}>', highlight: true },
-      { text: '  <TokenId />' },
-      { text: '</Suspense>', highlight: true },
+      { text: '"use client"', highlight: true },
+      { text: 'use(browser())', highlight: true },
+      { text: 'const [id] = useState(() => crypto.randomUUID())' },
     ],
     copyable: true,
   },
@@ -1007,7 +1007,7 @@ export const EXPLANATIONS: Record<GuidanceKind, string> = {
     'This prevents the page from being prerendered, leading to a slower user experience.',
   'sync-io': '',
   'sync-io-client':
-    'This value would be evaluated during the prerender and fixed at build time, instead of recomputed on each visit.',
+    'Client Components also render on the server. This read interrupted prerendering. A Suspense boundary provides a fallback, but does not make the component browser-only or preserve its value for hydration.',
   'unrendered-segment':
     'This segment was dropped from rendering. Issues that would prevent instant navigation will go undetected.',
   'link-prefetch-partial':

@@ -79,10 +79,10 @@ export function registerErrorAttributionTests(
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-               This value would be evaluated during the prerender, instead of recomputed on each visit.
+               Client Components also render on the server. This read interrupted prerendering. A Suspense boundary provides a fallback, but does not make the component browser-only or preserve its value for hydration.
 
                Ways to fix this:
-                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+                 - [client] For browser-only values, call \`use(browser())\` before the read and wrap the component in \`<Suspense>\`
                  - [defer] Move the read into a \`useEffect\` or event handler
                  - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
@@ -106,10 +106,10 @@ export function registerErrorAttributionTests(
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-               This value would be evaluated during the prerender, instead of recomputed on each visit.
+               Client Components also render on the server. This read interrupted prerendering. A Suspense boundary provides a fallback, but does not make the component browser-only or preserve its value for hydration.
 
                Ways to fix this:
-                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+                 - [client] For browser-only values, call \`use(browser())\` before the read and wrap the component in \`<Suspense>\`
                  - [defer] Move the read into a \`useEffect\` or event handler
                  - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
@@ -135,10 +135,10 @@ export function registerErrorAttributionTests(
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-               This value would be evaluated during the prerender, instead of recomputed on each visit.
+               Client Components also render on the server. This read interrupted prerendering. A Suspense boundary provides a fallback, but does not make the component browser-only or preserve its value for hydration.
 
                Ways to fix this:
-                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+                 - [client] For browser-only values, call \`use(browser())\` before the read and wrap the component in \`<Suspense>\`
                  - [defer] Move the read into a \`useEffect\` or event handler
                  - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
@@ -161,10 +161,10 @@ export function registerErrorAttributionTests(
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-               This value would be evaluated during the prerender, instead of recomputed on each visit.
+               Client Components also render on the server. This read interrupted prerendering. A Suspense boundary provides a fallback, but does not make the component browser-only or preserve its value for hydration.
 
                Ways to fix this:
-                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+                 - [client] For browser-only values, call \`use(browser())\` before the read and wrap the component in \`<Suspense>\`
                  - [defer] Move the read into a \`useEffect\` or event handler
                  - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
@@ -390,10 +390,10 @@ export function registerErrorAttributionTests(
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-               This value would be evaluated during the prerender, instead of recomputed on each visit.
+               Client Components also render on the server. This read interrupted prerendering. A Suspense boundary provides a fallback, but does not make the component browser-only or preserve its value for hydration.
 
                Ways to fix this:
-                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+                 - [client] For browser-only values, call \`use(browser())\` before the read and wrap the component in \`<Suspense>\`
                  - [defer] Move the read into a \`useEffect\` or event handler
                  - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
@@ -417,10 +417,10 @@ export function registerErrorAttributionTests(
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-               This value would be evaluated during the prerender, instead of recomputed on each visit.
+               Client Components also render on the server. This read interrupted prerendering. A Suspense boundary provides a fallback, but does not make the component browser-only or preserve its value for hydration.
 
                Ways to fix this:
-                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+                 - [client] For browser-only values, call \`use(browser())\` before the read and wrap the component in \`<Suspense>\`
                  - [defer] Move the read into a \`useEffect\` or event handler
                  - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
@@ -446,10 +446,10 @@ export function registerErrorAttributionTests(
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-               This value would be evaluated during the prerender, instead of recomputed on each visit.
+               Client Components also render on the server. This read interrupted prerendering. A Suspense boundary provides a fallback, but does not make the component browser-only or preserve its value for hydration.
 
                Ways to fix this:
-                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+                 - [client] For browser-only values, call \`use(browser())\` before the read and wrap the component in \`<Suspense>\`
                  - [defer] Move the read into a \`useEffect\` or event handler
                  - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 
@@ -472,10 +472,10 @@ export function registerErrorAttributionTests(
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered the unstable value \`new Date()\` in a Client Component.
 
-               This value would be evaluated during the prerender, instead of recomputed on each visit.
+               Client Components also render on the server. This read interrupted prerendering. A Suspense boundary provides a fallback, but does not make the component browser-only or preserve its value for hydration.
 
                Ways to fix this:
-                 - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`
+                 - [client] For browser-only values, call \`use(browser())\` before the read and wrap the component in \`<Suspense>\`
                  - [defer] Move the read into a \`useEffect\` or event handler
                  - [measure] If the value is for telemetry, use a timing API such as \`performance.now()\`
 

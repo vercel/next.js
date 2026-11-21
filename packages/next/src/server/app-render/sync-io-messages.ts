@@ -36,7 +36,7 @@ function createSyncIOErrorImpl(
       `Ways to fix this:\n` +
       `  - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call\n` +
       `  - [cache] Prerender and cache the value with \`"use cache"\`\n` +
-      `  - [client] Render the value on the client with \`"use client"\`` +
+      `  - [client] For browser-only values, use \`"use client"\` and \`use(browser())\` inside a parent \`<Suspense>\`` +
       elapsedTimeBullet(type) +
       `\n\nLearn more: ${docsUrl}`
   )
@@ -71,9 +71,9 @@ export function createSyncIOClientError(
   const docsUrl = SYNC_IO_CLIENT_DOCS[type]
   return new Error(
     `Route "${route}": Next.js encountered the unstable value ${expression} in a Client Component.\n\n` +
-      `This value would be evaluated during the prerender, instead of recomputed on each visit.\n\n` +
+      `Client Components also render on the server. This read interrupted prerendering. A Suspense boundary provides a fallback, but does not make the component browser-only or preserve its value for hydration.\n\n` +
       `Ways to fix this:\n` +
-      `  - [stream] Wrap the Client Component in \`<Suspense fallback={...}>\`\n` +
+      `  - [client] For browser-only values, call \`use(browser())\` before the read and wrap the component in \`<Suspense>\`\n` +
       `  - [defer] Move the read into a \`useEffect\` or event handler` +
       elapsedTimeBullet(type) +
       `\n\nLearn more: ${docsUrl}`

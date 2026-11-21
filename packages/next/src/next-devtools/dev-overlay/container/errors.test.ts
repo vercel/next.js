@@ -729,17 +729,14 @@ describe('card sets for all error families', () => {
       getCards('sync-io-client', 'runtime', 'Math.random()').map(
         (card) => card.id
       )
-    ).toEqual([
-      'wrap-in-or-move-into-suspense',
-      'move-into-effect-or-event-handler',
-    ])
+    ).toEqual(['render-only-in-browser', 'move-into-effect-or-event-handler'])
   })
 
   it('sync-io-client date', () => {
     expect(
       getCards('sync-io-client', 'runtime', 'Date.now()').map((card) => card.id)
     ).toEqual([
-      'wrap-in-or-move-into-suspense',
+      'render-only-in-browser',
       'move-into-effect-or-event-handler',
       'measure-elapsed-time',
     ])
@@ -750,10 +747,7 @@ describe('card sets for all error families', () => {
       getCards('sync-io-client', 'runtime', 'crypto.randomUUID()').map(
         (card) => card.id
       )
-    ).toEqual([
-      'wrap-in-or-move-into-suspense',
-      'move-into-effect-or-event-handler',
-    ])
+    ).toEqual(['render-only-in-browser', 'move-into-effect-or-event-handler'])
   })
 })
 
