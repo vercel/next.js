@@ -47,6 +47,28 @@ describe('default use cache handler', () => {
 
     await expectCollected(requestStoreRef)
   })
+
+  it('stores small entries in an unpooled buffer', async () => {
+    const handler = createDefaultCacheHandler(1024 * 1024)
+    await populateCache(handler)
+
+    const entry = await handler.get('key', [])
+    if (!entry) {
+      throw new Error('Expected a cache entry')
+    }
+
+    const reader = entry.value.getReader()
+    const { value: chunk } = await reader.read()
+    if (!chunk) {
+      throw new Error('Expected a chunk')
+    }
+
+    // A pooled slice would share a larger backing `ArrayBuffer` (the Buffer
+    // pool slab) and pin it for as long as the entry is cached, while only the
+    // entry's own bytes count towards `cacheMaxMemorySize`.
+    expect(chunk.byteLength).toBe('cached value'.length)
+    expect(chunk.buffer.byteLength).toBe(chunk.byteLength)
+  })
 })
 
 async function runInRequestContext(
