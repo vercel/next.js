@@ -1193,6 +1193,7 @@ mod tests {
         let tempdir = test_temp_dir()?;
         let base_path = tempdir.path();
         let attempts = std::sync::atomic::AtomicUsize::new(0);
+        let stale_path = base_path.join(format!("__stale_{}", TEST_VERSION.describe));
 
         let error = TurboBackingStorage::open_versioned_on_disk_with(
             base_path.to_path_buf(),
@@ -1201,8 +1202,11 @@ mod tests {
             true,
             |path| {
                 attempts.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                // A file where the database directory should be can't be removed as a directory.
-                fs_err::write(&path, b"not a directory")?;
+                fs_err::create_dir_all(&path)?;
+                // Occupy the path the database directory is moved to before it's deleted with a
+                // file, which can't be removed as a directory, so that the removal fails. (Done
+                // here because opening cleans up such leftovers before calling this.)
+                fs_err::write(&stale_path, b"")?;
                 anyhow::bail!("injected open failure")
             },
         )
@@ -1213,7 +1217,7 @@ mod tests {
             format!("{error:#}").contains("injected open failure"),
             "the error should include the original failure: {error:#}"
         );
-        assert!(base_path.join(TEST_VERSION.describe).is_file());
+        assert!(base_path.join(TEST_VERSION.describe).is_dir());
         Ok(())
     }
 

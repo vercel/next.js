@@ -174,24 +174,36 @@ pub fn handle_db_versioning(
 ///
 /// Fails without touching anything unless `versioned_path` is a direct child of `base_path` (it
 /// may not be, e.g. when `TURBO_ENGINE_VERSION` is set to something unusual), so that this can
-/// never remove the base directory, one of its parents, or anything outside of it. A failure to
-/// remove the directory is returned.
+/// never remove the base directory, one of its parents, or anything outside of it.
+///
+/// The directory is first atomically renamed out of the way (a failure to do so is returned), so
+/// that an interrupted or failed deletion can't leave a partially deleted database behind at
+/// `versioned_path`, which a later start could open and read stale entries from. The renamed
+/// directory is then deleted on a best-effort basis: anything left behind is removed by
+/// [`handle_db_versioning`] the next time it runs.
 pub(crate) fn remove_db_version_dir(base_path: &Path, versioned_path: &Path) -> Result<()> {
     let mut components = versioned_path
         .strip_prefix(base_path)
         .ok()
         .map(|relative| relative.components());
-    if !matches!(
-        components.as_mut().map(|c| (c.next(), c.next())),
-        Some((Some(Component::Normal(_)), None))
-    ) {
-        bail!(
+    let name = match components.as_mut().map(|c| (c.next(), c.next())) {
+        Some((Some(Component::Normal(name)), None)) => name,
+        _ => bail!(
             "Refusing to remove {}: it is not a database version directory in {}",
             versioned_path.display(),
             base_path.display()
-        );
+        ),
+    };
+    let mut stale_name = OsString::from(DELETION_PREFIX);
+    stale_name.push(name);
+    let stale_path = base_path.join(stale_name);
+    // A leftover from an earlier, interrupted removal would make the rename fail.
+    if stale_path.exists() {
+        remove_dir_all(&stale_path)?;
     }
-    remove_dir_all(versioned_path)?;
+    rename(versioned_path, &stale_path)?;
+    // It's okay if this fails, `handle_db_versioning` finishes the removal.
+    let _ = remove_dir_all(&stale_path);
     Ok(())
 }
 
@@ -295,17 +307,40 @@ mod tests {
         names
     }
 
-    /// Removing a version directory removes exactly that directory and leaves other versions
-    /// alone.
+    /// Removing a version directory removes exactly that directory, including a leftover from an
+    /// earlier interrupted removal of it, and leaves other versions alone.
     #[test]
     fn test_remove_db_version_dir_removes_only_that_version() {
         let tmp_dir = test_temp_dir().unwrap();
         let base_path = tmp_dir.path();
         create_version_dir(base_path, CURRENT_VERSION, Duration::ZERO);
         create_version_dir(base_path, "other-dir", Duration::ZERO);
+        create_version_dir(
+            base_path,
+            &format!("{DELETION_PREFIX}{CURRENT_VERSION}"),
+            Duration::ZERO,
+        );
 
         remove_db_version_dir(base_path, &base_path.join(CURRENT_VERSION)).unwrap();
         assert_eq!(entry_names(base_path), ["other-dir"]);
+    }
+
+    /// If the directory can't be moved out of the way, the error is returned and the database is
+    /// left intact at its path rather than partially deleted.
+    #[test]
+    fn test_remove_db_version_dir_fails_without_partial_deletion() {
+        let tmp_dir = test_temp_dir().unwrap();
+        let base_path = tmp_dir.path();
+        create_version_dir(base_path, CURRENT_VERSION, Duration::ZERO);
+        // A file can't be removed with `remove_dir_all`, so the rename target stays occupied.
+        fs::write(
+            base_path.join(format!("{DELETION_PREFIX}{CURRENT_VERSION}")),
+            b"",
+        )
+        .unwrap();
+
+        remove_db_version_dir(base_path, &base_path.join(CURRENT_VERSION)).unwrap_err();
+        assert!(base_path.join(CURRENT_VERSION).join("CURRENT").is_file());
     }
 
     /// Paths that aren't a version directory directly inside of the base directory are never
