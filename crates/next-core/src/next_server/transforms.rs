@@ -177,7 +177,9 @@ pub async fn get_next_server_transforms_rules(
         // rules.push(get_next_optimize_server_react_rule(enable_mdx_rs,
         // optimize_use_state))
 
-        rules.push(get_next_image_rule().await?);
+        if !next_config.image_config().await?.disable_static_images {
+            rules.push(get_next_image_rule().await?);
+        }
     }
 
     if let NextRuntime::Edge = next_runtime {
