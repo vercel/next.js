@@ -1,5 +1,4 @@
 use std::{
-    collections::BinaryHeap,
     fmt::Debug,
     future::Future,
     hash::Hash,
@@ -7,23 +6,19 @@ use std::{
     ptr::drop_in_place,
     sync::{
         Arc,
-        atomic::{AtomicBool, AtomicUsize, Ordering, fence},
+        atomic::{AtomicUsize, Ordering, fence},
     },
     task::{Context, Poll},
     time::{Duration, Instant},
 };
 
-use concurrent_queue::ConcurrentQueue;
-use parking_lot::Mutex;
 use pin_project_lite::pin_project;
+use turbo_concurrent_priority_queue::ConcurrentPriorityQueue;
+pub use turbo_concurrent_priority_queue::QueuePriority;
 
 use crate::FxDashMap;
 
 pub trait Executor<C, T, P>: Send + Sync {
-    /// The lowest priority, which is expected to be the priority of most tasks. Tasks with this
-    /// priority are queued in a lock-free FIFO instead of the priority heap.
-    const LOWEST_PRIORITY: P;
-
     type Future: Future<Output = ()> + Send;
 
     fn execute(&self, execute_context: &Arc<C>, task: T, priority: P) -> Self::Future;
@@ -51,107 +46,50 @@ pub trait Claimable {
     fn claim_key(&self) -> Self::Key;
 }
 
-/// The capacity the heap starts with and shrinks back to once it is empty.
-const HEAP_MIN_CAPACITY: usize = 128;
-
-/// A heap band entry: the key of a queued item in [`Queue::claimable`], at the priority it was
-/// queued with.
-struct HeapItem<P, K> {
-    priority: P,
-    key: K,
-}
-
-impl<P: Eq, K> PartialEq for HeapItem<P, K> {
-    fn eq(&self, other: &Self) -> bool {
-        self.priority == other.priority
-    }
-}
-
-impl<P: Eq, K> Eq for HeapItem<P, K> {}
-
-impl<P: Ord, K> Ord for HeapItem<P, K> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.priority.cmp(&other.priority)
-    }
-}
-
-impl<P: Ord, K> PartialOrd for HeapItem<P, K> {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
 /// The queue of items that are not scheduled yet.
 ///
-/// Items are split into two bands by priority:
-/// - Items with the lowest priority (the bulk of the work, e.g. a from-scratch build) live in a
-///   lock-free MPMC `ConcurrentQueue`, so the hot push/pop path never takes a global queue mutex.
-///   All items in it have the same priority, so its FIFO order is the priority order.
-/// - All other items share a `Mutex<BinaryHeap>` ordered by priority. It is always drained before
-///   the lowest band.
+/// The ordering is done by a [`ConcurrentPriorityQueue`] (sharded, work-stealing; see its crate
+/// docs for the invariants and the ordering guarantee) that only holds claim keys. The items
+/// themselves are stored by value in the `claimable` map, at most one per key. Pushing a key that
+/// is still queued replaces the queued item, which is then handed to [`Executor::discard`] instead
+/// of being executed. Claiming removes the item from the map. Either way the old key stays behind
+/// in the priority queue as a tombstone that a pop skips. A pop only takes an item whose priority
+/// matches the popped key's priority, so a stale key never takes an item queued again with another
+/// priority. With the *same* priority it may take it early, which only reorders equal-priority
+/// items; every queued item still executes at most once.
 ///
-/// Items are stored by value in the `claimable` map, at most one per key, and the bands only hold
-/// their key. Pushing a key that is still queued replaces the queued item, which is then handed to
-/// [`Executor::discard`] instead of being executed. Claiming removes the item from the map. Either
-/// way the old band entry stays behind as a tombstone that a pop skips. A
-/// pop only takes an item whose priority matches the band entry's, so a stale entry never takes an
-/// item queued again with another priority. With the *same* priority it may take it early, which
-/// only reorders equal-priority items; every queued item still executes at most once.
-///
-/// Lock ordering: [`Queue::pop`] takes `claimable` shard locks while holding the `heap` mutex (to
-/// resolve popped heap entries). Nothing takes the `heap` mutex while holding a `claimable` shard
-/// lock: [`Queue::push`] finishes its `claimable` insert before it locks the heap, and
-/// [`Queue::claim`] only touches `claimable`. So the order is always `heap`, then `claimable`.
+/// No lock is held across the two structures: a pop releases the priority queue's shard locks
+/// before it looks the key up in `claimable`.
 struct Queue<P, T: Claimable> {
-    /// The lowest priority, see [`Executor::LOWEST_PRIORITY`].
-    lowest_priority: P,
-    /// The band for all items with `lowest_priority`.
-    lowest: ConcurrentQueue<T::Key>,
-    /// The band for all items with a higher priority.
-    heap: Mutex<BinaryHeap<HeapItem<P, T::Key>>>,
-    /// Whether `heap` has any entry (tombstones included), so [`Queue::pop`] can skip the heap
-    /// mutex entirely while the heap is empty, which is the common case.
-    ///
-    /// Only written while holding the `heap` lock. A stale `true` only costs an unnecessary lock.
-    /// A stale `false` can't hide a push that `pop` must observe: the push's `true` store is
-    /// sequenced before the scheduler's `SeqCst` fence, and a retiring worker's re-checking `pop`
-    /// is sequenced after its own fence (see [`PriorityRunner::schedule`]), so either that `pop`
-    /// observes the `true` (or a later store), or the scheduler re-checks itself. `false` is only
-    /// stored again once the heap was drained under the lock.
-    heap_non_empty: AtomicBool,
+    /// The claim keys of queued items (and tombstones), by priority.
+    keys: ConcurrentPriorityQueue<P, T::Key>,
     /// The queued items with their priority, by claim key. An item is removed when it is popped or
     /// claimed, and replaced when another item with the same key is pushed.
-    ///
-    /// Its shard locks may be taken while holding the `heap` mutex, never the other way around
-    /// (see the lock ordering on [`Queue`]).
     claimable: FxDashMap<T::Key, (P, T)>,
     /// How many items were ever pushed. Diagnostics only, see [`PriorityRunner::total_queued`].
     #[cfg(feature = "inline_execution_stats")]
     pushes: std::sync::atomic::AtomicU64,
 }
 
-impl<P: Clone + Ord, T: Claimable> Queue<P, T> {
-    fn new(lowest_priority: P) -> Self {
+impl<P: Clone + Ord + Hash + QueuePriority, T: Claimable> Queue<P, T> {
+    fn new() -> Self {
         Self {
-            lowest_priority,
-            lowest: ConcurrentQueue::unbounded(),
-            heap: Mutex::new(BinaryHeap::with_capacity(HEAP_MIN_CAPACITY)),
-            heap_non_empty: AtomicBool::new(false),
+            keys: ConcurrentPriorityQueue::new(),
             claimable: FxDashMap::default(),
             #[cfg(feature = "inline_execution_stats")]
             pushes: std::sync::atomic::AtomicU64::new(0),
         }
     }
 
-    /// Whether there is any band entry left. This can be `false` while all remaining entries are
-    /// tombstones of claimed items; popping is what cleans those up.
+    /// Whether no key is queued. This can be `false` while all remaining keys are tombstones of
+    /// claimed items; popping is what cleans those up.
     #[cfg(test)]
     fn is_empty(&self) -> bool {
-        self.lowest.is_empty() && self.heap.lock().is_empty()
+        self.keys.is_empty()
     }
 
     /// Queues `task`. Returns the still-queued item with the same key that it replaced, if any:
-    /// that item will not be executed, and its band entry became a tombstone.
+    /// that item will not be executed, and its key became a tombstone.
     #[must_use]
     fn push(&self, priority: P, task: T) -> Option<(P, T)> {
         #[cfg(feature = "inline_execution_stats")]
@@ -159,100 +97,56 @@ impl<P: Clone + Ord, T: Claimable> Queue<P, T> {
         let key = task.claim_key();
         // Stored before the key is queued, so a pop can't find the key before the item.
         let replaced = self.claimable.insert(key, (priority.clone(), task));
-        if priority == self.lowest_priority {
-            // unbounded queue: push only fails if closed, which never happens here
-            let _ = self.lowest.push(key);
-        } else {
-            let mut heap = self.heap.lock();
-            heap.push(HeapItem { priority, key });
-            self.heap_non_empty.store(true, Ordering::Release);
-        }
+        self.keys.push(priority, key);
         replaced
     }
 
-    /// Queues all `items`, like calling [`Queue::push`] for each of them, but takes the heap mutex
-    /// at most once for the whole batch and grows the heap with a single `reserve`. Each
-    /// still-queued item that one of the pushes replaced is passed to `on_replaced`.
-    ///
-    /// `items` must report its exact length, which is used to size the heap allocation.
+    /// Queues all `items`, like calling [`Queue::push`] for each of them, but pushes all keys to
+    /// the priority queue as one batch (one shard lock and one state update). Each still-queued
+    /// item that one of the pushes replaced is passed to `on_replaced`.
     fn push_many(
         &self,
         items: impl IntoIterator<Item = (P, T), IntoIter: ExactSizeIterator>,
         mut on_replaced: impl FnMut(P, T),
     ) {
-        let mut items = items.into_iter();
-        // The heap keys are collected first, so the heap mutex is only held for the heap pushes
-        // themselves, not for the `claimable` inserts (which also keeps the lock ordering, see
-        // [`Queue`]). Only allocated once the first heap item shows up, as batches of only
-        // lowest priority items don't need it.
-        let mut heap_items = Vec::new();
-        while let Some((priority, task)) = items.next() {
+        let items = items.into_iter();
+        if items.len() == 0 {
+            return;
+        }
+        let mut keys = Vec::with_capacity(items.len());
+        for (priority, task) in items {
             #[cfg(feature = "inline_execution_stats")]
             self.pushes.fetch_add(1, Ordering::Relaxed);
             let key = task.claim_key();
             // Stored before the key is queued, so a pop can't find the key before the item.
-            let replaced = self.claimable.insert(key, (priority.clone(), task));
-            if priority == self.lowest_priority {
-                // unbounded queue: push only fails if closed, which never happens here
-                let _ = self.lowest.push(key);
-            } else {
-                if heap_items.is_empty() {
-                    // This item plus at most all remaining ones go to the heap.
-                    heap_items.reserve(items.len() + 1);
-                }
-                heap_items.push(HeapItem { priority, key });
-            }
-            if let Some((priority, task)) = replaced {
+            if let Some((priority, task)) = self.claimable.insert(key, (priority.clone(), task)) {
                 on_replaced(priority, task);
             }
+            keys.push((priority, key));
         }
-        if !heap_items.is_empty() {
-            let mut heap = self.heap.lock();
-            heap.reserve(heap_items.len());
-            heap.extend(heap_items);
-            self.heap_non_empty.store(true, Ordering::Release);
-        }
+        self.keys.push_many(keys);
     }
 
-    /// Pops the highest priority item, skipping tombstones. The heap mutex is only taken when the
-    /// heap is non-empty.
+    /// Pops the highest priority item, skipping tombstones. Only returns `None` when no key is
+    /// queued any more.
     fn pop(&self) -> Option<(P, T)> {
-        if self.heap_non_empty.load(Ordering::Acquire) {
-            let mut heap = self.heap.lock();
-            let mut popped = None;
-            while let Some(HeapItem { priority, key }) = heap.pop() {
-                if let Some(task) = self.take(&priority, &key) {
-                    popped = Some((priority, task));
-                    break;
-                }
-            }
-            if heap.is_empty() {
-                self.heap_non_empty.store(false, Ordering::Relaxed);
-                // The heap is expected to run empty regularly, so that is the only point where
-                // it gives back memory, down to the initial capacity.
-                heap.shrink_to(HEAP_MIN_CAPACITY);
-            }
-            if popped.is_some() {
-                return popped;
-            }
-        }
-        while let Ok(key) = self.lowest.pop() {
-            if let Some(task) = self.take(&self.lowest_priority, &key) {
-                return Some((self.lowest_priority.clone(), task));
+        while let Some((priority, key)) = self.keys.pop() {
+            if let Some(task) = self.take(&priority, &key) {
+                return Some((priority, task));
             }
         }
         None
     }
 
-    /// Resolves a popped band entry to its item, or `None` if it is a tombstone.
+    /// Resolves a popped key to its item, or `None` if it is a tombstone.
     fn take(&self, priority: &P, key: &T::Key) -> Option<T> {
         self.claimable
             .remove_if(key, |_, (item_priority, _)| item_priority == priority)
             .map(|(_, (_, task))| task)
     }
 
-    /// Removes the queued item with the given key, if it is still queued. Its band entry stays
-    /// behind as a tombstone.
+    /// Removes the queued item with the given key, if it is still queued. Its key stays behind in
+    /// the priority queue as a tombstone.
     fn claim(&self, key: &T::Key) -> Option<(P, T)> {
         self.claimable.remove(key).map(|(_, item)| item)
     }
@@ -261,7 +155,7 @@ impl<P: Clone + Ord, T: Claimable> Queue<P, T> {
 pub struct PriorityRunner<
     C: Send + Sync + 'static,
     T: Claimable + Send + Sync + 'static,
-    P: Clone + Ord + Send + Sync + 'static,
+    P: Clone + Ord + Hash + QueuePriority + Send + Sync + 'static,
     E: Executor<C, T, P> + 'static,
 > {
     executor: E,
@@ -278,7 +172,7 @@ pub struct PriorityRunner<
 impl<
     C: Send + Sync + 'static,
     T: Claimable + Send + Sync + 'static,
-    P: Clone + Ord + Send + Sync + 'static,
+    P: Clone + Ord + Hash + QueuePriority + Send + Sync + 'static,
     E: Executor<C, T, P> + 'static,
 > PriorityRunner<C, T, P, E>
 {
@@ -293,7 +187,7 @@ impl<
         Self {
             executor,
             target_workers,
-            queue: Queue::new(E::LOWEST_PRIORITY),
+            queue: Queue::new(),
             active_workers: AtomicUsize::new(0),
             phantom: std::marker::PhantomData,
         }
@@ -315,9 +209,13 @@ impl<
         // the other's write, or the pushed task could be stranded with no live worker.
         // Acquire/release alone doesn't guarantee that, so both sides put a `SeqCst` fence between
         // their write and their read: whichever fence comes first in the total order of `SeqCst`
-        // fences, the other side's read observes the write before it. (It cannot rely on the
-        // queue's own atomics instead — a retiring worker checks the bands sequentially, so a push
-        // into a band it already checked has no edge forcing it to be observed.)
+        // fences, the other side's read observes the write before it. For the queue, "observing the
+        // push" means the worker's `pop` doesn't return `None`. The push (shard insert and state
+        // word update) happens before the scheduler's fence, and `ConcurrentPriorityQueue::pop`
+        // only returns `None` once it read the empty state word, which can only be written after
+        // every shard that held a key was locked and seen without it (see "Memory ordering for
+        // callers" in the `turbo-concurrent-priority-queue` crate docs). A pop of a tombstone just
+        // pops again, so it can't end the worker's re-check early either.
         //
         // [`claim`](Self::claim) takes work out of the queue without being a worker, but that only
         // ever leaves less work behind, so it cannot strand anything.
@@ -364,9 +262,8 @@ impl<
     /// Schedules all `items`, like calling [`PriorityRunner::schedule`] for each of them.
     ///
     /// Items are handed directly to new workers while there is free worker capacity. All remaining
-    /// items are queued in one batch, which takes the heap mutex at most once and grows the heap
-    /// with a single allocation, instead of once per item. `items` must report its exact length,
-    /// which is used to size that allocation.
+    /// items are queued in one batch, which locks one queue shard and updates the queue's state
+    /// word once, instead of once per item. `items` must report its exact length.
     pub fn schedule_many(
         self: &Arc<Self>,
         execute_context: &Arc<C>,
@@ -521,6 +418,8 @@ pin_project! {
         T: 'static,
         P: Clone,
         P: Ord,
+        P: Hash,
+        P: QueuePriority,
         P: Send,
         P: Sync,
         P: 'static,
@@ -539,7 +438,7 @@ pin_project! {
 impl<
     C: Send + Sync + 'static,
     T: Claimable + Send + Sync + 'static,
-    P: Clone + Ord + Send + Sync + 'static,
+    P: Clone + Ord + Hash + QueuePriority + Send + Sync + 'static,
     E: Executor<C, T, P> + 'static,
 > WorkerFuture<C, T, P, E>
 {
@@ -556,7 +455,7 @@ impl<
 impl<
     C: Send + Sync + 'static,
     T: Claimable + Send + Sync + 'static,
-    P: Clone + Ord + Send + Sync + 'static,
+    P: Clone + Ord + Hash + QueuePriority + Send + Sync + 'static,
     E: Executor<C, T, P> + 'static,
 > Future for WorkerFuture<C, T, P, E>
 {
@@ -644,10 +543,12 @@ mod tests {
         time::Duration,
     };
 
+    use parking_lot::Mutex;
+
     use super::*;
 
     // The tests use plain `u32` priorities: a larger value is a higher priority, and `0` is the
-    // `LOWEST_PRIORITY` of every test executor (the lock-free band).
+    // lowest priority used. A `u32` is its own rank (see `QueuePriority`).
 
     impl Claimable for u32 {
         type Key = u32;
@@ -684,7 +585,6 @@ mod tests {
     impl<T: Claimable + Copy + Send + Sync + Debug + 'static> Executor<Mutex<Vec<T>>, T, u32>
         for RecordingExecutor<T>
     {
-        const LOWEST_PRIORITY: u32 = 0;
         type Future = std::future::Ready<()>;
 
         fn execute(
@@ -818,13 +718,13 @@ mod tests {
     #[test]
     fn test_push_same_key_overrides() {
         let (runner, executed) = queueing_runner::<(u32, bool)>();
-        // Heap band, same priority.
+        // Same priority.
         runner.schedule(&executed, (1, false), 5);
         runner.schedule(&executed, (1, true), 5);
         assert_eq!(take_discarded(&runner), vec![(1, false)]);
         assert_eq!(drain(&runner, &executed), vec![(1, true)]);
 
-        // Heap band, higher priority: the latest item is claimable, the older one is gone.
+        // Higher priority: the latest item is claimable, the older one is gone.
         runner.schedule(&executed, (1, false), 1);
         runner.schedule(&executed, (1, true), 2);
         assert_eq!(take_discarded(&runner), vec![(1, false)]);
@@ -834,8 +734,8 @@ mod tests {
         assert!(runner.claim(&executed, &1).is_none());
         assert!(drain(&runner, &executed).is_empty());
 
-        // Lowest band: the stale entry of the replaced item may take the latest one early (equal
-        // priority), but it still runs only once.
+        // Lowest priority: the stale entry of the replaced item may take the latest one early
+        // (equal priority), but it still runs only once.
         runner.schedule(&executed, (1, false), 0);
         runner.schedule(&executed, (2, false), 0);
         runner.schedule(&executed, (1, true), 0);
@@ -856,13 +756,14 @@ mod tests {
     #[test]
     fn test_schedule_many_respects_priority_order() {
         let (runner, executed) = queueing_runner::<u32>();
-        // Mixes both bands: odd items go to the heap, even ones to the lowest band.
+        // Mixes priorities: odd items get their own priority, even ones the lowest one.
         runner.schedule_many(
             &executed,
             (0..8).map(|task| (task, if task % 2 == 0 { 0 } else { task })),
         );
-        // Heap items highest priority first, then the lowest band in FIFO order.
-        assert_eq!(drain(&runner, &executed), vec![7, 5, 3, 1, 0, 2, 4, 6]);
+        // Highest priority first, then the lowest priority in LIFO order (a single thread uses a
+        // single shard).
+        assert_eq!(drain(&runner, &executed), vec![7, 5, 3, 1, 6, 4, 2, 0]);
         assert!(runner.queue.is_empty());
         assert!(runner.queue.claimable.is_empty());
     }
@@ -881,7 +782,6 @@ mod tests {
         let (runner, executed) = queueing_runner::<u32>();
         runner.schedule_many(&executed, std::iter::empty());
         assert!(runner.queue.is_empty());
-        assert!(!runner.queue.heap_non_empty.load(Ordering::Relaxed));
         assert!(drain(&runner, &executed).is_empty());
         assert!(take_discarded(&runner).is_empty());
     }
@@ -889,7 +789,7 @@ mod tests {
     #[test]
     fn test_schedule_many_items_are_claimable() {
         let (runner, executed) = queueing_runner::<u32>();
-        // Items 0 and 1 go to the lowest band, the others to the heap.
+        // Items 0 and 1 get the lowest priority, the others higher ones.
         runner.schedule_many(
             &executed,
             (0..6).map(|task| (task, if task < 2 { 0 } else { task })),
@@ -912,7 +812,7 @@ mod tests {
             [
                 // Replaces the item queued before.
                 ((1, true), 5),
-                // Replaced within the batch, in both bands.
+                // Replaced within the batch, at several priorities.
                 ((2, false), 0),
                 ((2, true), 0),
                 ((3, false), 3),
@@ -940,7 +840,6 @@ mod tests {
 
         struct CountingExecutor;
         impl Executor<Vec<AtomicU32>, u32, u32> for CountingExecutor {
-            const LOWEST_PRIORITY: u32 = 0;
             type Future = std::future::Ready<()>;
 
             fn execute(
@@ -990,11 +889,11 @@ mod tests {
         let (runner, executed) = queueing_runner::<u32>();
         for _ in 0..100 {
             for task in 0..8 {
-                // Mix both bands, so tombstones end up in each of them.
+                // Mix priorities, so tombstones end up at several of them.
                 let priority = if task % 2 == 0 { 0 } else { task };
                 runner.schedule(&executed, task, priority);
             }
-            // Claim one of each band every round, so tombstones are part of the cycle.
+            // Claim one of each kind every round, so tombstones are part of the cycle.
             assert!(runner.claim(&executed, &3).is_some());
             assert!(runner.claim(&executed, &4).is_some());
             // The claimed two were recorded when their futures were built; the rest by "workers".
@@ -1030,7 +929,6 @@ mod tests {
         struct ExecutorImpl;
 
         impl Executor<Mutex<Vec<u32>>, u32, u32> for ExecutorImpl {
-            const LOWEST_PRIORITY: u32 = 0;
             type Future = Pin<Box<dyn Future<Output = ()> + Send>>;
 
             fn execute(
@@ -1083,7 +981,6 @@ mod tests {
         struct ExecutorImpl;
 
         impl Executor<Mutex<Vec<u32>>, u32, u32> for ExecutorImpl {
-            const LOWEST_PRIORITY: u32 = 0;
             type Future = Pin<Box<dyn Future<Output = ()> + Send>>;
 
             fn execute(
@@ -1137,7 +1034,6 @@ mod tests {
         struct ExecutorImpl;
 
         impl Executor<Mutex<Vec<u32>>, u32, u32> for ExecutorImpl {
-            const LOWEST_PRIORITY: u32 = 0;
             type Future = Pin<Box<dyn Future<Output = ()> + Send>>;
 
             fn execute(
@@ -1236,7 +1132,6 @@ mod tests {
         struct ExecutorImpl;
 
         impl Executor<TestContext, (u32, bool), u32> for ExecutorImpl {
-            const LOWEST_PRIORITY: u32 = 0;
             type Future = Pin<Box<dyn Future<Output = ()> + Send>>;
 
             fn execute(
@@ -1403,148 +1298,227 @@ mod tests {
         }
     }
 
-    /// Directly exercise `Queue` band routing + ordering: the heap drains (highest priority first)
-    /// before the lock-free lowest band, which is FIFO. The two priority-9 items compare equal, so
-    /// their relative order out of the heap is unspecified — the test only asserts they both land
-    /// in the first (highest-priority) positions.
+    /// `TaskPriority` ranks are monotone, `Initial` has rank 0, and only the lowest invalidation
+    /// priorities share a rank.
     #[test]
-    fn queues_pop_in_exact_band_and_heap_order() {
-        let q: Queue<u32, &str> = Queue::new(0);
-        assert!(q.is_empty());
-
-        // Push out of priority order, mixing both bands and several heap priorities. Every item
-        // has its own key, so nothing is replaced.
-        for (priority, task) in [
-            (0, "low-a"),
-            (3, "p3"),
-            (9, "p9-a"),
-            (0, "low-b"),
-            (7, "p7"),
-            (5, "p5"),
-            (9, "p9-b"),
+    fn test_task_priority_rank() {
+        use crate::TaskPriority;
+        let mut priorities = vec![
+            TaskPriority::Initial,
+            TaskPriority::Recomputation,
+            TaskPriority::leaf(),
+        ];
+        for p in [
+            0,
+            1,
+            2,
+            100,
+            1 << 20,
+            u32::MAX - 3,
+            u32::MAX - 2,
+            u32::MAX - 1,
+            u32::MAX,
         ] {
-            assert!(q.push(priority, task).is_none());
+            priorities.push(TaskPriority::invalidation(p));
         }
-
-        assert!(!q.is_empty());
-
-        let mut out = Vec::new();
-        while let Some((_, task)) = q.pop() {
-            out.push(task);
+        priorities.sort();
+        priorities.dedup();
+        for pair in priorities.windows(2) {
+            assert!(pair[0].rank() <= pair[1].rank(), "{pair:?}");
+            if pair[0].rank() == pair[1].rank() {
+                // Only the saturated invalidation priorities tie.
+                for priority in pair {
+                    assert!(
+                        matches!(priority, TaskPriority::Invalidation { priority } if priority.0 >= u32::MAX - 2),
+                        "{pair:?}"
+                    );
+                }
+            }
         }
-
-        // The two priority-9 items pop first (order among equal priorities is unspecified).
-        assert_eq!(out.len(), 7);
-        assert!(out[0..2].contains(&"p9-a"));
-        assert!(out[0..2].contains(&"p9-b"));
-        // Then the rest of the heap in exact priority order, then the lowest band in FIFO order.
-        assert_eq!(&out[2..], &["p7", "p5", "p3", "low-a", "low-b"]);
-        assert!(q.is_empty());
+        assert_eq!(TaskPriority::Initial.rank(), 0);
+        assert_eq!(TaskPriority::invalidation(u32::MAX).rank(), 1);
+        assert_eq!(TaskPriority::invalidation(u32::MAX - 3).rank(), 2);
+        assert_eq!(TaskPriority::leaf().rank(), u32::MAX - 1);
+        assert_eq!(TaskPriority::Recomputation.rank(), u32::MAX);
     }
 
-    /// The heap starts with capacity for 128 entries, keeps its capacity while it still has
-    /// entries, and only shrinks back to 128 once it became empty.
+    /// Many threads push (with replacements), pop and claim concurrently over many rounds, on top
+    /// of the sharded priority queue (which steals and searches underneath). Checks that every item
+    /// is executed, discarded or claimed exactly once, and, in the quiescent phase at the end of
+    /// each round (no pushes or claims), that the ordering guarantee holds: no item of a higher
+    /// priority is popped by a pop that starts after another pop of a lower priority (or a `None`)
+    /// has completed.
     #[test]
-    fn heap_only_shrinks_when_empty() {
-        let q: Queue<u32, u32> = Queue::new(0);
-        assert!(q.heap.lock().capacity() >= 128);
+    fn stress_queue_with_claims_no_loss_no_duplicates_and_order() {
+        use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64};
 
-        for task in 0..1000 {
-            assert!(q.push(1, task).is_none());
+        const ROUNDS: u32 = 20;
+        const PRODUCERS: u32 = 4;
+        const CONSUMERS: u32 = 6;
+        const PER_PRODUCER: u32 = 2_000;
+        const PER_ROUND: u32 = PRODUCERS * PER_PRODUCER;
+        const SHARED_KEYS: u32 = 16;
+
+        struct Item {
+            id: u32,
+            key: u32,
         }
-        let grown = q.heap.lock().capacity();
-        assert!(grown >= 1000);
-
-        // Draining most of the heap doesn't shrink it.
-        for _ in 0..990 {
-            assert!(q.pop().is_some());
+        impl Claimable for Item {
+            type Key = u32;
+            fn claim_key(&self) -> u32 {
+                self.key
+            }
         }
-        assert_eq!(q.heap.lock().capacity(), grown);
 
-        // Draining it completely shrinks it to 128.
-        while q.pop().is_some() {}
-        assert_eq!(q.heap.lock().capacity(), 128);
+        /// Pops of the quiescent phase: `(start, end, priority or None)` in a global sequence.
+        type QuiescentPop = (u64, u64, Option<u32>);
+
+        let total = ROUNDS * PER_ROUND;
+        let executed: Vec<AtomicU32> = (0..total).map(|_| AtomicU32::new(0)).collect();
+        let discarded: Vec<AtomicU32> = (0..total).map(|_| AtomicU32::new(0)).collect();
+        let claimed: Vec<AtomicU32> = (0..total).map(|_| AtomicU32::new(0)).collect();
+        let q: Queue<u32, Item> = Queue::new();
+        let seq = AtomicU64::new(0);
+
+        for round in 0..ROUNDS {
+            let base = round * PER_ROUND;
+            let producers_done = AtomicU32::new(0);
+            let quiescent = AtomicBool::new(false);
+            let quiescent_pops: Mutex<Vec<QuiescentPop>> = Mutex::new(Vec::new());
+            std::thread::scope(|scope| {
+                for _ in 0..CONSUMERS {
+                    let (q, executed, seq, quiescent, quiescent_pops) =
+                        (&q, &executed, &seq, &quiescent, &quiescent_pops);
+                    scope.spawn(move || {
+                        let mut local = Vec::new();
+                        loop {
+                            let in_quiescent = quiescent.load(Ordering::Acquire);
+                            let start = seq.fetch_add(1, Ordering::SeqCst);
+                            let popped = q.pop();
+                            let end = seq.fetch_add(1, Ordering::SeqCst);
+                            if let Some((_, item)) = &popped {
+                                executed[item.id as usize].fetch_add(1, Ordering::Relaxed);
+                            }
+                            if in_quiescent {
+                                local.push((start, end, popped.as_ref().map(|(p, _)| *p)));
+                                if popped.is_none() {
+                                    break;
+                                }
+                            }
+                        }
+                        quiescent_pops.lock().extend(local);
+                    });
+                }
+                let claimer = {
+                    let (q, claimed, producers_done) = (&q, &claimed, &producers_done);
+                    scope.spawn(move || {
+                        let mut x = 0x2545_F491u32 ^ round;
+                        while producers_done.load(Ordering::Acquire) < PRODUCERS {
+                            x ^= x << 13;
+                            x ^= x >> 17;
+                            x ^= x << 5;
+                            let key = if x % 4 == 0 {
+                                total + x % SHARED_KEYS
+                            } else {
+                                base + x % PER_ROUND
+                            };
+                            if let Some((_, item)) = q.claim(&key) {
+                                claimed[item.id as usize].fetch_add(1, Ordering::Relaxed);
+                            }
+                        }
+                    })
+                };
+                for producer in 0..PRODUCERS {
+                    let (q, discarded, producers_done) = (&q, &discarded, &producers_done);
+                    scope.spawn(move || {
+                        let mut x = 0x9E37_79B9u32 ^ (producer << 8) ^ round;
+                        let mut batch = Vec::new();
+                        for i in 0..PER_PRODUCER {
+                            x ^= x << 13;
+                            x ^= x >> 17;
+                            x ^= x << 5;
+                            let id = base + producer * PER_PRODUCER + i;
+                            // Mostly a few priorities (like real builds), sometimes a spread.
+                            let priority = match x % 8 {
+                                0..=3 => 0,
+                                4 | 5 => 3,
+                                6 => 7,
+                                _ => x % 64,
+                            };
+                            let key = if x % 16 == 0 {
+                                total + (x >> 8) % SHARED_KEYS
+                            } else {
+                                id
+                            };
+                            let item = Item { id, key };
+                            if x % 32 < 4 {
+                                batch.push((priority, item));
+                                if batch.len() == 8 {
+                                    let items = std::mem::take(&mut batch);
+                                    q.push_many(items, |_, item| {
+                                        discarded[item.id as usize].fetch_add(1, Ordering::Relaxed);
+                                    });
+                                }
+                            } else if let Some((_, item)) = q.push(priority, item) {
+                                discarded[item.id as usize].fetch_add(1, Ordering::Relaxed);
+                            }
+                        }
+                        q.push_many(batch, |_, item| {
+                            discarded[item.id as usize].fetch_add(1, Ordering::Relaxed);
+                        });
+                        producers_done.fetch_add(1, Ordering::AcqRel);
+                    });
+                }
+                while producers_done.load(Ordering::Acquire) < PRODUCERS {
+                    std::thread::yield_now();
+                }
+                // The claimer stops once it sees all producers done. Join it, so the pops recorded
+                // as quiescent can't overlap a claim (or a push).
+                claimer.join().unwrap();
+                quiescent.store(true, Ordering::Release);
+            });
+
+            assert!(q.pop().is_none());
+            assert!(q.claimable.is_empty(), "round {round}: items left behind");
+            assert!(q.is_empty(), "round {round}: keys left behind");
+
+            // Ordering in the quiescent phase.
+            let pops = quiescent_pops.into_inner();
+            let mut by_start = pops.clone();
+            by_start.sort_by_key(|&(start, _, _)| start);
+            for &(_, end, priority) in &pops {
+                let floor = priority.map_or(0, |p| p + 1);
+                for &(start, _, later) in by_start.iter().rev() {
+                    if start < end {
+                        break;
+                    }
+                    if let Some(later) = later {
+                        assert!(
+                            priority.is_some() && later < floor,
+                            "round {round}: a pop of priority {later} started after a pop of \
+                             {priority:?} ended"
+                        );
+                    }
+                }
+            }
+        }
+
+        for id in 0..total as usize {
+            let e = executed[id].load(Ordering::Relaxed);
+            let d = discarded[id].load(Ordering::Relaxed);
+            let c = claimed[id].load(Ordering::Relaxed);
+            assert_eq!(
+                e + d + c,
+                1,
+                "item {id}: executed {e}, discarded {d}, claimed {c}"
+            );
+        }
     }
 
-    /// With an empty heap, popping does not acquire the heap mutex, but still drains the lowest
-    /// band.
-    #[test]
-    fn test_empty_heap_pop_does_not_wait_for_heap_lock() {
-        let (runner, executed) = queueing_runner::<u32>();
-        runner.schedule(&executed, 1, 0);
-        let heap_guard = runner.queue.heap.lock();
-        let (sender, receiver) = std::sync::mpsc::channel();
-        let popper = {
-            let runner = runner.clone();
-            let executed = executed.clone();
-            std::thread::spawn(move || {
-                let popped = runner.pop_future_from_worker(&executed).is_some();
-                sender.send(popped).unwrap();
-            })
-        };
-        let popped = receiver.recv_timeout(Duration::from_secs(1));
-        drop(heap_guard);
-        popper.join().unwrap();
-        assert_eq!(
-            popped,
-            Ok(true),
-            "pop must not acquire the heap lock while the heap is empty"
-        );
-        assert_eq!(*executed.lock(), vec![1]);
-    }
-
-    /// `heap_non_empty` tracks whether the heap has entries (tombstones included) across drains
-    /// and refills, so `pop` only skips the heap lock while the heap really is empty.
-    #[test]
-    fn test_heap_flag_drain_refill_with_tombstones() {
-        let (runner, executed) = queueing_runner::<u32>();
-        let flag = || runner.queue.heap_non_empty.load(Ordering::Acquire);
-        assert!(!flag());
-
-        // Lowest-band items never touch the heap or the flag.
-        runner.schedule(&executed, 0, 0);
-        assert!(!flag());
-        assert_eq!(drain(&runner, &executed), vec![0]);
-        assert!(!flag());
-
-        for _ in 0..3 {
-            runner.schedule(&executed, 1, 10);
-            runner.schedule(&executed, 2, 2);
-            runner.schedule(&executed, 3, 0);
-            assert!(flag());
-
-            // A claimed heap item leaves a tombstone behind, which still counts as an entry.
-            assert!(runner.claim(&executed, &1).is_some());
-            assert!(runner.claim(&executed, &2).is_some());
-            assert!(flag(), "tombstones are still heap entries");
-            executed.lock().clear();
-
-            // Popping skips both tombstones, empties the heap and clears the flag, then falls
-            // through to the lowest band.
-            assert!(runner.pop_future_from_worker(&executed).is_some());
-            assert_eq!(*executed.lock(), vec![3]);
-            executed.lock().clear();
-            assert!(!flag());
-            assert!(runner.queue.is_empty());
-
-            // Refill: the flag is set again and the heap is used again.
-            runner.schedule(&executed, 4, 4);
-            runner.schedule(&executed, 5, 5);
-            assert!(flag());
-            assert!(runner.pop_future_from_worker(&executed).is_some());
-            assert!(flag(), "one entry is still left");
-            assert!(runner.pop_future_from_worker(&executed).is_some());
-            assert!(!flag());
-            assert_eq!(*executed.lock(), vec![5, 4]);
-            executed.lock().clear();
-            assert!(runner.pop_future_from_worker(&executed).is_none());
-        }
-    }
-
-    /// Claims find items in both bands, and claiming leaves the band order of the remaining items
+    /// Claims find items at any priority, and claiming leaves the order of the remaining items
     /// intact.
     #[test]
-    fn test_claim_from_both_bands() {
+    fn test_claim_from_several_priorities() {
         let (runner, executed) = queueing_runner::<u32>();
         runner.schedule(&executed, 0, 0);
         runner.schedule(&executed, 1, 0);
@@ -1560,13 +1534,13 @@ mod tests {
         assert_eq!(drain(&runner, &executed), vec![4, 2, 1]);
     }
 
-    /// Queueing a key again in another band replaces the queued item there too: only the latest
-    /// one is executed, at its own priority, and its claim index entry survives the stale entry of
+    /// Queueing a key again at another priority replaces the queued item too: only the latest
+    /// one is executed, at its own priority, and its claim entry survives the stale entry of
     /// the replaced one.
     #[test]
-    fn test_push_same_key_overrides_across_bands() {
+    fn test_push_same_key_overrides_across_priorities() {
         let (runner, executed) = queueing_runner::<(u32, bool)>();
-        // Lowest band first, then the same key in the heap.
+        // Lowest priority first, then the same key at a higher one.
         runner.schedule(&executed, (1, false), 0);
         runner.schedule(&executed, (1, true), 10);
         assert_eq!(take_discarded(&runner), vec![(1, false)]);
@@ -1576,13 +1550,13 @@ mod tests {
         assert!(runner.claim(&executed, &1).is_none());
         assert!(drain(&runner, &executed).is_empty());
 
-        // And the other way around: heap first, then the latest item in the lowest band.
+        // And the other way around: higher first, then the latest item at the lowest priority.
         runner.schedule(&executed, (2, false), 10);
         runner.schedule(&executed, (2, true), 0);
         assert_eq!(take_discarded(&runner), vec![(2, false)]);
         assert_eq!(drain(&runner, &executed), vec![(2, true)]);
 
-        // The stale heap entry is skipped and must not remove the index entry of the latest item.
+        // The stale entry is skipped and must not remove the claim entry of the latest item.
         runner.schedule(&executed, (3, false), 10);
         runner.schedule(&executed, (3, true), 0);
         assert!(runner.claim(&executed, &3).is_some());
@@ -1593,38 +1567,39 @@ mod tests {
         assert!(runner.queue.is_empty());
     }
 
-    /// A key queued again in the lowest band after a heap push: the replaced item's stale heap
-    /// entry must not take the latest item (the priorities don't match), so the latest item keeps
-    /// its FIFO position in the lowest band.
+    /// A key queued again at the lowest priority after a higher priority push: the replaced item's
+    /// stale entry must not take the latest item (the priorities don't match), so the latest item
+    /// keeps its LIFO position at the lowest priority (behind the newer `(5, false)`).
     #[test]
-    fn test_stale_entry_in_other_band_does_not_take_newer_item() {
+    fn test_stale_entry_at_other_priority_does_not_take_newer_item() {
         let (runner, executed) = queueing_runner::<(u32, bool)>();
         runner.schedule(&executed, (1, false), 10);
-        runner.schedule(&executed, (5, false), 0);
         runner.schedule(&executed, (1, true), 0);
+        runner.schedule(&executed, (5, false), 0);
         assert_eq!(take_discarded(&runner), vec![(1, false)]);
         assert_eq!(drain(&runner, &executed), vec![(5, false), (1, true)]);
         assert!(runner.queue.claimable.is_empty());
         assert!(runner.queue.is_empty());
     }
 
-    /// Claiming leaves a tombstone in the heap; queueing the same key again in the lowest band
-    /// must not let that tombstone take the new item ahead of other lowest-band items.
+    /// Claiming leaves a tombstone in its shard; queueing the same key again at the lowest
+    /// priority must not let that tombstone take the new item ahead of newer lowest priority items
+    /// (the order within a priority is LIFO).
     #[test]
-    fn test_claim_then_requeue_in_other_band() {
+    fn test_claim_then_requeue_at_other_priority() {
         let (runner, executed) = queueing_runner::<u32>();
         runner.schedule(&executed, 1, 10);
         assert!(runner.claim(&executed, &1).is_some());
         executed.lock().clear();
-        runner.schedule(&executed, 2, 0);
         runner.schedule(&executed, 1, 0);
+        runner.schedule(&executed, 2, 0);
         assert_eq!(drain(&runner, &executed), vec![2, 1]);
-        assert!(!runner.queue.heap_non_empty.load(Ordering::Acquire));
+        assert!(runner.queue.is_empty());
     }
 
     /// Claiming and queueing the same key again at the same priority: the stale entry may take the
-    /// new item early (equal priority, so only the FIFO position changes), but it still runs
-    /// exactly once.
+    /// new item early (equal priority, so only its position within the priority changes), but it
+    /// still runs exactly once.
     #[test]
     fn test_claim_then_requeue_same_priority() {
         let (runner, executed) = queueing_runner::<u32>();
@@ -1640,9 +1615,9 @@ mod tests {
         assert!(runner.queue.is_empty());
     }
 
-    /// Producers push items sharing a few keys concurrently with poppers and claimers, across both
-    /// bands. A newer item replaces a still-queued older one with the same key, so every item is
-    /// either executed or discarded, exactly once, and the last item queued for each key is
+    /// Producers push items sharing a few keys concurrently with poppers and claimers, at several
+    /// priorities. A newer item replaces a still-queued older one with the same key, so every item
+    /// is either executed or discarded, exactly once, and the last item queued for each key is
     /// executed (nothing can replace it). Nothing may be left behind.
     #[test]
     fn test_concurrent_same_key_producers_override() {
@@ -1673,7 +1648,6 @@ mod tests {
             discards: Vec<AtomicU32>,
         }
         impl Executor<Vec<AtomicU32>, Item, u32> for CountingExecutor {
-            const LOWEST_PRIORITY: u32 = 0;
             type Future = std::future::Ready<()>;
 
             fn execute(
@@ -1748,7 +1722,6 @@ mod tests {
         assert!(runner.pop_future_from_worker(&counts).is_none());
         assert!(runner.queue.claimable.is_empty());
         assert!(runner.queue.is_empty());
-        assert!(!runner.queue.heap_non_empty.load(Ordering::Acquire));
         for (id, count) in counts.iter().enumerate() {
             let executed = count.load(Ordering::Relaxed);
             let discarded = runner.executor.discards[id].load(Ordering::Relaxed);
@@ -1765,7 +1738,7 @@ mod tests {
         }
     }
 
-    /// Claimers race popping workers over the same items, in both bands. Every item must be
+    /// Claimers race popping workers over the same items, at several priorities. Every item must be
     /// executed exactly once: either by exactly one successful claim or by exactly one pop.
     #[test]
     fn test_claim_concurrent_with_pop_exactly_once() {
@@ -1777,7 +1750,6 @@ mod tests {
 
         struct CountingExecutor;
         impl Executor<Vec<AtomicU32>, u32, u32> for CountingExecutor {
-            const LOWEST_PRIORITY: u32 = 0;
             type Future = std::future::Ready<()>;
 
             fn execute(
@@ -1864,7 +1836,7 @@ mod tests {
     /// Liveness stress test for the schedule/retire race: saturate the worker pool and rapidly
     /// schedule a large fan-out of short tasks from *within* executing tasks (so `schedule` runs
     /// while the pool is saturated and workers are constantly hitting the `Done` → pop → retire
-    /// path), mixing both bands and several heap priorities. Asserts every scheduled task
+    /// path), mixing several priorities. Asserts every scheduled task
     /// eventually runs — a stranded task (the hazard the acquire/release ordering on
     /// `active_workers` guards against) would leave the count short and hang, caught by the
     /// outer timeout.
@@ -1913,7 +1885,6 @@ mod tests {
     struct StressExecutor;
 
     impl Executor<StressCtx, StressTask, u32> for StressExecutor {
-        const LOWEST_PRIORITY: u32 = 0;
         type Future = Pin<Box<dyn Future<Output = ()> + Send>>;
 
         fn execute(
@@ -1933,8 +1904,8 @@ mod tests {
                         // never observed lower than the true outstanding work.
                         ctx.scheduled
                             .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
-                        // Spread children across both bands and several heap priorities to
-                        // exercise every push target.
+                        // Spread children across several priorities to exercise every push
+                        // case (raise, equal, lower).
                         let priority = match (depth + child) % 3 {
                             0 => 0,
                             1 => 10,
@@ -2029,7 +2000,6 @@ mod tests {
 
         struct Exec;
         impl Executor<Ctx, u32, u32> for Exec {
-            const LOWEST_PRIORITY: u32 = 0;
             type Future = Pin<Box<dyn Future<Output = ()> + Send>>;
             fn execute(&self, ctx: &Arc<Ctx>, _task: u32, _priority: u32) -> Self::Future {
                 let ctx = ctx.clone();
@@ -2053,8 +2023,8 @@ mod tests {
                 let mut expected = 0;
                 for round in 0..ROUNDS {
                     // Two tasks (with their own keys) so at least one is likely to take the
-                    // enqueue (non-spawn) path while the other occupies a worker. Mix bands across
-                    // rounds to exercise every push target.
+                    // enqueue (non-spawn) path while the other occupies a worker. Mix priorities
+                    // across rounds to exercise every push case.
                     let (p0, p1) = match round % 3 {
                         0 => (0, 10),
                         1 => (10, 5),
@@ -2088,8 +2058,9 @@ mod tests {
     /// drop below target and rescue the pushed task via `spawn_worker_if_work_available`. A single
     /// stranded task leaves `completed` short and the outer timeout fails the test.
     ///
-    /// The lowest-priority variant pins every push to the lock-free band so the liveness edge is
-    /// carried purely by the fences and `active_workers`, not incidentally by the heap mutex.
+    /// The lowest-priority variant keeps `highest` at 0, so pushes to an already published shard
+    /// don't write the state word and the liveness edge is carried by the fences and
+    /// `active_workers`.
     #[test]
     fn stress_saturated_schedule_vs_retiring_worker() {
         use std::sync::atomic::{AtomicUsize, Ordering};
@@ -2100,7 +2071,6 @@ mod tests {
 
         struct Exec;
         impl Executor<Ctx, u32, u32> for Exec {
-            const LOWEST_PRIORITY: u32 = 0;
             type Future = Pin<Box<dyn Future<Output = ()> + Send>>;
             fn execute(&self, ctx: &Arc<Ctx>, _task: u32, _priority: u32) -> Self::Future {
                 let ctx = ctx.clone();
@@ -2124,8 +2094,8 @@ mod tests {
 
                 let mut expected = 0;
                 for round in 0..ROUNDS {
-                    // Alternate: lowest-priority rounds isolate the lock-free-band edge; other
-                    // rounds use the heap band. Every task has its own key.
+                    // Alternate: lowest-priority rounds and higher-priority rounds. Every task has
+                    // its own key.
                     let priority = match round % 2 {
                         0 => 0,
                         _ => 10,
