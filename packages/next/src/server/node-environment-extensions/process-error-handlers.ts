@@ -55,6 +55,22 @@ export function registerUnhandledRejectionListener(): void {
   process.on('unhandledRejection', listener)
 }
 
+/**
+ * Checks if an error was raised by a failed write to stdout/stderr, e.g. when
+ * the terminal the process is attached to has gone away (`EIO`, `EPIPE`).
+ *
+ * Logging such an error with `console.error` writes to the same broken stream,
+ * which fails again, triggers another "uncaughtException" and so on, looping
+ * forever at 100% CPU.
+ */
+function isConsoleWriteError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) {
+    return false
+  }
+  const { code, syscall } = error as { code?: unknown; syscall?: unknown }
+  return syscall === 'write' && (code === 'EIO' || code === 'EPIPE')
+}
+
 export function installProcessErrorHandlers(
   shouldRemoveUncaughtErrorAndRejectionListeners: boolean
 ) {
@@ -115,6 +131,11 @@ export function installProcessErrorHandlers(
     // is unrelated to the late-awaiting pattern. However, for similar reasons,
     // we still shouldn't crash the process. Just log it.
     process.on('uncaughtException', (reason: unknown) => {
+      // Don't log failed writes to stdout/stderr: logging would write to the
+      // same broken stream again and re-enter this handler in an endless loop.
+      if (isConsoleWriteError(reason)) {
+        return
+      }
       console.error(reason)
     })
   }
