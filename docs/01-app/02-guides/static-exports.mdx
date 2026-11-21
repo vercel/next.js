@@ -301,6 +301,10 @@ Attempting to use any of these features with `next dev` will result in an error,
 export const dynamic = 'error'
 ```
 
+### With Cache Components
+
+[Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) and [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) are not yet supported with static exports. Disable `cacheComponents` and `partialPrefetching` when using `output: 'export'`.
+
 </AppOnly>
 
 <PagesOnly>
