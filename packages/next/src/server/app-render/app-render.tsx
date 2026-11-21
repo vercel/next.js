@@ -10211,7 +10211,8 @@ async function prerenderToStream(
           preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
           dynamicValidation,
           clientDynamicTracking,
-          allowEmptyStaticShell
+          allowEmptyStaticShell,
+          postponed
         )
       }
 
