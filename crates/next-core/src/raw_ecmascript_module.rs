@@ -24,7 +24,7 @@ use turbopack_core::{
     source::{OptionSource, Source},
     source_map::{
         GenerateSourceMap, SourceMapGenerationOptions, SourceMapType, SourceMaps,
-        structured::StructuredSourceMap,
+        structured::{SplitSourceMap, StructuredSourceMap},
     },
 };
 use turbopack_ecmascript::{
@@ -296,7 +296,7 @@ impl EcmascriptChunkPlaceable for RawEcmascriptModule {
                         }
                     }
                 };
-                StructuredSourceMap::from_json(&source_map)
+                StructuredSourceMap::from_json(&source_map).map(SplitSourceMap::new)
             })?;
             Ok(EcmascriptChunkItemContent {
                 source_maps,
