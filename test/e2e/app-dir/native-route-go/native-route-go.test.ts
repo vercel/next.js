@@ -469,12 +469,18 @@ describe('native-route-go', () => {
     })
     it('reports conflicting Go and TS handlers from Rust and recovers', async () => {
       const path = 'app/(group)/native/[id]/route.ts'
+      const goPath = 'app/(group)/native/[id]/route.go'
+      const goSource = await next.readFile(goPath)
       const outputStart = next.cliOutput.length
       try {
         await next.patchFile(
           path,
           'export function GET() { return new Response("conflict") }'
         )
+        // Recreate route.go so filesystems that list entries in creation order
+        // list it after route.ts. The result must not depend on that order.
+        await next.deleteFile(goPath)
+        await next.patchFile(goPath, goSource)
         await retry(async () => {
           expect((await next.fetch('/native/example')).status).toBe(500)
           expect(next.cliOutput.slice(outputStart)).toContain(
