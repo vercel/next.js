@@ -1,0 +1,12 @@
+.usedBaseClassName {
+  color: red;
+}
+
+.usedComposedClassName {
+  composes: usedBaseClassName;
+  color: blue;
+}
+
+.unusedClassName {
+  color: gray;
+}
