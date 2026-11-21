@@ -2,11 +2,13 @@
 //!
 //! Reading an immutable task needs no dependency edges, as an immutable task can never be
 //! invalidated. Checking that requires the task lock, though. This set tells before locking:
-//! - reads of a known-immutable task lock only that task, and other reads lock the task and the
-//!   reader together right away, instead of first locking the task alone to check its flag (see
-//!   `lock_task_and_optional_reader`);
-//! - refining a keyed dependency on a known-immutable task locks the task and the reader one after
-//!   the other instead of together (see `refine_provisional_cell_dependency`).
+//! - cell reads, which lock the reader first (see `try_read_task_cell`), skip the reader task
+//!   entirely when the task being read is known to be immutable;
+//! - output reads of a known-immutable task lock only that task, and other output reads lock the
+//!   task and the reader together right away, instead of first locking the task alone to check its
+//!   flag (see `lock_task_and_optional_reader`);
+//! - refining a keyed dependency on a known-immutable task skips marking the keys on the reader
+//!   (see `refine_provisional_cell_dependency`).
 //!
 //! A task id is only added after its `immutable` flag was set under the task lock (or restored
 //! with it). The set may miss immutable tasks (false negatives are fine: the reader then takes the

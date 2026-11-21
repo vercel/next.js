@@ -117,6 +117,18 @@ pub fn create_tt(name: &str) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::T
     create_tt_with_workers(name, 2)
 }
 
+/// [`create_tt_with_workers`] with the GC root TTL pinned, so roots that are no longer read age out
+/// within the test.
+pub fn create_tt_with_workers_and_gc_ttl(
+    name: &str,
+    num_workers: usize,
+    gc_root_ttl: Duration,
+) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
+    let dir = create_persistence_dir(name);
+    let tt = open_tt_at_with_gc(dir.path(), num_workers, Some(true), Some(gc_root_ttl), None);
+    (tt, dir)
+}
+
 /// [`create_tt`] with a custom GC min-progress floor
 pub fn create_tt_with_gc_min_progress(
     name: &str,
