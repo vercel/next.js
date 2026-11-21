@@ -395,6 +395,8 @@ export const metadata = {
 
 `referrer` accepts `'no-referrer'`, `'origin'`, `'no-referrer-when-downgrade'`, `'origin-when-cross-origin'`, `'same-origin'`, `'strict-origin'`, or `'strict-origin-when-cross-origin'`.
 
+> **Good to know**: A `'no-referrer'` policy can prevent [native Server Action form submissions](/docs/app/guides/data-security#referrer-policies-and-native-form-submissions).
+
 ### `metadataBase`
 
 `metadataBase` accepts an absolute URL string or a `URL` instance. It sets a base URL prefix for `metadata` fields that require a fully qualified URL.

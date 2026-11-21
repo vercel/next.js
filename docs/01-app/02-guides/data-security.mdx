@@ -564,6 +564,14 @@ module.exports = {
 
 Learn more about [Security and Server Actions](https://nextjs.org/blog/security-nextjs-server-components-actions).
 
+#### Referrer policies and native form submissions
+
+With a `no-referrer` policy, native Server Action form submissions can send `Origin: null`, for example when JavaScript is disabled. The policy can be set through [`metadata.referrer`](/docs/app/api-reference/functions/generate-metadata#other-fields) or a [`Referrer-Policy` response header](/docs/app/api-reference/config/next-config-js/headers#referrer-policy).
+
+The literal value `null` is different from an absent `Origin` header. It fails Next.js's host comparison, causing `Invalid Server Actions request.` This can happen even when the form targets the same origin and a reverse proxy forwards the public host correctly.
+
+Remove `no-referrer` or use `strict-origin-when-cross-origin` to support native submissions. Hydrated submissions can still succeed with `no-referrer`, so test forms with JavaScript disabled when verifying progressive enhancement. Do not add `null` to `allowedOrigins` as a workaround.
+
 ### Avoiding side-effects during rendering
 
 Mutations (e.g. logging out users, updating databases, invalidating caches) should never be a side-effect, either in Server or Client Components. Next.js explicitly prevents setting cookies or triggering cache revalidation within render methods to avoid unintended side effects.
