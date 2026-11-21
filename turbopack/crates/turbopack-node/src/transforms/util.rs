@@ -2,6 +2,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use either::Either;
 use serde::Deserialize;
+use serde_json::Value as JsonValue;
 use serde_with::serde_as;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc};
@@ -24,6 +25,8 @@ pub struct LoaderEmittedAsset {
     #[serde(with = "either::serde_untagged")]
     #[bincode(with = "turbo_bincode::either")]
     content: Either<RcStr, BytesBase64>,
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
+    source_map: Option<JsonValue>,
 }
 
 pub fn loader_emitted_assets_to_files(
@@ -39,11 +42,20 @@ pub fn loader_emitted_assets_to_files(
                 Either::Left(text) => File::from(text),
                 Either::Right(bytes) => File::from(bytes.binary),
             };
+            let source_map = asset
+                .source_map
+                .map(|map| {
+                    anyhow::Ok(
+                        FileContent::Content(File::from(serde_json::to_vec(&map)?)).resolved_cell(),
+                    )
+                })
+                .transpose()?;
             Ok(EmittedFile {
                 scope: scope.clone(),
                 name: asset.file,
                 origin: origin.clone(),
                 content: FileContent::Content(content).resolved_cell(),
+                source_map,
             }
             .resolved_cell())
         })

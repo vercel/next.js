@@ -10,6 +10,10 @@ declare module '*.route' {
   const value: string
   export default value
 }
+declare module '*.same-map' {
+  const value: string
+  export default value
+}
 declare module '*.name' {
   const value: string
   export default value
