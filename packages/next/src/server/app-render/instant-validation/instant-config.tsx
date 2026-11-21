@@ -9,6 +9,8 @@ import {
   UNDERSCORE_GLOBAL_ERROR_ROUTE,
   UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../../../shared/lib/entry-constants'
+import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../../client/components/builtin/default'
+import { PARALLEL_ROUTE_DEFAULT_NULL_PATH } from '../../../client/components/builtin/default-null'
 import type { Segment } from '../../../shared/lib/app-router-types'
 import type {
   AppSegmentConfig,
@@ -20,14 +22,37 @@ import {
 } from '../work-async-storage.external'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 
+export function isBuiltinDefault(tree: LoaderTree): boolean {
+  const defaultPagePath = tree[2].defaultPage?.[1]
+  if (!defaultPagePath) {
+    return false
+  }
+  const normalizedPath = defaultPagePath.replace(/\\/g, '/')
+  return (
+    normalizedPath.endsWith(PARALLEL_ROUTE_DEFAULT_PATH) ||
+    normalizedPath.endsWith(PARALLEL_ROUTE_DEFAULT_NULL_PATH)
+  )
+}
+
 /**
  * True when an unconfigured segment should be treated as implicitly
  * validated under a non-manual default validation level. Only page and
  * default segments qualify — layouts do not validate on their own.
+ * Built-in default fallbacks synthesized by the framework for parallel
+ * routes have no user-configurable escape hatch, so they are excluded.
  */
-export function isImplicitValidationSegment(segment: Segment): boolean {
+export function isImplicitValidationSegment(
+  segment: Segment,
+  tree?: LoaderTree
+): boolean {
   const key = typeof segment === 'string' ? segment : segment[0]
-  return key === PAGE_SEGMENT_KEY || key === DEFAULT_SEGMENT_KEY
+  if (key !== PAGE_SEGMENT_KEY && key !== DEFAULT_SEGMENT_KEY) {
+    return false
+  }
+  if (tree && isBuiltinDefault(tree)) {
+    return false
+  }
+  return true
 }
 
 /**
@@ -204,7 +229,10 @@ async function anySegmentNeedsInstantValidation(
       } else if (level <= baseValidationLevel) {
         needsValidation = true
       }
-    } else if (applyDefaultValidation && isImplicitValidationSegment(tree[0])) {
+    } else if (
+      applyDefaultValidation &&
+      isImplicitValidationSegment(tree[0], tree)
+    ) {
       // No explicit config. Implicit validation applies to page/default
       // segments when the default level is active for this mode.
       needsValidation = true
