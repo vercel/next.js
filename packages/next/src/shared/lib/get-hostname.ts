@@ -14,7 +14,10 @@ export function getHostname(
   // hostname.
   let hostname: string
   if (headers?.host && !Array.isArray(headers.host)) {
-    hostname = headers.host.toString().split(':', 1)[0]
+    // IPv6 literals carry colons inside the brackets, so cut after `]` instead of at the first `:`.
+    const host = headers.host.toString()
+    const bracketEnd = host.startsWith('[') ? host.indexOf(']') + 1 : -1
+    hostname = bracketEnd > 0 ? host.slice(0, bracketEnd) : host.split(':', 1)[0]
   } else if (parsed.hostname) {
     hostname = parsed.hostname
   } else return
