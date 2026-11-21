@@ -2,7 +2,7 @@ import { createSandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
 import { runRscBuildErrorsTests } from './rsc-build-errors.util'
 
-runRscBuildErrorsTests(({ next, isTurbopack, isRspack }) => {
+runRscBuildErrorsTests(({ next, isTurbopack }) => {
   describe("importing 'next/cache' APIs in a client component", () => {
     test.each(['revalidatePath', 'revalidateTag', 'cacheLife', 'cacheTag'])(
       '%s is not allowed',
@@ -47,11 +47,9 @@ runRscBuildErrorsTests(({ next, isTurbopack, isRspack }) => {
         expect(await session.getRedboxSource()).toInclude(
           `Export whatever doesn't exist in target module`
         )
-      } else if (isRspack) {
-        expect(await session.getRedboxDescription()).toInclude(
-          `'whatever' is not exported from 'next/root-params'`
-        )
       } else {
+        // Like webpack, Rspack only warns about the missing export, so the
+        // error surfaces when the getter is called.
         expect(await session.getRedboxDescription()).toInclude(
           `whatever) is not a function`
         )
