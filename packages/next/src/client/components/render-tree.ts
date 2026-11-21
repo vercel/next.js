@@ -468,7 +468,8 @@ function updateRenderTreeOnNavigation(
             oldRenderTree.varyPath,
             newRouteTree.varyPath,
             oldCacheNode.varyParams
-          )
+          ) &&
+          !isAbortedRsc(oldCacheNode.rsc)
         ) {
           const cacheNode = createCacheNode(
             oldCacheNode.rsc,
@@ -518,7 +519,9 @@ function updateRenderTreeOnNavigation(
   } else if (
     shouldRefreshDynamicData ||
     // During a same-page navigation, we always refetch the page segments
-    (isLeafSegment && isSamePageNavigation)
+    (isLeafSegment && isSamePageNavigation) ||
+    // The existing data never arrived; it has to be requested again.
+    isAbortedRsc(oldRenderTree.data.rsc)
   ) {
     // This is a refresh of an existing segment. Ignore the existing render
     // tree and create a new one.
@@ -1109,7 +1112,7 @@ function createRenderTreeForSegment(
         now,
         tree.varyPath
       )
-      if (bfcacheEntry !== null) {
+      if (bfcacheEntry !== null && !isAbortedRsc(bfcacheEntry.rsc)) {
         // A regular navigation that happens to read cached data is still a
         // fresh navigation, so we use the caller-supplied bfcacheId — the
         // BFCacheEntry's id is only restored on history-traversal
@@ -1160,7 +1163,7 @@ function createRenderTreeForSegment(
     }
     case FreshnessPolicy.HistoryTraversal:
       const bfcacheEntry = readFromBFCache(tree.varyPath)
-      if (bfcacheEntry !== null) {
+      if (bfcacheEntry !== null && !isAbortedRsc(bfcacheEntry.rsc)) {
         // Only show prefetched data if the dynamic data is still pending. This
         // avoids a flash back to the prefetch state in a case where it's highly
         // likely to have already streamed in.
@@ -2259,6 +2262,16 @@ type DeferredRsc<T extends React.ReactNode = React.ReactNode> =
 // too. We can remove it once type Cache Node type is more settled.
 export function isDeferredRsc(value: any): value is DeferredRsc {
   return value && typeof value === 'object' && value.tag === DEFERRED
+}
+
+// A segment's data that never arrived: when a navigation is superseded or its
+// response doesn't include the segment, the pending data is resolved to `null`
+// (see abortPendingCacheNode). Reusing it, from the render tree or the BFCache,
+// suspends the segment forever, since no request is left to fill it.
+function isAbortedRsc(value: unknown): boolean {
+  return (
+    isDeferredRsc(value) && value.status === 'fulfilled' && value.value === null
+  )
 }
 
 function createDeferredRsc<
