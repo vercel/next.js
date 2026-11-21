@@ -372,39 +372,56 @@ export function GET(request) {
 
 ### Streaming
 
-Streaming is commonly used in combination with Large Language Models (LLMs), such as OpenAI, for AI-generated content. Learn more about the [AI SDK](https://sdk.vercel.ai/docs/introduction).
+Streaming is commonly used with large language models (LLMs) for AI-generated content. The following example uses the AI SDK to accept UI messages and stream a chat response. It requires the `ai` and `@ai-sdk/openai` packages and an `OPENAI_API_KEY` environment variable.
 
 ```ts filename="app/api/chat/route.ts" switcher
 import { openai } from '@ai-sdk/openai'
-import { StreamingTextResponse, streamText } from 'ai'
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+  type UIMessage,
+} from 'ai'
 
 export async function POST(req: Request) {
-  const { messages } = await req.json()
-  const result = await streamText({
-    model: openai('gpt-4-turbo'),
-    messages,
+  const { messages }: { messages: UIMessage[] } = await req.json()
+  const result = streamText({
+    model: openai('gpt-6-astra'),
+    messages: await convertToModelMessages(messages),
   })
 
-  return new StreamingTextResponse(result.toAIStream())
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  })
 }
 ```
 
 ```js filename="app/api/chat/route.js" switcher
 import { openai } from '@ai-sdk/openai'
-import { StreamingTextResponse, streamText } from 'ai'
+import {
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+} from 'ai'
 
 export async function POST(req) {
   const { messages } = await req.json()
-  const result = await streamText({
-    model: openai('gpt-4-turbo'),
-    messages,
+  const result = streamText({
+    model: openai('gpt-6-astra'),
+    messages: await convertToModelMessages(messages),
   })
 
-  return new StreamingTextResponse(result.toAIStream())
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({ stream: result.stream }),
+  })
 }
 ```
 
-These abstractions use the Web APIs to create a stream. You can also use the underlying Web APIs directly.
+See the [AI SDK Next.js App Router guide](https://ai-sdk.dev/docs/getting-started/nextjs-app-router) for setup and a complete chat UI.
+
+You can also stream responses directly using the [Web Streams API](https://developer.mozilla.org/docs/Web/API/Streams_API). Pass a `ReadableStream` to the `Response` constructor:
 
 ```ts filename="app/api/route.ts" switcher
 // https://developer.mozilla.org/docs/Web/API/ReadableStream#convert_an_iterator_or_async_iterator_to_a_stream
