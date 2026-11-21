@@ -152,27 +152,62 @@ function InnerScrollHandler(props: ScrollHandlerProps) {
     () => {
       const { scrollRef: scrollHandlerRef, renderTree } = props
 
+      const navigationScrollRef = scrollHandlerRef.scrollRef
       const scrollRef = scrollHandlerRef.forceScroll
-        ? scrollHandlerRef.scrollRef
+        ? navigationScrollRef
         : renderTree.data.scrollRef
-      if (scrollRef === null || !scrollRef.current) return
+      if (scrollRef === null) return
 
-      let instance: FragmentInstance | HTMLElement | null = null
+      // A navigation has two scroll intents: scrolling the new route into
+      // view, tracked by the shared `scrollRef`, and scrolling to the hash
+      // target, tracked by `hashFragment`. Usually both are handled at once.
+      // But if the hash target is inside a segment that hasn't mounted yet
+      // (e.g. a page suspended inside a loading boundary), an ancestor
+      // scrolls the route into view first, and the hash stays pending until
+      // its target mounts. Any new segment of the current navigation can
+      // handle a pending hash.
       const hashFragment = scrollHandlerRef.hashFragment
+      const isRouteScrollPending = scrollRef.current
+      const isHashScrollPending =
+        !!hashFragment && scrollRef === navigationScrollRef
+      if (!isRouteScrollPending && !isHashScrollPending) return
 
       if (hashFragment) {
-        instance = getHashFragmentDomNode(hashFragment)
-        if (instance === null) {
-          // A missing hash target is still a handled scroll intent. Do not
-          // fall back to the route Fragment or leave the intent pending.
+        const hashTarget = getHashFragmentDomNode(hashFragment)
+        if (hashTarget !== null) {
+          disableSmoothScrollDuringRouteTransition(
+            () => {
+              hashTarget.scrollIntoView()
+            },
+            {
+              dontForceLayout: true,
+              onlyHashChange: scrollHandlerRef.onlyHashChange,
+            }
+          )
           scrollRef.current = false
           scrollHandlerRef.onlyHashChange = false
           scrollHandlerRef.hashFragment = null
           return
         }
-      } else {
-        instance = childrenRef.current
+
+        const isLeafSegment = renderTree.slots === null
+        if (isLeafSegment) {
+          // The page mounted without the hash target, so it's not coming.
+          // A missing hash target is still a handled scroll intent. Do not
+          // fall back to the route Fragment.
+          scrollRef.current = false
+          scrollHandlerRef.onlyHashChange = false
+          scrollHandlerRef.hashFragment = null
+          return
+        }
+
+        // The hash target may be inside a descendant that hasn't mounted
+        // yet. Scroll the route into view as if there were no hash, and
+        // leave the hash pending.
+        if (!isRouteScrollPending) return
       }
+
+      const instance = childrenRef.current
 
       // If there is no DOM node this layout-router level is skipped. It'll be handled higher-up in the tree.
       if (instance === null) {
@@ -198,22 +233,20 @@ function InnerScrollHandler(props: ScrollHandlerProps) {
             return scrollPaddingTop
           }
 
-          if (!hashFragment) {
-            // Store the current viewport height because reading `clientHeight` causes a reflow,
-            // and it won't change during this function.
-            viewportHeight = htmlElement.clientHeight
-            initialTargetState = getScrollTargetState(
-              instance,
-              viewportHeight,
-              getScrollPaddingTop
-            )
+          // Store the current viewport height because reading `clientHeight` causes a reflow,
+          // and it won't change during this function.
+          viewportHeight = htmlElement.clientHeight
+          initialTargetState = getScrollTargetState(
+            instance,
+            viewportHeight,
+            getScrollPaddingTop
+          )
 
-            // An empty Fragment is not a scroll target. In particular, avoid
-            // React's sibling fallback and leave the scroll signal available
-            // for another changed segment.
-            if (initialTargetState === ScrollTargetState.NoClientRects) {
-              return
-            }
+          // An empty Fragment is not a scroll target. In particular, avoid
+          // React's sibling fallback and leave the scroll signal available
+          // for another changed segment.
+          if (initialTargetState === ScrollTargetState.NoClientRects) {
+            return
           }
 
           didHandleScroll = true
@@ -223,13 +256,6 @@ function InnerScrollHandler(props: ScrollHandlerProps) {
 
           // This handler intentionally leaves focus untouched; resetting focus on
           // navigation is deferred.
-
-          // In case of hash scroll, we only need to scroll the element into view
-          if (hashFragment) {
-            instance.scrollIntoView()
-
-            return
-          }
 
           // If the element's top edge is already in the viewport, exit early.
           if (initialTargetState === ScrollTargetState.InViewport) {
@@ -261,13 +287,14 @@ function InnerScrollHandler(props: ScrollHandlerProps) {
         }
       )
 
-      if (!didHandleScroll) {
+      if (!didHandleScroll || hashFragment) {
+        // Either nothing scrolled, or a hash is still pending; leave the
+        // hash state for whichever segment handles it.
         return
       }
 
       // Mutate after scrolling so that it can be read by `disableSmoothScrollDuringRouteTransition`
       scrollHandlerRef.onlyHashChange = false
-      scrollHandlerRef.hashFragment = null
     },
     // Used to run on every commit. We may be able to be smarter about this
     // but be prepared for lots of manual testing.
