@@ -4,15 +4,25 @@ nav_title: Preventing Flash
 description: Learn how to prevent a flash of unstyled content (FOUC) by correcting server-rendered HTML, such as a dark mode theme, before the browser paints.
 ---
 
-User preferences, browser settings, and client-side storage aren't available during server rendering. The server emits a reasonable default, but any UI that depends on client-only state (locale, time zone, theme, persisted interactions) needs to be updated before the user sees it. Correcting it after the browser has painted produces a flash of unstyled content (FOUC).
+User preferences, browser settings, and client-side storage aren't available during server rendering. The server emits a reasonable default, but UI that depends on client-only state (locale, time zone, theme, persisted interactions) may need to be updated in the browser. Correcting it after the browser has painted can produce a flash of unstyled content (FOUC).
 
 Some common approaches to this problem:
 
-- A Client Component that re-renders with client values causes a hydration error.
-- Deferring to `useEffect` avoids the error but introduces a visible flash.
+- A Client Component that initially renders different server and client values causes a hydration error.
+- Updating state in `useEffect` after hydration avoids the error but can introduce a visible flash and adds a render.
 - Rendering only on the server means giving up on client-specific formatting entirely.
 
 Using an **inline script** that runs synchronously as the browser parses the HTML, you can update the DOM **before the first paint**. This guide covers dates, themes, and persisted UI state.
+
+## Choose an approach
+
+Choose an approach based on the initial experience you want and whether the value needs an ongoing subscription:
+
+| Goal                                                     | Approach                                                                 | Before React loads                          |
+| -------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------- |
+| Show useful content while browser-specific content loads | [`use(browser())` with `<Suspense>`](#rendering-client-specific-content) | The server-rendered fallback is visible     |
+| Apply a browser preference before the first paint        | [Inline script](#themes)                                                 | The script updates the server-rendered HTML |
+| Keep UI subscribed to an external store                  | [`useSyncExternalStore`](#subscribing-to-browser-values)                 | The shared server snapshot is visible       |
 
 ## Example
 
@@ -55,6 +65,8 @@ You could work around this with `useEffect` to update the date after hydration, 
 > **Good to know:** This issue is easy to miss in local development if your machine's locale matches your browser's. Run your dev server with `TZ` and `LANG` set differently from your browser to catch mismatches early (e.g. `TZ=UTC LANG=ja_JP.UTF-8 next dev`). `TZ=UTC` is a good default since most servers run in UTC.
 
 ### Fixing it with an inline script
+
+Use this approach when the browser-formatted date must be visible before React loads. If a server-formatted value or placeholder is acceptable, see [Rendering client-specific content](#rendering-client-specific-content).
 
 1. The server renders the date with its locale into a `<p>`.
 2. Place a `<script>` (via [`dangerouslySetInnerHTML`](https://react.dev/reference/react-dom/components/common#dangerously-setting-the-inner-html)) after the element. The browser runs it **synchronously** during HTML parsing, before the first paint.
@@ -119,9 +131,11 @@ The inline script puts the correct value in the DOM before React hydrates. Even 
 
 Scripts inserted via DOM updates don't execute in the browser. On client-side navigations, React renders the component from the RSC payload and the script won't run. Making the component a Client Component solves this: `toLocaleDateString()` runs directly in the browser on soft navigations, while the inline script handles hard navigations. [`useId`](https://react.dev/reference/react/useId) generates a stable unique ID for each instance.
 
-React also warns in development when rendering produces `<script>` tags. To avoid this, wrap the script in a helper that sets `type="text/javascript"` on the server and `type="text/plain"` on the client. `suppressHydrationWarning` handles the type mismatch.
+React also warns in development when rendering produces `<script>` tags. To avoid this, wrap the script in a helper that sets `type="text/javascript"` on the server and `type="text/plain"` on the client. Mark the helper with `'use client'` so it also works when imported directly by a Server Component. `suppressHydrationWarning` handles the type mismatch.
 
 ```tsx filename="app/components/inline-script.tsx" switcher
+'use client'
+
 export function InlineScript({ html }: { html: string }) {
   return (
     <script
@@ -134,6 +148,8 @@ export function InlineScript({ html }: { html: string }) {
 ```
 
 ```jsx filename="app/components/inline-script.js" switcher
+'use client'
+
 export function InlineScript({ html }) {
   return (
     <script
@@ -521,9 +537,151 @@ export function ThemeToggle() {
 | Page is already fully dynamic                   | Format the date on the server using the `Accept-Language` header                                                                                                     |
 | Translating content between languages           | Use [internationalization](/docs/app/guides/internationalization) with per-locale static builds or dynamic rendering                                                 |
 
+### Rendering client-specific content
+
+With React 19.3, call `use(browser())` in a Client Component to defer its rendering to the browser. Wrap the component in `<Suspense>` with a fallback.
+
+Here's an example:
+
+```tsx filename="app/components/browser-date.tsx" switcher
+'use client'
+
+import { Suspense, use } from 'react'
+import { browser } from 'react-dom'
+
+function BrowserDate({ date }: { date: string }) {
+  use(browser())
+
+  return <time dateTime={date}>{new Date(date).toLocaleDateString()}</time>
+}
+
+export function LocalDate({ date }: { date: string }) {
+  return (
+    <Suspense
+      fallback={
+        <time dateTime={date} suppressHydrationWarning>
+          {new Date(date).toLocaleDateString()}
+        </time>
+      }
+    >
+      <BrowserDate date={date} />
+    </Suspense>
+  )
+}
+```
+
+```jsx filename="app/components/browser-date.js" switcher
+'use client'
+
+import { Suspense, use } from 'react'
+import { browser } from 'react-dom'
+
+function BrowserDate({ date }) {
+  use(browser())
+
+  return <time dateTime={date}>{new Date(date).toLocaleDateString()}</time>
+}
+
+export function LocalDate({ date }) {
+  return (
+    <Suspense
+      fallback={
+        <time dateTime={date} suppressHydrationWarning>
+          {new Date(date).toLocaleDateString()}
+        </time>
+      }
+    >
+      <BrowserDate date={date} />
+    </Suspense>
+  )
+}
+```
+
+The server renders the fallback date in its own locale. `suppressHydrationWarning` silences a possible text mismatch in that fallback during hydration.
+
+Once `BrowserDate` is ready, React replaces the fallback with the browser-formatted date, coordinating the update with other pending Suspense reveals. The displayed date can still change.
+
+A shared placeholder doesn't need `suppressHydrationWarning`. For an additional example that initializes local state from `localStorage` with a placeholder fallback, see [Rendering components only in the browser](/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser).
+
+### Subscribing to browser values
+
+Use [`useSyncExternalStore`](https://react.dev/reference/react/useSyncExternalStore#adding-support-for-server-rendering) when a browser value can change and you need to subscribe to it. For example, this component updates when the browser goes online or offline:
+
+```tsx filename="app/components/network-status.tsx" switcher
+'use client'
+
+import { useSyncExternalStore } from 'react'
+
+function subscribe(callback: () => void) {
+  window.addEventListener('online', callback)
+  window.addEventListener('offline', callback)
+  return () => {
+    window.removeEventListener('online', callback)
+    window.removeEventListener('offline', callback)
+  }
+}
+
+export default function NetworkStatus() {
+  const isOnline = useSyncExternalStore(
+    subscribe,
+    () => navigator.onLine,
+    () => true
+  )
+
+  return <p>{isOnline ? 'Online' : 'Offline'}</p>
+}
+```
+
+```jsx filename="app/components/network-status.js" switcher
+'use client'
+
+import { useSyncExternalStore } from 'react'
+
+function subscribe(callback) {
+  window.addEventListener('online', callback)
+  window.addEventListener('offline', callback)
+  return () => {
+    window.removeEventListener('online', callback)
+    window.removeEventListener('offline', callback)
+  }
+}
+
+export default function NetworkStatus() {
+  const isOnline = useSyncExternalStore(
+    subscribe,
+    () => navigator.onLine,
+    () => true
+  )
+
+  return <p>{isOnline ? 'Online' : 'Offline'}</p>
+}
+```
+
+The third argument supplies `true` during server rendering and hydration, so the initial HTML says `Online`. React then reads `navigator.onLine`, which can change the label to `Offline` after hydration. `subscribe` handles subsequent changes and removes the listeners when the component unmounts.
+
+If you're using an empty subscription only to return `false` on the server and `true` in the browser, use `use(browser())` instead.
+
 ### Why not `useEffect`?
 
-`useEffect` runs after hydration and paint. The user sees the server value first, then the correction. Setting state in an effect also triggers a re-render, which can reactivate parent Suspense boundaries.
+For an initial client-specific value, you can render the same placeholder on the server and client, then update state in `useEffect` after hydration:
+
+```jsx filename="app/effect-example.js"
+'use client'
+
+import { useEffect, useState } from 'react'
+
+export default function App() {
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  return <h1>{isClient ? 'This is never prerendered' : 'Prerendered'}</h1>
+}
+```
+
+This avoids a hydration mismatch, but the user can see the placeholder before the effect runs. The synchronous `setIsClient(true)` update also adds an extra render and is reported as an error by `eslint-config-next`'s [`react-hooks/set-state-in-effect`](https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect) rule.
 
 `useLayoutEffect` runs before paint but after hydration. It prevents the flash between hydration and paint, but not the flash between the HTML arriving and React hydrating. On slow connections, the browser paints the server HTML before React has loaded. The inline script runs during HTML **parsing**, before React is involved.
 
