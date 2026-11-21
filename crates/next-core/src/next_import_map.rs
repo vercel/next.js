@@ -58,8 +58,11 @@ async fn insert_module_federation_aliases(
     import_map: &mut ImportMap,
     project_path: &FileSystemPath,
     next_config: Vc<NextConfig>,
+    app_router: bool,
 ) -> Result<()> {
-    let config = next_config.turbopack_module_federation().await?;
+    let config = next_config
+        .turbopack_module_federation_for_client(app_router)
+        .await?;
     apply_module_federation_import_map(import_map, project_path.clone(), &config).await?;
     Ok(())
 }
@@ -102,7 +105,13 @@ pub async fn get_next_client_import_map(
     )
     .await?;
 
-    insert_module_federation_aliases(&mut import_map, &project_path, next_config).await?;
+    insert_module_federation_aliases(
+        &mut import_map,
+        &project_path,
+        next_config,
+        matches!(ty, ClientContextType::App { .. }),
+    )
+    .await?;
 
     match &ty {
         ClientContextType::Pages { .. } => {
@@ -324,7 +333,7 @@ pub async fn get_next_server_import_map(
     )
     .await?;
 
-    insert_module_federation_aliases(&mut import_map, &project_path, next_config).await?;
+    insert_module_federation_aliases(&mut import_map, &project_path, next_config, false).await?;
 
     let external = ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Traced)
         .resolved_cell();
@@ -474,7 +483,7 @@ pub async fn get_next_edge_import_map(
     )
     .await?;
 
-    insert_module_federation_aliases(&mut import_map, &project_path, next_config).await?;
+    insert_module_federation_aliases(&mut import_map, &project_path, next_config, false).await?;
 
     match &ty {
         ServerContextType::Pages { .. }
