@@ -336,13 +336,6 @@ pub async fn take_effects(source: impl CollectiblesSource) -> Result<Effects> {
 /// calling task's thread only.
 const CAPTURE_EFFECTS_MIN_PER_WORKER: usize = 64;
 
-/// The maximum number of workers [`capture_effects`] uses. Every capture records its reads as
-/// dependencies of the one task calling [`take_effects`], which locks that task. With more workers
-/// they mostly wait for that lock: on a warm build with ~200k effects, capturing took 4.3s with 1
-/// worker, 1.4s with 4, 0.9s with 8, and still 0.9s with 16 or 32 workers, using 2-4x the CPU
-/// time.
-const CAPTURE_EFFECTS_MAX_WORKERS: usize = 8;
-
 async fn capture_effect(effect: ResolvedVc<Box<dyn Effect>>) -> Result<Box<dyn CapturedEffect>> {
     effect.into_trait_ref().await?.capture().await
 }
@@ -353,17 +346,23 @@ async fn capture_effect(effect: ResolvedVc<Box<dyn Effect>>) -> Result<Box<dyn C
 /// data isn't in memory yet, so each read restores it from the persistent cache, synchronously on
 /// the reading thread. Polling all captures in one future would do all of those restores one by
 /// one on a single thread, so for many effects the captures are spread over several workers (up to
-/// one per available CPU and at most [`CAPTURE_EFFECTS_MAX_WORKERS`]). The workers run as part of
-/// the current task (see [`spawn_in_current_task`]), so their reads are tracked as the task's own
-/// dependencies. Each worker takes the next uncaptured effect from a shared counter, which balances
-/// the load when some captures are slower than others.
+/// one per available CPU). The workers run as part of the current task (see
+/// [`spawn_in_current_task`]), so their reads are tracked as the task's own dependencies. Each
+/// worker takes the next uncaptured effect from a shared counter, which balances the load when some
+/// captures are slower than others.
+///
+/// The workers shouldn't share any lock per capture: their dependencies are added to the task in
+/// one batch per worker, and the write effects carry the file system they write to instead of
+/// reading its cell, which all of them share. (Effects restored from the persistent cache still
+/// read it.) Before that, more than about 8 workers mostly waited for those locks. On vercel-site
+/// (~61k effects, 14 CPUs), capturing now takes 35 ms on a cold build and 128 ms on a warm one with
+/// 14 workers, down from 109 ms and 181 ms with 8 workers that took the task's lock for every read.
 async fn capture_effects(
     effects: Vec<ResolvedVc<Box<dyn Effect>>>,
 ) -> Result<Vec<Box<dyn CapturedEffect>>> {
     let len = effects.len();
     let workers = available_parallelism()
         .map_or(1, NonZeroUsize::get)
-        .min(CAPTURE_EFFECTS_MAX_WORKERS)
         .min(len / CAPTURE_EFFECTS_MIN_PER_WORKER);
     if workers <= 1 {
         return effects.into_iter().map(capture_effect).try_join().await;

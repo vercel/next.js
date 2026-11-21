@@ -36,10 +36,11 @@ use turbo_tasks::{
     TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TaskPersistence, TaskPriority, TraitTypeId,
     TurboTasks, TurboTasksCallApi, TurboTasksPanic, ValueTypeId,
     backend::{
-        Backend, CachedTaskType, CachedTaskTypeArc, CellContent, CellHash, TaskCollectiblesMap,
-        TaskExecutionSpec, TransientTaskType, TurboTaskContextError, TurboTaskLocalContextError,
-        TurboTasksError, TurboTasksExecutionError, TurboTasksExecutionErrorMessage,
-        TypedCellContent, VerificationMode,
+        Backend, CachedTaskType, CachedTaskTypeArc, CellContent, CellHash,
+        DeferredCellDependencies, TaskCollectiblesMap, TaskExecutionSpec, TransientTaskType,
+        TurboTaskContextError, TurboTaskLocalContextError, TurboTasksError,
+        TurboTasksExecutionError, TurboTasksExecutionErrorMessage, TypedCellContent,
+        VerificationMode,
     },
     event::{Event, EventDescription, EventListener},
     macro_helpers::NativeFunction,
@@ -1099,6 +1100,66 @@ impl TurboTasksBackend {
         options: ReadCellOptions,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) -> Result<ReadOutcome<TypedCellContent>> {
+        self.try_read_task_cell_inner(task_id, reader, cell, options, None, turbo_tasks)
+    }
+
+    /// See [`Backend::begin_deferred_cell_dependencies`].
+    fn begin_deferred_cell_dependencies(
+        &self,
+        reader: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) {
+        if !self.should_track_dependencies() {
+            return;
+        }
+        let mut ctx = self.execute_context(turbo_tasks);
+        let mut task = ctx.task(reader, TaskDataCategory::Meta);
+        // A canceled task won't complete, so its dependencies don't matter. The matching
+        // `end_deferred_cell_dependencies` also only counts in-progress tasks.
+        if let Some(InProgressState::InProgress(in_progress)) = task.get_in_progress_mut() {
+            in_progress.deferred_cell_dependency_windows += 1;
+        }
+    }
+
+    /// See [`Backend::end_deferred_cell_dependencies`].
+    fn end_deferred_cell_dependencies(
+        &self,
+        reader: TaskId,
+        dependencies: Vec<(TaskId, CellId)>,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) {
+        if !self.should_track_dependencies() {
+            return;
+        }
+        let mut ctx = self.execute_context(turbo_tasks);
+        let mut reader_task = ctx.task(reader, TaskDataCategory::All);
+        // The reverse edges were added by the reads (see `add_deferred_cell_dependency`). An edge
+        // that was outdated (from the previous execution) becomes current again, like in a normal
+        // read.
+        for (task, cell) in dependencies {
+            let target = CellRef { task, cell };
+            if !reader_task.remove_outdated_cell_dependencies(&target) {
+                let _ = reader_task.add_cell_dependencies(target);
+            }
+        }
+        // Only after the forward edges exist, cell changes may rely on them again.
+        if let Some(InProgressState::InProgress(in_progress)) = reader_task.get_in_progress_mut() {
+            in_progress.deferred_cell_dependency_windows -= 1;
+        }
+    }
+
+    /// Reads a cell. With `deferred`, the dependency of `reader` (which must be in a deferred
+    /// cell dependency window) is recorded there instead of being added under a lock of both
+    /// tasks. See [`Backend::try_read_task_cell_deferred`].
+    fn try_read_task_cell_inner(
+        &self,
+        task_id: TaskId,
+        reader: Option<TaskId>,
+        cell: CellId,
+        options: ReadCellOptions,
+        deferred: Option<&DeferredCellDependencies>,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> Result<ReadOutcome<TypedCellContent>> {
         self.assert_not_persistent_calling_transient(reader, task_id);
 
         fn add_cell_dependency(
@@ -1130,7 +1191,13 @@ impl TurboTasksBackend {
                         if !reader_task.remove_outdated_cell_dependencies(&target)
                             && reader_task.add_cell_dependencies(target)
                         {
-                            task.push_cell_dependents(reverse);
+                            if reader_task.has_deferred_cell_dependency_windows() {
+                                // A deferred read by a still running future of the reader may
+                                // have added the reverse edge without the forward edge.
+                                let _ = task.add_cell_dependents(reverse);
+                            } else {
+                                task.push_cell_dependents(reverse);
+                            }
                         }
                     }
                     Some(key) => {
@@ -1146,18 +1213,64 @@ impl TurboTasksBackend {
             }
         }
 
+        /// Adds the reverse edge of a deferred read while only `task` is locked, and records the
+        /// forward edge, which `end_deferred_cell_dependencies` adds to the reader.
+        ///
+        /// This doesn't lose invalidations: a change of the cell is made under the lock of
+        /// `task`, so either this read sees the new content, or the change sees the reverse edge.
+        /// Until the forward edge is added, the reader is in a deferred cell dependency window,
+        /// so the change marks it as stale (see `invalidate_cell_dependents`).
+        fn add_deferred_cell_dependency(
+            task_id: TaskId,
+            mut task: TaskGuard<'_>,
+            reader: TaskId,
+            cell: CellId,
+            deferred: &DeferredCellDependencies,
+        ) {
+            // Immutable tasks never need dependency edges, see `lock_task_and_optional_reader`.
+            if task.immutable() && !cfg!(feature = "verify_immutable") {
+                return;
+            }
+            // Without the reader's lock, the reader's forward edges can't tell whether the
+            // reverse edge exists already, so look it up. Normal reads push reverse edges without
+            // a lookup, which keeps the set a flat array, and a hot cell can have tens of
+            // thousands of dependents. `add_cell_dependents` switches a large array to a hash
+            // table before looking up (see `EdgeSet::insert`), so repeated deferred reads of a hot
+            // cell don't each scan it. `evict_after_snapshot` flattens the set again after the next
+            // snapshot, like the sets that removals inflate.
+            let reverse = CellRef { task: reader, cell };
+            let _ = task.add_cell_dependents(reverse);
+            drop(task);
+            deferred.push(task_id, cell);
+        }
+
         let ReadCellOptions {
             tracking,
             final_read_hint,
         } = options;
 
         let mut ctx = self.execute_context(turbo_tasks);
-        let need_reader_task = reader.and_then(|reader_id| {
+        let tracked_reader = reader.and_then(|reader_id| {
             (self.should_track_dependencies()
                 && !matches!(tracking, ReadCellTracking::Untracked)
                 && reader_id != task_id)
                 .then_some(reader_id)
         });
+        // A deferred read only locks `task`.
+        let (need_reader_task, deferred) = match (tracked_reader, deferred) {
+            (Some(reader_id), Some(deferred)) => {
+                debug_assert_eq!(tracking, ReadCellTracking::Tracked { key: None });
+                (None, Some((reader_id, deferred)))
+            }
+            (tracked_reader, _) => (tracked_reader, None),
+        };
+        let add_dependency = |task: TaskGuard<'_>, reader_task: Option<TaskGuard<'_>>| {
+            if let Some((reader_id, deferred)) = deferred {
+                add_deferred_cell_dependency(task_id, task, reader_id, cell, deferred);
+            } else {
+                add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
+            }
+        };
         let Some((mut task, reader_task)) =
             lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task)
         else {
@@ -1171,7 +1284,7 @@ impl TurboTasksBackend {
         };
         if let Some(content) = content {
             if tracking.should_track(false) {
-                add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
+                add_dependency(task, reader_task);
             }
             return Ok(ReadOutcome::Value(TypedCellContent(
                 cell.type_id(),
@@ -1203,7 +1316,7 @@ impl TurboTasksBackend {
         let Some(max_id) = max_id else {
             let task_desc = task.get_task_description();
             if tracking.should_track(true) {
-                add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
+                add_dependency(task, reader_task);
             }
             bail!(
                 "Cell {cell:?} no longer exists in task {task_desc} (no cell of this type exists)",
@@ -1212,7 +1325,7 @@ impl TurboTasksBackend {
         if cell.index() >= max_id {
             let task_desc = task.get_task_description();
             if tracking.should_track(true) {
-                add_cell_dependency(task_id, task, reader, reader_task, cell, tracking.key());
+                add_dependency(task, reader_task);
             }
             bail!("Cell {cell:?} no longer exists in task {task_desc} (index out of bounds)");
         }
@@ -2337,6 +2450,7 @@ impl TurboTasksBackend {
                     done_event,
                     marked_as_completed: false,
                     new_children: Default::default(),
+                    deferred_cell_dependency_windows: 0,
                 },
             )));
             debug_assert!(old.is_none(), "InProgress already exists");
@@ -2631,11 +2745,17 @@ impl TurboTasksBackend {
             stale,
             ref mut new_children,
             once_task: is_once_task,
+            deferred_cell_dependency_windows,
             ..
         }) = in_progress
         else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
+        debug_assert_eq!(
+            deferred_cell_dependency_windows, 0,
+            "Task execution completed before all futures spawned with `spawn_in_current_task` \
+             added their deferred cell dependencies"
+        );
 
         // If the task is stale, reschedule it
         #[cfg(not(feature = "no_fast_stale"))]
@@ -3128,6 +3248,8 @@ impl TurboTasksBackend {
             stale,
             marked_as_completed: _,
             new_children,
+            // Checked to be zero when the completion was prepared.
+            deferred_cell_dependency_windows: _,
         }) = in_progress
         else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
@@ -4253,6 +4375,38 @@ impl Backend for TurboTasksBackend {
         turbo_tasks: &TurboTasks<Self>,
     ) -> Result<ReadOutcome<TypedCellContent>> {
         self.try_read_task_cell(task_id, reader, cell, options, turbo_tasks)
+    }
+
+    fn begin_deferred_cell_dependencies(&self, reader: TaskId, turbo_tasks: &TurboTasks<Self>) {
+        self.begin_deferred_cell_dependencies(reader, turbo_tasks)
+    }
+
+    fn try_read_task_cell_deferred(
+        &self,
+        task_id: TaskId,
+        cell: CellId,
+        reader: TaskId,
+        options: ReadCellOptions,
+        dependencies: &DeferredCellDependencies,
+        turbo_tasks: &TurboTasks<Self>,
+    ) -> Result<ReadOutcome<TypedCellContent>> {
+        self.try_read_task_cell_inner(
+            task_id,
+            Some(reader),
+            cell,
+            options,
+            Some(dependencies),
+            turbo_tasks,
+        )
+    }
+
+    fn end_deferred_cell_dependencies(
+        &self,
+        reader: TaskId,
+        dependencies: Vec<(TaskId, CellId)>,
+        turbo_tasks: &TurboTasks<Self>,
+    ) {
+        self.end_deferred_cell_dependencies(reader, dependencies, turbo_tasks)
     }
 
     fn refine_provisional_cell_dependency(

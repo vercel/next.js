@@ -1524,6 +1524,17 @@ impl<'a> TaskGuard<'a> {
         new_value
     }
 
+    /// Whether futures spawned with `spawn_in_current_task` may have read cells for this task
+    /// without adding the forward edges yet (see `Backend::try_read_task_cell_deferred`). Their
+    /// reverse edges already exist, so until the window closes, the forward edges don't tell
+    /// whether a reverse edge exists or whether the task read a cell.
+    pub fn has_deferred_cell_dependency_windows(&self) -> bool {
+        matches!(
+            self.get_in_progress(),
+            Some(InProgressState::InProgress(inner)) if inner.deferred_cell_dependency_windows > 0
+        )
+    }
+
     /// Adds a keyed cell dependent, to `cell_dependents_provisional` for a
     /// [`CellKeyKind::Provisional`] key and to `cell_dependents_keyed` otherwise. The caller
     /// guarantees it is new (a reverse edge is only added when its forward edge is new), so it is
