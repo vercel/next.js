@@ -26,6 +26,7 @@ use next_core::{
         PagesDirectoryStructure, PagesStructure, PagesStructureItem, find_pages_structure,
     },
     parse_segment_config_from_source,
+    polyfills::nomodule_polyfill_output_asset,
     segment_config::{NextSegmentRegion, ParseSegmentMode},
     util::{NextRuntime, get_asset_prefix_from_pathname, pages_function_name},
 };
@@ -397,6 +398,10 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
+            self.project()
+                .client_compile_time_info()
+                .environment()
+                .runtime_versions(),
         ))
     }
 
@@ -579,6 +584,10 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
+            self.project()
+                .client_compile_time_info()
+                .environment()
+                .runtime_versions(),
         );
         Ok(client_runtime_entries.resolve_entries(Vc::upcast(self.client_module_context())))
     }
@@ -1409,13 +1418,9 @@ impl PageEndpoint {
         // than emitted as a per-route chunk.
         chunk_group_bootstrap_params: Option<RcJsonRawValue>,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
-        let node_root = self.pages_project.project().node_root().owned().await?;
-        let client_relative_path = self
-            .pages_project
-            .project()
-            .client_relative_path()
-            .owned()
-            .await?;
+        let project = self.pages_project.project();
+        let node_root = project.node_root().owned().await?;
+        let client_relative_path = project.client_relative_path().owned().await?;
 
         // Check if we should include pages in the manifest
         let pages_structure = self.pages_structure.await?;
@@ -1441,6 +1446,17 @@ impl PageEndpoint {
             .clone()
             .unwrap_or_else(|| rcstr!("TURBOPACK"));
 
+        // Only browsers without ES module support need a polyfill file.
+        let polyfill_output_asset = nomodule_polyfill_output_asset(
+            project.project_path().owned().await?,
+            project.client_chunking_context(),
+            project
+                .client_compile_time_info()
+                .environment()
+                .runtime_versions(),
+        )
+        .await?;
+
         let manifest_path_prefix = get_asset_prefix_from_pathname(&self.pathname);
         let build_manifest = BuildManifest {
             output_path: node_root.join(&format!(
@@ -1448,7 +1464,7 @@ impl PageEndpoint {
             ))?,
             client_relative_path,
             pages,
-            polyfill_files: Default::default(),
+            polyfill_files: polyfill_output_asset.into_iter().collect(),
             // App Router only for now; the Pages Router still inlines React's instructions.
             external_browser_runtime_file: None,
             root_main_files: Default::default(),

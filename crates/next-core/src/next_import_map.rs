@@ -14,6 +14,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::AssetContent,
+    environment::RuntimeVersions,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
@@ -50,6 +51,7 @@ use crate::{
     next_root_params::insert_next_root_params_mapping,
     next_server::context::ServerContextType,
     next_shared::ContextType,
+    polyfills::selected_module_polyfills_source,
     util::NextRuntime,
 };
 
@@ -580,6 +582,7 @@ async fn insert_unsupported_node_internal_aliases(import_map: &mut ImportMap) ->
 
 pub async fn get_next_client_resolved_map(
     context_path: FileSystemPath,
+    runtime_versions: Vc<RuntimeVersions>,
     _mode: NextMode,
     expose_testing_api: bool,
     concurrent_router_queue: bool,
@@ -666,6 +669,27 @@ pub async fn get_next_client_resolved_map(
             ),
         ));
     }
+
+    // The client runtime imports the full set of module polyfills first. Replace it with only
+    // the polyfills the browserslist targets need. The webpack build still includes all of them.
+    glob_mappings.push((
+        None,
+        Glob::new(
+            rcstr!("**/next/dist/build/polyfills/polyfill-module.js"),
+            GlobOptions::default(),
+        )
+        .to_resolved()
+        .await?,
+        ImportMapping::Direct(
+            ResolveResult::source(
+                selected_module_polyfills_source(context_path.clone(), runtime_versions)
+                    .to_resolved()
+                    .await?,
+            )
+            .resolved_cell(),
+        )
+        .resolved_cell(),
+    ));
 
     Ok(ResolvedMap {
         by_glob: glob_mappings,

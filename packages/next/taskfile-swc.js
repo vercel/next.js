@@ -5,7 +5,7 @@ const MODERN_BROWSERSLIST_TARGET = require('./src/shared/lib/modern-browserslist
 
 const path = require('path')
 
-const transform = require('@swc/core').transform
+const { transform } = require('@swc/core')
 
 module.exports = function (task) {
   task.plugin(
@@ -185,6 +185,25 @@ if ((typeof exports.default === 'function' || (typeof exports.default === 'objec
       file.data = Buffer.from(setNextVersion(output.code))
     }
   )
+
+  // Compiles standalone browser scripts (e.g. the individual polyfills) down to ES5, so they can run
+  // in any browser regardless of how the bundler that includes them is configured.
+  task.plugin('swc_es5', {}, function* (file) {
+    /** @type {import('@swc/core').Options} */
+    const options = {
+      filename: file.base,
+      swcrc: false,
+      configFile: false,
+      isModule: false,
+      jsc: {
+        target: 'es5',
+        parser: { syntax: 'ecmascript' },
+      },
+    }
+
+    const output = yield transform(file.data.toString('utf-8'), options)
+    file.data = Buffer.from(output.code)
+  })
 }
 
 function setNextVersion(code) {

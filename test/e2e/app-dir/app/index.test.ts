@@ -449,11 +449,15 @@ describe('app dir - basic', () => {
 
     it('should serve polyfills for browsers that do not support modules', async () => {
       const html = await next.render('/dashboard/index')
-      expect(html).toMatch(
-        process.env.IS_TURBOPACK_TEST
-          ? /<script src="\/_next\/static\/(immutable\/)?chunks\/([\w-]*polyfill-nomodule|[0-9a-z_-]+)\.js(\?[^"]+)?" noModule="">/
-          : /<script src="\/_next\/static\/(immutable\/)?chunks\/polyfills(-\w+)?\.js(\?[^"]+)?" noModule="">/
-      )
+      if (process.env.IS_TURBOPACK_TEST) {
+        // Turbopack only includes the nomodule polyfills when the browserslist targets browsers
+        // without ES module support, which the default one doesn't (see test/production/escheck-output).
+        expect(html).not.toContain('noModule=""')
+      } else {
+        expect(html).toMatch(
+          /<script src="\/_next\/static\/(immutable\/)?chunks\/polyfills(-\w+)?\.js(\?[^"]+)?" noModule="">/
+        )
+      }
     })
   }
 
