@@ -23,7 +23,8 @@ use turbopack_core::{
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
     issue::IssueSeverity,
     module_graph::{
-        binding_usage_info::OptionBindingUsageInfo, style_groups::StyleGroupsAlgorithm,
+        binding_usage_info::OptionBindingUsageInfo, merged_modules::MergedModuleGroups,
+        style_groups::StyleGroupsAlgorithm,
     },
     source_map::{OptionSourceMapType, SourceMapGenerationOptions},
     target::CompileTarget,
@@ -1026,6 +1027,7 @@ pub struct ServerChunkingContextOptions {
     pub module_id_strategy: Vc<ModuleIdStrategy>,
     pub export_usage: Vc<OptionBindingUsageInfo>,
     pub unused_references: Vc<UnusedReferences>,
+    pub merged_modules: Vc<MergedModuleGroups>,
     pub minify: Vc<bool>,
     pub emitted_source_map_type: Vc<OptionSourceMapType>,
     pub source_map_generation_options: Vc<SourceMapGenerationOptions>,
@@ -1065,6 +1067,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         module_id_strategy,
         export_usage,
         unused_references,
+        merged_modules,
         minify,
         emitted_source_map_type,
         source_map_generation_options,
@@ -1167,8 +1170,10 @@ pub async fn get_server_chunking_context_with_client_assets(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?)
             .minify_before_chunking(*minify_before_chunking.await?);
+        if *scope_hoisting.await? {
+            builder = builder.merged_modules(merged_modules.to_resolved().await?);
+        }
     }
 
     Ok(builder.build())
@@ -1188,6 +1193,7 @@ pub async fn get_server_chunking_context(
         module_id_strategy,
         export_usage,
         unused_references,
+        merged_modules,
         minify,
         emitted_source_map_type,
         source_map_generation_options,
@@ -1291,8 +1297,10 @@ pub async fn get_server_chunking_context(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?)
             .minify_before_chunking(*minify_before_chunking.await?);
+        if *scope_hoisting.await? {
+            builder = builder.merged_modules(merged_modules.to_resolved().await?);
+        }
     }
 
     Ok(builder.build())
