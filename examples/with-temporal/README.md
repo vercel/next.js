@@ -83,9 +83,9 @@ npm run dev
 ```
 
 ```bash
-npm run build-worker.watch
+npm run build:worker.watch
 ```
 
 ```bash
-npm run start-worker
+npm run start:worker
 ```
