@@ -4,6 +4,8 @@ import type { ResolvedViewport } from './types/metadata-interface'
 import { getOrigin } from './generate/utils'
 import { IconMark } from './generate/icon-mark'
 
+const METADATA_ATTRIBUTE = 'data-next-metadata'
+
 // ---------------------------------------------------------------------------
 // Viewport tag rendering
 // ---------------------------------------------------------------------------
@@ -73,7 +75,11 @@ export function createViewportElements(
     )
   }
 
-  return tags
+  return tags.map((tag) =>
+    React.cloneElement(tag, {
+      [METADATA_ATTRIBUTE]: '',
+    } as Record<string, string>)
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -1629,5 +1635,9 @@ export function createMetadataElements(
     }
   }
 
-  return tags
+  return tags.map((tag) =>
+    React.cloneElement(tag, {
+      [METADATA_ATTRIBUTE]: '',
+    } as Record<string, string>)
+  )
 }
