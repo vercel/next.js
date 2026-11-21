@@ -1483,9 +1483,13 @@ async fn app_route_filter_for_write_phase(
 #[napi(ts_return_type = "Promise<TurbopackResult<Partial<NapiEntrypoints> | null>>")]
 pub async fn project_write_all_entrypoints_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
-    app_dir_only: bool,
+    options: NapiWriteAllEntrypointsToDiskOptions,
 ) -> napi::Result<TurbopackResult<Option<NapiEntrypoints>>> {
     let ctx = &project.turbopack_ctx;
+    let NapiWriteAllEntrypointsToDiskOptions {
+        app_dir_only,
+        remove_stale_output,
+    } = options;
     let container = project.container;
     let tt = ctx.turbo_tasks();
 
@@ -1682,7 +1686,10 @@ pub async fn project_write_all_entrypoints_to_disk(
                 container,
                 app_dir_only,
                 has_deferred_entrypoints,
+                remove_stale_output.map(|options| options.keep),
             );
+            // With `remove_stale_output`, the effects include removing the stale output, which
+            // runs concurrently to writing the output.
             let read =
                 read_strongly_consistent_and_apply_effects(emit_result_op, |v| &v.effects).await?;
             let OperationResult { issues, .. } = &*read;
@@ -1786,23 +1793,33 @@ async fn emit_all_output_assets_once_operation(
     container: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
     has_deferred_entrypoints: bool,
+    include_dist_dir_files: bool,
 ) -> Result<Vc<Entrypoints>> {
     let output_assets_operation =
         output_assets_for_single_emit_operation(container, app_dir_only, has_deferred_entrypoints);
-    container
-        .project()
+    let project = container.project();
+    project
         .emit_all_output_assets(output_assets_operation)
         .as_side_effect()
         .await?;
+    if include_dist_dir_files {
+        // Already written when the project was created, so this doesn't write them again, but
+        // they are part of the written output.
+        project.write_dist_dir_files().as_side_effect().await?;
+    }
 
     Ok(container.entrypoints())
 }
 
+/// With `remove_stale_output_keep`, the effects include an effect that removes all entries in the
+/// dist dir that are not written by the other effects, except the kept ones (paths relative to the
+/// dist dir).
 #[turbo_tasks::function(operation, root)]
 async fn emit_all_output_assets_once_with_issues_operation(
     container: ResolvedVc<ProjectContainer>,
     app_dir_only: bool,
     has_deferred_entrypoints: bool,
+    remove_stale_output_keep: Option<Vec<RcStr>>,
 ) -> Result<Vc<OperationResult>> {
     let start = Instant::now();
     let wall_start = SystemTime::now();
@@ -1812,10 +1829,17 @@ async fn emit_all_output_assets_once_with_issues_operation(
                 container,
                 app_dir_only,
                 has_deferred_entrypoints,
+                remove_stale_output_keep.is_some(),
             ));
         let filter = container.project().issue_filter().await?;
-        let (_, issues, effects) =
+        let (_, issues, mut effects) =
             strongly_consistent_catch_collectables(entrypoints_operation, &filter).await?;
+        if let Some(keep) = remove_stale_output_keep {
+            let project = container.project();
+            let output_fs = project.output_fs().await?;
+            let node_root = project.node_root().owned().await?;
+            effects = Arc::new(output_fs.with_clear_effect(&effects, &node_root, keep));
+        }
         Ok(OperationResult { issues, effects }.cell())
     }
     .await;
@@ -2947,6 +2971,28 @@ pub async fn project_write_analyze_data(
         result: (),
         issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
     })
+}
+
+#[napi(object)]
+pub struct NapiRemoveStaleOutputOptions {
+    /// Paths relative to the dist dir, using `/` as separator, of entries that are kept although
+    /// they were not written by Turbopack (e.g. caches or files written by Next.js). Kept
+    /// directories are left untouched as a whole: they are neither traversed nor removed.
+    pub keep: Vec<RcStr>,
+}
+
+#[napi(object)]
+pub struct NapiWriteAllEntrypointsToDiskOptions {
+    /// Whether only the app directory entrypoints are written (there are no pages).
+    pub app_dir_only: bool,
+    /// When set, removes the entries in the dist dir that are not written by the final write of
+    /// the output (e.g. output of previous builds, or files written while compiling), except the
+    /// kept ones. Unchanged output files that are not rewritten because they already have the
+    /// right content count as written. The entries are removed concurrently to writing the output.
+    ///
+    /// Used by `next build` with `experimental.clearAfterBuild` instead of cleaning the dist dir
+    /// upfront.
+    pub remove_stale_output: Option<NapiRemoveStaleOutputOptions>,
 }
 
 #[turbo_tasks::function(operation, root)]

@@ -19,6 +19,7 @@ import type {
   NapiSourceDiagnostic,
   NapiCodeFrameLocation,
   NapiCodeFrameOptions,
+  NapiWriteAllEntrypointsToDiskOptions,
 } from './generated-native'
 import type {
   Binding,
@@ -727,11 +728,11 @@ function bindingToApi(
     }
 
     async writeAllEntrypointsToDisk(
-      appDirOnly: boolean
+      options: NapiWriteAllEntrypointsToDiskOptions
     ): Promise<TurbopackResult<Partial<RawEntrypoints>>> {
       const napiEndpoints = (await binding.projectWriteAllEntrypointsToDisk(
         this._nativeProject,
-        appDirOnly
+        options
       )) as TurbopackResult<Partial<NapiEntrypoints> | null>
 
       if (napiEndpoints.value && 'routes' in napiEndpoints.value) {

@@ -17,6 +17,7 @@ import type {
   ServerHmrVersion as NativeServerHmrVersion,
   LockfileError,
   LockfileResult,
+  NapiWriteAllEntrypointsToDiskOptions,
   projectCompilationEventsSubscribe,
   projectFeatureUsage,
   projectInvalidateFileSystemCache,
@@ -336,8 +337,16 @@ export interface Project {
 
   getAllCompilationIssues(): Promise<TurbopackResult<void>>
 
+  /**
+   * Writes the output of all entrypoints (only the app directory ones with
+   * `options.appDirOnly`) to disk. With `options.removeStaleOutput`, also
+   * removes the entries in the distDir that this write doesn't write (e.g.
+   * stale output of previous builds), except for the `keep` entries,
+   * concurrently to writing. Unchanged output files that are not rewritten
+   * count as written.
+   */
   writeAllEntrypointsToDisk(
-    appDirOnly: boolean
+    options: NapiWriteAllEntrypointsToDiskOptions
   ): Promise<TurbopackResult<Partial<RawEntrypoints>>>
 
   /**

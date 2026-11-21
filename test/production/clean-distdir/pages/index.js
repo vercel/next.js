@@ -1,1 +1,3 @@
-export default () => 'hello from index'
+import { greeting } from '../marker'
+
+export default () => greeting

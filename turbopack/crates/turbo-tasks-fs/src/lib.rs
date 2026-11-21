@@ -16,6 +16,7 @@
 #![allow(clippy::mutable_key_type)]
 
 mod canonicalized_path_cache;
+mod clear;
 mod content;
 mod created_dirs;
 mod disk;
