@@ -4,6 +4,21 @@ export const BUILTIN_PREFIX = '__next_builtin__'
 
 const nextInternalPrefixRegex =
   /^(.*[\\/])?next[\\/]dist[\\/]client[\\/]components[\\/]builtin[\\/]/
+const normalizedNextInternalPrefix = 'next/dist/client/components/builtin/'
+const lineTerminatorRegex = /[\n\r\u2028\u2029]/
+
+function removeFirstOccurrence(value: string, search: string): string {
+  const index = value.indexOf(search)
+  if (index === -1) {
+    return value
+  }
+  return value.slice(0, index) + value.slice(index + search.length)
+}
+
+function removeLeadingPathSeparator(value: string): string {
+  const first = value.charCodeAt(0)
+  return first === 47 || first === 92 ? value.slice(1) : value
+}
 
 /**
  * Normalize a file path to be relative to the project directory.
@@ -17,36 +32,39 @@ export function normalizeFilePath(
   // When project root is not the working directory, we can extract the relative project root path.
   // This is mostly used for running Next.js inside a monorepo.
   const cwd = process.env.NEXT_RUNTIME === 'edge' ? '' : process.cwd()
-  const relativeProjectRoot = projectDir.replace(cwd, '').replace(/^[\\/]/, '')
+  const relativeProjectRoot = removeLeadingPathSeparator(
+    removeFirstOccurrence(projectDir, cwd)
+  )
 
-  let relativePath = (filePath || '')
-    // remove turbopack [project] prefix
-    .replace(/^\[project\][\\/]?/, '')
-    // remove the project root from the path (absolute)
-    .replace(projectDir, '')
-    // remove cwd prefix (absolute)
-    .replace(cwd, '')
-    // normalize path separators and remove leading slash
-    .replace(/\\/g, '/')
-    .replace(/^\//, '')
+  let relativePath = filePath || ''
+  if (relativePath.startsWith('[project]')) {
+    relativePath = removeLeadingPathSeparator(relativePath.slice(9))
+  }
+  relativePath = removeFirstOccurrence(relativePath, projectDir)
+  relativePath = removeFirstOccurrence(relativePath, cwd)
+  if (relativePath.includes('\\')) {
+    relativePath = relativePath.replaceAll('\\', '/')
+  }
+  relativePath = removeLeadingPathSeparator(relativePath)
 
   // remove relative project path prefix (e.g., "test/e2e/app-dir/actions/")
   if (relativeProjectRoot && relativePath.startsWith(relativeProjectRoot)) {
-    relativePath = relativePath
-      .slice(relativeProjectRoot.length)
-      .replace(/^\//, '')
+    relativePath = removeLeadingPathSeparator(
+      relativePath.slice(relativeProjectRoot.length)
+    )
   }
 
   // Handle case where filename is relative to a parent of projectDir
   // (e.g., in tests where filename is "test/tmp/next-test-XXX/app/page.js"
   // but projectDir is the test temp directory)
   if (relativePath.includes('/')) {
-    const projectDirName = projectDir.split(/[\\/]/).pop() || ''
+    const projectDirNameStart =
+      Math.max(projectDir.lastIndexOf('/'), projectDir.lastIndexOf('\\')) + 1
+    const projectDirName = projectDir.slice(projectDirNameStart)
     if (projectDirName) {
-      const projectDirWithSlash = projectDirName + '/'
-      const idx = relativePath.indexOf(projectDirWithSlash)
+      const idx = relativePath.indexOf(projectDirName + '/')
       if (idx >= 0) {
-        relativePath = relativePath.slice(idx + projectDirWithSlash.length)
+        relativePath = relativePath.slice(idx + projectDirName.length + 1)
       }
     }
   }
@@ -59,14 +77,40 @@ export function normalizeConventionFilePath(
   conventionPath: string | undefined
 ) {
   let relativePath = normalizeFilePath(projectDir, conventionPath)
-    // remove /(src/)?app/ dir prefix
-    .replace(/^(src\/)?app\//, '')
+  if (relativePath.startsWith('src/app/')) {
+    relativePath = relativePath.slice(8)
+  } else if (relativePath.startsWith('app/')) {
+    relativePath = relativePath.slice(4)
+  }
 
-  // If it's internal file only keep the filename, strip nextjs internal prefix
-  if (nextInternalPrefixRegex.test(relativePath)) {
-    relativePath = relativePath.replace(nextInternalPrefixRegex, '')
-    // Add a special prefix to let segment explorer know it's a built-in component
-    relativePath = `${BUILTIN_PREFIX}${relativePath}`
+  // If it's internal file only keep the filename, strip nextjs internal prefix.
+  // Search from the end to preserve the greedy regex's last-prefix semantics.
+  let firstLineTerminatorIndex: number | undefined
+  let internalPrefixIndex = relativePath.length
+  while (
+    (internalPrefixIndex = relativePath.lastIndexOf(
+      normalizedNextInternalPrefix,
+      internalPrefixIndex - 1
+    )) !== -1
+  ) {
+    if (
+      internalPrefixIndex === 0 ||
+      relativePath.charCodeAt(internalPrefixIndex - 1) === 47
+    ) {
+      if (firstLineTerminatorIndex === undefined) {
+        const index = relativePath.search(lineTerminatorRegex)
+        firstLineTerminatorIndex = index === -1 ? relativePath.length : index
+      }
+      if (internalPrefixIndex < firstLineTerminatorIndex) {
+        // Add a special prefix to let segment explorer know it's a built-in component
+        relativePath =
+          BUILTIN_PREFIX +
+          relativePath.slice(
+            internalPrefixIndex + normalizedNextInternalPrefix.length
+          )
+        break
+      }
+    }
   }
 
   return relativePath
