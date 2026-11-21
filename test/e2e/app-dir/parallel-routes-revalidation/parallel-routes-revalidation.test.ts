@@ -75,6 +75,41 @@ describe('parallel-routes-revalidation', () => {
     expect(new URL(await browser.url()).search).toBe('?value=third')
   })
 
+  it('does not trigger a full-page reload when refresh() is called after history.replaceState changed a retained slot URL', async () => {
+    // Regression test for https://github.com/vercel/next.js/issues/102131
+    //
+    // Sequence:
+    // 1. Navigate to /retained-search/one?value=first  → @side slot renders
+    // 2. history.replaceState changes URL to ?value=replaced (no server round-trip)
+    // 3. Navigate to /retained-search/two              → @side slot is retained
+    // 4. Call router.refresh()                         → must soft-refresh, not MPA reload
+    const browser = await next.browser('/prr/retained-search/one?value=first')
+    const timeOriginBefore = await browser.eval('performance.timeOrigin')
+
+    // Step 2: shallow URL change via history.replaceState
+    await browser.elementById('replace-state-button').click()
+
+    // Step 3: navigate to /two (which has no @side route, so slot is retained)
+    await browser
+      .elementByCss('a[href="/prr/retained-search/two?value=second"]')
+      .click()
+    await retry(async () => {
+      expect(await browser.elementById('active-page').text()).toBe('two')
+    })
+
+    // Step 4: refresh and assert the document was NOT reloaded
+    const originalRender = await browser.elementById('retained-render').text()
+    await browser.elementById('refresh-button').click()
+    await retry(async () => {
+      expect(await browser.elementById('retained-render').text()).not.toBe(
+        originalRender
+      )
+    })
+
+    const timeOriginAfter = await browser.eval('performance.timeOrigin')
+    expect(timeOriginAfter).toBe(timeOriginBefore)
+  })
+
   it('should handle router.refresh() when called in a slot', async () => {
     const browser = await next.browser('/prr')
     await check(() => browser.hasElementByCssSelector('#refresh-router'), false)
