@@ -18,4 +18,10 @@ describe('app-catch-all-optional', () => {
     expect($('body [data-flags]').text()).toBe('flags')
     expect($('body [data-rest]').text()).toBe('')
   })
+
+  it('should return 404 for missing static assets instead of matching optional catchall', async () => {
+    const res = await next.fetch('/_next/static/chunks/non-existent.js')
+    expect(res.status).toBe(404)
+    expect(await res.text()).toBe('Not Found')
+  })
 })
