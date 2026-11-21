@@ -1,7 +1,6 @@
 // switchyard owns `next start`'s public port and forwards every request,
-// unchanged, to the Node server on a private loopback port. Node also tells
-// it the app's route table and its route.go workers (direct.go), so that
-// later stages can send those requests to the workers directly.
+// unchanged, to the Node server on a private loopback port. It makes no
+// routing decisions; later stages move work here from Node.
 //
 // Contract with Node (packages/next/src/server/lib/switchyard.ts):
 //
@@ -15,9 +14,6 @@
 //	  - Once it listens, it prints `NEXT_SWITCHYARD_READY <port>` on stdout.
 //	  - If it can't listen, it prints the error on stderr and exits 1; Node
 //	    reports "Failed to start server".
-//	  - Node writes control messages to stdin, one JSON object per line
-//	    (control.go): the route table, then route.go workers as they start
-//	    and stop.
 //	  - On stdin EOF (Node exited or asked it to stop), SIGINT or SIGTERM it
 //	    stops accepting, finishes in-flight requests and exits 0.
 package main
@@ -149,14 +145,13 @@ func main() {
 	}
 	addr := ln.Addr().(*net.TCPAddr)
 
-	f := newSwitchyard(newProxy(cfg.upstream, addr, cfg.upstreamIdle, token))
-	srv := newServer(f, cfg.idleTimeout, cfg.headerTimeout, cfg.requestTimeout, cfg.maxHeaderBytes)
+	srv := newServer(newProxy(cfg.upstream, addr, cfg.upstreamIdle, token), cfg.idleTimeout, cfg.headerTimeout, cfg.requestTimeout, cfg.maxHeaderBytes)
 
 	fmt.Printf("NEXT_SWITCHYARD_READY %d\n", addr.Port)
 
 	stopped := make(chan struct{})
 	go func() {
-		<-stopRequested(f.apply)
+		<-stopRequested()
 		// No deadline: like Node's server.close(), wait for every in-flight
 		// request, however long it streams. Shutdown doesn't wait for
 		// connections taken over for a WebSocket upgrade, so those end when
@@ -216,17 +211,14 @@ func newServer(handler http.Handler, idleTimeout, headerTimeout, requestTimeout 
 }
 
 // stopRequested is closed on stdin EOF, SIGINT or SIGTERM, whichever comes
-// first. Stdin is a pipe from Node, so EOF also means Node has died. Until
-// then, each line Node writes there is a control message for apply.
-func stopRequested(apply func(controlMessage)) <-chan struct{} {
+// first. Stdin is a pipe from Node, so EOF also means Node has died.
+func stopRequested() <-chan struct{} {
 	stop := make(chan struct{})
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 	stdinClosed := make(chan struct{})
 	go func() {
-		readControl(os.Stdin, apply, func(err error) {
-			proxyErrorLog.Printf("control message: %v", err)
-		})
+		_, _ = io.Copy(io.Discard, os.Stdin)
 		close(stdinClosed)
 	}()
 	go func() {

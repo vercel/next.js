@@ -681,7 +681,6 @@ export async function setupFsCheck(opts: {
 
     appFiles,
     pageFiles,
-    publicFolderItems,
     staticMetadataFiles,
     dynamicRoutes,
     nextDataRoutes,
