@@ -860,6 +860,37 @@ func TestClosesARequestWhoseBodyNeverFinishes(t *testing.T) {
 	}
 }
 
+func TestLimitsThreadsUnlessGOMAXPROCSIsSet(t *testing.T) {
+	cases := []struct {
+		env     string
+		current int
+		want    int
+	}{
+		{env: "", current: 16, want: 4},
+		{env: "", current: 8, want: 4},
+		{env: "", current: 4, want: 4},
+		{env: "", current: 2, want: 2},
+		{env: "", current: 1, want: 1},
+		{env: "8", current: 8, want: 8},
+		{env: "2", current: 2, want: 2},
+		{env: "1", current: 1, want: 1},
+		// Go ignores values that aren't a positive number, so Switchyard's
+		// limit still applies.
+		{env: "08", current: 8, want: 8},
+		{env: "0", current: 16, want: 4},
+		{env: "many", current: 16, want: 4},
+		{env: "+8", current: 16, want: 4},
+		{env: "-8", current: 16, want: 4},
+		{env: " 8", current: 16, want: 4},
+		{env: "2147483648", current: 16, want: 4}, // above 32 bits
+	}
+	for _, c := range cases {
+		if got := threadsToUse(c.env, c.current); got != c.want {
+			t.Errorf("threadsToUse(%q, %d) = %d, want %d", c.env, c.current, got, c.want)
+		}
+	}
+}
+
 // startSwitchyardFor runs newServer and newProxy as main does, in front of an
 // upstream answering with handler.
 func startSwitchyardFor(t *testing.T, handler http.HandlerFunc) string {
