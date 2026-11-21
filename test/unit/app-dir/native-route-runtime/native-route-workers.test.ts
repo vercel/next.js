@@ -79,6 +79,8 @@ describe('native route worker events', () => {
   })
 
   afterEach(async () => {
+    // The observer is module-level: clear it so no test depends on order.
+    observeNativeRouteWorkers(undefined)
     for (const child of children) exit(child)
     await manager.close()
     await new Promise((resolve) => frontServer.close(resolve))
@@ -105,21 +107,20 @@ describe('native route worker events', () => {
 
   const address = () => `127.0.0.1:${workerPort}`
 
-  // Runs first: the observer is registered once per process.
+  const announced = (page: string, token: string) => ({
+    event: 'worker',
+    page,
+    address: address(),
+    tokenHeader: 'x-next-internal-go-token',
+    token,
+  })
+
   it('announces a worker that started before the observer at its next request', async () => {
     expect(await get('a')).toEqual({ status: 200, body: 'go' })
     const events = observe()
     expect(events).toEqual([])
     await get('a')
-    expect(events).toEqual([
-      {
-        event: 'worker',
-        page: '/a',
-        address: address(),
-        tokenHeader: 'x-next-internal-go-token',
-        token: tokens[0],
-      },
-    ])
+    expect(events).toEqual([announced('/a', tokens[0])])
   })
 
   it('announces each page once per worker', async () => {
@@ -138,8 +139,11 @@ describe('native route worker events', () => {
     const events = observe()
     await get('a')
     exit(children[0])
-    exit(children[0])
-    expect(events.slice(1)).toEqual([
+    // exit() returns early once exitCode is set; emit again to check gone is
+    // still reported once.
+    children[0].emit('exit', 0)
+    expect(events).toEqual([
+      announced('/a', tokens[0]),
       { event: 'gone', address: address(), token: tokens[0] },
     ])
   })
@@ -151,7 +155,8 @@ describe('native route worker events', () => {
     manager.reconcile(new Set())
     await new Promise((resolve) => setImmediate(resolve))
     exit(children[0])
-    expect(events.slice(1)).toEqual([
+    expect(events).toEqual([
+      announced('/a', tokens[0]),
       { event: 'gone', address: address(), token: tokens[0] },
     ])
   })

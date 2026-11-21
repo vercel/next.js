@@ -140,12 +140,20 @@ describe('switchyard-route-table', () => {
   // parts that aren't a plain copy.
   describe('collectSwitchyardRouteTable', () => {
     let dir: string
+    // Tests may run with NEXT_PRIVATE_TEST_HEADERS set; start each without
+    // it and put the original back afterwards.
+    const testHeaders = process.env.NEXT_PRIVATE_TEST_HEADERS
     beforeEach(() => {
       dir = fs.mkdtempSync(path.join(os.tmpdir(), 'switchyard-route-table-'))
+      delete process.env.NEXT_PRIVATE_TEST_HEADERS
     })
     afterEach(() => {
       fs.rmSync(dir, { recursive: true, force: true })
-      delete process.env.NEXT_PRIVATE_TEST_HEADERS
+      if (testHeaders === undefined) {
+        delete process.env.NEXT_PRIVATE_TEST_HEADERS
+      } else {
+        process.env.NEXT_PRIVATE_TEST_HEADERS = testHeaders
+      }
     })
 
     const config: SwitchyardConfig = {
