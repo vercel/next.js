@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/0_9x_turbopack-tests_tests_snapshot_source_maps_merged-unicode_input_1tq4mpj1076n4._.js",(()=>{"use strict";return["[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/entry-base.js [test] (ecmascript)",((__turbopack_context__) => {
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["output/0_9x_turbopack-tests_tests_snapshot_source_maps_merged-unicode_input_1ckjgu_qwoiuf._.js",(()=>{"use strict";return["[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/entry-base.js [test] (ecmascript)",((__turbopack_context__) => {
 
 
 __turbopack_context__.s([], "[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/entry-base.js [test] (ecmascript)");
@@ -53,4 +53,4 @@ if (Date.now() > 0) {
 }
 })]);
 
-//# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_source_maps_merged-unicode_input_1tq4mpj1076n4._.js.map
+//# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_source_maps_merged-unicode_input_1ckjgu_qwoiuf._.js.map

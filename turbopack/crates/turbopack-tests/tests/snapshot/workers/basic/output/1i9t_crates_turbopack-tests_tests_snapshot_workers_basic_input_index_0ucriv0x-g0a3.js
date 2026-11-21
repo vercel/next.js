@@ -1,6 +1,6 @@
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
-    "output/1i9t_crates_turbopack-tests_tests_snapshot_workers_basic_input_index_0oed6jwa3wl3l.js",
-    {"otherChunks":["output/[root-of-the-server]__07l1lihsce94l._.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/index.js [test] (ecmascript)"]}
+    "output/1i9t_crates_turbopack-tests_tests_snapshot_workers_basic_input_index_0ucriv0x-g0a3.js",
+    {"otherChunks":["output/[root-of-the-server]__0sy37x-e2s4kl._.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/workers/basic/input/index.js [test] (ecmascript)"]}
 ]);
 (() => {
 var chunksToRegister = globalThis["TURBOPACK"];
@@ -2707,4 +2707,4 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_workers_basic_input_index_0oed6jwa3wl3l.js.map
+//# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_workers_basic_input_index_0ucriv0x-g0a3.js.map
