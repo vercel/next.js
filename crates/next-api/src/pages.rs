@@ -2074,6 +2074,20 @@ impl Endpoint for PageEndpoint {
     fn traced_files(self: Vc<Self>) -> Vc<FileSystemPathVec> {
         self.trace_result().all_files()
     }
+
+    /// The HTML and data endpoints of a page share the key. Rendering a page (or the `/_error`
+    /// fallback page) also uses `/_app` and `/_document`, so it also has their shared key, which
+    /// activates them with it.
+    #[turbo_tasks::function]
+    fn activation_keys(&self) -> Vc<Vec<RcStr>> {
+        // Not in the `pages:` namespace, so it can't collide with the key of a user route.
+        let app_and_document = rcstr!("pages-shell:/_app+/_document");
+        Vc::cell(match (&*self.pathname, self.ty) {
+            ("/_app" | "/_document", _) => vec![app_and_document],
+            (pathname, PageEndpointType::Api) => vec![format!("pages:{pathname}").into()],
+            (pathname, _) => vec![format!("pages:{pathname}").into(), app_and_document],
+        })
+    }
 }
 
 #[turbo_tasks::value]

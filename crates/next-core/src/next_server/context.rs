@@ -1040,7 +1040,9 @@ pub struct ServerChunkingContextOptions {
     pub css_url_suffix: Vc<Option<RcStr>>,
     pub hash_salt: ResolvedVc<RcStr>,
     pub style_groups_algorithm: StyleGroupsAlgorithm,
-    pub per_page_module_graph: Vc<bool>,
+    /// Whether the module graphs used with this context only cover part of the app (per-page
+    /// graphs, or a development graph that only contains the requested routes).
+    pub partial_module_graph: Vc<bool>,
     pub lazy_dynamic_imports: bool,
     /// Override for the production JS `min_chunk_size` (default `4_000`).
     pub chunking_min_chunk_size: Option<usize>,
@@ -1079,7 +1081,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         css_url_suffix,
         hash_salt,
         style_groups_algorithm,
-        per_page_module_graph,
+        partial_module_graph,
         lazy_dynamic_imports,
         chunking_min_chunk_size,
         chunking_max_merge_chunk_size,
@@ -1124,9 +1126,9 @@ pub async fn get_server_chunking_context_with_client_assets(
     .debug_ids(*debug_ids.await?)
     .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
-    // Per-page graphs each see only one page, so none of them can decide what the shared runtime
-    // chunk may leave out.
-    .shared_runtime_chunk(*per_page_module_graph.await?)
+    // A partial graph (per-page graphs, or a development graph that only contains the requested
+    // routes) can't decide what the shared runtime chunk may leave out.
+    .shared_runtime_chunk(*partial_module_graph.await?)
     .worker_forwarded_globals(worker_forwarded_globals())
     .manifest_chunks(lazy_dynamic_imports)
     // React needs deterministic function names to work correctly.
@@ -1202,7 +1204,7 @@ pub async fn get_server_chunking_context(
         css_url_suffix,
         hash_salt,
         style_groups_algorithm,
-        per_page_module_graph,
+        partial_module_graph,
         lazy_dynamic_imports,
         chunking_min_chunk_size,
         chunking_max_merge_chunk_size,
@@ -1251,9 +1253,9 @@ pub async fn get_server_chunking_context(
     .debug_ids(*debug_ids.await?)
     .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
-    // Per-page graphs each see only one page, so none of them can decide what the shared runtime
-    // chunk may leave out.
-    .shared_runtime_chunk(*per_page_module_graph.await?)
+    // A partial graph (per-page graphs, or a development graph that only contains the requested
+    // routes) can't decide what the shared runtime chunk may leave out.
+    .shared_runtime_chunk(*partial_module_graph.await?)
     .worker_forwarded_globals(worker_forwarded_globals())
     .manifest_chunks(lazy_dynamic_imports)
     .emit_options(minify_emit_options(minify, no_mangling, false).await?);
