@@ -17,12 +17,18 @@ use crate::{
     u64_empty_string,
 };
 
+#[path = "timeline.rs"]
+mod timeline;
+
+use timeline::Timeline;
+
 const EXTRA_WIDTH_PERCENTAGE: u64 = 50;
 const EXTRA_HEIGHT: u64 = 5;
 
 #[derive(Default)]
 pub struct Viewer {
     span_options: FxHashMap<SpanId, SpanOptions>,
+    timeline: Option<Timeline>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -260,6 +266,8 @@ struct SpanOptions {
 pub struct Update {
     pub lines: Vec<ViewLineUpdate>,
     pub max: u64,
+    /// Total lane count, including rows outside the viewport.
+    pub count: usize,
 }
 
 #[derive(Serialize, Debug)]
@@ -356,7 +364,17 @@ impl Viewer {
         self.span_options.entry(id).or_default().view_mode = view_mode;
     }
 
+    pub fn invalidate_timeline(&mut self) {
+        self.timeline = None;
+    }
+
     pub fn compute_update(&mut self, store: &Store, view_rect: &ViewRect) -> Update {
+        if view_rect.view_mode == "timeline" {
+            return self
+                .timeline
+                .get_or_insert_with(|| Timeline::new(store))
+                .compute_update(store, view_rect);
+        }
         let mut highlighted_spans: FxHashSet<SpanId> = FxHashSet::default();
         let mut highlighted_span_parents: FxHashSet<SpanId> = FxHashSet::default();
         let search_mode = !view_rect.query.is_empty();
@@ -454,6 +472,7 @@ impl Viewer {
                     y: 0,
                 }],
                 max: 1,
+                count: 1,
             };
         }
 
@@ -1067,7 +1086,7 @@ impl Viewer {
             }
         }
 
-        let lines = lines
+        let lines: Vec<_> = lines
             .into_iter()
             .enumerate()
             .map(|(y, line)| ViewLineUpdate {
@@ -1189,6 +1208,7 @@ impl Viewer {
             .collect();
 
         Update {
+            count: lines.len(),
             lines,
             max: max(1, current),
         }
