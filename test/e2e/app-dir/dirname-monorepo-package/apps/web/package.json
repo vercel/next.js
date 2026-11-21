@@ -1,0 +1,12 @@
+{
+  "name": "dirname-monorepo-web",
+  "version": "0.0.0",
+  "dependencies": {
+    "my-wasm-pkg": "workspace:*"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "start": "next start",
+    "build": "next build"
+  }
+}

@@ -82,6 +82,7 @@ pub const TURBOPACK_LOAD_BY_URL: &TurbopackRuntimeFunctionShortcut = make_shortc
 pub const TURBOPACK_CLEAR_CHUNK_CACHE: &TurbopackRuntimeFunctionShortcut = make_shortcut!("C");
 pub const TURBOPACK_DYNAMIC: &TurbopackRuntimeFunctionShortcut = make_shortcut!("j");
 pub const TURBOPACK_RESOLVE_ABSOLUTE_PATH: &TurbopackRuntimeFunctionShortcut = make_shortcut!("P");
+pub const TURBOPACK_TO_PROJECT_PATH: &TurbopackRuntimeFunctionShortcut = make_shortcut!("p");
 pub const TURBOPACK_RESOLVE_FILE_URL: &TurbopackRuntimeFunctionShortcut = make_shortcut!("F");
 pub const TURBOPACK_RELATIVE_URL: &TurbopackRuntimeFunctionShortcut = make_shortcut!("U");
 pub const TURBOPACK_RESOLVE_MODULE_ID_PATH: &TurbopackRuntimeFunctionShortcut = make_shortcut!("R");

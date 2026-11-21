@@ -33,6 +33,40 @@ function resolveAbsolutePath(modulePath?: string): string {
 Context.prototype.P = resolveAbsolutePath
 
 /**
+ * Translates an absolute path back to the `/ROOT/<path>` form the bundler uses for project
+ * paths. `root` is the path of the root (see `resolveAbsolutePath`) in that form, without the
+ * `/ROOT/` prefix.
+ *
+ * Requests with a dynamic part that are built from `__dirname` or `__filename` (e.g.
+ * `path.join(__dirname, name)`) are absolute paths at runtime, while the keys of their module
+ * context are in the `/ROOT/<path>` form. Other requests are returned unchanged.
+ */
+function toProjectPath(request: string, root: string): string {
+  if (
+    typeof request !== 'string' ||
+    request.startsWith('/ROOT/') ||
+    !path.isAbsolute(request)
+  ) {
+    return request
+  }
+  const relativePath = path.relative(ABSOLUTE_ROOT, request)
+  if (path.isAbsolute(relativePath)) {
+    // e.g. on another drive on Windows
+    return request
+  }
+  const projectPath = path.posix.join(
+    root,
+    relativePath.split(path.sep).join('/')
+  )
+  if (projectPath === '..' || projectPath.startsWith('../')) {
+    // outside of the project
+    return request
+  }
+  return `/ROOT/${projectPath}`
+}
+Context.prototype.p = toProjectPath
+
+/**
  * Returns an absolute `file://` URL for the given module path, which is
  * relative to the project root or the named `root`.
  *
