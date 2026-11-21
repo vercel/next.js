@@ -1,0 +1,44 @@
+---
+title: opengraph-video
+description: API Reference for the Open Graph Video file convention.
+---
+
+The `opengraph-video` file convention allows you to set an Open Graph video for a route segment.
+
+It is useful for setting the video that appears on social networks and messaging apps when a user shares a link to your site.
+
+## Video files (.mp4, .webm)
+
+Use a video file to set a route segment's shared video by placing an `opengraph-video` video file in the segment.
+
+Next.js will serve the file and automatically add the appropriate tags to your app's `<head>` element.
+
+| File convention   | Supported file types |
+| ----------------- | -------------------- |
+| `opengraph-video` | `.mp4`, `.webm`      |
+
+Add an `opengraph-video.(mp4|webm)` video file to any route segment.
+
+```html filename="<head> output"
+<meta property="og:video" content="<generated>" />
+<meta property="og:video:type" content="<generated>" />
+```
+
+> **Good to know**:
+>
+> - Only a single `opengraph-video` file is supported per route segment. Numeric variants such as `opengraph-video1.mp4` are not supported. If both `opengraph-video.mp4` and `opengraph-video.webm` exist in the same segment, the `.mp4` file is used.
+> - `opengraph-video` only supports static video files. Generating videos using code (`.js`, `.ts`, `.tsx`) is not supported.
+> - Video dimensions are not detected, so `og:video:width` and `og:video:height` are not generated. Use the [`openGraph.videos`](/docs/app/api-reference/functions/generate-metadata#opengraph) field in the metadata object if you need to set them.
+> - Most platforms also require an Open Graph image to render a video preview. Use it together with [`opengraph-image`](/docs/app/api-reference/file-conventions/metadata/opengraph-image).
+
+## Precedence with metadata exports
+
+Following [metadata ordering](/docs/app/api-reference/functions/generate-metadata#ordering), an explicit `openGraph.videos` from the [`metadata` object or `generateMetadata` function](/docs/app/api-reference/functions/generate-metadata) in the same segment overrides the `opengraph-video` file.
+
+For example, if `app/blog/page.tsx` sets `openGraph.videos` to `['https://example.com/custom.mp4']`, the page uses `https://example.com/custom.mp4` instead of `app/blog/opengraph-video.mp4`.
+
+## Version History
+
+| Version   | Changes                       |
+| --------- | ----------------------------- |
+| `v16.5.0` | `opengraph-video` introduced. |

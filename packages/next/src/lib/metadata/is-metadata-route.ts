@@ -26,6 +26,15 @@ export const STATIC_METADATA_IMAGES = {
   },
 } as const
 
+// Static-only metadata video files. Only a single `opengraph-video.<ext>` file
+// per segment is supported, without numeric variants or dynamic routes.
+export const STATIC_METADATA_VIDEOS = {
+  openGraphVideo: {
+    filename: 'opengraph-video',
+    extensions: ['mp4', 'webm'],
+  },
+} as const
+
 // Match routes that are metadata routes, e.g. /sitemap.xml, /favicon.<ext>, /<icon>.<ext>, etc.
 // TODO-METADATA: support more metadata routes with more extensions
 export const DEFAULT_METADATA_ROUTE_EXTENSIONS = ['js', 'jsx', 'ts', 'tsx']
@@ -85,6 +94,7 @@ function fastPathCheck(normalizedPath: string): boolean | null {
     !normalizedPath.includes('icon') &&
     !normalizedPath.includes('apple-icon') &&
     !normalizedPath.includes('opengraph-image') &&
+    !normalizedPath.includes('opengraph-video') &&
     !normalizedPath.includes('twitter-image') &&
     !normalizedPath.includes('favicon')
   ) {
@@ -153,6 +163,14 @@ function getCompiledRegexes(
       `[\\\\/]twitter-image${suffixMatcher}${getExtensionRegexString(
         STATIC_METADATA_IMAGES.twitter.extensions,
         pageExtensions
+      )}${trailingMatcher}`
+    ),
+    // opengraph-video is static only: no numeric variants and no dynamic
+    // route extensions.
+    new RegExp(
+      `[\\\\/]opengraph-video${groupSuffix}${getExtensionRegexString(
+        STATIC_METADATA_VIDEOS.openGraphVideo.extensions,
+        null
       )}${trailingMatcher}`
     ),
   ]
