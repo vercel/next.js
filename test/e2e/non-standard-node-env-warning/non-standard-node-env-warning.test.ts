@@ -136,8 +136,8 @@ describe('Non-Standard NODE_ENV', () => {
       it('should show the warning with NODE_ENV set to development with next start', async () => {
         // Build without NODE_ENV=development. Matches the original integration
         // test, which only sets NODE_ENV=development for `next start` (not
-        // `next build`). Building with NODE_ENV=development additionally
-        // triggers unrelated turbopack production-build issues.
+        // `next build`). `next build` with NODE_ENV=development is covered by
+        // test/production/app-dir/build-node-env-development.
         await next.build()
         next.env.NODE_ENV = 'development'
         // `next.start()` resets `cliOutput` to '' so we do not need to slice
