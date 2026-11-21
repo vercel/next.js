@@ -3,12 +3,16 @@ import * as process from 'process'
 import { patchErrorInspectNodeJS } from '../patch-error-inspect'
 
 const sourceMappingEnabled =
+  // `next build` workers with `enablePrerenderSourceMaps` source-map errors
+  // without Node.js source maps: they read source maps when an error is first
+  // formatted (see `enableLazySourceMaps`).
+  process.env.__NEXT_PRERENDER_SOURCE_MAPS === '1' ||
   // @ts-expect-error Node.js 22+ only
-  typeof module.getSourceMapsSupport === 'function'
+  (typeof module.getSourceMapsSupport === 'function'
     ? // @ts-expect-error Node.js 22+ only
       module.getSourceMapsSupport().enabled
     : process.env.NODE_OPTIONS?.includes('--enable-source-maps') ||
-      process.execArgv.includes('--enable-source-maps')
+      process.execArgv.includes('--enable-source-maps'))
 
 if (sourceMappingEnabled) {
   patchErrorInspectNodeJS(globalThis.Error)
