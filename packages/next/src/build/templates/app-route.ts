@@ -314,6 +314,7 @@ async function handleRequest(
     sharedContext: {
       buildId,
       deploymentId,
+      basePath: nextConfig.basePath,
     },
   }
   const nodeNextReq = new NodeNextRequest(req)
