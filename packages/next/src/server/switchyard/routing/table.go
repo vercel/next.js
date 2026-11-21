@@ -52,9 +52,10 @@ func Load(data []byte) (*Table, error) {
 		return nil, fmt.Errorf("route table: version %d, want %d", raw.Contract.Version, Version)
 	}
 	if raw.Reason != "" {
-		return &Table{reason: raw.Reason}, nil
+		return &Table{reason: raw.Reason, nodePrefixes: nil, nodeExact: nil, goExact: nil}, nil
 	}
 	t := &Table{
+		reason:       "",
 		nodePrefixes: raw.NodePrefixes,
 		nodeExact:    make(map[string]struct{}, len(raw.NodeExact)),
 		goExact:      make(map[string]string, len(raw.GoExact)),
