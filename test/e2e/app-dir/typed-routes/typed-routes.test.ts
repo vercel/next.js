@@ -2,6 +2,9 @@ import { nextTestSetup } from 'e2e-utils'
 import execa from 'execa'
 import { retry } from 'next-test-utils'
 
+// Route types are shared by `next dev`, `next build` and `next typegen`.
+const SHARED_ROUTES_DTS = '.next/types/routes.d.ts'
+
 const expectedDts = `
 type AppRoutes = "/" | "/_shop/[[...category]]" | "/dashboard" | "/dashboard/settings" | "/docs/[...slug]" | "/gallery/photo/[id]" | "/project/[slug]"
 type AppRouteHandlerRoutes = "/api-test" | "/api/docs/[...slug]" | "/api/shop/[[...category]]" | "/api/users/[id]"
@@ -23,7 +26,7 @@ describe('typed-routes', () => {
   it('should generate route types correctly', async () => {
     // Route type generation happens after the "Ready" log fires; give it time.
     await retry(async () => {
-      const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
+      const dts = await next.readFile(SHARED_ROUTES_DTS)
       expect(dts).toContain(expectedDts)
     }, 30000)
   })
@@ -32,7 +35,7 @@ describe('typed-routes', () => {
     // Wait for routes.d.ts before stopping the server; route type generation
     // happens after the "Ready" log fires and tsc may run before it completes.
     await retry(async () => {
-      const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
+      const dts = await next.readFile(SHARED_ROUTES_DTS)
       expect(dts).toContain(expectedDts)
     }, 30000)
 
@@ -55,7 +58,7 @@ describe('typed-routes', () => {
   it('should correctly convert custom route patterns from path-to-regexp to bracket syntax', async () => {
     // Route type generation happens after the "Ready" log fires; give it time.
     await retry(async () => {
-      const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
+      const dts = await next.readFile(SHARED_ROUTES_DTS)
 
       // Test standard dynamic segment: :slug -> [slug]
       expect(dts).toContain('"/project/[slug]"')
@@ -82,9 +85,7 @@ describe('typed-routes', () => {
       )
 
       await retry(async () => {
-        const routeTypesContent = await next.readFile(
-          `${next.distDir}/types/routes.d.ts`
-        )
+        const routeTypesContent = await next.readFile(SHARED_ROUTES_DTS)
 
         expect(routeTypesContent).toContain(
           'type LayoutRoutes = "/" | "/dashboard" | "/new-layout"'
@@ -95,7 +96,7 @@ describe('typed-routes', () => {
 
   it('should generate RouteContext type for route handlers', async () => {
     await retry(async () => {
-      const dts = await next.readFile(`${next.distDir}/types/routes.d.ts`)
+      const dts = await next.readFile(SHARED_ROUTES_DTS)
       expect(dts).toContain(
         'interface RouteContext<AppRouteHandlerRoute extends AppRouteHandlerRoutes>'
       )
