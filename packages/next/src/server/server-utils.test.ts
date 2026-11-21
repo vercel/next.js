@@ -1,4 +1,119 @@
+import type { IncomingMessage } from 'http'
+import type { Rewrite } from '../lib/load-custom-routes'
+import type { NextUrlWithParsedQuery } from './request-meta'
+import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import { getServerUtils } from './server-utils'
+
+jest.mock('next/dist/compiled/path-to-regexp', () => {
+  const actual = jest.requireActual('next/dist/compiled/path-to-regexp')
+  return { ...actual, pathToRegexp: jest.fn(actual.pathToRegexp) }
+})
+
+describe('handleRewrites', () => {
+  function handleRewrites(
+    pathname: string,
+    afterFiles: Rewrite[],
+    {
+      headers = {},
+      ...options
+    }: {
+      headers?: IncomingMessage['headers']
+      trailingSlash?: boolean
+      caseSensitive?: boolean
+    } = {}
+  ) {
+    const { handleRewrites: handle } = getServerUtils({
+      page: '/[slug]',
+      basePath: '',
+      rewrites: { afterFiles },
+      i18n: undefined,
+      pageIsDynamic: true,
+      caseSensitive: false,
+      ...options,
+    })
+
+    return handle(
+      { headers } as IncomingMessage,
+      {
+        pathname,
+        query: {},
+      } as NextUrlWithParsedQuery
+    ).rewriteParams
+  }
+
+  it('should compile the source of a rewrite once', () => {
+    const rewrites: Rewrite[] = [
+      { source: '/compiled-once/:id', destination: '/first/:id' },
+      {
+        source: '/compiled-once/:id',
+        destination: '/second/:id',
+        has: [{ type: 'header', key: 'x-second' }],
+      },
+    ]
+
+    for (const id of ['a', 'b', 'c']) {
+      // A request gets its own params from the matcher that it shares with
+      // the requests before it.
+      expect(handleRewrites(`/compiled-once/${id}`, rewrites)).toEqual({ id })
+    }
+
+    expect(
+      jest
+        .mocked(pathToRegexp)
+        .mock.calls.filter(([source]) => source === '/compiled-once/:id')
+    ).toHaveLength(1)
+  })
+
+  it('should check the conditions of every rewrite that shares a source', () => {
+    const rewrites: Rewrite[] = [
+      {
+        source: '/shared/:id',
+        destination: '/with-header/:id',
+        has: [{ type: 'header', key: 'x-variant', value: '(?<variant>a|b)' }],
+      },
+      {
+        source: '/shared/:id',
+        destination: '/without-header/:id',
+        missing: [{ type: 'header', key: 'x-skip' }],
+      },
+    ]
+
+    expect(
+      handleRewrites('/shared/1', rewrites, { headers: { 'x-variant': 'b' } })
+    ).toEqual({ id: '1', variant: 'b' })
+    expect(handleRewrites('/shared/1', rewrites)).toEqual({ id: '1' })
+    expect(
+      handleRewrites('/shared/1', rewrites, { headers: { 'x-skip': '1' } })
+    ).toEqual({})
+  })
+
+  it('should not share a matcher between case sensitivities', () => {
+    const rewrites: Rewrite[] = [
+      { source: '/Case/:id', destination: '/lower/:id' },
+    ]
+
+    expect(handleRewrites('/case/1', rewrites)).toEqual({ id: '1' })
+    expect(
+      handleRewrites('/case/1', rewrites, { caseSensitive: true })
+    ).toEqual({})
+    expect(
+      handleRewrites('/Case/1', rewrites, { caseSensitive: true })
+    ).toEqual({ id: '1' })
+    expect(handleRewrites('/case/1', rewrites)).toEqual({ id: '1' })
+  })
+
+  it('should not share a matcher between trailing slash settings', () => {
+    const rewrites: Rewrite[] = [
+      { source: '/slash/:id/end', destination: '/slashed/:id' },
+    ]
+
+    expect(handleRewrites('/slash/1/end/', rewrites)).toEqual({})
+    expect(
+      handleRewrites('/slash/1/end/', rewrites, { trailingSlash: true })
+    ).toEqual({ id: '1' })
+    expect(handleRewrites('/slash/1/end/', rewrites)).toEqual({})
+  })
+})
 
 describe('getParamsFromRouteMatches', () => {
   it('should return nothing for a non-dynamic route', () => {
