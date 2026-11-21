@@ -108,6 +108,32 @@ module.exports = {
 }
 ```
 
+## Consuming a manifest
+
+Turbopack can load an enhanced Module Federation remote from its manifest URL, without knowing the remote's global container name in advance:
+
+```js filename="next.config.js"
+module.exports = {
+  experimental: {
+    turbopackModuleFederation: {
+      remotes: {
+        catalog:
+          'https://catalog.example.com/_next/static/mf-manifest.json?v=1',
+        checkout: {
+          manifest: 'https://checkout.example.com/mf-manifest.json',
+          shareScope: 'default',
+        },
+        legacy: 'legacy@https://legacy.example.com/remoteEntry.js',
+      },
+    },
+  },
+}
+```
+
+A string without `globalName@` is treated as a manifest only when it is an `http:` or `https:` URL whose pathname ends in `.json`. Query strings and fragments are supported; credentials in manifest URLs are rejected. An object must specify **either** `manifest` **or** `external`, not both. A script remote still uses `globalName@url`. Invalid or unreachable manifests fail with an upstream runtime diagnostic rather than silently falling back to a script.
+
+Manifest files are fetched by the browser, so a cross-origin producer must send an appropriate `Access-Control-Allow-Origin` header for the manifest. Default `shareStrategy: 'version-first'` initializes configured remotes before choosing shared versions; an unreachable optional manifest can therefore block sharing. Use `shareStrategy: 'loaded-first'` when optional remotes should not delay initial sharing.
+
 ## Exposing modules
 
 Set a container `name`, a `filename`, and the modules to expose. The unhashed remote entry is served from `/_next/static/<filename>`. Its content-hashed lazy chunks use the isolated `/_next/static/chunks/mf/` directory.
@@ -148,6 +174,30 @@ module.exports = nextConfig
 ```
 
 The filename defaults to `<name>.js`. It must be a relative path and cannot contain `..`, a query string, or a URL. Exposed modules are loaded lazily from separate chunks.
+
+A producer also emits `/_next/static/mf-manifest.json` automatically in development and production. It lists the remote entry, configured shared modules and remotes, and each exposed module's actual synchronous and asynchronous JavaScript/CSS assets. Host-only configurations do not emit a manifest. These asset paths are relative to the manifest's `/_next/static/` directory; the enhanced runtime resolves `publicPath: 'auto'` from the manifest URL, including when the producer runs on another origin.
+
+To permit a different-origin browser host to fetch this one file, add a response header in the producer's normal Next.js configuration (restrict the origin to the trusted host):
+
+```js filename="next.config.js"
+module.exports = {
+  async headers() {
+    return [
+      {
+        source: '/_next/static/mf-manifest.json',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: 'https://storefront.example.com',
+          },
+        ],
+      },
+    ]
+  },
+}
+```
+
+For CDN deployments, configure the same header on the CDN response for the manifest. This does not change the CORS policy of other Next.js assets.
 
 ## Sharing modules
 
@@ -260,7 +310,30 @@ export async function loadCatalog(url: string) {
 }
 ```
 
-When multiple federated apps share a page, use `getInstance((instance) => instance.name === 'storefront')` to select your app's instance rather than relying on the no-argument accessor. If you set `implementation: 'custom-runtime'`, import these APIs from `custom-runtime/runtime` instead of the default runtime package. Dynamic registration and `loadRemote()` support script entries. Upstream `preloadRemote()` requires a manifest; it does not preload a script-only webpack v1 remote without one.
+For a manifest-backed remote, the upstream runtime can also preload its exposed assets before importing the module:
+
+```tsx filename="app/preload-catalog.tsx"
+'use client'
+
+import { getInstance } from '@module-federation/runtime-tools/runtime'
+
+export async function preloadCatalog() {
+  const instance = getInstance()
+  if (!instance) throw new Error('Federation is not initialized yet')
+  instance.registerRemotes([
+    {
+      name: 'catalog',
+      entry: 'https://catalog.example.com/_next/static/mf-manifest.json',
+    },
+  ])
+  await instance.preloadRemote([
+    { nameOrAlias: 'catalog', exposes: ['./product'], resourceCategory: 'all' },
+  ])
+  return instance.loadRemote('catalog/product')
+}
+```
+
+When multiple federated apps share a page, use `getInstance((instance) => instance.name === 'storefront')` to select your app's instance rather than relying on the no-argument accessor. If you set `implementation: 'custom-runtime'`, import these APIs from `custom-runtime/runtime` instead of the default runtime package. Dynamic registration and `loadRemote()` support both script and manifest entries. Upstream `preloadRemote()` requires a manifest; it does not preload a script-only webpack v1 remote without one.
 
 ## Runtime behavior and limitations
 
