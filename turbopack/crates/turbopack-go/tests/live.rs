@@ -1465,6 +1465,176 @@ async fn generated_entry_imports_source_directory_as_package() -> Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn embed_patterns_only_track_entries_they_can_match() -> Result<()> {
+    let session = Session::new().await?;
+    let directory = "app/[id]";
+    session
+        .write(
+            &format!("{directory}/route.go"),
+            &[
+                "package route",
+                "import \"embed\"",
+                "//go:embed message.txt",
+                "var message string",
+                "//go:embed *.tmpl",
+                "var templates embed.FS",
+                "func Message() string {",
+                "\ta, _ := templates.ReadFile(\"a.tmpl\")",
+                "\treturn message + \":\" + string(a)",
+                "}",
+            ]
+            .join("\n"),
+        )
+        .await?;
+    session
+        .write(&format!("{directory}/message.txt"), "message-v1")
+        .await?;
+    session
+        .write(&format!("{directory}/a.tmpl"), "tmpl-a")
+        .await?;
+    // A file pattern or a leading wildcard must not mirror unrelated subtrees, such as
+    // `node_modules` beside a `proxy.go` at the project root.
+    session
+        .write(&format!("{directory}/node_modules/dep/index.js"), "")
+        .await?;
+    session
+        .write(&format!("{directory}/node_modules/dep/nested/index.js"), "")
+        .await?;
+    let root = FileSystemPath {
+        fs: ResolvedVc::upcast(session.fs),
+        path: rcstr!(""),
+    };
+    let options = session.go_context.options.clone();
+    let alias = rcstr!("app/_next_go_route_example");
+    let generated = BTreeMap::from([(
+        rcstr!("app/_next_go_main/main.go"),
+        RcStr::from(
+            [
+                "package main",
+                "import (",
+                "\t\"fmt\"",
+                "\troute \"example.com/native-fixture/app/_next_go_route_example\"",
+                ")",
+                "func main() { fmt.Print(route.Message()) }",
+            ]
+            .join("\n"),
+        ),
+    )]);
+    let result = session
+        .tt
+        .run_once(async move {
+            read_with_validated_inputs(
+                || {
+                    let root = root.clone();
+                    let options = options.clone();
+                    let alias = alias.clone();
+                    let generated = generated.clone();
+                    async move {
+                        let sources = selected_sources(
+                            root.clone(),
+                            root.join(directory)?,
+                            GoSourceSelection::Directory,
+                            options.clone(),
+                        )
+                        .resolve()
+                        .strongly_consistent()
+                        .await?;
+                        selected_package_bundle(sources, options, alias, generated)
+                            .read_strongly_consistent()
+                            .await
+                    }
+                },
+                |value| Some(&**value),
+            )
+            .await
+        })
+        .await?;
+    let executable = result.clone();
+    let bytes = session
+        .tt
+        .run_once(async move {
+            let GoBuildOutcome::Success(file) = &executable.outcome else {
+                anyhow::bail!("unexpected result: {:?}", executable.outcome);
+            };
+            let file = file.await?;
+            let FileContent::Content(file) = &*file else {
+                anyhow::bail!("missing executable");
+            };
+            let mut bytes = vec![];
+            file.read().read_to_end(&mut bytes)?;
+            anyhow::Ok(bytes)
+        })
+        .await?;
+    assert_eq!(session.run_bytes(bytes).await?, "message-v1:tmpl-a");
+    let is_current = || {
+        let result = result.clone();
+        session
+            .tt
+            .run_once(async move { result.is_current().await })
+    };
+    assert!(is_current().await?, "an unchanged build must be current");
+    // Unmatched subtrees are not compiler inputs.
+    std::fs::write(
+        session
+            .project
+            .join(directory)
+            .join("node_modules/dep/added.js"),
+        "",
+    )?;
+    std::fs::write(
+        session
+            .project
+            .join(directory)
+            .join("node_modules/dep/nested/added.js"),
+        "",
+    )?;
+    assert!(is_current().await?, "unmatched subtrees must not be inputs");
+    // The directory a wildcard element is matched against remains an input.
+    std::fs::write(session.project.join(directory).join("b.tmpl"), "tmpl-b")?;
+    assert!(!is_current().await?, "new wildcard matches must be noticed");
+    session.stop().await;
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn go_mod_without_module_path_is_reported() -> Result<()> {
+    let session = Session::new().await?;
+    let directory = "app/no-module";
+    session
+        .write(&format!("{directory}/go.mod"), "go 1.24\n")
+        .await?;
+    session
+        .write(&format!("{directory}/route.go"), "package route\n")
+        .await?;
+    let root = FileSystemPath {
+        fs: ResolvedVc::upcast(session.fs),
+        path: rcstr!(""),
+    };
+    let options = session.go_context.options.clone();
+    let error = session
+        .tt
+        .run_once(async move {
+            selected_sources(
+                root.clone(),
+                root.join(directory)?,
+                GoSourceSelection::Directory,
+                options,
+            )
+            .read_strongly_consistent()
+            .await
+        })
+        .await
+        .expect_err("a go.mod without a module path must not select sources");
+    let expected = format!(
+        "{}: no module declaration in go.mod",
+        session.project.join(directory).join("go.mod").display()
+    );
+    assert!(format!("{error:?}").contains(&expected), "{error:?}");
+    session.stop().await;
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn selected_declarations_follow_package_file_selection() -> Result<()> {
     let session = Session::new().await?;
     let directory = "app/[id]";

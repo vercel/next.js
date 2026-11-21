@@ -48,7 +48,7 @@ pub use crate::{
     },
 };
 use crate::{
-    inputs::{CompilerInputs, FileInput, Inputs, Tracker},
+    inputs::{CompilerInputs, FileInput, Inputs, Tracker, embed_matcher},
     process::Command,
 };
 
@@ -692,49 +692,130 @@ fn source_diagnostic(message: &str, project: &Path, aliases: &BTreeMap<RcStr, Rc
     message
 }
 
+/// List and track the directory at `/`-separated `relative` below `root`. Entries map names to
+/// the kinds recorded by [`Tracker::dir`]; a missing directory has no entries.
+async fn tracked_entries(
+    tracker: &mut Tracker<'_>,
+    root: &Path,
+    relative: &str,
+) -> Result<BTreeMap<String, u8>> {
+    let path = module_path(root, relative);
+    tracker.dir(&path).await?;
+    Ok(
+        tracker.inputs.directories[path.to_str().context("non-UTF8 Go path")?]
+            .1
+            .names
+            .clone()
+            .unwrap_or_default(),
+    )
+}
+
 /// Mirror the regular files of a source directory into its virtual package directory. Go
-/// applies its normal file selection and embed matching to the overlay view.
+/// applies its normal file selection to the overlay view.
 ///
 /// A go.mod in the package directory itself is not mirrored: the package directory is then the
 /// module root, and a copy would make the virtual directory a separate nested module.
 async fn mirror_directory(
     tracker: &mut Tracker<'_>,
     project: &Path,
-    package_directory: &str,
     virtual_directory: &str,
     source_directory: &str,
-    recursive: bool,
     mirrored: &mut BTreeMap<RcStr, RcStr>,
 ) -> Result<()> {
-    let mut pending = vec![(
-        RcStr::from(virtual_directory),
-        RcStr::from(source_directory),
-    )];
-    while let Some((virtual_directory, source_directory)) = pending.pop() {
-        let path = module_path(project, &source_directory);
-        tracker.dir(&path).await?;
-        let Some(names) = tracker.inputs.directories[path.to_str().context("non-UTF8 Go path")?]
-            .1
-            .names
-            .clone()
-        else {
-            continue;
-        };
-        for (name, kind) in names {
-            let virtual_path = join_relative(&virtual_directory, &name);
-            let source_path = join_relative(&source_directory, &name);
+    for (name, kind) in tracked_entries(tracker, project, source_directory).await? {
+        // Symlinks are unsupported Go inputs and other entries cannot be compiled.
+        if kind == 0 && name != "go.mod" {
+            mirrored.insert(
+                join_relative(virtual_directory, &name),
+                join_relative(source_directory, &name),
+            );
+        }
+    }
+    Ok(())
+}
+
+/// Names Go skips while walking a directory an embed pattern names. This mirrors
+/// `isBadEmbedName` and the hidden-file rule in cmd/go; `all:` only keeps `.` and `_` names.
+fn skipped_embed_name(name: &str, all: bool) -> bool {
+    matches!(name, ".bzr" | ".git" | ".hg" | ".svn") || (!all && name.starts_with(['.', '_']))
+}
+
+/// Files an embed pattern can select below the package directory `root`, relative to it with
+/// `/` separators. Only directories along the pattern and the subtrees of matched directories
+/// are listed. Each listing is tracked, so new matches invalidate discovery without observing
+/// unrelated subtrees, such as `node_modules` beside a package at the project root.
+///
+/// This follows Go's `//go:embed` resolution: each path element is matched against one
+/// directory listing, a matched file is selected by itself, and a matched directory selects its
+/// subtree except names Go skips, stopping at nested modules. The go.mod files of nested
+/// modules are selected too, so an overlay shows Go the same module boundaries. Go validates
+/// the pattern itself; invalid patterns select nothing here.
+async fn embed_pattern_files(
+    tracker: &mut Tracker<'_>,
+    root: &Path,
+    pattern: &str,
+) -> Result<Vec<RcStr>> {
+    let (all, pattern) = match pattern.strip_prefix("all:") {
+        Some(pattern) => (true, pattern),
+        None => (false, pattern),
+    };
+    let parts = pattern.split('/').collect::<Vec<_>>();
+    if parts
+        .iter()
+        .any(|part| part.is_empty() || matches!(*part, "." | ".."))
+    {
+        return Ok(vec![]);
+    }
+    let Ok(matchers) = parts
+        .iter()
+        .map(|part| embed_matcher(part))
+        .collect::<Result<Vec<_>>>()
+    else {
+        return Ok(vec![]);
+    };
+    let mut files = vec![];
+    let mut trees = vec![];
+    let mut pending = vec![(rcstr!(""), 0)];
+    while let Some((directory, index)) = pending.pop() {
+        let entries = tracked_entries(tracker, root, &directory).await?;
+        if index > 0 && entries.get("go.mod") == Some(&0) {
+            files.push(join_relative(&directory, "go.mod"));
+        }
+        let last = index + 1 == matchers.len();
+        for (name, kind) in entries {
+            if !matchers[index].is_match(&name) {
+                continue;
+            }
+            let path = join_relative(&directory, &name);
             match kind {
-                0 if name == "go.mod" && virtual_directory == package_directory => {}
-                0 => {
-                    mirrored.insert(virtual_path, source_path);
-                }
-                1 if recursive => pending.push((virtual_path, source_path)),
-                // Symlinks are unsupported Go inputs and other entries cannot be compiled.
+                // The package directory's own go.mod is never embedded into its module.
+                0 if last && !(index == 0 && name == "go.mod") => files.push(path),
+                1 if last => trees.push(path),
+                1 => pending.push((path, index + 1)),
+                // Symlinks and irregular files are rejected by Go itself.
                 _ => {}
             }
         }
     }
-    Ok(())
+    while let Some(directory) = trees.pop() {
+        let entries = tracked_entries(tracker, root, &directory).await?;
+        if entries.get("go.mod") == Some(&0) {
+            files.push(join_relative(&directory, "go.mod"));
+            continue;
+        }
+        for (name, kind) in entries {
+            if skipped_embed_name(&name, all) {
+                continue;
+            }
+            let path = join_relative(&directory, &name);
+            match kind {
+                0 => files.push(path),
+                1 => trees.push(path),
+                _ => {}
+            }
+        }
+    }
+    Ok(files)
 }
 
 /// Materialize generated source bytes outside the project. The virtual paths remain in the
@@ -1017,7 +1098,7 @@ async fn observe_packages(
             );
         }
         // Go embed patterns may gain matches in directories not yet containing a selected file.
-        // Observe directory inventories only underneath each pattern's fixed prefix.
+        // Observe only the directory inventories each pattern is matched against.
         tracker
             .inputs
             .embed_patterns
@@ -1029,24 +1110,7 @@ async fn observe_packages(
                     .map(|pattern| pattern.as_str().into()),
             );
         for pattern in &pkg.embed_patterns {
-            let pattern = pattern.strip_prefix("all:").unwrap_or(pattern);
-            let mut prefix = PathBuf::new();
-            for part in pattern.split('/') {
-                if part.contains(['*', '?', '[']) {
-                    break;
-                }
-                prefix.push(part);
-            }
-            let base = dir.join(prefix);
-            if base.is_dir() {
-                tracker.tree(&base).await?;
-            } else {
-                if pattern.contains(['*', '?', '[']) {
-                    tracker.tree(base.parent().unwrap_or(dir)).await?;
-                } else {
-                    tracker.parents(base.parent().unwrap_or(dir)).await?;
-                }
-            }
+            embed_pattern_files(tracker, dir, pattern).await?;
         }
     }
     Ok(assembly_flags)
@@ -1132,9 +1196,7 @@ async fn discover(
                 &mut tracker,
                 &project,
                 virtual_directory,
-                virtual_directory,
                 source_directory,
-                false,
                 &mut mirrored,
             )
             .await?;
@@ -1151,7 +1213,7 @@ async fn discover(
         .await?;
         // Embed patterns are relative to the package directory, which is virtual for aliased
         // packages. Go reports the patterns even when they match nothing, so mirror the source
-        // subtree below each pattern's fixed prefix and let Go match again.
+        // entries each pattern can match and let Go match again.
         for _ in 0..4 {
             let mirrored_before = mirrored.len();
             for pkg in &packages {
@@ -1162,39 +1224,14 @@ async fn discover(
                 else {
                     continue;
                 };
+                let source_root = module_path(&project, source_directory);
                 for pattern in &pkg.embed_patterns {
-                    let pattern = pattern.strip_prefix("all:").unwrap_or(pattern);
-                    let mut prefix = vec![];
-                    for part in pattern.split('/') {
-                        if part.contains(['*', '?', '[', '\\']) {
-                            break;
-                        }
-                        prefix.push(part);
+                    for file in embed_pattern_files(&mut tracker, &source_root, pattern).await? {
+                        mirrored.insert(
+                            join_relative(virtual_directory, &file),
+                            join_relative(source_directory, &file),
+                        );
                     }
-                    let prefix = prefix.join("/");
-                    let source_prefix = join_relative(source_directory, &prefix);
-                    // A pattern without wildcards can name a file; mirror its directory.
-                    let prefix =
-                        if prefix.is_empty() || module_path(&project, &source_prefix).is_dir() {
-                            prefix
-                        } else {
-                            prefix
-                                .rsplit_once('/')
-                                .map_or(String::new(), |(parent, _)| parent.to_owned())
-                        };
-                    if prefix.split('/').any(|part| part == "..") {
-                        continue;
-                    }
-                    mirror_directory(
-                        &mut tracker,
-                        &project,
-                        virtual_directory,
-                        &join_relative(virtual_directory, &prefix),
-                        &join_relative(source_directory, &prefix),
-                        true,
-                        &mut mirrored,
-                    )
-                    .await?;
                 }
             }
             if mirrored.len() == mirrored_before {

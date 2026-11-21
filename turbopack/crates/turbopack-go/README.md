@@ -128,9 +128,11 @@ Go files directly in the package directory start with a `//line` directive in th
 so compiler diagnostics and stack traces name the source files; embedding those files
 therefore includes the directive. Other mirrored files, including `.go` files below embed
 patterns, keep their original bytes. Other diagnostics are mapped back to the source
-directory. Discovery mirrors the directory's regular files, plus the subtree below each
-embed pattern's fixed prefix, and tracks the source files Go reads. Nothing is written to
-the project.
+directory. Discovery mirrors the directory's regular files, plus the entries each embed
+pattern can match: a matched file by itself and a matched directory with its subtree, as
+Go selects them. Only directory listings along a pattern are observed, so an embed in a
+package at the project root does not walk `node_modules`. Discovery also tracks the source
+files Go reads. Nothing is written to the project.
 
 `go_source_failure(*sources, session, message)` returns a failed `GoBundleResult` for a
 source set the consumer does not compile, such as a directory that declares
