@@ -140,5 +140,5 @@ We prevent potentially-local `Vc`s from escaping the lifetime of a function usin
 [`turbo_tasks::function`]: crate::function
 [monomorphization]: https://doc.rust-lang.org/book/ch10-01-syntax.html#performance-of-code-using-generics
 [`State`]: crate::State
-[book-cells]: https://turbopack-rust-docs.vercel.sh/turbo-engine/cells.html
+[book-cells]: https://turbopack.dev/docs
 [collectibles]: crate::CollectiblesSource
