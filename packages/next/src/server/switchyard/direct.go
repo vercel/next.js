@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"maps"
 	"net"
@@ -46,8 +47,9 @@ type directState struct {
 	stripPrefixes []string
 	// Compression's MIME database, for the choices Node's compression
 	// middleware makes (see compress.go).
-	mimeTypes map[string]bool
-	compress  bool
+	mimeTypes      map[string]bool
+	compress       bool
+	maxHeaderBytes int64
 	// route id → worker serving it
 	workers map[string]*goUpstream
 }
@@ -147,8 +149,9 @@ func (s *directState) loadTable(data []byte) error {
 		return err
 	}
 	var raw struct {
-		Compress bool `json:"compress"`
-		Direct   struct {
+		Compress       bool  `json:"compress"`
+		MaxHeaderBytes int64 `json:"maxHeaderBytes"`
+		Direct         struct {
 			StripRequestHeaders        []string        `json:"stripRequestHeaders"`
 			StripRequestHeaderPrefixes []string        `json:"stripRequestHeaderPrefixes"`
 			MimeTypes                  map[string]bool `json:"mimeTypes"`
@@ -170,6 +173,7 @@ func (s *directState) loadTable(data []byte) error {
 	}
 	s.mimeTypes = raw.Direct.MimeTypes
 	s.compress = raw.Compress
+	s.maxHeaderBytes = raw.MaxHeaderBytes
 	s.table = table
 	return nil
 }
@@ -288,7 +292,7 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 		// answers its error page. So a GET handler that does its work and
 		// then crashes can run twice here. Requests Go would also resend for
 		// their Idempotency-Key header go to Node (routing.headersNodeHandles).
-		Transport: &http.Transport{
+		Transport: nodeHeaderLimitTransport{&http.Transport{
 			Proxy:               nil,
 			DialContext:         (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
 			MaxIdleConns:        0,
@@ -297,10 +301,17 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 			// Node's client doesn't ask the worker for compression either.
 			DisableCompression:    true,
 			ExpectContinueTimeout: 1 * time.Second,
-		},
+		}},
 		ModifyResponse: func(res *http.Response) error {
 			attempt := attemptOf(res.Request.Context())
 			attempt.compress, attempt.encoding = planCompression(res, attempt.state)
+			// Node passes the worker's Trailer header on but never the trailer
+			// fields themselves. The proxy writes the header from the names in
+			// res.Trailer, and after the body the fields the Transport put
+			// there; trailerDropper clears them first.
+			if len(res.Trailer) > 0 {
+				res.Body = &trailerDropper{ReadCloser: res.Body, res: res}
+			}
 			if attempt.compress != compressNone {
 				res.Body = &finishingBody{ReadCloser: res.Body, attempt: attempt}
 			}
@@ -347,6 +358,45 @@ func (f *switchyard) newDirectProxy(public *net.TCPAddr, upstreamIdle time.Durat
 		},
 		ErrorLog: proxyErrorLog,
 	}
+}
+
+// Node's parser counts status text, header names and values, excluding wire
+// delimiters. Go's MaxResponseHeaderBytes includes those delimiters, so using
+// it would reject responses below Node's limit. Check before ReverseProxy
+// removes hop-by-hop headers, and retain Transport's existing raw-byte cap.
+type nodeHeaderLimitTransport struct {
+	transport *http.Transport
+}
+
+func (t nodeHeaderLimitTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	res, err := t.transport.RoundTrip(r)
+	if err != nil {
+		return nil, err
+	}
+	attempt := attemptOf(r.Context())
+	limit := attempt.state.maxHeaderBytes
+	_, statusText, _ := strings.Cut(res.Status, " ")
+	size := int64(len(statusText))
+	for name, values := range res.Header {
+		for _, value := range values {
+			size += int64(len(name) + len(value))
+		}
+	}
+	// Transport moves these fields out of Header while parsing the response.
+	if len(res.TransferEncoding) > 0 {
+		size += int64(len("Transfer-Encoding") + len(strings.Join(res.TransferEncoding, ", ")))
+	}
+	if len(res.Trailer) > 0 {
+		size += int64(len("Trailer") + 2*(len(res.Trailer)-1))
+		for name := range res.Trailer {
+			size += int64(len(name))
+		}
+	}
+	if size >= limit {
+		res.Body.Close()
+		return nil, fmt.Errorf("route.go response headers exceed Node's %d-byte limit", limit)
+	}
+	return res, nil
 }
 
 // writeInternalError is Switchyard's own answer when a worker fails after it
@@ -522,3 +572,18 @@ func (a *directAttempt) finish() {
 }
 
 func (a *directAttempt) Unwrap() http.ResponseWriter { return a.ResponseWriter }
+
+// trailerDropper clears the response's trailer fields once the body ends, so
+// the proxy has none to send on.
+type trailerDropper struct {
+	io.ReadCloser
+	res *http.Response
+}
+
+func (t *trailerDropper) Read(p []byte) (int, error) {
+	n, err := t.ReadCloser.Read(p)
+	if err != nil {
+		t.res.Trailer = nil
+	}
+	return n, err
+}

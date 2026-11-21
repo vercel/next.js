@@ -555,3 +555,65 @@ func TestDirectCompressionVary(t *testing.T) {
 		t.Fatalf("ignored no-transform in repeated Cache-Control: %q", res)
 	}
 }
+
+func TestDirectWorkerResponseHeaderLimit(t *testing.T) {
+	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Large", strings.Repeat("x", 20*1024))
+		io.WriteString(w, "worker response")
+	})
+	res := fx.raw(t, "GET /api/echo HTTP/1.1")
+	if !strings.HasPrefix(res, "HTTP/1.1 500 ") || strings.Contains(res, "worker response") {
+		t.Fatalf("oversized response reached the client: %q", res)
+	}
+	select {
+	case <-fx.node:
+		t.Error("replayed a request after the worker already handled it")
+	default:
+	}
+}
+
+func TestDirectWorkerResponseBelowNodeHeaderLimit(t *testing.T) {
+	const date = "Wed, 18 Nov 2026 10:00:00 GMT"
+	// Node counts 16383 bytes; wire delimiters put this over Go's raw limit.
+	const padding = 16384 - (len("OK") + len("X-Large") + len("Date") + len(date) + len("Content-Type") + len("application/json") + len("Content-Length") + len("2")) - 1
+	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Date", date)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Length", "2")
+		w.Header().Set("X-Large", strings.Repeat("x", padding))
+		io.WriteString(w, `{}`)
+	})
+	res := fx.raw(t, "GET /api/echo HTTP/1.1")
+	if !strings.HasPrefix(res, "HTTP/1.1 200 OK\r\n") || !strings.HasSuffix(res, `{}`) {
+		t.Fatal("rejected a response below Node's header limit")
+	}
+}
+
+func TestReasonPhrasesTrailersAndEarlyHints(t *testing.T) {
+	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Query().Get("case") {
+		case "413":
+			w.WriteHeader(http.StatusRequestEntityTooLarge)
+		case "extras":
+			w.Header().Set("Link", "</a.css>; rel=preload")
+			w.WriteHeader(http.StatusEarlyHints)
+			w.Header().Set("Trailer", "X-Checksum")
+			w.WriteHeader(http.StatusOK)
+			io.WriteString(w, "body")
+			w.Header().Set("X-Checksum", "abc")
+		}
+	})
+	if res := fx.raw(t, "GET /api/echo?case=413 HTTP/1.1"); !strings.HasPrefix(res, "HTTP/1.1 413 Request Entity Too Large\r\n") {
+		t.Errorf("413: %q", res)
+	}
+	res := fx.raw(t, "GET /api/echo?case=extras HTTP/1.1")
+	if !strings.HasPrefix(res, "HTTP/1.1 200 OK\r\n") {
+		t.Errorf("early hints reached the client: %q", res)
+	}
+	if !strings.Contains(res, "Trailer: X-Checksum\r\n") || strings.Contains(res, "abc") {
+		t.Errorf("trailers: %q", res)
+	}
+	if !strings.Contains(res, "Link: </a.css>; rel=preload\r\n") {
+		t.Errorf("link: %q", res)
+	}
+}
