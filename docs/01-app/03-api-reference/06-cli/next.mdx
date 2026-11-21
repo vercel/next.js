@@ -308,7 +308,7 @@ This enables several experimental options to make debugging easier:
 - Continues building even after the first prerender error, so you can see all issues at once:
   - `experimental.prerenderEarlyExit = false`
 
-This helps surface more readable stack traces and code frames in the build output.
+This helps surface more readable stack traces and code frames in the build output, including stack frames from third-party dependencies. Next.js, React, and Node.js internals remain hidden.
 
 > **Warning**: `--debug-prerender` is for debugging in development only. Do not deploy builds generated with `--debug-prerender` to production, as it may impact performance.
 

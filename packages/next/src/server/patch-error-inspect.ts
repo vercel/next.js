@@ -7,6 +7,7 @@ import {
   devirtualizeReactServerURL,
   findApplicableSourceMapPayload,
   findSourceMapPayload,
+  isThirdPartyStackFrame,
   ignoreListAnonymousStackFramesIfSandwiched as ignoreListAnonymousStackFramesIfSandwichedGeneric,
   sourceMapIgnoreListsEverything,
 } from './lib/source-maps'
@@ -482,6 +483,8 @@ function parseAndSourceMap(
   inspectOptions: util.InspectOptions
 ): string {
   const showIgnoreListed = process.env.__NEXT_SHOW_IGNORE_LISTED === 'true'
+  const showDependencyFrames =
+    process.env.__NEXT_SHOW_DEPENDENCY_FRAMES === 'true'
   // We could just read it from `error.stack`.
   // This works around cases where a 3rd party `Error.prepareStackTrace` implementation
   // doesn't implement the name computation correctly.
@@ -562,7 +565,12 @@ function parseAndSourceMap(
           frame.stack.line1,
           frame.stack.column1
         )
-    } else if (showIgnoreListed) {
+    } else if (
+      showIgnoreListed ||
+      (showDependencyFrames &&
+        frame.stack.file !== null &&
+        isThirdPartyStackFrame(frame.stack.file))
+    ) {
       sourceMappedStack +=
         '\n' +
         dim(

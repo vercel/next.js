@@ -1,4 +1,112 @@
-import { ignoreListAnonymousStackFramesIfSandwiched } from './source-maps'
+import { findSourceMap, SourceMap } from 'module'
+import {
+  filterStackFrameDEV,
+  filterStackFrameForErrorDEV,
+  ignoreListAnonymousStackFramesIfSandwiched,
+  isThirdPartyStackFrame,
+} from './source-maps'
+
+jest.mock('module', () => ({
+  ...jest.requireActual('module'),
+  findSourceMap: jest.fn(),
+}))
+
+describe('dependency frames in validation errors', () => {
+  afterEach(() => {
+    jest.mocked(findSourceMap).mockReset()
+  })
+
+  it.each<[string, boolean]>([
+    ['file:///app/node_modules/date-library/index.js', true],
+    ['C:\\app\\node_modules\\date-library\\index.js', true],
+    [
+      '/app/node_modules/.pnpm/date-library@1.0.0/node_modules/date-library/index.js',
+      true,
+    ],
+    ['webpack://app/./node_modules/@example/date-library/index.js', true],
+    ['node_modules/date-library/index.js', true],
+    ['/app/node_modules/next/dist/server/app-render.js', false],
+    ['/app/node_modules/@next/env/dist/index.js', false],
+    ['/app/node_modules/', false],
+    ['/app/node_modules/react/index.js', false],
+    ['/app/node_modules/react-dom/server.js', false],
+    ['/app/node_modules/react-server-dom-webpack/server.js', false],
+    ['/app/node_modules/react-server-dom-turbopack/server.js', false],
+    ['/app/node_modules/scheduler/index.js', false],
+    ['/app/node_modules/.pnpm/react@19/node_modules/react/index.js', false],
+    ['/app/node_modules/react-datepicker/index.js', true],
+    ['/app/not_node_modules/date-library/index.js', false],
+    ['/app/.next/server/chunks/node_modules_next.js', false],
+    ['node:internal/process/task_queues', false],
+    ['/app/page.js', false],
+  ])('classifies %s', (sourceURL, expected) => {
+    expect(isThirdPartyStackFrame(sourceURL)).toBe(expected)
+  })
+
+  it('retains external dependency frames only for error delivery', () => {
+    const sourceURL = '/app/node_modules/date-library/index.js'
+    expect(filterStackFrameDEV(sourceURL, 'readCurrentTime', 2, 10)).toBe(false)
+    expect(
+      filterStackFrameForErrorDEV(sourceURL, 'readCurrentTime', 2, 10)
+    ).toBe(true)
+    expect(
+      filterStackFrameForErrorDEV(
+        'node:internal/process/task_queues',
+        'nextTick',
+        1,
+        1
+      )
+    ).toBe(false)
+  })
+
+  it.each<[string, boolean]>([
+    ['date-library', true],
+    ['next', false],
+    ['react', false],
+  ])(
+    'resolves bundled %s frames without changing the shared filter',
+    (name, expected) => {
+      const payload = {
+        version: 3,
+        sources: [`file:///app/node_modules/${name}/index.js`],
+        names: [],
+        mappings: 'AAAA',
+        ignoreList: [0],
+      }
+      jest.mocked(findSourceMap).mockReturnValue(new SourceMap(payload))
+
+      const sourceURL = '/app/.next/server/chunks/library.js'
+      expect(filterStackFrameDEV(sourceURL, 'readCurrentTime', 1, 1)).toBe(
+        false
+      )
+      expect(
+        filterStackFrameForErrorDEV(sourceURL, 'readCurrentTime', 1, 1)
+      ).toBe(expected)
+    }
+  )
+
+  it('uses the mapped position when a chunk contains framework and dependency sources', () => {
+    const payload = {
+      version: 3,
+      sources: [
+        'file:///app/node_modules/next/index.js',
+        'file:///app/node_modules/date-library/index.js',
+      ],
+      names: [],
+      mappings: 'AAAA;ACAA',
+      ignoreList: [0, 1],
+    }
+    jest.mocked(findSourceMap).mockReturnValue(new SourceMap(payload))
+
+    const sourceURL = '/app/.next/server/chunks/library.js'
+    expect(filterStackFrameForErrorDEV(sourceURL, 'framework', 1, 1)).toBe(
+      false
+    )
+    expect(filterStackFrameForErrorDEV(sourceURL, 'dependency', 2, 1)).toBe(
+      true
+    )
+  })
+})
 
 type StackFrame = null | {
   file: string

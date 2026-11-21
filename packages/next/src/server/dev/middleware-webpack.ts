@@ -518,7 +518,8 @@ async function getOriginalStackFrame({
     },
   })
 
-  let defaultNormalizedStackFrameLocation = frame.file
+  let defaultNormalizedStackFrameLocation =
+    frame.file === null ? null : devirtualizeReactServerURL(frame.file)
   if (
     defaultNormalizedStackFrameLocation !== null &&
     defaultNormalizedStackFrameLocation.startsWith('file://')

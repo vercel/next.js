@@ -467,6 +467,12 @@ const filterStackFrame =
         .filterStackFrameDEV
     : undefined
 
+const filterValidationErrorStackFrame =
+  process.env.NODE_ENV !== 'production'
+    ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
+        .filterStackFrameForErrorDEV
+    : undefined
+
 /**
  * Walks the loader tree to find the minimum `unstable_dynamicStaleTime` exported by
  * any page module. Returns null if no page exports the config.
@@ -6693,14 +6699,14 @@ async function logMessagesAndSendErrorsToBrowser(
         ctx.componentMod,
         { errors },
         clientModules,
-        { filterStackFrame }
+        { filterStackFrame: filterValidationErrorStackFrame }
       )
     } else {
       errorsFlightStream = renderToWebFlightStream(
         ctx.componentMod,
         { errors },
         clientModules,
-        { filterStackFrame }
+        { filterStackFrame: filterValidationErrorStackFrame }
       )
     }
 
