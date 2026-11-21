@@ -161,6 +161,26 @@ A run takes ~2–5 min. To validate a fixture without executing:
 pnpm eval agent-042-your-thing --dry
 ```
 
+Evals configured with a skill and metrics collector can gate skill efficiency.
+Replace `<configured-eval>` with the eval name:
+
+```bash
+pnpm eval <configured-eval> --effort-gate
+```
+
+For faster iteration, override the five-sample default:
+
+```bash
+pnpm eval <configured-eval> --effort-gate --effort-samples 2
+```
+
+The gate runs five sequential samples each for baseline, bundled-docs discovery
+through `agents-md`, and the configured skill. It reports pass rate, median
+input tokens, bundled-doc discovery, and whether Request Insights ran before
+project inspection for all three. The skill must match or exceed the
+baseline pass rate and reduce median input tokens by at least 40%. Normal eval
+runs do not execute this gate.
+
 Run a group from `eval.suites.json` with `--suite`:
 
 ```bash
