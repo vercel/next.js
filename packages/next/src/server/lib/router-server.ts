@@ -363,7 +363,10 @@ export async function initialize(opts: {
       (req, res) => {
         return requestHandlers[opts.dir](req, res)
       },
-      Boolean(developmentConfig.experimental.requestInsights)
+      Boolean(
+        developmentConfig.experimental.requestInsights ||
+          isRequestInsightsEnabled()
+      )
     )
 
     development = {
@@ -388,7 +391,7 @@ export async function initialize(opts: {
     }
 
     if (opts.dev && req.url) {
-      if (config.experimental.requestInsights) {
+      if (config.experimental.requestInsights || isRequestInsightsEnabled()) {
         process.env.__NEXT_REQUEST_INSIGHTS = 'true'
         filterInvalidDevRequestIdHeaders(req.headers)
         const identity = resolveRequestInsightsIdentity({
@@ -427,7 +430,7 @@ export async function initialize(opts: {
           res.end(
             JSON.stringify({
               error:
-                'Request Insights is not enabled. Set experimental.requestInsights = true and restart next dev.',
+                'Request Insights is not enabled. Restart next dev with --experimental-request-insights.',
             })
           )
           return
@@ -877,7 +880,10 @@ export async function initialize(opts: {
         }
 
         try {
-          if (config.experimental.requestInsights) {
+          if (
+            config.experimental.requestInsights ||
+            isRequestInsightsEnabled()
+          ) {
             const requestInsightsIdentity = getRequestMeta(
               req,
               'requestInsightsIdentity'
@@ -1111,7 +1117,10 @@ export async function initialize(opts: {
     try {
       return await requestHandlerInner(req, res)
     } finally {
-      if (opts.dev && config.experimental.requestInsights) {
+      if (
+        opts.dev &&
+        (config.experimental.requestInsights || isRequestInsightsEnabled())
+      ) {
         const identity = getRequestMeta(req, 'requestInsightsIdentity')
         if (identity) {
           void waitForResponseToFinish(res).then(() => {
