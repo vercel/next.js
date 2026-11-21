@@ -48,7 +48,9 @@ export function serverPatchReducer(
   // (`HistoryTraversal`), since the data we received is correct.
   const retryCanonicalUrl = createHrefFromUrl(retryUrl)
   const retryNextUrl = action.nextUrl
-  const scrollBehavior = ScrollBehavior.Default
+  // Preserve the scroll behavior of the navigation that triggered the retry so
+  // that `scroll: false` is respected across async retries.
+  const scrollBehavior = action.scrollBehavior ?? ScrollBehavior.Default
   const navigationLock = getCurrentNavigationLock()
   const now = Date.now()
   return navigateToKnownRoute(
