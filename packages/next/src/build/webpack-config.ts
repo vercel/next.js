@@ -1262,6 +1262,8 @@ export default async function getBaseWebpackConfig(
                   global_defs: {
                     'process.env.__NEXT_PRIVATE_MINIMIZE_MACRO_FALSE': false,
                   },
+                  keep_classnames: noMangling,
+                  keep_fnames: noMangling,
                 },
                 mangle: !noMangling && {
                   reserved: ['AbortSignal'],

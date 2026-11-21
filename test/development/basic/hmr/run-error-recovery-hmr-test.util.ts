@@ -450,7 +450,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
             .toMatchInlineSnapshot(`
            "./components/parse-error.xyz
              × Module parse failed:
-             ╰─▶   × JavaScript parse error: Expression expected
+             ╰─▶   × JavaScript parse error: Unexpected token '}'
                     ╭─[3:0]
                   1 │ This
                   2 │ is

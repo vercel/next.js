@@ -430,48 +430,48 @@ describe('`next-js` Condition - Rendering', () => {
 
         const text = formatHtmlText($('main').html())
         expect(text).toMatchInlineSnapshot(`
-         "  Server
-             Exports
-               Static
-               Default:
-               "EXPORTS DEFAULT SERVER - Default Export"
-               Namespace:
-               {"default":"EXPORTS DEFAULT SERVER - Default Export","named":"EXPORTS DEFAULT SERVER - Named Export"}
-               named:
-               "EXPORTS DEFAULT SERVER - Named Export"
-               Dynamic
-               {"default":"EXPORTS DEFAULT SERVER - Default Export","named":"EXPORTS DEFAULT SERVER - Named Export"}
-             Imports
-               Static
-               Default:
-               "IMPORTS DEFAULT SERVER - Default Export"
-               Namespace:
-               {"default":"IMPORTS DEFAULT SERVER - Default Export","named":"IMPORTS DEFAULT SERVER - Named Export"}
-               named:
-               "IMPORTS DEFAULT SERVER - Named Export"
-               Dynamic
-               {"default":"IMPORTS DEFAULT SERVER - Default Export","named":"IMPORTS DEFAULT SERVER - Named Export"}
-           Client
-             Exports
-               Static
-               Default:
-               "EXPORTS DEFAULT CLIENT - Default Export"
-               Namespace:
-               {"default":"EXPORTS DEFAULT CLIENT - Default Export","named":"EXPORTS DEFAULT CLIENT - Named Export"}
-               named:
-               "EXPORTS DEFAULT CLIENT - Named Export"
-               Dynamic
-               {"default":"EXPORTS DEFAULT CLIENT - Default Export","named":"EXPORTS DEFAULT CLIENT - Named Export"}
-             Imports
-               Static
-               Default:
-               "IMPORTS DEFAULT CLIENT - Default Export"
-               Namespace:
-               {"default":"IMPORTS DEFAULT CLIENT - Default Export","named":"IMPORTS DEFAULT CLIENT - Named Export"}
-               named:
-               "IMPORTS DEFAULT CLIENT - Named Export"
-               Dynamic
-               {"default":"IMPORTS DEFAULT CLIENT - Default Export","named":"IMPORTS DEFAULT CLIENT - Named Export"}"
+           "  Server
+               Exports
+                 Static
+                 Default:
+                 "EXPORTS DEFAULT SERVER - Default Export"
+                 Namespace:
+                 {"default":"EXPORTS DEFAULT SERVER - Default Export","named":"EXPORTS DEFAULT SERVER - Named Export"}
+                 named:
+                 "EXPORTS DEFAULT SERVER - Named Export"
+                 Dynamic
+                 {"default":"EXPORTS DEFAULT SERVER - Default Export","named":"EXPORTS DEFAULT SERVER - Named Export"}
+               Imports
+                 Static
+                 Default:
+                 "IMPORTS DEFAULT SERVER - Default Export"
+                 Namespace:
+                 {"default":"IMPORTS DEFAULT SERVER - Default Export","named":"IMPORTS DEFAULT SERVER - Named Export"}
+                 named:
+                 "IMPORTS DEFAULT SERVER - Named Export"
+                 Dynamic
+                 {"default":"IMPORTS DEFAULT SERVER - Default Export","named":"IMPORTS DEFAULT SERVER - Named Export"}
+             Client
+               Exports
+                 Static
+                 Default:
+                 "EXPORTS DEFAULT CLIENT - Default Export"
+                 Namespace:
+                 {"default":"EXPORTS DEFAULT CLIENT - Default Export","named":"EXPORTS DEFAULT CLIENT - Named Export"}
+                 named:
+                 "EXPORTS DEFAULT CLIENT - Named Export"
+                 Dynamic
+                 {"default":"EXPORTS DEFAULT CLIENT - Default Export","named":"EXPORTS DEFAULT CLIENT - Named Export"}
+               Imports
+                 Static
+                 Default:
+                 "IMPORTS DEFAULT CLIENT - Default Export"
+                 Namespace:
+                 {"default":"IMPORTS DEFAULT CLIENT - Default Export","named":"IMPORTS DEFAULT CLIENT - Named Export"}
+                 named:
+                 "IMPORTS DEFAULT CLIENT - Named Export"
+                 Dynamic
+                 {"default":"IMPORTS DEFAULT CLIENT - Default Export","named":"IMPORTS DEFAULT CLIENT - Named Export"}"
         `)
       })
       it('should not follow the next-js condition from an external commonjs package', async () => {
