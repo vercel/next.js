@@ -258,6 +258,12 @@
       "node": "header Rsc"
     },
     {
+      "table": "base",
+      "target": "/shop/api/echo",
+      "header": { "Rsc": ["1"] },
+      "route": "/api/echo/route"
+    },
+    {
       "table": "app",
       "target": "/api/echo",
       "header": { "Te": ["trailers"] },
@@ -294,6 +300,34 @@
       "target": "/api/echo",
       "contentLength": 5,
       "node": "body on GET"
+    },
+
+    { "table": "base", "target": "/shop/api/echo", "route": "/api/echo/route" },
+    {
+      "table": "base",
+      "target": "/shop/api/echo",
+      "header": { "Accept-Encoding": ["gzip;q=0.5"] },
+      "route": "/api/echo/route"
+    },
+    {
+      "table": "base",
+      "target": "/shop",
+      "node": "outside basePath or its root"
+    },
+    {
+      "table": "base",
+      "target": "/shop/",
+      "node": "outside basePath or its root"
+    },
+    {
+      "table": "base",
+      "target": "/shopping/api/echo",
+      "node": "outside basePath or its root"
+    },
+    {
+      "table": "base",
+      "target": "/api/echo",
+      "node": "outside basePath or its root"
     },
 
     { "table": "proxy", "target": "/api/echo", "node": "app: proxy.ts" },

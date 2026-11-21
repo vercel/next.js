@@ -24,6 +24,7 @@ export type SwitchyardRouteTable =
   | Readonly<{ contract: { version: 1 }; reason: string }>
   | Readonly<{
       contract: { version: 1 }
+      basePath: string
       maxHeaderBytes: number
       nodePrefixes: readonly string[]
       nodeRequestHeaders: readonly string[]
@@ -134,6 +135,7 @@ export function buildSwitchyardRouteTable(
 
   return {
     contract: { version: VERSION },
+    basePath: input.basePath,
     maxHeaderBytes: input.maxHeaderBytes,
     // Next.js's own files, and the legacy static/ folder, whose contents the
     // table doesn't list.
@@ -168,9 +170,8 @@ function ineligibleReason(
   if (input.redirects.some((redirect) => !redirect.internal)) {
     return 'redirects'
   }
-  // Not handled yet: Switchyard would have to strip the basePath, and send
-  // the Vary header and compression Node's compression middleware adds.
-  if (input.basePath) return 'basePath'
+  // Not handled yet: Switchyard would have to send the Vary header and
+  // compression Node's compression middleware adds.
   if (input.compress) return 'compress'
   return undefined
 }
