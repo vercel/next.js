@@ -100,6 +100,12 @@ async function expectEdgeParamAuthorization(
   }
 }
 
+// Setup compiles proxy.go with a cold Go build of the standard library. The
+// flake job runs this suite three times concurrently with an empty Go build
+// cache, where that build alone has taken 117s, nearly the default 120s hook
+// timeout. Builds and startup also run in the same hook.
+const coldGoBuildTimeout = 240_000
+
 // Go middleware requires Turbopack, and released hosting builders do not yet
 // support its artifact. Deployment-specific coverage below invokes that artifact.
 // Edge Runtime is not supported with Cache Components.
@@ -118,7 +124,7 @@ describe.each(['go', 'typescript'])(
         )
       }
       await next.start()
-    })
+    }, coldGoBuildTimeout)
 
     it('authorizes the same query values as the App Router handler', async () => {
       await expectQueryAuthorization((path) => next.fetch(path))
@@ -208,7 +214,7 @@ describe('adapter Go proxy authorization', () => {
         (await fetch(`${origin}/docs/`)).headers.get('x-middleware-next')
       ).toBe('1')
     })
-  })
+  }, coldGoBuildTimeout)
 
   afterAll(async () => {
     if (child && child.exitCode === null) {

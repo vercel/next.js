@@ -111,12 +111,22 @@ async function expectProxyGoError(
 describe('native-proxy-go', () => {
   const { next, isNextStart } = nextTestSetup({ files: __dirname })
 
-  it('continues to a JS handler and matches all paths', async () => {
-    const response = await next.fetch('/native-proxy/inspect')
-    expect(response.status).toBe(200)
-    expect(response.headers.get('x-go-proxy')).toBe('yes')
-    expect((await next.fetch('/')).headers.get('x-go-proxy')).toBe('yes')
-  })
+  // In development, the first request waits for a cold Go build of the
+  // standard library and proxy.go. The flake job runs this suite three times
+  // concurrently with an empty Go build cache, where that request has exceeded
+  // the default 120s test timeout.
+  const coldGoBuildTimeout = 180_000
+
+  it(
+    'continues to a JS handler and matches all paths',
+    async () => {
+      const response = await next.fetch('/native-proxy/inspect')
+      expect(response.status).toBe(200)
+      expect(response.headers.get('x-go-proxy')).toBe('yes')
+      expect((await next.fetch('/')).headers.get('x-go-proxy')).toBe('yes')
+    },
+    coldGoBuildTimeout
+  )
 
   it('runs without a JavaScript middleware entry', async () => {
     await expect(next.readFile('.next/server/middleware.js')).rejects.toThrow()
