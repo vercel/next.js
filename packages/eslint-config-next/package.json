@@ -52,6 +52,10 @@
       "types": "./dist/core-web-vitals.d.ts",
       "default": "./dist/core-web-vitals.js"
     },
+    "./oxlint": {
+      "types": "./dist/oxlint.d.ts",
+      "default": "./dist/oxlint.js"
+    },
     "./typescript": {
       "types": "./dist/typescript.d.ts",
       "default": "./dist/typescript.js"
