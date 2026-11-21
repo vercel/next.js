@@ -1592,7 +1592,7 @@ export interface ExperimentalConfig {
   useCache?: boolean
 
   /**
-   * Enables durable `"use cache"` remote cache entries across deployments.
+   * Enables durable `"use cache"` remote cache entries across deployments. Enabled by default.
    * Ignored in development and when using webpack or Rspack.
    */
   durableUseCacheEntries?: boolean
@@ -2576,6 +2576,7 @@ export const defaultConfig = Object.freeze({
     prepareNavigation: false,
     inlineCss: false,
     useCache: undefined,
+    durableUseCacheEntries: true,
     useCacheStaticRootParamTracking: false,
     slowModuleDetection: undefined,
     globalNotFound: false,
