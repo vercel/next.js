@@ -6,11 +6,17 @@ import { requestIdleCallback } from '../request-idle-callback'
 // show the user something of value.
 const MS_MAX_IDLE_DELAY = 3800
 
-/** Resolve a promise that times out after given amount of milliseconds. */
+/**
+ * Resolve `p` within `MS_MAX_IDLE_DELAY` ms or reject with `err`.
+ *
+ * The timeout countdown only starts once `delayPromise` settles. This extends
+ * the deadline while known external work, such as chunk downloads or a
+ * development build, is still in progress.
+ */
 export function resolvePromiseWithTimeout<T>(
   p: Promise<T>,
   err: Error,
-  devPromise: Promise<void> | undefined
+  delayPromise: Promise<unknown> | undefined
 ): Promise<T> {
   return new Promise((resolve, reject) => {
     let cancelled = false
@@ -21,21 +27,7 @@ export function resolvePromiseWithTimeout<T>(
       resolve(r)
     }).catch(reject)
 
-    // We wrap these checks separately for better dead-code elimination in
-    // production bundles.
-    if (process.env.NODE_ENV === 'development') {
-      ;(devPromise || Promise.resolve()).then(() => {
-        requestIdleCallback(() =>
-          setTimeout(() => {
-            if (!cancelled) {
-              reject(err)
-            }
-          }, MS_MAX_IDLE_DELAY)
-        )
-      })
-    }
-
-    if (process.env.NODE_ENV !== 'development') {
+    const scheduleTimeout = () =>
       requestIdleCallback(() =>
         setTimeout(() => {
           if (!cancelled) {
@@ -43,6 +35,9 @@ export function resolvePromiseWithTimeout<T>(
           }
         }, MS_MAX_IDLE_DELAY)
       )
-    }
+
+    // Start the timer once the delay settles, regardless of its outcome. If
+    // there is no delay, start it immediately.
+    ;(delayPromise || Promise.resolve()).then(scheduleTimeout, scheduleTimeout)
   })
 }
