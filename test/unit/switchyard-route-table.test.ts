@@ -55,7 +55,7 @@ describe('switchyard-route-table', () => {
       basePath: '',
       hasI18n: false,
       trailingSlash: false,
-      compress: false,
+      compress: true,
       useFileSystemPublicRoutes: true,
       hasMiddleware: false,
       hasInstrumentation: false,
@@ -108,7 +108,6 @@ describe('switchyard-route-table', () => {
       ['rewrites', { afterFilesRewrites: [{}] }],
       ['trailingSlash', { trailingSlash: true }],
       ['redirects', { redirects: [{ internal: true }, {}] }],
-      ['compress', { compress: true }],
       ['useFileSystemPublicRoutes', { useFileSystemPublicRoutes: false }],
       ['NEXT_PRIVATE_TEST_HEADERS', { keepsInternalHeaders: true }],
       [

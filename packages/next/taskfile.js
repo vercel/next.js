@@ -1094,10 +1094,29 @@ export async function ncc_comment_json(task, opts) {
 }
 externals['compression'] = 'next/dist/compiled/compression'
 export async function ncc_compression(task, opts) {
+  const compression = require.resolve('compression')
   await task
-    .source(relative(__dirname, require.resolve('compression')))
+    .source(relative(__dirname, compression))
     .ncc({ packageName: 'compression', externals })
     .target('src/compiled/compression')
+
+  // target() recreates the directory cleared by ncc before writing the MIME
+  // policy from the middleware's database for Switchyard.
+  const compressible = require.resolve('compressible', {
+    paths: [dirname(compression)],
+  })
+  const mimeDb = require.resolve('mime-db/db.json', {
+    paths: [dirname(compressible)],
+  })
+  const database = JSON.parse(await fs.readFile(mimeDb, 'utf8'))
+  await writeJson(
+    join(__dirname, 'src/compiled/compression/mime-types.json'),
+    Object.fromEntries(
+      Object.entries(database)
+        .filter(([, value]) => typeof value.compressible === 'boolean')
+        .map(([type, value]) => [type, value.compressible])
+    )
+  )
 }
 externals['conf'] = 'next/dist/compiled/conf'
 export async function ncc_conf(task, opts) {
