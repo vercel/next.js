@@ -1346,10 +1346,23 @@ impl Endpoint for GoEndpoint {
             ),
         ]);
         let result = go_bundle_from_sources(*sources, session, generated).await?;
-        ensure!(
-            result.is_current().await?,
-            "Go route inputs changed during compilation; retry the request"
-        );
+        // Sources that change during compilation (an editor save, or a deleted route.go) are a
+        // transient state, not an error. Hand the build back marked Retry: request-side
+        // validation (`read_with_validated_endpoint`) reads the endpoint again, and change
+        // subscriptions wait for the file change that re-runs this task. An error here would
+        // carry no issue, so a subscription would report it as a fatal Turbopack error.
+        if matches!(result.outcome, GoBuildOutcome::Retry) || !result.is_current().await? {
+            let mut build = (*result).clone();
+            build.outcome = GoBuildOutcome::Retry;
+            return Ok(EndpointOutput {
+                project,
+                output_assets: OutputAssets::empty().to_resolved().await?,
+                output_paths: EndpointOutputPaths::NativeFailed { build: Some(build) }
+                    .resolved_cell(),
+                first_load_chunks: None,
+            }
+            .cell());
+        }
         let content = match &result.outcome {
             GoBuildOutcome::Success(content) => *content,
             GoBuildOutcome::Failed(message) => {

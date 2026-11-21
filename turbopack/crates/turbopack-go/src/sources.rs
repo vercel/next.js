@@ -79,6 +79,7 @@ pub async fn go_source_set(
             .context("Go module requires a disk filesystem")?,
         go_context,
     )?;
+    let from_directory = matches!(selection, GoSourceSelection::Directory);
     let names = match selection {
         GoSourceSelection::Files(names) => names,
         GoSourceSelection::Directory => {
@@ -119,6 +120,13 @@ pub async fn go_source_set(
             .await?;
         let content = path.read().await?;
         let FileContent::Content(content) = &*content else {
+            // The directory listing can come from an older execution than this read, so a
+            // file deleted after the listing shows up here as missing. In directory mode
+            // that file is simply no longer selected: the tracker recorded its absence, and
+            // the listing reruns. Explicitly selected files must exist.
+            if from_directory {
+                continue;
+            }
             anyhow::bail!("Go source is missing: {name}");
         };
         let mut source = String::new();
