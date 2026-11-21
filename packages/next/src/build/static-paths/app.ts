@@ -1282,9 +1282,9 @@ export async function buildAppStaticPaths({
       return
     }
 
-    // Explicit blocking policies do not produce fallback outputs, but may
-    // still need a render for prefetch hints and shell validation. Keep their
-    // candidates until we know whether a more specific render covers them.
+    // Explicit blocking policies do not produce fallback outputs, but still
+    // need a render for shell validation, prefetch hints, and the segment data
+    // that answers prefetches for values without a more specific render.
     // Not-found candidates do not need to render at all.
     if (
       paramMatching &&
@@ -1451,20 +1451,6 @@ export async function buildAppStaticPaths({
         prerenderablePathSegments,
         explicitFallbackParamName
       )
-
-      // Keep blocking candidates without a more specific render so the build
-      // can collect best-effort prefetch hints, even with instant=false. The
-      // renderer handles that validation opt-out; it must not skip this render.
-      // Explicit matching can skip candidates covered by a descendant.
-      // Without matching configuration, preserve every historical render:
-      // its output may still contribute the route's prefetch hints.
-      if (paramMatching !== undefined && !isEnsureStaticPage) {
-        prerenderedRoutes = prerenderedRoutes.filter(
-          (candidate) =>
-            candidate.fallbackMode !== FallbackMode.BLOCKING_STATIC_RENDER ||
-            candidate.throwOnEmptyStaticShell
-        )
-      }
     }
   }
 
