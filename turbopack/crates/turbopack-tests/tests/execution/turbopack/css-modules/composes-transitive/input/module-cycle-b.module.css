@@ -1,0 +1,8 @@
+.y {
+  color: blue;
+}
+
+.z {
+  composes: w from './module-cycle-a.module.css';
+  color: yellow;
+}

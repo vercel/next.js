@@ -1,0 +1,14 @@
+.e {
+  composes: f from './entry-cycle-peer.module.css';
+  color: red;
+}
+
+.g {
+  composes: ext from './entry-cycle-external.module.css';
+  color: green;
+}
+
+.i {
+  composes: h from './entry-cycle-peer.module.css';
+  color: pink;
+}

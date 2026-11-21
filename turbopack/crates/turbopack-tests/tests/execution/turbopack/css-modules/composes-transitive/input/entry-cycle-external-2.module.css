@@ -1,0 +1,8 @@
+.ext2 {
+  composes: ext2base;
+  color: teal;
+}
+
+.ext2base {
+  color: navy;
+}
