@@ -35,6 +35,8 @@ export interface WorkStore {
 
   readonly isOnDemandRevalidate?: boolean
   readonly isBuildTimePrerendering?: boolean
+  /** The deployment requires a complete result without a runtime server. */
+  readonly isStaticExport?: boolean
 
   forceDynamic?: boolean
   fetchCache?: AppSegmentConfig['fetchCache']

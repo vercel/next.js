@@ -28,13 +28,18 @@ function createSyncIOErrorImpl(
   route: string,
   expression: string,
   type: SyncIOApiType,
-  docsUrl: string
+  docsUrl: string,
+  isStaticExport: boolean
 ): Error {
   return new Error(
     `Route "${route}": Next.js encountered the unstable value ${expression} while prerendering.\n\n` +
-      `This value can change between renders, so it must be either prerendered or computed later.\n\n` +
+      (isStaticExport
+        ? 'This route uses `output: "export"`, so this value must be prerendered or rendered on the client.\n\n'
+        : `This value can change between renders, so it must be either prerendered or computed later.\n\n`) +
       `Ways to fix this:\n` +
-      `  - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call\n` +
+      (isStaticExport
+        ? ''
+        : `  - [dynamic] Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call\n`) +
       `  - [cache] Prerender and cache the value with \`"use cache"\`\n` +
       `  - [client] Render the value on the client with \`"use client"\`` +
       elapsedTimeBullet(type) +
@@ -45,21 +50,30 @@ function createSyncIOErrorImpl(
 export function createSyncIOError(
   route: string,
   expression: string,
-  type: SyncIOApiType
-): Error {
-  return createSyncIOErrorImpl(route, expression, type, SYNC_IO_DOCS[type])
-}
-
-export function createSyncIORuntimeError(
-  route: string,
-  expression: string,
-  type: SyncIOApiType
+  type: SyncIOApiType,
+  isStaticExport = false
 ): Error {
   return createSyncIOErrorImpl(
     route,
     expression,
     type,
-    SYNC_IO_RUNTIME_DOCS[type]
+    SYNC_IO_DOCS[type],
+    isStaticExport
+  )
+}
+
+export function createSyncIORuntimeError(
+  route: string,
+  expression: string,
+  type: SyncIOApiType,
+  isStaticExport = false
+): Error {
+  return createSyncIOErrorImpl(
+    route,
+    expression,
+    type,
+    SYNC_IO_RUNTIME_DOCS[type],
+    isStaticExport
   )
 }
 

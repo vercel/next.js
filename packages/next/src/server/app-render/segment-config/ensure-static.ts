@@ -57,18 +57,26 @@ function getEnsureStaticLevel(ensureStatic: EnsureStatic) {
 
 export async function resolveEnsureStaticLevel(
   tree: LoaderTree,
-  partialPrefetching: boolean
+  partialPrefetching: boolean,
+  isStaticExport = false
 ): Promise<EnsureStaticLevel> {
   return getEnsureStaticLevel(
-    await resolveEnsureStaticConfig(tree, partialPrefetching)
+    await resolveEnsureStaticConfig(tree, partialPrefetching, isStaticExport)
   )
 }
 
 export async function resolveEnsureStaticConfig(
   tree: LoaderTree,
-  partialPrefetching: boolean
+  partialPrefetching: boolean,
+  isStaticExport = false
 ): Promise<Exclude<EnsureStatic, false>> {
   let { config, filePath } = await resolveEnsureStaticConfigImpl(tree)
+
+  // Validate the authored tree before applying the deployment requirement.
+  // No segment can opt a static export into rendering on a runtime server.
+  if (isStaticExport) {
+    return 'navigation'
+  }
 
   if (!partialPrefetching) {
     // If Partial Prefetching is not enabled for this route, we only support
