@@ -176,6 +176,10 @@ describe('resolveRouteData', () => {
                 es: 'https://example.com/es',
                 de: 'https://example.com/de',
               },
+              media: {
+                '(max-width: 600px)': 'https://example.com/mobile',
+                '(min-width: 601px)': 'https://example.com/desktop',
+              },
             },
           },
         ])
@@ -186,6 +190,8 @@ describe('resolveRouteData', () => {
         <loc>https://example.com</loc>
         <xhtml:link rel="alternate" hreflang="es" href="https://example.com/es" />
         <xhtml:link rel="alternate" hreflang="de" href="https://example.com/de" />
+        <xhtml:link rel="alternate" media="(max-width: 600px)" href="https://example.com/mobile" />
+        <xhtml:link rel="alternate" media="(min-width: 601px)" href="https://example.com/desktop" />
         <lastmod>2021-01-01</lastmod>
         </url>
         </urlset>
