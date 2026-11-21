@@ -12,6 +12,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     changed::any_source_content_changed_of_module,
     context::{AssetContext, ProcessResult},
+    emitted_output::EmittedFile,
     file_source::FileSource,
     ident::AssetIdent,
     module_graph::{ModuleGraph, ModuleGraphOptions, SingleModuleGraph},
@@ -29,7 +30,7 @@ use crate::{
     evaluate::{EvaluateArg, get_evaluate_entries},
     execution_context::ExecutionContext,
     transforms::{
-        util::{EmittedAsset, emitted_assets_to_virtual_sources},
+        util::{LoaderEmittedAsset, loader_emitted_assets_to_files},
         webpack::{WebpackLoaderContext, evaluate_webpack_loader},
     },
 };
@@ -40,7 +41,7 @@ use crate::{
 struct PostCssProcessingResult {
     css: String,
     map: Option<String>,
-    assets: Option<Vec<EmittedAsset>>,
+    assets: Option<Vec<LoaderEmittedAsset>>,
 }
 
 #[turbo_tasks::task_input]
@@ -65,6 +66,8 @@ pub enum PostCssConfigLocation {
 pub struct PostCssTransformOptions {
     pub postcss_package: Option<ResolvedVc<ImportMapping>>,
     pub config_location: PostCssConfigLocation,
+    /// Compiler owning emitted files; `None` discards them.
+    pub emitted_files_scope: Option<RcStr>,
     pub placeholder_for_future_extensions: u8,
 }
 
@@ -108,6 +111,7 @@ pub struct PostCssTransform {
     execution_context: ResolvedVc<ExecutionContext>,
     config_location: PostCssConfigLocation,
     source_maps: bool,
+    emitted_files_scope: Option<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
@@ -119,6 +123,7 @@ impl PostCssTransform {
         execution_context: ResolvedVc<ExecutionContext>,
         config_location: PostCssConfigLocation,
         source_maps: bool,
+        emitted_files_scope: Option<RcStr>,
     ) -> Vc<Self> {
         PostCssTransform {
             evaluate_context,
@@ -126,6 +131,7 @@ impl PostCssTransform {
             execution_context,
             config_location,
             source_maps,
+            emitted_files_scope,
         }
         .cell()
     }
@@ -148,6 +154,7 @@ impl SourceTransform for PostCssTransform {
                 source,
                 asset_context,
                 source_map: self.source_maps,
+                emitted_files_scope: self.emitted_files_scope.clone(),
             }
             .cell(),
         )
@@ -163,6 +170,7 @@ struct PostCssTransformedAsset {
     source: ResolvedVc<Box<dyn Source>>,
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     source_map: bool,
+    emitted_files_scope: Option<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
@@ -183,14 +191,18 @@ impl Source for PostCssTransformedAsset {
 impl Asset for PostCssTransformedAsset {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        Ok(*self.process().await?.content)
+        let result = self.process().await?;
+        for file in &result.emitted_files {
+            file.emit();
+        }
+        Ok(*result.content)
     }
 }
 
 #[turbo_tasks::value]
 struct ProcessPostCssResult {
     content: ResolvedVc<AssetContent>,
-    assets: Vec<ResolvedVc<VirtualSource>>,
+    emitted_files: Vec<ResolvedVc<EmittedFile>>,
 }
 
 #[turbo_tasks::function]
@@ -487,7 +499,7 @@ impl PostCssTransformedAsset {
         else {
             return Ok(ProcessPostCssResult {
                 content: self.source.content().to_resolved().await?,
-                assets: Vec::new(),
+                emitted_files: Vec::new(),
             }
             .cell());
         };
@@ -499,7 +511,7 @@ impl PostCssTransformedAsset {
         let FileContent::Content(content) = &*file.await? else {
             return Ok(ProcessPostCssResult {
                 content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
-                assets: Vec::new(),
+                emitted_files: Vec::new(),
             }
             .cell());
         };
@@ -566,7 +578,7 @@ impl PostCssTransformedAsset {
             // An error happened, which has already been converted into an issue.
             return Ok(ProcessPostCssResult {
                 content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
-                assets: Vec::new(),
+                emitted_files: Vec::new(),
             }
             .cell());
         };
@@ -575,9 +587,21 @@ impl PostCssTransformedAsset {
 
         // TODO handle SourceMap
         let file = File::from(processed_css.css);
-        let assets = emitted_assets_to_virtual_sources(processed_css.assets).await?;
+        let emitted_files = if let Some(scope) = &self.emitted_files_scope {
+            loader_emitted_assets_to_files(
+                processed_css.assets,
+                scope,
+                &self.source.ident().await?.path,
+            )?
+        } else {
+            Vec::new()
+        };
         let content =
             AssetContent::File(FileContent::Content(file).resolved_cell()).resolved_cell();
-        Ok(ProcessPostCssResult { content, assets }.cell())
+        Ok(ProcessPostCssResult {
+            content,
+            emitted_files,
+        }
+        .cell())
     }
 }
