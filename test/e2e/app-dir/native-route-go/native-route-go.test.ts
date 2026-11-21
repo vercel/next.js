@@ -469,15 +469,15 @@ describe('native-route-go', () => {
     })
     it('reports conflicting Go and TS handlers from Rust and recovers', async () => {
       const path = 'app/(group)/native/[id]/route.ts'
-      const outputStart = next.cliOutput.length
       try {
         await next.patchFile(
           path,
           'export function GET() { return new Response("conflict") }'
         )
         await retry(async () => {
-          expect((await next.fetch('/native/example')).status).toBe(500)
-          expect(next.cliOutput.slice(outputStart)).toContain(
+          const response = await next.fetch('/native/example')
+          expect(response.status).toBe(500)
+          expect(await response.text()).toContain(
             'Conflicting App Router handlers'
           )
         }, 30_000)
@@ -603,10 +603,31 @@ describe('native-route-go', () => {
         expect((await data()).id).toBe('example')
       })
     })
+    it('rejects package main and recovers after the package is renamed', async () => {
+      const path = 'app/package-main/route.go'
+      const source =
+        'package main\nimport "net/http"\nfunc GET(w http.ResponseWriter, r *http.Request) { w.Write([]byte("renamed")) }\n'
+      const outputStart = next.cliOutput.length
+      await next.patchFile(path, source)
+      await retry(async () => {
+        expect((await next.fetch('/package-main')).status).toBe(500)
+        expect(next.cliOutput.slice(outputStart)).toContain(
+          'route.go must not use `package main`'
+        )
+      }, 30_000)
+      await next.patchFile(
+        path,
+        source.replace('package main', 'package route')
+      )
+      await retry(async () => {
+        expect(await next.render('/package-main')).toBe('renamed')
+      })
+      await next.deleteFile(path)
+    })
     it('repairs a first compilation failure and survives a persistent cache restart', async () => {
       const path = 'app/first-error/route.go'
       const source =
-        'package main\nimport "net/http"\nfunc GET(w http.ResponseWriter, r *http.Request) { w.Write([]byte("first-repaired")) }\n'
+        'package route\nimport "net/http"\nfunc GET(w http.ResponseWriter, r *http.Request) { w.Write([]byte("first-repaired")) }\n'
       const outputStart = next.cliOutput.length
       await next.patchFile(path, source + '\ninvalid syntax\n')
       // A newly added route enters the polling route table asynchronously.
@@ -663,7 +684,7 @@ describe('native-route-go', () => {
     it('caches startup errors and repairs them after an edit', async () => {
       const path = 'app/startup/route.go'
       const source =
-        'package main\nimport "net/http"\nfunc init() { panic("startup-fixture-error") }\nfunc GET(w http.ResponseWriter, r *http.Request) { w.Write([]byte("recovered")) }\n'
+        'package route\nimport "net/http"\nfunc init() { panic("startup-fixture-error") }\nfunc GET(w http.ResponseWriter, r *http.Request) { w.Write([]byte("recovered")) }\n'
       await next.patchFile(path, source)
       // Route-table discovery can lag behind creation of the source file.
       await retry(async () => {
@@ -1148,6 +1169,14 @@ describe('native-route-go in src/app', () => {
     await next.renameFolder('app', 'src/app')
     await next.renameFolder('pages', 'src/pages')
     await next.renameFile('proxy.ts', 'src/proxy.ts')
+    const helper = 'src/app/(group)/native/[id]/helper.go'
+    await next.patchFile(
+      helper,
+      (await next.readFile(helper)).replace(
+        'example.com/native-route/app/internal/visibility',
+        'example.com/native-route/src/app/internal/visibility'
+      )
+    )
     await next.start()
   })
   it('discovers grouped native handlers below src/app', async () => {

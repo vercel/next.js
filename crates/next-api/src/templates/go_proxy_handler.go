@@ -1,4 +1,4 @@
-package main
+package __NEXT_GO_PACKAGE__
 
 import (
 	"net/http"
@@ -171,7 +171,13 @@ func nextGoForwardedProto(value string) string {
 	return "http"
 }
 
-func nextGoHandler() http.HandlerFunc {
+// NextInternalGoHandler is called by the entrypoint that Next.js generates. It is
+// not part of the proxy API.
+func NextInternalGoHandler(trustInternalHeaders bool) http.HandlerFunc {
+	return nextGoHandler(trustInternalHeaders)
+}
+
+func nextGoHandler(nextGoTrustInternalHeaders bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Adapter builds invoke Go directly, bypassing the JavaScript adapter's
 		// RSC URL normalization. Keep proxy authorization on the page identity.
