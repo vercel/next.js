@@ -54,6 +54,7 @@ use crate::{
     sst_filter::SstFilter,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFileIter},
     static_sorted_file_builder::{StaticSortedFileBuilderMeta, StreamingSstWriter},
+    unreadable::MarkUnreadable,
     write_batch::{FinishResult, NewFile, WriteBatch},
 };
 
@@ -866,8 +867,25 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     }
 
     /// Reads and decompresses a blob file. This is not backed by any cache.
+    ///
+    /// A blob file that is missing, can't be read, or fails its checksum is marked as
+    /// [`CacheFileUnreadable`]. A decompression failure isn't: the checksum covers the compressed
+    /// data and its length, so data that passes it is what was written, and failing to decompress
+    /// it is a bug rather than damage to the file.
+    ///
+    /// [`CacheFileUnreadable`]: crate::CacheFileUnreadable
     #[tracing::instrument(level = "info", name = "reading database blob", skip_all)]
     fn read_blob(&self, seq: u32, compression: Compression) -> Result<ArcBytes> {
+        let file_name = move || format!("{seq:08}.blob");
+        let data = self.read_blob_file(seq).mark_unreadable(file_name)?;
+        let (uncompressed_length, compressed) =
+            verify_blob(seq, &data).mark_unreadable(file_name)?;
+        let buffer = decompress_into_arc(compression, uncompressed_length, compressed)?;
+        Ok(ArcBytes::from(buffer))
+    }
+
+    /// Reads the contents of a blob file, without verifying them.
+    fn read_blob_file(&self, seq: u32) -> Result<impl std::ops::Deref<Target = [u8]>> {
         let path = self.path.join(format!("{seq:08}.blob"));
         #[cfg(feature = "mmap")]
         let file = File::open(&path)?;
@@ -890,36 +908,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             }
             AccessMode::File => Either::Right(fs::read(&path)?),
         };
-        #[cfg(feature = "mmap")]
-        let mut reader: &[u8] = match &data {
-            Either::Left(mmap) => mmap,
-            Either::Right(bytes) => bytes,
-        };
         // Without mmap support, read the whole blob into memory.
         #[cfg(not(feature = "mmap"))]
         let data = fs::read(&path)?;
-        #[cfg(not(feature = "mmap"))]
-        let mut reader: &[u8] = &data;
-        let uncompressed_length = reader
-            .read_u32::<BE>()
-            .context("Failed to read uncompressed length from blob file")?;
-        let expected_checksum = reader.read_u32::<BE>()?;
-
-        // Verify the checksum, which covers the length header and the compressed on-disk data,
-        // before the length is used to size the decompression buffer.
-        let actual_checksum = checksum_block(uncompressed_length, reader);
-        if actual_checksum != expected_checksum {
-            bail!(
-                "Cache corruption detected: checksum mismatch in blob file {:08}.blob (expected \
-                 {:08x}, got {:08x})",
-                seq,
-                expected_checksum,
-                actual_checksum
-            );
-        }
-
-        let buffer = decompress_into_arc(compression, uncompressed_length, reader)?;
-        Ok(ArcBytes::from(buffer))
+        Ok(data)
     }
 
     /// Returns true if the database is empty.
@@ -2975,6 +2967,30 @@ fn shard_bits<const FAMILIES: usize>(
             bottom_bytes.saturating_mul(u64::from(current.count())) / covered_shards.len() as u64;
         current.maybe_reshard(estimated_bytes, config.target_shard_size)
     })
+}
+
+/// Verifies the checksum of the contents of the blob file `seq`, which covers the length header
+/// and the compressed on-disk data. This is done before the length is used to size the
+/// decompression buffer.
+///
+/// Returns `(uncompressed_length, compressed_data)`.
+fn verify_blob(seq: u32, data: &[u8]) -> Result<(u32, &[u8])> {
+    let mut reader = data;
+    let uncompressed_length = reader
+        .read_u32::<BE>()
+        .context("Failed to read uncompressed length from blob file")?;
+    let expected_checksum = reader.read_u32::<BE>()?;
+    let actual_checksum = checksum_block(uncompressed_length, reader);
+    if actual_checksum != expected_checksum {
+        bail!(
+            "Cache corruption detected: checksum mismatch in blob file {:08}.blob (expected \
+             {:08x}, got {:08x})",
+            seq,
+            expected_checksum,
+            actual_checksum
+        );
+    }
+    Ok((uncompressed_length, reader))
 }
 
 fn range_to_str(min: u64, max: u64) -> String {

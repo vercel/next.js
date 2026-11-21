@@ -4411,7 +4411,7 @@ async fn value_visitor_inner<'a>(
                 true,
                 rcstr!("ignored URL constructor"),
             ),
-            "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModule),
+            "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModuleDefault),
             "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
             "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
             "navigator" => JsValue::WellKnownObject(WellKnownObjectKind::Navigator),
