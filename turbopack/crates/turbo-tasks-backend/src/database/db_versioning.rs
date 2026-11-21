@@ -1,11 +1,11 @@
 use std::{
     env,
     ffi::{OsStr, OsString},
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     time::{Duration, SystemTime},
 };
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use fs_err::{DirEntry, metadata, read_dir, remove_dir_all, rename};
 use jiff::Timestamp;
 use turbo_persistence::read_current_version;
@@ -168,6 +168,33 @@ pub fn handle_db_versioning(
     Ok(path)
 }
 
+/// Removes the database directory of a single version (a path returned by
+/// [`handle_db_versioning`] for `base_path`), e.g. because it can't be opened anymore. Directories
+/// of other versions are left alone.
+///
+/// Fails without touching anything unless `versioned_path` is a direct child of `base_path` (it
+/// may not be, e.g. when `TURBO_ENGINE_VERSION` is set to something unusual), so that this can
+/// never remove the base directory, one of its parents, or anything outside of it. A failure to
+/// remove the directory is returned.
+pub(crate) fn remove_db_version_dir(base_path: &Path, versioned_path: &Path) -> Result<()> {
+    let mut components = versioned_path
+        .strip_prefix(base_path)
+        .ok()
+        .map(|relative| relative.components());
+    if !matches!(
+        components.as_mut().map(|c| (c.next(), c.next())),
+        Some((Some(Component::Normal(_)), None))
+    ) {
+        bail!(
+            "Refusing to remove {}: it is not a database version directory in {}",
+            versioned_path.display(),
+            base_path.display()
+        );
+    }
+    remove_dir_all(versioned_path)?;
+    Ok(())
+}
+
 /// How long to retain a database whose version isn't the current one. Falls back to
 /// [`DEFAULT_OTHER_DB_VERSION_TTL_DAYS`] if `TURBO_ENGINE_VERSION_TTL_DAYS` is unset or unparsable.
 fn other_db_version_ttl() -> Duration {
@@ -266,6 +293,45 @@ mod tests {
             .collect::<Vec<_>>();
         names.sort();
         names
+    }
+
+    /// Removing a version directory removes exactly that directory and leaves other versions
+    /// alone.
+    #[test]
+    fn test_remove_db_version_dir_removes_only_that_version() {
+        let tmp_dir = test_temp_dir().unwrap();
+        let base_path = tmp_dir.path();
+        create_version_dir(base_path, CURRENT_VERSION, Duration::ZERO);
+        create_version_dir(base_path, "other-dir", Duration::ZERO);
+
+        remove_db_version_dir(base_path, &base_path.join(CURRENT_VERSION)).unwrap();
+        assert_eq!(entry_names(base_path), ["other-dir"]);
+    }
+
+    /// Paths that aren't a version directory directly inside of the base directory are never
+    /// removed.
+    #[rstest]
+    #[case::base_itself("")]
+    #[case::current_dir(".")]
+    #[case::parent("..")]
+    #[case::escaping("../outside")]
+    #[case::nested("mock-version/nested")]
+    fn test_remove_db_version_dir_refuses_other_paths(#[case] relative: &str) {
+        let tmp_dir = test_temp_dir().unwrap();
+        let parent = tmp_dir.path();
+        let base_path = parent.join("base");
+        fs::create_dir(&base_path).unwrap();
+        fs::create_dir(parent.join("outside")).unwrap();
+        fs::create_dir_all(base_path.join("mock-version").join("nested")).unwrap();
+
+        let error = remove_db_version_dir(&base_path, &base_path.join(relative)).unwrap_err();
+        assert!(
+            format!("{error:#}").contains("Refusing to remove"),
+            "unexpected error: {error:#}"
+        );
+        assert_eq!(entry_names(parent), ["base", "outside"]);
+        assert_eq!(entry_names(&base_path), ["mock-version"]);
+        assert_eq!(entry_names(&base_path.join("mock-version")), ["nested"]);
     }
 
     /// Only the most recently used other version survives, and the current version survives

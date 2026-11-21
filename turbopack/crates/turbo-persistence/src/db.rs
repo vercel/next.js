@@ -738,8 +738,14 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
     /// Loads an existing database directory and performs cleanup if necessary (and non
     /// `read_only`).
+    ///
+    /// Entries whose name starts with `.` are ignored. Fails if the directory contains any other
+    /// file it doesn't recognize, or if a live meta file references an SST file that doesn't
+    /// exist (e.g. because it was deleted from outside), so that a damaged database is detected
+    /// when it is opened rather than when a key stored in a missing file is read.
     fn load_directory(&mut self, entries: ReadDir, read_only: bool) -> Result<bool> {
         let mut meta_files = Vec::new();
+        let mut sst_files = HashSet::new();
         let current = match read_current_version(&self.path)? {
             Some(version) => version.max_sequence_number,
             None if !read_only => return Ok(false),
@@ -749,6 +755,12 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let mut deleted_files = HashSet::new();
         for entry in entries {
             let entry = entry?;
+            // Not ours, e.g. `.DS_Store`, or the `._<name>` AppleDouble files macOS writes next to
+            // every file on filesystems without native support for extended attributes (exFAT,
+            // FAT32, network shares).
+            if entry.file_name().as_encoded_bytes().starts_with(b".") {
+                continue;
+            }
             let path = entry.path();
             if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
                 // A leftover `CURRENT.next` means a crash interrupted a `commit_current` before
@@ -762,10 +774,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 }
                 let seq: u32 = path
                     .file_stem()
-                    .context("File has no file stem")?
-                    .to_str()
-                    .context("File stem is not valid utf-8")?
-                    .parse()?;
+                    .and_then(|s| s.to_str())
+                    .and_then(|s| s.parse().ok())
+                    .with_context(|| {
+                        format!("Unexpected file in persistence directory: {path:?}")
+                    })?;
                 if deleted_files.contains(&seq) {
                     continue;
                 }
@@ -801,16 +814,23 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 fs::remove_file(&path)?;
                             }
                         }
-                        "blob" | "sst" => {
-                            // ignore blobs and sst, they are read when needed
+                        "sst" => {
+                            // Read when needed. Meta files reference SST files by their canonical
+                            // name, so a file with an equivalent number (e.g. `1.sst`) doesn't
+                            // count.
+                            if path
+                                .file_name()
+                                .and_then(|name| name.to_str())
+                                .is_some_and(|name| name == format!("{seq:08}.sst"))
+                            {
+                                sst_files.insert(seq);
+                            }
+                        }
+                        "blob" => {
+                            // read when needed
                         }
                         _ => {
-                            if !path
-                                .file_name()
-                                .is_some_and(|s| s.as_encoded_bytes().starts_with(b"."))
-                            {
-                                bail!("Unexpected file in persistence directory: {:?}", path);
-                            }
+                            bail!("Unexpected file in persistence directory: {:?}", path);
                         }
                     }
                 }
@@ -823,12 +843,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         // Ignored, write-only
                     }
                     _ => {
-                        if !path
-                            .file_name()
-                            .is_some_and(|s| s.as_encoded_bytes().starts_with(b"."))
-                        {
-                            bail!("Unexpected file in persistence directory: {:?}", path);
-                        }
+                        bail!("Unexpected file in persistence directory: {:?}", path);
                     }
                 }
             }
@@ -851,6 +866,22 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let mut sst_filter = SstFilter::new();
         for meta_file in meta_files.iter_mut().rev() {
             sst_filter.apply_filter(meta_file);
+        }
+
+        // After filtering, the meta files only reference the SST files that are still in use.
+        // SST files are opened lazily, so without this check a missing one would only be noticed
+        // when a key stored in it is read.
+        for meta_file in &meta_files {
+            for entry in meta_file.entries() {
+                let seq = entry.sequence_number();
+                if !sst_files.contains(&seq) || deleted_files.contains(&seq) {
+                    bail!(
+                        "{seq:08}.sst referenced from {:08}.meta is missing in {}",
+                        meta_file.sequence_number(),
+                        self.path.display()
+                    );
+                }
+            }
         }
 
         let inner = self.inner.get_mut();
