@@ -75,6 +75,7 @@ import {
   type SendHmr,
   type StartBuilding,
   processTopLevelIssues,
+  printNewTopLevelErrors,
   printNonFatalIssue,
   normalizedPageToTurbopackStructureRoute,
   type StartChangeSubscription,
@@ -1245,10 +1246,14 @@ export async function createHotReloaderTurbopack(
       }
 
       // Always process issues/diagnostics, even if there are no entrypoints yet
-      processTopLevelIssues(currentTopLevelIssues, entrypoints)
+      const newTopLevelIssues = processTopLevelIssues(
+        currentTopLevelIssues,
+        entrypoints
+      )
 
       // Certain crtical issues prevent any entrypoints from being constructed so return early
       if (!('routes' in entrypoints.value)) {
+        // printBuildErrors reports all top-level issues of this update itself.
         printBuildErrors(entrypoints, true, {
           strictRouteMatchingDefaultWarning:
             getStrictRouteMatchingDefaultWarning(nextConfig),
@@ -1258,6 +1263,8 @@ export async function createHotReloaderTurbopack(
         currentEntriesHandlingResolve = undefined
         continue
       }
+
+      printNewTopLevelErrors(newTopLevelIssues)
 
       const routes = entrypoints.value.routes
       // Only valid Rust entrypoint snapshots replace the active Go route set.
@@ -2047,19 +2054,27 @@ export async function createHotReloaderTurbopack(
 
       if (thisEntryIssues !== undefined && thisEntryIssues.size > 0) {
         // If there is an error related to the requesting page we display it instead of the first error
-        return [...topLevelIssues, ...thisEntryIssues.values()]
-          .map((issue) => {
-            const formattedIssue = formatIssue(issue)
-            if (issue.severity === 'warning') {
-              printNonFatalIssue(issue)
-              return null
-            } else if (isWellKnownError(issue)) {
-              Log.error(formattedIssue)
-            }
-
-            return new Error(formattedIssue)
-          })
-          .filter((error) => error !== null)
+        const errors = []
+        // Top-level errors are logged once by the entrypoints subscription
+        // when they appear, so they are not logged again per request here.
+        for (const issue of topLevelIssues) {
+          if (issue.severity === 'warning') {
+            printNonFatalIssue(issue)
+          } else {
+            errors.push(new Error(formatIssue(issue)))
+          }
+        }
+        for (const issue of thisEntryIssues.values()) {
+          const formattedIssue = formatIssue(issue)
+          if (issue.severity === 'warning') {
+            printNonFatalIssue(issue)
+            continue
+          } else if (isWellKnownError(issue)) {
+            Log.error(formattedIssue)
+          }
+          errors.push(new Error(formattedIssue))
+        }
+        return errors
       }
 
       // Otherwise, return all errors across pages
