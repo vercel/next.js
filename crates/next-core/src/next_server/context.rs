@@ -45,7 +45,6 @@ use turbopack_resolve::resolve_options_context::{ResolveOptionsContext, TsConfig
 
 use crate::{
     app_structure::CollectedRootParams,
-    chunk_size_defaults::ChunkSizeDefaults,
     mode::NextMode,
     next_build::get_postcss_package_mapping,
     next_config::{
@@ -1031,7 +1030,6 @@ pub struct ServerChunkingContextOptions {
     pub source_map_generation_options: Vc<SourceMapGenerationOptions>,
     pub no_mangling: Vc<bool>,
     pub scope_hoisting: Vc<bool>,
-    pub minify_before_chunking: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
     pub debug_ids: Vc<bool>,
     pub client_root: FileSystemPath,
@@ -1070,7 +1068,6 @@ pub async fn get_server_chunking_context_with_client_assets(
         source_map_generation_options,
         no_mangling,
         scope_hoisting,
-        minify_before_chunking,
         nested_async_chunking,
         debug_ids,
         client_root,
@@ -1138,15 +1135,15 @@ pub async fn get_server_chunking_context_with_client_assets(
         SourceMapSourceType::RelativeUri
     });
     if next_mode.is_production() {
-        let defaults = ChunkSizeDefaults::new(*minify.await?, *minify_before_chunking.await?);
+        // The sizes are of chunk items minified one by one before chunking, which are a few times
+        // smaller than their unminified code: about 40% of what the defaults were tuned for.
         let ecmascript_chunking_config = ChunkingConfig {
             // Server chunks are loaded with require(), not fetched over the network.
-            min_chunk_size: chunking_min_chunk_size.unwrap_or_else(|| defaults.size(4_000)),
+            min_chunk_size: chunking_min_chunk_size.unwrap_or(1_600),
             max_chunk_count_per_group: 0,
-            max_merge_chunk_size: chunking_max_merge_chunk_size
-                .unwrap_or_else(|| defaults.size(100_000)),
-            max_chunk_size: defaults.server_max_chunk_size(chunking_max_chunk_size),
-            request_cost: Some(defaults.request_cost(10_000)),
+            max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(40_000),
+            max_chunk_size: chunking_max_chunk_size.unwrap_or(4_000_000),
+            request_cost: Some(4_000),
             ..Default::default()
         };
         warn_on_adjusted_chunking_config(
@@ -1167,8 +1164,7 @@ pub async fn get_server_chunking_context_with_client_assets(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?)
-            .minify_before_chunking(*minify_before_chunking.await?);
+            .module_merging(*scope_hoisting.await?);
     }
 
     Ok(builder.build())
@@ -1193,7 +1189,6 @@ pub async fn get_server_chunking_context(
         source_map_generation_options,
         no_mangling,
         scope_hoisting,
-        minify_before_chunking,
         nested_async_chunking,
         debug_ids,
         client_root,
@@ -1261,15 +1256,15 @@ pub async fn get_server_chunking_context(
     if next_mode.is_development() {
         builder = builder.source_map_source_type(SourceMapSourceType::AbsoluteFileUri);
     } else {
-        let defaults = ChunkSizeDefaults::new(*minify.await?, *minify_before_chunking.await?);
+        // The sizes are of chunk items minified one by one before chunking, which are a few times
+        // smaller than their unminified code: about 40% of what the defaults were tuned for.
         let ecmascript_chunking_config = ChunkingConfig {
             // Server chunks are loaded with require(), not fetched over the network.
-            min_chunk_size: chunking_min_chunk_size.unwrap_or_else(|| defaults.size(4_000)),
+            min_chunk_size: chunking_min_chunk_size.unwrap_or(1_600),
             max_chunk_count_per_group: 0,
-            max_merge_chunk_size: chunking_max_merge_chunk_size
-                .unwrap_or_else(|| defaults.size(100_000)),
-            max_chunk_size: defaults.server_max_chunk_size(chunking_max_chunk_size),
-            request_cost: Some(defaults.request_cost(10_000)),
+            max_merge_chunk_size: chunking_max_merge_chunk_size.unwrap_or(40_000),
+            max_chunk_size: chunking_max_chunk_size.unwrap_or(4_000_000),
+            request_cost: Some(4_000),
             ..Default::default()
         };
         warn_on_adjusted_chunking_config(
@@ -1291,8 +1286,7 @@ pub async fn get_server_chunking_context(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?)
-            .minify_before_chunking(*minify_before_chunking.await?);
+            .module_merging(*scope_hoisting.await?);
     }
 
     Ok(builder.build())

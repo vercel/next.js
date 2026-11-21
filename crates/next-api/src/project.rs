@@ -1930,7 +1930,6 @@ impl Project {
             source_map_generation_options: self.client_source_map_generation_options(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
-            minify_before_chunking: self.next_config().turbopack_minify_before_chunking(),
             nested_async_chunking: self
                 .next_config()
                 .turbo_nested_async_chunking(self.next_mode(), true),
@@ -2032,7 +2031,6 @@ impl Project {
             source_map_generation_options: self.server_source_map_generation_options(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
-            minify_before_chunking: self.next_config().turbopack_minify_before_chunking(),
             nested_async_chunking: self
                 .next_config()
                 .turbo_nested_async_chunking(self.next_mode(), false),
@@ -2084,7 +2082,6 @@ impl Project {
             source_map_generation_options: self.server_source_map_generation_options(),
             no_mangling: self.no_mangling(),
             scope_hoisting: self.next_config().turbo_scope_hoisting(self.next_mode()),
-            minify_before_chunking: self.next_config().turbopack_minify_before_chunking(),
             nested_async_chunking: self
                 .next_config()
                 .turbo_nested_async_chunking(self.next_mode(), false),

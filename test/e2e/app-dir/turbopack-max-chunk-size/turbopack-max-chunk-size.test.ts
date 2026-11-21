@@ -4,9 +4,9 @@ import { createRouterAct } from 'router-act'
 
 // The size limits apply only to Turbopack production builds. Runtime checks also
 // run in development; public-asset assertions work on actual deployments too.
-;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip).each([false, true])(
-  'turbopack max chunk size, minify before chunking: %s',
-  (minifyBeforeChunking) => {
+;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
+  'turbopack max chunk size',
+  () => {
     const { next, isNextDev } = nextTestSetup({
       files: __dirname,
       overrideFiles: {
@@ -24,7 +24,6 @@ import { createRouterAct } from 'router-act'
           )
         ),
       },
-      env: { TEST_MINIFY_BEFORE_CHUNKING: String(minifyBeforeChunking) },
     })
 
     it.each([

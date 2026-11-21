@@ -46,9 +46,9 @@ fn per_item_minify_options(options: &MinifyOptions) -> MinifyOptions {
 ///
 /// The result is a hash-only cell: it is recomputed rather than persisted.
 ///
-/// `options` are the chunking context's emit options, which carry SWC minify options in per-item
-/// mode (see [`ChunkMinification::per_item`](crate::chunk::ChunkMinification)). Without them the
-/// factory is returned as is.
+/// `options` are the chunking context's emit options, which carry SWC minify options when
+/// minification is on (see [`chunk_item_minify_options`](crate::chunk::chunk_item_minify_options)).
+/// Without them the factory is returned as is.
 #[turbo_tasks::function]
 pub async fn minified_module_factory(
     content: Vc<EcmascriptChunkItemContent>,
