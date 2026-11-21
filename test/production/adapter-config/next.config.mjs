@@ -5,6 +5,9 @@ const require = Module.createRequire(import.meta.url)
 const nextConfig = {
   adapterPath: require.resolve('./my-adapter.mjs'),
   cacheComponents: process.env.TEST_CACHE_COMPONENTS === '1',
+  experimental: {
+    collapseAdapterRoutes: process.env.TEST_COLLAPSE_ADAPTER_ROUTES !== 'false',
+  },
   rewrites() {
     return [
       {
