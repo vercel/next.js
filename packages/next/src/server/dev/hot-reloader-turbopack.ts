@@ -31,6 +31,7 @@ import type {
   TurbopackResult,
   Project,
   Entrypoints,
+  Issue,
   NodeJsPartialHmrUpdate,
   ServerHmrVersion,
 } from '../../build/swc/types'
@@ -619,7 +620,95 @@ export async function createHotReloaderTurbopack(
   }
 
   const currentTopLevelIssues: TopLevelIssuesMap = new Map()
-  const currentEntryIssues: EntryIssuesMap = new Map()
+  // Keys of entry error issues already printed to the terminal. An issue can reach
+  // `currentEntryIssues` through an endpoint change subscription, which stores it
+  // without logging it (only well-known errors are logged there). A later request
+  // then fails in `getCompilationErrors` with a `WrappedBuildError`, which is never
+  // logged because it's assumed to have been reported already. Tracking what was
+  // reported lets `getCompilationErrors` print such an issue once instead of
+  // failing the request with a silent 500.
+  const reportedIssueKeys = new Set<string>()
+
+  /**
+   * Forgets the reported keys of issues that `previous` had and `next` doesn't,
+   * unless another entry still has them, so an error that is fixed and comes back
+   * is printed again. Called whenever an entry's issues are replaced or removed.
+   */
+  function forgetResolvedIssues(
+    previous: IssuesMap | undefined,
+    next: IssuesMap | undefined
+  ) {
+    if (previous === undefined || reportedIssueKeys.size === 0) return
+    for (const issueKey of previous.keys()) {
+      if (next?.has(issueKey) || !reportedIssueKeys.has(issueKey)) continue
+      let stillPresent = false
+      for (const issues of currentEntryIssues.values()) {
+        if (issues !== previous && issues.has(issueKey)) {
+          stillPresent = true
+          break
+        }
+      }
+      if (!stillPresent) reportedIssueKeys.delete(issueKey)
+    }
+  }
+
+  // `processIssues` and the entrypoint cleanup write this map directly, so updates
+  // are intercepted here to keep `reportedIssueKeys` in sync.
+  const currentEntryIssues: EntryIssuesMap = new (class extends Map<
+    EntryKey,
+    IssuesMap
+  > {
+    override set(entryKey: EntryKey, issues: IssuesMap) {
+      forgetResolvedIssues(this.get(entryKey), issues)
+      return super.set(entryKey, issues)
+    }
+    override delete(entryKey: EntryKey) {
+      forgetResolvedIssues(this.get(entryKey), undefined)
+      return super.delete(entryKey)
+    }
+  })()
+
+  /**
+   * Remembers the error issues thrown in `error` as reported: those stored since
+   * `before` whose formatted text is part of the error's message.
+   */
+  function markThrownIssuesReported(
+    before: EntryIssuesMap,
+    error: ModuleBuildError
+  ) {
+    for (const [entryKey, issues] of currentEntryIssues) {
+      // `processIssues` always stores a new map, so identity detects updates.
+      if (before.get(entryKey) === issues) continue
+      for (const [issueKey, issue] of issues) {
+        if (
+          issue.severity !== 'warning' &&
+          error.message.includes(formatIssue(issue))
+        ) {
+          reportedIssueKeys.add(issueKey)
+        }
+      }
+    }
+  }
+
+  /**
+   * Prints an entry's error issue that is about to fail a request, unless it was
+   * already printed. With `repeatWellKnown`, well-known errors keep being printed on
+   * every request, as before.
+   */
+  function reportEntryErrorIssue(
+    issueKey: string,
+    issue: Issue,
+    formatted: string,
+    repeatWellKnown: boolean
+  ) {
+    if (
+      (repeatWellKnown && isWellKnownError(issue)) ||
+      !reportedIssueKeys.has(issueKey)
+    ) {
+      Log.error(formatted)
+      reportedIssueKeys.add(issueKey)
+    }
+  }
 
   const manifestLoader = new TurbopackManifestLoader({
     buildId,
@@ -1455,6 +1544,10 @@ export async function createHotReloaderTurbopack(
                 // updates for routes compiled this way, and these subscriptions
                 // are never unsubscribed (see TODOs in handleRouteType).
                 subscribeToChanges: false,
+                // The ModuleBuildError is returned as structured output below, not
+                // printed, so its issues must still be printed if a request fails
+                // on them later.
+                logsBuildErrors: false,
                 ...extraOptions,
               }
 
@@ -2039,16 +2132,14 @@ export async function createHotReloaderTurbopack(
       const appEntryKey = getEntryKey('app', 'server', page)
       const pagesEntryKey = getEntryKey('pages', 'server', page)
 
-      const topLevelIssues = currentTopLevelIssues.values()
-
       const thisEntryIssues =
         currentEntryIssues.get(appEntryKey) ??
         currentEntryIssues.get(pagesEntryKey)
 
       if (thisEntryIssues !== undefined && thisEntryIssues.size > 0) {
         // If there is an error related to the requesting page we display it instead of the first error
-        return [...topLevelIssues, ...thisEntryIssues.values()]
-          .map((issue) => {
+        const topLevelErrors = [...currentTopLevelIssues.values()].map(
+          (issue) => {
             const formattedIssue = formatIssue(issue)
             if (issue.severity === 'warning') {
               printNonFatalIssue(issue)
@@ -2056,23 +2147,37 @@ export async function createHotReloaderTurbopack(
             } else if (isWellKnownError(issue)) {
               Log.error(formattedIssue)
             }
-
             return new Error(formattedIssue)
-          })
-          .filter((error) => error !== null)
+          }
+        )
+        const entryErrors = [...thisEntryIssues].map(([issueKey, issue]) => {
+          const formattedIssue = formatIssue(issue)
+          if (issue.severity === 'warning') {
+            printNonFatalIssue(issue)
+            return null
+          }
+          // The request fails with this error without logging it, so print it
+          // unless another path already has.
+          reportEntryErrorIssue(issueKey, issue, formattedIssue, true)
+          return new Error(formattedIssue)
+        })
+        return [...topLevelErrors, ...entryErrors].filter(
+          (error) => error !== null
+        )
       }
 
       // Otherwise, return all errors across pages
       const errors = []
-      for (const issue of topLevelIssues) {
+      for (const issue of currentTopLevelIssues.values()) {
         if (issue.severity !== 'warning') {
           errors.push(new Error(formatIssue(issue)))
         }
       }
       for (const entryIssues of currentEntryIssues.values()) {
-        for (const issue of entryIssues.values()) {
+        for (const [issueKey, issue] of entryIssues) {
           if (issue.severity !== 'warning') {
             const message = formatIssue(issue)
+            reportEntryErrorIssue(issueKey, issue, message, false)
             errors.push(new Error(message))
           } else {
             printNonFatalIssue(issue)
@@ -2109,6 +2214,7 @@ export async function createHotReloaderTurbopack(
       isApp,
       url: requestUrl,
       subscribeToChanges = true,
+      logsBuildErrors = true,
     }) {
       // When there is no route definition this is an internal file not a route the user added.
       // Middleware and instrumentation are handled in turbopack-utils.ts handleEntrypoints instead.
@@ -2255,6 +2361,7 @@ export async function createHotReloaderTurbopack(
           // coarser reading of `route.type`.
           let shouldPullServerHmr = false
           let serverHmrEntryPaths: string[] = []
+          const issuesBeforeBuild = new Map(currentEntryIssues)
           try {
             await handleRouteType({
               dev,
@@ -2305,6 +2412,15 @@ export async function createHotReloaderTurbopack(
             if (shouldPullServerHmr && serverHmrEntryPaths.length > 0) {
               await serverHmr?.apply(serverHmrEntryPaths)
             }
+          } catch (err) {
+            // `processIssues` throws the issues it just stored as a
+            // `ModuleBuildError`, which the request handler logs. Remember them so
+            // `getCompilationErrors` doesn't print them a second time. Callers that
+            // handle the error without printing it opt out.
+            if (logsBuildErrors && err instanceof ModuleBuildError) {
+              markThrownIssuesReported(issuesBeforeBuild, err)
+            }
+            throw err
           } finally {
             finishBuilding()
             // Remove non-deferred entry from building set
