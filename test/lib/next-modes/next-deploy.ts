@@ -1095,9 +1095,9 @@ export class NextDeployInstance extends NextInstance {
 
   /**
    * Redirects the deployment host to the proxy address for this process only.
-   * The patched `dns.lookup` covers `fetch`, because Node resolves the
-   * connection through it while the TLS handshake still uses the original
-   * hostname for SNI. A valid certificate therefore still validates.
+   * The patched DNS APIs cover Node fetch and Playwright API requests. Each
+   * request retains the deployment hostname for HTTP Host and TLS SNI, so its
+   * certificate still validates.
    *
    * This mode needs no `sudo`, and it keeps concurrent test files independent,
    * unlike the shared `/etc/hosts` file.
@@ -1108,6 +1108,7 @@ export class NextDeployInstance extends NextInstance {
     )
 
     const originalLookup = dns.lookup
+    const originalPromisesLookup = dns.promises.lookup
 
     // `dns.lookup` answers for an IP address literal without a query, and it
     // answers in the shape that the caller's options ask for. The redirection
@@ -1134,8 +1135,20 @@ export class NextDeployInstance extends NextInstance {
 
     dns.lookup = Object.assign(patchedLookup, originalLookup)
 
+    dns.promises.lookup = function patchedPromisesLookup(
+      this: unknown,
+      lookupHostname: string,
+      ...args: unknown[]
+    ) {
+      return Reflect.apply(originalPromisesLookup, this, [
+        lookupHostname === hostname ? address : lookupHostname,
+        ...args,
+      ])
+    }
+
     this._restoreDnsLookup = () => {
       dns.lookup = originalLookup
+      dns.promises.lookup = originalPromisesLookup
     }
 
     process.env[PROXY_HOST_MAP_ENV_KEY] = `${hostname}=${address}`
