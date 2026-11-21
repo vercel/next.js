@@ -1501,7 +1501,7 @@ describe('agentic upgrade prompts', () => {
     expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
      [
        [
-         "Read and follow "/tmp/next-upgrade-test/upgrade/shared.md" first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/upgrade/different-major.md".
+         "Read and follow "/tmp/next-upgrade-test/upgrade/shared.md" first. Before changing files, check for an equivalent open pull request as it describes. Stop only if you find one; stale branches, commits, and closed pull requests do not count. If the check is unavailable, report it and continue. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/upgrade/different-major.md".
 
      We're upgrading the app in "/workspace/app" from Next.js 14.1.1 to 16.3.5 because the installed version is affected by a published security advisory.
 
@@ -1616,7 +1616,7 @@ describe('agentic upgrade prompts', () => {
     expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
      [
        [
-         "Read and follow "/tmp/next-upgrade-test/upgrade/shared.md" first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/upgrade/same-major.md".
+         "Read and follow "/tmp/next-upgrade-test/upgrade/shared.md" first. Before changing files, check for an equivalent open pull request as it describes. Stop only if you find one; stale branches, commits, and closed pull requests do not count. If the check is unavailable, report it and continue. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/upgrade/same-major.md".
 
      We're upgrading the app in "/workspace/app" from Next.js 16.2.12 to 16.3.5 because a newer stable Next.js release is available.
 
@@ -1851,7 +1851,7 @@ describe('agentic upgrade prompts', () => {
      {
        "prompt": [
          [
-           "Read and follow "/tmp/next-upgrade-test/upgrade/shared.md" first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/upgrade/same-major.md".
+           "Read and follow "/tmp/next-upgrade-test/upgrade/shared.md" first. Before changing files, check for an equivalent open pull request as it describes. Stop only if you find one; stale branches, commits, and closed pull requests do not count. If the check is unavailable, report it and continue. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/upgrade/same-major.md".
 
      We're upgrading the app in "/workspace/app" from Next.js 16.2.0 to 16.4.0 because the Future policy applies the latest stable release and adopts its Future Defaults.
 
@@ -1956,7 +1956,7 @@ describe('agentic upgrade prompts', () => {
     expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
      [
        [
-         "Read and follow "/tmp/next-upgrade-test/upgrade/shared.md" first. Attempt its applicable duplicate checks before changing files. If a check is unavailable, report it and continue. Stop only if you find equivalent work. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/upgrade/future-defaults.md".
+         "Read and follow "/tmp/next-upgrade-test/upgrade/shared.md" first. Before changing files, check for an equivalent open pull request as it describes. Stop only if you find one; stale branches, commits, and closed pull requests do not count. If the check is unavailable, report it and continue. Then read and follow every applicable instruction in "/tmp/next-upgrade-test/upgrade/future-defaults.md".
 
      We're adopting the Future Defaults available to the app in "/workspace/app", which already uses Next.js 16.4.0.
 

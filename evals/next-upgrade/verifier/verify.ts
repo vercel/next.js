@@ -4,7 +4,12 @@ import { SandboxManager } from '@vercel/agent-eval'
 import type { EvalRunData } from '@vercel/agent-eval'
 import { installPlaywright } from '../../lib/setup'
 import type { Artifact, DeliveredTree } from '../runner/artifact'
-import { suite, requiredChecks, type Scenario } from '../runner/fixture'
+import {
+  expectsStop,
+  suite,
+  requiredChecks,
+  type Scenario,
+} from '../runner/fixture'
 
 export type Verdict = {
   status: 'passed' | 'failed' | 'invalid'
@@ -349,6 +354,9 @@ export async function verifyRun(
         completions.every((command) => command.exitCode === 0)
       )
     })
+  if (expectsStop(scenario)) {
+    return verifyStop(scenario, artifact, candidateInvoked, native)
+  }
   const reports = []
   for (const [index, tree] of trees.entries()) {
     reports.push({
@@ -383,5 +391,68 @@ export async function verifyRun(
         : passed
           ? `Verified delivered app at ${passed.path}`
           : 'No delivered worktree satisfied the upgrade contract',
+  }
+}
+
+const jsonLines = (text: string | undefined): { args: string[] }[] =>
+  (text ?? '')
+    .trim()
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => JSON.parse(line))
+
+// An equivalent open pull request must stop the upgrade before any change.
+// The agent still has to run the candidate and actually query the provider, so
+// giving up early or failing for an unrelated reason does not pass.
+function verifyStop(
+  scenario: Scenario,
+  artifact: Artifact,
+  candidateInvoked: boolean,
+  native: EvalRunData
+): Verdict {
+  const lookups = jsonLines(artifact.evidence['gh.jsonl']).filter(
+    ({ args }) => args[0] === 'pr' && ['list', 'view', 'diff'].includes(args[1])
+  )
+  const versions = artifact.trees.map((tree) => {
+    try {
+      const manifest = JSON.parse(
+        Buffer.from(tree.files['package.json'] ?? '', 'base64').toString()
+      )
+      return { path: tree.path, next: manifest.dependencies?.next ?? null }
+    } catch {
+      return { path: tree.path, next: null }
+    }
+  })
+  const outcomes = jsonLines(artifact.evidence['reports.jsonl']).filter(
+    ({ args }) => ['success', 'failure'].includes(args[3])
+  )
+  const checks: Record<string, { passed: boolean; evidence: unknown }> = {
+    'candidate-cli': {
+      passed: candidateInvoked,
+      evidence:
+        'Actual candidate invocation with requested policy and successful exit',
+    },
+    'provider-lookup': {
+      passed: lookups.length > 0,
+      evidence: lookups.map(({ args }) => args.join(' ')),
+    },
+    'not-upgraded': {
+      passed: versions.every(({ next }) => next === scenario.sourceVersion),
+      evidence: versions,
+    },
+    'no-outcome-report': {
+      passed: outcomes.length === 0,
+      evidence: outcomes.map(({ args }) => args[3]),
+    },
+  }
+  const failed = requiredChecks('stop').filter((check) => !checks[check].passed)
+  return {
+    status: failed.length === 0 && !native.result.error ? 'passed' : 'failed',
+    checks,
+    reason: native.result.error
+      ? `Native agent execution failed: ${native.result.error}`
+      : failed.length
+        ? `Failed stop checks: ${failed.join(', ')}`
+        : 'Stopped for the equivalent open pull request without upgrading',
   }
 }

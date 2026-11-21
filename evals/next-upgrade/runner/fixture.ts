@@ -1,6 +1,7 @@
 import { cpSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import type { Sandbox } from '@vercel/agent-eval'
+import { setupRepository } from './repository'
 
 export const suite = resolve(__dirname, '..')
 export const toolsDirectory = '/tmp/next-upgrade-eval'
@@ -10,10 +11,25 @@ export type Scenario = {
   app: string
   sourceVersion: string
   targetVersion: string
+  // Work that already attempted this upgrade. Only an equivalent open pull
+  // request should stop the agent; stale branches and closed PRs must not.
+  duplicate?: 'stale-branch' | 'open-pull-request'
 }
 
-// The six cases share one contract per task kind, without per-case copies.
-export function requiredChecks(kind: Scenario['kind']): string[] {
+export function expectsStop(scenario: Scenario): boolean {
+  return scenario.duplicate === 'open-pull-request'
+}
+
+// Cases share one contract per task kind, without per-case copies.
+export function requiredChecks(kind: Scenario['kind'] | 'stop'): string[] {
+  if (kind === 'stop') {
+    return [
+      'candidate-cli',
+      'provider-lookup',
+      'not-upgraded',
+      'no-outcome-report',
+    ]
+  }
   return kind === 'direct'
     ? [
         'manifest',
@@ -267,6 +283,7 @@ export async function setupFixture(
   }
   await run('git', ['add', '--force', 'package-lock.json', 'package.json'])
   await run('git', ['commit', '--amend', '--no-edit'])
+  await setupRepository(sandbox, scenario, run)
   await sandbox.writeFiles({
     [join(toolsDirectory, 'baseline.json')]: JSON.stringify({
       head: await run('git', ['rev-parse', 'HEAD']),
@@ -276,6 +293,7 @@ export async function setupFixture(
     env: {
       PATH: `${bin}:${originalPath}`,
       NEXT_TELEMETRY_DISABLED: '1',
+      GIT_TERMINAL_PROMPT: '0',
       NODE_OPTIONS: `--import=${toolsDirectory}/upstream.mjs`,
     },
   }
