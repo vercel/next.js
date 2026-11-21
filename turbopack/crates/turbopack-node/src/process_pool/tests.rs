@@ -289,3 +289,97 @@ async fn test_pool_pre_warm_failure() {
     })
     .await;
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_pool_shutdown() {
+    use std::{
+        sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+        },
+        time::Duration,
+    };
+
+    use crate::{
+        backend::NodeBackend,
+        process_pool::{ChildProcessesBackend, track_prewarm},
+    };
+
+    // Shutdown intentionally spans every idle pool. Run its regression in its own process
+    // so parallel pool tests cannot have their workers retired by this test.
+    if std::env::var_os("TURBOPACK_POOL_SHUTDOWN_TEST").is_none() {
+        let status = tokio::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "process_pool::tests::test_pool_shutdown",
+                "--nocapture",
+            ])
+            .env("TURBOPACK_POOL_SHUTDOWN_TEST", "1")
+            .status()
+            .await
+            .unwrap();
+        assert!(status.success());
+        return;
+    }
+
+    let (release, blocked) = tokio::sync::oneshot::channel();
+    let completed = Arc::new(AtomicBool::new(false));
+    track_prewarm({
+        let completed = completed.clone();
+        async move {
+            blocked.await.unwrap();
+            completed.store(true, Ordering::Release);
+        }
+    });
+    let mut first = ChildProcessesBackend.shutdown();
+    assert!(futures::poll!(&mut first).is_pending());
+    drop(first);
+    let mut second = ChildProcessesBackend.shutdown();
+    assert!(futures::poll!(&mut second).is_pending());
+    assert!(!completed.load(Ordering::Acquire));
+    release.send(()).unwrap();
+    tokio::time::timeout(Duration::from_secs(5), second)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(completed.load(Ordering::Acquire));
+
+    run_once_without_cache_check(&REGISTRATION, async {
+        let pool = create_test_pool(2).await.unwrap();
+        let mut active = pool.operation().await.unwrap();
+        let active_pid = send_recv(&mut active, serde_json::json!({"active": true}))
+            .await
+            .pid;
+        let idle_pid = {
+            let mut idle = pool.operation().await.unwrap();
+            send_recv(&mut idle, serde_json::json!({"idle": true}))
+                .await
+                .pid
+        };
+        ChildProcessesBackend.shutdown().await.unwrap();
+        let status = tokio::process::Command::new("node")
+            .args([
+                "-e",
+                "try { process.kill(Number(process.argv[1]), 0); process.exit(1) } catch (error) \
+                 { if (error.code !== 'ESRCH') throw error }",
+                &idle_pid.to_string(),
+            ])
+            .status()
+            .await
+            .unwrap();
+        assert!(
+            status.success(),
+            "shutdown returned before the idle worker exited"
+        );
+        assert_eq!(
+            send_recv(&mut active, serde_json::json!({"stillActive": true}))
+                .await
+                .pid,
+            active_pid
+        );
+        drop(active);
+        ChildProcessesBackend.shutdown().await.unwrap();
+        ChildProcessesBackend.shutdown().await.unwrap();
+    })
+    .await;
+}
