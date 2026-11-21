@@ -2870,6 +2870,27 @@ async fn resolve_module_request(
         return Ok(result.into_cell());
     }
 
+    // Try the local candidate even when no package with this name exists. Besides
+    // giving it precedence, this subscribes failed loader resolutions (e.g. Sass
+    // partials) to creation of the missing file.
+    if options_value.prefer_relative {
+        let relative = Request::relative(
+            Pattern::concat([rcstr!("./").into(), module.clone(), path.clone()]),
+            query.clone(),
+            fragment.clone(),
+            true,
+        );
+        let relative_result = Box::pin(resolve_internal_inline(
+            lookup_path.clone(),
+            relative,
+            options,
+        ))
+        .await?;
+        if !relative_result.await?.is_unresolvable() {
+            return Ok(relative_result.with_stripped_request_key_prefix(rcstr!("./")));
+        }
+    }
+
     let mut results = vec![];
 
     // Self references, if the nearest package.json has the name of the requested
@@ -2949,25 +2970,7 @@ async fn resolve_module_request(
     let module_result =
         merge_results_with_affecting_sources(results, result.affecting_sources.clone());
 
-    if options_value.prefer_relative {
-        let mut module_prefixed = module.clone();
-        module_prefixed.push_front(rcstr!("./").into());
-        let pattern = Pattern::concat([module_prefixed.clone(), rcstr!("/").into(), path.clone()]);
-        let relative = Request::relative(pattern, query, fragment, true)
-            .to_resolved()
-            .await?;
-        let relative_result = Box::pin(resolve_internal_inline(
-            lookup_path.clone(),
-            *relative,
-            options,
-        ))
-        .await?;
-        let relative_result = relative_result.with_stripped_request_key_prefix(rcstr!("./"));
-
-        Ok(merge_results(vec![relative_result, module_result]))
-    } else {
-        Ok(module_result)
-    }
+    Ok(module_result)
 }
 
 #[turbo_tasks::function]
