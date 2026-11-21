@@ -915,6 +915,10 @@ struct RestoreOutcome {
 /// held on it: those are only taken on tasks that exist, and a task that exists is never missing.
 /// A thread still using the id re-creates an entry, finds the task missing itself, and discards it
 /// in turn. `MustExist` then panics instead of returning a fabricated task.
+///
+/// `#[track_caller]` (like `panic_missing_task`) so the panic reports the `ctx.task(..)` call site
+/// that held the stale id rather than this helper; release binaries rarely give usable backtraces.
+#[track_caller]
 fn handle_missing_task(
     task: TaskEntryGuard<'_>,
     task_id: TaskId,
@@ -940,6 +944,7 @@ fn handle_missing_task(
 }
 
 #[cold]
+#[track_caller]
 fn panic_missing_task(task_id: TaskId, reason: &str) -> ! {
     panic!(
         "task {task_id} ({reason}, MustExist): task is missing in memory or persistent storage — \
@@ -1162,6 +1167,7 @@ impl<'e> ExecuteContext<'e> {
     /// Opens two tasks that must **already exist** under a single lock acquisition (to atomically
     /// read/mutate an edge between them). Both ids are opened `MustExist` — an edge only exists
     /// between already-materialized tasks.
+    #[track_caller]
     pub fn task_pair(
         &mut self,
         task_id1: TaskId,
