@@ -67,8 +67,11 @@ describe('dependency frames in validation errors', () => {
     'resolves bundled %s frames without changing the shared filter',
     (name, expected) => {
       const payload = {
+        file: 'library.js',
         version: 3,
         sources: [`file:///app/node_modules/${name}/index.js`],
+        sourcesContent: [''],
+        sourceRoot: '',
         names: [],
         mappings: 'AAAA',
         ignoreList: [0],
@@ -87,11 +90,14 @@ describe('dependency frames in validation errors', () => {
 
   it('uses the mapped position when a chunk contains framework and dependency sources', () => {
     const payload = {
+      file: 'library.js',
       version: 3,
       sources: [
         'file:///app/node_modules/next/index.js',
         'file:///app/node_modules/date-library/index.js',
       ],
+      sourcesContent: ['', ''],
+      sourceRoot: '',
       names: [],
       mappings: 'AAAA;ACAA',
       ignoreList: [0, 1],

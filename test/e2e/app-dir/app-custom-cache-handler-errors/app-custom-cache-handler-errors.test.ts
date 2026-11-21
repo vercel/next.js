@@ -14,7 +14,7 @@ const normalizeCacheHandlerPaths = (output: string): string =>
 // It likely asserts local CLI or runtime output that deploy tests do not expose.
 // @force-gate !deploy
 describe('app-custom-cache-handler-errors - get throws', () => {
-  const { next, isNextDev, isTurbopack } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     env: { CACHE_HANDLER_THROW_ON: 'get' },
   })
@@ -24,39 +24,20 @@ describe('app-custom-cache-handler-errors - get throws', () => {
     const browser = await next.browser('/?input=x')
 
     if (isNextDev) {
-      if (isTurbopack) {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "description": "CustomCacheHandler.get failed",
-           "environmentLabel": "Prefetch",
-           "label": "Runtime Error",
-           "source": "app/page.tsx (19:14) @ CachedData
-         > 19 |   return <p>{await getCachedData(input)}</p>
-              |              ^",
-           "stack": [
-             "Object.get throwing-cache-handler.js (24:13)",
-             "CachedData app/page.tsx (19:14)",
-           ],
-         }
-        `)
-      } else {
-        // TODO(veil): Webpack renders the cache handler frame as a file:// URL,
-        // which the redbox matcher flags as unintended.
-        await expect(browser).toDisplayRedbox(`
-         {
-           "description": "CustomCacheHandler.get failed",
-           "environmentLabel": "Prefetch",
-           "label": "Runtime Error",
-           "source": "app/page.tsx (19:14) @ CachedData
-         > 19 |   return <p>{await getCachedData(input)}</p>
-              |              ^",
-           "stack": [
-             "<FIXME-file-protocol>",
-             "CachedData app/page.tsx (19:14)",
-           ],
-         }
-        `)
-      }
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "CustomCacheHandler.get failed",
+         "environmentLabel": "Prefetch",
+         "label": "Runtime Error",
+         "source": "app/page.tsx (19:14) @ CachedData
+       > 19 |   return <p>{await getCachedData(input)}</p>
+            |              ^",
+         "stack": [
+           "Object.get throwing-cache-handler.js (24:13)",
+           "CachedData app/page.tsx (19:14)",
+         ],
+       }
+      `)
     }
 
     await retry(async () => {

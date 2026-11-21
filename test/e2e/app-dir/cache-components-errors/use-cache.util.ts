@@ -1575,6 +1575,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-cookies-third-party": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
                    Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                       at CachedCookiesReader (node_modules/third-party-pkg/index.js:8:18)
                        at Page (app/use-cache-cookies-third-party/page.tsx:10:7)
                       8 |         which triggers an error.
                       9 |       </p>
@@ -1606,6 +1607,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/use-cache-cookies-third-party": \`cookies()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
                  Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                     at CachedCookiesReader (webpack:///node_modules/third-party-pkg/index.js:8:18)
                      at Page (webpack:///app/use-cache-cookies-third-party/page.tsx:10:7)
                     8 |         which triggers an error.
                     9 |       </p>
@@ -1678,6 +1680,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
                    Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                       at CachedDraftModeEnabler (node_modules/third-party-pkg/index.js:28:26)
                        at Page (app/use-cache-draft-mode-third-party/page.tsx:10:7)
                       8 |         which triggers an error.
                       9 |       </p>
@@ -1696,6 +1699,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/use-cache-draft-mode-third-party": \`draftMode().enable()\` can't be called inside \`"use cache"\`. Draft mode can be read inside a cached function, but enabling or disabling it must happen outside.
                  Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                     at CachedDraftModeEnabler (webpack:///node_modules/third-party-pkg/index.js:28:26)
                      at Page (webpack:///app/use-cache-draft-mode-third-party/page.tsx:10:7)
                     8 |         which triggers an error.
                     9 |       </p>
@@ -1778,6 +1782,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-headers-third-party": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
                    Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                       at CachedHeadersReader (node_modules/third-party-pkg/index.js:18:18)
                        at Page (app/use-cache-headers-third-party/page.tsx:10:7)
                       8 |         which triggers an error.
                       9 |       </p>
@@ -1809,6 +1814,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/use-cache-headers-third-party": \`headers()\` can't be read inside \`"use cache"\`. Read it outside the cached function and pass what you need as an argument.
                  Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                     at CachedHeadersReader (webpack:///node_modules/third-party-pkg/index.js:18:18)
                      at Page (webpack:///app/use-cache-headers-third-party/page.tsx:10:7)
                     8 |         which triggers an error.
                     9 |       </p>
@@ -1881,6 +1887,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-connection-third-party": \`connection()\` can't be called inside \`"use cache"\` because cached functions may run during prerendering, without an incoming request. Call it outside the cached function.
                    Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                       at CachedConnectionCaller (node_modules/third-party-pkg/index.js:38:21)
                        at Page (app/use-cache-connection-third-party/page.tsx:10:7)
                       8 |         which triggers an error.
                       9 |       </p>
@@ -1912,6 +1919,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/use-cache-connection-third-party": \`connection()\` can't be called inside \`"use cache"\` because cached functions may run during prerendering, without an incoming request. Call it outside the cached function.
                  Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache
+                     at CachedConnectionCaller (webpack:///node_modules/third-party-pkg/index.js:38:21)
                      at Page (webpack:///app/use-cache-connection-third-party/page.tsx:10:7)
                     8 |         which triggers an error.
                     9 |       </p>

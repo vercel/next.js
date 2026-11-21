@@ -518,15 +518,13 @@ async function getOriginalStackFrame({
     },
   })
 
-  let defaultNormalizedStackFrameLocation =
+  let defaultNormalizedStackFrameLocation = frame.file
+  const devirtualizedFile =
     frame.file === null ? null : devirtualizeReactServerURL(frame.file)
-  if (
-    defaultNormalizedStackFrameLocation !== null &&
-    defaultNormalizedStackFrameLocation.startsWith('file://')
-  ) {
+  if (devirtualizedFile !== null && devirtualizedFile.startsWith('file://')) {
     defaultNormalizedStackFrameLocation = path.relative(
       rootDirectory,
-      fileURLToPath(defaultNormalizedStackFrameLocation)
+      fileURLToPath(devirtualizedFile)
     )
   }
   // This stack frame is used for the one that couldn't locate the source or source mapped frame
