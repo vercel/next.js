@@ -344,6 +344,72 @@ export function trackAllowedDynamicAccess(
   return
 }
 
+/**
+ * A dynamic access that React reported while it aborted an HTML prerender,
+ * kept so that its component stack is only read if validation needs it.
+ */
+export type DeferredDynamicAccess = {
+  readonly dynamicReason: unknown
+  /**
+   * React's error info. Its `componentStack` is computed when it's first
+   * read, by calling every component on the stack again. That's by far the
+   * most expensive part of tracking a dynamic access.
+   */
+  readonly errorInfo: object
+}
+
+/**
+ * Tracks the dynamic accesses that were collected while React aborted an HTML
+ * prerender, in the order they were reported. It's the deferred equivalent of
+ * calling `trackAllowedDynamicAccess` for every access, but it stops as soon
+ * as the outcome of `throwIfDisallowedDynamic` can't change anymore. This must
+ * be called before `throwIfDisallowedDynamic`, with the same arguments.
+ *
+ * What `throwIfDisallowedDynamic` reads depends on the prelude:
+ *
+ * - With a full prelude, it only reports dynamic metadata in an otherwise
+ *   static route, i.e. it reads `hasDynamicMetadata` unless
+ *   `hasAllowedDynamic` is set. Nothing else is read, so we can stop at the
+ *   first access that sets `hasAllowedDynamic`. A route with a dynamic hole
+ *   inside of a Suspense boundary typically needs a single component stack.
+ * - Without a full prelude, nothing is read when an empty static shell is
+ *   allowed, so no component stack is needed at all. Otherwise every access
+ *   may contribute an error that's going to be logged, and all of them are
+ *   tracked.
+ */
+export function trackDeferredAllowedDynamicAccesses(
+  deferredDynamicAccesses: ReadonlyArray<DeferredDynamicAccess>,
+  workStore: WorkStore,
+  prelude: PreludeState,
+  dynamicValidation: DynamicValidationState,
+  clientDynamic: DynamicTrackingState,
+  allowEmptyStaticShell: boolean
+): void {
+  const hasFullPrelude = prelude === PreludeState.Full
+  if (!hasFullPrelude && allowEmptyStaticShell) {
+    return
+  }
+
+  for (let i = 0; i < deferredDynamicAccesses.length; i++) {
+    if (hasFullPrelude && dynamicValidation.hasAllowedDynamic) {
+      return
+    }
+
+    const { dynamicReason, errorInfo } = deferredDynamicAccesses[i]
+    const componentStack = (errorInfo as { componentStack?: unknown })
+      .componentStack
+    if (typeof componentStack === 'string') {
+      trackAllowedDynamicAccess(
+        dynamicReason,
+        workStore,
+        componentStack,
+        dynamicValidation,
+        clientDynamic
+      )
+    }
+  }
+}
+
 export enum DynamicHoleKind {
   /** We know that this hole is caused by runtime data. */
   Runtime = 1,
