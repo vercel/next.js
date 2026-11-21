@@ -51,8 +51,11 @@ pnpm build-all
 - `turbopack` depends on `turbopack-node` without default features. For a
   standalone `cargo check -p turbopack`, enable
   `--features turbopack-node/process_pool`.
-- For crates with unsafe or raw-pointer code, run `cargo miri test -p <crate>`
-  from the checkout so `rust-toolchain.toml` selects the pinned nightly.
+- CI runs Miri on a fixed package allowlist with specific flags. Run it with
+  `pnpm --filter @next/swc run test-cargo-unit-miri` (see `packages/next-swc/package.json`)
+  from the checkout so `rust-toolchain.toml` selects the pinned nightly. A bare
+  `cargo miri test -p <crate>` omits those flags and can abort on filesystem
+  access. Add a crate to the allowlist only after confirming it runs under Miri.
 - Cargo commands can update `Cargo.lock`. Check `git status` and revert
   unrelated changes.
 - For an internal compiler error related to incremental compilation, delete the
