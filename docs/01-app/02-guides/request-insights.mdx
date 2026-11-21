@@ -57,7 +57,15 @@ Select the `/reports` request that took several seconds. Use the route, duration
 
 Selecting a request opens its overview, trace, and recorded fetches. The trace places each operation on the request timeline and shows its duration.
 
-In this example, `ResolveMetadata.generateMetadata` takes 3.54 seconds of the 3.64-second request. Compilation and rendering complete in milliseconds, so they do not explain the slowdown. The next step is to inspect `generateMetadata` and the data it awaits.
+In this example, `ResolveMetadata.generateMetadata` contains a 3.53-second `/metadata` fetch and spans 3.54 seconds of the 3.65-second request. Compilation and rendering complete in milliseconds, so they do not explain the slowdown. The next step is to inspect `generateMetadata` and the data it awaits.
+
+<Image
+  alt="Request Insights highlighting a 3.53-second metadata fetch"
+  srcLight="/docs/light/request-insights-slow-request.png"
+  srcDark="/docs/dark/request-insights-slow-request.png"
+  width="1954"
+  height="880"
+/>
 
 Spans can overlap or contain other spans. Their position and nesting distinguish nested work from separate delays. For fetches, the panel also shows the URL, cache status, and duration.
 
