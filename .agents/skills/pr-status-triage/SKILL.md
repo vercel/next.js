@@ -4,8 +4,9 @@ description: >
   Triage CI failures and PR review comments using scripts/pr-status.js.
   Use when investigating failing CI jobs, flaky tests, or PR review feedback.
   Covers blocker-first prioritization (build > lint > types > tests),
-  CI env var matching for local reproduction, and the Known Flaky Tests
-  distinction.
+  CI env var matching for local reproduction, the Known Flaky Tests
+  distinction, and reading CI by hand: retry-tests attempts, paginated job
+  lists, docs-only runs, cancelled shards, and external failures.
 metadata:
   internal: true
 ---
@@ -27,10 +28,10 @@ Then:
 1. Read `scripts/pr-status/results/index.md`.
 2. For a targeted review question, inspect the relevant `thread-{N}.md`, `review-{id}.md`, or `comment-{id}.md` files. For full triage, also analyze each `job-{id}.md` and review file for failures and feedback.
 3. Prioritize blocking jobs first: build, lint, types, then test jobs.
-4. Treat failures as real until disproven; check the "Known Flaky Tests" section before calling anything flaky.
+4. Treat failures as real until disproven; check the "Known Flaky Tests" section before calling anything flaky. For base, step, attempt, and log details, use [ci-reading.md](./ci-reading.md).
 5. Reproduce test failures locally with the same mode and environment as CI (e.g. dev or start, webpack or turbopack).
 6. After addressing review comments, reply to the thread describing what was done, then resolve it. Use `reply-and-resolve-thread` to do both in one step, or use `reply-thread` + `resolve-thread` separately. See `scripts/pr-status/results/thread-N.md` files for ready-to-use commands.
-7. When the only remaining failures are known flaky tests and no code changes are needed, retrigger the failing CI jobs with `gh run rerun <run-id> --failed`. Then re-run the analysis with `--wait` to pick up the rerun results and go back to step 1. Repeat this loop up to 5 times.
+7. When the only remaining failures are known flaky tests and no code changes are needed, wait for the workflow run to finish, then retrigger the failing CI jobs with `gh run rerun <run-id> --failed`. Then re-run the analysis with `--wait` to pick up the rerun results and go back to step 1. Repeat this loop up to 2 times.
 8. Start fixing as results come in; do not wait for the whole workflow before beginning on failures that have already reported. A push, on the other hand, should wait for the workflow to complete.
 
 ## CI Analysis Tips
@@ -74,3 +75,4 @@ node scripts/pr-status.js reply-and-resolve-thread <threadNodeId> "<body>"  # re
 
 - [workflow.md](./workflow.md) — prioritization, common failure patterns, resolving review threads
 - [local-repro.md](./local-repro.md) — mode/env matching and isolation guidance
+- [ci-reading.md](./ci-reading.md) — reading CI without the script: failing steps, cancelled shards, canary noise, run attempts, docs-only runs, job pagination, job logs, flake detection
