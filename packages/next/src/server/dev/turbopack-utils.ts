@@ -75,15 +75,51 @@ export function printNonFatalIssue(issue: Issue) {
   }
 }
 
+/**
+ * Replaces the stored top-level issues with the issues of `result`.
+ *
+ * @returns The issues that were not present in the previous set, so callers
+ *          can report each issue once when it first appears.
+ */
 export function processTopLevelIssues<T>(
   currentTopLevelIssues: TopLevelIssuesMap,
   result: TurbopackResult<T>
-) {
+): Issue[] {
+  const previousIssueKeys = new Set(currentTopLevelIssues.keys())
   currentTopLevelIssues.clear()
 
+  const newIssues: Issue[] = []
   for (const issue of result.issues) {
     const issueKey = getIssueKey(issue)
+    if (
+      !previousIssueKeys.has(issueKey) &&
+      !currentTopLevelIssues.has(issueKey)
+    ) {
+      newIssues.push(issue)
+    }
     currentTopLevelIssues.set(issueKey, issue)
+  }
+  return newIssues
+}
+
+/**
+ * Logs top-level error issues that appeared in the latest entrypoints update.
+ *
+ * Top-level issues are not tied to an endpoint, so no compilation step logs
+ * them. Requests that render an error page without compiling a route (e.g. an
+ * unmatched URL) only return them wrapped in a `WrappedBuildError`, which is
+ * intentionally not logged. Logging them once here keeps them visible in the
+ * terminal without repeating them on every request.
+ */
+export function printNewTopLevelErrors(newIssues: Issue[]) {
+  for (const issue of newIssues) {
+    if (
+      issue.severity === 'error' ||
+      issue.severity === 'fatal' ||
+      issue.severity === 'bug'
+    ) {
+      Log.error(formatIssue(issue))
+    }
   }
 }
 
