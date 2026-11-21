@@ -8667,7 +8667,7 @@
   },
   "test/e2e/app-dir/proxy-nfc-traced/proxy-nfc-traced.test.ts": {
     "passed": [
-      "proxy-nfc-traced should have renamed trace file as middleware instead of proxy",
+      "proxy-nfc-traced should list the trace file as middleware and not as proxy",
       "proxy-nfc-traced should successfully build and be redirected from proxy"
     ],
     "failed": [],
