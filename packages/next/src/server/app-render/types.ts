@@ -231,6 +231,13 @@ export interface RenderOptsPartial {
    */
   prefetchHints?: Record<string, PrefetchHints>
 
+  /**
+   * Build time only: the prefetch hints that another page of this route was
+   * already prerendered with. When set, this page is built with the same
+   * inlining decisions instead of measuring its own segments.
+   */
+  routePrefetchHints?: PrefetchHints
+
   /** Parameters whose novel values are rejected by routing. */
   notFoundParams?: readonly string[]
 

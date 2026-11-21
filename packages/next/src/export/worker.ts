@@ -117,6 +117,7 @@ async function exportPageImpl(
     deploymentId,
     clientAssetToken,
     renderResumeDataCache,
+    routePrefetchHints,
     useScopedBuildArtifacts,
   } = input
 
@@ -347,6 +348,7 @@ async function exportPageImpl(
       isRoutePPREnabled,
     },
     renderResumeDataCache,
+    routePrefetchHints,
   }
 
   // Handle App Pages
@@ -456,6 +458,7 @@ export async function exportPages(
     nextConfig,
     options,
     renderResumeDataCachesByPage = {},
+    routePrefetchHintsByPage,
   } = input
 
   installGlobalBehaviors(nextConfig)
@@ -498,8 +501,9 @@ export async function exportPages(
 
   renderOpts.incrementalCache = incrementalCache
 
-  const maxConcurrency =
-    nextConfig.experimental.staticGenerationMaxConcurrency ?? 8
+  const maxConcurrency = input.renderOneAtATime
+    ? 1
+    : (nextConfig.experimental.staticGenerationMaxConcurrency ?? 8)
   const results: ExportPagesResult = []
 
   const exportPageWithRetry = async (
@@ -550,6 +554,7 @@ export async function exportPages(
             deploymentId: input.deploymentId,
             clientAssetToken: input.clientAssetToken,
             renderResumeDataCache,
+            routePrefetchHints: routePrefetchHintsByPage?.[page],
             useScopedBuildArtifacts:
               Boolean(nextConfig.adapterPath) &&
               nextConfig.output !== 'export' &&
