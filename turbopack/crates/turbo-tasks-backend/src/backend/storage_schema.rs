@@ -36,7 +36,8 @@ use crate::{
     backend::{cell_data::CellData, counter_map::CounterMap},
     data::{
         ActivenessState, AggregationNumber, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
-        InProgressCellState, InProgressState, LeafDistance, OutputValue, RootType, TransientTask,
+        InProgressCellState, InProgressState, LeafDistance, OutputValue, PendingFollowerAdditions,
+        RootType, TransientTask,
     },
 };
 
@@ -422,6 +423,12 @@ struct TaskStorageSchema {
     #[field(storage = "direct", category = "transient")]
     in_progress: InProgressState,
 
+    /// Follower additions published by this task that haven't been applied yet, and the follower
+    /// removals that wait for them (transient). Only set while an aggregation update operation
+    /// is applying them.
+    #[field(storage = "direct", category = "transient")]
+    pending_follower_additions: Box<PendingFollowerAdditions>,
+
     /// In-progress cell state for cells being computed (transient).
     #[field(storage = "auto_map", category = "transient", shrink_on_completion)]
     in_progress_cells: AutoMap<CellId, InProgressCellState, 1>,
@@ -613,6 +620,9 @@ impl TaskStorage {
         // either literally executing, or about to
         if self.get_in_progress().is_some()
             || self.is_active()
+            // Follower additions in flight and the removals that wait for them are only kept
+            // in memory, until the operation that applies them settles them.
+            || self.get_pending_follower_additions().is_some()
             // Without these checks we could corrupt racing reads.
             // Basically if a task restores ALL but data is already restored, then it will set meta_restoring, so it would break semantics to clear data_restored while that is happening.  We could fix it by adding a loop to the restoring threads but it is just much simpler to back off in this case.
             || flags.meta_restoring()
@@ -901,6 +911,9 @@ impl TaskStorage {
             aggregation_number: self.get_aggregation_number().map_or(0, |a| a.effective),
             upper,
             followers,
+            pending_follower_additions: self
+                .get_pending_follower_additions()
+                .map_or((0, 0), |pending| pending.counts()),
         })
     }
 

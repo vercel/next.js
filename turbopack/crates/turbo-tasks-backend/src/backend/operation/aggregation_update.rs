@@ -68,6 +68,54 @@
 //! propagation. Unlike the previous retry loop, which panicked when the addition never arrived,
 //! nothing reports this unless the `verify_aggregation_graph` feature is enabled; its stop-time
 //! check reports residual debt on restored resident tasks.
+//!
+//! # Removals of followers that are still being added: pending additions
+//!
+//! Debt handles a removal of an edge that overtakes the addition *of the same path*, as long as
+//! the follower has no other edge to the upper. Follower counts are shared between paths, though:
+//! `F.upper[U]` (or `U.followers[F]`) counts all paths from `U` to `F`. A removal that overtakes
+//! the addition of its path instead decrements the count of *another* path. While the addition is
+//! still queued, `F` then disappears from `U` even though it's still reachable from it: `U` loses
+//! its aggregated data, including its dirty container. That makes a strongly consistent read of `U`
+//! return too early, before `F` is clean, and miss `F`'s collectibles.
+//!
+//! This happens when a task `X` publishes followers while holding its lock (it adds them to its
+//! own children or followers) but adds them to its uppers only after releasing it, in a job. When
+//! `X` is detached from an upper in the meantime, the removal uses `X`'s followers, which include
+//! the published ones. The producers are:
+//! - a leaf task that connects new children (`connect_children`),
+//! - a task that becomes inner of an upper and adds its followers to it (step 6e),
+//! - an upper that gets a new follower and adds it to its own uppers (steps 3c to 3e).
+//!
+//! To prevent this, `X` counts each published follower as *pending* under its lock
+//! (`pending_follower_additions`, see [`crate::data::PendingFollowerAdditions`]). The queue that
+//! applies the addition counts it as well (`pending_additions`), and settles it once the queue has
+//! no other work left, so after the addition was fully (recursively) applied: it locks `X` once
+//! and decrements the counts. A removal of followers of `X` from its uppers locks `X` to snapshot
+//! its followers, and checks the counts at the same time: the removal of a follower that has a
+//! pending addition is *parked* on `X` instead, per upper. The other followers are removed right
+//! away. When no addition of the follower is pending anymore, the queue that settled the last one
+//! queues the parked removals, so they remove the edges of `X`'s path after they were added. The
+//! follower stays in the upper the whole time, which can only temporarily count it once more.
+//! A parked removal also waits for additions of its follower that are published later, and for
+//! the removal of the follower from any upper, not only from those that the addition goes to.
+//! Both only delay it.
+//!
+//! The detaching operation can finish before its parked removals ran. They run in the operation
+//! that settles the follower's last pending addition, which can be a later operation if additions
+//! of the same follower keep overlapping. Each operation executes its queue to completion (see the
+//! assumption above), so once no addition of the follower is pending anymore, the operation that
+//! made the count zero runs the parked removals before it ends. The pending counts and parked
+//! removals are only kept in memory, and a task with any of them can't be evicted. A snapshot
+//! waits for all operations, so there are none while it runs, except for those of the GC, which
+//! runs during the snapshot and executes its queues to completion too.
+//!
+//! This keeps the edge counts right, but not the dirty containers of the uppers while the
+//! follower's own followers are still being added by another path's operation. When a second path
+//! to the follower only increments its existing edge, it relies on the first path's operation to
+//! add the follower's followers. If the first path's dirty publisher is detached
+//! before that, the upper can be clean while a dirty task in its subgraph hasn't reached it yet.
+//! This isn't handled yet.
 
 use std::{
     cmp::max,
@@ -79,7 +127,7 @@ use std::{
 
 use indexmap::map::Entry;
 use ringmap::RingSet;
-use rustc_hash::{FxBuildHasher, FxHashMap};
+use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 use smallvec::{SmallVec, smallvec};
 #[cfg(feature = "trace_aggregation_update_queue")]
 use tracing::span::Span;
@@ -95,6 +143,7 @@ use turbo_tasks::{FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, event::
 use crate::{
     backend::{
         TaskDataCategory,
+        counter_map::CounterMap,
         operation::{
             ExecuteContext, TaskGuard,
             aggregation_edge::{
@@ -1033,6 +1082,65 @@ struct AggregationNumberUpdate {
     span: Option<Span>,
 }
 
+/// Counts an addition of `follower_ids` to the uppers of the locked `owner` as pending (see
+/// "Pending additions" in the module docs). The owner publishes the addition under its lock, but
+/// it's applied after the lock is released. The queue that applies it must settle it, see
+/// [`AggregationUpdateQueue::add_pending_addition`].
+pub(super) fn publish_pending_addition(owner: &mut TaskGuard<'_>, follower_ids: &[TaskId]) {
+    if !owner.has_pending_follower_additions() {
+        owner.set_pending_follower_additions(Box::default());
+    }
+    owner
+        .get_pending_follower_additions_mut()
+        .expect("pending follower additions were just set")
+        .add(follower_ids);
+}
+
+/// The followers whose removal is parked, see [`park_lost_followers`].
+type ParkedFollowers = SmallVec<[TaskId; 1]>;
+
+/// From this number of parked followers, they are put in a set to filter the lost followers.
+const FILTER_PARKED_FOLLOWERS_WITH_SET: usize = 16;
+
+/// Parks the removal of the edges between each of `upper_ids` and each of `follower_ids` that the
+/// locked `owner` has a pending addition of. The owner snapshotted its followers after publishing
+/// the addition, but the uppers might not have got it yet. Removing these edges now could remove
+/// another path's edge (e.g. one of another inner task that has the same follower).
+///
+/// Returns the followers whose removal was parked, which the caller must not remove. They are
+/// removed once the owner has no pending addition of them anymore (see
+/// [`AggregationUpdateQueue::settle_pending_additions`]).
+fn park_lost_followers(
+    owner: &mut TaskGuard<'_>,
+    upper_ids: impl FnOnce() -> TaskIdVec,
+    follower_ids: &[TaskId],
+) -> ParkedFollowers {
+    match owner.get_pending_follower_additions_mut() {
+        Some(pending) if !follower_ids.is_empty() => {
+            pending.park_removals(&upper_ids(), follower_ids)
+        }
+        _ => ParkedFollowers::new(),
+    }
+}
+
+/// Removes the `parked` followers from `followers`.
+fn without_parked(followers: TaskIdVec, parked: &ParkedFollowers) -> TaskIdVec {
+    if parked.is_empty() {
+        followers
+    } else if parked.len() < FILTER_PARKED_FOLLOWERS_WITH_SET {
+        followers
+            .into_iter()
+            .filter(|follower_id| !parked.contains(follower_id))
+            .collect()
+    } else {
+        let parked: FxHashSet<_> = parked.iter().copied().collect();
+        followers
+            .into_iter()
+            .filter(|follower_id| !parked.contains(follower_id))
+            .collect()
+    }
+}
+
 /// An aggregated data update job that is enqueued. See `AggregatedDataUpdate`.
 struct AggregationUpdateJobItem {
     job: AggregationUpdateJob,
@@ -1237,6 +1345,10 @@ pub struct AggregationUpdateQueue {
     /// `MAX_OPTIMIZATIONS_PER_QUEUE`.
     optimizations_executed: usize,
     scheduled_tasks: FxHashMap<TaskId, TaskPriority>,
+    /// The pending additions that jobs of this queue apply, per owner and follower (see "Pending
+    /// additions" in the module docs). Settled once the queue has no other work left, so after
+    /// the additions were fully applied.
+    pending_additions: FxHashMap<TaskId, CounterMap<TaskId, u32, 1>>,
     /// One-shot interleaving at the unlocked boundary after the debt precheck and before the inner
     /// write. Per-queue (not global), and absent from production builds.
     #[cfg(test)]
@@ -1262,6 +1374,7 @@ impl AggregationUpdateQueue {
             optimize_queue: FxRingSet::default(),
             optimizations_executed: 0,
             scheduled_tasks: FxHashMap::default(),
+            pending_additions: FxHashMap::default(),
             #[cfg(test)]
             before_inner_write: None,
             #[cfg(test)]
@@ -1309,6 +1422,7 @@ impl AggregationUpdateQueue {
             optimizations_executed: _,
             done_aggregation_number_updates: _,
             scheduled_tasks,
+            pending_additions,
             #[cfg(test)]
                 before_inner_write: _,
             #[cfg(test)]
@@ -1323,6 +1437,7 @@ impl AggregationUpdateQueue {
             && balance_queue.is_empty()
             && optimize_queue.is_empty()
             && scheduled_tasks.is_empty()
+            && pending_additions.is_empty()
     }
 
     /// Pushes a job to the queue.
@@ -1392,6 +1507,55 @@ impl AggregationUpdateQueue {
     pub fn extend(&mut self, jobs: impl IntoIterator<Item = AggregationUpdateJob>) {
         for job in jobs {
             self.push(job);
+        }
+    }
+
+    /// Lets this queue settle a pending addition of `follower_ids` by `owner`, which a job of this
+    /// queue applies (see [`publish_pending_addition`]). It's settled once the queue has no other
+    /// work left.
+    pub(super) fn add_pending_addition(&mut self, owner: TaskId, follower_ids: &[TaskId]) {
+        let followers = self.pending_additions.entry(owner).or_default();
+        for &follower_id in follower_ids {
+            followers.update_count(follower_id, 1);
+        }
+    }
+
+    /// Counts an addition of `follower_ids` to the uppers of the locked `owner` as pending, which a
+    /// job pushed to this queue applies. See [`publish_pending_addition`] and
+    /// [`Self::add_pending_addition`].
+    fn register_pending_addition(&mut self, owner: &mut TaskGuard<'_>, follower_ids: &[TaskId]) {
+        publish_pending_addition(owner, follower_ids);
+        self.add_pending_addition(owner.id(), follower_ids);
+    }
+
+    /// Settles the pending additions of this queue once it has no other work left, so after the
+    /// additions were fully applied. Queues the parked removals of followers that have no pending
+    /// addition anymore.
+    ///
+    /// Locks each owner task once.
+    fn settle_pending_additions(&mut self, ctx: &mut ExecuteContext<'_>) {
+        for (owner, followers) in take(&mut self.pending_additions) {
+            let mut task = ctx.task(
+                owner,
+                // For performance reasons this should stay `Meta` and not `All`
+                AGGREGATION_UPDATE_CATEGORY,
+            );
+            let additions = task
+                .get_pending_follower_additions_mut()
+                .unwrap_or_else(|| panic!("{owner} has no pending follower additions to settle"));
+            let released = additions.settle(followers);
+            if additions.is_empty() {
+                task.take_pending_follower_additions();
+            }
+            drop(task);
+            for (upper_id, follower_id, count) in released {
+                for _ in 0..count {
+                    self.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
+                        upper_id,
+                        lost_follower_ids: smallvec![follower_id],
+                    });
+                }
+            }
         }
     }
 
@@ -1508,6 +1672,9 @@ impl AggregationUpdateQueue {
     }
 
     /// Runs the job and all dependent jobs until it's done.
+    ///
+    /// Removals of followers that wait for a pending addition of another operation are completed
+    /// by that operation (see "Pending additions" in the module docs).
     pub fn run(job: AggregationUpdateJob, ctx: &mut ExecuteContext<'_>) {
         let mut queue = Self::new();
         queue.push(job);
@@ -1550,6 +1717,12 @@ impl AggregationUpdateQueue {
             assert!(
                 self.optimize_queue.is_empty(),
                 "a queue built with `new_without_optimizations` must never hold optimize jobs"
+            );
+            // Pending additions are settled by the queue that applies them. Deletions only remove
+            // edges, so there is none that could outlive this phase.
+            assert!(
+                self.pending_additions.is_empty(),
+                "GC deletion must not publish follower additions"
             );
             balance_queue
                 .into_iter()
@@ -2020,6 +2193,11 @@ impl AggregationUpdateQueue {
             );
             self.scheduled_tasks.clear();
             false
+        } else if !self.pending_additions.is_empty() {
+            // Last, so the additions are fully applied. Settling can queue parked removals, which
+            // are processed afterwards.
+            self.settle_pending_additions(ctx);
+            false
         } else {
             true
         }
@@ -2125,6 +2303,9 @@ impl AggregationUpdateQueue {
                         );
                     }
                     if !followers.is_empty() {
+                        // The followers of the new inner task are added to the upper. Counted as
+                        // pending under the lock of the task, which published them.
+                        self.register_pending_addition(&mut task, &followers);
                         self.push(AggregationUpdateJob::InnerOfUpperHasNewFollowers {
                             upper_id,
                             new_follower_ids: followers,
@@ -2137,7 +2318,11 @@ impl AggregationUpdateQueue {
                         self.push_find_and_schedule_dirty(task_id);
                     }
                 }
-                let propagation = FollowerEdgePropagation::capture(ctx, &upper);
+                let propagation = FollowerEdgePropagation::capture_lost_followers(
+                    ctx,
+                    &mut upper,
+                    &Some(task_id),
+                );
                 drop(upper);
                 drop(task);
 
@@ -2156,7 +2341,6 @@ impl AggregationUpdateQueue {
                 if task.is_upper_empty() {
                     ctx.note_maybe_collectible(&task);
                 }
-                let propagation = FollowerEdgePropagation::capture(ctx, &upper);
 
                 // Add the same amount of follower edges
                 upper.assert_not_deleted("balance_edge add follower (upper endpoint)");
@@ -2171,6 +2355,15 @@ impl AggregationUpdateQueue {
                 if new_follower {
                     self.maybe_optimize_task(upper.followers_len(), &mut upper);
                 }
+                let propagation = if new_follower {
+                    FollowerEdgePropagation::capture_new_followers(
+                        ctx,
+                        &mut upper,
+                        &smallvec![task_id],
+                    )
+                } else {
+                    FollowerEdgePropagation::capture(ctx, &upper)
+                };
 
                 // Since this is no longer an inner node, update the aggregated data and
                 // followers
@@ -2178,6 +2371,9 @@ impl AggregationUpdateQueue {
                 let followers = get_followers(&task);
                 let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
                 drop(upper);
+                // The followers of the task are removed from the upper, except those that the task
+                // has a pending addition of.
+                let parked = park_lost_followers(&mut task, || smallvec![upper_id], &followers);
                 drop(task);
                 if !propagation.upper_ids.is_empty() && !diff.is_empty() {
                     self.push(
@@ -2188,6 +2384,7 @@ impl AggregationUpdateQueue {
                         .into(),
                     );
                 }
+                let followers = without_parked(followers, &parked);
                 if !followers.is_empty() {
                     self.push(
                         InnerOfUppersLostFollowersJob {
@@ -2446,6 +2643,13 @@ impl AggregationUpdateQueue {
     ) {
         let data = AggregatedDataUpdate::from_task(&mut follower);
         let followers = get_followers(&follower);
+        // The followers are removed from the uppers, except those that the follower has a pending
+        // addition of.
+        let parked = park_lost_followers(
+            &mut follower,
+            || removed_upper_ids.iter_ids().collect(),
+            &followers,
+        );
         // if uppers became empty, it might be collectible, check now.
         if follower.is_upper_empty() {
             ctx.note_maybe_collectible(&follower);
@@ -2487,6 +2691,7 @@ impl AggregationUpdateQueue {
                 );
             }
         }
+        let followers = without_parked(followers, &parked);
         if !followers.is_empty() {
             if let Some(upper_id) = removed_upper_ids.single() {
                 self.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
@@ -2553,7 +2758,11 @@ impl AggregationUpdateQueue {
             if upper.is_followers_empty() {
                 ctx.note_maybe_collectible(&upper);
             }
-            Some(FollowerEdgePropagation::capture(ctx, &upper))
+            Some(FollowerEdgePropagation::capture_lost_followers(
+                ctx,
+                &mut upper,
+                &removed_followers,
+            ))
         } else {
             None
         };
@@ -2646,6 +2855,11 @@ impl AggregationUpdateQueue {
         // STEP 6c
         let data = AggregatedDataUpdate::from_task(&mut follower);
         let followers = get_followers(&follower);
+        // STEP 6e is queued below. The follower publishes the addition of its followers to the
+        // uppers, so it's counted as pending under its lock.
+        if !followers.is_empty() {
+            self.register_pending_addition(&mut follower, &followers);
+        }
         drop(follower);
         // Outside of the lock
         let data = data.optimize();
@@ -2865,10 +3079,14 @@ impl AggregationUpdateQueue {
 
                         // STEP 3e
                         // notify uppers about new follower
-                        for (&upper_id, _) in upper.iter_upper() {
-                            *upper_upper_ids_with_new_follower
-                                .entry(upper_id)
-                                .or_insert(0) += 1;
+                        let upper_upper_ids = get_uppers(&upper);
+                        if !upper_upper_ids.is_empty() {
+                            for &upper_upper_id in &upper_upper_ids {
+                                *upper_upper_ids_with_new_follower
+                                    .entry(upper_upper_id)
+                                    .or_insert(0) += 1;
+                            }
+                            self.register_pending_addition(&mut upper, &[new_follower_id]);
                         }
                     }
                     drop(upper);
@@ -3083,7 +3301,12 @@ impl AggregationUpdateQueue {
 
                 if !new_followers_of_upper_uppers.is_empty() {
                     // STEP 3c
-                    follower_edge_propagation = Some(FollowerEdgePropagation::capture(ctx, &upper));
+                    follower_edge_propagation =
+                        Some(FollowerEdgePropagation::capture_new_followers(
+                            ctx,
+                            &mut upper,
+                            &new_followers_of_upper_uppers,
+                        ));
                 }
 
                 // STEP 4
@@ -3144,6 +3367,12 @@ impl AggregationUpdateQueue {
                         // It's a new upper
                         let data = AggregatedDataUpdate::from_task(&mut new_follower);
                         let children = get_followers(&new_follower);
+                        // STEP 6e is queued below, for all new inner tasks together. Each of them
+                        // publishes the addition of its followers, so it's counted as pending
+                        // under its lock.
+                        if !children.is_empty() {
+                            self.register_pending_addition(&mut new_follower, &children);
+                        }
                         drop(new_follower);
                         // Outside of the lock
                         let data = data.optimize();
@@ -3250,7 +3479,11 @@ impl AggregationUpdateQueue {
                 );
                 if change.transition() == EdgeTransition::Appeared {
                     // STEP 3c
-                    let propagation = FollowerEdgePropagation::capture(ctx, &upper);
+                    let propagation = FollowerEdgePropagation::capture_new_followers(
+                        ctx,
+                        &mut upper,
+                        &smallvec![new_follower_id],
+                    );
                     drop(upper);
 
                     // STEP 3d and 3e
@@ -3842,6 +4075,12 @@ struct FollowerEdgePropagation {
     has_active_count: bool,
     /// The uppers of the upper task, which also follow the followers of the upper task.
     upper_ids: TaskIdVec,
+    /// The upper task, when it counted the addition of the new followers to `upper_ids` as
+    /// pending, see [`Self::capture_new_followers`]. The queue that applies it settles it.
+    pending_owner: Option<TaskId>,
+    /// The lost followers whose removal from `upper_ids` is parked, see
+    /// [`Self::capture_lost_followers`].
+    parked: ParkedFollowers,
 }
 
 impl FollowerEdgePropagation {
@@ -3849,6 +4088,47 @@ impl FollowerEdgePropagation {
         Self {
             has_active_count: ctx.should_track_activeness() && upper.has_positive_active_count(),
             upper_ids: get_uppers(upper),
+            pending_owner: None,
+            parked: ParkedFollowers::new(),
+        }
+    }
+
+    /// Captures the propagation of the new follower edges to `follower_ids` of the locked `upper`,
+    /// and counts their addition to the uppers of `upper` as pending (see "Pending additions" in
+    /// the module docs). The same `follower_ids` must be pushed.
+    fn capture_new_followers(
+        ctx: &ExecuteContext<'_>,
+        upper: &mut TaskGuard<'_>,
+        follower_ids: &TaskIdVec,
+    ) -> Self {
+        let mut this = Self::capture(ctx, upper);
+        if !this.upper_ids.is_empty() && !follower_ids.is_empty() {
+            publish_pending_addition(upper, follower_ids);
+            this.pending_owner = Some(upper.id());
+        }
+        this
+    }
+
+    /// Captures the propagation of the lost follower edges to `follower_ids` of the locked
+    /// `upper`. Parks the removals of those followers from the uppers of `upper` that `upper` has a
+    /// pending addition of (see [`park_lost_followers`]).
+    fn capture_lost_followers<L: TaskIdList>(
+        ctx: &ExecuteContext<'_>,
+        upper: &mut TaskGuard<'_>,
+        follower_ids: &L,
+    ) -> Self {
+        let mut this = Self::capture(ctx, upper);
+        if !this.upper_ids.is_empty() && upper.has_pending_follower_additions() {
+            let follower_ids: TaskIdVec = follower_ids.iter_ids().collect();
+            this.parked = park_lost_followers(upper, || this.upper_ids.clone(), &follower_ids);
+        }
+        this
+    }
+
+    /// Lets `queue` settle the pending addition of `follower_ids` that this propagation pushes.
+    fn add_pending_addition_to(&self, queue: &mut AggregationUpdateQueue, follower_ids: &[TaskId]) {
+        if let Some(owner) = self.pending_owner {
+            queue.add_pending_addition(owner, follower_ids);
         }
     }
 
@@ -3864,6 +4144,7 @@ impl FollowerEdgePropagation {
                     });
                 }
                 if !self.upper_ids.is_empty() {
+                    self.add_pending_addition_to(queue, &follower_ids);
                     queue.push(AggregationUpdateJob::InnerOfUppersHasNewFollower {
                         upper_ids: self.upper_ids,
                         new_follower_id,
@@ -3898,6 +4179,7 @@ impl FollowerEdgePropagation {
                 task_ids: follower_ids.clone(),
             });
         }
+        self.add_pending_addition_to(queue, &follower_ids);
         queue.push(
             InnerOfUppersHasNewFollowersJob {
                 upper_ids: self.upper_ids,
@@ -3909,6 +4191,26 @@ impl FollowerEdgePropagation {
 
     /// Propagates that the follower edges to `follower_ids` disappeared.
     fn push_lost_followers(self, queue: &mut AggregationUpdateQueue, follower_ids: TaskIdVec) {
+        if !self.parked.is_empty() {
+            // Rare: some removals wait for pending additions. The active count changes now, and
+            // the other followers are removed from the uppers.
+            if self.has_active_count {
+                queue.push(AggregationUpdateJob::DecreaseActiveCounts {
+                    task_ids: follower_ids.clone(),
+                });
+            }
+            let lost_follower_ids = without_parked(follower_ids, &self.parked);
+            if !lost_follower_ids.is_empty() {
+                queue.push(
+                    InnerOfUppersLostFollowersJob {
+                        upper_ids: self.upper_ids,
+                        lost_follower_ids,
+                    }
+                    .into(),
+                );
+            }
+            return;
+        }
         match follower_ids[..] {
             [] => {}
             [lost_follower_id] => {
@@ -4352,7 +4654,7 @@ mod follower_debt_tests {
     use std::{cell::RefCell, sync::Arc};
 
     use smallvec::{SmallVec, smallvec};
-    use turbo_tasks::{CellId, TaskId, TraitTypeId, TurboTasks, ValueTypeId};
+    use turbo_tasks::{CellId, TaskId, TraitTypeId, TurboTasks, ValueTypeId, event::Event};
 
     use super::{
         AggregationUpdateJob, AggregationUpdateQueue, InnerOfUppersLostFollowersJob,
@@ -4364,7 +4666,10 @@ mod follower_debt_tests {
             operation::ExecuteContext,
             storage_schema::{ActivenessAccessors, TaskStorageAccessors},
         },
-        data::{AggregationNumber, CellRef, CollectibleRef, Dirtyness, OutputValue},
+        data::{
+            AggregationNumber, CellRef, CollectibleRef, Dirtyness, InProgressState,
+            InProgressStateInner, OutputValue,
+        },
         noop_backing_storage,
     };
 
@@ -5654,6 +5959,953 @@ mod follower_debt_tests {
                 .await
                 .is_some()
         );
+    }
+
+    // Replays of races between a task's completion and the removal of one of its inner edges,
+    // with the queue handlers. The completion publishes an edge change under the task's lock and
+    // propagates it to the uppers it captured later, after releasing the lock. A removal in
+    // between can make such an upper look clean while that propagation is still queued, so a
+    // strongly consistent read of it could complete with wrong collectibles.
+    //
+    // The invariant checked: while an upper misses a collectible it should have, it has to block a
+    // strongly consistent read.
+
+    /// Marks `task_id` as in progress, as during the completion of its execution.
+    fn start_completion(tt: &TurboTasks<TurboTasksBackend>, task_id: u32) {
+        let mut ctx = ExecuteContext::new(tt);
+        let mut task = ctx.task(id(task_id), TaskDataCategory::All);
+        task.set_in_progress(InProgressState::InProgress(Box::new(
+            InProgressStateInner {
+                stale: false,
+                once_task: false,
+                marked_as_completed: false,
+                done_event: Event::new(|| || "test done_event".to_string()),
+                new_children: Default::default(),
+            },
+        )));
+    }
+
+    /// Ends the completion of `task_id` by taking its in-progress state.
+    fn end_completion(tt: &TurboTasks<TurboTasksBackend>, task_id: u32) {
+        let mut ctx = ExecuteContext::new(tt);
+        let mut task = ctx.task(id(task_id), TaskDataCategory::All);
+        let Some(InProgressState::InProgress(_)) = task.take_in_progress() else {
+            panic!("task {task_id} is not in progress");
+        };
+    }
+
+    /// Makes `task` dirty in the current session (not session dependent), so it blocks a strongly
+    /// consistent read of its uppers.
+    fn seed_current_session_dirty(tt: &TurboTasks<TurboTasksBackend>, task_id: u32) {
+        let mut ctx = ExecuteContext::new(tt);
+        let mut task = ctx.task(id(task_id), TaskDataCategory::All);
+        task.set_output(OutputValue::Cell(collectible().cell));
+        assert!(
+            task.update_dirty_state(Some(Dirtyness::Dirty {
+                parent_priority: turbo_tasks::TaskPriority::leaf(),
+                #[cfg(feature = "task_dirty_cause")]
+                cause: turbo_tasks::TaskDirtyCause::InitialDirty,
+            }))
+            .is_none()
+        );
+        assert_eq!(task.dirty_state(), (true, false));
+    }
+
+    /// Whether `upper` blocks a strongly consistent read: it or one of its containers is dirty in
+    /// the current session.
+    fn blocks_strong_read(tt: &TurboTasks<TurboTasksBackend>, upper: u32) -> bool {
+        let mut ctx = ExecuteContext::new(tt);
+        let task = ctx.task(id(upper), TaskDataCategory::All);
+        task.has_dirty_containers() || task.is_dirty().is_some()
+    }
+
+    /// Asserts the invariant: if `upper` misses the collectible, it blocks a strong read.
+    fn assert_missing_collectible_blocks_strong_read(
+        tt: &TurboTasks<TurboTasksBackend>,
+        upper: u32,
+    ) {
+        assert!(
+            aggregated(tt, upper) == 1 || blocks_strong_read(tt, upper),
+            "upper {upper} misses the collectible but doesn't block a strongly consistent read"
+        );
+    }
+
+    fn set_children(tt: &TurboTasks<TurboTasksBackend>, parent: u32, children: &[u32]) {
+        let mut ctx = ExecuteContext::new(tt);
+        ctx.task(id(parent), TaskDataCategory::All)
+            .extend_children(children.iter().map(|&c| id(c)));
+    }
+
+    /// Runs a queue that was filled earlier, e.g. the rest of a completion's propagation.
+    fn run_paused(tt: &TurboTasks<TurboTasksBackend>, mut queue: AggregationUpdateQueue) {
+        let mut ctx = ExecuteContext::new(tt);
+        queue.execute(&mut ctx);
+    }
+
+    /// Runs the next job of a paused queue, e.g. one step of a completion's propagation.
+    fn step(tt: &TurboTasks<TurboTasksBackend>, queue: &mut AggregationUpdateQueue) {
+        let mut ctx = ExecuteContext::new(tt);
+        queue.process(&mut ctx);
+    }
+
+    /// Connects `children` to the leaf `parent` like a completion does (`connect_children`), but
+    /// returns the queue with the propagation to the uppers, which hasn't run yet. Gives the
+    /// children an output first, so they aren't made dirty as new children without output.
+    fn publish_children(
+        tt: &TurboTasks<TurboTasksBackend>,
+        parent: u32,
+        children: &[u32],
+    ) -> AggregationUpdateQueue {
+        publish_children_with(&mut ExecuteContext::new(tt), parent, children)
+    }
+
+    /// Like [`publish_children`], in the operation of `ctx`.
+    fn publish_children_with(
+        ctx: &mut ExecuteContext<'_>,
+        parent: u32,
+        children: &[u32],
+    ) -> AggregationUpdateQueue {
+        for &child in children {
+            let mut child = ctx.task(id(child), TaskDataCategory::All);
+            if !child.has_output() {
+                child.set_output(OutputValue::Cell(collectible().cell));
+            }
+        }
+        let parent = ctx.task(id(parent), TaskDataCategory::All);
+        super::super::connect_children::connect_children_without_propagation(
+            ctx,
+            parent,
+            children.iter().map(|&c| id(c)).collect(),
+        )
+    }
+
+    /// The number of pending follower additions published by `task` and of the removals that
+    /// wait for them.
+    fn pending_counts(tt: &TurboTasks<TurboTasksBackend>, task: u32) -> (usize, usize) {
+        let mut ctx = ExecuteContext::new(tt);
+        let task = ctx.task(id(task), TaskDataCategory::Meta);
+        task.get_pending_follower_additions()
+            .map_or((0, 0), |pending| pending.counts())
+    }
+
+    fn set_aggregation_number(tt: &TurboTasks<TurboTasksBackend>, task: u32, number: u32) {
+        let mut ctx = ExecuteContext::new(tt);
+        ctx.task(id(task), TaskDataCategory::All)
+            .set_aggregation_number(AggregationNumber {
+                base: number,
+                distance: 0,
+                effective: number,
+            });
+    }
+
+    // Child snapshot race:
+    //
+    // - A, F's completion (`connect_children`): adds C to F's children and captures F's uppers
+    //   `[U]` under F's lock. It adds C to `U` only after releasing the lock.
+    // - B, another operation (e.g. a parent's completion that no longer connects F): removes F's
+    //   last inner edge to U. Under F's lock it sees F's new children, so it removes C from U.
+    // - B's removal of C runs before A's addition of C.
+    //
+    // C is also reachable from U through F2, so U has to keep C's collectible. Only C emits it.
+
+    /// 1 = U (aggregating), 2 = F (current-session dirty, completing), 3 = F2 (clean), 4 = C (only
+    /// emitter).
+    fn child_snapshot_base(
+        start_f: fn(&TurboTasks<TurboTasksBackend>, u32),
+    ) -> Arc<TurboTasks<TurboTasksBackend>> {
+        let tt = setup_with_data(&[(1, UPPER), (2, INNER), (3, INNER), (4, INNER)], false);
+        {
+            let mut ctx = ExecuteContext::new(&tt);
+            let mut c = ctx.task(id(4), TaskDataCategory::All);
+            let _ = c.update_collectibles_positive_crossing(collectible(), 1);
+        }
+        seed_current_session_dirty(&tt, 2);
+        start_f(&tt, 2);
+        set_children(&tt, 3, &[4]);
+        run(&tt, [add(1, 2), add(1, 3)]);
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+        assert_eq!(aggregated(&tt, 1), 1);
+        // U is dirty only because of F.
+        assert_eq!(effects(&tt, 1), (1, 0, 0));
+        assert!(blocks_strong_read(&tt, 1));
+        tt
+    }
+
+    fn child_snapshot_fixture(
+        start_f: fn(&TurboTasks<TurboTasksBackend>, u32),
+    ) -> (Arc<TurboTasks<TurboTasksBackend>>, AggregationUpdateQueue) {
+        let tt = child_snapshot_base(start_f);
+        // A: F's completion adds C to its children. Its addition of C to U is still queued.
+        let a_queue = publish_children(&tt, 2, &[4]);
+        // B: removes F's last inner edge to U before A's queue runs.
+        run(&tt, [remove(1, 2)]);
+        (tt, a_queue)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn child_snapshot_race_keeps_upper_dirty_until_completion_ends() {
+        let (tt, a_queue) = child_snapshot_fixture(start_completion);
+        assert_missing_collectible_blocks_strong_read(&tt, 1);
+        // A's queued addition lands.
+        run_paused(&tt, a_queue);
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+        assert_eq!(aggregated(&tt, 1), 1);
+        end_completion(&tt, 2);
+        assert!(!blocks_strong_read(&tt, 1));
+        tt.backend().verify_aggregation_edges();
+    }
+
+    // Follower entry race: like the child snapshot race, but the task that is detached isn't the
+    // completing one. P's completion connects C, which becomes a follower of the aggregating F.
+    //
+    // - A, P's completion: the handler for P's upper F writes `F.followers[C]` under F's lock,
+    //   captures F's uppers `[U']` and queues the addition of C to U'.
+    // - B: removes F's last inner edge to U' before that job runs. Its snapshot of F's followers
+    //   includes C, and it removes F's dirty contribution (which covers P) from U'.
+    //
+    // C is also reachable from U' through F2, so U' has to keep C's collectible.
+
+    /// 1 = U' (aggregating, 300), 2 = F (aggregating, 100, inner of U'), 3 = F2 (10, inner of U'),
+    /// 4 = C (200, only emitter, child of F2, so inner of U'), 5 = P (10, inner of F,
+    /// current-session dirty). `completing_task` is marked as completing.
+    ///
+    /// Returns the backend after B, and A's paused queue: A's step runs the real handler for F up
+    /// to the point where it has published the follower entry and queued the propagation.
+    fn follower_entry_fixture(
+        completing_task: u32,
+    ) -> (Arc<TurboTasks<TurboTasksBackend>>, AggregationUpdateQueue) {
+        let tt = setup_with_data(
+            &[(1, 300), (2, UPPER), (3, INNER), (4, FOLLOWER), (5, INNER)],
+            false,
+        );
+        {
+            let mut ctx = ExecuteContext::new(&tt);
+            let mut c = ctx.task(id(4), TaskDataCategory::All);
+            let _ = c.update_collectibles_positive_crossing(collectible(), 1);
+        }
+        set_children(&tt, 3, &[4]);
+        run(&tt, [add(1, 3), add(1, 2)]);
+        seed_current_session_dirty(&tt, 5);
+        start_completion(&tt, completing_task);
+        run(&tt, [add(2, 5)]);
+        assert_eq!(uppers(&tt, 2), vec![(id(1), 1)]);
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+        assert_eq!(uppers(&tt, 5), vec![(id(2), 1)]);
+        assert_eq!(aggregated(&tt, 1), 1);
+        // U' is dirty only through F, which aggregates P.
+        assert!(blocks_strong_read(&tt, 1));
+
+        // A: P gets child C (as `connect_children` writes it), then the handler for P's upper F
+        // places C. C (200) becomes a follower of F (100): F publishes `F.followers[C]` and
+        // captures its uppers. The propagation to U' stays in A's queue.
+        set_children(&tt, 5, &[4]);
+        let mut a_queue = AggregationUpdateQueue::new_without_optimizations();
+        {
+            let mut ctx = ExecuteContext::new(&tt);
+            a_queue.inner_of_upper_has_new_follower(&mut ctx, id(4), id(2), 1);
+        }
+        assert_eq!(followers(&tt, 2), vec![(id(4), 1)]);
+        // B: removes F's last inner edge to U' in its own queue.
+        run(&tt, [remove(1, 2)]);
+        (tt, a_queue)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn follower_entry_race_keeps_upper_dirty_while_propagation_is_queued() {
+        // P (the producer) is completing, F (the detached task) isn't.
+        let (tt, a_queue) = follower_entry_fixture(5);
+        assert_missing_collectible_blocks_strong_read(&tt, 1);
+        // A's queue continues: the addition of C to U' lands.
+        run_paused(&tt, a_queue);
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+        assert_eq!(aggregated(&tt, 1), 1);
+        end_completion(&tt, 5);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    // The tests below cover the same race with dirty followers. B must not remove the dirty
+    // container of a follower from an upper while the follower is still reachable from it,
+    // otherwise a strongly consistent read of the upper returns before the follower is clean.
+
+    /// Like the child snapshot race, but C is dirty and F is clean (but completing). After B, C is
+    /// still reachable from U through F2, so U has to keep counting it as a dirty container.
+    ///
+    /// 1 = U (aggregating), 2 = F (completing), 3 = F2, 4 = C (dirty).
+    fn dirty_child_snapshot_fixture() -> (Arc<TurboTasks<TurboTasksBackend>>, AggregationUpdateQueue)
+    {
+        let tt = setup_with_data(&[(1, UPPER), (2, INNER), (3, INNER), (4, INNER)], true);
+        seed_current_session_dirty(&tt, 4);
+        start_completion(&tt, 2);
+        set_children(&tt, 3, &[4]);
+        run(&tt, [add(1, 2), add(1, 3)]);
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+        assert!(blocks_strong_read(&tt, 1), "U is dirty through C");
+        // A: F's completion adds C to its children. Its addition of C to U is still queued.
+        let a_queue = publish_children(&tt, 2, &[4]);
+        // B: removes F's last inner edge to U before A's queue runs.
+        run(&tt, [remove(1, 2)]);
+        (tt, a_queue)
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn child_snapshot_race_keeps_dirty_container() {
+        let (tt, a_queue) = dirty_child_snapshot_fixture();
+        assert_eq!(
+            uppers(&tt, 4),
+            vec![(id(1), 1)],
+            "C is still reachable through F2"
+        );
+        assert!(blocks_strong_read(&tt, 1), "C is still dirty");
+        run_paused(&tt, a_queue);
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+        assert!(blocks_strong_read(&tt, 1));
+        end_completion(&tt, 2);
+        assert_unblocks_when_clean(&tt, 1, &[4]);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// Makes the `dirty` tasks clean and asserts that `upper` doesn't block a strong read anymore:
+    /// nothing is counted in it too often after all work has landed.
+    fn assert_unblocks_when_clean(tt: &TurboTasks<TurboTasksBackend>, upper: u32, dirty: &[u32]) {
+        for &task in dirty {
+            make_clean(tt, task);
+        }
+        assert!(
+            !blocks_strong_read(tt, upper),
+            "upper {upper} still blocks a strong read after all tasks are clean"
+        );
+    }
+
+    /// Like [`child_snapshot_race_keeps_dirty_container`], with a strongly consistent read of U
+    /// that is started while the removal of C is parked. It must only complete when the collectible
+    /// of C is back and C is clean.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn child_snapshot_race_wakes_waiting_reader_when_clean() {
+        use futures::FutureExt;
+        use turbo_tasks::{ReadConsistency, ReadOutcome, ReadOutputOptions, ReadTracking};
+
+        let strong_read = |tt: &TurboTasks<TurboTasksBackend>| {
+            tt.backend()
+                .try_read_task_output(
+                    id(1),
+                    None,
+                    ReadOutputOptions {
+                        tracking: ReadTracking::Untracked,
+                        consistency: ReadConsistency::Strong,
+                    },
+                    tt,
+                )
+                .unwrap()
+        };
+
+        // 1 = U (aggregating), 2 = F (completing), 3 = F2, 4 = C (dirty, the only emitter).
+        let tt = setup_with_data(&[(1, UPPER), (2, INNER), (3, INNER), (4, INNER)], false);
+        {
+            let mut ctx = ExecuteContext::new(&tt);
+            let mut c = ctx.task(id(4), TaskDataCategory::All);
+            let _ = c.update_collectibles_positive_crossing(collectible(), 1);
+        }
+        seed_current_session_dirty(&tt, 4);
+        start_completion(&tt, 2);
+        set_children(&tt, 3, &[4]);
+        run(&tt, [add(1, 2), add(1, 3)]);
+        assert_eq!(aggregated(&tt, 1), 1);
+        {
+            // U has an output to read, and is already active until clean, so the read doesn't
+            // schedule the dirty tasks (they can't execute in this test). This is done after the
+            // graph is built, so U's new inner tasks aren't scheduled either.
+            let mut ctx = ExecuteContext::new(&tt);
+            let mut upper = ctx.task(id(1), TaskDataCategory::All);
+            upper.set_output(OutputValue::Cell(collectible().cell));
+            upper
+                .activeness_state_mut_or_insert(id(1))
+                .set_active_until_clean();
+        }
+
+        let a_queue = publish_children(&tt, 2, &[4]);
+        run(&tt, [remove(1, 2)]);
+        assert_eq!(pending_counts(&tt, 2), (1, 1), "the removal of C is parked");
+        // The reader starts while the removal is parked.
+        let mut listener = match strong_read(&tt) {
+            ReadOutcome::InProgress(listener) => listener,
+            ReadOutcome::Value(_) => panic!(
+                "the strong read completed while C is dirty (collectible count of U: {})",
+                aggregated(&tt, 1)
+            ),
+            ReadOutcome::Scheduled(_) => panic!("U isn't scheduled"),
+        };
+        assert!((&mut listener).now_or_never().is_none());
+        run_paused(&tt, a_queue);
+        assert_eq!(pending_counts(&tt, 2), (0, 0));
+        assert!((&mut listener).now_or_never().is_none(), "C is still dirty");
+        end_completion(&tt, 2);
+
+        make_clean(&tt, 4);
+        assert!(
+            (&mut listener).now_or_never().is_some(),
+            "the reader is woken when C is clean"
+        );
+        assert!(
+            matches!(strong_read(&tt), ReadOutcome::Value(_)),
+            "the strong read completes now"
+        );
+        assert_eq!(aggregated(&tt, 1), 1);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// Like the child snapshot race, but C is placed as a follower of U, which is an inner of R.
+    /// After B, C is still reachable from R through U and F2.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn child_snapshot_race_keeps_dirty_follower() {
+        // 1 = R (300), 2 = U (aggregating, 100), 3 = F (completing), 4 = F2, 5 = C (200, dirty).
+        let tt = setup_with_data(
+            &[(1, 300), (2, UPPER), (3, INNER), (4, INNER), (5, FOLLOWER)],
+            true,
+        );
+        seed_current_session_dirty(&tt, 5);
+        start_completion(&tt, 3);
+        set_children(&tt, 4, &[5]);
+        run(&tt, [add(1, 2), add(2, 4), add(2, 3)]);
+        assert_eq!(followers(&tt, 2), vec![(id(5), 1)]);
+        assert_eq!(uppers(&tt, 5), vec![(id(1), 1)]);
+        assert!(blocks_strong_read(&tt, 1), "R is dirty through C");
+
+        let a_queue = publish_children(&tt, 3, &[5]);
+        run(&tt, [remove(2, 3)]);
+        assert_eq!(
+            followers(&tt, 2),
+            vec![(id(5), 1)],
+            "C is still a follower of U"
+        );
+        assert_eq!(uppers(&tt, 5), vec![(id(1), 1)]);
+        assert!(blocks_strong_read(&tt, 1), "C is still dirty");
+
+        run_paused(&tt, a_queue);
+        assert_eq!(followers(&tt, 2), vec![(id(5), 1)]);
+        assert_eq!(uppers(&tt, 5), vec![(id(1), 1)]);
+        assert!(blocks_strong_read(&tt, 1));
+        end_completion(&tt, 3);
+        assert_unblocks_when_clean(&tt, 1, &[5]);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// The landing of A's addition of C to U publishes C's own child G (STEP 6e). B detaches F,
+    /// and with it C, before that addition of G lands. G is still reachable from U through F2.
+    ///
+    /// F's addition of C is only settled once A's queue is drained, so the removal of C waits for
+    /// the addition of G as well.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn child_snapshot_race_keeps_dirty_grandchild() {
+        // 1 = U (aggregating), 2 = F (completing), 3 = C, 4 = F2, 5 = G (dirty).
+        let tt = setup_with_data(
+            &[(1, UPPER), (2, INNER), (3, INNER), (4, INNER), (5, INNER)],
+            true,
+        );
+        seed_current_session_dirty(&tt, 5);
+        start_completion(&tt, 2);
+        set_children(&tt, 3, &[5]);
+        set_children(&tt, 4, &[5]);
+        run(&tt, [add(1, 2), add(1, 4)]);
+        assert_eq!(uppers(&tt, 5), vec![(id(1), 1)]);
+        assert!(blocks_strong_read(&tt, 1), "U is dirty through G");
+
+        let mut a_queue = publish_children(&tt, 2, &[3]);
+        // A's first step: C becomes an inner of U and queues the addition of G to U.
+        step(&tt, &mut a_queue);
+        assert_eq!(uppers(&tt, 3), vec![(id(1), 1)]);
+        // B: F (and with it C) is detached from U. The removal of C waits for A's queue.
+        run(&tt, [remove(1, 2)]);
+        assert_eq!(uppers(&tt, 3), vec![(id(1), 1)]);
+        assert_eq!(pending_counts(&tt, 2), (1, 1));
+        assert_eq!(
+            uppers(&tt, 5),
+            vec![(id(1), 1)],
+            "G is still reachable through F2"
+        );
+        assert!(blocks_strong_read(&tt, 1), "G is still dirty");
+
+        run_paused(&tt, a_queue);
+        assert_eq!(uppers(&tt, 3), vec![]);
+        assert_eq!(pending_counts(&tt, 2), (0, 0));
+        assert_eq!(pending_counts(&tt, 3), (0, 0));
+        assert_eq!(uppers(&tt, 5), vec![(id(1), 1)]);
+        assert!(blocks_strong_read(&tt, 1));
+        end_completion(&tt, 2);
+        assert_unblocks_when_clean(&tt, 1, &[5]);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// F is attached to U twice and detached after each attachment, while the additions of F's
+    /// child C that the attachments publish (STEP 6e) are still queued. C is also reachable through
+    /// F2 all the time.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn repeated_attach_and_detach_keeps_dirty_child() {
+        // 1 = U (aggregating), 2 = F, 3 = F2, 4 = C (dirty).
+        let tt = setup_with_data(&[(1, UPPER), (2, INNER), (3, INNER), (4, INNER)], true);
+        seed_current_session_dirty(&tt, 4);
+        set_children(&tt, 2, &[4]);
+        set_children(&tt, 3, &[4]);
+        run(&tt, [add(1, 3)]);
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+
+        let attach = |tt: &TurboTasks<TurboTasksBackend>| {
+            let mut queue = AggregationUpdateQueue::new_without_optimizations();
+            queue.push(add(1, 2));
+            // F becomes an inner of U and queues the addition of C to U.
+            step(tt, &mut queue);
+            assert_eq!(uppers(tt, 2), vec![(id(1), 1)]);
+            queue
+        };
+        let check = |tt: &TurboTasks<TurboTasksBackend>, when: &str| {
+            assert!(
+                uppers(tt, 4).iter().any(|&(upper, _)| upper == id(1)),
+                "C is still reachable through F2 {when}"
+            );
+            assert!(blocks_strong_read(tt, 1), "C is still dirty {when}");
+        };
+
+        let first = attach(&tt);
+        run(&tt, [remove(1, 2)]);
+        check(&tt, "after the first detach");
+        let second = attach(&tt);
+        check(&tt, "after the second attach");
+        run(&tt, [remove(1, 2)]);
+        check(&tt, "after the second detach");
+        // The second attachment's addition lands first, the first one's afterwards.
+        run_paused(&tt, second);
+        check(&tt, "after the second addition");
+        run_paused(&tt, first);
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+        assert_eq!(uppers(&tt, 2), vec![]);
+        assert!(blocks_strong_read(&tt, 1));
+        assert_unblocks_when_clean(&tt, 1, &[4]);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// The removal waits until F has no pending addition of C anymore, also for an addition queued
+    /// by a later attachment. Meanwhile, C is counted in U once more, which is safe.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn detach_waits_for_all_pending_additions_of_the_follower() {
+        // 1 = U (aggregating), 2 = F, 3 = F2, 4 = C (dirty).
+        let tt = setup_with_data(&[(1, UPPER), (2, INNER), (3, INNER), (4, INNER)], true);
+        seed_current_session_dirty(&tt, 4);
+        set_children(&tt, 2, &[4]);
+        set_children(&tt, 3, &[4]);
+        run(&tt, [add(1, 3)]);
+
+        let mut first = AggregationUpdateQueue::new_without_optimizations();
+        first.push(add(1, 2));
+        step(&tt, &mut first);
+        assert_eq!(
+            pending_counts(&tt, 2),
+            (1, 0),
+            "F's addition of C is pending"
+        );
+        run(&tt, [remove(1, 2)]);
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+        assert_eq!(
+            pending_counts(&tt, 2),
+            (1, 1),
+            "the removal of C waits for it"
+        );
+        // F is attached again; its addition of C stays queued.
+        let mut second = AggregationUpdateQueue::new_without_optimizations();
+        second.push(add(1, 2));
+        step(&tt, &mut second);
+        assert_eq!(pending_counts(&tt, 2), (2, 1));
+        // The first addition lands. The removal still waits for the second one, so C is reachable
+        // through F2 and the first attachment.
+        run_paused(&tt, first);
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 2)]);
+        assert_eq!(pending_counts(&tt, 2), (1, 1));
+        // The second addition lands, and then the removal runs.
+        run_paused(&tt, second);
+        assert_eq!(pending_counts(&tt, 2), (0, 0));
+        // F is attached once, and C is reachable through F and F2.
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 2)]);
+        assert_unblocks_when_clean(&tt, 1, &[4]);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// Two tasks that become inner of U in one batch both publish their child C, as one addition
+    /// of C with count 2. Only one of them is detached before that addition lands.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn batched_attach_and_detach_keeps_dirty_child() {
+        // 1 = U (aggregating), 2 = X1, 3 = X2, 4 = F2, 5 = C (dirty).
+        let tt = setup_with_data(
+            &[(1, UPPER), (2, INNER), (3, INNER), (4, INNER), (5, INNER)],
+            true,
+        );
+        seed_current_session_dirty(&tt, 5);
+        for parent in [2, 3, 4] {
+            set_children(&tt, parent, &[5]);
+        }
+        run(&tt, [add(1, 4)]);
+        assert_eq!(uppers(&tt, 5), vec![(id(1), 1)]);
+
+        let mut a_queue = AggregationUpdateQueue::new_without_optimizations();
+        a_queue.push(AggregationUpdateJob::InnerOfUpperHasNewFollowers {
+            upper_id: id(1),
+            new_follower_ids: smallvec![id(2), id(3)],
+        });
+        // X1 and X2 become inner of U and queue the addition of C to U with count 2.
+        step(&tt, &mut a_queue);
+        assert_eq!(uppers(&tt, 2), vec![(id(1), 1)]);
+        assert_eq!(uppers(&tt, 3), vec![(id(1), 1)]);
+        assert_eq!(uppers(&tt, 5), vec![(id(1), 1)]);
+        // Each of them published its own pending addition.
+        assert_eq!(pending_counts(&tt, 2), (1, 0));
+        assert_eq!(pending_counts(&tt, 3), (1, 0));
+
+        run(&tt, [remove(1, 2)]);
+        assert_eq!(
+            pending_counts(&tt, 2),
+            (1, 1),
+            "only X1's removal of C waits"
+        );
+        assert_eq!(pending_counts(&tt, 3), (1, 0));
+        assert_eq!(
+            uppers(&tt, 5),
+            vec![(id(1), 1)],
+            "C is still reachable through F2"
+        );
+        assert!(blocks_strong_read(&tt, 1));
+
+        run_paused(&tt, a_queue);
+        // C is reachable through X2 and F2.
+        assert_eq!(uppers(&tt, 5), vec![(id(1), 2)]);
+        assert!(blocks_strong_read(&tt, 1));
+        assert_unblocks_when_clean(&tt, 1, &[5]);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// The aggregating F gets the follower C and queues its addition to F's upper U'. Before it
+    /// lands, F loses C again (`remove_follower_edges`). C is still reachable from U' through F2.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn lost_follower_waits_for_its_addition_to_the_uppers() {
+        // 1 = U' (300), 2 = F (aggregating, 100), 3 = F2, 4 = C (200, dirty).
+        let tt = setup_with_data(&[(1, 300), (2, UPPER), (3, INNER), (4, FOLLOWER)], true);
+        seed_current_session_dirty(&tt, 4);
+        set_children(&tt, 3, &[4]);
+        run(&tt, [add(1, 3), add(1, 2)]);
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+
+        // A: C becomes a follower of F. Its addition to U' stays in A's queue.
+        let mut a_queue = AggregationUpdateQueue::new_without_optimizations();
+        {
+            let mut ctx = ExecuteContext::new(&tt);
+            a_queue.inner_of_upper_has_new_follower(&mut ctx, id(4), id(2), 1);
+        }
+        assert_eq!(followers(&tt, 2), vec![(id(4), 1)]);
+        assert_eq!(pending_counts(&tt, 2), (1, 0));
+        // B: F loses C again.
+        run(&tt, [remove(2, 4)]);
+        assert_eq!(followers(&tt, 2), vec![]);
+        assert_eq!(pending_counts(&tt, 2), (1, 1));
+        assert_eq!(
+            uppers(&tt, 4),
+            vec![(id(1), 1)],
+            "C is still reachable through F2"
+        );
+        assert!(blocks_strong_read(&tt, 1), "C is still dirty");
+
+        run_paused(&tt, a_queue);
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+        assert!(blocks_strong_read(&tt, 1));
+        assert_unblocks_when_clean(&tt, 1, &[4]);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// T becomes inner of U and queues the addition of its follower C to U. Before it lands, T
+    /// becomes a follower of U by balancing (`balance_edge` makes it a follower), which removes T's
+    /// followers from U. C is still reachable from U through F2.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn balancing_to_follower_waits_for_pending_additions() {
+        // 1 = R (300), 2 = U (aggregating, 100), 3 = T (aggregating, 50), 4 = F2, 5 = C (200,
+        // dirty).
+        let tt = setup_with_data(
+            &[(1, 300), (2, UPPER), (3, 50), (4, INNER), (5, FOLLOWER)],
+            true,
+        );
+        seed_current_session_dirty(&tt, 5);
+        set_children(&tt, 4, &[5]);
+        run(&tt, [add(3, 5), add(1, 2), add(2, 4)]);
+        assert_eq!(followers(&tt, 3), vec![(id(5), 1)]);
+        assert_eq!(followers(&tt, 2), vec![(id(5), 1)]);
+        assert_eq!(uppers(&tt, 5), vec![(id(1), 1)]);
+
+        // A: T becomes inner of U and queues the addition of C to U.
+        let mut a_queue = AggregationUpdateQueue::new_without_optimizations();
+        a_queue.push(add(2, 3));
+        step(&tt, &mut a_queue);
+        assert_eq!(uppers(&tt, 3), vec![(id(2), 1)]);
+        assert_eq!(pending_counts(&tt, 3), (1, 0));
+        // B: T is now aggregating above U, so it's balanced to a follower of U.
+        set_aggregation_number(&tt, 3, 150);
+        run(&tt, [balance(2, 3)]);
+        assert_eq!(uppers(&tt, 3), vec![(id(1), 1)]);
+        assert_eq!(pending_counts(&tt, 3), (1, 1));
+        assert!(
+            followers(&tt, 2).contains(&(id(5), 1)),
+            "C is still a follower of U through F2"
+        );
+        assert!(uppers(&tt, 5).iter().any(|&(upper, _)| upper == id(1)));
+        assert!(blocks_strong_read(&tt, 1), "C is still dirty");
+
+        run_paused(&tt, a_queue);
+        assert_eq!(pending_counts(&tt, 3), (0, 0));
+        assert!(followers(&tt, 2).contains(&(id(5), 1)));
+        assert!(blocks_strong_read(&tt, 1));
+        assert_unblocks_when_clean(&tt, 1, &[5]);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// U gets the follower T and queues the addition of T to U's upper R. Before it lands, T
+    /// becomes inner of U by balancing (`balance_edge` makes it inner), which removes T from R as a
+    /// follower of U. T is still reachable from R through F2.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn balancing_to_inner_waits_for_pending_additions() {
+        // 1 = R (300), 2 = U (aggregating, 100), 3 = T (200, dirty), 4 = F2.
+        let tt = setup_with_data(&[(1, 300), (2, UPPER), (3, FOLLOWER), (4, INNER)], true);
+        seed_current_session_dirty(&tt, 3);
+        set_children(&tt, 4, &[3]);
+        run(&tt, [add(1, 4), add(1, 2)]);
+        assert_eq!(uppers(&tt, 3), vec![(id(1), 1)]);
+
+        // A: T becomes a follower of U and queues the addition of T to R.
+        let mut a_queue = AggregationUpdateQueue::new_without_optimizations();
+        a_queue.push(add(2, 3));
+        step(&tt, &mut a_queue);
+        assert_eq!(followers(&tt, 2), vec![(id(3), 1)]);
+        assert_eq!(pending_counts(&tt, 2), (1, 0));
+        // B: T is now below U, so it's balanced to an inner of U.
+        set_aggregation_number(&tt, 3, 50);
+        run(&tt, [balance(2, 3)]);
+        assert_eq!(followers(&tt, 2), vec![]);
+        assert_eq!(pending_counts(&tt, 2), (1, 1));
+        assert!(
+            uppers(&tt, 3).contains(&(id(1), 1)),
+            "T is still reachable from R through F2"
+        );
+
+        run_paused(&tt, a_queue);
+        assert_eq!(pending_counts(&tt, 2), (0, 0));
+        assert_eq!(uppers(&tt, 3), vec![(id(1), 1), (id(2), 1)]);
+        assert!(blocks_strong_read(&tt, 1));
+        assert_unblocks_when_clean(&tt, 1, &[3]);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// A pending addition is settled only after its queue ran all other work, so after the addition
+    /// was fully applied. Until then, the removal stays parked.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn pending_additions_settle_when_the_queue_is_drained() {
+        let (tt, mut a_queue) = dirty_child_snapshot_fixture();
+        assert_eq!(pending_counts(&tt, 2), (1, 1));
+        // A's addition of C to U runs.
+        step(&tt, &mut a_queue);
+        assert_eq!(
+            uppers(&tt, 4),
+            vec![(id(1), 2)],
+            "C is added to U through F"
+        );
+        assert_eq!(pending_counts(&tt, 2), (1, 1), "the removal still waits");
+        run_paused(&tt, a_queue);
+        assert_eq!(pending_counts(&tt, 2), (0, 0));
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+        end_completion(&tt, 2);
+        assert_unblocks_when_clean(&tt, 1, &[4]);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// F publishes its new child C, while its old child D was added to U long ago. When F is
+    /// detached before the addition of C lands, only the removal of C is parked: D has no pending
+    /// addition, so it's removed right away.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn detach_parks_only_followers_with_pending_additions() {
+        // 1 = U (aggregating), 2 = F (completing), 3 = F2, 4 = C (dirty), 5 = D.
+        let tt = setup_with_data(
+            &[(1, UPPER), (2, INNER), (3, INNER), (4, INNER), (5, INNER)],
+            true,
+        );
+        seed_current_session_dirty(&tt, 4);
+        start_completion(&tt, 2);
+        set_children(&tt, 2, &[5]);
+        set_children(&tt, 3, &[4]);
+        run(&tt, [add(1, 2), add(1, 3)]);
+        assert_eq!(uppers(&tt, 5), vec![(id(1), 1)]);
+        // A: F's completion connects C. Its addition of C to U is still queued.
+        let a_queue = publish_children(&tt, 2, &[4]);
+        // B: detaches F before A's queue runs.
+        run(&tt, [remove(1, 2)]);
+        assert_eq!(
+            uppers(&tt, 5),
+            vec![],
+            "D has no pending addition, so it's removed right away"
+        );
+        assert_eq!(
+            uppers(&tt, 4),
+            vec![(id(1), 1)],
+            "C is still reachable through F2"
+        );
+        assert_eq!(
+            pending_counts(&tt, 2),
+            (1, 1),
+            "only the removal of C is parked"
+        );
+        run_paused(&tt, a_queue);
+        assert_eq!(pending_counts(&tt, 2), (0, 0));
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+        end_completion(&tt, 2);
+        assert_unblocks_when_clean(&tt, 1, &[4]);
+        tt.backend().verify_aggregation_edges();
+    }
+
+    /// Pending additions and parked removals are only kept in memory, so their tasks can't be
+    /// evicted.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn pending_additions_are_unevictable() {
+        use crate::backend::storage_schema::{UnevictableReason, ValueEvictability};
+
+        let is_in_progress = |tt: &TurboTasks<TurboTasksBackend>, task: u32| {
+            matches!(
+                tt.backend().storage.access_mut(id(task)).evictability().1,
+                ValueEvictability::Unevictable(UnevictableReason::InProgress)
+            )
+        };
+        let (tt, a_queue) = dirty_child_snapshot_fixture();
+        // F (2) is completing; end that first so only the pending state keeps it.
+        end_completion(&tt, 2);
+        assert_eq!(pending_counts(&tt, 2), (1, 1));
+        assert!(is_in_progress(&tt, 2));
+        run_paused(&tt, a_queue);
+        assert_eq!(pending_counts(&tt, 2), (0, 0));
+        assert!(!is_in_progress(&tt, 2));
+    }
+
+    /// A snapshot waits for the operation that settles a pending addition and runs the removal
+    /// that waited for it, even though the operation that parked the removal is done.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn snapshot_waits_for_parked_removals() {
+        use std::{
+            sync::atomic::{AtomicBool, Ordering},
+            time::Duration,
+        };
+
+        // 1 = U (aggregating), 2 = F (completing), 3 = F2, 4 = C (dirty).
+        let tt = setup_with_storage(
+            &[(1, UPPER), (2, INNER), (3, INNER), (4, INNER)],
+            true,
+            StorageMode::ReadWriteOnShutdown,
+        );
+        seed_current_session_dirty(&tt, 4);
+        start_completion(&tt, 2);
+        set_children(&tt, 3, &[4]);
+        run(&tt, [add(1, 2), add(1, 3)]);
+
+        // A: F's completion connects C, in an operation that is still running.
+        let mut a_ctx = ExecuteContext::new(&tt);
+        let mut a_queue = publish_children_with(&mut a_ctx, 2, &[4]);
+        // B: detaches F in its own operation, which finishes.
+        run(&tt, [remove(1, 2)]);
+        assert_eq!(pending_counts(&tt, 2), (1, 1));
+
+        // A snapshot starts on another thread.
+        let snapshotted = Arc::new(AtomicBool::new(false));
+        let snapshot = std::thread::spawn({
+            let tt = tt.clone();
+            let snapshotted = snapshotted.clone();
+            move || {
+                let phase = tt.backend().snapshot_coord.begin_snapshot(|_| {});
+                // Nothing is pending while the snapshot runs.
+                tt.backend().verify_aggregation_edges();
+                drop(phase);
+                snapshotted.store(true, Ordering::SeqCst);
+            }
+        });
+        std::thread::sleep(Duration::from_millis(100));
+        assert!(
+            !snapshotted.load(Ordering::SeqCst),
+            "the snapshot must wait for A's operation"
+        );
+
+        a_queue.execute(&mut a_ctx);
+        drop(a_ctx);
+        snapshot.join().unwrap();
+        assert!(snapshotted.load(Ordering::SeqCst));
+        assert_eq!(pending_counts(&tt, 2), (0, 0));
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+        end_completion(&tt, 2);
+    }
+
+    /// The backend stops only after the operation that settles a pending addition ran the removal
+    /// that waited for it, even though the operation that parked the removal is done.
+    #[tokio::test(flavor = "multi_thread")]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
+    async fn stopping_waits_for_parked_removals() {
+        use std::{
+            sync::atomic::{AtomicBool, Ordering},
+            time::Duration,
+        };
+
+        // 1 = U (aggregating), 2 = F (completing), 3 = F2, 4 = C (dirty).
+        let tt = setup_with_storage(
+            &[(1, UPPER), (2, INNER), (3, INNER), (4, INNER)],
+            true,
+            StorageMode::ReadWriteOnShutdown,
+        );
+        seed_current_session_dirty(&tt, 4);
+        start_completion(&tt, 2);
+        set_children(&tt, 3, &[4]);
+        run(&tt, [add(1, 2), add(1, 3)]);
+
+        // A: F's completion connects C, in an operation that holds off shutdown, like external
+        // calls into the backend do.
+        let mut a_ctx = tt
+            .backend()
+            .try_execute_context(&tt)
+            .expect("the backend isn't stopping");
+        let mut a_queue = publish_children_with(&mut a_ctx, 2, &[4]);
+        // B: detaches F in its own operation, which finishes.
+        run(&tt, [remove(1, 2)]);
+        assert_eq!(pending_counts(&tt, 2), (1, 1));
+
+        // The backend is stopped.
+        let stopped = Arc::new(AtomicBool::new(false));
+        let stop = tokio::spawn({
+            let tt = tt.clone();
+            let stopped = stopped.clone();
+            async move {
+                tt.stop_and_wait().await;
+                stopped.store(true, Ordering::SeqCst);
+            }
+        });
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        assert!(
+            !stopped.load(Ordering::SeqCst),
+            "stopping must wait for A's operation"
+        );
+
+        a_queue.execute(&mut a_ctx);
+        // A still holds off shutdown, so the storage is still there: nothing is pending anymore.
+        assert_eq!(pending_counts(&tt, 2), (0, 0));
+        assert_eq!(uppers(&tt, 4), vec![(id(1), 1)]);
+        tt.backend().verify_aggregation_edges();
+        end_completion(&tt, 2);
+        drop(a_ctx);
+        stop.await.unwrap();
+        assert!(stopped.load(Ordering::SeqCst));
+    }
+
+    /// Makes `task` clean, like the end of its execution, and propagates it.
+    fn make_clean(tt: &TurboTasks<TurboTasksBackend>, task: u32) {
+        let mut ctx = ExecuteContext::new(tt);
+        let job = ctx
+            .task(id(task), TaskDataCategory::All)
+            .update_dirty_state(None);
+        let mut queue = AggregationUpdateQueue::new_without_optimizations();
+        queue.extend(job);
+        queue.execute(&mut ctx);
     }
 }
 
