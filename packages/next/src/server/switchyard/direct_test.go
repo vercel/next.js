@@ -617,3 +617,34 @@ func TestReasonPhrasesTrailersAndEarlyHints(t *testing.T) {
 		t.Errorf("link: %q", res)
 	}
 }
+
+func TestDirectResponsesKeepTheHopByHopHeadersNodePassesOn(t *testing.T) {
+	fx := startDirect(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Keep-Alive", "timeout=7")
+		w.Header().Set("Proxy-Authenticate", "Basic")
+		w.Header().Set("Proxy-Authorization", "Basic eA==")
+		w.Header().Set("Proxy-Connection", "keep-alive")
+		w.Header().Set("Te", "trailers")
+		w.Header().Set("Upgrade", "h2c")
+		w.Header().Set("Connection", "X-Hop, Vary")
+		w.Header().Set("X-Hop", "listed")
+		w.Header().Set("Vary", "Origin")
+		w.Header().Set("Content-Type", "application/json")
+		io.WriteString(w, `{}`)
+	})
+	res := fx.raw(t, "GET /api/echo HTTP/1.1")
+	for _, line := range []string{
+		"Keep-Alive: timeout=7", "Proxy-Authenticate: Basic", "Proxy-Authorization: Basic eA==",
+		"Proxy-Connection: keep-alive", "Te: trailers", "Upgrade: h2c", "X-Hop: listed",
+		// A header Connection names is the worker's, so compression's Vary
+		// still adds to it.
+		"Vary: Origin, Accept-Encoding", "Connection: close",
+	} {
+		if !strings.Contains(res, "\r\n"+line+"\r\n") {
+			t.Errorf("missing %q: %q", line, res)
+		}
+	}
+	if strings.Contains(res, "X-Hop, Vary") {
+		t.Errorf("worker's Connection header reached the client: %q", res)
+	}
+}
