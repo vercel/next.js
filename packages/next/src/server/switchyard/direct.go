@@ -36,8 +36,8 @@ type goUpstream struct {
 }
 
 func newSwitchyard(node http.Handler) *switchyard {
-	f := &switchyard{node: node}
-	f.state.Store(&directState{workers: map[string]*goUpstream{}})
+	f := &switchyard{node: node, state: atomic.Pointer[directState]{}}
+	f.state.Store(&directState{table: nil, workers: map[string]*goUpstream{}})
 	return f
 }
 
