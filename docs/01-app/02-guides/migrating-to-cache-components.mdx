@@ -139,6 +139,8 @@ Insights don't show up in the HTTP response. An offending route still returns `2
 
 After removing the config, [follow any validation errors or insights](#following-validation) that appear.
 
+> **Good to know**: If you used `force-dynamic` for a nonce-based Content Security Policy (CSP), enabling Cache Components changes that behavior. Request-time APIs no longer make the whole route dynamic, and scripts in the prerendered shell cannot receive the request's nonce. Review [Cache Components and CSP](/docs/app/guides/content-security-policy#cache-components) before migrating.
+
 ```tsx filename="app/page.tsx" switcher
 // Before
 export const dynamic = 'force-dynamic'
