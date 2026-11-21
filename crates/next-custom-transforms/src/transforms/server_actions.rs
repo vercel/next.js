@@ -239,6 +239,7 @@ pub fn server_actions<C: Comments>(
         reference_index: 0,
         in_module_level: true,
         should_track_names: false,
+        in_guard: false,
         has_server_reference_with_bound_args: false,
 
         names: Default::default(),
@@ -310,6 +311,7 @@ struct ServerActions<C: Comments> {
     reference_index: u32,
     in_module_level: bool,
     should_track_names: bool,
+    in_guard: bool,
     has_server_reference_with_bound_args: bool,
 
     names: Vec<Name>,
@@ -1255,12 +1257,18 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let old_in_module = replace(&mut self.in_module_level, false);
             let should_track_names = directive.is_some() || self.should_track_names;
             let old_should_track_names = replace(&mut self.should_track_names, should_track_names);
+            let old_in_guard = if directive.is_none() && self.should_track_names {
+                replace(&mut self.in_guard, true)
+            } else {
+                replace(&mut self.in_guard, false)
+            };
             let old_current_export_name = self.current_export_name.take();
             let old_fn_decl_ident = self.fn_decl_ident.take();
             let old_fn_expr_ident = self.fn_expr_ident.take();
             f.visit_mut_children_with(self);
             self.in_module_level = old_in_module;
             self.should_track_names = old_should_track_names;
+            self.in_guard = old_in_guard;
             self.current_export_name = old_current_export_name;
             self.fn_decl_ident = old_fn_decl_ident;
             self.fn_expr_ident = old_fn_expr_ident;
@@ -1475,6 +1483,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let old_in_module = replace(&mut self.in_module_level, false);
             let should_track_names = directive.is_some() || self.should_track_names;
             let old_should_track_names = replace(&mut self.should_track_names, should_track_names);
+            let old_in_guard = if directive.is_none() && self.should_track_names {
+                replace(&mut self.in_guard, true)
+            } else {
+                replace(&mut self.in_guard, false)
+            };
             let old_current_export_name = self.current_export_name.take();
             {
                 for n in &mut a.params {
@@ -1484,6 +1497,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             a.visit_mut_children_with(self);
             self.in_module_level = old_in_module;
             self.should_track_names = old_should_track_names;
+            self.in_guard = old_in_guard;
             self.current_export_name = old_current_export_name;
         }
 
@@ -1751,6 +1765,86 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         self.in_callee = old_in_callee;
     }
 
+    fn visit_mut_if_stmt(&mut self, n: &mut IfStmt) {
+        n.test.visit_mut_with(self);
+        let old_in_guard = replace(&mut self.in_guard, true);
+        n.cons.visit_mut_with(self);
+        n.alt.visit_mut_with(self);
+        self.in_guard = old_in_guard;
+    }
+
+    fn visit_mut_cond_expr(&mut self, n: &mut CondExpr) {
+        n.test.visit_mut_with(self);
+        let old_in_guard = replace(&mut self.in_guard, true);
+        n.cons.visit_mut_with(self);
+        n.alt.visit_mut_with(self);
+        self.in_guard = old_in_guard;
+    }
+
+    fn visit_mut_bin_expr(&mut self, n: &mut BinExpr) {
+        match n.op {
+            op!("&&") | op!("||") | op!("??") => {
+                n.left.visit_mut_with(self);
+                let old_in_guard = replace(&mut self.in_guard, true);
+                n.right.visit_mut_with(self);
+                self.in_guard = old_in_guard;
+            }
+            _ => {
+                n.visit_mut_children_with(self);
+            }
+        }
+    }
+
+    fn visit_mut_try_stmt(&mut self, n: &mut TryStmt) {
+        let old_in_guard = replace(&mut self.in_guard, true);
+        n.visit_mut_children_with(self);
+        self.in_guard = old_in_guard;
+    }
+
+    fn visit_mut_switch_stmt(&mut self, n: &mut SwitchStmt) {
+        n.discriminant.visit_mut_with(self);
+        let old_in_guard = replace(&mut self.in_guard, true);
+        n.cases.visit_mut_with(self);
+        self.in_guard = old_in_guard;
+    }
+
+    fn visit_mut_while_stmt(&mut self, n: &mut WhileStmt) {
+        let old_in_guard = replace(&mut self.in_guard, true);
+        n.visit_mut_children_with(self);
+        self.in_guard = old_in_guard;
+    }
+
+    fn visit_mut_do_while_stmt(&mut self, n: &mut DoWhileStmt) {
+        let old_in_guard = replace(&mut self.in_guard, true);
+        n.visit_mut_children_with(self);
+        self.in_guard = old_in_guard;
+    }
+
+    fn visit_mut_for_stmt(&mut self, n: &mut ForStmt) {
+        n.init.visit_mut_with(self);
+        n.test.visit_mut_with(self);
+        let old_in_guard = replace(&mut self.in_guard, true);
+        n.update.visit_mut_with(self);
+        n.body.visit_mut_with(self);
+        self.in_guard = old_in_guard;
+    }
+
+    fn visit_mut_for_in_stmt(&mut self, n: &mut ForInStmt) {
+        n.right.visit_mut_with(self);
+        let old_in_guard = replace(&mut self.in_guard, true);
+        n.left.visit_mut_with(self);
+        n.body.visit_mut_with(self);
+        self.in_guard = old_in_guard;
+    }
+
+    fn visit_mut_for_of_stmt(&mut self, n: &mut ForOfStmt) {
+        n.right.visit_mut_with(self);
+        let old_in_guard = replace(&mut self.in_guard, true);
+        n.left.visit_mut_with(self);
+        n.body.visit_mut_with(self);
+        self.in_guard = old_in_guard;
+    }
+
     fn visit_mut_expr(&mut self, n: &mut Expr) {
         if !self.in_module_level
             && self.should_track_names
@@ -1764,7 +1858,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 }
             }
 
-            self.names.push(name);
+            if self.in_guard && !name.1.is_empty() {
+                // In a guarded context, member property accesses (like `user.name`)
+                // must not be eagerly evaluated at render time.
+                // Instead, capture the root identifier `user` so that the property access
+                // is preserved and only evaluated when the server action is executed.
+                self.names.push(Name(name.0.clone(), vec![]));
+            } else {
+                self.names.push(name);
+            }
             self.should_track_names = false;
             n.visit_mut_children_with(self);
             self.should_track_names = true;
