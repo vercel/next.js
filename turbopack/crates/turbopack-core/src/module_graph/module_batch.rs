@@ -87,7 +87,7 @@ impl Debug for IdentStrings {
 
 #[turbo_tasks::value]
 pub struct ModuleBatch {
-    pub modules: Vec<ResolvedVc<Box<dyn ChunkableModule>>>,
+    pub modules: Box<[ResolvedVc<Box<dyn ChunkableModule>>]>,
     pub chunk_groups: Option<Bitset>,
 }
 
@@ -95,7 +95,7 @@ pub struct ModuleBatch {
 impl ModuleBatch {
     #[turbo_tasks::function]
     pub fn new(
-        modules: Vec<ResolvedVc<Box<dyn ChunkableModule>>>,
+        modules: Box<[ResolvedVc<Box<dyn ChunkableModule>>]>,
         chunk_groups: Option<Bitset>,
     ) -> Vc<Self> {
         Self {
