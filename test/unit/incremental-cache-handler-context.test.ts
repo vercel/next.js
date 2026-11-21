@@ -40,6 +40,83 @@ function createCache() {
   return { cache, get, set }
 }
 
+describe('IncrementalCache request headers', () => {
+  const preview = {
+    previewModeId: 'id',
+    previewModeSigningKey: 'key',
+    previewModeEncryptionKey: 'key',
+  }
+  const prerenderManifest = {
+    version: 4 as const,
+    routes: {},
+    dynamicRoutes: {},
+    notFoundRoutes: [],
+    preview,
+  }
+  const fetchContext = {
+    kind: IncrementalCacheKind.FETCH as const,
+    fetchUrl: 'https://example.com/data',
+    fetchIdx: 0,
+    tags: [],
+    softTags: [],
+  }
+
+  it('gives a cache handler a copy of the request headers', () => {
+    const requestHeaders: Record<string, string | undefined> = {
+      'x-test': 'before',
+    }
+    let received: Record<string, unknown> | undefined
+    new IncrementalCache({
+      dev: false,
+      requestHeaders,
+      previewProps: preview,
+      prerenderManifest,
+      CurCacheHandler: class extends CacheHandler {
+        constructor(ctx: ConstructorParameters<typeof CacheHandler>[0]) {
+          super(ctx)
+          received = ctx._requestHeaders
+        }
+      },
+    })
+
+    requestHeaders['x-test'] = 'after'
+    requestHeaders['x-added'] = 'after'
+
+    expect(received).not.toBe(requestHeaders)
+    expect(received).toEqual({ 'x-test': 'before' })
+  })
+
+  it('reads cache-control in development when it is constructed', async () => {
+    const get = jest
+      .fn<ReturnType<CacheHandler['get']>, Parameters<CacheHandler['get']>>()
+      .mockResolvedValue(null)
+    const create = (requestHeaders: Record<string, string | undefined>) =>
+      new IncrementalCache({
+        dev: true,
+        requestHeaders,
+        previewProps: preview,
+        prerenderManifest,
+        CurCacheHandler: class extends CacheHandler {
+          get = get
+        },
+      })
+
+    const noCache: Record<string, string | undefined> = {
+      'cache-control': 'no-cache',
+    }
+    const bypassing = create(noCache)
+    delete noCache['cache-control']
+    await bypassing.get('fetch-key', fetchContext)
+    expect(get).not.toHaveBeenCalled()
+
+    const plain: Record<string, string | undefined> = {}
+    const reading = create(plain)
+    plain['cache-control'] = 'no-cache'
+    await reading.get('fetch-key', fetchContext)
+    expect(get).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('IncrementalCache handler context', () => {
   describe.each([
     [RouteKind.PAGES, IncrementalCacheKind.PAGES, '/handler/[id]'],
