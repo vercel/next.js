@@ -41,7 +41,9 @@ For smaller applications, you can create a `sitemap.xml` file and place it in th
 
 You can use the `sitemap.(js|ts)` file convention to programmatically **generate** a sitemap by exporting a default function that returns an array of URLs. If using TypeScript, a [`Sitemap`](#returns) type is available.
 
-> **Good to know**: `sitemap.js` is a special Route Handler that is cached by default unless it uses a [Request-time API](/docs/app/glossary#request-time-apis) or [dynamic config](/docs/app/guides/caching-without-cache-components#dynamic) option.
+> **Good to know**: With Cache Components, reading the current time with `new Date()` or `Date.now()` outside a cache scope makes the sitemap render at request time. This applies to both `lastModified` and time-based entry filtering. See [metadata caching](/docs/app/api-reference/file-conventions/metadata#caching) to cache time-dependent generation.
+
+Use each page's actual modification date for `lastModified`. The examples below use fixed timestamps.
 
 ```ts filename="app/sitemap.ts" switcher
 import type { MetadataRoute } from 'next'
@@ -50,19 +52,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
       url: 'https://acme.com',
-      lastModified: new Date(),
+      lastModified: '2023-04-06T15:02:24.021Z',
       changeFrequency: 'yearly',
       priority: 1,
     },
     {
       url: 'https://acme.com/about',
-      lastModified: new Date(),
+      lastModified: '2023-04-06T15:02:24.021Z',
       changeFrequency: 'monthly',
       priority: 0.8,
     },
     {
       url: 'https://acme.com/blog',
-      lastModified: new Date(),
+      lastModified: '2023-04-06T15:02:24.021Z',
       changeFrequency: 'weekly',
       priority: 0.5,
     },
@@ -75,19 +77,19 @@ export default function sitemap() {
   return [
     {
       url: 'https://acme.com',
-      lastModified: new Date(),
+      lastModified: '2023-04-06T15:02:24.021Z',
       changeFrequency: 'yearly',
       priority: 1,
     },
     {
       url: 'https://acme.com/about',
-      lastModified: new Date(),
+      lastModified: '2023-04-06T15:02:24.021Z',
       changeFrequency: 'monthly',
       priority: 0.8,
     },
     {
       url: 'https://acme.com/blog',
-      lastModified: new Date(),
+      lastModified: '2023-04-06T15:02:24.021Z',
       changeFrequency: 'weekly',
       priority: 0.5,
     },
@@ -217,7 +219,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
       url: 'https://acme.com',
-      lastModified: new Date(),
+      lastModified: '2023-04-06T15:02:24.021Z',
       alternates: {
         languages: {
           es: 'https://acme.com/es',
@@ -227,7 +229,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     {
       url: 'https://acme.com/about',
-      lastModified: new Date(),
+      lastModified: '2023-04-06T15:02:24.021Z',
       alternates: {
         languages: {
           es: 'https://acme.com/es/about',
@@ -237,7 +239,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     {
       url: 'https://acme.com/blog',
-      lastModified: new Date(),
+      lastModified: '2023-04-06T15:02:24.021Z',
       alternates: {
         languages: {
           es: 'https://acme.com/es/blog',
@@ -254,7 +256,7 @@ export default function sitemap() {
   return [
     {
       url: 'https://acme.com',
-      lastModified: new Date(),
+      lastModified: '2023-04-06T15:02:24.021Z',
       alternates: {
         languages: {
           es: 'https://acme.com/es',
@@ -264,7 +266,7 @@ export default function sitemap() {
     },
     {
       url: 'https://acme.com/about',
-      lastModified: new Date(),
+      lastModified: '2023-04-06T15:02:24.021Z',
       alternates: {
         languages: {
           es: 'https://acme.com/es/about',
@@ -274,7 +276,7 @@ export default function sitemap() {
     },
     {
       url: 'https://acme.com/blog',
-      lastModified: new Date(),
+      lastModified: '2023-04-06T15:02:24.021Z',
       alternates: {
         languages: {
           es: 'https://acme.com/es/blog',
