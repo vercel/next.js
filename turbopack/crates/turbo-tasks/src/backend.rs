@@ -523,6 +523,23 @@ impl TurboTasksExecutionError {
             source: Some(self),
         }))
     }
+
+    /// Finds the panic that caused this error, if that panic was caused by the persistent cache
+    /// being unreadable (see [`crate::PersistentCacheUnreadablePanic`]).
+    pub fn persistent_cache_unreadable_panic(&self) -> Option<&TurboTasksPanic> {
+        let mut current = self;
+        loop {
+            let source = match current {
+                TurboTasksExecutionError::Panic(panic) => {
+                    return panic.is_persistent_cache_unreadable().then_some(&**panic);
+                }
+                TurboTasksExecutionError::Error(error) => &error.source,
+                TurboTasksExecutionError::TaskContext(context_error) => &context_error.source,
+                TurboTasksExecutionError::LocalTaskContext(context_error) => &context_error.source,
+            };
+            current = source.as_ref()?;
+        }
+    }
 }
 
 impl Error for TurboTasksExecutionError {
