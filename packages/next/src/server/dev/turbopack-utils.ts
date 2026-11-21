@@ -661,6 +661,8 @@ export async function handleEntrypoints({
   currentEntrypoints.global.error = value.pagesErrorEndpoint
 
   currentEntrypoints.global.instrumentation = value.instrumentation
+  const previousMiddleware = currentEntrypoints.global.middleware
+  currentEntrypoints.global.middleware = value.middleware
 
   currentEntrypoints.page.clear()
   currentEntrypoints.app.clear()
@@ -708,7 +710,7 @@ export async function handleEntrypoints({
   // We check for explicit true/false, since it's initialized to
   // undefined during the first loop (middlewareChanges event is
   // unnecessary during the first serve)
-  if (currentEntrypoints.global.middleware && !middleware) {
+  if (previousMiddleware && !middleware) {
     const key = getEntryKey('root', 'server', 'middleware')
     // Went from middleware to no middleware
     await dev?.hooks.unsubscribeFromChanges(key)
@@ -716,7 +718,7 @@ export async function handleEntrypoints({
     dev.hooks.sendHmr('middleware', {
       type: HMR_MESSAGE_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
     })
-  } else if (!currentEntrypoints.global.middleware && middleware) {
+  } else if (!previousMiddleware && middleware) {
     // Went from no middleware to middleware
     dev.hooks.sendHmr('middleware', {
       type: HMR_MESSAGE_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
@@ -772,6 +774,9 @@ export async function handleEntrypoints({
   }
 
   if (middleware) {
+    dev.serverFields.actualMiddlewareFile = middleware.isProxy
+      ? '/proxy'
+      : '/middleware'
     const key = getEntryKey('root', 'server', 'middleware')
 
     const endpoint = middleware.endpoint
@@ -789,17 +794,38 @@ export async function handleEntrypoints({
       dev.hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
       processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
       await manifestLoader.loadMiddlewareManifest('middleware', 'middleware')
-      const middlewareConfig =
-        manifestLoader.getMiddlewareManifest(key)?.middleware['/']
-
-      if (dev && middlewareConfig) {
-        dev.serverFields.middleware = {
-          // TODO(as-any): pre-existing cast, not yet reviewed
-          // eslint-disable-next-line @next/internal/no-as-any
-          match: null as any,
-          page: '/',
-          runtime: 'edge',
-          matchers: middlewareConfig.matchers,
+      if (dev) {
+        // Node.js and Go proxy entries have no Edge middleware manifest. Native
+        // discovery supplies matchers for every runtime without a second scan.
+        // An existing change subscription can outlive a matcher edit or removal.
+        const currentMiddleware = currentEntrypoints.global.middleware
+        if (!currentMiddleware) {
+          dev.serverFields.middleware = undefined
+        } else if (writtenEndpoint.value.type === 'native') {
+          // A proxy.go compiles to a native worker described by this entry,
+          // the same name the build and the Webpack watcher use.
+          dev.serverFields.middleware = {
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
+            match: null as any,
+            page: '/',
+            matchers: currentMiddleware.matchers,
+            runtime: 'go',
+            nativeEntry: 'middleware.native.json',
+          }
+        } else {
+          // Turbopack reports every JavaScript middleware endpoint as Edge, so
+          // the Edge manifest tells Edge middleware apart from Node.js.
+          const isEdge =
+            !!manifestLoader.getMiddlewareManifest(key)?.middleware['/']
+          dev.serverFields.middleware = {
+            // TODO(as-any): pre-existing cast, not yet reviewed
+            // eslint-disable-next-line @next/internal/no-as-any
+            match: null as any,
+            page: '/',
+            matchers: currentMiddleware.matchers,
+            runtime: isEdge ? 'edge' : 'nodejs',
+          }
         }
       }
       finishBuilding()
