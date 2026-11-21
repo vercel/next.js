@@ -1,4 +1,4 @@
-import { join } from 'path'
+import { basename, join } from 'path'
 import { createValidFileMatcher } from '../server/lib/find-page-file'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import {
@@ -29,6 +29,7 @@ import {
   UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
 } from '../shared/lib/entry-constants'
 import { isReservedPage } from './utils'
+import { collectPrivateFolderRouteFiles } from './private-folder-route-files'
 import type { PageExtensions } from './page-extensions-type'
 import type { MappedPages } from './build-context'
 
@@ -105,15 +106,31 @@ export async function collectAppFiles(
   appPaths: string[]
   layoutPaths: string[]
   defaultPaths: string[]
+  /** Absolute paths of `page.*` / `route.*` files inside private folders */
+  privateFolderRouteFiles: string[]
 }> {
+  // Entries prefixed with `_` (private folders) are opted out of routing.
+  // Remember them so that page/route files inside them can be reported.
+  const privateEntries: string[] = []
   const allAppFiles = await recursiveReadDir(appDir, {
     pathnameFilter: (absolutePath) =>
       validFileMatcher.isAppRouterPage(absolutePath) ||
       validFileMatcher.isRootNotFound(absolutePath) ||
       validFileMatcher.isAppLayoutPage(absolutePath) ||
       validFileMatcher.isAppDefaultPage(absolutePath),
-    ignorePartFilter: (part) => part.startsWith('_'),
+    ignoreFilter: (absolutePath) => {
+      if (basename(absolutePath).startsWith('_')) {
+        privateEntries.push(absolutePath)
+        return true
+      }
+      return false
+    },
   })
+
+  const privateFolderRouteFiles = await collectPrivateFolderRouteFiles(
+    privateEntries,
+    validFileMatcher
+  )
 
   const appPaths = allAppFiles.filter(
     (absolutePath) =>
@@ -127,7 +144,7 @@ export async function collectAppFiles(
     validFileMatcher.isAppDefaultPage(absolutePath)
   )
 
-  return { appPaths, layoutPaths, defaultPaths }
+  return { appPaths, layoutPaths, defaultPaths, privateFolderRouteFiles }
 }
 
 /**
@@ -419,6 +436,11 @@ export interface RouteDiscoveryResult {
   pagesPaths: string[]
   /** Resolved app-dir-only state (may have been updated during discovery) */
   appDirOnly: boolean
+  /**
+   * Absolute paths of `page.*` / `route.*` files that are not routed because
+   * they are inside a private folder (prefixed with `_`)
+   */
+  privateFolderRouteFiles: string[]
 }
 
 /**
@@ -521,6 +543,7 @@ export async function discoverRoutes(
   let mappedAppPages: MappedPages | undefined
   let mappedAppLayouts: MappedPages | undefined
   let mappedAppDefaults: MappedPages | undefined
+  let privateFolderRouteFiles: string[] = []
 
   if (appDir) {
     let appPaths: string[]
@@ -537,6 +560,7 @@ export async function discoverRoutes(
       appPaths = result.appPaths
       layoutPaths = result.layoutPaths
       defaultPaths = result.defaultPaths
+      privateFolderRouteFiles = result.privateFolderRouteFiles
 
       if (debugBuildPaths) {
         appPaths = applyDebugFilter(appPaths, debugBuildPaths.app)
@@ -579,5 +603,6 @@ export async function discoverRoutes(
     mappedPages,
     pagesPaths,
     appDirOnly,
+    privateFolderRouteFiles,
   }
 }
