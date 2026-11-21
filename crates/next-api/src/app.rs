@@ -44,7 +44,7 @@ use turbo_tasks::{
     Completion, NonLocalValue, OrderedAutoMap, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
     fxindexset,
 };
-use turbo_tasks_fs::{File, FileContent, FileSystemPath, to_sys_path};
+use turbo_tasks_fs::{File, FileContent, FileSystemEntryType, FileSystemPath, to_sys_path};
 use turbo_tasks_hash::HashAlgorithm;
 use turbopack::{
     ModuleAssetContext,
@@ -1247,6 +1247,28 @@ impl Endpoint for GoEndpoint {
                 first_load_chunks: None,
             }
             .cell());
+        }
+        // The build compiles the handler's directory together with generated `main`, dispatch and
+        // handler files, which still form a valid program once the handler file is gone. An
+        // endpoint whose handler was deleted (e.g. replaced by `route.ts`) must publish nothing,
+        // otherwise it keeps writing outputs that the replacement endpoint also writes, such as
+        // `app-paths-manifest.json`. Recreating the file invalidates this read.
+        match *this.path.get_type().await? {
+            FileSystemEntryType::File | FileSystemEntryType::Symlink => {}
+            FileSystemEntryType::Error => {
+                bail!("Unable to read the Go handler {}", this.path)
+            }
+            FileSystemEntryType::NotFound
+            | FileSystemEntryType::Directory
+            | FileSystemEntryType::Other => {
+                return Ok(EndpointOutput {
+                    project,
+                    output_assets: OutputAssets::empty().to_resolved().await?,
+                    output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
+                    first_load_chunks: None,
+                }
+                .cell());
+            }
         }
         let source_root = project.project_root_path().owned().await?;
         let directory = this.path.parent();

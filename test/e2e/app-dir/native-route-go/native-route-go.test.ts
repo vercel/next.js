@@ -401,6 +401,7 @@ describe('native-route-go', () => {
         const path = 'app/lifecycle/route.go'
         const source = await next.readFile(path)
         const pid = await lifecyclePid()
+        const outputStart = next.cliOutput.length
         try {
           if (change === 'replace') {
             await next.patchFile(
@@ -421,6 +422,11 @@ describe('native-route-go', () => {
               expect(await next.render('/lifecycle')).toBe('javascript')
             }, 30_000)
           }
+          // A Go endpoint whose route.go is gone must stop publishing output;
+          // otherwise it races the replacement for the shared manifests.
+          expect(next.cliOutput.slice(outputStart)).not.toContain(
+            'conflicting effects for the same key'
+          )
         } finally {
           if (change === 'rename') {
             await next.renameFolder('app/lifecycle-renamed', 'app/lifecycle')
@@ -436,6 +442,7 @@ describe('native-route-go', () => {
       const path = 'app/lifecycle/route.go'
       const source = await next.readFile(path)
       const controller = new AbortController()
+      const outputStart = next.cliOutput.length
       try {
         await lifecyclePid()
         const response = await next.fetch('/lifecycle?stream=1', {
@@ -462,6 +469,9 @@ describe('native-route-go', () => {
         await retry(async () => {
           expect(() => process.kill(pid, 0)).toThrow()
         }, 30_000)
+        expect(next.cliOutput.slice(outputStart)).not.toContain(
+          'conflicting effects for the same key'
+        )
       } finally {
         controller.abort()
         await next.patchFile(path, source)
