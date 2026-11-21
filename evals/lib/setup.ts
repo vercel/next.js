@@ -39,14 +39,16 @@ async function isNextApp(sandbox: Sandbox): Promise<boolean> {
  * measures whether the agent picks Next.js at all, so it has to reach npm itself,
  * and it is therefore not exercising your local build.
  */
-export async function installNextJs(sandbox: Sandbox): Promise<void> {
+export async function installNextJs(
+  sandbox: Sandbox,
+  tarballPath = process.env.NEXT_EVAL_TARBALL
+): Promise<void> {
   if (!(await isNextApp(sandbox))) {
     console.log('> Fixture does not depend on Next.js; leaving it untouched')
     return
   }
 
-  const tarball = process.env.NEXT_EVAL_TARBALL
-  if (!tarball) {
+  if (!tarballPath) {
     throw new Error(
       'NEXT_EVAL_TARBALL not set. Run evals via `pnpm eval` from the repo root.'
     )
@@ -55,7 +57,7 @@ export async function installNextJs(sandbox: Sandbox): Promise<void> {
   await sandbox.writeFiles({
     // @ts-expect-error — upstream types only accept strings, but the runtime
     // accepts Buffer. Tarballs are binary and cannot be sent as strings.
-    'next.tgz': readFileSync(tarball),
+    'next.tgz': readFileSync(tarballPath),
   })
   const { exitCode, stderr } = await sandbox.runCommand('npm', [
     'install',

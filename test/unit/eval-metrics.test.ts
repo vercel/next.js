@@ -16,6 +16,11 @@ function run(
   skillStatus = 'passed'
 ) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'eval-metrics-'))
+  const preStackTarball = path.join(root, 'pre-stack-next.tgz')
+  fs.writeFileSync(preStackTarball, '')
+  args = args.map((arg) =>
+    arg === '__PRE_STACK_TARBALL__' ? preStackTarball : arg
+  )
   const calls: Array<{ command: string; args: string[] }> = []
   const write = (file: string, value: unknown) => {
     const target = path.join(root, file)
@@ -74,7 +79,7 @@ function run(
               if (args[0] === 'run') {
                 agentRun++
                 const resultVariants = effortGate
-                  ? ['baseline', 'agents-md', 'skills']
+                  ? args.slice(1, -1)
                   : ['baseline', 'skills']
                 for (const variant of resultVariants) {
                   const timestamp = effortGate
@@ -251,6 +256,42 @@ describe('effort gate', () => {
           )
         )
       ).toMatchObject({ sampleCount: 2 })
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('prepends a pre-stack package to the effort comparison', () => {
+    const { root, calls, exitCode } = run([
+      '--effort-gate',
+      '--effort-samples',
+      '2',
+      '--effort-pre-stack-tarball',
+      '__PRE_STACK_TARBALL__',
+    ])
+    try {
+      expect(
+        calls.filter((call) => call.args.includes('collect'))
+      ).toHaveLength(8)
+      expect(exitCode).toBe(0)
+      const config = fs.readFileSync(
+        path.join(root, 'evals/experiments/pre-stack.ts'),
+        'utf8'
+      )
+      expect(config).toContain(
+        JSON.stringify(path.join(root, 'pre-stack-next.tgz'))
+      )
+      const [report] = fs.readdirSync(
+        path.join(root, 'evals/results/effort-gate')
+      )
+      expect(
+        JSON.parse(
+          fs.readFileSync(
+            path.join(root, 'evals/results/effort-gate', report),
+            'utf8'
+          )
+        ).samples
+      ).toMatchObject({ 'pre-stack': expect.any(Array) })
     } finally {
       fs.rmSync(root, { recursive: true, force: true })
     }
