@@ -29,7 +29,7 @@ pub struct GoSourceSet {
     pub root: FileSystemPath,
     /// Source bytes keyed by module-relative names; generated sources are supplied separately.
     pub files: BTreeMap<RcStr, RcStr>,
-    /// The `module` directive of the selected go.mod, when one exists.
+    /// The `module` directive of the selected go.mod; `None` only when there is no go.mod.
     pub module_path: Option<RcStr>,
     inputs: Inputs,
     dirty: bool,
@@ -58,17 +58,18 @@ pub async fn go_source_set(
     let mut module_path = None;
     loop {
         let module = root.join("go.mod")?;
-        tracker
-            .file(
-                &to_sys_path(module.clone())
-                    .await?
-                    .context("Go module requires a disk filesystem")?,
-            )
-            .await?;
+        let module_file = to_sys_path(module.clone())
+            .await?
+            .context("Go module requires a disk filesystem")?;
+        tracker.file(&module_file).await?;
         if let FileContent::Content(content) = &*module.read().await? {
             let mut source = String::new();
             content.read().read_to_string(&mut source)?;
-            module_path = module_directive(&source);
+            // Callers generate a go.mod only when none exists. Report a go.mod without a module
+            // path here, instead of as a conflict with that generated go.mod.
+            module_path = Some(module_directive(&source).with_context(|| {
+                format!("{}: no module declaration in go.mod", module_file.display())
+            })?);
             break;
         }
         if root == boundary {

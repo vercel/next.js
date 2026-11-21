@@ -424,21 +424,6 @@ impl<'a> Tracker<'a> {
         Ok(())
     }
 
-    pub(crate) async fn tree(&mut self, root: &Path) -> Result<()> {
-        let mut pending = vec![root.to_owned()];
-        while let Some(path) = pending.pop() {
-            self.dir(&path).await?;
-            if let Some(names) = &self.inputs.directories[path.to_str().unwrap()].1.names {
-                for (name, kind) in names {
-                    if *kind == 1 {
-                        pending.push(path.join(name));
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
-
     pub(crate) async fn invalidate(&self) -> Result<()> {
         if let Some(fs) = ResolvedVc::try_downcast_type::<DiskFileSystem>(self.root.fs) {
             fs.await?.invalidate();
@@ -482,7 +467,7 @@ impl std::io::Write for HashWriter<'_> {
 
 /// Translate Go path.Match patterns. In particular, Go treats braces literally, uses ^ for class
 /// negation, and gives ** the same meaning as *. Generic filesystem glob dialects differ here.
-fn embed_matcher(pattern: &str) -> Result<regex::Regex> {
+pub(crate) fn embed_matcher(pattern: &str) -> Result<regex::Regex> {
     let mut expression = String::from(r"\A");
     let mut chars = pattern.chars().peekable();
     while let Some(ch) = chars.next() {
