@@ -3,15 +3,19 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@mockatoo/connect-authjs": "^0.1.3",
     "next": "latest",
-    "next-auth": "^5.0.0-beta.4",
+    "next-auth": "^5.0.0-beta.30",
     "react": "latest",
     "react-dom": "latest"
   },
   "devDependencies": {
+    "@next/env": "latest",
+    "@playwright/test": "latest",
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
