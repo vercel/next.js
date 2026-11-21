@@ -129,6 +129,54 @@ export function findApplicableSourceMapPayload(
 
 const didWarnAboutInvalidSourceMapDEV = new Set<string>()
 
+/** Dependencies can contain the call site responsible for a validation error. */
+export function isThirdPartyStackFrame(sourceURL: string): boolean {
+  const normalizedSourceURL = sourceURL.replace(/\\/g, '/')
+  const nodeModules = 'node_modules/'
+  const index = normalizedSourceURL.lastIndexOf(nodeModules)
+  if (index === -1 || (index > 0 && normalizedSourceURL[index - 1] !== '/')) {
+    return false
+  }
+
+  const packagePath = normalizedSourceURL.slice(index + nodeModules.length)
+  return (
+    packagePath !== '' &&
+    !/^(?:@next\/|(?:next|react|react-dom|react-server-dom-(?:webpack|turbopack)|scheduler)(?:\/|$))/.test(
+      packagePath
+    )
+  )
+}
+
+/** Retain dependency locations only when transporting validation errors. */
+export function filterStackFrameForErrorDEV(
+  sourceURL: string,
+  functionName: string,
+  line1: number,
+  column1: number
+): boolean {
+  if (
+    isThirdPartyStackFrame(sourceURL) ||
+    filterStackFrameDEV(sourceURL, functionName, line1, column1)
+  ) {
+    return true
+  }
+
+  // Bundled dependencies have chunk URLs. Resolve the original source before
+  // deciding whether an otherwise ignored frame belongs to a dependency.
+  try {
+    const originalSource = findSourceMap(sourceURL)?.findEntry(
+      line1 - 1,
+      column1 - 1
+    ).originalSource
+    return (
+      typeof originalSource === 'string' &&
+      isThirdPartyStackFrame(originalSource)
+    )
+  } catch {
+    return false
+  }
+}
+
 export function filterStackFrameDEV(
   sourceURL: string,
   functionName: string,

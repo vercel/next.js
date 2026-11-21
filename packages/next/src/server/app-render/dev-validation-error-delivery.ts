@@ -6,7 +6,7 @@ import { encodeTextChunk } from '../stream-utils/node-web-streams-helper'
 const filterStackFrame =
   process.env.NODE_ENV !== 'production'
     ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
-        .filterStackFrameDEV
+        .filterStackFrameForErrorDEV
     : undefined
 
 /**

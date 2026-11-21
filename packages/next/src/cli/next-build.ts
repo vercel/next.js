@@ -115,6 +115,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
   }
 
   if (debugPrerender) {
+    process.env.__NEXT_SHOW_DEPENDENCY_FRAMES = 'true'
     warn(
       `Prerendering is running in debug mode with NODE_ENV='development'. ${italic(
         'This will affect performance and should not be used for production.'
