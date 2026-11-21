@@ -19,7 +19,7 @@ import {
 import { ChildProcess } from 'child_process'
 
 describe('required server files', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: {
       pages: new FileRef(join(__dirname, 'pages')),
       lib: new FileRef(join(__dirname, 'lib')),
@@ -34,6 +34,7 @@ describe('required server files', () => {
       'instrumentation.js': new FileRef(join(__dirname, 'instrumentation.js')),
       'cache-handler.js': new FileRef(join(__dirname, 'cache-handler.js')),
       'data.txt': new FileRef(join(__dirname, 'data.txt')),
+      'linked-dir-real/data.txt': 'from linked dir',
       '.env': new FileRef(join(__dirname, '.env')),
       '.env.local': new FileRef(join(__dirname, '.env.local')),
       '.env.production': new FileRef(join(__dirname, '.env.production')),
@@ -83,6 +84,7 @@ describe('required server files', () => {
   let errors = []
   let stderr = ''
   let requiredFilesManifest
+  let buildOutput = ''
   let minimalMode = true
 
   beforeAll(async () => {
@@ -90,7 +92,43 @@ describe('required server files', () => {
     process.env.NOW_BUILDER = '1'
     process.env.NEXT_PRIVATE_TEST_HEADERS = '1'
 
-    let { exitCode } = await next.build()
+    // pnpm and workspace setups can link packages with absolute targets. The
+    // link points inside the tracing root, so the standalone output has to
+    // rewrite it to a link that still resolves after the output is moved.
+    await fs.symlink(
+      join(next.testDir, 'linked-dir-real'),
+      join(next.testDir, 'linked-dir'),
+      'dir'
+    )
+
+    // Links that leave the tracing root cannot be rewritten. A file target
+    // is copied into the output, a directory target warns during the build.
+    // Only webpack traces recreate links from the file system, Turbopack
+    // does not follow links outside of its root.
+    const outsideDir = join(
+      next.testDir,
+      '..',
+      `required-server-files-outside-${nanoid()}`
+    )
+    if (!isTurbopack) {
+      await fs.outputFile(join(outsideDir, 'file.txt'), 'from outside file')
+      await fs.outputFile(join(outsideDir, 'dir/data.txt'), 'from outside dir')
+      await fs.symlink(
+        join(outsideDir, 'file.txt'),
+        join(next.testDir, 'outside-file.txt'),
+        'file'
+      )
+      await fs.symlink(
+        join(outsideDir, 'dir'),
+        join(next.testDir, 'outside-dir'),
+        'dir'
+      )
+    }
+
+    let { exitCode, cliOutput } = await next.build()
+    buildOutput = cliOutput
+    // The standalone output must not depend on files outside of the project.
+    await fs.remove(outsideDir)
     if (exitCode !== 0) {
       throw new Error(`Failed to build next: ${exitCode}`)
     }
@@ -447,6 +485,56 @@ describe('required server files', () => {
       )
     ).toBeEmpty()
   })
+
+  it('should keep symlinks with absolute targets valid inside standalone', async () => {
+    // The original project directory was removed after the build, so the
+    // link only resolves when it points inside the standalone output.
+    const linkPath = join(next.testDir, 'standalone/linked-dir')
+    expect((await fs.lstat(linkPath)).isSymbolicLink()).toBe(true)
+
+    const res = await fetchViaHTTP(
+      appPort,
+      '/symlinked-dir',
+      undefined,
+      withInvocationId()
+    )
+    expect(res.status).toBe(200)
+
+    const $ = cheerio.load(await res.text())
+    expect($('#linked-data').text()).toBe('from linked dir')
+  })
+
+  const itWebpack = isTurbopack ? it.skip : it
+
+  itWebpack(
+    'should copy file symlink targets outside of the tracing root',
+    async () => {
+      const res = await fetchViaHTTP(
+        appPort,
+        '/outside-symlinks',
+        undefined,
+        withInvocationId()
+      )
+      expect(res.status).toBe(200)
+
+      const $ = cheerio.load(await res.text())
+      expect($('#outside-file').text()).toBe('from outside file')
+      expect($('#outside-dir').text()).toBe('missing')
+    }
+  )
+
+  itWebpack(
+    'should warn for directory symlink targets outside of the tracing root',
+    async () => {
+      expect(buildOutput).toContain(
+        'The traced symlink "outside-dir" points to'
+      )
+      expect(buildOutput).toContain('outputFileTracingRoot')
+      expect(buildOutput).toContain(
+        'https://nextjs.org/docs/messages/standalone-symlink-outside-tracing-root'
+      )
+    }
+  )
 
   it('should de-dupe HTML/data requests', async () => {
     // Create a shared invocation ID for /gsp - both HTML and JSON requests share same x-invocation-id
