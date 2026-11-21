@@ -558,7 +558,7 @@ impl Display for ReadTracking {
     }
 }
 
-#[derive(Encode, Decode, Default, Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Encode, Decode, Default, Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum TaskPriority {
     #[default]
     Initial,
@@ -1860,8 +1860,6 @@ fn abort_on_panic_message(payload: &(dyn std::any::Any + Send)) -> Cow<'static, 
 }
 
 impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboTasksExecutor {
-    const LOWEST_PRIORITY: TaskPriority = TaskPriority::Initial;
-
     type Future = impl Future<Output = ()> + Send + 'static;
 
     fn execute(
