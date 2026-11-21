@@ -135,7 +135,7 @@ Insights don't show up in the HTTP response. An offending route still returns `2
 
 ## `dynamic = "force-dynamic"`
 
-**Remove the config.** Without Cache Components, `dynamic = 'force-dynamic'` rendered the entire route for every request and made its `fetch` requests uncached. With Cache Components, uncached data and [Request-time APIs](/docs/app/glossary#request-time-apis) already run at request time. Next.js prerenders any static or cached UI around them.
+**Remove the config.** Without Cache Components, `dynamic = 'force-dynamic'` rendered the entire route for every request with uncached `fetch` requests by default. [Explicit per-fetch caching](/docs/app/guides/caching-without-cache-components#dynamic) could still reuse responses. With Cache Components, uncached data and [Request-time APIs](/docs/app/glossary#request-time-apis) already run at request time. Next.js prerenders any static or cached UI around them.
 
 After removing the config, [follow any validation errors or insights](#following-validation) that appear.
 

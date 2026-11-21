@@ -33,13 +33,13 @@ const API_DOCS: Record<
       '"auto"':
         "Heuristic to cache as much as possible but doesn't prevent any component to opt-in to dynamic behavior.",
       '"force-dynamic"':
-        'This disables all caching of fetches and always revalidates. (This is equivalent to `getServerSideProps`.)',
+        'This renders the route at request time and leaves fetches uncached by default. Fetches can still opt into caching with `cache: "force-cache"` or a positive `next.revalidate` value. Applies without Cache Components.',
       '"error"':
         'This errors if any dynamic Hooks or fetches are used. (This is equivalent to `getStaticProps`.)',
       '"force-static"':
         'This forces caching of all fetches and returns empty values from `cookies`, `headers` and `useSearchParams`.',
     } satisfies DocsOptionsObject<FullAppSegmentConfig['dynamic']>,
-    link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#dynamic',
+    link: 'https://nextjs.org/docs/app/guides/caching-without-cache-components#dynamic',
   },
   fetchCache: {
     description:
