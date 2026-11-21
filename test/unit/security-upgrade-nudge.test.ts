@@ -1,7 +1,7 @@
-import { execFileSync } from 'child_process'
-import { mkdir, mkdtemp, rm } from 'fs/promises'
+import { execFileSync, spawnSync } from 'child_process'
+import { mkdir, mkdtemp, rm, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
-import { join } from 'path'
+import { dirname, join } from 'path'
 import { processEnv, resetEnv, updateInitialEnv } from '@next/env'
 
 import {
@@ -17,6 +17,7 @@ import { getAgentName } from 'next/dist/telemetry/agent-name'
 import { getUpgradeAssessment } from 'next/dist/lib/upgrade/prepare-upgrade'
 import { warn } from 'next/dist/build/output/log'
 import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
+import { captureOriginalEnv } from '../../packages/next/src/lib/upgrade/original-env'
 import { defaultConfig } from 'next/dist/server/config-shared'
 
 jest.mock('next/dist/cli/next-upgrade', () => ({
@@ -1289,4 +1290,218 @@ describe('human upgrade nudge', () => {
     await run('experimental-future', controller.signal)
     expect(promptUpgrade).toHaveBeenCalledTimes(0)
   })
+})
+
+// https://github.com/vercel/next.js/issues/101989
+describe('upgrade handoff environment', () => {
+  const keys = [
+    'NODE_ENV',
+    'NEXT_RUNTIME',
+    'DOTENV_DEV_ONLY',
+    'USER_SHELL_VAR',
+    'NEXT_TELEMETRY_DISABLED',
+    'NEXT_TELEMETRY_DEBUG',
+    'npm_config_before',
+    'npm_config_registry',
+  ] as const
+  type Key = (typeof keys)[number]
+  const env = process.env as Record<string, string | undefined>
+  const saved = Object.fromEntries(keys.map((key) => [key, env[key]]))
+
+  function setEnv(values: Partial<Record<Key, string | undefined>>) {
+    for (const [key, value] of Object.entries(values)) {
+      if (value === undefined) {
+        delete env[key]
+      } else {
+        env[key] = value
+      }
+    }
+  }
+
+  // What bin/next does to its own process before running a command.
+  function simulateCli(command: 'dev' | 'build') {
+    captureOriginalEnv()
+    setEnv({
+      NODE_ENV:
+        env.NODE_ENV || (command === 'dev' ? 'development' : 'production'),
+      NEXT_RUNTIME: 'nodejs',
+    })
+  }
+
+  // next dev then loads .env files into the CLI process. initialEnv is
+  // captured after bin/next ran, so it holds bin/next's defaults but not the
+  // .env values.
+  function simulateDevEnvLoad() {
+    processEnv([], directory)
+    updateInitialEnv({
+      NODE_ENV: env.NODE_ENV,
+      NEXT_RUNTIME: env.NEXT_RUNTIME,
+      USER_SHELL_VAR: env.USER_SHELL_VAR,
+      DOTENV_DEV_ONLY: undefined,
+    })
+    setEnv({ DOTENV_DEV_ONLY: '1' })
+  }
+
+  // The environment the upgrade CLI, and the coding agent it launches,
+  // inherit from the CLI process.
+  async function envAtHandoff() {
+    let handoff: Record<string, string | undefined> | undefined
+    jest.mocked(spawnNextUpgrade).mockImplementationOnce(async () => {
+      handoff = Object.fromEntries(keys.map((key) => [key, env[key]]))
+    })
+    await runUpgrade(directory, 'security', null)
+    expect(spawnNextUpgrade).toHaveBeenCalledTimes(1)
+    return handoff
+  }
+
+  beforeEach(() => {
+    jest.mocked(spawnNextUpgrade).mockReset()
+    setEnv({
+      NODE_ENV: undefined,
+      NEXT_RUNTIME: undefined,
+      DOTENV_DEV_ONLY: undefined,
+      USER_SHELL_VAR: 'kept',
+      NEXT_TELEMETRY_DISABLED: undefined,
+      NEXT_TELEMETRY_DEBUG: undefined,
+      npm_config_before: undefined,
+      npm_config_registry: undefined,
+    })
+  })
+
+  afterEach(() => {
+    setEnv(saved)
+    updateInitialEnv(saved)
+  })
+
+  it('starts an upgrade from next dev with the user environment', async () => {
+    simulateCli('dev')
+    simulateDevEnvLoad()
+
+    expect(await envAtHandoff()).toEqual({
+      NODE_ENV: undefined,
+      NEXT_RUNTIME: undefined,
+      DOTENV_DEV_ONLY: undefined,
+      USER_SHELL_VAR: 'kept',
+    })
+  })
+
+  it('starts an upgrade from next build with the user environment', async () => {
+    // The build runs in a child, so the CLI process never loads .env files.
+    simulateCli('build')
+
+    const handoff = await envAtHandoff()
+    expect(handoff?.NODE_ENV).toBeUndefined()
+    expect(handoff?.NEXT_RUNTIME).toBeUndefined()
+  })
+
+  it('keeps a NODE_ENV the user set', async () => {
+    // Same value next dev would default to, so only the user's intent differs.
+    setEnv({ NODE_ENV: 'development' })
+    simulateCli('dev')
+    simulateDevEnvLoad()
+
+    expect((await envAtHandoff())?.NODE_ENV).toBe('development')
+  })
+
+  it('keeps a telemetry opt-out read after startup', async () => {
+    simulateCli('dev')
+    // next dev sets this from next.config or .env (next-dev.ts).
+    setEnv({ NEXT_TELEMETRY_DISABLED: '1' })
+    simulateDevEnvLoad()
+
+    expect((await envAtHandoff())?.NEXT_TELEMETRY_DISABLED).toBe('1')
+  })
+
+  it('keeps telemetry debug mode loaded from .env', async () => {
+    simulateCli('dev')
+    simulateDevEnvLoad()
+    // Set only in .env.development.local, so upgrade telemetry prints locally.
+    setEnv({ NEXT_TELEMETRY_DEBUG: '1' })
+
+    expect((await envAtHandoff())?.NEXT_TELEMETRY_DEBUG).toBe('1')
+  })
+
+  it('keeps a package manager release-age cutoff loaded from .env', async () => {
+    simulateCli('dev')
+    simulateDevEnvLoad()
+    // Set only in .env.development.local; npm and the delegated CLI read it.
+    setEnv({ npm_config_before: '2026-01-01' })
+
+    const handoff = await envAtHandoff()
+    expect(handoff?.npm_config_before).toBe('2026-01-01')
+    expect(handoff?.DOTENV_DEV_ONLY).toBeUndefined()
+  })
+
+  it('drops a package manager registry loaded from .env', async () => {
+    simulateCli('dev')
+    simulateDevEnvLoad()
+    // A .env author must not choose where the upgrade CLI is downloaded from.
+    setEnv({ npm_config_registry: 'https://registry.example.com' })
+
+    expect((await envAtHandoff())?.npm_config_registry).toBeUndefined()
+  })
+
+  it('keeps a package manager registry set in the shell', async () => {
+    setEnv({ npm_config_registry: 'https://registry.example.com' })
+    simulateCli('dev')
+    simulateDevEnvLoad()
+
+    expect((await envAtHandoff())?.npm_config_registry).toBe(
+      'https://registry.example.com'
+    )
+  })
+  // The tests above capture the environment themselves. This runs the built
+  // CLI, so it fails if bin/next stops capturing or captures after it sets
+  // NODE_ENV and NEXT_RUNTIME.
+  it.each(['dev', 'build'])(
+    'bin/next %s captures the environment before setting its defaults',
+    async (command) => {
+      const nextDist = join(
+        dirname(require.resolve('next/package.json')),
+        'dist'
+      )
+      // Restore in the CLI process as runUpgrade would, right before it exits.
+      const probe = join(directory, 'restore-on-exit.js')
+      await writeFile(
+        probe,
+        `process.on('exit', () => {
+          require(${JSON.stringify(join(nextDist, 'lib/upgrade/original-env.js'))}).restoreOriginalEnv()
+          process.stderr.write('HANDOFF_ENV ' + JSON.stringify({
+            NODE_ENV: process.env.NODE_ENV,
+            NEXT_RUNTIME: process.env.NEXT_RUNTIME,
+            USER_SHELL_VAR: process.env.USER_SHELL_VAR,
+          }) + '\\n')
+        })`
+      )
+      const { NODE_ENV: _nodeEnv, NEXT_RUNTIME: _runtime, ...userEnv } = env
+      // A missing directory makes the command exit right after bin/next has
+      // applied its defaults.
+      const result = spawnSync(
+        process.execPath,
+        [
+          '-r',
+          probe,
+          join(nextDist, 'bin/next'),
+          command,
+          join(directory, 'missing'),
+        ],
+        {
+          encoding: 'utf8',
+          env: {
+            ...userEnv,
+            NODE_ENV: undefined,
+            USER_SHELL_VAR: 'kept',
+            NEXT_TELEMETRY_DISABLED: '1',
+          },
+        }
+      )
+      const line = result.stderr
+        .split('\n')
+        .find((entry) => entry.startsWith('HANDOFF_ENV '))
+      expect(line).toBeDefined()
+      expect(JSON.parse(line!.slice('HANDOFF_ENV '.length))).toEqual({
+        USER_SHELL_VAR: 'kept',
+      })
+    }
+  )
 })
