@@ -17,7 +17,6 @@ use turbo_tasks::{
 use turbo_tasks_bytes::Bytes;
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
-    asset::AssetContent,
     issue::{IssueReporter, IssueSeverity, handle_issues},
     version::VersionedContent,
 };
@@ -51,7 +50,7 @@ async fn get_from_source_operation(
         match &*resolve_source_request(source, request).connect().await? {
             ResolveSourceRequestResult::Static(static_content_vc, header_overwrites) => {
                 let static_content = static_content_vc.await?;
-                if let AssetContent::File(file) = &*static_content.content.content().await? {
+                if let Some(file) = static_content.content.content().await?.as_file_content() {
                     GetFromSourceResult::Static {
                         content: file.await?,
                         status_code: static_content.status_code,

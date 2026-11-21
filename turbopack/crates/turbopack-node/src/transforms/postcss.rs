@@ -493,7 +493,7 @@ impl PostCssTransformedAsset {
         };
 
         let source_content = self.source.content();
-        let AssetContent::File(file) = *source_content.await? else {
+        let Some(file) = source_content.await?.as_file_content() else {
             bail!("PostCSS transform only support transforming files");
         };
         let FileContent::Content(content) = &*file.await? else {

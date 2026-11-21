@@ -9,7 +9,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::Asset,
     output::{ExpandedOutputAssets, OptionOutputAsset, OutputAsset},
     source_map::{GenerateSourceMap, SourceMapType},
     version::OptionVersionedContent,
@@ -134,7 +134,7 @@ impl VersionedContentMap {
                 let Some(asset) = *self.get_asset(path).await? else {
                     return Ok::<_, anyhow::Error>(None);
                 };
-                if !matches!(*asset.content().await?, AssetContent::File(_)) {
+                if asset.content().await?.as_file_content().is_none() {
                     return Ok(None);
                 }
                 let content = asset.versioned_content().to_resolved().await?;

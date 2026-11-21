@@ -250,7 +250,7 @@ async fn traced_module_nft_entry(
 
 fn symlink_target(content: &AssetContent) -> Option<FileSystemPath> {
     match content {
-        AssetContent::File(_) => None,
+        AssetContent::File(_) | AssetContent::Composed(_) => None,
         AssetContent::Redirect(content) => Some(content.target.clone()),
     }
 }

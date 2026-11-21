@@ -10,7 +10,7 @@ use turbo_tasks_fs::{
     json::parse_json_rope_with_source_context,
 };
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::Asset,
     chunk::{ChunkingType, TracedMode},
     file_source::FileSource,
     raw_module::RawModule,
@@ -105,7 +105,7 @@ async fn resolve_node_pre_gyp_files(
     .await?;
     let compile_target = compile_target.await?;
     if let Some(config_asset) = config.first_source()
-        && let AssetContent::File(file) = &*config_asset.content().await?
+        && let Some(file) = config_asset.content().await?.as_file_content()
         && let FileContent::Content(config_file) = &*file.await?
     {
         let config_asset_ident = config_asset.ident().await?;
@@ -289,7 +289,7 @@ async fn resolve_node_gyp_build_files(
         } else {
             Vec::new()
         };
-        if let AssetContent::File(file) = &*binding_gyp.content().await?
+        if let Some(file) = binding_gyp.content().await?.as_file_content()
             && let FileContent::Content(config_file) = &*file.await?
             && let Some(captured) = GYP_BUILD_TARGET_NAME.captures(&config_file.content().to_str()?)
         {
@@ -417,7 +417,7 @@ async fn resolve_node_bindings_files(
         )
         .await?;
         if let Some(asset) = resolved.first_source()
-            && let AssetContent::File(file) = &*asset.content().await?
+            && let Some(file) = asset.content().await?.as_file_content()
             && let FileContent::Content(_) = &*file.await?
         {
             break;

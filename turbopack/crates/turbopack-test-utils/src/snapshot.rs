@@ -163,22 +163,25 @@ pub async fn diff(path: FileSystemPath, actual: Vc<AssetContent>) -> Result<()> 
 }
 
 async fn get_contents(file: Vc<AssetContent>) -> Result<Option<String>> {
+    let content = file.await?;
+    let file = match &*content {
+        AssetContent::File(file) => **file,
+        AssetContent::Composed(composed) => composed.content(),
+        AssetContent::Redirect(content) => return Ok(Some(format!("Redirect {content:?}"))),
+    };
     Ok(match &*file.await? {
-        AssetContent::File(file) => match &*file.await? {
-            FileContent::NotFound => None,
-            FileContent::Content(expected) => {
-                let rope = expected.content();
-                let str = rope.to_str();
-                match str {
-                    Ok(str) => Some(str.trim().to_string()),
-                    Err(_) => {
-                        let hash = hash_xxh3_hash64(rope);
-                        Some(format!("Binary content {hash:016x}"))
-                    }
+        FileContent::NotFound => None,
+        FileContent::Content(expected) => {
+            let rope = expected.content();
+            let str = rope.to_str();
+            match str {
+                Ok(str) => Some(str.trim().to_string()),
+                Err(_) => {
+                    let hash = hash_xxh3_hash64(rope);
+                    Some(format!("Binary content {hash:016x}"))
                 }
             }
-        },
-        AssetContent::Redirect(content) => Some(format!("Redirect {content:?}")),
+        }
     })
 }
 
