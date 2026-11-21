@@ -52,7 +52,9 @@ export async function middleware(request) {
 
   if (
     request.nextUrl.pathname === '/rsc-cookies' ||
-    request.nextUrl.pathname === '/rsc-cookies-edge'
+    request.nextUrl.pathname === '/rsc-cookies-edge' ||
+    request.nextUrl.pathname === '/rsc-cookies-route' ||
+    request.nextUrl.pathname === '/rsc-cookies-route-edge'
   ) {
     const res = NextResponse.next()
     res.cookies.set('rsc-cookie-value-1', `${Math.random()}`)

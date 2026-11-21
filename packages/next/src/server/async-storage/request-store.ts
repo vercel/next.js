@@ -68,14 +68,6 @@ function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   )
 }
 
-function getMutableCookies(
-  headers: Headers | IncomingHttpHeaders,
-  onUpdateCookies?: (cookies: string[]) => void
-): ResponseCookies {
-  const cookies = new RequestCookies(HeadersAdapter.from(headers))
-  return MutableRequestCookiesAdapter.wrap(cookies, onUpdateCookies)
-}
-
 export type WrapperRenderOpts = Partial<Pick<RenderOpts, 'onUpdateCookies'>> & {
   previewProps?: __ApiPreviewProps
 }
@@ -149,36 +141,51 @@ export type RequestStoreInputs = {
 }
 
 /**
- * If middleware set cookies in this request (indicated by `x-middleware-set-cookie`),
- * then merge those into the existing cookie object, so that when `cookies()` is accessed
- * it's able to read the newly set cookies.
+ * Returns the cookies that Proxy set on its response for this request. The
+ * router forwards them in the internal `x-middleware-set-cookie` request header
+ * so that `cookies()` can read them during the same request.
+ *
+ * Pages and Server Actions get Node.js `IncomingHttpHeaders`, while Route
+ * Handlers get Web `Headers`, so both shapes must be read.
  */
-function mergeMiddlewareCookies(
-  headers: Headers | IncomingHttpHeaders,
-  existingCookies: RequestCookies | ResponseCookies
-) {
-  // TODO: this only fires for `IncomingHttpHeaders`; `Headers` instances
-  // silently fall through (the `in` check and bracket access don't reach header
-  // values stored in internal slots). Confirm whether edge / Web `Headers`
-  // callers need this merge or already handle it elsewhere.
-  if (
-    'x-middleware-set-cookie' in headers &&
-    typeof headers['x-middleware-set-cookie'] === 'string'
-  ) {
-    const setCookieValue = headers['x-middleware-set-cookie']
-    const responseHeaders = new Headers()
+export function getMiddlewareCookies(headers: Headers | IncomingHttpHeaders) {
+  const setCookieValue =
+    headers instanceof Headers
+      ? headers.get('x-middleware-set-cookie')
+      : headers['x-middleware-set-cookie']
 
-    for (const cookie of splitCookiesString(setCookieValue)) {
-      responseHeaders.append('set-cookie', cookie)
-    }
-
-    const responseCookies = new ResponseCookies(responseHeaders)
-
-    // Transfer cookies from ResponseCookies to RequestCookies
-    for (const cookie of responseCookies.getAll()) {
-      existingCookies.set(cookie)
-    }
+  if (typeof setCookieValue !== 'string') {
+    return []
   }
+
+  const responseHeaders = new Headers()
+  for (const cookie of splitCookiesString(setCookieValue)) {
+    responseHeaders.append('set-cookie', cookie)
+  }
+
+  return new ResponseCookies(responseHeaders).getAll()
+}
+
+/**
+ * Returns the cookies of the `Cookie` request header, with the cookies that
+ * Proxy set on this request applied on top.
+ */
+function getRequestCookies(
+  headers: Headers | IncomingHttpHeaders
+): RequestCookies {
+  const requestCookies = new RequestCookies(HeadersAdapter.from(headers))
+  const middlewareCookies = getMiddlewareCookies(headers)
+  if (middlewareCookies.length === 0) {
+    return requestCookies
+  }
+
+  // `RequestCookies.set` writes the `Cookie` header of the headers it wraps, so
+  // merge into a copy. The request headers keep the cookies the client sent.
+  const mergedCookies = new RequestCookies(new Headers())
+  for (const cookie of [...requestCookies.getAll(), ...middlewareCookies]) {
+    mergedCookies.set(cookie)
+  }
+  return mergedCookies
 }
 
 export function createRequestStoreForRender(
@@ -294,15 +301,9 @@ export function createRequestStore(inputs: RequestStoreInputs): RequestStore {
     },
     get cookies() {
       if (!cache.cookies) {
-        // if middleware is setting cookie(s), then include those in
-        // the initial cached cookies so they can be read in render
-        const requestCookies = new RequestCookies(HeadersAdapter.from(headers))
-
-        mergeMiddlewareCookies(headers, requestCookies)
-
         // Seal the cookies object that'll freeze out any methods that could
         // mutate the underlying data.
-        cache.cookies = RequestCookiesAdapter.seal(requestCookies)
+        cache.cookies = RequestCookiesAdapter.seal(getRequestCookies(headers))
       }
 
       return cache.cookies
@@ -312,11 +313,10 @@ export function createRequestStore(inputs: RequestStoreInputs): RequestStore {
     },
     get mutableCookies() {
       if (!cache.mutableCookies) {
-        const mutableCookies = getMutableCookies(headers, onUpdateCookies)
-
-        mergeMiddlewareCookies(headers, mutableCookies)
-
-        cache.mutableCookies = mutableCookies
+        cache.mutableCookies = MutableRequestCookiesAdapter.wrap(
+          getRequestCookies(headers),
+          onUpdateCookies
+        )
       }
       return cache.mutableCookies
     },
