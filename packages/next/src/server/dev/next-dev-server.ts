@@ -22,7 +22,7 @@ import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-p
 
 import * as React from 'react'
 import fs from 'fs'
-import { Worker } from 'next/dist/compiled/jest-worker'
+import { Worker } from '../../lib/worker/index'
 import { installUseCacheProbe } from './use-cache-probe-pool'
 import { installDevValidationWorker } from './dev-validation-worker-pool'
 import { join as pathJoin } from 'path'
@@ -48,7 +48,6 @@ import {
 } from '../../trace'
 import { traceGlobals } from '../../trace/shared'
 import { findPageFile } from '../lib/find-page-file'
-import { getFormattedNodeOptionsWithoutInspect } from '../lib/utils'
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
 import {
   loadDefaultErrorComponents,
@@ -171,27 +170,21 @@ export default class DevServer extends Server {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
   } {
     const worker = new Worker(require.resolve('./static-paths-worker'), {
+      workerName: 'Next.js static paths worker',
       maxRetries: 1,
       // For dev server, it's not necessary to spin up too many workers as long as you are not doing a load test.
       // This helps reusing the memory a lot.
-      numWorkers: 1,
+      maxWorkers: 1,
+      // concurrencyPerWorker must be 1: the manifest read-modify-write in
+      // nextInvoke (next-dev-server.ts) is not safe for concurrent calls from
+      // different pages. Serializing ensures no race between concurrent
+      // loadStaticPaths completions writing the prerender-manifest.json.
+      concurrencyPerWorker: 1,
+      exposedMethods: ['loadStaticPaths'],
       enableWorkerThreads: this.nextConfig.experimental.workerThreads,
-      forkOptions: {
-        env: {
-          ...process.env,
-          // discard --inspect/--inspect-brk flags from process.env.NODE_OPTIONS. Otherwise multiple Node.js debuggers
-          // would be started if user launch Next.js in debugging mode. The number of debuggers is linked to
-          // the number of workers Next.js tries to launch. The only worker users are interested in debugging
-          // is the main Next.js one
-          NODE_OPTIONS: getFormattedNodeOptionsWithoutInspect(),
-        },
-      },
     }) as Worker & {
       loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
     }
-
-    worker.getStdout().pipe(process.stdout)
-    worker.getStderr().pipe(process.stderr)
 
     return worker
   }
@@ -818,7 +811,7 @@ export default class DevServer extends Server {
         return pathsResult
       } finally {
         // we don't re-use workers so destroy the used one
-        staticPathsWorker.end()
+        await staticPathsWorker.shutdown()
       }
     }
     const result = this.staticPathsCache.get(pathname)

@@ -170,17 +170,13 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
   try {
     printBuildErrors(projectResult, dev)
 
-    // Write an empty file in a known location to signal this was built with Turbopack
-    await fs.writeFile(path.join(distDir, 'turbopack'), '')
+    // The `turbopack` marker file and the `package.json` of the distDir are
+    // written by Turbopack when creating the project.
 
     await fs.mkdir(path.join(distDir, 'server'), { recursive: true })
     await fs.mkdir(path.join(distDir, 'static', buildId), {
       recursive: true,
     })
-    await fs.writeFile(
-      path.join(distDir, 'package.json'),
-      '{"type": "commonjs"}'
-    )
 
     let appDirOnly = NextBuildContext.appDirOnly!
 

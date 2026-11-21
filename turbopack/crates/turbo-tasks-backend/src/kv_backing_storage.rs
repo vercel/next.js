@@ -1,16 +1,17 @@
 use std::{
     borrow::Borrow,
     env,
-    path::PathBuf,
+    fmt::Display,
+    path::{Path, PathBuf},
     sync::{Arc, LazyLock, Mutex, PoisonError, Weak},
 };
 
 use anyhow::{Context, Result};
 use smallvec::SmallVec;
 use turbo_bincode::{new_turbo_bincode_decoder, turbo_bincode_decode, turbo_bincode_encode};
-use turbo_persistence::CommitStats;
+use turbo_persistence::{CacheFileUnreadable, CommitStats};
 use turbo_tasks::{
-    DynTaskInputs, RawVc, TaskId,
+    DynTaskInputs, PersistentCacheUnreadablePanic, RawVc, TaskId,
     macro_helpers::NativeFunction,
     panic_hooks::{PanicHookGuard, register_panic_hook},
     parallel,
@@ -94,6 +95,37 @@ fn should_invalidate_on_panic() -> bool {
         env_is_falsy("TURBO_ENGINE_SKIP_INVALIDATE_ON_PANIC") && env_is_falsy("__NEXT_TEST_MODE")
     });
     *SHOULD_INVALIDATE
+}
+
+/// Builds the message of a [`PersistentCacheUnreadablePanic`] if `error` was caused by a database
+/// file that couldn't be read (see [`CacheFileUnreadable`]), otherwise returns `None`.
+///
+/// `base_path` is the directory of the filesystem cache (`None` for in-memory storage), and
+/// `invalidates_on_panic` whether the panic hook registered by
+/// [`TurboBackingStorage::open_versioned_on_disk`] invalidates the cache (see
+/// [`should_invalidate_on_panic`]). That invalidation is best-effort, so the message doesn't claim
+/// that it succeeded.
+fn unreadable_cache_message(
+    error: &anyhow::Error,
+    base_path: Option<&Path>,
+    invalidates_on_panic: bool,
+) -> Option<String> {
+    let unreadable = CacheFileUnreadable::find(error)?;
+    let what_to_do = match base_path {
+        Some(base_path) if invalidates_on_panic => format!(
+            "Turbopack will try to invalidate the filesystem cache, so that it is rebuilt on the \
+             next start. Restart to continue. If this error comes back, delete {} manually.",
+            base_path.display()
+        ),
+        Some(base_path) => format!("Delete {} and restart to continue.", base_path.display()),
+        None => "Restart to continue.".to_string(),
+    };
+    Some(format!(
+        "Turbopack's filesystem cache could not be read: the cache file {} is missing or \
+         corrupted. It may have been deleted or modified outside of Turbopack while Turbopack was \
+         running.\n{what_to_do}\n\nDetails: {error:?}",
+        unreadable.file_name()
+    ))
 }
 
 struct TurboBackingStorageInner {
@@ -226,6 +258,26 @@ impl TurboBackingStorage {
     /// [`TurboTasksBackend::stop`]: turbo_tasks::backend::Backend::stop
     pub(crate) fn invalidate(&self, reason_code: &str) -> Result<()> {
         self.inner.invalidate(reason_code)
+    }
+
+    /// Panics because reading from the database failed with `error`, which can't be recovered
+    /// from: the task graph can't be restored without that data.
+    ///
+    /// If a database file couldn't be read (see [`CacheFileUnreadable`]), e.g. because it was
+    /// deleted or modified by another process while it was in use, the panic payload is a
+    /// [`PersistentCacheUnreadablePanic`] with a message explaining that and what to do about it.
+    /// Otherwise this panics with `description` and `error` as before.
+    #[cold]
+    #[track_caller]
+    pub(crate) fn panic_on_read_error(&self, description: impl Display, error: anyhow::Error) -> ! {
+        if let Some(message) = unreadable_cache_message(
+            &error,
+            self.inner.base_path.as_deref(),
+            should_invalidate_on_panic(),
+        ) {
+            std::panic::panic_any(PersistentCacheUnreadablePanic { message });
+        }
+        panic!("{description}: {error:?}");
     }
 
     pub(crate) fn next_free_task_id(&self) -> Result<TaskId> {
@@ -901,6 +953,99 @@ mod tests {
         );
 
         db.shutdown();
+        Ok(())
+    }
+
+    /// An error caused by an unreadable database file, wrapped in further context like the errors
+    /// of restoring a task.
+    fn unreadable_error() -> anyhow::Error {
+        anyhow::Error::new(CacheFileUnreadable::new(
+            "00000007.sst",
+            anyhow::anyhow!("failed to open file `00000007.sst`: No such file or directory"),
+        ))
+        .context("Looking up task storage for TaskId 4 from database failed")
+        .context("Failed to restore Data for TaskId 4")
+    }
+
+    #[test]
+    fn test_unreadable_cache_message() {
+        let base_path = Path::new("/project/.cache/turbopack");
+        let error = unreadable_error();
+
+        let with_invalidation = unreadable_cache_message(&error, Some(base_path), true).unwrap();
+        let without_invalidation =
+            unreadable_cache_message(&error, Some(base_path), false).unwrap();
+        let in_memory = unreadable_cache_message(&error, None, true).unwrap();
+        for message in [&with_invalidation, &without_invalidation, &in_memory] {
+            assert!(
+                message.contains("Turbopack's filesystem cache could not be read"),
+                "{message}"
+            );
+            assert!(message.contains("00000007.sst"), "{message}");
+            assert!(
+                message.contains("deleted or modified outside of Turbopack"),
+                "{message}"
+            );
+            // The details of the error follow.
+            assert!(message.contains("No such file or directory"), "{message}");
+            // Invalidating is best-effort, so it's never claimed to have happened.
+            assert!(!message.contains("has been deleted"), "{message}");
+            assert!(!message.contains("was deleted"), "{message}");
+        }
+        assert!(
+            with_invalidation.contains("will try to invalidate"),
+            "{with_invalidation}"
+        );
+        assert!(
+            with_invalidation
+                .contains("If this error comes back, delete /project/.cache/turbopack"),
+            "{with_invalidation}"
+        );
+        assert!(
+            without_invalidation.contains("Delete /project/.cache/turbopack and restart"),
+            "{without_invalidation}"
+        );
+        assert!(
+            !without_invalidation.contains("will try to invalidate"),
+            "{without_invalidation}"
+        );
+
+        assert_eq!(
+            unreadable_cache_message(&anyhow::anyhow!("some bug"), Some(base_path), true),
+            None
+        );
+    }
+
+    #[test]
+    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
+    fn test_panic_on_read_error() -> Result<()> {
+        let tempdir = test_temp_dir()?;
+        let db = TurboKeyValueDatabase::new(tempdir.path().to_path_buf(), TEST_STORAGE_OPTIONS)?;
+        let storage = TurboBackingStorage::new_in_memory(db);
+
+        let payload = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            storage.panic_on_read_error("Failed to restore", unreadable_error())
+        }))
+        .expect_err("must panic");
+        let panic = payload
+            .downcast_ref::<PersistentCacheUnreadablePanic>()
+            .expect("the payload must be a PersistentCacheUnreadablePanic");
+        assert!(panic.message.contains("00000007.sst"), "{}", panic.message);
+
+        // Other errors panic as before. (Without the error's backtrace, which is included if
+        // `RUST_BACKTRACE` is set.)
+        let payload = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            storage.panic_on_read_error("Failed to restore", anyhow::anyhow!("some bug"))
+        }))
+        .expect_err("must panic");
+        let message = payload
+            .downcast_ref::<String>()
+            .expect("the payload must be a String");
+        let message = message
+            .split("\n\nStack backtrace:")
+            .next()
+            .unwrap_or_default();
+        assert_eq!(message, "Failed to restore: some bug");
         Ok(())
     }
 }
