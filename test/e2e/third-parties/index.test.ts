@@ -67,6 +67,29 @@ describe('@next/third-parties basic usage', () => {
     )
   })
 
+  it('pushes the dataLayer prop before the gtm.js event', async () => {
+    const browser = await next.browser('/gtm-data-layer')
+
+    await browser.waitForElementByCss('script#_next-gtm')
+    await retry(async () => {
+      expect(
+        await browser.eval('!!window.google_tag_manager?.["GTM-XYZ"]')
+      ).toBe(true)
+    })
+
+    // Google's script adds its own events, so only look for ours and
+    // compare their positions in the queue.
+    const dataLayer = await browser.eval('window.dataLayer')
+    const dataLayerIndex = dataLayer.findIndex(
+      (entry) => entry?.user_id === 'user-123'
+    )
+    const gtmJsIndex = dataLayer.findIndex((entry) => entry?.event === 'gtm.js')
+
+    expect(dataLayerIndex).toBeGreaterThanOrEqual(0)
+    expect(gtmJsIndex).toBeGreaterThanOrEqual(0)
+    expect(dataLayerIndex).toBeLessThan(gtmJsIndex)
+  })
+
   it('renders GA', async () => {
     const browser = await next.browser('/ga')
 
