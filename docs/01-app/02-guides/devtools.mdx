@@ -83,6 +83,8 @@ The indicator expands when Next.js has something to report. **Issues** shows err
 
 Select a count to open its tab in the diagnostics panel. You can also open the panel from **Diagnostics** in the DevTools menu.
 
+> **Good to know:** Next.js [validates navigations](/docs/app/guides/instant-navigation#validate-instant-navigation) in the background, so an Insight can appear after the page is visible. If you're testing for an expected Insight, wait for the **Insights** badge or its message in the browser console. The terminal running `next dev` also logs the message.
+
 ### Inside the diagnostics panel
 
 Use the arrows at the top of the panel, or the left and right arrow keys, to move between reports. The top-right corner shows the Next.js version and bundler.
