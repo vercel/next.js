@@ -2434,14 +2434,10 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn enable_durable_use_cache_entries(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
-        Ok(match *mode.await? {
-            // TODO eventually also look into enabling this for better HMR
-            NextMode::Development => Vc::cell(false),
-            NextMode::Build => {
-                Vc::cell(self.experimental.durable_use_cache_entries.unwrap_or(false))
-            }
-        })
+    pub fn enable_durable_use_cache_entries(&self) -> Vc<bool> {
+        // In development this keys `"use cache"` entries by their code hash instead of the HMR
+        // refresh hash, so an edit only invalidates entries whose code changed.
+        Vc::cell(self.experimental.durable_use_cache_entries.unwrap_or(false))
     }
 
     #[turbo_tasks::function]
