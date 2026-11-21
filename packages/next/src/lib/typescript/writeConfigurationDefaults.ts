@@ -308,7 +308,21 @@ export async function writeConfigurationDefaults(
   } else if (hasAppDir && !strictRouteTypes) {
     const missingFromResolved = []
     for (const type of nextTypes) {
-      if (!userTsConfig.include.includes(type)) {
+      // Check if the pattern is already covered by an exact match or an existing glob
+      const isAlreadyIncluded =
+        userTsConfig.include.includes(type) ||
+        userTsConfig.include.some((included: string) => {
+          if (included === type) return true
+          // If the user configured a broader pattern that already matches the distDir types
+          // (e.g. '.next/**/*.ts' or custom distDir glob), avoid forcing redundant specific entries
+          if (included.includes('**') && typeof included === 'string') {
+            const prefix = included.split('**')[0]
+            return prefix && type.startsWith(prefix)
+          }
+          return false
+        })
+
+      if (!isAlreadyIncluded) {
         missingFromResolved.push(type)
       }
     }
