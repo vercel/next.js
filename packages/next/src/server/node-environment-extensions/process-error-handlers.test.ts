@@ -43,15 +43,40 @@ describe('uncaughtException handler', () => {
     expect(consoleError).toHaveBeenCalledWith(error)
   })
 
+  describe.each(['stdout', 'stderr'] as const)('when %s is broken', (name) => {
+    beforeEach(() => {
+      Object.defineProperty(process[name], 'destroyed', {
+        value: true,
+        configurable: true,
+      })
+    })
+
+    afterEach(() => {
+      delete (process[name] as { destroyed?: boolean }).destroyed
+    })
+
+    it.each(['EIO', 'EPIPE'])(
+      'does not log failed writes (%s) to avoid an infinite loop',
+      (code) => {
+        const error = Object.assign(new Error(`write ${code}`), {
+          code,
+          syscall: 'write',
+        })
+        handler(error, 'uncaughtException')
+        expect(consoleError).not.toHaveBeenCalled()
+      }
+    )
+  })
+
   it.each(['EIO', 'EPIPE'])(
-    'does not log failed writes to stdout/stderr (%s) to avoid an infinite loop',
+    'still logs write errors (%s) while stdout and stderr are healthy',
     (code) => {
       const error = Object.assign(new Error(`write ${code}`), {
         code,
         syscall: 'write',
       })
       handler(error, 'uncaughtException')
-      expect(consoleError).not.toHaveBeenCalled()
+      expect(consoleError).toHaveBeenCalledWith(error)
     }
   )
 

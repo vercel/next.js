@@ -62,13 +62,23 @@ export function registerUnhandledRejectionListener(): void {
  * Logging such an error with `console.error` writes to the same broken stream,
  * which fails again, triggers another "uncaughtException" and so on, looping
  * forever at 100% CPU.
+ *
+ * Only errors that happen while stdout or stderr is actually broken (already
+ * destroyed or no longer writable) are treated this way. An EPIPE/EIO write
+ * error from anywhere else (e.g. a socket) is a regular error and must still be
+ * logged while the console is healthy.
  */
 function isConsoleWriteError(error: unknown): boolean {
   if (typeof error !== 'object' || error === null) {
     return false
   }
   const { code, syscall } = error as { code?: unknown; syscall?: unknown }
-  return syscall === 'write' && (code === 'EIO' || code === 'EPIPE')
+  if (syscall !== 'write' || (code !== 'EIO' && code !== 'EPIPE')) {
+    return false
+  }
+  return [process.stdout, process.stderr].some(
+    (stream) => stream.destroyed || !stream.writable
+  )
 }
 
 export function installProcessErrorHandlers(
