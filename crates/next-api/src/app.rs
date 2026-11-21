@@ -1248,28 +1248,6 @@ impl Endpoint for GoEndpoint {
             }
             .cell());
         }
-        // The build compiles the handler's directory together with generated `main`, dispatch and
-        // handler files, which still form a valid program once the handler file is gone. An
-        // endpoint whose handler was deleted (e.g. replaced by `route.ts`) must publish nothing,
-        // otherwise it keeps writing outputs that the replacement endpoint also writes, such as
-        // `app-paths-manifest.json`. Recreating the file invalidates this read.
-        match *this.path.get_type().await? {
-            FileSystemEntryType::File | FileSystemEntryType::Symlink => {}
-            FileSystemEntryType::Error => {
-                bail!("Unable to read the Go handler {}", this.path)
-            }
-            FileSystemEntryType::NotFound
-            | FileSystemEntryType::Directory
-            | FileSystemEntryType::Other => {
-                return Ok(EndpointOutput {
-                    project,
-                    output_assets: OutputAssets::empty().to_resolved().await?,
-                    output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
-                    first_load_chunks: None,
-                }
-                .cell());
-            }
-        }
         let source_root = project.project_root_path().owned().await?;
         let directory = this.path.parent();
         let owner = project
@@ -1298,7 +1276,28 @@ impl Endpoint for GoEndpoint {
         )
         .to_resolved()
         .await?;
-        let module_root = sources.await?.root.clone();
+        let source_set = sources.await?;
+        let module_root = source_set.root.clone();
+        // The generated `main`, dispatch and handler files below still form a valid program when
+        // the handler is not among the compiled sources, e.g. after it was deleted or replaced by
+        // `route.ts`. Such an endpoint must publish nothing, otherwise it keeps writing outputs
+        // that a replacement endpoint also writes, such as `app-paths-manifest.json`. The source
+        // set tracks the directory listing, so recreating the handler invalidates this check.
+        let handler_name = module_root
+            .get_path_to(&this.path)
+            .context("Go handler outside module")?;
+        if !source_set.files.contains_key(handler_name) {
+            if matches!(*this.path.get_type().await?, FileSystemEntryType::Error) {
+                bail!("Unable to read the Go handler {}", this.path);
+            }
+            return Ok(EndpointOutput {
+                project,
+                output_assets: OutputAssets::empty().to_resolved().await?,
+                output_paths: EndpointOutputPaths::NativeFailed { build: None }.resolved_cell(),
+                first_load_chunks: None,
+            }
+            .cell());
+        }
         let analysis = go_declarations(*sources, session).await?;
         if is_proxy {
             ensure!(
