@@ -181,6 +181,7 @@ pub async fn go_bundle_from_sources(
     } else {
         let result = bundle(
             sources.root.clone(),
+            sources.boundary.clone(),
             sources.files.keys().cloned().collect(),
             *session,
             generated,
