@@ -399,7 +399,14 @@ async fn get_directory_tree_internal(
                                     message: StyledString::Text(format!("Conflicting App Router handlers: {} and {}", existing.path, file.path).into()).resolved_cell(),
                                 }.resolved_cell().emit();
                             }
-                            modules.route = Some(file.clone());
+                            // Directory listings come back in a different order on each platform
+                            // (sorted on macOS, hash order on Linux). When route.go conflicts with
+                            // a JS handler, keep the JS handler whatever the order, as the dev
+                            // server's route table does, so both pick the same entry and the
+                            // conflict is reported for the route that requests reach.
+                            if ext != "go" || modules.route.is_none() {
+                                modules.route = Some(file.clone());
+                            }
                         },
                         _ => {}
                     }
