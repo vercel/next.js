@@ -15,9 +15,9 @@ use turbo_unix_path::{
 };
 
 use crate::{
-    DirectoryContent, DirectoryEntry, FileContent, FileJsonContent, FileMeta, FileSystem,
-    FileSystemEntryType, LinkContent, RawDirectoryContent, RawDirectoryEntry, ReadGlobResult,
-    WriteLinkContent,
+    ComposedFile, DirectoryContent, DirectoryEntry, FileContent, FileJsonContent, FileMeta,
+    FileSystem, FileSystemEntryType, LinkContent, RawDirectoryContent, RawDirectoryEntry,
+    ReadGlobResult, WriteLinkContent,
     glob::Glob,
     read_glob::{read_glob, track_glob},
 };
@@ -438,6 +438,13 @@ impl FileSystemPath {
 
     pub fn write(&self, content: Vc<FileContent>) -> Vc<()> {
         self.fs().write(self.clone(), content)
+    }
+
+    /// Writes a file composed from other tasks' cells. The result on disk is the same as writing
+    /// its bytes with [`FileSystemPath::write`], but a [`crate::DiskFileSystem`] persists only the
+    /// [`crate::CellRope`], since the referenced cells persist the bytes already.
+    pub fn write_composed(&self, content: Vc<ComposedFile>) -> Vc<()> {
+        self.fs().write_composed(self.clone(), content)
     }
 
     /// Creates a symbolic link on *nix platforms. On Windows, directory links are created as
