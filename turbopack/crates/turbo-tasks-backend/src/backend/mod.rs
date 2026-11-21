@@ -36,10 +36,10 @@ use turbo_tasks::{
     TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TaskPersistence, TaskPriority, TraitTypeId,
     TurboTasks, TurboTasksCallApi, TurboTasksPanic, ValueTypeId,
     backend::{
-        Backend, CachedTaskType, CachedTaskTypeArc, CellContent, CellHash, TaskCollectiblesMap,
-        TaskExecutionSpec, TransientTaskType, TurboTaskContextError, TurboTaskLocalContextError,
-        TurboTasksError, TurboTasksExecutionError, TurboTasksExecutionErrorMessage,
-        TypedCellContent, VerificationMode,
+        Backend, CachedTaskType, CachedTaskTypeArc, CellContent, CellHash, SettledTaskResult,
+        TaskCollectiblesMap, TaskExecutionSpec, TransientTaskType, TurboTaskContextError,
+        TurboTaskLocalContextError, TurboTasksError, TurboTasksExecutionError,
+        TurboTasksExecutionErrorMessage, TypedCellContent, VerificationMode,
     },
     event::{Event, EventDescription, EventListener},
     macro_helpers::NativeFunction,
@@ -4242,6 +4242,42 @@ impl Backend for TurboTasksBackend {
         turbo_tasks: &TurboTasks<Self>,
     ) -> Result<ReadOutcome<RawVc>> {
         self.try_read_task_output(task_id, reader, options, turbo_tasks)
+    }
+
+    fn try_read_settled_task_result(
+        &self,
+        task_id: TaskId,
+        turbo_tasks: &TurboTasks<Self>,
+    ) -> Result<SettledTaskResult> {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let task = ctx.task(task_id, TaskDataCategory::All);
+        if task.is_dirty().is_some()
+            || task.has_dirty_containers()
+            || task.get_in_progress().is_some()
+        {
+            return Ok(SettledTaskResult::NotSettled);
+        }
+        let error = match task.get_output() {
+            None => return Ok(SettledTaskResult::NotSettled),
+            Some(OutputValue::Cell(cell)) if cell.task == task_id => {
+                return Ok(match task.get_cell_data(&cell.cell).cloned() {
+                    Some(content) => SettledTaskResult::OwnCell(TypedCellContent(
+                        cell.cell.type_id(),
+                        CellContent(Some(content)),
+                    )),
+                    None => SettledTaskResult::NotSettled,
+                });
+            }
+            Some(OutputValue::Cell(_) | OutputValue::Output(_)) => {
+                return Ok(SettledTaskResult::Other);
+            }
+            Some(OutputValue::Error(error)) => error.clone(),
+        };
+        drop(task);
+        Err(self
+            .task_error_to_turbo_tasks_execution_error(&error, &mut ctx)
+            .with_task_context(task_id, turbo_tasks.pin())
+            .into())
     }
 
     fn try_read_task_cell(

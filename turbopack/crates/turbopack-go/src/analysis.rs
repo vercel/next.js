@@ -6,7 +6,8 @@ use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, ResolvedVc, Vc, resolve_strongly_consistent_and_take_and_apply_effects,
+    Completion, Effects, ResolvedVc, Vc, read_strongly_consistent_and_apply_effects_in_task,
+    take_effects,
 };
 use turbo_tasks_fs::{
     DiskFileSystem, File, FileContent, FileSystem, FileSystemPath, Permissions, to_sys_path,
@@ -81,14 +82,33 @@ async fn emit_parser_operation(
     Ok(path.cell())
 }
 
+#[turbo_tasks::value(serialization = "skip")]
+struct EmittedParserWithEffects {
+    path: ResolvedVc<FileSystemPath>,
+    effects: Effects,
+}
+
+#[turbo_tasks::function(operation, root)]
+async fn emit_parser_with_effects_operation(
+    host_session: ResolvedVc<GoBuildSession>,
+) -> Result<Vc<EmittedParserWithEffects>> {
+    let operation = emit_parser_operation(host_session);
+    // Collectibles are only stable after a strongly consistent read of their source.
+    let path = operation.resolve().strongly_consistent().await?;
+    let effects = take_effects(operation).await?;
+    Ok(EmittedParserWithEffects { path, effects }.cell())
+}
+
 #[turbo_tasks::function(operation, root, session_dependent)]
 async fn create_parser_operation(
     host_session: ResolvedVc<GoBuildSession>,
 ) -> Result<Vc<FileSystemPath>> {
-    let path =
-        resolve_strongly_consistent_and_take_and_apply_effects(emit_parser_operation(host_session))
-            .await?;
-    Ok(*path)
+    let emitted = read_strongly_consistent_and_apply_effects_in_task(
+        emit_parser_with_effects_operation(host_session),
+        |v| &v.effects,
+    )
+    .await?;
+    Ok(*emitted.path)
 }
 
 // Only immutable SDK files and this crate's generated source are compiler inputs. This tool
