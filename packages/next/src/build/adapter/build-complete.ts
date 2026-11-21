@@ -19,6 +19,7 @@ import {
 import {
   APP_PATHS_MANIFEST,
   AdapterOutputType,
+  PREVIEW_PROPS_MANIFEST,
   type PHASE_TYPE,
 } from '../../shared/lib/constants'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -1265,6 +1266,21 @@ export async function handleBuildComplete({
           middlewareFile,
           'proxy'
         )
+        if (!isGoProxy) {
+          const previewPropsFile = path.join(
+            distDir,
+            'server',
+            PREVIEW_PROPS_MANIFEST
+          )
+          await pushAsset(
+            assets,
+            assetsHashes,
+            path.relative(repoRoot, previewPropsFile),
+            previewPropsFile,
+            bundler,
+            config.outputHashSalt || ''
+          )
+        }
         let filePath = middlewareFile
         let sourcePage = 'middleware'
         if (isGoProxy) {
