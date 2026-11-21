@@ -34,6 +34,7 @@ describe('required server files', () => {
       'instrumentation.js': new FileRef(join(__dirname, 'instrumentation.js')),
       'cache-handler.js': new FileRef(join(__dirname, 'cache-handler.js')),
       'data.txt': new FileRef(join(__dirname, 'data.txt')),
+      'linked-dir-real/data.txt': 'from linked dir',
       '.env': new FileRef(join(__dirname, '.env')),
       '.env.local': new FileRef(join(__dirname, '.env.local')),
       '.env.production': new FileRef(join(__dirname, '.env.production')),
@@ -89,6 +90,15 @@ describe('required server files', () => {
     // test build against environment with next support
     process.env.NOW_BUILDER = '1'
     process.env.NEXT_PRIVATE_TEST_HEADERS = '1'
+
+    // pnpm and workspace setups can link packages with absolute targets. The
+    // link points inside the tracing root, so the standalone output has to
+    // rewrite it to a link that still resolves after the output is moved.
+    await fs.symlink(
+      join(next.testDir, 'linked-dir-real'),
+      join(next.testDir, 'linked-dir'),
+      'dir'
+    )
 
     let { exitCode } = await next.build()
     if (exitCode !== 0) {
@@ -446,6 +456,24 @@ describe('required server files', () => {
         (f) => !fs.pathExistsSync(join(next.testDir, 'standalone', f))
       )
     ).toBeEmpty()
+  })
+
+  it('should keep symlinks with absolute targets valid inside standalone', async () => {
+    // The original project directory was removed after the build, so the
+    // link only resolves when it points inside the standalone output.
+    const linkPath = join(next.testDir, 'standalone/linked-dir')
+    expect((await fs.lstat(linkPath)).isSymbolicLink()).toBe(true)
+
+    const res = await fetchViaHTTP(
+      appPort,
+      '/symlinked-dir',
+      undefined,
+      withInvocationId()
+    )
+    expect(res.status).toBe(200)
+
+    const $ = cheerio.load(await res.text())
+    expect($('#linked-data').text()).toBe('from linked dir')
   })
 
   it('should de-dupe HTML/data requests', async () => {
