@@ -78,3 +78,14 @@ func TestApplyIgnoresIncompleteWorkerMessages(t *testing.T) {
 		t.Error("a gone without a token removed a worker")
 	}
 }
+
+func TestApplyGoneSkipsWorkersWithoutAToken(t *testing.T) {
+	f := newSwitchyard(http.NotFoundHandler())
+	f.state.Store(&directState{workers: map[string]*goUpstream{
+		"/api/echo/route": {address: "127.0.0.1:51300"},
+	}})
+	f.apply(controlMessage{Event: "gone", Address: "127.0.0.1:51300", Token: "secret"})
+	if f.state.Load().workers["/api/echo/route"] == nil {
+		t.Error("a gone removed a worker with no token")
+	}
+}
