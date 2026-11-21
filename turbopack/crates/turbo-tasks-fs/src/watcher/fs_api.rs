@@ -38,7 +38,7 @@ impl DiskFileSystemWatcherApi for DiskFileSystemInner {
     }
 
     fn root_path(&self) -> &Path {
-        self.root_path()
+        self.watcher_root_path()
     }
 
     fn watcher(&self) -> &DiskWatcher {

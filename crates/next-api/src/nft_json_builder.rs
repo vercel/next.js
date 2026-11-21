@@ -112,7 +112,10 @@ impl NftJsonBuilder {
         let output_base = nft_path.parent();
         let output_file_system = ResolvedVc::try_downcast_type::<DiskFileSystem>(output_base.fs)
             .context("NFT path must use a disk filesystem")?;
-        let output_base_path = output_file_system.await?.to_sys_path_raw(&output_base);
+        let output_base_path = output_file_system
+            .await?
+            .to_sys_path_raw(&output_base)
+            .await?;
         let output_base_path = sys_to_unix(
             output_base_path
                 .to_str()

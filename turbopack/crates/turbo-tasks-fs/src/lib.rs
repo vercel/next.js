@@ -255,7 +255,7 @@ impl DirectoryContent {
 
 pub async fn to_sys_path(path: FileSystemPath) -> Result<Option<PathBuf>> {
     if let Some(fs) = ResolvedVc::try_downcast_type::<DiskFileSystem>(path.fs) {
-        let sys_path = fs.await?.to_sys_path(&path);
+        let sys_path = fs.await?.to_sys_path(&path).await?;
         return Ok(Some(sys_path));
     }
 

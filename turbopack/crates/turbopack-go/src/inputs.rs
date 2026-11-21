@@ -319,7 +319,11 @@ impl<'a> Tracker<'a> {
     pub(crate) async fn path(&self, path: &Path) -> Result<FileSystemPath> {
         let project_fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(self.root.fs)
             .context("Go inputs require a disk filesystem")?;
-        if let Some(tracked) = project_fs.await?.try_from_sys_path(project_fs, path, None) {
+        if let Some(tracked) = project_fs
+            .await?
+            .try_from_sys_path(project_fs, path, None)
+            .await?
+        {
             validate_source_path(self.project, path)?;
             return Ok(tracked);
         }
@@ -332,6 +336,7 @@ impl<'a> Tracker<'a> {
         let tracked = module_fs
             .await?
             .try_from_sys_path(module_fs, path, None)
+            .await?
             .with_context(|| {
                 format!("Go source outside project/module cache: {}", path.display())
             })?;

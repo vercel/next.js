@@ -747,7 +747,7 @@ async fn disk_file_system_map_operation(
         .chain(additional_file_systems)
         .map(async |operation| {
             let fs = operation.connect().to_resolved().await?;
-            Ok((PathBuf::from(fs.await?.root()), fs))
+            Ok((PathBuf::from(&**fs.await?.root().await?), fs))
         })
         .try_join()
         .await?;
