@@ -1,0 +1,188 @@
+package routing
+
+import (
+	"strings"
+)
+
+// Request is what Decide reads, as the client sent it.
+type Request struct {
+	Method string
+	// The request target from the request line, not decoded.
+	Target string
+	// "HTTP/1.1", "HTTP/1.0", ...
+	Proto string
+	// Host is separate because HTTP servers remove it from Header.
+	Host string
+	// Header fields by canonical name ("Accept-Encoding"), one entry per
+	// line the client sent, without Host. An http.Header can be passed as is.
+	Header map[string][]string
+	// Body length: 0 for none, -1 when unknown (chunked).
+	ContentLength int64
+}
+
+// Decision is Decide's answer.
+type Decision struct {
+	// The route.go route that answers the request, or "" when Node does.
+	Route string
+	// Why the request goes to Node, for debugging. Empty when Route is set.
+	Why string
+}
+
+func node(why string) Decision { return Decision{Why: why} }
+
+// Decide returns the route.go route that answers r without changing it, or
+// "Node" when that isn't certain.
+//
+// Node rebuilds the URL a route.go handler gets: it parses the query and
+// writes it out again, normalizes the path and drops a trailing slash. It
+// also redirects some paths and keeps only the first value of some repeated
+// headers. Decide goes direct only for requests where none of that changes
+// anything: plain characters in the path and query, and no headers Node
+// treats specially. The rest goes to Node, which answers it as it always
+// has.
+func (t *Table) Decide(r Request) Decision {
+	if t.reason != "" {
+		return node("app: " + t.reason)
+	}
+	if why := t.checkRequest(r); why != "" {
+		return node(why)
+	}
+	path, _, hasQuery := strings.Cut(r.Target, "?")
+	if hasQuery {
+		return node("query")
+	}
+	logical, segments, why := t.logicalPath(path)
+	if why != "" {
+		return node(why)
+	}
+	return t.match(logical, segments)
+}
+
+// headersNodeHandles are request headers that make Node or its HTTP client
+// do something a direct request wouldn't: upgrades, 100-continue, hop-by-hop
+// fields that Go's proxy and Node's client treat differently. With an
+// Idempotency-Key, Go's client may send a bodyless request again when the
+// worker closes a reused connection before answering; Node's never does.
+var headersNodeHandles = []string{"Upgrade", "Expect", "Te", "Trailer", "Proxy-Connection", "Idempotency-Key", "X-Idempotency-Key"}
+
+// headerMargin leaves room for how Node counts header bytes (the request
+// line, separators) beyond what checkRequest adds up.
+const headerMargin = 512
+
+func (t *Table) checkRequest(r Request) string {
+	// Go's server accepts any token as a method. Node's parser accepts only
+	// its own list, in uppercase, and answers 400 to the rest ("get",
+	// "FOO"), so only the common methods go direct.
+	switch r.Method {
+	case "GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS":
+	default:
+		return "method " + r.Method
+	}
+	if r.Proto != "HTTP/1.1" {
+		return "protocol " + r.Proto
+	}
+	// The client's Connection header can name other headers. Node's worker
+	// proxy removes those after filling in X-Forwarded-*, so a named Host,
+	// X-Forwarded-For or Content-Length reaches the worker missing or
+	// changed; Switchyard's proxy puts them back. "close" and "keep-alive"
+	// name no other header.
+	for _, v := range r.Header["Connection"] {
+		for _, token := range strings.Split(v, ",") {
+			switch strings.ToLower(strings.TrimSpace(token)) {
+			case "", "close", "keep-alive":
+			default:
+				return "Connection names a header"
+			}
+		}
+	}
+	for _, names := range [][]string{headersNodeHandles, t.nodeHeaders} {
+		for _, name := range names {
+			if _, ok := r.Header[name]; ok {
+				return "header " + name
+			}
+		}
+	}
+	size := len(r.Method) + len(r.Target) + len(r.Proto) + 4 + len("Host") + len(r.Host) + 4
+	for name, values := range r.Header {
+		// Node keeps only the first line of some headers and joins others;
+		// with one line per name both are the same.
+		if len(values) > 1 {
+			return "repeated header " + name
+		}
+		for _, v := range values {
+			size += len(name) + len(v) + 4
+		}
+	}
+	if size > t.maxHeaderBytes-headerMargin {
+		return "headers near Node's size limit"
+	}
+	switch r.Method {
+	case "GET", "HEAD", "DELETE", "OPTIONS":
+		if r.ContentLength != 0 {
+			return "body on " + r.Method
+		}
+		// Node passes a client's "Content-Length: 0" on to the worker; Go's
+		// Transport writes none for these methods without a body.
+		if _, ok := r.Header["Content-Length"]; ok {
+			return "Content-Length on " + r.Method
+		}
+	}
+	if r.ContentLength != 0 {
+		return "request body"
+	}
+	return ""
+}
+
+// plain reports whether s has only unreserved characters (RFC 3986 §2.3):
+// letters, digits, "-", ".", "_" and "~". Those are the same raw, decoded
+// and re-encoded, so every reader of the URL sees the same text.
+func plain(s string) bool {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if !('a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9' || c == '-' || c == '.' || c == '_' || c == '~') {
+			return false
+		}
+	}
+	return true
+}
+
+// logicalPath checks the path and returns it and its segments, or why the
+// request goes to Node.
+func (t *Table) logicalPath(path string) (string, []string, string) {
+	if !strings.HasPrefix(path, "/") {
+		return "", nil, "target not in origin form"
+	}
+	for _, prefix := range t.nodePrefixes {
+		if strings.HasPrefix(path, prefix) {
+			return "", nil, "node prefix " + prefix
+		}
+	}
+	if path == "/" {
+		return path, nil, ""
+	}
+	segments := strings.Split(path[1:], "/")
+	for _, s := range segments {
+		switch {
+		case s == "":
+			return "", nil, "empty segment or trailing slash"
+		case s == "." || s == "..":
+			return "", nil, "dot segment"
+		case !plain(s):
+			return "", nil, "path characters"
+		}
+	}
+	return path, segments, ""
+}
+
+// match repeats Node's choice of route: exact paths first. Dynamic routes
+// aren't in the table yet, so a path without an exact route goes to Node,
+// which matches them.
+func (t *Table) match(path string, segments []string) Decision {
+	if _, ok := t.nodeExact[path]; ok {
+		return node("exact Node route")
+	}
+	if route, ok := t.goExact[path]; ok {
+		return Decision{Route: route}
+	}
+	return node("no route")
+}

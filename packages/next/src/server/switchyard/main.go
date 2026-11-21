@@ -1,7 +1,8 @@
-// switchyard owns `next start`'s public port and forwards every request,
-// unchanged, to the Node server on a private loopback port. Node also tells
-// it the app's route table and its route.go workers (direct.go), so that
-// later stages can send those requests to the workers directly.
+// switchyard owns `next start`'s public port and forwards requests, unchanged,
+// to the Node server on a private loopback port. Once Node sends it a route
+// table, it sends route.go requests that Node would pass on unchanged straight
+// to their Go workers instead (direct.go, and the routing package for the
+// decision).
 //
 // Contract with Node (packages/next/src/server/lib/switchyard.ts):
 //
@@ -149,7 +150,7 @@ func main() {
 	}
 	addr := ln.Addr().(*net.TCPAddr)
 
-	f := newSwitchyard(newProxy(cfg.upstream, addr, cfg.upstreamIdle, token))
+	f := newSwitchyard(newProxy(cfg.upstream, addr, cfg.upstreamIdle, token), addr, cfg.upstreamIdle)
 	srv := newServer(f, cfg.idleTimeout, cfg.headerTimeout, cfg.requestTimeout, cfg.maxHeaderBytes)
 
 	fmt.Printf("NEXT_SWITCHYARD_READY %d\n", addr.Port)
@@ -247,62 +248,24 @@ func stopRequested(apply func(controlMessage)) <-chan struct{} {
 // response reason phrases use Go's built-in text. The options below compensate
 // for other defaults in Go's server and proxy.
 func newProxy(upstream string, public *net.TCPAddr, upstreamIdle time.Duration, token string) http.Handler {
-	publicPort := strconv.Itoa(public.Port)
-	// The Host Node sees for a request that came without one (HTTP/1.0
-	// allows that). Go would otherwise fill in Node's private address, which
-	// would end up in request.url and redirects. Without Switchyard, Node
-	// falls back to its own hostname, localhost unless one was given.
-	publicHost := net.JoinHostPort(public.IP.String(), publicPort)
-	if public.IP.IsUnspecified() {
-		publicHost = net.JoinHostPort("localhost", publicPort)
-	}
-	// Go reports an IPv4 client as plain IPv4 (10.0.0.5), but Node, listening
-	// on all interfaces, reports it as IPv4-mapped IPv6 (::ffff:10.0.0.5).
-	// clientIP uses Node's form when this is set, so Node sees the same
-	// X-Forwarded-For value as without Switchyard.
-	mapIPv4 := public.IP.To4() == nil
+	fw := newForwarding(public)
 
 	proxy := &httputil.ReverseProxy{
 		// Rewrite builds the request to Node (pr.Out) from the one the client
 		// sent (pr.In). It runs once per request, before anything goes to Node.
 		Rewrite: func(pr *httputil.ProxyRequest) {
-			// Connect to Node.
-			pr.Out.URL.Scheme = "http"
-			// Node sees the client's address on the socket it reads the request
+			fw.rewrite(pr)
+			// Connect to Node. Node sees the client's address on the socket it reads the request
 			// from (restoreSwitchyardConnection), so a connection to Node must
 			// only ever carry one client's requests. Each client connection has
 			// its own transport for that (clientTransport); using the client's
 			// address as the URL host keeps the shared fallback transport
 			// keyed the same way. DialContext below always connects to Node.
 			pr.Out.URL.Host = pr.In.RemoteAddr
-			// Keep the client's Host header. pr.Out starts as a copy of
-			// pr.In, so it already has it; this guards against ProxyRequest's
-			// SetURL helper, which would clear it and make Go send Node's
-			// address instead. For a target in absolute form
-			// ("GET http://other.example/p"), Go's server has already replaced
-			// the Host header with the target's host, and Node gets the path
-			// ("/p") as the target; the client's own Host header can't be
-			// recovered here.
-			pr.Out.Host = pr.In.Host
-			if pr.Out.Host == "" {
-				pr.Out.Host = publicHost
-			}
-			// Go re-escapes some request paths and drops query parameters it
-			// can't parse; keepRequestTarget sends the target as the client
-			// did, so Node sees the same URL as without Switchyard.
-			keepRequestTarget(pr.Out, pr.In.RequestURI)
-			// With Rewrite, Go deletes the client's forwarded headers before
-			// this function runs; put them back, so Node sees them as before.
-			restoreForwardedHeaders(pr.Out.Header, pr.In.Header)
 			_, remotePort, _ := net.SplitHostPort(pr.In.RemoteAddr)
 			// Always replace caller-supplied metadata, including headers named
 			// in Connection. Node authenticates and removes this before routing.
-			pr.Out.Header.Set(connectionHeader, token+";"+net.JoinHostPort(clientIP(pr.In.RemoteAddr, mapIPv4), remotePort))
-			// Node now sees Switchyard's connection (127.0.0.1 and its private
-			// port) instead of the client's, so pass on the client's address
-			// and the public port when no proxy in front of us already did.
-			setIfMissing(pr.Out.Header, "X-Forwarded-For", clientIP(pr.In.RemoteAddr, mapIPv4))
-			setIfMissing(pr.Out.Header, "X-Forwarded-Port", publicPort)
+			pr.Out.Header.Set(connectionHeader, token+";"+net.JoinHostPort(clientIP(pr.In.RemoteAddr, fw.mapIPv4), remotePort))
 		},
 		// By default the proxy only passes response bytes on when Go's write
 		// buffer fills or the response ends (except for event streams and
@@ -640,6 +603,65 @@ func setIfMissing(h http.Header, name, value string) {
 
 // clientIP formats the client address the way Node reports
 // socket.remoteAddress, rather than Go's form.
+// forwarding holds what both of Switchyard's proxies, to Node and to route.go
+// workers, need from Switchyard's public address to forward a request as the
+// client sent it.
+type forwarding struct {
+	publicPort string
+	// The Host to send for a request that came without one (HTTP/1.0
+	// allows that). Go would otherwise fill in the upstream's private
+	// address, which would end up in request.url and redirects. Without
+	// Switchyard, Node falls back to its own hostname, localhost unless one
+	// was given.
+	publicHost string
+	// Go reports an IPv4 client as plain IPv4 (10.0.0.5), but Node, listening
+	// on all interfaces, reports it as IPv4-mapped IPv6 (::ffff:10.0.0.5).
+	// clientIP uses Node's form when this is set, so X-Forwarded-For has the
+	// same value as without Switchyard.
+	mapIPv4 bool
+}
+
+func newForwarding(public *net.TCPAddr) forwarding {
+	port := strconv.Itoa(public.Port)
+	host := net.JoinHostPort(public.IP.String(), port)
+	if public.IP.IsUnspecified() {
+		host = net.JoinHostPort("localhost", port)
+	}
+	return forwarding{publicPort: port, publicHost: host, mapIPv4: public.IP.To4() == nil}
+}
+
+// rewrite does the part of a ReverseProxy's Rewrite that both proxies share:
+// it builds the outgoing request (pr.Out) from the client's (pr.In) with the
+// client's Host, target and forwarded headers, and fills in the
+// X-Forwarded-For and X-Forwarded-Port the upstream would have set itself.
+// The caller then sets where the request goes (pr.Out.URL.Host).
+func (fw forwarding) rewrite(pr *httputil.ProxyRequest) {
+	pr.Out.URL.Scheme = "http"
+	// Keep the client's Host header. pr.Out starts as a copy of pr.In, so it
+	// already has it; this guards against ProxyRequest's SetURL helper, which
+	// would clear it and make Go send the upstream's address instead. For a
+	// target in absolute form ("GET http://other.example/p"), Go's server has
+	// already replaced the Host header with the target's host, and the
+	// upstream gets the path ("/p") as the target; the client's own Host
+	// header can't be recovered here.
+	pr.Out.Host = pr.In.Host
+	if pr.Out.Host == "" {
+		pr.Out.Host = fw.publicHost
+	}
+	// Go re-escapes some request paths and drops query parameters it can't
+	// parse; keepRequestTarget sends the target as the client did, so the
+	// upstream sees the same URL as without Switchyard.
+	keepRequestTarget(pr.Out, pr.In.RequestURI)
+	// With Rewrite, Go deletes the client's forwarded headers before this
+	// function runs; put them back, as without Switchyard.
+	restoreForwardedHeaders(pr.Out.Header, pr.In.Header)
+	// The upstream now sees Switchyard's connection (127.0.0.1 and a private
+	// port) instead of the client's, so pass on the client's address and the
+	// public port when no proxy in front of us already did.
+	setIfMissing(pr.Out.Header, "X-Forwarded-For", clientIP(pr.In.RemoteAddr, fw.mapIPv4))
+	setIfMissing(pr.Out.Header, "X-Forwarded-Port", fw.publicPort)
+}
+
 func clientIP(remoteAddr string, mapIPv4 bool) string {
 	host, _, err := net.SplitHostPort(remoteAddr)
 	if err != nil {

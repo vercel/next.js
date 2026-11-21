@@ -70,7 +70,9 @@ const CHANGE_ITEM_GROUPS = {
     'packages/next/src/server/lib/native-route.external.ts',
     'packages/next/src/server/lib/start-server.ts',
     'packages/next/src/cli/next-start.ts',
+    // Also matches by prefix: switchyard-go, the route.go suite.
     'test/production/app-dir/switchyard',
+    'test/e2e/app-dir/native-route-go',
   ],
   // Changes confined to these paths cannot affect a webpack build.
   turbopack: [
