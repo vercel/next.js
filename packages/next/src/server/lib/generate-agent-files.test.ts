@@ -154,6 +154,28 @@ describe('agent feedback block wording', () => {
   })
 })
 
+describe('agent rules block wording', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-rules-files-'))
+  })
+
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('applies bundled docs guidance to diagnostic tasks', () => {
+    expect(writeAgentFiles(dir).agentsMd).toBe('created')
+    const content = fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8')
+
+    expect(content).toContain(
+      'Before answering a Next.js question, diagnosing a problem, or writing code'
+    )
+    expect(content).toContain('node_modules/next/dist/docs/')
+  })
+})
+
 // Turning off upgrade reminders must preserve documentation, feedback and user rules.
 describe('independent upgrade instructions', () => {
   let dir: string
