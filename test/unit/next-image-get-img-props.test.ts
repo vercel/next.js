@@ -1100,4 +1100,24 @@ describe('getImageProps()', () => {
       deploymentId = undefined
     }
   })
+
+  it('should record that the default loader optimized an image', async () => {
+    delete (globalThis as any).__NEXT_IMAGE_DEFAULT_LOADER_USED
+    getImageProps({
+      alt: 'a nice desc',
+      src: '/test.png',
+      unoptimized: true,
+      width: 100,
+      height: 200,
+    })
+    expect((globalThis as any).__NEXT_IMAGE_DEFAULT_LOADER_USED).toBe(undefined)
+
+    getImageProps({
+      alt: 'a nice desc',
+      src: '/test.png',
+      width: 100,
+      height: 200,
+    })
+    expect((globalThis as any).__NEXT_IMAGE_DEFAULT_LOADER_USED).toBe(true)
+  })
 })
