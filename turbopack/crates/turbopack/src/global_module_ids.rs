@@ -13,7 +13,9 @@ use turbopack_core::{
     ident::AssetIdent,
     module_graph::{ModuleGraph, RefData},
 };
-use turbopack_ecmascript::async_chunk::module::AsyncLoaderModule;
+use turbopack_ecmascript::{
+    async_chunk::module::AsyncLoaderModule, worker_chunk::module::worker_loader_asset_ident_for,
+};
 
 #[turbo_tasks::function]
 pub async fn get_global_module_id_strategy(
@@ -24,26 +26,41 @@ pub async fn get_global_module_id_strategy(
         let module_graph = module_graph.await?;
 
         // All modules in the graph and additionally, all the modules that are inserted by chunking
-        // (i.e. async loaders). For graph modules we read the eagerly-resolved ident AND its
-        // pre-resolved `ident_string` from the node, so we don't fan out a `to_string()` task per
-        // module here (the production/CLI-build graphs that run this are built with
-        // `include_ident_strings`). Async-loader idents are synthesized and not in the graph, so
-        // their strings are still computed via `to_string()`.
+        // (i.e. async loaders and worker loaders). Those loader modules are created during
+        // chunking, so they never appear in the graph — but their generated code is referenced by
+        // id, so their synthetic idents have to be registered here too. For graph modules we read
+        // the eagerly-resolved ident AND its pre-resolved `ident_string` from the node, so we don't
+        // fan out a `to_string()` task per module here (the production/CLI-build graphs that run
+        // this are built with `include_ident_strings`). Loader idents are synthesized and not in
+        // the graph, so their strings are still computed via `to_string()`.
         let mut modules = FxHashSet::default();
-        let mut async_idents = vec![];
+        let mut loader_idents = vec![];
         module_graph.traverse_edges_unordered(|parent, current| {
             modules.insert(current);
-            if let Some((
-                _,
-                &RefData {
-                    chunking_type: ChunkingType::Async,
-                    ..
-                },
-            )) = parent
-            {
-                let module = ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(current)
-                    .context("expected chunkable module for async reference")?;
-                async_idents.push(AsyncLoaderModule::asset_ident_for(*module));
+            match parent {
+                Some((
+                    _,
+                    &RefData {
+                        chunking_type: ChunkingType::Async,
+                        ..
+                    },
+                )) => {
+                    let module = ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(current)
+                        .context("expected chunkable module for async reference")?;
+                    loader_idents.push(AsyncLoaderModule::asset_ident_for(*module));
+                }
+                Some((
+                    _,
+                    &RefData {
+                        chunking_type: ChunkingType::Worker { ty },
+                        ..
+                    },
+                )) => {
+                    let module = ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(current)
+                        .context("expected chunkable module for worker reference")?;
+                    loader_idents.push(worker_loader_asset_ident_for(*module, ty));
+                }
+                _ => {}
             }
             Ok(())
         })?;
@@ -61,8 +78,8 @@ pub async fn get_global_module_id_strategy(
             })
             .join()
             .await;
-        // Async-loader idents are synthesized (not in the graph); compute their strings directly.
-        let async_entries = async_idents
+        // Loader idents are synthesized (not in the graph); compute their strings directly.
+        let loader_entries = loader_idents
             .into_iter()
             .map(async |ident| {
                 let ident = ident.to_resolved().await?;
@@ -75,7 +92,7 @@ pub async fn get_global_module_id_strategy(
 
         let mut module_id_map = graph_entries
             .into_iter()
-            .chain(async_entries)
+            .chain(loader_entries)
             .collect::<Result<FxHashMap<_, _>>>()?;
 
         finalize_module_ids(&mut module_id_map);

@@ -14,7 +14,9 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
 };
 use turbopack_core::{
-    chunk::{ChunkableModule, ChunkingContext, ModuleChunkItemIdExt, ModuleId},
+    chunk::{
+        ChunkableModule, ChunkingContext, ModuleChunkItemIdExt, ModuleId, worker_type::WorkerType,
+    },
     issue::{
         IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue,
         module::emit_unknown_module_type_error,
@@ -94,6 +96,7 @@ pub(crate) enum PatternMapping {
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Encode, Decode)]
 pub(crate) enum ResolveType {
     AsyncChunkLoader,
+    WorkerLoader(WorkerType),
     ChunkItem,
 }
 
@@ -418,6 +421,16 @@ async fn to_single_pattern_mapping(
         match resolve_type {
             ResolveType::AsyncChunkLoader => {
                 let ident = chunking_context.async_loader_chunk_item_ident(*chunkable);
+                let loader_id = chunking_context
+                    .chunk_item_id_strategy()
+                    .await?
+                    .get_id_from_ident(ident)
+                    .await?;
+                return Ok(SinglePatternMapping::ModuleLoader(loader_id));
+            }
+            ResolveType::WorkerLoader(worker_type) => {
+                let ident =
+                    chunking_context.worker_loader_chunk_item_ident(*chunkable, worker_type);
                 let loader_id = chunking_context
                     .chunk_item_id_strategy()
                     .await?
