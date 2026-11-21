@@ -391,5 +391,16 @@ describe('cache-components OTEL spans', () => {
       const result = await browser.elementByCss('#t9 .result')
       expect(await result.textContent()).toEqual('42')
     })
+    it('should allow creating Spans from a tracer acquired during provider registration', async () => {
+      const outputIndex = next.cliOutput.length
+      const browser = await next.browser('/novel/registration-span')
+      expect(
+        next.cliOutput
+          .slice(outputIndex)
+          .match(/unstable value.*Math\.random\(\).*prerendering/)
+      ).toBeNull()
+      const result = await browser.elementByCss('#t9 .result')
+      expect(await result.textContent()).toEqual('42')
+    })
   }
 })
