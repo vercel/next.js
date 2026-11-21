@@ -12,6 +12,7 @@ import (
 	"net/http/httptrace"
 	"net/http/httputil"
 	"net/textproto"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -127,7 +128,9 @@ func (f *switchyard) apply(msg controlMessage) {
 		// keeps a late message for an exited worker from removing a new
 		// worker that got the same port.
 		for route, up := range next.workers {
-			if up.token[0] == msg.Token {
+			// slices.Contains, not up.token[0], so an entry without a
+			// token can't panic the control loop.
+			if slices.Contains(up.token, msg.Token) {
 				delete(next.workers, route)
 			}
 		}
