@@ -130,9 +130,6 @@ func (t *Table) checkRequest(r Request) string {
 			return "Content-Length on " + r.Method
 		}
 	}
-	if r.ContentLength != 0 {
-		return "request body"
-	}
 	return ""
 }
 
