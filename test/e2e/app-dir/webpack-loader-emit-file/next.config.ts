@@ -12,6 +12,11 @@ function emitLoaders(outputPath: string) {
   ]
 }
 
+const fileLoader = {
+  loader: 'file-loader',
+  options: { name: '[name].[ext]', outputPath: 'static/media' },
+}
+
 const moduleTypes = ['json', 'asset'] as const
 
 const nextConfig: NextConfig = {
@@ -52,6 +57,7 @@ const nextConfig: NextConfig = {
         ],
         as: '*.js',
       },
+      '*.file': { loaders: [fileLoader], as: '*.js' },
       'styles.css': {
         loaders: ['./loaders/css.js'],
         as: '*.css',
@@ -164,6 +170,7 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      { test: /\.file$/, use: [fileLoader] },
       {
         test: /styles\.css$/,
         use: [

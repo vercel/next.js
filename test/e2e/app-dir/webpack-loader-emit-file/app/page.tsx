@@ -1,6 +1,7 @@
 import Client from './client'
 import serverAsset from '../fixtures/server.emit'
 import pitchAsset from '../fixtures/asset.pitch'
+import fileAsset from '../fixtures/asset.file'
 import '../fixtures/styles.css'
 import { value } from '../fixtures/pure/module.pure'
 import mapped from '../fixtures/asset.mapped'
@@ -14,6 +15,7 @@ export default function Page() {
     <>
       <p id="server-asset">{serverAsset}</p>
       <p id="pitch-asset">{pitchAsset}</p>
+      <p id="file-asset">{fileAsset}</p>
       <p id="pure-value">{value}</p>
       <p id="transitive-value">{transitiveValue}</p>
       <p id="mapped-value">{mapped}</p>
