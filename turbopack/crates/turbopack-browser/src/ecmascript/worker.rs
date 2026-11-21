@@ -64,7 +64,7 @@ impl EcmascriptBrowserWorkerEntrypoint {
         let mut code = generate_worker_bootstrap_code(&forwarded_globals, shared_runtime)?;
 
         let ecma_opts = EcmascriptEmitOptions::get_or_default(*this.chunking_context).await?;
-        if let Some(ref swc_opts) = ecma_opts.swc_minify_options {
+        if let Some(ref swc_opts) = ecma_opts.standalone_minify_options {
             code = minify(
                 code,
                 this.chunking_context

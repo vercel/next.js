@@ -301,6 +301,10 @@ struct TestOptions {
     /// together with `minify`.
     #[serde(default)]
     minify_before_chunking: bool,
+    /// Minify each module factory on its own and the assembled chunk again afterwards. Only has
+    /// an effect together with `minify`.
+    #[serde(default)]
+    minify_chunks_after_items: bool,
     #[serde(default)]
     production_chunking: bool,
     /// `max_chunk_size` of the ecmascript chunking config when `production_chunking` is enabled.
@@ -356,6 +360,7 @@ impl Default for TestOptions {
             infer_module_side_effects: default_true(),
             minify: false,
             minify_before_chunking: false,
+            minify_chunks_after_items: false,
             production_chunking: false,
             max_chunk_size: 0,
             min_chunk_size: None,
@@ -662,7 +667,6 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     )
     .source_map_source_type(turbopack_core::chunk::SourceMapSourceType::RelativeUri)
     .module_merging(options.scope_hoisting)
-    .minify_before_chunking(options.minify_before_chunking)
     .export_usage(if options.remove_unused_exports {
         Some(binding_usage.unwrap().connect().to_resolved().await?)
     } else {
@@ -681,9 +685,15 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     }
 
     if options.minify {
-        let ecma_opts = EcmascriptEmitOptions::builder()
-            .preset_minify_optimal_size()
-            .build();
+        let ecma_opts = EcmascriptEmitOptions::builder().preset_minify_optimal_size();
+        let ecma_opts = if options.minify_chunks_after_items {
+            ecma_opts.minify_chunk_items_and_chunks()
+        } else if options.minify_before_chunking {
+            ecma_opts.minify_per_chunk_item()
+        } else {
+            ecma_opts
+        }
+        .build();
         let css_opts = CssEmitOptions::builder().preset_minify().build();
         builder = builder
             .emit_option(ResolvedVc::upcast(ecma_opts.resolved_cell()))

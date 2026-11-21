@@ -274,7 +274,15 @@ pub async fn get_edge_chunking_context_with_client_assets(
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals())
     // React needs deterministic function names to work correctly.
-    .emit_options(minify_emit_options(turbo_minify, no_mangling, true).await?);
+    .emit_options(
+        minify_emit_options(
+            turbo_minify,
+            no_mangling,
+            true,
+            !next_mode.is_development() && *minify_before_chunking.await?,
+        )
+        .await?,
+    );
 
     if !next_mode.is_development() {
         let defaults = ChunkSizeDefaults::new(*turbo_minify.await?, *minify_before_chunking.await?);
@@ -306,8 +314,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?)
-            .minify_before_chunking(*minify_before_chunking.await?);
+            .module_merging(*scope_hoisting.await?);
     }
 
     Ok(Vc::upcast(builder.build()))
@@ -400,7 +407,15 @@ pub async fn get_edge_chunking_context(
     .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals())
-    .emit_options(minify_emit_options(turbo_minify, no_mangling, false).await?);
+    .emit_options(
+        minify_emit_options(
+            turbo_minify,
+            no_mangling,
+            false,
+            !next_mode.is_development() && *minify_before_chunking.await?,
+        )
+        .await?,
+    );
 
     if !next_mode.is_development() {
         let defaults = ChunkSizeDefaults::new(*turbo_minify.await?, *minify_before_chunking.await?);
@@ -432,8 +447,7 @@ pub async fn get_edge_chunking_context(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?)
-            .minify_before_chunking(*minify_before_chunking.await?);
+            .module_merging(*scope_hoisting.await?);
     }
 
     Ok(Vc::upcast(builder.build()))

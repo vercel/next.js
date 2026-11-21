@@ -499,7 +499,7 @@ mod tests {
         EcmascriptEmitOptions::builder()
             .preset_minify_optimal_size()
             .build()
-            .swc_minify_options
+            .chunk_minify_options
             .unwrap()
     }
 
@@ -507,7 +507,7 @@ mod tests {
         EcmascriptEmitOptions::builder()
             .preset_minify_deterministic()
             .build()
-            .swc_minify_options
+            .chunk_minify_options
             .unwrap()
     }
 
@@ -515,7 +515,7 @@ mod tests {
         EcmascriptEmitOptions::builder()
             .preset_minify_no_mangle()
             .build()
-            .swc_minify_options
+            .chunk_minify_options
             .unwrap()
     }
 
