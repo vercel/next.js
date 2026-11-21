@@ -226,7 +226,7 @@ export const installTemplate = async ({
         if ((await fs.stat(filePath)).isFile()) {
           await fs.writeFile(
             filePath,
-            (await fs.readFile(filePath, "utf8")).replace(
+            (await fs.readFile(filePath, "utf8")).replaceAll(
               `@/`,
               `${importAlias.replace(/\*/g, "")}`,
             ),
