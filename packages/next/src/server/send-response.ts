@@ -4,13 +4,12 @@ import { isNodeNextResponse } from './base-http/helpers'
 import { pipeToNodeResponse } from './pipe-readable'
 import { splitCookiesString } from './web/utils'
 
-// The body may have been transparently decoded (e.g. fetch decompresses a
-// gzip body but preserves the original headers), in which case forwarding
-// these headers produces invalid response framing. Matches FORBIDDEN_HEADERS
-// in web/sandbox/sandbox.ts.
+// content-length is recomputed when the body is piped and transfer-encoding
+// is hop-by-hop, so neither is forwarded. content-encoding is preserved as
+// provided by the handler: it describes the bytes the handler chose to send.
+// Matches FORBIDDEN_HEADERS in web/sandbox/sandbox.ts.
 const FORBIDDEN_HEADERS = [
   'content-length',
-  'content-encoding',
   'transfer-encoding',
 ]
 
