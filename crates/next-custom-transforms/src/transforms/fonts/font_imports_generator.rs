@@ -271,7 +271,7 @@ fn expr_to_json(expr: &Expr) -> Result<Value, ()> {
                     q.cooked
                         .as_ref()
                         .map(|v| v.to_string_lossy().into_owned())
-                        .unwrap_or_else(|| q.raw.to_string_lossy().into_owned())
+                        .unwrap_or_else(|| q.raw.as_str().to_owned())
                 })
                 .unwrap_or_default(),
         )),
