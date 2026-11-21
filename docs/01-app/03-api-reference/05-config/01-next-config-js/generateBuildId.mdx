@@ -18,4 +18,6 @@ module.exports = {
 }
 ```
 
+The build ID is used as a single segment of URL paths (for example `/_next/static/<build-id>/…`), so it must not be empty or contain `/`, `\`, `?`, `#` or whitespace.
+
 > **Good to know:** When [`deploymentId`](/docs/app/api-reference/config/next-config-js/deploymentId) is set, Next.js uses a constant build ID unless you explicitly configure `generateBuildId`. [Version skew](/docs/app/guides/self-hosting#version-skew) is detected from the deployment ID instead.

@@ -67,6 +67,20 @@ describe('Production Config Usage', () => {
           /The key "SOME__ENV__VAR" under/
         )
       })
+
+      it('should fail with a slash in the custom build ID', async () => {
+        const start = next.cliOutput.length
+        const { exitCode } = await next.build({
+          env: { CUSTOM_BUILD_ID: 'release/v1' },
+        })
+        expect(exitCode).not.toBe(0)
+        expect(next.cliOutput.slice(start)).toMatch(
+          /generateBuildId returned "release\/v1", which can't be used as a build ID/
+        )
+        expect(next.cliOutput.slice(start)).toMatch(
+          /generatebuildid-invalid-characters/
+        )
+      })
     })
   })
 })
