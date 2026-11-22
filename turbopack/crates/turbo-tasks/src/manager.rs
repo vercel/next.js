@@ -1,5 +1,5 @@
 use std::{
-    borrow::Borrow,
+    borrow::{Borrow, Cow},
     cell::Cell,
     cmp::Reverse,
     fmt::{Debug, Display},
@@ -12,7 +12,7 @@ use std::{
     process::abort,
     sync::{
         Arc, Mutex, RwLock, Weak,
-        atomic::{AtomicBool, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering},
     },
     task::{Context, Poll, Waker},
     time::{Duration, Instant},
@@ -23,7 +23,7 @@ use auto_hash_map::AutoMap;
 use bincode::{Decode, Encode};
 use either::Either;
 use futures::FutureExt;
-use rustc_hash::{FxBuildHasher, FxHasher};
+use rustc_hash::{FxBuildHasher, FxHashSet, FxHasher};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use tokio::{select, sync::mpsc::Receiver, task_local};
@@ -40,7 +40,7 @@ use crate::{
     },
     capture_future::CaptureFuture,
     dyn_task_inputs::DynTaskInputsStorage,
-    event::{Event, EventListener},
+    event::{Event, EventDescriptor, EventListener},
     id::{ExecutionId, LocalTaskId, TraitTypeId},
     keyed::KeyedEq,
     local_task_tracker::LocalTaskTracker,
@@ -49,6 +49,7 @@ use crate::{
     priority_runner::{Claimable, Executor, PriorityRunner},
     registry,
     serialization_invalidation::SerializationInvalidator,
+    spawn::JoinHandle,
     task::local_task::{LocalTask, LocalTaskSpec, LocalTaskType},
     task_statistics::TaskStatisticsApi,
     util::{IdFactory, StaticOrArc},
@@ -149,6 +150,18 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         index: CellId,
         options: ReadCellOptions,
     ) -> Result<ReadOutcome<TypedCellContent>>;
+
+    /// Refines the [`CellKeyKind::Provisional(id)`][CellKeyKind::Provisional] dependency of the
+    /// current task (`reader`) on the cell `index` of `task` to [`CellKeyKind::Hash`] dependencies
+    /// on each of the `key_hashes`. See [`Backend::refine_provisional_cell_dependency`].
+    fn refine_provisional_cell_dependency(
+        &self,
+        task: TaskId,
+        index: CellId,
+        reader: TaskId,
+        id: u32,
+        key_hashes: &FxHashSet<u64>,
+    );
 
     /// Reads a [`RawVcUnpacked::LocalOutput`][crate::RawVcUnpacked::LocalOutput]. If the task has
     /// completed, returns the [`RawVc`] the local task points to.
@@ -342,12 +355,121 @@ pub enum ReadConsistency {
     Strong,
 }
 
+/// Identifies the part of a cell a tracked cell read depends on, when it doesn't depend on the
+/// whole cell content (which is represented by `None` in an `Option<CellKey>`).
+///
+/// One of the [`CellKeyKind`]s, packed into a single word: the top bit tells them apart, so a key
+/// hash keeps 63 bits. Keyed dependencies are stored per dependent and per dependency, so this
+/// halves their key from the 16 bytes an enum of a `u64` and a `u32` would take. Always build
+/// keys with [`CellKey::hash`] and [`CellKey::provisional`] so equal keys compare equal.
+#[derive(Clone, Copy, Eq, PartialEq, Hash, Encode, Decode)]
+#[repr(transparent)]
+pub struct CellKey(#[bincode(fixint)] u64);
+
+/// The unpacked form of a [`CellKey`].
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CellKeyKind {
+    /// The read only depends on the sub-value identified by this key hash (see
+    /// [`KeyedEq`]). The dependency is only invalidated when the value of this key changes.
+    ///
+    /// Only the low 63 bits of the hash are kept.
+    Hash(u64),
+    /// A provisional dependency of a [`Vc::keyed_reader`](crate::Vc::keyed_reader) or
+    /// [`Vc::lazy_reader`](crate::Vc::lazy_reader) read: a temporary hold on the whole cell that
+    /// is refined later. For invalidation it behaves like a dependency on the whole cell
+    /// (invalidated by any change of the cell), but it is a separate dependency that is uniquely
+    /// identified by this counter of `keyed_reader()` / `lazy_reader()` calls within the current
+    /// task execution. This allows the [`KeyedReadRef`](crate::KeyedReadRef) to refine it to
+    /// [`CellKeyKind::Hash`] dependencies of the accessed keys once it's dropped, and the
+    /// [`LazyReadRef`](crate::LazyReadRef) to remove it when the value wasn't accessed, without
+    /// affecting other dependencies on the same cell. `Provisional` dependencies that are still
+    /// present when the execution completes are converted to normal (full) dependencies, so they
+    /// never outlive the execution that created them. (When that's because a ref or future wasn't
+    /// dropped within the execution, completing the execution also panics.)
+    Provisional(u32),
+}
+
+impl CellKey {
+    const PROVISIONAL: u64 = 1 << 63;
+
+    /// A dependency on the sub-value whose key hashes to `hash`, see [`CellKeyKind::Hash`]. The
+    /// top bit of `hash` is dropped.
+    pub const fn hash(hash: u64) -> Self {
+        Self(hash & !Self::PROVISIONAL)
+    }
+
+    /// The provisional dependency with the given id, see [`CellKeyKind::Provisional`].
+    pub const fn provisional(id: u32) -> Self {
+        Self(Self::PROVISIONAL | id as u64)
+    }
+
+    pub const fn kind(self) -> CellKeyKind {
+        if self.is_provisional() {
+            CellKeyKind::Provisional(self.0 as u32)
+        } else {
+            CellKeyKind::Hash(self.0)
+        }
+    }
+
+    pub const fn is_provisional(self) -> bool {
+        self.0 & Self::PROVISIONAL != 0
+    }
+}
+
+impl Debug for CellKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(&self.kind(), f)
+    }
+}
+
+#[cfg(test)]
+mod cell_key_tests {
+    use super::{CellKey, CellKeyKind};
+
+    #[test]
+    fn packs_into_one_word() {
+        assert_eq!(size_of::<CellKey>(), 8);
+    }
+
+    #[test]
+    fn hashes_keep_their_low_63_bits() {
+        assert_eq!(CellKey::hash(0x1234).kind(), CellKeyKind::Hash(0x1234));
+        // A hash with the top bit set is still a hash, without that bit.
+        let key = CellKey::hash(u64::MAX);
+        assert!(!key.is_provisional());
+        assert_eq!(key.kind(), CellKeyKind::Hash(u64::MAX >> 1));
+        assert_eq!(key, CellKey::hash(u64::MAX >> 1));
+    }
+
+    #[test]
+    fn encodes_at_fixed_width() {
+        let key = CellKey::hash(0x1234);
+        let mut buf = turbo_bincode::TurboBincodeBuffer::new();
+        let mut encoder = turbo_bincode::new_turbo_bincode_encoder(&mut buf);
+        bincode::Encode::encode(&key, &mut encoder).unwrap();
+        assert_eq!(buf.len(), 8);
+        let mut decoder = turbo_bincode::new_turbo_bincode_decoder(&buf);
+        let decoded: CellKey = bincode::Decode::decode(&mut decoder).unwrap();
+        assert_eq!(decoded, key);
+    }
+
+    #[test]
+    fn provisional_ids_round_trip() {
+        for id in [0, 1, u32::MAX] {
+            let key = CellKey::provisional(id);
+            assert!(key.is_provisional());
+            assert_eq!(key.kind(), CellKeyKind::Provisional(id));
+            assert_ne!(key, CellKey::hash(id as u64));
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ReadCellTracking {
     /// Reads are tracked as dependencies of the current task.
     Tracked {
-        /// The key used for the dependency
-        key: Option<u64>,
+        /// The part of the cell the dependency is on. `None` depends on the whole cell.
+        key: Option<CellKey>,
     },
     /// The read is only tracked when there is an error, otherwise it is untracked.
     ///
@@ -370,7 +492,7 @@ impl ReadCellTracking {
         }
     }
 
-    pub fn key(&self) -> Option<u64> {
+    pub fn key(&self) -> Option<CellKey> {
         match self {
             ReadCellTracking::Tracked { key } => *key,
             ReadCellTracking::TrackOnlyError => None,
@@ -389,7 +511,10 @@ impl Display for ReadCellTracking {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ReadCellTracking::Tracked { key: None } => write!(f, "tracked"),
-            ReadCellTracking::Tracked { key: Some(key) } => write!(f, "tracked with key {key}"),
+            ReadCellTracking::Tracked { key: Some(key) } => match key.kind() {
+                CellKeyKind::Hash(key) => write!(f, "tracked with key {key}"),
+                CellKeyKind::Provisional(id) => write!(f, "tracked as provisional read {id}"),
+            },
             ReadCellTracking::TrackOnlyError => write!(f, "track only error"),
             ReadCellTracking::Untracked => write!(f, "untracked"),
         }
@@ -671,6 +796,22 @@ impl Drop for InlineExecutionDepthGuard {
     }
 }
 
+/// Waits until `counter` reads 0. `event` must be notified every time `counter` drops to 0.
+///
+/// A wake-up alone doesn't prove that the counter is still 0: `finish_foreground_job` and
+/// `finish_background_job` decrement the counter before they notify, so the notification for an
+/// earlier drop to 0 can arrive after new jobs began. So the counter is re-checked after every
+/// wake-up, with a listener registered before the check so no notification is missed.
+async fn wait_until_zero(counter: &AtomicUsize, event: &Event, note: impl EventDescriptor + Copy) {
+    loop {
+        let listener = event.listen_with_note(note);
+        if counter.load(Ordering::Acquire) == 0 {
+            return;
+        }
+        listener.await;
+    }
+}
+
 /// Polls `future` once inline and then spawns it if it doesn't complete so tokio drives it. Returns
 /// whether it completed.
 fn poll_once_or_spawn(future: impl Future<Output = ()> + Send + 'static) -> bool {
@@ -827,14 +968,34 @@ struct CurrentTaskStateHandle {
 
 struct CurrentTaskStateInner {
     current_task_id: Option<TaskId>,
+    /// Counter of [`Vc::keyed_reader`](crate::Vc::keyed_reader) and
+    /// [`Vc::lazy_reader`](crate::Vc::lazy_reader) reads in this execution, used to give every
+    /// [`CellKeyKind::Provisional`] dependency a unique id.
+    provisional_read_counter: AtomicU32,
+    /// Number of `keyed_reader` / `lazy_reader` futures and tracked
+    /// [`KeyedReadRef`](crate::KeyedReadRef)s / [`LazyReadRef`](crate::LazyReadRef)s of this
+    /// execution that haven't been dropped within this execution yet. When it isn't zero at the
+    /// end of the execution, completing it panics (see [`PROVISIONAL_READ_REF_LEAKED`]).
+    alive_provisional_read_refs: AtomicU32,
     state: RwLock<CurrentTaskState>,
 }
+
+/// The panic message of a task execution that didn't drop all of its
+/// [`KeyedReadRef`](crate::KeyedReadRef)s, [`LazyReadRef`](crate::LazyReadRef)s and
+/// [`Vc::keyed_reader`](crate::Vc::keyed_reader) / [`Vc::lazy_reader`](crate::Vc::lazy_reader)
+/// futures.
+const PROVISIONAL_READ_REF_LEAKED: &str =
+    "A `KeyedReadRef` or `LazyReadRef` was not dropped within the task execution that created it. \
+     It (and the `keyed_reader` / `lazy_reader` future) must be dropped before the task function \
+     returns, and must not be moved to other threads or tasks.";
 
 impl CurrentTaskStateHandle {
     fn new(state: CurrentTaskState) -> Self {
         Self {
             inner: Arc::new(CurrentTaskStateInner {
                 current_task_id: state.task_id,
+                provisional_read_counter: AtomicU32::new(0),
+                alive_provisional_read_refs: AtomicU32::new(0),
                 state: RwLock::new(state),
             }),
         }
@@ -842,6 +1003,82 @@ impl CurrentTaskStateHandle {
 
     fn current_task_id(&self) -> Option<TaskId> {
         self.inner.current_task_id
+    }
+}
+
+/// Identifies the [`CellKeyKind::Provisional`] dependency of a
+/// [`Vc::keyed_reader`](crate::Vc::keyed_reader) or [`Vc::lazy_reader`](crate::Vc::lazy_reader)
+/// read and the task execution that created it.
+pub(crate) struct ProvisionalReadDependency {
+    /// The execution state of the reading task. Only used for identity (a `Weak` keeps the
+    /// allocation alive, so the pointer can't be reused by another execution).
+    execution: Weak<CurrentTaskStateInner>,
+    pub(crate) reader: TaskId,
+    pub(crate) id: u32,
+}
+
+impl ProvisionalReadDependency {
+    /// Allocates a new [`CellKeyKind::Provisional`] dependency id for the current task execution.
+    /// Returns `None` when not called from within a task execution (e.g. a top-level `run`),
+    /// where reads are not tracked anyway. In that case the read is tracked as a normal (full)
+    /// dependency.
+    ///
+    /// Panics when the `u32` ids of this execution are exhausted, which isn't possible in
+    /// practice.
+    pub(crate) fn new_for_current_task() -> Option<Self> {
+        CURRENT_TASK_STATE
+            .try_with(|ts| {
+                let reader = ts.current_task_id()?;
+                let id = ts
+                    .inner
+                    .provisional_read_counter
+                    .try_update(Ordering::Relaxed, Ordering::Relaxed, |id| id.checked_add(1))
+                    .expect(
+                        "too many `keyed_reader` / `lazy_reader` reads in a single task execution",
+                    );
+                Some(Self {
+                    execution: Arc::downgrade(&ts.inner),
+                    reader,
+                    id,
+                })
+            })
+            .ok()
+            .flatten()
+    }
+
+    /// Registers a `keyed_reader` / `lazy_reader` future or a
+    /// [`KeyedReadRef`](crate::KeyedReadRef) / [`LazyReadRef`](crate::LazyReadRef) holding this
+    /// dependency as alive. It must be released with
+    /// [`ProvisionalReadDependency::release_alive_ref`] within the same task execution, otherwise
+    /// completing the execution panics. Only called within the creating execution.
+    pub(crate) fn register_alive_ref(&self) {
+        if let Some(execution) = self.execution.upgrade() {
+            execution
+                .alive_provisional_read_refs
+                .fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    /// Releases a registration made with [`ProvisionalReadDependency::register_alive_ref`]. Only
+    /// called when the holder is dropped (or the read fails) within the creating execution
+    /// ([`ProvisionalReadDependency::is_current_execution`]).
+    pub(crate) fn release_alive_ref(&self) {
+        if let Some(execution) = self.execution.upgrade() {
+            execution
+                .alive_provisional_read_refs
+                .fetch_sub(1, Ordering::Relaxed);
+        }
+    }
+
+    /// Whether this is called within the task execution that created the dependency and that
+    /// execution is still running (it hasn't reported completion to the backend yet).
+    pub(crate) fn is_current_execution(&self) -> bool {
+        CURRENT_TASK_STATE
+            .try_with(|ts| {
+                std::ptr::eq(self.execution.as_ptr(), Arc::as_ptr(&ts.inner))
+                    && ts.read().unwrap().cell_counters.is_some()
+            })
+            .unwrap_or(false)
     }
 }
 
@@ -1391,7 +1628,8 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     /// Returns [UpdateInfo] with all updates aggregated over a given duration
-    /// (`aggregation`). Will only return None when the timeout is reached while
+    /// (`aggregation`): the update ends once no foreground job has been running for
+    /// that long. Will only return None when the timeout is reached while
     /// waiting for the first update.
     pub async fn aggregated_update_info(
         &self,
@@ -1446,7 +1684,21 @@ impl<B: Backend + 'static> TurboTasks<B> {
             loop {
                 select! {
                     () = tokio::time::sleep(aggregation) => {
-                        break;
+                        // Only end the update once no foreground job is running. Work that
+                        // starts within the aggregation window and outlasts it would otherwise
+                        // be reported partly in this update and partly in the next one.
+                        let listener = self
+                            .event_foreground_done
+                            .listen_with_note(|| || "wait for update info".to_string());
+                        if self
+                            .currently_scheduled_foreground_jobs
+                            .load(Ordering::Acquire)
+                            == 0
+                        {
+                            break;
+                        }
+                        listener.await;
+                        // Restarts the sleep
                     }
                     () = self.event_foreground_done.listen_with_note(|| || "wait for update info".to_string()) => {
                         // Resets the sleep
@@ -1468,14 +1720,12 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     pub async fn wait_background_done(&self) {
-        let listener = self.event_background_done.listen();
-        if self
-            .currently_scheduled_background_jobs
-            .load(Ordering::Acquire)
-            != 0
-        {
-            listener.await;
-        }
+        wait_until_zero(
+            &self.currently_scheduled_background_jobs,
+            &self.event_background_done,
+            || || "wait for background jobs".to_string(),
+        )
+        .await;
     }
 
     pub async fn stop_and_wait(&self) {
@@ -1491,28 +1741,15 @@ impl<B: Backend + 'static> TurboTasks<B> {
         turbo_tasks_future_scope(self.pin(), async move {
             self.backend.stopping(self);
             self.stopped.store(true, Ordering::Release);
-            {
-                let listener = self
-                    .event_foreground_done
-                    .listen_with_note(|| || "wait for stop".to_string());
-                if self
-                    .currently_scheduled_foreground_jobs
-                    .load(Ordering::Acquire)
-                    != 0
-                {
-                    listener.await;
-                }
-            }
-            {
-                let listener = self.event_background_done.listen();
-                if self
-                    .currently_scheduled_background_jobs
-                    .load(Ordering::Acquire)
-                    != 0
-                {
-                    listener.await;
-                }
-            }
+            // Both waits re-check their counter after every wake-up (see `wait_until_zero`), so a
+            // stale notification can't let `stop` tear down storage under a running task.
+            wait_until_zero(
+                &self.currently_scheduled_foreground_jobs,
+                &self.event_foreground_done,
+                || || "wait for stop".to_string(),
+            )
+            .await;
+            self.wait_background_done().await;
             self.backend.stop(self);
             // Deliver compilation events sent during shutdown (e.g. the persistence trace span)
             // to subscribers before returning, then close the queue so subscriptions end after
@@ -1584,18 +1821,41 @@ struct TurboTasksExecutor;
 ///
 /// Turbtasks catches panics from user code and propagates throught the task tree, but if it happens
 /// as part of state management we have to abort
+///
+/// A [`PersistentCacheUnreadablePanic`] doesn't necessarily indicate a bug, and its message
+/// explains what happened, so it's not reported as a bug.
+///
+/// [`PersistentCacheUnreadablePanic`]: crate::PersistentCacheUnreadablePanic
 async fn abort_on_panic<F: Future>(f: F) -> F::Output {
     match AssertUnwindSafe(f).catch_unwind().await {
         Ok(r) => r,
-        Err(_) => {
-            eprintln!(
-                "\nturbo-tasks: an internal panic occurred outside the per-task panic \
-                 boundary. This is a bug in turbo-tasks/Turbopack — please report it at \
-                 https://github.com/vercel/next.js/discussions and include the panic message \
-                 and stack trace above.\n\nAborting."
-            );
+        Err(payload) => {
+            eprintln!("\n{}\n\nAborting.", abort_on_panic_message(&*payload));
             abort();
         }
+    }
+}
+
+/// The message printed by [`abort_on_panic`] for a panic with `payload`.
+///
+/// The message of a [`PersistentCacheUnreadablePanic`] is included: Rust's default panic hook
+/// prints a custom payload like this one as `Box<dyn Any>`, so unless the embedder's panic hook
+/// printed it, it wouldn't be shown anywhere else.
+///
+/// [`PersistentCacheUnreadablePanic`]: crate::PersistentCacheUnreadablePanic
+fn abort_on_panic_message(payload: &(dyn std::any::Any + Send)) -> Cow<'static, str> {
+    if let Some(panic) = payload.downcast_ref::<crate::PersistentCacheUnreadablePanic>() {
+        format!(
+            "turbo-tasks: the persistent cache could not be read:\n\n{}",
+            panic.message
+        )
+        .into()
+    } else {
+        "turbo-tasks: an internal panic occurred outside the per-task panic boundary. This is a \
+         bug in turbo-tasks/Turbopack — please report it at \
+         https://github.com/vercel/next.js/discussions and include the panic message and stack \
+         trace above."
+            .into()
     }
 }
 
@@ -1659,17 +1919,59 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                                 };
 
                                 let finished_state = this.finish_current_task_state();
-                                let cell_counters = CURRENT_TASK_STATE
-                                    .with(|ts| ts.write().unwrap().cell_counters.take().unwrap());
-                                this.backend.task_execution_completed(
+                                let (
+                                    cell_counters,
+                                    has_provisional_reads,
+                                    leaked_provisional_read_refs,
+                                ) = CURRENT_TASK_STATE.with(|ts| {
+                                    // Taking the cell counters ends the execution: later
+                                    // drops of its `KeyedReadRef`s and `LazyReadRef`s are
+                                    // no longer counted.
+                                    let cell_counters =
+                                        ts.write().unwrap().cell_counters.take().unwrap();
+                                    // All reads of this execution are done (local tasks
+                                    // were awaited above), so the backend only needs to
+                                    // look for remaining `CellKeyKind::Provisional`
+                                    // dependencies when `keyed_reader()` or
+                                    // `lazy_reader()` was used.
+                                    let has_provisional_reads =
+                                        ts.inner.provisional_read_counter.load(Ordering::Relaxed)
+                                            > 0;
+                                    let leaked_provisional_read_refs = has_provisional_reads
+                                        && ts
+                                            .inner
+                                            .alive_provisional_read_refs
+                                            .load(Ordering::Relaxed)
+                                            > 0;
+                                    (
+                                        cell_counters,
+                                        has_provisional_reads,
+                                        leaked_provisional_read_refs,
+                                    )
+                                });
+                                // A `KeyedReadRef` / `LazyReadRef` (or its future) that outlives
+                                // the execution is a bug in the task function. Complete the
+                                // execution first, so the backend converts the remaining
+                                // `CellKeyKind::Provisional` dependencies to normal ones, then
+                                // panic. This is outside the per-task panic boundary, so it aborts
+                                // the process.
+                                let stale_priority = this.backend.task_execution_completed(
                                     task_id,
                                     result,
                                     &cell_counters,
+                                    has_provisional_reads,
                                     #[cfg(feature = "verify_determinism")]
                                     finished_state.stateful,
                                     finished_state.has_invalidator,
                                     &*this,
-                                )
+                                );
+                                if leaked_provisional_read_refs {
+                                    panic!(
+                                        "{PROVISIONAL_READ_REF_LEAKED} Task: {}",
+                                        this.backend.get_task_name(task_id, &*this)
+                                    );
+                                }
+                                stale_priority
                             }
                             .instrument(span)
                             .await
@@ -1943,6 +2245,24 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         let reader = current_task_if_available("reading Vcs");
         self.backend
             .try_read_task_cell(task, index, reader, options, self)
+    }
+
+    fn refine_provisional_cell_dependency(
+        &self,
+        task: TaskId,
+        index: CellId,
+        reader: TaskId,
+        id: u32,
+        key_hashes: &FxHashSet<u64>,
+    ) {
+        self.backend.refine_provisional_cell_dependency(
+            task,
+            index,
+            reader,
+            id,
+            key_hashes.iter().copied(),
+            self,
+        )
     }
 
     fn try_read_own_task_cell(
@@ -2298,6 +2618,46 @@ pub fn turbo_tasks_future_scope<T>(
     f: impl Future<Output = T>,
 ) -> impl Future<Output = T> {
     TURBO_TASKS.scope(tt, f)
+}
+
+/// Spawns `future` on another worker thread as part of the current task execution and returns a
+/// [`JoinHandle`] for its result.
+///
+/// Unlike [`spawn`][crate::spawn()], the future shares the current task's state, just like a local
+/// task does: reads of cells and outputs in it are tracked as dependencies of the current task,
+/// and the task execution doesn't complete before the future has finished (or has been dropped).
+/// Use it to spread work that reads many cells over several threads, e.g. when the reads restore
+/// data from the persistent cache.
+///
+/// A panic in `future` is resumed when the [`JoinHandle`] is awaited.
+///
+/// Must be called from within a task execution.
+pub(crate) fn spawn_in_current_task<T: Send + 'static>(
+    future: impl Future<Output = T> + Send + 'static,
+) -> JoinHandle<T> {
+    /// Balances the `register_detached` below, even when the future is dropped before it
+    /// completes (e.g. on runtime shutdown).
+    struct InFlightGuard(CurrentTaskStateHandle);
+    impl Drop for InFlightGuard {
+        fn drop(&mut self) {
+            self.0.write().unwrap().local_tasks.decrement_in_flight();
+        }
+    }
+
+    let task_state = CURRENT_TASK_STATE.with(|ts| ts.clone());
+    task_state.write().unwrap().local_tasks.register_detached();
+    let guard = InFlightGuard(task_state.clone());
+    let future = async move {
+        let result = CaptureFuture::new(future).await;
+        // Mark the future as finished before the result is handed to the joining side.
+        drop(guard);
+        result
+    };
+    JoinHandle::new(tokio::task::spawn(
+        TURBO_TASKS
+            .scope(turbo_tasks(), CURRENT_TASK_STATE.scope(task_state, future))
+            .instrument(Span::current()),
+    ))
 }
 
 /// Spawns the given future within the context of the current task.
@@ -2722,7 +3082,6 @@ impl CurrentCellRef {
     where
         T: PartialEq + VcValueType,
         VcReadTarget<T>: KeyedEq,
-        <VcReadTarget<T> as KeyedEq>::Key: std::hash::Hash,
     {
         self.conditional_update(|old_value| {
             let Some(old_value) = old_value else {
@@ -2730,10 +3089,9 @@ impl CurrentCellRef {
             };
             let old_value = <T as VcValueType>::Read::value_to_target_ref(old_value);
             let new_value_ref = <T as VcValueType>::Read::value_to_target_ref(&new_value);
-            let updated_keys = old_value.different_keys(new_value_ref);
-            if updated_keys.is_empty() {
-                return None;
-            }
+            // An empty set of keys still updates the value, but only invalidates readers of the
+            // whole value (see `KeyedEq::different_keys`).
+            let updated_keys = old_value.different_keys(new_value_ref)?;
             // Duplicates are very unlikely, but ok since the backend is deduplicating them
             let updated_key_hashes = updated_keys
                 .into_iter()
@@ -2751,7 +3109,6 @@ impl CurrentCellRef {
     ) where
         T: VcValueType + PartialEq,
         VcReadTarget<T>: KeyedEq,
-        <VcReadTarget<T> as KeyedEq>::Key: std::hash::Hash,
     {
         let mut new_shared_reference = Some(new_shared_reference);
         self.conditional_update_with_shared_reference(&mut |old_sr| {
@@ -2765,10 +3122,9 @@ impl CurrentCellRef {
             let old_value = <T as VcValueType>::Read::value_to_target_ref(old_value);
             let new_value = extract_sr_value::<T>(&new_shared_reference);
             let new_value = <T as VcValueType>::Read::value_to_target_ref(new_value);
-            let updated_keys = old_value.different_keys(new_value);
-            if updated_keys.is_empty() {
-                return None;
-            }
+            // An empty set of keys still updates the value, but only invalidates readers of the
+            // whole value (see `KeyedEq::different_keys`).
+            let updated_keys = old_value.different_keys(new_value)?;
             // Duplicates are very unlikely, but ok since the backend is deduplicating them
             let updated_key_hashes = updated_keys
                 .into_iter()
@@ -2894,6 +3250,26 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_abort_on_panic_message() {
+        let unreadable: Box<dyn std::any::Any + Send> =
+            Box::new(crate::PersistentCacheUnreadablePanic {
+                message: "cache file 00000001.sst is missing".to_string(),
+            });
+        let message = abort_on_panic_message(&*unreadable);
+        assert!(message.contains("could not be read"), "{message}");
+        assert!(
+            message.contains("cache file 00000001.sst is missing"),
+            "{message}"
+        );
+        assert!(!message.contains("report"), "{message}");
+        assert!(!message.contains("bug"), "{message}");
+
+        let other: Box<dyn std::any::Any + Send> = Box::new("some bug".to_string());
+        let message = abort_on_panic_message(&*other);
+        assert!(message.contains("please report it"), "{message}");
+    }
+
+    #[test]
     fn test_inline_execution_depth_guard_restores_depth() {
         assert_eq!(INLINE_EXECUTION_DEPTH.get(), 0);
         {
@@ -2952,5 +3328,36 @@ mod tests {
         // ...but it was spawned, so it still runs to completion.
         rx.await.unwrap();
         assert!(done.load(Ordering::SeqCst));
+    }
+
+    #[tokio::test]
+    async fn test_wait_until_zero_returns_immediately_at_zero() {
+        let counter = AtomicUsize::new(0);
+        let event = Event::new(|| || "test event".to_string());
+        let wait = std::pin::pin!(wait_until_zero(&counter, &event, || || "test".to_string()));
+        assert!(futures::poll!(wait).is_ready());
+    }
+
+    /// `finish_foreground_job` notifies only after it decremented the counter, so the notification
+    /// of an earlier drop to 0 can arrive after new jobs began. Such a stale notification must not
+    /// end the wait, otherwise `stop_and_wait` stops the backend under a running task.
+    #[tokio::test]
+    async fn test_wait_until_zero_ignores_stale_notification() {
+        let counter = AtomicUsize::new(1);
+        let event = Event::new(|| || "test event".to_string());
+        let mut wait = std::pin::pin!(wait_until_zero(&counter, &event, || || "test".to_string()));
+        assert!(futures::poll!(wait.as_mut()).is_pending());
+
+        // A notification while a job is still running.
+        event.notify(usize::MAX);
+        assert!(
+            futures::poll!(wait.as_mut()).is_pending(),
+            "a notification must not end the wait while the counter is non-zero"
+        );
+
+        // The last job finishes.
+        counter.store(0, Ordering::Release);
+        event.notify(usize::MAX);
+        assert!(futures::poll!(wait.as_mut()).is_ready());
     }
 }

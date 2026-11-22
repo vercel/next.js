@@ -1,6 +1,8 @@
 pub(crate) mod cast;
 mod cell_mode;
 pub(crate) mod default;
+mod keyed_read_ref;
+mod lazy_read_ref;
 mod local;
 pub(crate) mod operation;
 mod ord;
@@ -34,11 +36,16 @@ pub use crate::vc::{
         VcCellNewMode,
     },
     default::ValueDefault,
+    keyed_read_ref::KeyedReadRef,
+    lazy_read_ref::LazyReadRef,
     local::NonLocalValue,
     operation::{OperationValue, OperationVc, ResolveOperationVcFuture},
     ord::OrdResolvedVc,
     raw::{CellId, RawVc, RawVcUnpacked, ReadRawVcFuture, ResolveRawVcFuture},
-    read::{ReadOwnedVcFuture, ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
+    read::{
+        ReadKeyedReaderVcFuture, ReadLazyReaderVcFuture, ReadOwnedVcFuture, ReadVcFuture,
+        VcDefaultRead, VcRead, VcTransparentRead,
+    },
     resolved::ResolvedVc,
     traits::{Dynamic, Upcast, UpcastStrict, VcValueTrait, VcValueType},
 };
@@ -586,6 +593,36 @@ where
     {
         let future: ReadVcFuture<T> = self.node.into_read().into();
         future.contains_key(key)
+    }
+
+    /// Read the value once for many synchronous keyed accesses via the returned
+    /// [`KeyedReadRef`] (`vc.keyed_reader().await?.get(key)`). This is more efficient than many
+    /// [`Vc::get`] / [`Vc::contains_key`] reads of the same cell within a single task.
+    ///
+    /// Once the [`KeyedReadRef`] is dropped, the task only depends on the accessed keys instead of
+    /// the full value. The returned future and the [`KeyedReadRef`] must be dropped within the
+    /// task execution that called this method, otherwise completing that execution panics. See
+    /// [`KeyedReadRef`] for details.
+    pub fn keyed_reader(self) -> ReadKeyedReaderVcFuture<T> {
+        let future: ReadVcFuture<T> = self.node.into_read().into();
+        future.read_keyed_reader()
+    }
+}
+
+impl<T> Vc<T>
+where
+    T: VcValueType,
+{
+    /// Read the value via the returned [`LazyReadRef`] (`vc.lazy_reader().await?.get()`), as a
+    /// read that is canceled when the value is never accessed.
+    ///
+    /// When the [`LazyReadRef`] is dropped without [`LazyReadRef::get`] ever being called, the
+    /// task no longer depends on the value through this read. The returned future and the
+    /// [`LazyReadRef`] must be dropped within the task execution that called this method,
+    /// otherwise completing that execution panics. See [`LazyReadRef`] for details.
+    pub fn lazy_reader(self) -> ReadLazyReaderVcFuture<T> {
+        let future: ReadVcFuture<T> = self.node.into_read().into();
+        future.read_lazy_reader()
     }
 }
 

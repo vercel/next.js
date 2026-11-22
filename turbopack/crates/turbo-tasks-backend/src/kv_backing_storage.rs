@@ -1,16 +1,17 @@
 use std::{
     borrow::Borrow,
     env,
-    path::PathBuf,
+    fmt::Display,
+    path::{Path, PathBuf},
     sync::{Arc, LazyLock, Mutex, PoisonError, Weak},
 };
 
 use anyhow::{Context, Result};
 use smallvec::SmallVec;
 use turbo_bincode::{new_turbo_bincode_decoder, turbo_bincode_decode, turbo_bincode_encode};
-use turbo_persistence::{ArcBytes, CommitStats};
+use turbo_persistence::{CacheFileUnreadable, CommitStats};
 use turbo_tasks::{
-    DynTaskInputs, RawVc, TaskId,
+    DynTaskInputs, PersistentCacheUnreadablePanic, RawVc, TaskId,
     macro_helpers::NativeFunction,
     panic_hooks::{PanicHookGuard, register_panic_hook},
     parallel,
@@ -94,6 +95,37 @@ fn should_invalidate_on_panic() -> bool {
         env_is_falsy("TURBO_ENGINE_SKIP_INVALIDATE_ON_PANIC") && env_is_falsy("__NEXT_TEST_MODE")
     });
     *SHOULD_INVALIDATE
+}
+
+/// Builds the message of a [`PersistentCacheUnreadablePanic`] if `error` was caused by a database
+/// file that couldn't be read (see [`CacheFileUnreadable`]), otherwise returns `None`.
+///
+/// `base_path` is the directory of the filesystem cache (`None` for in-memory storage), and
+/// `invalidates_on_panic` whether the panic hook registered by
+/// [`TurboBackingStorage::open_versioned_on_disk`] invalidates the cache (see
+/// [`should_invalidate_on_panic`]). That invalidation is best-effort, so the message doesn't claim
+/// that it succeeded.
+fn unreadable_cache_message(
+    error: &anyhow::Error,
+    base_path: Option<&Path>,
+    invalidates_on_panic: bool,
+) -> Option<String> {
+    let unreadable = CacheFileUnreadable::find(error)?;
+    let what_to_do = match base_path {
+        Some(base_path) if invalidates_on_panic => format!(
+            "Turbopack will try to invalidate the filesystem cache, so that it is rebuilt on the \
+             next start. Restart to continue. If this error comes back, delete {} manually.",
+            base_path.display()
+        ),
+        Some(base_path) => format!("Delete {} and restart to continue.", base_path.display()),
+        None => "Restart to continue.".to_string(),
+    };
+    Some(format!(
+        "Turbopack's filesystem cache could not be read: the cache file {} is missing or \
+         corrupted. It may have been deleted or modified outside of Turbopack while Turbopack was \
+         running.\n{what_to_do}\n\nDetails: {error:?}",
+        unreadable.file_name()
+    ))
 }
 
 struct TurboBackingStorageInner {
@@ -226,6 +258,26 @@ impl TurboBackingStorage {
     /// [`TurboTasksBackend::stop`]: turbo_tasks::backend::Backend::stop
     pub(crate) fn invalidate(&self, reason_code: &str) -> Result<()> {
         self.inner.invalidate(reason_code)
+    }
+
+    /// Panics because reading from the database failed with `error`, which can't be recovered
+    /// from: the task graph can't be restored without that data.
+    ///
+    /// If a database file couldn't be read (see [`CacheFileUnreadable`]), e.g. because it was
+    /// deleted or modified by another process while it was in use, the panic payload is a
+    /// [`PersistentCacheUnreadablePanic`] with a message explaining that and what to do about it.
+    /// Otherwise this panics with `description` and `error` as before.
+    #[cold]
+    #[track_caller]
+    pub(crate) fn panic_on_read_error(&self, description: impl Display, error: anyhow::Error) -> ! {
+        if let Some(message) = unreadable_cache_message(
+            &error,
+            self.inner.base_path.as_deref(),
+            should_invalidate_on_panic(),
+        ) {
+            std::panic::panic_any(PersistentCacheUnreadablePanic { message });
+        }
+        panic!("{description}: {error:?}");
     }
 
     pub(crate) fn next_free_task_id(&self) -> Result<TaskId> {
@@ -423,29 +475,35 @@ impl TurboBackingStorage {
         Ok(Some(storage))
     }
 
-    /// Batched [`Self::lookup_data`]: one entry per id, in order, `None` where the database had no
-    /// key. Decoding is parallelized for large batches, see [`PARALLEL_DECODE_THRESHOLD`].
+    /// Looks up and decodes the `category` of many tasks. Calls `on_result` with the index of the
+    /// task in `task_ids` and its decoded storage, or `None` if the category has no key on disk.
+    ///
+    /// When this returns `Ok`, `on_result` was called exactly once for every index. The calls
+    /// happen in no particular order and may run concurrently on other threads, so decoding
+    /// runs in parallel for large batches. A read, decode or `on_result` error aborts the
+    /// batch.
     pub(crate) fn batch_lookup_data(
         &self,
         task_ids: &[TaskId],
         category: SpecificTaskDataCategory,
-    ) -> Result<Vec<Option<TaskStorage>>> {
-        let bytes = self.batch_lookup_raw(task_ids, category)?;
-        decode_task_storage_batch(&bytes, category, PARALLEL_DECODE_THRESHOLD)
-    }
-
-    /// Reads the raw (still encoded) bytes of `category` for every id, in order.
-    pub(crate) fn batch_lookup_raw(
-        &self,
-        task_ids: &[TaskId],
-        category: SpecificTaskDataCategory,
-    ) -> Result<Vec<Option<ArcBytes>>> {
+        on_result: impl Fn(usize, Option<TaskStorage>) -> Result<()> + Sync,
+    ) -> Result<()> {
         let inner = &*self.inner;
         let int_keys: Vec<_> = task_ids.iter().map(|&id| IntKey::new(*id)).collect();
         let keys = int_keys.iter().map(|k| k.as_ref()).collect::<Vec<_>>();
         inner
             .database
-            .batch_get(category.key_space(), &keys)
+            .batch_get(category.key_space(), &keys, |index, opt_bytes| {
+                let Some(bytes) = opt_bytes else {
+                    return on_result(index, None);
+                };
+                let mut storage = TaskStorage::new();
+                let mut decoder = new_turbo_bincode_decoder(bytes.borrow());
+                storage
+                    .decode(category, &mut decoder)
+                    .map_err(|e| anyhow::anyhow!("Failed to decode {category:?}: {e:?}"))?;
+                on_result(index, Some(storage))
+            })
             .with_context(|| {
                 format!(
                     "Looking up typed data for {} tasks from database failed",
@@ -464,44 +522,6 @@ impl TurboBackingStorage {
 
     pub(crate) fn has_unrecoverable_write_error(&self) -> bool {
         self.inner.database.has_unrecoverable_write_error()
-    }
-}
-
-/// The batch size from which `TurboBackingStorage::batch_lookup_data` decodes in parallel.
-///
-/// Below this, the overhead of distributing the work across threads outweighs the decoding cost.
-/// On an 8 vCPU machine, the `batch_lookup` benchmark found Meta still slower in parallel at 1024
-/// tasks, while both Meta and Data were consistently faster at 2048 tasks and beyond. Re-run with:
-///
-/// ```bash
-/// TURBOPACK_BENCH_BATCH_LOOKUP=1 cargo bench -p turbo-tasks-backend --bench mod -- batch_lookup
-/// ```
-pub const PARALLEL_DECODE_THRESHOLD: usize = 2048;
-
-/// Decodes a batch of raw [`TaskStorage`] bytes for `category`, preserving order and `None`s.
-///
-/// Decodes in parallel when `bytes.len() >= parallel_threshold`. Fails if any entry fails to
-/// decode.
-pub fn decode_task_storage_batch(
-    bytes: &[Option<ArcBytes>],
-    category: SpecificTaskDataCategory,
-    parallel_threshold: usize,
-) -> Result<Vec<Option<TaskStorage>>> {
-    let decode = |opt_bytes: &Option<ArcBytes>| -> Result<Option<TaskStorage>> {
-        let Some(bytes) = opt_bytes else {
-            return Ok(None);
-        };
-        let mut storage = TaskStorage::new();
-        let mut decoder = new_turbo_bincode_decoder(Borrow::<[u8]>::borrow(bytes));
-        storage
-            .decode(category, &mut decoder)
-            .map_err(|e| anyhow::anyhow!("Failed to decode {category:?}: {e:?}"))?;
-        Ok(Some(storage))
-    };
-    if bytes.len() >= parallel_threshold {
-        parallel::map_collect::<_, _, Result<Vec<_>>>(bytes, decode)
-    } else {
-        bytes.iter().map(decode).collect()
     }
 }
 
@@ -663,64 +683,20 @@ mod tests {
             .collect()
     }
 
-    /// Sequential and parallel decoding must produce the same results, in order, with `None`s
-    /// preserved, and both must fail on malformed bytes.
-    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-    async fn test_decode_task_storage_batch_sequential_matches_parallel() {
-        const SEQUENTIAL: usize = usize::MAX;
-        const PARALLEL: usize = 0;
-        for category in [
-            SpecificTaskDataCategory::Meta,
-            SpecificTaskDataCategory::Data,
-        ] {
-            let expected: Vec<Option<Vec<u8>>> = (0..200u32)
-                .map(|i| (i % 7 != 3).then(|| encoded_task_storage(i * 10 + 1, category)))
-                .collect();
-            assert_ne!(expected[0], expected[1], "inputs must be distinct");
-            let to_bytes = || -> Vec<Option<ArcBytes>> {
-                expected
-                    .iter()
-                    .map(|bytes| {
-                        bytes
-                            .as_ref()
-                            .map(|b| ArcBytes::from(b.clone().into_boxed_slice()))
-                    })
-                    .collect()
-            };
-
-            for threshold in [SEQUENTIAL, PARALLEL] {
-                let decoded = decode_task_storage_batch(&to_bytes(), category, threshold).unwrap();
-                assert_eq!(
-                    reencode(&decoded, category),
-                    expected,
-                    "{category:?} threshold={threshold}"
-                );
-
-                assert!(
-                    decode_task_storage_batch(&[], category, threshold)
-                        .unwrap()
-                        .is_empty()
-                );
-
-                let mut malformed = to_bytes();
-                malformed[150] = Some(ArcBytes::from(vec![0xff; 3].into_boxed_slice()));
-                assert!(
-                    decode_task_storage_batch(&malformed, category, threshold).is_err(),
-                    "{category:?} threshold={threshold} must fail on malformed bytes"
-                );
-            }
-        }
-    }
-
-    /// The production batch lookup preserves request order, duplicates and missing entries on
-    /// both sides of the parallel cutoff.
+    /// Reports every requested index exactly once, with request order, duplicates and missing
+    /// entries resolved correctly, on both sides of turbo-persistence's parallel `batch_get`
+    /// cutoff. A value that fails to decode fails the whole lookup.
     // Default worker count like the other database tests here: under the WASI test host, file
     // descriptors are per thread, so committing SST files from extra runtime workers fails.
     #[tokio::test(flavor = "multi_thread")]
     async fn test_batch_lookup_data_roundtrip_at_parallel_threshold() -> Result<()> {
+        /// turbo-persistence's `batch_get` runs in parallel above this many keys.
+        const PARALLEL_BATCH_GET_THRESHOLD: usize = 2048;
+        const MALFORMED_ID: u32 = 999_997;
+
         let tempdir = test_temp_dir()?;
         let db = TurboKeyValueDatabase::new(tempdir.path().to_path_buf(), TEST_STORAGE_OPTIONS)?;
-        let stored_ids: Vec<TaskId> = (1..=(PARALLEL_DECODE_THRESHOLD as u32 + 64))
+        let stored_ids: Vec<TaskId> = (1..=(PARALLEL_BATCH_GET_THRESHOLD as u32 + 64))
             .map(|id| TaskId::try_from(id).unwrap())
             .collect();
         let batch = db.write_batch()?;
@@ -737,6 +713,11 @@ mod tests {
                     WriteBuffer::Borrowed(&value),
                 )?;
             }
+            batch.put(
+                category.key_space(),
+                WriteBuffer::Borrowed(IntKey::new(MALFORMED_ID).as_ref()),
+                WriteBuffer::Borrowed(&[0xff; 3]),
+            )?;
         }
         batch.commit()?;
         let storage = TurboBackingStorage::new_in_memory(db);
@@ -745,7 +726,10 @@ mod tests {
             SpecificTaskDataCategory::Meta,
             SpecificTaskDataCategory::Data,
         ] {
-            for len in [PARALLEL_DECODE_THRESHOLD - 1, PARALLEL_DECODE_THRESHOLD] {
+            for len in [
+                PARALLEL_BATCH_GET_THRESHOLD,
+                PARALLEL_BATCH_GET_THRESHOLD + 1,
+            ] {
                 let mut requested = stored_ids[..len - 3].to_vec();
                 requested.reverse();
                 requested.insert(len / 2, TaskId::try_from(999_999).unwrap());
@@ -760,11 +744,37 @@ mod tests {
                             .then(|| encoded_task_storage(**task_id * 10, category))
                     })
                     .collect();
-                let decoded = storage.batch_lookup_data(&requested, category)?;
+                let slots: Vec<std::sync::OnceLock<Option<TaskStorage>>> =
+                    (0..len).map(|_| std::sync::OnceLock::new()).collect();
+                storage.batch_lookup_data(&requested, category, |index, storage| {
+                    assert!(
+                        slots[index].set(storage).is_ok(),
+                        "{category:?} len={len}: index {index} reported twice"
+                    );
+                    Ok(())
+                })?;
+                let decoded: Vec<Option<TaskStorage>> = slots
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, slot)| {
+                        slot.into_inner().unwrap_or_else(|| {
+                            panic!("{category:?} len={len}: index {index} never reported")
+                        })
+                    })
+                    .collect();
                 assert_eq!(
                     reencode(&decoded, category),
                     expected,
                     "{category:?} len={len}"
+                );
+
+                let mut malformed = requested.clone();
+                malformed[len / 3] = TaskId::try_from(MALFORMED_ID).unwrap();
+                assert!(
+                    storage
+                        .batch_lookup_data(&malformed, category, |_, _| Ok(()))
+                        .is_err(),
+                    "{category:?} len={len} must fail on malformed bytes"
                 );
             }
         }
@@ -943,6 +953,99 @@ mod tests {
         );
 
         db.shutdown();
+        Ok(())
+    }
+
+    /// An error caused by an unreadable database file, wrapped in further context like the errors
+    /// of restoring a task.
+    fn unreadable_error() -> anyhow::Error {
+        anyhow::Error::new(CacheFileUnreadable::new(
+            "00000007.sst",
+            anyhow::anyhow!("failed to open file `00000007.sst`: No such file or directory"),
+        ))
+        .context("Looking up task storage for TaskId 4 from database failed")
+        .context("Failed to restore Data for TaskId 4")
+    }
+
+    #[test]
+    fn test_unreadable_cache_message() {
+        let base_path = Path::new("/project/.cache/turbopack");
+        let error = unreadable_error();
+
+        let with_invalidation = unreadable_cache_message(&error, Some(base_path), true).unwrap();
+        let without_invalidation =
+            unreadable_cache_message(&error, Some(base_path), false).unwrap();
+        let in_memory = unreadable_cache_message(&error, None, true).unwrap();
+        for message in [&with_invalidation, &without_invalidation, &in_memory] {
+            assert!(
+                message.contains("Turbopack's filesystem cache could not be read"),
+                "{message}"
+            );
+            assert!(message.contains("00000007.sst"), "{message}");
+            assert!(
+                message.contains("deleted or modified outside of Turbopack"),
+                "{message}"
+            );
+            // The details of the error follow.
+            assert!(message.contains("No such file or directory"), "{message}");
+            // Invalidating is best-effort, so it's never claimed to have happened.
+            assert!(!message.contains("has been deleted"), "{message}");
+            assert!(!message.contains("was deleted"), "{message}");
+        }
+        assert!(
+            with_invalidation.contains("will try to invalidate"),
+            "{with_invalidation}"
+        );
+        assert!(
+            with_invalidation
+                .contains("If this error comes back, delete /project/.cache/turbopack"),
+            "{with_invalidation}"
+        );
+        assert!(
+            without_invalidation.contains("Delete /project/.cache/turbopack and restart"),
+            "{without_invalidation}"
+        );
+        assert!(
+            !without_invalidation.contains("will try to invalidate"),
+            "{without_invalidation}"
+        );
+
+        assert_eq!(
+            unreadable_cache_message(&anyhow::anyhow!("some bug"), Some(base_path), true),
+            None
+        );
+    }
+
+    #[test]
+    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
+    fn test_panic_on_read_error() -> Result<()> {
+        let tempdir = test_temp_dir()?;
+        let db = TurboKeyValueDatabase::new(tempdir.path().to_path_buf(), TEST_STORAGE_OPTIONS)?;
+        let storage = TurboBackingStorage::new_in_memory(db);
+
+        let payload = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            storage.panic_on_read_error("Failed to restore", unreadable_error())
+        }))
+        .expect_err("must panic");
+        let panic = payload
+            .downcast_ref::<PersistentCacheUnreadablePanic>()
+            .expect("the payload must be a PersistentCacheUnreadablePanic");
+        assert!(panic.message.contains("00000007.sst"), "{}", panic.message);
+
+        // Other errors panic as before. (Without the error's backtrace, which is included if
+        // `RUST_BACKTRACE` is set.)
+        let payload = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            storage.panic_on_read_error("Failed to restore", anyhow::anyhow!("some bug"))
+        }))
+        .expect_err("must panic");
+        let message = payload
+            .downcast_ref::<String>()
+            .expect("the payload must be a String");
+        let message = message
+            .split("\n\nStack backtrace:")
+            .next()
+            .unwrap_or_default();
+        assert_eq!(message, "Failed to restore: some bug");
         Ok(())
     }
 }

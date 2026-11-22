@@ -29,7 +29,8 @@ export async function rawEntrypointsToEntrypoints(
         }
         break
       }
-      case 'app-route': {
+      case 'app-route':
+      case 'app-route-go': {
         app.set(route.originalName, route)
         break
       }
@@ -114,7 +115,8 @@ export async function handleRouteType({
 
       break
     }
-    case 'app-route': {
+    case 'app-route':
+    case 'app-route-go': {
       const key = getEntryKey('app', 'server', page)
 
       manifestLoader.loadAppPathsManifest(page)
@@ -134,6 +136,8 @@ export async function handleRouteType({
       break
     }
     default: {
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
       throw new Error(`unknown route type ${(route as any).type} for ${page}`)
     }
   }

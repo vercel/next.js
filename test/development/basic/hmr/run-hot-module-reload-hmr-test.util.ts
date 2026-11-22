@@ -93,6 +93,56 @@ export function runHotModuleReloadHmrTest(nextConfig: {
       })
     })
 
+    // A page with a re-export is turned into a different module (a facade) than a page
+    // without one, so this changes which module the page's client entry points at.
+    it('should keep updating a page that adds and removes a re-export', async () => {
+      const browser = await next.browser(basePath + '/hmr/reexport')
+      expect(await browser.elementByCss('p').text()).toBe(
+        'This is the reexport page.'
+      )
+
+      const pagePath = join('pages', 'hmr', 'reexport.js')
+      const originalContent = await next.readFile(pagePath)
+      const reexport =
+        "export { default as Reexported } from '../../components/hmr/reexported'\n"
+
+      try {
+        await next.patchFile(
+          pagePath,
+          reexport +
+            originalContent.replace('the reexport page', 'the reexport page 1')
+        )
+        await retry(async () => {
+          expect(await browser.elementByCss('p').text()).toBe(
+            'This is the reexport page 1.'
+          )
+        })
+
+        await next.patchFile(
+          pagePath,
+          reexport +
+            originalContent.replace('the reexport page', 'the reexport page 2')
+        )
+        await retry(async () => {
+          expect(await browser.elementByCss('p').text()).toBe(
+            'This is the reexport page 2.'
+          )
+        })
+
+        await next.patchFile(
+          pagePath,
+          originalContent.replace('the reexport page', 'the reexport page 3')
+        )
+        await retry(async () => {
+          expect(await browser.elementByCss('p').text()).toBe(
+            'This is the reexport page 3.'
+          )
+        })
+      } finally {
+        await next.patchFile(pagePath, originalContent)
+      }
+    })
+
     it('should not reload unrelated pages', async () => {
       const browser = await next.browser(basePath + '/hmr/counter')
       const text = await browser

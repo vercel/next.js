@@ -552,7 +552,9 @@ export function serverActionReducer(
           // known route tree to mark the entry as having a dynamic rewrite.
           null,
           // Not an HMR refresh, so there's no request generation to cancel.
-          undefined
+          undefined,
+          // Not part of a prepared navigation.
+          null
         )
       }
 
@@ -568,7 +570,9 @@ export function serverActionReducer(
         nextUrl,
         freshnessPolicy,
         scrollBehavior,
-        navigateType
+        navigateType,
+        // Not part of a prepared navigation.
+        null
       )
     },
     (e: any) => {
@@ -590,6 +594,8 @@ function createRedirectErrorForAction(
   // again, as it's run within an effect.
   // We don't actually need the RedirectBoundary to do a router.push because we already
   // have all the necessary RSC data to render the new page within a single roundtrip.
+  // TODO(as-any): pre-existing cast, not yet reviewed
+  // eslint-disable-next-line @next/internal/no-as-any
   ;(redirectError as any).handled = true
   return redirectError
 }

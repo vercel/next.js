@@ -3,12 +3,9 @@
  */
 import { cloneResponse } from './clone-response'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { FETCH_CACHE_KEY_EXCLUDED_HEADERS } from '../../lib/constants'
 
 const simpleCacheKey = '["GET",[],null,"follow",null,null,null,null]' // generateCacheKey(new Request('https://blank'));
-
-// Headers that should not affect deduplication
-// traceparent and tracestate are used for distributed tracing and should not affect cache keys
-const headersToExcludeInCacheKey = new Set(['traceparent', 'tracestate'])
 
 function generateCacheKey(request: Request): string {
   // We pick the fields that goes into the key used to dedupe requests.
@@ -19,7 +16,7 @@ function generateCacheKey(request: Request): string {
   // IF YOU CHANGE THIS UPDATE THE simpleCacheKey ABOVE.
 
   const filteredHeaders = Array.from(request.headers.entries()).filter(
-    ([key]) => !headersToExcludeInCacheKey.has(key.toLowerCase())
+    ([key]) => !FETCH_CACHE_KEY_EXCLUDED_HEADERS.has(key.toLowerCase())
   )
 
   return JSON.stringify([

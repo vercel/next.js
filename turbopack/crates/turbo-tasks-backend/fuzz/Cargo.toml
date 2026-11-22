@@ -16,7 +16,8 @@ libfuzzer-sys = "0.4.9"
 serde = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 turbo-tasks = { workspace = true, features = ["non_operation_vc_strongly_consistent"] }
-turbo-tasks-backend = { workspace = true }
+# Verify the aggregation graph and its edges (e.g. that no follower debt is left) on stop.
+turbo-tasks-backend = { workspace = true, features = ["verify_aggregation_graph"] }
 turbo-tasks-malloc = { workspace = true , features = ["custom_allocator"]}
 
 [[bin]]

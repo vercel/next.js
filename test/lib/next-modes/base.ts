@@ -1,15 +1,12 @@
 import os from 'os'
 import path from 'path'
-import { randomBytes } from 'crypto'
 import {
   existsSync,
   promises as fs,
   mkdirSync,
   readFileSync,
-  renameSync,
   rmSync,
   statSync,
-  writeFileSync,
 } from 'fs'
 import treeKill from 'tree-kill'
 import type { NextConfig } from 'next'
@@ -19,6 +16,7 @@ import { ChildProcess } from 'child_process'
 import spawn from 'cross-spawn'
 import { quote as shellQuote } from 'shell-quote'
 import { createNextInstall } from '../create-next-install'
+import { replaceFile } from '../replace-file'
 import {
   getCommitFromPreviewBuildUrl,
   previewTarballUrl,
@@ -45,6 +43,26 @@ import { Page, Response } from 'playwright'
 import { PHASE_PRODUCTION_BUILD } from 'next/constants'
 import { loadResolvedConfig } from '../gate/load-resolved-config'
 import type { ResolvedNextConfig } from '../gate/resolved-config'
+import stripAnsi from 'strip-ansi'
+
+/**
+ * Matches a Rust panic or a fatal Turbopack internal error in Next.js output.
+ *
+ * - Rust's default panic hook prints `thread '<name>' panicked at <location>:`
+ *   or `thread panicked at <location>:` (newer toolchains can also include
+ *   the thread id: `thread '<name>' (1234) panicked at`).
+ * - `log_internal_error_and_inform` in `crates/next-napi-bindings` prints
+ *   `FATAL: An unexpected Turbopack error occurred` for internal errors.
+ */
+const RUST_PANIC_REGEX =
+  /thread(?: '[^'\n]*')?(?: \(\d+\))? panicked at |FATAL: An unexpected Turbopack error occurred/
+
+/** Lines of output after a panic that are included in the error. */
+const RUST_PANIC_CONTEXT_LINES = 20
+
+export class RustPanicError extends Error {
+  name = 'RustPanicError'
+}
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
 export type InstallCommand =
@@ -87,6 +105,11 @@ export interface NextInstanceOpts {
    * workspace-root detection, which the file affects.
    */
   deleteWorkspaceFile?: boolean
+  /**
+   * Don't fail the test when the Next.js process prints a Rust panic or a
+   * fatal Turbopack error. Only for tests that intentionally trigger one.
+   */
+  allowRustPanics?: boolean
 }
 
 /**
@@ -134,6 +157,9 @@ export class NextInstance {
   public serverReadyPattern: RegExp = /✓ Ready in /
   patchFileDelay: number = 0
   public deleteWorkspaceFile: boolean = false
+  public allowRustPanics: boolean = false
+  /** How much of `cliOutput` `throwOnRustPanics` already checked. */
+  protected rustPanicCheckedLength = 0
   private _resolvedConfig?: Promise<ResolvedNextConfig>
 
   constructor(opts: NextInstanceOpts) {
@@ -638,6 +664,8 @@ export class NextInstance {
         ...process.env,
         ...this.env,
         ...env,
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         NODE_ENV: this.env.NODE_ENV || ('' as any),
         PORT: this.forcedPort ?? '0',
         __NEXT_TEST_MODE: 'e2e',
@@ -795,6 +823,8 @@ export class NextInstance {
         ...process.env,
         ...this.env,
         ...env,
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         NODE_ENV: (env?.NODE_ENV ?? this.env.NODE_ENV ?? '') as any,
         __NEXT_TEST_MODE: 'e2e',
       },
@@ -871,6 +901,8 @@ export class NextInstance {
               exitSignal ? ` (signal ${exitSignal})` : ''
             }`
           )
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           ;(err as any).result = result
           reject(err)
           return
@@ -923,9 +955,44 @@ export class NextInstance {
       this.isStopping = null
       require('console').log(`Stopped next server`)
     }
+    // Also covers a process that already exited on its own.
+    this.throwOnRustPanics('next server')
+  }
+
+  /**
+   * Throw a `RustPanicError` if `cliOutput` contains a Rust panic or a fatal
+   * Turbopack error that wasn't checked yet. Call once the process' output is
+   * complete (after a build or after stopping the server).
+   */
+  protected throwOnRustPanics(processName: string, cause?: unknown) {
+    // Only the output of local `next dev`/`next build`/`next start` processes
+    // is checked. In deploy mode `cliOutput` holds fetched deployment logs.
+    if (isNextDeploy) {
+      return
+    }
+    const output = this.cliOutput
+    const unchecked = output.slice(this.rustPanicCheckedLength)
+    this.rustPanicCheckedLength = output.length
+    if (this.allowRustPanics) {
+      return
+    }
+    const lines = stripAnsi(unchecked).split('\n')
+    const index = lines.findIndex((line) => RUST_PANIC_REGEX.test(line))
+    if (index === -1) {
+      return
+    }
+    throw new RustPanicError(
+      `The ${processName} output contains a Rust panic or a fatal Turbopack error. ` +
+        'Pass `allowRustPanics: true` to `nextTestSetup` if this is expected.\n\n' +
+        lines.slice(index, index + 1 + RUST_PANIC_CONTEXT_LINES).join('\n'),
+      cause === undefined ? undefined : { cause }
+    )
   }
 
   public async destroy(): Promise<void> {
+    // Rethrown after cleanup so the test fails, but the instance is still
+    // destroyed.
+    let rustPanicError: RustPanicError | undefined
     try {
       require('console').time('destroyed next instance')
 
@@ -938,7 +1005,13 @@ export class NextInstance {
       Error.captureStackTrace(this.isDestroyed, this.destroy)
 
       this.emit('destroy', [])
-      await this.stop().catch(console.error)
+      await this.stop().catch((err) => {
+        if (err instanceof RustPanicError) {
+          rustPanicError = err
+        } else {
+          console.error(err)
+        }
+      })
 
       if (process.env.TRACE_PLAYWRIGHT) {
         await fs
@@ -972,6 +1045,9 @@ export class NextInstance {
       require('console').timeEnd(`destroyed next instance`)
     } catch (err) {
       require('console').error('Error while destroying', err)
+    }
+    if (rustPanicError) {
+      throw rustPanicError
     }
   }
 
@@ -1129,36 +1205,16 @@ export class NextInstance {
       patchedContent = content
     }
 
-    let backupPath: string | undefined
-    if (!newFile && runWithTempContent) {
-      backupPath = `${outputPath}.${randomBytes(4).toString('hex')}.bak`
-    }
-
-    // Never modify files in place: pnpm installs hard links, so a patch could
-    // corrupt its shared store and affect other fixtures. Keep the original
-    // inode for temporary patches and write the replacement as a new file.
-    if (backupPath) {
-      renameSync(outputPath, backupPath)
-    } else if (!newFile) {
-      rmSync(outputPath, { force: true })
-    }
-
-    try {
-      writeFileSync(outputPath, patchedContent, {
-        flush: true,
-        mode: originalStat?.mode,
-      })
-      if (runWithTempContent) {
-        await runWithTempContent({ newFile })
-      }
-    } finally {
-      if (runWithTempContent) {
-        rmSync(outputPath, { force: true })
-        if (backupPath) {
-          renameSync(backupPath, outputPath)
-        }
-      }
-    }
+    // Write the replacement outside of the test directory, so the dev server's
+    // watchers don't see it, and atomically rename it over the target.
+    await replaceFile({
+      outputPath,
+      stagingDir: path.dirname(this.testDir),
+      content: patchedContent,
+      mode: originalStat?.mode,
+      newFile,
+      runWithTempContent,
+    })
 
     return { newFile }
   }

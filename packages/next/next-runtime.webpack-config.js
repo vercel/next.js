@@ -87,6 +87,8 @@ const externalsRegexMap = {
   '(.*)trace/tracer$': 'next/dist/server/lib/trace/tracer',
 }
 
+const devExternalTraceModules = new Set(['local-span-recorder', 'span-store'])
+
 const bundleTypes = {
   app: {
     'app-page': path.join(
@@ -137,7 +139,7 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
     ;(async () => {
       if (
         request.match(
-          /next[/\\]dist[/\\]compiled[/\\](babel|webpack|source-map|semver|jest-worker|stacktrace-parser|@ampproject\/toolbox-optimizer)/
+          /next[/\\]dist[/\\]compiled[/\\](babel|webpack|source-map|semver|stacktrace-parser|@ampproject\/toolbox-optimizer)/
         )
       ) {
         callback(null, 'commonjs ' + request)
@@ -169,6 +171,35 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
         )
         callback(null, `commonjs ${relative}`)
         return
+      }
+
+      // Development runtimes can load more than one precompiled bundle in the
+      // same Node.js realm. Resolve the recorder and its AsyncLocalStorage-backed
+      // store through the installed Next.js package so every bundle uses the
+      // same instances. Production runtimes keep these modules bundled.
+      if (dev) {
+        const requestBasename = path.basename(request, path.extname(request))
+        if (devExternalTraceModules.has(requestBasename)) {
+          const resolve = getResolve()
+          const resolved = await resolve(context, request)
+          const expected = path.join(
+            __dirname,
+            'dist',
+            'esm',
+            'server',
+            'lib',
+            'trace',
+            `${requestBasename}.js`
+          )
+
+          if (path.normalize(resolved) === path.normalize(expected)) {
+            callback(
+              null,
+              `commonjs next/dist/server/lib/trace/${requestBasename}`
+            )
+            return
+          }
+        }
       }
 
       if (request.match(/\.external(\.js)?$/)) {

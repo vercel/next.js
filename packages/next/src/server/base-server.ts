@@ -40,6 +40,7 @@ import type { RouteMatch } from './route-matches/route-match'
 import type { RouteDefinition } from './route-definitions/route-definition'
 import type { AppPageRouteDefinition } from './route-definitions/app-page-route-definition'
 import type { AppRouteRouteDefinition } from './route-definitions/app-route-route-definition'
+import type { AppGoRouteRouteDefinition } from './route-definitions/app-go-route-route-definition'
 import type { LocaleRouteDefinition } from './route-definitions/locale-route-definition'
 import type {
   Server as HTTPServer,
@@ -106,7 +107,6 @@ import {
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_URL,
   NEXT_ROUTER_STATE_TREE_HEADER,
-  NEXT_INSTANT_TEST_COOKIE,
 } from '../client/components/app-router-headers'
 import { nanoid } from 'next/dist/compiled/nanoid'
 import { LocaleRouteNormalizer } from './normalizers/locale-route-normalizer'
@@ -120,7 +120,11 @@ import {
   SpanStatusCode,
 } from './lib/trace/tracer'
 import { BaseServerSpan } from './lib/trace/constants'
-import { runWithRequestInsightsIdentity } from './lib/trace/request-insights-identity'
+import {
+  resolveRequestInsightsIdentity,
+  runWithRequestInsightsIdentity,
+  type RequestInsightsIdentity,
+} from './lib/trace/request-insights-identity'
 import { isRequestInsightsEnabled } from './lib/trace/span-store'
 import { I18NProvider, type LocaleAnalysisResult } from './lib/i18n-provider'
 import { sendResponse } from './send-response'
@@ -191,11 +195,14 @@ export type FindComponentsResult<
   query: NextParsedUrlQuery
 }
 
-export interface MiddlewareRoutingItem {
+export type MiddlewareRoutingItem = {
   page: string
   match: MiddlewareRouteMatch
   matchers?: ProxyMatcher[]
-}
+} & (
+  | { runtime: 'nodejs' | 'edge'; nativeEntry?: never }
+  | { runtime: 'go'; nativeEntry: string }
+)
 
 export type RouteHandler<
   ServerRequest extends BaseNextRequest = BaseNextRequest,
@@ -431,7 +438,9 @@ export default abstract class Server<
     | ServerComponentsHmrCache
     | undefined {
     return this.nextConfig.experimental.serverComponentsHmrCache
-      ? (globalThis as any).__serverComponentsHmrCache
+      ? // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
+        (globalThis as any).__serverComponentsHmrCache
       : undefined
   }
 
@@ -519,6 +528,8 @@ export default abstract class Server<
       this.deploymentId = id
       process.env.NEXT_DEPLOYMENT_ID = id
     }
+    // TODO(as-any): pre-existing cast, not yet reviewed
+    // eslint-disable-next-line @next/internal/no-as-any
     ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX =
       this.nextConfig.supportsImmutableAssets || !this.deploymentId
         ? ''
@@ -648,6 +659,8 @@ export default abstract class Server<
           (this.dev === true ||
             this.nextConfig.experimental.exposeTestingApiInProductionBuild ===
               true),
+        externalBrowserRuntime:
+          this.nextConfig.experimental.externalBrowserRuntime === true,
       },
       prefetchHints: {},
       reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
@@ -1021,25 +1034,39 @@ export default abstract class Server<
       return handleRequest()
     }
 
-    const requestIdHeader = req.headers[NEXT_REQUEST_ID_HEADER]
-    const requestId =
-      typeof requestIdHeader === 'string' ? requestIdHeader : nanoid()
-    const htmlRequestIdHeader = req.headers[NEXT_HTML_REQUEST_ID_HEADER]
+    const resolvedRequestInsightsIdentity = resolveRequestInsightsIdentity({
+      previousIdentity: getRequestMeta(req, 'requestInsightsIdentity'),
+      requestIdHeader: req.headers[NEXT_REQUEST_ID_HEADER],
+      htmlRequestIdHeader: req.headers[NEXT_HTML_REQUEST_ID_HEADER],
+      url: req.url,
+      createRequestId: nanoid,
+    })
+    const isMiddlewareInvoke = getRequestMeta(req, 'middlewareInvoke') === true
+    const requestInsightsIdentity: RequestInsightsIdentity = isMiddlewareInvoke
+      ? {
+          ...resolvedRequestInsightsIdentity,
+          source: 'proxy',
+        }
+      : resolvedRequestInsightsIdentity
+    addRequestMeta(req, 'requestInsightsIdentity', requestInsightsIdentity)
 
     // The request root and route-matching spans start before App Render creates
     // its workStore. Carry their identity in this outer scope; App Render copies
     // it into the workStore so the complete timeline uses one request ID.
-    return runWithRequestInsightsIdentity(
-      {
-        requestId,
-        htmlRequestId:
-          typeof htmlRequestIdHeader === 'string'
-            ? htmlRequestIdHeader
-            : requestId,
-        url: req.url,
-      },
-      handleRequest
-    )
+    try {
+      return await runWithRequestInsightsIdentity(
+        requestInsightsIdentity,
+        handleRequest
+      )
+    } finally {
+      if (isMiddlewareInvoke) {
+        addRequestMeta(
+          req,
+          'requestInsightsIdentity',
+          resolvedRequestInsightsIdentity
+        )
+      }
+    }
   }
 
   private async handleRequestImpl(
@@ -1581,7 +1608,6 @@ export default abstract class Server<
 
       if (pathnameInfo.locale) {
         req.url = formatUrl(url)
-        addRequestMeta(req, 'didStripLocale', true)
       }
 
       // If we aren't in minimal mode or there is no locale in the query
@@ -1603,6 +1629,8 @@ export default abstract class Server<
       // be passed down for edge functions and the fetch disk
       // cache can be leveraged locally
       if (
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         !(this.serverOptions as any).webServerConfig &&
         !getRequestMeta(req, 'incrementalCache')
       ) {
@@ -1614,6 +1642,8 @@ export default abstract class Server<
         addRequestMeta(req, 'incrementalCache', incrementalCache)
         // This is needed for pages router to leverage unstable_cache
         // TODO: re-work this handling to not use global and use a AsyncStore
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(globalThis as any).__incrementalCache = incrementalCache
       }
 
@@ -1728,6 +1758,8 @@ export default abstract class Server<
         if (finished) return
 
         const err = new Error()
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(err as any).result = {
           response: new Response(null, {
             headers: {
@@ -1735,6 +1767,8 @@ export default abstract class Server<
             },
           }),
         }
+        // TODO(as-any): pre-existing cast, not yet reviewed
+        // eslint-disable-next-line @next/internal/no-as-any
         ;(err as any).bubble = true
         throw err
       }
@@ -1858,14 +1892,16 @@ export default abstract class Server<
 
   private getAppRouteRouteDefinition(
     page: string
-  ): AppRouteRouteDefinition | undefined {
+  ): AppRouteRouteDefinition | AppGoRouteRouteDefinition | undefined {
     const filename = this.appPathsManifest?.[page]
     if (!filename) return
 
     const pathname = this.appNormalizers.pathname.normalize(page)
 
     return {
-      kind: RouteKind.APP_ROUTE,
+      kind: filename.endsWith('.native.json')
+        ? RouteKind.APP_ROUTE_GO
+        : RouteKind.APP_ROUTE,
       pathname,
       page,
       bundlePath: this.appNormalizers.bundlePath.normalize(page),
@@ -2594,6 +2630,8 @@ export default abstract class Server<
       !!(
         getRequestMeta(req, 'isNextDataReq') ||
         (req.headers['x-nextjs-data'] &&
+          // TODO(as-any): pre-existing cast, not yet reviewed
+          // eslint-disable-next-line @next/internal/no-as-any
           (this.serverOptions as any).webServerConfig)
       ) &&
       (isSSG || hasServerProps)
@@ -2644,57 +2682,15 @@ export default abstract class Server<
       routeModule = components.routeModule
     }
 
-    /**
-     * If the route being rendered is an app page, and the ppr feature has been
-     * enabled, then the given route _could_ support PPR.
-     */
-    const couldSupportPPR: boolean =
+    const isPPREnabled: boolean =
       this.isAppPPREnabled &&
       typeof routeModule !== 'undefined' &&
       isAppPageRouteModule(routeModule)
 
-    // When enabled, this will allow the use of the `?__nextppronly` query to
-    // enable debugging of the static shell.
-    const hasDebugStaticShellQuery =
-      process.env.__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING === '1' &&
-      typeof query.__nextppronly !== 'undefined' &&
-      couldSupportPPR
-
-    // Whether the testing API is exposed (dev mode or explicit flag)
-    const exposeTestingApi =
-      this.dev === true ||
-      this.nextConfig.experimental.exposeTestingApiInProductionBuild === true
-
-    // Check for the instant test cookie for MPA navigations (page reload, full
-    // page load) in the Instant Navigation Testing API. Only applies to
-    // document requests (no RSC header) - RSC requests should proceed normally
-    // even during a locked scope, with blocking happening on the client side.
-    const hasInstantTestCookie =
-      exposeTestingApi &&
-      !isRSCRequestHeader(req.headers[RSC_HEADER]) &&
-      typeof req.headers.cookie === 'string' &&
-      req.headers.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=') &&
-      couldSupportPPR
-
-    // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
-    // prerender manifest and this is an app page.
-    const isRoutePPREnabled: boolean =
-      couldSupportPPR &&
-      ((
-        prerenderManifest.routes[pathname] ??
-        prerenderManifest.dynamicRoutes[pathname]
-      )?.renderingMode === 'PARTIALLY_STATIC' ||
-        // Ideally we'd want to check the appConfig to see if this page has PPR
-        // enabled or not, but that would require plumbing the appConfig through
-        // to the server during development. We assume that the page supports it
-        // but only during development or when the testing API is exposed.
-        ((hasDebugStaticShellQuery || hasInstantTestCookie) &&
-          (exposeTestingApi || this.experimentalTestProxy === true)))
-
     // If we're in minimal mode, then try to get the postponed information from
     // the request metadata. If available, use it for resuming the postponed
     // render.
-    const minimalPostponed = isRoutePPREnabled
+    const minimalPostponed = isPPREnabled
       ? getRequestMeta(req, 'postponed')
       : undefined
     const hasPostponedState = typeof minimalPostponed === 'string'

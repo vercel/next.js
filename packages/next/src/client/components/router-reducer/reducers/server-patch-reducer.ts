@@ -73,6 +73,8 @@ export function serverPatchReducer(
     // marked as having a dynamic rewrite when the mismatch was detected.
     null,
     // Not an HMR refresh, so there's no request generation to cancel.
-    undefined
+    undefined,
+    // Not part of a prepared navigation.
+    null
   )
 }

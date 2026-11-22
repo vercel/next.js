@@ -771,10 +771,10 @@ describe('Image Component Default Tests', () => {
         .map((log) => log.message)
         .join('\n')
       expect(warnings).toMatch(
-        /Image with src "\/wide.png" has either width or height modified, but not the other./gm
+        /Image with src "\/wide.png" is rendered with a different aspect ratio than its intrinsic dimensions./gm
       )
       expect(warnings).not.toMatch(
-        /Image with src "\/test.png" has either width or height modified, but not the other./gm
+        /Image with src "\/test.png" is rendered with a different aspect ratio than its intrinsic dimensions./gm
       )
     }
   })
@@ -1693,6 +1693,8 @@ describe('Image Component Default Tests', () => {
       format: 'json',
       isLocal: true,
       validator: 'whatwg',
+      // TODO(as-any): pre-existing cast, not yet reviewed
+      // eslint-disable-next-line @next/internal/no-as-any
     })) as any
     expect(result.isValid).toBe(true)
     expect(result.errors).toEqual([])

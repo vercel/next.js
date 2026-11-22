@@ -70,7 +70,9 @@ pub fn activation_key_from_chunk_path(path: &str) -> Option<RcStr> {
 /// The activation state of the lazily compiled dynamic import identified by `key`.
 ///
 /// Memoized per key, so every proxy and every reader of a given key observe the same bit.
-#[turbo_tasks::function]
+/// The state is not serialized. Invalidate cached readers in each new session so they
+/// subscribe to the recreated state.
+#[turbo_tasks::function(session_dependent)]
 pub fn lazy_compilation_state(key: RcStr) -> Vc<LazyCompilationState> {
     let _ = key;
     LazyCompilationState {

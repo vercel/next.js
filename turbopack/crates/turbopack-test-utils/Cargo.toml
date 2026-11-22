@@ -15,7 +15,7 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 bincode = { workspace = true }
-regex = { workspace = true, features = ["pattern"] }
+regex = { workspace = true }
 serde = { workspace = true }
 similar = "2.2.0"
 turbo-rcstr = { workspace = true }

@@ -71,7 +71,6 @@ pub fn create_graph<'a>(
     m: &Program,
     eval_context: &EvalContext,
     analyze_mode: AnalyzeMode,
-    supports_block_scoping: bool,
     specified_module_type: SpecifiedModuleType,
     cjs_tree_shaking: bool,
     cjs_scope_hoisting: bool,
@@ -95,7 +94,6 @@ pub fn create_graph<'a>(
         hoisted_effects: Default::default(),
         code_gens: Default::default(),
         ast_paths: Default::default(),
-        supports_block_scoping,
     };
 
     // CommonJS export recognition runs for a CommonJS module that emits code when either CJS

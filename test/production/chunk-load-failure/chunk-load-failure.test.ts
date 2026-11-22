@@ -2,13 +2,32 @@ import { nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import fs from 'fs'
 import { listClientChunks, retry } from 'next-test-utils'
+import type { NextConfig } from 'next'
 
-describe('chunk-load-failure', () => {
+const variants: Array<{ name: string; nextConfig: NextConfig }> = [
+  { name: 'default', nextConfig: {} },
+]
+// Component chunks only exist in Turbopack production builds.
+if (process.env.IS_TURBOPACK_TEST) {
+  variants.push({
+    name: 'generateComponentChunks',
+    nextConfig: {
+      experimental: {
+        turbopackChunking: { generateComponentChunks: true },
+      },
+    },
+  })
+}
+
+describe.each(variants)('chunk-load-failure ($name)', ({ nextConfig }) => {
   const { next } = nextTestSetup({
     files: __dirname,
+    nextConfig,
   })
 
-  async function getNextDynamicChunk() {
+  async function getNextDynamicChunk(
+    content = 'this is a lazy loaded async component'
+  ) {
     const browserChunks = await listClientChunks(
       path.join(next.testDir, next.distDir)
     )
@@ -17,7 +36,7 @@ describe('chunk-load-failure', () => {
         /\.js$/.test(f) &&
         fs
           .readFileSync(path.join(next.testDir, next.distDir, f), 'utf8')
-          .includes('this is a lazy loaded async component')
+          .includes(content)
     )
     expect(nextDynamicChunks).toHaveLength(1)
 
@@ -104,6 +123,48 @@ describe('chunk-load-failure', () => {
     }
   )
   /* eslint-enable jest/no-standalone-expect */
+
+  it('should load the chunk when the same import() is called again after a failure', async () => {
+    let nextDynamicChunk = await getNextDynamicChunk(
+      'this is a lazily imported module'
+    )
+
+    let failRequests = true
+    let failedRequestCount = 0
+    let retryRequestCount = 0
+    const browser = await next.browser('/retry', {
+      beforePageLoad(page) {
+        page.route(`**/${nextDynamicChunk}*`, async (route) => {
+          if (failRequests) {
+            failedRequestCount++
+            await route.abort('connectionreset')
+            return
+          }
+          retryRequestCount++
+          await route.continue()
+        })
+      },
+    })
+
+    await browser.elementByCss('#load').click()
+    await retry(async () => {
+      expect(await browser.elementByCss('#status').text()).toStartWith(
+        'ChunkLoadError'
+      )
+    })
+    expect(failedRequestCount).toBeGreaterThan(0)
+
+    // The network is back: calling the same import() again must request the
+    // chunk again instead of reusing the failed load.
+    failRequests = false
+    await browser.elementByCss('#load').click()
+    await retry(async () => {
+      expect(await browser.elementByCss('#status').text()).toBe(
+        'this is a lazily imported module'
+      )
+    })
+    expect(retryRequestCount).toBe(1)
+  })
 
   it('should report aborted chunks when navigating away', async () => {
     let nextDynamicChunk = await getNextDynamicChunk()
