@@ -69,6 +69,7 @@ import {
 import type { BaseNextRequest } from '../base-http'
 import type { I18NConfig, NextConfigRuntime } from '../config-shared'
 import ResponseCache, { type ResponseGenerator } from '../response-cache'
+import { getValidatedInvocationID } from '../response-cache/invocation-id'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import {
   RouterServerContextSymbol,
@@ -1369,8 +1370,12 @@ export abstract class RouteModule<
         req.headers.purpose === 'prefetch' ||
         getRequestMeta(req, 'isPrefetchRSCRequest') === true,
       // Use x-invocation-id header to scope the in-memory cache to a single
-      // revalidation request in minimal mode.
-      invocationID: req.headers['x-invocation-id'] as string | undefined,
+      // revalidation request in minimal mode. The header is client-writable (it
+      // is not in INTERNAL_HEADERS), so it is validated before it becomes part
+      // of a cache key: the reserved TTL sentinel must never be spellable by a
+      // client, or a request would land on the no-id slot while skipping the
+      // expiry and cached-failure checks that slot exists to enforce.
+      invocationID: getValidatedInvocationID(req.headers['x-invocation-id']),
       incrementalCache: await this.getIncrementalCache(
         req,
         nextConfig,
