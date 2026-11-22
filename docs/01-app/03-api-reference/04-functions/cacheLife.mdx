@@ -47,7 +47,7 @@ Add a cache directive (for example, `use cache`) at the file level or at the top
 >
 > - We recommend setting a `cacheLife` in every `use cache` scope so its behavior is clear at the call site. Omitting it leaves the lifetime implicit (the `default` profile applies), which makes it harder to reason about, for example in [nested cached scopes](#nested-caching-behavior).
 > - Call `cacheLife` in the same function or component where caching is defined. Avoid abstracting it into shared utilities so the cache behavior remains explicit and easy to reason about.
-> - If you call `cacheLife`, ensure only one call executes per function invocation. You can call it in different control flow branches, but only one should run per request. See the [conditional cache lifetimes](#conditional-cache-lifetimes) example. If more than one call runs, including after an `await`, each of `stale`, `revalidate`, and `expire` keeps the shortest value, so a later call can only shorten the lifetime.
+> - If you call `cacheLife`, ensure only one call executes per function invocation. You can call it in different control flow branches, but only one should run per request. See the [conditional cache lifetimes](#conditional-cache-lifetimes) example.
 
 ### Using preset profiles
 
@@ -433,7 +433,7 @@ export default async function Dashboard() {
   'use cache'
   // No cacheLife call - uses default (15 min)
   // If Widget has 5 min → Dashboard becomes 5 min
-  // If Widget has 1 hour → Dashboard stays 15 min
+  // If Widget has 1 hour → Dashboard revalidate stays 15 min
 
   return (
     <div>
@@ -445,6 +445,36 @@ export default async function Dashboard() {
 ```
 
 **It is recommended to specify an explicit `cacheLife`.** With explicit lifetime values, you can inspect a cached function or component and immediately know its behavior without tracing through nested caches. Without explicit lifetime values, the behavior becomes dependent on inner cache lifetimes, making it harder to reason about.
+
+<details>
+<summary>How lifetimes combine when more than one value applies</summary>
+
+Following the recommendations above keeps each scope's lifetime visible where it's cached. When code doesn't follow them, the result is still well defined. Next.js resolves `stale`, `revalidate`, and `expire` separately for each `use cache` scope:
+
+- **The scope sets the field:** if more than one `cacheLife` call runs in the scope, including calls made by functions it invokes, the shortest value is used, regardless of call order. Inner `use cache` scopes don't change it.
+- **The scope doesn't set the field:** the shortest of the `default` profile value and the values from inner `use cache` scopes is used.
+
+Because each field resolves on its own, a scope without an explicit `cacheLife` can end up with values from different sources:
+
+```tsx filename="app/dashboard/page.tsx"
+import { cacheLife } from 'next/cache'
+
+async function Widget() {
+  'use cache'
+  cacheLife('days') // revalidate: 1 day, expire: 1 week
+  return <div>...</div>
+}
+
+export default async function Dashboard() {
+  'use cache'
+  // No cacheLife call:
+  // revalidate stays at the default 15 minutes,
+  // expire drops from the default (never) to Widget's 1 week
+  return <Widget />
+}
+```
+
+</details>
 
 #### Nested short-lived caches
 
