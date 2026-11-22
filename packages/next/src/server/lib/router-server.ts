@@ -1218,6 +1218,11 @@ export async function initialize(opts: {
   )
 
   const upgradeHandler: WorkerUpgradeHandler = async (req, socket, head) => {
+    // An upgrade request is a request like any other. filterInternalHeaders() strips the
+    // INTERNAL_HEADERS (server-ipc/utils.ts) on the HTTP entry point; without the same
+    // call here, a client reaches resolveRoutes() - and any middleware it invokes - with
+    // x-middleware-*, x-matched-path and x-now-route-matches still attached.
+    filterInternalHeaders(req.headers)
     try {
       req.on('error', (_err) => {
         // TODO: log socket errors?
