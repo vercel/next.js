@@ -54,7 +54,7 @@ Through `nextjs_call`, agents can use the tools the Next.js development server e
 - **`get_errors`**: Get the current error state, including Next.js global errors such as `next.config` validation, browser runtime errors, and build errors with source-mapped stack traces.
 - **`get_logs`**: Get the path to the development log file, which contains browser console logs and server output.
 - **`get_page_metadata`**: Get runtime metadata about what contributes to the current page render. Requires the page to be open in a browser.
-- **`inspect_navigation`**: With Cache Components enabled, call `status` to list open App Router pages. Use the returned `pageId` to `arm` a page, then click a link or reload in the browser to [inspect its loading state](/docs/app/guides/instant-navigation#visualize-loading-states-with-the-nextjs-devtools). Call `release` when you're done. After a reload, call `status` again for the new page ID. Use a separate browser context so the pause doesn't affect other tabs on the same hostname.
+- **[`inspect_navigation`](#inspect-a-navigation)**: Pause and resume a navigation in an open App Router page to inspect its loading state.
 - **`get_project_metadata`**: Get the project path and dev server URL.
 - **`get_routes`**: Get all routes that will become entry points by scanning the filesystem. Returns routes grouped by router type (`appRouter`, `pagesRouter`). Dynamic segments appear as `[param]` or `[...slug]` patterns.
 - **`get_server_action_by_id`**: Look up a Server Action by its ID to find its source file and export name.
@@ -63,6 +63,14 @@ Through `nextjs_call`, agents can use the tools the Next.js development server e
 - **`get_request_insights`**: Get recent App Router request timelines, server fetches, and cache behavior captured by the local span recorder. Requires `experimental.requestInsights`.
 
 With the compilation tools, agents can check whether code compiles from the running dev server instead of running `next build` while they are still editing.
+
+### Inspect a navigation
+
+With Cache Components enabled, call `inspect_navigation` with `action: "status"` to list the open App Router pages. Choose a page in a separate browser context, then:
+
+1. Call `arm` with its `pageId`.
+2. Click a link or reload the page in the browser and [inspect the loading state](/docs/app/guides/instant-navigation#inspect-loading-states-with-browser-automation). After a reload, call `status` again to get the new `pageId`.
+3. Call `release` with the current `pageId` to resume, even if inspection fails.
 
 ## Development workflow
 
