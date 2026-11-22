@@ -50,6 +50,10 @@ const EXTERNALS = [
   'react',
   'react/jsx-runtime',
   'react-dom',
+  // Fizz, from the vendored React that App Router loads, which `react` resolves to in
+  // the SSR layer. `react-dom/server` isn't listed: the SSR layer maps it to a separate
+  // compiled copy with its own React (see core/document.ts).
+  'next/dist/server/route-modules/app-page/vendored/ssr/react-dom-server',
   'react-server-dom-webpack/*',
 ]
 
