@@ -56,29 +56,40 @@ export function registerUnhandledRejectionListener(): void {
 }
 
 /**
- * Checks if an error was raised by a failed write to stdout/stderr, e.g. when
- * the terminal the process is attached to has gone away (`EIO`, `EPIPE`).
+ * Error listener for `process.stdout` and `process.stderr`.
  *
- * Logging such an error with `console.error` writes to the same broken stream,
- * which fails again, triggers another "uncaughtException" and so on, looping
- * forever at 100% CPU.
+ * When the terminal the process is attached to has gone away, writes to
+ * stdout/stderr fail with `EIO`/`EPIPE`. Logging such an error with
+ * `console.error` writes to the same broken stream, which fails again, emits
+ * another stream "error" and so on, looping forever at 100% CPU. Node never
+ * leaves these streams in a `destroyed`/non-`writable` state (it resets them
+ * right after the error), so the state of the stream can't be used to detect
+ * this. Instead, handle the error at its source: the stream that emitted it.
  *
- * Only errors that happen while stdout or stderr is actually broken (already
- * destroyed or no longer writable) are treated this way. An EPIPE/EIO write
- * error from anywhere else (e.g. a socket) is a regular error and must still be
- * logged while the console is healthy.
+ * Other stream errors keep their previous behavior: they are rethrown, which
+ * surfaces them as an "uncaughtException" that is logged below.
+ *
+ * An `EPIPE`/`EIO` write error that doesn't originate from stdout/stderr (e.g.
+ * a socket) never reaches this listener and is still logged as before.
  */
-function isConsoleWriteError(error: unknown): boolean {
-  if (typeof error !== 'object' || error === null) {
-    return false
+function stdioErrorListener(error: unknown) {
+  const { code, syscall } = (error ?? {}) as {
+    code?: unknown
+    syscall?: unknown
   }
-  const { code, syscall } = error as { code?: unknown; syscall?: unknown }
-  if (syscall !== 'write' || (code !== 'EIO' && code !== 'EPIPE')) {
-    return false
+  if (syscall === 'write' && (code === 'EIO' || code === 'EPIPE')) {
+    return
   }
-  return [process.stdout, process.stderr].some(
-    (stream) => stream.destroyed || !stream.writable
-  )
+  throw error
+}
+
+function registerStdioErrorListeners() {
+  for (const stream of [process.stdout, process.stderr]) {
+    // Registering is a no-op if the listener is still attached.
+    if (!stream.listeners('error').includes(stdioErrorListener)) {
+      stream.on('error', stdioErrorListener)
+    }
+  }
 }
 
 export function installProcessErrorHandlers(
@@ -141,13 +152,12 @@ export function installProcessErrorHandlers(
     // is unrelated to the late-awaiting pattern. However, for similar reasons,
     // we still shouldn't crash the process. Just log it.
     process.on('uncaughtException', (reason: unknown) => {
-      // Don't log failed writes to stdout/stderr: logging would write to the
-      // same broken stream again and re-enter this handler in an endless loop.
-      if (isConsoleWriteError(reason)) {
-        return
-      }
       console.error(reason)
     })
+
+    // Don't let failed writes to stdout/stderr (e.g. after the terminal was
+    // closed) be logged back to the same broken stream in an endless loop.
+    registerStdioErrorListeners()
   }
 
   // Register the listener unconditionally, and not only during the guarded
