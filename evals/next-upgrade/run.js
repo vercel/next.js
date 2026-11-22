@@ -6,7 +6,7 @@ const { execFileSync, spawn } = require('node:child_process')
 const { config: loadEnvironment, parse } = require('dotenv')
 const { packPackage } = require('../lib/pack')
 require('tsx/cjs')
-const { loadCase, materialize } = require('./runner/fixture.ts')
+const { expectsStop, loadCase, materialize } = require('./runner/fixture.ts')
 const root = path.resolve(__dirname, '../..')
 const hash = (file) =>
   crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex')
@@ -646,7 +646,10 @@ async function main() {
     const prepared = await Promise.allSettled(
       [
         ['toolchain', () => prepareToolchain(output, preparation.signal)],
-        ...(cases.some((name) => loadCase(name).kind === 'direct')
+        ...(cases.some((name) => {
+          const scenario = loadCase(name)
+          return scenario.kind === 'direct' && !expectsStop(scenario)
+        })
           ? [
               [
                 'verifier',

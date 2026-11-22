@@ -1,26 +1,29 @@
-## Before changing files: check for duplicates
+## Before changing files: check for an equivalent open pull request
 
-- [ ] Check the app for an equivalent upgrade or Future Defaults adoption already
-      in progress.
-- [ ] If the app is in a Git repository, check local branches and commits. If it
-      has a remote, also check remote branches and commits.
+Only an open pull request with equivalent work can stop this upgrade.
+
 - [ ] If the repository has a provider remote, use its CLI or API to look for
       open pull requests with equivalent work. For GitHub, run
       `gh pr list --state open --limit 100 --json number,title,body,url,headRefName`.
       Inspect the body and diff of likely matches with `gh pr diff <number>`.
 
-Look for unmarked work and these markers:
+An open pull request is equivalent only if it makes the same change to this
+app: it carries this app's marker for the same upgrade type, or it performs the
+same version update (to this target or newer) or adopts the same Future
+Defaults.
 
 ```md
 <!-- next-upgrade: <type>; path="." -->
 <!-- next-upgrade: <type>; path="apps/web" -->
 ```
 
-Do not require Git to upgrade an app. Attempt each check that applies to the
-app's repository and remote. Do not substitute Git history for an available
-provider lookup. If a check is unavailable or fails, report which work could
-not be checked and continue the upgrade. Stop before changing files only if
-you find equivalent work.
+Branches, commits, and closed or merged pull requests never stop the upgrade,
+even when they attempted the same change; they are often stale or abandoned.
+Partial overlap, such as an older target version, another app, or only some of
+the requested Future Defaults, is not equivalent work. Mention notable related
+work in your report and continue. Do not require Git or a provider remote to
+upgrade an app. If the lookup is unavailable or fails, report that and
+continue.
 
 ## During the upgrade: troubleshoot failures
 
@@ -55,10 +58,10 @@ adoption, before moving on to delivery or the next adoption.
 - [ ] Group Future Defaults changes by the default adopted. If the app is in a
       Git repository, explain why and how in each commit message.
 - [ ] If the repository has a provider remote, with permission, recheck open
-      pull requests for duplicates. If you find equivalent work, report it and
-      do not publish another PR. If the recheck is unavailable, report that and
-      deliver the verified local changes. Otherwise, publish one draft PR with
-      the app marker:
+      pull requests for duplicates. If you find an equivalent open pull request,
+      report it and do not publish another PR. If the recheck is unavailable,
+      report that and deliver the verified local changes. Otherwise, publish one
+      draft PR with the app marker:
 
 ```md
 <!-- next-upgrade: <type>; path="." -->
