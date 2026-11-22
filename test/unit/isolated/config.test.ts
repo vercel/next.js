@@ -438,6 +438,71 @@ describe('config', () => {
     })
   })
 
+  describe('experimental.nativeRscRuntime config', () => {
+    const nativeRscRuntime = {
+      cacheComponents: true,
+      partialPrefetching: true,
+      experimental: { nativeRscRuntime: true },
+    }
+
+    async function withTurbopack<T>(
+      value: string | undefined,
+      fn: () => Promise<T>
+    ): Promise<T> {
+      const originalTurbopack = process.env.TURBOPACK
+      if (value === undefined) {
+        delete process.env.TURBOPACK
+      } else {
+        process.env.TURBOPACK = value
+      }
+      try {
+        return await fn()
+      } finally {
+        if (originalTurbopack === undefined) {
+          delete process.env.TURBOPACK
+        } else {
+          process.env.TURBOPACK = originalTurbopack
+        }
+      }
+    }
+
+    it('Should throw when `nativeRscRuntime` is set without `partialPrefetching`', async () => {
+      await withTurbopack('1', async () => {
+        await expect(async () => {
+          await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>-nrr-no-pp', {
+            customConfig: {
+              cacheComponents: true,
+              experimental: { nativeRscRuntime: true },
+            },
+          })
+        }).rejects.toThrow(
+          /`experimental.nativeRscRuntime` requires `cacheComponents` and `partialPrefetching` to be enabled/
+        )
+      })
+    })
+
+    it('Should throw when `nativeRscRuntime` is set without Turbopack', async () => {
+      await withTurbopack(undefined, async () => {
+        await expect(async () => {
+          await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>-nrr-webpack', {
+            customConfig: nativeRscRuntime,
+          })
+        }).rejects.toThrow(
+          /`experimental.nativeRscRuntime` is only supported with Turbopack/
+        )
+      })
+    })
+
+    it('Should accept `nativeRscRuntime` with Turbopack, `cacheComponents`, and `partialPrefetching`', async () => {
+      const config = await withTurbopack('1', () =>
+        loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>-nrr', {
+          customConfig: nativeRscRuntime,
+        })
+      )
+      expect(config.experimental.nativeRscRuntime).toBe(true)
+    })
+  })
+
   describe('experimental.useCache config', () => {
     it('Should throw when `useCache` is disabled while `cacheComponents` is enabled', async () => {
       await expect(async () => {
