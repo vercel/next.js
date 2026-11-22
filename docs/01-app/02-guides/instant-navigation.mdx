@@ -310,7 +310,7 @@ Toggle **Pause on navigations** off when you're done inspecting loading states. 
 
 ### Inspect loading states with browser automation
 
-On a running `next dev` server with Cache Components enabled, a coding agent can use the [`inspect_navigation` MCP tool](/docs/app/guides/mcp#inspect-a-navigation) to pause the next link click or reload.
+On a running `next dev` server with Cache Components enabled, use the [`inspect_navigation` MCP tool](/docs/app/guides/mcp#inspect-a-navigation) to pause the next link click or reload. To check the same loading state in a Playwright test, [wrap the navigation and its assertions in `instant()`](#prevent-regressions-with-e2e-tests).
 
 Open `/store/shoes`, arm the page, and click the link to `/store/hats`. A default `<Link>` shows both fallbacks. With `prefetch={true}` and Partial Prefetching enabled, the product name and price appear alongside "Checking availability...". Release the page to let the remaining data load. To inspect the static shell for that URL, arm the page again and reload.
 

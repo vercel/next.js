@@ -356,7 +356,7 @@ If an insight appears while you refactor, that specific page load or client navi
   />
 </FixCardGrid>
 
-Resolving the insight makes that entry point instant. It does not decide which UI should be available immediately. Pause a reload in the [Navigation Inspector](/docs/app/guides/instant-navigation#visualize-loading-states-with-the-nextjs-devtools) to see the static shell. A coding agent can inspect the same shell with the [`inspect_navigation` MCP tool](/docs/app/guides/mcp#inspect-a-navigation). Use what you see to choose which UI to move into the shell, or give the route and intended UI to the [optimizer skill](#use-the-optimizer-skill-recommended).
+Resolving the insight makes that entry point instant. It does not decide which UI should be available immediately. Pause a reload in the [Navigation Inspector](/docs/app/guides/instant-navigation#visualize-loading-states-with-the-nextjs-devtools) to see the static shell. You can also inspect the shell in development with the [`inspect_navigation` MCP tool](/docs/app/guides/mcp#inspect-a-navigation), or test it on an initial page load with [Playwright's `instant()`](/docs/app/guides/testing/playwright#initial-page-loads). Use what you see to choose which UI to move into the shell, or give the route and intended UI to the [optimizer skill](#use-the-optimizer-skill-recommended).
 
 ## Example
 

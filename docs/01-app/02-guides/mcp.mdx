@@ -72,6 +72,8 @@ With Cache Components enabled, call `inspect_navigation` with `action: "status"`
 2. Click a link or reload the page in the browser and [inspect the loading state](/docs/app/guides/instant-navigation#inspect-loading-states-with-browser-automation). After a reload, call `status` again to get the new `pageId`.
 3. Call `release` with the current `pageId` to resume, even if inspection fails.
 
+To check the same loading state in a Playwright test, use [`instant()`](/docs/app/guides/testing/playwright#testing-instant-navigations).
+
 ## Development workflow
 
 1. Start your Next.js development server:
