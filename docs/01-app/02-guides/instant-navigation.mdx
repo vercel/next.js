@@ -142,7 +142,7 @@ The `@next/playwright` package provides an [`instant()`](/docs/app/guides/testin
 
 ### Inspect loading states
 
-The **Navigation Inspector** in the Next.js DevTools freezes the page at its initial loading state, showing the static shell on direct visits and the prefetched destination on client navigations. Use the inspector to see how much meaningful content lands in the shell.
+The **Navigation Inspector** in the Next.js DevTools freezes the page at its initial loading state, showing the static shell on direct visits and the prefetched destination on client navigations. On a running `next dev` server, a coding agent can pause the same navigation with the [`inspect_navigation` MCP tool](/docs/app/guides/mcp#inspect-a-navigation).
 
 Pair it with the React DevTools Suspense panel to see exactly which boundary covers which part of the page. See [Visualize loading states with the Next.js DevTools](#visualize-loading-states-with-the-nextjs-devtools) for the workflow.
 

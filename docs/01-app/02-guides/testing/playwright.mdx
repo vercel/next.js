@@ -167,7 +167,7 @@ You can learn more about Playwright and Continuous Integration from these resour
 
 If you're using [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), the `instant()` helper from `@next/playwright` lets you assert what is visible immediately after a navigation, before any dynamic content streams in. The helper is experimental.
 
-> **Good to know:** The callback tests the same UI you can inspect with **Pause on navigations** in the [Navigation Inspector](/docs/app/guides/instant-navigation#visualize-loading-states-with-the-nextjs-devtools). When the callback finishes, `instant()` releases the pause, like clicking **Resume**.
+> **Good to know:** The callback tests the same UI you can inspect with **Pause on navigations** in the [Navigation Inspector](/docs/app/guides/instant-navigation#visualize-loading-states-with-the-nextjs-devtools). A coding agent can inspect that UI in `next dev` with the [`inspect_navigation` MCP tool](/docs/app/guides/mcp#inspect-a-navigation) before deciding what to assert. When the callback finishes, `instant()` releases the pause, like clicking **Resume**.
 
 ### Installing the helper
 

@@ -57,6 +57,8 @@ If the route is not yet structured for instant navigation, start with the [Insta
 
 Set `<Link prefetch={true}>` to resolve URL data for that link before navigation. The destination must use [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), enabled globally with `partialPrefetching` or per segment with [`prefetch = 'partial'`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch#partial).
 
+To see which content a particular link prefetched, use the [`inspect_navigation` MCP tool](/docs/app/guides/mcp#inspect-a-navigation) to pause a click on that link in development.
+
 For a custom link, call `router.prefetch(href, { kind: 'full' })` to request the same per-link stage. Calling `router.prefetch(href)` without the `kind` option requests only the App Shell.
 
 A user on `/` sees links to `/search?q=react` and `/search?q=next`, each opting in with `prefetch={true}`:
