@@ -1563,7 +1563,9 @@ async fn go_session(project: ResolvedVc<Project>) -> Result<Vc<GoBuildSession>> 
 struct GoPackage {
     sources: ResolvedVc<GoSourceSet>,
     directory: FileSystemPath,
-    /// The adapter output ID, without `basePath`. Empty for proxies.
+    /// The route ID, without `basePath`: the adapter output ID and the key that selects the
+    /// route in a production executable. Written to the route's `.native.json` descriptor.
+    /// Empty for proxies.
     route_id: String,
     handler: String,
     dispatch: String,
@@ -2049,6 +2051,9 @@ impl Endpoint for GoEndpoint {
             GoPackageAnalysis::Ready(package) => package,
             GoPackageAnalysis::Failed(build) => return native_failed(build).await,
         };
+        // The route ID that selects this route's handler in a production executable. It is
+        // written to the descriptor, so the server and adapters never derive it again.
+        let route_id = package.route_id.clone();
         let node_root = project.node_root().owned().await?;
         let (executable, executable_asset, result) = if !is_proxy
             && project.next_mode().await?.is_production()
@@ -2185,6 +2190,8 @@ impl Endpoint for GoEndpoint {
         if is_proxy {
             descriptor["source"] =
                 serde_json::to_value(project.project_path().await?.get_path_to(&this.path))?;
+        } else {
+            descriptor["route"] = serde_json::Value::String(route_id);
         }
         let output_root = to_sys_path(node_root.clone())
             .await?

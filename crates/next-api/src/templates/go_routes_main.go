@@ -13,15 +13,20 @@ import (
 )
 
 func main() {
-	token := os.Getenv("__NEXT_GO_TOKEN")
-	if token == "" {
-		panic("native route must be started by Next.js")
-	}
 	// One worker serves every route.go of a production build. Next.js routes each
 	// request, including rewrites and proxy.ts, and names the selected route in
 	// x-next-internal-go-route. Requests never select a handler by pathname.
 	routes := map[string]http.HandlerFunc{
 		// __NEXT_GO_ROUTES__
+	}
+	// next build runs the executable once to surface failures in package
+	// initialization, which has completed by now, as build errors.
+	if os.Getenv("__NEXT_GO_STARTUP_CHECK") == "1" {
+		return
+	}
+	token := os.Getenv("__NEXT_GO_TOKEN")
+	if token == "" {
+		panic("native route must be started by Next.js")
 	}
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

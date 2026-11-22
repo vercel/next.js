@@ -802,11 +802,16 @@ describe('native-route-go', () => {
         await next.readFile('.next/server/app-paths-manifest.json')
       )
       const executables = new Set<string>()
-      for (const entry of Object.values(manifest)) {
+      for (const [page, entry] of Object.entries(manifest)) {
         if (!entry.endsWith('.native.json')) continue
-        executables.add(
-          JSON.parse(await next.readFile('.next/server/' + entry)).executable
+        const descriptor = JSON.parse(
+          await next.readFile('.next/server/' + entry)
         )
+        executables.add(descriptor.executable)
+        // The compiler records the route ID that selects this handler.
+        if (page === '/(group)/native/[id]/route') {
+          expect(descriptor.route).toBe('/native/[id]')
+        }
       }
       expect([...executables]).toEqual([expect.stringMatching(/^go-routes-/)])
       // Next.js names the routed handler; the shared process serves both.
@@ -1810,6 +1815,38 @@ describe('native route diagnostics', () => {
         expect(output).toContain('http.HandlerFunc')
       }
     )
+  })
+  it('fails the build when routes conflict while initializing in one process', async () => {
+    // Each route has its own process in development, but every route shares
+    // one in production, where these registrations panic at startup.
+    const sibling = `package route
+
+import "net/http"
+
+func init() {
+\thttp.HandleFunc("/metrics", func(http.ResponseWriter, *http.Request) {})
+}
+`
+    const files = ['app/methods/metrics.go', 'app/explicit-methods/metrics.go']
+    try {
+      for (const file of files) await next.patchFile(file, sibling)
+      const result = await next.runCommand(['build', '--turbopack'], {
+        env: {
+          IS_WEBPACK_TEST: '',
+          IS_TURBOPACK_TEST: '1',
+          NEXT_RSPACK: '',
+          NEXT_TEST_USE_RSPACK: '',
+        },
+      })
+      expect(result.exitCode).not.toBe(0)
+      const output = result.stdout + result.stderr
+      expect(output).toContain(
+        'The Go Route Handler executable failed while initializing'
+      )
+      expect(output).toContain('"/metrics"')
+    } finally {
+      for (const file of files) await next.deleteFile(file)
+    }
   })
   it('diagnoses conflicting Go and TS handlers', async () => {
     await next.patchFile(

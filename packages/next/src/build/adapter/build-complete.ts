@@ -1412,13 +1412,21 @@ export async function handleBuildComplete({
             }
             const descriptor = JSON.parse(
               await fs.readFile(descriptorPath, 'utf8')
-            ) as { executable: string }
+            ) as { executable: string; route: string }
             if (
               typeof descriptor?.executable !== 'string' ||
               path.isAbsolute(descriptor.executable)
             ) {
               throw new InvariantError(
                 `Invalid native route descriptor for ${page}`
+              )
+            }
+            // The shared executable selects a handler by the route ID that
+            // the compiler wrote into the descriptor. It must be the output ID
+            // that adapters bind or send, or the route could never be selected.
+            if (descriptor.route !== normalizedPage) {
+              throw new InvariantError(
+                `Native route ${page} has route ID ${JSON.stringify(descriptor.route)}, expected ${JSON.stringify(normalizedPage)}`
               )
             }
             const executablePath = path.resolve(

@@ -20,6 +20,11 @@ func main() {
 	routes := map[string]http.HandlerFunc{
 		// __NEXT_GO_ROUTES__
 	}
+	// next build runs the executable once to surface failures in package
+	// initialization, which has completed by now, as build errors.
+	if os.Getenv("__NEXT_GO_STARTUP_CHECK") == "1" {
+		return
+	}
 	handler := nextGoSelectHandler(routes)
 	port := os.Getenv("PORT")
 	number, err := strconv.Atoi(port)

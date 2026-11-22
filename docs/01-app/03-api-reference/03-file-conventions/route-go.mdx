@@ -135,6 +135,8 @@ Direct `go run` and `go test` do not inject the generated wrapper or `ParamValue
 
 `next build` compiles all route directories into one executable, with or without an adapter, and `next start` runs it as one process that serves every Go Route Handler. The executable is one Go program with one main module, so every route directory must belong to the same Go module, or none of them may have a `go.mod`. A compile error in any Go route fails the build for all of them. Each route directory remains a separate package, so package-level names in different routes do not conflict, and each route can import the same `internal` packages as in development, including routes inside an `internal` directory. `next dev` compiles each route on its own, so an edit recompiles only that route.
 
+Because every route shares one process in production, process-wide state is shared too. Package initialization (`init` functions and package-level variables) of every route runs at startup, and registrations that must be unique per process, such as patterns on `http.DefaultServeMux`, `flag` definitions, or metrics in a global registry, conflict when two routes make the same one. Keep such state inside each route's handlers, or register it once in a shared package. `next build` runs the executable once to initialize every route, using the build environment, and fails the build if initialization fails.
+
 Go routes support `app`, `src/app`, [route groups](/docs/app/api-reference/file-conventions/route-groups), and [dynamic segments](/docs/app/api-reference/file-conventions/dynamic-routes). A Go handler cannot share its URL with another Route Handler or page.
 
 ### Development and Errors

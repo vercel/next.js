@@ -15,6 +15,13 @@ const noop = () => {}
  */
 const NATIVE_ROUTE_HEADER = 'x-next-internal-go-route'
 
+/** A route's descriptor: its executable, and its route ID within it. */
+interface NativeTarget {
+  executable: string
+  /** The route ID without basePath, such as `/users/[id]`. Absent for proxy.go. */
+  route: string | undefined
+}
+
 // The middleware response pipeline expects decoded bytes and removes the
 // encoded body's Content-Encoding and Content-Length headers.
 // TODO: Remove this decoder once terminal middleware responses can pass through
@@ -84,8 +91,8 @@ export type NativeRouteWorkerEvent =
       tokenHeader: string
       token: string
       /** Header that names the route a request is for, and its value for page. */
-      routeHeader: string
-      route: string
+      routeHeader?: string
+      route?: string
     }>
   // token identifies the worker: a new worker can get an exited one's port.
   | Readonly<{ event: 'gone'; address: string; token: string }>
@@ -116,7 +123,7 @@ function reportGone(worker: Worker) {
 export class NativeRouteManager {
   private workers = new Map<string, Promise<Worker>>()
   private routes = new Map<string, string>()
-  private executablePaths = new Map<string, string | Promise<string>>()
+  private targets = new Map<string, NativeTarget | Promise<NativeTarget>>()
   private closed = false
   private activePages: ReadonlySet<string> | undefined
   private allWorkers = new Set<Worker>()
@@ -126,7 +133,7 @@ export class NativeRouteManager {
     private readonly dev: boolean
   ) {}
 
-  private async readExecutable(entry: string): Promise<string> {
+  private async readTarget(entry: string): Promise<NativeTarget> {
     const descriptor = JSON.parse(
       await fs.readFile(
         /* turbopackIgnore: true */ join(
@@ -137,7 +144,10 @@ export class NativeRouteManager {
         'utf8'
       )
     )
-    if (typeof descriptor?.executable !== 'string') {
+    if (
+      typeof descriptor?.executable !== 'string' ||
+      (descriptor.route !== undefined && typeof descriptor.route !== 'string')
+    ) {
       throw new Error('Invalid native route descriptor')
     }
     const goos = process.platform === 'win32' ? 'windows' : process.platform
@@ -161,7 +171,7 @@ export class NativeRouteManager {
     if (localPath.startsWith('..') || isAbsolute(localPath)) {
       throw new Error('Native route executable is outside the server output')
     }
-    return executable
+    return { executable, route: descriptor.route }
   }
 
   private async start(executable: string): Promise<Worker> {
@@ -296,21 +306,21 @@ export class NativeRouteManager {
 
   private async getWorker(
     page: string,
-    entry: string,
-    route: string
-  ): Promise<Worker> {
+    entry: string
+  ): Promise<{ worker: Worker; route: string | undefined }> {
     if (this.closed) throw new Error('Next.js server is closing')
     // Development output can change between requests; production output cannot.
-    let executable = this.dev ? undefined : this.executablePaths.get(entry)
-    if (!executable) {
-      executable = this.readExecutable(entry)
-      if (!this.dev) this.executablePaths.set(entry, executable)
+    let target = this.dev ? undefined : this.targets.get(entry)
+    if (!target) {
+      target = this.readTarget(entry)
+      if (!this.dev) this.targets.set(entry, target)
     }
-    if (typeof executable !== 'string') {
-      const resolved = await executable
-      if (!this.dev) this.executablePaths.set(entry, resolved)
-      executable = resolved
+    if (target instanceof Promise) {
+      const resolved = await target
+      if (!this.dev) this.targets.set(entry, resolved)
+      target = resolved
     }
+    const { executable, route } = target
     if (this.closed) throw new Error('Next.js server is closing')
     if (this.activePages && !this.activePages.has(page)) {
       throw new Error('Native route was removed; retry the request')
@@ -350,27 +360,27 @@ export class NativeRouteManager {
         address: `127.0.0.1:${worker.port}`,
         tokenHeader: 'x-next-internal-go-token',
         token: worker.token,
-        routeHeader: NATIVE_ROUTE_HEADER,
-        route,
+        ...(route === undefined
+          ? {}
+          : { routeHeader: NATIVE_ROUTE_HEADER, route }),
       })
     }
-    return worker
+    return { worker, route }
   }
 
-  /**
-   * `route` is the route's pathname without basePath, such as `/users/[id]`.
-   * Production builds compile every route.go into one executable, and its
-   * worker serves the route that this header names.
-   */
   async invoke(
     page: string,
     entry: string,
     req: IncomingMessage,
     res: ServerResponse,
-    url: string,
-    route: string
+    url: string
   ): Promise<void> {
-    const worker = await this.getWorker(page, entry, route)
+    const { worker, route } = await this.getWorker(page, entry)
+    // Production builds compile every route.go into one executable. Its worker
+    // serves the route that the compiler wrote into this route's descriptor.
+    if (route === undefined) {
+      throw new Error('Native route descriptor is missing its route')
+    }
     // Disconnects during descriptor resolution or startup predate the
     // transport listeners below. Do not dispatch those requests to Go.
     if (req.aborted || res.destroyed) return
@@ -394,7 +404,7 @@ export class NativeRouteManager {
     originalUrl: string = req.url
   ): Promise<Response> {
     req.signal.throwIfAborted()
-    const worker = await this.getWorker('/_middleware', entry, '')
+    const { worker } = await this.getWorker('/_middleware', entry)
     req.signal.throwIfAborted()
     const url = new URL(req.url)
     const target = new URL(originalUrl)
@@ -536,6 +546,6 @@ export class NativeRouteManager {
     )
     this.workers.clear()
     this.routes.clear()
-    this.executablePaths.clear()
+    this.targets.clear()
   }
 }

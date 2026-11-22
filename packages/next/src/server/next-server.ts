@@ -1131,8 +1131,7 @@ export default class NextNodeServer extends BaseServer<
           formatUrl({
             pathname: this.nextConfig.basePath + pathname,
             query,
-          }),
-          match.definition.pathname
+          })
         )
         return true
       }

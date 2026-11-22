@@ -36,6 +36,7 @@ describe('native route runtime', () => {
         JSON.stringify({
           version: 1,
           executable: 'worker',
+          route: '/',
           goos: process.platform === 'win32' ? 'windows' : process.platform,
           goarch:
             process.arch === 'x64'
@@ -56,8 +57,7 @@ describe('native route runtime', () => {
         'route.native.json',
         req,
         res,
-        '/route',
-        '/'
+        '/route'
       )
 
       try {
@@ -203,10 +203,19 @@ describe('native route runtime', () => {
         )
         return child as unknown as childProcess.ChildProcess
       })
-    // A production build's descriptors all name the same executable.
-    jest.spyOn(fs, 'readFile').mockResolvedValue(
-      JSON.stringify({
+    // A production build's descriptors all name the same executable, and each
+    // carries the route ID the compiler assigned to its route.
+    const routes: Record<string, [page: string, route: string]> = {
+      '/users/1': ['/(group)/users/[id]/route', '/users/[id]'],
+      '/health': ['/health/route', '/health'],
+    }
+    jest.spyOn(fs, 'readFile').mockImplementation((async (file: string) => {
+      const [, route] = Object.values(routes).find(([page]) =>
+        String(file).endsWith(`app${page}.native.json`)
+      )!
+      return JSON.stringify({
         executable: 'go-routes-0123',
+        route,
         goos: process.platform === 'win32' ? 'windows' : process.platform,
         goarch:
           process.arch === 'x64'
@@ -215,16 +224,12 @@ describe('native route runtime', () => {
               ? '386'
               : process.arch,
       })
-    )
+    }) as typeof fs.readFile)
     const manager = new NativeRouteManager(__dirname, false)
-    const routes: Record<string, [page: string, route: string]> = {
-      '/users/1': ['/(group)/users/[id]/route', '/users/[id]'],
-      '/health': ['/health/route', '/health'],
-    }
     const front = http.createServer((req, res) => {
-      const [page, route] = routes[req.url!]
+      const [page] = routes[req.url!]
       manager
-        .invoke(page, `app${page}.native.json`, req, res, req.url!, route)
+        .invoke(page, `app${page}.native.json`, req, res, req.url!)
         .catch((error) => {
           res.statusCode = 500
           res.end(String(error))

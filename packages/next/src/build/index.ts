@@ -255,6 +255,7 @@ import { buildCustomRoute } from '../lib/build-custom-route'
 import { validateAppPaths } from './validate-app-paths'
 import { throwMissingGspErrorInStaticRoute } from '../shared/lib/errors/ensure-static-gsp-errors'
 import { isEmptyParams } from '../server/lib/params-utils'
+import { checkNativeRouteStartup } from './check-native-routes'
 
 type Fallback = null | boolean | string
 
@@ -2399,6 +2400,18 @@ export default async function build(
           path.join(distDir, APP_PATH_ROUTES_MANIFEST),
           appPathRoutes
         )
+
+        if (nativeAppPaths.size > 0) {
+          await nextBuildSpan
+            .traceChild('check-native-route-startup')
+            .traceAsyncFn(() =>
+              checkNativeRouteStartup(
+                dir,
+                distDir,
+                [...nativeAppPaths].map((key) => appPathsManifest[key])
+              )
+            )
+        }
       }
 
       process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
